@@ -97,11 +97,10 @@ namespace Web::Animations {
 
 class Animatable;
 class AnimationRef;
-class AnimationTimeline;
 class EffectRef;
 class KeyframeSetView;
 class NamedTimelines;
-class WeakAnimationSetView;
+class TimelineView;
 
 }
 
@@ -276,7 +275,6 @@ class ContainerQuery;
 class ContentStyleValue;
 class CounterDefinitionsStyleValue;
 class CounterStyleStyleValue;
-class CSSAnimation;
 class CSSDescriptors;
 class CSSFontFaceRule;
 class CSSFontFeatureValuesRule;
@@ -284,9 +282,7 @@ class CSSFunctionRule;
 class CSSGroupingRule;
 class CSSImportRule;
 class CSSKeyframesRule;
-class CSSKeywordValue;
 class CSSNestedDeclarations;
-class CSSNumericValue;
 class CSSPositionTryDescriptors;
 class CSSRule;
 class CSSRuleList;
@@ -295,8 +291,6 @@ class CSSStyleProperties;
 class CSSStyleRule;
 class CSSStyleSheet;
 class StyleSheetState;
-class CSSStyleValue;
-class CSSUnitValue;
 class CursorStyleValue;
 class CustomIdentStyleValue;
 class DimensionStyleValue;
@@ -432,8 +426,6 @@ struct CustomPropertyRegistration;
 struct LogicalAliasMappingContext;
 struct RequiredInvalidationAfterStyleChange;
 
-// https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
-using CSSNumberish = Variant<double, GC::Ref<CSSNumericValue>>;
 using PaintOrderList = Array<PaintOrder, 3>;
 using StyleValueVector = Vector<ValueComparingNonnullRefPtr<StyleValue const>>;
 

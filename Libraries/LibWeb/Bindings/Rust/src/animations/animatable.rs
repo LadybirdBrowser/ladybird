@@ -7,16 +7,17 @@
 //! https://drafts.csswg.org/web-animations-1/#the-animatable-interface-mixin
 
 use core::ffi::c_void;
-use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{Gc, MarkedVec, Object};
 use libweb_rust::AnimationRecordRef;
-use libweb_rust::web_animations::sort_in_composite_order;
+use libweb_rust::web_animations::{
+    element_node_document, sort_in_composite_order, web_animation_compare_elements_in_tree_order,
+};
 
 use super::animation::{
-    AnyAnimation, TimelineRangeValue, animation_object, default_document_timeline, parse_timeline_range_edge,
-    perform_host_effect, realm_of_element,
+    AnyAnimation, TimelineRangeValue, animation_object, parse_timeline_range_edge, perform_host_effect,
+    realm_of_element,
 };
 use super::animation_timeline::{AnyAnimationTimeline, element_of_wrapper};
 use super::keyframe_effect::{
@@ -27,14 +28,12 @@ use crate::bindings::conversions::CppInterface;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 unsafe extern "C" {
-    fn web_animation_for_each_relevant_animation(
+    fn web_animation_for_each_associated_animation(
         node_wrapper: *mut c_void,
         subtree: bool,
         context: *mut c_void,
         on_animation: unsafe extern "C" fn(context: *mut c_void, animation: *const c_void),
     );
-    fn web_animation_compare_elements_in_tree_order(first: *mut c_void, second: *mut c_void) -> i32;
-    fn ladybird_animations_element_node_document(element: *mut c_void) -> *mut c_void;
 }
 
 // https://drafts.csswg.org/web-animations-1/#dictdef-keyframeanimationoptions
@@ -65,13 +64,14 @@ pub(crate) fn animate(
 
     // 1. Let target be the object on which this method was called.
     let target = element_of_wrapper(*this);
-    // SAFETY: The element is live, and so is its node document.
-    let document = NonNull::new(unsafe { ladybird_animations_element_node_document(target.as_ptr()) })
-        .expect("an element has a node document");
-    let realm = realm_of_element(target);
 
     // INTEROP: Like Chrome, the keyframes are processed before the range is parsed, so the keyframes' getters run first.
     let keyframes = process_a_keyframes_argument(vm, keyframes)?;
+
+    // NB: The getters of the keyframes can move the target to another document, whose default document timeline the
+    //     animation then gets.
+    let document = element_node_document(target);
+    let realm = realm_of_element(target);
 
     let (effect_options, animation_options) = match options {
         UnrestrictedDoubleOrKeyframeAnimationOptions::UnrestrictedDouble(duration) => (
@@ -112,11 +112,13 @@ pub(crate) fn animate(
     )?;
 
     // 3. If options is a KeyframeAnimationOptions object, let timeline be the timeline member of options or, if
-    //    timeline member of options is missing, be the default document timeline of the node document of the element
-    //    on which this method was called.
+    //    timeline member of options is missing, the default document timeline of the node document of the element on
+    //    which this method was called.
     let timeline = match timeline_option {
         Some(timeline) => timeline.map(|timeline| timeline.record().clone()),
-        None => Some(default_document_timeline(document)),
+        None => Some(libweb_rust::web_animations::TimelineRecordRef::default_of_document(
+            document,
+        )),
     };
 
     // 4. Construct a new Animation object, animation, in the relevant Realm of target by using the same procedure as
@@ -172,8 +174,8 @@ pub(crate) fn get_animations<'vm>(
 
     // 4. If options is passed with subtree set to true, then return the set of relevant animations for a subtree of
     //    target. Otherwise, return the set of relevant animations for target.
-    // The returned list is sorted using the composite order described for the associated animations of effects in
-    // §5.4.2 The effect stack.
+    // The list returned by the above algorithm is sorted using the composite order described for the associated
+    // animations of effects in § 5.4.2 The effect stack.
     Ok(sorted_relevant_animations(this, options.subtree, cx))
 }
 
@@ -192,13 +194,14 @@ pub(super) fn sorted_relevant_animations<'vm>(
     let mut relevant_animations: Vec<AnimationRecordRef> = Vec::new();
     // SAFETY: The wrapper is live, and the callback receives the list for as long as the call runs.
     unsafe {
-        web_animation_for_each_relevant_animation(
+        web_animation_for_each_associated_animation(
             node.wrapper().as_ptr().cast(),
             subtree,
             (&raw mut relevant_animations).cast(),
             on_animation,
         );
     }
+    relevant_animations.retain(AnimationRecordRef::is_exposed_relevant);
 
     sort_in_composite_order(&mut relevant_animations, web_animation_compare_elements_in_tree_order);
 

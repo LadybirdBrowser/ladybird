@@ -4,169 +4,52 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The C ABI through which the C++ animation classes reach the timing model, until they move to Rust.
+//! The C ABI through which LibWeb's C++ (the DOM, style computation, SVG and the event loop) reaches the animation
+//! records, and the host functions the records call back into.
 
 use super::animation::{
     AnimationCell, AnimationHandle, AnimationKind, AttachmentRangeEdge, AttachmentRangeEdgeOffset,
-    CSS_ANIMATION_PLAY_STATE_PAUSED, CSS_ANIMATION_PLAY_STATE_RUNNING, CSS_TRANSITION_PHASE_IDLE, CssAnimationFlag,
-    CssAnimationState, CssTransitionState, HostCellKind, HostTaskId, OwningElement, SmilHolder, WeakAnimationSet,
+    CSS_ANIMATION_PLAY_STATE_PAUSED, CSS_ANIMATION_PLAY_STATE_RUNNING, CssAnimationFlag, CssAnimationState,
+    CssTransitionState, HostCellKind, HostTaskId, OwningElement, SmilHolder, TransitionPhase, WeakAnimationSet,
 };
 use super::clock_plan::ClockPlanAnimation;
 use super::composite_order::composite_order;
 use super::document_animations::{DocumentAnimationSetKind, DocumentAnimations, DocumentEffectSetKind};
 use super::easing::CompactEasing;
-use super::effect::{
-    AnimationEffectCell, AnimationEffectId, CompositorAnimationStateAccess, EffectFlag, EffectHandle,
-    ObservationSampleRequest, PerFrameStyleUpdateSkipDecision, PerFrameStyleUpdateSkipKey,
-};
+use super::effect::{AnimationEffectCell, AnimationEffectId, EffectFlag, EffectHandle, resolve_effect_timing};
 use super::element_animations::{AnimationOwnerSlot, ElementAnimations, StyleEngineTarget, TransitionProperty};
 use super::host_effects::{HostEffectKind, HostEffects, PlaybackEventType};
-use super::host_timing::{FfiAnimationKind, FfiAnimationTimingState};
+use super::host_timing::FfiAnimationKind;
 use super::keyframes::{
-    CompositeOperationOrAuto, KeyframeOrigin, KeyframeProperty, KeyframeSet, KeyframeValue, ProcessedKeyframe,
-    ResourceContext,
+    CompositeOperationOrAuto, KeyframeProperty, KeyframeSet, ProcessedKeyframe, ResourceContext, key_of_offset,
 };
 use super::pending_animation_events::{
     FfiPendingAnimationEvent, PendingAnimationEvent, PendingAnimationEventKind, TimeEventType,
 };
 use super::procedures::{self, AnimationError, DidSeek, Invalidate, Procedures, SynchronouslyNotify};
-use super::snapshot::TimelineClock;
+use super::provisional_transitions::TransitionTarget;
+use super::rendering_trace::note_rendering_trace_event;
 use super::timeline::{
-    AnimationTimelineId, ScrollNodeStableId, ScrollTimelineBoxes, ScrollTimelineSource, ScrollTimelineState,
-    TimelineCell, TimelineHandle, TimelineKind, TimelineUpdate, ViewTimelineInset, ViewTimelineInsetEdge,
-    ViewTimelineState,
+    ScrollTimelineSource, ScrollTimelineState, TimelineCell, TimelineHandle, TimelineKind, ViewTimelineInset,
+    ViewTimelineInsetEdge, ViewTimelineState,
 };
-use super::timing::{
-    self, AnimationEffectPhase, AnimationEffectTiming, AnimationPlayState, AnimationPlayback, FillMode, OptionalNumber,
-    OptionalTimeValue, SpecifiedEffectTiming, TimeValue, TimelineSample,
-};
+use super::timeline_host::{create_timeline, default_document_timeline};
+use super::timing::{AnimationPlayState, OptionalTimeValue, SpecifiedEffectTiming, TimeValue};
 use super::transitions::{self, LaneAdoption, ProvisionalTransitionTiming, TransitionOrigin};
 use crate::css::animation::FfiCompositeOperation;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style::animations::AppliedAnimationDefinition;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData, retain_style_value};
-use crate::css::transition::{FfiExistingTransition, FfiLaneTransition};
-use crate::layout::node_data::NodeSlotId;
-use crate::painting::visual_animation_builder::CompositorAnimationEffectState;
-use crate::render_state::{BegunRead, DocumentHost};
-use libcompositing_rust::easing::{Easing, FfiEasingDescriptor, evaluate_easing_descriptor};
+use crate::css::transition::{FfiExistingTransition, FfiLaneTransition, FfiTransitionAction, FfiTransitionActionKind};
+use crate::render_state::DocumentHost;
+use libcompositing_rust::easing::{Easing, FfiEasingDescriptor};
+use smallvec::SmallVec;
 use std::cmp::Ordering;
 use std::ffi::c_void;
 use std::num::NonZeroU64;
 use std::ptr::NonNull;
 use std::sync::Arc;
-
-/// The timing of an effect at one local time, and what follows from its timing alone.
-#[repr(C)]
-pub struct FfiResolvedEffectTiming {
-    pub phase: AnimationEffectPhase,
-    pub local_time: OptionalTimeValue,
-    pub active_time: OptionalTimeValue,
-    pub overall_progress: OptionalNumber,
-    pub current_iteration: OptionalNumber,
-    /// Unresolved where it was not asked for.
-    pub transformed_progress: OptionalNumber,
-    pub is_current: bool,
-    pub is_in_effect: bool,
-    pub active_duration: TimeValue,
-    pub end_time: TimeValue,
-    pub before_active_boundary_time: TimeValue,
-    pub after_active_boundary_time: TimeValue,
-}
-
-/// The timing of `effect` at `local_time` with `fill_mode` as its fill mode, associated with `animation`, if any, on
-/// its timeline, if it has one, and with its transformed progress through its timing function where
-/// `with_transformed_progress`.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_resolve_timing(
-    effect: &AnimationEffectCell,
-    local_time: OptionalTimeValue,
-    fill_mode: FillMode,
-    animation: Option<&AnimationCell>,
-    with_transformed_progress: bool,
-) -> FfiResolvedEffectTiming {
-    let timeline = animation.and_then(timeline_sample_of);
-    let timeline = timeline.as_ref();
-    let animation = animation.map(|animation| *animation.borrow().playback());
-    let animation = animation.as_ref();
-    let effect = effect.borrow();
-    let timing = AnimationEffectTiming {
-        fill_mode,
-        ..effect.timing()
-    };
-    let resolved = timing::resolve_timing(&timing, local_time.get(), animation, timeline);
-    let transformed_progress = with_transformed_progress
-        .then(|| {
-            let timing_function = effect.timing_function().descriptor();
-            timing::transformed_progress_with(&timing, &resolved, |input_progress, before_flag| {
-                evaluate_easing_descriptor(&timing_function, input_progress, before_flag)
-            })
-        })
-        .flatten();
-    FfiResolvedEffectTiming {
-        phase: resolved.phase,
-        local_time: resolved.local_time.into(),
-        active_time: resolved.active_time.into(),
-        overall_progress: resolved.overall_progress.into(),
-        current_iteration: timing::current_iteration(&timing, &resolved).into(),
-        transformed_progress: transformed_progress.into(),
-        is_current: timing::is_current(&timing, resolved.phase, animation, timeline),
-        is_in_effect: timing::is_in_effect(&resolved),
-        active_duration: timing::active_duration(&timing),
-        end_time: timing::end_time(&timing),
-        before_active_boundary_time: timing::before_active_boundary_time(&timing),
-        after_active_boundary_time: timing::after_active_boundary_time(&timing),
-    }
-}
-
-/// What the timing model reads of the timeline of `animation` now, if it has one.
-fn timeline_sample_of(animation: &AnimationCell) -> Option<TimelineSample> {
-    animation.borrow().timeline().map(|timeline| timeline.sample())
-}
-
-/// Whether `animation`, on its timeline, if it has one, is relevant, with its associated effect, if any, at the local
-/// time `local_time`.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_is_relevant(animation: &AnimationCell, local_time: OptionalTimeValue) -> bool {
-    let timeline = timeline_sample_of(animation);
-    let timeline = timeline.as_ref();
-    let animation = animation.borrow();
-    let effect_timing = animation.effect().map(|effect| effect.borrow().timing());
-    timing::is_relevant(animation.playback(), timeline, effect_timing.as_ref(), local_time.get())
-}
-
-/// What a procedure threw, as the host throws it: nothing, an "InvalidStateError" DOMException, or a TypeError, with
-/// its message.
-#[repr(C)]
-pub struct FfiAnimationError {
-    pub kind: FfiAnimationErrorKind,
-    pub message: *const u8,
-    pub message_length: usize,
-}
-
-#[repr(u8)]
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum FfiAnimationErrorKind {
-    None,
-    InvalidState,
-    TypeError,
-}
-
-impl From<Result<(), AnimationError>> for FfiAnimationError {
-    fn from(result: Result<(), AnimationError>) -> Self {
-        let (kind, message) = match result {
-            Ok(()) => (FfiAnimationErrorKind::None, ""),
-            Err(AnimationError::InvalidState(message)) => (FfiAnimationErrorKind::InvalidState, message),
-            Err(AnimationError::TypeError(message)) => (FfiAnimationErrorKind::TypeError, message),
-        };
-        Self {
-            kind,
-            message: message.as_ptr(),
-            message_length: message.len(),
-        }
-    }
-}
 
 /// One thing a procedure asks the host to do for the animation `animation`, and what it needs to do it.
 #[repr(C)]
@@ -292,14 +175,18 @@ impl FfiHostEffect {
 /// The host's function that performs what a procedure asks of it.
 pub type HostEffectPerformer = extern "C" fn(effect: &FfiHostEffect);
 
-/// Runs `procedure` on `animation` and then has the host perform what it asked for through `perform`, in order, holding
-/// no borrow of any record.
-fn run_procedure(
+/// Runs `procedure`, which does not throw, on `animation` and then has the host perform what it asked for through
+/// `perform`, in order, holding no borrow of any record.
+pub(crate) fn run_procedure(
     animation: &AnimationCell,
     perform: HostEffectPerformer,
-    procedure: impl FnOnce(&mut Procedures<'_>) -> Result<(), AnimationError>,
-) -> FfiAnimationError {
-    run_procedure_on(animation, perform, procedure).into()
+    procedure: impl FnOnce(&mut Procedures<'_>),
+) {
+    run_procedure_on(animation, perform, |procedures| {
+        procedure(procedures);
+        Ok(())
+    })
+    .expect("the procedure does not throw");
 }
 
 /// Runs `procedure` on `animation` and then has the host perform what it asked for through `perform`, in order, holding
@@ -325,13 +212,17 @@ fn perform_host_effects(effects: HostEffects, perform: HostEffectPerformer) {
             continue;
         }
         // NB: The record keeps the task the host queued, which the host then neither queues again nor cancels without.
-        let task = animation.borrow().finish_notification_task();
+        let task = animation.borrow().finish_notification_task;
         match kind {
             HostEffectKind::QueueFinishNotificationTask if task.is_some() => continue,
             HostEffectKind::CancelFinishNotificationTask if task.is_none() => continue,
             _ => {}
         }
         perform(&FfiHostEffect::new(&animation, &kind, task));
+        // NB: A canceled task is no longer queued, so a later finish notification task can be queued again.
+        if matches!(kind, HostEffectKind::CancelFinishNotificationTask) {
+            animation.borrow_mut().finish_notification_task = None;
+        }
     }
 }
 
@@ -340,7 +231,7 @@ fn perform_host_effects(effects: HostEffects, perform: HostEffectPerformer) {
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_animation_set_finish_notification_task(animation: &AnimationCell, task: u64) {
     let task = HostTaskId(NonZeroU64::new(task).expect("the host's tasks have nonzero identities"));
-    animation.borrow_mut().set_finish_notification_task(task);
+    animation.borrow_mut().finish_notification_task = Some(task);
 }
 
 pub(crate) fn invalidate(invalidate: bool) -> Invalidate {
@@ -353,10 +244,7 @@ pub extern "C" fn animations_animation_run_finish_notification_steps(
     animation: &AnimationCell,
     perform: HostEffectPerformer,
 ) {
-    run_procedure(animation, perform, |procedures| {
-        procedures.finish_notification_steps();
-        Ok(())
-    });
+    run_procedure(animation, perform, |procedures| procedures.finish_notification_steps());
 }
 
 /// https://www.w3.org/TR/web-animations-1/#dom-animation-cancel
@@ -368,78 +256,6 @@ pub extern "C" fn animations_animation_cancel(
 ) {
     run_procedure(animation, perform, |procedures| {
         procedures.cancel(invalidate(should_invalidate));
-        Ok(())
-    });
-}
-
-/// https://www.w3.org/TR/web-animations-1/#dom-animation-finish
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_finish(
-    animation: &AnimationCell,
-    perform: HostEffectPerformer,
-) -> FfiAnimationError {
-    run_procedure(animation, perform, |procedures| procedures.finish_an_animation())
-}
-
-/// https://www.w3.org/TR/web-animations-1/#dom-animation-starttime
-/// To the validated `start_time`.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_set_start_time(
-    animation: &AnimationCell,
-    start_time: OptionalTimeValue,
-    perform: HostEffectPerformer,
-) {
-    run_procedure(animation, perform, |procedures| {
-        procedures.set_start_time_for_bindings(start_time.get());
-        Ok(())
-    });
-}
-
-/// https://www.w3.org/TR/web-animations-1/#animation-set-the-timeline-of-an-animation
-/// Of `animation` to `timeline`, or to none where it is null.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_set_timeline(
-    animation: &AnimationCell,
-    timeline: Option<&TimelineCell>,
-    perform: HostEffectPerformer,
-) {
-    // SAFETY: The host holds a reference to the timeline it passes.
-    let timeline = timeline.map(|timeline| unsafe { TimelineHandle::retained_from_host(timeline) });
-    run_procedure(animation, perform, |procedures| {
-        procedures.set_timeline(timeline);
-        Ok(())
-    });
-}
-
-/// The host's timeline of `animation`, or null where it has none.
-/// https://www.w3.org/TR/web-animations-1/#animation-timeline
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_timeline(animation: &AnimationCell) -> *mut c_void {
-    animation
-        .borrow()
-        .timeline()
-        .and_then(|timeline| timeline.facade())
-        .map_or(std::ptr::null_mut(), NonNull::as_ptr)
-}
-
-/// Updates `animation` as its timeline updated its current time.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_update(animation: &AnimationCell, perform: HostEffectPerformer) {
-    run_procedure(animation, perform, |procedures| {
-        procedures.update();
-        Ok(())
-    });
-}
-
-/// Runs the pending play task of `animation` where it has one and is ready.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_run_pending_play_task_if_ready(
-    animation: &AnimationCell,
-    perform: HostEffectPerformer,
-) {
-    run_procedure(animation, perform, |procedures| {
-        procedures.run_pending_play_task_if_ready();
-        Ok(())
     });
 }
 
@@ -505,12 +321,12 @@ pub unsafe extern "C" fn animations_keyframe_set_from_keyframes_rule(
     ))
 }
 
-/// One keyframe script gave a `KeyframeEffect`, as processing the keyframes argument made it: its computed offset,
-/// scaled to a key, its composite operation, its easing where it has one, and the range of the properties it
+/// One keyframe script gave a `KeyframeEffect`, as processing the keyframes argument made it: its computed offset, its
+/// composite operation, its easing where it has one, and the range of the properties it
 /// declares.
 #[repr(C)]
 pub struct FfiProcessedKeyframe {
-    pub key: u64,
+    pub offset: f64,
     pub composite: CompositeOperationOrAuto,
     pub has_easing: bool,
     pub easing: FfiEasingDescriptor,
@@ -573,7 +389,7 @@ pub unsafe extern "C" fn animations_keyframe_set_from_processed_keyframes(
         .map(|keyframe| {
             let first = keyframe.first_property as usize;
             ProcessedKeyframe {
-                key: keyframe.key,
+                key: key_of_offset(keyframe.offset),
                 composite: keyframe.composite,
                 // SAFETY: Guaranteed by the caller.
                 easing: keyframe
@@ -595,92 +411,16 @@ pub unsafe extern "C" fn animations_keyframe_set_from_processed_keyframes(
     into_host(KeyframeSet::from_processed_keyframes(keyframes, None))
 }
 
-/// The keyframe set of a CSS transition of the property `property_id`, or of the custom property whose name is the
-/// raw fly string `custom_name` where that is not zero, from `start` to `end`, computed at the effective zoom
-/// `computed_value_zoom`, with the reference to it the host takes over.
-///
-/// # Safety
-/// `custom_name` must be zero or a live raw fly string, and `start` and `end` live style values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_keyframe_set_for_transition(
-    property_id: u16,
-    custom_name: usize,
-    start: *const c_void,
-    end: *const c_void,
-    computed_value_zoom: f32,
-) -> *const KeyframeSet {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        into_host(KeyframeSet::for_transition(
-            keyframe_property(property_id, custom_name),
-            retained_value(start),
-            retained_value(end),
-            computed_value_zoom,
-        ))
-    }
-}
-
-/// What a keyframe declares for a property, as the host reads it.
-#[repr(u8)]
-#[derive(Clone, Copy)]
-pub enum FfiKeyframeValueState {
-    Absent,
-    /// The element's own value, which a generated initial or final keyframe holds.
-    ElementValue,
-    Declared,
-}
-
-/// What a keyframe declares for a property, with the value it declares, borrowed from the set, where it declares one.
-#[repr(C)]
-pub struct FfiKeyframeValue {
-    pub state: FfiKeyframeValueState,
-    pub value: *const c_void,
-}
-
-/// What the keyframe of a set at `index` declares for the property `property_id`.
-///
-/// # Safety
-/// `set` must be a keyframe set the host holds a reference to, and `index` one of its keyframes.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_keyframe_set_value(
-    set: *const KeyframeSet,
-    index: usize,
-    property_id: u16,
-) -> FfiKeyframeValue {
-    // SAFETY: Guaranteed by the caller.
-    let set = unsafe { borrowed_keyframe_set(set) };
-    let declaration = set
-        .declarations_of(&set.keyframes()[index])
-        .iter()
-        .find(|declaration| declaration.property_id == property_id);
-    match declaration.map(|declaration| &declaration.value) {
-        None => FfiKeyframeValue {
-            state: FfiKeyframeValueState::Absent,
-            value: std::ptr::null(),
-        },
-        Some(KeyframeValue::ElementValue) => FfiKeyframeValue {
-            state: FfiKeyframeValueState::ElementValue,
-            value: std::ptr::null(),
-        },
-        Some(KeyframeValue::Declared(value)) => FfiKeyframeValue {
-            state: FfiKeyframeValueState::Declared,
-            value: value.pointer().cast(),
-        },
-    }
-}
-
-/// What follows from a set's keyframes alone, borrowed from the set: how many there are, the longhands they animate,
-/// sorted, the raw fly strings of the names of the custom properties they animate, and what the set answers of them.
+/// What follows from a set's keyframes alone, borrowed from the set: the longhands they animate, sorted, the raw fly
+/// strings of the names of the custom properties they animate, and what the set answers of them.
 #[repr(C)]
 pub struct FfiKeyframeSetFacts {
-    pub keyframe_count: usize,
     pub target_properties: *const u16,
     pub target_property_count: usize,
     pub target_custom_properties: *const usize,
     pub target_custom_property_count: usize,
     pub animates_what_a_tick_cannot: bool,
     pub animates_an_inherited_property: bool,
-    pub has_additive_keyframe: bool,
 }
 
 /// What follows from the keyframes of a set alone.
@@ -692,26 +432,13 @@ pub unsafe extern "C" fn animations_keyframe_set_facts(set: *const KeyframeSet) 
     // SAFETY: Guaranteed by the caller.
     let set = unsafe { borrowed_keyframe_set(set) };
     FfiKeyframeSetFacts {
-        keyframe_count: set.keyframes().len(),
         target_properties: set.target_properties().as_ptr(),
         target_property_count: set.target_properties().len(),
-        target_custom_properties: set.target_custom_properties().as_ptr().cast::<usize>(),
+        target_custom_properties: set.target_custom_properties().as_ptr().cast(),
         target_custom_property_count: set.target_custom_properties().len(),
         animates_what_a_tick_cannot: set.animates_what_a_tick_cannot(),
         animates_an_inherited_property: set.animates_an_inherited_property(),
-        has_additive_keyframe: set.has_additive_keyframe(),
     }
-}
-
-/// The bytes a keyframe set holds, with the allocation the host's references share.
-///
-/// # Safety
-/// `set` must be a keyframe set the host holds a reference to.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_keyframe_set_memory_size(set: *const KeyframeSet) -> usize {
-    // SAFETY: Guaranteed by the caller.
-    let set = unsafe { borrowed_keyframe_set(set) };
-    crate::heap_size::ARC_HEADER_BYTES + size_of::<KeyframeSet>() + set.heap_size()
 }
 
 /// Notes what the `attr()`s of the values a keyframe set declares can read, answering whether they can read a name
@@ -743,8 +470,8 @@ pub unsafe extern "C" fn animations_effect_retain(effect: *const AnimationEffect
 
 /// The host's `AnimationEffect` of `effect`, while it is alive.
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_facade(effect: &AnimationEffectCell) -> *mut c_void {
-    effect.facade().map_or(std::ptr::null_mut(), NonNull::as_ptr)
+pub extern "C" fn animations_effect_object_cell(effect: &AnimationEffectCell) -> *mut c_void {
+    effect.object_cell().map_or(std::ptr::null_mut(), NonNull::as_ptr)
 }
 
 /// Gives up a reference the host holds to an effect.
@@ -762,74 +489,22 @@ pub extern "C" fn animations_effect_id(effect: &AnimationEffectCell) -> Animatio
     effect.borrow().id()
 }
 
-/// The normalized timing the timing model reads of `effect`.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_timing(effect: &AnimationEffectCell) -> AnimationEffectTiming {
-    effect.borrow().timing()
-}
-
-/// The timing function of an effect, whose control points it borrows, and the raw fly string of its serialization,
-/// which it borrows, until the timing function changes.
-#[repr(C)]
-pub struct FfiEffectTimingFunction {
-    pub descriptor: FfiEasingDescriptor,
-    pub serialization: usize,
-}
-
-/// The timing function of `effect`.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_timing_function(effect: &AnimationEffectCell) -> FfiEffectTimingFunction {
-    let effect = effect.borrow();
-    FfiEffectTimingFunction {
-        descriptor: effect.timing_function().descriptor(),
-        serialization: effect.timing_function_serialization().raw(),
-    }
-}
-
 /// The keyframe set `effect` runs, borrowed until its keyframes change, or null where it has none.
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_effect_keyframe_set(effect: &AnimationEffectCell) -> *const KeyframeSet {
     effect.borrow().keyframes().map_or(std::ptr::null(), Arc::as_ptr)
 }
 
-/// Whether the compositor may run all `effect` animates.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_may_run_on_the_compositor(effect: &AnimationEffectCell) -> bool {
-    effect.borrow().may_run_on_the_compositor()
-}
-
 /// Sets the keyframe set `effect` runs to `set`, which it takes a reference of its own to, or to none where `set` is
-/// null, answering whether it did. An effect whose keyframes from CSS script replaced takes no keyframes of CSS.
+/// null.
 ///
 /// # Safety
 /// `set` must be null or a keyframe set the host holds a reference to.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_effect_set_keyframe_set(
-    effect: &AnimationEffectCell,
-    set: *const KeyframeSet,
-) -> bool {
+pub unsafe extern "C" fn animations_effect_set_keyframe_set(effect: &AnimationEffectCell, set: *const KeyframeSet) {
     // SAFETY: Guaranteed by the caller.
     let keyframes = (!set.is_null()).then(|| unsafe { KeyframeSet::retained_from_host(set) });
-    let mut effect = effect.borrow_mut();
-    if effect.ignores_css_keyframes()
-        && keyframes
-            .as_ref()
-            .is_some_and(|keyframes| keyframes.origin() != KeyframeOrigin::Script)
-    {
-        return false;
-    }
-    effect.set_keyframes(keyframes);
-    true
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_composite(effect: &AnimationEffectCell) -> FfiCompositeOperation {
-    effect.borrow().composite()
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_set_composite(effect: &AnimationEffectCell, composite: FfiCompositeOperation) {
-    effect.borrow_mut().set_composite(composite);
+    effect.borrow_mut().set_keyframes(keyframes);
 }
 
 /// Sets the host's `DOM::Element` that `effect` targets, which the host keeps alive while the effect targets it, or
@@ -895,43 +570,9 @@ pub extern "C" fn animations_effect_target(effect: &AnimationEffectCell) -> FfiE
     }
 }
 
-/// Sets the target pseudo-selector of `effect`.
-///
-/// # Safety
-/// The serialization of `pseudo_element` must be zero or a live raw fly string.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_effect_set_pseudo_element(
-    effect: &AnimationEffectCell,
-    pseudo_element: FfiEffectPseudoElement,
-) {
-    // SAFETY: Guaranteed by the caller.
-    let serialization = unsafe { RetainedUtf16FlyString::from_borrowed_raw(pseudo_element.serialization) };
-    effect
-        .borrow_mut()
-        .set_pseudo_element(pseudo_element.kind, serialization);
-}
-
-/// Sets the phase and the current iteration `effect` had when the host last dispatched its events.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_set_previous_phase_and_current_iteration(
-    effect: &AnimationEffectCell,
-    phase: AnimationEffectPhase,
-    current_iteration: f64,
-) {
-    let mut effect = effect.borrow_mut();
-    effect.set_previous_phase(phase);
-    effect.set_previous_current_iteration(current_iteration);
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_effect_has_flag(effect: &AnimationEffectCell, flag: EffectFlag) -> bool {
     effect.borrow().has_flag(flag)
-}
-
-/// Sets or clears `flag` of `effect`, answering whether that changed it.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_set_flag(effect: &AnimationEffectCell, flag: EffectFlag, value: bool) -> bool {
-    effect.borrow_mut().set_flag(flag, value)
 }
 
 /// Has `effect` forget what the host concluded of it as it was, since it changed: what the host built of it for the
@@ -941,63 +582,18 @@ pub extern "C" fn animations_effect_forget_what_the_host_concluded(effect: &Anim
     effect.borrow_mut().forget_what_the_host_concluded();
 }
 
-/// What `effect` remembers of whether a frame can skip its style update, for `key`.
+/// Whether a frame can skip the style update of `effect`.
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_per_frame_style_update_skip_decision(
-    effect: &AnimationEffectCell,
-    key: &PerFrameStyleUpdateSkipKey,
-) -> PerFrameStyleUpdateSkipDecision {
-    effect.borrow().per_frame_style_update_skip_decision(key)
+pub extern "C" fn animations_effect_can_skip_per_frame_style_update(effect: &AnimationEffectCell) -> bool {
+    super::throttling::can_skip_per_frame_style_update(effect)
 }
 
-/// Has `effect` remember whether a frame can skip its style update, as the host found it from `key`.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_note_per_frame_style_update_skip_decision(
-    effect: &AnimationEffectCell,
-    key: &PerFrameStyleUpdateSkipKey,
-    can_skip: bool,
-) {
-    effect
-        .borrow_mut()
-        .note_per_frame_style_update_skip_decision(*key, can_skip);
-}
-
-/// Asks the next style update for an observation sample of `effect` on behalf of a read of an element in the task of
-/// generation `task_generation`, unless it was already asked for one in that task.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_request_observation_sample_in_task(
-    effect: &AnimationEffectCell,
-    task_generation: u64,
-) -> ObservationSampleRequest {
-    effect.borrow_mut().request_observation_sample_in_task(task_generation)
-}
-
-/// What the host built of `effect` for the compositor, reached as `access` says, or null where it built nothing and
-/// `access` makes nothing. The state lives as long as the effect.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_compositor_animation_state(
-    effect: &AnimationEffectCell,
-    access: CompositorAnimationStateAccess,
-) -> *mut CompositorAnimationEffectState {
-    effect
-        .borrow_mut()
-        .compositor_animation_state(access)
-        .map_or(std::ptr::null_mut(), std::ptr::from_mut)
-}
-
-/// The bytes the record of `effect` holds, without the keyframe set, which others share.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_memory_size(effect: &AnimationEffectCell) -> usize {
-    effect.memory_size()
-}
-
-/// A new idle CSS animation with no associated effect, with the one reference to it the host takes over.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_css_animation_create() -> *const AnimationCell {
+/// A new idle CSS animation named `name` with no associated effect.
+pub(crate) fn new_css_animation(name: RetainedUtf16FlyString) -> AnimationHandle {
     AnimationHandle::new(AnimationKind::CssAnimation(CssAnimationState {
-        name: RetainedUtf16FlyString::none(),
+        name,
         // https://drafts.csswg.org/css-animations-1/#animation-timing-function
-        // The initial value of animation-timing-function is ease.
+        // NB: The initial value of animation-timing-function is ease.
         default_easing: CompactEasing::of(super::easing::keyword_cubic_bezier(0)),
         applied_definition: None,
         named_timeline: RetainedUtf16FlyString::none(),
@@ -1005,14 +601,12 @@ pub extern "C" fn animations_css_animation_create() -> *const AnimationCell {
         last_css_play_state: None,
         flags: 0,
     }))
-    .into_raw()
 }
 
 /// What a CSS transition is of and runs between, as the host starts one and reads it: the longhand by its id, or, where
 /// `custom_name` is not zero, the custom property of that raw fly string, and the values, which a transition the host
 /// reads lends it for as long as it holds the transition.
-#[repr(C)]
-pub struct FfiCssTransition {
+pub struct TransitionDescription {
     pub generation: u64,
     pub start_time: f64,
     pub end_time: f64,
@@ -1022,34 +616,6 @@ pub struct FfiCssTransition {
     pub end_value: *const c_void,
     pub reversing_adjusted_start_value: *const c_void,
     pub property_id: u16,
-}
-
-/// A new idle CSS transition `transition` describes, with no associated effect, with the one reference to it the host
-/// takes over. It is provisional until the host commits or discards it.
-///
-/// # Safety
-/// `transition` must name live style values and a live raw fly string or zero.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_css_transition_create(transition: &FfiCssTransition) -> *const AnimationCell {
-    // SAFETY: Guaranteed by the caller.
-    let state = unsafe {
-        CssTransitionState {
-            custom_property_name: RetainedUtf16FlyString::from_borrowed_raw(transition.custom_name),
-            generation: transition.generation,
-            start_time: transition.start_time,
-            end_time: transition.end_time,
-            start_value: retained_value(transition.start_value),
-            end_value: retained_value(transition.end_value),
-            reversing_adjusted_start_value: retained_value(transition.reversing_adjusted_start_value),
-            reversing_shortening_factor: transition.reversing_shortening_factor,
-            property_id: transition.property_id,
-            previous_phase: CSS_TRANSITION_PHASE_IDLE,
-            provisional: true,
-            adopted_from_lane: false,
-            effect_started_with: None,
-        }
-    };
-    AnimationHandle::new(AnimationKind::CssTransition(state)).into_raw()
 }
 
 /// What the host describes of the animation of an SVG animation element as it creates it.
@@ -1069,17 +635,15 @@ pub struct FfiSmilAnimation {
     pub begin_time: f64,
 }
 
-/// A new animation of an SVG animation element on `timeline`, whose associated effect is a new keyframe effect as
+/// A new animation of an SVG animation element on the default document timeline of its document, whose associated effect is a new keyframe effect as
 /// `description` describes, with the one reference to it the host takes over. The host makes no `Animation` of it, and
 /// its animation element holds it until it lets go of it.
 ///
 /// # Safety
-/// `description` must name live host objects and keyframes, `timeline` a timeline the host holds a reference to, and a
-/// timing function, if any, must be live.
+/// `description` must name live host objects and keyframes, and a timing function, if any, must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn animations_smil_animation_create(
     description: &FfiSmilAnimation,
-    timeline: &TimelineCell,
     perform: HostEffectPerformer,
 ) -> *const AnimationCell {
     let effect = EffectHandle::new();
@@ -1111,15 +675,12 @@ pub unsafe extern "C" fn animations_smil_animation_create(
         animation_element: description.animation_element,
         holders: SmilHolder::AnimationElement as u8,
     });
-    // SAFETY: The host holds a reference to the timeline it passes.
-    let timeline = unsafe { TimelineHandle::retained_from_host(timeline) };
+    let timeline = default_document_timeline(element_node_document(description.animation_element));
     run_procedure(&animation, perform, |procedures| {
         procedures.set_timeline(Some(timeline));
-        Ok(())
     });
     run_procedure(&animation, perform, |procedures| {
         procedures.set_the_associated_effect(Some(&effect), Invalidate::Yes);
-        Ok(())
     });
     animation.into_raw()
 }
@@ -1145,56 +706,6 @@ pub extern "C" fn animations_animation_visit_host_cells(
     });
 }
 
-/// Calls `visit` with `context` and each GC cell of the host the record of `animation` names, which the object of the
-/// animation visits.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_visit_named_cells(
-    animation: &AnimationCell,
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(context: *mut c_void, cell: *mut c_void, kind: HostCellKind),
-) {
-    animation.for_each_named_cell(|cell, kind| {
-        // SAFETY: The host visits a cell of an animation its object holds.
-        unsafe { visit(context, cell.as_ptr(), kind) }
-    });
-}
-
-/// A new effect with the default timing, no keyframes and no target, with the one reference to it the host takes over,
-/// as a CSS animation or transition creates its associated effect.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_effect_create() -> *const AnimationEffectCell {
-    EffectHandle::new().into_raw()
-}
-
-/// The host's effect of an effect the host passes, which is null or one it holds a reference to.
-///
-/// # Safety
-/// `effect` must be null or an effect the host holds a reference to.
-unsafe fn effect_from_host(effect: *const AnimationEffectCell) -> Option<EffectHandle> {
-    // SAFETY: Guaranteed by the caller.
-    (!effect.is_null()).then(|| unsafe { EffectHandle::retained_from_host(effect) })
-}
-
-/// https://www.w3.org/TR/web-animations-1/#setting-the-associated-effect
-/// Sets the associated effect of `animation` to `effect`, or to none where it is null.
-///
-/// # Safety
-/// `effect` must be null or an effect the host holds a reference to.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_animation_set_effect(
-    animation: &AnimationCell,
-    effect: *const AnimationEffectCell,
-    should_invalidate: bool,
-    perform: HostEffectPerformer,
-) {
-    // SAFETY: Guaranteed by the caller.
-    let effect = unsafe { effect_from_host(effect) };
-    run_procedure(animation, perform, |procedures| {
-        procedures.set_the_associated_effect(effect.as_ref(), invalidate(should_invalidate));
-        Ok(())
-    });
-}
-
 /// The associated effect of `animation`, which it borrows for as long as the animation holds it, or null where it has
 /// none.
 #[unsafe(no_mangle)]
@@ -1204,21 +715,16 @@ pub extern "C" fn animations_animation_effect(animation: &AnimationCell) -> *con
     })
 }
 
-/// What the host's per-frame decisions read of `animation` now, with its current time at `timestamp` where
-/// `has_timestamp`.
+/// https://www.w3.org/TR/web-animations-1/#play-states
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_timing_state(
-    animation: &AnimationCell,
-    has_timestamp: bool,
-    timestamp: f64,
-) -> FfiAnimationTimingState {
-    animation.borrow().timing_state(has_timestamp.then_some(timestamp))
+pub extern "C" fn animations_animation_play_state(animation: &AnimationCell) -> AnimationPlayState {
+    animation.borrow().play_state()
 }
 
-/// The playback state of `animation`, which the timing model reads.
+/// https://www.w3.org/TR/web-animations-1/#playback-rate
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_playback(animation: &AnimationCell) -> AnimationPlayback {
-    *animation.borrow().playback()
+pub extern "C" fn animations_animation_playback_rate(animation: &AnimationCell) -> f64 {
+    animation.borrow().playback().playback_rate
 }
 
 /// The host's function that keeps `animation`, which it holds a reference to, alive to it with `context` until the call
@@ -1239,47 +745,26 @@ fn keep_alive_for_host_effects(effects: &HostEffects, keep_alive: FfiKeepAlive, 
 }
 
 /// https://www.w3.org/TR/web-animations-1/#remove-replaced-animations
-/// For the host's `DOM::Document` `document`, whose associated timelines are the `timeline_count` of `timelines`,
-/// comparing elements in tree order with `tree_order`, and has the host keep each animation it removes alive through
-/// `keep_alive` with `context` and perform what that asks of it through `perform`.
-///
-/// # Safety
-/// `timelines` must point to `timeline_count` timelines the host holds references to.
+/// For the host's `DOM::Document` `document`, whose animations are `animations`, comparing elements in tree order with
+/// `tree_order`, and has the host keep each animation it removes alive through `keep_alive` with `context` and perform
+/// what that asks of it through `perform`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_remove_replaced_animations(
+pub extern "C" fn animations_remove_replaced_animations(
+    animations: &DocumentAnimations,
     document: NonNull<c_void>,
-    timelines: *const &TimelineCell,
-    timeline_count: usize,
     tree_order: FfiTreeOrder,
     keep_alive: FfiKeepAlive,
     context: *mut c_void,
     perform: HostEffectPerformer,
 ) {
-    // SAFETY: Guaranteed by the caller.
-    let timelines = unsafe { ak::slice_from_raw_parts(timelines, timeline_count) };
+    let timelines = animations.timelines.clone();
     let effects = procedures::remove_replaced_animations(
-        timelines.iter().copied(),
+        timelines.iter().map(|timeline| &**timeline),
         |element| element_node_document(element) == document,
         &mut host_tree_order(tree_order),
     );
     keep_alive_for_host_effects(&effects, keep_alive, context);
     perform_host_effects(effects, perform);
-}
-
-/// Disassociates `animation`, on its timeline, if it has one, from the target of its associated effect where it is
-/// inert, where a procedure scheduled that.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_disassociate_from_target_if_inert(
-    animation: &AnimationCell,
-    perform: HostEffectPerformer,
-) {
-    if !animation.borrow().disassociation_from_target_pending() {
-        return;
-    }
-    run_procedure(animation, perform, |procedures| {
-        procedures.disassociate_from_target_if_inert();
-        Ok(())
-    });
 }
 
 /// Keeps the animation of an SVG animation element, on its timeline, if it has one, at the time of its time container,
@@ -1295,7 +780,6 @@ pub extern "C" fn animations_smil_animation_synchronize(
 ) {
     run_procedure(animation, perform, |procedures| {
         procedures.synchronize_with_smil_time_container(zero_time, is_paused.then_some(paused_time));
-        Ok(())
     });
 }
 
@@ -1364,6 +848,7 @@ pub extern "C" fn animations_animation_hover_timing(
 /// The owning element of a CSS animation or transition: the host's `DOM::Element`, or null where it has none, and the
 /// host's `PseudoElement`, where `has_pseudo_element`.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiOwningElement {
     pub element: *mut c_void,
     pub pseudo_element: u8,
@@ -1387,51 +872,14 @@ pub extern "C" fn animations_animation_owning_element(animation: &AnimationCell)
     }
 }
 
-/// Sets the owning element of `animation`, which the host keeps alive while the animation holds it, or to none where
-/// its element is null.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_set_owning_element(animation: &AnimationCell, owner: FfiOwningElement) {
-    animation
-        .borrow_mut()
-        .set_owning_element(std::ptr::NonNull::new(owner.element).map(|element| OwningElement {
-            element,
-            pseudo_element: owner.has_pseudo_element.then_some(owner.pseudo_element),
-        }));
-}
-
-/// The state of a CSS animation as the host reads it: the raw fly string of its name, borrowed until it changes, or
-/// zero.
-#[repr(C)]
-pub struct FfiCssAnimationState {
-    pub name: usize,
-    /// The raw fly string of the name of the named timeline the animation follows, or zero.
-    pub named_timeline: usize,
-    /// The easing a keyframe of the animation that declares none of its own runs, whose control points it borrows
-    /// until the easing changes.
-    pub default_easing: FfiEasingDescriptor,
-}
-
-/// The state of the CSS animation `animation`.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_css_animation_state(animation: &AnimationCell) -> FfiCssAnimationState {
-    let animation = animation.borrow();
-    let state = animation.css_animation();
-    FfiCssAnimationState {
-        name: state.name.raw(),
-        named_timeline: state.named_timeline.raw(),
-        default_easing: state.default_easing.descriptor(),
-    }
-}
-
 /// Applies the timing, attachment range, easing, composite operation and play state the style computation computed in
-/// `definition` to the CSS animation `animation`, whose timeline the host updated, having the host perform what that
-/// asks for through `perform`.
+/// `definition` to the CSS animation `animation`, whose timeline is updated, having the host perform what that asks for
+/// through `perform`.
 /// https://drafts.csswg.org/css-animations-2/#animations
 ///
 /// # Safety
 /// The values `definition` names must be null or live style values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_css_animation_apply_properties(
+unsafe fn apply_css_animation_properties(
     animation: &AnimationCell,
     definition: &crate::css::style_compute::FfiComputedAnimation,
     perform: HostEffectPerformer,
@@ -1441,7 +889,7 @@ pub unsafe extern "C" fn animations_css_animation_apply_properties(
         FillMode as SpecifiedFillMode, PlaybackDirection, SpecifiedIterationDuration,
     };
 
-    let has_flag = |flag: CssAnimationFlag| animation.borrow().css_animation().flags & flag as u8 != 0;
+    let has_flag = |flag: CssAnimationFlag| animation.borrow().css_animation().has_flag(flag);
 
     // NB: An edge of the range that script set is no longer the style's to change.
     let [current_start, current_end] = animation.borrow().range();
@@ -1475,10 +923,7 @@ pub unsafe extern "C" fn animations_css_animation_apply_properties(
         )
     };
     if animation.borrow_mut().set_range([start, end]) {
-        run_procedure(animation, perform, |procedures| {
-            procedures.attachment_range_changed();
-            Ok(())
-        });
+        run_procedure(animation, perform, |procedures| procedures.attachment_range_changed());
     }
 
     let effect = animation
@@ -1537,14 +982,13 @@ pub unsafe extern "C" fn animations_css_animation_apply_properties(
     //     style it produces.
     run_procedure(animation, perform, |procedures| {
         procedures.update_finished_state(DidSeek::No, SynchronouslyNotify::No, Invalidate::Yes, None);
-        Ok(())
     });
 
     if animation.borrow().css_animation().last_css_play_state == Some(definition.play_state) {
         return;
     }
     if !has_flag(CssAnimationFlag::ScriptOverrodePlayState) {
-        let play_state = animation.borrow().timing_state(None).play_state;
+        let play_state = animation.borrow().play_state();
         // NB: Neither procedure throws for a CSS animation, which has an associated effect.
         let result = match definition.play_state {
             CSS_ANIMATION_PLAY_STATE_RUNNING if play_state != AnimationPlayState::Running => {
@@ -1560,49 +1004,620 @@ pub unsafe extern "C" fn animations_css_animation_apply_properties(
     animation.borrow_mut().css_animation_mut().last_css_play_state = Some(definition.play_state);
 }
 
-/// Whether `flag` of the CSS animation `animation` is set.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_css_animation_has_flag(animation: &AnimationCell, flag: CssAnimationFlag) -> bool {
-    animation.borrow().css_animation().flags & flag as u8 != 0
+/// What applying the definitions of the CSS animations of an element or pseudo-element asks of the host, which hands
+/// each function `context`.
+#[repr(C)]
+pub struct FfiCssAnimationHost {
+    pub context: *mut c_void,
+    /// https://drafts.csswg.org/scroll-animations-1/#target-timeline
+    /// The target timeline of the owner of the animations for the timeline name `name`, a raw fly string, which the
+    /// host holds a reference to until the call returns, or null for none.
+    pub named_timeline: unsafe extern "C" fn(context: *mut c_void, name: usize) -> Option<&'static TimelineCell>,
+    /// Invalidates the composite order of the animations associated with the host's `DOM::Element` `element`.
+    pub invalidate_composite_order: unsafe extern "C" fn(context: *mut c_void, element: NonNull<c_void>),
+    pub keep_alive: FfiKeepAlive,
+    pub in_execution_context: FfiInExecutionContext,
+    pub perform: HostEffectPerformer,
 }
 
-/// Sets the name of the CSS animation `animation` to the raw fly string `name`.
+impl FfiCssAnimationHost {
+    /// Has the host invalidate the style the associated effect of `animation` produces.
+    fn invalidate_effect(&self, animation: &AnimationHandle) {
+        let mut effects = HostEffects::default();
+        effects.push(animation, HostEffectKind::InvalidateEffect { changes_plan: false });
+        perform_host_effects(effects, self.perform);
+    }
+
+    /// Runs `run` in the execution context the host opens for `animation`.
+    fn in_execution_context(&self, animation: &AnimationCell, run: impl FnOnce()) {
+        in_host_execution_context(self.in_execution_context, self.context, animation, run);
+    }
+}
+
+/// Sets the keyframes of `effect` to `keyframes` of CSS, answering whether that changed them. An effect whose keyframes
+/// from CSS script replaced takes none.
 ///
 /// # Safety
-/// `name` must be a live raw fly string.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_css_animation_set_name(animation: &AnimationCell, name: usize) {
+/// `keyframes` must be null or a keyframe set the host holds a reference to.
+unsafe fn set_effect_keyframes(effect: &EffectHandle, keyframes: *const c_void) -> bool {
+    if effect.borrow().ignores_css_keyframes() {
+        return false;
+    }
+    let keyframes = keyframes.cast::<KeyframeSet>();
+    let current = effect.borrow().keyframes().map_or(std::ptr::null(), Arc::as_ptr);
+    if std::ptr::eq(current, keyframes) {
+        return false;
+    }
     // SAFETY: Guaranteed by the caller.
-    let name = unsafe { RetainedUtf16FlyString::from_borrowed_raw(name) };
-    animation.borrow_mut().css_animation_mut().name = name;
+    let keyframes = (!keyframes.is_null()).then(|| unsafe { KeyframeSet::retained_from_host(keyframes) });
+    effect.borrow_mut().set_keyframes(keyframes);
+    effect.borrow_mut().forget_what_the_host_concluded();
+    true
+}
+
+/// The timeline the host finds of the name `definition` names for `owner`, through `host`.
+///
+/// # Safety
+/// The definition must name a live CSS string.
+unsafe fn named_timeline_of(
+    definition: &crate::css::style_compute::FfiComputedAnimation,
+    host: &FfiCssAnimationHost,
+) -> Option<TimelineHandle> {
+    // SAFETY: Guaranteed by the caller.
+    let name = unsafe { definition.timeline_name.as_ref() }
+        .map_or_else(RetainedUtf16FlyString::none, |name| name.to_fly_string());
+    // NB: The timeline is retained before anything can run the GC, and the animation then keeps it alive.
+    // SAFETY: The host hands out a timeline it holds a reference to, or null.
+    unsafe { (host.named_timeline)(host.context, name.raw()) }
+        .map(|timeline| unsafe { TimelineHandle::retained_from_host(timeline) })
+}
+
+/// The anonymous scroll timeline source `definition` describes for `owner`.
+fn anonymous_scroll_source(
+    definition: &crate::css::style_compute::FfiComputedAnimation,
+    owner: OwningElement,
+) -> ScrollTimelineSource {
+    ScrollTimelineSource::Anonymous {
+        scroller: definition.scroll_scroller,
+        target: owner.element,
+        pseudo_element: owner.pseudo_element,
+    }
+}
+
+/// The inset of the view() timeline `definition` describes.
+///
+/// # Safety
+/// The calculations of the inset must be null or live style values.
+pub(crate) unsafe fn retained_view_inset(inset: &crate::css::style_compute::FfiViewTimelineInset) -> ViewTimelineInset {
+    let edge = |is_auto, px, percentage, calculated| ViewTimelineInsetEdge {
+        is_auto,
+        px,
+        percentage,
+        // SAFETY: Guaranteed by the caller.
+        calculated: unsafe { retained_optional_value(calculated) },
+    };
+    ViewTimelineInset {
+        start: edge(
+            inset.start_is_auto,
+            inset.start_px,
+            inset.start_percentage,
+            inset.start_calculated,
+        ),
+        end: edge(
+            inset.end_is_auto,
+            inset.end_px,
+            inset.end_percentage,
+            inset.end_calculated,
+        ),
+    }
+}
+
+/// Whether the CSS animation `animation`, owned by `owner`, takes the timeline `definition` describes in place of the
+/// one it has.
+/// NB: Unrelated style changes shouldn't cause us to recreate anonymous timelines, to achieve this we drop updates
+///     between two equivalent anonymous timelines. The comparison is made against the description of the requested
+///     timeline, so that the timeline a definition names is only ever created when it will replace the one the
+///     animation already has.
+///
+/// # Safety
+/// The values `definition` names must be null or live.
+unsafe fn should_update_timeline(
+    animation: &AnimationHandle,
+    definition: &crate::css::style_compute::FfiComputedAnimation,
+    owner: OwningElement,
+    host: &FfiCssAnimationHost,
+) -> bool {
+    use crate::css::style_compute::FfiAnimationTimelineKind;
+    let old_timeline = animation.borrow().timeline().cloned();
+    let same = |timeline: Option<TimelineHandle>| match (&old_timeline, &timeline) {
+        (Some(old), Some(new)) => old.ptr_eq(new),
+        (None, None) => true,
+        _ => false,
+    };
+    match definition.timeline_kind {
+        FfiAnimationTimelineKind::None => return old_timeline.is_some(),
+        FfiAnimationTimelineKind::Document => {
+            return !same(Some(default_document_timeline(element_node_document(owner.element))));
+        }
+        // SAFETY: Guaranteed by the caller.
+        FfiAnimationTimelineKind::Named => return !same(unsafe { named_timeline_of(definition, host) }),
+        FfiAnimationTimelineKind::View | FfiAnimationTimelineKind::Scroll => {}
+    }
+    let Some(old_timeline) = old_timeline else {
+        return true;
+    };
+    let record = old_timeline.borrow();
+    let Some(scroll) = record.scroll() else {
+        return true;
+    };
+    if scroll.axis != definition.scroll_axis {
+        return true;
+    }
+    if definition.timeline_kind == FfiAnimationTimelineKind::View {
+        let Some(view) = &scroll.view else {
+            return true;
+        };
+        let ScrollTimelineSource::Anonymous {
+            target, pseudo_element, ..
+        } = scroll.source
+        else {
+            return true;
+        };
+        // SAFETY: Guaranteed by the caller.
+        return target != owner.element
+            || pseudo_element != owner.pseudo_element
+            || !view
+                .inset
+                .equals(&unsafe { retained_view_inset(&definition.view_inset) });
+    }
+    if scroll.view.is_some() {
+        return true;
+    }
+    match (scroll.source, anonymous_scroll_source(definition, owner)) {
+        (
+            ScrollTimelineSource::Anonymous {
+                scroller,
+                target,
+                pseudo_element,
+            },
+            ScrollTimelineSource::Anonymous {
+                scroller: new_scroller,
+                target: new_target,
+                pseudo_element: new_pseudo_element,
+            },
+        ) => scroller != new_scroller || target != new_target || pseudo_element != new_pseudo_element,
+        _ => true,
+    }
+}
+
+/// The timeline `definition` describes for the CSS animation owned by `owner`, a new anonymous one for scroll() and
+/// view(), or none.
+///
+/// # Safety
+/// The values `definition` names must be null or live.
+unsafe fn materialize_timeline(
+    definition: &crate::css::style_compute::FfiComputedAnimation,
+    owner: OwningElement,
+    host: &FfiCssAnimationHost,
+) -> Option<TimelineHandle> {
+    use crate::css::style_compute::FfiAnimationTimelineKind;
+    let document = element_node_document(owner.element);
+    let scroll = |source, view| {
+        TimelineKind::Scroll(Box::new(ScrollTimelineState {
+            source,
+            axis: definition.scroll_axis,
+            last_max_scroll_offset: None,
+            followed_scroller: None,
+            view,
+        }))
+    };
+    match definition.timeline_kind {
+        FfiAnimationTimelineKind::Document => Some(default_document_timeline(document)),
+        FfiAnimationTimelineKind::None => None,
+        FfiAnimationTimelineKind::Scroll => Some(create_timeline(
+            document,
+            scroll(anonymous_scroll_source(definition, owner), None),
+        )),
+        FfiAnimationTimelineKind::View => Some(create_timeline(
+            document,
+            scroll(
+                ScrollTimelineSource::Anonymous {
+                    scroller: SCROLLER_NEAREST,
+                    target: owner.element,
+                    pseudo_element: owner.pseudo_element,
+                },
+                Some(ViewTimelineState {
+                    // SAFETY: Guaranteed by the caller.
+                    inset: unsafe { retained_view_inset(&definition.view_inset) },
+                    last_metrics: None,
+                    subject_style_node: None,
+                }),
+            ),
+        )),
+        // SAFETY: Guaranteed by the caller.
+        FfiAnimationTimelineKind::Named => unsafe { named_timeline_of(definition, host) },
+    }
+}
+
+/// The host's `CSS::Scroller::Nearest`, which a view timeline finds its source from its subject with.
+pub(crate) const SCROLLER_NEAREST: u8 = 1;
+
+/// Applies `definition` to the CSS animation `animation`, whose associated effect runs the keyframes the caller gave it.
+///
+/// # Safety
+/// The values `definition` names must be null or live style values.
+unsafe fn apply_css_animation_definition(
+    animation: &AnimationHandle,
+    definition: &crate::css::style_compute::FfiComputedAnimation,
+    owner: OwningElement,
+    host: &FfiCssAnimationHost,
+) {
+    use crate::css::style_compute::FfiAnimationTimelineKind;
+
+    // FIXME: Don't apply overridden properties as defined here: https://drafts.csswg.org/css-animations-2/#animations
+
+    // NB: Recorded before the early return below, so that the definition always says what the style computation last
+    //     computed.
+    // NB: An animation that names its timeline looks it up again from its owning element as the timelines its document
+    //     declares change, also while the name finds no timeline. The record notes the name it follows.
+    let named_timeline =
+        if definition.timeline_kind == FfiAnimationTimelineKind::Named && !definition.timeline_name.is_null() {
+            // SAFETY: The style computation names a live CSS string.
+            unsafe { &*definition.timeline_name }.to_fly_string()
+        } else {
+            RetainedUtf16FlyString::none()
+        };
+    // SAFETY: Guaranteed by the caller.
+    let applies_the_same_properties = unsafe { note_css_animation_definition(animation, definition, named_timeline) };
+
+    let script_set_timeline = animation
+        .borrow()
+        .css_animation()
+        .has_flag(CssAnimationFlag::ScriptSetTimeline);
+    // NB: An animation that names its timeline follows it as the declarations of its document change.
+    if definition.timeline_kind == FfiAnimationTimelineKind::Named {
+        let document = element_node_document(owner.element);
+        // SAFETY: The document of the owner of an animation is live, and the borrow ends here.
+        unsafe { super::timeline_host::document_animations(document) }
+            .set_mut(DocumentAnimationSetKind::FollowingNamedTimelines)
+            .insert(animation);
+    }
+    // SAFETY: The definition lives for the call.
+    let update_timeline = !script_set_timeline && unsafe { should_update_timeline(animation, definition, owner, host) };
+
+    // NB: Style feedback can recompute an animation's owning element. Reapplying unchanged properties would invalidate
+    //     the effect and turn that feedback into an endless cycle.
+    if !update_timeline && applies_the_same_properties {
+        return;
+    }
+
+    host.in_execution_context(animation, || {
+        if update_timeline {
+            // SAFETY: The definition lives for the call.
+            let timeline = unsafe { materialize_timeline(definition, owner, host) };
+            run_procedure(animation, host.perform, |procedures| procedures.set_timeline(timeline));
+        }
+        // SAFETY: Guaranteed by the caller.
+        unsafe { apply_css_animation_properties(animation, definition, host.perform) };
+    });
+}
+
+/// https://drafts.csswg.org/css-animations-1/#animations
+/// Applies the `count` animation definitions `definitions` the style computation computed for the owner at `slot` of
+/// the element whose lists `animations` are, `owner`, which is in a display: none subtree where
+/// `in_display_none_subtree`: claims the CSS animation of each definition that claims one, creates one for each other
+/// definition, cancels each animation no definition claims, and sets the CSS animations of the owner to those of the
+/// definitions, publishing them to the style engine of `style_engine`, which knows the element as `node`, where the
+/// host names one. `pseudo_element_serialization` is the raw fly string of the serialization of the pseudo-element of
+/// `owner`, or zero where it has none.
+///
+/// # Safety
+/// `animations` must be the lists of `owner`, which live for the call, and which the host may change as it performs;
+/// `definitions` must point to `count` definitions whose values are live and whose keyframe sets are null or ones the
+/// host holds references to; a non-null `style_engine` must be live for the call; and `pseudo_element_serialization`
+/// must be zero or a live raw fly string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn animations_element_animations_apply_css_animation_definitions(
+    animations: *mut ElementAnimations,
+    slot: AnimationOwnerSlot,
+    owner: FfiOwningElement,
+    pseudo_element_serialization: usize,
+    definitions: *const crate::css::style_compute::FfiComputedAnimation,
+    count: usize,
+    in_display_none_subtree: bool,
+    style_engine: *const DocumentHost,
+    node: u32,
+    host: &FfiCssAnimationHost,
+) {
+    let owner_element = NonNull::new(owner.element).expect("CSS animations have an owning element");
+    // SAFETY: Guaranteed by the caller.
+    let definitions = unsafe { ak::slice_from_raw_parts(definitions, count) };
+    // NB: What the host performs can change the lists, so no borrow of them outlives a read.
+    // SAFETY: Guaranteed by the caller.
+    let existing_animations: SmallVec<[AnimationHandle; 1]> =
+        unsafe { &*animations }.css_animations(slot).iter().cloned().collect();
+    for animation in &existing_animations {
+        // SAFETY: The host keeps alive an animation it is handed for as long as this call lasts.
+        unsafe { (host.keep_alive)(host.context, animation) };
+    }
+    let mut existing_animation_was_claimed: SmallVec<[bool; 1]> = smallvec::smallvec![false; existing_animations.len()];
+    let mut new_animations: SmallVec<[AnimationHandle; 1]> = SmallVec::with_capacity(definitions.len());
+
+    // NB: Which existing animation each definition claims is decided by the style computation, from the names of the
+    //     animations this element holds, which it publishes. So are the keyframes each definition runs, from the
+    //     `@keyframes` every style scope publishes.
+    let owning_element = OwningElement {
+        element: owner_element,
+        pseudo_element: owner.has_pseudo_element.then_some(owner.pseudo_element),
+    };
+    for (name_index, definition) in definitions.iter().enumerate().rev() {
+        let name_index = u32::try_from(name_index).expect("animation-name has fewer than 2^32 entries");
+        let animation = if let Ok(matched_index) = usize::try_from(definition.matched_existing_index) {
+            assert!(
+                !existing_animation_was_claimed[matched_index],
+                "a definition claims an animation only once"
+            );
+            existing_animation_was_claimed[matched_index] = true;
+            let animation = existing_animations[matched_index].clone();
+            let effect = animation.borrow().effect().cloned();
+            if let Some(effect) = effect {
+                // SAFETY: Guaranteed by the caller.
+                if unsafe { set_effect_keyframes(&effect, definition.keyframe_set) } {
+                    host.invalidate_effect(&animation);
+                }
+                // SAFETY: Guaranteed by the caller.
+                unsafe { apply_css_animation_definition(&animation, definition, owning_element, host) };
+            }
+            if set_css_animation_name_index(&animation, name_index) {
+                let target = animation
+                    .borrow()
+                    .effect()
+                    .and_then(|effect| effect.borrow().target_element());
+                if let Some(target) = target {
+                    // SAFETY: The effect keeps its target alive.
+                    unsafe { (host.invalidate_composite_order)(host.context, target) };
+                }
+            }
+            animation
+        } else {
+            if in_display_none_subtree {
+                continue;
+            }
+            // An animation applies to an element if its name appears as one of the identifiers in the computed value
+            // of the animation-name property and the animation uses a valid @keyframes rule
+            // FIXME:
+            // CSS Animations generated using the markup defined in this specification are not added to the global
+            // animation list when they are created. Instead, these animations are appended to the global animation
+            // list at the first moment when they transition out of the idle play state after being disassociated from
+            // their owning element. CSS Animations that have been disassociated from their owning element but are
+            // still idle do not have a defined composite order.
+            // NB: Script gets the object of the animation, a CSSAnimation, as it first asks for it.
+            // SAFETY: The style computation names a live CSS string.
+            let name = unsafe { definition.name.as_ref() }
+                .map_or_else(RetainedUtf16FlyString::none, |name| name.to_fly_string());
+            let animation = new_css_animation(name);
+            // SAFETY: The host keeps alive an animation it is handed for as long as this call lasts.
+            unsafe { (host.keep_alive)(host.context, &animation) };
+            animation.borrow_mut().set_owning_element(Some(owning_element));
+            let effect = EffectHandle::new();
+            // SAFETY: Guaranteed by the caller.
+            unsafe { set_effect_keyframes(&effect, definition.keyframe_set) };
+            run_procedure(&animation, host.perform, |procedures| {
+                procedures.set_the_associated_effect(Some(&effect), Invalidate::Yes);
+            });
+            // SAFETY: Guaranteed by the caller.
+            unsafe { apply_css_animation_definition(&animation, definition, owning_element, host) };
+            set_css_animation_name_index(&animation, name_index);
+            // NB: The effect targets the owning pseudo-element, if any, before it is associated with its target.
+            // SAFETY: Guaranteed by the caller.
+            let serialization = unsafe { RetainedUtf16FlyString::from_borrowed_raw(pseudo_element_serialization) };
+            effect
+                .borrow_mut()
+                .set_pseudo_element(owner.pseudo_element, serialization);
+            // NB: The keyframes of a CSS animation read the attributes their rule read, which the style engine noted
+            //     as the rule was published.
+            perform_host_effects(
+                procedures::set_effect_target(&effect, Some(owner_element)),
+                host.perform,
+            );
+            host.invalidate_effect(&animation);
+            animation
+        };
+        new_animations.push(animation);
+    }
+
+    // Once an animation has started it continues until it ends or the animation-name is removed
+    // NB: An animation no definition claimed is one whose animation-name entry has gone. Canceling it from the style
+    //     computation needs no invalidation, as the effect stack is computed after this.
+    for (animation, _) in existing_animations
+        .iter()
+        .zip(&existing_animation_was_claimed)
+        .filter(|(_, claimed)| !**claimed)
+    {
+        cancel_animation(
+            animation,
+            Invalidate::No,
+            host.in_execution_context,
+            host.context,
+            host.perform,
+        );
+    }
+
+    // NB: The animations were created in reverse definition order, so flip it back.
+    new_animations.reverse();
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &mut *animations }.set_css_animations(slot, new_animations.into_iter(), unsafe {
+        style_engine_target(style_engine, node)
+    });
+}
+
+/// What preparing to observe the CSS animation events of a document asks of the host, which hands each function
+/// `context`.
+#[repr(C)]
+pub struct FfiObserveCssAnimationEventsHost {
+    pub context: *mut c_void,
+    pub keep_alive: FfiKeepAlive,
+    pub perform: HostEffectPerformer,
+}
+
+/// Has the CSS animations of a document whose animations are `animations`, whose effects skipped per-frame animation
+/// ticks, take their current phase and iteration as those they last dispatched events for, as the host updates the
+/// timelines of the document to now first, keeping alive and performing through `host`.
+///
+/// # Safety
+/// `animations` must be what a live document knows of animations, which the host may reach as it performs.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn animations_document_animations_prepare_to_observe_css_animation_events(
+    animations: *mut DocumentAnimations,
+    host: &FfiObserveCssAnimationEventsHost,
+) {
+    // SAFETY: Guaranteed by the caller, and the borrow ends before the host performs anything.
+    let effects_to_synchronize: Vec<(AnimationHandle, EffectHandle)> = unsafe { &mut *animations }
+        .set_mut(DocumentAnimationSetKind::Associated)
+        .iter()
+        .filter_map(|animation| {
+            let effect = {
+                let record = animation.borrow();
+                if record.ffi_kind() != FfiAnimationKind::CssAnimation {
+                    return None;
+                }
+                record.effect()?.clone()
+            };
+            let skipped = effect.borrow().has_flag(EffectFlag::PerFrameAnimationTickWasSkipped);
+            skipped.then_some((animation, effect))
+        })
+        .collect();
+    if effects_to_synchronize.is_empty() {
+        return;
+    }
+    for (animation, _) in &effects_to_synchronize {
+        // SAFETY: The host keeps alive an animation it is handed for as long as this call lasts.
+        unsafe { (host.keep_alive)(host.context, animation) };
+    }
+    // NB: The timelines of the document take their current time as of now first.
+    super::timeline_host::update_timelines_to_now(
+        animations,
+        &super::timeline_host::keep_alive_with(host.keep_alive, host.context),
+        host.perform,
+    );
+
+    // OPTIMIZATION: Events which occurred while there were no listeners were intentionally not sampled. Establish
+    //               the current phase as the baseline so a newly added listener only observes future events.
+    for (_, effect) in &effects_to_synchronize {
+        let animation = effect.borrow().associated_animation();
+        let local_time = animation
+            .as_ref()
+            .and_then(|animation| animation.borrow().current_time());
+        let fill_mode = effect.borrow().timing().fill_mode;
+        let resolved = resolve_effect_timing(effect, local_time, fill_mode, animation.as_deref(), false);
+        let mut record = effect.borrow_mut();
+        record.previous_phase = resolved.phase;
+        record.previous_current_iteration = resolved.current_iteration.unwrap_or(0.0);
+        record.set_flag(EffectFlag::PerFrameAnimationTickWasSkipped, false);
+    }
+}
+
+/// What looking up the named timelines of the CSS animations of a document again asks of the host, which hands each
+/// function `context`.
+#[repr(C)]
+pub struct FfiNamedTimelinesHost {
+    pub context: *mut c_void,
+    /// The timeline the host finds of the name `name`, a raw fly string, for the element `owner`, or null.
+    pub target_timeline: unsafe extern "C" fn(
+        context: *mut c_void,
+        owner: FfiOwningElement,
+        name: usize,
+    ) -> Option<&'static TimelineCell>,
+    pub keep_alive: FfiKeepAlive,
+    pub in_execution_context: FfiInExecutionContext,
+    pub perform: HostEffectPerformer,
+}
+
+/// Looks the named timeline each CSS animation of a document whose animations are `animations` follows up again from
+/// its owning element, through `host`, and sets it as the animation's timeline where it changed, answering whether that
+/// changed the timeline of any.
+///
+/// # Safety
+/// `animations` must be what a live document knows of animations, which the host may reach as it performs.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn animations_document_animations_update_named_timelines(
+    animations: *mut DocumentAnimations,
+    host: &FfiNamedTimelinesHost,
+) -> bool {
+    // SAFETY: Guaranteed by the caller, and the borrow ends before the host performs anything.
+    let following = unsafe { &mut *animations }
+        .set_mut(DocumentAnimationSetKind::FollowingNamedTimelines)
+        .alive();
+    for animation in &following {
+        // SAFETY: The host keeps alive an animation it is handed for as long as this call lasts.
+        unsafe { (host.keep_alive)(host.context, animation) };
+    }
+    let mut any_timeline_changed = false;
+    for animation in &following {
+        if update_named_timeline(animation, host) {
+            any_timeline_changed = true;
+        }
+    }
+    any_timeline_changed
+}
+
+/// Looks the named timeline the CSS animation `animation` follows up again from its owning element through `host`, and
+/// sets it as the animation's timeline, answering whether that changed its timeline.
+fn update_named_timeline(animation: &AnimationCell, host: &FfiNamedTimelinesHost) -> bool {
+    let (named_timeline, owner) = {
+        let record = animation.borrow();
+        let state = record.css_animation();
+        if state.named_timeline.raw() == 0 || state.has_flag(CssAnimationFlag::ScriptSetTimeline) {
+            return false;
+        }
+        // NB: The owning element of a CSS animation is the element whose style names the timeline, which the animation
+        //     keeps alive.
+        let owner = record
+            .owning_element()
+            .expect("a CSS animation that follows a named timeline has an owning element");
+        (state.named_timeline.clone(), owner)
+    };
+    let owner = FfiOwningElement {
+        element: owner.element.as_ptr(),
+        pseudo_element: owner.pseudo_element.unwrap_or(0),
+        has_pseudo_element: owner.pseudo_element.is_some(),
+    };
+    // SAFETY: The host finds the timeline for a live element and a live raw fly string, which it holds a reference to.
+    let timeline = unsafe { (host.target_timeline)(host.context, owner, named_timeline.raw()) };
+    let current = animation
+        .borrow()
+        .timeline()
+        .map(|timeline| std::ptr::from_ref::<TimelineCell>(timeline));
+    if current == timeline.map(std::ptr::from_ref) {
+        return false;
+    }
+    // SAFETY: As above.
+    let timeline = timeline.map(|timeline| unsafe { TimelineHandle::retained_from_host(timeline) });
+    in_host_execution_context(host.in_execution_context, host.context, animation, || {
+        run_procedure(animation, host.perform, |procedures| procedures.set_timeline(timeline));
+    });
+    true
 }
 
 /// Sets the position of the CSS animation `animation` in `animation-name`, answering whether that changed it.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_css_animation_set_name_index(animation: &AnimationCell, name_index: u32) -> bool {
+fn set_css_animation_name_index(animation: &AnimationCell, name_index: u32) -> bool {
     std::mem::replace(&mut animation.borrow_mut().css_animation_mut().name_index, name_index) != name_index
 }
 
 /// Notes that the style computation applied `definition` to the CSS animation `animation`, which follows the named
-/// timeline of the raw fly string `named_timeline` where that is not zero, answering whether that sets the same
-/// properties as the definition it last applied, whatever keyframes each gives the animation's effect.
+/// timeline `named_timeline` where that is not none, answering whether that sets the same properties as the definition
+/// it last applied, whatever keyframes each gives the animation's effect.
 ///
 /// # Safety
-/// The values `definition` names must be null or live style values, its keyframe set null or one the host holds a
-/// reference to, and `named_timeline` zero or a live raw fly string.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_css_animation_apply_definition(
+/// The values `definition` names must be null or live style values, and its keyframe set null or one the host holds a
+/// reference to.
+unsafe fn note_css_animation_definition(
     animation: &AnimationCell,
     definition: &crate::css::style_compute::FfiComputedAnimation,
-    named_timeline: usize,
+    named_timeline: RetainedUtf16FlyString,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let (definition, named_timeline) = unsafe {
-        (
-            Arc::new(AppliedAnimationDefinition::retained(definition)),
-            RetainedUtf16FlyString::from_borrowed_raw(named_timeline),
-        )
-    };
+    let definition = unsafe { Arc::new(AppliedAnimationDefinition::retained(definition)) };
     let mut animation = animation.borrow_mut();
     let state = animation.css_animation_mut();
     state.named_timeline = named_timeline;
@@ -1619,156 +1634,701 @@ pub unsafe extern "C" fn animations_css_animation_apply_definition(
     applies_the_same_properties
 }
 
-/// The CSS transition `animation`, which lends the host its values and the name of its custom property for as long as
-/// the host holds it.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_css_transition(animation: &AnimationCell) -> FfiCssTransition {
-    let animation = animation.borrow();
-    let state = animation.css_transition();
-    FfiCssTransition {
-        generation: state.generation,
-        start_time: state.start_time,
-        end_time: state.end_time,
-        reversing_shortening_factor: state.reversing_shortening_factor,
-        custom_name: state.custom_property_name.raw(),
-        start_value: state.start_value.pointer().cast(),
-        end_value: state.end_value.pointer().cast(),
-        reversing_adjusted_start_value: state.reversing_adjusted_start_value.pointer().cast(),
-        property_id: state.property_id,
-    }
-}
-
-/// The timing a CSS transition starts with: its delay and duration, in milliseconds, its timing function, and the raw
-/// fly string of the serialization of the value that was made from.
-#[repr(C)]
-pub struct FfiProvisionalTransitionTiming {
+/// What a CSS transition starts with: its owning element, which its effect targets, the raw fly string of the
+/// serialization of the owner's pseudo-element, or zero where it has none, the transition, whose start and end times
+/// include its delay, the timing its effect runs with: its delay and duration, in milliseconds, and the computed value
+/// of its timing function, and the effective zoom of the owner its values were computed at.
+pub struct TransitionStart {
+    pub owner: FfiOwningElement,
+    pub pseudo_element_serialization: usize,
+    pub transition: TransitionDescription,
     pub delay: f64,
     pub duration: f64,
-    pub timing_function: FfiEasingDescriptor,
-    pub timing_function_serialization: usize,
+    pub timing_function: *const c_void,
+    pub computed_value_zoom: f32,
+}
+
+/// The easing of the computed timing function `value`, with its serialization, as `EffectTiming.easing` reads it.
+fn timing_function_and_serialization(value: &StyleValueData) -> (CompactEasing, RetainedUtf16FlyString) {
+    use crate::css::serialize::{SerializationMode, TextSink, serialize_style_value};
+    use libcompositing_rust::easing::FfiEasingKind;
+    let easing = crate::css::style::effect_descriptions::easing_from_computed_timing_function(value)
+        .expect("a computed transition-timing-function describes an easing");
+    let mode = if matches!(value, StyleValueData::Easing(_)) && easing.kind() == FfiEasingKind::CubicBezier {
+        SerializationMode::Normal
+    } else {
+        SerializationMode::ResolvedValue
+    };
+    let mut sink = TextSink::new();
+    serialize_style_value(&mut sink, value, mode);
+    (
+        CompactEasing::of(easing),
+        RetainedUtf16FlyString::from_utf16(&sink.into_utf16()),
+    )
 }
 
 /// https://drafts.csswg.org/css-transitions/#starting
-/// Starts the CSS transition `animation`, on its timeline, provisionally, with `effect`, which targets its owning
-/// element and runs its keyframes, and the timing `timing`.
+/// Starts the CSS transition `start` describes on `timeline` provisionally, having the host perform what that asks for
+/// through `perform`. It is associated with its target only once committed.
 ///
 /// # Safety
-/// The serialization `timing` names must be a live raw fly string.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_css_transition_start_provisionally(
-    animation: &AnimationCell,
-    effect: &AnimationEffectCell,
-    timing: &FfiProvisionalTransitionTiming,
+/// `start` must name live host objects, style values and raw fly strings.
+unsafe fn start_a_provisional_transition(
+    start: &TransitionStart,
+    timeline: Option<TimelineHandle>,
     perform: HostEffectPerformer,
-) {
-    // SAFETY: The host holds a reference to the effect it passes, and the caller guarantees the serialization.
-    let (effect, timing) = unsafe {
-        (
-            EffectHandle::retained_from_host(effect),
-            ProvisionalTransitionTiming {
-                delay: timing.delay,
-                duration: timing.duration,
-                timing_function: CompactEasing::of(Easing::from_descriptor(&timing.timing_function)),
-                timing_function_serialization: RetainedUtf16FlyString::from_borrowed_raw(
-                    timing.timing_function_serialization,
-                ),
-            },
-        )
+) -> AnimationHandle {
+    let description = &start.transition;
+    // SAFETY: Guaranteed by the caller.
+    let state = unsafe {
+        CssTransitionState {
+            custom_property_name: RetainedUtf16FlyString::from_borrowed_raw(description.custom_name),
+            generation: description.generation,
+            start_time: description.start_time,
+            end_time: description.end_time,
+            start_value: retained_value(description.start_value),
+            end_value: retained_value(description.end_value),
+            reversing_adjusted_start_value: retained_value(description.reversing_adjusted_start_value),
+            reversing_shortening_factor: description.reversing_shortening_factor,
+            property_id: description.property_id,
+            previous_phase: TransitionPhase::Idle,
+            provisional: true,
+            adopted_from_lane: false,
+            effect_started_with: None,
+        }
     };
-    run_procedure(animation, perform, |procedures| {
+    // NB: Script gets the object of the transition, a CSSTransition, as it first asks for it.
+    let transition = AnimationHandle::new(AnimationKind::CssTransition(state));
+
+    // FIXME:
+    // Transitions generated using the markup defined in this specification are not added to the global animation list
+    // when they are created. Instead, these animations are appended to the global animation list at the first moment
+    // when they transition out of the idle play state after being disassociated from their owning element. Transitions
+    // that have been disassociated from their owning element but are still idle do not have a defined composite order.
+
+    // NB: The transition's associated effect is a keyframe effect. The current style computation collects this effect
+    //     before publishing its result, so scheduling a second animated style update here would evaluate the same
+    //     transition twice. The record keeps the effect the transition is started with. The values of a transition are
+    //     computed values, which read no attributes.
+    let owner = NonNull::new(start.owner.element).expect("a transition has an owning element");
+    let effect = EffectHandle::new();
+    perform_host_effects(procedures::set_effect_target(&effect, Some(owner)), perform);
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        let mut effect = effect.borrow_mut();
+        effect.set_pseudo_element(
+            start.owner.pseudo_element,
+            RetainedUtf16FlyString::from_borrowed_raw(start.pseudo_element_serialization),
+        );
+        effect.set_keyframes(Some(Arc::new(KeyframeSet::for_transition(
+            keyframe_property(description.property_id, description.custom_name),
+            retained_value(description.start_value),
+            retained_value(description.end_value),
+            start.computed_value_zoom,
+        ))));
+    }
+    transition.borrow_mut().set_owning_element(Some(OwningElement {
+        element: owner,
+        pseudo_element: start.owner.has_pseudo_element.then_some(start.owner.pseudo_element),
+    }));
+
+    // NB: The record sets the timing of the effect, sets it as the transition's associated effect and plays the
+    //     transition, which creates its ready promise.
+    // SAFETY: Guaranteed by the caller.
+    let timing_function =
+        unsafe { start.timing_function.cast::<StyleValueData>().as_ref() }.expect("a transition has a timing function");
+    let (timing_function, timing_function_serialization) = timing_function_and_serialization(timing_function);
+    let timing = ProvisionalTransitionTiming {
+        delay: start.delay,
+        duration: start.duration,
+        timing_function,
+        timing_function_serialization,
+    };
+    run_procedure(&transition, perform, |procedures| {
+        procedures.set_timeline(timeline);
         procedures.start_a_provisional_transition(&effect, timing);
-        Ok(())
     });
+    transition
 }
 
-/// Discards the CSS transition `animation`, which was started provisionally and has no timeline any more.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_css_transition_discard_provisional(animation: &AnimationCell) {
-    // SAFETY: The host holds a reference to the animation it passes.
-    let animation = unsafe { AnimationHandle::retained_from_host(animation) };
-    procedures::run(&animation, |procedures| {
+/// Discards the CSS transition `animation`, which was started provisionally, setting its timeline to none, having the
+/// host perform what that asks for through `perform`.
+fn discard_provisional_transition(animation: &AnimationHandle, perform: HostEffectPerformer) {
+    run_procedure(animation, perform, |procedures| procedures.set_timeline(None));
+    procedures::run(animation, |procedures| {
         procedures.discard_provisional_transition();
         Ok(())
     })
     .expect("discarding a provisional transition does not throw");
 }
 
-/// Commits the CSS transition `animation`, which was started provisionally, as the running transition of its property
-/// the owner at `slot` of `animations` holds, where `animations` is not null, which `origin` started, and has the host
-/// associate it with its target through `perform`.
-///
-/// # Safety
-/// A non-null `animations` must be lists the host holds, which nothing else refers to for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_css_transition_commit_provisional(
-    animation: &AnimationCell,
-    animations: *mut ElementAnimations,
-    slot: AnimationOwnerSlot,
-    origin: TransitionOrigin,
+/// Cancels `animation`, invalidating the style of its target as `invalidate` asks, in an execution context the host
+/// opens through `in_execution_context` with `context` where it is not idle, having the host perform what that asks for
+/// through `perform`.
+fn cancel_animation(
+    animation: &AnimationHandle,
+    invalidate: Invalidate,
+    in_execution_context: FfiInExecutionContext,
+    context: *mut c_void,
     perform: HostEffectPerformer,
 ) {
-    // SAFETY: The host holds a reference to the animation it passes.
-    let animation = unsafe { AnimationHandle::retained_from_host(animation) };
-    let effects = {
-        // SAFETY: Guaranteed by the caller.
-        let animations = unsafe { animations.as_mut() };
-        transitions::commit_provisional_transition(animations.map(|animations| (animations, slot)), animation, origin)
+    let cancel = || {
+        run_procedure(animation, perform, |procedures| procedures.cancel(invalidate));
     };
-    // NB: Associating the transition with its target reaches the lists again.
-    perform_host_effects(effects, perform);
+    // NB: Canceling an animation that is not idle settles its promises and creates its cancel event.
+    if animation.borrow().play_state() == AnimationPlayState::Idle {
+        cancel();
+    } else {
+        in_host_execution_context(in_execution_context, context, animation, cancel);
+    }
 }
 
-/// Writes to `existing` what a style change event at time `t` of the document timeline reads of the CSS transition
-/// `animation`, which its target holds, whose values it lends for as long as the host holds the transition. The host
-/// gives the current value of a running transition of a custom property.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_css_transition_existing(
-    animation: &AnimationCell,
-    t: f64,
-    existing: &mut FfiExistingTransition,
+/// The element or pseudo-element `owner` names, as the target of a transition step.
+fn transition_target(owner: FfiOwningElement) -> TransitionTarget {
+    TransitionTarget {
+        element: NonNull::new(owner.element).expect("a transition step has a target"),
+        pseudo_element: owner.has_pseudo_element.then_some(owner.pseudo_element),
+    }
+}
+
+/// What a transition step decides over: the lists of its target's element, which it can change, the target, with the
+/// raw fly string of the serialization of its pseudo-element, or zero, and its slot in the lists, where it can own
+/// transitions, the time of the style change event on the document timeline, in milliseconds, the generation of the
+/// transitions it starts, the store of the animation overlay of the target's custom properties, or null where it has
+/// none, the style engine of `host`, which `read` reads, the records `before` and `after` the target's style changes
+/// between, the target's style node, its pseudo-element kind, or `u8::MAX`, the slot of the row of the box of its
+/// element, and the tree order of the host's elements.
+#[repr(C)]
+pub struct FfiTransitionStep {
+    pub animations: *mut ElementAnimations,
+    pub owner: FfiOwningElement,
+    pub pseudo_element_serialization: usize,
+    pub has_slot: bool,
+    pub slot: AnimationOwnerSlot,
+    pub style_change_event_time: f64,
+    pub generation: u64,
+    pub overlay_store: *const c_void,
+    pub host: *const DocumentHost,
+    pub read: *const crate::render_state::BegunRead,
+    pub before: *const c_void,
+    pub after: *const c_void,
+    pub target_node: u32,
+    pub target_pseudo_kind: u8,
+    pub element_box_slot: u32,
+    pub tree_order: FfiTreeOrder,
+}
+
+/// What a transition step did: whether it changed the effects that compose over the target's style, and whether it
+/// started any transition.
+#[repr(C)]
+#[derive(Default)]
+pub struct FfiTransitionStepOutcome {
+    pub changes_effects: bool,
+    pub started_transitions: bool,
+}
+
+/// Records the decision `action` for the provisional state at `index` of `document`, which supersedes any an earlier
+/// pass of the epoch made, discarding the transition that one started, if any.
+///
+/// # Safety
+/// `document` must be live, and no reference to it may be held across the call.
+unsafe fn decide_provisional_transition(
+    document: *mut DocumentAnimations,
+    index: usize,
+    action: FfiTransitionActionKind,
+    perform: HostEffectPerformer,
 ) {
-    *existing = animation.borrow().existing_transition(t);
+    let discarded = {
+        // SAFETY: Guaranteed by the caller.
+        let state = unsafe { &mut *document }.provisional_transitions.state_mut(index);
+        note_rendering_trace_event("provisional transition decision");
+        if state.has_decision {
+            note_rendering_trace_event("provisional transition decision superseded");
+        }
+        state.has_decision = true;
+        state.action = action;
+        state.proposed.take()
+    };
+    if let Some(discarded) = discarded {
+        discard_provisional_transition(&discarded, perform);
+    }
 }
 
-/// Whether the CSS transition `animation` already runs from when the hover of a clock lane started it, as one of the
-/// `lane_transitions` the lane leaves its element running does.
+/// https://drafts.csswg.org/css-transitions/#starting
+/// Runs the transition step `step` describes in the outermost style stabilization epoch of `document`: the style engine
+/// decides what it does to each property's transitions, and the transitions it starts start provisionally, on the
+/// document timeline of the target. A transition action is provisional until the epoch commits; a later pass of the
+/// epoch decides again, superseding the decision of this one. Where the step changes the effects that compose over the
+/// target's style, the host keeps alive through `keep_alive` with `context` the animations of those effects, in
+/// composite order: the relevant animations of the element that target the same element or pseudo-element as the
+/// step, beside those of the SVG animation elements, which script does not see, and those whose transitions the step
+/// replaces, and the transitions it started. The host performs what that asks of it through `perform`.
+///
+/// # Safety
+/// `document` must be live for the call, and `step` must name live host objects, records and lists, which the host may
+/// change as it performs.
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_css_transition_runs_as_lane_does(
-    animation: &AnimationCell,
-    lane_transitions: ak::Span<'_, FfiLaneTransition>,
+pub unsafe extern "C" fn animations_document_animations_run_transition_step(
+    document: *mut DocumentAnimations,
+    step: &FfiTransitionStep,
+    keep_alive: FfiKeepAlive,
+    context: *mut c_void,
+    perform: HostEffectPerformer,
+) -> FfiTransitionStepOutcome {
+    let target = transition_target(step.owner);
+    let animations = NonNull::new(step.animations).expect("the target's element has lists");
+    let slot = step.has_slot.then_some(step.slot);
+    let t = step.style_change_event_time;
+
+    // NB: The element holds each transition, which lends what is read of it for as long as the element holds it. A
+    //     running transition of a custom property holds it at what the overlay of the target's environment answers.
+    //     One not sampled yet holds it at its start value.
+    // SAFETY: Guaranteed by the caller.
+    let overlay = unsafe {
+        step.overlay_store
+            .cast::<crate::css::custom_properties::CustomPropertyStore>()
+            .as_ref()
+    };
+    // SAFETY: Guaranteed by the caller.
+    let held = slot.map_or(&[][..], |slot| unsafe { animations.as_ref() }.transitions(slot));
+    let existing: SmallVec<[FfiExistingTransition; 4]> = held
+        .iter()
+        .map(|transition| {
+            let record = transition.borrow();
+            let mut existing = record.existing_transition(t);
+            if existing.custom_name != 0 && existing.running {
+                existing.custom_current_value = overlay
+                    .and_then(|store| store.get(existing.custom_name))
+                    .map_or(record.css_transition().start_value.pointer(), |entry| {
+                        entry.value.pointer()
+                    });
+            }
+            existing
+        })
+        .collect();
+
+    // NB: The values of the transitions the step starts are computed values of the after-change style.
+    // SAFETY: Guaranteed by the caller.
+    let computed_value_zoom = unsafe { crate::css::style::ViewLonghands::of_raw_record(step.after) }.effective_zoom();
+    let mut outcome = FfiTransitionStepOutcome::default();
+    let mut timeline = None;
+    let mut started: SmallVec<[AnimationHandle; 2]> = SmallVec::new();
+    let mut replaced: SmallVec<[AnimationEffectId; 2]> = SmallVec::new();
+    let input = crate::css::transition::FfiTransitionInput {
+        target_node: step.target_node,
+        target_pseudo_kind: step.target_pseudo_kind,
+        element_box_slot: step.element_box_slot,
+    };
+    let on_actions = |actions: &[FfiTransitionAction]| {
+        let mut decided: SmallVec<[usize; 4]> = SmallVec::new();
+        for action in actions {
+            let property = TransitionProperty {
+                property_id: action.property_id,
+                custom_name: action.custom_name,
+            };
+            // SAFETY: Guaranteed by the caller.
+            let index = unsafe {
+                (*document)
+                    .provisional_transitions
+                    .ensure(target, animations, slot, property)
+            };
+            decided.push(index);
+            // SAFETY: Guaranteed by the caller.
+            unsafe { decide_provisional_transition(document, index, action.kind, perform) };
+            if action.kind != FfiTransitionActionKind::None && action.kind != FfiTransitionActionKind::Start {
+                // SAFETY: Guaranteed by the caller.
+                let state = unsafe { &*document }.provisional_transitions.state(index);
+                let committed = state
+                    .committed
+                    .as_ref()
+                    .expect("an action on a transition has one to act on");
+                if let Some(effect) = committed.borrow().effect() {
+                    replaced.push(effect.borrow().id());
+                }
+            }
+            if action.start_value.is_null() {
+                continue;
+            }
+            let start = TransitionStart {
+                owner: step.owner,
+                pseudo_element_serialization: step.pseudo_element_serialization,
+                transition: TransitionDescription {
+                    generation: step.generation,
+                    start_time: t + action.delay,
+                    end_time: t + action.active_duration + action.delay,
+                    reversing_shortening_factor: action.reversing_shortening_factor,
+                    custom_name: action.custom_name,
+                    start_value: action.start_value.cast(),
+                    end_value: action.end_value.cast(),
+                    reversing_adjusted_start_value: action.reversing_adjusted_start_value.cast(),
+                    property_id: action.property_id,
+                },
+                delay: action.delay,
+                duration: action.active_duration,
+                timing_function: action.timing_function.cast(),
+                computed_value_zoom,
+            };
+            let timeline = timeline
+                .get_or_insert_with(|| default_document_timeline(element_node_document(target.element)))
+                .clone();
+            // SAFETY: The action names live style values and raw fly strings, and the step live host objects.
+            let transition = unsafe { start_a_provisional_transition(&start, Some(timeline), perform) };
+            started.push(transition.clone());
+            // SAFETY: Guaranteed by the caller.
+            unsafe { &mut *document }
+                .provisional_transitions
+                .state_mut(index)
+                .proposed = Some(transition);
+        }
+        // NB: A property an earlier pass of the epoch decided over that this one does not leaves its transitions as
+        //     they are.
+        // SAFETY: Guaranteed by the caller.
+        let indices = unsafe { &*document }.provisional_transitions.indices_of(target);
+        for index in indices {
+            if !decided.contains(&index) {
+                // SAFETY: Guaranteed by the caller.
+                unsafe {
+                    decide_provisional_transition(document, index, FfiTransitionActionKind::None, perform);
+                };
+            }
+        }
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        crate::css::style::engine_calls::decide_transitions(
+            &*step.host,
+            &*step.read,
+            step.before,
+            step.after,
+            &input,
+            &existing,
+            on_actions,
+        );
+    }
+
+    // NB: A transition action is provisional until the stabilization epoch commits, but the style published by this
+    //     pass must already reflect that decision. The effect stack is rebuilt without the transitions being removed,
+    //     and with any proposed replacements on top.
+    if replaced.is_empty() && started.is_empty() {
+        return outcome;
+    }
+    outcome.changes_effects = true;
+    outcome.started_transitions = !started.is_empty();
+    // SAFETY: Guaranteed by the caller.
+    let mut remaining: Vec<AnimationHandle> = unsafe { animations.as_ref() }
+        .associated()
+        .iter()
+        .filter(|animation| {
+            if matches!(animation.borrow().kind(), AnimationKind::Smil { .. }) {
+                return false;
+            }
+            let Some(effect) = animation.borrow().effect().cloned() else {
+                return false;
+            };
+            let effect = effect.borrow();
+            if effect.pseudo_element().map(|pseudo_element| pseudo_element.kind) != target.pseudo_element
+                || replaced.contains(&effect.id())
+            {
+                return false;
+            }
+            procedures::run(animation, |procedures| Ok(procedures.is_relevant()))
+                .expect("reading relevance does not throw")
+                .0
+        })
+        .cloned()
+        .collect();
+    remaining.extend(started);
+    let mut tree_order = host_tree_order(step.tree_order);
+    remaining.sort_by(|a, b| composite_order(&a.borrow(), &b.borrow(), &mut tree_order));
+    for animation in &remaining {
+        // SAFETY: The host keeps alive an animation it is handed.
+        unsafe { keep_alive(context, animation) };
+    }
+    outcome
+}
+
+/// Commits the transition actions the outermost style stabilization epoch of `document` decided, as the epoch commits:
+/// each removes the transition its property had, cancels it in an execution context the host opens through
+/// `in_execution_context` with `context` where it is not idle, or commits the transition the epoch started, which
+/// associates it with its target. The host performs what that asks of it through `perform`.
+///
+/// # Safety
+/// `document` must be live for the call, which the host may change as it performs.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn animations_document_animations_commit_provisional_transitions(
+    document: *mut DocumentAnimations,
+    in_execution_context: FfiInExecutionContext,
+    context: *mut c_void,
+    perform: HostEffectPerformer,
+) {
+    // NB: The states stay with the document until every action is taken, which keeps what they name alive.
+    let mut index = 0;
+    // SAFETY: Guaranteed by the caller, for each read below; no borrow outlives the read.
+    while index < unsafe { &*document }.provisional_transitions.len() {
+        let (action, animations, slot, property, committed, proposed) = {
+            // SAFETY: As above.
+            let state = unsafe { &*document }.provisional_transitions.state(index);
+            (
+                state.action,
+                state.animations,
+                state.slot,
+                state.property,
+                state.committed.clone(),
+                state.proposed.clone(),
+            )
+        };
+        index += 1;
+        let remove_committed_transition = || {
+            let (Some(slot), Some(committed)) = (slot, committed.as_ref()) else {
+                return;
+            };
+            // SAFETY: The state keeps the element that owns the lists alive, and nothing else refers to them here.
+            let animations = unsafe { &mut *animations.as_ptr() };
+            if animations
+                .transition(slot, property)
+                .is_some_and(|transition| transition.ptr_eq(committed))
+            {
+                animations.remove_transition(slot, property);
+            }
+        };
+        let cancel_committed_transition = || {
+            let committed = committed
+                .as_ref()
+                .expect("a cancelled transition is one the target held");
+            cancel_animation(committed, Invalidate::Yes, in_execution_context, context, perform);
+        };
+        let commit_proposed_transition = || {
+            let proposed = proposed.clone().expect("a started transition was proposed");
+            // SAFETY: The state keeps the element that owns the lists alive. Associating the transition with its
+            //         target reaches the lists again, after this borrow ends.
+            let effects = transitions::commit_provisional_transition(
+                slot.map(|slot| (unsafe { &mut *animations.as_ptr() }, slot)),
+                proposed,
+                TransitionOrigin::StyleChange,
+            );
+            perform_host_effects(effects, perform);
+            note_rendering_trace_event("transition started");
+        };
+        match action {
+            FfiTransitionActionKind::None => continue,
+            FfiTransitionActionKind::Remove => remove_committed_transition(),
+            FfiTransitionActionKind::Cancel => cancel_committed_transition(),
+            FfiTransitionActionKind::Start => commit_proposed_transition(),
+            FfiTransitionActionKind::RemoveAndStart => {
+                remove_committed_transition();
+                commit_proposed_transition();
+            }
+            FfiTransitionActionKind::CancelRemoveAndStart => {
+                cancel_committed_transition();
+                remove_committed_transition();
+                commit_proposed_transition();
+            }
+        }
+        note_rendering_trace_event("transition action committed");
+    }
+    // SAFETY: Guaranteed by the caller.
+    drop(unsafe { &mut *document }.provisional_transitions.take());
+}
+
+/// Whether the outermost style stabilization epoch of `document` decided over the transitions of `owner`.
+#[unsafe(no_mangle)]
+pub extern "C" fn animations_document_animations_has_provisional_transitions(
+    document: &DocumentAnimations,
+    owner: FfiOwningElement,
 ) -> bool {
-    animation.borrow().runs_as_lane_does(lane_transitions.as_slice())
+    document.provisional_transitions.has_states(transition_target(owner))
 }
 
-/// Whether `lane_transition` is the run of the host's CSS transition `animation` by the hover of a clock lane.
+/// The effect of the transition at `index` among those the outermost style stabilization epoch of `document` started
+/// provisionally for `owner`, which the transition borrows for as long as the epoch holds it, or null past the last.
+/// NB: A provisionally started transition already contributed to the style published by the pass that started it,
+///     but it is not associated with its target until the stabilization epoch commits.
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_css_transition_is_host_transition_of(
-    animation: &AnimationCell,
-    lane_transition: &FfiLaneTransition,
-) -> bool {
-    animation.borrow().is_host_transition_of(lane_transition)
+pub extern "C" fn animations_document_animations_proposed_transition_effect(
+    document: &DocumentAnimations,
+    owner: FfiOwningElement,
+    index: usize,
+) -> *const AnimationEffectCell {
+    document
+        .provisional_transitions
+        .proposed_effect(transition_target(owner), index)
 }
 
-/// What becomes of the running CSS transition `animation` as the host takes in `lane_transitions`, which the hover of a
-/// clock lane leaves its element running, where the lane's steps ended the transitions whose effects `cancelled` names
-/// and saw those `seen` names.
+/// AD-HOC: Runs the transitions the hover of a clock lane left the element whose lists `animations` are, `element`,
+///         running beside a task, which the screen showed, in place of those its steps ended, as the rendering update
+///         that takes them in begins: `lane_transitions` are those the lane leaves the element running, and the lane's
+///         steps ended the host's transitions whose effects `cancelled` names and saw those `seen` names. A transition
+///         this starts is of the generation `generation`, on the document timeline, with values computed at the
+///         element's effective zoom `effective_zoom`. The host keeps each transition alive through `keep_alive` with
+///         `context`, and performs what that asks of it through `perform`.
+///
+/// # Safety
+/// `animations` must be the lists of `element`, which live for the call, and which the host may change as it performs,
+/// and `lane_transitions` must name live style values.
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_css_transition_lane_adoption(
-    animation: &AnimationCell,
-    lane_transitions: ak::Span<'_, FfiLaneTransition>,
+pub unsafe extern "C" fn animations_element_animations_adopt_lane_transitions(
+    animations: *mut ElementAnimations,
+    element: NonNull<c_void>,
     cancelled: ak::Span<'_, AnimationEffectId>,
     seen: ak::Span<'_, AnimationEffectId>,
-) -> LaneAdoption {
-    animation
-        .borrow()
-        .lane_adoption(lane_transitions.as_slice(), cancelled.as_slice(), seen.as_slice())
+    lane_transitions: ak::Span<'_, FfiLaneTransition>,
+    generation: u64,
+    effective_zoom: f32,
+    keep_alive: FfiKeepAlive,
+    context: *mut c_void,
+    perform: HostEffectPerformer,
+) {
+    let slot = AnimationOwnerSlot(0);
+    let (cancelled, seen, lane_transitions) = (cancelled.as_slice(), seen.as_slice(), lane_transitions.as_slice());
+    let timeline = Some(default_document_timeline(element_node_document(element)));
+    // NB: What the host performs can change the lists, so no borrow of them outlives a read.
+    // SAFETY: Guaranteed by the caller, for each read below.
+    let lists = || unsafe { &mut *animations };
+    let transition_of = |property_id: u16| {
+        lists()
+            .transition(
+                slot,
+                TransitionProperty {
+                    property_id,
+                    custom_name: 0,
+                },
+            )
+            .cloned()
+    };
+    let run = |transition: &AnimationHandle,
+               procedure: &mut dyn FnMut(&mut Procedures<'_>) -> Result<(), AnimationError>| {
+        if let Ok(((), effects)) = procedures::run(transition, |procedures| procedure(procedures)) {
+            perform_host_effects(effects, perform);
+        }
+    };
+    let is_running = |transition: &AnimationHandle| {
+        let transition = transition.borrow();
+        transition.play_state() != AnimationPlayState::Idle && !transition.playback().is_finished
+    };
+    // NB: The start time of a transition is a time of the document timeline, which validating it as script sets it
+    //     would only read as milliseconds.
+    let set_start_time = |transition: &AnimationHandle, start_time: f64| {
+        run(transition, &mut |procedures| {
+            procedures.set_start_time_for_bindings(Some(TimeValue::milliseconds(start_time)));
+            Ok(())
+        });
+    };
+
+    // NB: The record of each running transition decides what becomes of it (see LaneAdoption). One the steps saw end by
+    //     itself ends as it does, with its events, and so does one script finished meanwhile.
+    let existing: SmallVec<[AnimationHandle; 4]> = lists().transitions(slot).iter().cloned().collect();
+    let mut ended: SmallVec<[AnimationHandle; 4]> = SmallVec::new();
+    let mut host_decides: SmallVec<[TransitionProperty; 4]> = SmallVec::new();
+    for transition in &existing {
+        // SAFETY: The host keeps alive an animation it is handed for as long as this call lasts.
+        unsafe { keep_alive(context, transition) };
+        if !is_running(transition) {
+            continue;
+        }
+        let adoption = transition.borrow().lane_adoption(lane_transitions, cancelled, seen);
+        match adoption {
+            LaneAdoption::Stands => {}
+            LaneAdoption::Ends => ended.push(transition.clone()),
+            LaneAdoption::HostDecides => host_decides.push(TransitionProperty::of(&transition.borrow())),
+        }
+    }
+    for transition in &ended {
+        run(transition, &mut |procedures| {
+            procedures.cancel(Invalidate::Yes);
+            Ok(())
+        });
+        let property = TransitionProperty::of(&transition.borrow());
+        lists().remove_transition(slot, property);
+    }
+    // NB: A transition of the host's whose play is still pending runs from when the lane took it to start.
+    for lane_transition in lane_transitions
+        .iter()
+        .filter(|lane_transition| lane_transition.host_identity != AnimationEffectId::default())
+    {
+        let Some(transition) = transition_of(lane_transition.property_id) else {
+            continue;
+        };
+        if !transition.borrow().is_host_transition_of(lane_transition) {
+            continue;
+        }
+        let timing = transition.borrow().timing_state(None);
+        if timing.playback.start_time.get().is_none()
+            && (timing.playback.has_pending_play_task || timing.playback.has_pending_pause_task)
+            && timing.play_state != AnimationPlayState::Paused
+        {
+            set_start_time(&transition, lane_transition.start_time);
+        }
+    }
+    for lane_transition in lane_transitions
+        .iter()
+        .filter(|lane_transition| lane_transition.host_identity == AnimationEffectId::default())
+    {
+        let property = TransitionProperty {
+            property_id: lane_transition.property_id,
+            custom_name: 0,
+        };
+        if host_decides.contains(&property) {
+            continue;
+        }
+        if let Some(current) = transition_of(lane_transition.property_id) {
+            if current.borrow().runs_as_lane_does(lane_transitions) {
+                continue;
+            }
+            // NB: A completed transition of the property gives way to the one the lane started. One the lane saw end,
+            //     which the host's timeline has yet to reach, ends now.
+            if is_running(&current) {
+                run(&current, &mut |procedures| procedures.finish_an_animation());
+            }
+            lists().remove_transition(slot, property);
+        }
+        let start = TransitionStart {
+            owner: FfiOwningElement {
+                element: element.as_ptr(),
+                pseudo_element: 0,
+                has_pseudo_element: false,
+            },
+            pseudo_element_serialization: 0,
+            transition: TransitionDescription {
+                generation,
+                start_time: lane_transition.start_time + lane_transition.delay,
+                end_time: lane_transition.start_time + lane_transition.duration + lane_transition.delay,
+                reversing_shortening_factor: lane_transition.reversing_shortening_factor,
+                custom_name: 0,
+                start_value: lane_transition.start_value.cast(),
+                end_value: lane_transition.end_value.cast(),
+                reversing_adjusted_start_value: lane_transition.reversing_adjusted_start_value.cast(),
+                property_id: lane_transition.property_id,
+            },
+            delay: lane_transition.delay,
+            duration: lane_transition.duration,
+            timing_function: lane_transition.timing_function.cast(),
+            computed_value_zoom: effective_zoom,
+        };
+        // SAFETY: Guaranteed by the caller.
+        let transition = unsafe { start_a_provisional_transition(&start, timeline.clone(), perform) };
+        // SAFETY: The host keeps alive an animation it is handed for as long as this call lasts.
+        unsafe { keep_alive(context, &transition) };
+        let effects = transitions::commit_provisional_transition(
+            Some((lists(), slot)),
+            transition.clone(),
+            TransitionOrigin::Lane,
+        );
+        // NB: Associating the transition with its target reaches the lists again.
+        perform_host_effects(effects, perform);
+        set_start_time(&transition, lane_transition.start_time);
+    }
 }
 
 /// The host's `SVGAnimationElement` whose animation the SMIL animation `animation` is.
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_smil_animation_element(animation: &AnimationCell) -> *mut c_void {
+    smil_animation_element(animation).as_ptr()
+}
+
+/// The host's `SVGAnimationElement` whose animation `animation` is.
+pub(crate) fn smil_animation_element(animation: &AnimationCell) -> NonNull<c_void> {
     match animation.borrow().kind() {
-        AnimationKind::Smil { animation_element, .. } => animation_element.as_ptr(),
+        AnimationKind::Smil { animation_element, .. } => *animation_element,
         _ => unreachable!("the animation is an SVG animation element's"),
     }
 }
@@ -1786,14 +2346,23 @@ pub(crate) fn host_tree_order(compare: FfiTreeOrder) -> impl FnMut(NonNull<c_voi
 }
 
 /// https://www.w3.org/TR/web-animations-1/#animation-composite-order
-/// The relative composite order of `a` and `b`, as a negative number where `a` sorts first, a positive one where it
-/// sorts last, and zero where they are the same animation, with `tree_order` comparing elements in tree order.
+/// The relative composite order of the animations `first` and `second`: less than zero where `first` comes first, zero
+/// for the same animation, and greater than zero otherwise, with the host's elements in the tree order `tree_order`
+/// gives.
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_composite_order(a: &AnimationCell, b: &AnimationCell, tree_order: FfiTreeOrder) -> i32 {
-    if std::ptr::eq(a, b) {
+pub extern "C" fn animations_animation_composite_order(
+    first: &AnimationCell,
+    second: &AnimationCell,
+    tree_order: FfiTreeOrder,
+) -> i32 {
+    if std::ptr::eq(first, second) {
         return 0;
     }
-    composite_order(&a.borrow(), &b.borrow(), &mut host_tree_order(tree_order)) as i32
+    match super::composite_order::composite_order(&first.borrow(), &second.borrow(), &mut host_tree_order(tree_order)) {
+        Ordering::Less => -1,
+        Ordering::Equal => 0,
+        Ordering::Greater => 1,
+    }
 }
 
 /// Takes a reference of the host's own to `animation`, which the host holds a reference to.
@@ -1832,15 +2401,6 @@ pub unsafe extern "C" fn animations_document_animations_destroy(animations: *mut
     drop(unsafe { Box::from_raw(animations) });
 }
 
-/// The set `kind` of the animations a document knows of, which lives as long as `animations`.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_document_animations_set(
-    animations: &mut DocumentAnimations,
-    kind: DocumentAnimationSetKind,
-) -> *mut WeakAnimationSet {
-    animations.set_mut(kind)
-}
-
 /// Begins the outermost style stabilization epoch of a document.
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_document_animations_begin_style_stabilization_epoch(animations: &mut DocumentAnimations) {
@@ -1871,120 +2431,110 @@ pub unsafe extern "C" fn animations_document_animations_append_event(
 ) {
     // SAFETY: Guaranteed by the caller.
     let animation = unsafe { AnimationHandle::retained_from_host(animation) };
-    animations.pending_events.append(
-        PendingAnimationEvent {
-            animation,
-            event: *event,
-        },
-        provisional,
-    );
+    let mut event = *event;
+    // NB: A time event is scheduled at the origin-relative time of the current time of a document timeline.
+    if event.kind == PendingAnimationEventKind::Time {
+        let timeline = animation.borrow().timeline().cloned();
+        event.scheduled_event_time = timeline
+            .filter(|timeline| matches!(timeline.borrow().kind, TimelineKind::Document { .. }))
+            .and_then(|timeline| timeline.convert_a_timeline_time_to_an_origin_relative_time(timeline.current_time()))
+            .into();
+    }
+    animations
+        .pending_events
+        .append(PendingAnimationEvent { animation, event }, provisional);
 }
 
-/// What queueing the events an animation frame established for an animation did: what made the animation, which only
-/// has events where it is a CSS animation or a CSS transition, and how many it queued.
+/// What queueing the events of the animations of a document an animation frame established asks of the host, which
+/// hands each function `context`.
 #[repr(C)]
-pub struct FfiQueuedCssEvents {
-    pub kind: FfiAnimationKind,
-    pub count: u8,
-}
-
-/// https://drafts.csswg.org/css-transitions-2/#event-dispatch
-/// https://www.w3.org/TR/css-animations-2/#event-dispatch
-/// Appends the events the animation frame just established for `animation` to the pending animation event queue of a
-/// document, or, where `provisional`, to the events it queues during its style stabilization epoch, each with the time
-/// stamp `time_stamp` answers for the owning element of the animation.
-///
-/// # Safety
-/// `animation` must be an animation the host holds a reference to.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_document_animations_queue_css_events(
-    animations: &mut DocumentAnimations,
-    animation: *const AnimationCell,
-    provisional: bool,
-    time_stamp: unsafe extern "C" fn(element: NonNull<c_void>) -> f64,
-) -> FfiQueuedCssEvents {
-    // SAFETY: Guaranteed by the caller.
-    let animation = unsafe { AnimationHandle::retained_from_host(animation) };
-    let events = animation.borrow_mut().take_css_events();
-    let queued = FfiQueuedCssEvents {
-        kind: events.kind,
-        count: events.count,
-    };
-    if events.count == 0 {
-        return queued;
-    }
-    let owner = animation
-        .borrow()
-        .owning_element()
-        .expect("a CSS animation or transition with events has an owning element");
-    // SAFETY: The animation keeps its owning element alive, and the host answers the time stamp of a live element.
-    let time_stamp = unsafe { time_stamp(owner.element) };
-    for css_event in &events.events[..usize::from(events.count)] {
-        let event = FfiPendingAnimationEvent {
-            kind: PendingAnimationEventKind::Css,
-            css_event_type: css_event.r#type,
-            playback_event_type: PlaybackEventType::Finish,
-            time_event_type: TimeEventType::Begin,
-            detail: 0,
-            elapsed_time: css_event.elapsed_time,
-            current_time: OptionalTimeValue::UNRESOLVED,
-            timeline_time: OptionalTimeValue::UNRESOLVED,
-            scheduled_event_time: events.scheduled_event_time,
-            time_stamp,
-        };
-        animations.pending_events.append(
-            PendingAnimationEvent {
-                animation: animation.clone(),
-                event,
-            },
-            provisional,
-        );
-    }
-    queued
+pub struct FfiQueueAnimationEventsHost {
+    pub context: *mut c_void,
+    pub keep_alive: FfiKeepAlive,
+    /// The time stamp of an event queued for the host's `DOM::Element` `element` now.
+    pub time_stamp: unsafe extern "C" fn(context: *mut c_void, element: NonNull<c_void>) -> f64,
+    /// Queues the time events of the host's `SVGAnimationElement` `animation_element` the animation frame established.
+    pub queue_time_events: unsafe extern "C" fn(context: *mut c_void, animation_element: NonNull<c_void>),
+    pub perform: HostEffectPerformer,
 }
 
 /// https://www.w3.org/TR/web-animations-1/#update-animations-and-send-events
-/// Takes the events of the pending animation event queue of a document in the order to dispatch them in, comparing
-/// elements in tree order with `tree_order`, has the host keep the animation of each alive through `keep_alive` with
-/// `context`, and has it dispatch each through `dispatch` with `context`.
+/// https://drafts.csswg.org/css-transitions-2/#event-dispatch
+/// https://www.w3.org/TR/css-animations-2/#event-dispatch
+/// For each animation associated with a document whose animations `animations` are, whether or not it has a timeline,
+/// appends the events the animation frame established for a CSS animation or transition to the pending animation event
+/// queue of the document, or, where `provisional`, to the events it queues during its style stabilization epoch, has
+/// the host queue those of the animation of an SVG animation element, and disassociates the animation from the target
+/// of its associated effect where it is inert, as a procedure scheduled. Answers how many CSS events it queued.
 ///
 /// # Safety
-/// `animations` must be what a live document knows of animations, which `dispatch` may reach again, and `context` must
-/// be what `keep_alive` and `dispatch` expect.
+/// `animations` must be what a live document knows of animations, which the host may reach as it performs.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_document_animations_dispatch_events(
+pub unsafe extern "C" fn animations_document_animations_queue_events(
     animations: *mut DocumentAnimations,
-    tree_order: FfiTreeOrder,
-    keep_alive: FfiKeepAlive,
-    dispatch: unsafe extern "C" fn(context: *mut c_void, animation: &AnimationCell, event: &FfiPendingAnimationEvent),
-    context: *mut c_void,
-) {
-    // NB: Steps 4 to 6 take and sort the events, which dispatching them leaves to the host.
-    let events_to_dispatch = {
-        // SAFETY: Guaranteed by the caller; nothing else reaches the queue until the events are taken.
-        let animations = unsafe { &mut *animations };
-        animations
-            .pending_events
-            .take_events_to_dispatch(&mut host_tree_order(tree_order))
-    };
-    // NB: Dispatching an event runs script, which can run the GC, which must not collect the animation of an event
-    //     yet to be dispatched.
-    for event in &events_to_dispatch {
-        // SAFETY: The host keeps alive an animation it is handed for as long as the call that handed it lasts.
-        unsafe { keep_alive(context, &event.animation) };
+    provisional: bool,
+    host: &FfiQueueAnimationEventsHost,
+) -> usize {
+    // SAFETY: Guaranteed by the caller, and the borrow ends before the host performs anything.
+    let associated = unsafe { &mut *animations }
+        .set_mut(DocumentAnimationSetKind::Associated)
+        .alive();
+    for animation in &associated {
+        // SAFETY: The host keeps alive an animation it is handed for as long as this call lasts.
+        unsafe { (host.keep_alive)(host.context, animation) };
     }
-    // 7. Dispatch each of the events in events to dispatch at their corresponding target using the order established in
-    //    the previous step.
-    for event in &events_to_dispatch {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { dispatch(context, &event.animation, &event.event) };
+    let mut queued_count = 0;
+    for animation in &associated {
+        let events = animation.borrow_mut().take_css_events();
+        if let AnimationKind::Smil { animation_element, .. } = *animation.borrow().kind() {
+            // SAFETY: The animation keeps its animation element alive.
+            unsafe { (host.queue_time_events)(host.context, animation_element) };
+        } else if !events.as_slice().is_empty() {
+            let owner = animation
+                .borrow()
+                .owning_element()
+                .expect("a CSS animation or transition with events has an owning element");
+            // NB: Each event takes the time stamp of when it is queued.
+            // SAFETY: The animation keeps its owning element alive.
+            let time_stamp = unsafe { (host.time_stamp)(host.context, owner.element) };
+            for css_event in events.as_slice() {
+                let event = FfiPendingAnimationEvent {
+                    kind: PendingAnimationEventKind::Css,
+                    css_event_type: css_event.r#type,
+                    playback_event_type: PlaybackEventType::Finish,
+                    time_event_type: TimeEventType::Begin,
+                    detail: 0,
+                    elapsed_time: css_event.elapsed_time,
+                    current_time: OptionalTimeValue::UNRESOLVED,
+                    timeline_time: OptionalTimeValue::UNRESOLVED,
+                    scheduled_event_time: events.scheduled_event_time,
+                    time_stamp,
+                };
+                // SAFETY: Guaranteed by the caller; the borrow ends before the host performs anything.
+                unsafe { &mut *animations }.pending_events.append(
+                    PendingAnimationEvent {
+                        animation: animation.clone(),
+                        event,
+                    },
+                    provisional,
+                );
+            }
+            queued_count += events.as_slice().len();
+        }
+        if animation.borrow().disassociation_from_target_pending {
+            run_procedure(animation, host.perform, |procedures| {
+                procedures.disassociate_from_target_if_inert();
+            });
+        }
     }
+    queued_count
 }
 
 /// Calls `visit` with `context` and each GC cell of the host that keeps alive the elements the records of the events a
-/// document queued name, which the document visits as the GC traces it.
+/// document queued name, and the timelines associated with the document, which the document visits as the GC traces
+/// it.
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_document_animations_visit_pending_events(
+pub extern "C" fn animations_document_animations_visit_edges(
     animations: &DocumentAnimations,
     context: *mut c_void,
     visit: unsafe extern "C" fn(context: *mut c_void, cell: *mut c_void, kind: HostCellKind),
@@ -1993,6 +2543,18 @@ pub extern "C" fn animations_document_animations_visit_pending_events(
         // SAFETY: The host visits a cell of an animation it queued an event of.
         unsafe { visit(context, cell.as_ptr(), kind) }
     });
+    // NB: The document keeps alive the elements and transitions its provisional transition actions decide over.
+    animations.provisional_transitions.for_each_host_cell(|cell, kind| {
+        // SAFETY: The host visits a cell the document's provisional transition actions keep alive.
+        unsafe { visit(context, cell.as_ptr(), kind) }
+    });
+    // NB: The document keeps the timelines associated with it alive, and the objects script sees of them.
+    for timeline in &animations.timelines {
+        timeline.for_each_holder_cell(|cell, kind| {
+            // SAFETY: The host visits a cell of a timeline associated with the document.
+            unsafe { visit(context, cell.as_ptr(), kind) }
+        });
+    }
 }
 
 /// Adds `effect` to the set `kind` of the effects a document knows of, answering whether the set did not hold it yet.
@@ -2008,69 +2570,6 @@ pub unsafe extern "C" fn animations_document_effect_set_insert(
     // SAFETY: Guaranteed by the caller.
     let effect = unsafe { EffectHandle::retained_from_host(effect) };
     animations.effect_set_mut(kind).insert(&effect)
-}
-
-/// Removes `effect` from the set `kind` of the effects a document knows of, answering whether the set held it.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_document_effect_set_remove(
-    animations: &mut DocumentAnimations,
-    kind: DocumentEffectSetKind,
-    effect: &AnimationEffectCell,
-) -> bool {
-    animations.effect_set_mut(kind).remove(effect)
-}
-
-/// Whether the set `kind` of the effects a document knows of holds `effect`.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_document_effect_set_contains(
-    animations: &mut DocumentAnimations,
-    kind: DocumentEffectSetKind,
-    effect: &AnimationEffectCell,
-) -> bool {
-    animations.effect_set_mut(kind).contains(effect)
-}
-
-/// Empties the set `kind` of the effects a document knows of, calling `callback` with `context` and each effect alive
-/// to it, which the effect stays alive for the call of.
-///
-/// # Safety
-/// `callback` must not reach the effects the document knows of, and `context` must be what it expects.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_document_effect_set_take_each(
-    animations: &mut DocumentAnimations,
-    kind: DocumentEffectSetKind,
-    context: *mut c_void,
-    callback: unsafe extern "C" fn(*mut c_void, &AnimationEffectCell),
-) {
-    animations.effect_set_mut(kind).take_each(|effect| {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { callback(context, effect) };
-    });
-}
-
-/// Adds `animation` to `set`, answering whether `set` did not hold it yet.
-///
-/// # Safety
-/// `animation` must be an animation the host holds a reference to.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_weak_animation_set_insert(
-    set: &mut WeakAnimationSet,
-    animation: *const AnimationCell,
-) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    set.insert(&unsafe { AnimationHandle::retained_from_host(animation) })
-}
-
-/// Removes `animation` from `set`, answering whether `set` held it.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_weak_animation_set_remove(set: &mut WeakAnimationSet, animation: &AnimationCell) -> bool {
-    set.remove(animation)
-}
-
-/// Whether `set` holds `animation`.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_weak_animation_set_contains(set: &WeakAnimationSet, animation: &AnimationCell) -> bool {
-    set.contains(animation)
 }
 
 /// Drops the entries of the animations in `set` that died, as the host begins to enumerate it.
@@ -2089,12 +2588,6 @@ pub extern "C" fn animations_weak_animation_set_entry_count(set: &WeakAnimationS
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_weak_animation_set_get(set: &WeakAnimationSet, index: usize) -> *const AnimationCell {
     set.get(index).map_or(std::ptr::null(), AnimationHandle::into_raw)
-}
-
-/// The bytes the record of `animation` holds, without its associated effect's.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_animation_memory_size(animation: &AnimationCell) -> usize {
-    animation.memory_size()
 }
 
 /// New empty lists of the animations of an element, which the element owns.
@@ -2126,14 +2619,18 @@ pub extern "C" fn animations_element_animations_for_each_host_cell(
     });
 }
 
-/// Associates `animation` with the element, answering whether it was not associated yet.
+/// Associates `animation` with the element, and, where it was not associated yet, with its document, whose animations
+/// `document` are, as one created during its style stabilization epoch where `in_style_stabilization_epoch`, answering
+/// whether it was not associated yet.
 ///
 /// # Safety
 /// `animation` must be an animation the host holds a reference to.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn animations_element_animations_associate(
     animations: &mut ElementAnimations,
+    document: &mut DocumentAnimations,
     animation: *const AnimationCell,
+    in_style_stabilization_epoch: bool,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
     let animation = unsafe { AnimationHandle::retained_from_host(animation) };
@@ -2141,16 +2638,45 @@ pub unsafe extern "C" fn animations_element_animations_associate(
         return false;
     }
     animation.borrow_mut().did_associate_with_target();
+    document.associate(&animation, in_style_stabilization_epoch);
     true
 }
 
-/// Disassociates `animation` from the element, answering whether it was associated.
+/// Disassociates `animation`, whose associated effect `effect` was, if any, from the element, whose lists `animations`
+/// are where it has any, and from its document, whose animations `document` are, answering whether it was associated
+/// with the element.
+///
+/// # Safety
+/// `animations` must be null or the live lists of the element, and `effect` null or a live effect.
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_element_animations_disassociate(
-    animations: &mut ElementAnimations,
+pub unsafe extern "C" fn animations_element_animations_disassociate(
+    animations: *mut ElementAnimations,
+    document: &mut DocumentAnimations,
     animation: &AnimationCell,
+    effect: *const AnimationEffectCell,
 ) -> bool {
-    animations.disassociate(animation)
+    // SAFETY: Guaranteed by the caller.
+    let was_associated = unsafe { animations.as_mut() }.is_some_and(|animations| animations.disassociate(animation));
+    // SAFETY: Guaranteed by the caller.
+    document.disassociate(animation, unsafe { effect.as_ref() });
+    was_associated
+}
+
+/// Moves the animations associated with an element, whose lists `animations` are, from the document whose animations
+/// `old_document` are to the one whose animations `new_document` are, as ones created during its style stabilization
+/// epoch where `in_style_stabilization_epoch`.
+#[unsafe(no_mangle)]
+pub extern "C" fn animations_element_animations_move_to_document(
+    animations: &ElementAnimations,
+    old_document: &mut DocumentAnimations,
+    new_document: &mut DocumentAnimations,
+    in_style_stabilization_epoch: bool,
+) {
+    for animation in animations.associated() {
+        let effect = animation.borrow().effect().cloned();
+        old_document.disassociate(animation, effect.as_deref());
+        new_document.associate(animation, in_style_stabilization_epoch);
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -2228,78 +2754,12 @@ unsafe fn style_engine_target<'a>(host: *const DocumentHost, node: u32) -> Optio
     })
 }
 
-/// Sets the CSS animations of the owner at `slot` to `records`, which it takes references of its own to, and publishes
-/// them to the style engine of `host`, which knows the element as `node`, where the host names one.
-///
-/// # Safety
-/// Each of `records` must be an animation the host holds a reference to, and a non-null `host` must be live for the
-/// call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_element_animations_set_css_animations(
-    animations: &mut ElementAnimations,
-    slot: AnimationOwnerSlot,
-    records: ak::Span<'_, *const AnimationCell>,
-    host: *const DocumentHost,
-    node: u32,
-) {
-    animations.set_css_animations(
-        slot,
-        records
-            .as_slice()
-            .iter()
-            // SAFETY: Guaranteed by the caller.
-            .map(|&record| unsafe { AnimationHandle::retained_from_host(record) }),
-        // SAFETY: Guaranteed by the caller.
-        unsafe { style_engine_target(host, node) },
-    );
-}
-
-/// Whether the element has had CSS animations since it last cancelled them, or has transitions.
+/// Whether the element has had CSS animations since it last canceled them, or has transitions.
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_element_animations_has_css_animations_or_transitions(
     animations: &ElementAnimations,
 ) -> bool {
     animations.has_css_animations_or_transitions()
-}
-
-/// The property a CSS transition runs: the host's `PropertyID`, and the raw fly string of the name of a custom property,
-/// or zero.
-#[repr(C)]
-pub struct FfiTransitionProperty {
-    pub property_id: u16,
-    pub custom_name: usize,
-}
-
-impl From<FfiTransitionProperty> for TransitionProperty {
-    fn from(property: FfiTransitionProperty) -> Self {
-        Self {
-            property_id: property.property_id,
-            custom_name: property.custom_name,
-        }
-    }
-}
-
-/// The record of the transition of `property` the owner at `slot` has, which the lists hold, or null.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_element_animations_transition(
-    animations: &ElementAnimations,
-    slot: AnimationOwnerSlot,
-    property: FfiTransitionProperty,
-) -> *const AnimationCell {
-    animations
-        .transition(slot, property.into())
-        .map_or(std::ptr::null(), |transition| &raw const **transition)
-}
-
-/// Removes the transition of `property` the owner at `slot` has, which is disassociated from its target once it is
-/// inert.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_element_animations_remove_transition(
-    animations: &mut ElementAnimations,
-    slot: AnimationOwnerSlot,
-    property: FfiTransitionProperty,
-) {
-    animations.remove_transition(slot, property.into());
 }
 
 /// The host's function that runs `run` with `run_context` in an execution context it opens for `animation`, as its
@@ -2364,7 +2824,7 @@ pub unsafe extern "C" fn animations_element_animations_play_or_pause_css_animati
                 _ => unreachable!("a CSS-defined animation has the play state animation-play-state computed for it"),
             };
             in_host_execution_context(in_execution_context, context, animation, || {
-                let ((), effects) = procedures::run(animation, |procedures| {
+                run_procedure_on(animation, perform, |procedures| {
                     if plays {
                         procedures.play_from_css()
                     } else {
@@ -2372,7 +2832,6 @@ pub unsafe extern "C" fn animations_element_animations_play_or_pause_css_animati
                     }
                 })
                 .expect("playing or pausing an animation from CSS does not throw");
-                perform_host_effects(effects, perform);
             });
         }
     }
@@ -2408,29 +2867,34 @@ pub unsafe extern "C" fn animations_element_animations_cancel_css_animations_and
         unsafe { keep_alive(context, animation) };
     }
     for animation in &taken {
-        let cancel = || {
-            let ((), effects) = procedures::run(animation, |procedures| {
-                procedures.cancel(Invalidate::No);
-                Ok(())
-            })
-            .expect("cancelling an animation does not throw");
-            perform_host_effects(effects, perform);
-        };
-        // NB: Cancelling an animation that is not idle settles its promises and creates its cancel event.
-        let (play_state, _) = procedures::run(animation, |procedures| Ok(procedures.play_state()))
-            .expect("reading the play state does not throw");
-        if play_state == AnimationPlayState::Idle {
-            cancel();
-        } else {
-            in_host_execution_context(in_execution_context, context, animation, cancel);
-        }
+        cancel_animation(animation, Invalidate::No, in_execution_context, context, perform);
     }
 }
 
-/// The bytes the lists of the animations of an element hold, without the animations.
+/// The bytes the lists of the animations of an element hold, with the records of the animations associated with it and
+/// of their effects, and the keyframe sets those run that `first_counted` with `context` answers are counted here first.
 #[unsafe(no_mangle)]
-pub extern "C" fn animations_element_animations_memory_size(animations: &ElementAnimations) -> usize {
-    animations.memory_size()
+pub extern "C" fn animations_element_animations_record_memory_size(
+    animations: &ElementAnimations,
+    first_counted: unsafe extern "C" fn(context: *mut c_void, set: *const KeyframeSet) -> bool,
+    context: *mut c_void,
+) -> usize {
+    let mut bytes = animations.memory_size();
+    for animation in animations.associated() {
+        bytes += animation.memory_size();
+        let Some(effect) = animation.borrow().effect().cloned() else {
+            continue;
+        };
+        bytes += effect.memory_size();
+        let keyframes = effect.borrow().keyframes().cloned();
+        // SAFETY: The host only notes the address of the set.
+        if let Some(keyframes) = keyframes
+            && unsafe { first_counted(context, Arc::as_ptr(&keyframes)) }
+        {
+            bytes += crate::heap_size::ARC_HEADER_BYTES + size_of::<KeyframeSet>() + keyframes.heap_size();
+        }
+    }
+    bytes
 }
 
 /// Forgets the descriptions of the effects of the element `animations` belongs to that the host published to the style
@@ -2497,12 +2961,14 @@ pub(crate) unsafe fn describe_sampled_effects(effects: &[FfiSampledEffect]) -> S
 unsafe extern "C" {
     fn ladybird_animations_document_is_active(document: NonNull<c_void>) -> bool;
     fn ladybird_animations_element_node_document(element: NonNull<c_void>) -> NonNull<c_void>;
+    /// Compares the host's `DOM::Element`s `first` and `second` in tree order, as composite order does.
+    pub fn web_animation_compare_elements_in_tree_order(first: *mut c_void, second: *mut c_void) -> i32;
 }
 
 /// The host's `DOM::Document` that is the node document of the host's `DOM::Element` `element`, which something the
 /// caller holds keeps alive.
 /// https://dom.spec.whatwg.org/#concept-node-document
-fn element_node_document(element: NonNull<c_void>) -> NonNull<c_void> {
+pub fn element_node_document(element: NonNull<c_void>) -> NonNull<c_void> {
     // SAFETY: Guaranteed by the caller, and the host only reads the element.
     unsafe { ladybird_animations_element_node_document(element) }
 }
@@ -2572,20 +3038,6 @@ impl FfiViewTimelineInset {
         ViewTimelineInset {
             start: edge(&self.start),
             end: edge(&self.end),
-        }
-    }
-
-    /// The inset `inset` describes, whose calculations it borrows.
-    fn borrowing(inset: &ViewTimelineInset) -> Self {
-        let edge = |edge: &ViewTimelineInsetEdge| FfiViewTimelineInsetEdge {
-            is_auto: edge.is_auto,
-            px: edge.px,
-            percentage: edge.percentage,
-            calculated: edge.calculated.pointer().cast(),
-        };
-        Self {
-            start: edge(&inset.start),
-            end: edge(&inset.end),
         }
     }
 }
@@ -2665,7 +3117,7 @@ pub struct FfiTimelineDescription {
 ///
 /// # Safety
 /// The calculations of a view timeline's inset must be null or live style values.
-pub(crate) unsafe fn create_timeline(
+pub(crate) unsafe fn timeline_of_description(
     document: NonNull<c_void>,
     description: &FfiTimelineDescription,
 ) -> TimelineHandle {
@@ -2696,265 +3148,29 @@ pub(crate) unsafe fn create_timeline(
     TimelineHandle::new(document, kind)
 }
 
-/// The host's `DOM::Document` that `timeline` is associated with.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_timeline_document(timeline: &TimelineCell) -> *mut c_void {
-    timeline.document().as_ptr()
-}
-
-/// The scroll offsets at the start and at the end of the cover range of a view timeline, in CSS pixels.
-#[repr(C)]
-#[derive(Clone, Copy, Default)]
-pub struct FfiViewTimelineCoverRange {
-    pub start: f64,
-    pub end: f64,
-}
-
-/// What the host reads of a timeline: what the timing model reads of it, with its duration and what moves it as a
-/// clock tick samples it, what script observed of it, and the state of a scroll or view timeline.
+/// What the host reads of a timeline: its kind and its current time, which is unresolved where the timeline is
+/// inactive.
 #[repr(C)]
 pub struct FfiTimeline {
-    pub id: AnimationTimelineId,
     pub kind: FfiTimelineKind,
-    /// Its current time is unresolved where the timeline is inactive.
-    pub sample: TimelineSample,
-    pub is_inactive: bool,
-    pub duration: OptionalTimeValue,
-    pub clock: TimelineClock,
-    /// The current time a style sampling reads instead, where `has_style_sampling_override`.
-    pub has_style_sampling_override: bool,
-    pub style_sampling_override: OptionalTimeValue,
-    pub can_sample_current_time_at_timestamp: bool,
-    /// The task generation of the event loop in which script last observed the timeline, where
-    /// `has_observation_task_generation`, and the current time it observed then.
-    pub has_observation_task_generation: bool,
-    pub observation_task_generation: u64,
-    pub observed_current_time: OptionalTimeValue,
-    /// The task generation in which script observed the timeline at a time ahead of its current time, where
-    /// `was_observed_ahead`.
-    pub was_observed_ahead: bool,
-    pub observed_ahead_task_generation: u64,
-    pub source: FfiScrollTimelineSource,
-    pub axis: u8,
-    /// The inset of a view timeline, whose calculations it borrows until the inset changes.
-    pub inset: FfiViewTimelineInset,
-    /// The cover range of a view timeline as its progress was last calculated, where `has_cover_range`.
-    pub has_cover_range: bool,
-    pub cover_range: FfiViewTimelineCoverRange,
+    pub current_time: OptionalTimeValue,
 }
 
 /// What the host reads of `timeline`.
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_timeline_read(timeline: &TimelineCell) -> FfiTimeline {
-    let sample = timeline.sample();
-    let is_inactive = timeline.is_inactive();
-    let clock = timeline.clock();
-    let record = timeline.borrow();
-    let observation = record.observed_in_task_generation();
-    let observed_ahead = record.observed_ahead_in_task_generation();
-    let style_sampling_override = record.style_sampling_override();
-    let no_edge = FfiViewTimelineInsetEdge {
-        is_auto: true,
-        px: 0.0,
-        percentage: 0.0,
-        calculated: std::ptr::null(),
+    let current_time = timeline.sample().current_time;
+    let kind = match &timeline.borrow().kind {
+        TimelineKind::Document { .. } => FfiTimelineKind::Document,
+        TimelineKind::Scroll(scroll) if scroll.view.is_some() => FfiTimelineKind::View,
+        TimelineKind::Scroll(_) => FfiTimelineKind::Scroll,
+        TimelineKind::Internal { .. } => FfiTimelineKind::Internal,
     };
-    let mut read = FfiTimeline {
-        id: record.id(),
-        kind: match &record.kind {
-            TimelineKind::Document { .. } => FfiTimelineKind::Document,
-            TimelineKind::Scroll(scroll) if scroll.view.is_some() => FfiTimelineKind::View,
-            TimelineKind::Scroll(_) => FfiTimelineKind::Scroll,
-            TimelineKind::Internal { .. } => FfiTimelineKind::Internal,
-        },
-        sample,
-        is_inactive,
-        duration: record.duration().into(),
-        clock,
-        has_style_sampling_override: style_sampling_override.is_some(),
-        style_sampling_override: style_sampling_override.flatten().into(),
-        can_sample_current_time_at_timestamp: record.can_sample_current_time_at_timestamp(),
-        has_observation_task_generation: observation.0.is_some(),
-        observation_task_generation: observation.0.unwrap_or(0),
-        observed_current_time: observation.1.into(),
-        was_observed_ahead: observed_ahead.is_some(),
-        observed_ahead_task_generation: observed_ahead.unwrap_or(0),
-        source: ScrollTimelineSource::Element(None).into(),
-        axis: 0,
-        inset: FfiViewTimelineInset {
-            start: no_edge,
-            end: no_edge,
-        },
-        has_cover_range: false,
-        cover_range: FfiViewTimelineCoverRange::default(),
-    };
-    if let Some(scroll) = record.scroll() {
-        read.source = scroll.source.into();
-        read.axis = scroll.axis;
-        if let Some(view) = &scroll.view {
-            read.inset = FfiViewTimelineInset::borrowing(&view.inset);
-            if let Some(metrics) = view.last_metrics {
-                read.has_cover_range = true;
-                read.cover_range = FfiViewTimelineCoverRange {
-                    start: metrics.cover_start(),
-                    end: metrics.cover_end(),
-                };
-            }
-        }
-    }
-    read
-}
-
-/// The boxes a scroll timeline follows, as the host found them from its source in the render state of `host`'s
-/// document, which it reads in `read`: the box of the scroll container, if any, the viewport's where the source is the
-/// root element, its scroll node, where `has_scroll_node`, and the style node of the element whose box scrolls, or 0
-/// for the viewport. For a view timeline, the box of its subject, if any, and the style node by which a clock tick finds
-/// it, or 0 where the subject is a pseudo-element. `host` and `read` are null where the source has no box.
-#[repr(C)]
-pub struct FfiScrollTimelineBoxes {
-    pub host: *const DocumentHost,
-    pub read: *const BegunRead,
-    pub scroller: NodeSlotId,
-    pub has_scroll_node: bool,
-    pub scroll_node: ScrollNodeStableId,
-    pub scroller_style_node: u32,
-    pub subject: NodeSlotId,
-    pub subject_style_node: u32,
-}
-
-/// The host's function that updates the animations associated with its timeline `facade`.
-pub type TimelineAnimationsUpdater = extern "C" fn(facade: *mut c_void);
-
-/// Updates the current time of `timeline` in the task of `task_generation`: a document timeline's from the now
-/// timestamp `timestamp`, and a scroll timeline's from where the render state lays out the boxes it follows, `boxes`,
-/// unless that leaves it as it was where `only_if_stale`. Has `update_associated_animations` update the animations
-/// associated with the timeline as its current time changes, and answers whether the timeline was updated.
-///
-/// # Safety
-/// The host and the read of `boxes` must be null or a live document host and a read the host began of its render
-/// state, in which the slots of `boxes` name its rows.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_timeline_update_current_time(
-    timeline: &TimelineCell,
-    timestamp: f64,
-    boxes: Option<&FfiScrollTimelineBoxes>,
-    task_generation: u64,
-    only_if_stale: bool,
-    update_associated_animations: TimelineAnimationsUpdater,
-) -> bool {
-    let facade = timeline.facade().expect("the host updates a live timeline");
-    let update = || update_associated_animations(facade.as_ptr());
-    let Some(boxes) = boxes else {
-        timeline.update_current_time(TimelineUpdate::Timestamp(timestamp), task_generation, false, update);
-        return true;
-    };
-    let subject_style_node = StyleNodeID::from_raw(boxes.subject_style_node);
-    // SAFETY: Guaranteed by the caller.
-    let (scroller, subject) = match unsafe { (boxes.host.as_ref(), boxes.read.as_ref()) } {
-        (Some(host), Some(read)) => {
-            let found = ScrollTimelineBoxes {
-                scroller: boxes.scroller,
-                scroll_node: boxes.has_scroll_node.then_some(boxes.scroll_node),
-                scroller_style_node: boxes.scroller_style_node,
-                subject: boxes.subject,
-            };
-            let record = timeline.borrow();
-            let scroll = record.scroll().expect("the host lays out scroll timelines");
-            host.ask(read, |state| {
-                let arena = state.arena_mut();
-                arena.settle_scrollable_overflow();
-                scroll.measure(arena, &found)
-            })
-        }
-        _ => (None, None),
-    };
-    timeline.update_current_time(
-        TimelineUpdate::Layout {
-            scroller: scroller.as_ref(),
-            subject: subject.as_ref(),
-            subject_style_node,
-        },
-        task_generation,
-        only_if_stale,
-        update,
-    )
-}
-
-/// Sets the current time of the Internals interface's timeline `timeline` to `time`, in milliseconds, in the task of
-/// `task_generation`, having `update_associated_animations` update its animations, or, where `for_observation`, the
-/// time a read of it observes.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_internal_timeline_set_time(
-    timeline: &TimelineCell,
-    time: OptionalNumber,
-    for_observation: bool,
-    task_generation: u64,
-    update_associated_animations: TimelineAnimationsUpdater,
-) {
-    let facade = timeline.facade().expect("the host sets the time of a live timeline");
-    timeline.set_internal_time(time.get(), for_observation, task_generation, || {
-        update_associated_animations(facade.as_ptr());
-    });
-}
-
-/// The current time at the timestamp `timestamp` of `timeline`, where it can sample it there, and its current time
-/// otherwise. Where `observed`, script observes it in the task of `task_generation`, which the timeline keeps.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_timeline_current_time_at_timestamp(
-    timeline: &TimelineCell,
-    timestamp: f64,
-    observed: bool,
-    task_generation: u64,
-) -> OptionalTimeValue {
-    timeline
-        .current_time_at_timestamp(timestamp, observed.then_some(task_generation))
-        .into()
-}
-
-/// Has a style sampling read `current_time` as the current time of `timeline` where `has_override`, and its current
-/// time otherwise.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_timeline_set_style_sampling_override(
-    timeline: &TimelineCell,
-    has_override: bool,
-    current_time: OptionalTimeValue,
-) {
-    timeline
-        .borrow_mut()
-        .set_style_sampling_override(has_override.then(|| current_time.get()));
+    FfiTimeline { kind, current_time }
 }
 
 /// The animations associated with `timeline`, which lives as long as the timeline.
 #[unsafe(no_mangle)]
 pub extern "C" fn animations_timeline_associated_animations(timeline: &TimelineCell) -> *mut WeakAnimationSet {
     timeline.associated_animations().as_ptr()
-}
-
-/// Sets the axis of the scroll timeline `timeline` to `axis`, the host's `ScrollAxis`, and the inset of a view
-/// timeline to `inset`, answering whether that changed either.
-///
-/// # Safety
-/// The calculations of `inset` must be null or live style values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_scroll_timeline_set_axis_and_inset(
-    timeline: &TimelineCell,
-    axis: u8,
-    inset: Option<&FfiViewTimelineInset>,
-) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let inset = inset.map(|inset| unsafe { inset.retained() });
-    timeline.set_axis_and_inset(axis, inset)
-}
-
-/// https://www.w3.org/TR/web-animations-1/#timeline-time-to-origin-relative-time
-/// The origin-relative time of the timeline time `timeline_time` of `timeline`, which is unresolved where the timeline
-/// defines no procedure to convert it.
-#[unsafe(no_mangle)]
-pub extern "C" fn animations_timeline_convert_to_origin_relative_time(
-    timeline: &TimelineCell,
-    timeline_time: OptionalTimeValue,
-) -> OptionalNumber {
-    timeline
-        .convert_a_timeline_time_to_an_origin_relative_time(timeline_time.get())
-        .into()
 }

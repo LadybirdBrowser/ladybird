@@ -37,11 +37,8 @@ pub struct FfiExistingTransition {
     pub reversing_shortening_factor: f64,
 }
 
-#[repr(C)]
+/// The target of a transition step.
 pub struct FfiTransitionInput {
-    /// The transitions the target holds, each for a different property.
-    pub existing_transitions: *const FfiExistingTransition,
-    pub existing_transition_count: usize,
     /// The target's style node.
     pub target_node: u32,
     /// The target's pseudo-element kind, or `u8::MAX` for an element.
@@ -754,9 +751,6 @@ struct RunningTransitionAt {
     started_at: f64,
 }
 
-/// The key a published keyframe at 100% sits at: `KeyframeEffect::AnimationKeyFrameKeyScaleFactor` times 100.
-const FULL_KEY: f64 = 100.0 * 1000.0;
-
 /// The transitions the host runs on the element `node` names, as they stand at `at`, the time a step decides at, in
 /// the document timeline's milliseconds. The CSS animations the host runs on it are not among them: the ticks sample
 /// those as they are.
@@ -979,7 +973,7 @@ impl RowTransitions {
                 end_value: transition.end_value,
                 reversing_adjusted_start_value: transition.reversing_adjusted_start_value,
                 // The output of the timing function of a running transition at the time of the style change event.
-                timing_function_output: transition.key.map_or(0.0, |key| key / FULL_KEY),
+                timing_function_output: transition.key.map_or(0.0, crate::animations::keyframes::offset_of_key),
                 reversing_shortening_factor: transition.reversing_shortening_factor,
             })
             .collect();

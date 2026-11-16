@@ -19,7 +19,6 @@ use std::ptr::NonNull;
 
 /// The type of a `TimeEvent` an SVG animation element dispatches.
 /// https://svgwg.org/specs/animations/#InterfaceTimeEvent
-#[expect(dead_code, reason = "C++ constructs the variants")]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TimeEventType {
@@ -29,7 +28,6 @@ pub enum TimeEventType {
 }
 
 /// Which interface an event of the pending animation event queue is of.
-#[expect(dead_code, reason = "C++ constructs the variants")]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PendingAnimationEventKind {
@@ -114,10 +112,10 @@ impl PendingAnimationEvents {
         let mut events_to_dispatch = std::mem::take(&mut self.pending);
 
         // 6. Perform a stable sort of the animation events in events to dispatch as follows:
-        //    Sort the events by their scheduled event time such that events that were scheduled to occur earlier, sort
-        //    before events scheduled to occur later and events whose scheduled event time is unresolved sort before
-        //    events with a resolved scheduled event time.
-        //    Within events with equal scheduled event times, sort by their composite order.
+        //    1. Sort the events by their scheduled event time such that events that were scheduled to occur earlier
+        //       sort before events scheduled to occur later, and events whose scheduled event time is unresolved sort
+        //       before events with a resolved scheduled event time.
+        //    2. Within events with equal scheduled event times, sort by their composite order.
         // NB: An event of an animation without an associated effect sorts before those of animations with one.
         events_to_dispatch.sort_by(|a, b| {
             let (a_time, b_time) = (a.event.scheduled_event_time, b.event.scheduled_event_time);

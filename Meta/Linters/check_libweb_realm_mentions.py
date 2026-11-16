@@ -37,8 +37,9 @@ CHECKED_SUFFIXES = {
 ALLOWED_REALM_MENTIONS = {
     "Animations": (
         2,
-        8,
-        "animation playback events, promise settling and CSS value materialization still pass spec-selected realms",
+        4,
+        "host callbacks of the Rust animation code take the realm it selects to read the current high resolution time, "
+        "find an animation's relevant global object and wrap elements",
     ),
     "CSS": (
         7,

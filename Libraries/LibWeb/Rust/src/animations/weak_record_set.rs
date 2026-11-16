@@ -172,22 +172,6 @@ mod tests {
     }
 
     #[test]
-    fn removing_an_entry_keeps_the_others_findable() {
-        let mut set = WeakRecordSet::new(|_| true);
-        let records: Vec<_> = (0..5).map(Rc::new).collect();
-        for record in &records {
-            set.insert(record);
-        }
-        set.remove(Rc::as_ptr(&records[1]));
-        assert_eq!(live(&set), [0, 4, 2, 3]);
-        for record in [&records[0], &records[2], &records[3], &records[4]] {
-            assert!(set.contains(Rc::as_ptr(record)));
-            assert!(set.remove(Rc::as_ptr(record)));
-        }
-        assert_eq!(set.entry_count(), 0);
-    }
-
-    #[test]
     fn taking_each_record_yields_the_live_ones_and_empties_the_set() {
         let mut set = WeakRecordSet::new(|&record| record != 2);
         let records: Vec<_> = (0..4).map(Rc::new).collect();

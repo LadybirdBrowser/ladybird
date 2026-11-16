@@ -9,7 +9,6 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use libcompositing_rust::animation_timing::OptionalTimeValue;
 use libjs_rust::api::{Gc, Object, Trace, Visitor, Vm};
 use libweb_rust::web_animations::{TimelineInterfaceKind, TimelineRecordRef};
 
@@ -31,8 +30,6 @@ use crate::css::css_numeric_value::CSSNumberish;
 use crate::internals::internal_animation_timeline::InternalAnimationTimeline;
 
 unsafe extern "C" {
-    fn web_animation_timeline_did_create(timeline: *mut c_void);
-    fn web_animation_timeline_current_time_for_observation(timeline: *mut c_void) -> OptionalTimeValue;
     fn web_animation_wrap_element(realm: *mut c_void, element: *mut c_void) -> *mut c_void;
     fn web_animation_element_of_wrapper(wrapper: *mut c_void) -> *mut c_void;
 }
@@ -65,11 +62,10 @@ impl AnimationTimeline {
     pub(crate) fn current_time(&self, cx: &mut CallContext) -> WebIdlResult<Option<CSSNumberish>> {
         // Returns the current time for this timeline or null if this timeline is inactive. The value is expressed as a
         // percentage for a progress-based timeline, or as a double in milliseconds otherwise.
-        // NB: Script observes the current time as the host samples it for observation.
-        // SAFETY: The record names the live cell of this timeline.
-        let current_time = unsafe { web_animation_timeline_current_time_for_observation(self.cell()) };
-        Ok(current_time
-            .get()
+        // NB: Script observes the current time as the timeline is sampled for observation.
+        Ok(self
+            .record
+            .current_time_for_observation()
             .map(|time| time_value_as_css_numberish(cx.vm(), time)))
     }
 
@@ -81,19 +77,11 @@ impl AnimationTimeline {
             .duration()
             .map(|time| time_value_as_css_numberish(cx.vm(), time)))
     }
-
-    /// The cell of the object of this timeline, as the host names it.
-    pub(crate) fn cell(&self) -> *mut c_void {
-        self.record
-            .facade()
-            .expect("a timeline script reaches is alive")
-            .as_ptr()
-    }
 }
 
 /// Finalizes a timeline: the record can outlive the timeline until what holds the record is swept.
 pub(crate) fn finalize_timeline(timeline: &AnimationTimeline) {
-    timeline.record.set_facade(None);
+    timeline.record.set_object_cell(None);
 }
 
 impl AnimationTimeline {
@@ -102,19 +90,22 @@ impl AnimationTimeline {
     }
 }
 
-/// Has the host note a new timeline, whose cell it then reaches the timeline through.
+/// Notes the cell of a new object of a timeline, which its record then reaches it through.
 pub(crate) fn did_create_timeline(cell: *mut c_void) {
     // SAFETY: The cell is that of a new timeline.
     let timeline = unsafe { timeline_of_cell(cell) }.expect("the cell is that of a timeline");
-    timeline.record.set_facade(NonNull::new(cell));
-    // SAFETY: The cell is that of a new timeline.
-    unsafe { web_animation_timeline_did_create(cell) };
+    timeline.record.set_object_cell(NonNull::new(cell));
 }
 
-/// A new timeline of the record the host describes, which picks its interface by the kind of the record.
-fn create_timeline_from_record(vm: &Vm, record: TimelineRecordRef) -> *mut c_void {
-    let timeline = AnimationTimeline::new(record);
-    let cell = match timeline.record.kind() {
+/// The object script sees of the timeline of `record`, which is made as script first asks for it, of the interface the
+/// kind of the record picks.
+pub(crate) fn timeline_object_of_record(vm: &Vm, record: &TimelineRecordRef) -> AnyAnimationTimeline {
+    if let Some(cell) = record.object_cell() {
+        // SAFETY: The object cell of a record is the live cell of its object.
+        return unsafe { timeline_object(cell.as_ptr()) };
+    }
+    let timeline = AnimationTimeline::new(record.clone());
+    let cell = match record.kind() {
         TimelineInterfaceKind::Document => cell_into_abi(allocate(vm, |_| DocumentTimeline::from_timeline(timeline))),
         TimelineInterfaceKind::Scroll => cell_into_abi(allocate(vm, |_| ScrollTimeline::from_timeline(timeline))),
         TimelineInterfaceKind::View => cell_into_abi(allocate(vm, |_| ViewTimeline::from_timeline(timeline))),
@@ -123,7 +114,8 @@ fn create_timeline_from_record(vm: &Vm, record: TimelineRecordRef) -> *mut c_voi
         }
     };
     did_create_timeline(cell);
-    cell
+    // SAFETY: The cell is that of the new object.
+    unsafe { timeline_object(cell) }
 }
 
 /// The part as an AnimationTimeline of the timeline whose cell the host names.
@@ -173,40 +165,6 @@ pub(crate) fn element_of_wrapper(element: CppInterface) -> NonNull<c_void> {
     // SAFETY: The wrapper is that of a live Element.
     NonNull::new(unsafe { web_animation_element_of_wrapper(element.wrapper().as_ptr().cast()) })
         .expect("a wrapper of an Element wraps an element")
-}
-
-/// The record of the timeline whose cell the host names, which lives as long as the timeline.
-///
-/// # Safety
-///
-/// `timeline` must be a live cell of an AnimationTimeline.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_animation_timeline_record(timeline: *mut c_void) -> *const c_void {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { timeline_of_cell(timeline) }
-        .expect("the host names the cell of a timeline")
-        .record
-        .as_host_ptr()
-}
-
-/// A new timeline associated with the host's `DOM::Document` `document`, as `description`, the host's
-/// `FfiTimelineDescription`, describes it.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `document` a live document and `description` a live description.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_animation_timeline_create(
-    vm: *mut c_void,
-    document: *mut c_void,
-    description: *const c_void,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
-    let document = NonNull::new(document).expect("a timeline is associated with a document");
-    // SAFETY: Guaranteed by the caller.
-    let record = unsafe { TimelineRecordRef::from_host_description(document, description) };
-    create_timeline_from_record(vm, record)
 }
 
 /// An object script sees of a timeline, of the interface that inherits from AnimationTimeline it is of.

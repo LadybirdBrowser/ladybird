@@ -4383,36 +4383,6 @@ pub unsafe extern "C" fn rust_style_value_create_color_function(
     ))))
 }
 
-/// Takes ownership of one strong reference to the calculation node; the byte blob and ranges
-/// are copied.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_calculated(
-    rust_calculation: *const crate::css::calc::CalcNode,
-    resolved_type: crate::css::calc::FfiNumericType,
-    has_percentages_resolve_as: bool,
-    resolve_as_is_number: bool,
-    resolve_as_base: u8,
-    percentages_resolve_as: u8,
-    resolve_numbers_as_integers: bool,
-    accepted_ranges: *const RetainedNumericRangeByType,
-    accepted_range_count: usize,
-) -> *const StyleValueData {
-    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::Calculated(StyleValueBox::new(
-        CalculatedPayload {
-            rust_calculation: unsafe { crate::css::calc::CalcNodeHandle::from_raw(rust_calculation) },
-            resolve_as_is_number,
-            resolve_as_base,
-            resolved_type,
-            has_percentages_resolve_as,
-            percentages_resolve_as,
-            resolve_numbers_as_integers,
-            accepted_ranges: RetainedNumericRangeList::from_vec(unsafe {
-                read_elements(accepted_ranges, accepted_range_count)
-            }),
-        },
-    ))))
-}
-
 /// Copies the borrowed native URL text and takes ownership of each modifier string.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_image(

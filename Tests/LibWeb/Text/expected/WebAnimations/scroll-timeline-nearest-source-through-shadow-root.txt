@@ -1,0 +1,2 @@
+shadow root child: host
+slotted: slot-scroller

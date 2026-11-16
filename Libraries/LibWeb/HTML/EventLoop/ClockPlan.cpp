@@ -6,7 +6,6 @@
 
 #include <AK/Math.h>
 #include <LibWeb/Animations/AnimationEffect.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
@@ -73,9 +72,9 @@ static bool tick_can_sample(DOM::Document const& document, Animations::EffectRef
 }
 
 // NB: An animation of a scroll timeline that finished runs again as the scroll goes back.
-static bool runs_for_clock_plan(Animations::RustFFI::FfiAnimationTimingState const& state, bool on_scroll_timeline)
+static bool runs_for_clock_plan(Animations::RustFFI::AnimationPlayState play_state, bool on_scroll_timeline)
 {
-    return state.play_state == Animations::RustFFI::AnimationPlayState::Running || (on_scroll_timeline && state.play_state == Animations::RustFFI::AnimationPlayState::Finished);
+    return play_state == Animations::RustFFI::AnimationPlayState::Running || (on_scroll_timeline && play_state == Animations::RustFFI::AnimationPlayState::Finished);
 }
 
 // The compositor runs these on its own, so the render clock does not sample them.
@@ -142,10 +141,10 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
             if (!document.is_fully_active() || document.hidden() || !document.window())
                 return false;
             auto timeline = document.timeline();
-            auto timeline_time = timeline->current_time();
-            if (!timeline_time.has_value() || timeline_time->type != Animations::TimeValue::Type::Milliseconds)
+            auto timeline_time = timeline.current_time();
+            if (!timeline_time.has_value() || timeline_time->type != Animations::RustFFI::TimeValueType::Milliseconds)
                 return false;
-            auto plan_animation = [&](Animations::AnimationRef const& animation, Animations::RustFFI::FfiAnimationTimingState const& state, Animations::AnimationTimeline const* scroll_timeline, Animations::EffectRef const& effect, DOM::Element const& target) {
+            auto plan_animation = [&](Animations::AnimationRef const& animation, Animations::TimelineView const* scroll_timeline, Animations::EffectRef const& effect, DOM::Element const& target) {
                 // NB: The record decides what the plan makes of the animation as far as its timing goes. One whose play
                 //     is pending holds still, and the ticks sample nothing of its element.
                 auto planned = Animations::RustFFI::animations_animation_clock_plan(&animation.record());
@@ -169,25 +168,24 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                 if (!tick_samples)
                     return true;
                 if (!scroll_timeline)
-                    last_end = max(last_end, timeline_time->value + (planned.active_end.value - planned.local_time.value) / state.playback.playback_rate);
+                    last_end = max(last_end, timeline_time->value + (planned.active_end.value - planned.local_time.value) / animation.playback_rate());
                 auto element = target.style_node_id().value();
                 if (!elements.contains_slow(element))
                     elements.append(element);
                 return true;
             };
             for (auto const& associated_timeline : document.associated_animation_timelines()) {
-                Animations::AnimationTimeline const* scroll_timeline = associated_timeline->is_scroll_timeline() ? associated_timeline.ptr() : nullptr;
-                for (auto const& animation : associated_timeline->associated_animations()) {
-                    auto const state = animation.timing_state();
-                    if (!runs_for_clock_plan(state, scroll_timeline != nullptr))
+                Animations::TimelineView const* scroll_timeline = associated_timeline.is_scroll_timeline() ? &associated_timeline : nullptr;
+                for (auto const& animation : Animations::associated_animations_of(associated_timeline)) {
+                    if (!runs_for_clock_plan(animation.play_state(), scroll_timeline != nullptr))
                         continue;
                     auto effect = animation.effect();
                     auto* target = effect.has_value() ? effect->target() : nullptr;
                     if (!target || &target->document() != &document || !target->is_connected())
                         continue;
                     // A tick moves the document's timeline and the scroll timelines alone.
-                    bool const on_a_ticked_timeline = associated_timeline.ptr() == timeline.ptr() || scroll_timeline;
-                    if (on_a_ticked_timeline && plan_animation(animation, state, scroll_timeline, *effect, *target))
+                    bool const on_a_ticked_timeline = associated_timeline == timeline || scroll_timeline;
+                    if (on_a_ticked_timeline && plan_animation(animation, scroll_timeline, *effect, *target))
                         continue;
                     // The boxes of an element with an animation a tick cannot sample show what the host's frame shows
                     // of it, while the ticks sample the others on.
@@ -212,7 +210,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
             // A hover decides over the transitions the host runs as they run, where the host runs them without
             // sampling them, which leaves the timing the engine holds of them behind.
             for (auto const& associated_timeline : document.associated_animation_timelines()) {
-                for (auto const& animation : associated_timeline->associated_animations()) {
+                for (auto const& animation : Animations::associated_animations_of(associated_timeline)) {
                     auto effect = animation.effect();
                     auto* target = effect.has_value() ? effect->target() : nullptr;
                     if (!target || effect->pseudo_element_type().has_value() || !target->style_node_id()

@@ -7,8 +7,7 @@
 //! The events of a CSS animation or a CSS transition that a new animation frame establishes, which the record decides
 //! from the phases its animation and associated effect go through.
 
-use super::animation::{AnimationKind, AnimationRecord};
-use super::host_timing::FfiAnimationKind;
+use super::animation::{AnimationKind, AnimationRecord, TransitionPhase};
 use super::timing::time_value::{max, min};
 use super::timing::{self, AnimationEffectPhase, OptionalNumber, TimeValue, TimeValueType};
 
@@ -27,9 +26,8 @@ pub enum FfiCssEventType {
 }
 
 /// An event to dispatch, with its elapsed time in seconds.
-#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct FfiCssEvent {
+pub struct CssEvent {
     pub r#type: FfiCssEventType,
     pub elapsed_time: f64,
 }
@@ -37,23 +35,19 @@ pub struct FfiCssEvent {
 /// The events an animation frame establishes for an animation, in the order they are dispatched, and the time they
 /// were scheduled at. A frame establishes at most three, the run, start and end events of a transition that went from
 /// idle to after.
-#[repr(C)]
 #[derive(Clone, Copy, Debug)]
-pub struct FfiCssEvents {
-    /// What made the animation, which only has events where it is a CSS animation or a CSS transition.
-    pub kind: FfiAnimationKind,
+pub struct CssEvents {
     pub count: u8,
-    pub events: [FfiCssEvent; 3],
+    pub events: [CssEvent; 3],
     /// The origin-relative time of the current time of the timeline, where it has one.
     pub scheduled_event_time: OptionalNumber,
 }
 
-impl FfiCssEvents {
-    fn new(kind: FfiAnimationKind) -> Self {
+impl CssEvents {
+    fn new() -> Self {
         Self {
-            kind,
             count: 0,
-            events: [FfiCssEvent {
+            events: [CssEvent {
                 r#type: FfiCssEventType::AnimationStart,
                 elapsed_time: 0.0,
             }; 3],
@@ -67,39 +61,16 @@ impl FfiCssEvents {
             // FIXME: The spec doesn't specify how to handle this case
             TimeValueType::Percentage => 0.0,
         };
-        self.events[usize::from(self.count)] = FfiCssEvent { r#type, elapsed_time };
+        self.events[usize::from(self.count)] = CssEvent { r#type, elapsed_time };
         self.count += 1;
     }
 
-    #[cfg(test)]
-    fn as_slice(&self) -> &[FfiCssEvent] {
+    pub(crate) fn as_slice(&self) -> &[CssEvent] {
         &self.events[..usize::from(self.count)]
     }
 }
 
-/// https://drafts.csswg.org/css-transitions-2/#transition-phase
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum TransitionPhase {
-    Before,
-    Active,
-    After,
-    Idle,
-    Pending,
-}
-
 impl TransitionPhase {
-    fn from_stored(phase: u8) -> Self {
-        match phase {
-            0 => Self::Before,
-            1 => Self::Active,
-            2 => Self::After,
-            3 => Self::Idle,
-            4 => Self::Pending,
-            _ => unreachable!("a stored transition phase"),
-        }
-    }
-
     fn of_effect(phase: AnimationEffectPhase) -> Self {
         match phase {
             AnimationEffectPhase::Before => Self::Before,
@@ -121,8 +92,8 @@ enum Interval {
 impl AnimationRecord {
     /// The events of a CSS animation or a CSS transition that the animation frame just established, recording the
     /// phases they were decided from for the next frame. Other animations have none.
-    pub(crate) fn take_css_events(&mut self) -> FfiCssEvents {
-        let mut events = FfiCssEvents::new(self.ffi_kind());
+    pub(crate) fn take_css_events(&mut self) -> CssEvents {
+        let mut events = CssEvents::new();
         match self.kind() {
             AnimationKind::CssTransition(_) => self.establish_transition_events(&mut events),
             AnimationKind::CssAnimation(_) => self.establish_css_animation_events(&mut events),
@@ -139,21 +110,9 @@ impl AnimationRecord {
         events
     }
 
-    /// A zero time in the unit of the times of the timeline of the animation.
-    fn zero_time(&self) -> TimeValue {
-        let progress_based = self
-            .timeline()
-            .is_some_and(|timeline| timeline.borrow().is_progress_based());
-        TimeValue::zero(if progress_based {
-            TimeValueType::Percentage
-        } else {
-            TimeValueType::Milliseconds
-        })
-    }
-
     // https://drafts.csswg.org/css-transitions-2/#event-dispatch
-    fn establish_transition_events(&mut self, events: &mut FfiCssEvents) {
-        let previous_phase = TransitionPhase::from_stored(self.css_transition().previous_phase);
+    fn establish_transition_events(&mut self, events: &mut CssEvents) {
+        let previous_phase = self.css_transition().previous_phase;
         let playback = *self.playback();
         let timeline = self.timeline();
         let current_time = timing::current_time_at(&playback, timeline.and_then(|timeline| timeline.current_time()));
@@ -247,11 +206,11 @@ impl AnimationRecord {
             dispatch_event(TransitionCancel, Interval::ActiveTime);
         }
 
-        self.css_transition_mut().previous_phase = transition_phase as u8;
+        self.css_transition_mut().previous_phase = transition_phase;
     }
 
     // https://www.w3.org/TR/css-animations-2/#event-dispatch
-    fn establish_css_animation_events(&mut self, events: &mut FfiCssEvents) {
+    fn establish_css_animation_events(&mut self, events: &mut CssEvents) {
         // Each time a new animation frame is established and the animation does not have a pending play task or pending
         // pause task, the events to dispatch are determined by comparing the animation’s phase before and after
         // establishing the new animation frame as follows:
@@ -269,8 +228,8 @@ impl AnimationRecord {
             let effect = effect.borrow();
             (
                 effect.timing(),
-                effect.previous_phase(),
-                effect.previous_current_iteration(),
+                effect.previous_phase,
+                effect.previous_current_iteration,
             )
         };
         let resolved = timing::resolve_timing(&effect_timing, current_time, Some(&playback), sample.as_ref());
@@ -331,14 +290,14 @@ impl AnimationRecord {
         }
 
         if current_phase == Idle && previous_phase != Idle && previous_phase != After {
-            // FIXME: Calculate a non-zero time when the animation is cancelled by means other than calling cancel()
-            let cancel_time = self.take_saved_cancel_time().unwrap_or(zero);
+            // FIXME: Calculate a non-zero time when the animation is canceled by means other than calling cancel()
+            let cancel_time = self.saved_cancel_time.take().unwrap_or(zero);
             events.push(AnimationCancel, cancel_time);
         }
 
         let mut effect = effect.borrow_mut();
-        effect.set_previous_phase(current_phase);
-        effect.set_previous_current_iteration(current_iteration);
+        effect.previous_phase = current_phase;
+        effect.previous_current_iteration = current_iteration;
     }
 }
 
@@ -348,7 +307,7 @@ mod tests {
     use core::ptr::NonNull;
 
     use super::*;
-    use crate::animations::animation::{AnimationHandle, CSS_TRANSITION_PHASE_IDLE, CssTransitionState, OwningElement};
+    use crate::animations::animation::{AnimationHandle, CssTransitionState, OwningElement, TransitionPhase};
     use crate::animations::effect::EffectHandle;
     use crate::css::retained_fly_string::RetainedUtf16FlyString;
     use crate::css::style_value::RetainedStyleValueData;
@@ -376,7 +335,7 @@ mod tests {
             reversing_adjusted_start_value: RetainedStyleValueData::none(),
             reversing_shortening_factor: 1.0,
             property_id: 1,
-            previous_phase: CSS_TRANSITION_PHASE_IDLE,
+            previous_phase: TransitionPhase::Idle,
             provisional: false,
             adopted_from_lane: false,
             effect_started_with: None,
@@ -390,15 +349,14 @@ mod tests {
         animation
     }
 
-    fn event(r#type: FfiCssEventType, elapsed_time: f64) -> FfiCssEvent {
-        FfiCssEvent { r#type, elapsed_time }
+    fn event(r#type: FfiCssEventType, elapsed_time: f64) -> CssEvent {
+        CssEvent { r#type, elapsed_time }
     }
 
     #[test]
     fn a_transition_that_finished_within_a_frame_runs_starts_and_ends() {
         let animation = transition_held_at(2000.0);
         let events = animation.borrow_mut().take_css_events();
-        assert_eq!(events.kind, FfiAnimationKind::CssTransition);
         assert_eq!(
             events.as_slice(),
             [
@@ -437,13 +395,5 @@ mod tests {
             pseudo_element: None,
         }));
         assert_eq!(animation.borrow_mut().take_css_events().count, 0);
-    }
-
-    #[test]
-    fn script_animations_have_no_events() {
-        let animation = AnimationHandle::new(AnimationKind::Script);
-        let events = animation.borrow_mut().take_css_events();
-        assert_eq!(events.kind, FfiAnimationKind::Script);
-        assert_eq!(events.count, 0);
     }
 }

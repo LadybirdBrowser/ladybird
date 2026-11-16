@@ -27,14 +27,13 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/Animations/AnimationEffect.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
+#include <LibWeb/Animations/NamedTimelines.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
@@ -90,6 +89,7 @@
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MathML/MathMLElement.h>
@@ -345,22 +345,6 @@ void StyleComputer::visit_edges(Visitor& visitor)
         if (entry.value)
             entry.value->contents().visit_edges(visitor);
     }
-
-    for (auto const& state : m_provisional_transition_states) {
-        visitor.visit(state.element);
-        // NB: An AnimationRef visits the Animation of its record, which keeps the elements the record names alive.
-        if (state.committed_transition.has_value())
-            state.committed_transition->visit_edges(visitor);
-        if (state.proposed_transition.has_value())
-            state.proposed_transition->visit_edges(visitor);
-    }
-}
-
-void StyleComputer::begin_transition_stabilization_epoch()
-{
-    VERIFY(m_provisional_transition_states.is_empty());
-    VERIFY(m_provisional_transition_state_indices.is_empty());
-    VERIFY(m_provisional_transition_state_indices_by_target.is_empty());
 }
 
 void StyleComputer::record_transition_stabilization_baseline(DOM::AbstractElement abstract_element, InstalledStyle const& before_change_style) const
@@ -383,70 +367,9 @@ void StyleComputer::record_transition_baseline_for_later_passes(DOM::AbstractEle
         record_transition_stabilization_baseline(abstract_element, before_change_style);
 }
 
-// A provisionally started transition already contributed to the style published by the pass that
-// started it, but it is not associated with its target until the stabilization epoch commits. An
-// animated style update running before that commit has to collect it anyway, or it rebuilds the
-// target's style without the transition's value and clobbers it.
-void StyleComputer::for_each_provisional_transition_effect(DOM::AbstractElement const& abstract_element, Function<void(Animations::EffectRef const&)> const& callback) const
-{
-    for (auto const& state : m_provisional_transition_states) {
-        if (state.element.ptr() != &abstract_element.element() || state.pseudo_element != abstract_element.pseudo_element())
-            continue;
-        if (!state.proposed_transition.has_value())
-            continue;
-        if (auto effect = state.proposed_transition->effect(); effect.has_value())
-            callback(*effect);
-    }
-}
-
 void StyleComputer::commit_transition_stabilization_epoch()
 {
-    for (auto const& state : m_provisional_transition_states) {
-        VERIFY(state.element);
-        auto& element = *state.element;
-        auto remove_committed_transition = [&] {
-            if (element.property_transition(state.pseudo_element, state.property) == state.committed_transition)
-                element.remove_transition(state.pseudo_element, state.property);
-        };
-        auto cancel_and_remove_committed_transition = [&] {
-            VERIFY(state.committed_transition.has_value());
-            state.committed_transition->cancel();
-            remove_committed_transition();
-        };
-        auto commit_proposed_transition = [&] {
-            VERIFY(state.proposed_transition.has_value());
-            CSSTransition::commit_provisional_transition(*state.proposed_transition);
-            HTML::note_rendering_trace_event("transition started"sv);
-        };
-
-        switch (state.action) {
-            using enum StyleValueFFI::FfiTransitionActionKind;
-        case None:
-            continue;
-        case Remove:
-            remove_committed_transition();
-            break;
-        case Cancel:
-            VERIFY(state.committed_transition.has_value());
-            state.committed_transition->cancel();
-            break;
-        case Start:
-            commit_proposed_transition();
-            break;
-        case RemoveAndStart:
-            remove_committed_transition();
-            commit_proposed_transition();
-            break;
-        case CancelRemoveAndStart:
-            cancel_and_remove_committed_transition();
-            commit_proposed_transition();
-            break;
-        }
-        HTML::note_rendering_trace_event("transition action committed"sv);
-    }
-    m_provisional_transition_states.clear();
-    m_provisional_transition_state_indices.clear();
-    m_provisional_transition_state_indices_by_target.clear();
+    Animations::RustFFI::animations_document_animations_commit_provisional_transitions(&document().document_animations(), Animations::in_execution_context_of_animation, nullptr, Animations::web_animation_perform_host_effect);
     if (exchange(m_transition_baselines_recorded, false))
         StyleEngineFFI::style_engine_release_transition_baselines(m_style_engine.host());
 }
@@ -808,84 +731,61 @@ void StyleComputer::invalidate_animated_custom_property_readers(DOM::AbstractEle
     //     itself, as the engine learns of the element's new environment.
 }
 
-void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_element, ReadonlySpan<ComputedValuesFFI::FfiComputedAnimation> animation_definitions, bool in_display_none_subtree) const
+// https://drafts.csswg.org/scroll-animations-1/#target-timeline
+static Animations::RustFFI::TimelineCell const* named_timeline_of_owner(void* owner_pointer, size_t name)
 {
-    // Only the element and its known pseudo-elements have CSS animations to apply.
-    if (!Animations::Animatable::can_own_css_animations_and_transitions(abstract_element.pseudo_element()))
+    if (!name)
+        return nullptr;
+    auto& owner = *static_cast<DOM::AbstractElement*>(owner_pointer);
+    auto timeline = owner.document().named_timelines().target_timeline(owner, Utf16FlyString::from_raw(name));
+    return timeline.has_value() ? &timeline->record() : nullptr;
+}
+
+// https://drafts.csswg.org/css-animations-1/#animations
+// Applies the animation definitions a style computation computed for `owner`, which is in a display: none subtree where
+// `in_display_none_subtree`, to the CSS animations it owns.
+static void apply_css_animation_definitions(DOM::AbstractElement owner, ReadonlySpan<ComputedValuesFFI::FfiComputedAnimation> definitions, bool in_display_none_subtree)
+{
+    // NB: Only the element and its known pseudo-elements have CSS animations to apply.
+    auto& element = owner.element();
+    auto pseudo_element = owner.pseudo_element();
+    auto slot = Animations::Animatable::owner_slot(pseudo_element);
+    if (!slot.has_value())
         return;
 
-    // https://drafts.csswg.org/css-animations-1/#animations
-    // Setting the 'display' property to 'none' will terminate any running animation applied to the element and its
-    // descendants. If an element has a 'display' of 'none', updating 'display' to a value other than 'none' will
-    // start all animations applied to the element by the 'animation-name' property, as well as all animations
-    // applied to descendants with 'display' other than 'none'.
-    // NB: We must not start animations on elements that are not rendered due to display:none. Once display becomes
-    //     something other than none, the resulting style recomputation re-enters this function and starts them.
-    //     Termination of running animations when display becomes none is handled by
-    //     Element::play_or_cancel_animations_after_display_property_change(). The style computation answers
-    //     whether the element is in such a subtree from the records the style engine holds.
-
-    // NB: Which existing animation each definition claims is decided by the style computation, from the names of
-    //     the animations this element holds, which it publishes. See match_existing_animations(). So are the
-    //     keyframes each definition runs, from the `@keyframes` every style scope publishes.
-
-    auto existing_animations = abstract_element.element().css_defined_animations(abstract_element.pseudo_element());
-    Vector<bool> existing_animation_was_claimed;
-    existing_animation_was_claimed.resize(existing_animations.size());
-    GC::RootVector<Animations::AnimationRef> new_animations;
-
-    for (size_t i = animation_definitions.size(); i-- > 0;) {
-        auto const& definition = animation_definitions[i];
-        auto keyframe_set = Animations::KeyframeSetHandle::retained(static_cast<Animations::RustFFI::KeyframeSet const*>(definition.keyframe_set));
-
-        auto matched_index = definition.matched_existing_index;
-        VERIFY(matched_index < static_cast<i32>(existing_animations.size()));
-
-        if (matched_index >= 0) {
-            auto const& existing_animation = existing_animations[matched_index];
-            VERIFY(CSSAnimation::animation_name(existing_animation) == css_string_from_rust(definition.name));
-            VERIFY(!existing_animation_was_claimed[matched_index]);
-            existing_animation_was_claimed[matched_index] = true;
-
-            if (auto effect = existing_animation.effect(); effect.has_value()) {
-                effect->set_keyframe_set(keyframe_set);
-                CSSAnimation::apply_css_properties(existing_animation, definition, abstract_element);
-            }
-            CSSAnimation::set_animation_name_index(existing_animation, i);
-            new_animations.append(existing_animation);
-            continue;
-        }
-
-        if (in_display_none_subtree)
-            continue;
-
-        new_animations.append(CSSAnimation::create(abstract_element, definition, keyframe_set, i));
-    }
-
-    // Once an animation has started it continues until it ends or the animation-name is removed
-    // NB: An animation no definition claimed is one whose animation-name entry has gone.
-    for (size_t i = 0; i < existing_animations.size(); ++i) {
-        if (!existing_animation_was_claimed[i]) {
-            existing_animations[i].cancel(false);
-        }
-    }
-
-    // NB: We create animations in reverse definition order so flip it back.
-    new_animations.reverse();
-
-    abstract_element.element().set_css_defined_animations(abstract_element.pseudo_element(), new_animations);
+    GC::RootVector<Animations::AnimationRef> animations;
+    struct Context {
+        DOM::AbstractElement owner;
+        GC::RootVector<Animations::AnimationRef>& animations;
+    } context { owner, animations };
+    Animations::RustFFI::FfiCssAnimationHost host {
+        .context = &context,
+        .named_timeline = [](void* context, size_t name) { return named_timeline_of_owner(&static_cast<Context*>(context)->owner, name); },
+        .invalidate_composite_order = [](void*, void* element) { static_cast<DOM::Element*>(element)->invalidate_associated_animation_composite_order(); },
+        .keep_alive = [](void* context, Animations::RustFFI::AnimationCell const* animation) { Animations::keep_animation_alive_in(&static_cast<Context*>(context)->animations, animation); },
+        .in_execution_context = Animations::in_execution_context_of_animation,
+        .perform = Animations::web_animation_perform_host_effect,
+    };
+    Optional<Utf16FlyString> pseudo_element_serialization;
+    if (pseudo_element.has_value())
+        pseudo_element_serialization = Utf16FlyString { Selector::PseudoElementSelector { *pseudo_element }.serialize() };
+    Animations::RustFFI::animations_element_animations_apply_css_animation_definitions(
+        &element.ensure_animations(), *slot,
+        {
+            .element = &element,
+            .pseudo_element = pseudo_element.has_value() ? to_underlying(*pseudo_element) : u8 { 0 },
+            .has_pseudo_element = pseudo_element.has_value(),
+        },
+        pseudo_element_serialization.has_value() ? pseudo_element_serialization->raw_identity() : 0,
+        definitions.data(), definitions.size(), in_display_none_subtree,
+        style_engine_host_for_identified(element), element.style_node_id().value(), &host);
 }
 
 void StyleComputer::apply_settled_animation_plan(Layout::BegunRead const& read, DOM::AbstractElement& abstract_element) const
 {
-    struct Context {
-        GC::Ref<StyleComputer const> style_computer;
-        DOM::AbstractElement& abstract_element;
-    } context { *this, abstract_element };
     bool has_animations = abstract_element.element().has_css_defined_animations(abstract_element.pseudo_element());
-    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.host(), &read, abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()), abstract_element.installed_style().record_pointer(), has_animations, &context, [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
-        auto& context = *static_cast<Context*>(context_pointer);
-        context.style_computer->apply_animation_definitions(context.abstract_element, { definitions, count }, in_display_none_subtree);
+    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.host(), &read, abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()), abstract_element.installed_style().record_pointer(), has_animations, &abstract_element, [](void* context, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
+        apply_css_animation_definitions(*static_cast<DOM::AbstractElement*>(context), { definitions, count }, in_display_none_subtree);
     });
 }
 
@@ -1025,12 +925,38 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     return decode_style_invalidation(publication.invalidation.invalidation);
 }
 
-// The key of the provisional transition states of an element or pseudo-element, whose element has a style node.
-static u64 transition_target_key(DOM::AbstractElement abstract_element)
+void StyleComputer::adopt_lane_transitions()
 {
-    auto style_node_id = abstract_element.element().style_node_id();
-    VERIFY(style_node_id != 0);
-    return (static_cast<u64>(style_node_id.value()) << 8) | pseudo_element_to_ffi(abstract_element.pseudo_element());
+    auto* arena = document().layout_node_arena_if_created();
+    if (!arena)
+        return;
+    auto adopt = [&](u32 style_node, ReadonlySpan<u64> cancelled, ReadonlySpan<u64> seen, ReadonlySpan<StyleValueFFI::FfiLaneTransition> lane_transitions) {
+        auto element = element_for_lane_style_node(StyleNodeID { style_node });
+        if (!element || !element->is_connected())
+            return;
+        GC::RootVector<Animations::AnimationRef> transitions;
+        Animations::RustFFI::animations_element_animations_adopt_lane_transitions(
+            &element->ensure_animations(), element.ptr(), cancelled, seen, lane_transitions, document().transition_generation(),
+            static_cast<float>(effective_zoom(*element)), Animations::keep_animation_alive_in, &transitions, Animations::web_animation_perform_host_effect);
+    };
+    // Starting and canceling transitions settles their promises in the document's realm. The rendering update runs
+    // their reactions once every document took in what its lanes did.
+    HTML::TemporaryExecutionContext execution_context { document().relevant_settings_object() };
+    StyleEngineFFI::style_engine_adopt_lane_transitions(
+        arena->host(), &adopt,
+        [](void* context, u32 style_node, u64 const* cancelled, size_t cancelled_count, u64 const* seen, size_t seen_count, StyleValueFFI::FfiLaneTransition const* transitions, size_t transition_count) {
+            (*static_cast<decltype(adopt)*>(context))(style_node, { cancelled, cancelled_count }, { seen, seen_count }, { transitions, transition_count });
+        });
+}
+
+static Animations::RustFFI::FfiOwningElement transition_owner(DOM::AbstractElement abstract_element)
+{
+    auto pseudo_element = abstract_element.pseudo_element();
+    return {
+        .element = &abstract_element.element(),
+        .pseudo_element = pseudo_element.has_value() ? to_underlying(*pseudo_element) : u8 { 0 },
+        .has_pseudo_element = pseudo_element.has_value(),
+    };
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
@@ -1040,156 +966,59 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::start_needed_transitions(Layout::
 
     auto& element = abstract_element.element();
     auto pseudo_element = abstract_element.pseudo_element();
-    auto target_key = transition_target_key(abstract_element);
 
     // NB: We know that a DocumentTimeline's current time is always in milliseconds
-    auto current_time = m_document->timeline()->current_time();
+    auto current_time = m_document->timeline().current_time();
     if (!current_time.has_value())
         return {};
-    VERIFY(current_time->type == Animations::TimeValue::Type::Milliseconds);
-    auto style_change_event_time = current_time->value;
+    VERIFY(current_time->type == Animations::RustFFI::TimeValueType::Milliseconds);
 
-    Vector<StyleValueFFI::FfiExistingTransition> existing_transitions;
-    Vector<NonnullRefPtr<StyleValue const>> custom_current_values;
-    // A running transition of a custom property holds it at what the overlay of the target's environment answers. One
-    // not sampled yet holds it at its start value.
-    auto custom_current_value = [&](Utf16FlyString const& name, Animations::AnimationRef const& transition) -> StyleValueFFI::StyleValueData const* {
-        auto value = CSSTransition::transition_start_value(transition);
-        if (auto data = abstract_element.custom_property_data(); data && abstract_element.custom_property_data_is_animation_overlay()) {
-            if (auto animated = data->get(name); animated.has_value())
-                value = *animated->value;
-        }
-        custom_current_values.append(value);
-        return value->rust_style_value_data();
-    };
-    // NB: The element holds each transition, which lends what is read of it for as long as the element holds it.
-    for (auto const& transition : element.existing_transitions(pseudo_element)) {
-        StyleValueFFI::FfiExistingTransition existing;
-        Animations::RustFFI::animations_css_transition_existing(&transition.record(), style_change_event_time, &existing);
-        if (existing.custom_name && existing.running)
-            existing.custom_current_value = custom_current_value(Utf16FlyString::from_raw(existing.custom_name), transition);
-        existing_transitions.append(existing);
-    }
-
-    // A transition action is provisional until the stabilization epoch commits; a later pass of the epoch decides
-    // again, superseding the decision of this one.
-    auto decide = [&](ProvisionalTransitionState& state, StyleValueFFI::FfiTransitionActionKind action) {
-        HTML::note_rendering_trace_event("provisional transition decision"sv);
-        if (state.has_decision)
-            HTML::note_rendering_trace_event("provisional transition decision superseded"sv);
-        state.has_decision = true;
-        if (state.proposed_transition.has_value())
-            CSSTransition::discard_provisional_transition(*state.proposed_transition);
-        state.proposed_transition = {};
-        state.action = action;
-    };
-    auto ensure_state = [&](PropertyNameAndID const& property) -> ProvisionalTransitionState& {
-        auto create_state = [&] {
-            VERIFY(document().is_in_style_stabilization_epoch());
-            m_provisional_transition_state_indices_by_target.ensure(target_key).append(m_provisional_transition_states.size());
-            m_provisional_transition_states.append({
-                .element = element,
-                .pseudo_element = pseudo_element,
-                .property = property,
-                .committed_transition = element.property_transition(pseudo_element, property),
-                .proposed_transition = {},
-                .action = StyleValueFFI::FfiTransitionActionKind::None,
-                .has_decision = false,
-            });
-            return m_provisional_transition_states.size() - 1;
-        };
-        if (property.is_custom_property()) {
-            auto indices = m_provisional_transition_state_indices_by_target.get(target_key);
-            for (auto index : indices.has_value() ? indices->span() : ReadonlySpan<size_t> {}) {
-                if (m_provisional_transition_states[index].property == property)
-                    return m_provisional_transition_states[index];
-            }
-            return m_provisional_transition_states[create_state()];
-        }
-        auto index = m_provisional_transition_state_indices.ensure((target_key << 16) | to_underlying(property.id()), create_state);
-        return m_provisional_transition_states[index];
-    };
-    auto property_of_action = [](StyleValueFFI::FfiTransitionAction const& action) {
-        if (action.custom_name != 0)
-            return PropertyNameAndID::from_name(Utf16FlyString::from_raw(action.custom_name)).release_value();
-        return PropertyNameAndID::from_id(static_cast<PropertyID>(action.property_id));
-    };
-    auto adopt = [](StyleValueFFI::StyleValueData const* value) {
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value));
-    };
-
-    // NB: The traced provisional transition states hold each transition started here until it is committed or
-    //     discarded, and the root vector holds its effect for the update past that.
-    GC::RootVector<Animations::EffectRef> newly_started_transition_effects;
-    HashTable<Animations::RustFFI::AnimationEffectId> replaced_transition_effects;
-    auto on_actions = [&](ReadonlySpan<StyleValueFFI::FfiTransitionAction> actions) {
-        for (auto const& action : actions) {
-            auto property = property_of_action(action);
-            auto& state = ensure_state(property);
-            decide(state, action.kind);
-            if (action.kind != StyleValueFFI::FfiTransitionActionKind::None && action.kind != StyleValueFFI::FfiTransitionActionKind::Start) {
-                VERIFY(state.committed_transition.has_value());
-                if (auto effect = state.committed_transition->effect(); effect.has_value())
-                    replaced_transition_effects.set(effect->id());
-            }
-            if (!action.start_value)
-                continue;
-            auto transition = CSSTransition::start_a_provisional_transition(abstract_element, property, document().transition_generation(),
-                action.delay, style_change_event_time, style_change_event_time + action.active_duration,
-                adopt(action.start_value), adopt(action.end_value), adopt(action.reversing_adjusted_start_value),
-                action.reversing_shortening_factor, EasingFunction::from_style_value(adopt(action.timing_function)));
-            // NB: The associated effect of a provisional transition is the effect it was started with.
-            newly_started_transition_effects.append(*transition.effect());
-            state.proposed_transition = move(transition);
-        }
-        // A property an earlier pass of the epoch decided over that this one does not leaves its transitions as they are.
-        auto indices = m_provisional_transition_state_indices_by_target.get(target_key);
-        for (auto index : indices.has_value() ? indices->span() : ReadonlySpan<size_t> {}) {
-            auto& state = m_provisional_transition_states[index];
-            if (!any_of(actions, [&](auto const& action) { return property_of_action(action) == state.property; }))
-                decide(state, StyleValueFFI::FfiTransitionActionKind::None);
-        }
-    };
-    StyleValueFFI::FfiTransitionInput input {
-        .existing_transitions = existing_transitions.data(),
-        .existing_transition_count = existing_transitions.size(),
+    Optional<Utf16FlyString> pseudo_element_serialization;
+    if (pseudo_element.has_value())
+        pseudo_element_serialization = Utf16FlyString { Selector::PseudoElementSelector { *pseudo_element }.serialize() };
+    auto slot = Animations::Animatable::owner_slot(pseudo_element);
+    auto overlay = abstract_element.custom_property_data();
+    if (!abstract_element.custom_property_data_is_animation_overlay())
+        overlay = nullptr;
+    Animations::RustFFI::FfiTransitionStep step {
+        .animations = &element.ensure_animations(),
+        .owner = transition_owner(abstract_element),
+        .pseudo_element_serialization = pseudo_element_serialization.has_value() ? pseudo_element_serialization->raw_identity() : 0,
+        .has_slot = slot.has_value(),
+        .slot = slot.value_or(Animations::RustFFI::AnimationOwnerSlot { 0 }),
+        .style_change_event_time = current_time->value,
+        .generation = document().transition_generation(),
+        .overlay_store = overlay ? overlay->rust_store() : nullptr,
+        .host = m_style_engine.host(),
+        .read = &read,
+        .before = before_change_style.record_pointer(),
+        .after = abstract_element.installed_style().record_pointer(),
         .target_node = element.style_node_id().value(),
         .target_pseudo_kind = pseudo_element_to_ffi(pseudo_element),
         .element_box_slot = Layout::Node::slot_id(element.unsafe_layout_node(read)).index,
+        .tree_order = Animations::compare_elements_in_tree_order_for_composite_order,
     };
-    StyleEngineFFI::style_engine_decide_transitions(m_style_engine.host(), &read, before_change_style.record_pointer(), abstract_element.installed_style().record_pointer(), &input, [](void* context, StyleValueFFI::FfiTransitionAction const* actions, size_t count) { (*static_cast<decltype(on_actions)*>(context))({ actions, count }); }, &on_actions);
-
-    // A transition action is provisional until the stabilization epoch commits, but the style
-    // published by this pass must already reflect that decision. Rebuild the effect stack without
-    // transitions which are being removed, then layer any proposed replacements on top.
-    if (replaced_transition_effects.is_empty() && newly_started_transition_effects.is_empty())
+    // NB: Starting and discarding transitions settles their promises in the document's realm.
+    GC::RootVector<Animations::AnimationRef> animations;
+    Animations::RustFFI::FfiTransitionStepOutcome outcome;
+    {
+        HTML::TemporaryExecutionContext execution_context { document().relevant_settings_object() };
+        outcome = Animations::RustFFI::animations_document_animations_run_transition_step(&document().document_animations(), &step, Animations::keep_animation_alive_in, &animations, Animations::web_animation_perform_host_effect);
+    }
+    if (!outcome.changes_effects)
         return {};
 
     // OPTIMIZATION: Transition decisions read the installed records directly. Reconstruct a working style only when
     //               changes to the effect stack require rebuilding the overlay.
     auto new_style = reconstruct_computed_properties_for_animation(abstract_element.installed_style());
     new_style->clear_animated_properties(Badge<StyleComputer> {});
-    // NB: The effects of the relevant animations of the element that target the same element or pseudo-element as
-    //     this style, beside those of the SVG animation elements, which script does not see.
-    GC::RootVector<Animations::EffectRef> remaining_effects;
-    for (auto const& animation : abstract_element.element().associated_animations_unordered()) {
-        if (animation.timing_state().kind == Animations::RustFFI::FfiAnimationKind::Smil || !animation.is_relevant())
-            continue;
-        auto effect = animation.effect();
-        if (!effect.has_value() || effect->pseudo_element_type() != abstract_element.pseudo_element())
-            continue;
-        if (replaced_transition_effects.contains(effect->id()))
-            continue;
-        remaining_effects.append(effect.release_value());
-    }
-    remaining_effects.extend(newly_started_transition_effects);
-    quick_sort(remaining_effects, [](auto const& a, auto const& b) {
-        return Animations::AnimationRef::composite_order(*a.associated_animation(), *b.associated_animation()) < 0;
-    });
-    if (!remaining_effects.is_empty())
-        collect_animations_into(read, abstract_element, remaining_effects, *new_style);
+    GC::RootVector<Animations::EffectRef> effects;
+    for (auto const& animation : animations)
+        effects.append(*animation.effect());
+    if (!effects.is_empty())
+        collect_animations_into(read, abstract_element, effects, *new_style);
 
-    if (!newly_started_transition_effects.is_empty()) {
+    if (outcome.started_transitions) {
         // NB: Construction does not invalidate animated style because the effects were just evaluated. Request the
         //     first animation frame directly so timeline updates can schedule subsequent animated style updates.
         set_rendering_pending(*m_document, RenderingPendingReason::NeedsRenderingUpdate, 1);
@@ -1202,7 +1031,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::start_needed_transitions(Layout::
 
 bool StyleComputer::has_provisional_transition_states(DOM::AbstractElement abstract_element) const
 {
-    return m_provisional_transition_state_indices_by_target.contains(transition_target_key(abstract_element));
+    return Animations::RustFFI::animations_document_animations_has_provisional_transitions(&document().document_animations(), transition_owner(abstract_element));
 }
 
 // What composes over the record an element or pseudo-element holds: the animations associated with the element, and the
@@ -1210,7 +1039,7 @@ bool StyleComputer::has_provisional_transition_states(DOM::AbstractElement abstr
 bool StyleComputer::has_animations_to_compose(DOM::AbstractElement abstract_element) const
 {
     auto const& element = abstract_element.element();
-    return element.has_relevant_animations() || element.has_associated_animations() || has_provisional_transition_states(abstract_element);
+    return element.has_associated_animations() || has_provisional_transition_states(abstract_element);
 }
 
 void StyleComputer::register_style_engine_sheet_source(StyleSheetState const& sheet)

@@ -61,7 +61,13 @@ impl TimelineState {
 /// The unit of the times of `timeline`, which is milliseconds without one.
 #[must_use]
 pub(crate) fn time_unit(timeline: Option<&TimelineState>) -> TimeValueType {
-    if timeline.is_some_and(|timeline| timeline.is_progress_based) {
+    time_unit_of(timeline.is_some_and(|timeline| timeline.is_progress_based))
+}
+
+/// The unit of the times of a timeline that is progress-based or not.
+#[must_use]
+pub(crate) fn time_unit_of(is_progress_based: bool) -> TimeValueType {
+    if is_progress_based {
         return TimeValueType::Percentage;
     }
     TimeValueType::Milliseconds

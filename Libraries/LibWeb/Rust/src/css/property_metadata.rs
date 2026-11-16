@@ -353,7 +353,7 @@ fn property_index(property_id: u16) -> usize {
 }
 
 /// The IDL attribute name of the property, https://drafts.csswg.org/cssom/#css-property-to-idl-attribute
-pub(crate) fn property_idl_name(property_id: u16) -> &'static str {
+pub fn property_idl_name(property_id: u16) -> &'static str {
     PROPERTY_IDL_NAMES[property_index(property_id)]
 }
 

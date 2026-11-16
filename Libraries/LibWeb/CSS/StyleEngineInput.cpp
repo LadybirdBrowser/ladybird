@@ -10,9 +10,7 @@
 #include <LibGC/RootHashTable.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Animations/AnimationEffect.h>
-#include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
@@ -1811,7 +1809,7 @@ static u32 open_style_adjustment_facts(DOM::Element const& element, ElementOpenF
     // Admission facts do not participate in box transformations.
     // An animation the element is associated with composes into its style once it is relevant,
     // which its timeline can make it after the element's arrival.
-    set(element.has_relevant_animations() || element.has_associated_animations(), ElementStyleAdjustmentFact::HasAnimations);
+    set(element.has_associated_animations(), ElementStyleAdjustmentFact::HasAnimations);
     set(element.associated_shadow_host_pseudo_element().has_value(), ElementStyleAdjustmentFact::IsShadowHostPseudoElement);
     set(element.rendered_in_top_layer(), ElementStyleAdjustmentFact::RenderedInTopLayer);
     return facts;

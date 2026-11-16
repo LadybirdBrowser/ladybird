@@ -4,46 +4,32 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What the C++ code of LibWeb asks of the interfaces of CSS, declared in Libraries/LibWeb/CSS/MediaList.cpp and
-//! Libraries/LibWeb/CSS/TypedOM.cpp.
+//! What the C++ code of LibWeb asks of the interfaces of CSS, declared in Libraries/LibWeb/CSS/MediaList.cpp.
 
 use core::ffi::c_void;
 use core::ptr::null_mut;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use ak::Utf16String;
 use libcompositing_rust::css_pixels::{CssPixelRect, FfiCssPixelPoint, FfiCssPixelRect};
-use libjs_rust::api::{MarkedVec, Vm};
-use libweb_rust::typed_om::{FfiNumericType, RetainedStyleValue};
+use libjs_rust::api::Vm;
 use libweb_rust::{NativeMediaList, NativeRule, NativeRuleList};
 
-use super::animation_event::{AnimationEvent, AnimationEventInit, EventAnimation};
 use super::css_container_rule::CSSContainerRule;
 use super::css_counter_style_rule::CSSCounterStyleRule;
 use super::css_font_face_rule::CSSFontFaceRule;
 use super::css_font_feature_values_rule::CSSFontFeatureValuesRule;
 use super::css_function_declarations::CSSFunctionDeclarations;
 use super::css_function_rule::CSSFunctionRule;
-use super::css_image_value::CSSImageValue;
 use super::css_import_rule::CSSImportRule;
 use super::css_keyframe_rule::CSSKeyframeRule;
 use super::css_keyframes_rule::CSSKeyframesRule;
-use super::css_keyword_value::CSSKeywordValue;
 use super::css_layer_block_rule::CSSLayerBlockRule;
 use super::css_layer_statement_rule::CSSLayerStatementRule;
 use super::css_margin_rule::CSSMarginRule;
-use super::css_math_clamp::CSSMathClamp;
-use super::css_math_invert::CSSMathInvert;
-use super::css_math_max::CSSMathMax;
-use super::css_math_min::CSSMathMin;
-use super::css_math_negate::CSSMathNegate;
-use super::css_math_product::CSSMathProduct;
-use super::css_math_sum::CSSMathSum;
 use super::css_media_rule::CSSMediaRule;
 use super::css_namespace_rule::CSSNamespaceRule;
 use super::css_nested_declarations::CSSNestedDeclarations;
-use super::css_numeric_value::AnyCSSNumericValue;
 use super::css_page_rule::CSSPageRule;
 use super::css_position_try_rule::CSSPositionTryRule;
 use super::css_property_rule::CSSPropertyRule;
@@ -52,11 +38,7 @@ use super::css_rule_list::CSSRuleList;
 use super::css_scope_rule::CSSScopeRule;
 use super::css_style_rule::CSSStyleRule;
 use super::css_style_sheet::CSSStyleSheet;
-use super::css_style_value::{AnyCSSStyleValue, CSSStyleValue};
 use super::css_supports_rule::CSSSupportsRule;
-use super::css_transform_value::CSSTransformValue;
-use super::css_unit_value::CSSUnitValue;
-use super::css_unparsed_value::CSSUnparsedValue;
 use super::font_face_set::{CppFontFaceState, FontFaceSet};
 use super::highlight_registry::HighlightRegistry;
 use super::media_list::MediaList;
@@ -65,12 +47,9 @@ use super::screen::Screen;
 use super::style_property_map::StylePropertyMap;
 use super::style_property_map_read_only::StylePropertyMapReadOnly;
 use super::style_sheet_list::StyleSheetList;
-use super::transition_event::{TransitionEvent, TransitionEventInit};
-use super::typed_om;
 use super::visual_viewport::VisualViewport;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_if_abi, cell_into_abi, realm_arguments};
-use crate::dom::event::EventInit;
 
 /// # Safety
 ///
@@ -139,249 +118,6 @@ pub unsafe extern "C" fn web_media_list_share_native_list(list: *mut c_void) -> 
     // SAFETY: The caller passes a live cell of a MediaList, and keeps it alive for the call.
     let media = unsafe { media_list_from_abi(list) }.share_media();
     Box::into_raw(Box::new(media))
-}
-
-/// The object of the cell of a CSSStyleValue or of an interface that inherits from it.
-///
-/// # Safety
-///
-/// `cell` must be the live cell of such an object.
-unsafe fn style_value_from_abi(cell: *mut c_void) -> AnyCSSStyleValue {
-    macro_rules! decode {
-        ($($interface:ident),+ $(,)?) => {
-            $(
-                // SAFETY: The caller passes a live cell.
-                if let Some(object) = unsafe { cell_if_abi::<$interface>(cell) } {
-                    return AnyCSSStyleValue::$interface(object);
-                }
-            )+
-        };
-    }
-    decode!(
-        CSSUnitValue,
-        CSSMathSum,
-        CSSMathProduct,
-        CSSMathNegate,
-        CSSMathInvert,
-        CSSMathMin,
-        CSSMathMax,
-        CSSMathClamp,
-        CSSKeywordValue,
-        CSSUnparsedValue,
-        CSSTransformValue,
-        CSSImageValue,
-        CSSStyleValue,
-    );
-    unreachable!("C++ passes the cell of a CSSStyleValue")
-}
-
-/// The object of the cell of a CSSNumericValue.
-///
-/// # Safety
-///
-/// `cell` must be the live cell of a CSSNumericValue.
-unsafe fn numeric_value_from_abi(cell: *mut c_void) -> AnyCSSNumericValue {
-    // SAFETY: The caller passes a live cell.
-    unsafe { style_value_from_abi(cell) }
-        .as_numeric()
-        .expect("C++ passes the cell of a CSSNumericValue")
-}
-
-/// A new CSSStyleValue, given a raw string and a style value that C++ hands over.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `associated_property` a raw string and `source_value` a strong reference to a style value
-/// that C++ hands over.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_style_value_create(
-    vm: *mut c_void,
-    associated_property: usize,
-    source_value: *const c_void,
-    serialization_mode: u8,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    // SAFETY: The caller hands over the string and the style value.
-    let (associated_property, source_value) = unsafe {
-        (
-            Utf16String::from_raw_owned(associated_property),
-            RetainedStyleValue::from_raw(source_value),
-        )
-    };
-    cell_into_abi(CSSStyleValue::create(
-        vm,
-        associated_property,
-        source_value,
-        serialization_mode,
-    ))
-}
-
-/// # Safety
-///
-/// `vm` must be the live VM, `value` a strong reference to a style value and `associated_property` a raw string that
-/// C++ hands over.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_style_value_reify(
-    vm: *mut c_void,
-    value: *const c_void,
-    associated_property: usize,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    // SAFETY: The caller hands over the string and the style value.
-    let (value, associated_property) = unsafe {
-        (
-            RetainedStyleValue::from_raw(value),
-            Utf16String::from_raw_owned(associated_property),
-        )
-    };
-    typed_om::reify(vm, &value, &associated_property).cell_into_abi()
-}
-
-/// Whether the value has an associated property, which goes to `associated_property` as a raw string.
-///
-/// # Safety
-///
-/// `value` must be the live cell of a CSSStyleValue, and `associated_property` a place for a raw string.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_style_value_associated_property(
-    value: *mut c_void,
-    associated_property: *mut usize,
-) -> bool {
-    // SAFETY: The caller passes a live cell.
-    let value = unsafe { style_value_from_abi(value) };
-    let Some(property) = value.style_value().associated_property() else {
-        return false;
-    };
-    // SAFETY: The caller passes a place for the string.
-    unsafe { *associated_property = property.clone().into_raw() };
-    true
-}
-
-/// What C++ distinguishes CSSStyleValues by, whose order is that of `enum class StyleValueKind` in
-/// Libraries/LibWeb/CSS/TypedOM.cpp.
-#[repr(u8)]
-enum StyleValueKind {
-    Other,
-    Numeric,
-    Unit,
-    Unparsed,
-}
-
-/// # Safety
-///
-/// `value` must be the live cell of a CSSStyleValue.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_style_value_kind(value: *mut c_void) -> u8 {
-    // SAFETY: The caller passes a live cell.
-    let value = unsafe { style_value_from_abi(value) };
-    let kind = match value {
-        AnyCSSStyleValue::CSSUnitValue(_) => StyleValueKind::Unit,
-        AnyCSSStyleValue::CSSUnparsedValue(_) => StyleValueKind::Unparsed,
-        value if value.as_numeric().is_some() => StyleValueKind::Numeric,
-        _ => StyleValueKind::Other,
-    };
-    kind as u8
-}
-
-/// # Safety
-///
-/// `vm` must be the live VM, and `first` and `second` live cells of CSSNumericValues whose types can be added.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_numeric_value_create_sum(
-    vm: *mut c_void,
-    first: *mut c_void,
-    second: *mut c_void,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    let values = MarkedVec::new(vm);
-    // SAFETY: The caller passes live cells.
-    unsafe {
-        values.push(numeric_value_from_abi(first));
-        values.push(numeric_value_from_abi(second));
-    }
-    let Ok(sum) = CSSMathSum::add_all_types_into_math_sum(vm, &values) else {
-        unreachable!("C++ passes values whose types can be added");
-    };
-    cell_into_abi(sum)
-}
-
-/// # Safety
-///
-/// `value` must be the live cell of a CSSNumericValue.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_numeric_value_type(value: *mut c_void) -> FfiNumericType {
-    // SAFETY: The caller passes a live cell.
-    FfiNumericType::from_calc(Some(unsafe { numeric_value_from_abi(value) }.numeric_type()))
-}
-
-/// The serialization of the value, as a raw string for C++.
-///
-/// # Safety
-///
-/// `value` must be the live cell of a CSSNumericValue.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_numeric_value_to_string(value: *mut c_void) -> usize {
-    // SAFETY: The caller passes a live cell.
-    unsafe { numeric_value_from_abi(value) }.to_css_string().into_raw()
-}
-
-/// A strong reference to the calculation of the value, or null if it has none.
-///
-/// # Safety
-///
-/// `value` must be the live cell of a CSSNumericValue.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_numeric_value_create_calculation_node(value: *mut c_void) -> *const c_void {
-    // SAFETY: The caller passes a live cell.
-    match unsafe { numeric_value_from_abi(value) }.create_calculation_node() {
-        Ok(node) => Arc::into_raw(node).cast(),
-        Err(_) => core::ptr::null(),
-    }
-}
-
-/// # Safety
-///
-/// `vm` must be the live VM, and `unit` a raw string that C++ hands over.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_unit_value_create(vm: *mut c_void, value: f64, unit: usize) -> *mut c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    // SAFETY: The caller hands over the string.
-    let unit = unsafe { Utf16String::from_raw_owned(unit) };
-    cell_into_abi(CSSUnitValue::create(vm, value, &typed_om::to_rust_string(&unit)))
-}
-
-/// # Safety
-///
-/// `value` must be the live cell of a CSSUnitValue.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_unit_value_value(value: *mut c_void) -> f64 {
-    // SAFETY: The caller passes a live cell of a CSSUnitValue.
-    let value: Ref<CSSUnitValue> = unsafe { cell_from_abi(value) };
-    value.raw_value()
-}
-
-/// # Safety
-///
-/// `value` must be the live cell of a CSSUnitValue.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_unit_value_unit(value: *mut c_void) -> usize {
-    // SAFETY: The caller passes a live cell of a CSSUnitValue.
-    let value: Ref<CSSUnitValue> = unsafe { cell_from_abi(value) };
-    Utf16String::from_utf8(value.raw_unit()).into_raw()
-}
-
-/// # Safety
-///
-/// `value` must be the live cell of a CSSKeywordValue.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_css_keyword_value_value(value: *mut c_void) -> usize {
-    // SAFETY: The caller passes a live cell of a CSSKeywordValue.
-    let value: Ref<CSSKeywordValue> = unsafe { cell_from_abi(value) };
-    value.raw_value().into_raw()
 }
 
 /// A new MediaQueryList of the document, whose media query list shares the queries of the one that C++ passes.
@@ -673,92 +409,6 @@ pub unsafe extern "C" fn web_screen_create(vm: *mut c_void, realm: *mut c_void, 
         (vm, realm, CppCell::from_raw(window))
     };
     cell_into_abi(Screen::create(vm, realm, window))
-}
-
-/// A new AnimationEvent that bubbles, as the Event that C++ dispatches.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `realm` a live realm, `event_name`, `animation_name` and `pseudo_element` raw strings that
-/// C++ hands over, and `animation` a CSS animation C++ holds a reference to.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_animation_event_create(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    event_name: usize,
-    animation_name: usize,
-    elapsed_time: f64,
-    pseudo_element: usize,
-    animation: *const c_void,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    // SAFETY: The caller hands over the strings and passes an animation it holds a reference to.
-    let (event_name, animation_name, pseudo_element, animation) = unsafe {
-        (
-            Utf16String::from_raw_owned(event_name),
-            Utf16String::from_raw_owned(animation_name),
-            Utf16String::from_raw_owned(pseudo_element),
-            EventAnimation::retained_from_host(animation),
-        )
-    };
-    let event_init = AnimationEventInit {
-        parent: bubbling_event_init(),
-        animation: None,
-        animation_name,
-        elapsed_time,
-        pseudo_element,
-    };
-    let event = AnimationEvent::create_for_animation(vm, realm, &event_name, event_init, Some(animation));
-    event.event().set_is_trusted(true);
-    event.event().as_ptr()
-}
-
-/// A new TransitionEvent that bubbles, as the Event that C++ dispatches.
-///
-/// # Safety
-///
-/// `vm` must be the live VM, `realm` a live realm, `event_name`, `property_name` and `pseudo_element` raw strings that
-/// C++ hands over, and `animation` a CSS transition C++ holds a reference to.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_transition_event_create(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    event_name: usize,
-    property_name: usize,
-    elapsed_time: f64,
-    pseudo_element: usize,
-    animation: *const c_void,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    // SAFETY: The caller hands over the strings and passes an animation it holds a reference to.
-    let (event_name, property_name, pseudo_element, animation) = unsafe {
-        (
-            Utf16String::from_raw_owned(event_name),
-            Utf16String::from_raw_owned(property_name),
-            Utf16String::from_raw_owned(pseudo_element),
-            EventAnimation::retained_from_host(animation),
-        )
-    };
-    let event_init = TransitionEventInit {
-        parent: bubbling_event_init(),
-        animation: None,
-        elapsed_time,
-        property_name,
-        pseudo_element,
-    };
-    let event = TransitionEvent::create_for_animation(vm, realm, &event_name, event_init, Some(animation));
-    event.event().set_is_trusted(true);
-    event.event().as_ptr()
-}
-
-fn bubbling_event_init() -> EventInit {
-    EventInit {
-        bubbles: true,
-        cancelable: false,
-        composed: false,
-    }
 }
 
 /// The object of the rule whose cell C++ holds, which C++ names by any of the interfaces it is an object of.

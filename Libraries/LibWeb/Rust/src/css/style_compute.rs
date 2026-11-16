@@ -2213,7 +2213,7 @@ struct ComputedStoreEntry<'a> {
     computed: NativeValue,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiAnimationTimelineKind {
     Document,
@@ -5894,6 +5894,19 @@ pub unsafe extern "C" fn rust_settled_animation_plan(
     }) else {
         return;
     };
+    // https://drafts.csswg.org/css-animations-1/#animations
+    // Setting the 'display' property to 'none' will terminate any running animation applied to the element and its
+    // descendants. If an element has a 'display' of 'none', updating 'display' to a value other than 'none' will
+    // start all animations applied to the element by the 'animation-name' property, as well as all animations
+    // applied to descendants with 'display' other than 'none'.
+    // NB: We must not start animations on elements that are not rendered due to display:none. Once display becomes
+    //     something other than none, the resulting style recomputation applies the plan again and starts them.
+    //     Termination of running animations when display becomes none is handled by
+    //     Element::play_or_cancel_animations_after_display_property_change(). An element that has no animations and
+    //     starts none has nothing to hold or publish.
+    if !has_animations && (plan.definitions.is_empty() || in_display_none_subtree) {
+        return;
+    }
     unsafe {
         apply(
             context,

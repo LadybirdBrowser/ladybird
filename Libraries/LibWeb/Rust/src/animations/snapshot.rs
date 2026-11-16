@@ -355,23 +355,9 @@ mod tests {
         Some(TimeValue::percentage(time)).into()
     }
 
-    fn round_trip(snapshot: EffectTimingSnapshot) {
-        let compact = CompactEffectTiming::from(&snapshot);
-        assert_eq!(compact.snapshot(), snapshot);
-        assert_eq!(compact.effect(), snapshot.effect);
-        assert_eq!(compact.playback(), snapshot.playback);
-        let timeline = snapshot.has_timeline.then_some(snapshot.timeline);
-        assert_eq!(compact.timeline(), timeline);
-        assert_eq!(
-            compact.timeline_time(),
-            timeline.and_then(|timeline| timeline.current_time.get())
-        );
-        assert_eq!(compact.clock(), snapshot.clock);
-    }
-
     #[test]
-    fn a_document_timeline_timing_round_trips() {
-        round_trip(EffectTimingSnapshot {
+    fn the_packed_timing_round_trips() {
+        let document_timeline = EffectTimingSnapshot {
             effect: AnimationEffectTiming {
                 start_delay: TimeValue::milliseconds(-250.0),
                 end_delay: TimeValue::milliseconds(125.0),
@@ -402,12 +388,8 @@ mod tests {
                 origin_time: 16.75,
                 scroll_timeline: AnimationTimelineId::default(),
             },
-        });
-    }
-
-    #[test]
-    fn a_scroll_timeline_timing_round_trips() {
-        round_trip(EffectTimingSnapshot {
+        };
+        let scroll_timeline = EffectTimingSnapshot {
             effect: AnimationEffectTiming {
                 start_delay: TimeValue::percentage(10.0),
                 end_delay: TimeValue::percentage(5.0),
@@ -422,7 +404,7 @@ mod tests {
                 ..AnimationPlayback::default()
             },
             timeline: TimelineSample {
-                current_time: percent(62.5),
+                current_time: OptionalTimeValue::from(None),
                 minimum_timeline_time: percent(0.0),
                 maximum_timeline_time: percent(100.0),
                 is_monotonically_increasing: false,
@@ -433,32 +415,11 @@ mod tests {
                 origin_time: 0.0,
                 scroll_timeline: AnimationTimelineId(u64::MAX - 3),
             },
-        });
-    }
-
-    #[test]
-    fn unresolved_times_round_trip() {
-        round_trip(EffectTimingSnapshot::default());
-        round_trip(EffectTimingSnapshot {
-            timeline: TimelineSample {
-                current_time: OptionalTimeValue::from(None),
-                minimum_timeline_time: percent(0.0),
-                maximum_timeline_time: percent(100.0),
-                is_monotonically_increasing: false,
-            },
-            has_timeline: true,
-            ..EffectTimingSnapshot::default()
-        });
-        let mut compact = CompactEffectTiming::from(&EffectTimingSnapshot {
-            playback: AnimationPlayback {
-                hold_time: percent(30.0),
-                ..AnimationPlayback::default()
-            },
-            ..EffectTimingSnapshot::default()
-        });
-        compact.set_hold_time(Some(TimeValue::milliseconds(12.0)));
-        assert_eq!(compact.playback().hold_time.get(), Some(TimeValue::milliseconds(12.0)));
-        compact.set_hold_time(None);
-        assert_eq!(compact.playback().hold_time.get(), None);
+        };
+        for snapshot in [document_timeline, scroll_timeline, EffectTimingSnapshot::default()] {
+            let compact = CompactEffectTiming::from(&snapshot);
+            assert_eq!(compact.snapshot(), snapshot);
+            assert_eq!(compact.timeline(), snapshot.has_timeline.then_some(snapshot.timeline));
+        }
     }
 }

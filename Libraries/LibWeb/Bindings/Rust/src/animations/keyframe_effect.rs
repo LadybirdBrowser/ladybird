@@ -25,7 +25,7 @@ use libweb_rust::web_animations::{
 
 use super::animation_effect::{
     AnimationEffect, EffectTiming, UnrestrictedDoubleOrCSSNumericValueOrDOMString, to_optional_effect_timing,
-    utf16_string_equals,
+    units_equal,
 };
 use crate::bindings::conversions::{CppInterface, iterator_method};
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, cell_into_abi};
@@ -33,8 +33,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 unsafe extern "C" {
     fn web_animation_effect_set_target(effect: *const c_void, element: *mut c_void, update: bool);
-    fn web_animation_effect_invalidate(effect: *const c_void);
-    fn web_animation_effect_set_composite(effect: *const c_void, composite: CompositeOperation);
     fn web_animation_effect_set_keyframe_set(effect: *const c_void, keyframe_set: *const c_void);
     fn web_animation_element_of_wrapper(wrapper: *mut c_void) -> *mut c_void;
     fn web_animation_wrap_element(realm: *mut c_void, element: *mut c_void) -> *mut c_void;
@@ -69,8 +67,8 @@ impl<T> MaybeList<T> {
 }
 
 // https://www.w3.org/TR/web-animations-1/#dictdef-basepropertyindexedkeyframe
-// Note: This is an intermediate structure used only when parsing Keyframes provided by the caller in a slightly
-//       different format. It is converted to BaseKeyframe, which is why it doesn't need to store the parsed properties
+// NB: This is an intermediate structure used only when parsing Keyframes provided by the caller in a slightly
+//     different format. It is converted to BaseKeyframe, which is why it doesn't need to store the parsed properties.
 struct BasePropertyIndexedKeyframe {
     offset: MaybeList<Option<f64>>,
     easing: MaybeList<Utf16String>,
@@ -111,11 +109,11 @@ impl Default for BaseKeyframe {
     }
 }
 
-/// A keyframe of a KeyframeEffect, https://www.w3.org/TR/web-animations-1/#keyframe, with its property values and its
-/// easing parsed.
+/// A keyframe of a KeyframeEffect, https://drafts.csswg.org/web-animations-1/#keyframe, with its property values and
+/// its easing parsed.
 pub(crate) struct ProcessedKeyframe {
     offset: Option<f64>,
-    computed_offset: Option<f64>,
+    computed_offset: f64,
     easing: ParsedEasing,
     composite: CompositeOperationOrAuto,
     properties: Vec<(KeyframePropertyName, StyleValue)>,
@@ -125,7 +123,7 @@ impl From<CssKeyframeValues> for ProcessedKeyframe {
     fn from(keyframe: CssKeyframeValues) -> Self {
         Self {
             offset: Some(keyframe.offset),
-            computed_offset: Some(keyframe.offset),
+            computed_offset: keyframe.offset,
             easing: keyframe.easing,
             composite: keyframe.composite,
             properties: keyframe.properties,
@@ -146,41 +144,6 @@ impl Clone for ProcessedKeyframe {
                 .map(|(property, value)| (property.clone(), clone_property_value(value)))
                 .collect(),
         }
-    }
-}
-
-/// What compute_missing_keyframe_offsets() reads and writes of a keyframe.
-trait KeyframeOffsets {
-    fn offset(&self) -> Option<f64>;
-    fn computed_offset(&self) -> Option<f64>;
-    fn set_computed_offset(&mut self, computed_offset: Option<f64>);
-}
-
-impl KeyframeOffsets for BaseKeyframe {
-    fn offset(&self) -> Option<f64> {
-        self.offset
-    }
-
-    fn computed_offset(&self) -> Option<f64> {
-        self.computed_offset
-    }
-
-    fn set_computed_offset(&mut self, computed_offset: Option<f64>) {
-        self.computed_offset = computed_offset;
-    }
-}
-
-impl KeyframeOffsets for ProcessedKeyframe {
-    fn offset(&self) -> Option<f64> {
-        self.offset
-    }
-
-    fn computed_offset(&self) -> Option<f64> {
-        self.computed_offset
-    }
-
-    fn set_computed_offset(&mut self, computed_offset: Option<f64>) {
-        self.computed_offset = computed_offset;
     }
 }
 
@@ -251,16 +214,17 @@ fn to_composite_operation(vm: &Vm, value: Value) -> WebIdlResult<CompositeOperat
     }
 
     let string_value = value.to_utf16_string(vm)?;
-    if utf16_string_equals(&string_value, "replace") {
+    let string_value = string_value.to_utf16();
+    if units_equal(&string_value, "replace") {
         return Ok(CompositeOperationOrAuto::Replace);
     }
-    if utf16_string_equals(&string_value, "add") {
+    if units_equal(&string_value, "add") {
         return Ok(CompositeOperationOrAuto::Add);
     }
-    if utf16_string_equals(&string_value, "accumulate") {
+    if units_equal(&string_value, "accumulate") {
         return Ok(CompositeOperationOrAuto::Accumulate);
     }
-    if utf16_string_equals(&string_value, "auto") {
+    if units_equal(&string_value, "auto") {
         return Ok(CompositeOperationOrAuto::Auto);
     }
 
@@ -274,24 +238,20 @@ fn is_a_custom_property_name_string(name: &[u16]) -> bool {
     name.len() > 2 && name[0] == u16::from(b'-') && name[1] == u16::from(b'-')
 }
 
-fn units_equal(units: &[u16], text: &str) -> bool {
-    units.iter().copied().eq(text.encode_utf16())
-}
-
-/// What steps 2 to 5 of the procedure to process a keyframe-like object make of the names of the properties of the
+/// What steps 3 to 6 of the procedure to process a keyframe-like object make of the names of the properties of the
 /// keyframe input: its animation properties, sorted.
 fn animation_properties(vm: &Vm, keyframe_object: Gc<Object>) -> WebIdlResult<Vec<Utf16String>> {
-    // 2. Build up a list of animatable properties as follows:
+    // 3. Build up a list of animatable properties as follows:
     //
     //    1. Let animatable properties be a list of property names (including shorthand properties that have longhand
-    //       sub-properties that are animatable) that can be animated by the implementation.
+    //       sub-properties that are animatable) that can be animated by the UA.
     //    2. Convert each property name in animatable properties to the equivalent IDL attribute by applying the
     //       animation property name to IDL attribute name algorithm.
 
-    // 3. Let input properties be the result of calling the EnumerableOwnNames operation with keyframe input as the
+    // 4. Let input properties be the result of calling the EnumerableOwnNames operation with keyframe input as the
     //    object.
 
-    // 4. Make up a new list animation properties that consists of all of the properties that are in both input
+    // 5. Make up a new list animation properties that consists of all of the properties that are in both input
     //    properties and animatable properties, or which are in input properties and conform to the
     //    <custom-property-name> production.
     let input_properties = keyframe_object.enumerable_own_property_names(vm, PropertyKind::Key)?;
@@ -307,11 +267,11 @@ fn animation_properties(vm: &Vm, keyframe_object: Gc<Object>) -> WebIdlResult<Ve
         let name = input_property.as_string().utf16_string();
         let units = name.to_utf16();
 
-        // Handle the two special cases
+        // NB: Handle the two special cases.
         if units_equal(&units, "cssFloat") || units_equal(&units, "cssOffset") {
             animation_properties.push(name.clone());
         } else if units_equal(&units, "float") || units_equal(&units, "offset") {
-            // Ignore these property names
+            // NB: Ignore these property names.
         } else if is_a_custom_property_name_string(&units) {
             animation_properties.push(name.clone());
         } else if let Some(property) = property_id_from_camel_case(&name)
@@ -321,7 +281,7 @@ fn animation_properties(vm: &Vm, keyframe_object: Gc<Object>) -> WebIdlResult<Ve
         }
     }
 
-    // 5. Sort animation properties in ascending order by the Unicode codepoints that define each property name.
+    // 6. Sort animation properties in ascending order by the Unicode codepoints that define each property name.
     animation_properties.sort_by(|a, b| a.to_utf16().cmp(&b.to_utf16()));
 
     Ok(animation_properties)
@@ -347,14 +307,15 @@ fn process_a_keyframe_like_object_allowing_lists(
     vm: &Vm,
     keyframe_input: Value,
 ) -> WebIdlResult<BasePropertyIndexedKeyframe> {
-    // 1. Run the procedure to convert an ECMAScript value to a dictionary type with keyframe input as the ECMAScript
-    //    value, and the dictionary type depending on the value of the allow lists flag as follows:
+    // 1. Run the procedure to convert an ECMAScript value to a dictionary type [WEBIDL] with keyframe input as the
+    //    ECMAScript value, and the dictionary type depending on the value of the allow lists flag as follows:
     //
     //    -> If allow lists is true, use the following dictionary type: <BasePropertyIndexedKeyframe>.
     //    -> Otherwise, use the following dictionary type: <BaseKeyframe>.
     //
     //    Store the result of this procedure as keyframe output.
     let mut keyframe_output = BasePropertyIndexedKeyframe::default();
+    // 2. If keyframe input is null or undefined, return keyframe output.
     if keyframe_input.is_nullish() {
         return Ok(keyframe_output);
     }
@@ -375,17 +336,17 @@ fn process_a_keyframe_like_object_allowing_lists(
     let offset = keyframe_member(vm, keyframe_object, "offset", None)?;
     keyframe_output.offset = convert_value_to_maybe_list(vm, offset, || None, |value| to_offset(vm, value))?;
 
-    // 2. through 5.
+    // 3. through 6.
     let animation_properties = animation_properties(vm, keyframe_object)?;
 
-    // 6. For each property name in animation properties,
+    // 7. For each property name in animation properties:
     for property_name in animation_properties {
         // 1. Let raw value be the result of calling the [[Get]] internal method on keyframe input, with property name
         //    as the property key and keyframe input as the receiver.
         // 2. Check the completion record of raw value.
         let raw_value = keyframe_object.get(vm, &PropertyKey::from_utf16_string(&property_name))?;
 
-        // 3. Convert raw value to a DOMString or sequence of DOMStrings property values as follows:
+        // 3. Convert raw value to a DOMString or to a sequence of DOMStrings property values as follows:
 
         // -> If allow lists is true,
         //    Let property values be the result of converting raw value to IDL type (DOMString or sequence<DOMString>)
@@ -398,8 +359,8 @@ fn process_a_keyframe_like_object_allowing_lists(
 
         // 4. Calculate the normalized property name as the result of applying the IDL attribute name to animation
         //    property name algorithm to property name.
-        // Note: We do not need to do this, since we did not need to do the reverse step (animation property name to IDL
-        //       attribute name) in the steps above.
+        // NB: We do not need to do this, since we did not need to do the reverse step (animation property name to IDL
+        //     attribute name) in the steps above.
 
         // 5. Add a property to keyframe output with normalized property name as the property name, and property values
         //    as the property value.
@@ -412,14 +373,15 @@ fn process_a_keyframe_like_object_allowing_lists(
 // https://www.w3.org/TR/web-animations-1/#process-a-keyframe-like-object
 // NB: With the allow lists flag set to false.
 fn process_a_keyframe_like_object(vm: &Vm, keyframe_input: Value) -> WebIdlResult<BaseKeyframe> {
-    // 1. Run the procedure to convert an ECMAScript value to a dictionary type with keyframe input as the ECMAScript
-    //    value, and the dictionary type depending on the value of the allow lists flag as follows:
+    // 1. Run the procedure to convert an ECMAScript value to a dictionary type [WEBIDL] with keyframe input as the
+    //    ECMAScript value, and the dictionary type depending on the value of the allow lists flag as follows:
     //
     //    -> If allow lists is true, use the following dictionary type: <BasePropertyIndexedKeyframe>.
     //    -> Otherwise, use the following dictionary type: <BaseKeyframe>.
     //
     //    Store the result of this procedure as keyframe output.
     let mut keyframe_output = BaseKeyframe::default();
+    // 2. If keyframe input is null or undefined, return keyframe output.
     if keyframe_input.is_nullish() {
         return Ok(keyframe_output);
     }
@@ -432,17 +394,17 @@ fn process_a_keyframe_like_object(vm: &Vm, keyframe_input: Value) -> WebIdlResul
     let offset = keyframe_member(vm, keyframe_object, "offset", None)?;
     keyframe_output.offset = to_offset(vm, offset)?;
 
-    // 2. through 5.
+    // 3. through 6.
     let animation_properties = animation_properties(vm, keyframe_object)?;
 
-    // 6. For each property name in animation properties,
+    // 7. For each property name in animation properties:
     for property_name in animation_properties {
         // 1. Let raw value be the result of calling the [[Get]] internal method on keyframe input, with property name
         //    as the property key and keyframe input as the receiver.
         // 2. Check the completion record of raw value.
         let raw_value = keyframe_object.get(vm, &PropertyKey::from_utf16_string(&property_name))?;
 
-        // 3. Convert raw value to a DOMString or sequence of DOMStrings property values as follows:
+        // 3. Convert raw value to a DOMString or to a sequence of DOMStrings property values as follows:
 
         // -> Otherwise,
         //    Let property values be the result of converting raw value to a DOMString using the procedure for
@@ -451,8 +413,8 @@ fn process_a_keyframe_like_object(vm: &Vm, keyframe_input: Value) -> WebIdlResul
 
         // 4. Calculate the normalized property name as the result of applying the IDL attribute name to animation
         //    property name algorithm to property name.
-        // Note: We do not need to do this, since we did not need to do the reverse step (animation property name to IDL
-        //       attribute name) in the steps above.
+        // NB: We do not need to do this, since we did not need to do the reverse step (animation property name to IDL
+        //     attribute name) in the steps above.
 
         // 5. Add a property to keyframe output with normalized property name as the property name, and property values
         //    as the property value.
@@ -463,33 +425,33 @@ fn process_a_keyframe_like_object(vm: &Vm, keyframe_input: Value) -> WebIdlResul
 }
 
 // https://www.w3.org/TR/web-animations-1/#compute-missing-keyframe-offsets
-fn compute_missing_keyframe_offsets<K: KeyframeOffsets>(keyframes: &mut [K]) {
+fn compute_missing_keyframe_offsets(keyframes: &mut [BaseKeyframe]) {
     // 1. For each keyframe, in keyframes, let the computed keyframe offset of the keyframe be equal to its keyframe
     //    offset value.
     for keyframe in keyframes.iter_mut() {
-        keyframe.set_computed_offset(keyframe.offset());
+        keyframe.computed_offset = keyframe.offset;
     }
 
     // 2. If keyframes contains more than one keyframe and the computed keyframe offset of the first keyframe in
     //    keyframes is null, set the computed keyframe offset of the first keyframe to 0.
-    if keyframes.len() > 1 && keyframes[0].computed_offset().is_none() {
-        keyframes[0].set_computed_offset(Some(0.0));
+    if keyframes.len() > 1 && keyframes[0].computed_offset.is_none() {
+        keyframes[0].computed_offset = Some(0.0);
     }
 
     // 3. If the computed keyframe offset of the last keyframe in keyframes is null, set its computed keyframe offset
     //    to 1.
     if let Some(last) = keyframes.last_mut()
-        && last.computed_offset().is_none()
+        && last.computed_offset.is_none()
     {
-        last.set_computed_offset(Some(1.0));
+        last.computed_offset = Some(1.0);
     }
 
     // 4. For each pair of keyframes A and B where:
     //    - A appears before B in keyframes, and
     //    - A and B have a computed keyframe offset that is not null, and
     //    - all keyframes between A and B have a null computed keyframe offset,
-    let find_next_index_of_keyframe_with_computed_offset = |keyframes: &[K], starting_index: usize| {
-        (starting_index..keyframes.len()).find(|&index| keyframes[index].computed_offset().is_some())
+    let find_next_index_of_keyframe_with_computed_offset = |keyframes: &[BaseKeyframe], starting_index: usize| {
+        (starting_index..keyframes.len()).find(|&index| keyframes[index].computed_offset.is_some())
     };
 
     let Some(mut index_a) = find_next_index_of_keyframe_with_computed_offset(keyframes, 0) else {
@@ -502,10 +464,10 @@ fn compute_missing_keyframe_offsets<K: KeyframeOffsets>(keyframes: &mut [K]) {
         for keyframe_index in index_a + 1..index_b {
             // 1. Let offsetk be the computed keyframe offset of a keyframe k.
             let offset_a = keyframes[index_a]
-                .computed_offset()
+                .computed_offset
                 .expect("A has a computed keyframe offset");
             let offset_b = keyframes[index_b]
-                .computed_offset()
+                .computed_offset
                 .expect("B has a computed keyframe offset");
 
             // 2. Let n be the number of keyframes between and including A and B minus 1.
@@ -518,7 +480,7 @@ fn compute_missing_keyframe_offsets<K: KeyframeOffsets>(keyframes: &mut [K]) {
             let index = (keyframe_index - index_a) as f64;
 
             // 4. Set the computed keyframe offset of keyframe to offsetA + (offsetB − offsetA) × index / n.
-            keyframes[keyframe_index].set_computed_offset(Some(offset_a + (offset_b - offset_a) * index / n));
+            keyframes[keyframe_index].computed_offset = Some(offset_a + (offset_b - offset_a) * index / n);
         }
 
         index_a = index_b;
@@ -528,9 +490,9 @@ fn compute_missing_keyframe_offsets<K: KeyframeOffsets>(keyframes: &mut [K]) {
 
 // https://www.w3.org/TR/web-animations-1/#loosely-sorted-by-offset
 fn is_loosely_sorted_by_offset(keyframes: &[BaseKeyframe]) -> bool {
-    // The list of keyframes for a keyframe effect must be loosely sorted by offset which means that for each keyframe
-    // in the list that has a keyframe offset that is not null, the offset is greater than or equal to the offset of the
-    // previous keyframe in the list with a keyframe offset that is not null, if any.
+    // The list of keyframes for a keyframe effect must be loosely sorted by offset, which means that for each keyframe
+    // in the list that has a keyframe offset that is not null, the offset must be greater than or equal to the offset
+    // of the previous keyframe in the list with a keyframe offset that is not null, if any.
 
     let mut last_offset: Option<f64> = None;
     for keyframe in keyframes {
@@ -551,7 +513,7 @@ fn is_loosely_sorted_by_offset(keyframes: &[BaseKeyframe]) -> bool {
 /// The property a property name of a keyframe names, or none for a name the keyframe ignores.
 fn keyframe_property_of_name(name: &Utf16String) -> Option<(KeyframePropertyName, u16)> {
     let units = name.to_utf16();
-    // Handle some special cases
+    // NB: Handle some special cases.
     if units_equal(&units, "cssFloat") {
         return Some((KeyframePropertyName::Id(PROPERTY_ID_FLOAT), PROPERTY_ID_FLOAT));
     }
@@ -559,7 +521,7 @@ fn keyframe_property_of_name(name: &Utf16String) -> Option<(KeyframePropertyName
         return Some((KeyframePropertyName::Id(PROPERTY_ID_OFFSET), PROPERTY_ID_OFFSET));
     }
     if units_equal(&units, "float") || units_equal(&units, "offset") {
-        // Ignore these properties
+        // NB: Ignore these properties.
         return None;
     }
     if is_a_custom_property_name_string(&units) {
@@ -591,7 +553,7 @@ pub(crate) fn process_a_keyframes_argument(
     // 4. Check the completion record of method.
     let method = iterator_method(vm, object_value)?;
 
-    // 5. Perform the steps corresponding to the first matching condition from below,
+    // 5. Perform the steps corresponding to the first matching condition below:
 
     // -> If method is not undefined,
     if let Some(method) = method {
@@ -613,23 +575,23 @@ pub(crate) fn process_a_keyframes_argument(
             }
 
             // 7. Append to processed keyframes the result of running the procedure to process a keyframe-like object
-            //    passing nextItem as the keyframe input and with the allow lists flag set to false.
+            //    passing nextItem as the keyframe input with the allow lists flag set to false.
             processed_keyframes.push(process_a_keyframe_like_object(vm, next_item)?);
         }
     }
     // -> Otherwise,
     else {
         // 1. Let property-indexed keyframe be the result of running the procedure to process a keyframe-like object
-        //    passing object as the keyframe input and with the allow lists flag set to true.
+        //    passing object as the keyframe input with the allow lists flag set to true.
         let property_indexed_keyframe = process_a_keyframe_like_object_allowing_lists(vm, object_value)?;
 
         // 2. For each member, m, in property-indexed keyframe, perform the following steps:
         for (property_name, property_values) in &property_indexed_keyframe.properties {
             // 1. Let property name be the key for m.
 
-            // 2. If property name is "composite", or "easing", or "offset", skip the remaining steps in this loop and
+            // 2. If property name is "composite", "easing", or "offset", skip the remaining steps in this loop and
             //    continue from the next member in property-indexed keyframe after m.
-            // Note: This will never happen, since these fields have dedicated members on BasePropertyIndexedKeyframe
+            // NB: This will never happen, since these fields have dedicated members on BasePropertyIndexedKeyframe.
 
             // 3. Let property values be the value for m.
 
@@ -663,12 +625,13 @@ pub(crate) fn process_a_keyframes_argument(
             let b = b
                 .computed_offset
                 .expect("a property keyframe has a computed keyframe offset");
-            a.partial_cmp(&b).unwrap_or(core::cmp::Ordering::Equal)
+            // NB: Offsets are never NaN, and adding zero makes -0 and +0 compare equal, as step 4 merges them.
+            (a + 0.0).total_cmp(&(b + 0.0))
         });
 
         // 4. Merge adjacent keyframes in processed keyframes when they have equal computed keyframe offsets.
-        // Note: The spec doesn't specify how to merge them, but WebKit seems to just override the properties of the
-        //       earlier keyframe with the properties of the later keyframe.
+        // NB: The spec doesn't specify how to merge them, but WebKit seems to just override the properties of the
+        //     earlier keyframe with the properties of the later keyframe.
         let mut i = 0;
         while i + 1 < processed_keyframes.len() {
             if processed_keyframes[i].computed_offset == processed_keyframes[i + 1].computed_offset {
@@ -700,7 +663,7 @@ pub(crate) fn process_a_keyframes_argument(
         //    A sequence of length one with the value of "offset" as its single item, i.e. « offset »,
         let offsets = property_indexed_keyframe.offset.into_list();
 
-        // 6. Assign each value in offsets to the keyframe offset of the keyframe with corresponding position in
+        // 6. Assign each value in offsets to the keyframe offset of the keyframe with the corresponding position in
         //    processed keyframes until the end of either sequence is reached.
         for (keyframe, offset) in processed_keyframes.iter_mut().zip(offsets) {
             keyframe.offset = offset;
@@ -793,15 +756,22 @@ pub(crate) fn process_a_keyframes_argument(
         }
     }
 
+    // FIXME: After processing the keyframe argument, we need to turn the set of keyframes into a set of computed
+    //        keyframes using the procedure outlined in the second half of
+    //        https://www.w3.org/TR/web-animations-1/#calculating-computed-keyframes. For now, just compute the
+    //        missing keyframe offsets
+    // NB: Step 8 maps the processed keyframes one to one, so their computed keyframe offsets carry over.
+    compute_missing_keyframe_offsets(&mut processed_keyframes);
+
     // 8. For each frame in processed keyframes, perform the following steps:
     let mut keyframes = Vec::with_capacity(processed_keyframes.len());
     for keyframe in processed_keyframes {
         // 1. For each property-value pair in frame, parse the property value using the syntax specified for that
         //    property.
         //
-        //    If the property value is invalid according to the syntax for the property, discard the property-value pair.
-        //    User agents that provide support for diagnosing errors in content SHOULD produce an appropriate warning
-        //    highlight
+        //    If the property value is invalid according to the syntax for the property, discard the property-value
+        //    pair. User agents that provide support for diagnosing errors in content SHOULD produce an appropriate
+        //    warning highlighting the invalid property value.
         let mut parsed_properties: Vec<(KeyframePropertyName, StyleValue)> = Vec::new();
         for (property_string, value_string) in &keyframe.properties {
             let Some((property, property_id)) = keyframe_property_of_name(property_string) else {
@@ -813,7 +783,7 @@ pub(crate) fn process_a_keyframes_argument(
             }
         }
 
-        // 2. Let the timing function of frame be the result of parsing the "easing" property on frame using the CSS
+        // 2. Let the easing function of frame be the result of parsing the "easing" property on frame using the CSS
         //    syntax defined for the easing member of the EffectTiming dictionary.
         //
         //    If parsing the "easing" property fails, throw a TypeError and abort this procedure.
@@ -821,15 +791,17 @@ pub(crate) fn process_a_keyframes_argument(
 
         keyframes.push(ProcessedKeyframe {
             offset: keyframe.offset,
-            computed_offset: keyframe.computed_offset,
+            computed_offset: keyframe
+                .computed_offset
+                .expect("a processed keyframe has a computed keyframe offset"),
             easing,
             composite: keyframe.composite,
             properties: parsed_properties,
         });
     }
 
-    // 9. Parse each of the values in unused easings using the CSS syntax defined for easing member of the EffectTiming
-    //    interface, and if any of the values fail to parse, throw a TypeError and abort this procedure.
+    // 9. Parse each of the values in unused easings using the CSS syntax defined for the easing member of the
+    //    EffectTiming dictionary, and if any of the values fail to parse, throw a TypeError and abort this procedure.
     for unused_easing in &unused_easings {
         if parse_easing_function(unused_easing).is_none() {
             return Err(invalid_easing(unused_easing));
@@ -899,7 +871,7 @@ impl Wrappable for KeyframeEffect {
 
     fn finalize(object: Ref<Self>) {
         // NB: The record can outlive the effect until what holds the record is swept.
-        object.effect.record().set_facade(None);
+        object.effect.record().set_object_cell(None);
     }
 }
 
@@ -907,7 +879,10 @@ impl KeyframeEffect {
     /// A new effect with the default timing, no keyframes and no target.
     pub(crate) fn create(vm: &Vm) -> Ref<Self> {
         let object = Self::create_for_record(vm, EffectRecordRef::new());
-        object.effect.record().set_facade(NonNull::new(cell_into_abi(object)));
+        object
+            .effect
+            .record()
+            .set_object_cell(NonNull::new(cell_into_abi(object)));
         object
     }
 
@@ -928,8 +903,7 @@ impl KeyframeEffect {
     }
 
     fn invalidate(&self) {
-        // SAFETY: The effect holds a reference to the record.
-        unsafe { web_animation_effect_invalidate(self.record_ptr()) };
+        self.effect.record().invalidate();
     }
 
     /// Sets the target element of the effect to the host's `DOM::Element`, or to none, invalidating what that changes
@@ -942,39 +916,27 @@ impl KeyframeEffect {
     fn set_target_pseudo_element(&self, pseudo_element: Option<&ParsedPseudoElement>) {
         self.effect.record().set_pseudo_element(pseudo_element);
         self.invalidate();
-        // FIXME: We don't remove the animated style from the old target element as part of normal animated style update and
-        //        it will remain "stuck" until it's style is fully invalidated for some other reason.
+        // FIXME: We don't remove the animated style from the old target element as part of normal animated style update
+        //        and it will remain "stuck" until its style is fully invalidated for some other reason.
     }
 
     fn set_composite_operation(&self, composite: CompositeOperation) {
-        // SAFETY: The effect holds a reference to the record.
-        unsafe { web_animation_effect_set_composite(self.record_ptr(), composite) };
+        self.effect.record().set_composite(composite);
+        self.invalidate();
     }
 
-    /// Sets the keyframes of the effect to the processed keyframes, whose missing offsets this computes.
+    /// Sets the keyframes of the effect to the processed keyframes.
     pub(crate) fn set_processed_keyframes(&self, keyframes: Vec<ProcessedKeyframe>) {
         self.set_processed_keyframes_copied_from(keyframes, None);
     }
 
-    /// Sets the keyframes of the effect to the processed keyframes, whose missing offsets this computes, which resolve
-    /// what they reference against the style sheet of those of `source` where they are a copy of its keyframes.
-    fn set_processed_keyframes_copied_from(
-        &self,
-        mut keyframes: Vec<ProcessedKeyframe>,
-        source: Option<&EffectRecordRef>,
-    ) {
-        // FIXME: After processing the keyframe argument, we need to turn the set of keyframes into a set of computed
-        //        keyframes using the procedure outlined in the second half of
-        //        https://www.w3.org/TR/web-animations-1/#calculating-computed-keyframes. For now, just compute the
-        //        missing keyframe offsets
-        compute_missing_keyframe_offsets(&mut keyframes);
-
+    /// Sets the keyframes of the effect to the processed keyframes, which resolve what they reference against the
+    /// style sheet of those of `source` where they are a copy of its keyframes.
+    fn set_processed_keyframes_copied_from(&self, keyframes: Vec<ProcessedKeyframe>, source: Option<&EffectRecordRef>) {
         let inputs = keyframes
             .iter()
             .map(|keyframe| KeyframeSetInput {
-                computed_offset: keyframe
-                    .computed_offset
-                    .expect("a keyframe has a computed keyframe offset"),
+                computed_offset: keyframe.computed_offset,
                 composite: keyframe.composite,
                 easing: &keyframe.easing,
                 properties: &keyframe.properties,
@@ -1027,7 +989,7 @@ impl KeyframeEffect {
         // 2. Set the target element of effect to target.
         effect.set_target_element(target, true);
 
-        // 3. Set the target pseudo-selector to the result corresponding to the first matching condition from below.
+        // 3. Set the target pseudo-selector to the result corresponding to the first matching condition below:
 
         //    If options is a KeyframeEffectOptions object with a pseudoElement property,
         if let UnrestrictedDoubleOrKeyframeEffectOptions::KeyframeEffectOptions(options) = &options {
@@ -1040,9 +1002,9 @@ impl KeyframeEffect {
         }
         //     Otherwise,
         //         Set the target pseudo-selector to null.
-        // Note: This is the default when constructed
+        // NB: This is the default when constructed.
 
-        // 4. Let timing input be the result corresponding to the first matching condition from below.
+        // 4. Let timing input be the result corresponding to the first matching condition below:
         let (timing_input, composite) = match options {
             //     If options is a KeyframeEffectOptions object,
             //         Let timing input be options.
@@ -1070,7 +1032,7 @@ impl KeyframeEffect {
         // https://drafts.csswg.org/web-animations-2/#the-effecttiming-dictionaries
         // Note: In this version of the spec, duration is not settable as a CSSNumericValue; however, duration may be
         //       returned as a CSSNumericValue when resolving the duration in getComputedTiming(). Future versions of
-        //       the spec may enable setting the duration as a CSSNumeric value, where the unit is a valid time unit or
+        //       the spec may enable setting the duration as a CSSNumericValue, where the unit is a valid time unit or
         //       percent.
         if matches!(
             timing_input.duration,
@@ -1156,7 +1118,7 @@ impl KeyframeEffect {
         //     - iteration count,
         //     - specified iteration duration,
         //     - playback direction, and
-        //     - timing function.
+        //     - easing function.
         effect
             .effect
             .record()
@@ -1196,7 +1158,7 @@ impl KeyframeEffect {
     pub(crate) fn set_pseudo_element(&self, _cx: &mut CallContext, value: Option<Utf16String>) -> WebIdlResult<()> {
         // On setting, sets the target pseudo-selector of the animation effect to the result of
         // pseudo-element parsing on the provided value, defined as the following:
-        // NOTE: The actual definition is in pseudo_element_parsing().
+        // NB: The actual definition is in pseudo_element_parsing().
         let pseudo_element = pseudo_element_parsing(value.as_ref())?;
         self.set_target_pseudo_element(pseudo_element.as_ref());
         Ok(())
@@ -1245,9 +1207,7 @@ impl KeyframeEffect {
             .iter()
             .map(|keyframe| ReflectedKeyframe {
                 offset: keyframe.offset,
-                computed_offset: keyframe
-                    .computed_offset
-                    .expect("a keyframe has a computed keyframe offset"),
+                computed_offset: keyframe.computed_offset,
                 easing: keyframe.easing.serialization().clone(),
                 composite: match keyframe.composite {
                     CompositeOperationOrAuto::Replace => "replace",
@@ -1280,7 +1240,7 @@ impl KeyframeEffect {
             .collect();
         drop(script_keyframes);
 
-        // The getKeyframes() algorithm returns a fresh sequence of fresh objects on every invocation.
+        // NB: The getKeyframes() algorithm returns a fresh sequence of fresh objects on every invocation.
         let keyframes = MarkedVec::new(vm);
         let string = |string: Utf16String| Value::from_string(PrimitiveString::create(vm, string));
         for keyframe in reflected_keyframes {

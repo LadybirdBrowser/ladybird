@@ -14,19 +14,22 @@ use core::ops::Deref;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
-use libcompositing_rust::animation_timing::{OptionalTimeValue, TimeValue, TimeValueType};
+pub(crate) use libcompositing_rust::animation_timing::{AnimationPlayState, AnimationReplaceState};
+use libcompositing_rust::animation_timing::{OptionalNumber, OptionalTimeValue, TimeValue, TimeValueType};
 use libjs_rust::api::{Gc, Realm, ThrowCompletionOr, Trace, Value, Visitor, Vm};
 use libweb_rust::AnimationRecordRef;
 use libweb_rust::web_animations::{
     AnimationException, AnimationInterfaceKind, AnimationProcedure, AttachmentRangeEdgeValue, CssAnimationFlag,
     EffectRecordRef, HostEffect, HostEffectKind, PROPERTY_ID_ANIMATION_RANGE_END, PROPERTY_ID_ANIMATION_RANGE_START,
-    StyleValue, attachment_range_edge_from_computed_value, numeric_type_matches_time, parse_property_value,
-    style_value_as_host_ptr, style_value_from_host,
+    PendingAnimationEvent, PlaybackEventType, StyleValue, attachment_range_edge_from_computed_value,
+    numeric_type_matches_time, parse_property_value, style_value_as_host_ptr, style_value_from_host,
 };
 
 use super::animation_effect::{AnyAnimationEffect, effect_object};
-use super::animation_playback_event::time_value_as_css_numberish;
-use super::animation_timeline::{AnyAnimationTimeline, timeline_object};
+use super::animation_playback_event::{
+    AnimationPlaybackEvent, AnimationPlaybackEventInit, time_value_as_css_numberish,
+};
+use super::animation_timeline::{AnyAnimationTimeline, timeline_object_of_record};
 use super::document_timeline::document_of_realm;
 use crate::bindings::conversions::ToJs;
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
@@ -34,8 +37,8 @@ use crate::bindings::interface::{
     Inherits, Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, with_temporary_execution_context,
 };
 use crate::bindings::promise::{
-    WebIdlPromise, create_promise, create_resolved_promise, mark_promise_as_handled, reject_promise_with_exception,
-    resolve_promise,
+    TaskSource, WebIdlPromise, create_promise, mark_promise_as_handled, queue_a_global_task,
+    reject_promise_with_exception, resolve_promise,
 };
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::css::css_animation::CSSAnimation;
@@ -43,16 +46,30 @@ use crate::css::css_keyword_value::CSSKeywordValue;
 use crate::css::css_numeric_value::{AnyCSSNumericValue, CSSNumberish};
 use crate::css::css_transition::CSSTransition;
 use crate::css::typed_om::reify_a_numeric_value;
+use crate::dom::event::EventInit;
 
 unsafe extern "C" {
     fn web_animation_perform_host_effect(effect: *const c_void);
-    fn web_animation_update_style_of_owning_element(animation: *const c_void);
-    fn web_animation_update_style_of_owning_element_document(animation: *const c_void);
+    fn web_animation_update_style_of_element(
+        element: *mut c_void,
+        has_pseudo_element: bool,
+        pseudo_element: u8,
+        scope: StyleUpdateScope,
+    );
     fn web_animation_realm_of_element(element: *mut c_void) -> *mut c_void;
-    fn web_animation_document_timeline_of_document(document: *mut c_void) -> *mut c_void;
-    fn web_animation_timeline_current_time_for_observation(timeline: *mut c_void) -> OptionalTimeValue;
     fn web_animation_absolutize_style_value(document: *mut c_void, value: *const c_void) -> *const c_void;
-    fn web_animation_visit_named_cells(animation: *const c_void, visitor: *mut c_void);
+    fn web_animation_realm_of_document(document: *mut c_void) -> *mut c_void;
+    fn web_animation_current_high_resolution_time(realm: *mut c_void) -> f64;
+    fn web_animation_append_pending_playback_event(
+        document: *mut c_void,
+        animation: *const c_void,
+        r#type: PlaybackEventType,
+        current_time: OptionalTimeValue,
+        timeline_time: OptionalTimeValue,
+        scheduled_event_time: OptionalNumber,
+        time_stamp: f64,
+    );
+    fn web_animation_event_set_time_stamp(event: *mut c_void, time_stamp: f64);
     fn web_animation_commit_styles(animation: *const c_void) -> CommitStylesResult;
 }
 
@@ -63,23 +80,6 @@ enum CommitStylesResult {
     Committed,
     TargetCannotHaveInlineStyle,
     TargetIsNotBeingRendered,
-}
-
-// https://drafts.csswg.org/web-animations-1/#the-animationplaystate-enumeration
-#[derive(Clone, Copy)]
-pub(crate) enum AnimationPlayState {
-    Idle,
-    Running,
-    Paused,
-    Finished,
-}
-
-// https://drafts.csswg.org/web-animations-1/#the-animationreplacestate-enumeration
-#[derive(Clone, Copy)]
-pub(crate) enum AnimationReplaceState {
-    Active,
-    Removed,
-    Persisted,
 }
 
 // https://drafts.csswg.org/web-animations-2/#dictdef-timelinerangeoffset
@@ -115,18 +115,42 @@ fn run(animation: &AnimationRecordRef, procedure: AnimationProcedure) -> WebIdlR
     animation.run(procedure, perform_host_effect).map_err(exception_of)
 }
 
+/// What the host computes the style of as script observes an animation.
+#[repr(u8)]
+#[derive(Clone, Copy)]
+enum StyleUpdateScope {
+    /// The style of the element, where it changed.
+    Element,
+    /// The style of the document of the element.
+    Document,
+}
+
+/// Has the host compute the style `scope` names of the owning element of the CSS animation or transition `animation`,
+/// where it has one.
+fn update_style_of_owning_element(animation: &AnimationRecordRef, scope: StyleUpdateScope) {
+    let Some((element, pseudo_element)) = animation.owning_element() else {
+        return;
+    };
+    // SAFETY: The animation keeps its owning element alive.
+    unsafe {
+        web_animation_update_style_of_element(
+            element.as_ptr(),
+            pseudo_element.is_some(),
+            pseudo_element.unwrap_or(0),
+            scope,
+        );
+    }
+}
+
 /// Has the owning element of a CSS animation or transition compute its style, where the style changed.
 pub(crate) fn update_style_if_needed(animation: &AnimationRecordRef) {
-    // SAFETY: The animation is live.
-    unsafe { web_animation_update_style_of_owning_element(animation.as_host_ptr()) };
+    // NB: Script observes a CSS animation or transition with the style of its owning element computed.
+    update_style_of_owning_element(animation, StyleUpdateScope::Element);
 }
 
 /// The current time of the timeline of the animation as script observes it, which is unresolved where it has none.
 fn timeline_time_for_observation(animation: &AnimationRecordRef) -> Option<TimeValue> {
-    let timeline = animation.timeline()?;
-    let cell = timeline.facade()?;
-    // SAFETY: The cell is the live object of the timeline of the animation.
-    unsafe { web_animation_timeline_current_time_for_observation(cell.as_ptr()) }.get()
+    animation.timeline()?.current_time_for_observation()
 }
 
 /// https://www.w3.org/TR/web-animations-1/#animation-current-time
@@ -151,15 +175,78 @@ pub(crate) fn realm_of_element(element: NonNull<c_void>) -> Gc<Realm> {
     }
 }
 
-/// https://drafts.csswg.org/web-animations-1/#default-document-timeline
-/// Of the host's `DOM::Document`.
-pub(crate) fn default_document_timeline(document: NonNull<c_void>) -> libweb_rust::web_animations::TimelineRecordRef {
-    // SAFETY: The document is live, and the host returns the live cell of its timeline.
-    let cell = unsafe { web_animation_document_timeline_of_document(document.as_ptr()) };
-    // SAFETY: The cell is the live cell of a timeline.
-    unsafe { timeline_object(cell) }.record().clone()
+fn realm_of_document(document: NonNull<c_void>) -> Gc<Realm> {
+    // SAFETY: The document is live, and the host returns its live relevant realm.
+    unsafe {
+        Gc::from_non_null(
+            NonNull::new(web_animation_realm_of_document(document.as_ptr()).cast::<Realm>())
+                .expect("a document has a relevant realm"),
+        )
+    }
 }
 
+/// https://w3c.github.io/hr-time/#dfn-current-high-resolution-time
+/// Of the global object of the realm.
+fn current_high_resolution_time(realm: Gc<Realm>) -> f64 {
+    // SAFETY: The realm is live.
+    unsafe { web_animation_current_high_resolution_time(realm.as_ptr().cast()) }
+}
+
+// NB: A remove event is created in the realm of the document whose replaced animations are removed, which is the
+//     document for timing of the animation, and whose pending animation event queue it joins.
+fn playback_event_realm(
+    object_realm: Gc<Realm>,
+    r#type: PlaybackEventType,
+    document_for_timing: Option<NonNull<c_void>>,
+) -> Gc<Realm> {
+    match document_for_timing {
+        Some(document) if r#type == PlaybackEventType::Remove => realm_of_document(document),
+        _ => object_realm,
+    }
+}
+
+// https://www.w3.org/TR/web-animations-1/#update-an-animations-finished-state
+// https://www.w3.org/TR/web-animations-1/#cancel-an-animation
+// https://www.w3.org/TR/web-animations-1/#remove-replaced-animations
+fn playback_event_type_name(r#type: PlaybackEventType) -> &'static [u8] {
+    match r#type {
+        PlaybackEventType::Finish => b"finish",
+        PlaybackEventType::Cancel => b"cancel",
+        PlaybackEventType::Remove => b"remove",
+    }
+}
+
+/// A new AnimationPlaybackEvent of the type, created in the realm, that neither bubbles nor can be canceled, and that the
+/// user agent dispatches.
+/// https://drafts.csswg.org/web-animations-2/#animationplaybackevent
+fn create_animation_playback_event(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    r#type: PlaybackEventType,
+    current_time: Option<TimeValue>,
+    timeline_time: Option<TimeValue>,
+) -> Ref<AnimationPlaybackEvent> {
+    let event_init = AnimationPlaybackEventInit {
+        parent: EventInit {
+            bubbles: false,
+            cancelable: false,
+            composed: false,
+        },
+        current_time: current_time.map(|time| time_value_as_css_numberish(vm, time)),
+        timeline_time: timeline_time.map(|time| time_value_as_css_numberish(vm, time)),
+    };
+    let event = AnimationPlaybackEvent::create(
+        vm,
+        realm,
+        &Utf16String::from_ascii(playback_event_type_name(r#type)),
+        event_init,
+    );
+    event.event().set_is_trusted(true);
+    event
+}
+
+/// https://drafts.csswg.org/web-animations-1/#default-document-timeline
+/// Of the host's `DOM::Document`.
 /// https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-realm
 /// That of the object of the animation, or for a CSS animation or transition without one, of the document of its
 /// owning element, and for the animation of an SVG animation element, of the document of that element.
@@ -203,8 +290,10 @@ unsafe impl Trace for Animation {
         if let Some(promise) = self.current_finished_promise.get() {
             visitor.visit(promise);
         }
-        // SAFETY: The animation holds a reference to the record, and the visitor is one LibGC passed in.
-        unsafe { web_animation_visit_named_cells(self.record.as_host_ptr(), visitor.as_raw().cast()) };
+        self.record.for_each_named_cell(|cell, _| {
+            // SAFETY: The record names live cells of the host, which the animation keeps alive.
+            visitor.visit(unsafe { Gc::from_non_null(cell) });
+        });
     }
 }
 
@@ -287,8 +376,8 @@ impl AnyAnimation {
 
 /// The object of the animation, if it has one.
 pub(crate) fn existing_animation_object(animation: &AnimationRecordRef) -> Option<AnyAnimation> {
-    let cell = animation.facade()?.as_ptr();
-    // SAFETY: The facade of an animation is the live cell of its object, of the interface its kind picks.
+    let cell = animation.object_cell()?.as_ptr();
+    // SAFETY: The object cell of an animation is the live cell of its object, of the interface its kind picks.
     Some(unsafe {
         match animation.kind() {
             AnimationInterfaceKind::Script => AnyAnimation::Animation(cell_from_abi(cell)),
@@ -319,7 +408,7 @@ pub(crate) fn animation_object(vm: &Vm, animation: &AnimationRecordRef) -> AnyAn
         }
     };
     object.event_target_owner();
-    animation.set_facade(NonNull::new(object.cell()));
+    animation.set_object_cell(NonNull::new(object.cell()));
     object
 }
 
@@ -341,7 +430,7 @@ impl Animation {
 
     pub(crate) fn finalize_animation(&self) {
         // NB: The record can outlive the animation until what holds the record is swept.
-        self.record.set_facade(None);
+        self.record.did_finalize_object();
     }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-animation
@@ -356,7 +445,9 @@ impl Animation {
         //     the current global object.
         let timeline = match timeline {
             Some(timeline) => timeline.map(|timeline| timeline.record().clone()),
-            None => Some(default_document_timeline(document_of_realm(realm))),
+            None => Some(libweb_rust::web_animations::TimelineRecordRef::default_of_document(
+                document_of_realm(realm),
+            )),
         };
 
         Ok(Self::create(
@@ -377,9 +468,11 @@ impl Animation {
         // 1. Let animation be a new Animation object.
         let animation = allocate(vm, |_| Self::new(realm, AnimationRecordRef::new_script_animation()));
         animation.event_target.set_owner(animation);
-        animation.record.set_facade(NonNull::new(cell_into_abi(animation)));
+        animation.record.set_object_cell(NonNull::new(cell_into_abi(animation)));
 
-        // 2. Run the procedure to set the timeline of an animation on animation passing timeline as the new timeline.
+        // 2. Run the procedure to set the timeline of an animation on animation passing timeline as the new timeline;
+        //    or, if the timeline argument is missing, passing the default document timeline of the Document associated
+        //    with the Window that is the current global object.
         animation.record.set_timeline(timeline, perform_host_effect);
 
         // 3. Run the procedure to set the associated effect of an animation on animation passing source as the new
@@ -422,15 +515,12 @@ impl Animation {
     }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-timeline
-    pub(crate) fn timeline(&self, _: &mut CallContext) -> WebIdlResult<Option<AnyAnimationTimeline>> {
+    pub(crate) fn timeline(&self, cx: &mut CallContext) -> WebIdlResult<Option<AnyAnimationTimeline>> {
         update_style_if_needed(&self.record);
-        Ok(self.record.timeline().map(|timeline| {
-            let cell = timeline
-                .facade()
-                .expect("the timeline of an animation script reaches is alive");
-            // SAFETY: The cell is the live cell of a timeline.
-            unsafe { timeline_object(cell.as_ptr()) }
-        }))
+        Ok(self
+            .record
+            .timeline()
+            .map(|timeline| timeline_object_of_record(cx.vm(), &timeline)))
     }
 
     // https://www.w3.org/TR/web-animations-1/#animation-set-the-timeline-of-an-animation
@@ -459,7 +549,7 @@ impl Animation {
 
         // If all of the following conditions are true:
         //  - The animation is associated with a progress-based timeline, and
-        //  - time is not a CSSNumeric value with percent units:
+        //  - time is not a CSSNumericValue with percent units:
         if progress_based
             && !numeric_type
                 .as_ref()
@@ -523,7 +613,8 @@ impl Animation {
     }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-starttime
-    // https://www.w3.org/TR/web-animations-1/#set-the-start-time
+    // https://drafts.csswg.org/web-animations-1/#set-the-start-time
+    // https://drafts.csswg.org/web-animations-2/#set-the-start-time
     pub(crate) fn set_start_time(&self, _: &mut CallContext, new_start_time: Option<CSSNumberish>) -> WebIdlResult<()> {
         // Setting this attribute updates the start time using the procedure to set the start time of this object to
         // the new value.
@@ -546,7 +637,8 @@ impl Animation {
         Ok(current_time_for_observation(&self.record).map(|time| time_value_as_css_numberish(cx.vm(), time)))
     }
 
-    // https://www.w3.org/TR/web-animations-1/#animation-set-the-current-time
+    // https://drafts.csswg.org/web-animations-1/#animation-set-the-current-time
+    // https://drafts.csswg.org/web-animations-2/#set-the-current-time
     pub(crate) fn set_current_time(&self, _: &mut CallContext, seek_time: Option<CSSNumberish>) -> WebIdlResult<()> {
         // AD-HOC: We validate here instead of within silently_set_current_time so we have access to the `TimeValue`
         //         value within this function.
@@ -608,28 +700,16 @@ impl Animation {
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-playstate
     pub(crate) fn play_state(&self, _: &mut CallContext) -> WebIdlResult<AnimationPlayState> {
-        use libweb_rust::web_animations::AnimationPlayState as RecordPlayState;
         // NB: Script observes the play state of an animation with the style of the document of its owning element
         //     computed, at the current time it observes.
-        // SAFETY: The animation is live.
-        unsafe { web_animation_update_style_of_owning_element_document(self.record.as_host_ptr()) };
+        update_style_of_owning_element(&self.record, StyleUpdateScope::Document);
         let current_time = current_time_for_observation(&self.record);
-        Ok(match self.record.play_state_at(current_time) {
-            RecordPlayState::Idle => AnimationPlayState::Idle,
-            RecordPlayState::Running => AnimationPlayState::Running,
-            RecordPlayState::Paused => AnimationPlayState::Paused,
-            RecordPlayState::Finished => AnimationPlayState::Finished,
-        })
+        Ok(self.record.play_state_at(current_time))
     }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-replacestate
     pub(crate) fn replace_state(&self, _: &mut CallContext) -> WebIdlResult<AnimationReplaceState> {
-        use libweb_rust::web_animations::AnimationReplaceState as RecordReplaceState;
-        Ok(match self.record.replace_state() {
-            RecordReplaceState::Active => AnimationReplaceState::Active,
-            RecordReplaceState::Removed => AnimationReplaceState::Removed,
-            RecordReplaceState::Persisted => AnimationReplaceState::Persisted,
-        })
+        Ok(self.record.replace_state())
     }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-pending
@@ -647,12 +727,13 @@ impl Animation {
         // resolved Promise with the animation itself as its value and created in the relevant Realm of the animation.
         // NB: A promise the procedures replaced, which script did not ask for yet, is pending while the animation has
         //     a pending play or pause task.
-        let promise = if self.record.pending() {
-            create_promise(vm, self.realm)
-        } else {
-            create_resolved_promise(vm, self.realm, self.object().value_in(vm, self.realm))
-        };
+        // NB: Resolving the promise with the animation reads its "then" property, which script can observe, so the
+        //     promise is the current one before it is resolved.
+        let promise = create_promise(vm, self.realm);
         self.current_ready_promise.set(Some(promise));
+        if !self.record.pending() {
+            resolve_promise(vm, promise, self.object().value_in(vm, self.realm));
+        }
         promise
     }
 
@@ -664,12 +745,12 @@ impl Animation {
         // The current finished promise is initially a pending Promise object.
         // NB: A promise the procedures resolved, which script did not ask for yet, is resolved while the animation is
         //     finished.
-        let promise = if self.record.playback().is_finished {
-            create_resolved_promise(vm, self.realm, self.object().value_in(vm, self.realm))
-        } else {
-            create_promise(vm, self.realm)
-        };
+        // NB: As with the current ready promise, the promise is the current one before it is resolved.
+        let promise = create_promise(vm, self.realm);
         self.current_finished_promise.set(Some(promise));
+        if self.record.playback().is_finished {
+            resolve_promise(vm, promise, self.object().value_in(vm, self.realm));
+        }
         promise
     }
 
@@ -685,13 +766,12 @@ impl Animation {
         // NB: An animation that script observes finished ahead of the timeline's own current time settles its finished
         //     promise as it reads it, at the time it observes.
         if let Some(timeline) = self.record.timeline() {
-            use libweb_rust::web_animations::AnimationPlayState as RecordPlayState;
             let observed_timeline_time = timeline_time_for_observation(&self.record);
             let observed_current_time = self.record.current_time_at(observed_timeline_time);
             let current_time = self.record.current_time_at(timeline.current_time());
             if !self.record.playback().is_finished
-                && self.record.play_state_at(current_time) != RecordPlayState::Finished
-                && self.record.play_state_at(observed_current_time) == RecordPlayState::Finished
+                && self.record.play_state_at(current_time) != AnimationPlayState::Finished
+                && self.record.play_state_at(observed_current_time) == AnimationPlayState::Finished
             {
                 let previous_override = timeline.style_sampling_override();
                 timeline.set_style_sampling_override(Some(observed_timeline_time));
@@ -744,9 +824,70 @@ impl Animation {
         }
     }
 
+    /// Creates an AnimationPlaybackEvent of the animation and appends it to the pending animation event queue of the
+    /// animation's document for timing, or queues a task to dispatch it at the animation without one, as a procedure
+    /// asked.
+    fn queue_playback_event(&self, vm: &Vm, effect: &HostEffect) {
+        let r#type = effect.playback_event_type;
+        let timeline = self.record.timeline();
+        let document_for_timing = timeline.as_ref().map(|timeline| timeline.document());
+        let event_realm = playback_event_realm(self.realm, r#type, document_for_timing);
+
+        // If animation has a document for timing, then append finishEvent to its document for timing's pending
+        // animation event queue along with its target, animation.
+        // NB: The same steps apply to cancelEvent and removeEvent.
+        if let (Some(timeline), Some(document)) = (timeline, document_for_timing) {
+            // https://www.w3.org/TR/web-animations-1/#animation-time-to-origin-relative-time
+            // NB: The procedure converted the time to a timeline time.
+            let scheduled_event_time = effect
+                .scheduled_timeline_time
+                .get()
+                .and_then(|time| timeline.convert_a_timeline_time_to_an_origin_relative_time(time));
+            // NB: The queue holds what the event is, which the document creates as it dispatches it, with the time
+            //     stamp of now, when the event is created in the spec.
+            // SAFETY: The document and the animation are live.
+            unsafe {
+                web_animation_append_pending_playback_event(
+                    document.as_ptr(),
+                    self.record.as_host_ptr(),
+                    r#type,
+                    effect.current_time,
+                    effect.timeline_time,
+                    scheduled_event_time.into(),
+                    current_high_resolution_time(event_realm),
+                );
+            }
+            return;
+        }
+
+        let event = create_animation_playback_event(
+            vm,
+            event_realm,
+            r#type,
+            effect.current_time.get(),
+            effect.timeline_time.get(),
+        );
+
+        // Otherwise, queue a task to dispatch finishEvent at animation. The task source for this task is the DOM
+        // manipulation task source.
+        let task = queue_a_global_task(
+            vm,
+            self.realm.global_object(),
+            TaskSource::DOMManipulation,
+            (self.object(), event),
+            |_, (animation, event)| {
+                animation.event_target.dispatch_event(event.event());
+            },
+        );
+        // NB: The task that dispatches a finish event is the one the record notes as its finish notification task.
+        if r#type == PlaybackEventType::Finish {
+            self.record.set_finish_notification_task(task.host_id());
+        }
+    }
+
     // https://www.w3.org/TR/web-animations-1/#dom-animation-cancel
     pub(crate) fn cancel(&self, _: &mut CallContext) -> WebIdlResult<()> {
-        // NB: Cancelling an animation that is not idle settles its promises and creates its cancel event.
+        // NB: Canceling an animation that is not idle settles its promises and creates its cancel event.
         if self.record.is_idle() {
             return run(&self.record, AnimationProcedure::Cancel);
         }
@@ -866,9 +1007,11 @@ pub(crate) fn parse_timeline_range_edge(
     } else {
         PROPERTY_ID_ANIMATION_RANGE_START
     };
-    // A DOMString value is parsed as an 'animation-range-start' (or 'animation-range-end') value to yield a
-    // TimelineRangeOffset rangeName and offset or alternatively a CSSKeywordValue with the value of "normal"; a
-    // CSSNumericValue is interpreted as a TimelineRangeOffset with that offset and a null rangeName.
+    // A DOMString value is parsed as an 'animation-range-end' value to yield a TimelineRangeOffset rangeName and offset
+    // or alternatively a CSSKeywordValue with the value of "normal"; a CSSNumericValue is interpreted as a
+    // TimelineRangeOffset with that offset and a null rangeName.
+    // NB: The spec says 'animation-range-end' for rangeStart too; a start edge is parsed as an
+    //     'animation-range-start' value.
     let parse = |text: &Utf16String| -> WebIdlResult<AttachmentRangeEdgeValue> {
         let parsed = parse_property_value(property, text).ok_or_else(invalid_timeline_range)?;
         // NB: Arbitrary substitution functions and CSS-wide keywords have nothing to substitute or inherit from here.
@@ -926,21 +1069,6 @@ pub unsafe extern "C" fn web_animation_object_realm(animation: *const c_void) ->
     existing_animation_object(&animation).map_or(core::ptr::null_mut(), |object| object.realm.as_ptr().cast())
 }
 
-/// The host's `DOM::EventTarget` of the object of the animation, which a playback event of it is dispatched at.
-///
-/// # Safety
-///
-/// `animation` must be an animation the host holds a reference to, which has an object.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_animation_object_event_target(animation: *const c_void) -> *mut c_void {
-    // SAFETY: Guaranteed by the caller.
-    let animation = unsafe { AnimationRecordRef::retained_from_host(animation) };
-    existing_animation_object(&animation)
-        .expect("an animation that hears its playback events has an object")
-        .event_target
-        .as_ptr()
-}
-
 /// The bytes of the object of the animation and of the object of its associated effect, or zero where the animation has
 /// no object.
 ///
@@ -954,19 +1082,171 @@ pub unsafe extern "C" fn web_animation_object_memory_size(animation: *const c_vo
     existing_animation_object(&animation).map_or(0, Animation::memory_size)
 }
 
-/// Settles a promise of the object of the animation `effect` names, as a procedure asked.
+/// Performs what a procedure asked of the object of the animation `effect` names, where it has one: settles one of its
+/// promises, or queues one of its playback events.
 ///
 /// # Safety
 ///
 /// `vm` must be the live VM, and `effect` an effect the host performs.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_animation_perform_promise_effect(vm: *mut c_void, effect: &HostEffect) {
+pub unsafe extern "C" fn web_animation_perform_object_effect(vm: *mut c_void, effect: &HostEffect) {
     // SAFETY: The caller passes the live VM.
     let vm = unsafe { &*vm.cast::<Vm>() };
     // SAFETY: The effect names an animation the host holds a reference to.
     let animation = unsafe { AnimationRecordRef::retained_from_host(effect.animation.as_ptr().cast()) };
-    // NB: Only an animation with an object has promises script can observe.
-    if let Some(object) = existing_animation_object(&animation) {
-        object.perform_promise_effect(vm, effect.kind);
+    // NB: Only an animation with an object has promises script can observe, and hears its playback events.
+    let Some(object) = existing_animation_object(&animation) else {
+        return;
+    };
+    match effect.kind {
+        HostEffectKind::QueuePlaybackEvent => object.queue_playback_event(vm, effect),
+        kind => object.perform_promise_effect(vm, kind),
+    }
+}
+
+/// Dispatches the AnimationPlaybackEvent the pending animation event queue of the host's `DOM::Document` `document`
+/// held for the animation, which the document created with the time stamp `time_stamp` as it was queued.
+fn dispatch_pending_playback_event(
+    vm: &Vm,
+    animation: &AnimationRecordRef,
+    document: NonNull<c_void>,
+    event: &PendingAnimationEvent,
+) {
+    let object = existing_animation_object(animation).expect("only an animation with an object queues playback events");
+    let realm = playback_event_realm(object.realm, event.playback_event_type, Some(document));
+    let playback_event = create_animation_playback_event(
+        vm,
+        realm,
+        event.playback_event_type,
+        event.current_time.get(),
+        event.timeline_time.get(),
+    );
+    // SAFETY: The event is live.
+    unsafe { web_animation_event_set_time_stamp(playback_event.event().as_ptr(), event.time_stamp) };
+    object.event_target.dispatch_event(playback_event.event());
+}
+
+/// Creates the event of a CSS animation or transition the pending animation event queue held, and dispatches it at the
+/// owning element of the animation through `host`.
+fn dispatch_pending_css_event(
+    vm: &Vm,
+    animation: &AnimationRecordRef,
+    event: &PendingAnimationEvent,
+    host: &PendingAnimationEventHost,
+) {
+    use crate::css::animation_event::{AnimationEvent, AnimationEventInit, EventAnimation};
+    use crate::css::transition_event::{TransitionEvent, TransitionEventInit};
+    use libweb_rust::web_animations::{CssEventType, pseudo_element_name};
+
+    let (owning_element, pseudo_element) = animation
+        .owning_element()
+        .expect("a CSS animation or transition with events has an owning element");
+    let pseudo_element = pseudo_element.map_or_else(Utf16String::default, |pseudo_element| {
+        Utf16String::from_utf8(&format!("::{}", pseudo_element_name(pseudo_element)))
+    });
+    let event_name = Utf16String::from_utf8(match event.css_event_type {
+        CssEventType::AnimationStart => "animationstart",
+        CssEventType::AnimationEnd => "animationend",
+        CssEventType::AnimationIteration => "animationiteration",
+        CssEventType::AnimationCancel => "animationcancel",
+        CssEventType::TransitionRun => "transitionrun",
+        CssEventType::TransitionStart => "transitionstart",
+        CssEventType::TransitionEnd => "transitionend",
+        CssEventType::TransitionCancel => "transitioncancel",
+    });
+    let realm = realm_of_element(owning_element);
+    let parent = EventInit {
+        bubbles: true,
+        cancelable: false,
+        composed: false,
+    };
+    let event_animation = Some(EventAnimation::of_record(animation.clone()));
+    let css_event = if animation.kind() == AnimationInterfaceKind::CssTransition {
+        let init = TransitionEventInit {
+            parent,
+            animation: None,
+            elapsed_time: event.elapsed_time,
+            property_name: animation.css_transition_property(),
+            pseudo_element,
+        };
+        TransitionEvent::create_for_animation(vm, realm, &event_name, init, event_animation)
+            .event()
+            .clone()
+    } else {
+        let init = AnimationEventInit {
+            parent,
+            animation: None,
+            animation_name: animation.css_animation_name(),
+            elapsed_time: event.elapsed_time,
+            pseudo_element,
+        };
+        AnimationEvent::create_for_animation(vm, realm, &event_name, init, event_animation)
+            .event()
+            .clone()
+    };
+    // SAFETY: The event is live.
+    unsafe { web_animation_event_set_time_stamp(css_event.as_ptr(), event.time_stamp) };
+    css_event.set_is_trusted(true);
+    // SAFETY: The owning element is live, as the animation keeps it alive, and so is the event.
+    unsafe { (host.dispatch_at_element)(host.context, owning_element, css_event.as_ptr()) };
+}
+
+/// What dispatching the events of the pending animation event queue of a document asks of the host, which hands each
+/// function `context`.
+#[repr(C)]
+pub struct PendingAnimationEventHost {
+    pub context: *mut c_void,
+    /// Keeps the animation, which the host holds a reference to, alive until the call that handed it the function
+    /// returns, since dispatching an event runs script, which can run the GC.
+    pub keep_alive: unsafe extern "C" fn(context: *mut c_void, animation: *const c_void),
+    /// Dispatches the host's `DOM::Event` `event` at the host's `DOM::Element` `element`.
+    pub dispatch_at_element: unsafe extern "C" fn(context: *mut c_void, element: NonNull<c_void>, event: *mut c_void),
+    /// Dispatches the time event of the SMIL animation `animation` the queue held.
+    pub dispatch_time_event:
+        unsafe extern "C" fn(context: *mut c_void, animation: *const c_void, event: &PendingAnimationEvent),
+}
+
+/// https://www.w3.org/TR/web-animations-1/#update-animations-and-send-events
+/// Steps 4 to 7 for the host's `DOM::Document` `document`, whose animations the host's `DocumentAnimations`
+/// `animations` are, comparing elements in tree order with `tree_order`.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `document` a live document and `animations` what it knows of animations, which only
+/// dispatching an event may reach again.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_animation_dispatch_pending_animation_events(
+    vm: *mut c_void,
+    document: NonNull<c_void>,
+    animations: NonNull<c_void>,
+    tree_order: unsafe extern "C" fn(first: *mut c_void, second: *mut c_void) -> i32,
+    host: &PendingAnimationEventHost,
+) {
+    use libweb_rust::web_animations::{PendingAnimationEventKind, take_pending_animation_events_to_dispatch};
+
+    // SAFETY: The caller passes the live VM.
+    let vm = unsafe { &*vm.cast::<Vm>() };
+    // 4. Let events to dispatch be a copy of doc’s pending animation event queue.
+    // 5. Clear doc’s pending animation event queue.
+    // 6. Perform a stable sort of the animation events in events to dispatch as follows:
+    // SAFETY: Guaranteed by the caller; nothing else reaches the queue until the events are taken.
+    let events_to_dispatch = unsafe { take_pending_animation_events_to_dispatch(animations, tree_order) };
+    // NB: Dispatching an event runs script, which can run the GC, which must not collect the animation of an event yet to
+    //     be dispatched.
+    for (animation, _) in &events_to_dispatch {
+        // SAFETY: The host keeps alive an animation it holds a reference to.
+        unsafe { (host.keep_alive)(host.context, animation.as_host_ptr()) };
+    }
+    // 7. Dispatch each of the events in events to dispatch at their corresponding target using the order established in
+    //    the previous step.
+    for (animation, event) in &events_to_dispatch {
+        match event.kind {
+            PendingAnimationEventKind::Css => dispatch_pending_css_event(vm, animation, event, host),
+            PendingAnimationEventKind::Playback => dispatch_pending_playback_event(vm, animation, document, event),
+            // SAFETY: The host dispatches the time event of an animation it keeps alive.
+            PendingAnimationEventKind::Time => unsafe {
+                (host.dispatch_time_event)(host.context, animation.as_host_ptr(), event);
+            },
+        }
     }
 }

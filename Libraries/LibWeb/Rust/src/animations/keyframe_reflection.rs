@@ -12,7 +12,7 @@ use super::animation::AnimationKind;
 use super::bindings_api::ParsedEasing;
 use super::effect::AnimationEffectRecord;
 use super::keyframes::{
-    CompositeOperationOrAuto, KEY_SCALE_FACTOR, KeyframeOrigin, KeyframeProperty, KeyframeSet, ResourceContext,
+    CompositeOperationOrAuto, KeyframeOrigin, KeyframeProperty, KeyframeSet, ResourceContext, offset_of_key,
 };
 use crate::css::style_compute::{FfiReflectedKeyframeProperty, FfiStyleSheetResourceContext};
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData, retain_style_value};
@@ -88,7 +88,7 @@ fn declared_css_keyframes(effect: &ReflectedEffect) -> Vec<CssKeyframe> {
          easing: Option<&RetainedStyleValueData>,
          composite: CompositeOperationOrAuto,
          declarations: &mut dyn Iterator<Item = (KeyframeProperty, &RetainedStyleValueData)>| {
-            let offset = key as f64 / (100.0 * KEY_SCALE_FACTOR);
+            let offset = offset_of_key(key as f64);
             // AD-HOC: Step 2.2 uses the computed timing function. Substitution-dependent keyframe easings use the
             //         animation-wide easing for web compatibility.
             let easing = easing

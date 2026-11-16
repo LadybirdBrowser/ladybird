@@ -25,8 +25,6 @@ namespace Web::CSS {
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-type
 class WEB_API NumericType {
 public:
-    static Optional<NumericType> from_ffi(StyleValueFFI::FfiNumericType const&);
-
     enum class BaseType {
         Length,
         Angle,
@@ -38,7 +36,6 @@ public:
         __Count,
     };
 
-    static Optional<BaseType> base_type_from_value_type(ValueType);
     NumericType() = default;
     NumericType(BaseType type, i32 power)
     {
@@ -53,7 +50,6 @@ public:
     bool matches_number(Optional<ValueType> percentages_resolve_as) const;
     bool matches_percentage() const;
     bool matches_resolution(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Resolution, percentages_resolve_as); }
-    bool matches_time(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Time, percentages_resolve_as); }
 
     Optional<i32> const& exponent(BaseType type) const { return m_type_exponents[to_underlying(type)]; }
     void set_exponent(BaseType type, i32 exponent) { m_type_exponents[to_underlying(type)] = exponent; }

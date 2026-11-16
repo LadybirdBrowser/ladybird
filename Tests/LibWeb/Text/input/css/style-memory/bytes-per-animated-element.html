@@ -47,7 +47,6 @@
     //   with every element running the same @keyframes rule).
     // - cssAnimations: each CSS animation's name and applied definition.
     // - styleValues: the animated value of the longhand the payload of its group holds.
-    // - animationObjects: the Animation objects, which a CSS animation or transition only has once script asks for it.
     // - animationRecords: the records the animation and its effect keep their state in, a transition's keyframes, and
     //   the element's lists of its animations and of the effect descriptions it published to the engine.
     const animationBudgets = {
@@ -64,7 +63,6 @@
         animationEffects: 416,
         cssAnimations: 240,
         cppInstalledStyles: 8,
-        animationObjects: 0,
         animationRecords: 856,
     };
     const transitionBudgets = {
@@ -79,7 +77,6 @@
         layoutStyleColumns: 28,
         animationEffects: 348,
         cppInstalledStyles: 8,
-        animationObjects: 0,
         animationRecords: 1058,
     };
 

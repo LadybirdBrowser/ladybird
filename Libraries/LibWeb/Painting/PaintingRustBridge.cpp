@@ -12,7 +12,7 @@
 #include <LibGfx/GradientInterpolation.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/TextLayout.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/VisualViewport.h>
@@ -427,7 +427,7 @@ void take_recording_trace_if_pending(Layout::BegunRead const& read, DOM::Documen
 // update's never show them before it.
 static double rendering_update_timestamp(DOM::Document& document)
 {
-    if (auto time = document.timeline()->current_time(); time.has_value() && time->type == Animations::TimeValue::Type::Milliseconds)
+    if (auto time = document.timeline().current_time(); time.has_value() && time->type == Animations::RustFFI::TimeValueType::Milliseconds)
         return time->value;
     return -AK::Infinity<double>;
 }

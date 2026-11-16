@@ -12,8 +12,8 @@
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/RecordHandles.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Animations {
@@ -29,11 +29,7 @@ public:
     [[nodiscard]] static GC::Ref<NamedTimelines> create(DOM::Document&);
 
     // https://drafts.csswg.org/scroll-animations-1/#target-timeline
-    GC::Ptr<AnimationTimeline> target_timeline(DOM::AbstractElement const&, Utf16FlyString const& name);
-
-    // Tracks a CSS animation whose timeline is a named timeline, so that it follows the timeline its name finds as the
-    // declarations of the document change.
-    void track_animation(AnimationRef const&);
+    Optional<TimelineView> target_timeline(DOM::AbstractElement const&, Utf16FlyString const& name);
 
     // Looks the timelines of the tracked animations up again, where the declarations of the document have changed.
     // Returns whether any animation changed its timeline.
@@ -44,11 +40,23 @@ private:
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
+    // One side of the view progress visibility range: auto takes the scroll container's scroll padding, otherwise a
+    // length plus a percentage of the scrollport.
+    // https://drafts.csswg.org/scroll-animations-1/#view-timeline-inset
+    struct ViewTimelineInsetEdge {
+        bool is_auto { true };
+        double px { 0 };
+        double percentage { 0 };
+        // NB: An inset only a calculation can describe, such as min(50%, 10px), resolves against the scrollport size.
+        CSS::RustStyleValueHandle calculated {};
+    };
     struct Declaration {
         Utf16FlyString name;
         bool is_view { false };
-        ScrollAxis axis { ScrollAxis::Block };
-        ViewTimelineInset view_inset;
+        // NB: The host's ScrollAxis, which numbers the axes as CSS::Axis does.
+        u8 axis { 0 };
+        ViewTimelineInsetEdge view_inset_start;
+        ViewTimelineInsetEdge view_inset_end;
     };
     struct DeclaringElement {
         GC::Ref<DOM::Element> element;
@@ -65,7 +73,7 @@ private:
     void refresh_declarations();
 
     DeclaringElement const* declaring_element(DOM::Element const&) const;
-    GC::Ref<AnimationTimeline> timeline_for(DOM::Element&, Declaration const&);
+    TimelineView timeline_for(DOM::Element&, Declaration const&);
 
     GC::Ref<DOM::Document> m_document;
 
@@ -84,7 +92,8 @@ private:
     struct TimelineKeyTraits : public DefaultTraits<TimelineKey> {
         static unsigned hash(TimelineKey const& key) { return pair_int_hash(ptr_hash(key.element.ptr()), key.name.hash()); }
     };
-    HashMap<TimelineKey, GC::Ref<AnimationTimeline>, TimelineKeyTraits> m_timelines;
+    // NB: The document keeps the timelines alive.
+    HashMap<TimelineKey, TimelineView, TimelineKeyTraits> m_timelines;
 
     // NB: The document holds the tracked animations, as its animations following named timelines.
     bool m_tracked_animations_need_update { false };

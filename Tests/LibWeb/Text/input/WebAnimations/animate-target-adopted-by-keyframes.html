@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame"></iframe>
+<script>
+    test(() => {
+        // The animation gets the default timeline of the document the target is in after its keyframes are processed.
+        const otherDocument = frame.contentDocument;
+        const target = document.createElement("div");
+        document.body.appendChild(target);
+        const animation = target.animate({
+            get opacity() {
+                otherDocument.adoptNode(target);
+                return [0, 1];
+            },
+        }, 1000);
+        println(`timeline of the other document: ${animation.timeline === otherDocument.timeline}`);
+    });
+</script>

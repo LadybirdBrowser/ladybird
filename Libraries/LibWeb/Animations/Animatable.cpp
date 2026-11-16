@@ -8,9 +8,6 @@
 
 #include "Animatable.h"
 #include <LibJS/HostClassBuilder.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
-#include <LibWeb/CSS/CSSAnimation.h>
-#include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -24,44 +21,39 @@ namespace Web::Animations {
 extern "C" {
 
 // Called from Bindings/Rust/src/animations/animatable.rs.
-void web_animation_for_each_relevant_animation(JSObject* node_wrapper, bool subtree, void* context, void (*on_animation)(void* context, RustFFI::AnimationCell const*));
+void web_animation_for_each_associated_animation(JSObject* node_wrapper, bool subtree, void* context, void (*on_animation)(void* context, RustFFI::AnimationCell const*));
 i32 web_animation_compare_elements_in_tree_order(void* first, void* second);
 }
 
-void Animatable::for_each_relevant_animation(IncludeSubtree include_subtree, Function<void(AnimationRef const&)> const& callback) const
+// The associated animations of `element`, and of its descendants where `subtree` is set.
+static void for_each_associated_animation(DOM::Element const& element, bool subtree, Function<void(AnimationRef const&)> const& callback)
 {
-    for (auto const& record : associated_animations_unordered()) {
-        // AD-HOC: SVG animation elements drive their animations with their own timing model, which script must not
-        //         be able to play, pause or cancel. Like other engines, do not expose them.
-        if (record.timing_state().kind == RustFFI::FfiAnimationKind::Smil)
-            continue;
-        if (record.is_relevant())
-            callback(record);
-    }
+    for (auto const& record : element.associated_animations_unordered())
+        callback(record);
 
-    if (include_subtree == IncludeSubtree::Yes) {
-        static_cast<DOM::Element const*>(this)->for_each_child_of_type<DOM::Element>([&](auto const& child) {
-            child.for_each_relevant_animation(IncludeSubtree::Yes, callback);
+    if (subtree) {
+        element.for_each_child_of_type<DOM::Element>([&](auto const& child) {
+            for_each_associated_animation(child, true, callback);
             return IterationDecision::Continue;
         });
     }
 }
 
-// NB: The Rust implementations of getAnimations() collect the relevant animations of an element, or of the subtree of a
-//     node where `subtree` is set, with this, after the pending style changes are applied, and sort them themselves.
-void web_animation_for_each_relevant_animation(JSObject* node_wrapper, bool subtree, void* context, void (*on_animation)(void* context, RustFFI::AnimationCell const*))
+// NB: The Rust implementations of getAnimations() collect the associated animations of an element, or of the subtree
+//     of a node where `subtree` is set, with this, after the pending style changes are applied, and keep the relevant
+//     ones and sort them themselves.
+void web_animation_for_each_associated_animation(JSObject* node_wrapper, bool subtree, void* context, void (*on_animation)(void* context, RustFFI::AnimationCell const*))
 {
     auto& node = *Bindings::impl_from<DOM::Node>(JS::HostABI::object_from_abi(node_wrapper));
     node.document().update_style();
-    auto include_subtree = subtree ? Animatable::IncludeSubtree::Yes : Animatable::IncludeSubtree::No;
     Function<void(AnimationRef const&)> push = [&](AnimationRef const& animation) { on_animation(context, &animation.record()); };
     if (auto const* element = as_if<DOM::Element>(node)) {
-        element->for_each_relevant_animation(include_subtree, push);
+        for_each_associated_animation(*element, subtree, push);
         return;
     }
-    VERIFY(include_subtree == Animatable::IncludeSubtree::Yes);
+    VERIFY(subtree);
     as<DOM::ParentNode>(node).for_each_child_of_type<DOM::Element>([&](auto const& child) {
-        child.for_each_relevant_animation(Animatable::IncludeSubtree::Yes, push);
+        for_each_associated_animation(child, true, push);
         return IterationDecision::Continue;
     });
 }
@@ -71,22 +63,13 @@ i32 web_animation_compare_elements_in_tree_order(void* first, void* second)
     return compare_elements_in_tree_order_for_composite_order(first, second);
 }
 
-// The list of the element, or of one of its known pseudo-elements, of the CSS animations and transitions it owns.
-static Optional<RustFFI::AnimationOwnerSlot> owner_slot(Optional<CSS::PseudoElement> pseudo_element)
+Optional<RustFFI::AnimationOwnerSlot> Animatable::owner_slot(Optional<CSS::PseudoElement> pseudo_element)
 {
     if (!pseudo_element.has_value())
         return RustFFI::AnimationOwnerSlot { 0 };
     if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(*pseudo_element))
         return {};
     return RustFFI::AnimationOwnerSlot { static_cast<u8>(to_underlying(*pseudo_element) + 1) };
-}
-
-static RustFFI::FfiTransitionProperty transition_property(CSS::PropertyNameAndID const& property)
-{
-    return {
-        .property_id = to_underlying(property.id()),
-        .custom_name = property.is_custom_property() ? property.name().raw_identity() : 0,
-    };
 }
 
 Animatable::~Animatable()
@@ -136,50 +119,37 @@ bool Animatable::has_associated_animations() const
     return !associated_animations_unordered().is_empty();
 }
 
-size_t Animatable::animation_lists_memory_size() const
+size_t Animatable::animation_record_memory_size(bool (*first_counted)(void*, RustFFI::KeyframeSet const*), void* context) const
 {
-    return m_animations ? RustFFI::animations_element_animations_memory_size(m_animations) : 0;
-}
-
-bool Animatable::has_relevant_animations() const
-{
-    for (auto const& animation : associated_animations_unordered()) {
-        if (animation.is_relevant())
-            return true;
-    }
-    return false;
+    return m_animations ? RustFFI::animations_element_animations_record_memory_size(m_animations, first_counted, context) : 0;
 }
 
 void Animatable::associate_with_animation(AnimationRef const& animation)
 {
-    if (!RustFFI::animations_element_animations_associate(&ensure_animations(), &animation.record()))
+    auto& element = as<DOM::Element>(*this);
+    if (!RustFFI::animations_element_animations_associate(&ensure_animations(), &element.document().document_animations(), &animation.record(), element.document().is_in_style_stabilization_epoch()))
         return;
     // The style engine computes no record for an element whose animations compose its style.
-    CSS::record_element_animations_changed(as<DOM::Element>(*this));
+    CSS::record_element_animations_changed(element);
 
-    as<DOM::Element>(*this).change_associated_animation_count_in_subtree(1);
-    CSS::record_element_associated_with_animation(as<DOM::Element>(*this));
-
-    as<DOM::Element>(*this).document().associate_with_animation(animation);
+    element.change_associated_animation_count_in_subtree(1);
+    CSS::record_element_associated_with_animation(element);
 }
 
 void Animatable::disassociate_with_animation(AnimationRef const& animation, Optional<EffectRef> const& effect)
 {
-    auto was_associated = m_animations && RustFFI::animations_element_animations_disassociate(m_animations, &animation.record());
-    CSS::record_element_animations_changed(as<DOM::Element>(*this));
+    auto& element = as<DOM::Element>(*this);
+    auto was_associated = RustFFI::animations_element_animations_disassociate(m_animations, &element.document().document_animations(), &animation.record(), effect.has_value() ? &effect->record() : nullptr);
+    CSS::record_element_animations_changed(element);
 
     if (was_associated)
-        as<DOM::Element>(*this).change_associated_animation_count_in_subtree(-1);
-
-    as<DOM::Element>(*this).document().disassociate_with_animation(animation, effect);
+        element.change_associated_animation_count_in_subtree(-1);
 }
 
 void Animatable::on_document_changed(DOM::Document& old_document, DOM::Document& new_document)
 {
-    for (auto const& animation : associated_animations_unordered()) {
-        old_document.disassociate_with_animation(animation, animation.effect());
-        new_document.associate_with_animation(animation);
-    }
+    if (m_animations)
+        RustFFI::animations_element_animations_move_to_document(m_animations, &old_document.document_animations(), &new_document.document_animations(), new_document.is_in_style_stabilization_epoch());
 }
 
 // The computation of an element's animation definitions matches them against the animations the element already has,
@@ -204,12 +174,7 @@ void Animatable::cancel_css_animations_and_transitions()
 
     GC::RootVector<AnimationRef> animations;
     RustFFI::animations_element_animations_cancel_css_animations_and_transitions(
-        m_animations, style_engine_host_of(*this), style_node_of(*this), keep_animation_alive_in,
-        [](void*, RustFFI::AnimationCell const* animation, void (*run)(void*), void* run_context) {
-            HTML::TemporaryExecutionContext execution_context { HTML::relevant_realm(relevant_global_object_of(AnimationRef { *animation })) };
-            run(run_context);
-        },
-        &animations, perform_host_effect);
+        m_animations, style_engine_host_of(*this), style_node_of(*this), keep_animation_alive_in, in_execution_context_of_animation, &animations, web_animation_perform_host_effect);
 }
 
 void Animatable::play_or_pause_css_animations_as_their_play_state_asks()
@@ -230,7 +195,7 @@ void Animatable::play_or_pause_css_animations_as_their_play_state_asks()
             HTML::TemporaryExecutionContext execution_context { static_cast<Context*>(context)->element->document().relevant_settings_object() };
             run(run_context);
         },
-        &context, perform_host_effect);
+        &context, web_animation_perform_host_effect);
 }
 
 bool Animatable::has_matching_transition_property_entry(Optional<CSS::PseudoElement> pseudo_element) const
@@ -244,38 +209,8 @@ bool Animatable::has_matching_transition_property_entry(Optional<CSS::PseudoElem
 
 bool Animatable::has_existing_transitions(Optional<CSS::PseudoElement> pseudo_element) const
 {
-    return !existing_transitions(pseudo_element).is_empty();
-}
-
-ElementAnimationList Animatable::existing_transitions(Optional<CSS::PseudoElement> pseudo_element) const
-{
     auto slot = owner_slot(pseudo_element);
-    return { slot.has_value() ? m_animations : nullptr, RustFFI::ElementAnimationListKind::Transitions, slot.value_or(0) };
-}
-
-Optional<AnimationRef> Animatable::property_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyNameAndID const& property) const
-{
-    auto slot = owner_slot(pseudo_element);
-    if (!m_animations || !slot.has_value())
-        return {};
-    auto const* transition = RustFFI::animations_element_animations_transition(m_animations, *slot, transition_property(property));
-    if (!transition)
-        return {};
-    return AnimationRef { *transition };
-}
-
-void Animatable::commit_provisional_transition(Optional<CSS::PseudoElement> pseudo_element, AnimationRef const& transition, RustFFI::TransitionOrigin origin)
-{
-    // NB: The record associates the transition with this element, its target, and holds it here where this element or
-    //     pseudo-element can own transitions.
-    auto slot = owner_slot(pseudo_element);
-    RustFFI::animations_css_transition_commit_provisional(&transition.record(), slot.has_value() ? &ensure_animations() : nullptr, slot.value_or(RustFFI::AnimationOwnerSlot { 0 }), origin, perform_host_effect);
-}
-
-void Animatable::remove_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyNameAndID const& property)
-{
-    if (auto slot = owner_slot(pseudo_element); slot.has_value())
-        RustFFI::animations_element_animations_remove_transition(&ensure_animations(), *slot, transition_property(property));
+    return m_animations && slot.has_value() && RustFFI::animations_element_animations_count(m_animations, RustFFI::ElementAnimationListKind::Transitions, *slot) != 0;
 }
 
 void Animatable::visit_edges(JS::Cell::Visitor& visitor)
@@ -283,11 +218,6 @@ void Animatable::visit_edges(JS::Cell::Visitor& visitor)
     if (!m_animations)
         return;
     RustFFI::animations_element_animations_for_each_host_cell(m_animations, &visitor, visit_host_cell);
-}
-
-bool Animatable::can_own_css_animations_and_transitions(Optional<CSS::PseudoElement> pseudo_element)
-{
-    return owner_slot(pseudo_element).has_value();
 }
 
 bool Animatable::has_css_animations_or_transitions() const
@@ -299,34 +229,6 @@ bool Animatable::has_css_defined_animations(Optional<CSS::PseudoElement> pseudo_
 {
     auto slot = owner_slot(pseudo_element);
     return m_animations && slot.has_value() && RustFFI::animations_element_animations_count(m_animations, RustFFI::ElementAnimationListKind::CssAnimations, *slot) != 0;
-}
-
-GC::RootVector<AnimationRef> Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element) const
-{
-    GC::RootVector<AnimationRef> animations;
-    auto slot = owner_slot(pseudo_element);
-    if (!slot.has_value())
-        return animations;
-    for (auto const& animation : ElementAnimationList { m_animations, RustFFI::ElementAnimationListKind::CssAnimations, *slot })
-        animations.append(animation);
-    return animations;
-}
-
-void Animatable::set_css_defined_animations(Optional<CSS::PseudoElement> pseudo_element, ReadonlySpan<AnimationRef> animations)
-{
-    auto slot = owner_slot(pseudo_element);
-    if (!slot.has_value())
-        return;
-    // NB: Every element goes through this step; one that had no animations and still has none has nothing to hold or
-    //     publish.
-    if (!m_animations && animations.is_empty())
-        return;
-
-    Vector<RustFFI::AnimationCell const*, 1> records;
-    records.ensure_capacity(animations.size());
-    for (auto const& animation : animations)
-        records.unchecked_append(&animation.record());
-    RustFFI::animations_element_animations_set_css_animations(&ensure_animations(), *slot, records.span(), style_engine_host_of(*this), style_node_of(*this));
 }
 
 }

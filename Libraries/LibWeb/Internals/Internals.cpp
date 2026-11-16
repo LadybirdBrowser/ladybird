@@ -22,6 +22,7 @@
 #include <LibGfx/Cursor.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Date.h>
@@ -33,7 +34,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -1340,9 +1341,13 @@ void Internals::load_url(Utf16String const& url_string)
     });
 }
 
+// Defined in Bindings/Rust/src/internals/internal_animation_timeline.rs.
+extern "C" void* web_internal_animation_timeline_create(JSVM*, DOM::Document*);
+
 GC::Ref<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
 {
-    return static_cast<InternalAnimationTimeline&>(static_cast<Bindings::RustInterfaceCell&>(*Animations::AnimationTimeline::create_internal_timeline(window().associated_document())));
+    auto* cell = web_internal_animation_timeline_create(JS::HostABI::vm_to_abi(JS::VM::the()), &window().associated_document());
+    return static_cast<InternalAnimationTimeline&>(*static_cast<Bindings::RustInterfaceCell*>(cell));
 }
 
 WebIDL::ExceptionOr<void> Internals::simulate_drag_start(double x, double y, Utf16String const& name, Utf16String const& contents)
@@ -3118,6 +3123,10 @@ void Internals::force_parallel_layout()
     Layout::RustFFI::render_state_force_parallel_layout(window().associated_document().layout_node_arena().host());
 }
 
+// The bytes of the objects script sees of an animation and of its associated effect, beside their records. Defined in
+// Bindings/Rust/src/animations/animation.rs.
+extern "C" size_t web_animation_object_memory_size(Animations::RustFFI::AnimationCell const*);
+
 // NB: The Animation objects of the animations associated with the document's elements, which a CSS animation or
 //     transition only has once script asks for it.
 static u64 animation_object_bytes(DOM::Document& document)
@@ -3125,29 +3134,23 @@ static u64 animation_object_bytes(DOM::Document& document)
     u64 bytes = 0;
     document.for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
         for (auto const& animation : element.associated_animations_unordered())
-            bytes += Animations::object_memory_size(animation);
+            bytes += web_animation_object_memory_size(&animation.record());
         return TraversalDecision::Continue;
     });
     return bytes;
 }
 
-// The records the C++ animation objects keep their state in, the keyframe sets they run, each counted once however
-// many effects share it, and each element's lists of its animations and transitions.
+// NB: The records animations and their effects keep their state in, the keyframe sets they run, each counted once
+//     however many effects share it, and each element's lists of its animations and transitions.
 static u64 animation_record_bytes(DOM::Document& document)
 {
     u64 bytes = 0;
     HashTable<Animations::RustFFI::KeyframeSet const*> counted_keyframe_sets;
     document.for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
-        bytes += element.animation_lists_memory_size();
-        for (auto const& animation : element.associated_animations_unordered()) {
-            bytes += Animations::RustFFI::animations_animation_memory_size(&animation.record());
-            auto effect = animation.effect();
-            if (!effect.has_value())
-                continue;
-            bytes += Animations::RustFFI::animations_effect_memory_size(&effect->record());
-            if (auto const* keyframe_set = effect->keyframe_set().ptr(); keyframe_set && counted_keyframe_sets.set(keyframe_set) == HashSetResult::InsertedNewEntry)
-                bytes += Animations::RustFFI::animations_keyframe_set_memory_size(keyframe_set);
-        }
+        bytes += element.animation_record_memory_size([](void* context, Animations::RustFFI::KeyframeSet const* keyframe_set) {
+            return static_cast<HashTable<Animations::RustFFI::KeyframeSet const*>*>(context)->set(keyframe_set) == HashSetResult::InsertedNewEntry;
+        },
+            &counted_keyframe_sets);
         return TraversalDecision::Continue;
     });
     return bytes;

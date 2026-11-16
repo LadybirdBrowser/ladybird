@@ -151,7 +151,6 @@ public:
     // Refreshes the animations of elements of this document, sampling them all in one call of the style engine.
     void refresh_animations_into_each(Layout::BegunRead const& read, ReadonlySpan<AnimationRefreshRequest>) const;
 
-    void apply_animation_definitions(DOM::AbstractElement&, ReadonlySpan<ComputedValuesFFI::FfiComputedAnimation> animation_definitions, bool in_display_none_subtree) const;
     // Applies the animation plan the record an element or pseudo-element holds decides, for a record the style engine
     // settled, where applying it would change anything.
     void apply_settled_animation_plan(Layout::BegunRead const& read, DOM::AbstractElement&) const;
@@ -172,7 +171,6 @@ public:
 
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_style_for_animation_commit(Layout::BegunRead const&, DOM::AbstractElement, ReadonlySpan<Animations::EffectRef>) const;
 
-    void begin_transition_stabilization_epoch();
     // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
     // Keeps `before_change_style` as the style a later pass of the stabilization epoch decides the element's
     // transitions against, unless a pass already kept one.
@@ -184,7 +182,9 @@ public:
     // of the style change.
     [[nodiscard]] RequiredInvalidationAfterStyleChange run_transition_step_for_installed_record(Layout::BegunRead const& read, DOM::AbstractElement, InstalledStyle const& before_change_style) const;
     void commit_transition_stabilization_epoch();
-    void for_each_provisional_transition_effect(DOM::AbstractElement const&, Function<void(Animations::EffectRef const&)> const&) const;
+    // AD-HOC: Runs the transitions the hover of the document's clock lane left elements running beside a task, which
+    //         the screen showed, in place of those its steps ended, as the rendering update that takes them in begins.
+    void adopt_lane_transitions();
 
     // The media features of the current style update, which the style engine copies with each transaction.
     [[nodiscard]] Parser::ValueParserFFI::FfiMediaEnvironment const* ensure_media_environment_for_style_update() const;
@@ -308,18 +308,6 @@ private:
     mutable HashMap<u64, InheritableCustomPropertyEnvironment> m_inheritable_custom_property_environments;
     mutable u64 m_inheritable_custom_property_environments_generation { 0 };
 
-    struct ProvisionalTransitionState {
-        GC::Ptr<DOM::Element> element;
-        Optional<PseudoElement> pseudo_element;
-        PropertyNameAndID property;
-        Optional<Animations::AnimationRef> committed_transition;
-        Optional<Animations::AnimationRef> proposed_transition;
-        StyleValueFFI::FfiTransitionActionKind action {};
-        bool has_decision { false };
-    };
-    mutable Vector<ProvisionalTransitionState> m_provisional_transition_states;
-    mutable HashMap<u64, size_t> m_provisional_transition_state_indices;
-    mutable HashMap<u64, Vector<size_t>> m_provisional_transition_state_indices_by_target;
     // Whether the engine keeps a before-change style the current stabilization epoch recorded.
     mutable bool m_transition_baselines_recorded { false };
 

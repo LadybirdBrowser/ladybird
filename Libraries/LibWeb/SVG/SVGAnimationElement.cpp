@@ -7,7 +7,6 @@
 #include <LibWeb/SVG/SVGAnimationElement.h>
 
 #include <AK/Math.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -283,7 +282,7 @@ static Animations::KeyframeSetHandle keyframe_set_of(Vector<SVGKeyframe> const& 
     processed_keyframes.ensure_capacity(keyframes.size());
     for (auto const& keyframe : keyframes) {
         Animations::RustFFI::FfiProcessedKeyframe processed_keyframe {};
-        processed_keyframe.key = static_cast<u64>(keyframe.offset * 100 * 1000.0);
+        processed_keyframe.offset = keyframe.offset;
         processed_keyframe.composite = Animations::RustFFI::CompositeOperationOrAuto::Auto;
         if (keyframe.easing.has_value()) {
             processed_keyframe.has_easing = true;
@@ -307,11 +306,11 @@ void SVGAnimationElement::update_animation()
 {
     if (auto animation = exchange(m_animation, {}); animation.has_value()) {
         exchange(m_animation_time_container, nullptr)->remove_animation(*animation);
-        // NB: Cancelling an animation that is not idle runs in an execution context, as an Animation's does.
+        // NB: Canceling an animation that is not idle runs in an execution context, as an Animation's does.
         Optional<HTML::TemporaryExecutionContext> execution_context;
-        if (animation->timing_state().play_state != Animations::RustFFI::AnimationPlayState::Idle)
+        if (animation->play_state() != Animations::RustFFI::AnimationPlayState::Idle)
             execution_context.emplace(document().relevant_settings_object());
-        Animations::RustFFI::animations_animation_cancel(&animation->record(), true, Animations::perform_host_effect);
+        Animations::RustFFI::animations_animation_cancel(&animation->record(), true, Animations::web_animation_perform_host_effect);
         execution_context.clear();
         Animations::RustFFI::animations_smil_animation_let_go(&animation->record());
     }
@@ -375,7 +374,7 @@ void SVGAnimationElement::update_animation()
         .timing_function_serialization = timing_function_serialization.raw_identity(),
         .begin_time = *begin_time,
     };
-    m_animation = Animations::AnimationRef::adopt(*Animations::RustFFI::animations_smil_animation_create(&description, &document().timeline()->record(), Animations::perform_host_effect));
+    m_animation = Animations::AnimationRef::adopt(*Animations::RustFFI::animations_smil_animation_create(&description, Animations::web_animation_perform_host_effect));
     CSS::record_attr_names_read_by_keyframes(*target, keyframe_set);
     m_animation_time_container = time_container;
     time_container->add_animation(*m_animation);
@@ -543,11 +542,7 @@ void SVGAnimationElement::end_element_at(float offset)
 void SVGAnimationElement::queue_time_event(Animations::RustFFI::TimeEventType type, i32 detail)
 {
     // NB: Time events are dispatched along with the other animation events of the document, which creates each as it
-    //     dispatches it, with the time stamp of now.
-    auto* timeline = static_cast<Animations::AnimationTimeline*>(Animations::RustFFI::animations_animation_timeline(&m_animation->record()));
-    auto scheduled_event_time = timeline && timeline->can_convert_a_timeline_time_to_an_origin_relative_time()
-        ? timeline->convert_a_timeline_time_to_an_origin_relative_time(timeline->current_time())
-        : Optional<double> {};
+    //     dispatches it, with the time stamp of now, and schedules each at the time of the animation's timeline.
     document().append_pending_animation_event(*m_animation, {
                                                                 .kind = Animations::RustFFI::PendingAnimationEventKind::Time,
                                                                 .css_event_type = {},
@@ -557,7 +552,7 @@ void SVGAnimationElement::queue_time_event(Animations::RustFFI::TimeEventType ty
                                                                 .elapsed_time = 0,
                                                                 .current_time = {},
                                                                 .timeline_time = {},
-                                                                .scheduled_event_time = Animations::to_ffi(scheduled_event_time),
+                                                                .scheduled_event_time = {},
                                                                 .time_stamp = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)),
                                                             });
 }

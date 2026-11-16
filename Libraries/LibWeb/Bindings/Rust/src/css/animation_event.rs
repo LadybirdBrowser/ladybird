@@ -6,6 +6,7 @@
 
 //! AnimationEvent, https://drafts.csswg.org/css-animations-2/#interface-animationevent
 
+use core::cell::RefCell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
@@ -23,37 +24,45 @@ use crate::dom::event::EventInit;
 
 /// The animation an event names, as its record. The event visits what keeps the record's object, or the elements the
 /// record names, alive.
-pub(crate) struct EventAnimation(AnimationRecordRef);
-
-unsafe extern "C" {
-    fn web_animation_visit_host_cells(animation: *const c_void, visitor: *mut c_void);
-}
+/// NB: The event lets go of the record as it is finalized rather than as it is swept, after the elements the record
+///     names may be gone, so that the record never outlives them alive.
+pub(crate) struct EventAnimation(RefCell<Option<AnimationRecordRef>>);
 
 impl EventAnimation {
-    /// # Safety
-    ///
-    /// `animation` must be an animation the host holds a reference to.
-    pub(crate) unsafe fn retained_from_host(animation: *const c_void) -> Self {
-        // SAFETY: Guaranteed by the caller.
-        Self(unsafe { AnimationRecordRef::retained_from_host(animation) })
+    /// The animation of a record of it.
+    pub(crate) fn of_record(animation: AnimationRecordRef) -> Self {
+        Self(RefCell::new(Some(animation)))
     }
 
     /// The animation of an object of it.
     pub(crate) fn of_object(animation: &Animation) -> Self {
-        Self(animation.record().clone())
+        Self::of_record(animation.record().clone())
     }
 
     /// The object of the animation, which a CSS animation or transition gets as script first asks for it.
     pub(crate) fn wrap(&self, cx: &CallContext) -> AnyAnimation {
-        animation_object(cx.vm(), &self.0)
+        let animation = self.0.borrow();
+        animation_object(
+            cx.vm(),
+            animation.as_ref().expect("an event that is alive holds its animation"),
+        )
+    }
+
+    /// Lets go of the record, as the event is finalized.
+    pub(crate) fn release(&self) {
+        self.0.borrow_mut().take();
     }
 }
 
 // SAFETY: Visits the cells of the host that keep the record's object, or the elements the record names, alive.
 unsafe impl Trace for EventAnimation {
     fn trace(&self, visitor: &mut Visitor) {
-        // SAFETY: The event holds a reference to the record, and the visitor is one LibGC passed in.
-        unsafe { web_animation_visit_host_cells(self.0.as_host_ptr(), visitor.as_raw().cast()) };
+        if let Some(animation) = self.0.borrow().as_ref() {
+            animation.for_each_host_cell(|cell, _| {
+                // SAFETY: The record names live cells of the host, which the event keeps alive.
+                visitor.visit(unsafe { Gc::from_non_null(cell) });
+            });
+        }
     }
 }
 
@@ -82,6 +91,14 @@ pub(crate) struct AnimationEvent {
 impl Wrappable for AnimationEvent {
     fn cpp_parent(&self) -> Option<NonNull<c_void>> {
         self.event.as_cpp_parent()
+    }
+
+    const FINALIZES: bool = true;
+
+    fn finalize(object: Ref<Self>) {
+        if let Some(animation) = &object.animation {
+            animation.release();
+        }
     }
 }
 

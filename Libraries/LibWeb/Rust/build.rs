@@ -3152,24 +3152,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new("Layout/TreeBuilderRustFFI.h"),
     );
 
-    // The Web Animations timing model - namespace Web::Animations::RustFFI. A time value is laid out as the C++
-    // Animations::TimeValue, which C++ passes it as, and an easing descriptor is the compositing header's.
+    // The Web Animations timing model - namespace Web::Animations::RustFFI. An easing descriptor is the compositing
+    // header's.
     let mut animations_config = base_config.clone();
     animations_config.namespaces = Some(vec!["Web".to_string(), "Animations".to_string(), "RustFFI".to_string()]);
-    for (rust_name, cpp_name) in [
-        ("TimeValue", "Web::Animations::TimeValue"),
-        ("TimeValueType", "Web::Animations::TimeValue::Type"),
-        ("FfiEasingDescriptor", "Compositing::RustFFI::FfiEasingDescriptor"),
-    ] {
-        animations_config.export.exclude.push(rust_name.to_string());
-        animations_config
-            .export
-            .rename
-            .insert(rust_name.to_string(), cpp_name.to_string());
-    }
-    animations_config
-        .includes
-        .extend(["LibCompositing/RustFFI.h", "LibWeb/Animations/TimeValue.h"].map(String::from));
+    animations_config.export.exclude.push("FfiEasingDescriptor".to_string());
+    animations_config.export.rename.insert(
+        "FfiEasingDescriptor".to_string(),
+        "Compositing::RustFFI::FfiEasingDescriptor".to_string(),
+    );
+    animations_config.includes.push("LibCompositing/RustFFI.h".to_string());
     // A keyframe set notes the attributes its values read through the document's host, and a scroll timeline measures
     // the boxes it follows there.
     declare_document_host_of_layout_header(&mut animations_config);
@@ -3178,13 +3170,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .export
         .rename
         .insert("NodeSlotId".to_string(), "Compositing::RustFFI::NodeSlotId".to_string());
-    // The host defines what the reflection of the keyframes of CSS asks of the style of their target.
-    for name in [
-        "web_animation_compute_css_keyframe_values",
-        "web_animation_effective_zoom_of_target",
-    ] {
-        animations_config.export.exclude.push(name.to_string());
-    }
     // An effect's composite operation is the style value header's.
     animations_config
         .export
@@ -3238,12 +3223,52 @@ fn main() -> Result<(), Box<dyn Error>> {
         .export
         .exclude
         .push("ladybird_animations_document_is_active".to_string());
-    // The timing the host publishes of an effect it samples, an effect it samples, and a timeline it creates through
-    // the bindings, which no function here takes.
     animations_config
         .export
-        .include
-        .extend(["EffectTimingSnapshot", "FfiSampledEffect", "FfiTimelineDescription"].map(String::from));
+        .exclude
+        .push("ladybird_animations_element_node_document".to_string());
+    animations_config
+        .export
+        .exclude
+        .push("web_animation_target_facts".to_string());
+    animations_config
+        .export
+        .exclude
+        .push("web_animation_note_rendering_trace_event".to_string());
+    animations_config
+        .export
+        .exclude
+        .push("web_animation_compute_css_keyframe_values".to_string());
+    animations_config
+        .export
+        .exclude
+        .push("web_animation_effective_zoom_of_target".to_string());
+    animations_config
+        .export
+        .exclude
+        .push("web_animation_set_needs_animated_style_update".to_string());
+    // The host defines what the timelines associated with a document ask of it.
+    for name in [
+        "web_animation_document_animations",
+        "web_animation_document_clock",
+        "web_animation_find_scroll_timeline_boxes",
+        "web_animation_scroll_timeline_source",
+    ] {
+        animations_config.export.exclude.push(name.to_string());
+    }
+    // The timing the host publishes of an effect it samples, an effect it samples, and a timeline it creates through
+    // the bindings, which no function here takes.
+    animations_config.export.include.extend(
+        [
+            "EffectTimingSnapshot",
+            "FfiSampledEffect",
+            "FfiTargetFacts",
+            "FfiTimelineDescription",
+            "FfiDocumentClock",
+            "FfiScrollTimelineBoxes",
+        ]
+        .map(String::from),
+    );
     let animation_timing_dir = manifest_dir.join("../../LibCompositing/Rust/src/animation_timing");
     println!("cargo:rerun-if-changed={}", animation_timing_dir.display());
     generate_ffi_header(
@@ -3254,6 +3279,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             animation_timing_dir.join("playback.rs"),
             manifest_dir.join("src/animations/animation.rs"),
             manifest_dir.join("src/animations/effect.rs"),
+            manifest_dir.join("src/animations/compositor_update.rs"),
             manifest_dir.join("src/animations/document_animations.rs"),
             manifest_dir.join("src/animations/element_animations.rs"),
             manifest_dir.join("src/animations/ffi.rs"),
@@ -3262,8 +3288,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/animations/css_events.rs"),
             manifest_dir.join("src/animations/keyframes.rs"),
             manifest_dir.join("src/animations/pending_animation_events.rs"),
+            manifest_dir.join("src/animations/rendering_update.rs"),
             manifest_dir.join("src/animations/snapshot.rs"),
+            manifest_dir.join("src/animations/throttling.rs"),
             manifest_dir.join("src/animations/timeline.rs"),
+            manifest_dir.join("src/animations/timeline_host.rs"),
             manifest_dir.join("src/animations/transitions.rs"),
         ],
         &out_dir,
@@ -3351,6 +3380,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         layout_config.export.rename.insert(name.to_string(), "void".to_string());
         layout_config.export.exclude.push(name.to_string());
     }
+    // The host fills in a compositor animation request, and the host its keyframes resolve with, as the animation
+    // records ask it to, which no function here takes.
+    layout_config
+        .export
+        .include
+        .extend(["FfiCompositorAnimationRequest", "FfiCompositorAnimationHost"].map(String::from));
     // The effects whose descriptions and samples cross here are named by their identities.
     declare_animation_effect_id_of_animations_header(&mut layout_config);
     generate_ffi_header(

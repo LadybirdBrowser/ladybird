@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Animations/AnimationTimeline.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/SVG/SMILTimeContainer.h>
@@ -40,7 +40,7 @@ void SMILTimeContainer::visit_edges(GC::Cell::Visitor& visitor)
 
 double SMILTimeContainer::document_timeline_time() const
 {
-    auto time = m_document->timeline()->current_time();
+    auto time = m_document->timeline().current_time();
     return time.has_value() ? time->value : 0.;
 }
 
@@ -151,7 +151,7 @@ void SMILTimeContainer::synchronize_animation(Animations::AnimationRef const& an
     // NB: The record sets the start time or the current time of the animation. The animation has no promises to
     //     settle, but the microtask checkpoint as the execution context ends stays where it was.
     HTML::TemporaryExecutionContext execution_context { m_document->relevant_settings_object() };
-    Animations::RustFFI::animations_smil_animation_synchronize(&animation.record(), m_zero_time, m_is_paused, m_paused_time, Animations::perform_host_effect);
+    Animations::RustFFI::animations_smil_animation_synchronize(&animation.record(), m_zero_time, m_is_paused, m_paused_time, Animations::web_animation_perform_host_effect);
 }
 
 }

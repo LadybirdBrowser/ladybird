@@ -103,6 +103,13 @@ unsafe impl Trace for TaskSource {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct TaskId(u64);
 
+impl TaskId {
+    /// The HTML::TaskID of the task.
+    pub(crate) fn host_id(self) -> u64 {
+        self.0
+    }
+}
+
 /// The promise that LibWeb's C++ code returns, a WebIDL::Promise.
 ///
 /// # Safety

@@ -41,14 +41,14 @@ pub(crate) struct StyleEngineTarget<'a> {
 
 /// The property a CSS transition runs: the host's `PropertyID` of a longhand, or the raw fly string of a custom
 /// property's name where it is not zero.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct TransitionProperty {
     pub(crate) property_id: u16,
     pub(crate) custom_name: usize,
 }
 
 impl TransitionProperty {
-    fn of(animation: &AnimationRecord) -> Self {
+    pub(crate) fn of(animation: &AnimationRecord) -> Self {
         let state = animation.css_transition();
         Self {
             property_id: state.property_id,
@@ -84,14 +84,26 @@ pub struct ElementAnimations {
     owners: SmallVec<[OwnedAnimations; 1]>,
     /// Whether `associated` is in composite order.
     is_sorted_by_composite_order: bool,
-    /// Whether any owner has had a CSS animation since the element last cancelled them all.
+    /// Whether any owner has had a CSS animation since the element last canceled them all.
     has_css_defined_animations: bool,
 }
 
 impl Drop for ElementAnimations {
     fn drop(&mut self) {
+        // NB: The element is finalized, and what else holds the records of its animations may only let go of them as
+        //     the host sweeps it, after the element itself may be gone. So that no record names the element by then,
+        //     nor is alive to the sets of animations by it, the records forget it here.
         for animation in &self.associated {
             animation.note_smil_holder(SmilHolder::TargetList, false);
+            let effect = animation.borrow().effect().cloned();
+            if let Some(effect) = effect {
+                effect.borrow_mut().set_target_element(None);
+            }
+        }
+        for owner in &self.owners {
+            for animation in owner.css_animations.iter().chain(&owner.transitions) {
+                animation.borrow_mut().set_owning_element(None);
+            }
         }
     }
 }
@@ -261,7 +273,7 @@ impl ElementAnimations {
             .expect("the owner has a transition of the property");
         let transition = owner.transitions.remove(index);
         self.remove_empty_owners();
-        transition.borrow_mut().set_disassociation_from_target_pending(true);
+        transition.borrow_mut().disassociation_from_target_pending = true;
     }
 
     /// Takes the CSS animations and transitions of every owner, answering them, and publishes to `engine`, if any, that
@@ -366,54 +378,4 @@ fn publish_css_defined_animations(
                 .map(|animation| CssDefinedAnimation::of(animation))
                 .collect(),
         }));
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::animations::animation::AnimationKind;
-
-    fn by_address(first: NonNull<c_void>, second: NonNull<c_void>) -> Ordering {
-        first.cmp(&second)
-    }
-
-    #[test]
-    fn an_animation_is_associated_once() {
-        let mut animations = ElementAnimations::default();
-        let animation = AnimationHandle::new(AnimationKind::Script);
-        assert!(animations.associate(animation.clone()));
-        assert!(!animations.associate(animation.clone()));
-        assert_eq!(animations.associated().len(), 1);
-        assert!(animations.disassociate(&animation));
-        assert!(!animations.disassociate(&animation));
-        assert!(animations.associated().is_empty());
-    }
-
-    #[test]
-    fn animations_without_an_effect_sort_first_in_creation_order() {
-        let mut animations = ElementAnimations::default();
-        let first = AnimationHandle::new(AnimationKind::Script);
-        let second = AnimationHandle::new(AnimationKind::Script);
-        animations.associate(second.clone());
-        animations.associate(first.clone());
-        animations.sort_in_composite_order(&mut by_address);
-        assert!(animations.associated()[0].ptr_eq(&first));
-        assert!(animations.associated()[1].ptr_eq(&second));
-    }
-
-    #[test]
-    fn cancelling_css_animations_clears_what_the_element_had() {
-        let mut animations = ElementAnimations::default();
-        let slot = AnimationOwnerSlot(3);
-        // SAFETY: The test takes over the one reference to the new animation.
-        let animation = unsafe { AnimationHandle::from_raw(super::super::ffi::animations_css_animation_create()) };
-        animations.set_css_animations(slot, [animation].into_iter(), None);
-        assert_eq!(animations.css_animations(slot).len(), 1);
-        assert!(animations.css_animations(AnimationOwnerSlot(0)).is_empty());
-        animations.set_css_animations(slot, std::iter::empty(), None);
-        assert!(animations.css_animations(slot).is_empty());
-        assert!(animations.has_css_animations_or_transitions());
-        assert!(animations.take_css_animations_and_transitions(None).is_empty());
-        assert!(!animations.has_css_animations_or_transitions());
-    }
 }

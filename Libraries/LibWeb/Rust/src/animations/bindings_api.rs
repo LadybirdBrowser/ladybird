@@ -15,10 +15,11 @@ use super::animation::{AnimationCell, AnimationHandle, AnimationKind, AnimationR
 use super::composite_order::composite_order;
 use super::easing::CompactEasing;
 use super::effect::{AnimationEffectCell, EffectHandle};
-use super::ffi::{FfiResolvedEffectTiming, FfiTreeOrder, animations_effect_resolve_timing, host_tree_order};
-use super::ffi::{FfiScrollTimelineSource, FfiTimelineDescription, create_timeline};
-use super::ffi::{invalidate, run_procedure_on};
-use super::keyframes::{KEY_SCALE_FACTOR, KeyframeProperty, KeyframeSet, ProcessedKeyframe};
+use super::effect::{EffectTimingAtLocalTime, resolve_effect_timing};
+use super::ffi::{FfiScrollTimelineSource, SCROLLER_NEAREST, retained_view_inset};
+use super::ffi::{FfiTreeOrder, host_tree_order};
+use super::ffi::{invalidate, run_procedure, run_procedure_on};
+use super::keyframes::{KeyframeProperty, KeyframeSet, ProcessedKeyframe, key_of_offset};
 use super::procedures::AnimationError;
 use super::timeline::{TimelineHandle, TimelineKind, ViewTimelineInset, ViewTimelineInsetEdge};
 use super::timing::{AnimationEffectTiming, FillMode, SpecifiedEffectTiming, TimeValue};
@@ -26,17 +27,15 @@ use crate::css::animation::FfiCompositeOperation;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style::effect_descriptions::easing_from_computed_timing_function;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData, retain_style_value};
-use crate::css::typed_om::parse_value_for_property;
 use libcompositing_rust::easing::{Easing, FfiEasingKind};
 
-pub use super::ffi::{FfiHostEffect as HostEffect, HostEffectPerformer};
+pub use super::ffi::{
+    FfiHostEffect as HostEffect, HostEffectPerformer, element_node_document,
+    web_animation_compare_elements_in_tree_order,
+};
 pub use super::keyframes::CompositeOperationOrAuto;
 pub use crate::css::animation::FfiCompositeOperation as CompositeOperation;
 pub use libcompositing_rust::animation_timing::{AnimationPlayState, AnimationReplaceState};
-
-/// The resolved timing of an effect, as https://www.w3.org/TR/web-animations-1/#calculating-the-active-time and the
-/// sections around it define it.
-pub type ResolvedEffectTiming = FfiResolvedEffectTiming;
 
 /// An easing function parsed from script, with the serialization the effect reports it as.
 #[derive(Clone)]
@@ -70,15 +69,21 @@ impl ParsedEasing {
     /// The easing the computed value of a timing function `value` describes, serialized as a script reads it, or none
     /// where it describes none.
     pub(crate) fn of_timing_function(value: &RetainedStyleValueData) -> Option<Self> {
-        let easing = crate::css::style::effect_descriptions::easing_from_computed_timing_function(value.data())?;
-        let mode = if matches!(value.data(), StyleValueData::Easing(_)) && easing.kind() == FfiEasingKind::CubicBezier {
+        Self::of_timing_function_data(value.data(), |mode| value.serialize(mode))
+    }
+
+    /// The easing the computed value of a timing function `value` describes, with `serialize` serializing the value in
+    /// the mode a script reads it in, or none where it describes none.
+    fn of_timing_function_data(value: &StyleValueData, serialize: impl FnOnce(u8) -> ak::Utf16String) -> Option<Self> {
+        let easing = easing_from_computed_timing_function(value)?;
+        let mode = if matches!(value, StyleValueData::Easing(_)) && easing.kind() == FfiEasingKind::CubicBezier {
             SERIALIZATION_MODE_NORMAL
         } else {
             SERIALIZATION_MODE_RESOLVED_VALUE
         };
         Some(Self {
             easing,
-            serialization: value.serialize(mode),
+            serialization: serialize(mode),
         })
     }
 }
@@ -91,7 +96,7 @@ const SERIALIZATION_MODE_RESOLVED_VALUE: u8 = 1;
 /// <easing-function> production [CSS-EASING-1].
 pub fn parse_easing_function(text: &ak::Utf16String) -> Option<ParsedEasing> {
     use crate::css::property_metadata::property_id;
-    let value = parse_value_for_property(property_id::ANIMATION_TIMING_FUNCTION, text)?;
+    let value = parse_property_value(property_id::ANIMATION_TIMING_FUNCTION, text)?;
     if value.is_unresolved() || value.is_css_wide_keyword() {
         return None;
     }
@@ -100,16 +105,7 @@ pub fn parse_easing_function(text: &ak::Utf16String) -> Option<ParsedEasing> {
         return None;
     };
     // FIXME: We should absolutize the style value to resolve relative lengths within calcs
-    let easing = easing_from_computed_timing_function(item.data())?;
-    let mode = if matches!(item.data(), StyleValueData::Easing(_)) && easing.kind() == FfiEasingKind::CubicBezier {
-        SERIALIZATION_MODE_NORMAL
-    } else {
-        SERIALIZATION_MODE_RESOLVED_VALUE
-    };
-    Some(ParsedEasing {
-        easing,
-        serialization: item.serialize(mode),
-    })
+    ParsedEasing::of_timing_function_data(item.data(), |mode| item.serialize(mode))
 }
 
 /// A pseudo-element selector parsed from script: the host's `CSS::PseudoElement`, and its serialization.
@@ -152,22 +148,14 @@ pub fn property_id_from_camel_case(name: &ak::Utf16String) -> Option<u16> {
         .map(|index| PROPERTY_CAMEL_CASE_LOOKUP[index].1)
 }
 
-/// The IDL attribute name of the property, https://drafts.csswg.org/cssom/#css-property-to-idl-attribute
-pub fn camel_case_property_name(property_id: u16) -> &'static str {
-    crate::css::property_metadata::property_idl_name(property_id)
-}
-
-/// Whether the property, by its id, can be animated.
-pub fn is_animatable_property(property_id: u16) -> bool {
-    super::keyframes::is_animatable_property(property_id)
-}
-
-/// The id of the float property.
-pub const PROPERTY_ID_FLOAT: u16 = crate::css::property_metadata::property_id::FLOAT;
-/// The id of the offset property.
-pub const PROPERTY_ID_OFFSET: u16 = crate::css::property_metadata::property_id::OFFSET;
-/// The id custom properties share.
-pub const PROPERTY_ID_CUSTOM: u16 = crate::css::property_metadata::property_id::CUSTOM;
+pub use super::keyframes::is_animatable_property;
+pub use crate::css::property_metadata::property_id::{
+    ANIMATION_RANGE_END as PROPERTY_ID_ANIMATION_RANGE_END, ANIMATION_RANGE_START as PROPERTY_ID_ANIMATION_RANGE_START,
+    CUSTOM as PROPERTY_ID_CUSTOM, FLOAT as PROPERTY_ID_FLOAT, OFFSET as PROPERTY_ID_OFFSET,
+    VIEW_TIMELINE_INSET as PROPERTY_ID_VIEW_TIMELINE_INSET,
+};
+pub use crate::css::property_metadata::property_idl_name as camel_case_property_name;
+pub use crate::css::typed_om::parse_value_for_property as parse_property_value;
 
 /// A property a processed keyframe declares: a longhand or shorthand by its id, or a custom property by its name.
 #[derive(Clone)]
@@ -178,12 +166,6 @@ pub enum KeyframePropertyName {
 
 /// A value of a property in a processed keyframe.
 pub type StyleValue = RetainedStyleValueData;
-
-/// The value the text parses as for the property, with no document to parse it for, or none where the value is
-/// invalid according to the syntax for the property.
-pub fn parse_property_value(property_id: u16, text: &ak::Utf16String) -> Option<StyleValue> {
-    parse_value_for_property(property_id, text)
-}
 
 /// Another reference to a value of a property.
 #[must_use]
@@ -260,8 +242,7 @@ impl KeyframeSetRef {
         let keyframes = keyframes
             .iter()
             .map(|keyframe| ProcessedKeyframe {
-                #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                key: (keyframe.computed_offset * 100.0 * KEY_SCALE_FACTOR) as u64,
+                key: key_of_offset(keyframe.computed_offset),
                 composite: keyframe.composite,
                 easing: Some(keyframe.easing.easing.clone()),
                 declarations: keyframe
@@ -324,10 +305,16 @@ impl EffectRecordRef {
         std::ptr::from_ref::<AnimationEffectCell>(&self.0).cast()
     }
 
+    /// Invalidates the style the effect produces, forgetting what the host concluded of it.
+    pub fn invalidate(&self) {
+        self.0.borrow_mut().forget_what_the_host_concluded();
+        super::compositor_update::set_needs_animated_style_update(&self.0);
+    }
+
     /// Notes the cell of the object script sees of the effect, or that it has none, which the host's code reaches it
     /// through.
-    pub fn set_facade(&self, facade: Option<NonNull<c_void>>) {
-        self.0.set_facade(facade);
+    pub fn set_object_cell(&self, object_cell: Option<NonNull<c_void>>) {
+        self.0.set_object_cell(object_cell);
     }
 
     #[must_use]
@@ -397,11 +384,11 @@ impl EffectRecordRef {
         local_time: Option<TimeValue>,
         fill_mode: FillMode,
         with_transformed_progress: bool,
-    ) -> ResolvedEffectTiming {
+    ) -> EffectTimingAtLocalTime {
         let animation = self.0.borrow().associated_animation();
-        animations_effect_resolve_timing(
+        resolve_effect_timing(
             &self.0,
-            local_time.into(),
+            local_time,
             fill_mode,
             animation.as_deref().map(|animation: &AnimationCell| animation),
             with_transformed_progress,
@@ -453,6 +440,41 @@ impl EffectRecordRef {
     pub fn composite(&self) -> FfiCompositeOperation {
         self.0.borrow().composite()
     }
+
+    pub fn set_composite(&self, composite: FfiCompositeOperation) {
+        self.0.borrow_mut().set_composite(composite);
+    }
+
+    /// Whether the effect's keyframes come from CSS: from a `@keyframes` rule, or a CSS transition.
+    #[must_use]
+    pub fn keyframes_from_css(&self) -> bool {
+        self.0.borrow().keyframes_from_css()
+    }
+
+    /// Notes that script is about to set the effect's keyframes, which keeps those it replaces of CSS from coming back.
+    pub fn note_keyframes_set_by_script(&self) {
+        self.0.borrow_mut().note_keyframes_set_by_script();
+    }
+
+    /// The keyframes of CSS the effect runs as `getKeyframes()` returns them.
+    #[must_use]
+    pub fn computed_css_keyframes(&self) -> Vec<CssKeyframeValues> {
+        let effect = super::keyframe_reflection::ReflectedEffect::of(&self.0.borrow());
+        super::keyframe_reflection::computed_css_keyframes(&effect)
+            .into_iter()
+            .map(Into::into)
+            .collect()
+    }
+
+    /// The keyframes of CSS a copy of the effect takes.
+    #[must_use]
+    pub fn css_keyframes_of_copy(&self) -> Vec<CssKeyframeValues> {
+        let effect = super::keyframe_reflection::ReflectedEffect::of(&self.0.borrow());
+        super::keyframe_reflection::css_keyframes_of_copy(&effect)
+            .into_iter()
+            .map(Into::into)
+            .collect()
+    }
 }
 
 /// https://www.w3.org/TR/web-animations-1/#animation-composite-order
@@ -498,11 +520,8 @@ pub enum TimelineInterfaceKind {
 #[derive(Clone)]
 pub struct TimelineRecordRef(TimelineHandle);
 
-/// The host's `CSS::Scroller::Nearest`, which a view timeline finds its source from its subject with.
-const SCROLLER_NEAREST: u8 = 1;
-
 impl TimelineRecordRef {
-    /// A new timeline associated with the host's `DOM::Document` `document`.
+    /// A new timeline associated with the host's `DOM::Document` `document`, which keeps it alive.
     #[must_use]
     pub fn new(document: NonNull<c_void>, description: TimelineDescription) -> Self {
         let scroll = |source, axis| super::timeline::ScrollTimelineState {
@@ -538,17 +557,44 @@ impl TimelineRecordRef {
                 time_for_observation: None,
             },
         };
-        Self(TimelineHandle::new(document, kind))
+        Self(super::timeline_host::create_timeline(document, kind))
     }
 
-    /// A new timeline associated with the host's `DOM::Document` `document`, as the host describes it.
-    ///
-    /// # Safety
-    /// The calculations of a view timeline's inset must be null or live style values.
+    /// https://www.w3.org/TR/web-animations-1/#document-default-document-timeline
+    /// The default document timeline of the host's `DOM::Document` `document`.
     #[must_use]
-    pub unsafe fn from_host_description(document: NonNull<c_void>, description: *const c_void) -> Self {
-        // SAFETY: Guaranteed by the caller.
-        Self(unsafe { create_timeline(document, &*description.cast::<FfiTimelineDescription>()) })
+    pub fn default_of_document(document: NonNull<c_void>) -> Self {
+        Self(super::timeline_host::default_document_timeline(document))
+    }
+
+    /// https://drafts.csswg.org/web-animations-1/#dom-animationtimeline-currenttime
+    /// As script observes it.
+    #[must_use]
+    pub fn current_time_for_observation(&self) -> Option<TimeValue> {
+        super::timeline_host::current_time_for_observation(&self.0)
+    }
+
+    /// https://drafts.csswg.org/scroll-animations-1/#dom-scrolltimeline-source
+    /// The host's `DOM::Element` that is the source of a scroll timeline as script observes it, or none.
+    #[must_use]
+    pub fn source_element(&self) -> Option<NonNull<c_void>> {
+        super::timeline_host::scroll_timeline_source(&self.0)
+    }
+
+    /// Sets the current time of the Internals interface's timeline to `time`, in milliseconds, or where
+    /// `for_observation`, the time a read of it observes, keeping alive each animation it updates with `keep_alive`,
+    /// which is handed the cells that keep it alive, and performing what they ask for through `perform`.
+    pub fn set_internal_time(
+        &self,
+        time: Option<f64>,
+        for_observation: bool,
+        keep_alive: &dyn Fn(NonNull<c_void>),
+        perform: HostEffectPerformer,
+    ) {
+        let keep_alive = |animation: &super::animation::AnimationCell| {
+            animation.for_each_host_cell(|cell, _| keep_alive(cell));
+        };
+        super::timeline_host::set_internal_time(&self.0, time, for_observation, &keep_alive, perform);
     }
 
     /// The timeline, as the host names it.
@@ -559,19 +605,19 @@ impl TimelineRecordRef {
 
     /// The cell of the object script sees of the timeline, while it is alive.
     #[must_use]
-    pub fn facade(&self) -> Option<NonNull<c_void>> {
-        self.0.facade()
+    pub fn object_cell(&self) -> Option<NonNull<c_void>> {
+        self.0.object_cell()
     }
 
     /// Notes the cell of the object script sees of the timeline, or that it has none, which the host's code reaches it
     /// through.
-    pub fn set_facade(&self, facade: Option<NonNull<c_void>>) {
-        self.0.set_facade(facade);
+    pub fn set_object_cell(&self, object_cell: Option<NonNull<c_void>>) {
+        self.0.set_object_cell(object_cell);
     }
 
     /// Calls `visit` with each GC cell of the host the record names.
-    pub fn for_each_host_cell(&self, visit: impl FnMut(NonNull<c_void>)) {
-        self.0.for_each_host_cell(visit);
+    pub fn for_each_host_cell(&self, mut visit: impl FnMut(NonNull<c_void>)) {
+        self.0.for_each_host_cell(|cell, _| visit(cell));
     }
 
     /// The host's `DOM::Document` the timeline is associated with.
@@ -663,31 +709,7 @@ impl ViewTimelineInsetValue {
     pub fn from_computed_value(value: &StyleValue) -> Self {
         let inset = crate::css::style_compute::script_view_timeline_inset(value.data());
         // SAFETY: The calculations are null or style values that the value holds.
-        let edge = |is_auto, px, percentage, calculated: *const c_void| ViewTimelineInsetEdge {
-            is_auto,
-            px,
-            percentage,
-            calculated: if calculated.is_null() {
-                RetainedStyleValueData::none()
-            } else {
-                // SAFETY: The value holds the calculation.
-                unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(calculated.cast())) }
-            },
-        };
-        Self(ViewTimelineInset {
-            start: edge(
-                inset.start_is_auto,
-                inset.start_px,
-                inset.start_percentage,
-                inset.start_calculated,
-            ),
-            end: edge(
-                inset.end_is_auto,
-                inset.end_px,
-                inset.end_percentage,
-                inset.end_calculated,
-            ),
-        })
+        Self(unsafe { retained_view_inset(&inset) })
     }
 }
 
@@ -696,9 +718,6 @@ impl ViewTimelineInsetValue {
 pub fn view_timeline_inset_has_relative_length(value: &StyleValue) -> bool {
     crate::css::style_compute::view_timeline_inset_has_relative_length(value.data())
 }
-
-/// The id of the `view-timeline-inset` property.
-pub const PROPERTY_ID_VIEW_TIMELINE_INSET: u16 = crate::css::property_metadata::property_id::VIEW_TIMELINE_INSET;
 
 /// Takes over one reference to a style value the host hands over.
 ///
@@ -776,22 +795,47 @@ impl AnimationRecordRef {
         .map_err(AnimationException::from)
     }
 
+    /// Whether getAnimations() reports the animation: whether it is relevant, on its timeline, if it has one, with its
+    /// associated effect, if any.
+    /// https://www.w3.org/TR/web-animations-1/#animation-relevant
+    #[must_use]
+    pub fn is_exposed_relevant(&self) -> bool {
+        let animation = self.cell().borrow();
+        // AD-HOC: SVG animation elements drive their animations with their own timing model, which script must not
+        //         be able to play, pause or cancel. Like other engines, do not expose them.
+        if matches!(animation.kind(), AnimationKind::Smil { .. }) {
+            return false;
+        }
+        let timeline = animation.timeline().map(|timeline| timeline.sample());
+        let timeline = timeline.as_ref();
+        let effect_timing = animation.effect().map(|effect| effect.borrow().timing());
+        // NB: The local time of the associated effect is the current time of the animation.
+        let local_time = effect_timing
+            .is_some()
+            .then(|| {
+                super::timing::current_time_at(
+                    animation.playback(),
+                    timeline.and_then(|timeline| timeline.current_time.get()),
+                )
+            })
+            .flatten();
+        super::timing::is_relevant(animation.playback(), timeline, effect_timing.as_ref(), local_time)
+    }
+
     /// Whether the animation is idle. A cancel of one that is not settles its promises and creates its cancel event.
     #[must_use]
     pub fn is_idle(&self) -> bool {
-        self.cell().borrow().timing_state(None).play_state == AnimationPlayState::Idle
+        self.cell().borrow().play_state() == AnimationPlayState::Idle
     }
 
     /// https://www.w3.org/TR/web-animations-1/#dom-animation-id
     #[must_use]
     pub fn dom_id(&self) -> ak::Utf16String {
-        ak::Utf16String::from_utf16(&self.cell().borrow().dom_id().to_utf16())
+        ak::Utf16String::from_utf16(&self.cell().borrow().dom_id.to_utf16())
     }
 
     pub fn set_dom_id(&self, id: &ak::Utf16String) {
-        self.cell()
-            .borrow_mut()
-            .set_dom_id(RetainedUtf16FlyString::from_utf16(&id.to_utf16()));
+        self.cell().borrow_mut().dom_id = RetainedUtf16FlyString::from_utf16(&id.to_utf16());
     }
 
     /// https://www.w3.org/TR/web-animations-1/#playback-rate
@@ -810,23 +854,7 @@ impl AnimationRecordRef {
     /// At `current_time`, the current time of the animation.
     #[must_use]
     pub fn play_state_at(&self, current_time: Option<TimeValue>) -> AnimationPlayState {
-        let record = self.cell().borrow();
-        // The associated effect end of an animation is equal to the end time of the animation’s associated effect. If
-        // the animation has no associated effect, the associated effect end is zero.
-        let associated_effect_end = match record.effect() {
-            Some(effect) => super::timing::end_time(&effect.borrow().timing()),
-            None => {
-                let progress_based = record
-                    .timeline()
-                    .is_some_and(|timeline| timeline.borrow().is_progress_based());
-                TimeValue::zero(if progress_based {
-                    super::timing::TimeValueType::Percentage
-                } else {
-                    super::timing::TimeValueType::Milliseconds
-                })
-            }
-        };
-        super::timing::play_state_at(record.playback(), current_time, associated_effect_end)
+        self.cell().borrow().play_state_at(current_time)
     }
 
     /// https://drafts.csswg.org/css-animations-2/#dom-cssanimation-animationname
@@ -931,12 +959,6 @@ impl AnimationRecordRef {
         Self::from_handle(AnimationHandle::new(AnimationKind::Script))
     }
 
-    /// Whether both references are to the same animation.
-    #[must_use]
-    pub fn ptr_eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.cell(), other.cell())
-    }
-
     /// Which interface the object script sees of the animation is an object of.
     #[must_use]
     pub fn kind(&self) -> AnimationInterfaceKind {
@@ -950,13 +972,22 @@ impl AnimationRecordRef {
 
     /// The cell of the object script sees of the animation, while it has one.
     #[must_use]
-    pub fn facade(&self) -> Option<NonNull<c_void>> {
-        self.cell().facade()
+    pub fn object_cell(&self) -> Option<NonNull<c_void>> {
+        self.cell().object_cell()
     }
 
     /// Notes the cell of the object script sees of the animation, or that it has none.
-    pub fn set_facade(&self, facade: Option<NonNull<c_void>>) {
-        self.cell().set_facade(facade);
+    pub fn set_object_cell(&self, object_cell: Option<NonNull<c_void>>) {
+        self.cell().set_object_cell(object_cell);
+    }
+
+    /// Notes that the host finalized the object script sees of the animation. Whatever holds the record and is alive
+    /// to the host keeps that object alive, so the animation is dead to the host now, though the record may outlive
+    /// the object until what holds it is swept, after the elements it names may be gone. It no longer names its owning
+    /// element then, so that no set of animations finds it alive.
+    pub fn did_finalize_object(&self) {
+        self.cell().set_object_cell(None);
+        self.cell().borrow_mut().set_owning_element(None);
     }
 
     /// Calls `visit` with each GC cell of the host that keeps alive the elements the record names.
@@ -1028,27 +1059,22 @@ impl AnimationRecordRef {
     /// https://www.w3.org/TR/web-animations-1/#animation-set-the-associated-effect-of-an-animation
     pub fn set_effect(&self, effect: Option<&EffectRecordRef>, perform: HostEffectPerformer) {
         let effect = effect.map(|effect| effect.0.clone());
-        let _ = run_procedure_on(self.cell(), perform, |procedures| {
+        run_procedure(self.cell(), perform, |procedures| {
             procedures.set_the_associated_effect(effect.as_ref(), invalidate(true));
-            Ok(())
         });
     }
 
     /// https://www.w3.org/TR/web-animations-1/#animation-set-the-timeline-of-an-animation
     pub fn set_timeline(&self, timeline: Option<&TimelineRecordRef>, perform: HostEffectPerformer) {
         let timeline = timeline.map(|timeline| timeline.0.clone());
-        let _ = run_procedure_on(self.cell(), perform, |procedures| {
-            procedures.set_timeline(timeline);
-            Ok(())
-        });
+        run_procedure(self.cell(), perform, |procedures| procedures.set_timeline(timeline));
     }
 
     /// https://www.w3.org/TR/web-animations-1/#set-the-start-time
     /// To the validated `start_time`.
     pub fn set_start_time(&self, start_time: Option<TimeValue>, perform: HostEffectPerformer) {
-        let _ = run_procedure_on(self.cell(), perform, |procedures| {
+        run_procedure(self.cell(), perform, |procedures| {
             procedures.set_start_time_for_bindings(start_time);
-            Ok(())
         });
     }
 
@@ -1083,30 +1109,20 @@ impl AnimationRecordRef {
         observed_current_time: Option<TimeValue>,
         perform: HostEffectPerformer,
     ) {
-        let _ = run_procedure_on(self.cell(), perform, |procedures| {
+        run_procedure(self.cell(), perform, |procedures| {
             procedures.update_finished_state(
                 super::procedures::DidSeek::No,
                 super::procedures::SynchronouslyNotify::Yes,
                 invalidate(should_invalidate),
                 observed_current_time,
             );
-            Ok(())
-        });
-    }
-
-    /// Runs the finish notification steps of the animation from the task the host queued.
-    pub fn run_finish_notification_steps(&self, perform: HostEffectPerformer) {
-        let _ = run_procedure_on(self.cell(), perform, |procedures| {
-            procedures.finish_notification_steps();
-            Ok(())
         });
     }
 
     /// Notes `task`, the host's identity of the task it queued to run the finish notification steps of the animation,
     /// or to dispatch its finish event.
     pub fn set_finish_notification_task(&self, task: u64) {
-        let task = super::animation::HostTaskId(std::num::NonZeroU64::new(task).expect("tasks have nonzero ids"));
-        self.cell().borrow_mut().set_finish_notification_task(task);
+        super::ffi::animations_animation_set_finish_notification_task(self.cell(), task);
     }
 
     /// https://drafts.csswg.org/scroll-animations-1/#animation-attachment-range
@@ -1140,15 +1156,12 @@ impl AnimationRecordRef {
         if !self.cell().borrow_mut().set_range(range) {
             return;
         }
-        let _ = run_procedure_on(self.cell(), perform, |procedures| {
-            procedures.attachment_range_changed();
-            Ok(())
-        });
+        run_procedure(self.cell(), perform, |procedures| procedures.attachment_range_changed());
     }
 
     /// Notes that script overrode what `flag` names of the CSS animation.
     pub fn set_css_animation_flag(&self, flag: super::animation::CssAnimationFlag) {
-        self.cell().borrow_mut().css_animation_mut().flags |= flag as u8;
+        self.cell().borrow_mut().css_animation_mut().set_flag(flag);
     }
 
     /// The bytes of the allocation every handle shares, and those the record holds beyond it.
@@ -1161,61 +1174,12 @@ impl AnimationRecordRef {
 impl EffectRecordRef {
     /// The cell of the object script sees of the effect, while it has one.
     #[must_use]
-    pub fn facade(&self) -> Option<NonNull<c_void>> {
-        self.0.facade()
-    }
-
-    /// Whether both references are to the same effect.
-    #[must_use]
-    pub fn ptr_eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.as_host_ptr(), other.as_host_ptr())
-    }
-
-    /// Whether the effect's keyframes come from CSS: from a `@keyframes` rule, or a CSS transition.
-    #[must_use]
-    pub fn keyframes_from_css(&self) -> bool {
-        self.0.borrow().keyframes_from_css()
-    }
-
-    /// Notes that script is about to set the effect's keyframes, which keeps those it replaces of CSS from coming back.
-    pub fn note_keyframes_set_by_script(&self) {
-        self.0.borrow_mut().note_keyframes_set_by_script();
-    }
-
-    /// The keyframes of CSS the effect runs as `getKeyframes()` returns them.
-    #[must_use]
-    pub fn computed_css_keyframes(&self) -> Vec<CssKeyframeValues> {
-        let effect = super::keyframe_reflection::ReflectedEffect::of(&self.0.borrow());
-        super::keyframe_reflection::computed_css_keyframes(&effect)
-            .into_iter()
-            .map(Into::into)
-            .collect()
-    }
-
-    /// The keyframes of CSS a copy of the effect takes.
-    #[must_use]
-    pub fn css_keyframes_of_copy(&self) -> Vec<CssKeyframeValues> {
-        let effect = super::keyframe_reflection::ReflectedEffect::of(&self.0.borrow());
-        super::keyframe_reflection::css_keyframes_of_copy(&effect)
-            .into_iter()
-            .map(Into::into)
-            .collect()
+    pub fn object_cell(&self) -> Option<NonNull<c_void>> {
+        self.0.object_cell()
     }
 }
 
 impl TimelineRecordRef {
-    /// Whether both references are to the same timeline.
-    #[must_use]
-    pub fn ptr_eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.as_host_ptr(), other.as_host_ptr())
-    }
-
-    /// Whether the timeline is a progress-based timeline.
-    #[must_use]
-    pub fn is_progress_based(&self) -> bool {
-        self.0.borrow().is_progress_based()
-    }
-
     /// The current time of the timeline, or none where it is inactive.
     #[must_use]
     pub fn current_time(&self) -> Option<TimeValue> {
@@ -1232,12 +1196,6 @@ impl TimelineRecordRef {
         self.0.borrow_mut().set_style_sampling_override(current_time);
     }
 
-    /// Whether the timeline is inactive.
-    #[must_use]
-    pub fn is_inactive(&self) -> bool {
-        self.0.is_inactive()
-    }
-
     /// https://www.w3.org/TR/web-animations-1/#timeline-time-to-origin-relative-time
     /// Where the timeline can convert one, which only a document timeline can.
     #[must_use]
@@ -1250,12 +1208,9 @@ impl TimelineRecordRef {
     }
 }
 
-/// The ids of the `animation-range-start` and `animation-range-end` properties.
-pub const PROPERTY_ID_ANIMATION_RANGE_START: u16 = crate::css::property_metadata::property_id::ANIMATION_RANGE_START;
-pub const PROPERTY_ID_ANIMATION_RANGE_END: u16 = crate::css::property_metadata::property_id::ANIMATION_RANGE_END;
-
 pub use super::animation::CssAnimationFlag;
 pub use super::ffi::FfiHostEffectKind as HostEffectKind;
+pub use super::host_effects::PlaybackEventType;
 
 /// The time a calculation of the numeric type gives: milliseconds of a number or a time, or a percentage, where it gives
 /// one of those.
@@ -1311,4 +1266,40 @@ pub fn timeline_range_name_to_string(name: u8) -> Option<&'static str> {
         7 => "scroll",
         _ => unreachable!("the host names a timeline range it knows"),
     })
+}
+
+pub use super::css_events::FfiCssEventType as CssEventType;
+pub use super::pending_animation_events::{
+    FfiPendingAnimationEvent as PendingAnimationEvent, PendingAnimationEventKind,
+};
+
+/// https://www.w3.org/TR/web-animations-1/#update-animations-and-send-events
+/// Takes the events of the pending animation event queue of a document, whose animations the host's
+/// `DocumentAnimations` `animations` are, in the order to dispatch them in, comparing elements in tree order with
+/// `tree_order`, each with the animation it is of.
+///
+/// # Safety
+/// `animations` must be what a live document knows of animations, which nothing else reaches for the call.
+pub unsafe fn take_pending_animation_events_to_dispatch(
+    animations: NonNull<c_void>,
+    tree_order: FfiTreeOrder,
+) -> Vec<(AnimationRecordRef, PendingAnimationEvent)> {
+    // SAFETY: Guaranteed by the caller.
+    let animations = unsafe {
+        animations
+            .cast::<super::document_animations::DocumentAnimations>()
+            .as_mut()
+    };
+    // NB: Steps 4 to 6 take and sort the events.
+    animations
+        .pending_events
+        .take_events_to_dispatch(&mut host_tree_order(tree_order))
+        .into_iter()
+        .map(|event| (AnimationRecordRef::from_handle(event.animation), event.event))
+        .collect()
+}
+
+/// The name of the host's `CSS::PseudoElement` `kind`, without its colons.
+pub fn pseudo_element_name(kind: u8) -> &'static str {
+    crate::css::selector::pseudo_element_from_ffi(kind).name()
 }
