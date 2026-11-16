@@ -95,13 +95,6 @@ Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS
     return CSS::Parser::Parser { context }.parse_as_pseudo_element_selector(selector_text, mode);
 }
 
-Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const& context, Utf16View string)
-{
-    if (string.is_empty())
-        return {};
-    return CSS::Parser::Parser { context }.parse_as_supports(string);
-}
-
 // https://drafts.csswg.org/css-syntax/#css-decode-bytes
 ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string)
 {

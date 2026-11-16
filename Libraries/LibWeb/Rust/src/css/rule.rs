@@ -1268,12 +1268,6 @@ pub enum RuleRemovalResult {
     InvalidStateError,
 }
 
-/// https://drafts.csswg.org/cssom/#remove-a-css-rule
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_rule_list_validate_removal(list: &NativeRuleList, index: usize) -> RuleRemovalResult {
-    list.validate_removal(index)
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_rule_list_clear(list: &NativeRuleList) {
     list.clear();

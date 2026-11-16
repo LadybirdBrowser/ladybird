@@ -1657,21 +1657,15 @@ mod tests {
 
     #[test]
     fn native_removal_validation_preserves_the_rule_list() {
-        use crate::css::rule::{RuleRemovalResult, rust_rule_list_remove, rust_rule_list_validate_removal};
+        use crate::css::rule::{RuleRemovalResult, rust_rule_list_remove};
         let sheet = sheet("@namespace p url(urn:p); div {}");
         let rules = sheet.rules();
-        assert_eq!(
-            rust_rule_list_validate_removal(rules, 2),
-            RuleRemovalResult::IndexSizeError
-        );
-        assert_eq!(
-            rust_rule_list_validate_removal(rules, 0),
-            RuleRemovalResult::InvalidStateError
-        );
+        assert_eq!(rules.validate_removal(2), RuleRemovalResult::IndexSizeError);
+        assert_eq!(rules.validate_removal(0), RuleRemovalResult::InvalidStateError);
         assert_eq!(rules.materialized_rules().len(), 2);
-        assert_eq!(rust_rule_list_validate_removal(rules, 1), RuleRemovalResult::Success);
+        assert_eq!(rules.validate_removal(1), RuleRemovalResult::Success);
         rust_rule_list_remove(rules, 1);
-        assert_eq!(rust_rule_list_validate_removal(rules, 0), RuleRemovalResult::Success);
+        assert_eq!(rules.validate_removal(0), RuleRemovalResult::Success);
     }
 
     #[test]

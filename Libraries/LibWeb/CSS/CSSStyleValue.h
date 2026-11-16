@@ -33,8 +33,6 @@ public:
 
     Optional<Utf16FlyString> associated_property() const;
 
-    bool is_unparsed_value() const;
-
     template<typename T>
     bool fast_is() const
     requires(IsSame<T, CSSNumericValue> || IsSame<T, CSSUnitValue>)

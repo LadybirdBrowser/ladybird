@@ -26,7 +26,6 @@ public:
     };
 
     static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Utf16String token_source, Parser::SubstitutionFunctionsPresence, SourceTextMode = SourceTextMode::Trim, bool contains_attr_tainted_values = false);
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Utf16String token_source, Parser::SubstitutionFunctionsPresence, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
     virtual ~UnresolvedStyleValue() override = default;
 
     bool contains_attr_tainted_values() const { return m_value->unresolved._0.pointer->contains_attr_tainted_values; }

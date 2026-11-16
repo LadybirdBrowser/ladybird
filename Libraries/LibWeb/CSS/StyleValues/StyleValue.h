@@ -130,8 +130,6 @@ struct ColorResolutionStyle {
 
     [[nodiscard]] static ColorResolutionStyle for_element(DOM::AbstractElement const&);
     [[nodiscard]] static ColorResolutionStyle for_layout_node(Layout::NodeWithStyle const&);
-    [[nodiscard]] static ColorResolutionStyle for_computed_values(ComputedValues const&);
-
     StyleValueFFI::FfiColorResolutionStyle to_ffi() const { return { inherited_ui_values, inherited_text_values }; }
 };
 
@@ -181,10 +179,6 @@ public:
     }
     DimensionStyleValue const& as_dimension() const;
     DimensionStyleValue& as_dimension() { return const_cast<DimensionStyleValue&>(const_cast<StyleValue const&>(*this).as_dimension()); }
-
-    bool is_color_function() const;
-
-    bool depends_on_current_color() const;
 
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
     bool is_##snake_case() const { return type() == Type::title_case; }                  \

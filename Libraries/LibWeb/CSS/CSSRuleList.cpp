@@ -108,21 +108,6 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(RustRuleList& rules
     VERIFY_NOT_REACHED();
 }
 
-// https://www.w3.org/TR/cssom/#remove-a-css-rule
-WebIDL::ExceptionOr<void> CSSRuleList::validate_rule_removal(RustRuleList const& rules, u32 index)
-{
-    using Result = Parser::ValueParserFFI::RuleRemovalResult;
-    switch (Parser::ValueParserFFI::rust_rule_list_validate_removal(rules.handle(), index)) {
-    case Result::Success:
-        return {};
-    case Result::IndexSizeError:
-        return WebIDL::IndexSizeError::create("CSS rule index out of bounds."_utf16);
-    case Result::InvalidStateError:
-        return WebIDL::InvalidStateError::create("Cannot remove @namespace rule from a stylesheet with non-namespace/import rules."_utf16);
-    }
-    VERIFY_NOT_REACHED();
-}
-
 void CSSRuleList::remove_a_css_rule_without_validation(Badge<StyleSheetState>, u32 index)
 {
     web_css_rule_list_remove_rule(vm_abi(), this, index);
