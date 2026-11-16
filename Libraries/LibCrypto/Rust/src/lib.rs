@@ -845,9 +845,9 @@ pub fn mldsa_generate_key_pair(size: MlDsaSize, seed: &[u8]) -> Result<KeyPair, 
     Ok(unsafe { KeyPair::from_raw(public_key, private_key) })
 }
 
-pub fn mldsa_read_public_key(bytes: &[u8]) -> Option<KeyHandle> {
+pub fn mldsa_read_public_key(size: MlDsaSize, bytes: &[u8]) -> Option<KeyHandle> {
     // SAFETY: The input is borrowed for the call.
-    let raw = unsafe { ffi::crypto_mldsa_read_public_key(Span::new(bytes)) };
+    let raw = unsafe { ffi::crypto_mldsa_read_public_key(size, Span::new(bytes)) };
     // SAFETY: A non-null result transfers ownership of the key.
     unsafe { KeyHandle::from_raw(raw) }
 }

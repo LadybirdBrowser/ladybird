@@ -12412,8 +12412,21 @@ const ML_DSA_44_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 17];
 const ML_DSA_65_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 18];
 const ML_DSA_87_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 19];
 
-fn mldsa_read_public_key(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Ref<CryptoKey>> {
-    let Some(key) = libcrypto_rust::mldsa_read_public_key(bytes) else {
+fn mldsa_size(name: &Utf16String) -> MlDsaSize {
+    if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
+        MlDsaSize::MlDsa44
+    } else if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
+        MlDsaSize::MlDsa65
+    } else if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
+        MlDsaSize::MlDsa87
+    } else {
+        unreachable!("the name identifies an ML-DSA parameter set")
+    }
+}
+
+// NB: A public key whose length belongs to another parameter set is not a key for this one.
+fn mldsa_read_public_key(vm: &Vm, size: MlDsaSize, bytes: &[u8]) -> WebIdlResult<Ref<CryptoKey>> {
+    let Some(key) = libcrypto_rust::mldsa_read_public_key(size, bytes) else {
         return Err(dom_error("DataError", b"Invalid key"));
     };
     Ok(CryptoKey::create(vm, key))
@@ -12736,7 +12749,7 @@ impl AlgorithmMethods for MlDsa {
             let public_key = spki.raw_key();
 
             // 8. Let key be a new CryptoKey that represents publicKey.
-            key = mldsa_read_public_key(cx.vm(), public_key)?;
+            key = mldsa_read_public_key(cx.vm(), mldsa_size(&params.name), public_key)?;
 
             // 9. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -12851,7 +12864,7 @@ impl AlgorithmMethods for MlDsa {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("raw key data contains bytes")
             };
-            key = mldsa_read_public_key(cx.vm(), key_data.as_slice())?;
+            key = mldsa_read_public_key(cx.vm(), mldsa_size(&params.name), key_data.as_slice())?;
 
             // 5. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -13007,7 +13020,7 @@ impl AlgorithmMethods for MlDsa {
 
                 // 2. Let key be a new CryptoKey object that represents the ML-DSA public key
                 //    identified by interpreting the pub attribute of jwk as a base64url encoded public key.
-                key = mldsa_read_public_key(cx.vm(), public_key.as_slice())?;
+                key = mldsa_read_public_key(cx.vm(), mldsa_size(&params.name), public_key.as_slice())?;
 
                 // 3. Set the [[type]] internal slot of key to "public".
                 key.set_type(KeyType::Public);
