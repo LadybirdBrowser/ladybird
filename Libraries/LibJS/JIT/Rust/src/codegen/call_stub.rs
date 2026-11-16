@@ -940,7 +940,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         new_frame: crate::asm::Gpr,
         temp: crate::asm::Gpr,
         ecmascript: bool,
-    ) -> [super::call::ConstantField; 11] {
+    ) -> [super::call::ConstantField; 8] {
         let offsets = self.runtime.offsets;
         let field = |offset: u32| Address::new(new_frame, offset as i32);
         let argument_count_local = self.stub_local(local::ARGUMENT_COUNT);

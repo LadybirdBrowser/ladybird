@@ -3353,9 +3353,6 @@ handler GetById(
         native_frame.program_counter = 0;
         native_frame.frame_id = 0;
         native_frame.skip_when_determining_incumbent_counter = 0;
-        native_frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
-        native_frame.yield_is_await = false;
-        native_frame.yield_value_is_iterator_result = false;
         native_frame.caller_is_construct = false;
         native_frame.frame_initialized = false;
         native_frame.returns_to_native_caller = false;
@@ -4077,9 +4074,7 @@ inline fn enter_ecmascript_function_call(
     # NB: Frames get their id when something first asks (see Vm::frame_id_of()).
     frame.frame_id = 0;
     frame.skip_when_determining_incumbent_counter = 0;
-    frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
-    frame.yield_is_await = false;
-    frame.yield_value_is_iterator_result = false;
+    # NB: Only frames of code that can yield or await have yield fields, and the runtime makes those.
     frame.caller_is_construct = false;
     frame.frame_initialized = false;
     frame.returns_to_native_caller = false;
@@ -4169,9 +4164,6 @@ inline fn call_raw_native_function(
     native_frame.program_counter = 0;
     native_frame.frame_id = 0;
     native_frame.skip_when_determining_incumbent_counter = 0;
-    native_frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
-    native_frame.yield_is_await = false;
-    native_frame.yield_value_is_iterator_result = false;
     native_frame.caller_is_construct = false;
     native_frame.frame_initialized = false;
     native_frame.returns_to_native_caller = false;

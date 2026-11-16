@@ -93,6 +93,7 @@ pub struct ExecutionContext {
     pub frame_id: Cell<u64>,
     pub program_counter: Cell<u32>,
     pub skip_when_determining_incumbent_counter: Cell<u32>,
+    /// The yield fields are only valid in frames of code that can yield or await, which the runtime makes.
     pub yield_continuation: Cell<u32>,
     pub yield_is_await: Cell<bool>,
     pub yield_value_is_iterator_result: Cell<bool>,
