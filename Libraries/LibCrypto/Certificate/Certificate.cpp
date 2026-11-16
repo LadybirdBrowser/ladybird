@@ -54,15 +54,8 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
     READ_OBJECT(ObjectIdentifier, ASN1::ObjectIdentifier, algorithm);
     POP_SCOPE();
 
-    constexpr static Array<Span<u32 const>, 19> known_algorithm_identifiers {
+    constexpr static Array<Span<u32 const>, 12> known_algorithm_identifiers {
         ASN1::rsa_encryption_oid,
-        ASN1::rsa_md5_encryption_oid,
-        ASN1::rsa_sha1_encryption_oid,
-        ASN1::rsa_sha256_encryption_oid,
-        ASN1::rsa_sha384_encryption_oid,
-        ASN1::rsa_sha512_encryption_oid,
-        ASN1::ecdsa_with_sha256_encryption_oid,
-        ASN1::ecdsa_with_sha384_encryption_oid,
         ASN1::ec_public_key_encryption_oid,
         ASN1::x25519_oid,
         ASN1::ed25519_oid,
@@ -88,34 +81,10 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
         ERROR_WITH_SCOPE(TRY(String::formatted("Unknown algorithm {}", algorithm)));
     }
 
-    // -- When the following OIDs are used in an AlgorithmIdentifier, the
-    // -- parameters MUST be present and MUST be NULL.
-    //      sha256WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 1 }
-    //      sha256WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 4 }
-    //      sha256WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 5 }
-    //      sha256WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 11 }
-    //      sha384WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 12 }
-    //      sha512WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 13 }
-    //      sha224WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 14 }
-    constexpr static Array<Span<u32 const>, 8> rsa_null_algorithms = {
-        ASN1::rsa_encryption_oid,
-        ASN1::rsa_md5_encryption_oid,
-        ASN1::rsa_sha1_encryption_oid,
-        ASN1::rsa_sha256_encryption_oid,
-        ASN1::rsa_sha384_encryption_oid,
-        ASN1::rsa_sha512_encryption_oid,
-        ASN1::rsa_sha224_encryption_oid,
-    };
-
-    bool is_rsa_null_algorithm = false;
-    for (auto const& inner : rsa_null_algorithms) {
-        if (inner == algorithm.span()) {
-            is_rsa_null_algorithm = true;
-            break;
-        }
-    }
-
-    if (is_rsa_null_algorithm) {
+    // -- When rsaEncryption is used in an AlgorithmIdentifier,
+    // -- the parameters MUST be present and MUST be NULL.
+    //      rsaEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 1 }
+    if (algorithm.span() == ASN1::rsa_encryption_oid.span()) {
         PUSH_SCOPE("RSA null parameter"sv);
         READ_OBJECT(Null, void*, forced_null);
         (void)forced_null;
@@ -125,12 +94,6 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
         return AlgorithmIdentifier(algorithm);
     }
 
-    // https://www.ietf.org/rfc/rfc5758.txt
-    // When the ecdsa-with-SHA224, ecdsa-with-SHA256, ecdsa-with-SHA384, or
-    // ecdsa-with-SHA512 algorithm identifier appears in the algorithm field
-    // as an AlgorithmIdentifier, the encoding MUST omit the parameters
-    // field.
-
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
 
@@ -139,11 +102,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
 
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
-    constexpr static Array<Span<u32 const>, 15> no_parameter_algorithms = {
-        ASN1::ecdsa_with_sha224_encryption_oid,
-        ASN1::ecdsa_with_sha256_encryption_oid,
-        ASN1::ecdsa_with_sha384_encryption_oid,
-        ASN1::ecdsa_with_sha512_encryption_oid,
+    constexpr static Array<Span<u32 const>, 10> no_parameter_algorithms = {
         ASN1::x25519_oid,
         ASN1::x448_oid,
         ASN1::ed25519_oid,
@@ -151,7 +110,6 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
         ASN1::ml_dsa_44_oid,
         ASN1::ml_dsa_65_oid,
         ASN1::ml_dsa_87_oid,
-        ASN1::ed448_oid,
         ASN1::ml_kem_512_oid,
         ASN1::ml_kem_768_oid,
         ASN1::ml_kem_1024_oid
@@ -250,7 +208,7 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(ASN1::Decoder& decoder, 
 
     // https://datatracker.ietf.org/doc/html/draft-ietf-lamps-kyber-certificates-07#section-3-6
     // The parameters field of the AlgorithmIdentifier for the ML-KEM public key MUST be absent.
-    constexpr static Array<Span<u32 const>, 12> no_parameter_algorithms = {
+    constexpr static Array<Span<u32 const>, 11> no_parameter_algorithms = {
         ASN1::ec_public_key_encryption_oid,
         ASN1::x25519_oid,
         ASN1::x448_oid,
@@ -259,7 +217,6 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(ASN1::Decoder& decoder, 
         ASN1::ml_dsa_44_oid,
         ASN1::ml_dsa_65_oid,
         ASN1::ml_dsa_87_oid,
-        ASN1::ed448_oid,
         ASN1::ml_kem_512_oid,
         ASN1::ml_kem_768_oid,
         ASN1::ml_kem_1024_oid
@@ -400,7 +357,7 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
 
     // https://datatracker.ietf.org/doc/html/draft-ietf-lamps-kyber-certificates-07#section-3-6
     // The parameters field of the AlgorithmIdentifier for the ML-KEM public key MUST be absent.
-    constexpr static Array<Span<u32 const>, 12> no_parameter_algorithms = {
+    constexpr static Array<Span<u32 const>, 11> no_parameter_algorithms = {
         ASN1::ec_public_key_encryption_oid,
         ASN1::x25519_oid,
         ASN1::x448_oid,
@@ -409,7 +366,6 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
         ASN1::ml_dsa_44_oid,
         ASN1::ml_dsa_65_oid,
         ASN1::ml_dsa_87_oid,
-        ASN1::ed448_oid,
         ASN1::ml_kem_512_oid,
         ASN1::ml_kem_768_oid,
         ASN1::ml_kem_1024_oid
