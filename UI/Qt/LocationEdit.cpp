@@ -1630,13 +1630,6 @@ int LocationEdit::serialized_url_position_for_display_position(int display_posit
     return last_serialized_position;
 }
 
-bool LocationEdit::text_matches_current_url() const
-{
-    return m_url.has_value()
-        && !m_url_is_hidden
-        && (text() == serialized_url() || text() == display_url());
-}
-
 // NB: The field never shows the address of the new tab page, so that it is empty there, ready to be typed in. A website
 //     chosen as the new tab page is shown, as on any other tab.
 static bool is_new_tab_page(URL::URL const& url)
@@ -1681,13 +1674,6 @@ void LocationEdit::set_shows_host_only(bool shows_host_only)
         setCursorPosition(0);
         highlight_location();
     }
-}
-
-QString LocationEdit::current_query() const
-{
-    if (m_omnibox.is_editing())
-        return qstring_from_ak_string(m_omnibox.query());
-    return text();
 }
 
 void LocationEdit::set_suggestions_host(QWidget* host)

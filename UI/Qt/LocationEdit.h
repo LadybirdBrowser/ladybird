@@ -132,10 +132,8 @@ private:
     void slide_site_settings_knobs(qreal travel);
     void update_completion_title();
     void highlight_location();
-    bool text_matches_current_url() const;
     QString serialized_url() const;
     QString display_url() const;
-    QString current_query() const;
     void set_text_and_restart_editing(QString const& text);
 
     WebView::Omnibox m_omnibox;
