@@ -117,6 +117,23 @@ pub(crate) fn text_fragments_of_content_are_producers(content: &crate::layout::i
         && bottom - top > crate::css::css_pixels::CssPixels::from_integer(TALLEST_TEXT_PLANNED_IN_ONE_PIECE)
 }
 
+/// Whether the foreground of a box with lines is planned the same for `content` as it was for `previous`, both as the
+/// box's row holds them: the same producers, in the same order.
+pub(crate) fn content_plans_same_foreground(
+    previous: &crate::layout::inline_content::InlineContent,
+    content: &crate::layout::inline_content::InlineContent,
+) -> bool {
+    let text_fragments_are_producers = text_fragments_of_content_are_producers(content);
+    if text_fragments_are_producers != text_fragments_of_content_are_producers(previous) {
+        return false;
+    }
+    // NB: Plain text has no items. Where its text fragments are producers, the plan lists every one of them.
+    if text_fragments_are_producers && content.items.is_empty() && content.fragments.len() != previous.fragments.len() {
+        return false;
+    }
+    previous.has_same_item_order(content)
+}
+
 pub(crate) fn text_fragments_are_producers(rows: &impl PaintRead, root: NodeSlotId) -> bool {
     rows.committed_side_data(root)
         .inline_content

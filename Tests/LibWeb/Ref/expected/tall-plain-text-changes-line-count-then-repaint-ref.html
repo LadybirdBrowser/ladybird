@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+    div {
+        float: left;
+        width: 0;
+        margin-right: 100px;
+        font: 20px monospace;
+        line-height: 300px;
+    }
+    .vertical {
+        writing-mode: vertical-rl;
+        width: auto;
+        height: 800px;
+        line-height: 30px;
+    }
+    .columns {
+        columns: 2;
+        column-gap: 100px;
+        height: 700px;
+    }
+</style>
+<div>a b</div>
+<div>a b c</div>
+<div>a</div>
+<div>a b c</div>
+<div class="vertical">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</div>
+<div class="vertical">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</div>
+<div class="columns">a b c</div>
+<div class="columns">a b c d e f</div>

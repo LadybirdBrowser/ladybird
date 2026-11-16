@@ -512,16 +512,13 @@ impl<'tree> Commit<'_, 'tree> {
         if !keeps_committed_subtree {
             self.arena_mut().forget_committed_out_of_flow_facts(node);
         }
-        let previous_fragmented_content = (has_more_fragments
+        let previous_inline_content = previous
+            .as_ref()
+            .and_then(|previous| previous.previous_inline_content.clone());
+        let is_or_was_fragmented = has_more_fragments
             || previous
                 .as_ref()
-                .is_some_and(|previous| previous.previous_fragments.len() > 1))
-        .then(|| {
-            previous
-                .as_ref()
-                .and_then(|previous| previous.previous_inline_content.clone())
-        })
-        .flatten();
+                .is_some_and(|previous| previous.previous_fragments.len() > 1);
         let prepared_row = self.prepare_node(node, true, keeps_committed_subtree, enclosing_line_root_changes);
         self.committed_anew.push(node);
         if let Some(previous) = previous {
@@ -588,7 +585,8 @@ impl<'tree> Commit<'_, 'tree> {
             let line_data_changes = self.set_line_data(
                 node,
                 line_data,
-                previous_fragmented_content,
+                previous_inline_content,
+                is_or_was_fragmented,
                 link.fragment.sides.content_size,
             );
             line_root_changes_for_children = line_root_changes_for_children.union(line_data_changes);
@@ -912,7 +910,8 @@ impl<'tree> Commit<'_, 'tree> {
         &mut self,
         slot: NodeSlotId,
         line_data: &std::sync::Arc<crate::layout::inline_content::InlineContent>,
-        previous_fragmented_content: Option<std::sync::Arc<crate::layout::inline_content::InlineContent>>,
+        previous_content: Option<std::sync::Arc<crate::layout::inline_content::InlineContent>>,
+        is_or_was_fragmented: bool,
         content_size: used_values::FfiCssPixelSize,
     ) -> LineRootChanges {
         if !node_painting::has_lines(self.arena(), slot) {
@@ -928,16 +927,16 @@ impl<'tree> Commit<'_, 'tree> {
             &physical_line_data
         };
         let has_pieces = !line_data.inline_box_pieces.is_empty();
-        let (content_changed, item_order_changed) = previous_fragmented_content.map_or((false, false), |previous| {
-            if std::sync::Arc::ptr_eq(&previous, line_data) || *previous == **line_data {
+        // NB: The link of a box in one fragment says how its content changed, but compares the content as layout made
+        //     it. The plan of the foreground reads the content the row holds, which is merged and in the physical
+        //     plane, so that is what says whether the plan changed.
+        let (content_changed, item_order_changed) = previous_content.map_or((false, false), |previous| {
+            if std::sync::Arc::ptr_eq(&previous, line_data) {
                 return (false, false);
             }
-            let fragments_became_or_stopped_being_producers =
-                crate::painting::paint_order_plan::text_fragments_of_content_are_producers(&previous)
-                    != crate::painting::paint_order_plan::text_fragments_of_content_are_producers(line_data);
             (
-                true,
-                !previous.has_same_item_order(line_data) || fragments_became_or_stopped_being_producers,
+                is_or_was_fragmented && *previous != **line_data,
+                !crate::painting::paint_order_plan::content_plans_same_foreground(&previous, line_data),
             )
         });
         self.arena_mut().committed_side_data_mut(slot).inline_content = Some(line_data.clone());
