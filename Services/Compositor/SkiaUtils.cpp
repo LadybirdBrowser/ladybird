@@ -492,6 +492,10 @@ sk_sp<SkImage> sk_texture_image_sharing_pixels_of_decoded_image_frame([[maybe_un
     auto* gr_context = skia_backend_context.sk_context();
     if (!iosurface || !gr_context)
         return nullptr;
+    // NB: Metal aborts when asked for a texture larger than the GPU supports, so such a frame is drawn from its pixels
+    //     in memory instead.
+    if (frame.width() > gr_context->maxTextureSize() || frame.height() > gr_context->maxTextureSize())
+        return nullptr;
 
     auto texture_format = first_is_one_of(frame.format(), BitmapFormat::RGBA8888, BitmapFormat::RGBx8888) ? MetalTextureFormat::RGBA8 : MetalTextureFormat::BGRA8;
     // The frame's surface may come from another process, which need not have aligned its rows as the GPU needs them,
