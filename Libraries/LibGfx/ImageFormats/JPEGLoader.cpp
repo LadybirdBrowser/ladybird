@@ -91,7 +91,29 @@ ErrorOr<void> JPEGLoadingContext::decode()
         cinfo.out_color_space = JCS_EXT_BGRX;
     }
 
+    // NB: A JPEG with several scans gives no rows until all of them have been read, unless it's decoded as a buffered
+    //     image, which can output its rows from whatever input has been read. So decode it that way, and a file that
+    //     was cut off short still shows the scans that did arrive.
+    bool const decode_as_buffered_image = jpeg_has_multiple_scans(&cinfo);
+    cinfo.buffered_image = decode_as_buffered_image;
+
     jpeg_start_decompress(&cinfo);
+    if (decode_as_buffered_image) {
+        int status;
+        do {
+            status = jpeg_consume_input(&cinfo);
+        } while (status != JPEG_SUSPENDED && status != JPEG_REACHED_EOI);
+        auto scan = cinfo.input_scan_number;
+        if (status != JPEG_REACHED_EOI) {
+            // NB: An output pass for the scan being read waits for the rest of that scan's data, which isn't coming,
+            //     so output from the scan before it, which only waits for data already read. Block smoothing would
+            //     wait on rows of the scan after the one output, too, so leave it off.
+            if (scan > 1)
+                --scan;
+            cinfo.do_block_smoothing = false;
+        }
+        jpeg_start_output(&cinfo, scan);
+    }
     bool could_read_all_scanlines = true;
 
     if (cinfo.out_color_space == JCS_EXT_BGRX) {
@@ -178,7 +200,10 @@ ErrorOr<void> JPEGLoadingContext::decode()
         free(icc_data_ptr);
     }
 
-    if (could_read_all_scanlines)
+    if (decode_as_buffered_image)
+        jpeg_finish_output(&cinfo);
+
+    if (could_read_all_scanlines && (!decode_as_buffered_image || jpeg_input_complete(&cinfo)))
         jpeg_finish_decompress(&cinfo);
     else
         jpeg_abort_decompress(&cinfo);
