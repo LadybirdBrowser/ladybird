@@ -10,7 +10,7 @@
 
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
-#include <LibCrypto/Hash/HashManager.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/PK.h>
 

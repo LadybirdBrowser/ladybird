@@ -7,7 +7,7 @@
 #include <AK/Array.h>
 #include <AK/Hex.h>
 #include <AK/Vector.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibDatabase/Database.h>
 #include <LibDatabase/ResultRow.h>
 #include <LibWebView/FaviconStore.h>
@@ -76,7 +76,7 @@ Optional<String> FaviconStore::add_favicon(ByteBuffer favicon_png)
     if (favicon_png.is_empty() || favicon_png.size() > MAXIMUM_FAVICON_BYTE_COUNT)
         return {};
 
-    auto hash_bytes = encode_hex(Crypto::Hash::SHA256::hash(favicon_png).bytes());
+    auto hash_bytes = encode_hex(Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, favicon_png).bytes());
     auto hash = MUST(String::from_byte_string(hash_bytes));
     if (!m_storage->add_favicon(hash, move(favicon_png)))
         return {};
