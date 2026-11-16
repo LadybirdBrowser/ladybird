@@ -501,15 +501,7 @@ public:
 
         m_quit_action = make_action("&Quit");
         m_quit_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Quit));
-#if defined(AK_OS_MACOS)
         QObject::connect(m_quit_action, &QAction::triggered, this, []() { Application::the().quit(); });
-#else
-        QObject::connect(m_quit_action, &QAction::triggered, this, []() {
-            // If there are no active windows, we are certainly already in the process of quitting.
-            if (auto* window = Application::the().active_window_if_any())
-                window->close();
-        });
-#endif
 
         m_bookmarks_menu = create_application_menu(*m_application_widget, Application::bookmarks().menu());
 
