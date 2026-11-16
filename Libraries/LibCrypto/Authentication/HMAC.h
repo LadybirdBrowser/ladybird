@@ -9,7 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
-#include <LibCrypto/Hash/HashManager.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/OpenSSLForward.h>
 

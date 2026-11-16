@@ -8,7 +8,7 @@
 #include <AK/Hex.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/CrashReportDiagnostics.h>
 #include <LibWebView/CrashReportStore.h>
@@ -121,7 +121,7 @@ void CrashReportsUI::load_reports()
 
         auto index = group_indices.ensure(signature, [&] {
             groups.append({
-                .id = encode_hex(Crypto::Hash::SHA256::hash(signature.bytes()).bytes()),
+                .id = encode_hex(Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, signature.bytes()).bytes()),
                 .process = process,
                 .last_crashed_at = crashed_at,
                 .names = {},

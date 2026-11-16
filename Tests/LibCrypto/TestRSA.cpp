@@ -7,7 +7,7 @@
 
 #include <AK/Base64.h>
 #include <LibCrypto/Certificate/Certificate.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibCrypto/PK/PK.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibTest/TestCase.h>
@@ -21,7 +21,7 @@ static ByteBuffer operator""_b(char const* string, size_t length)
 TEST_CASE(test_RSA_rejects_invalid_public_key)
 {
     Array<u8, 1> message { 42 };
-    auto digest = Crypto::Hash::SHA256::hash(message);
+    auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, message);
 
     Array<u8, 128> modulus;
     modulus.fill(0xff);
@@ -36,7 +36,7 @@ TEST_CASE(test_RSA_rejects_invalid_public_key)
     auto separator = encoded_message.size() - digest_info_prefix.size() - digest.bytes().size() - 1;
     encoded_message[separator] = 0;
     __builtin_memcpy(encoded_message.data() + separator + 1, digest_info_prefix.data(), digest_info_prefix.size());
-    __builtin_memcpy(encoded_message.data() + separator + 1 + digest_info_prefix.size(), digest.data, digest.bytes().size());
+    __builtin_memcpy(encoded_message.data() + separator + 1 + digest_info_prefix.size(), digest.bytes().data(), digest.bytes().size());
 
     Crypto::PK::RSAPublicKey invalid_key { Crypto::UnsignedBigInteger::import_data(modulus), 1 };
     Crypto::PK::RSA_PKCS1_EMSA verifier { Crypto::Hash::HashKind::SHA256, invalid_key };
@@ -169,7 +169,7 @@ TEST_CASE(test_RSA_rejects_exponent_one)
 
     // With e = 1, the EMSA-PKCS1-v1_5 encoding of the message is its own signature.
     ByteBuffer message { "message"_b };
-    auto digest = Crypto::Hash::SHA256::hash(message);
+    auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, message);
     static constexpr Array<u8, 19> sha256_digest_info { 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20 };
 
     auto encoded = TRY_OR_FAIL(ByteBuffer::create_zeroed(public_key.length()));

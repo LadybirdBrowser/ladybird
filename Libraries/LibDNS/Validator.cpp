@@ -11,8 +11,7 @@
 #include <AK/QuickSort.h>
 #include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
-#include <LibCrypto/Hash/SHA1.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibDNS/Validator.h>
 
@@ -152,11 +151,11 @@ static ErrorOr<bool> verify_signature(Records::DNSKEY const& key, ReadonlyBytes 
             scalar_size,
         };
         if (is_p256) {
-            auto digest = Crypto::Hash::SHA256::hash(signed_data);
+            auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, signed_data);
             Crypto::Curves::SECP256r1 curve;
             return curve.verify(digest.bytes(), point, ecdsa_signature);
         }
-        auto digest = Crypto::Hash::SHA384::hash(signed_data);
+        auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA384, signed_data);
         Crypto::Curves::SECP384r1 curve;
         return curve.verify(digest.bytes(), point, ecdsa_signature);
     }
@@ -179,11 +178,11 @@ static ErrorOr<ByteBuffer> ds_digest(DomainName const& owner, Records::DNSKEY co
     TRY(key.to_raw(input));
     switch (digest_type) {
     case DigestType::SHA1:
-        return ByteBuffer::copy(Crypto::Hash::SHA1::hash(input).bytes());
+        return ByteBuffer::copy(Crypto::Hash::digest(Crypto::Hash::HashKind::SHA1, input).bytes());
     case DigestType::SHA256:
-        return ByteBuffer::copy(Crypto::Hash::SHA256::hash(input).bytes());
+        return ByteBuffer::copy(Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, input).bytes());
     case DigestType::SHA384:
-        return ByteBuffer::copy(Crypto::Hash::SHA384::hash(input).bytes());
+        return ByteBuffer::copy(Crypto::Hash::digest(Crypto::Hash::HashKind::SHA384, input).bytes());
     default:
         return Error::from_string_literal("Unsupported DS digest type");
     }
@@ -389,12 +388,12 @@ static ErrorOr<ByteBuffer> nsec3_hash(DomainName const& name, Records::NSEC3 con
     ByteBuffer input;
     TRY(name.canonicalized().to_raw(input));
     TRY(input.try_append(params.salt));
-    auto digest = Crypto::Hash::SHA1::hash(input);
+    auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA1, input);
     for (size_t i = 0; i < params.iterations; ++i) {
         ByteBuffer next;
         TRY(next.try_append(digest.bytes()));
         TRY(next.try_append(params.salt));
-        digest = Crypto::Hash::SHA1::hash(next);
+        digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA1, next);
     }
     return ByteBuffer::copy(digest.bytes());
 }

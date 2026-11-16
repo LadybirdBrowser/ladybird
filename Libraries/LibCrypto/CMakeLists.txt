@@ -19,9 +19,6 @@ set(SOURCES
     Hash/SHAKE.cpp
     Hash/HKDF.cpp
     Hash/PBKDF2.cpp
-    Hash/SHA1.cpp
-    Hash/SHA2.cpp
-    Hash/SHA3.cpp
     PK/EC.cpp
     PK/MLDSA.cpp
     PK/MLKEM.cpp

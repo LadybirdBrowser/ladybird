@@ -22,10 +22,8 @@
 #include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/Hash/Argon2.h>
 #include <LibCrypto/Hash/HKDF.h>
-#include <LibCrypto/Hash/HashManager.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibCrypto/Hash/PBKDF2.h>
-#include <LibCrypto/Hash/SHA1.h>
-#include <LibCrypto/Hash/SHA2.h>
 #include <LibCrypto/Hash/SHAKE.h>
 #include <LibCrypto/KeyHandle.h>
 #include <LibCrypto/PK/MLDSA.h>
@@ -409,12 +407,9 @@ extern "C" bool crypto_sha_digest(::Crypto::Hash::HashKind, ReadonlyBytes, void*
 
 bool crypto_sha_digest(::Crypto::Hash::HashKind hash_kind, ReadonlyBytes data, void* state, ReceiveEncodedBytes receive)
 {
-    ::Crypto::Hash::Manager hash { hash_kind };
-    hash.update(data);
-
-    auto digest = hash.digest();
-    auto result_buffer = ByteBuffer::copy(digest.immutable_data(), hash.digest_size());
-    return receive_byte_result(result_buffer, state, receive);
+    auto digest = ::Crypto::Hash::digest(hash_kind, data);
+    receive(state, digest.bytes());
+    return true;
 }
 
 struct OptionalBytes {
@@ -791,11 +786,6 @@ extern "C" {
 void crypto_hmac_sign(::Crypto::Hash::HashKind, ReadonlyBytes, ReadonlyBytes, void*, ReceiveEncodedBytes);
 }
 
-static_assert(::Crypto::Hash::SHA1::block_size() == 64);
-static_assert(::Crypto::Hash::SHA256::block_size() == 64);
-static_assert(::Crypto::Hash::SHA384::block_size() == 128);
-static_assert(::Crypto::Hash::SHA512::block_size() == 128);
-
 void crypto_hmac_sign(::Crypto::Hash::HashKind hash_kind, ReadonlyBytes key, ReadonlyBytes message, void* state, ReceiveEncodedBytes receive)
 {
     ::Crypto::Authentication::HMAC hmac(hash_kind, key);
@@ -977,7 +967,7 @@ FlatPtr crypto_argon2_derive_key(::Crypto::Hash::Argon2Type, Argon2Inputs const*
 
 size_t crypto_hash_digest_size(::Crypto::Hash::HashKind hash_kind)
 {
-    return ::Crypto::Hash::Manager { hash_kind }.digest_size();
+    return ::Crypto::Hash::digest_size(hash_kind);
 }
 
 bool crypto_hkdf_derive_key(::Crypto::Hash::HashKind kind, ReadonlyBytes salt, ReadonlyBytes key_derivation_key, ReadonlyBytes info, u32 length, void* state, ReceiveEncodedBytes receive)
