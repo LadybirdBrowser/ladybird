@@ -264,9 +264,7 @@ public:
     FILE* output() const { return m_output; }
     size_t terminal_width() const { return m_terminal_width; }
     size_t reserved_lines() const { return m_reserved_lines; }
-    void set_reserved_lines(size_t n) { m_reserved_lines = n; }
     ByteString const& log_file_path() const { return m_log_file_path; }
-    bool redirected_stdio() const { return m_saved_stdout_fd >= 0; }
 
     void refresh_terminal_width()
     {
