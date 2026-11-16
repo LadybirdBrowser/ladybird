@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Array.h>
 #include <AK/BitCast.h>
 #include <AK/HashFunctions.h>
@@ -476,6 +477,51 @@ static bool is_word_separator(u32 code_point)
     return code_point == 0x0020 || code_point == 0x00A0 || code_point == 0x000A;
 }
 
+// https://drafts.csswg.org/css-text-3/#cursive-script
+static bool is_cursive_script(u32 code_point)
+{
+    switch (hb_unicode_script(hb_unicode_funcs_get_default(), code_point)) {
+    case HB_SCRIPT_ARABIC:
+    case HB_SCRIPT_HANIFI_ROHINGYA:
+    case HB_SCRIPT_MANDAIC:
+    case HB_SCRIPT_MONGOLIAN:
+    case HB_SCRIPT_NKO:
+    case HB_SCRIPT_PHAGS_PA:
+    case HB_SCRIPT_SYRIAC:
+        return true;
+    case HB_SCRIPT_COMMON:
+    case HB_SCRIPT_INHERITED: {
+        // https://drafts.csswg.org/css-text-3/#character-properties
+        // script property: Defined in Unicode Standard Annex #24 [UAX24] and given as the Script property in the
+        // Unicode Character Database [UAX44]. (UAs must include any ScriptExtensions.txt assignments in this mapping.)
+        // NB: So a character that serves several scripts, as the tatweel (U+0640) does, belongs to a cursive script
+        //     when one of its script extensions is one.
+        static auto const cursive_scripts = [] {
+            constexpr Array names { "Arab"sv, "Rohg"sv, "Mand"sv, "Mong"sv, "Nkoo"sv, "Phag"sv, "Syrc"sv };
+            Array<Unicode::Script, names.size()> scripts;
+            for (size_t i = 0; i < names.size(); ++i)
+                scripts[i] = Unicode::script_from_string(names[i]).release_value();
+            return scripts;
+        }();
+        return any_of(cursive_scripts, [&](auto script) { return Unicode::code_point_has_script_extension(code_point, script); });
+    }
+    default:
+        return false;
+    }
+}
+
+// Whether letter-spacing goes after the last glyph of the cluster starting at cluster_start: Every cluster takes it but
+// one that starts with a character of a cursive script.
+static bool cluster_takes_letter_spacing(Utf16View const& string, u32 cluster_start)
+{
+    // https://drafts.csswg.org/css-text-3/#cursive-tracking
+    // Otherwise, if the UA cannot expand text from a cursive script without breaking its cursive connections, it must
+    // not apply spacing between any pair of that script's typographic letter units at all (effectively treating each
+    // word as a single typographic letter unit for the purpose of letter-spacing).
+    // NB: Spaces still take it: Their script is Common, with no extensions.
+    return cluster_start >= string.length_in_code_units() || !is_cursive_script(string.code_point_at(cluster_start));
+}
+
 static size_t length_of_trailing_whitespace_run(Utf16View const& string)
 {
     size_t length = 0;
@@ -575,7 +621,8 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
         auto is_last_glyph_of_cluster = i + 1 == glyph_count || glyph_info[i + 1].cluster != glyph_info[i].cluster;
         float extra_advance = 0;
         if (is_last_glyph_of_cluster) {
-            extra_advance = letter_spacing;
+            if (letter_spacing != 0 && cluster_takes_letter_spacing(string, glyph_info[i].cluster))
+                extra_advance = letter_spacing;
             if (auto starting_offset = glyph_info[i].cluster; starting_offset < string.length_in_code_units()
                 && is_word_separator(string.code_point_at(starting_offset)))
                 extra_advance += word_spacing;
@@ -617,12 +664,12 @@ float measure_text_width(Utf16View const& string, Font const& font, float letter
     auto const* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
     auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
 
-    // Letter-spacing goes once per cluster; see build_origin_relative_shape().
     double point_x = 0;
     size_t cluster_count = 0;
     for (size_t i = 0; i < glyph_count; ++i) {
         point_x += positions[i].x_advance;
-        if (i + 1 == glyph_count || glyph_info[i + 1].cluster != glyph_info[i].cluster)
+        if (letter_spacing != 0 && (i + 1 == glyph_count || glyph_info[i + 1].cluster != glyph_info[i].cluster)
+            && cluster_takes_letter_spacing(string, glyph_info[i].cluster))
             ++cluster_count;
     }
 

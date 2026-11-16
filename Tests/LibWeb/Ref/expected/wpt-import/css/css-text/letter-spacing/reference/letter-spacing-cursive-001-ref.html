@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8">
+<title>
+CSS Text Test - Letter-spacing should not be applied for Cursive Scripts.
+</title>
+<link rel="author" title="Sejal Anand" href="mailto:sejalanand@microsoft.com">
+<style>
+div {
+  margin: 1em;
+  font: 24px serif;
+  white-space: nowrap;
+  display: inline-block;
+  outline: 1px solid gray;
+}
+</style>
+</head>
+<body>
+<p>
+The following test will pass if no spacing appears between letters within
+Arabic words. Both Arabic texts should display identically.
+</p>
+<div>
+<span>مرحباً</span>
+</div>
+<br>
+<div>
+<span>مرحباً</span>
+</div>
+<br>
+</body>
+</html>

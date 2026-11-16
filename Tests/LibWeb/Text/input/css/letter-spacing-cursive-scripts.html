@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    span {
+        font-size: 20px;
+        white-space: pre;
+    }
+    .spaced {
+        letter-spacing: 10px;
+    }
+</style>
+    <div><span>مرحبا</span><span class="spaced">مرحبا</span></div>
+    <div><span>بَب</span><span class="spaced">بَب</span></div>
+    <div><span>بـب</span><span class="spaced">بـب</span></div>
+    <div><span>ب١٢ب</span><span class="spaced">ب١٢ب</span></div>
+    <div><span>بب بب</span><span class="spaced">بب بب</span></div>
+    <div><span>ܫܠܡܐ</span><span class="spaced">ܫܠܡܐ</span></div>
+    <div><span>ߒߞߏ</span><span class="spaced">ߒߞߏ</span></div>
+    <div><span>ᠮᠣᠩᠭᠤᠯ</span><span class="spaced">ᠮᠣᠩᠭᠤᠯ</span></div>
+    <div><span>abc</span><span class="spaced">abc</span></div>
+    <div><span>שלום</span><span class="spaced">שלום</span></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // How many times the spacing went into each sample: what letter-spacing adds to its width, over the spacing.
+        const names = [
+            "Arabic word",
+            "Arabic with harakat",
+            "Arabic with tatweel",
+            "Arabic with Arabic-Indic digits",
+            "Arabic words with a space",
+            "Syriac word",
+            "N'Ko word",
+            "Mongolian word",
+            "Latin word",
+            "Hebrew word",
+        ];
+        document.querySelectorAll("div").forEach((div, index) => {
+            const [plain, spaced] = div.querySelectorAll("span");
+            const count = Math.round((spaced.getBoundingClientRect().width - plain.getBoundingClientRect().width) / 10);
+            println(`${names[index]}: ${count}`);
+        });
+    });
+</script>

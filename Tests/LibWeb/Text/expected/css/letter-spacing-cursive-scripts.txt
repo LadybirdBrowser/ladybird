@@ -1,0 +1,10 @@
+Arabic word: 0
+Arabic with harakat: 0
+Arabic with tatweel: 0
+Arabic with Arabic-Indic digits: 0
+Arabic words with a space: 1
+Syriac word: 0
+N'Ko word: 0
+Mongolian word: 0
+Latin word: 3
+Hebrew word: 4
