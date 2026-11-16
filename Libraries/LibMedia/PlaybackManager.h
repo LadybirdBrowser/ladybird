@@ -150,7 +150,6 @@ private:
         // While ticking, the sink's dispatched status is live and remains the sole ending
         // authority; while unticked, it is stale and the track ends at its verified end time.
         bool ticking { true };
-        bool read_blocked { false };
         Function<void(Gfx::Size<u32>)> on_resize { nullptr };
     };
     using VideoTrackDatas = Vector<VideoTrackData, EXPECTED_VIDEO_TRACK_COUNT>;
@@ -160,7 +159,6 @@ private:
         NonnullRefPtr<Demuxer> demuxer;
         NonnullRefPtr<DecodedAudioProducer> producer;
         bool enabled { false };
-        bool read_blocked { false };
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
 

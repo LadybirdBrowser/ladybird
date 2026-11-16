@@ -259,12 +259,6 @@ void PlaybackManager::set_up_producers()
                 return;
             self->dispatch_error(move(error));
         });
-        video_track_data.producer->set_read_blocked_change_handler([self = weak(), track = video_track_data.track](ReadBlocked read_blocked) {
-            if (!self)
-                return;
-            self->get_video_data_for_track(track).read_blocked = read_blocked == ReadBlocked::Yes;
-            self->update_pipeline_state();
-        });
     }
 
     for (auto const& audio_track_data : m_audio_track_datas) {
@@ -272,12 +266,6 @@ void PlaybackManager::set_up_producers()
             if (!self)
                 return;
             self->dispatch_error(move(error));
-        });
-        audio_track_data.producer->set_read_blocked_change_handler([self = weak(), track = audio_track_data.track](ReadBlocked read_blocked) {
-            if (!self)
-                return;
-            self->get_audio_data_for_track(track).read_blocked = read_blocked == ReadBlocked::Yes;
-            self->update_pipeline_state();
         });
     }
 }
@@ -319,18 +307,7 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
     auto status = PipelineStatus::EndOfStream;
 
     if (m_audio_sink != nullptr) {
-        auto audio_status = m_audio_sink_status;
-        if (audio_status == PipelineStatus::Pending) {
-            for (auto const& track_data : m_audio_track_datas) {
-                if (!track_data.enabled)
-                    continue;
-                if (!track_data.read_blocked)
-                    continue;
-                audio_status = PipelineStatus::Blocked;
-                break;
-            }
-        }
-        status = select_combined_pipeline_status(status, audio_status);
+        status = select_combined_pipeline_status(status, m_audio_sink_status);
     } else {
         for (auto const& track_data : m_audio_track_datas) {
             if (!track_data.enabled)
@@ -352,8 +329,6 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
             if (verified_end_time.has_value() && current_time() >= *verified_end_time)
                 track_status = PipelineStatus::EndOfStream;
         }
-        if (track_status == PipelineStatus::Pending && track_data.read_blocked)
-            track_status = PipelineStatus::Blocked;
         status = select_combined_pipeline_status(status, track_status);
     }
 
@@ -369,9 +344,9 @@ void PlaybackManager::update_pipeline_state()
             StringBuilder breakdown;
             breakdown.appendff("audio sink {}{}", m_audio_sink_status, m_audio_sink ? "" : " (none)");
             for (auto const& track_data : m_audio_track_datas)
-                breakdown.appendff(", audio track {} {}{}", track_data.track.identifier(), track_data.enabled ? "enabled" : "disabled", track_data.read_blocked ? " read blocked" : "");
+                breakdown.appendff(", audio track {} {}", track_data.track.identifier(), track_data.enabled ? "enabled" : "disabled");
             for (auto const& track_data : m_video_track_datas)
-                breakdown.appendff(", video track {} sink {}{}{}", track_data.track.identifier(), track_data.sink_status, track_data.ticking ? "" : " unticked", track_data.read_blocked ? " read blocked" : "");
+                breakdown.appendff(", video track {} sink {}{}", track_data.track.identifier(), track_data.sink_status, track_data.ticking ? "" : " unticked");
             dbgln("PlaybackManager({:p}): Combined status {} in {} ({})", this, status, m_handler->state(), breakdown.string_view());
         }
     }

@@ -53,7 +53,6 @@ public:
     ~DecodedVideoProducer();
 
     void set_error_handler(ErrorHandler&&);
-    void set_read_blocked_change_handler(ReadBlockedChangeHandler);
 
     virtual void start() override;
 
@@ -71,7 +70,6 @@ private:
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
-        void set_read_blocked_change_handler(ReadBlockedChangeHandler);
         void set_wake_handler(PipelineWakeHandler);
 
         void start();
@@ -82,6 +80,7 @@ private:
         DecoderErrorOr<void> receive_coded_frame(CodedFrame const&, DecodeIntent);
         DecoderErrorOr<bool> replace_drained_decoder();
         bool check_if_seek_is_needed_or_allow_demuxer_reads(u32 seek_id);
+        void note_whether_decoder_has_decode_in_progress();
         void wait_for_another_seek_or_exit(u32 seek_id);
         void release_decoder();
         void exit();
@@ -135,7 +134,7 @@ private:
             ExitDecodeLoop,
         };
         WaitResult wait_for_frame_storage_while_locked();
-        void dispatch_read_blocked_change(ReadBlocked blocked);
+        bool read_is_blocked_while_locked() const;
 
         Core::EventLoop& m_main_thread_event_loop;
 
@@ -172,8 +171,10 @@ private:
         FrameQueue m_queue;
         RefPtr<VideoFrame> m_last_queued_frame;
         ErrorHandler m_error_handler;
-        ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
+        // Set by the demuxer under its own lock, which may be taken while ours is held.
+        Atomic<bool> m_demuxer_read_is_blocked { false };
+        bool m_decoder_has_decode_in_progress { false };
 
         enum class SeekReason : u8 {
             Normal,

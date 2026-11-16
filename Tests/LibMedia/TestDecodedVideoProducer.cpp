@@ -45,9 +45,13 @@ public:
             if (m_samples_served >= m_samples_before_blocking) {
                 m_read_is_blocked = true;
                 m_state_changed.broadcast();
+                if (m_read_blocked_change_handler)
+                    m_read_blocked_change_handler(Media::ReadBlocked::Yes);
                 while (m_blocks_reads && !m_reads_are_aborted && !m_blocked_samples_are_permanently_unavailable)
                     m_state_changed.wait();
                 m_read_is_blocked = false;
+                if (m_read_blocked_change_handler)
+                    m_read_blocked_change_handler(Media::ReadBlocked::No);
                 if (m_reads_are_aborted)
                     return Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Blocking read was aborted"sv);
                 if (m_blocked_samples_are_permanently_unavailable)
@@ -91,7 +95,11 @@ public:
         }
         m_inner->reset_blocking_reads_aborted_for_track(track);
     }
-    virtual void set_read_blocked_change_handler_for_track(Media::Track const& track, Media::ReadBlockedChangeHandler handler) override { m_inner->set_read_blocked_change_handler_for_track(track, move(handler)); }
+    virtual void set_read_blocked_change_handler_for_track(Media::Track const&, Media::ReadBlockedChangeHandler handler) override
+    {
+        MutexLocker locker { m_mutex };
+        m_read_blocked_change_handler = move(handler);
+    }
 
     bool wait_until_a_read_blocks(AK::Duration time_limit)
     {
@@ -148,6 +156,7 @@ private:
     bool m_reads_are_aborted { false };
     bool m_blocked_samples_are_permanently_unavailable { false };
     bool m_read_is_blocked { false };
+    Media::ReadBlockedChangeHandler m_read_blocked_change_handler;
     Atomic<size_t> m_seek_count { 0 };
     Atomic<size_t> m_forced_seek_count { 0 };
     Atomic<bool> m_seek_is_expected { false };
@@ -650,6 +659,50 @@ TEST_CASE(output_that_arrives_while_the_demuxer_blocks_is_delivered)
         FAIL("The output that arrived while the demuxer blocked was not delivered");
     else
         EXPECT_EQ(frame->timestamp(), sample_timestamps[0]);
+
+    demuxer->stop_blocking_reads();
+}
+
+// Output that is still being decoded can arrive without another coded frame, so the producer is only blocked once the
+// decoder has nothing left in progress.
+TEST_CASE(a_blocked_read_reports_blocked_only_once_no_decode_is_in_progress)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto withheld_outputs = make_ref_counted<WithheldOutputs>();
+    WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(withheld_outputs);
+    ScopeGuard stop_withholding = [] { WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(nullptr); };
+
+    auto sample_timestamps = presentation_timestamps_of_first_samples("./vp9_in_webm.webm"sv, 3);
+    auto [inner_demuxer, track] = demuxer_and_video_track_for("./vp9_in_webm.webm"sv);
+    auto demuxer = BlockingDemuxer::create(inner_demuxer, sample_timestamps.size());
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, track));
+    producer->set_error_handler([&](Media::DecoderError&& error) {
+        FAIL(ByteString::formatted("An error occurred while decoding: {}", error.description()));
+    });
+    producer->start();
+
+    auto time_limit = AK::Duration::from_seconds(5);
+    if (!demuxer->wait_until_a_read_blocks(time_limit)) {
+        FAIL("Timed out waiting for the decode thread to block on the demuxer");
+        return;
+    }
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Pending);
+
+    for (size_t index = 0; index < sample_timestamps.size(); index++) {
+        EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Pending);
+        EXPECT(withheld_outputs->release_next());
+        auto frame = take_frame_within_time_limit(*producer, loop, time_limit);
+        if (frame == nullptr) {
+            FAIL("A withheld output was not delivered");
+            return;
+        }
+    }
+
+    auto deadline = MonotonicTime::now_coarse() + time_limit;
+    while (producer->peek().status != Media::PipelineStatus::Blocked && MonotonicTime::now_coarse() < deadline)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Blocked);
 
     demuxer->stop_blocking_reads();
 }

@@ -45,6 +45,7 @@ public:
     ReadonlySpan<float> move_output_to_playback_stream_buffer(Span<float>, MonotonicTime buffer_starts_playing_at);
     i64 hold_clock_at_played_frame_while_locked(MediaTimeReader const&);
     void dispatch_state_if_changed(PipelineStatus, u32 seek_id);
+    void report_input_status_while_locked(PipelineStatus, u32 seek_id);
     void handle_input_suspension_while_locked(u32 seek_id);
     void request_resume_from_suspension_while_locked();
     void request_played_out_check_if_needed_while_locked();
@@ -120,9 +121,16 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         if (output_thread_data->m_seek_id == seek_id_at_probe) {
                             if (status == PipelineStatus::Suspended) {
                                 output_thread_data->handle_input_suspension_while_locked(seek_id_at_probe);
-                            } else if (audio_processor_will_enqueue(status)) {
-                                output_thread_data->m_last_pull_status = status;
-                                output_thread_data->m_waiting_for_upstream_data = false;
+                            } else {
+                                if (audio_processor_will_enqueue(status)) {
+                                    output_thread_data->m_last_pull_status = status;
+                                    output_thread_data->m_waiting_for_upstream_data = false;
+                                }
+                                // Nothing is pulled while the playback rate is zero, so the status is reported here.
+                                if (output_thread_data->m_playback_rate == 0.0f && seek_id_at_probe != 0) {
+                                    output_thread_data->m_last_pull_status = status;
+                                    output_thread_data->report_input_status_while_locked(status, seek_id_at_probe);
+                                }
                             }
                         }
                     }
@@ -158,10 +166,6 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         continue;
                     }
                     if (output_thread_data->m_playback_rate == 0.0f) {
-                        // Buffered input still resolves readiness and seeks while output is stopped. A page may
-                        // wait for canplay before changing its playback rate from zero.
-                        if (auto status = output_thread_data->m_last_pull_status; status_change_should_wake(output_thread_data->m_last_dispatched_status, status))
-                            output_thread_data->dispatch_state_if_changed(status, output_thread_data->m_seek_id);
                         output_thread_data->m_output_condition.wait();
                         continue;
                     }
@@ -236,17 +240,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                     if (audio_processor_will_enqueue(status))
                         output_thread_data->m_waiting_for_upstream_data = false;
 
-                    if (is_waiting_for_data(status)) {
-                        // The output may run dry due to the input running slightly behind our playback rate, so we
-                        // need to start the timer here as well to ensure that it triggers even if the PlaybackStream
-                        // goes idle due to underrun.
-                        output_thread_data->request_played_out_check_if_needed_while_locked();
-                        continue;
-                    }
-                    if (!status_change_should_wake(output_thread_data->m_last_dispatched_status, status))
-                        continue;
-
-                    output_thread_data->dispatch_state_if_changed(status, seek_id_at_pull);
+                    output_thread_data->report_input_status_while_locked(status, seek_id_at_pull);
                 }
             }
 
@@ -489,6 +483,19 @@ void AudioPlaybackSink::OutputThreadData::request_played_out_check_if_needed_whi
         if (auto strong_sink = sink.strong_ref())
             strong_sink->dispatch_waiting_status_once_played_out();
     });
+}
+
+void AudioPlaybackSink::OutputThreadData::report_input_status_while_locked(PipelineStatus status, u32 seek_id)
+{
+    if (is_waiting_for_data(status)) {
+        // The output may run dry due to the input running slightly behind our playback rate, so we need to start the
+        // timer here as well to ensure that it triggers even if the PlaybackStream goes idle due to underrun.
+        request_played_out_check_if_needed_while_locked();
+        return;
+    }
+    if (!status_change_should_wake(m_last_dispatched_status, status))
+        return;
+    dispatch_state_if_changed(status, seek_id);
 }
 
 void AudioPlaybackSink::OutputThreadData::dispatch_state_if_changed(PipelineStatus status, u32 seek_id)
