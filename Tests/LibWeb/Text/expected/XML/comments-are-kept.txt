@@ -1,0 +1,5 @@
+application/xml: #comment " kept ", attributes: xmlns:xml
+text/xml: #comment " kept ", attributes: xmlns:xml
+application/xhtml+xml: #comment " kept ", attributes: xmlns:xml
+image/svg+xml: #comment " kept ", attributes: xmlns:xml
+innerHTML: #comment " in a fragment ", then b

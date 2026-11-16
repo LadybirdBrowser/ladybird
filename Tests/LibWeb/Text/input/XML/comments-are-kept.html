@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const source = '<r xmlns:xml="http://www.w3.org/XML/1998/namespace"><!-- kept --><a/></r>';
+        for (const type of ["application/xml", "text/xml", "application/xhtml+xml", "image/svg+xml"]) {
+            const root = new DOMParser().parseFromString(source, type).documentElement;
+            println(`${type}: ${root.firstChild.nodeName} "${root.firstChild.data}", attributes: ${root.getAttributeNames().join(" ")}`);
+        }
+
+        // A fragment parsed for an element of an XML document keeps its comments as well.
+        const element = new DOMParser().parseFromString("<r/>", "application/xml").documentElement;
+        element.innerHTML = "<!-- in a fragment --><b/>";
+        println(`innerHTML: ${element.firstChild.nodeName} "${element.firstChild.data}", then ${element.lastChild.nodeName}`);
+    });
+</script>
