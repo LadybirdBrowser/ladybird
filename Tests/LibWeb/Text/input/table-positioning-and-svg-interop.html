@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        border-spacing: 0;
+    }
+    td {
+        padding: 0;
+        vertical-align: top;
+    }
+    .case {
+        margin-bottom: 10px;
+        width: 600px;
+        display: flow-root;
+    }
+    .b {
+        background: lightblue;
+    }
+    input, select, textarea, button {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        border: 2px solid black;
+        font-size: 0;
+        appearance: none;
+    }
+</style>
+<div id="cases">
+<!-- 1: abspos table with auto size -->
+<div class="case"><div style="position: relative; height: 60px"><table class="m" style="position: absolute; left: 10px; top: 5px"><tr><td class="m"><div style="width: 70px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 2: abspos table with left and right insets -->
+<div class="case"><div style="position: relative; width: 400px; height: 60px"><table class="m" style="position: absolute; left: 50px; right: 50px"><tr><td class="m"><div style="width: 30px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 3: abspos table with insets and a wide cell -->
+<div class="case"><div style="position: relative; width: 200px; height: 60px"><table class="m" style="position: absolute; left: 50px; right: 50px"><tr><td class="m"><div style="width: 300px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 4: abspos table with top and bottom insets -->
+<div class="case"><div style="position: relative; width: 400px; height: 100px"><table class="m" style="position: absolute; top: 10px; bottom: 10px"><tr><td class="m"><div style="width: 30px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 5: abspos table with percentage size -->
+<div class="case"><div style="position: relative; width: 400px; height: 100px"><table class="m" style="position: absolute; width: 50%; height: 50%; right: 0; bottom: 0"><tr><td class="m"><div style="width: 30px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 6: abspos table with margin: auto centering -->
+<div class="case"><div style="position: relative; width: 400px; height: 100px"><table class="m" style="position: absolute; inset: 0; width: 100px; height: 40px; margin: auto"><tr><td class="m"><div style="width: 30px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 7: abspos table with a caption -->
+<div class="case"><div style="position: relative; width: 400px; height: 100px"><table class="m" style="position: absolute; right: 0; bottom: 0"><caption class="m"><div style="width: 50px; height: 10px"></div></caption><tr><td class="m"><div style="width: 80px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 8: abspos table with static position after inline content -->
+<div class="case"><div style="width: 400px; line-height: 0"><div style="width: 100px; height: 20px"></div><div style="display: inline-block; width: 50px; height: 10px"></div><table class="m" style="position: absolute"><tr><td class="m"><div style="width: 40px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 9: abspos inline-table with static position -->
+<div class="case"><div style="width: 400px; line-height: 0"><div style="display: inline-block; width: 50px; height: 10px"></div><table class="m" style="display: inline-table; position: absolute"><tr><td class="m"><div style="width: 40px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 10: fixed table inside a transformed container -->
+<div class="case"><div style="transform: translate(0); width: 400px; height: 100px"><table class="m" style="position: fixed; right: 10px; bottom: 10px"><tr><td class="m"><div style="width: 40px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 11: fixed table with insets inside a transformed container -->
+<div class="case"><div style="transform: translate(0); width: 400px; height: 100px"><table class="m" style="position: fixed; left: 20px; right: 20px; top: 0"><tr><td class="m"><div style="width: 40px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 12: relatively positioned table -->
+<div class="case"><table class="m" style="position: relative; left: 20px; top: 5px"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table></div>
+
+<!-- 13: sticky table in a scroller -->
+<div class="case"><div style="overflow: auto; height: 60px; width: 300px"><div style="width: 10px; height: 10px"></div><table class="m" style="position: sticky; top: 0"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table><div style="width: 10px; height: 100px"></div></div></div>
+
+<!-- 14: left float table -->
+<div class="case"><div style="width: 400px"><table class="m" style="float: left"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table><div class="m" style="height: 10px"></div></div></div>
+
+<!-- 15: right float table with a percentage width -->
+<div class="case"><div style="width: 400px"><table class="m" style="float: right; width: 25%"><tr><td class="m"><div style="width: 30px; height: 20px"></div></td></tr></table><div class="m" style="height: 10px"></div></div></div>
+
+<!-- 16: two floated tables and wrapping -->
+<div class="case"><div style="width: 200px"><table class="m" style="float: left"><tr><td class="m"><div style="width: 120px; height: 20px"></div></td></tr></table><table class="m" style="float: left"><tr><td class="m"><div style="width: 120px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 17: float table with a margin next to a float -->
+<div class="case"><div style="width: 400px"><div style="float: left; width: 100px; height: 50px"></div><table class="m" style="float: left; margin-left: 10px"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 18: block formatting context table next to two floats -->
+<div class="case"><div style="width: 400px"><div style="float: left; width: 100px; height: 50px"></div><div style="float: right; width: 50px; height: 30px"></div><table class="m" style="width: 100%"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 19: float table with a caption-side bottom caption -->
+<div class="case"><div style="width: 400px"><table class="m" style="float: right"><caption class="m" style="caption-side: bottom"><div style="width: 30px; height: 10px"></div></caption><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 20: float table that is too wide for the line beside a float -->
+<div class="case"><div style="width: 300px"><div style="float: left; width: 200px; height: 30px"></div><table class="m" style="float: left"><tr><td class="m"><div style="width: 150px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 21: table in a sized foreignObject -->
+<div class="case"><svg xmlns="http://www.w3.org/2000/svg" width="300" height="150"><foreignObject width="200" height="100" x="10" y="20"><table class="m" style="width: 100%; height: 100%"><tr><td class="m"><div style="width: 40px; height: 20px"></div></td></tr></table></foreignObject></svg></div>
+
+<!-- 22: table with auto size in a foreignObject -->
+<div class="case"><svg xmlns="http://www.w3.org/2000/svg" width="300" height="150"><foreignObject width="200" height="100"><table class="m" style=""><tr><td class="m"><div style="width: 40px; height: 20px"></div></td></tr></table></foreignObject></svg></div>
+
+<!-- 23: table with a wide cell in a narrow foreignObject -->
+<div class="case"><svg xmlns="http://www.w3.org/2000/svg" width="300" height="150"><foreignObject width="100" height="100"><table class="m" style=""><tr><td class="m"><div style="width: 150px; height: 20px"></div></td></tr></table></foreignObject></svg></div>
+
+<!-- 24: svg with width and height attributes in a cell -->
+<div class="case"><table class="m"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" width="80" height="40"></svg></td><td class="m"><div style="width: 20px; height: 20px"></div></td></tr></table></div>
+
+<!-- 25: block svg with only a viewBox in an auto-width table -->
+<div class="case"><table class="m"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 1" style="display: block"></svg></td><td class="m"><div style="width: 20px; height: 20px"></div></td></tr></table></div>
+
+<!-- 26: block svg with only a viewBox in a fixed-width table -->
+<div class="case"><table class="m" style="width: 300px"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 1" style="display: block"></svg></td><td class="m"><div style="width: 100px; height: 20px"></div></td></tr></table></div>
+
+<!-- 27: block svg with no size and no viewBox in a cell -->
+<div class="case"><table class="m"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" style="display: block"></svg></td></tr></table></div>
+
+<!-- 28: block svg with width: 100% and a viewBox in a fixed layout table -->
+<div class="case"><table class="m" style="width: 300px; table-layout: fixed"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 1" style="display: block; width: 100%"></svg></td><td class="m"><div style="width: 10px; height: 10px"></div></td></tr></table></div>
+
+<!-- 29: block svg with height: 100% and a viewBox in a fixed-height cell -->
+<div class="case"><table class="m"><tr><td class="m" style="height: 100px"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 1" style="display: block; height: 100%"></svg></td></tr></table></div>
+
+<!-- 30: block svg with max-width: 100% in a narrow fixed layout cell -->
+<div class="case"><table class="m" style="width: 100px; table-layout: fixed"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" width="200" height="100" style="display: block; max-width: 100%; height: auto"></svg></td></tr></table></div>
+
+<!-- 31: block svg with a percentage width attribute in an auto-width cell -->
+<div class="case"><table class="m" style="width: 300px"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" width="50%" height="20" style="display: block"></svg></td><td class="m"><div style="width: 100px; height: 20px"></div></td></tr></table></div>
+
+<!-- 32: block svg with an aspect-ratio and a width in a cell -->
+<div class="case"><table class="m"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" style="display: block; width: 90px; aspect-ratio: 3"></svg></td></tr></table></div>
+
+<!-- 33: block svg with an aspect-ratio and no width in a fixed-width table -->
+<div class="case"><table class="m" style="width: 200px"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" style="display: block; aspect-ratio: 4"></svg></td></tr></table></div>
+
+<!-- 34: inline svg with a viewBox and a height in a cell -->
+<div class="case"><table class="m"><tr><td class="m" style="line-height: 0"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 1" style="height: 20px"></svg></td></tr></table></div>
+
+<!-- 35: svg as a flex item in a cell -->
+<div class="case"><table class="m"><tr><td class="m"><div class="m" style="display: flex; width: 200px"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" style="flex: 1"></svg><div style="width: 50px; height: 10px"></div></div></td></tr></table></div>
+
+<!-- 36: table in a foreignObject in an svg in a cell -->
+<div class="case"><table class="m"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" width="200" height="80" style="display: block"><foreignObject width="200" height="80"><table class="m" style="width: 100%"><tr><td class="m"><div style="width: 50px; height: 20px"></div></td></tr></table></foreignObject></svg></td></tr></table></div>
+
+<!-- 37: svg in a cell of a table in a foreignObject -->
+<div class="case"><svg xmlns="http://www.w3.org/2000/svg" width="300" height="150"><foreignObject width="300" height="150"><table class="m" style="width: 100%"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 1" style="display: block; width: 100%"></svg></td><td class="m"><div style="width: 100px; height: 10px"></div></td></tr></table></foreignObject></svg></div>
+
+<!-- 38: abspos table in a foreignObject -->
+<div class="case"><svg xmlns="http://www.w3.org/2000/svg" width="300" height="150"><foreignObject width="300" height="150"><div style="position: relative; height: 150px"><table class="m" style="position: absolute; right: 0; bottom: 0"><tr><td class="m"><div style="width: 40px; height: 20px"></div></td></tr></table></div></foreignObject></svg></div>
+
+<!-- 39: abspos block svg with a viewBox and insets -->
+<div class="case"><div style="position: relative; width: 400px; height: 100px"><table class="m" style="position: absolute; left: 0; top: 0; width: 200px"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 1" style="display: block"></svg></td></tr></table></div></div>
+
+<!-- 40: floated table with a block svg with only a viewBox -->
+<div class="case"><div style="width: 400px"><table class="m" style="float: left"><tr><td class="m"><svg class="m" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 1" style="display: block"></svg></td><td class="m"><div style="width: 30px; height: 30px"></div></td></tr></table></div></div>
+
+</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const cases = document.querySelectorAll(".case");
+        cases.forEach((c, index) => {
+            const origin = c.getBoundingClientRect();
+            const parts = [];
+            for (const element of c.querySelectorAll(".m")) {
+                const rect = element.getBoundingClientRect();
+                parts.push(`${Math.round(rect.left - origin.left)},${Math.round(rect.top - origin.top)} ${Math.round(rect.width)}x${Math.round(rect.height)}`);
+            }
+            println(`${index + 1}: ${parts.join(" | ")}`);
+        });
+        document.getElementById("cases").remove();
+    });
+</script>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        border-spacing: 0;
+    }
+    td {
+        padding: 0;
+        vertical-align: top;
+    }
+    .case {
+        margin-bottom: 10px;
+        width: 600px;
+        display: flow-root;
+    }
+    .b {
+        background: lightblue;
+    }
+    input, select, textarea, button {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        border: 2px solid black;
+        font-size: 0;
+        appearance: none;
+    }
+</style>
+<div id="cases">
+<!-- 1: table width calc with a length -->
+<div class="case"><table class="m" style="width: calc(100px + 50px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div>
+
+<!-- 2: table width calc with a percentage and a length -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: calc(50% + 20px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 3: table width calc with a negative result -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: calc(10% - 100px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 4: table width min() -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: min(50%, 150px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 5: table width max() -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: max(25%, 150px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 6: table width clamp() -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: clamp(100px, 80%, 250px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 7: table min-width and max-width calc -->
+<div class="case"><div style="width: 400px"><table class="m" style="min-width: calc(25% + 10px); max-width: calc(50% - 10px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 8: table max-width calc smaller than content -->
+<div class="case"><div style="width: 400px"><table class="m" style="max-width: calc(25% + 10px)"><tr><td class="m" style=""><div style="width: 300px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 9: cell width calc with a length -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: 100%"><tr><td class="m" style="width: calc(50px * 2)"><div style="width: 20px; height: 20px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 10: cell width calc with a percentage and a length -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: 100%"><tr><td class="m" style="width: calc(25% + 20px)"><div style="width: 20px; height: 20px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 11: cell width calc with a percentage and a length in an auto table -->
+<div class="case"><div style="width: 400px"><table class="m" style=""><tr><td class="m" style="width: calc(25% + 20px)"><div style="width: 20px; height: 20px"></div></td><td class="m" style=""><div style="width: 50px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 12: cell width calc with only percentages -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: 100%"><tr><td class="m" style="width: calc(10% + 15%)"><div style="width: 20px; height: 20px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 13: cell width min() of a percentage and a length -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: 100%"><tr><td class="m" style="width: min(30%, 80px)"><div style="width: 20px; height: 20px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 14: cell width max() of a percentage and a length -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: 100%"><tr><td class="m" style="width: max(10%, 80px)"><div style="width: 20px; height: 20px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 15: cell width calc smaller than content -->
+<div class="case"><div style="width: 400px"><table class="m" style=""><tr><td class="m" style="width: calc(10px + 5px)"><div style="width: 60px; height: 20px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 16: col width calc -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: 100%"><col style="width: calc(40px + 10%)"><col><tr><td class="m"><div style="width: 10px; height: 10px"></div></td><td class="m"><div style="width: 10px; height: 10px"></div></td></tr></table></div></div>
+
+<!-- 17: fixed layout with calc col widths -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: 100%; table-layout: fixed"><col style="width: calc(100px - 20px)"><col style="width: calc(25%)"><col><tr><td class="m"><div style="width: 10px; height: 10px"></div></td><td class="m"><div style="width: 10px; height: 10px"></div></td><td class="m"><div style="width: 10px; height: 10px"></div></td></tr></table></div></div>
+
+<!-- 18: fixed layout with a calc mixing percentage and length on a cell -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: 100%; table-layout: fixed"><tr><td class="m" style="width: calc(50% - 50px)"><div style="width: 10px; height: 10px"></div></td><td class="m" style=""><div style="width: 10px; height: 10px"></div></td></tr></table></div></div>
+
+<!-- 19: colspan cell with a calc width -->
+<div class="case"><div style="width: 400px"><table class="m"><tr><td class="m" colspan="2" style="width: calc(150px + 50px)"><div style="width: 10px; height: 10px"></div></td></tr><tr><td class="m"><div style="width: 30px; height: 10px"></div></td><td class="m"><div style="width: 50px; height: 10px"></div></td></tr></table></div></div>
+
+<!-- 20: table height calc with a length -->
+<div class="case"><table class="m" style="height: calc(50px + 30px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div>
+
+<!-- 21: table height calc with a percentage in a fixed-height container -->
+<div class="case"><div style="height: 200px"><table class="m" style="height: calc(50% + 10px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 22: row height calc -->
+<div class="case"><table class="m"><tr class="m" style="height: calc(20px * 3)"><td class="m"><div style="width: 20px; height: 10px"></div></td></tr><tr class="m"><td class="m"><div style="width: 20px; height: 10px"></div></td></tr></table></div>
+
+<!-- 23: row height calc with a percentage in a fixed-height table -->
+<div class="case"><table class="m" style="height: 200px"><tr class="m" style="height: calc(25% + 10px)"><td class="m"><div style="width: 20px; height: 10px"></div></td></tr><tr class="m"><td class="m"><div style="width: 20px; height: 10px"></div></td></tr></table></div>
+
+<!-- 24: cell height calc -->
+<div class="case"><table class="m" style="font-size: 10px"><tr><td class="m" style="height: calc(30px + 2em)"><div style="width: 20px; height: 10px"></div></td><td class="m" style=""><div style="width: 20px; height: 10px"></div></td></tr></table></div>
+
+<!-- 25: cell height min() of a percentage and a length in a fixed-height table -->
+<div class="case"><table class="m" style="height: 150px"><tr><td class="m" style="height: min(50%, 40px)"><div style="width: 20px; height: 10px"></div></td></tr><tr><td class="m" style="height: min(50%, 40px)"><div style="width: 20px; height: 10px"></div></td></tr></table></div>
+
+<!-- 26: cell padding calc -->
+<div class="case"><table class="m" style=""><tr><td class="m" style="padding: calc(5px + 5px) calc(2px * 3)"><div style="width: 20px; height: 20px"></div></td></tr></table></div>
+
+<!-- 27: cell padding calc with a percentage -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: 100%"><tr><td class="m" style="padding-left: calc(5% + 2px)"><div style="width: 20px; height: 20px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 28: border-spacing calc -->
+<div class="case"><table class="m" style="border-spacing: calc(2px + 3px) calc(10px - 4px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div>
+
+<!-- 29: table border calc in collapsed mode -->
+<div class="case"><table class="m" style="border-collapse: collapse; border: calc(2px * 3) solid"><tr><td class="m" style="border: calc(1px + 3px) solid"><div style="width: 20px; height: 20px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div>
+
+<!-- 30: table margin calc with a percentage -->
+<div class="case"><div style="width: 400px"><table class="m" style="margin-left: calc(10% + 10px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 31: caption width calc -->
+<div class="case"><div style="width: 400px"><table class="m"><caption class="m" style="width: calc(50% + 20px)"><div style="width: 10px; height: 10px"></div></caption><tr><td class="m"><div style="width: 100px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 32: calc width in a cell child resolving against the cell -->
+<div class="case"><div style="width: 400px"><table class="m" style=""><tr><td class="m" style="width: 200px"><div class="m" style="width: calc(50% + 10px); height: 10px"></div></td><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 33: calc height in a cell child against a fixed-height cell -->
+<div class="case"><table class="m" style="height: 100px"><tr><td class="m" style="height: 100px"><div class="m" style="height: calc(50% + 5px); width: 10px"></div></td></tr></table></div>
+
+<!-- 34: calc height in a cell child against an auto-height cell -->
+<div class="case"><table class="m" style=""><tr><td class="m" style=""><div class="m" style="height: calc(50% + 5px); width: 10px"></div></td><td class="m" style=""><div style="width: 20px; height: 80px"></div></td></tr></table></div>
+
+<!-- 35: inline-table width calc -->
+<div class="case"><div style="width: 400px"><table class="m" style="display: inline-table; width: calc(30% + 10px)"><tr><td class="m"><div style="width: 10px; height: 10px"></div></td></tr></table></div></div>
+
+<!-- 36: table width calc in a flex item -->
+<div class="case"><div style="display: flex; width: 400px"><table class="m" style="width: calc(50% - 20px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table><div style="width: 50px; height: 10px"></div></div></div>
+
+<!-- 37: table width calc in a grid area -->
+<div class="case"><div style="display: grid; grid-template-columns: 300px"><table class="m" style="width: calc(100% - 50px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 38: abspos table width calc with a percentage -->
+<div class="case"><div style="position: relative; width: 400px; height: 50px"><table class="m" style="position: absolute; width: calc(50% + 10px); right: calc(5% + 5px)"><tr><td class="m" style=""><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 39: calc with em and rem in table and cells -->
+<div class="case"><table class="m" style="font-size: 20px; width: calc(10em + 10px)"><tr><td class="m" style="width: calc(2em + 1rem)"><div style="width: 10px; height: 10px"></div></td><td class="m" style="height: calc(3em - 5px)"><div style="width: 10px; height: 10px"></div></td></tr></table></div>
+
+<!-- 40: nested calc() with percentages in a cell and table -->
+<div class="case"><div style="width: 400px"><table class="m" style="width: calc(100% - calc(10% + 40px))"><tr><td class="m" style="width: calc((100% - 40px) / 4)"><div style="width: 10px; height: 10px"></div></td><td class="m" style=""><div style="width: 10px; height: 10px"></div></td><td class="m" style=""><div style="width: 10px; height: 10px"></div></td></tr></table></div></div>
+
+</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const cases = document.querySelectorAll(".case");
+        cases.forEach((c, index) => {
+            const origin = c.getBoundingClientRect();
+            const parts = [];
+            for (const element of c.querySelectorAll(".m")) {
+                const rect = element.getBoundingClientRect();
+                parts.push(`${Math.round(rect.left - origin.left)},${Math.round(rect.top - origin.top)} ${Math.round(rect.width)}x${Math.round(rect.height)}`);
+            }
+            println(`${index + 1}: ${parts.join(" | ")}`);
+        });
+        document.getElementById("cases").remove();
+    });
+</script>

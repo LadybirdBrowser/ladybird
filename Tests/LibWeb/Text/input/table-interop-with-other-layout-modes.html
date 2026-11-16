@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        border-spacing: 0;
+    }
+    td {
+        padding: 0;
+        vertical-align: top;
+    }
+    .case {
+        margin-bottom: 10px;
+        width: 600px;
+        display: flow-root;
+    }
+    .b {
+        background: lightblue;
+    }
+    input, select, textarea, button {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        border: 2px solid black;
+        font-size: 0;
+        appearance: none;
+    }
+</style>
+<div id="cases">
+<!-- 1: table as a flex item with flex-grow -->
+<div class="case"><div style="display: flex; width: 500px">
+    <div class="m" style="width: 100px; height: 30px"></div>
+    <table class="m" style="flex-grow: 1"><tr><td class="m"><div style="width: 50px; height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 2: table as a flex item that has to shrink -->
+<div class="case"><div style="display: flex; width: 300px">
+    <div class="m" style="flex: none; width: 200px; height: 30px"></div>
+    <table class="m" style="width: 200px"><tr><td class="m"><div style="width: 50px; height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 3: table in a stretching column flex container -->
+<div class="case"><div style="display: flex; flex-direction: column; width: 400px; height: 200px">
+    <table class="m" style="flex-grow: 1"><tr class="m"><td><div style="width: 50px; height: 20px"></div></td></tr></table>
+    <div class="m" style="height: 30px"></div>
+</div></div>
+
+<!-- 4: table with align-self: stretch in a row flex container -->
+<div class="case"><div style="display: flex; width: 400px; height: 150px">
+    <table class="m"><tr class="m"><td><div style="width: 50px; height: 20px"></div></td></tr></table>
+    <div class="m" style="width: 50px"></div>
+</div></div>
+
+<!-- 5: flex container inside a cell -->
+<div class="case"><table class="m" style="width: 400px"><tr>
+    <td class="m"><div class="m" style="display: flex; gap: 10px"><div class="m" style="flex: 1; height: 30px"></div><div class="m" style="flex: 2; height: 50px"></div></div></td>
+    <td class="m" style="width: 100px"><div style="height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 6: cell with display: flex -->
+<div class="case"><table class="m" style="width: 300px; height: 150px"><tr>
+    <td class="m" style="display: flex; align-items: center"><div class="m" style="width: 40px; height: 40px"></div></td>
+    <td class="m"><div style="width: 20px; height: 80px"></div></td>
+</tr></table></div>
+
+<!-- 7: table as a grid item in a fr track -->
+<div class="case"><div style="display: grid; grid-template-columns: 100px 1fr; width: 500px">
+    <div class="m" style="height: 30px"></div>
+    <table class="m"><tr><td class="m"><div style="width: 50px; height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 8: table as a grid item stretched in both axes -->
+<div class="case"><div style="display: grid; grid-template: 120px / 300px">
+    <table class="m"><tr class="m"><td><div style="width: 50px; height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 9: table in an auto grid track -->
+<div class="case"><div style="display: grid; grid-template-columns: auto 1fr; width: 500px">
+    <table class="m"><tr><td class="m"><div style="width: 80px; height: 20px"></div></td><td class="m"><div style="width: 60px; height: 30px"></div></td></tr></table>
+    <div class="m" style="height: 10px"></div>
+</div></div>
+
+<!-- 10: grid inside a cell -->
+<div class="case"><table class="m" style="width: 400px"><tr>
+    <td class="m"><div class="m" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px"><div class="m" style="height: 30px"></div><div class="m" style="height: 60px"></div></div></td>
+    <td class="m" style="width: 150px"><div style="height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 11: grid with min-content track inside an auto-width cell -->
+<div class="case"><table class="m"><tr>
+    <td class="m"><div class="m" style="display: grid; grid-template-columns: min-content 50px"><div style="width: 70px; height: 10px"></div><div style="height: 20px"></div></div></td>
+</tr></table></div>
+
+<!-- 12: float next to a table -->
+<div class="case"><div style="width: 400px">
+    <div class="m" style="float: left; width: 100px; height: 50px"></div>
+    <table class="m" style="width: 200px"><tr><td class="m"><div style="height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 13: auto-width table next to a float -->
+<div class="case"><div style="width: 400px">
+    <div class="m" style="float: left; width: 100px; height: 50px"></div>
+    <table class="m"><tr><td class="m"><div style="width: 80px; height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 14: 100% width table next to a float -->
+<div class="case"><div style="width: 400px">
+    <div class="m" style="float: left; width: 100px; height: 50px"></div>
+    <table class="m" style="width: 100%"><tr><td class="m"><div style="height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 15: floats inside a cell -->
+<div class="case"><table class="m"><tr>
+    <td class="m"><div class="m" style="float: left; width: 60px; height: 40px"></div><div class="m" style="float: right; width: 30px; height: 70px"></div></td>
+    <td class="m"><div style="width: 50px; height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 16: floated table -->
+<div class="case"><div style="width: 400px">
+    <table class="m" style="float: right"><tr><td class="m"><div style="width: 90px; height: 40px"></div></td></tr></table>
+    <div class="m" style="height: 20px"></div>
+</div></div>
+
+<!-- 17: absolutely positioned table with insets -->
+<div class="case"><div style="position: relative; width: 400px; height: 200px">
+    <table class="m" style="position: absolute; left: 20px; right: 30px; top: 10px; bottom: 40px"><tr class="m"><td><div style="width: 50px; height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 18: absolutely positioned table without width -->
+<div class="case"><div style="position: relative; width: 400px; height: 100px">
+    <table class="m" style="position: absolute; right: 0; top: 0"><tr><td class="m"><div style="width: 70px; height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 19: abspos child of a relatively positioned cell -->
+<div class="case"><table class="m" style="width: 300px"><tr>
+    <td class="m" style="position: relative; height: 100px"><div class="m" style="position: absolute; right: 10px; bottom: 10px; width: 30px; height: 30px"></div></td>
+    <td class="m"><div style="height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 20: abspos child with percentage size in a cell -->
+<div class="case"><table class="m" style="width: 300px"><tr>
+    <td class="m" style="position: relative"><div style="height: 80px"></div><div class="m" style="position: absolute; left: 0; top: 0; width: 50%; height: 50%"></div></td>
+    <td class="m" style="width: 100px"><div style="height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 21: inline-table between inline-blocks -->
+<div class="case"><div style="width: 500px; font-size: 0; line-height: 0">
+    <div class="m" style="display: inline-block; width: 50px; height: 40px"></div><table class="m" style="display: inline-table"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table><div class="m" style="display: inline-block; width: 50px; height: 60px"></div>
+</div></div>
+
+<!-- 22: inline-table with vertical-align: top -->
+<div class="case"><div style="width: 500px; font-size: 0; line-height: 0">
+    <div class="m" style="display: inline-block; width: 50px; height: 40px"></div><table class="m" style="display: inline-table; vertical-align: top"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table><div class="m" style="display: inline-block; width: 50px; height: 60px; vertical-align: bottom"></div>
+</div></div>
+
+<!-- 23: inline-block with percentage width inside a cell -->
+<div class="case"><table class="m" style="width: 400px"><tr>
+    <td class="m" style="font-size: 0"><div class="m" style="display: inline-block; width: 50%; height: 20px"></div><div class="m" style="display: inline-block; width: 50%; height: 30px"></div></td>
+    <td class="m" style="width: 100px"><div style="height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 24: aspect-ratio block inside a fixed-width cell -->
+<div class="case"><table class="m"><tr>
+    <td class="m" style="width: 200px"><div class="m" style="aspect-ratio: 2 / 1"></div></td>
+    <td class="m"><div style="width: 50px; height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 25: aspect-ratio block inside an auto-width cell in a fixed-width table -->
+<div class="case"><table class="m" style="width: 400px"><tr>
+    <td class="m"><div class="m" style="aspect-ratio: 4 / 1"></div></td>
+    <td class="m" style="width: 100px"><div style="height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 26: aspect-ratio on the table itself -->
+<div class="case"><table class="m" style="width: 300px; aspect-ratio: 3 / 1"><tr class="m"><td><div style="height: 20px"></div></td></tr></table></div>
+
+<!-- 27: aspect-ratio on a cell -->
+<div class="case"><table class="m"><tr>
+    <td class="m" style="width: 100px; aspect-ratio: 1 / 1"><div style="height: 10px"></div></td>
+    <td class="m"><div style="width: 50px; height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 28: aspect-ratio block with height in a cell -->
+<div class="case"><table class="m"><tr>
+    <td class="m"><div class="m" style="height: 50px; aspect-ratio: 3 / 1"></div></td>
+</tr></table></div>
+
+<!-- 29: percentage-width image in a cell -->
+<div class="case"><table class="m" style="width: 400px"><tr>
+    <td class="m"><img class="m" style="width: 100%; display: block" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='100'/%3E"></td>
+    <td class="m" style="width: 100px"><div style="height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 30: intrinsic-size image in an auto-width table -->
+<div class="case"><table class="m"><tr>
+    <td class="m"><img class="m" style="display: block" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'/%3E"></td>
+    <td class="m"><div style="width: 30px; height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 31: max-width image in a narrow fixed-width table -->
+<div class="case"><table class="m" style="width: 150px"><tr>
+    <td class="m"><img class="m" style="max-width: 100%; display: block" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='150'/%3E"></td>
+</tr></table></div>
+
+<!-- 32: text input with percentage width in a cell -->
+<div class="case"><table class="m" style="width: 400px"><tr>
+    <td class="m" style="width: 100px"><div style="height: 10px"></div></td>
+    <td class="m"><input class="m" style="width: 100%; height: 30px; display: block"></td>
+</tr></table></div>
+
+<!-- 33: fixed-size form controls in an auto-width table -->
+<div class="case"><table class="m"><tr>
+    <td class="m"><button class="m" style="width: 80px; height: 30px; display: block"></button></td>
+    <td class="m"><select class="m" style="width: 120px; height: 25px; display: block"></select></td>
+    <td class="m"><textarea class="m" style="width: 100px; height: 60px; display: block; resize: none"></textarea></td>
+</tr></table></div>
+
+<!-- 34: percentage-height textarea in a fixed-height cell -->
+<div class="case"><table class="m" style="width: 300px"><tr>
+    <td class="m" style="height: 120px"><textarea class="m" style="width: 100%; height: 50%; display: block; resize: none"></textarea></td>
+</tr></table></div>
+
+<!-- 35: form controls in a fixed-layout table -->
+<div class="case"><table class="m" style="table-layout: fixed; width: 400px"><tr>
+    <td class="m" style="width: 25%"><input class="m" style="width: 100%; height: 20px; display: block"></td>
+    <td class="m"><select class="m" style="width: 100%; height: 20px; display: block"></select></td>
+    <td class="m" style="width: 100px"><button class="m" style="width: 100%; height: 20px; display: block"></button></td>
+</tr></table></div>
+
+<!-- 36: wide input without width in a narrow table -->
+<div class="case"><table class="m" style="width: 100px"><tr>
+    <td class="m"><input class="m" style="width: 200px; height: 20px; display: block"></td>
+</tr></table></div>
+
+<!-- 37: table inside a multi-column container -->
+<div class="case"><div style="columns: 2; column-gap: 20px; width: 420px">
+    <table class="m" style="width: 100%"><tr><td class="m"><div style="height: 40px"></div></td></tr></table>
+</div></div>
+
+<!-- 38: table with width: fit-content in a block -->
+<div class="case"><div style="width: 400px">
+    <table class="m" style="width: fit-content"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td><td class="m"><div style="width: 40px; height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 39: table with margin: auto and max-width -->
+<div class="case"><div style="width: 400px">
+    <table class="m" style="width: 100%; max-width: 200px; margin: 0 auto"><tr><td class="m"><div style="height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 40: table with min-width larger than its width -->
+<div class="case"><div style="width: 400px">
+    <table class="m" style="width: 100px; min-width: 250px"><tr><td class="m"><div style="height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 41: table with max-width smaller than its content -->
+<div class="case"><div style="width: 400px">
+    <table class="m" style="max-width: 100px"><tr><td class="m"><div style="width: 200px; height: 20px"></div></td></tr></table>
+</div></div>
+
+<!-- 42: table with box-sizing: border-box and padding -->
+<div class="case"><table class="m" style="box-sizing: border-box; width: 300px; height: 100px; padding: 10px; border: 5px solid"><tr class="m"><td class="m"><div style="height: 20px"></div></td></tr></table></div>
+
+<!-- 43: caption with fixed width and a narrower table -->
+<div class="case"><table class="m"><caption class="m"><div style="width: 200px; height: 20px"></div></caption><tr><td class="m"><div style="width: 50px; height: 20px"></div></td></tr></table></div>
+
+<!-- 44: caption-side bottom -->
+<div class="case"><table class="m" style="width: 200px; caption-side: bottom"><caption class="m"><div style="height: 20px"></div></caption><tr><td class="m"><div style="height: 30px"></div></td></tr></table></div>
+
+<!-- 45: nested table with 100% width -->
+<div class="case"><table class="m" style="width: 400px"><tr>
+    <td class="m"><table class="m" style="width: 100%"><tr><td class="m"><div style="height: 20px"></div></td><td class="m"><div style="width: 50px; height: 20px"></div></td></tr></table></td>
+    <td class="m" style="width: 100px"><div style="height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 46: nested auto tables -->
+<div class="case"><table class="m"><tr>
+    <td class="m"><table class="m"><tr><td class="m"><div style="width: 70px; height: 20px"></div></td></tr></table></td>
+    <td class="m"><table class="m" style="width: 100%"><tr><td class="m"><div style="width: 30px; height: 40px"></div></td></tr></table></td>
+</tr></table></div>
+
+<!-- 47: overflow: hidden cell content with large width -->
+<div class="case"><table class="m" style="width: 300px; table-layout: fixed"><tr>
+    <td class="m"><div class="m" style="overflow: hidden"><div style="width: 500px; height: 20px"></div></div></td>
+    <td class="m"><div style="height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 48: vertical writing mode table -->
+<div class="case"><table class="m" style="writing-mode: vertical-lr; height: 200px"><tr>
+    <td class="m"><div style="width: 30px; height: 40px"></div></td>
+    <td class="m"><div style="width: 50px; height: 20px"></div></td>
+</tr></table></div>
+
+<!-- 49: table with display: block children around it (anonymous table wrapping) -->
+<div class="case"><div style="display: table; width: 300px">
+    <div class="m" style="display: table-cell; width: 100px"><div style="height: 30px"></div></div>
+    <div class="m" style="display: table-cell"><div style="height: 50px"></div></div>
+</div></div>
+
+<!-- 50: display: table-cell siblings without table -->
+<div class="case"><div style="width: 400px">
+    <div class="m" style="display: table-cell"><div style="width: 80px; height: 30px"></div></div>
+    <div class="m" style="display: table-cell"><div style="width: 40px; height: 50px"></div></div>
+</div></div>
+
+<!-- 51: vertical-align middle and bottom in cells -->
+<div class="case"><table class="m"><tr>
+    <td class="m" style="vertical-align: middle"><div class="m" style="width: 30px; height: 20px"></div></td>
+    <td class="m" style="vertical-align: bottom"><div class="m" style="width: 30px; height: 20px"></div></td>
+    <td class="m"><div style="width: 30px; height: 100px"></div></td>
+</tr></table></div>
+
+<!-- 52: colspan and rowspan with fixed sizes -->
+<div class="case"><table class="m"><tr>
+    <td class="m" colspan="2"><div style="width: 150px; height: 20px"></div></td>
+    <td class="m" rowspan="2"><div style="width: 30px; height: 80px"></div></td>
+</tr><tr>
+    <td class="m"><div style="width: 40px; height: 20px"></div></td>
+    <td class="m"><div style="width: 40px; height: 20px"></div></td>
+</tr></table></div>
+
+<!-- 53: percentage width columns that sum over 100% -->
+<div class="case"><table class="m" style="width: 400px"><tr>
+    <td class="m" style="width: 70%"><div style="height: 10px"></div></td>
+    <td class="m" style="width: 60%"><div style="height: 10px"></div></td>
+    <td class="m"><div style="width: 20px; height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 54: col elements with widths -->
+<div class="case"><table class="m" style="width: 400px"><colgroup><col style="width: 50px"><col style="width: 30%"><col></colgroup><tr>
+    <td class="m"><div style="height: 10px"></div></td>
+    <td class="m"><div style="height: 10px"></div></td>
+    <td class="m"><div style="height: 10px"></div></td>
+</tr></table></div>
+
+<!-- 55: border-collapse with differing borders -->
+<div class="case"><table class="m" style="border-collapse: collapse"><tr>
+    <td class="m" style="border: 6px solid"><div style="width: 40px; height: 20px"></div></td>
+    <td class="m" style="border: 2px solid"><div style="width: 40px; height: 20px"></div></td>
+</tr><tr>
+    <td class="m" style="border: 4px solid"><div style="width: 40px; height: 20px"></div></td>
+    <td class="m" style="border: 10px solid"><div style="width: 40px; height: 20px"></div></td>
+</tr></table></div>
+
+<!-- 56: sticky header cell in a scroll container -->
+<div class="case"><div style="height: 100px; overflow: auto; width: 300px">
+    <table class="m" style="width: 100%"><thead><tr><th class="m" style="position: sticky; top: 0; padding: 0"><div style="height: 20px"></div></th></tr></thead>
+    <tbody><tr><td class="m"><div style="height: 200px"></div></td></tr></tbody></table>
+</div></div>
+
+<!-- 57: table inside an inline-block with percentage width -->
+<div class="case"><div style="width: 400px; font-size: 0">
+    <div class="m" style="display: inline-block; width: 50%"><table class="m" style="width: 100%"><tr><td class="m"><div style="height: 20px"></div></td></tr></table></div>
+</div></div>
+
+<!-- 58: table in a shrink-to-fit abspos container -->
+<div class="case"><div style="position: relative; height: 60px">
+    <div class="m" style="position: absolute"><table class="m" style="width: 100%"><tr><td class="m"><div style="width: 90px; height: 20px"></div></td><td class="m"><div style="width: 10px; height: 20px"></div></td></tr></table></div>
+</div></div>
+
+<!-- 59: contain: size on a cell -->
+<div class="case"><table class="m"><tr>
+    <td class="m" style="contain: size"><div style="width: 100px; height: 100px"></div></td>
+    <td class="m"><div style="width: 40px; height: 30px"></div></td>
+</tr></table></div>
+
+<!-- 60: display: contents row group -->
+<div class="case"><table class="m"><tbody style="display: contents"><tr>
+    <td class="m"><div style="width: 40px; height: 20px"></div></td>
+    <td class="m"><div style="width: 60px; height: 30px"></div></td>
+</tr></tbody></table></div>
+
+<!-- 61: translated table with a caption -->
+<div class="case"><table class="m" cellspacing="0" cellpadding="0" style="transform: translateX(50px)"><caption class="m"><div style="height: 10px"></div></caption><tr><td class="m"><div style="width: 80px; height: 20px"></div></td></tr></table></div>
+
+<!-- 62: rotated table with a caption and a transform-origin -->
+<div class="case"><table class="m" cellspacing="0" cellpadding="0" style="transform: rotate(90deg); transform-origin: 0 0"><caption class="m"><div style="height: 10px"></div></caption><tr><td class="m"><div style="width: 80px; height: 20px"></div></td></tr></table></div>
+
+<!-- 63: scaled table with a caption -->
+<div class="case"><table class="m" cellspacing="0" cellpadding="0" style="transform: scale(2)"><caption class="m"><div style="height: 10px"></div></caption><tr><td class="m"><div style="width: 80px; height: 20px"></div></td></tr></table></div>
+
+<!-- 64: table with the translate property -->
+<div class="case"><table class="m" cellspacing="0" cellpadding="0" style="translate: 30px 5px"><tr><td class="m"><div style="width: 80px; height: 20px"></div></td></tr></table></div>
+<!-- 65: two rows with 80% height cells holding 100% height contents in a fixed-height table -->
+<div class="case"><table class="m" style="height: 100px"><tr class="m"><td class="m" style="height: 80%"><div class="m" style="height: 100%; width: 10px"></div></td></tr><tr class="m"><td class="m" style="height: 80%"><div class="m" style="height: 100%; width: 10px"></div></td></tr></table></div>
+
+<!-- 66: vertical-rl table flexed in a row flex container -->
+<div class="case"><div style="display: flex; width: 300px; height: 100px"><table class="m" style="writing-mode: vertical-rl; flex: 1"><tr><td class="m"><div style="width: 20px; height: 30px"></div></td></tr></table></div></div>
+
+<!-- 67: vertical-rl table flexed in a column flex container -->
+<div class="case"><div style="display: flex; flex-direction: column; width: 300px; height: 200px"><table class="m" style="writing-mode: vertical-rl; flex: 1"><tr><td class="m"><div style="width: 20px; height: 30px"></div></td></tr></table></div></div>
+
+<!-- 68: abspos table with a width in a flex container -->
+<div class="case"><div style="display: flex; position: relative; width: 300px; height: 50px"><table class="m" style="position: absolute; width: 500px"><tr><td class="m"><div style="width: 20px; height: 20px"></div></td></tr></table></div></div>
+
+<!-- 69: abspos table in an inline-flex container -->
+<div class="case"><div style="display: inline-flex; position: relative; height: 50px"><table class="m" style="position: absolute; width: 200px"><tr><td class="m"><div style="width: 20px; height: 20px"></div></td></tr></table><div class="m" style="width: 30px; height: 10px"></div></div></div>
+
+<!-- 70: vertical-rl table with an aspect-ratio -->
+<div class="case"><table class="m" style="writing-mode: vertical-lr; aspect-ratio: 1 / 2; height: 60px"><tr><td class="m"><div style="width: 10px; height: 10px"></div></td></tr></table></div>
+
+<!-- 71: vertical-lr table with an aspect-ratio -->
+<div class="case"><table class="m" style="perspective: 100px"><tr><td class="m" style="transform: rotateY(60deg)"><div style="width: 100px; height: 20px"></div></td></tr></table></div>
+
+<!-- 72: table with perspective and a rotated cell -->
+<div class="case"><table class="m" style="transform-style: preserve-3d; transform: rotateY(30deg)"><tr><td class="m" style="transform: rotateY(30deg)"><div style="width: 100px; height: 20px"></div></td></tr></table></div>
+
+<!-- 73: preserve-3d table with a rotated cell -->
+<div class="case"><div><table class="m" style="height: 50%"><tr><td class="m"><div class="m" style="height: 100%; width: 10px"></div><div style="height: 30px; width: 10px"></div></td></tr></table></div></div>
+
+<!-- 74: percentage height table with nothing to resolve against -->
+<div class="case"><table class="m" style="height: 200px"><tr class="m"><td class="m" style="height: calc(10% + 15%)"><div class="m" style="height: 100%; width: 10px"></div></td></tr><tr class="m"><td class="m"><div style="height: 10px; width: 10px"></div></td></tr></table></div>
+
+<!-- 75: calc percentage height cell holding a 100% height block -->
+<div class="case"><table class="m" style="height: 200px"><tr class="m"><td class="m" style="height: 25%"><div class="m" style="height: 100%; width: 10px"></div></td></tr><tr class="m"><td class="m"><div style="height: 10px; width: 10px"></div></td></tr></table></div>
+<!-- 76: vertical-rl table with a definite flex basis in a row flex container -->
+<div class="case"><div style="display: flex; width: 400px; height: 100px"><table class="m" style="writing-mode: vertical-rl; flex: 0 0 300px"><tr><td class="m"><div style="width: 20px; height: 30px"></div></td></tr></table></div></div>
+
+<!-- 77: table with a definite flex basis in a column flex container -->
+<div class="case"><div style="display: flex; flex-direction: column; width: 300px; height: 300px"><table class="m" style="flex: 0 0 150px"><tr><td class="m"><div style="width: 20px; height: 30px"></div></td></tr></table></div></div>
+
+<!-- 78: table with a caption and a definite flex basis in a column flex container -->
+<div class="case"><div style="display: flex; flex-direction: column; width: 300px; height: 300px"><table class="m" style="flex: 0 0 150px"><caption class="m"><div style="height: 10px"></div></caption><tr><td class="m"><div style="width: 20px; height: 30px"></div></td></tr></table></div></div>
+
+<!-- 79: fixed-height table with two header groups -->
+<div class="case"><table class="m" style="height: 300px"><thead><tr class="m"><td><div style="height: 10px"></div></td></tr></thead><thead><tr class="m"><td><div style="height: 10px"></div></td></tr></thead><tbody><tr class="m"><td><div style="height: 10px"></div></td></tr></tbody></table></div>
+
+<!-- 80: fixed-height table with two footer groups -->
+<div class="case"><table class="m" style="height: 300px"><tfoot><tr class="m"><td><div style="height: 10px"></div></td></tr></tfoot><tfoot><tr class="m"><td><div style="height: 10px"></div></td></tr></tfoot><tbody><tr class="m"><td><div style="height: 10px"></div></td></tr></tbody></table></div>
+
+<!-- 81: 100% height table with nothing to resolve against, with a row another cell stretches -->
+<div class="case"><div><table class="m" style="height: 100%"><tr><td class="m"><div class="m" style="height: 100%; width: 10px"></div></td><td class="m"><div style="height: 100px; width: 10px"></div></td></tr></table></div></div>
+
+<!-- 82: 50% height table with nothing to resolve against, with a row another cell stretches -->
+<div class="case"><div><table class="m" style="height: 50%"><tr><td class="m"><div class="m" style="height: 100%; width: 10px"></div></td><td class="m"><div style="height: 80px; width: 10px"></div></td></tr></table></div></div>
+</div>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        // The data: URL images decode asynchronously, so wait for them before measuring.
+        await Promise.all([...document.images].map(image => image.decode()));
+        const cases = document.querySelectorAll(".case");
+        cases.forEach((c, index) => {
+            const origin = c.getBoundingClientRect();
+            const parts = [];
+            for (const element of c.querySelectorAll(".m")) {
+                const rect = element.getBoundingClientRect();
+                parts.push(`${Math.round(rect.left - origin.left)},${Math.round(rect.top - origin.top)} ${Math.round(rect.width)}x${Math.round(rect.height)}`);
+            }
+            println(`${index + 1}: ${parts.join(" | ")}`);
+        });
+        document.getElementById("cases").remove();
+    });
+</script>

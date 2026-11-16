@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        border-spacing: 0;
+        width: 200px;
+    }
+    td {
+        padding: 0;
+        vertical-align: top;
+    }
+    .table {
+        display: table;
+        width: 200px;
+    }
+    .row {
+        display: table-row;
+    }
+    .cell {
+        display: table-cell;
+    }
+    .case {
+        margin-bottom: 10px;
+    }
+</style>
+<div id="cases">
+<!-- 1: block with content height and a 100% row in a fixed-height table -->
+<div class="case"><div class="table m" style="height: 400px">
+    <div class="m" style="height: 200px"></div>
+    <div class="row m" style="height: 100%"><div style="height: 25px"></div></div>
+</div></div>
+
+<!-- 2: two 50% rows with small content -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 50%"><td><div style="height: 100px"></div></td></tr>
+    <tr class="m" style="height: 50%"><td><div style="height: 20px"></div></td></tr>
+</table></div>
+
+<!-- 3: two 50% rows, one with content taller than its share -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 50%"><td><div style="height: 250px"></div></td></tr>
+    <tr class="m" style="height: 50%"><td><div style="height: 20px"></div></td></tr>
+</table></div>
+
+<!-- 4: two 100% rows -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 100%"><td><div style="height: 100px"></div></td></tr>
+    <tr class="m" style="height: 100%"><td><div style="height: 20px"></div></td></tr>
+</table></div>
+
+<!-- 5: one 30% row and two auto rows -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 30%"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 40px"></div></td></tr>
+    <tr class="m"><td><div style="height: 20px"></div></td></tr>
+</table></div>
+
+<!-- 6: px row and % row whose sum exceeds the table height -->
+<div class="case"><table class="m" style="height: 200px">
+    <tr class="m" style="height: 150px"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 80%"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 7: px row and auto row in a taller table -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 50px"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 8: % on cells instead of rows -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m"><td style="height: 60%"><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 50px"></div></td></tr>
+</table></div>
+
+<!-- 9: 100% cell next to an auto row with content -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m"><td><div style="height: 120px"></div></td></tr>
+    <tr class="m"><td style="height: 100%"><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 10: % rows split across thead, tbody and tfoot -->
+<div class="case"><table class="m" style="height: 300px">
+    <thead><tr class="m" style="height: 20%"><td><div style="height: 10px"></div></td></tr></thead>
+    <tbody><tr class="m" style="height: 100%"><td><div style="height: 30px"></div></td></tr>
+    <tr class="m"><td><div style="height: 40px"></div></td></tr></tbody>
+    <tfoot><tr class="m" style="height: 20%"><td><div style="height: 10px"></div></td></tr></tfoot>
+</table></div>
+
+<!-- 11: border-spacing with a 100% row -->
+<div class="case"><table class="m" style="height: 300px; border-spacing: 10px">
+    <tr class="m"><td><div style="height: 100px"></div></td></tr>
+    <tr class="m" style="height: 100%"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 12: cell padding and borders with a 100% row -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m"><td style="padding: 10px; border: 5px solid"><div style="height: 100px"></div></td></tr>
+    <tr class="m" style="height: 100%"><td style="padding: 10px"><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 13: border-box table with borders and a 100% row -->
+<div class="case"><div class="table m" style="height: 300px; box-sizing: border-box; border: 10px solid">
+    <div class="row m"><div class="cell"><div style="height: 100px"></div></div></div>
+    <div class="row m" style="height: 100%"><div class="cell"><div style="height: 10px"></div></div></div>
+</div></div>
+
+<!-- 14: % row next to a row spanned by a rowspan cell -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 50%"><td rowspan="2"><div style="height: 200px"></div></td><td><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 15: % rows in an auto-height table -->
+<div class="case"><table class="m">
+    <tr class="m" style="height: 100%"><td><div style="height: 30px"></div></td></tr>
+    <tr class="m"><td><div style="height: 50px"></div></td></tr>
+</table></div>
+
+<!-- 16: table height smaller than its auto rows -->
+<div class="case"><table class="m" style="height: 50px">
+    <tr class="m"><td><div style="height: 40px"></div></td></tr>
+    <tr class="m"><td><div style="height: 60px"></div></td></tr>
+</table></div>
+
+<!-- 17: only px rows, smaller than the table height -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 50px"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 100px"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 18: min-height on the table with a 100% row -->
+<div class="case"><table class="m" style="min-height: 300px">
+    <tr class="m"><td><div style="height: 100px"></div></td></tr>
+    <tr class="m" style="height: 100%"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 19: nested anonymous tables with height: inherit, like a card layout -->
+<div class="case"><div style="width: 300px; height: 500px">
+    <div class="table m" style="height: 100%; width: 100%">
+        <div class="m" style="height: 150px"></div>
+        <div class="row m" style="height: 100%">
+            <div style="height: inherit">
+                <div class="table m" style="height: inherit; width: 100%">
+                    <div class="m" style="margin: 30px 0"><div style="height: 75px"></div></div>
+                    <div class="row m" style="height: inherit"><div style="height: 50px"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div></div>
+
+<!-- 20: 200% row -->
+<div class="case"><table class="m" style="height: 200px">
+    <tr class="m"><td><div style="height: 50px"></div></td></tr>
+    <tr class="m" style="height: 200%"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 21: two 25% rows, one with tall content, and an auto row -->
+<div class="case"><table class="m" style="height: 400px">
+    <tr class="m" style="height: 25%"><td><div style="height: 200px"></div></td></tr>
+    <tr class="m" style="height: 25%"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 30px"></div></td></tr>
+</table></div>
+
+<!-- 22: % rows summing over 100% with an auto row -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 70%"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 60%"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 40px"></div></td></tr>
+</table></div>
+
+<!-- 23: rows with height: inherit from a fixed-height table -->
+<div class="case"><div class="table m" style="height: 250px">
+    <div class="row m" style="height: inherit"><div class="cell"><div style="height: 100px"></div></div></div>
+    <div class="row m" style="height: inherit"><div class="cell"><div style="height: 50px"></div></div></div>
+</div></div>
+
+<!-- 24: two % rows and a px row -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 40%"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 40%"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 100px"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 25: empty % rows -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 10%"><td></td></tr>
+    <tr class="m" style="height: 100%"><td></td></tr>
+    <tr class="m"><td><div style="height: 40px"></div></td></tr>
+</table></div>
+
+<!-- 26: px row taller than its content and a 100% row -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 120px"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 100%"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 27: px cell and % cell in the same row, plus a 100% row -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m"><td style="height: 80px"><div style="height: 10px"></div></td><td style="height: 30%"><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 100%"><td colspan="2"><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 28: border-collapse with a 100% row -->
+<div class="case"><table class="m" style="height: 300px; border-collapse: collapse">
+    <tr class="m"><td style="border: 4px solid"><div style="height: 100px"></div></td></tr>
+    <tr class="m" style="height: 100%"><td style="border: 4px solid"><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 29: % row in a table with max-height lower than its height -->
+<div class="case"><table class="m" style="height: 400px; max-height: 200px">
+    <tr class="m"><td><div style="height: 50px"></div></td></tr>
+    <tr class="m" style="height: 100%"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 30: % row with tall content and an auto row with tall content, table too small -->
+<div class="case"><table class="m" style="height: 200px">
+    <tr class="m" style="height: 50%"><td><div style="height: 150px"></div></td></tr>
+    <tr class="m"><td><div style="height: 150px"></div></td></tr>
+</table></div>
+
+<!-- 31: 100% row with tall content followed by a 50% row -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 100%"><td><div style="height: 200px"></div></td></tr>
+    <tr class="m" style="height: 50%"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 32: two auto rows with different content -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m"><td><div style="height: 40px"></div></td></tr>
+    <tr class="m"><td><div style="height: 20px"></div></td></tr>
+</table></div>
+
+<!-- 33: an empty auto row and an auto row with content -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m"><td></td></tr>
+    <tr class="m"><td><div style="height: 40px"></div></td></tr>
+</table></div>
+
+<!-- 34: px row and small % row, without auto rows -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 50px"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 10%"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 35: auto thead row and % tbody row -->
+<div class="case"><table class="m" style="height: 300px">
+    <thead><tr class="m"><td><div style="height: 30px"></div></td></tr></thead>
+    <tbody><tr class="m" style="height: 50%"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 10px"></div></td></tr></tbody>
+</table></div>
+
+<!-- 36: rowspan cell across three auto rows -->
+<div class="case"><table class="m" style="height: 250px">
+    <tr class="m"><td rowspan="3"><div style="height: 200px"></div></td><td><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 37: two px rows with an auto row -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 50px"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 100px"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 38: rowspan cell across a % row and an auto row, in a taller table -->
+<div class="case"><table class="m" style="height: 400px">
+    <tr class="m"><td rowspan="2"><div style="height: 200px"></div></td><td><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 25%"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 39: 100% block in an auto row -->
+<div class="case"><table class="m" style="height: 400px">
+    <tr class="m"><td><div style="height: 100px"></div></td></tr>
+    <tr class="m"><td><div class="m" style="height: 100%"><div style="height: 20px"></div></div></td></tr>
+</table></div>
+
+<!-- 40: 100% block in a 100% row -->
+<div class="case"><table class="m" style="height: 400px">
+    <tr class="m"><td><div style="height: 100px"></div></td></tr>
+    <tr class="m" style="height: 100%"><td><div class="m" style="height: 100%"><div style="height: 20px"></div></div></td></tr>
+</table></div>
+
+<!-- 41: 100% block in a 100% cell -->
+<div class="case"><table class="m" style="height: 400px">
+    <tr class="m"><td><div style="height: 100px"></div></td></tr>
+    <tr class="m"><td style="height: 100%"><div class="m" style="height: 100%"><div style="height: 20px"></div></div></td></tr>
+</table></div>
+
+<!-- 42: 100% block in an auto-height table -->
+<div class="case"><table class="m">
+    <tr class="m"><td><div style="height: 100px"></div></td></tr>
+    <tr class="m"><td><div class="m" style="height: 100%"><div style="height: 20px"></div></div></td></tr>
+</table></div>
+
+<!-- 43: 50% block in a 100% row of a table in a fixed-height block -->
+<div class="case"><div style="height: 300px"><div class="table m" style="height: 100%; width: 200px">
+    <div class="row m" style="height: 100%"><div class="cell"><div class="m" style="height: 50%"><div style="height: 20px"></div></div></div></div>
+    <div class="row m"><div class="cell"><div style="height: 50px"></div></div></div>
+</div></div></div>
+
+<!-- 44: px row and 50% row, without auto rows -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 50px"><td><div style="height: 10px"></div></td></tr>
+    <tr class="m" style="height: 50%"><td><div style="height: 10px"></div></td></tr>
+</table></div>
+
+<!-- 45: 100% block in a px row -->
+<div class="case"><table class="m">
+    <tr class="m" style="height: 100px"><td><div class="m" style="height: 100%"><div style="height: 20px"></div></div></td></tr>
+</table></div>
+
+<!-- 46: 100% inline-block in a px row -->
+<div class="case"><table class="m">
+    <tr class="m" style="height: 100px"><td><div class="m" style="display: inline-block; vertical-align: top; width: 20px; height: 100%"></div></td></tr>
+</table></div>
+
+<!-- 47: 100% block in a px cell -->
+<div class="case"><table class="m">
+    <tr class="m"><td style="height: 100px"><div class="m" style="height: 100%"><div style="height: 20px"></div></div></td></tr>
+</table></div>
+
+<!-- 48: 100% block in a px row of a fixed-height table -->
+<div class="case"><table class="m" style="height: 300px">
+    <tr class="m" style="height: 100px"><td><div class="m" style="height: 100%"><div style="height: 20px"></div></div></td></tr>
+    <tr class="m"><td><div style="height: 20px"></div></td></tr>
+</table></div>
+
+<!-- 49: 50% block in a 100% cell of an auto-height table -->
+<div class="case"><table class="m">
+    <tr class="m"><td style="height: 100%"><div class="m" style="height: 50%"><div style="height: 20px"></div></div></td></tr>
+</table></div>
+</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const cases = document.querySelectorAll(".case");
+        cases.forEach((c, index) => {
+            const origin = c.getBoundingClientRect().top;
+            const parts = [];
+            for (const element of c.querySelectorAll(".m")) {
+                const rect = element.getBoundingClientRect();
+                parts.push(`${Math.round(rect.top - origin)}+${Math.round(rect.height)}`);
+            }
+            println(`${index + 1}: ${parts.join(" ")}`);
+        });
+        document.getElementById("cases").remove();
+    });
+</script>
