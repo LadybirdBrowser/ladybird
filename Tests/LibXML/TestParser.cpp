@@ -85,6 +85,97 @@ TEST_CASE(dtd_defaulted_namespace_prefix_must_be_an_ncname)
     EXPECT(parses("<!DOCTYPE svg [<!ATTLIST svg xmlns:a CDATA \"urn:a\">]><svg a:b=\"\"/>"sv));
 }
 
+TEST_CASE(declaring_the_xml_prefix_as_itself_is_an_attribute)
+{
+    struct Listener final : XML::Listener {
+        Vector<ByteString> attributes;
+        virtual void element_start(Utf16FlyString const&, Vector<XML::ListenerAttribute> const& list) override
+        {
+            for (auto const& attribute : list)
+                attributes.append(ByteString::formatted("{}={}", attribute.name, attribute.value));
+        }
+    } listener;
+
+    XML::Parser parser("<a b=\"c\" xmlns:xml=\"http://www.w3.org/XML/1998/namespace\" xml:lang=\"en\"/>"sv);
+    EXPECT(!parser.parse_with_listener(listener).is_error());
+    EXPECT_EQ(listener.attributes.size(), 3u);
+    EXPECT(listener.attributes.contains_slow("xmlns:xml=http://www.w3.org/XML/1998/namespace"sv));
+    EXPECT(listener.attributes.contains_slow("xml:lang=en"sv));
+
+    EXPECT(!parses("<a xmlns:xml=\"urn:other\"/>"sv));
+
+    // The same goes for a declaration the DTD supplies.
+    listener.attributes.clear();
+    XML::Parser defaulted("<!DOCTYPE a [<!ATTLIST a xmlns:xml CDATA \"http://www.w3.org/XML/1998/namespace\" b CDATA \"c\">]><a/>"sv);
+    EXPECT(!defaulted.parse_with_listener(listener).is_error());
+    EXPECT_EQ(listener.attributes.size(), 2u);
+    EXPECT(listener.attributes.contains_slow("xmlns:xml=http://www.w3.org/XML/1998/namespace"sv));
+}
+
+TEST_CASE(comments_in_the_internal_subset_are_not_content)
+{
+    struct Listener final : XML::Listener {
+        Vector<ByteString> comments;
+        virtual void comment(StringView data) override { comments.append(data); }
+    } listener;
+
+    XML::Parser parser("<!DOCTYPE a [<!-- in the subset -->]><!-- before --><a><!-- inside --></a>"sv, { .preserve_comments = true });
+    EXPECT(!parser.parse_with_listener(listener).is_error());
+    EXPECT_EQ(listener.comments.size(), 2u);
+    EXPECT_EQ(listener.comments[0], " before "sv);
+    EXPECT_EQ(listener.comments[1], " inside "sv);
+}
+
+TEST_CASE(an_entity_declared_nowhere_we_read_is_an_error)
+{
+    struct Listener final : XML::Listener {
+    } listener;
+
+    // The external subset isn't read, so it may declare the entity, but what it stands for is unknown either way.
+    for (auto source : { "<a>&b;</a>"sv, "<!DOCTYPE a SYSTEM 'a.dtd'><a>&b;</a>"sv, "<!DOCTYPE a SYSTEM 'a.dtd'><a c='&b;'/>"sv }) {
+        XML::Parser parser(source);
+        EXPECT(parser.parse_with_listener(listener).is_error());
+    }
+}
+
+TEST_CASE(a_namespace_name_need_not_be_a_uri)
+{
+    struct Listener final : XML::Listener {
+    } listener;
+
+    for (auto source : { "<a xmlns='not a uri'/>"sv, "<p:a xmlns:p='http://a/%zz'/>"sv, "<!DOCTYPE a [<!ATTLIST a xmlns CDATA 'not a uri'>]><a/>"sv }) {
+        XML::Parser parser(source);
+        EXPECT(!parser.parse_with_listener(listener).is_error());
+    }
+}
+
+TEST_CASE(an_error_in_a_run_of_text_comes_between_its_pieces)
+{
+    struct Listener final : XML::Listener {
+        Vector<ByteString> events;
+        virtual void text(StringView data) override { events.append(ByteString::formatted("text {}", data)); }
+        virtual void error(XML::ParseError const&) override { events.append("error"sv); }
+    } listener;
+
+    XML::Parser parser("<!DOCTYPE a SYSTEM 'a.dtd'><a>A&amp;B&missing;C&amp;D</a>"sv);
+    EXPECT(parser.parse_with_listener(listener).is_error());
+    EXPECT_EQ(listener.events, (Vector<ByteString> { "text A&B"sv, "error"sv, "text C&D"sv }));
+}
+
+TEST_CASE(line_ends_in_the_identifiers_of_a_doctype_are_line_feeds)
+{
+    struct Listener final : XML::Listener {
+        Optional<XML::Doctype> doctype;
+        virtual void set_doctype(XML::Doctype declaration) override { doctype = move(declaration); }
+    } listener;
+
+    XML::Parser parser("<!DOCTYPE a PUBLIC \"p\r\nq\" \"s\rt\"><a/>"sv);
+    EXPECT(!parser.parse_with_listener(listener).is_error());
+    auto const& id = listener.doctype->external_id.value();
+    EXPECT_EQ(id.public_id->public_literal, "p\nq"sv);
+    EXPECT_EQ(id.system_id.system_literal, "s\nt"sv);
+}
+
 TEST_CASE(dtd_defaulted_name_errors_reach_the_listener_before_the_element)
 {
     struct Listener final : XML::Listener {
@@ -119,4 +210,11 @@ TEST_CASE(dtd_defaulted_namespace_declaration_must_respect_reserved_bindings)
     EXPECT(parses("<!DOCTYPE svg [<!ATTLIST svg xmlns CDATA \"urn:x\">]><svg/>"sv));
     // Declaring the xml prefix with its own namespace name is allowed.
     EXPECT(parses("<svg xmlns:xml=\"http://www.w3.org/XML/1998/namespace\" xml:lang=\"e\"/>"sv));
+}
+
+TEST_CASE(default_namespace_is_no_binding_of_the_xmlns_prefix)
+{
+    EXPECT(!parses("<xmlns:a xmlns=\"urn:x\"/>"sv));
+    EXPECT(!parses("<b xmlns=\"urn:x\"><xmlns:a/></b>"sv));
+    EXPECT_EQ(first_error("<xmlns:a xmlns=\"urn:x\"/>"sv), "Namespace prefix xmlns on a is not defined"sv);
 }

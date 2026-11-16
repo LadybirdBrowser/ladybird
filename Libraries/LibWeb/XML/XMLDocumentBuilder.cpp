@@ -52,10 +52,10 @@ XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupp
     m_namespace_stack.append({ {}, 1 });
 }
 
-ErrorOr<void> XMLDocumentBuilder::set_source(ByteString source)
+ErrorOr<void> XMLDocumentBuilder::set_source(StringView source)
 {
     m_document->update_readiness(HTML::DocumentReadyState::Loading);
-    m_document->set_source(Utf16String::from_utf8_with_replacement_character(source.view()));
+    m_document->set_source(Utf16String::from_utf8_with_replacement_character(source));
     return {};
 }
 
@@ -311,9 +311,8 @@ Optional<Utf16FlyString> XMLDocumentBuilder::namespace_for_name(Utf16FlyString c
         prefix = Utf16FlyString::from_utf16(view.substring_view(0, *first_colon_position));
     }
 
-    // The xml prefix is bound to the XML namespace by definition (Namespaces in XML 1.0 §3), so it never appears among
-    // the declarations below: libxml2 drops every declaration of it before the SAX callback (xmlParserNsPush), the way
-    // expat pre-binds it (implicitContext) — and Blink and WebKit take the XML namespace libxml2 resolves it to.
+    // The xml prefix is bound to the XML namespace by definition (Namespaces in XML 1.0 §3), whether or not anything
+    // declares it, and a declaration of it can only say the same.
     if (prefix == "xml"sv)
         return Namespace::XML;
 

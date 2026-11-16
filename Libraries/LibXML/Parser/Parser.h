@@ -42,7 +42,7 @@ struct ListenerAttribute {
 struct Listener {
     virtual ~Listener() { }
 
-    virtual ErrorOr<void> set_source(ByteString) { return {}; }
+    virtual ErrorOr<void> set_source(StringView) { return {}; }
     virtual void set_doctype(XML::Doctype) { }
     virtual void document_start() { }
     virtual void document_end() { }
@@ -60,7 +60,6 @@ public:
     struct Options {
         bool preserve_cdata { true };
         bool preserve_comments { false };
-        bool treat_errors_as_fatal { true };
         Function<Optional<String>(StringView)> resolve_named_html_entity {};
     };
 

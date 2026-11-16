@@ -31,7 +31,7 @@ public:
     bool has_error() const { return m_has_error; }
 
 private:
-    virtual ErrorOr<void> set_source(ByteString) override;
+    virtual ErrorOr<void> set_source(StringView) override;
     virtual void set_doctype(XML::Doctype) override;
     virtual void element_start(Utf16FlyString const& name, Vector<XML::ListenerAttribute> const& attributes) override;
     virtual void element_end(Utf16FlyString const& name) override;

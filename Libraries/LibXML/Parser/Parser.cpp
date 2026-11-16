@@ -6,688 +6,297 @@
 
 #include <AK/StringBuilder.h>
 #include <LibXML/Parser/Parser.h>
-
-#include <libxml/encoding.h>
-#include <libxml/parser.h>
-#include <libxml/parserInternals.h>
-#include <libxml/tree.h>
-#include <libxml/xmlerror.h>
+#include <LibXML/RustFFI.h>
 
 namespace XML {
 
-static constexpr int MAX_XML_TREE_DEPTH = 5000;
-static constexpr StringView XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"sv;
-static constexpr StringView XMLNS_NAMESPACE = "http://www.w3.org/2000/xmlns/"sv;
+static ptrdiff_t resolve_html_entity(void* context, u8 const* name, size_t name_length, u8* out, size_t capacity)
+{
+    auto const& options = *static_cast<Parser::Options const*>(context);
+    auto resolved = options.resolve_named_html_entity(StringView { name, name_length });
+    if (!resolved.has_value())
+        return -1;
+    auto bytes = resolved->bytes();
+    if (bytes.size() > capacity)
+        return -1;
+    bytes.copy_to({ out, capacity });
+    return static_cast<ptrdiff_t>(bytes.size());
+}
 
-struct ParserContext {
-    Listener* listener { nullptr };
-    Optional<ParseError> error;
-    bool document_ended { false };
+// A parsed document: a flat list of rows in document order, held as three columns. See Rust/src/tape.rs for what the
+// rows are. A string operand is an offset and a length into the source followed by the parser's arena, so a string
+// that didn't need decoding is a view of the source itself.
+class Tape {
+    AK_MAKE_NONCOPYABLE(Tape);
+    AK_MAKE_NONMOVABLE(Tape);
 
-    OwnPtr<Node> root_node;
-    Node* current_node { nullptr };
-    Optional<Doctype> doctype;
-    HashMap<Name, ByteString> processing_instructions;
-    Version version { Version::Version11 };
+public:
+    Tape(StringView source, Parser::Options const& options)
+        : m_source(source)
+    {
+        FFI::XmlParseOptions ffi_options {
+            .preserve_comments = options.preserve_comments,
+            .preserve_cdata = options.preserve_cdata,
+            .resolve_html_entity = options.resolve_named_html_entity ? resolve_html_entity : nullptr,
+            .resolver_context = const_cast<Parser::Options*>(&options),
+        };
+        m_document = FFI::rust_xml_parse(reinterpret_cast<u8 const*>(source.characters_without_null_termination()), source.length(), &ffi_options);
+        m_view = FFI::rust_xml_document_view(m_document);
+    }
 
-    Vector<ParseError> parse_errors;
+    ~Tape() { FFI::rust_xml_document_free(m_document); }
 
-    Parser::Options const* options { nullptr };
-    bool is_xhtml_document { false };
-    int depth { 0 };
+    size_t row_count() const { return m_view.row_count; }
+    FFI::XmlRowKind kind(size_t row) const { return static_cast<FFI::XmlRowKind>(m_view.kinds[row] & to_underlying(FFI::XmlRowKindBits::Mask)); }
+    bool is(size_t row, FFI::XmlRowKind kind) const { return row < m_view.row_count && this->kind(row) == kind; }
+    bool has_flag(size_t row, u8 flag) const { return (m_view.kinds[row] & flag) != 0; }
+    u32 a(size_t row) const { return m_view.a[row]; }
+
+    // For a row whose operands are a string.
+    StringView string(size_t row) const { return string(m_view.a[row], m_view.b[row]); }
+
+    // For a row whose first operand is a name.
+    u32 name_id(size_t row) const { return m_view.a[row]; }
+    StringView name(size_t row) const
+    {
+        auto const& name = m_view.names[m_view.a[row]];
+        return string(name.offset, name.length);
+    }
+    size_t name_count() const { return m_view.name_count; }
+
+    ReadonlySpan<FFI::XmlError> errors() const { return { m_view.errors, m_view.error_count }; }
+    bool started() const { return m_view.started; }
+    Version version() const { return m_view.version_1_0 ? Version::Version10 : Version::Version11; }
+
+    Doctype doctype(size_t row) const
+    {
+        static constexpr u8 ABSENT = to_underlying(FFI::XmlValueFlag::Absent);
+        Doctype doctype;
+        doctype.type = name(row);
+        auto has_public_id = !has_flag(row + 1, ABSENT);
+        auto has_system_id = !has_flag(row + 2, ABSENT);
+        if (has_public_id || has_system_id) {
+            ExternalID external_id;
+            if (has_public_id)
+                external_id.public_id = PublicID { string(row + 1) };
+            if (has_system_id)
+                external_id.system_id = SystemID { string(row + 2) };
+            doctype.external_id = move(external_id);
+        }
+        return doctype;
+    }
+
+private:
+    StringView string(u32 offset, u32 length) const
+    {
+        if (offset < m_source.length())
+            return m_source.substring_view(offset, length);
+        return StringView { m_view.arena + (offset - m_source.length()), length };
+    }
+
+    StringView m_source;
+    FFI::XmlDocument* m_document { nullptr };
+    FFI::XmlDocumentView m_view {};
 };
 
-static ByteString xml_char_to_byte_string(xmlChar const* str)
+static ParseError to_parse_error(FFI::XmlError const& error)
 {
-    if (!str)
-        return {};
-    return ByteString(reinterpret_cast<char const*>(str));
-}
-
-static ByteString xml_char_to_byte_string(xmlChar const* str, int len)
-{
-    if (!str || len <= 0)
-        return {};
-    return ByteString(StringView(reinterpret_cast<char const*>(str), static_cast<size_t>(len)));
-}
-
-static StringView xml_char_to_string_view(xmlChar const* str)
-{
-    if (!str)
-        return {};
-    return StringView(reinterpret_cast<char const*>(str), strlen(reinterpret_cast<char const*>(str)));
-}
-
-static StringView xml_char_to_string_view(xmlChar const* str, int len)
-{
-    if (!str || len <= 0)
-        return {};
-    return StringView(reinterpret_cast<char const*>(str), static_cast<size_t>(len));
-}
-
-static Utf16FlyString xml_name_to_utf16_fly_string(xmlChar const* localname, xmlChar const* prefix)
-{
-    StringBuilder builder;
-    if (prefix) {
-        builder.append(xml_char_to_string_view(prefix));
-        builder.append(':');
-    }
-    builder.append(xml_char_to_string_view(localname));
-    return Utf16FlyString::from_utf8(builder.string_view());
-}
-
-static ByteString xml_name_to_byte_string(xmlChar const* localname, xmlChar const* prefix)
-{
-    StringBuilder builder;
-    if (prefix) {
-        builder.append(xml_char_to_string_view(prefix));
-        builder.append(':');
-    }
-    builder.append(xml_char_to_string_view(localname));
-    return builder.to_byte_string();
-}
-
-static bool is_known_xhtml_public_id(StringView public_id)
-{
-    return public_id.is_one_of(
-        "-//W3C//DTD XHTML 1.0 Transitional//EN"sv,
-        "-//W3C//DTD XHTML 1.1//EN"sv,
-        "-//W3C//DTD XHTML 1.0 Strict//EN"sv,
-        "-//W3C//DTD XHTML 1.0 Frameset//EN"sv,
-        "-//W3C//DTD XHTML Basic 1.0//EN"sv,
-        "-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN"sv,
-        "-//W3C//DTD XHTML 1.1 plus MathML 2.0 plus SVG 1.1//EN"sv,
-        "-//W3C//DTD MathML 2.0//EN"sv,
-        "-//WAPFORUM//DTD XHTML Mobile 1.0//EN"sv,
-        "-//WAPFORUM//DTD XHTML Mobile 1.1//EN"sv,
-        "-//WAPFORUM//DTD XHTML Mobile 1.2//EN"sv);
-}
-
-static void external_subset_handler(void* ctx, xmlChar const*, xmlChar const* external_id, xmlChar const*)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context || !external_id)
-        return;
-
-    auto public_id = xml_char_to_string_view(external_id);
-    if (is_known_xhtml_public_id(public_id))
-        context->is_xhtml_document = true;
-}
-
-static xmlEntity s_xhtml_entity_result;
-static char s_xhtml_entity_utf8_buffer[32];
-
-static xmlEntityPtr get_entity_handler(void* ctx, xmlChar const* name)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-
-    auto* predefined = xmlGetPredefinedEntity(name);
-    if (predefined)
-        return predefined;
-
-    if (parser_ctx->myDoc) {
-        auto* doc_entity = xmlGetDocEntity(parser_ctx->myDoc, name);
-        if (doc_entity)
-            return doc_entity;
-    }
-
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context || !context->is_xhtml_document)
-        return nullptr;
-
-    // For XHTML documents, resolve named character entities (e.g., &nbsp;) using the
-    // HTML entity table. This avoids parsing a large embedded DTD on every document
-    // and matches the approach used by Blink and WebKit.
-    if (!context->options || !context->options->resolve_named_html_entity)
-        return nullptr;
-
-    auto entity_name = xml_char_to_string_view(name);
-    auto resolved = context->options->resolve_named_html_entity(entity_name);
-    if (!resolved.has_value())
-        return nullptr;
-
-    auto utf8_bytes = resolved->bytes_as_string_view();
-    if (utf8_bytes.length() >= sizeof(s_xhtml_entity_utf8_buffer))
-        return nullptr;
-
-    (void)utf8_bytes.copy_characters_to_buffer(s_xhtml_entity_utf8_buffer, sizeof(s_xhtml_entity_utf8_buffer));
-
-    s_xhtml_entity_result = {};
-    s_xhtml_entity_result.type = XML_ENTITY_DECL;
-    s_xhtml_entity_result.name = name;
-    s_xhtml_entity_result.content = reinterpret_cast<xmlChar*>(s_xhtml_entity_utf8_buffer);
-    s_xhtml_entity_result.length = static_cast<int>(utf8_bytes.length());
-    s_xhtml_entity_result.etype = XML_INTERNAL_PREDEFINED_ENTITY;
-
-    return &s_xhtml_entity_result;
-}
-
-static LineTrackingLexer::Position current_position(xmlParserCtxtPtr parser_ctx)
-{
-    LineTrackingLexer::Position position;
-    auto* input = parser_ctx->input;
-    if (!input)
-        return position;
-    if (input->cur && input->base)
-        position.offset = static_cast<size_t>(input->cur - input->base);
-    if (input->line > 0)
-        position.line = static_cast<size_t>(input->line);
-    if (input->col > 0)
-        position.column = static_cast<size_t>(input->col);
-    return position;
-}
-
-// For errors the adapter finds on its own rather than libxml2 reporting them: records the error the way
-// structured_error_handler records libxml2's, tells the listener, and stops the parse — so nothing after the error
-// reaches the listener or the tree.
-static void report_error_and_stop(xmlParserCtxtPtr parser_ctx, ParserContext& context, ByteString message)
-{
-    ParseError parse_error {
-        .position = current_position(parser_ctx),
-        .error = move(message),
-    };
-    context.parse_errors.append(parse_error);
-    if (context.listener)
-        context.listener->error(parse_error);
-    if (!context.error.has_value())
-        context.error = move(parse_error);
-    xmlStopParser(parser_ctx);
-}
-
-static void start_document_handler(void* ctx)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context)
-        return;
-
-    if (parser_ctx->version) {
-        auto version_str = xml_char_to_byte_string(parser_ctx->version);
-        if (version_str == "1.0"sv)
-            context->version = Version::Version10;
-        else
-            context->version = Version::Version11;
-    }
-
-    if (context->listener)
-        context->listener->document_start();
-}
-
-static void end_document_handler(void* ctx)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context)
-        return;
-
-    context->document_ended = true;
-    if (context->listener)
-        context->listener->document_end();
-}
-
-static bool is_ncname(xmlChar const* name)
-{
-    // NB: In libxml2 2.15 xmlValidateNCName scans with the same XML 1.0 fifth-edition name grammar the parser uses
-    // (xmlScanName). Through 2.13 it used the fourth-edition character tables instead, which reject names the parser
-    // accepts (an Ethiopic letter, e.g.) — so this check can't be used with a libxml2 that old.
-    return xmlValidateNCName(name, 0) == 0;
-}
-
-// The rules of Namespaces in XML 1.0 §3 (Reserved Prefixes and Namespace Names) and §6.2 (a prefix can't be bound to
-// an empty namespace name): what xmlParseStartTag2 checks for an explicit xmlns declaration and skips for a
-// DTD-defaulted one, and what expat's addBinding checks for both. Returns the error to report, if any.
-// NB: libxml2 never delivers a declaration of the xml prefix itself — xmlParserNsPush drops those, explicit or
-// defaulted — so the xml arm below only states the rule; a defaulted xmlns:xml with the wrong namespace name is
-// dropped before SAX sees it, with no diagnostic.
-static Optional<ByteString> reserved_binding_error(xmlChar const* prefix, xmlChar const* uri)
-{
-    auto prefix_view = xml_char_to_string_view(prefix);
-    auto uri_view = xml_char_to_string_view(uri);
-
-    if (!prefix) {
-        if (uri_view == XML_NAMESPACE)
-            return ByteString("The XML namespace must not be declared as the default namespace"sv);
-        if (uri_view == XMLNS_NAMESPACE)
-            return ByteString("The xmlns namespace must not be declared as the default namespace"sv);
-        return {};
-    }
-
-    if (prefix_view == "xml"sv) {
-        if (uri_view == XML_NAMESPACE)
-            return {};
-        return ByteString::formatted("Namespace prefix 'xml' must be bound to the XML namespace, not '{}'", uri_view);
-    }
-    if (prefix_view == "xmlns"sv)
-        return ByteString("The xmlns prefix must not be declared"sv);
-    if (uri_view.is_empty())
-        return ByteString::formatted("Namespace prefix '{}' must not be bound to an empty namespace name", prefix_view);
-    if (uri_view == XML_NAMESPACE)
-        return ByteString::formatted("Namespace prefix '{}' must not be bound to the XML namespace", prefix_view);
-    if (uri_view == XMLNS_NAMESPACE)
-        return ByteString::formatted("Namespace prefix '{}' must not be bound to the xmlns namespace", prefix_view);
-    return {};
-}
-
-static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlChar const* prefix,
-    xmlChar const*, int nb_namespaces, xmlChar const** namespaces,
-    int nb_attributes, int nb_defaulted, xmlChar const** attributes)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context)
-        return;
-
-    if (++context->depth > MAX_XML_TREE_DEPTH) {
-        report_error_and_stop(parser_ctx, *context, ByteString("Excessive node nesting."sv));
-        return;
-    }
-
-    // An explicit attribute or namespace declaration arrives with NCName parts: libxml2 parses its name with
-    // xmlParseQName and reports a namespace error through serror when that fails. A DTD-defaulted one doesn't: an
-    // ATTLIST name is parsed with xmlParseName, which allows any number of colons, and xmlAddDefAttrs just splits it
-    // at the first one — so "a::b" is delivered as prefix "a" with local name ":b", and "xmlns:a::b" as a namespace
-    // declaration for the prefix "a::b". So check the defaulted attributes (libxml2 puts them last) and every
-    // namespace prefix (libxml2 doesn't say which of those were defaulted) before anything reaches the listener or
-    // the tree. That's the NCName grammar of Namespaces in XML, as Gecko applies it: its expat rejects such an ATTLIST
-    // outright, at the declaration. Blink and WebKit run the DOM's looser name validation on the delivered parts
-    // instead, which lets a local part like "1b" through; we don't.
-    for (int i = 0; i < nb_namespaces; i++) {
-        auto* ns_prefix = namespaces[i * 2];
-        auto* ns_uri = namespaces[i * 2 + 1];
-        if (ns_prefix && !is_ncname(ns_prefix)) {
-            report_error_and_stop(parser_ctx, *context, ByteString::formatted("Namespace prefix '{}' is not an NCName", xml_char_to_string_view(ns_prefix)));
-            return;
-        }
-        // Explicit declarations that break these rules never get here — libxml2 reports them and drops them — so this
-        // only ever fires for a DTD-defaulted declaration.
-        if (auto error = reserved_binding_error(ns_prefix, ns_uri); error.has_value()) {
-            report_error_and_stop(parser_ctx, *context, error.release_value());
-            return;
-        }
-    }
-
-    for (int i = nb_attributes - nb_defaulted; i < nb_attributes; i++) {
-        auto* attr_localname = attributes[i * 5 + 0];
-        auto* attr_prefix = attributes[i * 5 + 1];
-        // The prefix is the run before the name's first colon, so it's an NCName by construction; only the local name
-        // can be malformed.
-        if (is_ncname(attr_localname))
-            continue;
-        report_error_and_stop(parser_ctx, *context, ByteString::formatted("Attribute name '{}' is not a qualified name", xml_name_to_byte_string(attr_localname, attr_prefix)));
-        return;
-    }
-
-    if (context->listener) {
-        auto name = xml_name_to_utf16_fly_string(localname, prefix);
-        Vector<ListenerAttribute> attrs;
-        attrs.ensure_capacity(static_cast<size_t>(nb_namespaces + nb_attributes));
-
-        for (int i = 0; i < nb_namespaces; i++) {
-            auto* ns_prefix = namespaces[i * 2];
-            auto* ns_uri = namespaces[i * 2 + 1];
-
-            StringBuilder attr_name;
-            if (ns_prefix) {
-                attr_name.append("xmlns:"sv);
-                attr_name.append(xml_char_to_string_view(ns_prefix));
-            } else {
-                attr_name.append("xmlns"sv);
-            }
-
-            attrs.unchecked_append({
-                Utf16FlyString::from_utf8(attr_name.string_view()),
-                Utf16String::from_utf8(xml_char_to_string_view(ns_uri)),
-            });
-        }
-
-        for (int i = 0; i < nb_attributes; i++) {
-            auto* attr_localname = attributes[i * 5 + 0];
-            auto* attr_prefix = attributes[i * 5 + 1];
-            auto* value_begin = attributes[i * 5 + 3];
-            auto* value_end = attributes[i * 5 + 4];
-
-            auto value_len = static_cast<int>(value_end - value_begin);
-            attrs.unchecked_append({
-                xml_name_to_utf16_fly_string(attr_localname, attr_prefix),
-                Utf16String::from_utf8(xml_char_to_string_view(value_begin, value_len)),
-            });
-        }
-
-        context->listener->element_start(name, attrs);
-        return;
-    }
-
-    auto name = xml_name_to_byte_string(localname, prefix);
-    OrderedHashMap<Name, ByteString> attrs;
-
-    for (int i = 0; i < nb_namespaces; i++) {
-        auto* ns_prefix = namespaces[i * 2];
-        auto* ns_uri = namespaces[i * 2 + 1];
-
-        StringBuilder attr_name;
-        if (ns_prefix) {
-            attr_name.append("xmlns:"sv);
-            attr_name.append(xml_char_to_string_view(ns_prefix));
-        } else {
-            attr_name.append("xmlns"sv);
-        }
-        attrs.set(attr_name.to_byte_string(), xml_char_to_byte_string(ns_uri));
-    }
-
-    for (int i = 0; i < nb_attributes; i++) {
-        auto* attr_localname = attributes[i * 5 + 0];
-        auto* attr_prefix = attributes[i * 5 + 1];
-        auto* value_begin = attributes[i * 5 + 3];
-        auto* value_end = attributes[i * 5 + 4];
-
-        StringBuilder attr_name;
-        if (attr_prefix) {
-            attr_name.append(xml_char_to_string_view(attr_prefix));
-            attr_name.append(':');
-        }
-        attr_name.append(xml_char_to_string_view(attr_localname));
-
-        auto value_len = static_cast<int>(value_end - value_begin);
-        auto value = xml_char_to_byte_string(value_begin, value_len);
-        attrs.set(attr_name.to_byte_string(), value);
-    }
-
-    auto element = adopt_own(*new Node {
-        .offset = {},
-        .content = Node::Element { name, move(attrs), {} },
-        .parent = context->current_node,
-    });
-
-    auto* element_ptr = element.ptr();
-
-    if (context->current_node) {
-        VERIFY(context->current_node->is_element());
-        context->current_node->content.get<Node::Element>().children.append(move(element));
-    } else {
-        context->root_node = move(element);
-    }
-
-    context->current_node = element_ptr;
-}
-
-static void end_element_ns_handler(void* ctx, xmlChar const* localname, xmlChar const* prefix, xmlChar const*)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context)
-        return;
-
-    --context->depth;
-
-    if (context->listener) {
-        auto name = xml_name_to_utf16_fly_string(localname, prefix);
-        context->listener->element_end(name);
-    } else if (context->current_node) {
-        context->current_node = context->current_node->parent;
-    }
-}
-
-static void characters_handler(void* ctx, xmlChar const* ch, int len)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context)
-        return;
-
-    auto text = StringView(reinterpret_cast<char const*>(ch), static_cast<size_t>(len));
-
-    if (context->listener) {
-        context->listener->text(text);
-    } else if (context->current_node && context->current_node->is_element()) {
-        auto& children = context->current_node->content.get<Node::Element>().children;
-        if (!children.is_empty() && children.last()->is_text()) {
-            children.last()->content.get<Node::Text>().builder.append(text);
-        } else {
-            Node::Text text_content;
-            text_content.builder.append(text);
-            auto text_node = adopt_own(*new Node {
-                .offset = {},
-                .content = move(text_content),
-                .parent = context->current_node,
-            });
-            children.append(move(text_node));
-        }
-    }
-}
-
-static void cdata_block_handler(void* ctx, xmlChar const* value, int len)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context)
-        return;
-
-    auto text = StringView(reinterpret_cast<char const*>(value), static_cast<size_t>(len));
-
-    if (context->listener) {
-        context->listener->cdata_section(text);
-    } else if (context->current_node && context->current_node->is_element()) {
-        auto& children = context->current_node->content.get<Node::Element>().children;
-        Node::Text text_content;
-        text_content.builder.append(text);
-        auto text_node = adopt_own(*new Node {
-            .offset = {},
-            .content = move(text_content),
-            .parent = context->current_node,
-        });
-        children.append(move(text_node));
-    }
-}
-
-static void comment_handler(void* ctx, xmlChar const* value)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context)
-        return;
-
-    auto comment_text = xml_char_to_byte_string(value);
-
-    if (context->listener) {
-        context->listener->comment(comment_text);
-    } else if (context->current_node && context->current_node->is_element()) {
-        auto& children = context->current_node->content.get<Node::Element>().children;
-        auto comment_node = adopt_own(*new Node {
-            .offset = {},
-            .content = Node::Comment { comment_text },
-            .parent = context->current_node,
-        });
-        children.append(move(comment_node));
-    }
-}
-
-static void processing_instruction_handler(void* ctx, xmlChar const* target, xmlChar const* data)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context)
-        return;
-
-    // Processing instructions inside a DTD subset are not document children.
-    if (parser_ctx->inSubset != 0)
-        return;
-
-    if (context->listener) {
-        auto target_str = Utf16FlyString::from_utf8(xml_char_to_string_view(target));
-        auto data_str = Utf16String::from_utf8(xml_char_to_string_view(data));
-        context->listener->processing_instruction(target_str, data_str);
-    } else {
-        auto target_str = xml_char_to_byte_string(target);
-        auto data_str = xml_char_to_byte_string(data);
-        context->processing_instructions.set(target_str, data_str);
-    }
-}
-
-static void internal_subset_handler(void* ctx, xmlChar const* name, xmlChar const* external_id, xmlChar const* system_id)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context)
-        return;
-
-    Doctype doctype;
-    doctype.type = xml_char_to_byte_string(name);
-
-    if (external_id || system_id) {
-        ExternalID ext_id;
-        if (external_id)
-            ext_id.public_id = PublicID { xml_char_to_byte_string(external_id) };
-        ext_id.system_id = SystemID { xml_char_to_byte_string(system_id) };
-        doctype.external_id = move(ext_id);
-    }
-
-    context->doctype = move(doctype);
-
-    if (context->listener)
-        context->listener->set_doctype(context->doctype.value());
-}
-
-static void structured_error_handler(void* ctx, xmlError const* error)
-{
-    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
-    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
-    if (!context || !error)
-        return;
-
-    size_t offset = 0;
-    if (parser_ctx->input && parser_ctx->input->cur && parser_ctx->input->base)
-        offset = static_cast<size_t>(parser_ctx->input->cur - parser_ctx->input->base);
-
-    ParseError parse_error {
+    return ParseError {
         .position = LineTrackingLexer::Position {
-            .offset = offset,
-            .line = error->line > 0 ? static_cast<size_t>(error->line) : 0,
-            .column = error->int2 > 0 ? static_cast<size_t>(error->int2) : 0,
+            .offset = error.offset,
+            .line = error.line,
+            .column = error.column,
         },
-        .error = ByteString(error->message ? StringView(error->message, strlen(error->message)).trim_whitespace() : "Unknown error"sv),
+        .error = ByteString(StringView { error.message, error.message_length }),
     };
-
-    context->parse_errors.append(parse_error);
-
-    if (context->listener)
-        context->listener->error(parse_error);
-
-    if (!context->error.has_value())
-        context->error = move(parse_error);
-}
-
-static xmlSAXHandler create_sax_handler(bool preserve_comments, bool resolve_html_entities)
-{
-    xmlSAXHandler handler = {};
-    handler.initialized = XML_SAX2_MAGIC;
-    handler.startDocument = start_document_handler;
-    handler.endDocument = end_document_handler;
-    handler.startElementNs = start_element_ns_handler;
-    handler.endElementNs = end_element_ns_handler;
-    handler.characters = characters_handler;
-    handler.cdataBlock = cdata_block_handler;
-    handler.processingInstruction = processing_instruction_handler;
-    handler.internalSubset = internal_subset_handler;
-    handler.serror = structured_error_handler;
-    if (preserve_comments)
-        handler.comment = comment_handler;
-    if (resolve_html_entities) {
-        handler.externalSubset = external_subset_handler;
-        handler.getEntity = get_entity_handler;
-    }
-    return handler;
 }
 
 ErrorOr<void, ParseError> Parser::parse_with_listener(Listener& listener)
 {
-    auto source_result = listener.set_source(ByteString(m_source));
+    auto source_result = listener.set_source(m_source);
     if (source_result.is_error())
         return ParseError { {}, ByteString("Failed to set source") };
 
-    ParserContext context;
-    context.listener = &listener;
-    context.options = &m_options;
+    Tape tape { m_source, m_options };
 
-    bool resolve_html_entities = static_cast<bool>(m_options.resolve_named_html_entity);
-    auto sax_handler = create_sax_handler(m_options.preserve_comments, resolve_html_entities);
+    // NB: The parser has checked that every string of the tape is UTF-8, so none of them is checked again here.
 
-    int options = XML_PARSE_NONET | XML_PARSE_NOWARNING | XML_PARSE_NOENT | XML_PARSE_NO_XXE;
-    if (!m_options.preserve_cdata)
-        options |= XML_PARSE_NOCDATA;
+    // OPTIMIZATION: A document has few distinct names and uses each of them many times, so a name becomes a fly
+    // string the first time a row uses it, and every later row just takes another reference to it.
+    Vector<Optional<Utf16FlyString>> names;
+    names.resize(tape.name_count());
+    auto name = [&](size_t row) -> Utf16FlyString const& {
+        auto& slot = names[tape.name_id(row)];
+        if (!slot.has_value())
+            slot = Utf16FlyString::from_utf8_without_validation(tape.name(row));
+        return slot.value();
+    };
 
-    auto* parser_ctx = xmlCreatePushParserCtxt(&sax_handler, nullptr, nullptr, 0, nullptr);
-    if (!parser_ctx)
-        return ParseError { {}, ByteString("Failed to create parser context") };
+    // Each error says which row it comes before, so that the listener hears of it at the point in the document
+    // where the parser found it.
+    auto errors = tape.errors();
+    size_t next_error = 0;
+    m_parse_errors.clear();
+    auto report_errors_before = [&](size_t row) {
+        while (next_error < errors.size() && errors[next_error].row <= row) {
+            auto error = to_parse_error(errors[next_error++]);
+            listener.error(error);
+            m_parse_errors.append(move(error));
+        }
+    };
 
-    parser_ctx->_private = &context;
-    xmlCtxtUseOptions(parser_ctx, options);
+    // A document that is empty, or wrong before its XML declaration is over, doesn't start.
+    if (tape.started())
+        listener.document_start();
 
-    xmlSwitchEncoding(parser_ctx, XML_CHAR_ENCODING_UTF8);
+    auto has_error_before = [&](size_t row) {
+        return next_error < errors.size() && errors[next_error].row <= row;
+    };
 
-    auto result = xmlParseChunk(parser_ctx, m_source.characters_without_null_termination(), static_cast<int>(m_source.length()), 1);
-
-    bool well_formed = parser_ctx->wellFormed;
-    xmlFreeParserCtxt(parser_ctx);
-
-    m_parse_errors = move(context.parse_errors);
-
-    if (!context.document_ended)
-        listener.document_end();
-
-    if (context.error.has_value() && m_options.treat_errors_as_fatal)
-        return context.error.release_value();
-
-    if (result != 0 || !well_formed) {
-        if (!m_parse_errors.is_empty())
-            return m_parse_errors.first();
-        return ParseError { {}, ByteString("XML parsing failed") };
+    Vector<ListenerAttribute> attributes;
+    StringBuilder text;
+    auto row_count = tape.row_count();
+    for (size_t row = 0; row < row_count; ++row) {
+        report_errors_before(row);
+        switch (tape.kind(row)) {
+        case FFI::XmlRowKind::Start: {
+            auto const& element_name = name(row);
+            attributes.clear_with_capacity();
+            while (tape.is(row + 1, FFI::XmlRowKind::Attribute)) {
+                attributes.empend(name(row + 1), Utf16String::from_utf8_without_validation(tape.string(row + 2)));
+                row += 2;
+            }
+            listener.element_start(element_name, attributes);
+            break;
+        }
+        case FFI::XmlRowKind::End:
+            listener.element_end(name(row));
+            break;
+        case FFI::XmlRowKind::Text:
+            // OPTIMIZATION: Text with references in it is a row for each piece. A listener that builds a tree would
+            // have to grow its text node once per piece, so it is given the whole run at once. The run ends where
+            // an error comes in, which the listener hears of before the text that follows it.
+            if (tape.is(row + 1, FFI::XmlRowKind::Text) && !has_error_before(row + 1)) {
+                text.clear();
+                text.append(tape.string(row));
+                while (tape.is(row + 1, FFI::XmlRowKind::Text) && !has_error_before(row + 1))
+                    text.append(tape.string(++row));
+                listener.text(text.string_view());
+                break;
+            }
+            listener.text(tape.string(row));
+            break;
+        case FFI::XmlRowKind::Cdata:
+            listener.cdata_section(tape.string(row));
+            break;
+        case FFI::XmlRowKind::Comment:
+            listener.comment(tape.string(row));
+            break;
+        case FFI::XmlRowKind::ProcessingInstruction:
+            listener.processing_instruction(name(row), Utf16String::from_utf8_without_validation(tape.string(row + 1)));
+            row += 1;
+            break;
+        case FFI::XmlRowKind::Doctype:
+            listener.set_doctype(tape.doctype(row));
+            row += 2;
+            break;
+        case FFI::XmlRowKind::Attribute:
+        case FFI::XmlRowKind::Value:
+            // These only follow the row they belong to, which consumes them.
+            VERIFY_NOT_REACHED();
+        }
     }
+    report_errors_before(NumericLimits<size_t>::max());
 
+    listener.document_end();
+
+    if (!m_parse_errors.is_empty())
+        return m_parse_errors.first();
     return {};
 }
 
 ErrorOr<Document, ParseError> Parser::parse()
 {
-    ParserContext context;
-    context.options = &m_options;
+    Tape tape { m_source, m_options };
 
-    bool resolve_html_entities = static_cast<bool>(m_options.resolve_named_html_entity);
-    auto sax_handler = create_sax_handler(m_options.preserve_comments, resolve_html_entities);
+    m_parse_errors.clear();
+    for (auto const& error : tape.errors())
+        m_parse_errors.append(to_parse_error(error));
+    if (!m_parse_errors.is_empty())
+        return m_parse_errors.first();
 
-    int options = XML_PARSE_NONET | XML_PARSE_NOWARNING | XML_PARSE_NOENT | XML_PARSE_NO_XXE;
-    if (!m_options.preserve_cdata)
-        options |= XML_PARSE_NOCDATA;
+    OwnPtr<Node> root;
+    Node* current = nullptr;
+    Optional<Doctype> doctype;
+    HashMap<Name, ByteString> processing_instructions;
 
-    auto* parser_ctx = xmlCreatePushParserCtxt(&sax_handler, nullptr, nullptr, 0, nullptr);
-    if (!parser_ctx)
-        return ParseError { {}, ByteString("Failed to create parser context") };
+    auto append_child = [&](Variant<Node::Text, Node::Comment, Node::Element> content) -> Node* {
+        auto node = adopt_own(*new Node { .offset = {}, .content = move(content), .parent = current });
+        auto* node_pointer = node.ptr();
+        if (current)
+            current->content.get<Node::Element>().children.append(move(node));
+        else
+            root = move(node);
+        return node_pointer;
+    };
 
-    parser_ctx->_private = &context;
-    xmlCtxtUseOptions(parser_ctx, options);
-
-    xmlSwitchEncoding(parser_ctx, XML_CHAR_ENCODING_UTF8);
-
-    auto result = xmlParseChunk(parser_ctx, m_source.characters_without_null_termination(), static_cast<int>(m_source.length()), 1);
-
-    bool well_formed = parser_ctx->wellFormed;
-    xmlFreeParserCtxt(parser_ctx);
-
-    m_parse_errors = move(context.parse_errors);
-
-    if (context.error.has_value() && m_options.treat_errors_as_fatal)
-        return context.error.release_value();
-
-    if (result != 0 || !well_formed) {
-        if (!m_parse_errors.is_empty())
-            return m_parse_errors.first();
-        return ParseError { {}, ByteString("XML parsing failed") };
+    auto row_count = tape.row_count();
+    for (size_t row = 0; row < row_count; ++row) {
+        switch (tape.kind(row)) {
+        case FFI::XmlRowKind::Start: {
+            Node::Element element { .name = tape.name(row), .attributes = {}, .children = {} };
+            while (tape.is(row + 1, FFI::XmlRowKind::Attribute)) {
+                element.attributes.set(tape.name(row + 1), tape.string(row + 2));
+                row += 2;
+            }
+            current = append_child(move(element));
+            break;
+        }
+        case FFI::XmlRowKind::End:
+            current = current->parent;
+            break;
+        case FFI::XmlRowKind::Text: {
+            if (!current)
+                break;
+            // Text that was written in pieces (around a reference, say) is still one node.
+            auto& children = current->content.get<Node::Element>().children;
+            if (!children.is_empty() && children.last()->is_text()) {
+                children.last()->content.get<Node::Text>().builder.append(tape.string(row));
+                break;
+            }
+            [[fallthrough]];
+        }
+        case FFI::XmlRowKind::Cdata: {
+            if (!current)
+                break;
+            Node::Text text;
+            text.builder.append(tape.string(row));
+            append_child(move(text));
+            break;
+        }
+        case FFI::XmlRowKind::Comment:
+            if (current)
+                append_child(Node::Comment { tape.string(row) });
+            break;
+        case FFI::XmlRowKind::ProcessingInstruction:
+            processing_instructions.set(tape.name(row), tape.string(row + 1));
+            row += 1;
+            break;
+        case FFI::XmlRowKind::Doctype:
+            doctype = tape.doctype(row);
+            row += 2;
+            break;
+        case FFI::XmlRowKind::Attribute:
+        case FFI::XmlRowKind::Value:
+            // These only follow the row they belong to, which consumes them.
+            VERIFY_NOT_REACHED();
+        }
     }
 
-    if (!context.root_node)
+    if (!root)
         return ParseError { {}, ByteString("No root element") };
 
-    return Document(context.root_node.release_nonnull(), move(context.doctype), move(context.processing_instructions), context.version);
+    return Document(root.release_nonnull(), move(doctype), move(processing_instructions), tape.version());
 }
 
 }
