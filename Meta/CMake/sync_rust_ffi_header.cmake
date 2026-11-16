@@ -12,10 +12,14 @@ if (FFI_HEADER STREQUAL "")
     return()
 endif()
 
-file(GLOB root_output_files "${CARGO_BUILD_SCRIPT_DIR}/${CRATE_NAME}-*/root-output")
+# Cargo writes a build script's output under <crate>-<hash>/ up to 1.98, and under <crate>/<hash>/run/ after that. A
+# build directory reused across a Cargo upgrade holds both, so the newest root-output file decides.
+file(GLOB root_output_files
+    "${CARGO_BUILD_SCRIPT_DIR}/${CRATE_NAME}-*/root-output"
+    "${CARGO_BUILD_SCRIPT_DIR}/${CRATE_NAME}/*/run/root-output")
 
 set(latest_source_header "")
-set(latest_root_output_timestamp "")
+set(latest_root_output_file "")
 
 foreach(root_output_file IN LISTS root_output_files)
     file(READ "${root_output_file}" out_dir)
@@ -26,10 +30,11 @@ foreach(root_output_file IN LISTS root_output_files)
         continue()
     endif()
 
-    file(TIMESTAMP "${root_output_file}" root_output_timestamp "%s" UTC)
-    if (latest_source_header STREQUAL "" OR root_output_timestamp GREATER latest_root_output_timestamp)
+    # IS_NEWER_THAN compares the full modification times, and holds for equal ones, so a tie goes to the file that
+    # sorts later: the newer layout's, since "/" sorts after "-".
+    if (latest_source_header STREQUAL "" OR "${root_output_file}" IS_NEWER_THAN "${latest_root_output_file}")
         set(latest_source_header "${source_header}")
-        set(latest_root_output_timestamp "${root_output_timestamp}")
+        set(latest_root_output_file "${root_output_file}")
     endif()
 endforeach()
 
