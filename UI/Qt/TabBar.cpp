@@ -1031,7 +1031,7 @@ int TabBar::horizontal_tab_share() const
     auto pinned_count = pinned_tab_count();
     auto remaining_width = (m_available_width > 0 ? m_available_width : this->width()) - (pinned_count * HORIZONTAL_PINNED_TAB_WIDTH) - (2 * HORIZONTAL_TAB_END_ROOM);
     auto sharing_count = count() - pinned_count;
-    if (sharing_count <= 0)
+    if (sharing_count <= 0 || remaining_width / sharing_count <= HORIZONTAL_TAB_MIN_WIDTH)
         return HORIZONTAL_TAB_MIN_WIDTH;
 
     Vector<int, 8> larger_min_widths;
