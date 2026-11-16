@@ -7,7 +7,6 @@
 #include <AK/IntegralMath.h>
 #include <AK/Math.h>
 #include <AK/Try.h>
-#include <AK/Utf8View.h>
 #include <LibCrypto/ASN1/DER.h>
 
 namespace Crypto::ASN1 {
@@ -87,14 +86,6 @@ ErrorOr<ReadonlyBytes> Decoder::read_bytes(size_t length)
     return bytes;
 }
 
-ErrorOr<bool> Decoder::decode_boolean(ReadonlyBytes data)
-{
-    if (data.size() != 1)
-        return Error::from_string_literal("ASN1::Decoder: Decoding boolean from a non boolean-sized span");
-
-    return data[0] != 0;
-}
-
 ErrorOr<UnsignedBigInteger> Decoder::decode_arbitrary_sized_integer(ReadonlyBytes data)
 {
     if (data.size() < 1)
@@ -164,15 +155,6 @@ ErrorOr<ObjectIdentifier> Decoder::decode_object_identifier(ReadonlyBytes data)
     result[1] = result[1] % 40;
 
     return result;
-}
-
-ErrorOr<StringView> Decoder::decode_printable_string(ReadonlyBytes data)
-{
-    Utf8View view { data };
-    if (!view.validate())
-        return Error::from_string_literal("ASN1::Decoder: Invalid UTF-8 in printable string");
-
-    return StringView { data };
 }
 
 ErrorOr<BitStringView> Decoder::decode_bit_string(ReadonlyBytes data)
@@ -291,17 +273,6 @@ ErrorOr<void> Encoder::write_bytes(ReadonlyBytes bytes)
     return {};
 }
 
-ErrorOr<void> Encoder::write_boolean(bool value, Optional<Class> class_override, Optional<Kind> kind_override)
-{
-    auto class_ = class_override.value_or(Class::Universal);
-    auto type = Type::Primitive;
-    auto kind = kind_override.value_or(Kind::Boolean);
-
-    TRY(write_tag(class_, type, kind));
-    TRY(write_length(1));
-    return write_byte(value ? 0xff : 0x00);
-}
-
 ErrorOr<void> Encoder::write_arbitrary_sized_integer(UnsignedBigInteger const& value, Optional<Class> class_override, Optional<Kind> kind_override)
 {
     auto class_ = class_override.value_or(Class::Universal);
@@ -327,21 +298,6 @@ ErrorOr<void> Encoder::write_arbitrary_sized_integer(UnsignedBigInteger const& v
         TRY(write_length(result.size()));
     }
     return write_bytes(result);
-}
-
-ErrorOr<void> Encoder::write_printable_string(StringView string, Optional<Class> class_override, Optional<Kind> kind_override)
-{
-    Utf8View view { string };
-    if (!view.validate())
-        return Error::from_string_literal("ASN1::Encoder: Invalid UTF-8 in printable string");
-
-    auto class_ = class_override.value_or(Class::Universal);
-    auto type = Type::Primitive;
-    auto kind = kind_override.value_or(Kind::PrintableString);
-
-    TRY(write_tag(class_, type, kind));
-    TRY(write_length(string.length()));
-    return write_bytes(string.bytes());
 }
 
 ErrorOr<void> Encoder::write_octet_string(ReadonlyBytes bytes, Optional<Class> class_override, Optional<Kind> kind_override)
