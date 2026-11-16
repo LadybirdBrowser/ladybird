@@ -56,6 +56,7 @@ private:
     virtual void disk_cache_size_changed(u64 size) override;
     virtual void retrieved_cache_access_profile(u64 access_profile_request_id, Vector<CacheAccessBucket> buckets) override;
     virtual void request_adopter_designated(u64 designation_id) override;
+    virtual void resolve_host_with_system_resolver(u64 resolution_id, ByteString host, bool ipv6) override;
 
     HashMap<u64, NonnullRefPtr<Core::Promise<CacheSizes>>> m_pending_cache_size_estimations;
     u64 m_next_cache_size_estimation_id { 0 };

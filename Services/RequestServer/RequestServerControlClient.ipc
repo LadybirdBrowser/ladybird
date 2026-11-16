@@ -26,4 +26,7 @@ endpoint RequestServerControlClient
     retrieved_cache_access_profile(u64 access_profile_request_id, Vector<Requests::CacheAccessBucket> buckets) =|
 
     request_adopter_designated(u64 designation_id) =|
+    // RequestServer has no access to the files the system resolver reads, such as /etc/resolv.conf, so the process
+    // that launched it resolves a name for it. ipv6: whether to look up IPv6 addresses rather than IPv4 ones.
+    resolve_host_with_system_resolver(u64 resolution_id, ByteString host, bool ipv6) =|
 }
