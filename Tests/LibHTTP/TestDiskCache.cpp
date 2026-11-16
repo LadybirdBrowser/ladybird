@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCore/System.h>
@@ -20,7 +21,11 @@
 
 struct TestCacheRequest final : public HTTP::CacheRequest {
     virtual bool is_revalidation_request() const override { return false; }
-    virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override { }
+    virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override { ++unblocked_count; }
+    virtual Optional<MonotonicTime> last_activity_time() const override { return activity; }
+
+    size_t unblocked_count { 0 };
+    Optional<MonotonicTime> activity;
 };
 
 static URL::URL parse_url(StringView url)
@@ -241,7 +246,7 @@ TEST_CASE(unreadable_entry_is_removed)
     store_cache_entry(disk_cache, request, url, *request_headers, create_cacheable_response_headers(), "console.log('hello');"sv);
 
     auto cache_key = HTTP::create_cache_key(test_partition(), HTTP::serialize_url_for_cache_storage(url), "GET"sv);
-    auto path = HTTP::path_for_cache_entry(disk_cache.cache_directory(), cache_key, 0);
+    auto path = HTTP::path_for_cache_entry(disk_cache.cache_directory(), cache_key, {});
     {
         auto file = TRY_OR_FAIL(Core::File::open(path.string(), Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
         TRY_OR_FAIL(file->write_until_depleted("garbage"sv.bytes()));
@@ -435,4 +440,110 @@ TEST_CASE(force_cache_reuses_stale_must_revalidate_entries)
     reader = open_stale_cache_entry(disk_cache, request, parse_url("https://example.com/only-if-cached"sv), "max-age=60, must-revalidate"sv, "120"sv, HTTP::CacheMode::OnlyIfCached);
     VERIFY(reader.has_value());
     EXPECT_EQ(reader->revalidation_type(), HTTP::CacheEntryReader::RevalidationType::None);
+}
+
+// Legacy disk SHA-1 prefix: cc4122efe2277ef8, with test_partition() and GET.
+TEST_CASE(legacy_disk_hash_collision_does_not_alias_responses)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+    auto a = parse_url("https://b.example/a15233b41c58b0cc"sv);
+    auto b = parse_url("https://a.example/3a0fafd1c5bfae49"sv);
+    auto headers = create_cacheable_request_headers();
+    auto response_a = create_cacheable_response_headers();
+    response_a->append({ "X-Identity"sv, "A"sv });
+    auto response_b = create_cacheable_response_headers();
+    response_b->append({ "X-Identity"sv, "B"sv });
+    store_cache_entry(disk_cache, request, a, *headers, response_a, "response A"sv);
+    auto unexpected = open_cache_entry(disk_cache, request, b, *headers);
+    EXPECT(!unexpected.has_value());
+    if (unexpected.has_value())
+        disk_cache.close_entries_read_by(request);
+    store_cache_entry(disk_cache, request, b, *headers, response_b, "response B"sv);
+    for (auto which : { 0, 1 }) {
+        auto const& url = which == 0 ? a : b;
+        auto expected = which == 0 ? "response A"sv : "response B"sv;
+        auto reader = open_cache_entry(disk_cache, request, url, *headers);
+        VERIFY(reader.has_value());
+        EXPECT_EQ(reader->response_headers().get("X-Identity"sv), Optional<ByteString> { which == 0 ? "A" : "B" });
+        auto file = TRY_OR_FAIL(reader->take_body_file());
+        auto body = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(file.fd, "collision body"sv, file.offset, file.size));
+        EXPECT_EQ(body.bytes(), expected.bytes());
+    }
+    disk_cache.invalidate(test_partition(), a);
+    EXPECT(!open_cache_entry(disk_cache, request, a, *headers).has_value());
+    EXPECT(open_cache_entry(disk_cache, request, b, *headers).has_value());
+}
+
+TEST_CASE(different_resources_do_not_share_writer_activity_or_locks)
+{
+    auto disk_cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request_a;
+    TestCacheRequest request_b;
+    auto a = parse_url("https://b.example/a15233b41c58b0cc"sv);
+    auto b = parse_url("https://a.example/3a0fafd1c5bfae49"sv);
+    auto headers = create_cacheable_request_headers();
+    request_a.activity = MonotonicTime::now();
+    auto& writer_a = create_cache_entry(disk_cache, request_a, a, *headers);
+    EXPECT(disk_cache.last_activity_time_of_open_entries(test_partition(), a, "GET"sv) == request_a.activity);
+    EXPECT(!disk_cache.last_activity_time_of_open_entries(test_partition(), b, "GET"sv).has_value());
+    // This helper fails if B is queued behind A, as happens with the legacy collision.
+    auto& writer_b = create_cache_entry(disk_cache, request_b, b, *headers);
+    TRY_OR_FAIL(writer_a.write_status_and_reason(200, "OK"_string, *headers, *create_cacheable_response_headers()));
+    TRY_OR_FAIL(writer_b.write_status_and_reason(200, "OK"_string, *headers, *create_cacheable_response_headers()));
+    disk_cache.invalidate(test_partition(), a);
+    EXPECT(writer_a.write_data("A"sv.bytes()).is_error());
+    TRY_OR_FAIL(writer_b.write_data("B"sv.bytes()));
+    TRY_OR_FAIL(writer_b.flush(create_cacheable_request_headers()));
+    EXPECT(open_cache_entry(disk_cache, request_b, b, *headers).has_value());
+}
+
+TEST_CASE(waiters_are_resumed_only_when_their_exact_resource_closes)
+{
+    Core::EventLoop event_loop;
+    auto disk_cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest holder_a;
+    TestCacheRequest holder_b;
+    TestCacheRequest waiter_a;
+    TestCacheRequest waiter_b;
+    auto a = parse_url("https://b.example/a15233b41c58b0cc"sv);
+    auto b = parse_url("https://a.example/3a0fafd1c5bfae49"sv);
+    auto headers = create_cacheable_request_headers();
+    auto& writer_a = create_cache_entry(disk_cache, holder_a, a, *headers);
+    auto& writer_b = create_cache_entry(disk_cache, holder_b, b, *headers);
+    for (auto which : { 0, 1 }) {
+        auto& waiter = which == 0 ? waiter_a : waiter_b;
+        auto const& url = which == 0 ? a : b;
+        auto result = disk_cache.create_entry(waiter, test_partition(), url, "GET"sv, *headers, UnixDateTime::now());
+        EXPECT(result.has<HTTP::DiskCache::CacheHasOpenEntry>());
+    }
+    writer_a.remove_incomplete_entry();
+    event_loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(waiter_a.unblocked_count, 1u);
+    EXPECT_EQ(waiter_b.unblocked_count, 0u);
+    writer_b.remove_incomplete_entry();
+    event_loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(waiter_b.unblocked_count, 1u);
+}
+
+TEST_CASE(cache_file_for_another_url_is_not_served)
+{
+    auto disk_cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    auto url = parse_url("https://example.com/a"sv);
+    auto other_url = "https://example.com/b"_string;
+    auto headers = create_cacheable_request_headers();
+    TestCacheRequest request;
+    store_cache_entry(disk_cache, request, url, *headers, create_cacheable_response_headers(), "body"sv);
+    auto cache_key = HTTP::create_cache_key(test_partition(), HTTP::serialize_url_for_cache_storage(url), "GET"sv);
+    auto path = HTTP::path_for_cache_entry(disk_cache.cache_directory(), cache_key, {});
+    {
+        auto file = TRY_OR_FAIL(Core::File::open(path.string(), Core::File::OpenMode::ReadWrite));
+        auto header = TRY_OR_FAIL(file->read_value<HTTP::CacheHeader>());
+        header.url_hash = other_url.hash();
+        (void)TRY_OR_FAIL(file->seek(0, SeekMode::SetPosition));
+        TRY_OR_FAIL(file->write_value(header));
+        TRY_OR_FAIL(file->write_until_depleted(other_url));
+    }
+    EXPECT(!open_cache_entry(disk_cache, request, url, *headers).has_value());
+    EXPECT(!FileSystem::exists(path.string()));
 }

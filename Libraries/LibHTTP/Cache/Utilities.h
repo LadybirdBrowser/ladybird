@@ -31,15 +31,15 @@ i64 compute_maximum_disk_cache_size(u64 free_bytes, u64 limit_maximum_disk_cache
 i64 compute_maximum_disk_cache_entry_size(i64 maximum_disk_cache_size);
 
 String serialize_url_for_cache_storage(URL::URL const&);
-u64 create_cache_key(Utf16View const& partition, StringView url, StringView method);
+CacheDigest create_cache_key(Utf16View const& partition, StringView url, StringView method);
 CacheKey create_cache_key(StringView url, StringView method);
 Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers);
-Optional<u64> create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers);
-LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key);
+Optional<CacheDigest> create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers);
+LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, CacheDigest const& cache_key, CacheDigest const& vary_key);
 
 struct CacheEntryData {
-    u64 cache_key { 0 };
-    u64 vary_key { 0 };
+    CacheDigest cache_key;
+    CacheDigest vary_key;
 };
 Optional<CacheEntryData> cache_entry_data_for_file(LexicalPath const&);
 

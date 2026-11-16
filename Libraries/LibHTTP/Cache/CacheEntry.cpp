@@ -72,7 +72,7 @@ ErrorOr<CacheFooter> CacheFooter::read_from_stream(Stream& stream)
     return footer;
 }
 
-CacheEntry::CacheEntry(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, u64 vary_key, String url, Optional<LexicalPath> path, CacheHeader cache_header)
+CacheEntry::CacheEntry(DiskCache& disk_cache, CacheIndex& index, CacheDigest const& cache_key, CacheDigest const& vary_key, String url, Optional<LexicalPath> path, CacheHeader cache_header)
     : m_disk_cache(disk_cache)
     , m_index(index)
     , m_cache_key(cache_key)
@@ -97,18 +97,18 @@ void CacheEntry::close_and_destroy_cache_entry()
     m_disk_cache.cache_entry_closed({}, *this);
 }
 
-ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, UnixDateTime request_time, AK::Duration current_time_offset_for_testing)
+ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& disk_cache, CacheIndex& index, CacheDigest const& cache_key, String url, UnixDateTime request_time, AK::Duration current_time_offset_for_testing)
 {
     CacheHeader cache_header;
-    cache_header.key_hash = u64_hash(cache_key);
+    cache_header.key_hash = Traits<CacheDigest>::hash(cache_key);
     cache_header.url_size = url.byte_count();
     cache_header.url_hash = url.hash();
 
     return adopt_own(*new CacheEntryWriter { disk_cache, index, cache_key, move(url), cache_header, request_time, current_time_offset_for_testing });
 }
 
-CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, CacheHeader cache_header, UnixDateTime request_time, AK::Duration current_time_offset_for_testing)
-    : CacheEntry(disk_cache, index, cache_key, 0, move(url), {}, cache_header)
+CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, CacheDigest const& cache_key, String url, CacheHeader cache_header, UnixDateTime request_time, AK::Duration current_time_offset_for_testing)
+    : CacheEntry(disk_cache, index, cache_key, {}, move(url), {}, cache_header)
     , m_request_time(request_time)
     , m_current_time_offset_for_testing(current_time_offset_for_testing)
 {
@@ -297,7 +297,7 @@ void CacheEntryWriter::remove_incomplete_temporary_file()
     (void)FileSystem::remove(m_temporary_path->string(), FileSystem::RecursionMode::Disallowed);
 }
 
-ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList> response_headers, u64 data_size)
+ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, CacheDigest const& cache_key, CacheDigest const& vary_key, String const& expected_url, NonnullRefPtr<HeaderList> response_headers, u64 data_size)
 {
     auto path = path_for_cache_entry(disk_cache.cache_directory(), cache_key, vary_key);
 
@@ -319,10 +319,14 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
         if (cache_header.version != CACHE_VERSION)
             return Error::from_string_literal("Version mismatch");
 
-        if (cache_header.key_hash != u64_hash(cache_key))
+        if (cache_header.key_hash != Traits<CacheDigest>::hash(cache_key))
             return Error::from_string_literal("Key hash mismatch");
 
+        if (cache_header.url_size != expected_url.byte_count())
+            return Error::from_string_literal("URL mismatch");
         url = TRY(String::from_stream(*file, cache_header.url_size));
+        if (url != expected_url)
+            return Error::from_string_literal("URL mismatch");
         if (url.hash() != cache_header.url_hash)
             return Error::from_string_literal("URL hash mismatch");
 
@@ -345,7 +349,7 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
     return adopt_own(*new CacheEntryReader { disk_cache, index, cache_key, vary_key, move(url), move(path), move(file), fd, cache_header, move(reason_phrase), move(response_headers), data_offset, data_size });
 }
 
-CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, u64 vary_key, String url, LexicalPath path, NonnullOwnPtr<Core::File> file, int fd, CacheHeader cache_header, Optional<String> reason_phrase, NonnullRefPtr<HeaderList> response_headers, u64 data_offset, u64 data_size)
+CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, CacheDigest const& cache_key, CacheDigest const& vary_key, String url, LexicalPath path, NonnullOwnPtr<Core::File> file, int fd, CacheHeader cache_header, Optional<String> reason_phrase, NonnullRefPtr<HeaderList> response_headers, u64 data_offset, u64 data_size)
     : CacheEntry(disk_cache, index, cache_key, vary_key, move(url), move(path), cache_header)
     , m_file(move(file))
     , m_fd(fd)
