@@ -85,14 +85,14 @@ ErrorOr<UnsignedBigInteger> openssl_bignum_to_unsigned_big_integer(OpenSSL_BN co
     return UnsignedBigInteger::import_data(buf);
 }
 
-ErrorOr<ByteBuffer> get_byte_buffer_param_from_key(OpenSSL_PKEY& key, char const* key_name)
+ErrorOr<ByteBuffer> get_byte_buffer_param_from_key(EVP_PKEY* key, char const* key_name)
 {
     size_t size;
-    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key.ptr(), key_name, nullptr, 0, &size));
+    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key, key_name, nullptr, 0, &size));
 
     auto buffer = TRY(ByteBuffer::create_uninitialized(size));
 
-    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key.ptr(), key_name, buffer.data(), buffer.size(), &size));
+    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key, key_name, buffer.data(), buffer.size(), &size));
     return buffer;
 }
 

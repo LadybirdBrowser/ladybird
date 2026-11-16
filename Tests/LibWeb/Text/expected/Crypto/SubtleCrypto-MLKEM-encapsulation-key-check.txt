@@ -1,0 +1,3 @@
+a valid key: imported, encapsulated
+800 bytes of 0xff: imported, encapsulate OperationError
+799 bytes: imported, encapsulate OperationError

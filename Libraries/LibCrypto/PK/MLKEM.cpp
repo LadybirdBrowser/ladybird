@@ -4,26 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/Memory.h>
-#include <LibCrypto/PK/MLKEM.h>
-
+#include <AK/ScopeGuard.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/OpenSSL.h>
+#include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/ModuleLatticePrivateKey.h>
 
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
-#include <openssl/param_build.h>
 
 namespace Crypto::PK {
 
-void MLKEMPrivateKey::clear_sensitive_data()
-{
-    secure_zero(m_seed.data(), m_seed.size());
-    secure_zero(m_private_key.data(), m_private_key.size());
-}
+static constexpr MLKEMSize sizes[] { MLKEMSize::MLKEM512, MLKEMSize::MLKEM768, MLKEMSize::MLKEM1024 };
 
-static char const* mlkem_size_to_openssl_name(MLKEMSize size)
+static char const* openssl_name(MLKEMSize size)
 {
     switch (size) {
     case MLKEMSize::MLKEM512:
@@ -32,12 +28,24 @@ static char const* mlkem_size_to_openssl_name(MLKEMSize size)
         return "ML-KEM-768";
     case MLKEMSize::MLKEM1024:
         return "ML-KEM-1024";
-    default:
-        VERIFY_NOT_REACHED();
     }
+    VERIFY_NOT_REACHED();
 }
 
-static size_t mlkem_expanded_key_size(MLKEMSize size)
+static size_t public_key_size(MLKEMSize size)
+{
+    switch (size) {
+    case MLKEMSize::MLKEM512:
+        return 800;
+    case MLKEMSize::MLKEM768:
+        return 1184;
+    case MLKEMSize::MLKEM1024:
+        return 1568;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static size_t expanded_key_size(MLKEMSize size)
 {
     switch (size) {
     case MLKEMSize::MLKEM512:
@@ -46,42 +54,142 @@ static size_t mlkem_expanded_key_size(MLKEMSize size)
         return 2400;
     case MLKEMSize::MLKEM1024:
         return 3168;
-    default:
-        VERIFY_NOT_REACHED();
     }
+    VERIFY_NOT_REACHED();
+}
+
+static ErrorOr<MLKEMSize> size_for_length(ReadonlyBytes bytes, size_t (*size_of)(MLKEMSize))
+{
+    for (auto size : sizes) {
+        if (size_of(size) == bytes.size())
+            return size;
+    }
+    return Error::from_string_literal("Invalid ML-KEM key length");
+}
+
+static ErrorOr<OpenSSL_SharedPKEY> key_from_octets(MLKEMSize size, int selection, char const* name, ReadonlyBytes octets)
+{
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, openssl_name(size), nullptr)));
+    OPENSSL_TRY(EVP_PKEY_fromdata_init(ctx.ptr()));
+
+    OSSL_PARAM params[] {
+        OSSL_PARAM_octet_string(name, const_cast<u8*>(octets.data()), octets.size()),
+        OSSL_PARAM_END,
+    };
+
+    EVP_PKEY* key = nullptr;
+    OPENSSL_TRY(EVP_PKEY_fromdata(ctx.ptr(), &key, selection, params));
+    return OpenSSL_SharedPKEY { TRY(OpenSSL_PKEY::wrap(key)) };
+}
+
+ErrorOr<MLKEMPublicKey> MLKEMPublicKey::from_bytes(ReadonlyBytes bytes)
+{
+    MLKEMPublicKey public_key;
+    public_key.m_public_key = TRY(ByteBuffer::copy(bytes));
+
+    // NB: OpenSSL builds a key only from bytes of a parameter set's length whose coefficients are all below q, which
+    //     are the two parts of the encapsulation key check.
+    auto size = size_for_length(bytes, public_key_size);
+    if (size.is_error())
+        return public_key;
+    auto key = key_from_octets(size.value(), EVP_PKEY_PUBLIC_KEY, OSSL_PKEY_PARAM_PUB_KEY, bytes);
+    if (key.is_error())
+        return public_key;
+
+    public_key.m_key = key.release_value();
+    public_key.m_size = size.value();
+    return public_key;
+}
+
+ErrorOr<MLKEMPrivateKey> MLKEMPrivateKey::generate(MLKEMSize size, ReadonlyBytes seed)
+{
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, openssl_name(size), nullptr)));
+    OPENSSL_TRY(EVP_PKEY_keygen_init(ctx.ptr()));
+
+    if (!seed.is_empty()) {
+        OSSL_PARAM params[] {
+            OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_ML_KEM_SEED, const_cast<u8*>(seed.data()), seed.size()),
+            OSSL_PARAM_END,
+        };
+        OPENSSL_TRY(EVP_PKEY_CTX_set_params(ctx.ptr(), params));
+    }
+
+    EVP_PKEY* generated = nullptr;
+    OPENSSL_TRY(EVP_PKEY_generate(ctx.ptr(), &generated));
+    auto key = OpenSSL_SharedPKEY { TRY(OpenSSL_PKEY::wrap(generated)) };
+
+    auto public_key = TRY(get_byte_buffer_param_from_key(key.ptr(), OSSL_PKEY_PARAM_PUB_KEY));
+    return MLKEMPrivateKey { move(key), move(public_key), size };
+}
+
+MLKEMPrivateKey MLKEMPrivateKey::in_expanded_key_form(MLKEMSize size)
+{
+    MLKEMPrivateKey private_key;
+    private_key.m_size = size;
+    return private_key;
+}
+
+ErrorOr<ReadonlyBytes> MLKEMPrivateKey::seed(Bytes buffer) const
+{
+    if (!m_key.ptr())
+        return ReadonlyBytes {};
+    size_t size = 0;
+    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(m_key.ptr(), OSSL_PKEY_PARAM_ML_KEM_SEED, buffer.data(), buffer.size(), &size));
+    return buffer.trim(size);
+}
+
+ErrorOr<ByteBuffer> MLKEMPrivateKey::expanded_key() const
+{
+    if (!m_key.ptr())
+        return ByteBuffer {};
+    return get_byte_buffer_param_from_key(m_key.ptr(), OSSL_PKEY_PARAM_PRIV_KEY);
 }
 
 ErrorOr<ByteBuffer> MLKEMPrivateKey::export_as_der() const
 {
     // NB: The key is exported in the seed-only form, which a key without its seed cannot be.
-    if (m_seed.is_empty())
+    Array<u8, seed_size> buffer;
+    ScopeGuard const clear_buffer = [&] { secure_zero(buffer.data(), buffer.size()); };
+    auto seed = TRY(this->seed(buffer));
+    if (seed.is_empty())
         return Error::from_string_literal("Cannot export an ML-KEM private key without its seed");
 
     ASN1::Encoder encoder;
-    TRY(encoder.write<ReadonlyBytes>(m_seed, ASN1::Class::Context, static_cast<ASN1::Kind>(0)));
+    TRY(encoder.write<ReadonlyBytes>(seed, ASN1::Class::Context, static_cast<ASN1::Kind>(0)));
 
     return encoder.finish();
 }
 
 ErrorOr<MLKEM::KeyPairType> MLKEM::parse_mlkem_key(MLKEMSize size, ReadonlyBytes der)
 {
-    auto encoded_key = TRY(parse_module_lattice_private_key(der, 64, mlkem_expanded_key_size(size)));
+    auto encoded_key = TRY(parse_module_lattice_private_key(der, 64, expanded_key_size(size)));
 
-    // NB: Web Crypto rejects a key in the expandedKey form before it validates the key, so that form is kept as it is.
     if (encoded_key.seed.is_empty())
-        return KeyPairType { {}, { {}, {}, TRY(ByteBuffer::copy(encoded_key.expanded_key)) } };
+        return KeyPairType { {}, MLKEMPrivateKey::in_expanded_key_form(size) };
 
-    auto key_pair = TRY(generate_key_pair(size, TRY(ByteBuffer::copy(encoded_key.seed))));
-    if (!encoded_key.expanded_key.is_empty() && key_pair.private_key.private_key() != encoded_key.expanded_key)
-        return Error::from_string_literal("The expanded key does not match the seed");
+    auto key_pair = TRY(generate_key_pair(size, encoded_key.seed));
+    if (!encoded_key.expanded_key.is_empty()) {
+        auto expanded_key = TRY(key_pair.private_key.expanded_key());
+        ScopeGuard const clear_expanded_key = [&] { secure_zero(expanded_key.data(), expanded_key.size()); };
+        if (expanded_key != encoded_key.expanded_key)
+            return Error::from_string_literal("The expanded key does not match the seed");
+    }
     return key_pair;
+}
+
+ErrorOr<MLKEM::KeyPairType> MLKEM::generate_key_pair(MLKEMSize size, ReadonlyBytes seed)
+{
+    auto private_key = TRY(MLKEMPrivateKey::generate(size, seed));
+    auto public_key = TRY(MLKEMPublicKey::from_bytes(private_key.public_key()));
+    return KeyPairType { move(public_key), move(private_key) };
 }
 
 ErrorOr<MLKEMEncapsulation> MLKEM::encapsulate(MLKEMSize size, MLKEMPublicKey const& key)
 {
-    auto public_key = TRY(OpenSSL_PKEY::wrap(EVP_PKEY_new_raw_public_key_ex(nullptr, mlkem_size_to_openssl_name(size), nullptr, key.public_key().data(), key.public_key().size())));
+    if (!key.size().has_value() || *key.size() != size)
+        return Error::from_string_literal("The key fails the encapsulation key check");
 
-    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, public_key.ptr(), nullptr)));
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.openssl_key(), nullptr)));
 
     OPENSSL_TRY(EVP_PKEY_encapsulate_init(ctx.ptr(), nullptr));
 
@@ -94,37 +202,15 @@ ErrorOr<MLKEMEncapsulation> MLKEM::encapsulate(MLKEMSize size, MLKEMPublicKey co
 
     OPENSSL_TRY(EVP_PKEY_encapsulate(ctx.ptr(), ciphertext.data(), &ciphertext_length, shared_key.data(), &shared_key_size));
 
-    return MLKEMEncapsulation { shared_key, ciphertext };
+    return MLKEMEncapsulation { move(shared_key), move(ciphertext) };
 }
 
-static ErrorOr<OpenSSL_PKEY> private_key_to_openssl_pkey(MLKEMSize size, MLKEMPrivateKey const& private_key)
+ErrorOr<ByteBuffer> MLKEM::decapsulate(MLKEMSize size, MLKEMPrivateKey const& key, ReadonlyBytes ciphertext)
 {
-    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, mlkem_size_to_openssl_name(size), nullptr)));
+    if (key.size() != size)
+        return Error::from_string_literal("The key is for a different ML-KEM parameter set");
 
-    OPENSSL_TRY(EVP_PKEY_fromdata_init(ctx.ptr()));
-
-    auto* params_bld = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_new());
-    ScopeGuard const free_params_bld = [&] { OSSL_PARAM_BLD_free(params_bld); };
-
-    OPENSSL_TRY(OSSL_PARAM_BLD_push_octet_string(params_bld, OSSL_PKEY_PARAM_ML_KEM_SEED, private_key.seed().data(), private_key.seed().size()));
-    OPENSSL_TRY(OSSL_PARAM_BLD_push_octet_string(params_bld, OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY, private_key.public_key().data(), private_key.public_key().size()));
-    OPENSSL_TRY(OSSL_PARAM_BLD_push_octet_string(params_bld, OSSL_PKEY_PARAM_PRIV_KEY, private_key.private_key().data(), private_key.private_key().size()));
-
-    auto* params = OSSL_PARAM_BLD_to_param(params_bld);
-    ScopeGuard const free_params = [&] { OSSL_PARAM_free(params); };
-
-    auto key = TRY(OpenSSL_PKEY::create());
-    auto* key_ptr = key.ptr();
-    OPENSSL_TRY(EVP_PKEY_fromdata(ctx.ptr(), &key_ptr, EVP_PKEY_KEYPAIR, params));
-
-    return key;
-}
-
-ErrorOr<ByteBuffer> MLKEM::decapsulate(MLKEMSize size, MLKEMPrivateKey const& key, ByteBuffer ciphertext)
-{
-    auto private_key = TRY(private_key_to_openssl_pkey(size, key));
-
-    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, private_key.ptr(), nullptr)));
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.openssl_key(), nullptr)));
 
     OPENSSL_TRY(EVP_PKEY_decapsulate_init(ctx.ptr(), nullptr));
 
@@ -135,36 +221,6 @@ ErrorOr<ByteBuffer> MLKEM::decapsulate(MLKEMSize size, MLKEMPrivateKey const& ke
     OPENSSL_TRY(EVP_PKEY_decapsulate(ctx.ptr(), shared_key.data(), &shared_key_size, ciphertext.data(), ciphertext.size()));
 
     return shared_key;
-}
-
-ErrorOr<MLKEM::KeyPairType> MLKEM::generate_key_pair(MLKEMSize size, ByteBuffer seed)
-{
-    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, mlkem_size_to_openssl_name(size), nullptr)));
-
-    OPENSSL_TRY(EVP_PKEY_keygen_init(ctx.ptr()));
-
-    OSSL_PARAM params[2] = {
-        OSSL_PARAM_END,
-        OSSL_PARAM_END
-    };
-
-    if (!seed.is_empty()) {
-        params[0] = OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_ML_KEM_SEED, seed.data(), seed.size());
-    }
-
-    OPENSSL_TRY(EVP_PKEY_CTX_set_params(ctx.ptr(), params));
-    auto key = TRY(OpenSSL_PKEY::create());
-    auto* key_ptr = key.ptr();
-    OPENSSL_TRY(EVP_PKEY_generate(ctx.ptr(), &key_ptr));
-
-    auto pub = TRY(get_byte_buffer_param_from_key(key, OSSL_PKEY_PARAM_PUB_KEY));
-    auto priv = TRY(get_byte_buffer_param_from_key(key, OSSL_PKEY_PARAM_PRIV_KEY));
-    seed = TRY(get_byte_buffer_param_from_key(key, OSSL_PKEY_PARAM_ML_KEM_SEED));
-
-    return KeyPairType {
-        MLKEMPublicKey { pub },
-        { seed, pub, priv }
-    };
 }
 
 }
