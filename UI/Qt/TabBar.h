@@ -316,7 +316,6 @@ public:
 
     // Whether a tab dragged to a position, in the given widget, lands in the tab strip rather than leaving it.
     bool tab_drop_area_contains(QWidget const&, QPoint position) const;
-    QWidget* tab_bar_row() const { return m_tab_bar_row; }
 
     void add_tab(Tab* widget, QString const& label);
     void insert_tab(int index, Tab* widget, QString const& label);

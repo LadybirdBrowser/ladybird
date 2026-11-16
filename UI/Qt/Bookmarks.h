@@ -30,7 +30,6 @@ public:
     Vector<WebView::AutocompleteSuggestion> suggestions_for(StringView query, size_t max_suggestions) const;
 
     Menu& menu() { return *m_menu; }
-    Menu& show_bookmarks_bar_menu() { return *m_show_bookmarks_bar_menu; }
     Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
     Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
     Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
