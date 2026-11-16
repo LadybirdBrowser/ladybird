@@ -1,0 +1,36 @@
+Ladybird preserves intrinsic width and height keywords on
+non-replaced boxes with a preferred aspect ratio. Only replaced boxes
+use the natural-size exception that treats an intrinsic keyword as
+auto when the opposite natural dimension is absent. Column flex items
+measure fit-content height at their own resolved inline size, using
+the same helper as their min-content and max-content measurements.
+
+Blink resolves intrinsic inline keywords in
+ComputeInlineSizeForFragmentInternal before applying size bounds.
+FlexLayoutAlgorithm::ConstructAndAppendFlexItems obtains the item’s
+own geometry with CalculateInitialFragmentGeometry, and transfers a
+resolvable size through BlockSizeFromAspectRatio when appropriate.
+
+Gecko’s nsIFrame::ComputeISizeValueFromExtremumLength uses intrinsic
+inline sizes when the opposite axis can’t supply a definite size.
+nsFlexContainerFrame::MeasureFlexItemContentBSize measures the child
+with shrink-wrapping, overriding its inline size for stretched items.
+This likewise distinguishes the item’s width from its container’s.
+
+WebKit’s RenderBox::computeSizingKeywordLogicalWidthUsing and
+computeIntrinsicKeywordLogicalWidths preserve intrinsic widths unless
+aspect-ratio transfer applies. For block content, the flex layout
+uses FlexFormattingContext::computeFlexBaseSize and the integration
+helper FlexIntegrationUtils::computeBlockAxisContentSizeForFlexItem.
+That helper lays out the child and uses its own logical height,
+excluding its border and padding from the content measurement.
+
+The reported non-flex reductions match Chrome at 60x64. The column
+flex case with fit-content in both axes matches Chrome at 60x60,
+instead of taking the container’s width and adding its own padding.
+Firefox reports 64x64 for that case, so the final height intentionally
+follows Chrome rather than claiming identical results in all engines.
+
+A row-flex control with fit-content in both axes stays 60x60, while
+Chrome gives 60x64. Its width already matches; the separate height
+mismatch is unchanged by the column-flex measurement correction.
