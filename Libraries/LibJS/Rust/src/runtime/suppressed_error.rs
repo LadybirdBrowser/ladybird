@@ -13,6 +13,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::runtime::error::Error;
+use crate::runtime::function_object::FunctionObject;
 use crate::runtime::realm::Realm;
 
 #[repr(C)]
@@ -38,9 +39,14 @@ impl SuppressedError {
         }
     }
 
-    pub fn new_in_constructor(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> SuppressedError {
+    pub fn new_in_constructor(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        prototype: Gc<Object>,
+        new_target: Gc<FunctionObject>,
+    ) -> SuppressedError {
         SuppressedError {
-            base: Error::new_in_constructor(vm, realm, Self::CLASS, prototype),
+            base: Error::new_in_constructor(vm, realm, Self::CLASS, prototype, new_target),
         }
     }
 

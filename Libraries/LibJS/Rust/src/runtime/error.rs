@@ -18,6 +18,7 @@ use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::aggregate_error::AggregateError;
 use crate::runtime::error_data::{CompactTraceback, ErrorData};
+use crate::runtime::function_object::FunctionObject;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, ObjectMethods};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
@@ -160,8 +161,15 @@ impl Error {
         }
     }
 
-    /// An error an Error constructor is creating: its stack leaves out the constructor's own frame.
-    pub fn new_in_constructor(vm: &Vm, realm: Gc<Realm>, class: &'static Class, prototype: Gc<Object>) -> Error {
+    /// An error an Error constructor is creating for `new_target`: its stack leaves out the frames of the constructors,
+    /// as ErrorData::new_in_constructor() says.
+    pub fn new_in_constructor(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        class: &'static Class,
+        prototype: Gc<Object>,
+        new_target: Gc<FunctionObject>,
+    ) -> Error {
         Error {
             base: Object::new_with_prototype(
                 vm,
@@ -170,7 +178,7 @@ impl Error {
                 Some(prototype),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
-            error_data: ErrorData::new_in_constructor(vm),
+            error_data: ErrorData::new_in_constructor(vm, new_target),
         }
     }
 
@@ -257,9 +265,14 @@ macro_rules! define_native_errors {
                     }
                 }
 
-                pub fn new_in_constructor(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> $class {
+                pub fn new_in_constructor(
+                    vm: &Vm,
+                    realm: Gc<Realm>,
+                    prototype: Gc<Object>,
+                    new_target: Gc<FunctionObject>,
+                ) -> $class {
                     $class {
-                        base: Error::new_in_constructor(vm, realm, Self::CLASS, prototype),
+                        base: Error::new_in_constructor(vm, realm, Self::CLASS, prototype, new_target),
                     }
                 }
 
