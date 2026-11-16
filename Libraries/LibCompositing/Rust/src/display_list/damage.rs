@@ -1360,12 +1360,11 @@ mod tests {
     }
 
     // Appends one record the way the Rust builder writes it: header, payload, then zero padding up to
-    // the command alignment, but with the header fields chosen by the test.
+    // the command alignment, but with the inline clip entries chosen by the test.
     fn append_record<C: DisplayListCommand>(
         display_list: &mut TestDisplayList,
         command: &C,
         inline_data: &[u8],
-        bounding_rect: Option<IntRect>,
         context: ContextRef,
         inline_clips: &[DisplayListInlineClip],
     ) {
@@ -1375,11 +1374,9 @@ mod tests {
         let padded_record_size = (HEADER_SIZE + unpadded_payload_size + entries_size).next_multiple_of(16);
         let header = DisplayListCommandHeader {
             command_type: C::COMMAND_TYPE,
-            has_bounding_rect: bounding_rect.is_some(),
             inline_clip_count: inline_clips.len() as u8,
             has_inline_transform: false,
             payload_size: (padded_record_size - HEADER_SIZE) as u32,
-            bounding_rect: bounding_rect.unwrap_or_default(),
         };
         let start = bytes.len();
         bytes.resize(start + padded_record_size, 0);
@@ -1393,6 +1390,8 @@ mod tests {
             let entry_start = entries_start + index * INLINE_CLIP_ENTRY_SIZE;
             entry.write_ffi_bytes(&mut bytes[entry_start..entry_start + INLINE_CLIP_ENTRY_SIZE]);
         }
+        let bounding_rect =
+            bounding_rect_computed_from_payload(&header, &bytes[payload_start..start + padded_record_size]);
         if display_list.runs.len() == display_list.first_run_of_open_chunk() {
             display_list.runs.push(DisplayListCommandRun {
                 offset: start as u32,
@@ -1400,16 +1399,19 @@ mod tests {
                 ..DisplayListCommandRun::default()
             });
         }
-        note_command(&mut display_list.runs, &header, context, start, padded_record_size);
+        note_command(
+            &mut display_list.runs,
+            C::COMMAND_TYPE,
+            bounding_rect,
+            context,
+            start,
+            padded_record_size,
+        );
     }
 
-    fn command_bytes<C: DisplayListCommand>(
-        command: &C,
-        bounding_rect: Option<IntRect>,
-        context: ContextRef,
-    ) -> TestDisplayList {
+    fn command_bytes<C: DisplayListCommand>(command: &C, context: ContextRef) -> TestDisplayList {
         let mut bytes = TestDisplayList::default();
-        append_record(&mut bytes, command, &[], bounding_rect, context, &[]);
+        append_record(&mut bytes, command, &[], context, &[]);
         bytes.end_chunk();
         bytes
     }
@@ -1430,7 +1432,6 @@ mod tests {
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                 background_color_animation_effect: EffectNodeIndex::NONE,
             },
-            Some(rect),
             ContextRef::default(),
         )
     }
@@ -1455,7 +1456,7 @@ mod tests {
             canvas_id: CanvasId(1),
             scaling_mode: ScalingMode::NearestNeighbor,
         };
-        command_bytes(&command, Some(rect), ContextRef::default())
+        command_bytes(&command, ContextRef::default())
     }
 
     fn transform(matrix: FloatMatrix4x4) -> TransformData {
@@ -1550,8 +1551,8 @@ mod tests {
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             background_color_animation_effect: EffectNodeIndex::NONE,
         };
-        let old_display_list = command_bytes(&fill, Some(rect), context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context));
-        let new_display_list = command_bytes(&fill, Some(rect), context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context));
+        let old_display_list = command_bytes(&fill, context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context));
+        let new_display_list = command_bytes(&fill, context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context));
         damage(&old_display_list, &old_tree, &new_display_list, &new_tree)
     }
 
@@ -1655,7 +1656,6 @@ mod tests {
                 video_sink_handle: VideoSinkHandle(1),
                 scaling_mode: ScalingMode::NearestNeighbor,
             },
-            Some(rect),
             ContextRef::default(),
         );
         let changed_video = LiveContentChanges {
@@ -1681,7 +1681,6 @@ mod tests {
                 isolated_backdrop_color: OptionalColor::default(),
                 apply_force_dark: false,
             },
-            Some(rect),
             ContextRef::default(),
         );
         let changed_image = LiveContentChanges {
@@ -1705,7 +1704,6 @@ mod tests {
                 spatial_node_index: VISUAL_VIEWPORT_NODE_INDEX,
                 snap_origin_if_untransformed: true,
             },
-            Some(rect),
             ContextRef::default(),
         );
         let changed_nested_context = LiveContentChanges {
@@ -1740,7 +1738,6 @@ mod tests {
                 canvas_id: CanvasId(1),
                 scaling_mode: ScalingMode::NearestNeighbor,
             },
-            Some(rect),
             context,
         );
         let changed_canvas = LiveContentChanges {
@@ -1775,7 +1772,6 @@ mod tests {
                 mask_kind: MaskKind::Alpha,
             },
             &content,
-            Some(group_rect),
             ContextRef::default(),
             &[],
         );
@@ -1812,7 +1808,6 @@ mod tests {
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                 background_color_animation_effect: EffectNodeIndex::NONE,
             },
-            Some(rect),
             context_in(scroll_node, ContextRef::default()),
         );
         // Each of the three offsets rounds to a whole pixel, so the rect is drawn 3px above where it was recorded.
@@ -1869,7 +1864,6 @@ mod tests {
         };
         let remaining = command_bytes(
             &fill,
-            Some(rect),
             ContextRef {
                 clip: local_clip,
                 effect,
@@ -1882,7 +1876,6 @@ mod tests {
                 rect: escaped_rect,
                 ..fill
             },
-            Some(escaped_rect),
             ContextRef {
                 clip: ClipNodeIndex::NONE,
                 effect,
@@ -1916,7 +1909,7 @@ mod tests {
             vertical: false,
         };
 
-        let display_list = command_bytes(&scrollbar, scrollbar.bounding_rect(), ContextRef::default());
+        let display_list = command_bytes(&scrollbar, ContextRef::default());
 
         assert_eq!(
             damage_with_scroll_offsets(
@@ -1954,7 +1947,6 @@ mod tests {
                     background_color_animation_effect: EffectNodeIndex::NONE,
                 },
                 &[],
-                Some(rect),
                 ContextRef::default(),
                 &[clip],
             );
@@ -2034,7 +2026,6 @@ mod tests {
                 background_color_animation_effect: EffectNodeIndex::NONE,
             },
             &[],
-            Some(rect),
             ContextRef::default(),
             &[DisplayListInlineClip {
                 has_own_space: true,
@@ -2108,7 +2099,6 @@ mod tests {
                     background_color_animation_effect: EffectNodeIndex::NONE,
                 },
                 &[],
-                Some(viewport),
                 context,
                 &[DisplayListInlineClip {
                     has_own_space: true,
@@ -2168,14 +2158,12 @@ mod tests {
             &CompositorMainThreadWheelEventRegion {
                 rect: FloatRect::new(0.0, 0.0, 10.0, 10.0),
             },
-            None,
             ContextRef::default(),
         );
         let new_display_list = command_bytes(
             &CompositorMainThreadWheelEventRegion {
                 rect: FloatRect::new(20.0, 20.0, 10.0, 10.0),
             },
-            None,
             ContextRef::default(),
         );
         assert_eq!(
@@ -2205,11 +2193,7 @@ mod tests {
     }
 
     fn compositor_scrollbar_bytes(is_painted_by_compositor: bool) -> TestDisplayList {
-        command_bytes(
-            &compositor_scrollbar(is_painted_by_compositor),
-            None,
-            ContextRef::default(),
-        )
+        command_bytes(&compositor_scrollbar(is_painted_by_compositor), ContextRef::default())
     }
 
     #[test]
@@ -2290,7 +2274,7 @@ mod tests {
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                 background_color_animation_effect: EffectNodeIndex::NONE,
             };
-            (command_bytes(&fill, Some(rect), context), tree)
+            (command_bytes(&fill, context), tree)
         };
         let (old_bytes, old_tree) = make_scene(1.0, 200.0, ClipMode::Intersect, true);
         let (new_bytes, new_tree) = make_scene(200.0, 200.0, ClipMode::Intersect, true);
@@ -2342,7 +2326,6 @@ mod tests {
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                 background_color_animation_effect: EffectNodeIndex::NONE,
             },
-            Some(rect),
             ContextRef {
                 effect: EffectNodeIndex(0),
                 ..ContextRef::default()
@@ -2365,8 +2348,8 @@ mod tests {
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             background_color_animation_effect: EffectNodeIndex::NONE,
         };
-        let old_bytes = command_bytes(&fill(RED), Some(rect), context);
-        let new_bytes = command_bytes(&fill(BLUE), Some(rect), context);
+        let old_bytes = command_bytes(&fill(RED), context);
+        let new_bytes = command_bytes(&fill(BLUE), context);
         damage(&old_bytes, &tree, &new_bytes, &tree)
     }
 
@@ -2469,7 +2452,6 @@ mod tests {
                         compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                         background_color_animation_effect: EffectNodeIndex::NONE,
                     },
-                    Some(rect),
                     context,
                 )
             };
@@ -2499,14 +2481,9 @@ mod tests {
                     compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                     background_color_animation_effect: EffectNodeIndex::NONE,
                 },
-                Some(fill_rect),
                 ContextRef::default(),
             );
-            bytes.extend_from_slice(&command_bytes(
-                &BackdropFilterRegion { rect: region },
-                Some(region),
-                backdrop_context,
-            ));
+            bytes.extend_from_slice(&command_bytes(&BackdropFilterRegion { rect: region }, backdrop_context));
             bytes
         };
         let within_reach = IntRect::new(0, 10, 30, 20);
@@ -2529,7 +2506,7 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
             effect_context(&mut tree, backdrop_effects(blur_filter(4.0), region)),
         );
-        let bytes = command_bytes(&BackdropFilterRegion { rect: region }, Some(region), backdrop_context);
+        let bytes = command_bytes(&BackdropFilterRegion { rect: region }, backdrop_context);
         let forced_damage = |forced_damage_rect| {
             damage_for_live_content_changes(
                 &bytes,
@@ -2581,12 +2558,10 @@ mod tests {
                     compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                     background_color_animation_effect: EffectNodeIndex::NONE,
                 },
-                Some(fill_rect),
                 ContextRef::default(),
             );
             bytes.extend_from_slice(&command_bytes(
                 &BackdropFilterRegion { rect: region },
-                Some(region),
                 shadowed_backdrop_context,
             ));
             bytes
@@ -2632,21 +2607,9 @@ mod tests {
         let mut unchanged_tree = identity_tree();
         let unchanged_context = effect_context(&mut unchanged_tree, backdrop_effects(blur_filter(1.0), region));
         let marker = BackdropFilterRegion { rect: region };
-        let old_display_list = command_bytes(
-            &marker,
-            Some(region),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context),
-        );
-        let new_display_list = command_bytes(
-            &marker,
-            Some(region),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context),
-        );
-        let unchanged_display_list = command_bytes(
-            &marker,
-            Some(region),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, unchanged_context),
-        );
+        let old_display_list = command_bytes(&marker, context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context));
+        let new_display_list = command_bytes(&marker, context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context));
+        let unchanged_display_list = command_bytes(&marker, context_in(VISUAL_VIEWPORT_NODE_INDEX, unchanged_context));
         assert_eq!(
             damage(&old_display_list, &old_tree, &new_display_list, &new_tree),
             Some(IntRect::new(9, 9, 22, 22))
@@ -2670,7 +2633,6 @@ mod tests {
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                 background_color_animation_effect: EffectNodeIndex::NONE,
             },
-            Some(IntRect::new(10, 10, 20, 20)),
             context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context),
         );
         let new_display_list = command_bytes(
@@ -2680,7 +2642,6 @@ mod tests {
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                 background_color_animation_effect: EffectNodeIndex::NONE,
             },
-            Some(IntRect::new(30, 30, 20, 20)),
             context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context),
         );
         assert_eq!(
@@ -2701,16 +2662,8 @@ mod tests {
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             background_color_animation_effect: EffectNodeIndex::NONE,
         };
-        let old_display_list = command_bytes(
-            &fill,
-            Some(fill.rect),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context),
-        );
-        let new_display_list = command_bytes(
-            &fill,
-            Some(fill.rect),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context),
-        );
+        let old_display_list = command_bytes(&fill, context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context));
+        let new_display_list = command_bytes(&fill, context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context));
         assert_eq!(
             damage(&old_display_list, &old_tree, &new_display_list, &new_tree),
             Some(IntRect::new(9, 9, 22, 22))
@@ -2745,16 +2698,8 @@ mod tests {
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             background_color_animation_effect: EffectNodeIndex::NONE,
         };
-        let old_display_list = command_bytes(
-            &fill,
-            Some(fill.rect),
-            context_in(old_command_spatial, ContextRef::default()),
-        );
-        let new_display_list = command_bytes(
-            &fill,
-            Some(fill.rect),
-            context_in(new_command_spatial, ContextRef::default()),
-        );
+        let old_display_list = command_bytes(&fill, context_in(old_command_spatial, ContextRef::default()));
+        let new_display_list = command_bytes(&fill, context_in(new_command_spatial, ContextRef::default()));
         assert_eq!(
             damage(&old_display_list, &old_tree, &new_display_list, &new_tree),
             Some(IntRect::default())
@@ -2824,7 +2769,7 @@ mod tests {
                 background_color_animation_effect: EffectNodeIndex::NONE,
             };
             (
-                command_bytes(&fill, Some(rect), context_in(VISUAL_VIEWPORT_NODE_INDEX, context)),
+                command_bytes(&fill, context_in(VISUAL_VIEWPORT_NODE_INDEX, context)),
                 tree,
             )
         };
@@ -2859,16 +2804,8 @@ mod tests {
                 background_color_animation_effect: EffectNodeIndex::NONE,
             };
             let filtered_rect = IntRect::new(10, 10, 20, 20);
-            let mut bytes = command_bytes(
-                &fill(viewport),
-                Some(viewport),
-                context_in(cover_spatial, ContextRef::default()),
-            );
-            bytes.extend_from_slice(&command_bytes(
-                &fill(filtered_rect),
-                Some(filtered_rect),
-                filtered_context,
-            ));
+            let mut bytes = command_bytes(&fill(viewport), context_in(cover_spatial, ContextRef::default()));
+            bytes.extend_from_slice(&command_bytes(&fill(filtered_rect), filtered_context));
             (bytes, tree)
         };
         let flood = || {
@@ -2905,7 +2842,7 @@ mod tests {
     }
 
     fn fill_in(rect: IntRect, color: Color, context: ContextRef) -> TestDisplayList {
-        command_bytes(&fill(rect, color), Some(rect), context)
+        command_bytes(&fill(rect, color), context)
     }
 
     fn scroll_data() -> SpatialData {
@@ -3220,7 +3157,6 @@ mod tests {
                 },
             },
             content,
-            Some(rect),
             context,
             &[],
         );
@@ -3273,7 +3209,6 @@ mod tests {
                 color: RED,
                 orientation: Orientation::Horizontal,
             },
-            Some(text_rect),
             masked,
         );
         let list = list_of(&[
@@ -3317,22 +3252,8 @@ mod tests {
         let rect = IntRect::new(10, 10, 20, 20);
         let scene = |color| {
             let mut list = TestDisplayList::default();
-            append_record(
-                &mut list,
-                &compositor_scrollbar(true),
-                &[],
-                None,
-                ContextRef::default(),
-                &[],
-            );
-            append_record(
-                &mut list,
-                &fill(rect, color),
-                &[],
-                Some(rect),
-                ContextRef::default(),
-                &[],
-            );
+            append_record(&mut list, &compositor_scrollbar(true), &[], ContextRef::default(), &[]);
+            append_record(&mut list, &fill(rect, color), &[], ContextRef::default(), &[]);
             list
         };
         let moved_tree = VisualContextTree::create(transform(translation_matrix(10.0, 0.0, 0.0)));

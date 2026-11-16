@@ -454,7 +454,6 @@ mod tests {
         );
         assert_eq!(validate_canvas_2d_tape(writer.bytes()), Ok(()));
         let header = read_header(writer.bytes());
-        assert!(!header.has_bounding_rect);
         assert_eq!(header.inline_clip_count, 0);
         let records = records(writer.bytes());
         assert_eq!(records.len(), 1);
@@ -686,20 +685,6 @@ mod tests {
             );
             assert_eq!(validate_canvas_2d_tape(writer.bytes()), expected);
         }
-    }
-
-    #[test]
-    fn a_command_with_a_bounding_rect_is_rejected() {
-        let mut writer = TapeWriter::default();
-        writer.save();
-        writer.clear_rect(FloatRect::new(0.0, 0.0, 1.0, 1.0), Color(0));
-        let mut tape = writer.bytes().to_vec();
-        let second_record = read_header(&tape).payload_size as usize + HEADER_SIZE;
-        tape[second_record + std::mem::offset_of!(DisplayListCommandHeader, has_bounding_rect)] = 1;
-        assert_eq!(
-            validate_canvas_2d_tape(&tape),
-            Err("Canvas 2D stream command has a bounding rect")
-        );
     }
 
     #[test]

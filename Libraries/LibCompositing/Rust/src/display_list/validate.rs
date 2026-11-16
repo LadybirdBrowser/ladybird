@@ -9,7 +9,7 @@
 //! damage and the player make of it are sound. The tape of a page and that of a 2D canvas each hold only the
 //! commands of their own kind.
 
-use super::builder::{COMMAND_ALIGNMENT, HEADER_SIZE, read_header};
+use super::builder::{COMMAND_ALIGNMENT, HEADER_SIZE, bounding_rect_computed_from_payload, read_header};
 use super::commands::*;
 use libgfx_rust::{
     CapStyle, Color, CompositingAndBlendingOperator, GradientInterpolationMethod, GradientInterpolationType,
@@ -604,7 +604,7 @@ fn validate_inline_clip(payload: Payload, offset: usize) -> Result<(), Validatio
     Ok(())
 }
 
-// What a run says about its records, recomputed by the rules the builder summarizes them with.
+// What a run says about its records, recomputed from their payloads by the rules the builder summarizes them with.
 #[derive(Default)]
 struct RunSummary {
     ink_bounds: IntRect,
@@ -612,11 +612,13 @@ struct RunSummary {
 }
 
 impl RunSummary {
-    fn note(&mut self, header: &DisplayListCommandHeader) {
+    fn note(&mut self, header: &DisplayListCommandHeader, payload: &[u8]) {
         if header.command_type.is_compositor_metadata() {
             self.has_compositor_metadata = true;
         } else {
-            self.ink_bounds = self.ink_bounds.united(header.bounding_rect);
+            self.ink_bounds = self
+                .ink_bounds
+                .united(bounding_rect_computed_from_payload(header, payload).unwrap_or_default());
         }
     }
 
@@ -643,9 +645,7 @@ fn validate_header_bytes(bytes: &[u8], kind: TapeKind) -> Result<DisplayListComm
     if DisplayListCommandType::from_u8(bytes[offset_of!(DisplayListCommandHeader, command_type)]).is_none() {
         return Err("Display list command has an invalid type");
     }
-    if bytes[offset_of!(DisplayListCommandHeader, has_bounding_rect)] > 1
-        || bytes[offset_of!(DisplayListCommandHeader, has_inline_transform)] > 1
-    {
+    if bytes[offset_of!(DisplayListCommandHeader, has_inline_transform)] > 1 {
         return Err("Display list command header has an invalid bool");
     }
     let header = read_header(bytes);
@@ -653,9 +653,6 @@ fn validate_header_bytes(bytes: &[u8], kind: TapeKind) -> Result<DisplayListComm
         TapeKind::DisplayList => {
             if header.command_type.is_canvas_2d() {
                 return Err("Display list holds a command of the canvas 2D stream");
-            }
-            if !header.has_bounding_rect && !header.command_type.is_compositor_metadata() {
-                return Err("Display list draw command has no bounding rect");
             }
         }
         TapeKind::Canvas2D => {
@@ -665,10 +662,6 @@ fn validate_header_bytes(bytes: &[u8], kind: TapeKind) -> Result<DisplayListComm
             // The canvas player plays commands one by one under the state of the canvas.
             if header.inline_clip_count != 0 || header.has_inline_transform {
                 return Err("Canvas 2D stream command has inline clips or an inline transform");
-            }
-            // A command of the canvas draws under the state that the commands before it left, so no rect bounds it.
-            if header.has_bounding_rect {
-                return Err("Canvas 2D stream command has a bounding rect");
             }
         }
     }
@@ -727,7 +720,7 @@ fn validate_records<'a>(
             pending.push(&payload.bytes[start..start + size]);
         }
         if let Some(summary) = summary.as_deref_mut() {
-            summary.note(&header);
+            summary.note(&header, payload.bytes);
         }
         offset = payload_start + payload_size;
     }
@@ -825,7 +818,6 @@ mod tests {
     use super::*;
     use crate::display_list::builder::DisplayListBuilder;
     use crate::display_list::storage::write_run;
-    use libgfx_rust::FloatRect;
 
     fn fill_rect() -> FillRect {
         FillRect {
@@ -845,39 +837,25 @@ mod tests {
     }
 
     #[test]
-    fn a_draw_command_without_a_bounding_rect_is_rejected_at_any_depth() {
-        let context = ContextRef::default();
+    fn run_ink_bounds_are_checked_against_the_payloads_of_their_records() {
         let mut builder = DisplayListBuilder::new();
-        builder.append(&fill_rect(), &[], context);
-        let nested_record_offset =
-            builder.byte_size() + HEADER_SIZE + size_of::<DrawIsolatedGroup>().next_multiple_of(COMMAND_ALIGNMENT);
-        let group = builder.begin_group::<DrawIsolatedGroup>(Vec::new());
-        builder.append(&fill_rect(), &[], context);
-        let content = builder.group_content_span(&group);
-        builder.finish_group(
-            group,
-            &DrawIsolatedGroup {
-                clip_rect: FloatRect::new(0.0, 0.0, 10.0, 10.0),
-                content,
-                mask: DisplayListDataSpan::default(),
-                filter: DisplayListDataSpan::default(),
-                opacity: 1.0,
-                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                mask_kind: MaskKind::Alpha,
-            },
-            context,
-        );
+        builder.append(&fill_rect(), &[], ContextRef::default());
         let recorded = builder.finish();
         let run_bytes = run_table_bytes(&recorded.command_runs);
         assert!(validate_tape(&recorded.bytes, &run_bytes).is_ok());
 
-        for record_offset in [0, nested_record_offset] {
-            let mut tape = recorded.bytes.clone();
-            tape[record_offset + offset_of!(DisplayListCommandHeader, has_bounding_rect)] = 0;
-            assert_eq!(
-                validate_tape(&tape, &run_bytes),
-                Err("Display list draw command has no bounding rect")
-            );
-        }
+        let mut widened_tape = recorded.bytes.clone();
+        let width_offset = HEADER_SIZE + offset_of!(FillRect, rect) + offset_of!(IntRect, width);
+        widened_tape[width_offset..width_offset + 4].copy_from_slice(&20i32.to_ne_bytes());
+        assert_eq!(
+            validate_tape(&widened_tape, &run_bytes),
+            Err("Display list command run summary disagrees with its records")
+        );
+
+        let widened_runs = [DisplayListCommandRun {
+            ink_bounds: IntRect::new(0, 0, 20, 10),
+            ..recorded.command_runs[0]
+        }];
+        assert!(validate_tape(&widened_tape, &run_table_bytes(&widened_runs)).is_ok());
     }
 }
