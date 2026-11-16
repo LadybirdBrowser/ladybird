@@ -16,7 +16,6 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Runtime/Completion.h>
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -53,7 +52,7 @@ public:
     void restore_context_after_compositor_reconnect();
 
 protected:
-    static JS::ThrowCompletionOr<WebGLRenderingContextBase*> create(JS::Realm&, CanvasOwner, JS::Value options, WebGLVersion);
+    static WebGLRenderingContextBase* create(JS::Realm&, CanvasOwner, WebGLContextAttributes const&, WebGLVersion);
 };
 
 }

@@ -361,6 +361,7 @@ HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_2d_context(Canv
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<CanvasRenderingContext2D>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
+    VERIFY(!m_is_placeholder);
     m_context = CanvasRenderingContext2D::create(*this, context_attributes);
     return HasOrCreatedContext::Yes;
 }
@@ -370,9 +371,19 @@ HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_bitmap_renderer
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<ImageBitmapRenderingContext>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
+    VERIFY(!m_is_placeholder);
     m_context = ImageBitmapRenderingContext::create(*this, alpha);
     Painting::push_canvas_paint_facts(*this);
     return HasOrCreatedContext::Yes;
+}
+
+JS::ThrowCompletionOr<void> HTMLCanvasElement::throw_if_control_transferred_to_offscreen() const
+{
+    if (!m_is_placeholder)
+        return {};
+
+    auto& realm = HTML::relevant_realm(*this);
+    return throw_completion(realm, WebIDL::InvalidStateError::create(realm, "Canvas has transferred control to an OffscreenCanvas"_utf16));
 }
 
 template<typename ContextType>
@@ -381,10 +392,17 @@ JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement:
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    auto maybe_context = TRY(ContextType::create(HTML::relevant_realm(*this), WebGL::CanvasOwner { GC::Ref { *this } }, options));
+    auto context_attributes = TRY(WebGL::convert_value_to_context_attributes_dictionary(vm(), options));
+    TRY(throw_if_control_transferred_to_offscreen());
+    // AD-HOC: Converting the options can run script that creates a context.
+    if (!m_context.has<Empty>())
+        return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
+
+    auto maybe_context = ContextType::create(HTML::relevant_realm(*this), WebGL::CanvasOwner { GC::Ref { *this } }, context_attributes);
     if (!maybe_context)
         return HasOrCreatedContext::No;
 
+    VERIFY(!m_is_placeholder);
     m_context = GC::Ref<ContextType>(*maybe_context);
     return HasOrCreatedContext::Yes;
 }
@@ -395,14 +413,13 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
     if (!options.is_object())
         options = JS::js_null();
 
-    if (m_is_placeholder) {
-        return WebIDL::throw_dom_exception_if_needed(vm(), HTML::relevant_realm(*this), [] -> WebIDL::ExceptionOr<RenderingContext> {
-            return WebIDL::InvalidStateError::create("Canvas has transferred control to an OffscreenCanvas"_utf16);
-        });
-    }
+    TRY(throw_if_control_transferred_to_offscreen());
 
+    // AD-HOC: Converting the options can run script that transfers control of this canvas to an OffscreenCanvas, so
+    //         we check for a placeholder canvas again after each conversion.
     if (type == u"2d"sv) {
         auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(vm(), options));
+        TRY(throw_if_control_transferred_to_offscreen());
         if (create_2d_context(context_attributes) == HasOrCreatedContext::Yes)
             return m_context.get<GC::Ref<HTML::CanvasRenderingContext2D>>();
 
@@ -426,6 +443,7 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
 
     if (type == u"bitmaprenderer"sv) {
         auto settings = TRY(Bindings::convert_to_idl_value_for_image_bitmap_rendering_context_settings(vm(), options));
+        TRY(throw_if_control_transferred_to_offscreen());
         if (create_bitmap_renderer_context(settings.alpha) == HasOrCreatedContext::Yes)
             return m_context.get<GC::Ref<ImageBitmapRenderingContext>>();
 
