@@ -14,8 +14,8 @@ use std::rc::Rc;
 
 use ak::{Utf16String, Utf16StringUnits};
 use libcrypto_rust::{
-    Argon2Inputs, Argon2Type, Asn1Structure, Asn1Value, BackendError, Base64DecodeError, CShakeKind, EcCurve, EcError,
-    KeyHandle, KeyInfo, KeyPair, KmacKind, MlDsaSize, MlKemSize, OkpCurve, RsaJwkInteger, ShaHashKind,
+    Argon2Inputs, Argon2Type, Asn1Structure, Asn1Value, BackendError, CShakeKind, EcCurve, EcError, KeyHandle, KeyInfo,
+    KeyPair, KmacKind, MlDsaSize, MlKemSize, OkpCurve, RsaJwkInteger, ShaHashKind,
 };
 use libjs_rust::api::{
     ErrorKind, ErrorType, Gc, Object, PropertyKey, Realm, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
@@ -104,8 +104,8 @@ pub(crate) fn normalized_key_usages(usages: &[KeyUsage]) -> Vec<KeyUsage> {
 }
 
 // https://www.rfc-editor.org/rfc/rfc7518#section-2
-fn base64_url_bytes_encode(bytes: &[u8]) -> Result<Utf16String, i32> {
-    libcrypto_rust::encode_base64url(bytes)
+fn base64_url_bytes_encode(bytes: &[u8]) -> Utf16String {
+    ak::encode_base64(bytes, ak::Base64Alphabet::Base64Url, true)
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-an-asn1-structure
@@ -594,26 +594,25 @@ fn key_usage_to_string(usage: KeyUsage) -> &'static str {
     std::str::from_utf8(KEY_USAGES[usage as usize]).expect("a key usage is ASCII")
 }
 
-fn parse_jwk_symmetric_key(vm: &Vm, jwk: &JsonWebKey) -> WebIdlResult<Bytes> {
+fn parse_jwk_symmetric_key(jwk: &JsonWebKey) -> WebIdlResult<Bytes> {
     let Some(base64_url_string) = &jwk.k else {
         return Err(dom_error("DataError", b"JWK has no 'k' field"));
     };
 
-    base64_url_bytes_decode(vm, base64_url_string)
+    base64_url_bytes_decode(base64_url_string)
 }
 
-fn base64_url_bytes_decode(vm: &Vm, base64_url_string: &Utf16String) -> WebIdlResult<Bytes> {
-    match libcrypto_rust::decode_base64url(base64_url_string) {
-        Ok(bytes) => Ok(Bytes::new(bytes)),
-        Err(Base64DecodeError::OutOfMemory) => vm
-            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-            .map_err(Into::into),
-        Err(Base64DecodeError::NonAscii) => Err(dom_error("DataError", b"base64 decode: invalid base64url")),
-        Err(Base64DecodeError::InvalidBase64(detail)) => Err(Exception::Dom(
-            "DataError",
-            libjs_rust::api::utf16_formatted("base64 decode: {}", &[&detail]),
-        )),
+fn base64_url_bytes_decode(base64_url_string: &Utf16String) -> WebIdlResult<Bytes> {
+    let result = ak::decode_base64(
+        base64_url_string.as_units(),
+        ak::Base64Alphabet::Base64Url,
+        ak::LastChunkHandling::Loose,
+        None,
+    );
+    if result.error.is_some() {
+        return Err(dom_error("DataError", b"base64 decode: invalid base64url"));
     }
+    Ok(Bytes::new(result.bytes))
 }
 
 // https://www.rfc-editor.org/rfc/rfc7517#section-4.3
@@ -947,7 +946,7 @@ impl AlgorithmMethods for Hmac {
 
             // Set the k attribute of jwk to be a string containing data, encoded according to Section
             // 6.4 of JSON Web Algorithms [JWA].
-            jwk.k = Some(base64_url_bytes_encode(data).expect("base64url encoding succeeds"));
+            jwk.k = Some(base64_url_bytes_encode(data));
 
             // Let algorithm be the [[algorithm]] internal slot of key.
             let algorithm = key.internal_algorithm();
@@ -1178,7 +1177,7 @@ impl AlgorithmMethods for HmacImportParams {
             // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA],
             //    then throw a DataError.
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
-            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+            data = parse_jwk_symmetric_key(&jwk)?;
 
             // 5. Set the hash to equal the hash member of normalizedAlgorithm.
             hash_name = normalized_algorithm.hash.name.clone();
@@ -1691,7 +1690,7 @@ impl AlgorithmMethods for KmacImportParams {
             // NOTE: parse_jwk_symmetric_key() performs the validation required for symmetric JWKs.
 
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
-            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+            data = parse_jwk_symmetric_key(&jwk)?;
 
             // 5. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
             //    If the alg field of jwk is present and is not "K128", then throw a DataError.
@@ -1827,7 +1826,7 @@ impl AlgorithmMethods for Kmac {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
         // NB: The key handle is always accessible.
 
@@ -1850,13 +1849,7 @@ impl AlgorithmMethods for Kmac {
             // 3. Set the k attribute of jwk to be a string containing data, encoded according to Section 6.4 of JSON
             //    Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
-            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
-                return cx
-                    .vm()
-                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                    .map_err(Into::into);
-            };
-            jwk.k = Some(encoded);
+            jwk.k = Some(base64_url_bytes_encode(key_bytes));
 
             // 4. Let keyAlgorithm be the [[algorithm]] internal slot of key.
             // 5. If the name member of keyAlgorithm is "KMAC128":
@@ -2859,7 +2852,7 @@ impl AlgorithmMethods for AesCbc {
             // - ".alg" is checked only in step 5.
 
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
-            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+            data = parse_jwk_symmetric_key(&jwk)?;
 
             // 5. If the length in bits of data is 128:
             //    If the alg field of jwk is present, and is not "A128CBC", then throw a DataError.
@@ -3039,7 +3032,7 @@ impl AlgorithmMethods for AesCbc {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
         // NB: The key handle is always accessible.
 
@@ -3065,13 +3058,7 @@ impl AlgorithmMethods for AesCbc {
             // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by the
             //    [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
-            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
-                return cx
-                    .vm()
-                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                    .map_err(Into::into);
-            };
-            jwk.k = Some(encoded);
+            jwk.k = Some(base64_url_bytes_encode(key_bytes));
 
             // 4. If the length attribute of key is 128:
             //    Set the alg attribute of jwk to the string "A128CBC".
@@ -3220,7 +3207,7 @@ impl AlgorithmMethods for AesCtr {
             }
 
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
-            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+            data = parse_jwk_symmetric_key(&jwk)?;
 
             // 5. If the length in bits of data is 128:
             //    If the alg field of jwk is present, and is not "A128CTR", then throw a DataError.
@@ -3323,7 +3310,7 @@ impl AlgorithmMethods for AesCtr {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
         // NB: The key handle is always accessible.
 
@@ -3349,13 +3336,7 @@ impl AlgorithmMethods for AesCtr {
             // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by the
             //    [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
-            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
-                return cx
-                    .vm()
-                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                    .map_err(Into::into);
-            };
-            jwk.k = Some(encoded);
+            jwk.k = Some(base64_url_bytes_encode(key_bytes));
 
             // 4. If the length attribute of key is 128:
             //    Set the alg attribute of jwk to the string "A128CTR".
@@ -3693,7 +3674,7 @@ impl AlgorithmMethods for AesGcm {
             }
 
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
-            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+            data = parse_jwk_symmetric_key(&jwk)?;
 
             // 5. If the length in bits of data is 128:
             //    If the alg field of jwk is present, and is not "A128GCM", then throw a DataError.
@@ -3796,7 +3777,7 @@ impl AlgorithmMethods for AesGcm {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
         // NB: The key handle is always accessible.
 
@@ -3822,13 +3803,7 @@ impl AlgorithmMethods for AesGcm {
             // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by the
             //    [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
-            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
-                return cx
-                    .vm()
-                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                    .map_err(Into::into);
-            };
-            jwk.k = Some(encoded);
+            jwk.k = Some(base64_url_bytes_encode(key_bytes));
 
             // 4. If the length attribute of key is 128:
             //    Set the alg attribute of jwk to the string "A128GCM".
@@ -4205,7 +4180,7 @@ impl AlgorithmMethods for AesKw {
             //   unless the application uses another means or convention to determine the algorithm used.
             // NOTE: "k" is already checked in step 4.
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
-            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+            data = parse_jwk_symmetric_key(&jwk)?;
 
             // 5. If the length in bits of data is 128:
             //    If the alg field of jwk is present, and is not "A128KW", then throw a DataError.
@@ -4308,7 +4283,7 @@ impl AlgorithmMethods for AesKw {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
         // NB: The key handle is always accessible.
 
@@ -4334,13 +4309,7 @@ impl AlgorithmMethods for AesKw {
             // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by the
             //    [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
-            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
-                return cx
-                    .vm()
-                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                    .map_err(Into::into);
-            };
-            jwk.k = Some(encoded);
+            jwk.k = Some(base64_url_bytes_encode(key_bytes));
 
             // 4. If the length attribute of key is 128:
             //    Set the alg attribute of jwk to the string "A128KW".
@@ -4831,7 +4800,7 @@ impl AlgorithmMethods for AesOcb {
             // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
             // NOTE: "k" is already checked in step 4.
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
-            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+            data = parse_jwk_symmetric_key(&jwk)?;
 
             // 5. If data has length 128 bits:
             //    If the alg field of jwk is present, and is not "A128OCB", then throw a DataError.
@@ -4935,7 +4904,7 @@ impl AlgorithmMethods for AesOcb {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
         // NB: The key handle is always accessible.
 
@@ -4959,13 +4928,7 @@ impl AlgorithmMethods for AesOcb {
             // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
             //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
-            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
-                return cx
-                    .vm()
-                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                    .map_err(Into::into);
-            };
-            jwk.k = Some(encoded);
+            jwk.k = Some(base64_url_bytes_encode(key_bytes));
 
             // 4. If the length attribute of key is 128:
             //    Set the alg attribute of jwk to the string "A128OCB".
@@ -5278,7 +5241,7 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
             // - ".alg" is checked only in step 6.
 
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
-            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+            data = parse_jwk_symmetric_key(&jwk)?;
 
             // 5. If the length in bits of data is not 256, then throw a DataError.
             if data.as_slice().len() != 32 {
@@ -5345,7 +5308,7 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
         // NB: The key handle is always accessible.
 
@@ -5369,13 +5332,7 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
             // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
             //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
-            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
-                return cx
-                    .vm()
-                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                    .map_err(Into::into);
-            };
-            jwk.k = Some(encoded);
+            jwk.k = Some(base64_url_bytes_encode(key_bytes));
 
             // 4. Set the alg attribute of jwk to the string "C20P".
             jwk.alg = Some(Utf16String::from_ascii(b"C20P"));
@@ -5607,9 +5564,9 @@ fn rsa_key_metadata(vm: &Vm, key: Ref<CryptoKey>) -> WebIdlResult<(u32, Vec<u8>)
     libcrypto_rust::rsa_read_key_metadata(key.handle()).map_err(|_| out_of_memory(vm))
 }
 
-fn parse_jwk_rsa_key(vm: &Vm, jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<KeyHandle> {
+fn parse_jwk_rsa_key(jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<KeyHandle> {
     let decode = |component: &Option<Utf16String>| {
-        base64_url_bytes_decode(vm, component.as_ref().expect("the RSA JWK contains the component"))
+        base64_url_bytes_decode(component.as_ref().expect("the RSA JWK contains the component"))
     };
     let components = if is_private {
         let n = decode(&jwk.n)?;
@@ -5648,7 +5605,7 @@ fn rsa_export_jwk_integer(vm: &Vm, key: Ref<CryptoKey>, component: RsaJwkInteger
         return Err(out_of_memory(vm));
     }
     let bytes = bytes.expect("LibCrypto returns the exported integer");
-    encode_jwk_bytes(vm, bytes.as_slice())
+    Ok(base64_url_bytes_encode(bytes.as_slice()))
 }
 
 fn key_format_to_string(format: KeyFormat) -> &'static str {
@@ -6153,7 +6110,7 @@ impl AlgorithmMethods for RsaOaep {
                 }
 
                 // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
-                let private_key = parse_jwk_rsa_key(cx.vm(), &jwk, true)?;
+                let private_key = parse_jwk_rsa_key(&jwk, true)?;
 
                 // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
                 let maybe_valid = libcrypto_rust::rsa_key_is_valid(&private_key);
@@ -6178,7 +6135,7 @@ impl AlgorithmMethods for RsaOaep {
                 }
 
                 // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
-                let public_key = parse_jwk_rsa_key(cx.vm(), &jwk, false)?;
+                let public_key = parse_jwk_rsa_key(&jwk, false)?;
 
                 // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
                 let maybe_valid = libcrypto_rust::rsa_key_is_valid(&public_key);
@@ -6859,7 +6816,7 @@ impl AlgorithmMethods for RsaPss {
                 }
 
                 // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
-                let private_key = parse_jwk_rsa_key(cx.vm(), &jwk, true)?;
+                let private_key = parse_jwk_rsa_key(&jwk, true)?;
 
                 // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
                 let maybe_valid = libcrypto_rust::rsa_key_is_valid(&private_key);
@@ -6884,7 +6841,7 @@ impl AlgorithmMethods for RsaPss {
                 }
 
                 // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
-                let public_key = parse_jwk_rsa_key(cx.vm(), &jwk, false)?;
+                let public_key = parse_jwk_rsa_key(&jwk, false)?;
 
                 // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
                 let maybe_valid = libcrypto_rust::rsa_key_is_valid(&public_key);
@@ -7555,7 +7512,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
                 // 2. Let privateKey represents the RSA private key identified by interpreting jwk according to Section
                 //    6.3.2 of JSON Web Algorithms [JWA].
-                let private_key = parse_jwk_rsa_key(cx.vm(), &jwk, true)?;
+                let private_key = parse_jwk_rsa_key(&jwk, true)?;
 
                 // 3. If privateKey is not a valid RSA private key according to [RFC3447], then throw a DataError.
                 let maybe_valid = libcrypto_rust::rsa_key_is_valid(&private_key);
@@ -7580,7 +7537,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 }
 
                 // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
-                let public_key = parse_jwk_rsa_key(cx.vm(), &jwk, false)?;
+                let public_key = parse_jwk_rsa_key(&jwk, false)?;
 
                 // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
                 let maybe_valid = libcrypto_rust::rsa_key_is_valid(&public_key);
@@ -8628,8 +8585,7 @@ impl AlgorithmMethods for Ecdsa {
                     return Err(dom_error("DataError", b"Invalid key"));
                 }
 
-                let maybe_x_bytes =
-                    base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"));
+                let maybe_x_bytes = base64_url_bytes_decode(jwk.x.as_ref().expect("the coordinate is present"));
                 let Ok(x_bytes) = maybe_x_bytes else {
                     return Err(dom_error("DataError", b"Failed to decode base64"));
                 };
@@ -8637,8 +8593,7 @@ impl AlgorithmMethods for Ecdsa {
                     return Err(dom_error("DataError", b"Invalid key size"));
                 }
 
-                let maybe_y_bytes =
-                    base64_url_bytes_decode(cx.vm(), jwk.y.as_ref().expect("the coordinate is present"));
+                let maybe_y_bytes = base64_url_bytes_decode(jwk.y.as_ref().expect("the coordinate is present"));
                 let Ok(y_bytes) = maybe_y_bytes else {
                     return Err(dom_error("DataError", b"Failed to decode base64"));
                 };
@@ -8649,7 +8604,7 @@ impl AlgorithmMethods for Ecdsa {
                 // If the d field is present:
                 if let Some(d) = &jwk.d {
                     // 1. If jwk does not meet the requirements of Section 6.2.2 of JSON Web Algorithms [JWA], then throw a DataError.
-                    let maybe_d_bytes = base64_url_bytes_decode(cx.vm(), d);
+                    let maybe_d_bytes = base64_url_bytes_decode(d);
                     let Ok(d_bytes) = maybe_d_bytes else {
                         return Err(dom_error("DataError", b"Failed to decode base64"));
                     };
@@ -8922,24 +8877,15 @@ impl AlgorithmMethods for Ecdsa {
                 // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
                 let (x_bytes, y_bytes) = ec_export_public_coordinates(curve, key)
                     .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?;
-                jwk.x = Some(
-                    base64_url_bytes_encode(x_bytes.as_slice())
-                        .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?,
-                );
-                jwk.y = Some(
-                    base64_url_bytes_encode(y_bytes.as_slice())
-                        .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?,
-                );
+                jwk.x = Some(base64_url_bytes_encode(x_bytes.as_slice()));
+                jwk.y = Some(base64_url_bytes_encode(y_bytes.as_slice()));
 
                 // 4. If the [[type]] internal slot of key is "private"
                 if key.key_type() == KeyType::Private {
                     // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
                     let d_bytes = ec_export_private_scalar(key)
                         .map_err(|_| dom_error("DataError", b"Failed to encode private key"))?;
-                    jwk.d = Some(
-                        base64_url_bytes_encode(d_bytes.as_slice())
-                            .map_err(|_| dom_error("DataError", b"Failed to encode private key"))?,
-                    );
+                    jwk.d = Some(base64_url_bytes_encode(d_bytes.as_slice()));
                 }
             } else {
                 // 1. Perform any key export steps defined by other applicable specifications,
@@ -9614,8 +9560,7 @@ impl AlgorithmMethods for Ecdh {
                     return Err(dom_error("DataError", b"Invalid key"));
                 }
 
-                let maybe_x_bytes =
-                    base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"));
+                let maybe_x_bytes = base64_url_bytes_decode(jwk.x.as_ref().expect("the coordinate is present"));
                 let Ok(x_bytes) = maybe_x_bytes else {
                     return Err(dom_error("DataError", b"Failed to decode base64"));
                 };
@@ -9623,8 +9568,7 @@ impl AlgorithmMethods for Ecdh {
                     return Err(dom_error("DataError", b"Invalid key size"));
                 }
 
-                let maybe_y_bytes =
-                    base64_url_bytes_decode(cx.vm(), jwk.y.as_ref().expect("the coordinate is present"));
+                let maybe_y_bytes = base64_url_bytes_decode(jwk.y.as_ref().expect("the coordinate is present"));
                 let Ok(y_bytes) = maybe_y_bytes else {
                     return Err(dom_error("DataError", b"Failed to decode base64"));
                 };
@@ -9635,7 +9579,7 @@ impl AlgorithmMethods for Ecdh {
                 // If the d field is present:
                 if let Some(d) = &jwk.d {
                     // 1. If jwk does not meet the requirements of Section 6.2.2 of JSON Web Algorithms [JWA], then throw a DataError.
-                    let maybe_d_bytes = base64_url_bytes_decode(cx.vm(), d);
+                    let maybe_d_bytes = base64_url_bytes_decode(d);
                     let Ok(d_bytes) = maybe_d_bytes else {
                         return Err(dom_error("DataError", b"Failed to decode base64"));
                     };
@@ -9902,24 +9846,15 @@ impl AlgorithmMethods for Ecdh {
                 // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
                 let (x_bytes, y_bytes) = ec_export_public_coordinates(curve, key)
                     .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?;
-                jwk.x = Some(
-                    base64_url_bytes_encode(x_bytes.as_slice())
-                        .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?,
-                );
-                jwk.y = Some(
-                    base64_url_bytes_encode(y_bytes.as_slice())
-                        .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?,
-                );
+                jwk.x = Some(base64_url_bytes_encode(x_bytes.as_slice()));
+                jwk.y = Some(base64_url_bytes_encode(y_bytes.as_slice()));
 
                 // 4. If the [[type]] internal slot of key is "private"
                 if key.key_type() == KeyType::Private {
                     // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
                     let d_bytes = ec_export_private_scalar(key)
                         .map_err(|_| dom_error("DataError", b"Failed to encode private key"))?;
-                    jwk.d = Some(
-                        base64_url_bytes_encode(d_bytes.as_slice())
-                            .map_err(|_| dom_error("DataError", b"Failed to encode private key"))?,
-                    );
+                    jwk.d = Some(base64_url_bytes_encode(d_bytes.as_slice()));
                 }
             } else {
                 // 1. Perform any key export steps defined by other applicable specifications,
@@ -10049,15 +9984,6 @@ fn okp_export_der(vm: &Vm, curve: OkpCurve, is_public: bool, key: &[u8]) -> WebI
             .map_err(Into::into);
     }
     Ok(result.expect("LibCrypto returns the DER bytes"))
-}
-
-fn encode_jwk_bytes(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Utf16String> {
-    let Ok(encoded) = base64_url_bytes_encode(bytes) else {
-        return vm
-            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-            .map_err(Into::into);
-    };
-    Ok(encoded)
 }
 
 fn out_of_memory(vm: &Vm) -> Exception {
@@ -10345,7 +10271,7 @@ impl AlgorithmMethods for Ed25519 {
                 if jwk.x.is_none() {
                     return Err(dom_error("DataError", b"Missing x field"));
                 }
-                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                let public_key = base64_url_bytes_decode(jwk.x.as_ref().expect("the coordinate is present"))?;
                 if public_key.as_slice().len() != 32 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -10355,7 +10281,7 @@ impl AlgorithmMethods for Ed25519 {
                 if jwk.d.is_none() {
                     return Err(dom_error("DataError", b"Present d field"));
                 }
-                let private_key = base64_url_bytes_decode(cx.vm(), d)?;
+                let private_key = base64_url_bytes_decode(d)?;
                 if private_key.as_slice().len() != 32 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -10390,7 +10316,7 @@ impl AlgorithmMethods for Ed25519 {
                 if jwk.x.is_none() {
                     return Err(dom_error("DataError", b"Missing x field"));
                 }
-                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                let public_key = base64_url_bytes_decode(jwk.x.as_ref().expect("the coordinate is present"))?;
                 if public_key.as_slice().len() != 32 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -10528,7 +10454,7 @@ impl AlgorithmMethods for Ed25519 {
 
             // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
             if key.key_type() == KeyType::Public {
-                jwk.x = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.x = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
             } else {
                 // The "x" parameter of the "epk" field is set as follows:
                 // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
@@ -10536,13 +10462,13 @@ impl AlgorithmMethods for Ed25519 {
                 // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
                 let public_key = okp_generate_public_key(OkpCurve::Ed25519, key.okp_handle_bytes())
                     .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+                jwk.x = Some(base64_url_bytes_encode(public_key.as_slice()));
             }
 
             // 6. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.d = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -10948,7 +10874,7 @@ impl AlgorithmMethods for Ed448 {
                 if jwk.x.is_none() {
                     return Err(dom_error("DataError", b"Missing x field"));
                 }
-                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                let public_key = base64_url_bytes_decode(jwk.x.as_ref().expect("the coordinate is present"))?;
                 if public_key.as_slice().len() != 57 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -10958,7 +10884,7 @@ impl AlgorithmMethods for Ed448 {
                 if jwk.d.is_none() {
                     return Err(dom_error("DataError", b"Present d field"));
                 }
-                let private_key = base64_url_bytes_decode(cx.vm(), d)?;
+                let private_key = base64_url_bytes_decode(d)?;
                 if private_key.as_slice().len() != 57 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -10993,7 +10919,7 @@ impl AlgorithmMethods for Ed448 {
                 if jwk.x.is_none() {
                     return Err(dom_error("DataError", b"Missing x field"));
                 }
-                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                let public_key = base64_url_bytes_decode(jwk.x.as_ref().expect("the coordinate is present"))?;
                 if public_key.as_slice().len() != 57 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -11133,7 +11059,7 @@ impl AlgorithmMethods for Ed448 {
 
             // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
             if key.key_type() == KeyType::Public {
-                jwk.x = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.x = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
             } else {
                 // The "x" parameter of the "epk" field is set as follows:
                 // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
@@ -11141,13 +11067,13 @@ impl AlgorithmMethods for Ed448 {
                 // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
                 let public_key = okp_generate_public_key(OkpCurve::Ed448, key.okp_handle_bytes())
                     .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+                jwk.x = Some(base64_url_bytes_encode(public_key.as_slice()));
             }
 
             // 6. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.d = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -11663,7 +11589,7 @@ impl AlgorithmMethods for X25519 {
                 if jwk.x.is_none() {
                     return Err(dom_error("DataError", b"Missing x field"));
                 }
-                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                let public_key = base64_url_bytes_decode(jwk.x.as_ref().expect("the coordinate is present"))?;
                 if public_key.as_slice().len() != 32 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -11673,7 +11599,7 @@ impl AlgorithmMethods for X25519 {
                 if jwk.d.is_none() {
                     return Err(dom_error("DataError", b"Missing d field"));
                 }
-                let private_key = base64_url_bytes_decode(cx.vm(), d)?;
+                let private_key = base64_url_bytes_decode(d)?;
                 if private_key.as_slice().len() != 32 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -11708,7 +11634,7 @@ impl AlgorithmMethods for X25519 {
                 if jwk.x.is_none() {
                     return Err(dom_error("DataError", b"Missing x field"));
                 }
-                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                let public_key = base64_url_bytes_decode(jwk.x.as_ref().expect("the coordinate is present"))?;
                 if public_key.as_slice().len() != 32 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -11838,7 +11764,7 @@ impl AlgorithmMethods for X25519 {
             // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
             if key.key_type() == KeyType::Public {
                 let public_key = key.okp_handle_bytes();
-                jwk.x = Some(encode_jwk_bytes(cx.vm(), public_key)?);
+                jwk.x = Some(base64_url_bytes_encode(public_key));
             } else {
                 // The "x" parameter of the "epk" field is set as follows:
                 // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
@@ -11846,14 +11772,14 @@ impl AlgorithmMethods for X25519 {
                 // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
                 let public_key = okp_generate_public_key(OkpCurve::X25519, key.okp_handle_bytes())
                     .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+                jwk.x = Some(base64_url_bytes_encode(public_key.as_slice()));
             }
 
             // 5. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
                 let private_key = key.okp_handle_bytes();
-                jwk.d = Some(encode_jwk_bytes(cx.vm(), private_key)?);
+                jwk.d = Some(base64_url_bytes_encode(private_key));
             }
 
             // 6. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -12142,17 +12068,17 @@ impl AlgorithmMethods for X448 {
 
             // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
             if key.key_type() == KeyType::Public {
-                jwk.x = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.x = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
             } else {
                 let public_key = okp_generate_public_key(OkpCurve::X448, key.okp_handle_bytes())
                     .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+                jwk.x = Some(base64_url_bytes_encode(public_key.as_slice()));
             }
 
             // 5. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.d = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
             }
 
             // 6. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -12379,7 +12305,7 @@ impl AlgorithmMethods for X448 {
                 if jwk.x.is_none() {
                     return Err(dom_error("DataError", b"Missing x field"));
                 }
-                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                let public_key = base64_url_bytes_decode(jwk.x.as_ref().expect("the coordinate is present"))?;
                 if public_key.as_slice().len() != 56 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -12389,7 +12315,7 @@ impl AlgorithmMethods for X448 {
                 if jwk.d.is_none() {
                     return Err(dom_error("DataError", b"Missing d field"));
                 }
-                let private_key = base64_url_bytes_decode(cx.vm(), d)?;
+                let private_key = base64_url_bytes_decode(d)?;
                 if private_key.as_slice().len() != 56 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -12424,7 +12350,7 @@ impl AlgorithmMethods for X448 {
                 if jwk.x.is_none() {
                     return Err(dom_error("DataError", b"Missing x field"));
                 }
-                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                let public_key = base64_url_bytes_decode(jwk.x.as_ref().expect("the coordinate is present"))?;
                 if public_key.as_slice().len() != 56 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
@@ -13045,7 +12971,7 @@ impl AlgorithmMethods for MlDsa {
             if let Some(private_seed) = &jwk.r#priv {
                 // 1. If the priv attribute of jwk does not contain a valid base64url encoded seed
                 //    representing an ML-DSA private key, then throw a DataError.
-                let seed = base64_url_bytes_decode(cx.vm(), private_seed)?;
+                let seed = base64_url_bytes_decode(private_seed)?;
                 if seed.as_slice().len() * 8 != 256 {
                     return Err(dom_error("DataError", b"Seed must be 256 bits long"));
                 }
@@ -13074,7 +13000,7 @@ impl AlgorithmMethods for MlDsa {
                     return Err(dom_error("DataError", b"JsonWebKey does not contain public key"));
                 };
 
-                let pub_decoded = base64_url_bytes_decode(cx.vm(), public_bytes);
+                let pub_decoded = base64_url_bytes_decode(public_bytes);
                 let expected = libcrypto_rust::mldsa_public_bytes(&public_key);
                 if !pub_decoded.is_ok_and(|bytes| bytes.as_slice() == expected) {
                     return Err(dom_error("DataError", b"JsonWebKey public key does not match"));
@@ -13088,7 +13014,7 @@ impl AlgorithmMethods for MlDsa {
                     return Err(dom_error("DataError", b"JsonWebKey does not contain public key"));
                 };
 
-                let public_key = base64_url_bytes_decode(cx.vm(), public_bytes)?;
+                let public_key = base64_url_bytes_decode(public_bytes)?;
 
                 // 2. Let key be a new CryptoKey object that represents the ML-DSA public key
                 //    identified by interpreting the pub attribute of jwk as a base64url encoded public key.
@@ -13265,13 +13191,13 @@ impl AlgorithmMethods for MlDsa {
 
             // 5. Set the pub attribute of jwk to the base64url encoded public key corresponding to the [[handle]] internal slot of key.
             let public_bytes = libcrypto_rust::mldsa_public_bytes(handle);
-            jwk.r#pub = Some(encode_jwk_bytes(vm, public_bytes)?);
+            jwk.r#pub = Some(base64_url_bytes_encode(public_bytes));
 
             // 6. -> If the [[type]] internal slot of key is "private":
             //       Set the priv attribute of jwk to the base64url encoded seed represented by the [[handle]] internal slot of key.
             if key.key_type() == KeyType::Private {
                 let seed = libcrypto_rust::mldsa_seed_bytes(handle);
-                jwk.r#priv = Some(encode_jwk_bytes(vm, seed)?);
+                jwk.r#priv = Some(base64_url_bytes_encode(seed));
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
