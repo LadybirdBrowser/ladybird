@@ -1,0 +1,3 @@
+at the top: OUTSIDE
+the target shows from 300 to 400
+after the frames of the scroll: COPY

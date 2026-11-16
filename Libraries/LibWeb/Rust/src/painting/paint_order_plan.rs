@@ -97,6 +97,33 @@ pub(crate) enum PaintOrderItem {
     Scope(PaintScope),
 }
 
+/// A line root whose plain text is taller than this, in CSS pixels, has its text fragments planned one at a time, so
+/// that a recording of a window can leave out the lines far from it.
+const TALLEST_TEXT_PLANNED_IN_ONE_PIECE: i64 = 512;
+
+/// Whether the foreground of a box with lines of `content` is planned with a producer for each of its text fragments:
+/// where its lines interleave text with boxes, or where its lines of text reach further than may be painted in one
+/// piece.
+pub(crate) fn text_fragments_of_content_are_producers(content: &crate::layout::inline_content::InlineContent) -> bool {
+    if !content.items.is_empty() {
+        return true;
+    }
+    let (Some(first), Some(last)) = (content.lines.first(), content.lines.last()) else {
+        return false;
+    };
+    let top = first.rect.y.min(last.rect.y);
+    let bottom = (first.rect.y + first.rect.height).max(last.rect.y + last.rect.height);
+    !content.fragments.is_empty()
+        && bottom - top > crate::css::css_pixels::CssPixels::from_integer(TALLEST_TEXT_PLANNED_IN_ONE_PIECE)
+}
+
+pub(crate) fn text_fragments_are_producers(rows: &impl PaintRead, root: NodeSlotId) -> bool {
+    rows.committed_side_data(root)
+        .inline_content
+        .as_ref()
+        .is_some_and(|content| text_fragments_of_content_are_producers(content))
+}
+
 pub(crate) struct PaintScopePlan {
     pub establishes_stacking_context: bool,
     pub items: SmallVec<[PaintOrderItem; 16]>,
@@ -291,17 +318,29 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
             self.append_box_phase(PaintPhase::Foreground);
             return;
         }
-        let side = arena.committed_side_data(root);
-        let Some(content) = side.inline_content.as_ref().filter(|content| !content.items.is_empty()) else {
+        if !text_fragments_are_producers(arena, root) {
             self.append_box_phase(PaintPhase::Foreground);
             return;
-        };
+        }
+        let side = arena.committed_side_data(root);
+        let content = side
+            .inline_content
+            .as_ref()
+            .expect("text fragments are producers of a root with lines");
         self.items
             .push(PaintOrderItem::Producer(PaintProducer::ForegroundHitTest));
 
+        let filter = crate::painting::fragment_ownership::effective_filter(arena, paintable);
+        if content.items.is_empty() {
+            for index in 0..content.fragments.len() as u32 {
+                if filter.owns_fragment(index) {
+                    self.items
+                        .push(PaintOrderItem::Producer(PaintProducer::TextFragment(index)));
+                }
+            }
+        }
         // CSS 2.2 Appendix E, step 7.2: backgrounds, borders and text are
         // interleaved in each line. Layout retains that order alongside geometry.
-        let filter = crate::painting::fragment_ownership::effective_filter(arena, paintable);
         for item in &content.items {
             use crate::layout::inline_content::InlineItem;
             match *item {

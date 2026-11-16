@@ -1,0 +1,2 @@
+at the top: recorded 119, reused 0, left out 281
+scrolled near the bottom, and the text changed: recorded 118, reused 0, left out 282

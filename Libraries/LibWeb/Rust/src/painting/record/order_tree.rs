@@ -16,6 +16,7 @@
 use crate::css::css_pixels::CssPixelPoint;
 use crate::painting::display_list::chunks::Chunk;
 use crate::painting::paint_order_plan::{PaintOrderItem, PaintScope};
+use crate::painting::record::window::InkBound;
 use std::ops::Range;
 use std::sync::{Arc, OnceLock};
 
@@ -164,6 +165,8 @@ pub(crate) struct RecordedRun {
 pub(crate) enum RecordedSegment {
     Run(RecordedRun),
     Walked(Arc<RecordedScope>),
+    /// Nothing of the segment was recorded, because all of it lay outside the window of the recording.
+    Outside,
 }
 
 impl RecordedSegment {
@@ -171,6 +174,15 @@ impl RecordedSegment {
         match self {
             Self::Run(run) => run.facts,
             Self::Walked(scope) => scope.facts,
+            Self::Outside => OutputFacts::default(),
+        }
+    }
+
+    pub(crate) fn leaves_out_what_lies_outside_the_window(&self) -> bool {
+        match self {
+            Self::Run(_) => false,
+            Self::Walked(scope) => scope.leaves_out_what_lies_outside_the_window,
+            Self::Outside => true,
         }
     }
 }
@@ -185,6 +197,15 @@ pub(crate) struct RecordedScope {
     pub facts: OutputFacts,
     /// Where the scope's owner was, which the producers of the owner in the scope's runs were recorded against.
     pub owner_placement: RowPlacement,
+    /// What bounds each segment, or none for a segment that may paint anywhere, where the recording had to ask:
+    /// it holds a window of the document that the scope is not wholly inside.
+    pub segment_bounds: Option<Arc<[Option<InkBound>]>>,
+    /// Whether a segment of the scope, or of a scope walked below it, was left out for lying outside the window.
+    pub leaves_out_what_lies_outside_the_window: bool,
+    /// Whether a scope walked below this one belongs to a box that cuts off some of what it holds, as a scroller
+    /// does: such a scope paints outside what bounds this one, so a recording of a window may leave some of it out
+    /// though this scope is wholly inside the window.
+    pub walks_a_scope_of_a_box_that_cuts_off_what_it_holds: bool,
 }
 
 impl RecordedScope {
@@ -198,6 +219,7 @@ impl RecordedScope {
                     }
                 }
                 RecordedSegment::Walked(scope) => scope.for_each_chunk(visit),
+                RecordedSegment::Outside => {}
             }
         }
     }

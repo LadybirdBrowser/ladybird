@@ -47,7 +47,11 @@ displayListTest({
                       BlockContainer<BODY>#body/scroll-metadata RECORD
                       BlockContainer<BODY>#body/background SKIP
                       BlockContainer<BODY>#body/border SKIP
-                      BlockContainer<DIV>#keep.box.scroller/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#keep.box.scroller/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#keep.box.scroller/scroll-metadata COPY
+                        BlockContainer<DIV>#keep.box.scroller/background COPY
+                        BlockContainer<DIV>#keep.box.scroller/border COPY
+                        BlockContainer<DIV>.content/descendants(background-and-borders) COPY
                       BlockContainer<DIV>#outer.box/descendants(background-and-borders) ASSEMBLE
                         BlockContainer<DIV>#outer.box/scroll-metadata RECORD
                         BlockContainer<DIV>#outer.box/background SKIP
@@ -59,7 +63,11 @@ displayListTest({
                     BlockContainer<HTML>#html/foreground RECORD (empty)
                     BlockContainer<BODY>#body/descendants(foreground) REPLAN
                       BlockContainer<BODY>#body/foreground RECORD (empty)
-                      BlockContainer<DIV>#keep.box.scroller/descendants(foreground) COPY
+                      BlockContainer<DIV>#keep.box.scroller/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#keep.box.scroller/foreground COPY
+                        BlockContainer<DIV>.content/descendants(foreground) COPY
+                        BlockContainer<DIV>#keep.box.scroller/outline COPY
+                        BlockContainer<DIV>#keep.box.scroller/overlay COPY
                       BlockContainer<DIV>#outer.box/descendants(foreground) ASSEMBLE
                         BlockContainer<DIV>#outer.box/foreground RECORD (empty)
                         BlockContainer<DIV>#outer-content.content/descendants(foreground) ASSEMBLE
@@ -110,7 +118,11 @@ displayListTest({
                       BlockContainer<BODY>#body/scroll-metadata RECORD
                       BlockContainer<BODY>#body/background SKIP
                       BlockContainer<BODY>#body/border SKIP
-                      BlockContainer<DIV>#keep.box.scroller/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#keep.box.scroller/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#keep.box.scroller/scroll-metadata COPY
+                        BlockContainer<DIV>#keep.box.scroller/background COPY
+                        BlockContainer<DIV>#keep.box.scroller/border COPY
+                        BlockContainer<DIV>.content/descendants(background-and-borders) COPY
                       BlockContainer<DIV>#outer.box/descendants(background-and-borders) ASSEMBLE
                         BlockContainer<DIV>#outer.box/scroll-metadata RECORD
                         BlockContainer<DIV>#outer.box/background SKIP
@@ -122,7 +134,11 @@ displayListTest({
                     BlockContainer<HTML>#html/foreground RECORD (empty)
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground RECORD (empty)
-                      BlockContainer<DIV>#keep.box.scroller/descendants(foreground) COPY
+                      BlockContainer<DIV>#keep.box.scroller/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#keep.box.scroller/foreground COPY
+                        BlockContainer<DIV>.content/descendants(foreground) COPY
+                        BlockContainer<DIV>#keep.box.scroller/outline COPY
+                        BlockContainer<DIV>#keep.box.scroller/overlay COPY
                       BlockContainer<DIV>#outer.box/descendants(foreground) ASSEMBLE
                         BlockContainer<DIV>#outer.box/foreground RECORD (empty)
                         BlockContainer<DIV>#outer-content.content/descendants(foreground) ASSEMBLE

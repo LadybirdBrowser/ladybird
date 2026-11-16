@@ -25,6 +25,7 @@ pub mod svg_resources;
 pub mod trace;
 pub mod traversal;
 pub(crate) mod vector_images;
+pub(crate) mod window;
 
 use crate::css::css_enums;
 use crate::css::css_pixels::CssPixelRect;
@@ -66,6 +67,8 @@ pub struct RecordingOutput {
     /// The scopes the recording walked, with what each part of them recorded, which the next recording reuses its
     /// clean output by.
     pub(crate) recorded_root: Option<Arc<order_tree::RecordedScope>>,
+    /// The part of the document the recording holds, or none where it holds all of it.
+    pub(crate) window: Option<Arc<window::RecordedWindow>>,
     pub has_blocking_wheel_event_listeners: bool,
     pub wheel_event_listener_state_generation: u64,
     pub is_identical_to_published_recording: bool,
@@ -140,6 +143,9 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) scratch: &'a mut scratch::RecordingScratch,
     pub(crate) resources: resources::RecordingResourceManifest,
     line_root_positions: Option<(NodeSlotId, crate::painting::paintable_geometry::LineRootPositions)>,
+    // The spaces of the frame's tree against the window of the recording, for one that does not hold the whole
+    // document.
+    pub(crate) window_spaces: Option<window::WindowSpaces<'a>>,
 }
 
 #[derive(Clone, Copy, Default)]

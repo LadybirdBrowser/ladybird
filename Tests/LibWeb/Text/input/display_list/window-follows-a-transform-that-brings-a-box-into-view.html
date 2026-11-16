@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 6000px; }
+    #near { position: absolute; left: 200px; top: 0; width: 100px; height: 100px; background: blue; transform: translateY(0px); }
+    #far { position: absolute; left: 0; top: 5000px; width: 100px; height: 100px; background: green; transform: translateY(0px); }
+</style>
+<body><div id="near"></div><div id="far"></div>
+<script>
+// A box far down the page is left out of a recording of a window around the top. Changing its transform records
+// nothing again by itself, but once the transform brings the box into view the window no longer covers what shows,
+// and the frames that follow record the box. The box near the top changes before each recording here, so that the
+// recording walks the boxes: one the frames recorded is reused, and one they left out would be recorded here.
+const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    __outputElement.style.display = "none";
+    await frame();
+    const output = [];
+    const actionOfFar = trace => {
+        const scope = "#far ";
+        const line = trace.split("\n").find(line => line.includes(scope));
+        return line ? line.slice(line.indexOf(scope) + scope.length).trim() : "-";
+    };
+    const record = label => {
+        near.style.backgroundColor = near.style.backgroundColor === "red" ? "blue" : "red";
+        internals.beginDisplayListTrace();
+        internals.recordDisplayListForTesting(true, false);
+        output.push(`${label}: ${actionOfFar(internals.takeDisplayListTrace())}`);
+    };
+
+    record("at the top");
+    far.style.transform = "translateY(-4900px)";
+    await frame();
+    record("after the frames of the transform");
+    output.push(`the box in view: ${document.elementFromPoint(50, 150).id}`);
+
+    __outputElement.style.display = "";
+    for (const line of output) println(line);
+});
+</script>

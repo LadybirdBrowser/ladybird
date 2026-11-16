@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    body > div { height: 500px; }
+    body > div:nth-child(odd) { background: #cde; }
+</style>
+<body>
+<script>
+// A recording holds what shows in the viewport and for two viewports around it: with a viewport 600 pixels tall,
+// what lies within 1200 pixels of it. The window stays where it is until the page has scrolled 600 pixels from
+// where the window was placed. The first two blocks are recorded in one run with the body's own background, which
+// is not bounded, so they are never left out.
+for (let i = 0; i < 12; ++i) {
+    const block = document.createElement("div");
+    block.id = "b" + i;
+    block.textContent = "block " + i;
+    document.body.appendChild(block);
+}
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    await document.fonts.ready;
+    __outputElement.style.display = "none";
+    const output = [];
+    const actionOf = (trace, id) => {
+        const scope = `#${id}/descendants(background-and-borders) `;
+        const line = trace.split("\n").find(line => line.includes(scope));
+        return line ? line.slice(line.indexOf(scope) + scope.length).trim() : "-";
+    };
+    const record = (label, cold = false) => {
+        internals.beginDisplayListTrace();
+        internals.recordDisplayListForTesting(false, cold);
+        const trace = internals.takeDisplayListTrace();
+        const actions = Array.from({ length: 12 }, (_, i) => actionOf(trace, "b" + i));
+        const summary = actions.every(action => action === "-") ? trace.trim().split("\n").at(-1).trim() : actions.join(" ");
+        output.push(`${label}: ${summary}`);
+    };
+
+    record("at the top", true);
+    window.scrollTo(0, 500);
+    record("scrolled by 500, inside the slack");
+    b10.style.background = "red";
+    record("a block outside the window changed");
+    window.scrollTo(0, 2000);
+    record("scrolled to 2000");
+    window.scrollTo(0, 2500);
+    record("scrolled by 500 more");
+    window.scrollTo(0, 5400);
+    record("scrolled to the bottom");
+    window.scrollTo(0, 0);
+    record("scrolled back to the top");
+
+    // What a recording leaves out can still be found.
+    window.scrollTo(0, 5400);
+    output.push(`element at the bottom after scrolling there: ${document.elementFromPoint(10, 590).id}`);
+    window.scrollTo(0, 0);
+
+    __outputElement.style.display = "";
+    for (const line of output) println(line);
+});
+</script>

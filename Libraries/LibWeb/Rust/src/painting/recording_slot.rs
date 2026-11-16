@@ -466,6 +466,28 @@ pub(crate) fn yield_claim_hold_for_testing() {
 
 /// Records `frame` of the document's `viewport` with `inputs` and `recorder`, which keeps the inputs of a recording that
 /// publishes, and answers what it recorded, with the trace it left where `trace_recordings` asks for one.
+/// The window a recording of `frame` with `inputs` is made for: none where it records the whole document, the window
+/// of `published`, the recording published last, where that still covers what the frame's viewport shows, or else one
+/// placed where the frame's scrollers are.
+fn window_to_record(
+    frame: &PublishedFrame,
+    inputs: &RecordingInputs,
+    published: Option<&RecordingOutput>,
+) -> Option<Arc<crate::painting::record::window::RecordedWindow>> {
+    if inputs.records_whole_document || inputs.records_without_visual_contexts {
+        return None;
+    }
+    let paint_state = frame.paint_state();
+    let tree = paint_state.visual_context_tree.as_deref()?;
+    Some(crate::painting::record::window::window_of_frame(
+        published.and_then(|published| published.window.as_ref().zip(published.visual_context_tree.as_deref())),
+        tree,
+        inputs.uncaptured.device_viewport_size,
+        inputs.device_pixels_per_css_pixel,
+        paint_state.scroll_own_offsets(),
+    ))
+}
+
 pub(crate) fn record_frame(
     frame: PublishedFrame,
     recorder: &mut RecorderState,
@@ -482,12 +504,14 @@ pub(crate) fn record_frame(
     } = recorder;
     let source = PaintSource::new(&frame, absolute_rects);
     let publishes_recording = published_recording_count.note_recording(inputs.publishes_recording);
+    let window = window_to_record(&frame, &inputs, published_recording.as_deref());
     let mut recording = crate::painting::record::traversal::record_display_list(
         &source,
         scratch,
         viewport,
         &inputs,
         published_recording.clone(),
+        window,
         trace_recordings,
     );
     let output = &mut recording.output;

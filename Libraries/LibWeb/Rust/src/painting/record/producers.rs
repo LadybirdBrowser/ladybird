@@ -12,13 +12,14 @@
 use super::assemble::{AssemblyEvent, AssemblyHost, ItemCut, ProducerOutcome, ScopeAction, ScopePlan};
 use super::order_tree::{ProducerKind, RecordedChunk, RowPlacement};
 use super::trace::{Action, Observer, Operation};
+use super::window::InkBound;
 use super::{PaintPhase, PaintRecorder};
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paint_order_plan::{PaintOrderItem, PaintProducer, PaintScope, PaintScopePlan};
-use crate::painting::paint_read::GeometryRead;
+use crate::painting::paint_read::{GeometryRead, PaintRead, PaintSource};
 use crate::painting::record::change_ticks::RowChanges;
 use crate::painting::record::svg_resources::MaskLayerSet;
 use crate::painting::{node_painting, paintable_geometry};
@@ -327,6 +328,96 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         }
     }
 
+    // A child scope is bounded by its owner's ink overflow, in the space its own box is painted in, unless a transform
+    // below that box moves some of it, and the text fragments and inline box pieces of a line root by what each draws.
+    // The other producers of the scope's owner are not bounded unless they paint nothing: the owner of a walked scope
+    // is in the window when the scope is, and its own producers mostly cover it.
+    fn bound_of_item(&mut self, scope: PaintScope, item: PaintOrderItem) -> Option<InkBound> {
+        use crate::painting::ink_overflow::{ScopeInkBound, inline_piece_ink, scope_ink_bound, text_fragment_ink_rect};
+        let line_root = |rows: &PaintSource<'_>| {
+            if node_painting::has_lines(rows, scope.owner) {
+                scope.owner
+            } else {
+                rows.paintable_data(scope.owner).containing_block
+            }
+        };
+        let (rect, space) = match item {
+            PaintOrderItem::Scope(child) => {
+                let ScopeInkBound::Rect(bound) = scope_ink_bound(self.source, child) else {
+                    return None;
+                };
+                // The bound says where a transform below the child's own box has put what it moves, and nothing records
+                // again when the transform puts it elsewhere.
+                if self
+                    .source
+                    .stored_ink_overflow(child.owner)
+                    .holds_what_a_transform_moves
+                {
+                    return None;
+                }
+                (bound, self.own_context(child.owner).spatial)
+            }
+            PaintOrderItem::Producer(PaintProducer::TextFragment(index)) => {
+                let rect = text_fragment_ink_rect(self.source, self.paint_state, line_root(self.source), index);
+                if rect.is_empty() {
+                    return None;
+                }
+                (
+                    rect,
+                    self.context_for_phase(scope.owner, PaintPhase::Foreground).spatial,
+                )
+            }
+            PaintOrderItem::Producer(PaintProducer::InlinePiece(index)) => {
+                let root = line_root(self.source);
+                let positions = self.line_root_positions(root);
+                let ink = inline_piece_ink(self.source, root, &positions, index);
+                if ink.unbounded {
+                    return None;
+                }
+                let piece_node = self.source.committed_side_data(root).inline_box_pieces()[index as usize].node;
+                (
+                    ink.rect,
+                    self.context_for_phase(piece_node, PaintPhase::Background).spatial,
+                )
+            }
+            PaintOrderItem::Producer(producer) => {
+                let paints_nothing = crate::painting::record::assemble::producer_kinds(producer)
+                    .into_iter()
+                    .all(|kind| self.producer_is_skipped(scope.owner, kind));
+                return paints_nothing.then(InkBound::nothing);
+            }
+        };
+        let slack = super::ink_bounds::COMPARISON_SLACK_IN_DEVICE_PIXELS;
+        Some(InkBound::in_space(
+            space,
+            self.converter
+                .enclosing_device_rect(rect)
+                .inflated_edges(slack, slack, slack, slack)
+                .to_float(),
+        ))
+    }
+
+    fn is_outside_window(&mut self, bound: &InkBound) -> bool {
+        self.window_spaces
+            .as_ref()
+            .is_some_and(|spaces| spaces.is_outside(bound))
+    }
+
+    fn is_wholly_inside_window(&mut self, bound: &InkBound) -> bool {
+        self.window_spaces
+            .as_ref()
+            .is_some_and(|spaces| spaces.is_wholly_inside(bound))
+    }
+
+    // Any box whose overflow is not visible, though not every one of them clips: saying so of a box that does not
+    // only has its scopes ask what bounds their segments.
+    fn cuts_off_what_it_holds(&mut self, owner: NodeSlotId) -> bool {
+        use crate::css::css_enums::overflow;
+        self.source
+            .node_style_if_live(owner)
+            .is_some_and(|style| style.overflow_x() != overflow::VISIBLE || style.overflow_y() != overflow::VISIBLE)
+    }
+
     // SVG content is recorded by its root.
     fn producer_reads_descendants(&mut self, owner: NodeSlotId, kind: ProducerKind) -> bool {
         match kind {
@@ -358,6 +449,10 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
             AssemblyEvent::ScopeCopied(scope) => log.leaf(Operation::Scope(scope), Action::Copy, false),
             AssemblyEvent::ProducerCopied(owner, kind) => {
                 log.leaf(Operation::Producer(owner, kind), Action::Copy, false);
+            }
+            AssemblyEvent::ScopeLeftOut(scope) => log.leaf(Operation::Scope(scope), Action::LeaveOut, false),
+            AssemblyEvent::ProducerLeftOut(owner, kind) => {
+                log.leaf(Operation::Producer(owner, kind), Action::LeaveOut, false);
             }
         });
     }

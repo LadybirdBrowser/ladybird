@@ -86,7 +86,7 @@ const COUNT_NAMES: [&str; 17] = [
     "checked-against-scopes",
 ];
 
-const COMPARISON_SLACK_IN_DEVICE_PIXELS: i32 = 2;
+pub(super) const COMPARISON_SLACK_IN_DEVICE_PIXELS: i32 = 2;
 
 struct AuditedScopeBound {
     css_rect: CssPixelRect,
@@ -364,7 +364,10 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 );
                 self.ink_bounds_audit.open_scopes_with_a_bound -= usize::from(closed.bound.is_some());
             }
-            AssemblyEvent::ScopeCopied(_) | AssemblyEvent::ProducerCopied(..) => {}
+            AssemblyEvent::ScopeCopied(_)
+            | AssemblyEvent::ProducerCopied(..)
+            | AssemblyEvent::ScopeLeftOut(_)
+            | AssemblyEvent::ProducerLeftOut(..) => {}
         }
     }
 

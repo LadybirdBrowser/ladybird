@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 6000px; position: relative; }
+    #scroller { height: 300px; overflow: scroll; }
+    #scroller > div { height: 500px; }
+    #scroller > div:nth-child(odd) { background: #cde; }
+    #pulled { position: absolute; left: 0; top: 5000px; width: 100px; height: 100px; background: green; transform: translateY(-4900px); }
+    #pushed { position: absolute; left: 200px; top: 100px; width: 100px; height: 100px; background: blue; transform: translateY(8000px); }
+    #stuck { position: sticky; top: 0; height: 50px; background: orange; margin-top: 4000px; }
+    #pinned { position: fixed; left: 0; bottom: 0; width: 100px; height: 40px; background: purple; }
+</style>
+<body><div id="scroller"></div><div id="stuck">stuck</div><div id="pulled"></div><div id="pushed"></div><div id="pinned"></div>
+<script>
+// What a scroller holds is in the window where it shows with the scroller where it is, and what a transform moves is
+// in it where the transform puts it: the box a transform pulls into view from far down the page is recorded while the
+// page is at the top and left out once the page scrolls away from it, and the one it pushes far away is left out. A
+// sticky box moves on its own as the page scrolls, so it is never left out, and a fixed box stays in the viewport.
+for (let i = 0; i < 10; ++i) {
+    const item = document.createElement("div");
+    item.id = "s" + i;
+    item.textContent = "item " + i;
+    scroller.appendChild(item);
+}
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    await document.fonts.ready;
+    __outputElement.style.display = "none";
+    const output = [];
+    const actionAfter = (trace, label) => {
+        const line = trace.split("\n").find(line => line.includes(label));
+        return line ? line.slice(line.indexOf(label) + label.length).trim() : "-";
+    };
+    const record = (label, cold = false) => {
+        internals.beginDisplayListTrace();
+        internals.recordDisplayListForTesting(false, cold);
+        const trace = internals.takeDisplayListTrace();
+        const items = Array.from({ length: 10 }, (_, i) => actionAfter(trace, `#s${i}/descendants(background-and-borders) `));
+        const boxes = ["pulled", "pushed", "stuck", "pinned"].map(id => `${id}=${actionAfter(trace, `#${id} `)}`);
+        output.push(`${label}:\n  items: ${items.join(" ")}\n  boxes: ${boxes.join(" ")}`);
+    };
+
+    record("at the top", true);
+    scroller.scrollTop = 3000;
+    record("the scroller scrolled to 3000");
+    window.scrollTo(0, 5400);
+    record("the page scrolled to the bottom");
+    window.scrollTo(0, 0);
+    scroller.scrollTop = 0;
+    record("back at the top");
+
+    __outputElement.style.display = "";
+    for (const line of output) println(line);
+});
+</script>
