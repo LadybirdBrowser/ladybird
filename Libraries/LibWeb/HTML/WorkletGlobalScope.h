@@ -64,8 +64,6 @@ protected:
 private:
     friend JS::Realm& Bindings::main_world_realm(WorkletGlobalScope const&);
 
-    virtual bool is_universal_global_scope_mixin() const final { return true; }
-
     GC::Ptr<EnvironmentSettingsObject> m_settings_object;
     URL::URL m_url;
     IDAllocator m_timer_id_allocator;

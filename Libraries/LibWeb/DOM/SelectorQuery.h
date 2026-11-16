@@ -36,7 +36,6 @@ public:
 
     CSS::SelectorList const& selectors() const { return m_selectors; }
 
-    bool is_result_cacheable() const { return m_is_result_cacheable; }
     bool depends_on_character_data() const { return m_depends_on_character_data; }
 
     // Marked by the document's selector query cache each time it hands out the query again, so that a full cache can

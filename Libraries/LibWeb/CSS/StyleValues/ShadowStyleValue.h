@@ -33,7 +33,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> offset_x() const { return wrap_rust_child(m_value->shadow._0->offset_x); }
     ValueComparingNonnullRefPtr<StyleValue const> offset_y() const { return wrap_rust_child(m_value->shadow._0->offset_y); }
     ValueComparingRefPtr<StyleValue const> blur_radius_or_null() const { return wrap_rust_child_or_null(m_value->shadow._0->blur_radius); }
-    ValueComparingRefPtr<StyleValue const> spread_distance_or_null() const { return wrap_rust_child_or_null(m_value->shadow._0->spread_distance); }
 
 private:
     explicit ShadowStyleValue(StyleValueFFI::StyleValueData const* data)
