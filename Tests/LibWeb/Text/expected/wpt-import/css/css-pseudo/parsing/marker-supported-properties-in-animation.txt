@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 96 tests
 
-70 Pass
-26 Fail
+72 Pass
+24 Fail
 Pass	Animation of font in ::marker
 Pass	Animation of font-family in ::marker
 Pass	Animation of font-feature-settings in ::marker
@@ -30,7 +30,7 @@ Fail	Animation of text-combine-upright in ::marker
 Pass	Animation of unicode-bidi in ::marker
 Pass	Animation of direction in ::marker
 Pass	Animation of content in ::marker
-Fail	Animation of hyphens in ::marker
+Pass	Animation of hyphens in ::marker
 Pass	Animation of letter-spacing in ::marker
 Fail	Animation of line-break in ::marker
 Pass	Animation of overflow-wrap in ::marker
@@ -78,7 +78,7 @@ Fail	Transition of text-combine-upright in ::marker
 Pass	Transition of unicode-bidi in ::marker
 Pass	Transition of direction in ::marker
 Pass	Transition of content in ::marker
-Fail	Transition of hyphens in ::marker
+Pass	Transition of hyphens in ::marker
 Pass	Transition of letter-spacing in ::marker
 Fail	Transition of line-break in ::marker
 Pass	Transition of overflow-wrap in ::marker

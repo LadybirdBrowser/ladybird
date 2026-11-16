@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<title>CSS Text Test: Test when soft-hyphen overflows</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/hyphens-overflow-001-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#hyphens-property">
+<link rel="author" href="mailto:kojii@chromium.org">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+div {
+  font-size: 10px;
+  font-family: Ahem;
+  width: 5.1ch;
+  border: 1px solid blue;
+}
+</style>
+<body>
+  <div>12 4&shy;xx</div>
+  <div>12 45&shy;xx</div>
+  <div>12 456&shy;xx</div>
+  <div>1234&shy;xx</div>
+  <div>12345&shy;xx</div>
+  <div>123456&shy;xx</div>
+
+  <div style="width: 10ch"><span>ren&shy;for&shy;cer</span>99999</div>
+  <div><span>00&shy;1</span>222</div>
+</body>

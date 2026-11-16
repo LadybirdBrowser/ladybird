@@ -720,6 +720,11 @@
     "increasing",
     "decreasing"
   ],
+  "hyphens": [
+    "none",
+    "manual",
+    "auto"
+  ],
   "image-rendering": [
     "auto",
     "crisp-edges",

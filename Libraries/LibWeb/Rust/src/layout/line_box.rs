@@ -24,6 +24,8 @@ pub(crate) struct StaticPositionMarker {
     pub(crate) block_offset: CssPixels,
     pub(crate) writing_mode: u8,
     pub(crate) preceded_by_in_flow_content: bool,
+    /// How many fragments the line held when the marker was added, which places it in the line's logical order.
+    pub(crate) fragments_before: usize,
 }
 
 impl StaticPositionMarker {
@@ -220,6 +222,7 @@ impl LineBoxData {
             block_offset: CssPixels::default(),
             writing_mode: self.writing_mode,
             preceded_by_in_flow_content: !self.fragments.is_empty() || preceded_by_inline_box_start_edges,
+            fragments_before: self.fragments.len(),
         });
     }
 

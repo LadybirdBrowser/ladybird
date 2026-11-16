@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Text: 'hyphens: none', hyphen character and line wrapping</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-text-3/#hyphenation">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/hyphens-auto-010H-ref.html">
+
+  <meta content="This test checks that 'hyphens: none' does not suppress line wrapping after encountering an actual hyphen character (U+2010).">
+
+  <style>
+  div
+    {
+      border: black solid 2px;
+      font-family: monospace;
+      font-size: 32px;
+      hyphens: none;
+      width: 6ch;
+    }
+  </style>
+
+  <div>regu&#x2010;lation imple&#x2010;menta&#x2010;tion now</div>
+
+  <!--
+        Expected result:
+        regu-
+        lation
+        imple-
+        menta-
+        tion
+  -->

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: auto hyphenation and out-of-flow</title>
+<link rel="author" title="Florian Rivoal" href="http://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#hyphens-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/hyphens-span-002-ref.html">
+<meta name="assert" content="the presence of an out of flow element has no effect on automatic hyhenation">
+<style>
+span {
+  position: absolute;
+  color: transparent;
+}
+div {
+  border: solid orange;
+  margin: 5px;
+  width: 6ch;
+  hyphens: auto;
+}
+</style>
+
+<p>Test passes if the text in all orange boxes below is identical (including the presence and position of a hyphen).
+
+<div lang=en>highway</div>
+<div lang=en><span>abspos</span>highway</div>
+<div lang=en>h<span>abspos</span>ighway</div>
+<div lang=en>high<span>abspos</span>way</div>
+<div lang=en>high<span>abspos</span>way</div>
+<div lang=en>highwa<span>abspos</span>y</div>
+<div lang=en>highway<span>abspos</span></div>
+
+<!--
+This test assumes the presence of "highway"
+with a hyphenation point between "high" and "way"
+in the hyphenation dictionary for English
+in order to be useful,
+but that assumption is not necessary for the test to be correct:
+if the word doesn't hyphenate,
+it will not hyphenate in any of the cases.
+-->

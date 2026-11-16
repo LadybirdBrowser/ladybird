@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 3 Test: Line breaking with floats and disabled hyphenation </title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com"/>
+<link rel="help" title="5.4. Hyphenation: the hyphens property" href="https://drafts.csswg.org/css-text-3/#hyphenation">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-hyphens-none">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/../../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="A span with hypens 'none' is wrapped based on the available space left by a float image.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+div { font: 20px/1 Ahem; }
+img { float:right; }
+.test {
+    max-width: 100px;
+    color: green;
+}
+span { hyphens: none; }
+.ref {
+    position: absolute;
+    background: green linear-gradient(red, red) 2ch 0/3ch 3ch no-repeat;
+    color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div class="ref">XX<br>X<br></div>
+<div class="test">
+  <img src="../../../css/support/60x60-green.png" alt="">
+  <span>XX X</span>
+</div>

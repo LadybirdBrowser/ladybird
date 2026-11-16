@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        font: 20px monospace;
+        margin: 4px 0;
+    }
+    .min {
+        width: min-content;
+    }
+    .narrow {
+        width: 0;
+    }
+    span.reference {
+        white-space: pre;
+    }
+</style>
+<div id="one-line">x</div>
+<div id="references"></div>
+<div id="min-content" class="min">hyphen&shy;ation</div>
+<div id="min-content-hyphens-none" class="min" style="hyphens: none">hyphen&shy;ation</div>
+<div id="min-content-span-hyphens-none" class="min">hyphen<span style="hyphens: none">&shy;</span>ation</div>
+<div id="narrow" class="narrow">ab&shy;cd&shy;ef</div>
+<div id="narrow-hyphens-none" class="narrow" style="hyphens: none">ab&shy;cd&shy;ef</div>
+<div id="letter-spacing" class="min" style="letter-spacing: 10px">ab&shy;cd</div>
+<div id="rtl" class="min" dir="rtl">שלום&shy;עולם</div>
+<div id="between-items" class="min">ab&shy;<b>cd</b></div>
+<div id="fits-after-break" style="width: 6ch">abc abcd&shy;ef</div>
+<div id="before-inline-box-edge" class="min">ab&shy;<span style="padding-right: 10px"></span>cd</div>
+<div id="before-word-joiner" class="min">ab&shy;<span>&#x2060;cd</span></div>
+<div id="overflow-wrap-anywhere" style="overflow-wrap: anywhere">aaaa&shy;aa</div>
+<div id="overflow-wrap-anywhere-short" style="overflow-wrap: anywhere">aaaa&shy;aa</div>
+<div id="item-before-wide-run"><span>aa&shy;aa&shy;</span><span>aaaa</span></div>
+<div id="before-out-of-flow"><span id="before-out-of-flow-text">x ab&shy;</span><span style="position: absolute"></span></div>
+<div id="out-of-flow-before-soft-hyphen">ab<span id="marker" style="position: absolute"></span>&shy;cd</div>
+<div id="anywhere-before-inline-block" style="overflow-wrap: anywhere">ab&shy;<span style="display: inline-block; width: 1ch; height: 10px"></span></div>
+<div id="anywhere-before-out-of-flow" style="overflow-wrap: anywhere">ab&shy;<span style="position: absolute"></span>cd</div>
+<div id="space-before-nowrap-out-of-flow">x ab&shy;<span style="position: absolute; white-space: nowrap"></span>cd</div>
+<div id="final-soft-hyphen" class="min">ab&shy;cdefgh&shy;</div>
+<div id="before-space">ab&shy; cd</div>
+<div id="before-tiny-inline-block" class="min">ab&shy;<span style="display: inline-block; width: 1px; height: 10px"></span></div>
+<div id="before-inline-block" class="min">ab&shy;<span style="display: inline-block; width: 20px"></span>longword</div>
+<script>
+    // Each block's width, as the text it matches: the widest line's text alone, or with a hyphen after it. And its
+    // height in lines.
+    function width(text, style = "") {
+        const span = document.createElement("span");
+        span.className = "reference";
+        span.style.cssText = style;
+        span.textContent = text;
+        document.getElementById("references").append(span);
+        const result = span.getBoundingClientRect().width;
+        span.remove();
+        return result;
+    }
+
+    // The candidate nearest to the actual width, if any is within half a pixel of it.
+    function describe(actual, candidates) {
+        let nearest = null;
+        for (const [name, candidate] of candidates) {
+            const distance = Math.abs(actual - candidate);
+            if (distance < 0.5 && (nearest === null || distance < nearest.distance))
+                nearest = { name, distance };
+        }
+        return nearest ? nearest.name : `none of ${[...new Set(candidates.map(([name]) => name))].join(", ")}`;
+    }
+
+    test(() => {
+        const lineHeight = document.getElementById("one-line").getBoundingClientRect().height;
+        // Either hyphen the UA might draw gets the same label, since a font can give both the same width.
+        const withHyphens = (text, style, extra = 0) => [
+            [`"${text}"`, width(text, style) + extra],
+            [`"${text}" + a hyphen`, width(text + "\u2010", style) + extra],
+            [`"${text}" + a hyphen`, width(text + "-", style) + extra],
+        ];
+        const cases = {
+            "min-content": withHyphens("hyphen"),
+            "min-content-hyphens-none": withHyphens("hyphenation"),
+            "min-content-span-hyphens-none": withHyphens("hyphenation"),
+            "narrow": withHyphens("ab"),
+            "narrow-hyphens-none": withHyphens("abcdef"),
+            "letter-spacing": withHyphens("ab", "letter-spacing: 10px"),
+            "rtl": withHyphens("שלום"),
+            "between-items": withHyphens("ab"),
+            "final-soft-hyphen": withHyphens("cdefgh"),
+            "before-word-joiner": withHyphens("abcd"),
+        };
+        for (const [id, candidates] of Object.entries(cases)) {
+            const div = document.getElementById(id);
+            const lines = Math.round(div.getBoundingClientRect().height / lineHeight);
+            const box = div.classList.contains("min") ? `, box as wide as ${describe(div.getBoundingClientRect().width, candidates)}` : "";
+            println(`${id}: content as wide as ${describe(div.scrollWidth, candidates)}${box}, ${lines} line(s)`);
+        }
+        const fits = document.getElementById("fits-after-break");
+        println(`fits-after-break: ${Math.round(fits.getBoundingClientRect().height / lineHeight)} line(s)`);
+        // The text before an inline box's edge, as wide as itself and the hyphen its line ends in.
+        const edge = document.getElementById("before-inline-box-edge");
+        const range = document.createRange();
+        range.selectNodeContents(edge.firstChild);
+        const edgeLines = Math.round(edge.getBoundingClientRect().height / lineHeight);
+        println(`before-inline-box-edge: text as wide as ${describe(range.getBoundingClientRect().width, withHyphens("ab"))}, ${edgeLines} line(s)`);
+        const anywhere = document.getElementById("overflow-wrap-anywhere");
+        anywhere.style.width = `${width("aaaa")}px`;
+        println(`overflow-wrap-anywhere: ${anywhere.scrollWidth > anywhere.clientWidth + 0.5 ? "overflows" : "fits"}`);
+        // Room for three letters and half a fourth: Three letters fit with no hyphen, since they don't end at the soft hyphen.
+        const short = document.getElementById("overflow-wrap-anywhere-short");
+        short.style.width = `${width("aaa") + width("a") / 2}px`;
+        const shortRange = document.createRange();
+        shortRange.selectNodeContents(short.firstChild);
+        const firstLine = [...shortRange.getClientRects()][0].width;
+        println(`overflow-wrap-anywhere-short: first line as wide as ${describe(firstLine, [['"aaa"', width("aaa")], ...withHyphens("aa")])}`);
+        // A line breaks at the first soft hyphen when the hyphen at the second doesn't fit.
+        const item = document.getElementById("item-before-wide-run");
+        item.style.width = `${width("aaaa") + 2}px`;
+        println(`item-before-wide-run: ${item.scrollWidth > item.clientWidth + 0.5 ? "overflows" : "fits"}, ${Math.round(item.getBoundingClientRect().height / lineHeight)} line(s)`);
+        // A soft hyphen with only out-of-flow content after it gets no line break, so it needs no room for a hyphen.
+        const outOfFlow = document.getElementById("before-out-of-flow");
+        outOfFlow.style.width = `${width("x ab") + width("a") / 2}px`;
+        println(`before-out-of-flow: ${Math.round(outOfFlow.getBoundingClientRect().height / lineHeight)} line(s)`);
+        // An out-of-flow box before a soft hyphen keeps its static position when the line ends in a hyphen there.
+        const markerLine = document.getElementById("out-of-flow-before-soft-hyphen");
+        markerLine.style.width = `${width("ab") + width("a") / 2}px`;
+        const markerLeft = document.getElementById("marker").getBoundingClientRect().left - markerLine.getBoundingClientRect().left;
+        println(`out-of-flow-before-soft-hyphen: box after ${describe(markerLeft, withHyphens("ab"))}`);
+        // An atomic inline after a soft hyphen has to fit too, or the line breaks there and ends in a hyphen.
+        const beforeBlock = document.getElementById("anywhere-before-inline-block");
+        beforeBlock.style.width = `${width("ab") + width("a") / 2}px`;
+        println(`anywhere-before-inline-block: ${beforeBlock.scrollWidth > beforeBlock.clientWidth + 0.5 ? "overflows" : "fits"}`);
+        // The text after an out-of-flow box decides if a line can break at the soft hyphen before the box, so the line
+        // ending there leaves room for its hyphen.
+        const beforeOutOfFlowBox = document.getElementById("anywhere-before-out-of-flow");
+        beforeOutOfFlowBox.style.width = `${width("ab") + width("a") / 2}px`;
+        println(`anywhere-before-out-of-flow: ${beforeOutOfFlowBox.scrollWidth > beforeOutOfFlowBox.clientWidth + 0.5 ? "overflows" : "fits"}`);
+        const nowrapBox = document.getElementById("space-before-nowrap-out-of-flow");
+        nowrapBox.style.width = `${width("x ab") + width("a") / 2}px`;
+        println(`space-before-nowrap-out-of-flow: ${nowrapBox.scrollWidth > nowrapBox.clientWidth + 0.5 ? "overflows" : "fits"}, ${Math.round(nowrapBox.getBoundingClientRect().height / lineHeight)} line(s)`);
+        // A line that breaks at the space after a soft hyphen breaks there, not at the soft hyphen, so it draws no hyphen.
+        const beforeSpace = document.getElementById("before-space");
+        beforeSpace.style.width = `${width("ab-") + 1}px`;
+        const beforeSpaceRange = document.createRange();
+        beforeSpaceRange.setStart(beforeSpace.firstChild, 0);
+        beforeSpaceRange.setEnd(beforeSpace.firstChild, 3);
+        println(`before-space: text as wide as ${describe(beforeSpaceRange.getBoundingClientRect().width, withHyphens("ab"))}, ${Math.round(beforeSpace.getBoundingClientRect().height / lineHeight)} line(s)`);
+        // A min-content box leaves room for a hyphen before an inline-block, so its text never overflows it.
+        const tiny = document.getElementById("before-tiny-inline-block");
+        const tinyRange = document.createRange();
+        tinyRange.selectNodeContents(tiny.firstChild);
+        println(`before-tiny-inline-block: text ${tinyRange.getBoundingClientRect().width > tiny.getBoundingClientRect().width + 0.5 ? "overflows" : "fits"}`);
+        // A line that breaks after an inline-block draws no hyphen before it.
+        const block = document.getElementById("before-inline-block");
+        const blockRange = document.createRange();
+        blockRange.selectNodeContents(block.firstChild);
+        println(`before-inline-block: text as wide as ${describe(blockRange.getBoundingClientRect().width, withHyphens("ab"))}`);
+        document.getElementById("references").remove();
+    });
+</script>

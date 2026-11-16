@@ -159,6 +159,7 @@ pub(crate) struct TextChunkCacheKey {
     pub(crate) word_break: u8,
     pub(crate) line_break: u8,
     pub(crate) line_break_language: super::text_chunker::LineBreakLanguage,
+    pub(crate) breaks_after_soft_hyphen: bool,
     pub(crate) font_variant_emoji: u8,
     /// A frozen cascade only moves when a load fills one of its faces in. The chunks made against it hold it.
     pub(crate) frozen_font_list: crate::css::style::pointer_key::PointerLookup,
@@ -592,6 +593,7 @@ mod tests {
             word_break: 0,
             line_break: crate::css::css_enums::line_break::LOOSE,
             line_break_language: LineBreakLanguage::Japanese,
+            breaks_after_soft_hyphen: true,
             font_variant_emoji: 0,
             frozen_font_list: crate::css::style::pointer_key::PointerLookup::new(&frozen_font_list, ()),
             frozen_font_list_fill_generation: 0,
@@ -649,6 +651,7 @@ mod tests {
             word_break: 0,
             line_break: crate::css::css_enums::line_break::AUTO,
             line_break_language: crate::layout::text_chunker::LineBreakLanguage::Other,
+            breaks_after_soft_hyphen: true,
             font_variant_emoji: 0,
             frozen_font_list: crate::css::style::pointer_key::PointerLookup::new(&frozen_font_list, ()),
             frozen_font_list_fill_generation: 0,

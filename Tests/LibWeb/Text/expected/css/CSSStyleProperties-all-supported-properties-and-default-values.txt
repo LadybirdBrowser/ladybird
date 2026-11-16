@@ -724,6 +724,7 @@ All supported properties and their default values exposed from CSSStylePropertie
 'height': '134px'
 'hyphenateCharacter': 'auto'
 'hyphenate-character': 'auto'
+'hyphens': 'manual'
 'imageRendering': 'auto'
 'image-rendering': 'auto'
 'inlineSize': '284px'

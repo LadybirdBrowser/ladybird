@@ -61,9 +61,9 @@ pub(crate) struct Item {
 const _: () = assert!(size_of::<Item>() == 96);
 
 #[derive(Clone, Debug)]
-struct OwnedGlyphRun {
-    glyphs: libgfx_rust::text_layout::GlyphBuffer,
-    width: f32,
+pub(crate) struct OwnedGlyphRun {
+    pub(crate) glyphs: libgfx_rust::text_layout::GlyphBuffer,
+    pub(crate) width: f32,
     is_upright: bool,
 }
 
@@ -131,6 +131,54 @@ fn reshaped_glyph_run(
         width: shape.width(),
         is_upright: false,
     }
+}
+
+/// The hyphen that ends a line broken after a soft hyphen: U+2010 HYPHEN where the font has a glyph for it, and U+002D
+/// HYPHEN-MINUS otherwise.
+// https://drafts.csswg.org/css-text-4/#valdef-hyphenate-character-auto
+pub(crate) fn hyphen_glyph_run(
+    font: &libgfx_rust::font::FontHandle,
+    text_type: u8,
+    letter_spacing: f32,
+    word_spacing: f32,
+) -> OwnedGlyphRun {
+    let hyphen = [if font.contains_glyph(0x2010) { 0x2010 } else { 0x2d }];
+    reshaped_glyph_run(&hyphen, 0..1, font, text_type, letter_spacing, word_spacing)
+}
+
+/// Whether a line that breaks after a soft hyphen in text of this style ends in a hyphen.
+pub(crate) fn soft_hyphen_hyphenates(style: StyleValues<'_>) -> bool {
+    // https://drafts.csswg.org/css-text-3/#valdef-word-break-break-all
+    // Hyphenation is not applied.
+    style.hyphens() != hyphens::NONE && style.word_break() != word_break::BREAK_ALL
+}
+
+/// The inline size of the hyphen that a line ends in if it breaks right after `item`: none, unless the item's text ends
+/// in a soft hyphen that its hyphens lets the line break after.
+pub(crate) fn hyphen_inline_size_after(
+    context: &inline_formatting_context::InlineFormattingContext<'_>,
+    prepared: &PreparedInlineContent,
+    item: &Item,
+) -> CssPixels {
+    if item.type_ != ItemType::Text || item.length_in_node == 0 {
+        return CssPixels::default();
+    }
+    let text_content = context.pass.text_content(item.node);
+    if !text_chunker::breaks_at_soft_hyphen(&text_content.text, item.offset_in_node + item.length_in_node) {
+        return CssPixels::default();
+    }
+    let style = context.style(context.style_source(item.node));
+    if !soft_hyphen_hyphenates(style) {
+        return CssPixels::default();
+    }
+    let prepared_item = item.prepared_item(prepared);
+    let run = hyphen_glyph_run(
+        prepared.font_of(prepared_item),
+        prepared_item.text_type(),
+        style.letter_spacing().to_double() as f32,
+        style.word_spacing().to_double() as f32,
+    );
+    CssPixels::nearest_value_for_f32(run.width)
 }
 
 /// Whether text in the given writing mode and text orientation that starts with `code_point` is set with its glyphs
@@ -425,13 +473,17 @@ impl Item {
         text: &[u16],
         letter_spacing: f32,
         word_spacing: f32,
+        hyphenates: bool,
+        breaks_after_item: bool,
     ) -> Vec<CssPixels> {
+        let item_end = self.offset_in_node + self.length_in_node;
         let mut start = self.offset_in_node;
         let item = self.prepared_item(prepared);
+        let mut hyphen_width = None;
         self.soft_wrap_offsets(prepared)
             .chain(std::iter::once(start + self.length_in_node))
             .map(|end| {
-                let width = libgfx_rust::text_layout::shaped_text_width(
+                let mut width = libgfx_rust::text_layout::shaped_text_width(
                     prepared.font_of(item),
                     &text[start..end],
                     libgfx_rust::text_layout::TextType::try_from(item.text_type())
@@ -440,6 +492,17 @@ impl Item {
                     word_spacing,
                     text_chunker::joining_context(text, start..end),
                 );
+                // NB: A segment that ends in a soft hyphen ends its line in a hyphen, unless it ends the item and no break
+                //     follows the item.
+                if hyphenates
+                    && end > start
+                    && (end < item_end || breaks_after_item)
+                    && text_chunker::breaks_at_soft_hyphen(text, end)
+                {
+                    width += *hyphen_width.get_or_insert_with(|| {
+                        hyphen_glyph_run(prepared.font_of(item), item.text_type(), letter_spacing, word_spacing).width
+                    });
+                }
                 start = end;
                 CssPixels::nearest_value_for_f32(width)
             })
@@ -510,9 +573,11 @@ impl Item {
         word_spacing: f32,
         available: CssPixels,
         following_inline_size: CssPixels,
+        hyphenates: bool,
     ) -> Item {
         let end = self.offset_in_node + self.length_in_node;
         let mut chosen = None;
+        let mut hyphen_inline_size = None;
         for offset in self
             .soft_wrap_offsets_after(prepared, start)
             .chain(std::iter::once(end))
@@ -520,6 +585,18 @@ impl Item {
             let fragment = self.reshaped_fragment(prepared, text, start..offset, letter_spacing, word_spacing);
             let following = if offset == end {
                 following_inline_size
+            } else if hyphenates && text_chunker::breaks_at_soft_hyphen(text, offset) {
+                // NB: A line that breaks after a soft hyphen ends in a hyphen, which has to fit too.
+                *hyphen_inline_size.get_or_insert_with(|| {
+                    let prepared_item = self.prepared_item(prepared);
+                    let run = hyphen_glyph_run(
+                        prepared.font_of(prepared_item),
+                        prepared_item.text_type(),
+                        letter_spacing,
+                        word_spacing,
+                    );
+                    CssPixels::nearest_value_for_f32(run.width)
+                })
             } else {
                 CssPixels::default()
             };
@@ -1519,6 +1596,9 @@ impl<'pass> InlineContentPreparer<'pass> {
                 } else {
                     text_chunker::LineBreakLanguage::Other
                 };
+                // NB: A soft hyphen ending the previous text is a hyphenation opportunity of that text, by its own style.
+                let breaks_after_soft_hyphen =
+                    previous_node.is_none_or(|node| self.style(self.pass.parent(node)).hyphens() != hyphens::NONE);
                 let opportunity_with = |word_break| {
                     text_chunker::soft_wrap_opportunity_between(
                         previous_text,
@@ -1528,6 +1608,7 @@ impl<'pass> InlineContentPreparer<'pass> {
                         word_break,
                         style.line_break(),
                         line_break_language,
+                        breaks_after_soft_hyphen,
                     )
                 };
                 can_break_before = opportunity_with(style.word_break())
@@ -2444,6 +2525,32 @@ impl InlineLevelIterator {
         sequence_inline_size(context, &self.prepared, self.items(), true)
     }
 
+    /// The inline size of the content that has to fit after the current item for the line not to break there: the
+    /// inline box edges up to the next text or atomic inline, past any out-of-flow items, and then the unbreakable run
+    /// that text starts, or that atomic inline.
+    pub(crate) fn next_line_content_inline_size(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+    ) -> CssPixels {
+        let items = self.items();
+        let start = items
+            .iter()
+            .position(|item| !sits_between_line_content(item))
+            .unwrap_or(items.len());
+        let edges = sequence_inline_extent(
+            context,
+            items[..start].iter().filter(|item| item.type_ == ItemType::InlineEdge),
+        );
+        let content = match items.get(start) {
+            Some(item) if item.type_ == ItemType::Element => inline_extent([item]),
+            Some(item) if item.type_ == ItemType::Text => {
+                sequence_inline_size(context, &self.prepared, &items[start..], true).unwrap_or_default()
+            }
+            _ => CssPixels::default(),
+        };
+        edges + content
+    }
+
     pub(crate) fn unbreakable_run_inline_size(
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
@@ -2463,9 +2570,26 @@ impl InlineLevelIterator {
                 .clone()
                 .nth(length)
                 .map(|item| first_breakable_segment(context, &self.prepared, item, end));
-            return sequence_inline_extent(context, items.take(length).chain(first_grapheme_cluster.as_ref()));
+            let hyphen = hyphen_ending_sequence(
+                context,
+                &self.prepared,
+                end,
+                first_grapheme_cluster.as_ref(),
+                None,
+                false,
+            );
+            return sequence_inline_extent(context, items.take(length).chain(first_grapheme_cluster.as_ref())) + hyphen;
         }
-        sequence_inline_extent(context, items.take(length.max(1)))
+        let length = length.max(1);
+        let hyphen = hyphen_ending_sequence(
+            context,
+            &self.prepared,
+            end,
+            None,
+            last_line_content(items.clone().take(length)),
+            starts_line_content(items.clone().skip(length)),
+        );
+        sequence_inline_extent(context, items.take(length)) + hyphen
     }
 
     pub(crate) fn inline_size_following_text(
@@ -2477,7 +2601,20 @@ impl InlineLevelIterator {
         let (length, end) = sequence_length(context, &self.prepared, items.clone(), false, true);
         let prefix = (end == SequenceEnd::SoftWrapInText)
             .then(|| first_breakable_segment(context, &self.prepared, self.items().get(length - 1).unwrap(), end));
-        sequence_inline_extent(context, items.take(length).chain(prefix.as_ref())) - inline_extent([item])
+        // NB: The following text ends in a hyphen where it ends at a soft hyphen that a line can break after.
+        let hyphen = if prefix.is_some() || length > 1 {
+            hyphen_ending_sequence(
+                context,
+                &self.prepared,
+                end,
+                prefix.as_ref(),
+                last_line_content(items.clone().take(length)),
+                starts_line_content(items.clone().skip(length)),
+            )
+        } else {
+            CssPixels::default()
+        };
+        sequence_inline_extent(context, items.take(length).chain(prefix.as_ref())) + hyphen - inline_extent([item])
     }
 
     pub(crate) fn next_non_whitespace_text_allows_overflow_break(
@@ -2520,7 +2657,15 @@ pub(crate) fn whitespace_and_sequence_inline_size(
             .chain(&items[..length])
             .chain(prefix.as_ref()),
     );
-    (size > inline_extent([whitespace])).then_some(size)
+    let hyphen = hyphen_ending_sequence(
+        context,
+        prepared,
+        end,
+        prefix.as_ref(),
+        last_line_content(items[..length].iter()),
+        starts_line_content(items[length..].iter()),
+    );
+    (size > inline_extent([whitespace])).then_some(size + hyphen)
 }
 
 pub(crate) fn sequence_inline_size(
@@ -2533,7 +2678,63 @@ pub(crate) fn sequence_inline_size(
     let first_grapheme_cluster = matches!(end, SequenceEnd::OverflowBreakableText | SequenceEnd::SoftWrapInText)
         .then(|| first_breakable_segment(context, prepared, &items[length], end));
     let size = sequence_inline_extent(context, items[..length].iter().chain(first_grapheme_cluster.as_ref()));
-    (end == SequenceEnd::ForcedBreak || size > CssPixels::default()).then_some(size)
+    let hyphen = hyphen_ending_sequence(
+        context,
+        prepared,
+        end,
+        first_grapheme_cluster.as_ref(),
+        last_line_content(items[..length].iter()),
+        starts_line_content(items[length..].iter()),
+    );
+    (end == SequenceEnd::ForcedBreak || size > CssPixels::default()).then_some(size + hyphen)
+}
+
+/// Whether `item` sits between the text and atomic inlines of a line without being line content of its own: an
+/// out-of-flow item or an inline box edge.
+fn sits_between_line_content(item: &Item) -> bool {
+    matches!(
+        item.type_,
+        ItemType::InlineEdge | ItemType::AbsolutelyPositionedElement | ItemType::FloatingElement
+    )
+}
+
+/// The last text or atomic inline of a measured run, which a hyphen after the run follows, past any out-of-flow items
+/// and inline box edges after it.
+fn last_line_content<'item>(items: impl Iterator<Item = &'item Item>) -> Option<&'item Item> {
+    items.filter(|item| !sits_between_line_content(item)).last()
+}
+
+/// Whether the content after a measured run can start a line there: Out-of-flow items and inline box edges sit between
+/// them without a line of their own, so the next text or atomic inline after them decides.
+fn starts_line_content<'item>(mut items: impl Iterator<Item = &'item Item>) -> bool {
+    items
+        .find(|item| !sits_between_line_content(item))
+        .is_some_and(|item| match item.type_ {
+            ItemType::Text => item.can_break_before,
+            ItemType::Element => true,
+            _ => false,
+        })
+}
+
+/// The inline size of the hyphen that a measured run ends in, where a line can break at its end after a soft hyphen:
+/// a soft wrap inside a text item, which ends `segment`, or the start of content that can begin a line, which follows
+/// `last_item`.
+fn hyphen_ending_sequence(
+    context: &inline_formatting_context::InlineFormattingContext<'_>,
+    prepared: &PreparedInlineContent,
+    end: SequenceEnd,
+    segment: Option<&Item>,
+    last_item: Option<&Item>,
+    next_starts_line: bool,
+) -> CssPixels {
+    let item = match end {
+        SequenceEnd::SoftWrapInText => segment,
+        SequenceEnd::Other if next_starts_line => last_item,
+        _ => None,
+    };
+    item.map_or(CssPixels::default(), |item| {
+        hyphen_inline_size_after(context, prepared, item)
+    })
 }
 
 #[derive(Clone, Copy, PartialEq)]

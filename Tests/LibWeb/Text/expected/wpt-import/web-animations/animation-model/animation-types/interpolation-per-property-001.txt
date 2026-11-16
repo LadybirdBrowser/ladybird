@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 450 tests
+Found 454 tests
 
-440 Pass
+444 Pass
 10 Fail
 Pass	Setup
 Pass	alignment-baseline (type: discrete) has testInterpolation function
@@ -454,3 +454,7 @@ Pass	grid-template-areas (type: discrete) has testInterpolation function
 Pass	grid-template-areas uses discrete animation when animating between "". . a b" ". . a b"" and "none" with linear easing
 Pass	grid-template-areas uses discrete animation when animating between "". . a b" ". . a b"" and "none" with effect easing
 Pass	grid-template-areas uses discrete animation when animating between "". . a b" ". . a b"" and "none" with keyframe easing
+Pass	hyphens (type: discrete) has testInterpolation function
+Pass	hyphens uses discrete animation when animating between "manual" and "none" with linear easing
+Pass	hyphens uses discrete animation when animating between "manual" and "none" with effect easing
+Pass	hyphens uses discrete animation when animating between "manual" and "none" with keyframe easing
