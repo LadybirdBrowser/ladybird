@@ -9,7 +9,6 @@
 #include <AK/JsonArray.h>
 #include <AK/Random.h>
 #include <AK/TemporaryChange.h>
-#include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -202,7 +201,7 @@ static Optional<JsonObject> serialize_primitive_protocol_value(JS::Value value)
         // Let remote value be a map matching the script.BigIntValue production in the local end definition, with the
         // value property set to the result of running the ToString operation on value.
         remote_value.set("type"sv, "bigint"sv);
-        remote_value.set("value"sv, MUST(value.as_bigint().big_integer().to_base(10)));
+        remote_value.set("value"sv, value.as_bigint().to_string());
     } else {
         return {};
     }
@@ -934,50 +933,6 @@ JsonValue serialize_as_a_remote_value(JS::Value value, SerializationOptions cons
     return remote_value;
 }
 
-// https://tc39.es/ecma262/#sec-stringtobigint
-static Optional<::Crypto::SignedBigInteger> string_to_bigint(StringView string)
-{
-    // NB: StringIntegerLiteral allows the whitespace and line terminators that StrWhiteSpaceChar does around the
-    //     literal, a sign only for a decimal literal, and an empty literal for 0n.
-    auto literal = string.trim_whitespace();
-    if (literal.is_empty())
-        return ::Crypto::SignedBigInteger { 0 };
-
-    u16 base = 10;
-    if (literal.length() > 2 && literal[0] == '0') {
-        auto prefix = to_ascii_lowercase(literal[1]);
-        if (prefix == 'x')
-            base = 16;
-        else if (prefix == 'o')
-            base = 8;
-        else if (prefix == 'b')
-            base = 2;
-        if (base != 10)
-            literal = literal.substring_view(2);
-    }
-
-    bool is_negative = false;
-    if (base == 10 && (literal.starts_with('-') || literal.starts_with('+'))) {
-        is_negative = literal[0] == '-';
-        literal = literal.substring_view(1);
-    }
-
-    if (literal.is_empty())
-        return {};
-    for (auto character : literal) {
-        if (!is_ascii_hex_digit(character) || parse_ascii_hex_digit(character) >= base)
-            return {};
-    }
-
-    auto result = ::Crypto::SignedBigInteger::from_base(base, literal);
-    if (result.is_error())
-        return {};
-    auto bigint = result.release_value();
-    if (is_negative)
-        bigint.negate();
-    return bigint;
-}
-
 // https://tc39.es/ecma262/#sec-timeclip
 static double time_clip(double time)
 {
@@ -1075,10 +1030,10 @@ static Optional<ErrorOr<JS::Value, Error>> deserialize_primitive_protocol_value(
         // 3. Return success with data bigint_result.
         if (!value.has_value() || !value->is_string())
             return ErrorOr<JS::Value, Error> { invalid_argument("A bigint value must have a string value"sv) };
-        auto bigint = string_to_bigint(value->as_string());
-        if (!bigint.has_value())
+        auto bigint = JS::BigInt::create_from_string(vm, Utf16String::from_utf8(value->as_string()));
+        if (!bigint)
             return ErrorOr<JS::Value, Error> { invalid_argument("A bigint value must be a valid BigInt"sv) };
-        return ErrorOr<JS::Value, Error> { JS::Value(JS::BigInt::create(vm, bigint.release_value())) };
+        return ErrorOr<JS::Value, Error> { JS::Value(bigint.ptr()) };
     }
 
     return {};
