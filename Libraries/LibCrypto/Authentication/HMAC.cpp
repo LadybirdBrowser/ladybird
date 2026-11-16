@@ -54,10 +54,10 @@ void HMAC::reset()
     EVP_MAC_CTX_free(m_ctx);
     m_ctx = EVP_MAC_CTX_new(m_mac);
 
-    auto hash_name = MUST(hash_kind_to_openssl_digest_name(m_hash_kind));
+    auto const* hash_name = MUST(Hash::openssl_digest_name(m_hash_kind));
 
     OSSL_PARAM params[] = {
-        OSSL_PARAM_utf8_string(OSSL_MAC_PARAM_DIGEST, const_cast<char*>(hash_name.characters_without_null_termination()), hash_name.length()),
+        OSSL_PARAM_utf8_string(OSSL_MAC_PARAM_DIGEST, const_cast<char*>(hash_name), strlen(hash_name)),
         OSSL_PARAM_END
     };
 

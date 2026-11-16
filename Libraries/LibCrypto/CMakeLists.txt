@@ -16,6 +16,7 @@ set(SOURCES
     Curves/EdwardsCurve.cpp
     Curves/SECPxxxr1.cpp
     Hash/Argon2.cpp
+    Hash/Hash.cpp
     Hash/SHAKE.cpp
     Hash/HKDF.cpp
     Hash/PBKDF2.cpp
