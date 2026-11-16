@@ -146,6 +146,11 @@ impl ErrorPrototype {
             return Ok(Value::UNDEFINED);
         };
 
+        // NB: An error made while Error.stackTraceLimit was not a number captured no stack, and has none to show.
+        if !error_data.has_stack() {
+            return Ok(Value::UNDEFINED);
+        }
+
         // OPTIMIZATION: Avoid recomputing the stack string if we already have it cached.
         //               At least one major engine does this as well, so it's not expected that changing
         //               the name or message properties updates the stack string.

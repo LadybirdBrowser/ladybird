@@ -124,18 +124,25 @@ test("exceptions thrown by calls in inlined callees", () => {
 });
 
 test("stack traces taken in calls of inlined callees", () => {
-    const failures = compareCompiledWithInterpreter(
-        () => {
-            function where() {
-                return new Error("here").stack.split("\n").length;
-            }
-            const inner = value => where() + value;
-            const middle = value => inner(value) * 2;
-            return value => middle(value);
-        },
-        { warmUp: (log, i) => [i], probes: { double: () => [0.5], string: () => ["x"] } }
-    );
-    expect(failures).toEqual([]);
+    // NB: The count of every frame, which is more than the default limit keeps.
+    const savedStackTraceLimit = Error.stackTraceLimit;
+    Error.stackTraceLimit = Infinity;
+    try {
+        const failures = compareCompiledWithInterpreter(
+            () => {
+                function where() {
+                    return new Error("here").stack.split("\n").length;
+                }
+                const inner = value => where() + value;
+                const middle = value => inner(value) * 2;
+                return value => middle(value);
+            },
+            { warmUp: (log, i) => [i], probes: { double: () => [0.5], string: () => ["x"] } }
+        );
+        expect(failures).toEqual([]);
+    } finally {
+        Error.stackTraceLimit = savedStackTraceLimit;
+    }
 });
 
 test("re-entering compiled code from calls of inlined callees", () => {

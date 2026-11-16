@@ -148,6 +148,19 @@ pub unsafe extern "C" fn js_vm_throw_site_of(vm: *mut JSVM, value: JSValue) -> J
     source_range_into_abi(vm.throw_site_of(value_from_abi(value)).as_ref())
 }
 
+/// VM::innermost_source_range(): the source range of the innermost frame on the stack that has one, or none. Only the
+/// VM's thread may call this.
+///
+/// # Safety
+///
+/// `vm` must be a live VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_innermost_source_range(vm: *mut JSVM) -> JSDebuggerSourceRange {
+    // SAFETY: The caller passes a live VM.
+    let vm = unsafe { vm_from_abi(vm) };
+    source_range_into_abi(vm.innermost_source_range().as_ref())
+}
+
 /// VM::take_throw_site_of(): forgets where `value` was thrown, if it is the last exception thrown. Only the VM's thread
 /// may call this.
 ///

@@ -16,6 +16,7 @@ use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::{
     Error, EvalError, InternalError, RangeError, ReferenceError, SyntaxError, TypeError, URIError,
 };
+use crate::runtime::error_data::DEFAULT_STACK_TRACE_LIMIT;
 use crate::runtime::function_object::FunctionObject;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::native_function::{NativeFunction, define_native_function_class, raw_native};
@@ -63,6 +64,14 @@ impl ErrorConstructor {
             &vm.names.length,
             Value::from_i32(1),
             PropertyAttributes::new(Attribute::CONFIGURABLE),
+        );
+
+        // NB: Not in the specification, but the other engines have it: how many frames the stack of a new error keeps.
+        object.define_direct_property(
+            vm,
+            &vm.names.stackTraceLimit,
+            Value::from_i32(DEFAULT_STACK_TRACE_LIMIT),
+            PropertyAttributes::new(Attribute::WRITABLE | Attribute::ENUMERABLE | Attribute::CONFIGURABLE),
         );
 
         let attributes = PropertyAttributes::new(Attribute::WRITABLE | Attribute::CONFIGURABLE);

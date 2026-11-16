@@ -543,6 +543,11 @@ Vector<StackTraceElement> VM::stack_trace() const
     return stack_trace;
 }
 
+Optional<SourceRange> VM::innermost_source_range() const
+{
+    return source_range_from_abi(js_vm_innermost_source_range(vm_abi(*this)));
+}
+
 Optional<SourceRange> VM::take_throw_site_of(Value value)
 {
     auto throw_site = source_range_from_abi(js_vm_throw_site_of(vm_abi(*this), value_to_abi(value)));

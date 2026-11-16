@@ -60,6 +60,10 @@ class JS_API ErrorDataCell final : public EngineCell {
 public:
     static GC::Ref<ErrorDataCell> capture(VM&);
 
+    // Every frame of the call stack, whatever Error.stackTraceLimit is, for a trace of the running code that is not the
+    // stack of an error.
+    static GC::Ref<ErrorDataCell> capture_whole_stack(VM&);
+
     ErrorData& error_data() { return *reinterpret_cast<ErrorData*>(this); }
     ErrorData const& error_data() const { return *reinterpret_cast<ErrorData const*>(this); }
 };
