@@ -50,11 +50,6 @@ ErrorOr<NonnullOwnPtr<File>> File::standard_output()
 {
     return File::adopt_fd(STDOUT_FILENO, OpenMode::Write, ShouldCloseFileDescriptor::No);
 }
-ErrorOr<NonnullOwnPtr<File>> File::standard_error()
-{
-    return File::adopt_fd(STDERR_FILENO, OpenMode::Write, ShouldCloseFileDescriptor::No);
-}
-
 ErrorOr<ByteBuffer> File::read_until_eof(size_t block_size)
 {
     // Note: This is used as a heuristic, it's not valid for devices or virtual files.

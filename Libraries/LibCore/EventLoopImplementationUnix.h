@@ -33,7 +33,6 @@ public:
     virtual void unregister_signal(int handler_id) override;
 
     void wait_for_events(EventLoopImplementation::PumpMode);
-    static Optional<MonotonicTime> get_next_timer_expiration();
 
 private:
     void dispatch_signal(int signal_number);

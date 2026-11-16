@@ -118,20 +118,6 @@ public:
         return *this;
     }
 
-    template<typename T, CallableAs<NonnullRefPtr<ThreadedPromise<T, ErrorType>>, ResultType&&> ChainedResolution>
-    NonnullRefPtr<ThreadedPromise<T, ErrorType>> chain_promise(ChainedResolution chained_resolution)
-    {
-        auto new_promise = ThreadedPromise<T, ErrorType>::create();
-        when_resolved([=, chained_resolution = move(chained_resolution)](ResultType&& result) mutable -> ErrorOr<void> {
-            chained_resolution(forward<ResultType>(result))
-                ->when_resolved([=](auto&& new_result) { new_promise->resolve(move(new_result)); })
-                .when_rejected([=](ErrorType&& error) { new_promise->reject(move(error)); });
-            return {};
-        });
-        when_rejected([=](ErrorType&& error) { new_promise->reject(move(error)); });
-        return new_promise;
-    }
-
     template<typename T, CallableAs<ErrorOr<T, ErrorType>, ResultType&&> MappingFunction>
     NonnullRefPtr<ThreadedPromise<T, ErrorType>> map(MappingFunction mapping_function)
     {
