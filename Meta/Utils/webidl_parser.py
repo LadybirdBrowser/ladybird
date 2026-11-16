@@ -94,6 +94,9 @@ class IDLType:
     def clone_with_nullable(self, nullable: bool) -> "IDLType":
         return IDLType(self.name, nullable, self.extended_attributes)
 
+    def with_extended_attributes(self, extended_attributes: Dict[str, str]) -> "IDLType":
+        return IDLType(self.name, self.nullable, extended_attributes)
+
     def without_nullable(self) -> "IDLType":
         return self.clone_with_nullable(False)
 
@@ -140,9 +143,15 @@ class IDLUnionType(IDLType):
     def clone_with_nullable(self, nullable: bool) -> "IDLUnionType":
         return IDLUnionType(self.member_types, nullable, self.extended_attributes)
 
+    def with_extended_attributes(self, extended_attributes: Dict[str, str]) -> "IDLUnionType":
+        return IDLUnionType(self.member_types, self.nullable, extended_attributes)
+
     def flattened_member_types(self) -> List[IDLType]:
         flattened_member_types: List[IDLType] = []
         for member_type in self.member_types:
+            member_type = member_type.with_extended_attributes(
+                {**self.extended_attributes, **member_type.extended_attributes}
+            )
             flattened_member_types.extend(member_type.flattened_member_types())
         return flattened_member_types
 
@@ -176,6 +185,9 @@ class IDLParameterizedType(IDLType):
 
     def clone_with_nullable(self, nullable: bool) -> "IDLParameterizedType":
         return IDLParameterizedType(self.name, self.parameters, nullable, self.extended_attributes)
+
+    def with_extended_attributes(self, extended_attributes: Dict[str, str]) -> "IDLParameterizedType":
+        return IDLParameterizedType(self.name, self.parameters, self.nullable, extended_attributes)
 
     def child_types(self) -> Tuple[IDLType, ...]:
         return self.parameters
