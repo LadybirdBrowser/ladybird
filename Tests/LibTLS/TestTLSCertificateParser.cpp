@@ -6,7 +6,7 @@
 
 #include <AK/Base64.h>
 #include <LibCrypto/ASN1/Constants.h>
-#include <LibCrypto/Certificate/Certificate.h>
+#include <LibCrypto/PK/KeyInfo.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(test_ed25519_private_key_length)
@@ -15,8 +15,8 @@ TEST_CASE(test_ed25519_private_key_length)
         0x30, 0x0e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06,
         0x03, 0x2b, 0x65, 0x70, 0x04, 0x02, 0x04, 0x00
     };
-    Crypto::ASN1::Decoder invalid_key_decoder(invalid_key_der);
-    EXPECT(Crypto::Certificate::parse_private_key_info(invalid_key_decoder).is_error());
+    size_t consumed = 0;
+    EXPECT(Crypto::PK::parse_private_key_info(invalid_key_der, consumed).is_error());
 
     constexpr Array<u8, 48> valid_key_der {
         0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06,
@@ -26,8 +26,7 @@ TEST_CASE(test_ed25519_private_key_length)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
-    Crypto::ASN1::Decoder valid_key_decoder(valid_key_der);
-    EXPECT(!Crypto::Certificate::parse_private_key_info(valid_key_decoder).is_error());
+    EXPECT(!Crypto::PK::parse_private_key_info(valid_key_der, consumed).is_error());
 }
 
 TEST_CASE(test_private_key_info_decode)
@@ -45,8 +44,8 @@ TEST_CASE(test_private_key_info_decode)
 
     auto decoded_keyder = TRY_OR_FAIL(decode_base64(keyder));
 
-    Crypto::ASN1::Decoder decoder(decoded_keyder);
-    auto private_key_info = TRY_OR_FAIL(Crypto::Certificate::parse_private_key_info(decoder));
+    size_t consumed = 0;
+    auto private_key_info = TRY_OR_FAIL(Crypto::PK::parse_private_key_info(decoded_keyder, consumed));
 
     EXPECT_EQ(private_key_info.algorithm.identifier, Crypto::ASN1::rsa_encryption_oid);
     auto& key = private_key_info.rsa;
