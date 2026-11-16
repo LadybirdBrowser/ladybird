@@ -3351,6 +3351,7 @@ handler GetById(
         native_frame.this_value = receiver;
         native_frame.executable = null;
         native_frame.program_counter = 0;
+        native_frame.frame_id = 0;
         native_frame.skip_when_determining_incumbent_counter = 0;
         native_frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
         native_frame.yield_is_await = false;
@@ -4073,10 +4074,8 @@ inline fn enter_ecmascript_function_call(
     frame.return_value = empty_tag;
     frame.saved_lexical_environment = empty_tag;
     frame.program_counter = 0;
-    let frame_id_vm = current_vm();
-    let frame_id = frame_id_vm.interpreter_stack_next_frame_id;
-    frame.frame_id = frame_id;
-    frame_id_vm.interpreter_stack_next_frame_id = frame_id + 1;
+    # NB: Frames get their id when something first asks (see Vm::frame_id_of()).
+    frame.frame_id = 0;
     frame.skip_when_determining_incumbent_counter = 0;
     frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
     frame.yield_is_await = false;
@@ -4168,10 +4167,7 @@ inline fn call_raw_native_function(
     # Raw native frames deliberately have no executable.
     native_frame.executable = null;
     native_frame.program_counter = 0;
-    let native_frame_id_vm = current_vm();
-    let native_frame_id = native_frame_id_vm.interpreter_stack_next_frame_id;
-    native_frame.frame_id = native_frame_id;
-    native_frame_id_vm.interpreter_stack_next_frame_id = native_frame_id + 1;
+    native_frame.frame_id = 0;
     native_frame.skip_when_determining_incumbent_counter = 0;
     native_frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
     native_frame.yield_is_await = false;

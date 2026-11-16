@@ -110,7 +110,6 @@ impl ExecutionContext {
         registers_and_locals_count: u32,
         slot_count: u32,
         argument_count: u32,
-        frame_id: u64,
     ) {
         // SAFETY: The caller passes memory for the context and its slots.
         unsafe {
@@ -121,7 +120,7 @@ impl ExecutionContext {
                 lexical_environment: Cell::new(None),
                 variable_environment: Cell::new(None),
                 private_environment_in_frame: Cell::new(None),
-                frame_id: Cell::new(frame_id),
+                frame_id: Cell::new(0),
                 program_counter: Cell::new(0),
                 skip_when_determining_incumbent_counter: Cell::new(0),
                 yield_continuation: Cell::new(ExecutionContext::NO_YIELD_CONTINUATION),
@@ -353,13 +352,7 @@ impl OwnedExecutionContext {
         });
         // SAFETY: The memory has room for the context and its slots, and nothing else uses it.
         unsafe {
-            ExecutionContext::initialize_at(
-                context.as_ptr(),
-                registers_and_locals_count,
-                slot_count,
-                argument_count,
-                0,
-            );
+            ExecutionContext::initialize_at(context.as_ptr(), registers_and_locals_count, slot_count, argument_count);
         }
         Self { context }
     }

@@ -1193,7 +1193,7 @@ impl Vm {
         );
     }
 
-    /// The id of a frame, which frames that JIT code creates get when first asked (see ExecutionContext::frame_id).
+    /// The id of a frame, which frames get when first asked (see ExecutionContext::frame_id).
     pub fn frame_id_of(&self, frame: &ExecutionContext) -> u64 {
         if frame.frame_id.get() == 0 {
             frame.frame_id.set(self.interpreter_stack().take_next_frame_id());
