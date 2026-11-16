@@ -7,43 +7,11 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
-#include <AK/ByteString.h>
+#include <AK/Error.h>
 #include <LibCrypto/Hash/Hash.h>
-#include <LibCrypto/OpenSSL.h>
-#include <LibCrypto/OpenSSLForward.h>
 
 namespace Crypto::Authentication {
 
-class HMAC {
-public:
-    explicit HMAC(Hash::HashKind hash, ReadonlyBytes key);
-    ~HMAC();
-
-    size_t digest_size() const;
-
-    void update(u8 const* message, size_t length);
-    void update(ReadonlyBytes span) { return update(span.data(), span.size()); }
-    void update(StringView string) { return update((u8 const*)string.characters_without_null_termination(), string.length()); }
-
-    ByteBuffer process(u8 const* message, size_t length)
-    {
-        reset();
-        update(message, length);
-        return digest();
-    }
-    ByteBuffer process(ReadonlyBytes span) { return process(span.data(), span.size()); }
-    ByteBuffer process(StringView string) { return process((u8 const*)string.characters_without_null_termination(), string.length()); }
-
-    ByteBuffer digest();
-
-    void reset();
-
-private:
-    Hash::HashKind m_hash_kind;
-    ReadonlyBytes m_key;
-    EVP_MAC* m_mac { nullptr };
-    EVP_MAC_CTX* m_ctx { nullptr };
-};
+ErrorOr<Hash::Digest> hmac(Hash::HashKind, ReadonlyBytes key, ReadonlyBytes message);
 
 }

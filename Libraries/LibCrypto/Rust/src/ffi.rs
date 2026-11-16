@@ -70,7 +70,7 @@ unsafe extern "C" {
         message: Span<'_, u8>,
         state: *mut c_void,
         receive: ReceiveBytes,
-    ) -> ();
+    ) -> bool;
     pub(super) fn crypto_kmac_default_key_length(kind: KmacKind) -> u32;
     pub(super) fn crypto_kmac_validate_parameters(output_length: u32, customization: OptionalBytes<'_>) -> bool;
     pub(super) fn crypto_kmac_sign(

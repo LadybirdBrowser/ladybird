@@ -760,8 +760,10 @@ fn hmac_calculate_message_digest(hash_name: &Utf16String, key: &[u8], message: &
         ));
     };
 
-    let mac = Bytes::new(libcrypto_rust::hmac_sign(hash_kind, key, message));
-    Ok(mac)
+    let Ok(mac) = libcrypto_rust::hmac_sign(hash_kind, key, message) else {
+        return Err(dom_error("OperationError", b"Failed to compute the HMAC"));
+    };
+    Ok(Bytes::new(mac))
 }
 
 fn hmac_hash_block_size(hash: &HashAlgorithmIdentifier) -> WebIdlResult<u32> {
