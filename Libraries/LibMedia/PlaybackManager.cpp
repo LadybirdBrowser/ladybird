@@ -185,6 +185,12 @@ PlaybackManager::PlaybackManager(NonnullRefPtr<AudioOutputFactory> audio_output_
 
 PlaybackManager::~PlaybackManager()
 {
+    for (auto const& track_data : m_video_track_datas) {
+        track_data.producer->set_error_handler(nullptr);
+    }
+    for (auto const& track_data : m_audio_track_datas) {
+        track_data.producer->set_error_handler(nullptr);
+    }
     m_clock->pause();
     for (auto& track_data : m_video_track_datas) {
         if (track_data.handle.has_value())
@@ -254,18 +260,14 @@ WeakPlaybackManager PlaybackManager::weak()
 void PlaybackManager::set_up_producers()
 {
     for (auto const& video_track_data : m_video_track_datas) {
-        video_track_data.producer->set_error_handler([self = weak()](DecoderError&& error) {
-            if (!self)
-                return;
-            self->dispatch_error(move(error));
+        video_track_data.producer->set_error_handler([this](DecoderError&& error) {
+            dispatch_error(move(error));
         });
     }
 
     for (auto const& audio_track_data : m_audio_track_datas) {
-        audio_track_data.producer->set_error_handler([self = weak()](DecoderError&& error) {
-            if (!self)
-                return;
-            self->dispatch_error(move(error));
+        audio_track_data.producer->set_error_handler([this](DecoderError&& error) {
+            dispatch_error(move(error));
         });
     }
 }
