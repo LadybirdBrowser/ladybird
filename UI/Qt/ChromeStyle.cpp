@@ -494,12 +494,6 @@ QMenuBar#LadybirdMenuBar QToolButton#LadybirdCloseWindowButton[pressedOutside="t
         background, background_bottom, hover, pressed, control_border, text, disabled_text, close_hover, close_text);
 }
 
-// Hovering a frameless control only lifts it with this soft fill; its ring appears once it is pressed.
-QColor location_edit_border(QPalette const& palette)
-{
-    return Theme::chrome(palette).divider;
-}
-
 QString location_edit_style_sheet(QPalette const& palette)
 {
     auto const& chrome = Theme::chrome(palette);

@@ -29,8 +29,6 @@ using WebView::string_to_ns_data;
 using WebView::string_to_ns_string;
 using WebView::utf16_string_to_ns_string;
 
-Gfx::Color ns_color_to_gfx_color(NSColor*);
-
 NSURL* url_to_ns_url(URL::URL const&);
 
 }
