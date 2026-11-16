@@ -267,6 +267,60 @@ static Optional<ByteString> read_gsettings_button_layout()
     g_object_unref(settings);
     return result;
 }
+
+static Optional<ByteString> read_gtk_decoration_layout()
+{
+    for (auto const& path : QStandardPaths::locateAll(QStandardPaths::GenericConfigLocation, "gtk-3.0/settings.ini")) {
+        auto* key_file = g_key_file_new();
+        Optional<ByteString> layout;
+        if (g_key_file_load_from_file(key_file, path.toUtf8().constData(), G_KEY_FILE_NONE, nullptr)) {
+            if (auto* value = g_key_file_get_string(key_file, "Settings", "gtk-decoration-layout", nullptr)) {
+                layout = ByteString { value };
+                g_free(value);
+            }
+        }
+        g_key_file_unref(key_file);
+        if (layout.has_value())
+            return layout;
+    }
+    return {};
+}
+
+static Vector<ControlButton, 3> kwin_layout_buttons(QString const& letters)
+{
+    Vector<ControlButton, 3> buttons;
+    for (auto letter : letters) {
+        switch (letter.unicode()) {
+        case 'I':
+            buttons.append(ControlButton::Minimize);
+            break;
+        case 'A':
+            buttons.append(ControlButton::Maximize);
+            break;
+        case 'X':
+            buttons.append(ControlButton::Close);
+            break;
+        default:
+            break;
+        }
+    }
+    return buttons;
+}
+
+static Vector<ControlButton, 3> gtk_layout_buttons(StringView names)
+{
+    Vector<ControlButton, 3> buttons;
+    names.for_each_split_view(',', SplitBehavior::Nothing, [&](StringView name) {
+        if (name == "minimize"sv) {
+            buttons.append(ControlButton::Minimize);
+        } else if (name == "maximize"sv) {
+            buttons.append(ControlButton::Maximize);
+        } else if (name == "close"sv) {
+            buttons.append(ControlButton::Close);
+        }
+    });
+    return buttons;
+}
 #endif
 
 // The window controls follow the desktop's settings; GNOME's buttons are drawn as circles.
@@ -280,34 +334,30 @@ static DesktopWindowButtons read_desktop_window_buttons()
         return buttons;
 
     if (auto desktops = desktop->split_view(Core::Environment::PATH_SEPARATOR); desktops.contains_slow("KDE"sv)) {
-        auto config_file = QStandardPaths::locate(QStandardPaths::GenericConfigLocation, "kwinrc");
-        if (config_file.isEmpty())
+        Vector<ControlButton, 3> left;
+        Vector<ControlButton, 3> right;
+        if (auto config_file = QStandardPaths::locate(QStandardPaths::GenericConfigLocation, "kwinrc"); !config_file.isEmpty()) {
+            QSettings settings(config_file, QSettings::IniFormat);
+            settings.beginGroup("org.kde.kdecoration2");
+            left = kwin_layout_buttons(settings.value("ButtonsOnLeft", "MS").toString());
+            right = kwin_layout_buttons(settings.value("ButtonsOnRight", "HIAX").toString());
+        } else if (is_inside_flatpak()) {
+            // Plasma copies the KWin layout into the GTK settings, which a Flatpak can read.
+            auto layout = read_gtk_decoration_layout();
+            if (!layout.has_value())
+                return buttons;
+            auto colon = layout->find(':');
+            left = gtk_layout_buttons(colon.has_value() ? layout->substring_view(0, *colon) : layout->view());
+            if (colon.has_value())
+                right = gtk_layout_buttons(layout->substring_view(*colon + 1));
+        } else {
             return buttons;
-
-        QSettings settings(config_file, QSettings::IniFormat);
-        settings.beginGroup("org.kde.kdecoration2");
-        auto left = settings.value("ButtonsOnLeft", "MS").toString();
-        auto right = settings.value("ButtonsOnRight", "HIAX").toString();
+        }
 
         // Keep the controls together on the side containing the close button.
-        buttons.on_left = left.contains('X');
-        buttons.order.clear();
-
-        for (auto button : left + right) {
-            switch (button.unicode()) {
-            case 'I':
-                buttons.order.append(ControlButton::Minimize);
-                break;
-            case 'A':
-                buttons.order.append(ControlButton::Maximize);
-                break;
-            case 'X':
-                buttons.order.append(ControlButton::Close);
-                break;
-            default:
-                break;
-            }
-        }
+        buttons.on_left = left.contains_slow(ControlButton::Close);
+        buttons.order = move(left);
+        buttons.order.extend(move(right));
 
         buttons.minimize = buttons.order.contains_slow(ControlButton::Minimize);
         buttons.maximize = buttons.order.contains_slow(ControlButton::Maximize);

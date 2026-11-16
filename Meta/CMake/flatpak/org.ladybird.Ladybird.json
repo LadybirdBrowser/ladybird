@@ -16,7 +16,8 @@
     "--socket=wayland",
     "--socket=fallback-x11",
     "--socket=pulseaudio",
-    "--socket=session-bus"
+    "--socket=session-bus",
+    "--filesystem=xdg-config/gtk-3.0:ro"
   ],
   "cleanup": [
     "/sbin",
