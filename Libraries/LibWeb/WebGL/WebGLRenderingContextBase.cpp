@@ -229,11 +229,9 @@ Optional<RemoteWebGLContext> create_remote_webgl_context(HTML::CanvasHost& canva
 
 }
 
-JS::ThrowCompletionOr<WebGLRenderingContextBase*> WebGLRenderingContextBase::create(JS::Realm& realm, CanvasOwner canvas, JS::Value options, WebGLVersion webgl_version)
+WebGLRenderingContextBase* WebGLRenderingContextBase::create(JS::Realm& realm, CanvasOwner canvas, WebGLContextAttributes const& context_attributes, WebGLVersion webgl_version)
 {
     // We should be coming here from getContext being called on a wrapped <canvas> element or OffscreenCanvas.
-    auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(realm.vm(), options));
-
     auto& canvas_host = canvas_host_for(canvas);
     auto remote = create_remote_webgl_context(canvas_host, webgl_version, context_attributes.depth, context_attributes.stencil, context_attributes.antialias);
     if (!remote.has_value()) {
@@ -255,14 +253,14 @@ JS::ThrowCompletionOr<WebGLRenderingContextBase*> WebGLRenderingContextBase::cre
     return static_cast<WebGLRenderingContextBase*>(web_webgl_context_create(JS::HostABI::vm_to_abi(realm.vm()), &arguments));
 }
 
-JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::create(JS::Realm& realm, CanvasOwner canvas, JS::Value options)
+GC::Ptr<WebGLRenderingContext> WebGLRenderingContext::create(JS::Realm& realm, CanvasOwner canvas, WebGLContextAttributes const& context_attributes)
 {
-    return static_cast<WebGLRenderingContext*>(TRY(WebGLRenderingContextBase::create(realm, canvas, options, WebGLVersion::WebGL1)));
+    return static_cast<WebGLRenderingContext*>(WebGLRenderingContextBase::create(realm, canvas, context_attributes, WebGLVersion::WebGL1));
 }
 
-JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::create(JS::Realm& realm, CanvasOwner canvas, JS::Value options)
+GC::Ptr<WebGL2RenderingContext> WebGL2RenderingContext::create(JS::Realm& realm, CanvasOwner canvas, WebGLContextAttributes const& context_attributes)
 {
-    return static_cast<WebGL2RenderingContext*>(TRY(WebGLRenderingContextBase::create(realm, canvas, options, WebGLVersion::WebGL2)));
+    return static_cast<WebGL2RenderingContext*>(WebGLRenderingContextBase::create(realm, canvas, context_attributes, WebGLVersion::WebGL2));
 }
 
 HTML::CanvasHost& WebGLRenderingContextBase::canvas_host() const

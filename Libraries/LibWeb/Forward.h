@@ -1221,6 +1221,7 @@ namespace Web::WebGL {
 
 class RemoteWebGLTransport;
 class WebGL2RenderingContext;
+struct WebGLContextAttributes;
 class WebGLRenderingContext;
 class WebGLRenderingContextBase;
 
