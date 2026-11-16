@@ -1,0 +1,9 @@
+Ladybird puts a text decoration line’s top edge on a device pixel, fills
+solid and double lines as rectangles, and draws a thin dotted line with
+square dots, as the other engines do. Blink snaps the decoration rect in
+SnapYAxis() and fills solid and double lines with DrawLineAsRect(), with
+the second line of a double one a thickness plus 1 away, which Ladybird
+keeps. Gecko snaps its rect in GetTextDecorationRectInternal() and, in
+PaintDecorationLine(), dashes a dotted line of 2 device pixels or less
+with square dots and a thicker one with round ones. WebKit snaps its
+line bounds in computeLineBoundsAndAntialiasingModeForText().
