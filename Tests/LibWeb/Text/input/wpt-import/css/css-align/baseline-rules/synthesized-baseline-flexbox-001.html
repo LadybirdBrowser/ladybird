@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Box Alignment Test: Synthesized baseline flexbox</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-rules">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#flex-baselines">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#valdef-align-items-baseline">
+<meta name="flags" content="ahem">
+<meta name="assert" content="This test check the synthesized of a flexbox container if it has no items (it should use the flex container margin box) or if the items have no baseline (in that case it should use the flex item's border box).">
+<style>
+.wrapper {
+  border: solid thick;
+  position: relative;
+  width: 200px;
+  height: 150px;
+  margin: 10px;
+}
+canvas {
+  width: 100px;
+  height: 100px;
+  background: blue;
+}
+.magenta-dotted-border {
+  border: 5px dotted magenta;
+}
+.border-padding-margin {
+  border: 10px solid cyan;
+  padding: 15px;
+  margin: 20px 0px;
+  background: yellow;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.wrapper')">
+
+<div id="log"></div>
+
+<div class="wrapper">
+  <canvas></canvas>
+  <div style="display: inline-flex;" class="border-padding-margin"
+      data-offset-y="30"></div>
+</div>
+<div class="wrapper">
+  <canvas></canvas>
+  <div style="display: inline-block;" class="magenta-dotted-border"
+      data-offset-y="5">
+    <div style="display: inline-flex;" class="border-padding-margin"
+        data-offset-y="30"></div>
+  </div>
+</div>
+<div class="wrapper">
+  <canvas></canvas>
+  <div style="display: inline-block;" class="magenta-dotted-border"
+      data-offset-y="0">
+    <div style="display: flex;" class="border-padding-margin"
+        data-offset-y="25"></div>
+  </div>
+</div>
+<div class="wrapper">
+  <canvas></canvas>
+  <div style="display: inline-flex;" class="magenta-dotted-border"
+      data-offset-y="25">
+    <div class="border-padding-margin" data-offset-y="50"></div>
+  </div>
+</div>
+<div class="wrapper">
+  <canvas></canvas>
+  <div style="display: inline-block;" class="magenta-dotted-border"
+      data-offset-y="25">
+    <div style="display: flex;"
+        data-offset-y="30">
+      <div class="border-padding-margin" data-offset-y="50"></div>
+    </div>
+  </div>
+</div>
+<div class="wrapper" style="display: flex; align-items: baseline;">
+  <canvas></canvas>
+  <div style="display: inline-flex;" class="magenta-dotted-border"
+      data-offset-y="25">
+    <div class="border-padding-margin" data-offset-y="50"></div>
+  </div>
+</div>
+<div class="wrapper" style="display: flex; align-items: baseline;">
+  <canvas></canvas>
+  <div style="display: flex;" class="magenta-dotted-border"
+      data-offset-y="25">
+    <div class="border-padding-margin" data-offset-y="50"></div>
+  </div>
+</div>
+
+</body>

@@ -5570,9 +5570,11 @@ impl<'pass> GridFormattingContext<'pass> {
                     content_baselines,
                 )
             } else {
-                // https://drafts.csswg.org/css-align-3/#synthesize-baseline
-                // NB: The alphabetic baseline is synthesized from the line-under edge of the border box.
-                metrics.margin_box_top(collapsed) + metrics.content_block_size() + metrics.border_box_bottom(collapsed)
+                formatting_context::synthesize_block_axis_baseline(
+                    self.container_style,
+                    metrics.margin_top,
+                    metrics.margin_top + metrics.border_box_block_size(collapsed),
+                )
             };
         item.extra_margin_top + distance_from_margin_box_top
     }

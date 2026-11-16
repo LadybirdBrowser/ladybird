@@ -692,6 +692,19 @@ pub(crate) fn resolve_pending_abspos_containing_block(
         .continue_containing_block_search(&mut entry.containing_block_search, limit);
 }
 
+// https://drafts.csswg.org/css-align-3/#baseline-export
+// To synthesize baselines from a rectangle (or two parallel lines), synthesize the alphabetic baseline from the
+// line-under line, and the central baseline by averaging the positions of the two edges or lines.
+pub(crate) fn synthesize_block_axis_baseline(style: StyleValues, start: CssPixels, end: CssPixels) -> CssPixels {
+    if line_builder::uses_central_baseline(style) {
+        (start + end) / 2
+    } else if style.writing_mode() == writing_mode::VERTICAL_LR {
+        start
+    } else {
+        end
+    }
+}
+
 pub(crate) fn box_baseline_with_content_baselines(
     pass: &LayoutPass<'_>,
     box_: Node,
@@ -704,7 +717,7 @@ pub(crate) fn box_baseline_with_content_baselines(
     let collapsed = metrics.uses_collapsing_borders_model();
 
     // https://drafts.csswg.org/css2/#propdef-vertical-align
-    if facts.vertical_align_applies() && style.vertical_align_is_keyword() {
+    if !pass.frame.is_transposed() && facts.vertical_align_applies() && style.vertical_align_is_keyword() {
         match style.vertical_align_keyword() {
             vertical_align::TOP => {
                 // Top: Align the top of the aligned subtree with the top of the line box.
@@ -811,8 +824,17 @@ pub(crate) fn box_baseline_with_content_baselines(
         return metrics.margin_box_top(collapsed) + metrics.content_block_size();
     }
 
-    // If the box has no baseline set, the bottom margin edge of the box is metrics.
-    metrics.margin_box_block_size(collapsed)
+    let containing_block = pass.in_flow_containing_block(box_);
+    let context_style = if containing_block.is_invalid() {
+        style
+    } else {
+        StyleValues::for_node(pass, containing_block)
+    };
+    synthesize_block_axis_baseline(
+        context_style,
+        CssPixels::default(),
+        metrics.margin_box_block_size(collapsed),
+    )
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -1031,11 +1053,19 @@ pub(crate) fn baseline_of_laid_out_child_for_purpose(
         if source == ChildBaselineSource::Own {
             return None;
         }
-        // https://drafts.csswg.org/css-align-3/#synthesize-baseline
-        // The alphabetic baseline is synthesized from the line-under edge of the border box.
-        return Some(
-            content_offset.y + child_metrics.content_block_size() + child_metrics.border_box_bottom(collapsed),
+        let border_start = content_offset.y - child_metrics.border_box_top(collapsed);
+        let border_end =
+            content_offset.y + child_metrics.content_block_size() + child_metrics.border_box_bottom(collapsed);
+        let containing_block = pass.in_flow_containing_block(node);
+        let context_style = StyleValues::for_node(
+            pass,
+            if containing_block.is_invalid() {
+                node
+            } else {
+                containing_block
+            },
         );
+        return Some(synthesize_block_axis_baseline(context_style, border_start, border_end));
     }
     let child_offset_from_margin_edge = content_offset.y - child_metrics.margin_box_top(collapsed);
     Some(

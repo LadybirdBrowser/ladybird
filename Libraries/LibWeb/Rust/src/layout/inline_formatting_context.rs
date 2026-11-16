@@ -767,7 +767,11 @@ pub(crate) fn compute(
                 } else {
                     let style = context.style(node);
                     let height = line_builder::content_area_block_size(style);
-                    let baseline = line_builder::LineBuilder::baseline_for_style(style, height);
+                    let baseline = line_builder::LineBuilder::baseline_for_style(
+                        style,
+                        height,
+                        context.style(context.containing_block),
+                    );
                     (inline_box_baseline - baseline, height)
                 };
             let border_inline_start = contributions_inline_start
@@ -880,7 +884,11 @@ pub(crate) fn compute(
             } else {
                 placeholder_rect.height = line_builder::content_area_block_size(style);
                 placeholder_rect.y = line.block_start + line.baseline
-                    - line_builder::LineBuilder::baseline_for_style(style, placeholder_rect.height);
+                    - line_builder::LineBuilder::baseline_for_style(
+                        style,
+                        placeholder_rect.height,
+                        context.style(context.containing_block),
+                    );
             }
         }
         if collect_inline_containing_block_rects

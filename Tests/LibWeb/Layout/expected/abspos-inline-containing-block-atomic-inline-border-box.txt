@@ -50,7 +50,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           BlockContainer <span.overlay> at [20,374] positioned [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
       BlockContainer <div.case.vertical> at [20,404] [20+0+0 30 0+0+20] [20+0+0 18 0+0+20] [BFC] children: inline
         InlineNode <span.host> at [30,404] [0+0+0 20 0+0+0] [0+0+0 18 0+0+0]
-          frag 0 from BlockContainer start: 0, length: 0, rect: [29,409 12x8] baseline: 9
+          frag 0 from BlockContainer start: 0, length: 0, rect: [29,409 12x8] baseline: 15
           BlockContainer <span.atomic.sized-padded> at [29,409] inline-block [0+2+7 12 7+2+0] [0+2+3 8 3+2+0] [BFC] children: not-inline
           BlockContainer <span.percentage> at [30,422] positioned [0+0+0 20 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
       BlockContainer <div.case.vertical> at [20,442] [20+0+0 30 0+0+20] [20+0+0 10 0+0+20] [BFC] children: inline
@@ -60,18 +60,18 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           BlockContainer <span.overlay> at [25,442] positioned [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
       BlockContainer <div.case.vertical-lr> at [20,472] [20+0+0 30 0+0+20] [20+0+0 18 0+0+20] [BFC] children: inline
         InlineNode <span.host> at [30,472] [0+0+0 20 0+0+0] [0+0+0 18 0+0+0]
-          frag 0 from BlockContainer start: 0, length: 0, rect: [29,477 12x8] baseline: 9
+          frag 0 from BlockContainer start: 0, length: 0, rect: [29,477 12x8] baseline: 15
           BlockContainer <span.atomic.sized-padded> at [29,477] inline-block [0+2+7 12 7+2+0] [0+2+3 8 3+2+0] [BFC] children: not-inline
           BlockContainer <span.overlay> at [30,472] positioned [0+0+0 20 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
       BlockContainer <div.case.vertical> at [20,510] [20+0+0 20 0+0+20] [20+0+0 10 0+0+20] [BFC] children: inline
         InlineNode <span.host> at [20,510] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
-          frag 0 from BlockContainer start: 0, length: 0, rect: [29,515 0x0] baseline: 10
-          BlockContainer <span.atomic.baseline.border-only> at [29,515] inline-block [0+5+0 0 0+5+0] [0+5+0 0 0+5+0] [BFC] children: not-inline
+          frag 0 from BlockContainer start: 0, length: 0, rect: [30,515 0x0] baseline: 5
+          BlockContainer <span.atomic.baseline.border-only> at [30,515] inline-block [0+5+0 0 0+5+0] [0+5+0 0 0+5+0] [BFC] children: not-inline
           BlockContainer <span.overlay> at [20,510] positioned [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
-      BlockContainer <div.case.vertical> at [20,540] [20+0+0 20 0+0+20] [20+0+0 10 0+0+20] [BFC] children: inline
+      BlockContainer <div.case.vertical> at [20,540] [20+0+0 20.375 0+0+20] [20+0+0 10 0+0+20] [BFC] children: inline
         InlineNode <span.host> at [20,540] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
-          frag 0 from BlockContainer start: 0, length: 0, rect: [30,545 0x0] baseline: 10.375
-          BlockContainer <span.atomic.middle.border-only> at [30,545] inline-block [0+5+0 0 0+5+0] [0+5+0 0 0+5+0] [BFC] children: not-inline
+          frag 0 from BlockContainer start: 0, length: 0, rect: [35.375,545 0x0] baseline: 5
+          BlockContainer <span.atomic.middle.border-only> at [35.375,545] inline-block [0+5+0 0 0+5+0] [0+5+0 0 0+5+0] [BFC] children: not-inline
           BlockContainer <span.overlay> at [20,540] positioned [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
       BlockContainer <div.case> at [20,570] [20+0+0 360 0+0+20] [20+0+0 20 0+0+20] children: inline
         InlineNode <span.host> at [20,570] [0+0+0 10 0+0+0] [0+0+0 20 0+0+0]
@@ -90,17 +90,17 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           BlockContainer <span.overlay> at [20,610] positioned [0+0+0 68.5 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
       BlockContainer <div.case.sideways> at [20,670] [20+0+0 24 0+0+20] [20+0+0 24 0+0+20] [BFC] children: inline
         InlineNode <span.host> at [24,670] [0+0+0 20 0+0+0] [0+0+0 24 0+0+0]
-          frag 0 from BlockContainer start: 0, length: 0, rect: [37,675 0x8] baseline: 7
+          frag 0 from BlockContainer start: 0, length: 0, rect: [37,675 0x8] baseline: 24
           BlockContainer <span.atomic.asymmetric> at [37,675] inline-block [0+8+9 0 1+6+0] [0+2+3 8 7+4+0] [BFC] children: not-inline
           BlockContainer <span.overlay> at [24,670] positioned [0+0+0 20 0+0+0] [0+0+0 24 0+0+0] [BFC] children: not-inline
       BlockContainer <div.case.sideways-lr> at [20,714] [20+0+0 24 0+0+20] [20+0+0 24 0+0+20] [BFC] children: inline
         InlineNode <span.host> at [20,714] [0+0+0 20 0+0+0] [0+0+0 24 0+0+0]
-          frag 0 from BlockContainer start: 0, length: 0, rect: [37,719 0x8] baseline: 17
+          frag 0 from BlockContainer start: 0, length: 0, rect: [37,719 0x8] baseline: 24
           BlockContainer <span.atomic.asymmetric> at [37,719] inline-block [0+8+9 0 1+6+0] [0+2+3 8 7+4+0] [BFC] children: not-inline
           BlockContainer <span.overlay> at [20,714] positioned [0+0+0 20 0+0+0] [0+0+0 24 0+0+0] [BFC] children: not-inline
       BlockContainer <div.case.sideways> at [20,758] [20+0+0 30 0+0+20] [20+0+0 24 0+0+20] [BFC] children: inline
         InlineNode <span.host.large-line-height> at [25,758] [0+0+0 20 0+0+0] [0+0+0 24 0+0+0]
-          frag 0 from BlockContainer start: 0, length: 0, rect: [43,763 0x8] baseline: 7
+          frag 0 from BlockContainer start: 0, length: 0, rect: [43,763 0x8] baseline: 24
           BlockContainer <span.atomic.asymmetric> at [43,763] inline-block [0+8+9 0 1+6+0] [0+2+3 8 7+4+0] [BFC] children: not-inline
           BlockContainer <span.overlay> at [25,758] positioned [0+0+0 20 0+0+0] [0+0+0 24 0+0+0] [BFC] children: not-inline
 
