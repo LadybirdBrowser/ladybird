@@ -407,6 +407,7 @@ fn sizing_directives_match_ignoring_unobserved(
     let RootSizingDirectives {
         forced_content_block_size,
         forced_min_border_box_block_size,
+        forced_table_box_border_box_inline_size,
         table_box_content_block_offset_in_wrapper,
         content_block_size_after_run,
         table_cell_contents_block_offset,
@@ -417,6 +418,7 @@ fn sizing_directives_match_ignoring_unobserved(
     } = *a;
     forced_content_block_size == b.forced_content_block_size
         && forced_min_border_box_block_size == b.forced_min_border_box_block_size
+        && forced_table_box_border_box_inline_size == b.forced_table_box_border_box_inline_size
         && table_box_content_block_offset_in_wrapper == b.table_box_content_block_offset_in_wrapper
         && (content_block_size_after_run == b.content_block_size_after_run
             || content_block_size_adopted_after_run_unobserved)

@@ -422,6 +422,9 @@ pub(crate) struct RootSizingDirectives {
     // Input-only: a fieldset's content wrapper fills the fieldset's definite content block size.
     pub(crate) forced_content_block_size: PackedOptionalCssPixels,
     pub(crate) forced_min_border_box_block_size: PackedOptionalCssPixels,
+    // Input-only: a flex container that sizes a table wrapper along the table's inline axis tells the table box the
+    // border box inline size it takes.
+    pub(crate) forced_table_box_border_box_inline_size: PackedOptionalCssPixels,
     // Input-only: the wrapper's BFC tells the table formatting context where the table box's
     // content box sits in the wrapper, so rows and row groups (whose containing block is the
     // wrapper) can be placed in wrapper coordinates.

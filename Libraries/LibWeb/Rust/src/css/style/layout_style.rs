@@ -387,7 +387,7 @@ impl LayoutStyle {
         });
     }
 
-    // CSS table wrappers carry positioning and margins, and act as the table's grid item.
+    // CSS table wrappers carry positioning and margins, and act as the table's flex or grid item.
     // z-index and vertical-align also follow the wrapper for interoperable painting and
     // inline alignment; clip only applies on the wrapper that receives position.
     fn transfer_table_properties(&mut self, source: &Self) {
@@ -458,6 +458,12 @@ impl LayoutStyle {
             target.align_self_overflow = alignment.align_self_overflow;
             target.justify_self_overflow = alignment.justify_self_overflow;
             target.order = alignment.order;
+            // https://drafts.csswg.org/css-flexbox-1/#flex-items
+            // "In the case of flex items with display: table, the table wrapper box becomes the flex item"
+            // NB: The flex longhands follow the wrapper, which the flex container sizes as the flex item.
+            target.flex_basis = alignment.flex_basis.clone();
+            target.flex_grow = alignment.flex_grow;
+            target.flex_shrink = alignment.flex_shrink;
         });
         self.edit::<GridValues>(|target| {
             crate::css::computed_values::copy_grid_placements(source.group::<GridValues>(), target);

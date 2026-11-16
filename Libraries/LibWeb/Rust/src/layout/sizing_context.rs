@@ -1381,7 +1381,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         //
         // 2. If element has a computed value of the display property that is table-cell, then return a
         //    UA-defined value.
-        // FIXME: Likely UA-defined value should not be 0.
+        // INTEROP: Like other engines, the UA-defined value is the block size of the cell when it is definite (see
+        //          TableFormattingContext::cell_block_size_is_definite_after_row_sizing), and 0 otherwise.
         //
         // 3. If element has a computed value of the height property that is not auto, then return element.
         //
@@ -1396,7 +1397,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         } else if facts.is_viewport() {
             Some(metrics.content_block_size())
         } else if facts.is_table_cell() {
-            Some(CssPixels::default())
+            Some(if metrics.has_definite_block_size() {
+                metrics.content_block_size()
+            } else {
+                CssPixels::default()
+            })
         } else if quirks_body_block.is_some() {
             quirks_body_block
         } else if !style.height().is_auto()

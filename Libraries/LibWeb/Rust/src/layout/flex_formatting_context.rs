@@ -1617,6 +1617,19 @@ impl<'pass> FlexFormattingContext<'pass> {
             let max_cross = self.computed_cross_max_size(index);
             flex_base_size = self.adjust_main_size_through_aspect_ratio(index, flex_base_size, min_cross, max_cross);
         }
+        // https://drafts.csswg.org/css-flexbox-1/#flex-items
+        // "[...] the flex longhands apply to the table box as follows: the flex item's final size is calculated by
+        // performing layout as if the distance between the table wrapper box's edges and the table box's content edges
+        // were all part of the table box's border+padding area, and the table box were the flex item."
+        // NB: So a definite flex basis along the block axis of a table leaves out its captions.
+        if inputs.is_table_wrapper
+            && basis_is_definite
+            && matches!(basis, UsedFlexBasis::Size { .. })
+            && !self.main_axis_is_parallel_to_inline_axis_of_item(index)
+        {
+            let sizes = self.measure_table_wrapper_block_sizes(index);
+            flex_base_size += sizes.wrapper_content_block_size - sizes.table_box_border_box_block_size;
+        }
         // NOTE: We don't clamp the main size until we have them for all items.
         self.flex_items[index].flex_base_size = flex_base_size;
         self.flex_items[index].automatic_minimum_size_before_flexing = None;
@@ -2628,7 +2641,9 @@ impl<'pass> FlexFormattingContext<'pass> {
             // Once the cross size of a flex line has been determined, the cross sizes of items in auto-sized flex
             // containers are also considered definite for the purpose of layout.
             let (mut cross_min, cross_max) = self.cross_size_limits(index);
-            if self.flex_item_details[index].inputs.is_table_wrapper && !self.cross_axis_is_horizontal() {
+            if self.flex_item_details[index].inputs.is_table_wrapper
+                && self.main_axis_is_parallel_to_inline_axis_of_item(index)
+            {
                 // A table is never smaller than its content, so neither is its stretched wrapper.
                 let sizes = self.measure_table_wrapper_block_sizes(index);
                 self.flex_item_details[index].stretched_table_wrapper_block_sizes = Some(sizes);
@@ -3208,8 +3223,9 @@ impl<'pass> FlexFormattingContext<'pass> {
         // the table wrapper box's edges and the table box's content edges
         // were all part of the table box's border+padding area,
         // and the table box were the flex item.
+        // NB: The main and cross axes map onto the inline and block axes of the table, whatever its writing mode.
         if self.flex_item_details[index].inputs.is_table_wrapper
-            && !self.cross_axis_is_horizontal()
+            && self.main_axis_is_parallel_to_inline_axis_of_item(index)
             && self.flex_item_is_stretched(index)
         {
             let sizes = self.flex_item_details[index]
@@ -3222,6 +3238,51 @@ impl<'pass> FlexFormattingContext<'pass> {
             input.sizing.forced_min_border_box_block_size = geometry::PackedOptionalCssPixels::from(Some(
                 stretched_table_box_block_size.max(sizes.table_box_border_box_block_size),
             ));
+        }
+        // NB: The cells of the item run along the axes of this container, which are not those of an orthogonal table.
+        let (main_size, cross_size) = if self.main_axis_is_horizontal() {
+            (
+                cells.has_definite_inline_size.then(|| cells.content_inline_size()),
+                cells.has_definite_block_size.then(|| cells.content_block_size()),
+            )
+        } else {
+            (
+                cells.has_definite_block_size.then(|| cells.content_block_size()),
+                cells.has_definite_inline_size.then(|| cells.content_inline_size()),
+            )
+        };
+        if self.flex_item_details[index].inputs.is_table_wrapper
+            && self.main_axis_is_parallel_to_inline_axis_of_item(index)
+            && let Some(main_size) = main_size
+        {
+            // NB: The table box takes the main size the wrapper is flexed to, whatever its own inline size.
+            input.sizing.forced_table_box_border_box_inline_size =
+                geometry::PackedOptionalCssPixels::from(Some(main_size));
+        }
+        if self.flex_item_details[index].inputs.is_table_wrapper
+            && !self.main_axis_is_parallel_to_inline_axis_of_item(index)
+            && self.flex_item_details[index].inputs.establishes_orthogonal_flow
+            && self.flex_item_is_stretched(index)
+            && let Some(cross_size) = cross_size
+        {
+            // NB: The cross axis of an orthogonal table is its inline axis, which a stretched wrapper fills.
+            input.sizing.forced_table_box_border_box_inline_size =
+                geometry::PackedOptionalCssPixels::from(Some(cross_size));
+        }
+        if self.flex_item_details[index].inputs.is_table_wrapper
+            && !self.main_axis_is_parallel_to_inline_axis_of_item(index)
+            && let Some(main_size) = main_size
+            && (main_size > self.flex_items[index].hypothetical_main_size
+                || self.flex_item_details[index].inputs.flex_basis.is_length_percentage())
+        {
+            // NB: Likewise, the table box fills the main size the wrapper is flexed to, less its captions.
+            let sizes = self.measure_table_wrapper_block_sizes(index);
+            let captions_block_size = sizes.wrapper_content_block_size - sizes.table_box_border_box_block_size;
+            let flexed_table_box_block_size = main_size - captions_block_size;
+            if flexed_table_box_block_size > sizes.table_box_border_box_block_size {
+                input.sizing.forced_min_border_box_block_size =
+                    geometry::PackedOptionalCssPixels::from(Some(flexed_table_box_block_size));
+            }
         }
 
         if self.flex_items[index].cross_size_was_resolved_from_aspect_ratio
