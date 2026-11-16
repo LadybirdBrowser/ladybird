@@ -242,12 +242,15 @@ pub fn cshake_digest(
     Ok(bytes)
 }
 
-pub fn hmac_sign(kind: ShaHashKind, key: &[u8], message: &[u8]) -> Vec<u8> {
+pub fn hmac_sign(kind: ShaHashKind, key: &[u8], message: &[u8]) -> Result<Vec<u8>, BackendError> {
     // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let ((), bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_hmac_sign(kind, Span::new(key), Span::new(message), state, receive);
+    let (succeeded, bytes) = receive_native_bytes(|state, receive| unsafe {
+        ffi::crypto_hmac_sign(kind, Span::new(key), Span::new(message), state, receive)
     });
-    bytes
+    if !succeeded {
+        return Err(BackendError);
+    }
+    Ok(bytes)
 }
 
 pub fn timing_safe_compare(left: &[u8], right: &[u8]) -> bool {
