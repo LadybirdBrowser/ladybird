@@ -38,15 +38,6 @@ public:
     Optional<ByteString> read_entry_optional(ByteString const& group, ByteString const& key) const;
     bool read_bool_entry(ByteString const& group, ByteString const& key, bool default_value = false) const;
 
-    template<Integral T = int>
-    T read_num_entry(ByteString const& group, ByteString const& key, T default_value = 0) const
-    {
-        if (!has_key(group, key))
-            return default_value;
-
-        return read_entry(group, key, "").to_number<T>().value_or(default_value);
-    }
-
 private:
     ConfigFile(ByteString const& filename, OwnPtr<InputBufferedFile> open_file);
 

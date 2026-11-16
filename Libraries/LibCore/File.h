@@ -54,8 +54,6 @@ public:
 
     static ErrorOr<NonnullOwnPtr<File>> standard_input();
     static ErrorOr<NonnullOwnPtr<File>> standard_output();
-    static ErrorOr<NonnullOwnPtr<File>> standard_error();
-
     File(File&& other) { operator=(move(other)); }
 
     File& operator=(File&& other)
