@@ -208,15 +208,9 @@ pub fn sha_digest(kind: ShaHashKind, data: &[u8]) -> Result<Vec<u8>, BackendErro
     Ok(bytes)
 }
 
-pub fn cshake_validate_parameters(
-    output_length: u32,
-    customization: Option<&[u8]>,
-    function_name: Option<&[u8]>,
-) -> Result<(), Utf16String> {
-    // SAFETY: The input is borrowed for the call.
-    result_from_error(unsafe {
-        ffi::crypto_cshake_validate_parameters(output_length, customization.into(), function_name.into())
-    })
+pub fn cshake_validate_parameters(output_length: u32) -> Result<(), Utf16String> {
+    // SAFETY: The call takes no pointers.
+    result_from_error(unsafe { ffi::crypto_cshake_validate_parameters(output_length) })
 }
 
 pub fn cshake_digest(

@@ -67,11 +67,7 @@ unsafe extern "C" {
         state: *mut c_void,
         receive: ReceiveBytes,
     ) -> bool;
-    pub(super) fn crypto_cshake_validate_parameters(
-        output_length: u32,
-        customization: OptionalBytes<'_>,
-        function_name: OptionalBytes<'_>,
-    ) -> usize;
+    pub(super) fn crypto_cshake_validate_parameters(output_length: u32) -> usize;
     pub(super) fn crypto_cshake_digest(
         kind: CShakeKind,
         data: Span<'_, u8>,
