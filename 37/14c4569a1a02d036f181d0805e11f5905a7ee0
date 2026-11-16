@@ -1,0 +1,26 @@
+Ladybird fits and positions canvas content using the same replaced-
+element geometry as images and video. Canvas surfaces and bitmap output
+use the canvas attribute dimensions, scaled for CSS zoom. Overflow is
+clipped to the canvas content box.
+
+Blink’s HTMLCanvasPainter::PaintReplaced uses ReplacedContentRect, with
+LayoutHTMLCanvas::CanvasSizeChanged providing zoomed canvas dimensions.
+WebKit’s RenderHTMLCanvas::paintReplaced uses replacedContentRect and
+clips the result to the content box; canvasSizeChanged supplies zoomed
+attribute dimensions. Gecko’s nsHTMLCanvasFrame::GetDestRect uses the
+canvas dimensions with nsLayoutUtils::ComputeObjectDestRect, applying
+the object-fit and object-position properties through that shared path.
+
+Bitmap-renderer output retains the canvas attribute dimensions even
+when the bitmap has a different aspect ratio. Chrome confirms this
+behavior. It preserves the intentional deviation from HTML’s natural-
+size rule for the output bitmap, without changing layout on transfer.
+For a zero-width canvas with valid bitmap output, Chrome fills the
+content box. This matches the empty-size fallback in Blink’s
+ComputeObjectFitAndPositionRect and WebKit’s replacedContentRect.
+
+The imported canvas WPTs match their references in Chrome. Other
+controls cover bitmap-renderer output with mismatched dimensions, an
+OffscreenCanvas placeholder, cover clipping, CSS zoom with edge offsets,
+a zero-width canvas containing a transferred bitmap, and natural sizes
+that round to zero under small CSS zoom.
