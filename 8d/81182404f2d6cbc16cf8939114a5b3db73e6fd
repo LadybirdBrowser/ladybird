@@ -1,0 +1,27 @@
+Ladybird resolves a gradient border image at the border-image area size,
+then maps each source slice into a bounded repeated tile. The gradient
+keeps its full-image geometry when a slice stretches in one or both
+axes. Numeric slices scale with effective zoom; percentage slices use
+the generated image dimensions. The selected image-set() option uses the
+same sizing and painting path.
+
+Blink sizes generated images in NinePieceImagePainter::Paint before
+slicing them in PaintPieces. The ratio of zoomed to unzoomed image sizes
+scales numeric slices into the source image coordinates.
+
+WebKit uses BorderPainter::paintNinePieceImageImpl to size the source.
+Its nine-piece painter supplies slices to Style::GradientImage::draw,
+which resolves the gradient for the concrete object size before mapping
+the source rectangle into its destination.
+
+Gecko uses nsCSSBorderImageRenderer::DrawBorderImage to divide the image
+into pieces. Each nsImageRenderer::DrawBorderImageComponent call gives
+nsCSSGradientRenderer::Create the full image size and paints only the
+source slice. Ladybird follows the same sizing and slicing behavior with
+its own gradient resolver and repeated-tile records.
+
+The reduced case and reference cases were compared with Chrome
+157.0.8103.78. The reference matrix covers linear, radial, conic and
+repeating gradients, transparent currentColor stops, numeric slices at
+150% and 200% zoom, center fill and image-set(). The imported WPTs also
+cover auto border-image widths, outsets and border radii.
