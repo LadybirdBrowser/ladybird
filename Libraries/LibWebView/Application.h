@@ -302,8 +302,6 @@ public:
 
     virtual void resolve_external_url_handler(URL::URL const&, ExternalURLHandlerCallback callback) const { callback(nullptr); }
 
-    Main::Arguments const& command_line_arguments() const { return m_arguments; }
-
     ChildIdentity add_child_process(Process&&);
 
     // FIXME: Should these methods be part of Application, instead of deferring to ProcessManager?
