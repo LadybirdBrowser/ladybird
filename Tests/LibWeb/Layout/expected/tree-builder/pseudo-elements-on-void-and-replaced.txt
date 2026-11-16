@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 258 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 242 0+0+8] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 282.8125 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 266.8125 0+0+8] children: not-inline
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         frag 0 from ImageBox start: 0, length: 0, rect: [8,11 10x10] baseline: 10
         ImageBox <img.p> at [8,11] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
@@ -80,7 +80,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <div> at [11,200] flex-item [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 0, rect: [11,200 0x14] baseline: 11
               TextNode <#text> (not painted)
-      BlockContainer <div> at [8,234] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+      BlockContainer <div> at [8,234] [0+0+0 784 0+0+0] [0+0+0 40.8125 0+0+0] children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,234 160x16] baseline: 41
         BlockContainer <progress.p> at [8,234] inline-block [0+0+0 160 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> at [8,234] [0+0+0 160 0+0+0] [0+0+0 16 0+0+0] children: inline
@@ -97,5 +97,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               GeneratedTextNode <(anonymous)> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x258] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x282.8125] (z-index: auto)
   SC for BlockContainer<DIV> [8,254 32x8] (z-index: auto), has_transform
