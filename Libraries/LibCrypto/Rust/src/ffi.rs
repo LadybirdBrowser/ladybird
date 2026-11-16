@@ -20,16 +20,6 @@ use super::{
 
 pub(super) type ReceiveBytes = unsafe extern "C" fn(*mut c_void, Span<'_, u8>);
 
-#[repr(u8)]
-#[derive(PartialEq, Eq)]
-#[allow(dead_code, reason = "constructed by the native decoder")]
-pub(super) enum Base64Status {
-    Success,
-    OutOfMemory,
-    InvalidBase64,
-    NonAscii,
-}
-
 #[repr(C)]
 pub(super) struct OptionalBytes<'a> {
     has_value: bool,
@@ -46,13 +36,6 @@ impl<'a> From<Option<&'a [u8]>> for OptionalBytes<'a> {
 }
 
 unsafe extern "C" {
-    pub(super) fn crypto_encode_base64url(bytes: Span<'_, u8>, receive: ReceiveBytes, state: *mut c_void) -> i32;
-    pub(super) fn crypto_decode_base64url(
-        raw: usize,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-        error_message: &mut usize,
-    ) -> Base64Status;
     pub(super) fn crypto_decode_asn1_structure(
         data: Span<'_, u8>,
         structure: Asn1Structure,
