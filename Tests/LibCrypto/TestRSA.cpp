@@ -13,6 +13,11 @@
 #include <LibTest/TestCase.h>
 #include <cstring>
 
+static Crypto::UnsignedBigInteger to_integer(ByteBuffer const& bytes)
+{
+    return Crypto::UnsignedBigInteger::import_data(bytes);
+}
+
 static ByteBuffer operator""_b(char const* string, size_t length)
 {
     return ByteBuffer::copy(string, length).release_value();
@@ -38,7 +43,8 @@ TEST_CASE(test_RSA_rejects_invalid_public_key)
     __builtin_memcpy(encoded_message.data() + separator + 1, digest_info_prefix.data(), digest_info_prefix.size());
     __builtin_memcpy(encoded_message.data() + separator + 1 + digest_info_prefix.size(), digest.bytes().data(), digest.bytes().size());
 
-    Crypto::PK::RSAPublicKey invalid_key { Crypto::UnsignedBigInteger::import_data(modulus), 1 };
+    u8 const exponent_one[] { 1 };
+    auto invalid_key = TRY_OR_FAIL(Crypto::PK::RSAPublicKey::from_components(modulus, exponent_one));
     EXPECT(!TRY_OR_FAIL(Crypto::PK::rsa_pkcs1_verify(invalid_key, Crypto::Hash::HashKind::SHA256, message, encoded_message)));
 }
 
@@ -54,10 +60,10 @@ TEST_CASE(test_RSA_ASN1_PKCS1_DER_parse)
         "H1cKKQQvueWm6sxW9P5sUrZ3"sv));
 
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::parse_rsa_key(der, true, {}));
-    if (keypair.public_key.public_exponent() != 65537) {
+    if (to_integer(TRY_OR_FAIL(keypair.public_key.public_exponent())) != 65537) {
         FAIL("Invalid public exponent");
     }
-    if (keypair.private_key.private_exponent() != "4234603516465654167360850580101327813936403862038934287300450163438938741499875303761385527882335478349599685406941909381269804396099893549838642251053393"_bigint) {
+    if (to_integer(TRY_OR_FAIL(keypair.private_key.component(Crypto::PK::RSAPrivateKey::Component::PrivateExponent))) != "4234603516465654167360850580101327813936403862038934287300450163438938741499875303761385527882335478349599685406941909381269804396099893549838642251053393"_bigint) {
         FAIL("Invalid private exponent");
     }
 }
@@ -86,11 +92,11 @@ TEST_CASE(test_RSA_ASN1_PKCS8_DER_parse)
 
     auto decoder = Crypto::ASN1::Decoder { der };
     auto private_key = TRY_OR_FAIL(Crypto::Certificate::parse_private_key_info(decoder, {})).rsa;
-    if (private_key.public_exponent() != 65537) {
+    if (to_integer(TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PublicExponent))) != 65537) {
         FAIL("Invalid public exponent");
     }
 
-    if (private_key.private_exponent() != "16848664331299797559656678180469464902267415922431923391961407795209879741791261105581093539484181644099608161661780611501562625272630894063592208758992911105496755004417051031019663332258403844985328863382168329621318366311519850803972480500782200178279692319955495383119697563295214236936264406600739633470565823022975212999060908747002623721589308539473108154612454595201561671949550531384574873324370774408913092560971930541734744950937900805812300970883306404011323308000168926094053141613790857814489531436452649384151085451448183385611208320292948291211969430321231180227006521681776197974694030147965578466993"_bigint) {
+    if (to_integer(TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PrivateExponent))) != "16848664331299797559656678180469464902267415922431923391961407795209879741791261105581093539484181644099608161661780611501562625272630894063592208758992911105496755004417051031019663332258403844985328863382168329621318366311519850803972480500782200178279692319955495383119697563295214236936264406600739633470565823022975212999060908747002623721589308539473108154612454595201561671949550531384574873324370774408913092560971930541734744950937900805812300970883306404011323308000168926094053141613790857814489531436452649384151085451448183385611208320292948291211969430321231180227006521681776197974694030147965578466993"_bigint) {
         FAIL("Invalid private exponent");
     }
 }
@@ -160,7 +166,9 @@ TEST_CASE(test_RSA_PSS_rejects_short_signature)
 TEST_CASE(test_RSA_rejects_exponent_one)
 {
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
-    Crypto::PK::RSAPublicKey public_key { keypair.public_key.modulus(), Crypto::UnsignedBigInteger { 1 } };
+    u8 const exponent_one[] { 1 };
+    auto modulus = TRY_OR_FAIL(keypair.public_key.modulus());
+    auto public_key = TRY_OR_FAIL(Crypto::PK::RSAPublicKey::from_components(modulus, exponent_one));
 
     // With e = 1, the EMSA-PKCS1-v1_5 encoding of the message is its own signature.
     ByteBuffer message { "message"_b };
