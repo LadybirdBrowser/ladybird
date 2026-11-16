@@ -9,24 +9,13 @@
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/Variant.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibCrypto/Hash/HashFunction.h>
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibCrypto/Hash/SHA3.h>
 
 namespace Crypto::Hash {
-
-enum class HashKind {
-    Unknown,
-    None,
-    SHA1,
-    SHA256,
-    SHA384,
-    SHA512,
-    SHA3_256,
-    SHA3_384,
-    SHA3_512
-};
 
 struct MultiHashDigestVariant {
     constexpr static size_t Size = 0;

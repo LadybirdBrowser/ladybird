@@ -21,12 +21,12 @@ HKDF::HKDF(HashKind hash_kind)
 
 ErrorOr<ByteBuffer> HKDF::derive_key(Optional<ReadonlyBytes> maybe_salt, ReadonlyBytes key, ReadonlyBytes info, u32 key_length_bytes)
 {
-    auto hash_name = TRY(hash_kind_to_openssl_digest_name(m_hash_kind));
+    auto const* hash_name = TRY(openssl_digest_name(m_hash_kind));
 
     auto ctx = TRY(OpenSSL_KDF_CTX::wrap(EVP_KDF_CTX_new(m_kdf)));
 
     OSSL_PARAM params[] = {
-        OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_DIGEST, const_cast<char*>(hash_name.characters_without_null_termination()), hash_name.length()),
+        OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_DIGEST, const_cast<char*>(hash_name), strlen(hash_name)),
         OSSL_PARAM_octet_string(OSSL_KDF_PARAM_KEY, const_cast<u8*>(key.data()), key.size()),
         OSSL_PARAM_octet_string(OSSL_KDF_PARAM_INFO, const_cast<u8*>(info.data()), info.size()),
         OSSL_PARAM_END,
