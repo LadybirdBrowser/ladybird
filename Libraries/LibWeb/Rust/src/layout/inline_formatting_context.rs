@@ -3966,7 +3966,8 @@ impl ContentSizingLines {
                     && style.white_space_collapse() == white_space_collapse::PRESERVE
                     && style.text_wrap_mode() == text_wrap_mode::WRAP)
                 {
-                    item.trailing_whitespace.inline_size
+                    // NB: An ideographic space at the end hangs, but it still counts toward the intrinsic sizes.
+                    item.trailing_whitespace.ascii_inline_size
                 } else {
                     CssPixels::default()
                 };

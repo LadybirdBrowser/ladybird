@@ -1741,6 +1741,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             fragment.record.trimmed_trailing_whitespace += line_box_fragment::TrailingWhitespace {
                 length_in_code_units: whitespace.length_in_node,
                 inline_size: whitespace.inline_size,
+                ascii_inline_size: whitespace.inline_size,
             };
         }
     }

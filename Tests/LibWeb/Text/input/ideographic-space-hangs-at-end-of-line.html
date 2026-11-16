@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    div {
+        font: 20px sans-serif;
+        width: 200px;
+    }
+    .max-content, .min-content {
+        display: inline-block;
+        font: 20px sans-serif;
+    }
+    .max-content {
+        width: max-content;
+    }
+    .min-content {
+        width: min-content;
+    }
+</style>
+<!-- U+3000 IDEOGRAPHIC SPACE at the end of a line hangs, as the space does. -->
+<div id="right" style="text-align: right">ab&#x3000;</div>
+<div id="center" style="text-align: center">ab&#x3000;</div>
+<div id="right-two" style="text-align: right">ab&#x3000;&#x3000;</div>
+<div id="right-ascii-space" style="text-align: right">ab </div>
+<div id="right-split" style="text-align: right">ab<span>&#x3000;</span></div>
+<div id="right-split-after-one" style="text-align: right">ab&#x3000;<span>&#x3000;</span></div>
+<div id="right-split-around-one" style="text-align: right">ab<span>&#x3000;</span>&#x3000;</div>
+<div id="nowrap" style="text-align: right; white-space: nowrap">ab&#x3000;</div>
+<div id="pre-line" style="text-align: right; white-space: pre-line">ab&#x3000;</div>
+<!-- The em space (U+2003) stays on the line. -->
+<div id="right-em-space" style="text-align: right">ab&#x2003;</div>
+<!-- A line that holds nothing but ideographic spaces still takes its height. -->
+<div id="only-ideographic-space">&#x3000;</div>
+<div id="only-split-ideographic-spaces"><span>&#x3000;</span><span>&#x3000;</span></div>
+<!-- An ideographic space at the end still counts toward the intrinsic sizes; a trailing space doesn't. -->
+<span class="max-content" id="max-ab">ab</span>
+<span class="max-content" id="max-ideographic">ab&#x3000;&#x3000;</span>
+<span class="max-content" id="max-ideographic-split"><span>ab</span><span>&#x3000;</span><span>&#x3000;</span></span>
+<span class="max-content" id="max-ascii">ab&#x3000; </span>
+<span class="min-content" id="min-ab">ab</span>
+<span class="min-content" id="min-ideographic">ab&#x3000;&#x3000;</span>
+<!-- A line exactly as wide as "ab" still holds "ab" and the ideographic space after it. -->
+<div id="wrap"><span>ab</span>&#x3000;cd</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const range = document.createRange();
+        const gap = div => {
+            const text = div.firstChild;
+            range.setStart(text, 0);
+            range.setEnd(text, 2);
+            return Math.round(div.getBoundingClientRect().right - range.getBoundingClientRect().right);
+        };
+        for (const id of ["right", "right-two", "right-ascii-space", "right-split", "right-split-after-one", "right-split-around-one", "nowrap", "pre-line", "right-em-space"])
+            println(`${id}: ${gap(document.getElementById(id)) === 0 ? "ends at the content edge" : "ends short of it"}`);
+        const center = document.getElementById("center");
+        const left = (() => { range.setStart(center.firstChild, 0); range.setEnd(center.firstChild, 2); return range.getBoundingClientRect().left - center.getBoundingClientRect().left; })();
+        println(`center: ${Math.abs(left - gap(center)) <= 1 ? "centered" : "off center"}`);
+        for (const id of ["only-ideographic-space", "only-split-ideographic-spaces"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().height > 0 ? "takes a line" : "takes no line"}`);
+        const width = id => document.getElementById(id).getBoundingClientRect().width;
+        println(`max-content counts the ideographic spaces: ${width("max-ideographic") > width("max-ab")}`);
+        println(`max-content counts them across elements: ${Math.abs(width("max-ideographic-split") - width("max-ideographic")) < 1}`);
+        println(`max-content drops a space after them: ${Math.abs(width("max-ascii") - (width("max-ideographic") + width("max-ab")) / 2) < 1}`);
+        println(`min-content counts the ideographic spaces: ${width("min-ideographic") > width("min-ab")}`);
+        const wrap = document.getElementById("wrap");
+        wrap.style.width = `${wrap.querySelector("span").getBoundingClientRect().width}px`;
+        range.selectNodeContents(wrap);
+        const lines = new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size;
+        println(`wrap: ${lines} lines`);
+        });
+</script>

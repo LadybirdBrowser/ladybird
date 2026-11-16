@@ -59,12 +59,16 @@ impl ItemGlyphRun<'_> {
 pub(crate) struct TrailingWhitespace {
     pub(crate) length_in_code_units: usize,
     pub(crate) inline_size: CssPixels,
+    /// The inline size of the ASCII white space at the very end alone, which is what intrinsic sizing takes off: An
+    /// ideographic space that hangs at the end of a line still counts toward the intrinsic sizes.
+    pub(crate) ascii_inline_size: CssPixels,
 }
 
 impl std::ops::AddAssign for TrailingWhitespace {
     fn add_assign(&mut self, other: Self) {
         self.length_in_code_units += other.length_in_code_units;
         self.inline_size += other.inline_size;
+        self.ascii_inline_size += other.ascii_inline_size;
     }
 }
 

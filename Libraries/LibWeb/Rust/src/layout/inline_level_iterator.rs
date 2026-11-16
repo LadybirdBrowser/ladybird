@@ -186,6 +186,7 @@ fn shape_set_upright(
         width,
         shape.trailing_whitespace_length_in_code_units(),
         shape.trailing_whitespace_advance(),
+        shape.trailing_ascii_whitespace_advance(),
     )
 }
 
@@ -1984,6 +1985,7 @@ impl<'context> RunItemResolver<'_, 'context> {
         let shaped_trailing_whitespace = line_box_fragment::TrailingWhitespace {
             length_in_code_units: shape.trailing_whitespace_length_in_code_units(),
             inline_size: CssPixels::nearest_value_for_f32(shape.trailing_whitespace_advance()),
+            ascii_inline_size: CssPixels::nearest_value_for_f32(shape.trailing_ascii_whitespace_advance()),
         };
         let chunk_inline_size = CssPixels::nearest_value_for_f32(width + inline_offset);
         let length_in_node = prepared_item.length_in_node();
@@ -1996,6 +1998,7 @@ impl<'context> RunItemResolver<'_, 'context> {
             line_box_fragment::TrailingWhitespace {
                 length_in_code_units: length_in_node,
                 inline_size: chunk_inline_size,
+                ascii_inline_size: chunk_inline_size,
             }
         } else {
             shaped_trailing_whitespace
