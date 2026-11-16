@@ -105,53 +105,6 @@ struct SECPxxxr1Signature {
     UnsignedBigInteger s;
     size_t size;
 
-    static ErrorOr<SECPxxxr1Signature> from_asn(Span<u32 const> curve_oid, ReadonlyBytes signature, Vector<StringView> current_scope)
-    {
-        ASN1::Decoder decoder(signature);
-        ENTER_TYPED_SCOPE(Sequence, "SECPxxxr1Signature");
-        READ_OBJECT(Integer, UnsignedBigInteger, r_big_int);
-        READ_OBJECT(Integer, UnsignedBigInteger, s_big_int);
-
-        size_t scalar_size;
-        if (curve_oid == ASN1::secp256r1_oid) {
-            scalar_size = ceil_div(256, 8);
-        } else if (curve_oid == ASN1::secp384r1_oid) {
-            scalar_size = ceil_div(384, 8);
-        } else if (curve_oid == ASN1::secp521r1_oid) {
-            scalar_size = ceil_div(521, 8);
-        } else {
-            return Error::from_string_literal("Unknown SECPxxxr1 curve");
-        }
-
-        if (r_big_int.byte_length() < scalar_size || s_big_int.byte_length() < scalar_size)
-            return Error::from_string_literal("Invalid SECPxxxr1 signature");
-
-        return SECPxxxr1Signature { r_big_int, s_big_int, scalar_size };
-    }
-
-    static ErrorOr<SECPxxxr1Signature> from_raw(Span<u32 const> curve_oid, ReadonlyBytes signature)
-    {
-        size_t scalar_size;
-        if (curve_oid == ASN1::secp256r1_oid) {
-            scalar_size = ceil_div(256, 8);
-        } else if (curve_oid == ASN1::secp384r1_oid) {
-            scalar_size = ceil_div(384, 8);
-        } else if (curve_oid == ASN1::secp521r1_oid) {
-            scalar_size = ceil_div(521, 8);
-        } else {
-            return Error::from_string_literal("Unknown SECPxxxr1 curve");
-        }
-
-        if (signature.size() != scalar_size * 2)
-            return Error::from_string_literal("Invalid SECPxxxr1 signature");
-
-        return SECPxxxr1Signature {
-            UnsignedBigInteger::import_data(signature.slice(0, scalar_size)),
-            UnsignedBigInteger::import_data(signature.slice(scalar_size, scalar_size)),
-            scalar_size,
-        };
-    }
-
     ErrorOr<ByteBuffer> r_bytes() const
     {
         return SECPxxxr1Point::scalar_to_bytes(r, size);
@@ -160,18 +113,6 @@ struct SECPxxxr1Signature {
     ErrorOr<ByteBuffer> s_bytes() const
     {
         return SECPxxxr1Point::scalar_to_bytes(s, size);
-    }
-
-    ErrorOr<ByteBuffer> to_asn()
-    {
-        ASN1::Encoder encoder;
-        TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
-            TRY(encoder.write(r));
-            TRY(encoder.write(s));
-            return {};
-        }));
-
-        return encoder.finish();
     }
 };
 
