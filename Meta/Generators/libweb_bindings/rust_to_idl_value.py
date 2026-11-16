@@ -155,6 +155,8 @@ def rust_to_idl_value(
         if "AllowShared" in attributes:
             raise UnsupportedByRustBindings(f"{what} has [AllowShared] ArrayBuffer, which Rust does not convert yet")
         return f"crate::bindings::conversions::to_array_buffer(vm, {value}, {buffer_source_rules(idl_type, parameter_attributes)})"
+    if name == "SharedArrayBuffer":
+        return f"to_shared_array_buffer(vm, {value}, {buffer_source_rules(idl_type, parameter_attributes)})"
     if name in TYPED_ARRAY_NAMES:
         rules = buffer_source_rules(idl_type, parameter_attributes)
         return f'to_typed_array(vm, {value}, TypedArrayKind::{name}, "{name}", {rules})'
