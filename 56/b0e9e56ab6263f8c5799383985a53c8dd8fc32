@@ -1,0 +1,20 @@
+When margins collapse through the last in-flow children of a block
+formatting context root, Ladybird adds the collapsed margin that the
+margin state holds at the end of the root’s flow (descendants’ margins
+included) below the last box they don’t collapse through, or below the
+top content edge, and nothing else in the run extends the root. And
+text, a forced break, or an inline box with inline-axis margins,
+padding or borders keeps margins from collapsing through a line’s box
+at any height, as section 9.4.2 of CSS 2 says.
+
+Blink appends both margins of a self-collapsing child to a single
+MarginStrut (margin_strut.Append in BlockLayoutAlgorithm), and a new
+formatting context adds that strut’s Sum() to its intrinsic block size
+once, at the end. WebKit tracks the same collapsed margin in its
+RenderBlockFlow::MarginInfo, adds it in handleAfterSideOfBlock(), and
+decides which blocks collapse through in isSelfCollapsingBlock(). Gecko
+decides it with nsBlockFrame::IsEmpty() and nsLineBox::IsEmpty(), where
+a text frame holding text is never empty, whatever its height.
+
+In Chrome, the test’s 23 cases come out the same, and so does the
+html height in each of the 40 updated expectations.
