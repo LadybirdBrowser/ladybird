@@ -30,7 +30,6 @@ public:
     bool is_empty() const { return m_bytes.is_empty(); }
     bool contains(size_t offset, size_t length) const { return offset <= m_bytes.size() && length <= m_bytes.size() - offset; }
 
-    u8 u8_at(size_t offset) const;
     u16 u16_at(size_t offset) const;
     i16 i16_at(size_t offset) const { return static_cast<i16>(u16_at(offset)); }
     u32 u32_at(size_t offset) const;
