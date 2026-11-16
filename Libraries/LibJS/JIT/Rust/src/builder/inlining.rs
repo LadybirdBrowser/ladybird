@@ -155,6 +155,7 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool, derived_construct:
                 | OpCode::CreateVariableEnvironment
                 | OpCode::EnterObjectEnvironment
                 | OpCode::LeavePrivateEnvironment
+                | OpCode::EnterWithOwnEnvironments
                 | OpCode::CreateArguments
                 | OpCode::CreateRestParams
                 | OpCode::CallDirectEval

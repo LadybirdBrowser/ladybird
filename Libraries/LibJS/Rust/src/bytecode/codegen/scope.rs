@@ -1344,6 +1344,7 @@ impl Generator<'_> {
                 && (scope.has_function_in_parameters || parameters_have_environment));
         if needs_variable_environment {
             self.note_creates_environment();
+            self.keeps_own_environments = true;
             let environment = self.held_register();
             self.in_head(|generator| {
                 generator.put(op::CreateVariableEnvironment {

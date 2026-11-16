@@ -21,7 +21,7 @@ f$150d3c39 var-env-capacity-with-param-expressions.js:1:12
     [2] = String("")
 
 block0:
-  [   0] Enter
+  [   0] EnterWithOwnEnvironments
   [   1] GetLexicalEnvironment dst:reg4
   [   3] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [   f] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false

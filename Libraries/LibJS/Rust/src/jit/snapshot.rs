@@ -1324,7 +1324,24 @@ impl SnapshotBuilder<'_> {
         self.environment_templates.clear();
 
         let intrinsics = realm.intrinsics();
+        // NB: The same rules as ExecutionContext::keeps_private_environment() and keeps_variable_environment().
+        let frame_function = match entry.function {
+            Some(InlinedFunction::Ecmascript(function)) => Some(function),
+            Some(InlinedFunction::Builtin(_)) => None,
+            None => self.compiled_function,
+        };
+        let keeps_own_environments = executable.keeps_own_environments();
+        let (frames_read_private_environment_from_function, frames_read_variable_environment_from_function) =
+            match frame_function {
+                Some(function) => (
+                    !keeps_own_environments,
+                    !keeps_own_environments && !function.function_environment_needed(),
+                ),
+                None => (false, false),
+            };
         ExecutableSnapshot {
+            frames_read_private_environment_from_function,
+            frames_read_variable_environment_from_function,
             bytecode: self.snapshot.add(bytecode),
             bytecode_address: bytecode.as_ptr() as u64,
             layout: FrameLayout {

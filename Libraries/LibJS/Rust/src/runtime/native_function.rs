@@ -318,16 +318,11 @@ impl NativeFunction {
             callee_context.lexical_environment.set(Some(local_environment.upcast()));
 
             // 9. Set the VariableEnvironment of calleeContext to localEnv.
-            callee_context
-                .variable_environment
-                .set(Some(local_environment.upcast()));
+            callee_context.set_variable_environment(Some(local_environment.upcast()));
         } else {
             callee_context
                 .lexical_environment
                 .set(caller_context.lexical_environment.get());
-            callee_context
-                .variable_environment
-                .set(caller_context.variable_environment.get());
         }
 
         // </8.> --------------------------------------------------------------------------
@@ -396,16 +391,11 @@ impl NativeFunction {
             callee_context.lexical_environment.set(Some(local_environment.upcast()));
 
             // 9. Set the VariableEnvironment of calleeContext to localEnv.
-            callee_context
-                .variable_environment
-                .set(Some(local_environment.upcast()));
+            callee_context.set_variable_environment(Some(local_environment.upcast()));
         } else {
             callee_context
                 .lexical_environment
                 .set(caller_context.lexical_environment.get());
-            callee_context
-                .variable_environment
-                .set(caller_context.variable_environment.get());
         }
 
         // </8.> --------------------------------------------------------------------------

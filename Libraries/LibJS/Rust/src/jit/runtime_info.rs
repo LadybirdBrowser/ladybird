@@ -145,7 +145,7 @@ fn runtime_offsets() -> RuntimeOffsets {
         accessor_getter: offset(offset_of!(Accessor, getter)),
         accessor_setter: offset(offset_of!(Accessor, setter)),
         execution_context_function: offset(offset_of!(ExecutionContext, function)),
-        execution_context_variable_environment: offset(offset_of!(ExecutionContext, variable_environment)),
+        execution_context_variable_environment: offset(offset_of!(ExecutionContext, variable_environment_in_frame)),
         execution_context_frame_id: offset(offset_of!(ExecutionContext, frame_id)),
         execution_context_yield_continuation: offset(offset_of!(ExecutionContext, yield_continuation)),
         execution_context_yield_is_await: offset(offset_of!(ExecutionContext, yield_is_await)),

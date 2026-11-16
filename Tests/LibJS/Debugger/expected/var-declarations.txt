@@ -1,0 +1,5 @@
+Paused at <ladybird>/Tests/LibJS/Debugger/input/var-declarations.js:7:1 (entry)
+Paused at <ladybird>/Tests/LibJS/Debugger/input/var-declarations.js:3:5 (debugger statement)
+2
+Paused at <ladybird>/Tests/LibJS/Debugger/input/var-declarations.js:8:1 (debugger statement)
+"undefined"

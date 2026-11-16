@@ -120,8 +120,9 @@ struct JS_API ExecutionContext {
     // The [[ScriptOrModule]] of a context without a function. That of a context with a function comes from the
     // function, and this holds an old value: use script_or_module() and set_script_or_module().
     ScriptOrModule script_or_module_without_function;
-    GC::Ptr<Environment> lexical_environment;  // [[LexicalEnvironment]]
-    GC::Ptr<Environment> variable_environment; // [[VariableEnvironment]]
+    GC::Ptr<Environment> lexical_environment; // [[LexicalEnvironment]]
+    // NB: Only valid in frames that keep their own variable environment (see the Rust ExecutionContext).
+    GC::Ptr<Environment> variable_environment_in_frame;
     // NB: Only valid in frames without a function, and frames of code that makes private environments.
     GC::Ptr<PrivateEnvironment> private_environment_in_frame;
 
@@ -217,7 +218,7 @@ JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(function, FUNCTION)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(realm_without_function, REALM_WITHOUT_FUNCTION)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(script_or_module_without_function, SCRIPT_OR_MODULE_WITHOUT_FUNCTION)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(lexical_environment, LEXICAL_ENVIRONMENT)
-JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(variable_environment, VARIABLE_ENVIRONMENT)
+JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(variable_environment_in_frame, VARIABLE_ENVIRONMENT_IN_FRAME)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(private_environment_in_frame, PRIVATE_ENVIRONMENT_IN_FRAME)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(frame_id, FRAME_ID)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(program_counter, PROGRAM_COUNTER)

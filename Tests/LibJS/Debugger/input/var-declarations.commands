@@ -1,0 +1,5 @@
+c
+p var declared = value + 1; declared
+c
+p typeof declared
+c

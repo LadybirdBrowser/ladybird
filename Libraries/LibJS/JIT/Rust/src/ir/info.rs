@@ -271,7 +271,7 @@ impl Op<'_> {
                 writes: Locations::FRAME,
                 ..P::PURE
             }),
-            Op::LeavePrivateEnvironment => OpInfo::pure(I::NONE).with_properties(P {
+            Op::LeavePrivateEnvironment | Op::KeepOwnEnvironments => OpInfo::pure(I::NONE).with_properties(P {
                 reads: Locations::FRAME,
                 writes: Locations::FRAME,
                 ..P::PURE

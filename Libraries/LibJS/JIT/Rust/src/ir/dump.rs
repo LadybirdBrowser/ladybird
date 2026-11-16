@@ -238,6 +238,7 @@ fn write_op(f: &mut fmt::Formatter<'_>, layout: &FrameLayout, op: &Op, inputs: &
         Op::AppendEnvironmentBinding => inputs.after(f, format_args!("AppendEnvironmentBinding")),
         Op::SetLexicalEnvironment => inputs.after(f, format_args!("SetLexicalEnvironment")),
         Op::LeavePrivateEnvironment => inputs.after(f, format_args!("LeavePrivateEnvironment")),
+        Op::KeepOwnEnvironments => inputs.after(f, format_args!("KeepOwnEnvironments")),
         Op::IsCallable => inputs.after(f, format_args!("IsCallable")),
         Op::CheckInt32 => inputs.after(f, format_args!("CheckInt32")),
         Op::CheckNumber => inputs.after(f, format_args!("CheckNumber")),

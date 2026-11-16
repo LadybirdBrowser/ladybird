@@ -63,7 +63,7 @@ method$5d5353bc parameter-environment-capacity.js:11:12
     [1] = String("a")
 
 block0:
-  [   0] Enter
+  [   0] EnterWithOwnEnvironments
   [   1] CreateVariable `mode`, is_immutable:false, is_global:false, is_strict:false
   [   8] CreateVariable `index`, is_immutable:false, is_global:false, is_strict:false
   [   f] GetLexicalEnvironment dst:reg4

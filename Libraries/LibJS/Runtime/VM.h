@@ -344,9 +344,6 @@ public:
     Environment const* lexical_environment() const { return running_execution_context().lexical_environment.ptr(); }
     Environment* lexical_environment() { return running_execution_context().lexical_environment.ptr(); }
 
-    Environment const* variable_environment() const { return running_execution_context().variable_environment.ptr(); }
-    Environment* variable_environment() { return running_execution_context().variable_environment.ptr(); }
-
     // https://tc39.es/ecma262/#current-realm
     // The value of the Realm component of the running execution context is also called the current Realm Record.
     Realm const* current_realm() const

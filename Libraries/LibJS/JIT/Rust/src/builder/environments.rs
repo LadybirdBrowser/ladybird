@@ -42,7 +42,24 @@ impl GraphBuilder<'_, '_> {
             if let Some(value) = self.frame.field(field) {
                 return Ok(value);
             }
-            let value = self.emit(Op::LoadFrameField { field }, &[], Some(Repr::Pointer));
+            let executable = self.function.executable;
+            let from_function = match field {
+                FrameField::PrivateEnvironment => executable.frames_read_private_environment_from_function,
+                FrameField::VariableEnvironment => executable.frames_read_variable_environment_from_function,
+                _ => false,
+            };
+            let value = if from_function {
+                let function = self.frame_field(FrameField::Function)?;
+                self.emit(
+                    Op::LoadFunctionEnvironment {
+                        private: field == FrameField::PrivateEnvironment,
+                    },
+                    &[function],
+                    Some(Repr::Pointer),
+                )
+            } else {
+                self.emit(Op::LoadFrameField { field }, &[], Some(Repr::Pointer))
+            };
             self.frame.set_field(field, value);
             return Ok(value);
         }
@@ -52,7 +69,7 @@ impl GraphBuilder<'_, '_> {
             let private = match field {
                 FrameField::LexicalEnvironment | FrameField::VariableEnvironment => Some(false),
                 FrameField::PrivateEnvironment => Some(true),
-                FrameField::Realm | FrameField::Executable => None,
+                FrameField::Realm | FrameField::Executable | FrameField::Function => None,
             };
             if let Some(private) = private {
                 // NB: A closure the code creates itself has the environments
@@ -73,6 +90,7 @@ impl GraphBuilder<'_, '_> {
             FrameField::LexicalEnvironment | FrameField::VariableEnvironment => executable.environment,
             FrameField::Realm => executable.function.map(|function| function.realm),
             FrameField::Executable => Some(executable.cell),
+            FrameField::Function => executable.function.map(|function| function.function),
             // NB: Inlined callees never read it.
             FrameField::PrivateEnvironment => None,
         }

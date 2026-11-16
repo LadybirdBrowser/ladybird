@@ -1204,8 +1204,7 @@ pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMo
 
         // b. Let varEnv be runningContext's VariableEnvironment.
         variable_environment = running_context
-            .variable_environment
-            .get()
+            .variable_environment()
             .expect("the running execution context has a VariableEnvironment");
 
         // c. Let privateEnv be runningContext's PrivateEnvironment.
@@ -1274,7 +1273,7 @@ pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMo
     eval_context.set_script_or_module(running_context.script_or_module());
 
     // 26. Set evalContext's VariableEnvironment to varEnv.
-    eval_context.variable_environment.set(Some(variable_environment));
+    eval_context.set_variable_environment(Some(variable_environment));
 
     // 27. Set evalContext's LexicalEnvironment to lexEnv.
     eval_context.lexical_environment.set(Some(lexical_environment));

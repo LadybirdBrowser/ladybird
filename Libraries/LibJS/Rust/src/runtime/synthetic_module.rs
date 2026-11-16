@@ -264,7 +264,7 @@ impl SyntheticModule {
 
         // 5. Set the VariableEnvironment of moduleContext to module.[[Environment]].
         let environment = self.environment().map(Gc::upcast);
-        module_context_ref.variable_environment.set(environment);
+        module_context_ref.set_variable_environment(environment);
 
         // 6. Set the LexicalEnvironment of moduleContext to module.[[Environment]].
         module_context_ref.lexical_environment.set(environment);

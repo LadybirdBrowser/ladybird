@@ -62,6 +62,11 @@ impl CellId {
 /// once, so the same index can be the target of several slots.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ExecutableSnapshot {
+    /// Whether frames of the executable (of the compiled one, for index 0) get their private environment from their
+    /// function rather than from the frame field, which holds an old value in them.
+    pub frames_read_private_environment_from_function: bool,
+    /// The same, for the variable environment, which is the function's `[[Environment]]`.
+    pub frames_read_variable_environment_from_function: bool,
     /// A copy of the assembled bytecode, exactly as the interpreter runs it.
     pub bytecode: List<u8>,
     /// The address of the executable's own bytecode on the main thread
