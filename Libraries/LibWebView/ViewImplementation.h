@@ -180,8 +180,6 @@ public:
     u64 system_microphone_requests_for_testing() const;
     u64 microphone_denied_notices_shown_for_testing() const { return m_microphone_denied_notices_shown; }
 
-    bool location_in_use() const { return m_tab_indicators.is_active(TabIndicator::UsingLocation); }
-
     // Ends every location request and watch whose document the user has since taken the permission away from.
     void revoke_geolocation_without_permission();
 

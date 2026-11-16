@@ -43,8 +43,6 @@ public:
     explicit PageTranslation(ViewImplementation&);
     ~PageTranslation();
 
-    // The language of the tab's document, once it's known.
-    Optional<String> const& page_language() const { return m_page_language; }
     // The language the page is shown in, if it's translated.
     Optional<String> const& target_language() const { return m_target_language; }
     bool is_translated() const { return m_target_language.has_value(); }
