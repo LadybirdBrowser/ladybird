@@ -43,23 +43,6 @@ bool PropertyDescriptor::is_data_descriptor() const
     return false;
 }
 
-// 6.2.5.3 IsGenericDescriptor ( Desc ), https://tc39.es/ecma262/#sec-isgenericdescriptor
-bool PropertyDescriptor::is_generic_descriptor() const
-{
-    // 1. If Desc is undefined, return false.
-
-    // 2. If IsAccessorDescriptor(Desc) is true, return false.
-    if (is_accessor_descriptor())
-        return false;
-
-    // 3. If IsDataDescriptor(Desc) is true, return false.
-    if (is_data_descriptor())
-        return false;
-
-    // 4. Return true.
-    return true;
-}
-
 void PropertyDescriptor::visit_edges(GC::Cell::Visitor& visitor)
 {
     visitor.visit(value);

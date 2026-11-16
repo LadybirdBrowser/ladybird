@@ -23,8 +23,6 @@ class JS_API PropertyDescriptor {
 public:
     [[nodiscard]] bool is_accessor_descriptor() const;
     [[nodiscard]] bool is_data_descriptor() const;
-    [[nodiscard]] bool is_generic_descriptor() const;
-
     // Not a standard abstract operation, but "If every field in Desc is absent".
     [[nodiscard]] bool is_empty() const
     {

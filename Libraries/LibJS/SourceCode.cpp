@@ -6,7 +6,6 @@
 
 #include <LibJS/ScriptAndModuleABIConversions.h>
 #include <LibJS/SourceCode.h>
-#include <LibTextCodec/Decoder.h>
 
 namespace JS {
 
@@ -40,16 +39,6 @@ Utf16String SourceCode::code() const
 size_t SourceCode::length_in_code_units() const
 {
     return js_source_code_length_in_code_units(source_code_to_abi(*this));
-}
-
-Utf16String SourceCode::source_text_from_offsets(size_t start_offset, size_t length) const
-{
-    if (length == 0)
-        return {};
-
-    VERIFY(start_offset <= NumericLimits<size_t>::max() - length);
-    auto code = this->code();
-    return Utf16String::from_utf16(code.utf16_view().substring_view(start_offset, length));
 }
 
 void SourceCode::ref() const

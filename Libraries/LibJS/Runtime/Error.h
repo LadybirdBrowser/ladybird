@@ -31,8 +31,6 @@ public:
 
     [[nodiscard]] Utf16String stack_string(CompactTraceback compact = CompactTraceback::No) const;
 
-    ThrowCompletionOr<void> install_error_cause(Value options);
-
     void set_message(Utf16String);
     void set_message(Utf16View);
 

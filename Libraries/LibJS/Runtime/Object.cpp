@@ -77,22 +77,6 @@ ThrowCompletionOr<bool> Object::create_data_property_or_throw(PropertyKey const&
     return completion_from_abi<bool>(js_object_create_data_property_or_throw(vm_of(*this), object_to_abi(*this), property_key_to_abi(property_key), value_to_abi(value)));
 }
 
-// 7.3.8 CreateNonEnumerableDataPropertyOrThrow ( O, P, V ), https://tc39.es/ecma262/#sec-createnonenumerabledatapropertyorthrow
-void Object::create_non_enumerable_data_property_or_throw(PropertyKey const& property_key, Value value)
-{
-    VERIFY(!value.is_special_empty_value());
-
-    // 1. Assert: O is an ordinary, extensible object with no non-configurable properties.
-
-    // 2. Let newDesc be the PropertyDescriptor { [[Value]]: V, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
-    auto new_description = PropertyDescriptor { .value = value, .writable = true, .enumerable = false, .configurable = true };
-
-    // 3. Perform ! DefinePropertyOrThrow(O, P, newDesc).
-    MUST(define_property_or_throw(property_key, new_description));
-
-    // 4. Return unused.
-}
-
 // 7.3.9 DefinePropertyOrThrow ( O, P, desc ), https://tc39.es/ecma262/#sec-definepropertyorthrow
 ThrowCompletionOr<void> Object::define_property_or_throw(PropertyKey const& property_key, PropertyDescriptor& property_descriptor)
 {
@@ -354,11 +338,6 @@ void Object::define_native_accessor(Realm& realm, PropertyKey const& property_ke
     if (setter)
         setter_function = NativeFunction::create(realm, *setter, 1, property_key, &realm, "set"sv);
     define_direct_accessor(property_key, getter_function, setter_function, attributes);
-}
-
-bool Object::is_date() const
-{
-    return is_of_engine_class_or_subclass(JS_LAYOUT_CLASS_ID_DATE);
 }
 
 bool Object::is_weak_map() const

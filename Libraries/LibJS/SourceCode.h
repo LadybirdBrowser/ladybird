@@ -36,8 +36,6 @@ public:
     Utf16String code() const;
     size_t length_in_code_units() const;
 
-    Utf16String source_text_from_offsets(size_t start_offset, size_t length) const;
-
     void ref() const;
     void unref() const;
 

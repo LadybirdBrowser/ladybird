@@ -15,7 +15,6 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/HostArray.h>
 #include <LibJS/Runtime/HostFunction.h>
-#include <LibJS/Runtime/HostModule.h>
 #include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
@@ -443,39 +442,6 @@ struct HostArrayHookThunks {
     }
 };
 
-template<typename Traits>
-struct HostModuleHookThunks {
-    static HostModule& host_module_from_abi(JSModule* module)
-    {
-        return static_cast<HostModule&>(*module_from_abi(module));
-    }
-
-    static void get_exported_names(JSModule* module, JSStringSink* names)
-    {
-        for (auto const& name : Traits::get_exported_names(host_module_from_abi(module)))
-            append_string_to_abi_sink(*names, name);
-    }
-
-    static void resolve_export(JSModule* module, u16 const* export_name, size_t export_name_length, JSResolvedBinding* out)
-    {
-        auto binding = Traits::resolve_export(host_module_from_abi(module), string_from_abi(export_name, export_name_length));
-        out->type = resolved_binding_type_to_abi(binding.type);
-        out->module = module_to_abi(binding.module.ptr());
-        if (binding.type == ResolvedBinding::BindingName)
-            append_string_to_abi_sink(out->binding_name, binding.export_name);
-    }
-
-    static JSCompletion initialize_environment(JSModule* module)
-    {
-        return completion_to_abi(Traits::initialize_environment(host_module_from_abi(module)));
-    }
-
-    static JSCompletion execute_module(JSModule* module, JSPromiseCapability* capability)
-    {
-        return completion_to_abi(Traits::execute_module(host_module_from_abi(module), promise_capability_from_abi(capability)));
-    }
-};
-
 }
 
 namespace JS {
@@ -542,19 +508,6 @@ consteval JSHostArrayHooks make_host_array_hooks()
     if constexpr (requires { &Traits::delete_property; })
         hooks.delete_property = &Thunks::delete_property;
     return hooks;
-}
-
-// All four module hooks are required.
-template<typename Traits>
-consteval JSHostModuleHooks make_host_module_hooks()
-{
-    using Thunks = HostABI::HostModuleHookThunks<Traits>;
-    return JSHostModuleHooks {
-        .get_exported_names = &Thunks::get_exported_names,
-        .resolve_export = &Thunks::resolve_export,
-        .initialize_environment = &Thunks::initialize_environment,
-        .execute_module = &Thunks::execute_module,
-    };
 }
 
 consteval JSHostClass make_host_class(u8 kind, StringView name, JSHostClass const* parent, void const* hooks, void const* user_data, u32 flags)

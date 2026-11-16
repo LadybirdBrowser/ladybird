@@ -421,7 +421,6 @@ public:
     ThrowCompletionOr<double> to_double(VM&) const;
     ThrowCompletionOr<i32> to_i32(VM&) const;
     ThrowCompletionOr<u32> to_u32(VM&) const;
-    ThrowCompletionOr<u16> to_u16(VM&) const;
     ThrowCompletionOr<u8> to_u8(VM&) const;
     ThrowCompletionOr<size_t> to_length(VM&) const;
     bool to_boolean() const;
