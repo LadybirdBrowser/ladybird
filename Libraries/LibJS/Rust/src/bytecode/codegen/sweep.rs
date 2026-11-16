@@ -161,7 +161,10 @@ impl Generator<'_> {
                         self.begin_disposal(is_async);
                     }
                     let ident = self.declare_binding(Name(a), declaration_kind);
-                    self.target_of_declaration(ident);
+                    // NB: A `var` without an initializer does nothing, not even resolve its name.
+                    if declaration_kind != DeclarationKind::Var || tags[row + 1] != tag::DECLARATOR {
+                        self.target_of_declaration(ident);
+                    }
                     declared_ident = Some(ident);
                 }
                 tag::IDENT_TYPEOF => {
