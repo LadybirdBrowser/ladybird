@@ -679,7 +679,11 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
                 // 9. If V is an Object and V has a [[TypedArrayName]] internal slot, then:
                 //     1. If types includes a typed array type whose name is the value of V's [[TypedArrayName]]
                 //        internal slot, then return the result of converting V to that type.
-                if let Some(buffer_source) = buffer_source_if(vm, value.as_object(), {rules})? {{
+                if let Some(buffer_source) = buffer_source_if(vm, value.as_object(), BufferSourceTypes {{
+                    array_buffer_type: Some({rules}),
+                    shared_array_buffer_type: None,
+                    array_buffer_view_type: Some({rules}),
+                }})? {{
                     return Ok(Self::BufferSource(buffer_source));
                 }}
 """
