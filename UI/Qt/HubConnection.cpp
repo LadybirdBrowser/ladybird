@@ -311,9 +311,9 @@ void HubConnection::app_quit_for_signal()
     Application::the().quit_for_signal();
 }
 
-void HubConnection::app_did_enable_devtools()
+void HubConnection::app_did_enable_devtools(u16 port)
 {
-    Application::the().did_enable_devtools();
+    Application::the().did_enable_devtools(port);
 }
 
 void HubConnection::app_did_disable_devtools()
