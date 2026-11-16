@@ -178,6 +178,7 @@ public:
     // A card that floats over the page, such as the find bar. Qt paints it above the page, so whatever presents the
     // page above Qt's painting steps aside while it shows.
     void add_floating_surface(QWidget&);
+    void remove_floating_surface(QWidget&);
     // The address field's suggestions float over the page as such a card does, but outlive the view, as they belong to
     // the window.
     void set_suggestions_over_page(bool);
@@ -354,7 +355,11 @@ private:
     bool m_tab_preview_is_stale { true };
     bool m_tab_preview_request_in_flight { false };
     QPointer<ScreenshotViewer> m_screenshot_viewer;
-    Vector<QPointer<QWidget>> m_floating_surfaces;
+    struct FloatingSurface {
+        QPointer<QWidget> surface;
+        QPointer<QObject> watcher;
+    };
+    Vector<FloatingSurface> m_floating_surfaces;
     bool m_suggestions_over_page { false };
     PageOverlay* m_web_compat_report_overlay { nullptr };
 
