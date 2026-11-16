@@ -1,11 +1,13 @@
 Harness status: OK
 
-Found 32 tests
+Found 34 tests
 
-32 Pass
+34 Pass
 Pass	An exact directive is preferred for unique selections shorter than 300 code points
 Pass	A short selection receives the shortest available context
 Pass	Selection endpoints inside words expand to word boundaries
+Pass	A lang value that isn't a language tag expands to word boundaries by the default rules
+Pass	A non-ASCII lang value expands to word boundaries by the default rules
 Pass	Selections spanning inline text nodes retain the correct DOM boundaries
 Pass	Uniqueness checks use primary-strength Unicode matching
 Pass	Prefix context disambiguates repeated selected text

@@ -25,6 +25,16 @@ promise_test(async t => {
             target: "cjk",
             description: "Japanese word boundaries use the document language",
         },
+        {
+            fragment: "malformed",
+            target: "malformed-lang",
+            description: "a lang value that isn't a language tag finds word boundaries by the default rules",
+        },
+        {
+            fragment: "unknown",
+            target: "non-ascii-lang",
+            description: "a non-ASCII lang value finds word boundaries by the default rules",
+        },
     ];
 
     for (const [index, testCase] of cases.entries()) {

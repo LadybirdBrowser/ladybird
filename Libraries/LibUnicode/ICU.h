@@ -44,6 +44,11 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     static Optional<LocaleData&> for_locale(StringView locale);
+    static Optional<LocaleData&> for_locale(Utf16View const& locale);
+
+    // The data of the locale, or of the default locale where the locale isn't one ICU can parse, such as the raw value
+    // of an element's lang attribute can be.
+    static LocaleData& for_locale_or_default(Utf16View const& locale);
     static Optional<Utf16String> canonicalize(StringView locale);
 
     ALWAYS_INLINE icu::Locale& locale() { return m_locale; }

@@ -291,10 +291,9 @@ NonnullOwnPtr<Collator> Collator::create(
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
-    VERIFY(locale_data.has_value());
+    auto& locale_data = LocaleData::for_locale_or_default(locale);
 
-    auto locale_with_usage = apply_usage_to_locale(locale_data->locale(), usage, collation);
+    auto locale_with_usage = apply_usage_to_locale(locale_data.locale(), usage, collation);
 
     auto collator = adopt_own(*icu::Collator::createInstance(*locale_with_usage, status));
     verify_icu_success(status);
