@@ -1322,11 +1322,6 @@ void BrowserWindow::request_to_close_tab(int index)
     tab->request_close();
 }
 
-void BrowserWindow::request_to_close_current_tab()
-{
-    request_to_close_tab(m_tabs_container->current_index());
-}
-
 int BrowserWindow::tab_index(Tab* tab)
 {
     return m_tabs_container->index_of(tab);
