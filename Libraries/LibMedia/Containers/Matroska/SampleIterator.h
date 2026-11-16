@@ -42,7 +42,6 @@ public:
 
     DecoderErrorOr<Block> next_block();
     DecoderErrorOr<Frames> get_frames(Block);
-    Cluster const& current_cluster() const { return *m_current_cluster; }
     Optional<AK::Duration> const& last_timestamp() const { return m_last_timestamp; }
     MediaStreamCursor& cursor() { return m_stream_cursor; }
     size_t position() const { return m_position; }
