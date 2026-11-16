@@ -151,6 +151,7 @@ define_error_types! {
     ObjectDefineOwnPropertyReturnedFalse => "Object's [[DefineOwnProperty]] method returned false",
     ObjectDeleteReturnedFalse => "Object's [[Delete]] method returned false",
     ObjectFreezeFailed => "Could not freeze object",
+    ObjectIsNotExtensible => "Cannot define property {}, object is not extensible",
     ObjectPreventExtensionsReturnedFalse => "Object's [[PreventExtensions]] method returned false",
     ObjectPrototypeWrongType => "Prototype must be an object or null",
     ObjectSealFailed => "Could not seal object",

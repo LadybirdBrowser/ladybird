@@ -119,6 +119,7 @@ define_common_property_names! {
     call,
     callee,
     caller,
+    captureStackTrace,
     caseFirst,
     cause,
     cbrt,
