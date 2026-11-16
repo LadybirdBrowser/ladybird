@@ -1,0 +1,13 @@
+Ladybird never caches a missing property on a shape for a number key,
+since a shape doesn’t record indexed properties. Gecko lets only names
+and symbols reach its named-property stubs, missing-slot ones included
+(GetPropIRGenerator::tryAttachStub, after ValueToNameOrSymbolId), so
+an index goes to the element stubs. V8’s LookupIterator treats an
+array-index name as an element lookup, and KeyedLoadIC::Load turns a
+string key that’s an array index into one (String::AsArrayIndex), so
+LoadHandler::LoadNonExistent only ever caches a missing named property.
+And WebKit’s getOwnPropertySlot() sends an index name on to its
+getOwnPropertySlotByIndex() (parseIndex, in JSObjectInlines.h), so no
+Structure ever answers for an index.
+
+Node gives the same results as Ladybird for every case in the test.
