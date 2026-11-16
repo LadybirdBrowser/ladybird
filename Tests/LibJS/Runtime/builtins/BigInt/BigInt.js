@@ -139,4 +139,15 @@ describe("errors", () => {
             }).toThrowWithMessage(SyntaxError, `Invalid value for BigInt: ${value}`);
         });
     });
+
+    test("sign without digits", () => {
+        ["-", "+", " - "].forEach(value => {
+            expect(() => {
+                BigInt(value);
+            }).toThrowWithMessage(SyntaxError, `Invalid value for BigInt: ${value}`);
+        });
+
+        expect("-" == 0n).toBeFalse();
+        expect("+" < 1n).toBeFalse();
+    });
 });

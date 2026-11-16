@@ -225,11 +225,19 @@ fn parse_bigint_text(mut text: &[u16]) -> Option<BigIntParseResult<'_>> {
     }
 
     let mut is_negative = false;
+    let mut has_sign = false;
     if text.first() == Some(&u16::from(b'-')) {
         text = &text[1..];
         is_negative = true;
+        has_sign = true;
     } else if text.first() == Some(&u16::from(b'+')) {
         text = &text[1..];
+        has_sign = true;
+    }
+
+    // NB: An empty StringIntegerLiteral is 0n, but a sign must be followed by a digit.
+    if has_sign && text.is_empty() {
+        return None;
     }
 
     if !text.iter().all(|code_unit| is_ascii_digit(*code_unit)) {
@@ -244,7 +252,6 @@ fn parse_bigint_text(mut text: &[u16]) -> Option<BigIntParseResult<'_>> {
 }
 
 /// 7.1.14 StringToBigInt ( str ), https://tc39.es/ecma262/#sec-stringtobigint
-/// This accepts a lone sign as 0n.
 pub fn string_to_bigint(string: &[u16]) -> Option<BigInt> {
     // 1. Let text be StringToCodePoints(str).
     let text = trim_js_whitespace(string);
