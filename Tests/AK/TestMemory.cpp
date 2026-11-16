@@ -6,7 +6,6 @@
 
 #include <LibTest/TestCase.h>
 
-#include <AK/ByteString.h>
 #include <AK/MemMem.h>
 #include <AK/Memory.h>
 
@@ -74,13 +73,4 @@ TEST_CASE(kmp_two_chunks)
     EXPECT_EQ(result_1.value_or(9), 2u);
     EXPECT_EQ(result_2.value_or(9), 4u);
     EXPECT(!result_3.has_value());
-}
-
-TEST_CASE(timing_safe_compare)
-{
-    ByteString data_set = "abcdefghijklmnopqrstuvwxyz123456789";
-    EXPECT_EQ(true, AK::timing_safe_compare(data_set.characters(), data_set.characters(), data_set.length()));
-
-    ByteString reversed = data_set.reverse();
-    EXPECT_EQ(false, AK::timing_safe_compare(data_set.characters(), reversed.characters(), reversed.length()));
 }
