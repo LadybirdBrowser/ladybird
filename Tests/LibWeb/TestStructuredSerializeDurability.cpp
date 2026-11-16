@@ -614,6 +614,35 @@ TEST_CASE(crypto_key_with_an_invalid_ec_point_is_a_data_clone_error)
         EXPECT_EQ(unwrap_wrappable<Web::WebIDL::DOMException>(result.error_value()).name(), "DataCloneError"_utf16);
 }
 
+TEST_CASE(crypto_key_with_an_ml_dsa_seed_that_does_not_match_its_public_key_is_a_data_clone_error)
+{
+    auto key_pair = mldsa_44_key_pair();
+    Array<u8, 32> other_seed;
+    other_seed.fill(0xff);
+    auto other_key_pair = MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA44, other_seed));
+    auto expanded_key = MUST(key_pair.private_key.expanded_key());
+    auto seed = seed_of(key_pair.private_key);
+    auto record = crypto_key_full_record("private"sv, "sign"sv, alg_key_algorithm("ML-DSA-44"sv), handle_triple_buffer(6, seed, other_key_pair.public_key.public_key(), expanded_key));
+    auto& realm = principal_test_realm();
+    auto result = Web::WebIDL::throw_dom_exception_if_needed(realm.vm(), realm, [&] {
+        return principal_storage_deserialize(record);
+    });
+    EXPECT(result.is_error());
+    if (result.is_error())
+        EXPECT_EQ(unwrap_wrappable<Web::WebIDL::DOMException>(result.error_value()).name(), "DataCloneError"_utf16);
+}
+
+TEST_CASE(crypto_key_with_an_ml_kem_public_key_that_fails_the_encapsulation_key_check_decodes)
+{
+    Array<u8, 800> public_key;
+    public_key.fill(0xff);
+    auto record = crypto_key_full_record("public"sv, "encapsulateBits"sv, alg_key_algorithm("ML-KEM-512"sv), handle_single_buffer(7, public_key));
+    auto value = MUST(principal_storage_deserialize(record));
+    auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
+    EXPECT(key.handle().has<::Crypto::PK::MLKEMPublicKey>());
+    EXPECT(!key.handle().get<::Crypto::PK::MLKEMPublicKey>().size().has_value());
+}
+
 TEST_CASE(crypto_key_handle_variants_decode_from_frozen_bytes)
 {
     for (auto const& golden : crypto_handle_goldens()) {

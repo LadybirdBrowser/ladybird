@@ -44,8 +44,6 @@ void crypto_key_destroy_handle(KeyHandle* handle)
         [](ByteBuffer& data) { secure_zero(data.data(), data.size()); },
         [](OKPPublicKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
         [](OKPPrivateKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
-        [](::Crypto::PK::MLDSAPrivateKey& data) { data.clear_sensitive_data(); },
-        [](::Crypto::PK::MLKEMPrivateKey& data) { data.clear_sensitive_data(); },
         [](auto&) { });
     delete handle;
 }
@@ -85,6 +83,8 @@ void crypto_key_encode_handle(KeyHandle const* handle, void* state, void (*steps
     // NB: The inline capacity holds every buffer that a handle exports, so that none moves while the fields borrow it.
     Vector<ByteBuffer, 8> exported;
     auto add = [&](ReadonlyBytes bytes) { fields.handle_buffers[fields.handle_buffer_count++] = bytes; };
+    // NB: An ML-DSA or ML-KEM private key's seed is written here, since the key does not keep a copy of it.
+    Array<u8, max(::Crypto::PK::MLDSAPrivateKey::seed_size, ::Crypto::PK::MLKEMPrivateKey::seed_size)> seed_buffer;
     auto add_exported = [&](ByteBuffer buffer) {
         exported.unchecked_append(move(buffer));
         add(exported.last().bytes());
@@ -129,9 +129,9 @@ void crypto_key_encode_handle(KeyHandle const* handle, void* state, void (*steps
         },
         [&](::Crypto::PK::MLDSAPrivateKey const& mldsa_key) {
             fields.handle_tag = to_underlying(HandleTag::MLDSAPrivateKey);
-            add(mldsa_key.seed().bytes());
+            add(MUST(mldsa_key.seed(seed_buffer)));
             add(mldsa_key.public_key().bytes());
-            add(mldsa_key.private_key().bytes());
+            add_exported(MUST(mldsa_key.expanded_key()));
         },
         [&](::Crypto::PK::MLKEMPublicKey const& mlkem_key) {
             fields.handle_tag = to_underlying(HandleTag::MLKEMPublicKey);
@@ -139,9 +139,9 @@ void crypto_key_encode_handle(KeyHandle const* handle, void* state, void (*steps
         },
         [&](::Crypto::PK::MLKEMPrivateKey const& mlkem_key) {
             fields.handle_tag = to_underlying(HandleTag::MLKEMPrivateKey);
-            add(mlkem_key.seed().bytes());
+            add(MUST(mlkem_key.seed(seed_buffer)));
             add(mlkem_key.public_key().bytes());
-            add(mlkem_key.private_key().bytes());
+            add_exported(MUST(mlkem_key.expanded_key()));
         },
         [&](OKPPublicKey const& okp_key) {
             fields.handle_tag = to_underlying(HandleTag::OKPPublicKey);
@@ -156,6 +156,7 @@ void crypto_key_encode_handle(KeyHandle const* handle, void* state, void (*steps
 
     for (auto& buffer : exported)
         secure_zero(buffer.data(), buffer.size());
+    secure_zero(seed_buffer.data(), seed_buffer.size());
 }
 
 static ErrorOr<KeyHandle> handle_from_fields(CryptoKeyHandleFields const& fields)
@@ -194,14 +195,29 @@ static ErrorOr<KeyHandle> handle_from_fields(CryptoKeyHandleFields const& fields
             public_key = TRY(::Crypto::PK::ECPublicKey::from_coordinates(buffer(1), buffer(2)));
         return TRY(::Crypto::PK::ECPrivateKey::from_scalar(buffer(0), move(parameters), move(public_key)));
     }
+    // NB: A private key is rebuilt from its seed, with the parameter set that its public key's length names, and must
+    //     give back that public key. No key in the expandedKey form, which has no seed, can have been stored, since Web
+    //     Crypto rejects that form at import.
     case HandleTag::MLDSAPublicKey:
-        return ::Crypto::PK::MLDSAPublicKey { TRY(copy(0)) };
-    case HandleTag::MLDSAPrivateKey:
-        return ::Crypto::PK::MLDSAPrivateKey { TRY(copy(0)), TRY(copy(1)), TRY(copy(2)) };
+        return TRY(::Crypto::PK::MLDSAPublicKey::from_bytes(buffer(0)));
+    case HandleTag::MLDSAPrivateKey: {
+        auto public_key = TRY(::Crypto::PK::MLDSAPublicKey::from_bytes(buffer(1)));
+        auto private_key = TRY(::Crypto::PK::MLDSAPrivateKey::generate(public_key.size(), buffer(0)));
+        if (private_key.public_key().bytes() != buffer(1))
+            return Error::from_string_literal("The stored ML-DSA public key does not match its seed");
+        return private_key;
+    }
     case HandleTag::MLKEMPublicKey:
-        return ::Crypto::PK::MLKEMPublicKey { TRY(copy(0)) };
-    case HandleTag::MLKEMPrivateKey:
-        return ::Crypto::PK::MLKEMPrivateKey { TRY(copy(0)), TRY(copy(1)), TRY(copy(2)) };
+        return TRY(::Crypto::PK::MLKEMPublicKey::from_bytes(buffer(0)));
+    case HandleTag::MLKEMPrivateKey: {
+        auto public_key = TRY(::Crypto::PK::MLKEMPublicKey::from_bytes(buffer(1)));
+        if (!public_key.size().has_value())
+            return Error::from_string_literal("The stored ML-KEM public key is not valid");
+        auto private_key = TRY(::Crypto::PK::MLKEMPrivateKey::generate(*public_key.size(), buffer(0)));
+        if (private_key.public_key().bytes() != buffer(1))
+            return Error::from_string_literal("The stored ML-KEM public key does not match its seed");
+        return private_key;
+    }
     case HandleTag::OKPPublicKey:
         return OKPPublicKey { TRY(copy(0)) };
     case HandleTag::OKPPrivateKey:
