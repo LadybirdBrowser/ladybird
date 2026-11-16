@@ -378,31 +378,6 @@ FLATTEN SignedBigInteger SignedBigInteger::shift_right(size_t num_bits) const
     return result;
 }
 
-FLATTEN ErrorOr<SignedBigInteger> SignedBigInteger::mod_power_of_two(size_t power_of_two) const
-{
-    if (power_of_two == 0)
-        return SignedBigInteger(0);
-
-    // If the number is positive and smaller than the modulus, we can just return it.
-    if (!is_negative() && static_cast<size_t>(m_mp.used * MP_DIGIT_BIT) <= power_of_two)
-        return *this;
-
-    // If the power of two overflows the int type, we don't have enough memory to compute it.
-    if (power_of_two > NumericLimits<int>::max())
-        return Error::from_errno(ENOMEM);
-
-    SignedBigInteger result;
-    MP_MUST(mp_mod_2d(&m_mp, power_of_two, &result.m_mp));
-    if (!result.is_negative())
-        return result;
-
-    // If the result is negative, we need to add the modulus to it.
-    UnsignedBigInteger modulus;
-    MP_TRY(mp_2expt(&modulus.m_mp, power_of_two));
-    MP_MUST(mp_add(&result.m_mp, &modulus.m_mp, &result.m_mp));
-    return result;
-}
-
 FLATTEN SignedBigInteger SignedBigInteger::multiplied_by(SignedBigInteger const& other) const
 {
     SignedBigInteger result;
@@ -436,13 +411,6 @@ FLATTEN SignedBigInteger SignedBigInteger::pow(u32 exponent) const
 {
     SignedBigInteger result;
     MP_MUST(mp_expt_n(&m_mp, exponent, &result.m_mp));
-    return result;
-}
-
-FLATTEN SignedBigInteger SignedBigInteger::negated_value() const
-{
-    auto result { *this };
-    result.negate();
     return result;
 }
 
