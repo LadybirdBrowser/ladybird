@@ -1232,6 +1232,9 @@ pub(crate) struct LayoutNodeArena {
     /// The boxes whose committed links a full commit met at the top of its pass, which no fragment holds.
     pass_level_committed_links: Vec<NodeSlotId>,
     pub(crate) links_held_apart_from_their_containing_blocks: CowSet<NodeSlotId>,
+    /// Whether a node left the document since a layout round last left layout up to date. Its boxes leave the rows at
+    /// once, while the committed layout of the boxes around them names them until that round lays those out again.
+    boxes_removed_ahead_of_layout: bool,
     pre_order_labels: ForkVec<u64>,
     free_list: ForkVec<u32>,
     /// A row a tree build made already, which the next allocation hands out: see [`Self::allocate_preallocated_row`].
@@ -1379,6 +1382,7 @@ impl LayoutNodeArena {
             committed_link_holders: ForkVec::default(),
             pass_level_committed_links: Vec::new(),
             links_held_apart_from_their_containing_blocks: Default::default(),
+            boxes_removed_ahead_of_layout: false,
             pre_order_labels: ForkVec::default(),
             free_list: ForkVec::default(),
             preallocated_row: None,
@@ -3390,6 +3394,24 @@ impl LayoutNodeArena {
             && !self.layout_tree_update_marks_need_build()
             && !self.needs_full_layout_tree_update()
             && !self.has_partial_relayout_boundary_roots()
+    }
+
+    /// Whether the rows may hold boxes of nodes that left the document, which the committed layout of the boxes around
+    /// them still names: only a layout round that leaves layout up to date takes them out of it.
+    pub(crate) fn has_boxes_removed_ahead_of_layout(&self) -> bool {
+        self.boxes_removed_ahead_of_layout
+    }
+
+    pub(crate) fn note_boxes_removed_ahead_of_layout(&mut self) {
+        self.boxes_removed_ahead_of_layout = true;
+    }
+
+    /// Notes that a layout round ended, which took the boxes of the nodes that left the document out of the committed
+    /// layout where it left layout up to date.
+    pub(crate) fn note_layout_round_ended(&mut self) {
+        if self.layout_is_up_to_date(false) {
+            self.boxes_removed_ahead_of_layout = false;
+        }
     }
 
     pub(crate) fn layout_tree_update_marks_need_build(&self) -> bool {

@@ -737,6 +737,7 @@ impl LayoutRoundJob {
         let mut answer = self.run_with(state, &work);
         answer.work = work.resolve(state.arena_mut());
         answer.owed_images = OwedImage::take_from(state.arena_mut());
+        state.arena_mut().note_layout_round_ended();
         answer
     }
 

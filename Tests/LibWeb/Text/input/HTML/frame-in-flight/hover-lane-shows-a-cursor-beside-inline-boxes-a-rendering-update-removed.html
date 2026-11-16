@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; font: 20px SerenitySans, sans-serif; line-height: 40px; }
+    span { background: rgb(200, 200, 255); }
+    p:hover { color: rgb(0, 128, 0); }
+</style>
+<p id="paragraph">kept text </p>
+<script>
+    // An animation frame callback of a rendering update removes enough inline boxes from a line for the host to stream
+    // its writes to the render state before the update lays the line out again. A pointer move over the text the line
+    // keeps waits for the update's frame, and the lane leaves its cursor to the host rather than reading the boxes the
+    // line no longer has.
+    asyncTest(async done => {
+        for (let i = 0; i < 300; ++i) {
+            const span = document.createElement("span");
+            span.textContent = "word ";
+            paragraph.appendChild(span);
+        }
+        await twoFramesLanded();
+        const y = paragraph.getBoundingClientRect().top + 20;
+        await whileLaneHovers(async frameTime => {
+            const { promise, resolve } = Promise.withResolvers();
+            requestAnimationFrame(() => {
+                for (const span of [...paragraph.children])
+                    span.remove();
+                internals.injectHoverPointer(10, y, frameTime + 16);
+                resolve();
+            });
+            internals.injectRenderingOpportunity(frameTime + 16);
+            await promise;
+        });
+        await twoFrames();
+        println(`inline boxes left: ${paragraph.children.length}`);
+        println(`cursor: ${internals.currentCursor()}`);
+        done();
+    });
+</script>

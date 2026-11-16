@@ -648,12 +648,16 @@ pub(crate) fn detach_remaining_rows_for_removal(
         {
             arena.set_needs_full_layout_tree_update(true);
         }
+        if arena.has_bound_pseudo_element_rows(node) {
+            arena.note_boxes_removed_ahead_of_layout();
+        }
         clear_synthetic_pseudo_element_boxes(host_calls, arena, node);
     }
     let row = arena.bound_row(node);
     if row.is_invalid() {
         return;
     }
+    arena.note_boxes_removed_ahead_of_layout();
     arena.pin_style_record_for_detachment(row);
     crate::painting::ffi::paintable_cleared_from_node_leaving_ancestors(host_calls, arena, row);
     let top_layer_placement = topmost_layout_node_of_top_layer_placement(arena, row);
