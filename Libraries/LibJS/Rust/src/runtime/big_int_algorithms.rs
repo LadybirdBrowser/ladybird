@@ -23,10 +23,6 @@ pub enum CompareResult {
     DoubleGreaterThanBigInt,
 }
 
-/// The number of bits in a libtommath digit on 64-bit targets. Crypto's mod_power_of_two() returns positive numbers
-/// unchanged when they occupy no more digits than the modulus has bits.
-const TOMMATH_DIGIT_BIT: u64 = 60;
-
 const DOUBLE_MANTISSA_BITS: u32 = 52;
 const DOUBLE_EXPONENT_BIAS: u64 = 1023;
 
@@ -166,8 +162,7 @@ pub fn number_to_bigint(number: f64) -> Result<BigInt, NumericOperationError> {
     Ok(BigInt::from_biguint(sign, floor_of_magnitude(number)))
 }
 
-/// Crypto::SignedBigInteger::to_u64, which is libtommath's mp_get_u64: the low 64 bits of the magnitude, negated
-/// modulo 2^64 for negative values, which is ℝ(value) modulo 2^64.
+/// The low 64 bits of the magnitude, negated modulo 2^64 for negative values, which is ℝ(value) modulo 2^64.
 pub fn to_u64(value: &BigInt) -> u64 {
     let low_bits = value.magnitude().iter_u64_digits().next().unwrap_or(0);
     if value.sign() == Sign::Minus {
@@ -184,7 +179,7 @@ pub fn to_base(value: &BigInt, radix: u32) -> String {
     value.to_str_radix(radix)
 }
 
-/// The low bits of a magnitude, as libtommath's mp_mod_2d() keeps them.
+/// The low `bit_count` bits of a magnitude.
 fn low_bits(value: &BigUint, bit_count: u64) -> BigUint {
     if value.bits() <= bit_count {
         return value.clone();
@@ -209,8 +204,7 @@ pub fn mod_power_of_two(value: &BigInt, power_of_two: u64) -> Result<BigInt, Num
     let is_negative = value.sign() == Sign::Minus;
 
     // If the number is positive and smaller than the modulus, we can just return it.
-    let tommath_digit_count = value.magnitude().bits().div_ceil(TOMMATH_DIGIT_BIT);
-    if !is_negative && tommath_digit_count * TOMMATH_DIGIT_BIT <= power_of_two {
+    if !is_negative && value.magnitude().bits() <= power_of_two {
         return Ok(value.clone());
     }
 
