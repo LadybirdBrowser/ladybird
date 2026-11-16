@@ -115,6 +115,30 @@ jobs:
         working-directory: ${{ github.workspace }}/Build
         run: cmake --build . --target ladybird
 
+      # vcpkg's install log names a port that failed to build, but the port's own logs hold the error.
+      - name: 'Collect the logs of vcpkg ports that failed to build'
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          out=vcpkg-failure-logs
+          mkdir -p "$out"
+          find Build -name vcpkg-manifest-install.log | while read -r install_log; do
+            sed -n 's/^error: building \([^:[]*\).*/\1/p' "$install_log" | sort -u | while read -r port; do
+              mkdir -p "$out/$port"
+              find Build -path "*/buildtrees/$port/*.log" -exec cp {} "$out/$port"/ \; || true
+            done
+            cp "$install_log" "$out"/
+          done || true
+
+      - name: 'Save the logs of vcpkg ports that failed to build'
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: vcpkg-failure-logs-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: vcpkg-failure-logs/
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: 'Save Caches'
         uses: ./.github/actions/cache-save
         with:
