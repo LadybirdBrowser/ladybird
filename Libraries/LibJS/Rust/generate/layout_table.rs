@@ -337,7 +337,6 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT", "ExecutionContext.lexical_environment", "Environment", ExecutionContext, lexical_environment, 8, "nullable", "cell", "environments");
     field!(w, "EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT", "ExecutionContext.variable_environment", "Environment", ExecutionContext, variable_environment, 8, "nullable", "cell", "environments");
     field!(w, "EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT", "ExecutionContext.private_environment", "PrivateEnvironment", ExecutionContext, private_environment_in_frame, 8, "nullable", "cell");
-    field!(w, "EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER", "ExecutionContext.skip_when_determining_incumbent_counter", "u32", ExecutionContext, skip_when_determining_incumbent_counter, 4, "nullable", "scalar");
     field!(w, "EXECUTION_CONTEXT_YIELD_CONTINUATION", "ExecutionContext.yield_continuation", "u32", ExecutionContext, yield_continuation, 4, "nullable", "scalar");
     field!(w, "EXECUTION_CONTEXT_YIELD_IS_AWAIT", "ExecutionContext.yield_is_await", "bool", ExecutionContext, yield_is_await, 1, "nullable", "scalar");
     field!(w, "EXECUTION_CONTEXT_YIELD_VALUE_IS_ITERATOR_RESULT", "ExecutionContext.yield_value_is_iterator_result", "bool", ExecutionContext, yield_value_is_iterator_result, 1, "nullable", "scalar");

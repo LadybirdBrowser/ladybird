@@ -172,6 +172,12 @@ public:
     EnvironmentSettingsObject& top_of_backup_incumbent_realm_stack();
     bool is_backup_incumbent_realm_stack_empty() const { return m_backup_incumbent_realm_stack.is_empty(); }
 
+    // NB: The skip-when-determining-incumbent counter of an execution context is here, and only native code that runs
+    //     a callback above the context makes it nonzero, until the callback is done.
+    u32 skip_when_determining_incumbent_counter(JS::ExecutionContext const&) const;
+    void increment_skip_when_determining_incumbent_counter(JS::ExecutionContext const&);
+    void decrement_skip_when_determining_incumbent_counter(JS::ExecutionContext const&);
+
     void register_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject&);
     void unregister_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject&);
     GC::Ptr<EnvironmentSettingsObject> environment_settings_object_at(EnvironmentSettingsObjectAddress) const;
@@ -311,6 +317,13 @@ private:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#backup-incumbent-settings-object-stack
     Vector<GC::Ref<EnvironmentSettingsObject>> m_backup_incumbent_realm_stack;
+
+    struct SkipWhenDeterminingIncumbentCounter {
+        JS::ExecutionContext const* execution_context { nullptr };
+        u32 count { 0 };
+    };
+    // NB: Only the contexts whose counter is nonzero.
+    Vector<SkipWhenDeterminingIncumbentCounter, 4> m_skip_when_determining_incumbent_counters;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
     size_t m_termination_nesting_level { 0 };

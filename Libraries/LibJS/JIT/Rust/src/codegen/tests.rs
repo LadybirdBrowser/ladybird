@@ -57,7 +57,6 @@ fn offsets() -> RuntimeOffsets {
         execution_context_function: 64,
         execution_context_variable_environment: 96,
         execution_context_frame_id: 104,
-        execution_context_skip_when_determining_incumbent_counter: 4,
         execution_context_yield_continuation: 112,
         execution_context_yield_is_await: 116,
         execution_context_yield_value_is_iterator_result: 117,
@@ -3858,7 +3857,7 @@ mod direct_calls {
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
             assert_eq!((word(8), word(96)), (FUNCTION_WORDS[0], FUNCTION_WORDS[0]));
             assert_eq!(word(104), 0, "no frame id yet");
-            assert_eq!(word(0), 0, "program counter and incumbent counter");
+            assert_eq!(half(0), 0, "program counter");
             assert_eq!((byte(118), byte(24)), (0, 0), "not a construct call, not initialized");
             assert_eq!(word(120), value::EMPTY, "no this value");
             assert_eq!(word(32), callee.executable.as_ptr() as u64);

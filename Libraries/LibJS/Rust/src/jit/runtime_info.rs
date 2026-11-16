@@ -147,10 +147,6 @@ fn runtime_offsets() -> RuntimeOffsets {
         execution_context_function: offset(offset_of!(ExecutionContext, function)),
         execution_context_variable_environment: offset(offset_of!(ExecutionContext, variable_environment)),
         execution_context_frame_id: offset(offset_of!(ExecutionContext, frame_id)),
-        execution_context_skip_when_determining_incumbent_counter: offset(offset_of!(
-            ExecutionContext,
-            skip_when_determining_incumbent_counter
-        )),
         execution_context_yield_continuation: offset(offset_of!(ExecutionContext, yield_continuation)),
         execution_context_yield_is_await: offset(offset_of!(ExecutionContext, yield_is_await)),
         execution_context_yield_value_is_iterator_result: offset(offset_of!(

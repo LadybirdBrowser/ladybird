@@ -25,9 +25,11 @@ TemporaryExecutionContext::TemporaryExecutionContext(EnvironmentSettingsObject& 
 
 TemporaryExecutionContext::~TemporaryExecutionContext()
 {
-    clean_up_after_running_script(m_settings);
+    // NB: In the reverse order of the constructor, so that the callback cleanup finds the topmost script-having
+    //     execution context that its preparation found.
     if (m_callbacks_enabled == CallbacksEnabled::Yes)
         clean_up_after_running_callback(m_settings);
+    clean_up_after_running_script(m_settings);
 }
 
 }

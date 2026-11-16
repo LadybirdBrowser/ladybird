@@ -260,7 +260,7 @@ void prepare_to_run_callback(EnvironmentSettingsObject& settings)
 
     // 3. If context is not null, increment context's skip-when-determining-incumbent counter.
     if (context) {
-        context->skip_when_determining_incumbent_counter++;
+        HTML::current_event_loop().increment_skip_when_determining_incumbent_counter(*context);
     }
 }
 
@@ -318,7 +318,7 @@ void clean_up_after_running_callback(EnvironmentSettingsObject const& settings)
 
     // 2. If context is not null, decrement context's skip-when-determining-incumbent counter.
     if (context) {
-        context->skip_when_determining_incumbent_counter--;
+        HTML::current_event_loop().decrement_skip_when_determining_incumbent_counter(*context);
     }
 
     // 3. Assert: the topmost entry of the backup incumbent realm stack is settings.
@@ -429,7 +429,7 @@ EnvironmentSettingsObject& incumbent_settings_object()
     auto* context = top_most_script_having_execution_context(vm);
 
     // 2. If context is null, or if context's skip-when-determining-incumbent counter is greater than zero, then:
-    if (!context || context->skip_when_determining_incumbent_counter > 0) {
+    if (!context || event_loop.skip_when_determining_incumbent_counter(*context) > 0) {
         // 1. Assert: the backup incumbent settings object stack is not empty.
         // 1. Assert: the backup incumbent realm stack is not empty.
         // NOTE: If this assertion fails, it's because the incumbent realm was used with no involvement of JavaScript.

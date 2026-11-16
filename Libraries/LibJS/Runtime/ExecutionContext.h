@@ -128,9 +128,6 @@ struct JS_API ExecutionContext {
     u64 frame_id { 0 };
     u32 program_counter { 0 };
 
-    // https://html.spec.whatwg.org/multipage/webappapis.html#skip-when-determining-incumbent-counter
-    u32 skip_when_determining_incumbent_counter { 0 };
-
     static constexpr u32 no_yield_continuation = NumericLimits<u32>::max();
     u32 yield_continuation { no_yield_continuation };
 
@@ -224,7 +221,6 @@ JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(variable_environment, VARIABLE_ENVIRONM
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(private_environment_in_frame, PRIVATE_ENVIRONMENT_IN_FRAME)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(frame_id, FRAME_ID)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(program_counter, PROGRAM_COUNTER)
-JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(skip_when_determining_incumbent_counter, SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(yield_continuation, YIELD_CONTINUATION)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(yield_is_await, YIELD_IS_AWAIT)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(yield_value_is_iterator_result, YIELD_VALUE_IS_ITERATOR_RESULT)

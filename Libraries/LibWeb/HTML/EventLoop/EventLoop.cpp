@@ -2031,6 +2031,38 @@ EnvironmentSettingsObject& EventLoop::top_of_backup_incumbent_realm_stack()
     return m_backup_incumbent_realm_stack.last();
 }
 
+u32 EventLoop::skip_when_determining_incumbent_counter(JS::ExecutionContext const& execution_context) const
+{
+    for (auto const& counter : m_skip_when_determining_incumbent_counters) {
+        if (counter.execution_context == &execution_context)
+            return counter.count;
+    }
+    return 0;
+}
+
+void EventLoop::increment_skip_when_determining_incumbent_counter(JS::ExecutionContext const& execution_context)
+{
+    for (auto& counter : m_skip_when_determining_incumbent_counters) {
+        if (counter.execution_context == &execution_context) {
+            ++counter.count;
+            return;
+        }
+    }
+    m_skip_when_determining_incumbent_counters.append({ &execution_context, 1 });
+}
+
+void EventLoop::decrement_skip_when_determining_incumbent_counter(JS::ExecutionContext const& execution_context)
+{
+    auto index = m_skip_when_determining_incumbent_counters.find_first_index_if([&](auto const& counter) {
+        return counter.execution_context == &execution_context;
+    });
+    VERIFY(index.has_value());
+    auto& counter = m_skip_when_determining_incumbent_counters[*index];
+    VERIFY(counter.count > 0);
+    if (--counter.count == 0)
+        m_skip_when_determining_incumbent_counters.remove(*index);
+}
+
 void EventLoop::register_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject& environment_settings_object)
 {
     auto result = m_related_environment_settings_objects.set(environment_settings_object.address(), &environment_settings_object);
