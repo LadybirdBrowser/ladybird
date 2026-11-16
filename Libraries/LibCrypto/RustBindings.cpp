@@ -800,15 +800,13 @@ static_assert(to_underlying(::Crypto::PK::MLDSA87) == 2);
 
 bool crypto_mldsa_sign(::Crypto::PK::MLDSASize size, KeyHandle const* key, ReadonlyBytes message, ReadonlyBytes context, void* state, ReceiveEncodedBytes receive)
 {
-    ::Crypto::PK::MLDSA lattice(size, key->get<::Crypto::PK::MLDSAPrivateKey>(), MUST(ByteBuffer::copy(context)));
-    auto result = lattice.sign(message);
+    auto result = ::Crypto::PK::mldsa_sign(size, key->get<::Crypto::PK::MLDSAPrivateKey>(), context, message);
     return receive_byte_result(result, state, receive);
 }
 
 bool crypto_mldsa_verify(::Crypto::PK::MLDSASize size, KeyHandle const* key, ReadonlyBytes message, ReadonlyBytes signature, ReadonlyBytes context, bool* verified)
 {
-    ::Crypto::PK::MLDSA lattice(size, key->get<::Crypto::PK::MLDSAPublicKey>(), MUST(ByteBuffer::copy(context)));
-    auto result = lattice.verify(message, signature);
+    auto result = ::Crypto::PK::mldsa_verify(size, key->get<::Crypto::PK::MLDSAPublicKey>(), context, message, signature);
     if (result.is_error())
         return false;
     *verified = result.value();
