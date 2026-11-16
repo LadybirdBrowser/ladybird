@@ -4,66 +4,61 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::walk::{PointQuery, topmost_hit};
 use super::*;
 use crate::layout::node_data::{DomPaintFact, NodeFlag, NodeKind};
 use crate::layout::query::inline_cursor::{CaretPosition, InlineCursor};
-use crate::painting::host::{FfiCaretAt, FfiCaretBoundaryKind, FfiHitTestQueryCallbacks, FfiResolvedCaret};
+use crate::painting::host::{FfiCaretAt, FfiCaretBoundaryKind, FfiResolvedCaret};
 use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::paintable_data::FragmentRecord;
 use crate::painting::viewport_mapping::{ViewportMapping, ViewportSpace};
 use crate::painting::visual_context::ClipBehavior;
 use crate::painting::{node_painting, paintable_geometry, style_queries};
 
-impl HitTestList {
-    /// The caret position at `point`: the one the box the point hits gives it, as editing resolves a point, or with a
-    /// `constraint_scope` box, the one that box gives it wherever the point is.
-    pub(crate) fn caret_position_from_point(
-        &self,
-        arena: &impl PaintRead,
-        tree: &VisualContextTree,
-        callbacks: &FfiHitTestQueryCallbacks,
-        point: CssPixelPoint,
-        constraint_scope: NodeSlotId,
-    ) -> Option<FfiCaretAt> {
-        let resolver = PointResolver {
-            arena,
-            mapping: callbacks.viewport_mapping(tree),
-            point,
-        };
-        if !constraint_scope.is_invalid() {
-            let mut scope = constraint_scope;
-            while !arena.paintable_row_is_populated(scope) {
-                scope = arena.node_parent_if_live(scope)?;
-            }
-            return resolver.in_box(scope);
+/// The caret position at the point of `query`: the one the box the point hits gives it, as editing resolves a point,
+/// or with a `constraint_scope` box, the one that box gives it wherever the point is.
+pub(crate) fn caret_position_from_point(
+    arena: &impl PaintRead,
+    query: PointQuery<'_>,
+    constraint_scope: NodeSlotId,
+) -> Option<FfiCaretAt> {
+    let resolver = PointResolver {
+        arena,
+        mapping: query.callbacks.viewport_mapping(query.tree),
+        point: query.point,
+    };
+    if !constraint_scope.is_invalid() {
+        let mut scope = constraint_scope;
+        while !arena.paintable_row_is_populated(scope) {
+            scope = arena.node_parent_if_live(scope)?;
         }
-        // A point that hits nothing, such as one past the edge of the viewport during a drag, goes to the viewport.
-        let Some(hit) = self.find_topmost_item(arena, tree, callbacks, point) else {
-            let mut viewport = self.items.first()?.paintable;
-            while let Some(parent) = arena.node_parent_if_live(viewport) {
-                viewport = parent;
-            }
-            return resolver.in_box(viewport);
-        };
-        let item = &self.items[hit.index];
-        let caret = match item.kind {
-            HitTestItemKind::TextFragment => resolver.in_lines_of(item.paintable),
-            HitTestItemKind::Box | HitTestItemKind::EmptyEditable | HitTestItemKind::ChromeWidget => {
-                resolver.in_box(item.paintable)
-            }
-            HitTestItemKind::SvgPath => Some(resolver.at_start_of(item.paintable)),
-        };
-        if let Some(caret) = caret.filter(|caret| caret.caret.has_position) {
-            return Some(caret);
-        }
-        // Generated content, such as a list marker, gives no position, and the nearest box around it that stands for a
-        // node takes the point.
-        let mut node = arena.node_parent_if_live(item.paintable)?;
-        while !arena.node_is_dom_backed(node) {
-            node = arena.node_parent_if_live(node)?;
-        }
-        resolver.in_box(node)
+        return resolver.in_box(scope);
     }
+    // A point that hits nothing, such as one past the edge of the viewport during a drag, goes to the viewport.
+    let Some(hit) = topmost_hit(arena, query) else {
+        if !arena.paintable_row_is_populated(query.viewport) {
+            return None;
+        }
+        return resolver.in_box(query.viewport);
+    };
+    let item = &hit.item;
+    let caret = match item.kind {
+        HitTestItemKind::TextFragment => resolver.in_lines_of(item.paintable),
+        HitTestItemKind::Box | HitTestItemKind::EmptyEditable | HitTestItemKind::ChromeWidget => {
+            resolver.in_box(item.paintable)
+        }
+        HitTestItemKind::SvgPath => Some(resolver.at_start_of(item.paintable)),
+    };
+    if let Some(caret) = caret.filter(|caret| caret.caret.has_position) {
+        return Some(caret);
+    }
+    // Generated content, such as a list marker, gives no position, and the nearest box around it that stands for a
+    // node takes the point.
+    let mut node = arena.node_parent_if_live(item.paintable)?;
+    while !arena.node_is_dom_backed(node) {
+        node = arena.node_parent_if_live(node)?;
+    }
+    resolver.in_box(node)
 }
 
 /// Resolves a point, in the viewport, to a caret position the way a box gives one for a point over it.

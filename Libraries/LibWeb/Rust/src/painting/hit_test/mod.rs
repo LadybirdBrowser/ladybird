@@ -15,7 +15,6 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
-use crate::painting::visual_context::VisualContextTree;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -99,100 +98,6 @@ impl SvgStrokeHitRegion {
 impl PartialEq for SvgStrokeHitRegion {
     fn eq(&self, other: &Self) -> bool {
         self.style == other.style
-    }
-}
-
-#[derive(Default)]
-pub struct SpatialIndex {
-    pub cells: FastMap<u64, Vec<usize>>,
-    pub unbucketed_items: Vec<usize>,
-}
-
-const SPATIAL_INDEX_CELL_SIZE: f64 = 128.0;
-const MAX_BUCKETED_CELLS_PER_ITEM: u64 = 64;
-
-pub fn spatial_index_cell_for(offset: CssPixels) -> i32 {
-    (offset.to_double() / SPATIAL_INDEX_CELL_SIZE).floor() as i32
-}
-
-pub fn spatial_index_cell_key(x: i32, y: i32) -> u64 {
-    ((x as u32 as u64) << 32) | (y as u32 as u64)
-}
-
-/// Every hit-test item of a document in paint order, walked from its rows, with spatial indexes for point queries.
-#[derive(Default)]
-pub struct HitTestList {
-    pub items: Arc<Vec<HitTestItem>>,
-    /// Point queries read only the spatial indexes, which are built on first use.
-    pub spatial_indexes_built: bool,
-    pub spatial_indexes_by_context: Vec<(ContextRef, SpatialIndex)>,
-    pub spatial_index_position_by_context: FastMap<ContextRef, usize>,
-}
-
-impl HitTestList {
-    pub(crate) fn build_spatial_indexes_if_needed(&mut self) {
-        if self.spatial_indexes_built {
-            return;
-        }
-        self.spatial_indexes_built = true;
-        for item_index in 0..self.items.len() {
-            self.add_item_to_spatial_index(item_index);
-        }
-    }
-
-    fn spatial_index_for(&mut self, context: ContextRef) -> &mut SpatialIndex {
-        let items_arrive_in_runs_sharing_a_context = self
-            .spatial_indexes_by_context
-            .last()
-            .is_some_and(|(last_context, _)| *last_context == context);
-        let position = if items_arrive_in_runs_sharing_a_context {
-            self.spatial_indexes_by_context.len() - 1
-        } else {
-            *self
-                .spatial_index_position_by_context
-                .entry(context)
-                .or_insert_with(|| {
-                    self.spatial_indexes_by_context.push((context, SpatialIndex::default()));
-                    self.spatial_indexes_by_context.len() - 1
-                })
-        };
-        &mut self.spatial_indexes_by_context[position].1
-    }
-
-    fn add_item_to_spatial_index(&mut self, item_index: usize) {
-        let (kind, rect, context) = {
-            let item = &self.items[item_index];
-            (item.kind, item.rect, item.context)
-        };
-        let spatial_index = self.spatial_index_for(context);
-        if kind == HitTestItemKind::ChromeWidget || rect.is_empty() {
-            spatial_index.unbucketed_items.push(item_index);
-            return;
-        }
-        let min_x = spatial_index_cell_for(rect.left());
-        let max_x = spatial_index_cell_for(rect.right());
-        let min_y = spatial_index_cell_for(rect.top());
-        let max_y = spatial_index_cell_for(rect.bottom());
-        let column_count = i64::from(max_x) - i64::from(min_x) + 1;
-        let row_count = i64::from(max_y) - i64::from(min_y) + 1;
-        if column_count <= 0 || row_count <= 0 {
-            spatial_index.unbucketed_items.push(item_index);
-            return;
-        }
-        let cell_count = column_count as u64 * row_count as u64;
-        if cell_count > MAX_BUCKETED_CELLS_PER_ITEM {
-            spatial_index.unbucketed_items.push(item_index);
-            return;
-        }
-        for y in min_y..=max_y {
-            for x in min_x..=max_x {
-                spatial_index
-                    .cells
-                    .entry(spatial_index_cell_key(x, y))
-                    .or_default()
-                    .push(item_index);
-            }
-        }
     }
 }
 
