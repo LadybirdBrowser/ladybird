@@ -6,7 +6,6 @@
  */
 
 #include <AK/Tuple.h>
-#include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibTest/TestCase.h>
 
@@ -18,18 +17,6 @@ static Crypto::UnsignedBigInteger bigint_fibonacci(size_t n)
     Crypto::UnsignedBigInteger num2(1);
     for (size_t i = 0; i < n; ++i) {
         Crypto::UnsignedBigInteger t = num1.plus(num2);
-        num2 = num1;
-        num1 = t;
-    }
-    return num1;
-}
-
-static Crypto::SignedBigInteger bigint_signed_fibonacci(size_t n)
-{
-    Crypto::SignedBigInteger num1(0);
-    Crypto::SignedBigInteger num2(1);
-    for (size_t i = 0; i < n; ++i) {
-        Crypto::SignedBigInteger t = num1.plus(num2);
         num2 = num1;
         num1 = t;
     }
@@ -210,9 +197,6 @@ TEST_CASE(test_bigint_from_utf16_string)
     auto unsigned_result = TRY_OR_FAIL(Crypto::UnsignedBigInteger::from_base(16, u"ffffffffffff"sv));
     EXPECT_EQ(MUST(unsigned_result.to_base(16)), "ffffffffffff");
 
-    auto signed_result = TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(10, u"-123456789"sv));
-    EXPECT_EQ(MUST(signed_result.to_base(10)), "-123456789");
-
     EXPECT(Crypto::UnsignedBigInteger::from_base(10, u"12\u00a0"sv).is_error());
 }
 
@@ -331,18 +315,6 @@ TEST_CASE(test_bigint_bitwise_or_different_lengths)
     EXPECT_EQ(result, expected);
 }
 
-TEST_CASE(test_signed_bigint_bitwise_or)
-{
-    auto num1 = "-1234567"_sbigint;
-    auto num2 = "1234567"_sbigint;
-    EXPECT_EQ(num1.bitwise_or(num1), num1);
-    EXPECT_EQ(num1.bitwise_or(num2), "-1"_sbigint);
-    EXPECT_EQ(num2.bitwise_or(num1), "-1"_sbigint);
-    EXPECT_EQ(num2.bitwise_or(num2), num2);
-
-    EXPECT_EQ("0"_sbigint.bitwise_or("-1"_sbigint), "-1"_sbigint);
-}
-
 TEST_CASE(test_bigint_bitwise_and)
 {
     auto num1 = "1234567"_bigint;
@@ -357,24 +329,6 @@ TEST_CASE(test_bigint_bitwise_and_different_lengths)
     EXPECT_EQ(num1.bitwise_and(num2), "1180290"_bigint);
 }
 
-TEST_CASE(test_signed_bigint_bitwise_not)
-{
-    EXPECT_EQ("3"_sbigint.bitwise_not(), "-4"_sbigint);
-    EXPECT_EQ("-1"_sbigint.bitwise_not(), "0"_sbigint);
-}
-
-TEST_CASE(test_signed_bigint_bitwise_and)
-{
-    auto num1 = "-1234567"_sbigint;
-    auto num2 = "1234567"_sbigint;
-    EXPECT_EQ(num1.bitwise_and(num1), num1);
-    EXPECT_EQ(num1.bitwise_and(num2), "1"_sbigint);
-    EXPECT_EQ(num2.bitwise_and(num1), "1"_sbigint);
-    EXPECT_EQ(num2.bitwise_and(num2), num2);
-
-    EXPECT_EQ("-3"_sbigint.bitwise_and("-2"_sbigint), "-4"_sbigint);
-}
-
 TEST_CASE(test_bigint_bitwise_xor)
 {
     auto num1 = "1234567"_bigint;
@@ -387,16 +341,6 @@ TEST_CASE(test_bigint_bitwise_xor_different_lengths)
     auto num1 = "1234567"_bigint;
     auto num2 = "123456789012345678901234567890"_bigint;
     EXPECT_EQ(num1.bitwise_xor(num2), "123456789012345678901233441877"_bigint);
-}
-
-TEST_CASE(test_signed_bigint_bitwise_xor)
-{
-    auto num1 = "-3"_sbigint;
-    auto num2 = "1"_sbigint;
-    EXPECT_EQ(num1.bitwise_xor(num1), "0"_sbigint);
-    EXPECT_EQ(num1.bitwise_xor(num2), "-4"_sbigint);
-    EXPECT_EQ(num2.bitwise_xor(num1), "-4"_sbigint);
-    EXPECT_EQ(num2.bitwise_xor(num2), "0"_sbigint);
 }
 
 TEST_CASE(test_bigint_shift_left)
@@ -453,244 +397,6 @@ TEST_CASE(test_bigint_shift_right)
         EXPECT_EQ(num2.shift_right(results2[i].get<0>()).words(), results2[i].get<1>());
 }
 
-TEST_CASE(test_signed_bigint_fibo500)
-{
-    Vector<u32> expected_result {
-        315178285, 505575602, 1883328078, 125027121,
-        3649625763, 347570207, 74535262, 3832543808,
-        2472133297, 1600064941, 65273441
-    };
-    auto result = bigint_signed_fibonacci(500);
-    EXPECT_EQ(result.unsigned_value().words(), expected_result);
-}
-
-TEST_CASE(test_signed_addition_edgecase_borrow_with_zero)
-{
-    Crypto::SignedBigInteger num1 { Crypto::UnsignedBigInteger { { UINT32_MAX - 3, UINT32_MAX } }, false };
-    Crypto::SignedBigInteger num2 { Crypto::UnsignedBigInteger { UINT32_MAX - 2 }, false };
-    Vector<u32> expected_result { 4294967289, 0, 1 };
-    EXPECT_EQ(num1.plus(num2).unsigned_value().words(), expected_result);
-}
-
-TEST_CASE(test_signed_addition_edgecase_addition_to_other_sign)
-{
-    Crypto::SignedBigInteger num1 = INT32_MAX;
-    Crypto::SignedBigInteger num2 = num1;
-    num2.negate();
-    EXPECT_EQ(num1.plus(num2), Crypto::SignedBigInteger { 0 });
-}
-
-TEST_CASE(test_signed_subtraction_simple_subtraction_positive_result)
-{
-    Crypto::SignedBigInteger num1(80);
-    Crypto::SignedBigInteger num2(70);
-    EXPECT_EQ(num1.minus(num2), Crypto::SignedBigInteger(10));
-}
-
-TEST_CASE(test_signed_subtraction_simple_subtraction_negative_result)
-{
-    Crypto::SignedBigInteger num1(50);
-    Crypto::SignedBigInteger num2(70);
-
-    EXPECT_EQ(num1.minus(num2), Crypto::SignedBigInteger { -20 });
-}
-
-TEST_CASE(test_signed_subtraction_both_negative)
-{
-    Crypto::SignedBigInteger num1(-50);
-    Crypto::SignedBigInteger num2(-70);
-
-    EXPECT_EQ(num1.minus(num2), Crypto::SignedBigInteger { 20 });
-    EXPECT_EQ(num2.minus(num1), Crypto::SignedBigInteger { -20 });
-}
-
-TEST_CASE(test_signed_subtraction_simple_subtraction_with_borrow)
-{
-    Crypto::SignedBigInteger num1(Crypto::UnsignedBigInteger { UINT32_MAX });
-    Crypto::SignedBigInteger num2(1);
-    Crypto::SignedBigInteger num3 = num1.plus(num2);
-    Crypto::SignedBigInteger result = num2.minus(num3);
-    num1.negate();
-    EXPECT_EQ(result, num1);
-}
-
-TEST_CASE(test_signed_subtraction_with_large_numbers)
-{
-    Crypto::SignedBigInteger num1 = bigint_signed_fibonacci(343);
-    Crypto::SignedBigInteger num2 = bigint_signed_fibonacci(218);
-    Crypto::SignedBigInteger result = num2.minus(num1);
-    auto expected = Crypto::UnsignedBigInteger { Vector<u32> { 811430588, 2958904896, 1130908877, 2830569969, 3243275482, 3047460725, 774025231, 7990 } };
-    EXPECT_EQ(result.plus(num1), num2);
-    EXPECT_EQ(result.unsigned_value(), expected);
-}
-
-TEST_CASE(test_signed_subtraction_with_large_numbers_check_for_assertion)
-{
-    Crypto::SignedBigInteger num1(Crypto::UnsignedBigInteger { Vector<u32> { 1483061863, 446680044, 1123294122, 191895498, 3347106536, 16, 0, 0, 0 } });
-    Crypto::SignedBigInteger num2(Crypto::UnsignedBigInteger { Vector<u32> { 4196414175, 1117247942, 1123294122, 191895498, 3347106536, 16 } });
-    Crypto::SignedBigInteger result = num1.minus(num2);
-    // this test only verifies that we don't crash on an assertion
-    (void)result;
-}
-
-TEST_CASE(test_signed_multiplication_with_negative_number)
-{
-    Crypto::SignedBigInteger num1(8);
-    Crypto::SignedBigInteger num2(-251);
-    Crypto::SignedBigInteger result = num1.multiplied_by(num2);
-    EXPECT_EQ(result, Crypto::SignedBigInteger { -2008 });
-}
-
-TEST_CASE(test_signed_multiplication_with_big_number)
-{
-    Crypto::SignedBigInteger num1 = bigint_signed_fibonacci(200);
-    Crypto::SignedBigInteger num2(-12345678);
-    Crypto::SignedBigInteger result = num1.multiplied_by(num2);
-    Vector<u32> expected_result { 669961318, 143970113, 4028714974, 3164551305, 1589380278, 2 };
-    EXPECT_EQ(result.unsigned_value().words(), expected_result);
-    EXPECT(result.is_negative());
-}
-
-TEST_CASE(test_signed_multiplication_with_two_big_numbers)
-{
-    Crypto::SignedBigInteger num1 = bigint_signed_fibonacci(200);
-    Crypto::SignedBigInteger num2 = bigint_signed_fibonacci(341);
-    num1.negate();
-    Crypto::SignedBigInteger result = num1.multiplied_by(num2);
-    Vector<u32> expected_results {
-        3017415433, 2741793511, 1957755698, 3731653885,
-        3154681877, 785762127, 3200178098, 4260616581,
-        529754471, 3632684436, 1073347813, 2516430
-    };
-    EXPECT_EQ(result.unsigned_value().words(), expected_results);
-    EXPECT(result.is_negative());
-}
-
-TEST_CASE(test_negative_zero_is_not_allowed)
-{
-    Crypto::SignedBigInteger zero(Crypto::UnsignedBigInteger(0), true);
-    EXPECT(!zero.is_negative());
-
-    zero.negate();
-    EXPECT(!zero.is_negative());
-
-    Crypto::SignedBigInteger positive_five(Crypto::UnsignedBigInteger(5), false);
-    Crypto::SignedBigInteger negative_five(Crypto::UnsignedBigInteger(5), true);
-    zero = positive_five.plus(negative_five);
-
-    EXPECT(zero.unsigned_value().is_zero());
-    EXPECT(!zero.is_negative());
-}
-
-TEST_CASE(test_i32_limits)
-{
-    Crypto::SignedBigInteger min { AK::NumericLimits<i32>::min() };
-    EXPECT(min.is_negative());
-    EXPECT(min.unsigned_value().to_u64() == static_cast<u32>(AK::NumericLimits<i32>::max()) + 1);
-
-    Crypto::SignedBigInteger max { AK::NumericLimits<i32>::max() };
-    EXPECT(!max.is_negative());
-    EXPECT(max.unsigned_value().to_u64() == AK::NumericLimits<i32>::max());
-}
-
-TEST_CASE(double_comparisons)
-{
-#define EXPECT_LESS_THAN(bigint, double_value) EXPECT_EQ(bigint.compare_to_double(double_value), Crypto::UnsignedBigInteger::CompareResult::DoubleGreaterThanBigInt)
-#define EXPECT_GREATER_THAN(bigint, double_value) EXPECT_EQ(bigint.compare_to_double(double_value), Crypto::UnsignedBigInteger::CompareResult::DoubleLessThanBigInt)
-#define EXPECT_EQUAL_TO(bigint, double_value) EXPECT_EQ(bigint.compare_to_double(double_value), Crypto::UnsignedBigInteger::CompareResult::DoubleEqualsBigInt)
-    {
-        Crypto::SignedBigInteger zero { 0 };
-        EXPECT_EQUAL_TO(zero, 0.0);
-        EXPECT_EQUAL_TO(zero, -0.0);
-    }
-
-    {
-        Crypto::SignedBigInteger one { 1 };
-        EXPECT_EQUAL_TO(one, 1.0);
-        EXPECT_GREATER_THAN(one, -1.0);
-        EXPECT_GREATER_THAN(one, 0.5);
-        EXPECT_GREATER_THAN(one, -0.5);
-        EXPECT_LESS_THAN(one, 1.000001);
-
-        one.negate();
-        auto const& negative_one = one;
-        EXPECT_EQUAL_TO(negative_one, -1.0);
-        EXPECT_LESS_THAN(negative_one, 1.0);
-        EXPECT_LESS_THAN(one, 0.5);
-        EXPECT_LESS_THAN(one, -0.5);
-        EXPECT_GREATER_THAN(one, -1.5);
-        EXPECT_LESS_THAN(one, 1.000001);
-        EXPECT_GREATER_THAN(one, -1.000001);
-    }
-
-    {
-        double double_infinity = HUGE_VAL;
-        VERIFY(isinf(double_infinity));
-        Crypto::SignedBigInteger one { 1 };
-        EXPECT_LESS_THAN(one, double_infinity);
-        EXPECT_GREATER_THAN(one, -double_infinity);
-    }
-
-    {
-        double double_max_value = NumericLimits<double>::max();
-        double double_below_max_value = nextafter(double_max_value, 0.0);
-        VERIFY(double_below_max_value < double_max_value);
-        VERIFY(double_below_max_value < (double_max_value - 1.0));
-        auto max_value_in_bigint = TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(16, "fffffffffffff800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"sv));
-        auto max_value_plus_one = max_value_in_bigint.plus(Crypto::SignedBigInteger { 1 });
-        auto max_value_minus_one = max_value_in_bigint.minus(Crypto::SignedBigInteger { 1 });
-
-        auto below_max_value_in_bigint = TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(16, "fffffffffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"sv));
-
-        EXPECT_EQUAL_TO(max_value_in_bigint, double_max_value);
-        EXPECT_LESS_THAN(max_value_minus_one, double_max_value);
-        EXPECT_GREATER_THAN(max_value_plus_one, double_max_value);
-        EXPECT_LESS_THAN(below_max_value_in_bigint, double_max_value);
-
-        EXPECT_GREATER_THAN(max_value_in_bigint, double_below_max_value);
-        EXPECT_GREATER_THAN(max_value_minus_one, double_below_max_value);
-        EXPECT_GREATER_THAN(max_value_plus_one, double_below_max_value);
-        EXPECT_EQUAL_TO(below_max_value_in_bigint, double_below_max_value);
-    }
-
-    {
-        double double_min_value = NumericLimits<double>::lowest();
-        double double_above_min_value = nextafter(double_min_value, 0.0);
-        VERIFY(double_above_min_value > double_min_value);
-        VERIFY(double_above_min_value > (double_min_value + 1.0));
-        auto min_value_in_bigint = TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(16, "-fffffffffffff800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"sv));
-        auto min_value_plus_one = min_value_in_bigint.plus(Crypto::SignedBigInteger { 1 });
-        auto min_value_minus_one = min_value_in_bigint.minus(Crypto::SignedBigInteger { 1 });
-
-        auto above_min_value_in_bigint = TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(16, "-fffffffffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"sv));
-
-        EXPECT_EQUAL_TO(min_value_in_bigint, double_min_value);
-        EXPECT_LESS_THAN(min_value_minus_one, double_min_value);
-        EXPECT_GREATER_THAN(min_value_plus_one, double_min_value);
-        EXPECT_GREATER_THAN(above_min_value_in_bigint, double_min_value);
-
-        EXPECT_LESS_THAN(min_value_in_bigint, double_above_min_value);
-        EXPECT_LESS_THAN(min_value_minus_one, double_above_min_value);
-        EXPECT_LESS_THAN(min_value_plus_one, double_above_min_value);
-        EXPECT_EQUAL_TO(above_min_value_in_bigint, double_above_min_value);
-    }
-
-    {
-        double just_above_255 = bit_cast<double>(0x406fe00000000001ULL);
-        double just_below_255 = bit_cast<double>(0x406fdfffffffffffULL);
-        double double_255 = 255.0;
-        Crypto::SignedBigInteger bigint_255 { 255 };
-
-        EXPECT_EQUAL_TO(bigint_255, double_255);
-        EXPECT_GREATER_THAN(bigint_255, just_below_255);
-        EXPECT_LESS_THAN(bigint_255, just_above_255);
-    }
-
-#undef EXPECT_LESS_THAN
-#undef EXPECT_GREATER_THAN
-#undef EXPECT_EQUAL_TO
-}
-
 TEST_CASE(to_double)
 {
 #define EXPECT_TO_EQUAL_DOUBLE(bigint, double_value) \
@@ -699,22 +405,8 @@ TEST_CASE(to_double)
     EXPECT_TO_EQUAL_DOUBLE(Crypto::UnsignedBigInteger(0), 0.0);
     // Make sure we don't get negative zero!
     EXPECT_EQ(signbit(Crypto::UnsignedBigInteger(0).to_double()), 0);
-    {
-        Crypto::SignedBigInteger zero { 0 };
-
-        EXPECT(!zero.is_negative());
-        EXPECT_TO_EQUAL_DOUBLE(zero, 0.0);
-        EXPECT_EQ(signbit(zero.to_double()), 0);
-
-        zero.negate();
-
-        EXPECT(!zero.is_negative());
-        EXPECT_TO_EQUAL_DOUBLE(zero, 0.0);
-        EXPECT_EQ(signbit(zero.to_double()), 0);
-    }
 
     EXPECT_TO_EQUAL_DOUBLE(Crypto::UnsignedBigInteger(9682), 9682.0);
-    EXPECT_TO_EQUAL_DOUBLE(Crypto::SignedBigInteger(-9660), -9660.0);
 
     double double_max_value = NumericLimits<double>::max();
     double infinity = INFINITY;
@@ -736,22 +428,6 @@ TEST_CASE(to_double)
         infinity);
 
     EXPECT_TO_EQUAL_DOUBLE(
-        TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(16, "-fffffffffffff800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"sv)),
-        -double_max_value);
-
-    EXPECT_TO_EQUAL_DOUBLE(
-        TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(16, "-ffffffffffffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"sv)),
-        -double_max_value);
-
-    EXPECT_TO_EQUAL_DOUBLE(
-        TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(16, "-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"sv)),
-        -double_max_value);
-
-    EXPECT_TO_EQUAL_DOUBLE(
-        TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(16, "-10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"sv)),
-        -infinity);
-
-    EXPECT_TO_EQUAL_DOUBLE(
         TRY_OR_FAIL(Crypto::UnsignedBigInteger::from_base(16, "ffffffffffffffff"sv)),
         18446744073709549568.0);
 
@@ -762,12 +438,6 @@ TEST_CASE(to_double)
     EXPECT_TO_EQUAL_DOUBLE(
         TRY_OR_FAIL(Crypto::UnsignedBigInteger::from_base(16, "fffffffffffff8ff"sv)),
         18446744073709549568.0);
-
-    EXPECT_TO_EQUAL_DOUBLE(TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(10, "1234567890123456789"sv)),
-        1234567890123456800.0);
-
-    EXPECT_TO_EQUAL_DOUBLE(TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(10, "2345678901234567890"sv)),
-        2345678901234567680.0);
 
     EXPECT_EQ(
         TRY_OR_FAIL(Crypto::UnsignedBigInteger::from_base(16, "1fffffffffffff00"sv)).to_double(Crypto::UnsignedBigInteger::RoundingMode::IEEERoundAndTiesToEvenMantissa),
@@ -840,45 +510,6 @@ TEST_CASE(bigint_from_double)
     // Has exactly exponent of 32
     SURVIVES_ROUND_TRIP_UNSIGNED(bit_cast<double>(0x41f22f74e0000000ULL));
 
-#define SURVIVES_ROUND_TRIP_SIGNED(double_value)                      \
-    {                                                                 \
-        Crypto::SignedBigInteger bigint_positive { (double_value) };  \
-        EXPECT_EQ(bigint_positive.to_double(), (double_value));       \
-        Crypto::SignedBigInteger bigint_negative { -(double_value) }; \
-        EXPECT_EQ(bigint_negative.to_double(), -(double_value));      \
-        EXPECT(bigint_positive != bigint_negative);                   \
-        bigint_positive.negate();                                     \
-        EXPECT(bigint_positive == bigint_negative);                   \
-    }
-
-    {
-        // Negative zero should be converted to positive zero
-        double const negative_zero = bit_cast<double>(0x8000000000000000);
-
-        // However it should give a bit exact +0.0
-        Crypto::SignedBigInteger from_negative_zero { negative_zero };
-        EXPECT(from_negative_zero.is_zero());
-        EXPECT(!from_negative_zero.is_negative());
-        double result = from_negative_zero.to_double();
-        EXPECT_EQ(result, 0.0);
-        EXPECT_EQ(bit_cast<u64>(result), 0ULL);
-    }
-
-    SURVIVES_ROUND_TRIP_SIGNED(1.0);
-    SURVIVES_ROUND_TRIP_SIGNED(100000.0);
-    SURVIVES_ROUND_TRIP_SIGNED(-1000000000000.0);
-    SURVIVES_ROUND_TRIP_SIGNED(10000000000000000000.0);
-    SURVIVES_ROUND_TRIP_SIGNED(NumericLimits<double>::max());
-    SURVIVES_ROUND_TRIP_SIGNED(NumericLimits<double>::lowest());
-
-    SURVIVES_ROUND_TRIP_SIGNED(bit_cast<double>(0x4340000000000002ULL));
-    SURVIVES_ROUND_TRIP_SIGNED(bit_cast<double>(0x4340000000000001ULL));
-    SURVIVES_ROUND_TRIP_SIGNED(bit_cast<double>(0x4340000000000000ULL));
-    SURVIVES_ROUND_TRIP_SIGNED(bit_cast<double>(0x7EDFFFFFFFFFFFFFULL));
-    SURVIVES_ROUND_TRIP_SIGNED(bit_cast<double>(0x7ed5555555555555ULL));
-    SURVIVES_ROUND_TRIP_SIGNED(bit_cast<double>(0x7EDCBA9876543210ULL));
-
-#undef SURVIVES_ROUND_TRIP_SIGNED
 #undef SURVIVES_ROUND_TRIP_UNSIGNED
 }
 
