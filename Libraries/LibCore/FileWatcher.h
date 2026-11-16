@@ -49,7 +49,6 @@ public:
 
     ErrorOr<bool> add_watch(ByteString path, FileWatcherEvent::Type event_mask);
     ErrorOr<bool> remove_watch(ByteString path);
-    bool is_watching(ByteString const& path) const { return m_path_to_wd.find(path) != m_path_to_wd.end(); }
 
 protected:
     FileWatcherBase(int watcher_fd)
