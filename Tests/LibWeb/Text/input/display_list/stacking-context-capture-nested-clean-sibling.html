@@ -32,7 +32,6 @@ displayListTest({
             check: checkHitTargets,
             // A must be a single reuse leaf, covering both nested contexts and their content.
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -90,7 +89,6 @@ displayListTest({
             name: "quiet recording covers both contexts",
             check: checkHitTargets,
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -101,7 +99,6 @@ displayListTest({
             check: checkHitTargets,
             // Changing the command size before B also tests relocation of B's complete capture.
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -161,7 +158,6 @@ displayListTest({
             check: checkHitTargets,
             // Descend into the previously spliced B, reusing its positive context from the first step.
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

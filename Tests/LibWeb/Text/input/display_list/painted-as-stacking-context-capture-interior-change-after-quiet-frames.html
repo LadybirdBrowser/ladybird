@@ -27,7 +27,6 @@ displayListTest({
             name: "first interior change",
             mutate: () => { b0.style.color = "red"; },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -84,7 +83,6 @@ displayListTest({
         {
             name: "first quiet recording",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -92,7 +90,6 @@ displayListTest({
         {
             name: "second quiet recording",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -101,7 +98,6 @@ displayListTest({
             name: "second interior change",
             mutate: () => { b0.style.color = "blue"; },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

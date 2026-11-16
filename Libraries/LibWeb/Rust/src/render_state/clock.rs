@@ -44,7 +44,7 @@ use crate::paint_stage::Presenting;
 use crate::painting::paint_passes::{ClockTickVisualContexts, VisualContextsNeedHost, prepare_for_clock_tick};
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::presentation::Presentation;
-use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::change_ticks::RowPaintChange;
 use crate::painting::record::inputs::UnframedRecordingInputs;
 use crate::painting::record::publish::{published_vector_image_records, renders_vector_images, take_in_recording};
 use crate::painting::record::recorder_state::RecorderState;
@@ -930,7 +930,7 @@ impl Lane {
                 if let Some(host_style) = arena.install_sample(row, restyled, crate::layout::SampleKind::Animation)? {
                     self.ticked.push((row, host_style));
                 }
-                arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
+                arena.note_paint_change_for_repaint(row, RowPaintChange::EVERYTHING_IT_PAINTS);
             }
         }
         self.mark_all_for_tree_build(state, rebuilt)
@@ -1104,7 +1104,7 @@ fn restore_samples_for_build(
     let mut held = held.into_iter();
     for (row, host_style) in ticked.extract_if(.., |_| held.next().expect("each ticked row was asked once")) {
         arena.restore_host_style(row, host_style, crate::layout::StyleRelayout::ByLayoutAffectingGroups);
-        arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
+        arena.note_paint_change_for_repaint(row, RowPaintChange::EVERYTHING_IT_PAINTS);
     }
     Ok(())
 }
@@ -1506,7 +1506,7 @@ impl Lane {
                     Ok(host_style) => self.ticked.extend(host_style.map(|host_style| (row, host_style))),
                     Err(_) => shown = Err(Park("a rebuilt box takes no restyle")),
                 }
-                arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
+                arena.note_paint_change_for_repaint(row, RowPaintChange::EVERYTHING_IT_PAINTS);
             }
             arena.with_style_engine(|engine| engine.unpin_layout_style_record(record));
         }
@@ -1661,10 +1661,11 @@ fn freeze_tick_frame(
         return Err(Park("a trace reads the recording"));
     }
     let visual_contexts = prepare_for_clock_tick(arena, viewport)?;
-    // A tick's frame copies from the lane's own, and its damage stays: the whole document would record again on every tick.
-    if arena.paint_damage_covers_everything()
-        || arena.scroll_metadata_damaged_everywhere()
-        || recorder.published_recording.is_none()
+    // A tick's frame reuses from the lane's own, where the whole document would record again on every tick.
+    if recorder
+        .published_recording
+        .as_ref()
+        .is_none_or(|published| arena.everything_paints_anew_since(published.recorded_as_of))
     {
         return Err(Park("the whole document records again"));
     }

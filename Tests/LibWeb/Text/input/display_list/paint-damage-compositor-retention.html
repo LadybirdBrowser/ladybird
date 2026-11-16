@@ -25,7 +25,6 @@ displayListTest({
         {
             name: "quiet while the animation runs on the compositor",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -34,7 +33,6 @@ displayListTest({
             name: "a selection pass after the animation started",
             mutate: () => { internals.updateCompositorAnimations(); },
             expect: `
-                damage: rows=4 moved=0 order=0 eligibility=1 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -53,11 +51,11 @@ displayListTest({
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
-                      BlockContainer<DIV>#box/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#box/descendants(background-and-borders) REPLAN
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground COPY
-                      BlockContainer<DIV>#box/descendants(foreground) ASSEMBLE
+                      BlockContainer<DIV>#box/descendants(foreground) REPLAN
                       BlockContainer<BODY>#body/outline COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#box REPLAN
@@ -75,7 +73,6 @@ displayListTest({
             name: "a selection pass that keeps the animation on the compositor",
             mutate: () => { internals.updateCompositorAnimations(); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -84,7 +81,6 @@ displayListTest({
             name: "remove the animation",
             mutate: () => { box.style.animation = "none"; box.getBoundingClientRect(); internals.updateCompositorAnimations(); },
             expect: `
-                damage: rows=4 moved=0 order=0 eligibility=1 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -103,11 +99,11 @@ displayListTest({
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
-                      BlockContainer<DIV>#box/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#box/descendants(background-and-borders) REPLAN
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground COPY
-                      BlockContainer<DIV>#box/descendants(foreground) ASSEMBLE
+                      BlockContainer<DIV>#box/descendants(foreground) REPLAN
                       BlockContainer<BODY>#body/outline COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#box SKIP
@@ -118,7 +114,6 @@ displayListTest({
         {
             name: "quiet after the animation",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

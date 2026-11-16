@@ -673,18 +673,18 @@ impl LayoutNodeArena {
     /// children: the cached runs that describe the old list, and the paint that depends on it.
     fn note_contained_child_list_change(&mut self, parent: NodeSlotId) {
         use crate::layout::node_data::DomPaintFact;
-        use crate::painting::record::damage::PaintDamage;
+        use crate::painting::record::change_ticks::RowPaintChange;
 
         self.invalidate_fragments_of_self_and_ancestors_for_change_that_sizes_no_box(parent);
         // A committed row plans its children's paint, and an empty editable box is a caret target
         // only while it has nothing to paint in it.
-        let mut damage = PaintDamage::ORDER;
+        let mut paint_change = RowPaintChange::ORDER;
         if crate::painting::node_painting::has_lines(self, parent)
             && self.node_has_dom_paint_fact(parent, DomPaintFact::EditableOrEditingHost)
         {
-            damage |= PaintDamage::ALL_PRODUCERS;
+            paint_change |= RowPaintChange::EVERYTHING_IT_PAINTS;
         }
-        self.push_paint_damage(parent, damage);
+        self.note_paint_change(parent, paint_change);
     }
 
     /// Marks for layout every box whose style renders in one of the font cascades of `font_lists`, which loads filled

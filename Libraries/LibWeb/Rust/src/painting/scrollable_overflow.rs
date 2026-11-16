@@ -115,25 +115,25 @@ impl LayoutNodeArena {
         has_scrollable_overflow: bool,
         changed_outside_layout: bool,
     ) {
-        use crate::painting::record::damage::PaintDamage;
+        use crate::painting::record::change_ticks::RowPaintChange;
         if changed_outside_layout {
             self.scrollable_overflow.geometry_changed = true;
         }
-        self.push_paint_damage(
+        self.note_paint_change(
             node,
-            PaintDamage::SCROLL_METADATA | PaintDamage::DRAW_OVERLAY | PaintDamage::HIT_OVERLAY,
+            RowPaintChange::SCROLL_METADATA | RowPaintChange::DRAWING | RowPaintChange::HIT_TESTING,
         );
         // The root background covers the viewport united with the overflow of the viewport box.
         if self.node_kind_if_live(node) == Some(NodeKind::Viewport)
             && let Some(source) = self.paint_state().root_background_source
         {
-            self.push_paint_damage(source.root_layout_node, PaintDamage::DRAW_BACKGROUND);
+            self.note_paint_change(source.root_layout_node, RowPaintChange::DRAWING);
         }
         if had_scrollable_overflow != has_scrollable_overflow {
             self.scrollable_overflow.scrollability_changed = true;
-            self.push_paint_damage(node, PaintDamage::ALL_PRODUCERS);
+            self.note_paint_change(node, RowPaintChange::EVERYTHING_IT_PAINTS);
             self.paintable_rows_mut()
-                .push_paint_damage_to_paint_subtree(node, PaintDamage::SCROLL_METADATA);
+                .note_paint_change_in_paint_subtree(node, RowPaintChange::SCROLL_METADATA);
             self.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ScrollableOverflowFlipped);
         }
     }

@@ -16,7 +16,7 @@ use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::style::bridge::element_adjustment_fact;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
-use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::change_ticks::RowPaintChange;
 use crate::render_state::DocumentHost;
 
 /// Which narrower rebuild the marks a node has collected so far still permit, as
@@ -757,7 +757,7 @@ impl FfiBoxMarks {
         if let Some(inline_box) =
             crate::painting::fragment_ownership::nearest_self_painting_inline_box(&arena.paintable_rows(), row)
         {
-            arena.push_paint_damage(inline_box, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
+            arena.note_paint_change(inline_box, RowPaintChange::DRAWING | RowPaintChange::HIT_TESTING);
         }
     }
 }
@@ -776,7 +776,7 @@ fn size_is_independent_of_image(style: ComputedValuesView<'_>) -> bool {
 
 fn repaint_subtree(arena: &mut LayoutNodeArena, row: NodeSlotId) {
     if arena.paintable_row_is_populated(row) {
-        arena.push_paint_damage_to_paint_subtree(row, PaintDamage::ALL_PRODUCERS);
+        arena.note_paint_change_in_paint_subtree(row, RowPaintChange::EVERYTHING_IT_PAINTS);
     }
 }
 
@@ -785,16 +785,19 @@ pub(crate) fn repaint(arena: &mut LayoutNodeArena, row: NodeSlotId, includes_hit
     if !arena.paintable_row_is_populated(row) {
         return;
     }
-    let damage = if includes_hit_testing {
-        PaintDamage::ALL_PRODUCERS
+    let paint_change = if includes_hit_testing {
+        RowPaintChange::EVERYTHING_IT_PAINTS
     } else {
-        PaintDamage::ALL_DRAW
+        RowPaintChange::DRAWING
     };
-    arena.push_paint_damage_for_repaint(row, damage);
+    arena.note_paint_change_for_repaint(row, paint_change);
     if arena.node_flags(row) & NodeFlag::IsBody as u32 != 0 {
         let source = super::viewport_propagation::root_background_source(arena);
         if source.use_body_background_properties && arena.paintable_row_is_populated(source.root_layout_node) {
-            arena.push_paint_damage(source.root_layout_node, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
+            arena.note_paint_change(
+                source.root_layout_node,
+                RowPaintChange::DRAWING | RowPaintChange::HIT_TESTING,
+            );
         }
     }
 }

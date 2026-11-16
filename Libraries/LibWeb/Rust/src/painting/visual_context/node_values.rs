@@ -566,8 +566,8 @@ pub(crate) fn set_svg_filter_bounds(
         bounds,
     );
     if previous != bounds {
-        use crate::painting::record::damage::PaintDamage;
-        layout_arena.push_paint_damage(slot, PaintDamage::SCOPE_PREAMBLE | PaintDamage::SVG);
+        use crate::painting::record::change_ticks::RowPaintChange;
+        layout_arena.note_paint_change(slot, RowPaintChange::DRAWING);
     }
 }
 

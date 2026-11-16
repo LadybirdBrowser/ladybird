@@ -31,6 +31,7 @@ use crate::layout::node_data::{
 use crate::layout::node_facts::ReplacedContentFacts;
 use crate::layout::tree_mutation::HostCalls;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
+use crate::painting::record::change_ticks::RowPaintChange;
 use crate::render_state::DocumentHost;
 use crate::stage::MainThread;
 use std::ffi::c_void;
@@ -2790,7 +2791,7 @@ impl LayoutNodeArena {
             self.mark_row_for_relayout_after_style_change(style_node, slot);
         }
         self.note_style_visual_context_moves(slot, row.record_damage);
-        self.push_paint_damage_for_repaint(slot, crate::painting::record::damage::PaintDamage::ALL_PRODUCERS);
+        self.note_paint_change_for_repaint(slot, RowPaintChange::EVERYTHING_IT_PAINTS);
     }
 
     /// Notes the visual contexts a style move with `damage`, an `FfiStyleInvalidationField` word, moves for `slot`'s
@@ -4708,11 +4709,8 @@ impl LayoutNodeArena {
         };
         if changed {
             self.paint_fact_writes += 1;
-            use crate::painting::record::damage::PaintDamage;
-            self.push_paint_damage_for_repaint(
-                id,
-                PaintDamage::DRAW_BACKGROUND | PaintDamage::DRAW_BORDER | PaintDamage::SCOPE_PREAMBLE,
-            );
+            use crate::painting::record::change_ticks::RowPaintChange;
+            self.note_paint_change_for_repaint(id, RowPaintChange::DRAWING);
         }
         changed
     }
@@ -4751,7 +4749,7 @@ impl LayoutNodeArena {
         if !shows {
             return;
         }
-        let damage = facts.damage_when_changed();
+        let paint_change = facts.paint_change_when_changed();
         let rows: Vec<NodeSlotId> = self.rows_sharing_dom_node_with(id).collect();
         for row in rows {
             if self.replaced_paint_facts.get(&row) == Some(&facts) {
@@ -4759,7 +4757,7 @@ impl LayoutNodeArena {
             }
             Arc::make_mut(&mut self.replaced_paint_facts).insert(row, facts.clone());
             self.paint_fact_writes += 1;
-            self.push_paint_damage_for_repaint(row, damage);
+            self.note_paint_change_for_repaint(row, paint_change);
         }
     }
 
@@ -4818,8 +4816,8 @@ impl LayoutNodeArena {
             }
             self.write_shape(row).set_dom_paint_facts(facts);
             any_changed = true;
-            use crate::painting::record::damage::PaintDamage;
-            self.push_paint_damage_for_repaint(row, PaintDamage::ALL_HIT | PaintDamage::SCROLL_METADATA);
+            use crate::painting::record::change_ticks::RowPaintChange;
+            self.note_paint_change_for_repaint(row, RowPaintChange::HIT_TESTING | RowPaintChange::SCROLL_METADATA);
         }
         any_changed
     }
@@ -4933,7 +4931,7 @@ impl LayoutNodeArena {
         // Retaining compositor-animated content decides whether a non-invertible transform
         // still records its stacking context.
         if flag == NodeFlag::HasAnimatedOpacityOrTransform && updated != previous {
-            self.push_paint_damage(id, crate::painting::record::damage::PaintDamage::ELIGIBILITY);
+            self.note_paint_change(id, RowPaintChange::ORDER);
         }
     }
 
@@ -6371,7 +6369,7 @@ impl LayoutNodeArena {
 
     pub(crate) fn remove_child(&mut self, parent: NodeSlotId, child: NodeSlotId) {
         if self.paintable_row_count() > 0 {
-            self.push_enclosing_paint_order_damage(child);
+            self.note_enclosing_paint_order_change(child);
         }
         self.unlink_child(parent, child);
         self.invalidate_self_and_ancestors(
@@ -6712,10 +6710,7 @@ pub unsafe extern "C" fn render_state_set_node_style(
 /// observers the row holds are dropped, and the image provider it owns is told.
 pub(crate) fn prepare_row_for_detach(host_calls: HostCalls<'_>, arena: &mut LayoutNodeArena, row: NodeSlotId) {
     arena.pin_style_record_for_detachment(row);
-    arena.push_paint_damage(
-        row,
-        crate::painting::record::damage::PaintDamage::ALL_DRAW | crate::painting::record::damage::PaintDamage::ALL_HIT,
-    );
+    arena.note_paint_change(row, RowPaintChange::DRAWING | RowPaintChange::HIT_TESTING);
     host_calls.row_detached(row, arena.data(row).kind.get());
 }
 

@@ -20,16 +20,15 @@ displayListTest({
             mutate: () => { document.getElementById("parent").style.position = "relative"; },
             check: equal => { equal(document.elementFromPoint(20, 20).id, "child", "hit target"); },
             expect: `
-                damage: rows=5 moved=2 order=5 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport REPLAN
                   @viewport/preamble COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
-                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  BlockContainer<HTML>#html/descendants(background-and-borders) REPLAN
                   @viewport/foreground COPY
-                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html/descendants(foreground) REPLAN
                   BlockContainer<HTML>#html REPLAN
                     BlockContainer<HTML>#html/preamble COPY
                     BlockContainer<HTML>#html/scroll-metadata COPY
@@ -71,7 +70,6 @@ displayListTest({
         {
             name: "quiet after the containing block change",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

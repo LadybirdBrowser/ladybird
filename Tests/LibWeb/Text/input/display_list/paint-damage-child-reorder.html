@@ -20,7 +20,6 @@ displayListTest({
             name: "quiet before the swap",
             check: equal => { equal(document.elementFromPoint(75, 50).id, "b", "hit target"); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -30,7 +29,6 @@ displayListTest({
             mutate: () => { panel.insertBefore(b, a); },
             check: equal => { equal(document.elementFromPoint(75, 50).id, "a", "hit target"); },
             expect: `
-                damage: rows=5 moved=1 order=2 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

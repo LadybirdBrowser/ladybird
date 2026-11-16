@@ -18,7 +18,6 @@ displayListTest({
             name: "select the middle block",
             mutate: () => { getSelection().selectAllChildren(target); },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble RECORD (empty)
@@ -70,7 +69,6 @@ displayListTest({
             name: "clear the selection",
             mutate: () => { getSelection().removeAllRanges(); },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble RECORD (empty)

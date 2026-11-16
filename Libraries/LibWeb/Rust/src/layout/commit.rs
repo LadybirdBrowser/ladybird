@@ -10,7 +10,7 @@ use crate::layout::node_data::DomPaintFact;
 use crate::painting::node_painting;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_rows::PaintableRowReset;
-use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::change_ticks::RowPaintChange;
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 
 /// What a commit message tells the document.
@@ -672,7 +672,8 @@ impl<'tree> Commit<'_, 'tree> {
             if row_existed_before_this_commit
                 && line_root_changes_repaint_inline_box(self.arena(), node, enclosing_line_root_changes)
             {
-                self.arena_mut().push_paint_damage(node, PaintDamage::ALL_PRODUCERS);
+                self.arena_mut()
+                    .note_paint_change(node, RowPaintChange::EVERYTHING_IT_PAINTS);
             }
             if row_existed_before_this_commit && enclosing_line_root_changes.fragment_changed {
                 self.arena_mut()
@@ -733,17 +734,17 @@ impl<'tree> Commit<'_, 'tree> {
                 .line_data
                 .as_ref()
                 .is_none_or(|content| content.fragments.is_empty());
-        let mut damage = PaintDamage::NONE;
+        let mut paint_change = RowPaintChange::NONE;
         if change.changes_what_the_box_itself_shows()
             || (change.fragment_identity_changed && has_descendant_dependent_paint(self.arena(), node))
             || empty_editable_children_changed
         {
-            damage |= PaintDamage::ALL_PRODUCERS;
+            paint_change |= RowPaintChange::EVERYTHING_IT_PAINTS;
         }
         // Inserted, removed or reordered children change which scopes this row's plans list,
         // independently of where the children were placed.
         if change.child_sequence_changed || change.inline_item_order_changed {
-            damage |= PaintDamage::ORDER;
+            paint_change |= RowPaintChange::ORDER;
         }
         // Keep fragment identity as the conservative signal for overflow and visual contexts.
         // The fragment stays the same when only the link's margins or parent-decided facts change, but margin-box clip
@@ -758,16 +759,16 @@ impl<'tree> Commit<'_, 'tree> {
             // the fragment's temporary offset would dirty identical inlines on every relayout; their
             // line content and box properties suffice.
             if line_root_changes_repaint_inline_box(self.arena(), node, enclosing_line_root_changes) {
-                damage |= PaintDamage::ALL_PRODUCERS;
+                paint_change |= RowPaintChange::EVERYTHING_IT_PAINTS;
             }
             if enclosing_line_root_changes.inline_item_order_changed {
-                damage |= PaintDamage::ORDER;
+                paint_change |= RowPaintChange::ORDER;
             }
             fragment_content_changed |= enclosing_line_root_changes.fragment_changed;
         } else if offset_changed {
-            damage |= PaintDamage::MOVED;
+            paint_change |= RowPaintChange::PLACE;
         }
-        self.arena_mut().push_paint_damage(node, damage);
+        self.arena_mut().note_paint_change(node, paint_change);
         if offset_changed {
             self.arena_mut()
                 .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::MovedWithDescendants);
@@ -896,7 +897,7 @@ impl<'tree> Commit<'_, 'tree> {
             return;
         }
         self.arena_mut()
-            .push_paint_damage(slot, PaintDamage::ALL_PRODUCERS | PaintDamage::MOVED);
+            .note_paint_change(slot, RowPaintChange::EVERYTHING_IT_PAINTS | RowPaintChange::PLACE);
         self.arena_mut().note_visual_context_box_dirty(
             slot,
             if moved {
@@ -935,7 +936,7 @@ impl<'tree> Commit<'_, 'tree> {
         });
         self.arena_mut().committed_side_data_mut(slot).inline_content = Some(line_data.clone());
         if item_order_changed {
-            self.arena_mut().push_paint_damage(slot, PaintDamage::ORDER);
+            self.arena_mut().note_paint_change(slot, RowPaintChange::ORDER);
         }
         if has_pieces {
             self.arena_mut().note_line_root_needs_fragment_ownership(slot);
@@ -985,7 +986,7 @@ impl<'tree> Commit<'_, 'tree> {
             paintable_rows.request_ink_overflow_recalculation(old_containing_block);
             paintable_rows.request_ink_overflow_recalculation(containing_block);
             paintable_rows.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ContainingBlockChanged);
-            paintable_rows.push_paint_damage(node, PaintDamage::MOVED);
+            paintable_rows.note_paint_change(node, RowPaintChange::PLACE);
         }
     }
 

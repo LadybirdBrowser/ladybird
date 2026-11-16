@@ -17,7 +17,6 @@ displayListTest({
         {
             name: "quiet before insertion",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -28,16 +27,15 @@ displayListTest({
             mutate: () => { const inserted = document.createElement("div"); inserted.id = "inserted"; inserted.className = "row"; inserted.style.position = "relative"; inserted.textContent = "B 1"; b.appendChild(inserted); },
             check: equal => { equal(document.elementFromPoint(10, 70).id, "inserted", "hit target"); },
             expect: `
-                damage: rows=5 moved=1 order=3 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
-                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  BlockContainer<HTML>#html/descendants(background-and-borders) REPLAN
                   @viewport/foreground COPY
-                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html/descendants(foreground) REPLAN
                   BlockContainer<HTML>#html REPLAN
                     BlockContainer<HTML>#html/preamble RECORD (empty)
                     BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
@@ -86,7 +84,6 @@ displayListTest({
         {
             name: "quiet after insertion",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

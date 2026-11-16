@@ -20,7 +20,6 @@ displayListTest({
             mutate: () => { root.style.transform = "scale(0)"; },
             check: equal => { equal(document.elementFromPoint(10, 10).id, "html", "hit target"); },
             expect: `
-                damage: rows=4 moved=0 order=0 eligibility=1 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -39,11 +38,11 @@ displayListTest({
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
-                      BlockContainer<DIV>#root/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#root/descendants(background-and-borders) REPLAN
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground COPY
-                      BlockContainer<DIV>#root/descendants(foreground) ASSEMBLE
+                      BlockContainer<DIV>#root/descendants(foreground) REPLAN
                       BlockContainer<BODY>#body/outline COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#root SKIP
@@ -55,7 +54,6 @@ displayListTest({
             name: "restyle the target while its context is collapsed",
             mutate: () => { target.style.background = "blue"; target.style.pointerEvents = "none"; },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -89,7 +87,6 @@ displayListTest({
         {
             name: "quiet frame keeps the context collapsed",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -99,7 +96,6 @@ displayListTest({
             mutate: () => { root.style.transform = "scale(1)"; },
             check: equal => { equal(document.elementFromPoint(10, 10).id, "root", "hit target"); },
             expect: `
-                damage: rows=4 moved=0 order=0 eligibility=1 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -118,11 +114,11 @@ displayListTest({
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
-                      BlockContainer<DIV>#root/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#root/descendants(background-and-borders) REPLAN
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground COPY
-                      BlockContainer<DIV>#root/descendants(foreground) ASSEMBLE
+                      BlockContainer<DIV>#root/descendants(foreground) REPLAN
                       BlockContainer<BODY>#body/outline COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#root REPLAN
@@ -150,7 +146,6 @@ displayListTest({
             mutate: () => { target.style.pointerEvents = "auto"; },
             check: equal => { equal(document.elementFromPoint(10, 10).id, "target", "hit target"); },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

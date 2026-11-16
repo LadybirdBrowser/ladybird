@@ -23,7 +23,6 @@ displayListTest({
             name: "change one shadow owner with a pseudo-element",
             mutate: () => { first.shadowRoot.getElementById("item").style.color = "red"; },
             expect: `
-                damage: rows=7 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -104,7 +103,6 @@ displayListTest({
         {
             name: "quiet shadow trees",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `,

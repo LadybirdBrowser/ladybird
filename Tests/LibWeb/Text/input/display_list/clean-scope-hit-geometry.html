@@ -22,7 +22,6 @@ displayListTest({
             mutate: () => { other.style.height = "60px"; },
             check: equal => { equal(document.caretPositionFromPoint(20, 20)?.offsetNode, textNode, "caret target"); },
             expect: `
-                damage: rows=4 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -67,7 +66,6 @@ displayListTest({
             mutate: () => { document.getElementById("external").style.marginRight = "25px"; },
             check: equal => { equal(document.caretPositionFromPoint(20, 20)?.offsetNode, textNode, "caret target"); },
             expect: `
-                damage: rows=4 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

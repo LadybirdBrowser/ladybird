@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Assembles a frame from the scopes the published recording walked and the pushed damage. A walked scope whose
-//! owner has no damage below it and has not moved is reused whole. Otherwise its plan is walked: each run of items
-//! reuses the chunk the published recording recorded it into, or is recorded again into a chunk of its own, from its
-//! first item to its last, when damage reaches it or an ancestor moved it. Nothing is validated on the way: when
-//! assembly starts, the damage set is complete by construction.
+//! Assembles a frame from the scopes the published recording walked and what changed since. A walked scope whose
+//! owner and paint subtree were stamped with no generation newer than the published recording, and which has not
+//! moved, is reused whole. Otherwise its plan is walked: each run of items reuses the chunk the published recording
+//! recorded it into, or is recorded again into a chunk of its own, from its first item to its last, when something it
+//! reads changed or an ancestor moved it.
 
 use super::PaintPhase;
 use super::order_tree::{
@@ -17,10 +17,8 @@ use super::order_tree::{
 };
 use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::paint_order_plan::{
-    PaintOrderItem, PaintProducer, PaintScope, PaintScopeKind, StackingContextPaintPhase,
-};
-use crate::painting::record::damage::PaintDamage;
+use crate::painting::paint_order_plan::{PaintOrderItem, PaintProducer, PaintScope};
+use crate::painting::record::change_ticks::RowChanges;
 use smallvec::SmallVec;
 use std::sync::Arc;
 
@@ -120,11 +118,11 @@ pub(crate) trait AssemblyHost {
     /// nothing was.
     fn take_run_chunk(&mut self) -> Option<Arc<RecordedChunk>>;
 
-    /// The damage pushed for a row since the published recording, with the hint that something below it was
-    /// damaged.
-    fn damage_of_row(&mut self, row: NodeSlotId) -> PaintDamage;
+    /// What changed of a row since the published recording: what its own producers read, its place in paint order,
+    /// or something in its paint subtree.
+    fn changes_of_row(&mut self, row: NodeSlotId) -> RowChanges;
 
-    /// Where a row's boxes are. A row an ancestor moved records again though nothing was pushed for it.
+    /// Where a row's boxes are. A row an ancestor moved records again though nothing stamped it.
     fn placement_of_row(&mut self, row: NodeSlotId) -> RowPlacement;
 
     fn producer_reads_descendants(&mut self, owner: NodeSlotId, kind: ProducerKind) -> bool;
@@ -138,22 +136,15 @@ enum SegmentKey {
     Walked(PaintScope),
 }
 
-/// Whether the published recording can be returned as it is: nothing was pushed, and nothing in it is recorded every
-/// frame or read a window focus that changed.
-pub(crate) fn frame_is_unchanged(published_root: &RecordedScope, has_damage: bool, window_focus_changed: bool) -> bool {
+/// Whether the published recording can be returned as it is: nothing changed since, and nothing in it is recorded
+/// every frame or read a window focus that changed.
+pub(crate) fn frame_is_unchanged(
+    published_root: &RecordedScope,
+    anything_changed: bool,
+    window_focus_changed: bool,
+) -> bool {
     let facts = published_root.facts;
-    !has_damage && !facts.live && !(window_focus_changed && facts.reads_window_focus)
-}
-
-// The damage of a scope's owner that cannot change what the scope records. The scope of a box's backgrounds and
-// borders holds none of the foreground, outline and overlay producers of the box, and none of its SVG content.
-fn owner_damage_that_misses(kind: PaintScopeKind) -> PaintDamage {
-    match kind {
-        PaintScopeKind::Descendants(StackingContextPaintPhase::BackgroundAndBorders) => {
-            PaintDamage::DRAW_FOREGROUND | PaintDamage::DRAW_OUTLINE | PaintDamage::DRAW_OVERLAY | PaintDamage::SVG
-        }
-        _ => PaintDamage::NONE,
-    }
+    !anything_changed && !facts.live && !(window_focus_changed && facts.reads_window_focus)
 }
 
 pub(crate) struct Assembler<'a, H: AssemblyHost> {
@@ -188,16 +179,13 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
     }
 
     fn scope_is_clean(&mut self, scope: PaintScope, recorded_placement: RowPlacement) -> bool {
-        self.host
-            .damage_of_row(scope.owner)
-            .without(owner_damage_that_misses(scope.kind))
-            .is_empty()
-            && self.host.placement_of_row(scope.owner) == recorded_placement
+        !self.host.changes_of_row(scope.owner).any() && self.host.placement_of_row(scope.owner) == recorded_placement
     }
 
-    fn producer_is_damaged(&mut self, owner: NodeSlotId, kind: ProducerKind, damage: PaintDamage) -> bool {
-        damage.intersects(kind.damage() | PaintDamage::MOVED)
-            || (damage.contains(PaintDamage::DESCENDANT_READERS) && self.host.producer_reads_descendants(owner, kind))
+    fn producer_records_again(&mut self, owner: NodeSlotId, kind: ProducerKind, owner_changes: RowChanges) -> bool {
+        owner_changes.inputs
+            || (owner_changes.scroll_metadata && kind == ProducerKind::ScrollMetadata)
+            || (owner_changes.below && self.host.producer_reads_descendants(owner, kind))
     }
 
     fn plan_and_cut(&mut self, scope: PaintScope) -> SegmentedPlan {
@@ -244,23 +232,17 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         }
     }
 
-    /// Walks the plan of `scope`, which damage reaches or the published recording did not walk.
+    /// Walks the plan of `scope`, which changed or the published recording did not walk.
     fn walk_scope(&mut self, scope: PaintScope, published: Option<&Arc<RecordedScope>>) -> Arc<RecordedScope> {
-        let owner_damage = self.host.damage_of_row(scope.owner);
+        let owner_changes = self.host.changes_of_row(scope.owner);
         let owner_placement = self.host.placement_of_row(scope.owner);
-        let order_damage = match scope.kind {
-            PaintScopeKind::PaintedAsStackingContext => {
-                PaintDamage::ORDER | PaintDamage::CONTEXT_ORDER | PaintDamage::ELIGIBILITY
-            }
-            PaintScopeKind::Descendants(_) => PaintDamage::ORDER,
-        };
         let owner_moved = published.is_some_and(|published| published.owner_placement != owner_placement);
         let published_plan = published
-            .filter(|_| !owner_damage.intersects(order_damage))
+            .filter(|_| !owner_changes.order)
             .map(|published| &published.plan);
         let items_were_kept = published_plan.is_some();
-        // Nothing was pushed for the owner or anything below it, and nothing moved it: every item is where it was.
-        let cuts_were_kept = items_were_kept && owner_damage.is_empty() && !owner_moved;
+        // Nothing changed of the owner or anything below it, and nothing moved it: every item is where it was.
+        let cuts_were_kept = items_were_kept && !owner_changes.any() && !owner_moved;
         let plan = match published_plan {
             Some(published_plan) if cuts_were_kept => Arc::clone(published_plan),
             Some(published_plan) => Arc::new(self.cut(scope, published_plan.active, Arc::clone(&published_plan.items))),
@@ -291,7 +273,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                         scope,
                         plan.items_of(run),
                         published_segment,
-                        owner_damage,
+                        owner_changes,
                         owner_moved,
                     )),
                     Segment::Walked(item) => {
@@ -326,7 +308,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         scope: PaintScope,
         items: &[PaintOrderItem],
         published: Option<&RecordedSegment>,
-        owner_damage: PaintDamage,
+        owner_changes: RowChanges,
         owner_moved: bool,
     ) -> RecordedRun {
         let published = published.and_then(|segment| match segment {
@@ -339,7 +321,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             && !owner_moved
             && !self.records_again(run.facts)
             && run.chunk.as_ref().is_none_or(|chunk| chunk.finished().is_some())
-            && self.run_is_clean(scope, items, run, owner_damage)
+            && self.run_is_clean(scope, items, run, owner_changes)
         {
             for item in items {
                 match *item {
@@ -384,13 +366,13 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         scope: PaintScope,
         items: &[PaintOrderItem],
         published: &RecordedRun,
-        owner_damage: PaintDamage,
+        owner_changes: RowChanges,
     ) -> bool {
         let mut child_scope_placements = published.child_scope_placements.iter();
         items.iter().all(|item| match *item {
             PaintOrderItem::Producer(producer) => !producer_kinds(producer)
                 .into_iter()
-                .any(|kind| self.producer_is_damaged(scope.owner, kind, owner_damage)),
+                .any(|kind| self.producer_records_again(scope.owner, kind, owner_changes)),
             PaintOrderItem::Scope(child) => {
                 let recorded_placement = child_scope_placements
                     .next()
@@ -485,6 +467,7 @@ mod tests {
     use crate::painting::display_list::builder::RecordedDisplayList;
     use crate::painting::display_list::recorder::DisplayListRecorder;
     use crate::painting::force_dark::ForceDarkRole;
+    use crate::painting::paint_order_plan::{PaintScopeKind, StackingContextPaintPhase};
     use libgfx_rust::{Color, IntRect};
     use std::collections::{HashMap, HashSet};
 
@@ -558,7 +541,7 @@ mod tests {
     struct TestHost {
         plans: HashMap<PaintScope, ScopePlan>,
         contents: HashMap<(NodeSlotId, ProducerKind), Content>,
-        damage: HashMap<NodeSlotId, PaintDamage>,
+        changes: HashMap<NodeSlotId, RowChanges>,
         origins: HashMap<NodeSlotId, i64>,
         walked: HashSet<PaintScope>,
         grid_rows: HashMap<NodeSlotId, i32>,
@@ -574,7 +557,7 @@ mod tests {
             Self {
                 plans: HashMap::new(),
                 contents: HashMap::new(),
-                damage: HashMap::new(),
+                changes: HashMap::new(),
                 origins: HashMap::new(),
                 walked: HashSet::new(),
                 grid_rows: HashMap::new(),
@@ -602,8 +585,15 @@ mod tests {
             self.contents.insert((owner, kind), content);
         }
 
-        fn push(&mut self, owner: NodeSlotId, damage: PaintDamage) {
-            *self.damage.entry(owner).or_default() |= damage;
+        fn change(&mut self, owner: NodeSlotId, paint_ancestors: &[NodeSlotId]) {
+            self.changes.entry(owner).or_default().inputs = true;
+            for ancestor in paint_ancestors {
+                self.changes.entry(*ancestor).or_default().below = true;
+            }
+        }
+
+        fn change_order(&mut self, owner: NodeSlotId) {
+            self.changes.entry(owner).or_default().order = true;
         }
 
         fn recorded_rows(&self) -> Vec<u32> {
@@ -675,8 +665,8 @@ mod tests {
             (!chunk.records.is_empty()).then(|| RecordedChunk::new(chunk, false))
         }
 
-        fn damage_of_row(&mut self, row: NodeSlotId) -> PaintDamage {
-            self.damage.get(&row).copied().unwrap_or_default()
+        fn changes_of_row(&mut self, row: NodeSlotId) -> RowChanges {
+            self.changes.get(&row).copied().unwrap_or_default()
         }
 
         fn placement_of_row(&mut self, row: NodeSlotId) -> RowPlacement {
@@ -728,10 +718,10 @@ mod tests {
         record_frame_with_focus_change(host, false)
     }
 
-    // Publishes `frame`: the next frame copies from it, and the damage it painted is consumed.
+    // Publishes `frame`: the next frame reuses from it, and asks what changed since.
     fn publish(host: &mut TestHost, frame: Frame) {
         host.source = Some(frame);
-        host.damage.clear();
+        host.changes.clear();
     }
 
     fn assert_matches_from_scratch(host: &mut TestHost, assembled: &Frame) {
@@ -816,7 +806,7 @@ mod tests {
     }
 
     #[test]
-    fn damage_records_the_run_it_reaches_and_the_runs_beside_it_are_copied() {
+    fn a_change_records_the_runs_that_hold_the_row_and_the_runs_beside_them_are_reused() {
         let mut host = cards_host();
         let first = record_frame(&mut host);
         publish(&mut host, first);
@@ -824,23 +814,23 @@ mod tests {
             .get_mut(&(row(3), ProducerKind::DrawForeground))
             .unwrap()
             .version = 2;
-        host.push(row(3), PaintDamage::DRAW_FOREGROUND);
-        host.push(row(0), PaintDamage::DESCENDANT_READERS);
+        host.change(row(3), &[row(0)]);
 
         let frame = record_frame(&mut host);
 
-        // Only the foregrounds of the second grid row record again: foreground damage misses the run of the
-        // card's background.
-        assert_eq!(host.recorded_rows(), vec![3, 4]);
+        // The backgrounds and then the foregrounds of the second grid row record again: the card's stamp says that
+        // it changed, not which of its producers did.
+        assert_eq!(host.recorded_rows(), vec![3, 4, 3, 4]);
         assert_eq!(host.action_of(context(row(0))), Some(ScopeAction::Assembled));
-        assert!(host.copied_scopes().contains(&backgrounds(row(3))));
+        assert!(!host.copied_scopes().contains(&backgrounds(row(3))));
+        assert!(host.copied_scopes().contains(&backgrounds(row(5))));
         assert!(host.copied_scopes().contains(&foreground(row(2))));
         assert!(!host.copied_scopes().contains(&foreground(row(4))));
         assert_matches_from_scratch(&mut host, &frame);
     }
 
     #[test]
-    fn a_walked_child_is_copied_whole_until_damage_reaches_below_it() {
+    fn a_walked_child_is_reused_whole_until_something_below_it_changes() {
         let mut host = cards_host();
         host.walked.insert(foreground(row(4)));
         host.plan(
@@ -853,10 +843,9 @@ mod tests {
         let first = record_frame(&mut host);
         publish(&mut host, first);
 
-        // Damage beside the walked child leaves it copied as one piece, with the node the published recording
+        // A change beside the walked child leaves it reused as one piece, with the node the published recording
         // kept for it.
-        host.push(row(1), PaintDamage::DRAW_FOREGROUND);
-        host.push(row(0), PaintDamage::DESCENDANT_READERS);
+        host.change(row(1), &[row(0)]);
         let second = record_frame(&mut host);
         assert!(host.copied_scopes().contains(&foreground(row(4))));
         assert_eq!(host.action_of(foreground(row(4))), None);
@@ -878,15 +867,14 @@ mod tests {
         assert_matches_from_scratch(&mut host, &second);
         publish(&mut host, second);
 
-        // Damage below it has it walked, and the run the damage reaches recorded. The hint that something below the
-        // card was damaged does not say in which of its scopes, so the run with the card's backgrounds records too.
+        // A change below it has it walked, and the run that holds the changed row recorded. The stamp that something
+        // below the card changed does not say in which of its scopes, so the run with the card's backgrounds records
+        // too.
         host.contents
             .get_mut(&(row(7), ProducerKind::DrawForeground))
             .unwrap()
             .version = 2;
-        host.push(row(7), PaintDamage::DRAW_FOREGROUND);
-        host.push(row(4), PaintDamage::DESCENDANT_READERS);
-        host.push(row(0), PaintDamage::DESCENDANT_READERS);
+        host.change(row(7), &[row(4), row(0)]);
         let third = record_frame(&mut host);
         assert_eq!(host.action_of(foreground(row(4))), Some(ScopeAction::Assembled));
         assert_eq!(host.recorded_rows(), vec![3, 4, 7]);
@@ -894,7 +882,7 @@ mod tests {
     }
 
     #[test]
-    fn a_child_scope_an_ancestor_moved_records_again_though_nothing_was_pushed_for_it() {
+    fn a_child_scope_an_ancestor_moved_records_again_though_nothing_stamped_it() {
         let mut host = cards_host();
         let first = record_frame(&mut host);
         publish(&mut host, first);
@@ -918,7 +906,7 @@ mod tests {
         host.grid_rows.insert(row(7), 3);
         host.plan(foreground(row(7)), true, &[phase(PaintPhase::Foreground)]);
         host.produce(row(7), ProducerKind::DrawForeground, content(1));
-        host.push(row(0), PaintDamage::ORDER);
+        host.change_order(row(0));
 
         let frame = record_frame(&mut host);
 
@@ -959,7 +947,7 @@ mod tests {
         publish(&mut host, first);
         let items = host.plans[&context(row(0))].items.to_vec();
         host.plan(context(row(0)), false, &items);
-        host.push(row(0), PaintDamage::ELIGIBILITY);
+        host.change_order(row(0));
 
         let frame = record_frame(&mut host);
 

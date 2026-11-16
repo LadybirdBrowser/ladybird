@@ -13,7 +13,6 @@
 // Only an outline: auto ring and the selection paint differently while the window is unfocused, so a
 // focus change records them again and copies everything else.
 const focusChangeTrace = ringOutline => `
-    damage: rows=0 moved=0 order=0 eligibility=0 all=false
     @canvas RECORD (empty)
     @viewport ASSEMBLE
       @viewport/preamble COPY
@@ -55,7 +54,6 @@ displayListTest({
         {
             name: "quiet before focus changes",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `,
@@ -68,7 +66,6 @@ displayListTest({
         {
             name: "quiet while unfocused",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `,

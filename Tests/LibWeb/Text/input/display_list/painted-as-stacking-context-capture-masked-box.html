@@ -16,7 +16,6 @@ displayListTest({
         {
             name: "quiet masked root",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -26,7 +25,6 @@ displayListTest({
             mutate: () => { r1.style.color = "red"; },
             check: equal => { equal(document.elementFromPoint(10, 30).id, "r1", "hit target"); },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

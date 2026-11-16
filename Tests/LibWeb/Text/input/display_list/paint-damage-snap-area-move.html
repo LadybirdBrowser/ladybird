@@ -22,7 +22,6 @@ displayListTest({
             name: "quiet before the move",
             check: () => { topOfSecondSnapAreaBeforeTheMove = topOfSecondSnapArea(); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -34,7 +33,6 @@ displayListTest({
                 equal(topOfSecondSnapArea() - topOfSecondSnapAreaBeforeTheMove, 10, "how far the snap area moved");
             },
             expect: `
-                damage: rows=6 moved=2 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -70,7 +68,7 @@ displayListTest({
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer<DIV>#snap/descendants(foreground) ASSEMBLE
-                        BlockContainer<DIV>#snap/foreground COPY
+                        BlockContainer<DIV>#snap/foreground RECORD (empty)
                         BlockContainer<DIV>#area0.area/descendants(foreground) COPY
                         BlockContainer<DIV>#area1.area/descendants(foreground) ASSEMBLE
                           BlockContainer<DIV>#area1.area/foreground RECORD (empty)
@@ -91,7 +89,6 @@ displayListTest({
         {
             name: "quiet after the move",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

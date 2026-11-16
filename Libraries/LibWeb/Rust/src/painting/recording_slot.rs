@@ -24,6 +24,7 @@ use crate::painting::paint_read::PaintSource;
 use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
 use crate::painting::presentation::Presentation;
 use crate::painting::published_frame::PublishedFrame;
+use crate::painting::record::change_ticks::RowPaintChange;
 use crate::painting::record::publish::HitTestItemsOnScreen;
 use crate::painting::record::recorder_state::RecorderState;
 use crate::painting::record::vector_images::VectorImageRenderRequest;
@@ -589,11 +590,8 @@ pub(crate) fn freeze_recording_frame(arena: &mut LayoutNodeArena, inputs: FrameI
             inputs.css_viewport_rect,
         );
         if canvas_rect != published_canvas_rect {
-            arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
+            arena.note_paint_change(root, RowPaintChange::DRAWING);
         }
-    }
-    if inputs.publishes_recording {
-        arena.note_publishing_paint_recording_started();
     }
     // The recording reads the document as it is now: what the host writes after this goes to the next frame.
     let frame = arena.freeze_frame();

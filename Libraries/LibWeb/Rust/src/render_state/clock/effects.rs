@@ -21,7 +21,7 @@ use crate::css::transition::{HoverTransitions, LaneTransitions};
 use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId};
 use crate::layout::{LayoutNodeArena, SampleKind, StyleRelayout};
 use crate::painting::host::FfiVisualAnimationTargetKind;
-use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::change_ticks::RowPaintChange;
 use crate::painting::visual_animation::VisualAnimation;
 use crate::render_state::RenderState;
 use smallvec::SmallVec;
@@ -469,7 +469,7 @@ impl Lane {
         }
         self.ticked.extend(host_style.map(|host_style| (row, host_style)));
         arena.note_style_visual_context_moves(row, damage);
-        arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
+        arena.note_paint_change_for_repaint(row, RowPaintChange::EVERYTHING_IT_PAINTS);
     }
 
     /// Shows `element`'s sample of the effects of the element in its box, and what `overlay`, the values it animates,
@@ -812,7 +812,7 @@ impl Lane {
                 let arena = state.arena.arena_mut();
                 arena.restore_host_style(row, host_style, StyleRelayout::ByDamage(damage));
                 arena.note_style_visual_context_moves(row, damage);
-                arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
+                arena.note_paint_change_for_repaint(row, RowPaintChange::EVERYTHING_IT_PAINTS);
                 moved = true;
             }
         }

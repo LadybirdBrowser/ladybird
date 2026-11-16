@@ -26,7 +26,7 @@ use crate::painting::layer_image_paint_facts::{LayerImagePaintFacts, layer_image
 use crate::painting::paint_order_plan::PaintOrderInputs;
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::published_frame::{PublishedFrame, PublishedRows};
-use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::change_ticks::PaintChangeStamps;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
 use crate::painting::stacking_context::entries::StackingContextEntries;
@@ -589,8 +589,8 @@ impl<'a> PaintSource<'a> {
         self.rows
     }
 
-    pub(crate) fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage {
-        self.frame().damage().of_row(row)
+    pub(crate) fn paint_change_stamps(&self, row: NodeSlotId) -> PaintChangeStamps {
+        self.rows.paint_change_stamps(row)
     }
 }
 

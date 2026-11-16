@@ -398,8 +398,8 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
     };
     let (facts, dash_array) = svg_paint_facts(recorder, paintable);
     // A pattern tile is rendered from the pattern's own subtree, and a textPath follows another
-    // element's geometry; neither pushes damage on this shape when it changes. A gradient is
-    // published by the paint resource sync, which pushes damage on the shapes using it.
+    // element's geometry; neither stamps this shape when it changes. A gradient is
+    // published by the paint resource sync, which stamps the shapes using it.
     let output_is_resolved_through_another_element = (facts.references_paint_server
         && references_pattern(recorder, paintable))
         || recorder.source.node_kind_if_live(paintable) == Some(NodeKind::SVGTextPathBox);

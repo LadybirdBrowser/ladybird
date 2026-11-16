@@ -21,7 +21,6 @@ displayListTest({
             mutate: () => { far.style.top = "1000px"; },
             check: equal => { equal(document.documentElement.scrollHeight, 1050, "scroll height"); },
             expect: `
-                damage: rows=5 moved=1 order=0 eligibility=0 all=false
                 @canvas RECORD
                 @viewport ASSEMBLE
                   @viewport/preamble RECORD (empty)
@@ -45,7 +44,7 @@ displayListTest({
                         BlockContainer<DIV>#text/background SKIP
                         BlockContainer<DIV>#text/border SKIP
                       BlockContainer<DIV>#far/descendants(background-and-borders) ASSEMBLE
-                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer<DIV>#text/descendants(foreground) ASSEMBLE
@@ -62,14 +61,13 @@ displayListTest({
                       BlockContainer<DIV>#far/foreground RECORD (empty)
                       BlockContainer<DIV>#far/outline SKIP
                       BlockContainer<DIV>#far/overlay SKIP
-                    BlockContainer<HTML>#html/outline COPY
+                    BlockContainer<HTML>#html/outline SKIP
                   @viewport/outline SKIP
             `
         },
         {
             name: "quiet after the growth",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD
                 @viewport COPY
             `

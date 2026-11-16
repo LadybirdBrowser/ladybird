@@ -23,7 +23,6 @@ displayListTest({
         {
             name: "quiet masked group",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -32,7 +31,6 @@ displayListTest({
             name: "widen the mask content",
             mutate: () => { document.getElementById("mask-rect").setAttribute("width", "200"); },
             expect: `
-                damage: rows=8 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -96,7 +94,6 @@ displayListTest({
         {
             name: "quiet after the mask change",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

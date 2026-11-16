@@ -40,7 +40,6 @@ displayListTest({
             name: "quiet before scrollability change",
             check: equal => { equal(nestedElementScrollers(), 0, "inner has no element scroller parent"); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -49,7 +48,6 @@ displayListTest({
             name: "change an unrelated box",
             mutate: () => { document.getElementById("row-2").style.color = "red"; },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -110,7 +108,6 @@ displayListTest({
             mutate: () => { filler.className = "tall"; },
             check: equal => { equal(nestedElementScrollers(), 1, "inner reports outer as its parent"); },
             expect: `
-                damage: rows=8 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -200,16 +197,15 @@ displayListTest({
             name: "insert scrollable box in second row",
             mutate: () => { const inserted = document.createElement("div"); inserted.id = "inserted"; inserted.className = "box"; inserted.style.overflow = "hidden"; inserted.innerHTML = '<div id="inserted-content" class="tall"></div>'; document.getElementById("second-row-1").after(inserted); },
             expect: `
-                damage: rows=7 moved=3 order=4 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
-                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  BlockContainer<HTML>#html/descendants(background-and-borders) REPLAN
                   @viewport/foreground COPY
-                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html/descendants(foreground) REPLAN
                   BlockContainer<HTML>#html REPLAN
                     BlockContainer<HTML>#html/preamble COPY
                     BlockContainer<HTML>#html/scroll-metadata COPY

@@ -346,15 +346,8 @@ pub(crate) fn take_in_presented_output(
     take_in(output);
 }
 
-/// Takes the recording `output` the host published in as the document's last, where `arena` is the document's arena:
-/// a recording that publishes consumes the damage it painted.
+/// Takes the recording `output` the host published in as the document's last, where `arena` is the document's arena.
 pub(crate) fn take_in_recording(arena: &mut LayoutNodeArena, output: Arc<RecordingOutput>, publishes_recording: bool) {
-    // Read-only recordings publish nothing and must not consume the damage.
-    if publishes_recording {
-        arena.clear_paint_damage_consumed_by_published_recording();
-    } else {
-        arena.forget_paint_damage_rows_gone();
-    }
     let paint_state = arena.paint_state_mut();
     if publishes_recording {
         paint_state.visual_context.quarantined_slots_are_releasable = true;
@@ -365,25 +358,23 @@ pub(crate) fn take_in_recording(arena: &mut LayoutNodeArena, output: Arc<Recordi
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::painting::record::damage::PaintDamage;
+    use crate::painting::record::change_ticks::RowPaintChange;
     use std::sync::Arc;
 
     #[test]
-    fn read_only_publication_keeps_the_source_recording_and_the_pending_damage() {
+    fn read_only_publication_keeps_the_source_recording_whose_generation_later_changes_are_newer_than() {
         let mut arena = LayoutNodeArena::new();
         let mut recorder = RecorderState::default();
         let mut hit_test_items_on_screen = HitTestItemsOnScreen::default();
         let row = arena.allocate_for_test().slot;
         arena.populate_paintable_row(row);
         let mut original_source = None;
-        // Publish a source, a read-only recording, and then the pending repaint.
+        // Publish a source, a read-only recording, and then the frame after the change.
         for (structural_epoch, read_write) in [(1, true), (2, false), (3, true)] {
-            if read_write {
-                arena.note_publishing_paint_recording_started();
-            }
             // Each recording is of another tree, so that it places other hit-test items.
             let output = RecordingOutput {
                 recorded_structural_epoch: structural_epoch,
+                recorded_as_of: arena.take_paint_generation(),
                 ..Default::default()
             };
             take_in_presented_output(
@@ -395,18 +386,21 @@ mod tests {
             );
             assert_eq!(hit_test_items_on_screen.generation(), structural_epoch);
             let source = recorder.published_recording.clone().unwrap();
+            let changed_since_source = arena
+                .paint_change_stamps(row)
+                .row_or_anything_below_it_changed_since(source.recorded_as_of);
             match structural_epoch {
                 1 => {
                     original_source = Some(source);
-                    arena.push_paint_damage(row, PaintDamage::DRAW_FOREGROUND);
+                    arena.note_paint_change(row, RowPaintChange::DRAWING);
                 }
                 2 => {
                     assert!(Arc::ptr_eq(original_source.as_ref().unwrap(), &source));
-                    assert_eq!(arena.paint_damage_of_row(row), PaintDamage::DRAW_FOREGROUND);
+                    assert!(changed_since_source);
                 }
                 3 => {
                     assert!(!Arc::ptr_eq(original_source.as_ref().unwrap(), &source));
-                    assert_eq!(arena.paint_damage_of_row(row), PaintDamage::NONE);
+                    assert!(!changed_since_source);
                 }
                 _ => unreachable!(),
             }
@@ -414,48 +408,17 @@ mod tests {
     }
 
     #[test]
-    fn a_take_in_that_publishes_nothing_leaves_damage_accumulating_and_quarantine_held() {
+    fn only_a_take_in_that_publishes_releases_what_it_replaced() {
         let mut arena = LayoutNodeArena::new();
-        let consumed = arena.allocate_for_test().slot;
-        let kept = arena.allocate_for_test().slot;
-        let gone = arena.allocate_for_test().slot;
-        for row in [consumed, kept, gone] {
-            arena.populate_paintable_row(row);
-        }
-        arena.push_paint_damage(consumed, PaintDamage::DRAW_FOREGROUND);
-        arena.note_publishing_paint_recording_started();
-        arena.push_paint_damage(kept, PaintDamage::DRAW_FOREGROUND);
         let take_in = |arena: &mut LayoutNodeArena, publishes_recording| {
             take_in_recording(arena, Arc::new(RecordingOutput::default()), publishes_recording);
         };
-
-        // The published frame consumes what it recorded, and what was pushed as it recorded stays.
         take_in(&mut arena, true);
-        assert_eq!(arena.paint_damage_of_row(consumed), PaintDamage::NONE);
-        assert_eq!(arena.paint_damage_of_row(kept), PaintDamage::DRAW_FOREGROUND);
         assert!(arena.paint_state().visual_context.quarantined_slots_are_releasable);
         arena.paint_state_mut().visual_context.quarantined_slots_are_releasable = false;
-
-        // A frame that publishes nothing consumes nothing, and nothing it replaced is released.
-        arena.push_paint_damage(gone, PaintDamage::DRAW_BACKGROUND);
         take_in(&mut arena, false);
-        assert_eq!(arena.paint_damage_of_row(kept), PaintDamage::DRAW_FOREGROUND);
-        assert_eq!(arena.paint_damage_of_row(gone), PaintDamage::DRAW_BACKGROUND);
         assert!(!arena.paint_state().visual_context.quarantined_slots_are_releasable);
-        assert_eq!(arena.damaged_paint_rows(), [kept, gone]);
-
-        // A row that went leaves the damage a later frame reads.
-        arena
-            .free_subtree(gone)
-            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
-        take_in(&mut arena, false);
-        assert_eq!(arena.paint_damage_for_frame().rows().collect::<Vec<_>>(), [kept]);
-        arena
-            .free_subtree(consumed)
-            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
-        arena
-            .free_subtree(kept)
-            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        assert!(arena.paint_state().last_recording.is_some());
     }
 
     #[test]

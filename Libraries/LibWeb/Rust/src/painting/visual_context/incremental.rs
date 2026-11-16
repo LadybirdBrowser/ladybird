@@ -18,6 +18,7 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paint_order;
 use crate::painting::paintable_rows::{PaintableRowsRead, PaintableRowsWrite};
+use crate::painting::record::change_ticks::RowPaintChange;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct ChildCascade {
@@ -757,7 +758,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
             // Its recorded contexts must still be replaced in the next display list.
             delta.requires_display_list_recording |= contexts_changed;
             if reconcile.shape_changed || !record_existed || contexts_changed {
-                layout_arena.push_paint_damage(slot, crate::painting::record::damage::PaintDamage::ALL_PRODUCERS);
+                layout_arena.note_paint_change(slot, RowPaintChange::EVERYTHING_IT_PAINTS);
             }
             if assignment.record.owns_geometry_dependent_nodes && !subtree_may_own_geometry_dependent_nodes {
                 let mut ancestor = paint_order::paint_parent(&*layout_arena, slot);
@@ -831,7 +832,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
     if state.scroll_state.has_non_viewport_wheel_scroll_target_candidate
         != scroll_state.has_non_viewport_wheel_scroll_target_candidate
     {
-        layout_arena.push_scroll_metadata_damage_everywhere();
+        layout_arena.note_everything_paints_anew();
     }
     state.scroll_state = scroll_state;
     state.needs_to_refresh_scroll_state = true;

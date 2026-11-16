@@ -19,7 +19,6 @@ displayListTest({
         {
             name: "quiet gradient fill",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -28,7 +27,6 @@ displayListTest({
             name: "edit a gradient stop",
             mutate: () => { s1.setAttribute("stop-color", "blue"); },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -75,7 +73,6 @@ displayListTest({
         {
             name: "quiet after the gradient change",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

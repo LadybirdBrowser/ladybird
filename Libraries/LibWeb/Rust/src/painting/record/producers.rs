@@ -19,7 +19,7 @@ use crate::painting::display_list::commands::ContextRef;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paint_order_plan::{PaintOrderItem, PaintProducer, PaintScope, PaintScopePlan};
 use crate::painting::paint_read::GeometryRead;
-use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::change_ticks::RowChanges;
 use crate::painting::record::svg_resources::MaskLayerSet;
 use crate::painting::{node_painting, paintable_geometry};
 use libgfx_rust::Color;
@@ -117,7 +117,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
     fn record_box_commands(&mut self, owner: NodeSlotId, phase: PaintPhase) {
         let facts = self.base_paint_facts(owner);
-        // Scrolling repaints without pushing damage, so output that depends on the scroll
+        // Scrolling repaints without stamping any row, so output that depends on the scroll
         // offset records every frame.
         if facts.has_fixed_background
             || (facts.has_scroll_offset_dependent_background && phase == PaintPhase::Background)
@@ -230,9 +230,13 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         (!chunk.records.is_empty()).then(|| RecordedChunk::new(chunk, draws_vector_image_placeholders))
     }
 
-    fn damage_of_row(&mut self, row: NodeSlotId) -> PaintDamage {
-        // Nothing is recorded for what a box can be hit by: hit testing walks the rows.
-        self.source.paint_damage_of_row(row).without(PaintDamage::ALL_HIT)
+    fn changes_of_row(&mut self, row: NodeSlotId) -> RowChanges {
+        let Some(published) = &self.source_recording else {
+            return RowChanges::NONE;
+        };
+        self.source
+            .paint_change_stamps(row)
+            .changes_since(published.recorded_as_of)
     }
 
     fn placement_of_row(&mut self, row: NodeSlotId) -> RowPlacement {

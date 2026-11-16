@@ -1843,7 +1843,7 @@ fn drop_list_rows(host: &mut TreeBuilderHost<'_>, dropped: &[OldRow]) -> Vec<Rep
     if !dropped.is_empty() {
         let arena = host.arena_mut();
         if arena.paintable_row_count() > 0 {
-            arena.push_enclosing_paint_order_damage(dropped[0].slot);
+            arena.note_enclosing_paint_order_change(dropped[0].slot);
         }
         for row in dropped {
             let data = arena.data(row.slot);

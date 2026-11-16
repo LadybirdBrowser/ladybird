@@ -19,7 +19,7 @@ use super::paintable_data::{
     FfiCustomHighlightReplacedEntry, FfiCustomHighlightTextEntry, FfiSearchTextRange, FfiSelectionEntry,
     FfiSpellingError, PaintableFlag,
 };
-use super::record::damage::PaintDamage;
+use super::record::change_ticks::RowPaintChange;
 use super::replaced_paint_facts::{ImagePaintFacts, ReplacedPaintFacts, VideoPaintFacts};
 use super::selection::HighlightStyleRecords;
 use super::visual_context::dirty::VisualContextBoxDirtyKind;
@@ -220,7 +220,7 @@ impl PaintChange {
                     return;
                 }
                 rows.paintable_data_mut(node).set_flag(flag, hidden);
-                rows.push_paint_damage(node, PaintDamage::HIT_OVERLAY);
+                rows.note_paint_change(node, RowPaintChange::HIT_TESTING);
             }
             Self::SetLayerImagePaintFacts { node, entries } => {
                 arena.set_layer_image_paint_facts(node, entries);

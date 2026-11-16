@@ -20,7 +20,6 @@ displayListTest({
             mutate: () => { row1.style.marginTop = "10px"; },
             check: equal => { equal(scroller.scrollHeight, 190, "scroll height"); },
             expect: `
-                damage: rows=6 moved=2 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -56,7 +55,7 @@ displayListTest({
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer<DIV>#scroller/descendants(foreground) ASSEMBLE
-                        BlockContainer<DIV>#scroller/foreground COPY
+                        BlockContainer<DIV>#scroller/foreground RECORD (empty)
                         BlockContainer<DIV>#row0.row/descendants(foreground) COPY
                         BlockContainer<DIV>#row1.row/descendants(foreground) ASSEMBLE
                           BlockContainer<DIV>#row1.row/foreground RECORD (empty)
@@ -78,7 +77,6 @@ displayListTest({
             name: "recolor the second row",
             mutate: () => { row1.style.background = "red"; },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

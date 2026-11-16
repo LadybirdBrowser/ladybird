@@ -20,7 +20,6 @@ displayListTest({
         {
             name: "quiet light canvas",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -29,7 +28,6 @@ displayListTest({
             name: "change canvas to dark",
             mutate: () => { internals.setPreferredColorScheme("dark"); },
             expect: `
-                damage: rows=4 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport RECORD
                   @viewport/preamble RECORD (empty)
@@ -68,7 +66,6 @@ displayListTest({
         {
             name: "quiet dark canvas",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

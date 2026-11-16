@@ -20,7 +20,6 @@ displayListTest({
             name: "quiet before the z-index change",
             check: equal => { equal(document.elementFromPoint(10, 10).id, "back", "hit target"); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -30,16 +29,15 @@ displayListTest({
             mutate: () => { front.style.zIndex = "2"; },
             check: equal => { equal(document.elementFromPoint(10, 10).id, "front", "hit target"); },
             expect: `
-                damage: rows=5 moved=0 order=3 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
-                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  BlockContainer<HTML>#html/descendants(background-and-borders) REPLAN
                   @viewport/foreground COPY
-                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html/descendants(foreground) REPLAN
                   BlockContainer<HTML>#html REPLAN
                     BlockContainer<HTML>#html/preamble COPY
                     BlockContainer<HTML>#html/scroll-metadata COPY
@@ -83,16 +81,15 @@ displayListTest({
             mutate: () => { front.style.zIndex = "auto"; },
             check: equal => { equal(document.elementFromPoint(10, 10).id, "back", "hit target"); },
             expect: `
-                damage: rows=5 moved=0 order=3 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
-                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  BlockContainer<HTML>#html/descendants(background-and-borders) REPLAN
                   @viewport/foreground COPY
-                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html/descendants(foreground) REPLAN
                   BlockContainer<HTML>#html REPLAN
                     BlockContainer<HTML>#html/preamble COPY
                     BlockContainer<HTML>#html/scroll-metadata COPY
