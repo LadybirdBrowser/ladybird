@@ -6,7 +6,6 @@ set(SOURCES
     RustBindings.cpp
     ASN1/ASN1.cpp
     ASN1/DER.cpp
-    ASN1/PEM.cpp
     Authentication/HMAC.cpp
     Authentication/KMAC.cpp
     BigInt/SignedBigInteger.cpp
