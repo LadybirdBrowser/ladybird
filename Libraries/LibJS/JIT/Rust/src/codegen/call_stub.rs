@@ -1068,7 +1068,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         for offset in [
             offsets.execution_context_lexical_environment,
             offsets.execution_context_variable_environment,
-            offsets.execution_context_private_environment,
         ] {
             self.masm.load64(temp, &frame_field(offset));
             self.masm.store64(&field(offset), temp);

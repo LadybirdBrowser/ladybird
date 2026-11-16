@@ -453,7 +453,7 @@ pub fn make_private_reference(vm: &Vm, base_value: Value, private_identifier: &U
         .expect("MakePrivateReference runs in an execution context");
 
     // 1. Let privEnv be the running execution context's PrivateEnvironment.
-    let private_environment = context.private_environment.get();
+    let private_environment = context.private_environment();
 
     // 2. Assert: privEnv is not null.
     let private_environment = private_environment.expect("there is a private environment");

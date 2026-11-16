@@ -4222,6 +4222,14 @@ impl Generator<'_> {
     /// Assembles what was emitted into a new block, which has `other_tables_size` bytes left: the operands that come
     /// after the registers get their place in the frame, and labels their offsets.
     pub(super) fn finish_stream(&mut self, other_tables_size: usize) -> (AssembledBytecode, SliceBlockBuilder) {
+        // NB: Only code that runs in frames without a function starts without Enter, and those frames keep their
+        //     private environment anyway.
+        if self.makes_private_environments
+            && let Some(enter) = self.context.stream.head.bytes.first_mut()
+            && *enter == OpCode::Enter as u8
+        {
+            *enter = OpCode::EnterWithPrivateEnvironment as u8;
+        }
         // NB: Folding leaves constants that nothing uses, and they would take up slots in every frame.
         let mut constant_uses = vec![0u32; self.context.constants.values.len()];
         let stream = &self.context.stream;

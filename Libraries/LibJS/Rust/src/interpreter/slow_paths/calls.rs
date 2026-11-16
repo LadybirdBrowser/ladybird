@@ -1256,7 +1256,7 @@ fn new_function_object(vm: &Vm, shared_function_data_index: u32, home_object: Op
             realm,
             shared_data,
             vm.lexical_environment(),
-            running_execution_context(vm).private_environment.get(),
+            running_execution_context(vm).private_environment(),
             home_object.as_object(),
             prototype,
         )
@@ -1266,7 +1266,7 @@ fn new_function_object(vm: &Vm, shared_function_data_index: u32, home_object: Op
             realm,
             shared_data,
             vm.lexical_environment(),
-            running_execution_context(vm).private_environment.get(),
+            running_execution_context(vm).private_environment(),
             prototype,
         )
     };

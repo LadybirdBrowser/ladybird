@@ -330,7 +330,7 @@ pub fn generate() -> LayoutHeader {
         script_or_module_without_function,
         lexical_environment,
         variable_environment,
-        private_environment,
+        private_environment_in_frame,
         frame_id,
         program_counter,
         skip_when_determining_incumbent_counter,

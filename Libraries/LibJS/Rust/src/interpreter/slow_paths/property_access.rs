@@ -73,8 +73,7 @@ fn base_text(vm: &Vm) -> Option<Utf16FlyString> {
 fn running_private_environment(vm: &Vm) -> Gc<PrivateEnvironment> {
     vm.running_execution_context_if_any()
         .expect("private names are used in an execution context")
-        .private_environment
-        .get()
+        .private_environment()
         .expect("private names are used where a private environment is active")
 }
 

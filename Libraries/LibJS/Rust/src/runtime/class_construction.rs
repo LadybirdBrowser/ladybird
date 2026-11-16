@@ -54,8 +54,7 @@ fn resolve_element_key(
 ) -> ThrowCompletionOr<ClassElementName> {
     if descriptor.is_private {
         let private_environment = running_execution_context(vm)
-            .private_environment
-            .get()
+            .private_environment()
             .expect("a class with private elements has a private environment");
         return Ok(ClassElementName::PrivateName(
             private_environment.resolve_private_identifier(
@@ -172,7 +171,7 @@ pub fn construct_class(
         realm,
         constructor_shared_data,
         vm.lexical_environment(),
-        running_execution_context(vm).private_environment.get(),
+        running_execution_context(vm).private_environment(),
     );
 
     class_constructor.set_inferred_name(vm, class_name, None);
@@ -222,7 +221,7 @@ pub fn construct_class(
                     realm,
                     shared_data,
                     vm.lexical_environment(),
-                    running_execution_context(vm).private_environment.get(),
+                    running_execution_context(vm).private_environment(),
                     home_object,
                     realm.function_prototype(),
                 );
@@ -356,7 +355,7 @@ pub fn construct_class(
                             realm,
                             shared_data,
                             vm.lexical_environment(),
-                            running_execution_context(vm).private_environment.get(),
+                            running_execution_context(vm).private_environment(),
                             home_object,
                             realm.function_prototype(),
                         );
@@ -396,7 +395,7 @@ pub fn construct_class(
                     realm,
                     shared_data,
                     vm.lexical_environment(),
-                    running_execution_context(vm).private_environment.get(),
+                    running_execution_context(vm).private_environment(),
                     home_object,
                     realm.function_prototype(),
                 );

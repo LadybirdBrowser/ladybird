@@ -664,16 +664,15 @@ pub struct EnvironmentTemplateSnapshot {
     pub cells: List<CellId>,
 }
 
-/// The words of an ECMAScript function's `[[ScriptOrModule]]`,
-/// `[[Environment]]` and private environment. Its frames start with the
-/// last two, and code inlined into a frame runs with the frame function's
-/// `[[ScriptOrModule]]`. They stay the same for the function's lifetime,
-/// and what they point to lives as long as the function.
+/// The words of an ECMAScript function's `[[ScriptOrModule]]` and
+/// `[[Environment]]`. Its frames start with the latter, and code inlined
+/// into a frame runs with the frame function's `[[ScriptOrModule]]`. They
+/// stay the same for the function's lifetime, and what they point to lives
+/// as long as the function.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct FunctionFrameFields {
     pub script_or_module: u64,
     pub environment: u64,
-    pub private_environment: u64,
 }
 
 impl FunctionFrameFields {

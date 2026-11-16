@@ -403,9 +403,6 @@ fn function_frame_fields(function: Gc<EcmascriptFunctionObject>) -> FunctionFram
         environment: function
             .environment()
             .map_or(0, |environment| environment.as_ptr() as u64),
-        private_environment: function
-            .private_environment()
-            .map_or(0, |environment| environment.as_ptr() as u64),
     }
 }
 
@@ -415,12 +412,9 @@ fn note_cell<T: Extends<CellHeader>>(cells: &mut Vec<Gc<CellHeader>>, cell: Gc<T
     CellId(cell.as_ptr() as u64)
 }
 
-/// Adds the environments of `function`, whose addresses its FunctionFrameFields hold, to `cells`.
+/// Adds the environment of `function`, whose address its FunctionFrameFields hold, to `cells`.
 fn note_frame_field_cells(cells: &mut Vec<Gc<CellHeader>>, function: Gc<EcmascriptFunctionObject>) {
     if let Some(environment) = function.environment() {
-        note_cell(cells, environment);
-    }
-    if let Some(environment) = function.private_environment() {
         note_cell(cells, environment);
     }
 }
@@ -438,7 +432,7 @@ impl SnapshotBuilder<'_> {
         value.0
     }
 
-    /// function_frame_fields() of `function`, whose environments are added to the cells the snapshot refers to.
+    /// function_frame_fields() of `function`, whose environment is added to the cells the snapshot refers to.
     fn frame_fields(&mut self, function: Gc<EcmascriptFunctionObject>) -> FunctionFrameFields {
         note_frame_field_cells(&mut self.cells, function);
         function_frame_fields(function)

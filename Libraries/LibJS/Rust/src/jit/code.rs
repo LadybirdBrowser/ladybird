@@ -503,11 +503,8 @@ fn split_function_cells(
         .filter_map(|cell| cell.downcast::<EcmascriptFunctionObject>())
     {
         // NB: Code that embeds an ECMAScript function may also embed the words its frames start with (see
-        //     `FunctionFrameFields`), whose environments the code then keeps from moving like the cells it lists.
-        let environments = [
-            function.environment().map(Gc::upcast),
-            function.private_environment().map(Gc::upcast),
-        ];
+        //     `FunctionFrameFields`), whose environment the code then keeps from moving like the cells it lists.
+        let environment = function.environment().map(Gc::upcast);
         let shared_data = function.shared_data();
         let embedded_code = [
             Some(shared_data.upcast::<CellHeader>()),
@@ -516,7 +513,7 @@ fn split_function_cells(
         .into_iter()
         .flatten()
         .filter(|cell| embedded.contains(&cell.as_ptr().addr()));
-        for cell in environments.into_iter().flatten().chain(embedded_code) {
+        for cell in environment.into_iter().chain(embedded_code) {
             function_cells.push((function.upcast(), cell));
         }
     }

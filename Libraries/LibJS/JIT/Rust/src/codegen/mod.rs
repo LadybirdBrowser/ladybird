@@ -2239,7 +2239,23 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
         let offset = match field {
             FrameField::LexicalEnvironment => offsets.execution_context_lexical_environment,
             FrameField::VariableEnvironment => offsets.execution_context_variable_environment,
-            FrameField::PrivateEnvironment => offsets.execution_context_private_environment,
+            // NB: Code that makes private environments is not compiled, so a frame with a function has the
+            //     function's.
+            FrameField::PrivateEnvironment => {
+                let (scratch, done, without_function) =
+                    (self.pinned.scratch, self.masm.new_label(), self.masm.new_label());
+                self.masm
+                    .load64(scratch, &self.frame_field(offsets.execution_context_function));
+                self.masm
+                    .branch_test64(Condition::Zero, scratch, u64::MAX, without_function);
+                self.emit_load_function_private_environment(output, scratch);
+                self.masm.jump(done);
+                self.masm.bind(without_function);
+                self.masm
+                    .load64(output, &self.frame_field(offsets.execution_context_private_environment));
+                self.masm.bind(done);
+                return;
+            }
             // NB: The running frame runs in the current realm.
             FrameField::Realm => {
                 self.masm

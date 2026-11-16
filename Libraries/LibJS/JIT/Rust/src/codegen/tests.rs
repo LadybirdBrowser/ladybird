@@ -3246,7 +3246,6 @@ mod inlining {
             executable.function_fields = Some(FunctionFrameFields {
                 script_or_module: FUNCTION_WORDS[2],
                 environment: FUNCTION_WORDS[0],
-                private_environment: FUNCTION_WORDS[1],
             });
         }
         configure(&mut snapshot);
@@ -3736,7 +3735,6 @@ mod direct_calls {
                 function_fields: FunctionFrameFields {
                     script_or_module: self.function[2],
                     environment: self.function[0],
-                    private_environment: self.function[1],
                 },
                 environment: None,
                 closures: false,
@@ -3858,10 +3856,7 @@ mod direct_calls {
             let half = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u32;
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
-            assert_eq!(
-                (word(8), word(96), word(16)),
-                (FUNCTION_WORDS[0], FUNCTION_WORDS[0], FUNCTION_WORDS[1])
-            );
+            assert_eq!((word(8), word(96)), (FUNCTION_WORDS[0], FUNCTION_WORDS[0]));
             assert_eq!(word(104), 0, "no frame id yet");
             assert_eq!(word(0), 0, "program counter and incumbent counter");
             assert_eq!(half(112), u32::MAX, "no yield continuation");
@@ -4262,12 +4257,8 @@ mod direct_calls {
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
             assert_eq!(
-                (word(8), word(96), word(16)),
-                (
-                    environment(FUNCTION_WORDS[0]),
-                    environment(FUNCTION_WORDS[0]),
-                    environment(FUNCTION_WORDS[1])
-                )
+                (word(8), word(96)),
+                (environment(FUNCTION_WORDS[0]), environment(FUNCTION_WORDS[0]))
             );
             assert_eq!(word(104), 0, "no frame id yet");
             assert_eq!(word(120), value::EMPTY, "no this value");
@@ -4420,7 +4411,6 @@ mod direct_calls {
                         (ENVIRONMENT, ENVIRONMENT),
                         "environments"
                     );
-                    assert_eq!(frame[16 / 8], environment(FUNCTION_WORDS[1]), "private environment");
                     assert_eq!(frame[120 / 8], value::int32(5), "this");
                     assert_eq!(
                         frame[FRAME_HEADER_WORDS + crate::bytecode::THIS_VALUE_REGISTER as usize],
