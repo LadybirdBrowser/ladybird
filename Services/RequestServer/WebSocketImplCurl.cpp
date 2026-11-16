@@ -7,6 +7,7 @@
 #include <LibCore/Notifier.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/Resolver.h>
 #include <RequestServer/WebSocketImplCurl.h>
 
 namespace RequestServer {
@@ -113,8 +114,12 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
     set_option(CURLOPT_HTTPHEADER, curl_headers);
     m_curl_string_lists.append(curl_headers);
 
-    if (auto const& dns_info = info.dns_result(); dns_info.has_value()) {
-        auto* resolve_list = curl_slist_append(nullptr, build_curl_resolve_list(*dns_info, url.serialized_host(), url.port_or_default()).characters());
+    curl_slist* resolve_list = nullptr;
+    if (auto const& dns_info = info.dns_result(); dns_info.has_value())
+        resolve_list = curl_slist_append(resolve_list, build_curl_resolve_list(*dns_info, url.serialized_host(), url.port_or_default()).characters());
+    if (auto proxy_entry = curl_resolve_entry_for_proxy(m_proxy); proxy_entry.has_value())
+        resolve_list = curl_slist_append(resolve_list, proxy_entry->characters());
+    if (resolve_list) {
         set_option(CURLOPT_RESOLVE, resolve_list);
         m_curl_string_lists.append(resolve_list);
     }
