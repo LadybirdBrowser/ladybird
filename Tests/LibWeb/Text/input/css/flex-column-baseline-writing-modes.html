@@ -1,0 +1,147 @@
+<!doctype html><meta charset="utf-8" /><style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    .flex {
+        display: flex;
+        flex-direction: column;
+        align-items: baseline;
+        width: 200px;
+        height: 300px;
+        font: 20px/1 Ahem;
+    }
+    .flex > div {
+        flex: none;
+        width: 30px;
+        height: 20px;
+    }
+</style>
+<body>
+    <script src="../include.js"></script>
+    <script>
+        const cases = [];
+        const h = [{ style: "height:20px" }, { style: "height:50px" }];
+        const widths = [{ style: "width:30px;height:20px" }, { style: "width:70px;height:50px" }];
+        const edges = [
+            { style: "width:30px;height:20px;margin:3px 7px 9px 11px;border:3px solid;padding:5px" },
+            { style: "width:70px;height:50px;margin:13px 17px 19px 23px;border:7px solid;padding:11px" },
+        ];
+        const vertical = wm => [
+            { style: `writing-mode:${wm};width:60px;height:90px;font-size:30px`, text: "XX<br>XX" },
+            { style: `writing-mode:${wm};width:40px;height:90px;font-size:20px`, text: "XX<br>XX" },
+        ];
+        const mixed = [...vertical("vertical-rl"), { style: "width:40px;height:40px" }, ...vertical("vertical-lr")];
+        const add = (name, style, items) => cases.push({ name, style, items });
+        for (const [name, items] of [
+            ["empty", h],
+            ["widths", widths],
+            ["edges", edges],
+            ["vertical-rl", vertical("vertical-rl")],
+            ["vertical-lr", vertical("vertical-lr")],
+            ["mixed", mixed],
+        ]) {
+            add(name, "", items);
+            add(name + " reverse", "flex-direction:column-reverse", items);
+            add(name + " rtl", "direction:rtl", items);
+            add(
+                name + " last",
+                "",
+                items.map(i => ({ ...i, style: i.style + ";align-self:last baseline" }))
+            );
+        }
+        add(
+            "wrap",
+            "flex-wrap:wrap;height:150px;align-content:flex-start",
+            [...widths, ...widths, ...widths].map(i => ({ ...i, style: i.style + ";height:70px" }))
+        );
+        add(
+            "wrap reverse",
+            "flex-wrap:wrap-reverse;height:150px;align-content:flex-start",
+            [...widths, ...widths, ...widths].map(i => ({ ...i, style: i.style + ";height:70px" }))
+        );
+        add("mixed wrap", "flex-wrap:wrap;height:200px;align-content:flex-start", mixed);
+        add("auto margins", "", [{ style: "margin-left:auto;height:20px" }, { style: "height:50px" }]);
+        add("opposite preferences", "", [
+            vertical("vertical-rl")[0],
+            { ...vertical("vertical-lr")[1], style: vertical("vertical-lr")[1].style + ";align-self:last baseline" },
+        ]);
+        add("negative margins", "", [
+            { style: "margin-left:-10px;height:20px" },
+            { style: "margin-left:-20px;height:50px" },
+        ]);
+        add("empty vertical-rl", "", [
+            { style: "writing-mode:vertical-rl;width:60px;height:20px" },
+            { style: "writing-mode:vertical-rl;width:40px;height:50px" },
+        ]);
+        add("empty vertical-lr", "", [
+            { style: "writing-mode:vertical-lr;width:60px;height:20px" },
+            { style: "writing-mode:vertical-lr;width:40px;height:50px" },
+        ]);
+        add(
+            "overflow last",
+            "width:20px",
+            widths.map(i => ({ ...i, style: i.style + ";align-self:last baseline" }))
+        );
+        add("wrap opposing padding", "flex-wrap:wrap;height:110px;width:600px;align-content:flex-start", [
+            { style: "writing-mode:vertical-lr;width:60px;height:50px;padding-left:100px", text: "XX<br>XX" },
+            { style: "writing-mode:vertical-lr;width:60px;height:50px;padding-right:100px", text: "XX<br>XX" },
+            { style: "writing-mode:vertical-lr;width:60px;height:50px;padding-left:100px", text: "XX<br>XX" },
+            { style: "writing-mode:vertical-lr;width:60px;height:50px;padding-right:100px", text: "XX<br>XX" },
+        ]);
+        add("child rtl", "", [{ style: "direction:rtl;height:20px" }, { style: "height:50px" }]);
+        for (const wm of ["vertical-rl", "vertical-lr"]) {
+            for (const kind of ["block", "inline", "flex", "grid"]) {
+                const text =
+                    kind === "inline"
+                        ? '<span style="font-size:30px">XX</span><br><span style="font-size:20px">XX</span>'
+                        : `<div style="display:${kind};font-size:30px">XX</div><div style="display:${kind};font-size:20px">XX</div>`;
+                for (const align of ["baseline", "last baseline"])
+                    add(`${wm} ${kind} ${align}`, `align-items:${align}`, [
+                        { style: `writing-mode:${wm};width:100px;height:90px;font-size:10px`, text },
+                        { style: `writing-mode:${wm};width:100px;height:90px;font-size:20px`, text: "XX<br>XX" },
+                    ]);
+            }
+        }
+
+        const elements = [];
+        for (const { name, style, items } of cases) {
+            const flex = document.createElement("div");
+            flex.className = "flex";
+            flex.style.cssText = style;
+            for (const item of items) {
+                const child = document.createElement("div");
+                child.style.cssText = item.style;
+                child.innerHTML = item.text || "";
+                flex.append(child);
+            }
+            document.body.append(flex);
+            elements.push({ name, flex });
+        }
+
+        const exportRow = document.createElement("div");
+        exportRow.style = "display:flex;align-items:baseline;font:20px/1 Ahem";
+        exportRow.innerHTML =
+            '<div style="display:flex;flex-direction:column;align-items:baseline"><div>XX</div><div style="font-size:50px">XX</div></div><div style="font-size:40px">XX</div>';
+        document.body.append(exportRow);
+        promiseTest(async () => {
+            await document.fonts.load("20px Ahem");
+            await document.fonts.load("30px Ahem");
+            await document.fonts.ready;
+            for (const { name, flex } of elements) {
+                const r = flex.getBoundingClientRect();
+                const positions = Array.from(flex.children, e => {
+                    const c = e.getBoundingClientRect();
+                    return [c.x - r.x, c.y - r.y, c.width, c.height].map(v => Math.round(v * 1000) / 1000);
+                });
+                println(name + ": " + positions.map(p => p.join(",")).join("; "));
+            }
+            const rowRect = exportRow.getBoundingClientRect();
+            const offsets = Array.from(exportRow.children, e => e.getBoundingClientRect().y - rowRect.y);
+            println("exported baseline: " + offsets.join(","));
+        });
+    </script>
+</body>

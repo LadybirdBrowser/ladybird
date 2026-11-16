@@ -1,0 +1,67 @@
+vertical-rl text: 140,0,60,90; 155,90,40,90
+vertical-rl sideways text: 140,0,60,90; 152,90,40,90
+vertical-rl overflow baseline: 100,0,100,90; 100,90,100,90
+vertical-rl small overflow baseline: 190,0,10,90; 100,90,100,90
+vertical-rl overflow last baseline: 0,0,100,90; 0,90,100,90
+vertical-rl small overflow last baseline: 70,0,10,90; 0,90,100,90
+vertical-rl atomic baseline: 180,0,20,90; 180,90,20,90
+vertical-rl atomic middle: 177,0,23,90; 177,90,20,90
+vertical-rl atomic text-top: 180,0,20,90; 180,90,20,90
+vertical-rl atomic text-bottom: 180,0,20,90; 180,90,20,90
+vertical-rl atomic top: 180,0,20,90; 180,90,20,90
+vertical-rl atomic bottom: 180,0,20,90; 180,90,20,90
+vertical-lr text: 0,0,60,90; 5,90,40,90
+vertical-lr sideways text: 0,0,60,90; 2,90,40,90
+vertical-lr overflow baseline: 0,0,100,90; 0,90,100,90
+vertical-lr small overflow baseline: 0,0,10,90; 0,90,100,90
+vertical-lr overflow last baseline: 100,0,100,90; 100,90,100,90
+vertical-lr small overflow last baseline: 120,0,10,90; 100,90,100,90
+vertical-lr atomic baseline: 0,0,20,90; 0,90,20,90
+vertical-lr atomic middle: 0,0,23,90; 0,90,20,90
+vertical-lr atomic text-top: 0,0,20,90; 0,90,20,90
+vertical-lr atomic text-bottom: 0,0,20,90; 0,90,20,90
+vertical-lr atomic top: 0,0,20,90; 0,90,20,90
+vertical-lr atomic bottom: 0,0,20,90; 0,90,20,90
+sideways-rl text: 140,0,60,90; 152,90,40,90
+sideways-rl sideways text: 140,0,60,90; 152,90,40,90
+sideways-rl overflow baseline: 100,0,100,90; 100,90,100,90
+sideways-rl small overflow baseline: 184,0,10,90; 100,90,100,90
+sideways-rl overflow last baseline: 0,0,100,90; 0,90,100,90
+sideways-rl small overflow last baseline: 64,0,10,90; 0,90,100,90
+sideways-rl atomic baseline: 180,0,20,90; 180,90,20,90
+sideways-rl atomic middle: 180,0,20,90; 180,90,20,90
+sideways-rl atomic text-top: 180,0,20,90; 180,90,20,90
+sideways-rl atomic text-bottom: 180,0,20,90; 180,90,20,90
+sideways-rl atomic top: 180,0,20,90; 180,90,20,90
+sideways-rl atomic bottom: 180,0,20,90; 180,90,20,90
+sideways-lr text: 0,0,60,90; 8,90,40,90
+sideways-lr sideways text: 0,0,60,90; 8,90,40,90
+sideways-lr overflow baseline: 0,0,100,90; 0,90,100,90
+sideways-lr small overflow baseline: 6,0,10,90; 0,90,100,90
+sideways-lr overflow last baseline: 100,0,100,90; 100,90,100,90
+sideways-lr small overflow last baseline: 126,0,10,90; 100,90,100,90
+sideways-lr atomic baseline: 0,0,20,90; 0,90,20,90
+sideways-lr atomic middle: 0,0,20,90; 0,90,20,90
+sideways-lr atomic text-top: 0,0,20,90; 0,90,20,90
+sideways-lr atomic text-bottom: 0,0,20,90; 0,90,20,90
+sideways-lr atomic top: 0,0,20,90; 0,90,20,90
+sideways-lr atomic bottom: 0,0,20,90; 0,90,20,90
+vertical-rl mixed orientations mixed: 180,0,20,180; 180,180,20,180
+vertical-rl mixed orientations sideways: 180,0,20,180; 180,180,20,180
+vertical-lr mixed orientations mixed: 0,0,20,180; 0,180,20,180
+vertical-lr mixed orientations sideways: 0,0,20,180; 0,180,20,180
+vertical-rl empty first flex: 180,0,20,90; 180,90,20,90
+vertical-rl empty first grid: 180,0,20,90; 180,90,20,90
+vertical-lr empty first flex: 0,0,20,90; 0,90,20,90
+vertical-lr empty first grid: 0,0,20,90; 0,90,20,90
+vertical-lr sideways atomic baseline: 0,0,20,90; 0,90,20,90
+vertical-lr sideways atomic middle: 0,0,20,90; 0,90,20,90
+vertical-lr sideways atomic text-top: 0,0,20,90; 0,90,20,90
+vertical-lr sideways atomic text-bottom: 0,0,20,90; 0,90,20,90
+vertical-lr sideways atomic top: 0,0,20,90; 0,90,20,90
+vertical-lr sideways atomic bottom: 0,0,20,90; 0,90,20,90
+vertical-rl shifted 6px: 174,0,26,90; 174,90,20,90
+vertical-rl shifted -6px: 174,0,26,90; 180,90,20,90
+vertical-lr shifted 6px: 0,0,26,90; 0,90,20,90
+vertical-lr shifted -6px: 0,0,26,90; 6,90,20,90
+exported baseline: 16,0

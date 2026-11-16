@@ -2223,12 +2223,19 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn cross_alignment_of(&self, style: StyleValues<'_>) -> SelfAlignment {
         // AD-HOC: The items of a legacy webkit box align as its -webkit-box-align, an alias of align-items, says,
         //         whatever their align-self and its safety are, matching other engines.
-        let (keyword, safety) = if self.is_legacy_webkit_box() {
+        let (mut keyword, mut safety) = if self.is_legacy_webkit_box() {
             let (keyword, _) = SelfKeyword::align_items_of(*self.container.style);
             (keyword, OverflowSafety::Unsafe)
         } else {
             SelfKeyword::align_self_of(*style, Some(*self.container.style))
         };
+        if !self.run.pass.frame.is_transposed()
+            && self.cross_axis_is_horizontal()
+            && self.cross_alignment_is_last_baseline(style)
+        {
+            keyword = SelfKeyword::Baseline;
+            safety = OverflowSafety::Unsafe;
+        }
         let self_start_is_low = geometry::start_is_low_side_in_frame(
             self.run.pass.frame,
             style.writing_mode(),
@@ -2242,6 +2249,14 @@ impl<'pass> FlexFormattingContext<'pass> {
                 ..self.container.cross_axis_directions
             },
         )
+    }
+
+    fn cross_alignment_is_last_baseline(&self, style: StyleValues<'_>) -> bool {
+        if self.is_legacy_webkit_box() || style.align_self() == align_self::AUTO {
+            self.container.style.align_items_is_last_baseline()
+        } else {
+            style.align_self_is_last_baseline()
+        }
     }
 
     /// The flex-start side of the cross axis.
@@ -2508,6 +2523,47 @@ impl<'pass> FlexFormattingContext<'pass> {
         )
     }
 
+    fn hypothetical_baseline_cross_size(&mut self, line_index: usize) -> CssPixels {
+        let mut extents = [(None::<CssPixels>, None::<CssPixels>); 2];
+        for position in 0..self.flex_lines[line_index].items.len() {
+            let index = self.flex_lines[line_index].items.at(position);
+            if !self.item_participates_in_baseline_alignment(index) {
+                continue;
+            }
+            let item = &self.flex_items[index];
+            let mut cells = self.flex_item_details[index].cells;
+            Self::size_item_cells_for_its_run(
+                &self.flex_item_details[index].inputs,
+                self.main_axis_is_horizontal(),
+                self.container_cells.content_inline_size(),
+                &mut cells,
+                item.main_size,
+                Some(item.hypothetical_cross_size),
+            );
+            if !self.item_baseline_is_synthesized(index, true) {
+                // NB: An orthogonal item's content determines its baseline, so measure it at its hypothetical size
+                //     before the baseline-sharing group determines the line's cross size.
+                let mut input = self.item_layout_input(index, &cells, self.available_space_for_items.unwrap().space);
+                input.participation = ParticipationInParentFormattingContext::Root;
+                let result =
+                    formatting_context::lay_out_measurement_root_for_its_result(self.run.pass, item.box_, cells, input);
+                self.flex_item_details[index].orthogonal_flow_baselines = result.orthogonal_flow_baselines;
+            }
+            self.flex_item_details[index].cells = cells;
+            let baseline = self.item_box_baseline(index);
+            let outer_size = self.flex_items[index].hypothetical_cross_size_with_margins();
+            let group = usize::from(self.item_baseline_alignment_edge(index) == AxisEdge::End);
+            let (before, after) = &mut extents[group];
+            *before = Some(before.map_or(baseline, |before| before.max(baseline)));
+            *after = Some(after.map_or(outer_size - baseline, |after| after.max(outer_size - baseline)));
+        }
+        extents
+            .into_iter()
+            .filter_map(|(before, after)| Some(before? + after?))
+            .max()
+            .unwrap_or_default()
+    }
+
     // https://www.w3.org/TR/css-flexbox-1/#algo-cross-line
     fn calculate_cross_size_of_each_flex_line(&mut self) {
         // If the flex container is single-line and has a definite cross size, the cross size of the flex line is the flex container’s inner cross size.
@@ -2521,10 +2577,16 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
         // Otherwise, for each flex line:
         for line_index in 0..self.flex_lines.len() {
-            // FIXME: 1. Collect all the flex items whose inline-axis is parallel to the main-axis, whose align-self is baseline,
+            // 1. Collect all the flex items whose inline-axis is parallel to the main-axis, whose align-self is baseline,
             //           and whose cross-axis margins are both non-auto. Find the largest of the distances between each item’s baseline
             //           and its hypothetical outer cross-start edge, and the largest of the distances between each item’s baseline
             //           and its hypothetical outer cross-end edge, and sum these two values.
+            // FIXME: Include baseline-sharing groups along the other axes too.
+            let baseline_cross_size = if !self.run.pass.frame.is_transposed() && self.cross_axis_is_horizontal() {
+                self.hypothetical_baseline_cross_size(line_index)
+            } else {
+                CssPixels::default()
+            };
 
             // 2. Among all the items not collected by the previous step, find the largest outer hypothetical cross size.
             let largest = self.flex_lines[line_index]
@@ -2534,7 +2596,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .max()
                 .unwrap_or_default();
             // 3. The used cross-size of the flex line is the largest of the numbers found in the previous two steps and zero.
-            self.flex_lines[line_index].cross_size = largest.max(CssPixels::default());
+            self.flex_lines[line_index].cross_size = largest.max(baseline_cross_size).max(CssPixels::default());
         }
         // If the flex container is single-line, then clamp the line’s cross-size to be within the container’s computed min and max cross sizes.
         // Note that if CSS 2.1’s definition of min/max-width/height applied more generally, this behavior would fall out automatically.
@@ -3052,14 +3114,9 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     // https://drafts.csswg.org/css-align-3/#synthesize-baseline
-    // NB: An item in another writing mode has no baseline in this container's axis, so it synthesizes one.
-    fn item_baseline_is_synthesized(&self, index: usize) -> bool {
-        if self.run.pass.frame.is_transposed() {
-            // NB: An item has a baseline across its block axis, so only in the cross axis that its block axis runs
-            //     along.
-            return self.item_establishes_orthogonal_flow(index) != self.cross_axis_is_horizontal();
-        }
-        self.flex_item_details[index].inputs.style.writing_mode() != writing_mode::HORIZONTAL_TB
+    // NB: An item's baselines are measured along its block axis, independently of the flex container's main axis.
+    fn item_baseline_is_synthesized(&self, index: usize, horizontal_axis: bool) -> bool {
+        self.item_establishes_orthogonal_flow(index) != horizontal_axis
     }
 
     fn item_establishes_orthogonal_flow(&self, index: usize) -> bool {
@@ -3067,30 +3124,76 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn item_participates_in_baseline_alignment(&self, index: usize) -> bool {
-        // FIXME: Items in a horizontal-tb container only align by baselines across the vertical axis, where a
-        //        horizontal-tb item is aligned by its own baselines and any other item by synthesized ones.
-        self.flex_items[index].alignment_facts.alignment.position == SelfPosition::Baseline
-            && (!self.item_baseline_is_synthesized(index) || !self.run.pass.frame.is_transposed())
+        let item = &self.flex_items[index];
+        item.alignment_facts.alignment.position == SelfPosition::Baseline
+            && !item.margins.cross_before_is_auto
+            && !item.margins.cross_after_is_auto
+            && (!self.item_baseline_is_synthesized(index, self.cross_axis_is_horizontal())
+                || !self.run.pass.frame.is_transposed())
+    }
+
+    // https://drafts.csswg.org/css-align-3/#align-by-baseline
+    // The fallback alignment of a baseline-sharing group is the fallback alignment of its items as resolved to
+    // physical directions.
+    fn item_baseline_alignment_edge(&self, index: usize) -> AxisEdge {
+        if self.run.pass.frame.is_transposed() || !self.cross_axis_is_horizontal() {
+            // FIXME: Partition baseline-sharing groups along the other axes too.
+            return AxisEdge::Start;
+        }
+        let style = self.flex_item_details[index].inputs.style;
+        let start_is_left = if self.item_baseline_is_synthesized(index, true) {
+            self.container.cross_axis_directions.container_start_is_low
+        } else {
+            geometry::start_is_low_side_in_frame(self.run.pass.frame, style.writing_mode(), style.direction(), true)
+        };
+        AxisEdge::low_side_if(start_is_left != self.cross_alignment_is_last_baseline(style))
     }
 
     fn item_box_baseline(&self, index: usize) -> CssPixels {
         let extras = &self.flex_item_details[index];
         let metrics = &self.flex_item_details[index].cells;
-        if self.run.pass.frame.is_transposed() && self.cross_axis_is_horizontal() {
+        if self.cross_axis_is_horizontal() {
             // NB: The cross axis is the horizontal axis of the frame, along which an item in an orthogonal flow
             //     has its baselines.
             let collapsed = metrics.uses_collapsing_borders_model();
             let margin_box_left = metrics.margin_left() + metrics.border_box_left(collapsed);
-            return match extras.orthogonal_flow_baselines.and_then(|baselines| baselines.first) {
-                Some(baseline) => margin_box_left + baseline,
-                None => margin_box_left + metrics.content_inline_size() + metrics.border_box_right(collapsed),
+            let baseline = extras.orthogonal_flow_baselines.and_then(|baselines| {
+                if !self.run.pass.frame.is_transposed() && self.cross_alignment_is_last_baseline(extras.inputs.style) {
+                    baselines.last
+                } else {
+                    baselines.first
+                }
+            });
+            return match baseline {
+                Some(baseline) => {
+                    let baseline = margin_box_left + baseline;
+                    // https://drafts.csswg.org/css-align-3/#baseline-export
+                    // If the position of a scroll container's first/last baseline is outside its border edge,
+                    // that baseline's position is clamped to the border edge.
+                    if self.facts(self.flex_items[index].box_).is_scroll_container() {
+                        baseline.clamp(
+                            metrics.margin_left(),
+                            metrics.margin_left() + metrics.border_box_inline_size(collapsed),
+                        )
+                    } else {
+                        baseline
+                    }
+                }
+                None if self.run.pass.frame.is_transposed() => {
+                    margin_box_left + metrics.content_inline_size() + metrics.border_box_right(collapsed)
+                }
+                None => metrics.margin_left(),
             };
         }
-        if self.item_baseline_is_synthesized(index) {
+        if self.item_baseline_is_synthesized(index, false)
+            || (self.run.pass.frame.is_transposed() && extras.content_baselines.first.is_none())
+        {
             let collapsed = metrics.uses_collapsing_borders_model();
-            return metrics.margin_box_top(collapsed)
-                + metrics.content_block_size()
-                + metrics.border_box_bottom(collapsed);
+            return formatting_context::synthesize_block_axis_baseline(
+                self.container.style,
+                metrics.margin_top(),
+                metrics.margin_top() + metrics.border_box_block_size(collapsed),
+            );
         }
         formatting_context::box_baseline_with_content_baselines(
             &self.run.pass,
@@ -3112,17 +3215,32 @@ impl<'pass> FlexFormattingContext<'pass> {
             if !self.flex_lines[line_index].has_baseline_aligned_items {
                 continue;
             }
-            let mut max_baseline = CssPixels::default();
+            let mut max_baseline = [None::<CssPixels>; 2];
             for index in self.flex_lines[line_index].items.iter() {
                 if self.item_participates_in_baseline_alignment(index) {
-                    max_baseline = max_baseline.max(self.item_box_baseline(index));
+                    let at_end = self.item_baseline_alignment_edge(index) == AxisEdge::End;
+                    let baseline = self.item_box_baseline(index);
+                    let distance = if at_end {
+                        let item = &self.flex_items[index];
+                        item.add_cross_margin_box_sizes(item.cross_size.unwrap()) - baseline
+                    } else {
+                        baseline
+                    };
+                    let maximum = &mut max_baseline[usize::from(at_end)];
+                    *maximum = Some(maximum.map_or(distance, |maximum| maximum.max(distance)));
                 }
             }
             for item_position in 0..self.flex_lines[line_index].items.len() {
                 let index = self.flex_lines[line_index].items.at(item_position);
                 if self.item_participates_in_baseline_alignment(index) {
                     let baseline = self.item_box_baseline(index);
-                    self.flex_items[index].cross_offset += max_baseline - baseline;
+                    let at_end = self.item_baseline_alignment_edge(index) == AxisEdge::End;
+                    let target = if at_end {
+                        self.flex_lines[line_index].cross_size - max_baseline[1].unwrap()
+                    } else {
+                        max_baseline[0].unwrap()
+                    };
+                    self.flex_items[index].cross_offset += target - baseline;
                 }
             }
         }
@@ -4379,7 +4497,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let items = &self.flex_lines.get(line_index)?.items;
         // 1. If any of the flex items on the flex container's first line participate in baseline alignment, the flex
         //    container's main-axis baseline is the baseline of those flex items.
-        let participating = (baseline_set == formatting_context::BaselineSet::First)
+        let participating = (self.main_axis_is_horizontal() && baseline_set == formatting_context::BaselineSet::First)
             .then(|| {
                 items
                     .iter()
@@ -4427,7 +4545,8 @@ impl<'pass> FlexFormattingContext<'pass> {
             }
         }
 
-        if self.item_baseline_is_synthesized(item) {
+        // NB: A container exports baselines along its block axis, independently of the axis its items align in.
+        if self.item_baseline_is_synthesized(item, false) {
             formatting_context::ChildBaselineSource::Synthesized
         } else {
             formatting_context::ChildBaselineSource::OwnOrSynthesized
