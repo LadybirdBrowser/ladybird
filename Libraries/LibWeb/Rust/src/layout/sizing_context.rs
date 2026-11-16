@@ -3992,8 +3992,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 let table_used_inline_size =
                     table_used.border_box_inline_size(table_used.uses_collapsing_borders_model());
                 let inline_size = if table_wrapper_inline_size_mode
-                    == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
-                    && !self.style(table_run.box_).width().is_auto()
+                    == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSize
+                    || (table_wrapper_inline_size_mode
+                        == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
+                        && !self.style(table_run.box_).width().is_auto())
                 {
                     table_used_inline_size
                 } else if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
@@ -4052,16 +4054,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
 
     // 17.5.3 Table height algorithms
     // https://www.w3.org/TR/CSS22/tables.html#height-layout
-    pub(crate) fn compute_table_box_block_size_inside_wrapper(
-        &self,
-        sized: SizedBox<'_>,
-        available_space: AvailableSpace,
-        table_wrapper_constraints: ContainingBlockConstraints,
-    ) -> CssPixels {
-        self.measure_table_box_block_size_inside_wrapper(sized, available_space, table_wrapper_constraints)
-            .table_box_border_box_block_size
-    }
-
     pub(crate) fn measure_table_box_block_size_inside_wrapper(
         &self,
         sized: SizedBox<'_>,
