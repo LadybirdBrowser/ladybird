@@ -21,9 +21,14 @@
 #include <QWidget>
 
 #if defined(AK_OS_LINUX)
+#    include <AK/ByteString.h>
+#    include <AK/Optional.h>
 #    include <AK/StringView.h>
 #    include <LibCore/Environment.h>
+#    include <LibFileSystem/FileSystem.h>
+#    include <UI/Qt/BrowserWindow.h>
 
+#    include <QApplication>
 #    include <QSettings>
 #    include <QStandardPaths>
 // NB: GLib uses "signals" as a name, which Qt defines as a keyword.
@@ -129,6 +134,21 @@ void WindowControlButton::paintEvent(QPaintEvent* event)
 }
 
 struct DesktopWindowButtons {
+    bool shows(ControlButton button) const
+    {
+        switch (button) {
+        case ControlButton::Minimize:
+            return minimize;
+        case ControlButton::Maximize:
+            return maximize;
+        case ControlButton::Close:
+            return close;
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    bool operator==(DesktopWindowButtons const&) const = default;
+
     bool minimize { true };
     bool maximize { true };
     bool close { true };
@@ -136,6 +156,118 @@ struct DesktopWindowButtons {
     bool on_left { false };
     Vector<ControlButton, 3> order { ControlButton::Minimize, ControlButton::Maximize, ControlButton::Close };
 };
+
+#if defined(AK_OS_LINUX)
+static constexpr auto WM_PREFERENCES_SCHEMA = "org.gnome.desktop.wm.preferences";
+static constexpr auto BUTTON_LAYOUT_KEY = "button-layout";
+
+// https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Settings.html
+static constexpr auto PORTAL_BUS_NAME = "org.freedesktop.portal.Desktop";
+static constexpr auto PORTAL_OBJECT_PATH = "/org/freedesktop/portal/desktop";
+static constexpr auto SETTINGS_INTERFACE = "org.freedesktop.portal.Settings";
+
+static bool is_inside_flatpak()
+{
+    return FileSystem::exists("/.flatpak-info"sv);
+}
+
+static DesktopWindowButtons& desktop_window_buttons();
+
+static void set_gnome_button_layout(DesktopWindowButtons& buttons, StringView layout)
+{
+    // The layout lists the buttons on the left of a colon and those on the right after it, such as "appmenu:close".
+    buttons.minimize = layout.contains("minimize"sv);
+    buttons.maximize = layout.contains("maximize"sv);
+    buttons.close = layout.contains("close"sv);
+}
+
+static void apply_portal_button_layout(GVariant* reply)
+{
+    GVariant* value = nullptr;
+    g_variant_get(reply, "(v)", &value);
+    g_variant_unref(reply);
+    if (g_variant_is_of_type(value, G_VARIANT_TYPE_VARIANT)) {
+        auto* inner_value = g_variant_get_variant(value);
+        g_variant_unref(value);
+        value = inner_value;
+    }
+    if (!g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
+        g_variant_unref(value);
+        return;
+    }
+
+    auto& buttons = desktop_window_buttons();
+    auto previous_buttons = buttons;
+    gsize layout_length = 0;
+    auto const* layout = g_variant_get_string(value, &layout_length);
+    set_gnome_button_layout(buttons, StringView { layout, layout_length });
+    g_variant_unref(value);
+    if (buttons == previous_buttons)
+        return;
+
+    for (auto* widget : QApplication::allWidgets()) {
+        if (auto* button = as_if<WindowControlButton>(widget))
+            button->setVisible(buttons.shows(button->type()));
+    }
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget))
+            window->window_control_buttons_changed();
+    }
+}
+
+static void call_settings_method(GDBusConnection* connection, char const* method, GAsyncReadyCallback callback)
+{
+    g_dbus_connection_call(connection, PORTAL_BUS_NAME, PORTAL_OBJECT_PATH, SETTINGS_INTERFACE, method,
+        g_variant_new("(ss)", WM_PREFERENCES_SCHEMA, BUTTON_LAYOUT_KEY), G_VARIANT_TYPE("(v)"), G_DBUS_CALL_FLAGS_NONE, -1,
+        nullptr, callback, nullptr);
+}
+
+static void did_read_portal_button_layout(GObject* source, GAsyncResult* result, gpointer)
+{
+    if (auto* reply = g_dbus_connection_call_finish(G_DBUS_CONNECTION(source), result, nullptr))
+        apply_portal_button_layout(reply);
+}
+
+static void did_read_one_portal_button_layout(GObject* source, GAsyncResult* result, gpointer)
+{
+    auto* connection = G_DBUS_CONNECTION(source);
+    GError* error = nullptr;
+    auto* reply = g_dbus_connection_call_finish(connection, result, &error);
+    // Portals before version 2 have only Settings.Read, which wraps the value in one more variant.
+    if (!reply && g_error_matches(error, G_DBUS_ERROR, G_DBUS_ERROR_UNKNOWN_METHOD))
+        call_settings_method(connection, "Read", did_read_portal_button_layout);
+    g_clear_error(&error);
+    if (reply)
+        apply_portal_button_layout(reply);
+}
+
+static void read_portal_button_layout()
+{
+    // Connecting synchronously sends the read while the first window is being built, so its answer is usually in
+    // before that window is painted.
+    auto* connection = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, nullptr);
+    if (!connection)
+        return;
+    call_settings_method(connection, "ReadOne", did_read_one_portal_button_layout);
+    g_object_unref(connection);
+}
+
+static Optional<ByteString> read_gsettings_button_layout()
+{
+    auto* source = g_settings_schema_source_get_default();
+    auto* schema = source ? g_settings_schema_source_lookup(source, WM_PREFERENCES_SCHEMA, TRUE) : nullptr;
+    if (!schema)
+        return {};
+    g_settings_schema_unref(schema);
+
+    auto* settings = g_settings_new(WM_PREFERENCES_SCHEMA);
+    auto* layout = g_settings_get_string(settings, BUTTON_LAYOUT_KEY);
+    ByteString result { layout };
+    g_free(layout);
+    g_object_unref(settings);
+    return result;
+}
+#endif
 
 // The window controls follow the desktop's settings; GNOME's buttons are drawn as circles.
 static DesktopWindowButtons read_desktop_window_buttons()
@@ -186,21 +318,12 @@ static DesktopWindowButtons read_desktop_window_buttons()
         return buttons;
     }
 
-    auto* source = g_settings_schema_source_get_default();
-    auto* schema = source ? g_settings_schema_source_lookup(source, "org.gnome.desktop.wm.preferences", TRUE) : nullptr;
-    if (!schema)
-        return buttons;
-    g_settings_schema_unref(schema);
-
-    auto* settings = g_settings_new("org.gnome.desktop.wm.preferences");
-    auto* layout = g_settings_get_string(settings, "button-layout");
-    // The layout lists the buttons on the left of a colon and those on the right after it, such as "appmenu:close".
-    auto layout_view = StringView { layout, strlen(layout) };
-    buttons.minimize = layout_view.contains("minimize"sv);
-    buttons.maximize = layout_view.contains("maximize"sv);
-    buttons.close = layout_view.contains("close"sv);
-    g_free(layout);
-    g_object_unref(settings);
+    // Inside a Flatpak, GSettings only sees the defaults of the runtime's own schemas.
+    if (is_inside_flatpak()) {
+        read_portal_button_layout();
+    } else if (auto layout = read_gsettings_button_layout(); layout.has_value()) {
+        set_gnome_button_layout(buttons, *layout);
+    }
 #elif defined(AK_OS_WINDOWS)
     buttons.round = false;
 #endif
@@ -208,9 +331,9 @@ static DesktopWindowButtons read_desktop_window_buttons()
     return buttons;
 }
 
-static DesktopWindowButtons const& desktop_window_buttons()
+static DesktopWindowButtons& desktop_window_buttons()
 {
-    static auto const buttons = read_desktop_window_buttons();
+    static auto buttons = read_desktop_window_buttons();
     return buttons;
 }
 
@@ -253,11 +376,10 @@ WindowControlButtons create_window_control_buttons(QWidget& parent, char const* 
             break;
         }
     }
-    minimize->setVisible(desktop_buttons.minimize);
-    maximize->setVisible(desktop_buttons.maximize);
-    close->setVisible(desktop_buttons.close);
-    for (auto* button : { minimize, maximize, close })
+    for (auto* button : { minimize, maximize, close }) {
+        button->setVisible(desktop_buttons.shows(button->type()));
         button->set_round(desktop_buttons.round);
+    }
     if (desktop_buttons.round)
         layout->setContentsMargins(0, 0, ROUND_BUTTONS_TRAILING_GAP, 0);
 
