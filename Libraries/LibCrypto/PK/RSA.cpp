@@ -135,6 +135,9 @@ ErrorOr<void> RSA::validate_key_generation_parameters(size_t bits)
     if (bits < minimum_modulus_length)
         return Error::from_string_literal("RSA modulus length must be at least 512 bits");
 
+    if (bits > OPENSSL_RSA_MAX_MODULUS_BITS)
+        return Error::from_string_literal("RSA modulus length must be at most 16384 bits");
+
     return {};
 }
 
