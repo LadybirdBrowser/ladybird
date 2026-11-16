@@ -1,0 +1,17 @@
+right: ends at the content edge
+right-two: ends at the content edge
+right-ascii-space: ends at the content edge
+right-split: ends at the content edge
+right-split-after-one: ends at the content edge
+right-split-around-one: ends at the content edge
+nowrap: ends at the content edge
+pre-line: ends at the content edge
+right-em-space: ends short of it
+center: centered
+only-ideographic-space: takes a line
+only-split-ideographic-spaces: takes a line
+max-content counts the ideographic spaces: true
+max-content counts them across elements: true
+max-content drops a space after them: true
+min-content counts the ideographic spaces: true
+wrap: 2 lines

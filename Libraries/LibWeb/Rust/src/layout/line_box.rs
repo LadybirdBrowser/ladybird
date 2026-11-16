@@ -254,6 +254,24 @@ impl LineBoxData {
             ) {
                 return whitespace_inline_size;
             }
+            // NB: A fragment that's all trailing white space other than a space, such as an element holding just an
+            //     ideographic space, is trimmed to nothing rather than removed, so a line with nothing else on it stays.
+            let is_all_trailing_whitespace = fragment.length_in_code_units > 0
+                && fragment.trailing_whitespace.length_in_code_units == fragment.length_in_code_units;
+            if is_all_trailing_whitespace && !fragment.is_justifiable_whitespace() {
+                let fragment_trailing_whitespace = fragment.trailing_whitespace;
+                whitespace_inline_size += fragment_trailing_whitespace.inline_size;
+                if should_remove {
+                    let fragment = &mut self.fragments[fragment_index];
+                    fragment.length_in_code_units -= fragment_trailing_whitespace.length_in_code_units;
+                    fragment.inline_length -= fragment_trailing_whitespace.inline_size;
+                    fragment.trailing_whitespace = line_box_fragment::TrailingWhitespace::default();
+                    fragment.record.trimmed_trailing_whitespace += fragment_trailing_whitespace;
+                    self.record.inline_length -= fragment_trailing_whitespace.inline_size;
+                    self.clamp_static_position_markers_to_inline_length();
+                }
+                continue;
+            }
             if !fragment.is_justifiable_whitespace() {
                 break fragment_index;
             }
@@ -263,6 +281,7 @@ impl LineBoxData {
                 let removed = line_box_fragment::TrailingWhitespace {
                     length_in_code_units: fragment.length_in_code_units,
                     inline_size: fragment.inline_length,
+                    ascii_inline_size: fragment.inline_length,
                 };
                 removed_whitespace = match removed_whitespace {
                     Some((node, mut sum)) if node == fragment.layout_node => {

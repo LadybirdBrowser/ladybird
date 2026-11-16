@@ -535,7 +535,18 @@ static bool cluster_takes_letter_spacing(Utf16View const& string, u32 cluster_st
     return cluster_start >= string.length_in_code_units() || !is_cursive_script(string.code_point_at(cluster_start));
 }
 
-static size_t length_of_trailing_whitespace_run(Utf16View const& string)
+// https://drafts.csswg.org/css-text-3/#white-space-phase-2
+// 4. If there remains any sequence of white space, other space separators, and/or preserved tabs at the end of a line
+//    (after bidi reordering [CSS-WRITING-MODES-4]):
+//    - If white-space is set to normal, nowrap, or pre-line, the UA must hang this sequence (unconditionally).
+// AD-HOC: Of the other space separators, only the ideographic space (U+3000) counts, so the rest (the em space, e.g.)
+//         stay on the line.
+static bool is_trailing_space(u16 code_unit)
+{
+    return is_ascii_space(code_unit) || code_unit == 0x3000;
+}
+
+static size_t length_of_trailing_ascii_whitespace_run(Utf16View const& string)
 {
     size_t length = 0;
     while (length < string.length_in_code_units() && is_ascii_space(string.code_unit_at(string.length_in_code_units() - length - 1)))
@@ -543,9 +554,20 @@ static size_t length_of_trailing_whitespace_run(Utf16View const& string)
     return length;
 }
 
+static size_t length_of_trailing_whitespace_run(Utf16View const& string)
+{
+    size_t length = 0;
+    while (length < string.length_in_code_units() && is_trailing_space(string.code_unit_at(string.length_in_code_units() - length - 1)))
+        ++length;
+    return length;
+}
+
 struct TrailingWhitespace {
     size_t length_in_code_units { 0 };
     float advance { 0 };
+    // The advance of the ASCII white space at the very end alone, which intrinsic sizing takes off, since an
+    // ideographic space that hangs at the end of a line still counts toward its intrinsic sizes.
+    float ascii_advance { 0 };
 };
 
 struct ShapedGlyphs {
@@ -573,6 +595,7 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
     // added, spacing included.
     TrailingWhitespace trailing_whitespace { .length_in_code_units = length_of_trailing_whitespace_run(string), .advance = 0 };
     auto first_trailing_whitespace_offset = string.length_in_code_units() - trailing_whitespace.length_in_code_units;
+    auto first_trailing_ascii_whitespace_offset = string.length_in_code_units() - length_of_trailing_ascii_whitespace_run(string);
 
     auto is_right_to_left = hb_buffer_get_direction(buffer) == HB_DIRECTION_RTL;
     auto cluster_length_in_code_units = [&](auto index) -> size_t {
@@ -662,6 +685,8 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
 
         if (glyph_info[i].cluster >= first_trailing_whitespace_offset)
             trailing_whitespace.advance += glyphs.last().glyph_width;
+        if (glyph_info[i].cluster >= first_trailing_ascii_whitespace_offset)
+            trailing_whitespace.ascii_advance += glyphs.last().glyph_width;
     }
 
     hb_buffer_destroy(buffer);
@@ -705,7 +730,7 @@ static_assert(offsetof(Gfx::FFI::ShapedGlyph, glyph_id) == offsetof(Gfx::ShapedG
 static_assert(offsetof(Gfx::FFI::ShapedGlyph, should_paint) == offsetof(Gfx::ShapedGlyph, should_paint));
 
 extern "C" {
-void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, Gfx::FFI::JoiningContext, void*, void (*)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float, bool));
+void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, Gfx::FFI::JoiningContext, void*, void (*)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float, float, bool));
 float ladybird_gfx_font_measure_text_width(void const*, u16 const*, size_t);
 void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
 void ladybird_gfx_glyph_run_ink_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
@@ -721,7 +746,7 @@ extern "C" void ladybird_gfx_shape_text_uncached(
     float word_spacing,
     Gfx::FFI::JoiningContext joining_context,
     void* sink,
-    void (*emit)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float, bool))
+    void (*emit)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float, float, bool))
 {
     VERIFY(font);
     VERIFY(text_utf16 || length_in_code_units == 0);
@@ -743,6 +768,7 @@ extern "C" void ladybird_gfx_shape_text_uncached(
         shape.width,
         shape.trailing_whitespace.length_in_code_units,
         shape.trailing_whitespace.advance,
+        shape.trailing_whitespace.ascii_advance,
         shape.requires_context_for_breaks);
 }
 
