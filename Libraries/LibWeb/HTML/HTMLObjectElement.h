@@ -99,6 +99,10 @@ private:
 
     GC::Ptr<DOM::DocumentObserver> m_document_observer;
 
+    // The document of the last object representation task queued, while that task has not started yet.
+    GC::Ptr<DOM::Document> m_document_of_queued_object_representation_task;
+    u64 m_object_representation_task_count { 0 };
+
     Vector<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer_for_object_representation_task;
     Vector<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer_for_resource_load;
 };
