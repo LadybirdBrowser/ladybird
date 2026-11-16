@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<style>
+    @keyframes grow {
+        from { width: 0px; }
+        to { width: 100px; }
+    }
+    #css {
+        animation: grow 100s;
+    }
+    #transition {
+        height: 0px;
+        transition: height 100s;
+    }
+</style>
+<body>
+<script src="../include.js"></script>
+<div id="script"></div>
+<div id="css"></div>
+<div id="transition"></div>
+<script>
+    function describe(animations) {
+        return animations.map(animation => `${animation.constructor.name} ${animation.playState}`).join(", ");
+    }
+
+    test(() => {
+        // An element alone keeps its animations alive.
+        document.getElementById("script").animate([{ opacity: 0 }, { opacity: 1 }], 100000);
+        const transition = document.getElementById("transition");
+        getComputedStyle(transition).height;
+        transition.style.height = "100px";
+        getComputedStyle(transition).height;
+        internals.gc();
+        for (const id of ["script", "css", "transition"])
+            println(`${id}: ${describe(document.getElementById(id).getAnimations())}`);
+
+        // An animation alone keeps the element it targets alive.
+        let animation;
+        {
+            const element = document.createElement("div");
+            document.body.appendChild(element);
+            animation = element.animate([{ opacity: 0 }, { opacity: 1 }], 100000);
+            element.remove();
+        }
+        internals.gc();
+        println(`target of a held animation: ${animation.effect.target.tagName}, ${describe(animation.effect.target.getAnimations())}`);
+        animation.cancel();
+    });
+</script>
+</body>

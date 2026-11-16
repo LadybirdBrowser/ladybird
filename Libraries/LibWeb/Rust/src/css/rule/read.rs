@@ -229,27 +229,16 @@ pub extern "C" fn rust_rule_view_position_try_declarations(
     )
 }
 
-/// # Safety
-/// The callback must not mutate the graph. Keys and declarations are borrowed for the callback.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_view_keyframes(
-    view: &NativeRuleView<'_>,
-    context: *const std::ffi::c_void,
-    visit: unsafe extern "C" fn(
-        *const std::ffi::c_void,
-        *const f64,
-        usize,
-        *const crate::css::declaration_block::DeclarationBlockHeader,
-    ),
-) {
-    assert!(view.rule.rule_type() == NativeRuleType::Keyframes);
-    let _ = view.rule.visit_children(&mut |frame| {
-        let (keys, declarations) = frame.keyframe();
-        unsafe {
-            visit(context, keys.as_ptr(), keys.len(), declarations.as_ptr());
-        }
-        ControlFlow::Continue(())
-    });
+impl NativeRuleView<'_> {
+    /// Each keyframe block of the `@keyframes` rule this views: its keys and its declarations.
+    pub(crate) fn for_each_keyframe(&self, mut visit: impl FnMut(&[f64], SharedDeclarationBlock)) {
+        assert!(self.rule.rule_type() == NativeRuleType::Keyframes);
+        let _ = self.rule.visit_children(&mut |frame| {
+            let (keys, declarations) = frame.keyframe();
+            visit(keys, declarations);
+            ControlFlow::Continue(())
+        });
+    }
 }
 
 impl<'a> RuleRef<'a> {

@@ -6,118 +6,44 @@
 
 #pragma once
 
-#include <LibWeb/Animations/Animation.h>
-#include <LibWeb/Animations/KeyframeEffect.h>
-#include <LibWeb/CSS/CSSAnimationProperties.h>
-#include <LibWeb/CSS/EasingFunction.h>
-#include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Animations/AnimationEffect.h>
+#include <LibWeb/Animations/RecordHandles.h>
+
+namespace Web::CSS::ComputedValuesFFI {
+
+struct FfiComputedAnimation;
+
+}
 
 namespace Web::CSS {
 
 // https://www.w3.org/TR/css-animations-2/#cssanimation
-class CSSAnimation : public Animations::Animation {
-    WEB_WRAPPABLE(CSSAnimation, Animations::Animation);
-    GC_DECLARE_ALLOCATOR(CSSAnimation);
-
+// What the style engine does with the records of CSS animations, whose objects Bindings/Rust/src/css implements.
+class CSSAnimation {
 public:
-    static GC::Ref<CSSAnimation> create(HTML::EnvironmentSettingsObject&);
+    // A new AnimationEvent for `animation`, a CSS animation, that bubbles, which is implemented in Rust.
+    static GC::Ref<DOM::Event> create_event(Animations::AnimationRef const& animation, DOM::Document const&, Utf16FlyString const& type, double elapsed_time, Utf16String pseudo_element);
 
-    // A new AnimationEvent for this animation that bubbles, which is implemented in Rust.
-    GC::Ref<DOM::Event> create_event(DOM::Document const&, Utf16FlyString const& type, double elapsed_time, Utf16String pseudo_element);
+    // https://drafts.csswg.org/css-animations-1/#animations
+    // Creates the CSS animation `owner` runs for the definition a style computation computed, `definition`, at
+    // position `name_index` of its animation-name, running `keyframe_set`.
+    static Animations::AnimationRef create(DOM::AbstractElement owner, ComputedValuesFFI::FfiComputedAnimation const& definition, Animations::KeyframeSetHandle keyframe_set, size_t name_index);
 
-    Utf16FlyString const& animation_name() const { return m_animation_name; }
-    void set_animation_name(Utf16FlyString const& animation_name) { m_animation_name = animation_name; }
+    static Utf16FlyString animation_name(Animations::AnimationRef const&);
 
-    virtual Animations::AnimationClass animation_class() const override;
-    virtual int class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
+    // Applies the definition a style computation computed, `definition`, to the CSS animation `animation`, whose
+    // keyframes the caller gives its effect.
+    static void apply_css_properties(Animations::AnimationRef const& animation, ComputedValuesFFI::FfiComputedAnimation const& definition, DOM::AbstractElement timeline_target);
 
-    // Applies a plan's definition, whose keyframes the caller gives the animation's effect.
-    void apply_css_properties(AnimationProperties const&, Animations::KeyframeEffect::KeyFrameSet const* keyframe_set, DOM::AbstractElement timeline_target);
+    static void set_animation_name_index(Animations::AnimationRef const&, size_t index);
 
-    void set_animation_name_index(size_t index);
-
-    EasingFunction const& default_easing() const { return m_default_easing; }
-
-    virtual void set_timeline_for_bindings(GC::Ptr<Animations::AnimationTimeline> timeline) override;
-    virtual WebIDL::ExceptionOr<void> set_range_start_for_bindings(Animations::TimelineRangeBindingValue const&) override;
-    virtual WebIDL::ExceptionOr<void> set_range_end_for_bindings(Animations::TimelineRangeBindingValue const&) override;
-
-    // Looks the named timeline the animation follows up again.
-    void update_named_timeline();
-    // A removed animation no longer follows its named timeline.
-    void stop_following_named_timeline() { m_named_timeline_source.clear(); }
-
-    virtual WebIDL::ExceptionOr<void> set_start_time_for_bindings(Animations::NullableCSSNumberish const&) override;
-    virtual WebIDL::ExceptionOr<void> set_current_time_for_bindings(Animations::NullableCSSNumberish const&) override;
-    virtual WebIDL::ExceptionOr<void> set_playback_rate(double) override;
-    virtual void cancel(Animations::Animation::ShouldInvalidate = Animations::Animation::ShouldInvalidate::Yes) override;
-    virtual WebIDL::ExceptionOr<void> play(Animations::Animation::ShouldInvalidate = Animations::Animation::ShouldInvalidate::Yes) override;
-    virtual WebIDL::ExceptionOr<void> pause() override;
-    virtual WebIDL::ExceptionOr<void> update_playback_rate(double) override;
-    virtual WebIDL::ExceptionOr<void> reverse() override;
-
-    void play_from_css();
-    void pause_from_css();
-
-    Optional<CSS::AnimationPlayState> last_css_animation_play_state() const { return m_last_css_animation_play_state; }
-    void set_last_css_animation_play_state(CSS::AnimationPlayState state) { m_last_css_animation_play_state = state; }
-
-    // The definition the last plan applied, which the style engine compares the next plan's against.
-    StyleEngineFFI::FfiAppliedAnimationDefinition const& applied_definition() const { return m_applied_definition; }
+    // Looks the named timeline the CSS animation follows up again from its owning element, answering whether that
+    // changed its timeline.
+    static bool update_named_timeline(Animations::AnimationRef const&);
 
 private:
-    struct AppliedCSSProperties {
-        Variant<double, Utf16String> duration;
-        EasingFunction timing_function;
-        double iteration_count;
-        AnimationDirection direction;
-        AnimationPlayState play_state;
-        double delay;
-        AnimationFillMode fill_mode;
-        AnimationComposition composition;
-        Animations::AnimationAttachmentRange range;
-
-        bool operator==(AppliedCSSProperties const&) const = default;
-    };
-
-    explicit CSSAnimation(HTML::EnvironmentSettingsObject&);
-
-    virtual bool is_css_animation() const override { return true; }
-
-    // https://drafts.csswg.org/css-animations-2/#dom-cssanimation-animationname
-    Utf16FlyString m_animation_name;
-
-    // https://drafts.csswg.org/css-animations-1/#animation-timing-function
-    // The default per-keyframe easing, from the animation-timing-function property on the element.
-    EasingFunction m_default_easing { EasingFunction::ease() };
-
-    HashTable<CSS::PropertyID> m_ignored_css_properties;
-
-    Optional<CSS::AnimationPlayState> m_last_css_animation_play_state;
-    Optional<AppliedCSSProperties> m_applied_css_properties;
-
-    // What the style computation last computed for this animation, as computed values rather than
-    // the easings and enums `m_applied_css_properties` holds, with the keyframe set and the timing
-    // function and range calculations it names, which the animation retains for as long as it names them.
-    StyleEngineFFI::FfiAppliedAnimationDefinition m_applied_definition {};
-    RefPtr<Animations::KeyframeEffect::KeyFrameSet const> m_applied_keyframe_set;
-    Animations::AnimationAttachmentRange m_applied_definition_range;
-    RustStyleValueHandle m_applied_timing_function_value;
-
-    bool m_script_overrode_play_state { false };
-    bool m_applying_css_play_state { false };
-
-    size_t m_animation_name_index { 0 };
-
-    void mark_script_play_state_override();
-
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    struct NamedTimelineSource {
-        Utf16FlyString name;
-        DOM::AbstractElement target;
-    };
-    Optional<NamedTimelineSource> m_named_timeline_source;
+    using Flag = Animations::RustFFI::CssAnimationFlag;
+    static bool has_flag(Animations::AnimationRef const&, Flag);
 };
 
 }

@@ -773,7 +773,11 @@ fn percentages_resolve_as(property_id: u16) -> Option<u8> {
 }
 
 /// A calculation with the context of the property, https://drafts.csswg.org/css-values-4/#calc-type-checking
-fn calculated_value(property_id: u16, calculation: Arc<CalcNode>, numeric_type: NumericType) -> RetainedStyleValue {
+pub(crate) fn calculated_value(
+    property_id: u16,
+    calculation: Arc<CalcNode>,
+    numeric_type: NumericType,
+) -> RetainedStyleValue {
     let resolve_as = percentages_resolve_as(property_id);
     let ranges: Vec<_> = if property_id == property_id::CUSTOM {
         Vec::new()

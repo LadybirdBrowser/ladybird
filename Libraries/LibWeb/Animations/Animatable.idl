@@ -1,7 +1,7 @@
 // https://drafts.csswg.org/web-animations-1/#the-animatable-interface-mixin
 interface mixin Animatable {
-    Animation animate(object? keyframes, optional (unrestricted double or KeyframeAnimationOptions) options = {});
-    sequence<Animation> getAnimations(optional GetAnimationsOptions options = {});
+    [ImplementedIn=Rust] Animation animate(object? keyframes, optional (unrestricted double or KeyframeAnimationOptions) options = {});
+    [ImplementedIn=Rust] sequence<Animation> getAnimations(optional GetAnimationsOptions options = {});
 };
 
 // https://drafts.csswg.org/web-animations-1/#dictdef-keyframeanimationoptions
@@ -10,9 +10,9 @@ dictionary KeyframeAnimationOptions : KeyframeEffectOptions {
     AnimationTimeline? timeline;
 
     // https://drafts.csswg.org/web-animations-2/#dom-keyframeanimationoptions-rangestart
-    (TimelineRangeOffset or CSSNumericValue or CSSKeywordValue or DOMString) rangeStart = "normal";
+    TimelineRangeValue rangeStart = "normal";
     // https://drafts.csswg.org/web-animations-2/#dom-keyframeanimationoptions-rangeend
-    (TimelineRangeOffset or CSSNumericValue or CSSKeywordValue or DOMString) rangeEnd = "normal";
+    TimelineRangeValue rangeEnd = "normal";
 };
 
 // https://drafts.csswg.org/web-animations-1/#dictdef-getanimationsoptions

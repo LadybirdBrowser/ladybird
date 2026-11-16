@@ -96,15 +96,12 @@ struct PatternPaintStyle;
 namespace Web::Animations {
 
 class Animatable;
-class Animation;
-class AnimationEffect;
-class AnimationPlaybackEvent;
+class AnimationRef;
 class AnimationTimeline;
-class DocumentTimeline;
-class KeyframeEffect;
+class EffectRef;
+class KeyframeSetView;
 class NamedTimelines;
-class ScrollTimeline;
-class ViewTimeline;
+class WeakAnimationSetView;
 
 }
 
@@ -1097,7 +1094,6 @@ class StorageManager;
 namespace Web::SVG {
 
 class Path;
-class SMILAnimation;
 class SMILTimeContainer;
 class SVGAnimatedEnumeration;
 class SVGAnimatedInteger;

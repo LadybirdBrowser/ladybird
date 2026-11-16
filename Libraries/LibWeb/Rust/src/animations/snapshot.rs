@@ -7,19 +7,13 @@
 //! The timing of an animation effect as the host publishes it to the style engine, which samples the
 //! effect from it wherever the engine runs.
 
+use super::timeline::AnimationTimelineId;
 use super::timing::{
     AnimationEffectTiming, AnimationPlayback, AnimationReplaceState, FillMode, OptionalNumber, OptionalTimeValue,
     PlaybackDirection, TimeValue, TimeValueType, TimelineSample,
 };
 
-/// The identity the host gives a scroll timeline, by which a clock tick finds the progress of the
-/// scroller the timeline follows.
-#[repr(transparent)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ScrollTimelineId(pub u64);
-
 /// What moves an effect's timeline as a clock tick samples it.
-#[cfg_attr(not(test), expect(dead_code, reason = "C++ constructs the variants"))]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TimelineClockSource {
@@ -41,13 +35,13 @@ pub struct TimelineClock {
     /// The origin time of a document timeline.
     pub origin_time: f64,
     /// The identity of a scroll timeline.
-    pub scroll_timeline: ScrollTimelineId,
+    pub scroll_timeline: AnimationTimelineId,
 }
 
 /// The progress, in percent, of a scroll timeline, which is its time.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScrollProgress {
-    pub timeline: ScrollTimelineId,
+    pub timeline: AnimationTimelineId,
     pub progress: f64,
 }
 
@@ -233,12 +227,12 @@ impl CompactEffectTiming {
             TimelineClockSource::Document => TimelineClock {
                 source: TimelineClockSource::Document,
                 origin_time: f64::from_bits(self.clock_reference),
-                scroll_timeline: ScrollTimelineId::default(),
+                scroll_timeline: AnimationTimelineId::default(),
             },
             TimelineClockSource::Scroll => TimelineClock {
                 source: TimelineClockSource::Scroll,
                 origin_time: 0.0,
-                scroll_timeline: ScrollTimelineId(self.clock_reference),
+                scroll_timeline: AnimationTimelineId(self.clock_reference),
             },
         }
     }
@@ -406,7 +400,7 @@ mod tests {
             clock: TimelineClock {
                 source: TimelineClockSource::Document,
                 origin_time: 16.75,
-                scroll_timeline: ScrollTimelineId::default(),
+                scroll_timeline: AnimationTimelineId::default(),
             },
         });
     }
@@ -437,7 +431,7 @@ mod tests {
             clock: TimelineClock {
                 source: TimelineClockSource::Scroll,
                 origin_time: 0.0,
-                scroll_timeline: ScrollTimelineId(u64::MAX - 3),
+                scroll_timeline: AnimationTimelineId(u64::MAX - 3),
             },
         });
     }

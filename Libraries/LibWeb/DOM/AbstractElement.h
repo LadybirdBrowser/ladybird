@@ -79,9 +79,6 @@ public:
     [[nodiscard]] bool custom_property_data_is_animation_overlay() const;
     RefPtr<CSS::StyleValue const> get_custom_property(Utf16FlyString const& name) const;
 
-    Vector<GC::Ref<CSS::CSSAnimation>> const* css_defined_animations() const;
-    void set_css_defined_animations(Vector<GC::Ref<CSS::CSSAnimation>>&&);
-
     void visit(GC::Cell::Visitor& visitor) const;
 
     Utf16String debug_description() const;

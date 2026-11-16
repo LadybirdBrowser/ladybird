@@ -219,14 +219,4 @@ CSS::StyleScope const& AbstractElement::style_scope() const
     return m_element->style_scope();
 }
 
-Vector<GC::Ref<CSS::CSSAnimation>> const* AbstractElement::css_defined_animations() const
-{
-    return m_element->css_defined_animations(m_pseudo_element);
-}
-
-void AbstractElement::set_css_defined_animations(Vector<GC::Ref<CSS::CSSAnimation>>&& animations)
-{
-    m_element->set_css_defined_animations(m_pseudo_element, move(animations));
-}
-
 }

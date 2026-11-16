@@ -1,0 +1,4 @@
+keyframes from a typed array: 2
+member order: get composite, convert composite, get easing, get offset
+values: 0, 1
+own opacity: true, own easing: true

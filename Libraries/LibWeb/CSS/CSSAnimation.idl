@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/css-animations-2/#cssanimation
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface CSSAnimation : Animation {
     readonly attribute CSSOMString animationName;
 };

@@ -24,9 +24,7 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/Animations/AnimationEffect.h>
-#include <LibWeb/Animations/DocumentTimeline.h>
-#include <LibWeb/Animations/ScrollTimeline.h>
-#include <LibWeb/Animations/ViewTimeline.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSImportRule.h>

@@ -4,12 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+//! The members of Element that are implemented in Rust, https://dom.spec.whatwg.org/#interface-element
+
 use core::ffi::c_void;
 
 use ak::Utf16String;
-use libjs_rust::api::Trace;
+use libjs_rust::api::{Gc, MarkedVec, Object, Trace};
 
+use crate::animations::animatable::{self, GetAnimationsOptions, UnrestrictedDoubleOrKeyframeAnimationOptions};
+use crate::animations::animation::AnyAnimation;
+use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::{CallContext, WebIdlResult};
 
 unsafe extern "C" {
     fn web_dom_is_valid_attribute_local_name(name: usize) -> bool;
@@ -60,4 +66,23 @@ impl CppElement {
 pub(crate) fn is_valid_attribute_local_name(name: &Utf16String) -> bool {
     // SAFETY: The name is live for the call.
     unsafe { web_dom_is_valid_attribute_local_name(name.raw_identity()) }
+}
+
+/// https://drafts.csswg.org/web-animations-1/#dom-animatable-getanimations
+pub(crate) fn get_animations<'vm>(
+    this: &CppInterface,
+    cx: &mut CallContext<'vm>,
+    options: GetAnimationsOptions,
+) -> WebIdlResult<MarkedVec<'vm, AnyAnimation>> {
+    animatable::get_animations(this, cx, options)
+}
+
+/// https://drafts.csswg.org/web-animations-1/#dom-animatable-animate
+pub(crate) fn animate(
+    this: &CppInterface,
+    cx: &mut CallContext,
+    keyframes: Option<Gc<Object>>,
+    options: UnrestrictedDoubleOrKeyframeAnimationOptions,
+) -> WebIdlResult<AnyAnimation> {
+    animatable::animate(this, cx, keyframes, options)
 }

@@ -20,7 +20,6 @@
 namespace Web::Animations {
 
 struct AnimationUpdateContext;
-class KeyframeEffect;
 
 }
 
@@ -38,7 +37,7 @@ public:
 
     virtual CSS::InstalledStyle const& installed_style() const = 0;
     CSS::StyleRecordID style_record_identity() const { return installed_style().record(); }
-    virtual void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) = 0;
+    virtual void update_animated_properties(Badge<Web::Animations::EffectRef> const&, DOM::AbstractElement, Web::Animations::EffectRef const&, Web::Animations::AnimationUpdateContext&) = 0;
 };
 
 class WEB_API SyntheticPseudoElement : public PseudoElement {
@@ -58,7 +57,7 @@ public:
     virtual Node& root() const override;
 
     virtual CSS::InstalledStyle const& installed_style() const override { return m_installed_style; }
-    void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) override;
+    void update_animated_properties(Badge<Web::Animations::EffectRef> const&, DOM::AbstractElement, Web::Animations::EffectRef const&, Web::Animations::AnimationUpdateContext&) override;
     void set_computed_style(Layout::BegunRead const&, CSS::InstalledStyle);
     // Swaps in a record a style installation installs, which the render side noted the pseudo-element holds, unless
     // `tell_render_side` asks.
@@ -113,7 +112,7 @@ class WEB_API ElementReferencePseudoElement : public PseudoElement {
     virtual Node& root() const override;
 
     virtual CSS::InstalledStyle const& installed_style() const override;
-    void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) override;
+    void update_animated_properties(Badge<Web::Animations::EffectRef> const&, DOM::AbstractElement, Web::Animations::EffectRef const&, Web::Animations::AnimationUpdateContext&) override;
 
     GC::Ref<Element> const& referenced_element() const { return m_referenced_element; }
 

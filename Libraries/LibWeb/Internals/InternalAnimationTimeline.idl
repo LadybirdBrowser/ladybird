@@ -1,4 +1,4 @@
-[Exposed=Nobody]
+[Exposed=Nobody, ImplementedIn=Rust]
 interface InternalAnimationTimeline : AnimationTimeline {
     undefined setTime(double? time);
     undefined setTimeForObservation(double time);

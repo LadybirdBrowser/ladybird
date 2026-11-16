@@ -19,6 +19,8 @@ from Generators.libweb_bindings.extended_attributes import wrap_with_extended_at
 from Generators.libweb_bindings.glue_headers import bindings_glue_header_for_interface
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_realm_expr
+from Generators.libweb_bindings.rust_types import is_member_implemented_in_rust
+from Generators.libweb_bindings.rust_types import rust_member_definition_entry_point
 from Generators.libweb_bindings.security_checks import implementation_check
 from Generators.libweb_bindings.security_checks import interface_needs_security_check
 from Generators.libweb_bindings.security_checks import on_the_window
@@ -222,6 +224,16 @@ def define_the_attributes(
 
     # 1. For each attribute attr of attributes:
     for attribute in attributes:
+        if is_member_implemented_in_rust(attribute):
+            # NB: The Rust bindings define the accessor properties of an attribute that they implement.
+            out.write(
+                wrap_with_extended_attribute_exposure_checks(
+                    includes,
+                    attribute.extended_attributes,
+                    f"    {rust_member_definition_entry_point(interface, attribute)}(&vm, &realm, &object);\n",
+                )
+            )
+            continue
         if "FIXME" in attribute.extended_attributes:
             definition = f'    object.define_unimplemented_property("{attribute.name}"_utf16_fly_string);\n'
             out.write(
@@ -345,7 +357,7 @@ def write_attribute_getters(
     out: TextIO, context: GenerationContext, includes: GeneratedIncludes, interface: Interface
 ) -> None:
     for attribute in interface.regular_attributes:
-        if "FIXME" in attribute.extended_attributes:
+        if "FIXME" in attribute.extended_attributes or is_member_implemented_in_rust(attribute):
             continue
         write_attribute_getter(out, context, includes, interface, attribute)
 
@@ -682,7 +694,7 @@ def write_attribute_setters(
     out: TextIO, context: GenerationContext, includes: GeneratedIncludes, interface: Interface
 ) -> None:
     for attribute in interface.regular_attributes:
-        if "FIXME" in attribute.extended_attributes:
+        if "FIXME" in attribute.extended_attributes or is_member_implemented_in_rust(attribute):
             continue
         if not attribute_has_setter(attribute):
             continue

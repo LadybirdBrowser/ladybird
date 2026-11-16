@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
-use crate::css::ffi_support::{FfiUtf16View, OwnedBox};
+use crate::css::ffi_support::FfiUtf16View;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{DomPaintFact, NodeSlotId};
 use crate::layout::query::inline_cursor::{CaretPosition, InlineCursor, InlineLine, LineEdge};
@@ -1337,16 +1337,6 @@ pub unsafe extern "C" fn render_state_background_color_animation_keyframe_colors
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_animation_effect_state_create() -> *mut CompositorAnimationEffectState {
-    Box::into_raw(Box::new(CompositorAnimationEffectState::default()))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_animation_effect_state_destroy(state: OwnedBox<CompositorAnimationEffectState>) {
-    drop(state);
-}
-
 /// Builds the animation of the request's target kind for the effect and keeps it pending with the
 /// effect. The target's nodes come from the arena's main tree.
 ///
@@ -1413,11 +1403,6 @@ pub extern "C" fn compositor_animation_effect_has_retained(state: &CompositorAni
 #[unsafe(no_mangle)]
 pub extern "C" fn compositor_animation_effect_clear_retained(state: &mut CompositorAnimationEffectState) {
     state.clear_retained();
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_animation_effect_reset(state: &mut CompositorAnimationEffectState) {
-    state.reset();
 }
 
 /// # Safety

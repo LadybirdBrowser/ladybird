@@ -66,13 +66,14 @@ pub unsafe extern "C" fn render_state_pay_flown_round(host: &DocumentHost, read:
 /// elements whose running animations a tick samples, the monotonic time in milliseconds at which the document's
 /// timestamps are zero, the timestamp of the next event of the animations, past which a tick samples nothing, and the
 /// timestamp at which the sampled animations of the document timeline have all ended, the scroll timelines a tick
-/// samples where the compositor has scrolled to, and what the lane's hover reads, where its ticks follow the pointer.
-/// `update` is the serial number of the rendering update. A document whose layout is not up to date gets no plan.
+/// samples where the compositor has scrolled to, as they are now, and what the lane's hover reads, where its ticks
+/// follow the pointer. `update` is the serial number of the rendering update. A document whose layout is not up to date
+/// gets no plan.
 ///
 /// # Safety
 ///
 /// As for [`render_state_update_layout`], with no layout update running, and `elements` must hold `count` style nodes
-/// and `scroll_timelines` `scroll_timeline_count` timelines. `hover` must be null or point at inputs as
+/// and `scroll_timelines` `scroll_timeline_count` live timelines. `hover` must be null or point at inputs as
 /// `HoverPlan::from_ffi` takes them.
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
@@ -83,7 +84,7 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
     count: usize,
     time_origin: f64,
     last_end: f64,
-    scroll_timelines: *const crate::render_state::FfiPlannedScrollTimeline,
+    scroll_timelines: *const *const crate::animations::timeline::TimelineCell,
     scroll_timeline_count: usize,
     hover: *const crate::render_state::FfiHoverPlanInputs,
     update: u64,
@@ -118,7 +119,11 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
                     elements,
                     time_origin,
                     last_end,
-                    scroll_timelines.to_vec(),
+                    scroll_timelines
+                        .iter()
+                        // SAFETY: Guaranteed by the caller.
+                        .filter_map(|&timeline| unsafe { &*timeline }.clock_snapshot())
+                        .collect(),
                     round,
                     hover,
                 )

@@ -13,10 +13,14 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
+namespace Web::Layout::RustFFI {
+
+struct DocumentHost;
+
+}
+
 namespace Web::CSS::StyleEngineFFI {
 
-struct FfiAppliedAnimationDefinition;
-struct FfiAnimationEffectDescriptions;
 enum class FfiElementDeclarationKind : u8;
 
 }
@@ -145,6 +149,9 @@ WEB_API u32 element_box_type_adjustment_facts(DOM::Element const&);
 WEB_API void record_element_adjustment_facts(DOM::Element&);
 // The element's animations changed: an element with animations has its style composed by the host.
 void record_element_animations_changed(DOM::Element&);
+// The host of the style engine an element's facts are recorded into, once the element has taken its style node
+// identity, or null.
+Layout::RustFFI::DocumentHost const* style_engine_host_for_identified(DOM::Element&);
 WEB_API void record_element_construction_facts(DOM::Element&);
 // Called where which box an element asks for may have moved without its type or an attribute's presence moving.
 WEB_API void record_element_box_kind(DOM::Element&);
@@ -153,12 +160,9 @@ WEB_API void record_element_replaced_content_input(DOM::Element&);
 WEB_API bool record_element_presentational_hint_properties(DOM::Element&, ReadonlySpan<StyleProperty>);
 // Publish the element's hints again, after something they are mapped from beside its own attributes moved.
 WEB_API void republish_presentational_hints(DOM::Element&);
-WEB_API void record_element_css_defined_animations(DOM::Element&, u8 slot, ReadonlySpan<Utf16FlyString> names, ReadonlySpan<StyleEngineFFI::FfiAppliedAnimationDefinition> definitions);
 // Called where an effect takes keyframes or a target: ahead of the read that samples it, as an attr() in the keyframes
 // needs the attributes it names handed over before then.
-WEB_API void record_attr_names_read_by_keyframes(DOM::Element&, Animations::KeyframeEffect const&);
-WEB_API void with_animation_effect_descriptions(ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, Function<void(StyleEngineFFI::FfiAnimationEffectDescriptions const&)> const&);
-WEB_API void record_element_animation_effect_descriptions(DOM::Element&, u8 slot, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>);
+WEB_API void record_attr_names_read_by_keyframes(DOM::Element&, Animations::KeyframeSetView const&);
 
 // Report that a child of an element arrived, left, or changed in a way that can move whether the
 // element is empty. `counted_before` and `counts_after` say whether that child is one `:empty` counts:

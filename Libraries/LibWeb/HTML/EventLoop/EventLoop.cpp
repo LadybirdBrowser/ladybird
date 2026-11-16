@@ -14,8 +14,8 @@
 #include <LibGC/Heap.h>
 #include <LibGC/HeapAccess.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/NamedTimelines.h>
-#include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/FontFaceSet.h>
@@ -771,18 +771,23 @@ void EventLoop::finish_rendering_update(double update_start_time)
 
 // Whether `animation` is a CSS animation or transition that the style of a rendering update began, which the update
 // makes ready once its style and layout are done.
-static bool rendering_update_makes_ready(Animations::Animation const& animation)
+static bool rendering_update_makes_ready(Animations::AnimationRef const& animation)
 {
-    auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
-    return animation.pending() && (animation.is_css_animation() || animation.is_css_transition()) && effect && !effect->may_run_on_the_compositor();
+    auto effect = animation.effect();
+    if (!effect.has_value())
+        return false;
+    auto const state = animation.timing_state();
+    return (state.playback.has_pending_play_task || state.playback.has_pending_pause_task)
+        && (state.kind == Animations::RustFFI::FfiAnimationKind::CssAnimation || state.kind == Animations::RustFFI::FfiAnimationKind::CssTransition)
+        && !effect->may_run_on_the_compositor();
 }
 
 // Whether `animation` runs on the compositor, whose animations, the wake-ups they arm and the ones that leave it, a
 // rendering update publishes with its frame.
-static bool runs_on_the_compositor(Animations::Animation const& animation)
+static bool runs_on_the_compositor(Animations::AnimationRef const& animation)
 {
-    auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
-    return effect && effect->is_compositor_driven();
+    auto effect = animation.effect();
+    return effect.has_value() && effect->is_compositor_driven();
 }
 
 enum class StyleTakenIn : u8 {
@@ -1336,17 +1341,18 @@ static void update_style_and_layout_for_rendering(DOM::Document& document, u64 u
 
     GC::RootVector timelines = { document.associated_animation_timelines().values() };
     for (auto const& timeline : timelines) {
-        auto* scroll_timeline = as_if<Animations::ScrollTimeline>(*timeline);
-
-        if (!scroll_timeline)
+        if (!timeline->is_scroll_timeline())
             continue;
 
-        if (!animations_changed_timeline && !scroll_timeline->is_stale())
+        if (animations_changed_timeline) {
+            // NB: The passed timestamp is ignored for ScrollTimelines so we can just use 0.
+            timeline->update_current_time(0);
+            requires_style_and_layout_update = true;
             continue;
+        }
 
-        // NB: The passed timestamp is ignored for ScrollTimelines so we can just use 0.
-        timeline->update_current_time(0);
-        requires_style_and_layout_update = true;
+        if (timeline->update_current_time_if_stale())
+            requires_style_and_layout_update = true;
     }
 
     if (requires_style_and_layout_update)
@@ -1370,13 +1376,14 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         TemporaryExecutionContext execution_context { document->relevant_settings_object() };
         GC::RootVector timelines = { document->associated_animation_timelines().values() };
         for (auto const& timeline : timelines) {
-            GC::RootVector<GC::Ref<Animations::Animation>> pending_css_animations;
-            for (auto& animation : timeline->associated_animations()) {
+            // NB: Running a play task can run script, which the animations stay alive through.
+            GC::RootVector<Animations::AnimationRef> pending_css_animations;
+            for (auto const& animation : timeline->associated_animations()) {
                 if (rendering_update_makes_ready(animation))
                     pending_css_animations.append(animation);
             }
-            for (auto& animation : pending_css_animations)
-                animation->run_pending_play_task_if_ready();
+            for (auto const& animation : pending_css_animations)
+                animation.run_pending_play_task_if_ready();
         }
     }
 
@@ -1529,7 +1536,7 @@ Layout::RustFFI::FfiFlightBlocker EventLoop::style_flight_blocker(DOM::Document&
     if (document.has_boxes_with_auto_content_visibility())
         return Blocker::ContentVisibilityAuto;
     for (auto const& timeline : document.associated_animation_timelines()) {
-        if (is<Animations::ScrollTimeline>(*timeline))
+        if (timeline->is_scroll_timeline())
             return Blocker::ScrollTimeline;
     }
     // The animations that name their timeline look it up again after style and layout.

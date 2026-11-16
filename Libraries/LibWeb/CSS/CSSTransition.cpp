@@ -7,8 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/HostClassBuilder.h>
-#include <LibWeb/Animations/DocumentTimeline.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -27,20 +26,17 @@ namespace Web::CSS {
 extern "C" {
 
 // Defined in Bindings/Rust/src/css/exports.rs.
-void* web_transition_event_create(JSVM*, void* realm, FlatPtr event_name, FlatPtr name, double elapsed_time, FlatPtr pseudo_element, void* animation);
+void* web_transition_event_create(JSVM*, void* realm, FlatPtr event_name, FlatPtr name, double elapsed_time, FlatPtr pseudo_element, Animations::RustFFI::AnimationCell const* animation);
 }
 
-GC::Ref<DOM::Event> CSSTransition::create_event(DOM::Document const& document, Utf16FlyString const& type, double elapsed_time, Utf16String pseudo_element)
+GC::Ref<DOM::Event> CSSTransition::create_event(Animations::AnimationRef const& transition, DOM::Document const& document, Utf16FlyString const& type, double elapsed_time, Utf16String pseudo_element)
 {
     auto& realm = HTML::relevant_realm(document);
-    auto wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref<CSSTransition> { *this });
-    auto* event = web_transition_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.to_utf16_string().into_raw(), transition_property().to_utf16_string().into_raw(), elapsed_time, move(pseudo_element).into_raw(), JS::HostABI::object_to_abi(wrapper.ptr()));
+    auto* event = web_transition_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.to_utf16_string().into_raw(), transition_property_name_and_id(transition).name().to_utf16_string().into_raw(), elapsed_time, move(pseudo_element).into_raw(), &transition.record());
     return GC::Ref { *static_cast<DOM::Event*>(static_cast<GC::Cell*>(event)) };
 }
 
-GC_DEFINE_ALLOCATOR(CSSTransition);
-
-GC::Ref<CSSTransition> CSSTransition::start_a_provisional_transition(
+Animations::AnimationRef CSSTransition::start_a_provisional_transition(
     DOM::AbstractElement abstract_element,
     PropertyNameAndID property,
     size_t transition_generation,
@@ -53,86 +49,20 @@ GC::Ref<CSSTransition> CSSTransition::start_a_provisional_transition(
     double reversing_shortening_factor,
     EasingFunction timing_function)
 {
-    auto& environment = abstract_element.document().relevant_settings_object();
-    return GC::Heap::the().allocate<CSSTransition>(environment, abstract_element, move(property), transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor, move(timing_function));
-}
+    Animations::RustFFI::FfiCssTransition description {
+        .generation = transition_generation,
+        .start_time = start_time + delay,
+        .end_time = end_time + delay,
+        .reversing_shortening_factor = reversing_shortening_factor,
+        .custom_name = property.is_custom_property() ? property.name().raw_identity() : 0,
+        .start_value = start_value->rust_style_value_data(),
+        .end_value = end_value->rust_style_value_data(),
+        .reversing_adjusted_start_value = reversing_adjusted_start_value->rust_style_value_data(),
+        .property_id = to_underlying(property.id()),
+    };
+    // NB: Script gets the object of the transition, a CSSTransition, as it first asks for it.
+    auto transition = Animations::AnimationRef::adopt(*Animations::RustFFI::animations_css_transition_create(&description));
 
-Utf16FlyString const& CSSTransition::transition_property() const
-{
-    return m_transition_property.name();
-}
-
-Animations::AnimationClass CSSTransition::animation_class() const
-{
-    return Animations::AnimationClass::CSSTransition;
-}
-
-int CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation> other_animation) const
-{
-    auto other = GC::Ref { as<CSSTransition>(*other_animation) };
-
-    // Within the set of CSS Transitions, two animations A and B are sorted in composite order (first to last) as
-    // follows:
-
-    // 1. If neither A nor B has an owning element, sort based on their relative position in the global animation list.
-    if (!owning_element().has_value() && !other->owning_element().has_value())
-        return global_animation_list_order() - other->global_animation_list_order();
-
-    // 2. Otherwise, if only one of A or B has an owning element, let the animation with an owning element sort first.
-    if (owning_element().has_value() && !other->owning_element().has_value())
-        return -1;
-    if (!owning_element().has_value() && other->owning_element().has_value())
-        return 1;
-
-    // 3. Otherwise, if the owning element of A and B differs, sort A and B by tree order of their corresponding owning
-    //    elements. With regard to pseudo-elements, the sort order is as follows:
-    //    - element
-    //    - ::marker
-    //    - ::before
-    //    - any other pseudo-elements not mentioned specifically in this list, sorted in ascending order by the Unicode
-    //      codepoints that make up each selector
-    //    - ::after
-    //    - element children
-    if (owning_element() != other->owning_element()) {
-        // FIXME: Actually sort by tree order
-        return 0;
-    }
-
-    // 4. Otherwise, if A and B have different transition generation values, sort by their corresponding transition
-    //    generation in ascending order.
-    if (m_transition_generation != other->m_transition_generation)
-        return m_transition_generation - other->m_transition_generation;
-
-    // 5. Otherwise, sort A and B in ascending order by the Unicode codepoints that make up the expanded transition
-    //    property name of each transition (i.e. without attempting case conversion and such that ‘-moz-column-width’
-    //    sorts before ‘column-width’).
-    return transition_property() <=> other->transition_property();
-}
-
-CSSTransition::CSSTransition(
-    HTML::EnvironmentSettingsObject& environment,
-    DOM::AbstractElement abstract_element,
-    PropertyNameAndID property,
-    size_t transition_generation,
-    double delay,
-    double start_time,
-    double end_time,
-    NonnullRefPtr<StyleValue const> start_value,
-    NonnullRefPtr<StyleValue const> end_value,
-    NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
-    double reversing_shortening_factor,
-    EasingFunction timing_function)
-    : Animations::Animation(environment)
-    , m_transition_property(move(property))
-    , m_transition_generation(transition_generation)
-    , m_start_time(start_time + delay)
-    , m_end_time(end_time + delay)
-    , m_start_value(move(start_value))
-    , m_end_value(move(end_value))
-    , m_reversing_adjusted_start_value(move(reversing_adjusted_start_value))
-    , m_reversing_shortening_factor(reversing_shortening_factor)
-    , m_keyframe_effect(Animations::KeyframeEffect::create())
-{
     // FIXME:
     // Transitions generated using the markup defined in this specification are not added to the global animation list
     // when they are created. Instead, these animations are appended to the global animation list at the first moment
@@ -141,67 +71,68 @@ CSSTransition::CSSTransition(
 
     // Construct a KeyframesEffect for our animation
     // NB: The current style computation collects this effect before publishing its result, so scheduling a second
-    //     animated style update here would evaluate the same transition twice.
-    m_keyframe_effect->set_target(abstract_element, Animations::KeyframeEffect::InvalidateEffect::No);
-    m_keyframe_effect->set_specified_start_delay(delay);
-    m_keyframe_effect->set_specified_iteration_duration(end_time - start_time);
-    // AD-HOC: CSS Transitions require the start value to apply during transition-delay. A default KeyframeEffect does
-    //         not fill in the before phase, so use backwards fill to keep the transition value in the cascade until
-    //         the active interval starts.
-    m_keyframe_effect->set_fill_mode(Animations::FillMode::Backwards);
-    // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
-    // Timing properties may also be updated due to a style change. Any change to a CSS animation property that affects
-    // timing requires rerunning the procedure to normalize specified timing.
-    m_keyframe_effect->normalize_specified_timing();
-    m_keyframe_effect->set_timing_function(move(timing_function));
+    //     animated style update here would evaluate the same transition twice. The record keeps the effect the
+    //     transition is started with.
+    auto keyframe_effect_record = Animations::EffectRef::create_keyframe_effect();
+    keyframe_effect_record.set_target(abstract_element, Animations::EffectRef::InvalidateEffect::No);
+    keyframe_effect_record.set_keyframe_set(Animations::KeyframeSetHandle::adopt(Animations::RustFFI::animations_keyframe_set_for_transition(
+        to_underlying(property.id()),
+        property.is_custom_property() ? property.name().raw_identity() : 0,
+        start_value->rust_style_value_data(),
+        end_value->rust_style_value_data(),
+        static_cast<float>(abstract_element.computed_style()->effective_zoom()))));
+    Animations::set_owning_element(transition, abstract_element);
+    auto* timeline = abstract_element.document().timeline().ptr();
+    Animations::RustFFI::animations_animation_set_timeline(&transition.record(), timeline ? &timeline->record() : nullptr, Animations::perform_host_effect);
 
-    auto key_frame_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
-    key_frame_set->computed_value_zoom = abstract_element.computed_style()->effective_zoom();
-    Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame initial_keyframe;
-    initial_keyframe.properties.set(m_transition_property, RustStyleValueHandle::retained(m_start_value->rust_style_value_data()));
-
-    Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame final_keyframe;
-    final_keyframe.properties.set(m_transition_property, RustStyleValueHandle::retained(m_end_value->rust_style_value_data()));
-
-    key_frame_set->keyframes_by_key.insert(0, initial_keyframe);
-    key_frame_set->keyframes_by_key.insert(100 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor, final_keyframe);
-
-    m_keyframe_effect->set_key_frame_set(key_frame_set);
-    set_timeline(abstract_element.document().timeline());
-    set_owning_element(abstract_element);
-    set_provisional_effect(m_keyframe_effect);
-
-    HTML::TemporaryExecutionContext context(environment);
-    play(Animations::Animation::ShouldInvalidate::No).release_value_but_fixme_should_propagate_errors();
+    // NB: The record sets the timing of the effect, sets it as the transition's associated effect and plays the
+    //     transition, which creates its ready promise.
+    Utf16FlyString timing_function_serialization { timing_function.to_utf16_string() };
+    Animations::RustFFI::FfiProvisionalTransitionTiming timing {
+        .delay = delay,
+        .duration = end_time - start_time,
+        .timing_function = timing_function.descriptor(),
+        .timing_function_serialization = timing_function_serialization.raw_identity(),
+    };
+    HTML::TemporaryExecutionContext context(abstract_element.document().relevant_settings_object());
+    Animations::RustFFI::animations_css_transition_start_provisionally(&transition.record(), &keyframe_effect_record.record(), &timing, Animations::perform_host_effect);
+    return transition;
 }
 
-void CSSTransition::commit_provisional_transition()
+PropertyNameAndID CSSTransition::transition_property_name_and_id(Animations::AnimationRef const& transition)
 {
-    VERIFY(m_is_provisional);
-    auto target = m_keyframe_effect->target();
-    VERIFY(target);
-    auto owner = owning_element();
-    VERIFY(owner.has_value());
-    target->associate_with_animation(*this);
-    target->set_transition(owner->pseudo_element(), m_transition_property, *this);
-    m_is_provisional = false;
+    auto state = Animations::RustFFI::animations_css_transition(&transition.record());
+    if (state.custom_name)
+        return PropertyNameAndID::from_name(Utf16FlyString::from_raw(state.custom_name)).release_value();
+    return PropertyNameAndID::from_id(static_cast<PropertyID>(state.property_id));
 }
 
-void CSSTransition::discard_provisional_transition()
+NonnullRefPtr<StyleValue const> CSSTransition::transition_start_value(Animations::AnimationRef const& transition)
 {
-    VERIFY(m_is_provisional);
-    set_timeline({});
-    discard_provisional_effect();
-    m_is_provisional = false;
+    auto state = Animations::RustFFI::animations_css_transition(&transition.record());
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(state.start_value)));
 }
 
-// The identity the style engine describes the effect of `transition` by, or 0.
-static u64 effect_identity(CSSTransition const& transition)
+void CSSTransition::commit_provisional_transition(Animations::AnimationRef const& transition, Animations::RustFFI::TransitionOrigin origin)
 {
+    // NB: The associated effect of a provisional transition is the effect it was started with.
     auto effect = transition.effect();
-    if (!effect || !effect->is_keyframe_effect())
-        return 0;
-    return static_cast<Animations::KeyframeEffect const&>(*effect).animation_preparation_identity();
+    VERIFY(effect.has_value());
+    auto* target = effect->target();
+    VERIFY(target);
+    auto owner = Animations::RustFFI::animations_animation_owning_element(&transition.record());
+    VERIFY(owner.element);
+    Optional<PseudoElement> pseudo_element;
+    if (owner.has_pseudo_element)
+        pseudo_element = static_cast<PseudoElement>(owner.pseudo_element);
+    target->commit_provisional_transition(pseudo_element, transition, origin);
+}
+
+void CSSTransition::discard_provisional_transition(Animations::AnimationRef const& transition)
+{
+    Animations::RustFFI::animations_animation_set_timeline(&transition.record(), nullptr, Animations::perform_host_effect);
+    // NB: The record lets the transition have no associated effect.
+    Animations::RustFFI::animations_css_transition_discard_provisional(&transition.record());
 }
 
 void CSSTransition::adopt_lane_transitions(DOM::Document& document)
@@ -218,49 +149,48 @@ void CSSTransition::adopt_lane_transitions(DOM::Document& document)
         if (!element || !element->is_connected())
             return;
         // A transition the lane started that the host took in already runs from when the lane started it.
-        auto runs_as_lane_does = [&](CSSTransition const& transition, PropertyNameAndID const& property) {
-            return any_of(lane_transitions, [&](auto const& lane_transition) {
-                if (lane_transition.property_id != to_underlying(property.id()))
-                    return false;
-                if (lane_transition.host_identity != 0)
-                    return lane_transition.host_identity == effect_identity(transition);
-                return transition.m_adopted_from_lane && transition.transition_start_time() == lane_transition.start_time + lane_transition.delay;
-            });
+        auto runs_as_lane_does = [&](Animations::AnimationRef const& transition) {
+            return Animations::RustFFI::animations_css_transition_runs_as_lane_does(&transition.record(), lane_transitions);
         };
-        // The transitions of the host's the lane's steps ended as they ran end as they did, and so does one the lane
-        // started that the host took in and the lane no longer runs. One the steps saw end by itself ends as it does,
-        // with its events. One the host started since the lane forked is its own: the lane decided nothing over it, and
-        // the host decides what becomes of it, and of its property, in its turn. So does one script finished meanwhile.
-        GC::RootVector<GC::Ref<CSSTransition>> ended;
+        // NB: The record of each running transition decides what becomes of it (see LaneAdoption). One the steps saw
+        //     end by itself ends as it does, with its events, and so does one script finished meanwhile.
+        GC::RootVector<Animations::AnimationRef> ended;
         Vector<PropertyNameAndID> host_decides;
-        if (auto const* existing = element->existing_transitions({})) {
-            for (auto const& [property, transition] : *existing) {
-                if (transition->is_idle() || transition->is_finished() || runs_as_lane_does(transition, property))
-                    continue;
-                auto identity = effect_identity(transition);
-                if (cancelled.contains_slow(identity)) {
-                    ended.append(transition);
-                } else if (seen.contains_slow(identity)) {
-                    continue;
-                } else if (transition->m_adopted_from_lane) {
-                    ended.append(transition);
-                } else {
-                    host_decides.append(property);
-                }
+        for (auto const& transition : element->existing_transitions({})) {
+            auto timing = transition.timing_state();
+            if (timing.play_state == Animations::RustFFI::AnimationPlayState::Idle || timing.playback.is_finished)
+                continue;
+            switch (Animations::RustFFI::animations_css_transition_lane_adoption(&transition.record(), lane_transitions, cancelled, seen)) {
+            case Animations::RustFFI::LaneAdoption::Stands:
+                break;
+            case Animations::RustFFI::LaneAdoption::Ends:
+                ended.append(transition);
+                break;
+            case Animations::RustFFI::LaneAdoption::HostDecides:
+                host_decides.append(transition_property_name_and_id(transition));
+                break;
             }
         }
-        for (auto& transition : ended) {
-            transition->cancel();
-            element->remove_transition({}, transition->m_transition_property);
+        for (auto const& transition : ended) {
+            transition.cancel();
+            element->remove_transition({}, transition_property_name_and_id(transition));
         }
+        // NB: The start time of a transition is a time of the document timeline, which validating it as script sets
+        //     it would only read as milliseconds.
+        auto set_start_time = [](Animations::AnimationRef const& transition, double start_time) {
+            Animations::RustFFI::animations_animation_set_start_time(&transition.record(), Animations::to_ffi(Optional<Animations::TimeValue> { Animations::TimeValue { Animations::TimeValue::Type::Milliseconds, start_time } }), Animations::perform_host_effect);
+        };
         // A transition of the host's whose play is still pending runs from when the lane took it to start.
         for (auto const& lane_transition : lane_transitions) {
             if (lane_transition.host_identity == 0)
                 continue;
             auto transition = element->property_transition({}, PropertyNameAndID::from_id(static_cast<PropertyID>(lane_transition.property_id)));
-            if (transition && effect_identity(*transition) == lane_transition.host_identity && !transition->start_time().has_value()
-                && transition->pending() && transition->play_state() != Bindings::AnimationPlayState::Paused)
-                (void)transition->set_start_time_for_bindings(Animations::NullableCSSNumberish { lane_transition.start_time });
+            if (!transition.has_value() || !Animations::RustFFI::animations_css_transition_is_host_transition_of(&transition->record(), &lane_transition))
+                continue;
+            auto timing = transition->timing_state();
+            if (!timing.playback.start_time.has_value && (timing.playback.has_pending_play_task || timing.playback.has_pending_pause_task)
+                && timing.play_state != Animations::RustFFI::AnimationPlayState::Paused)
+                set_start_time(*transition, lane_transition.start_time);
         }
         for (auto const& lane_transition : lane_transitions) {
             if (lane_transition.host_identity != 0)
@@ -268,22 +198,22 @@ void CSSTransition::adopt_lane_transitions(DOM::Document& document)
             auto property = PropertyNameAndID::from_id(static_cast<PropertyID>(lane_transition.property_id));
             if (host_decides.contains_slow(property))
                 continue;
-            if (auto current = element->property_transition({}, property)) {
-                if (runs_as_lane_does(*current, property))
+            if (auto current = element->property_transition({}, property); current.has_value()) {
+                if (runs_as_lane_does(*current))
                     continue;
                 // A completed transition of the property gives way to the one the lane started. One the lane saw end,
                 // which the host's timeline has yet to reach, ends now.
-                if (!current->is_idle() && !current->is_finished())
-                    (void)current->finish();
+                auto timing = current->timing_state();
+                if (timing.play_state != Animations::RustFFI::AnimationPlayState::Idle && !timing.playback.is_finished)
+                    (void)Animations::RustFFI::animations_animation_finish(&current->record(), Animations::perform_host_effect);
                 element->remove_transition({}, property);
             }
             auto transition = start_a_provisional_transition(*element, property, document.transition_generation(),
                 lane_transition.delay, lane_transition.start_time, lane_transition.start_time + lane_transition.duration,
                 adopt_value(lane_transition.start_value), adopt_value(lane_transition.end_value), adopt_value(lane_transition.reversing_adjusted_start_value),
                 lane_transition.reversing_shortening_factor, EasingFunction::from_style_value(adopt_value(lane_transition.timing_function)));
-            transition->commit_provisional_transition();
-            transition->m_adopted_from_lane = true;
-            (void)transition->set_start_time_for_bindings(Animations::NullableCSSNumberish { lane_transition.start_time });
+            commit_provisional_transition(transition, Animations::RustFFI::TransitionOrigin::Lane);
+            set_start_time(transition, lane_transition.start_time);
         }
     };
     // Starting and cancelling transitions settles their promises in the document's realm. The rendering update runs
@@ -294,31 +224,6 @@ void CSSTransition::adopt_lane_transitions(DOM::Document& document)
         [](void* context, u32 style_node, u64 const* cancelled, size_t cancelled_count, u64 const* seen, size_t seen_count, StyleValueFFI::FfiLaneTransition const* transitions, size_t transition_count) {
             (*static_cast<decltype(adopt)*>(context))(style_node, { cancelled, cancelled_count }, { seen, seen_count }, { transitions, transition_count });
         });
-}
-
-void CSSTransition::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_cached_declaration);
-    visitor.visit(m_keyframe_effect);
-}
-
-double CSSTransition::style_change_event_time() const
-{
-    return m_start_time - m_keyframe_effect->start_delay().value;
-}
-
-double CSSTransition::timing_function_output_at_time(double t) const
-{
-    // AD-HOC: If the transition has an empty duration then we get NaN here,
-    // setting progress to 1 because an instant transition may be considered "finished".
-    double progress = 1;
-    if (transition_start_time() < transition_end_time())
-        progress = (t - transition_start_time()) / (transition_end_time() - transition_start_time());
-
-    // FIXME: Is this before_flag value correct?
-    bool before_flag = t < transition_start_time();
-    return m_keyframe_effect->timing_function().evaluate_at(progress, before_flag);
 }
 
 }

@@ -1,0 +1,2 @@
+animated: rgb(0, 128, 0)
+target without its animation element: rgb(255, 0, 0)

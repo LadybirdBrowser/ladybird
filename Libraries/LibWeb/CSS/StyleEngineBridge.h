@@ -94,7 +94,6 @@ void style_engine_set_element_backing_pseudo_kind(DocumentHost const*, StyleNode
 void style_engine_set_counter_style_environment_identity(DocumentHost const*, TreeScopeID tree_scope, u64 identity);
 void style_engine_set_held_style_record(DocumentHost const*, StyleNodeID node, void const* record);
 void style_engine_set_held_pseudo_style_record(DocumentHost const*, StyleNodeID node, u8 pseudo_kind, StyleAtomID highlight_name, u64 style_record, void const* released);
-void style_engine_set_element_css_defined_animations(DocumentHost const*, StyleNodeID node, u8 slot, ReadonlySpan<FlatPtr> names, ReadonlySpan<FfiAppliedAnimationDefinition> definitions);
 void style_engine_set_tree_scope_root(DocumentHost const*, TreeScopeID tree_scope, StyleNodeID root);
 void style_engine_set_sheet_conditions_hold(DocumentHost const*, SheetID sheet, bool conditions_hold);
 u32 style_engine_connected_element_count(DocumentHost const*, BegunRead const*);

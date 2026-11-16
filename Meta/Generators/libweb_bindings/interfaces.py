@@ -23,6 +23,8 @@ from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
 from Generators.libweb_bindings.named_and_indexed_properties import legacy_platform_object_info_functions
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
+from Generators.libweb_bindings.rust_types import rust_implemented_members
+from Generators.libweb_bindings.rust_types import rust_member_definition_entry_point
 from Generators.libweb_bindings.security_checks import interface_needs_security_check
 from Generators.libweb_bindings.wrappers import create_wrapper_function_name
 from Generators.libweb_bindings.wrappers import interface_and_inherited_interfaces
@@ -327,6 +329,14 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> {interface.constructor_class}::constr
     if len(interface.constructors) > 1:
         for overload_index, constructor in enumerate(interface.constructors):
             constructors.write_constructor_function(out, context, includes, interface, constructor, overload_index)
+
+    rust_members = rust_implemented_members(interface)
+    if rust_members is not None:
+        for member in rust_members.regular_attributes + rust_members.regular_operations:
+            out.write(
+                f'extern "C" void {rust_member_definition_entry_point(interface, member)}(void* vm, void* realm, void* prototype);\n'
+            )
+        out.write("\n")
 
     out.write(f"""void {interface.prototype_class}::initialize(JS::Realm& realm, JS::Object& object)
 {{

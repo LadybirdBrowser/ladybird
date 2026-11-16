@@ -17,9 +17,11 @@ public:
     using LinearPoint = Compositing::RustFFI::FfiLinearEasingPoint;
 
     static EasingFunction linear();
-    static EasingFunction ease();
 
     static EasingFunction from_style_value(StyleValue const&);
+    // The easing function the text parses as with the <easing-function> production, as the easing member of
+    // EffectTiming parses it.
+    static Optional<EasingFunction> parse(Utf16View);
 
     // The descriptor borrows this function's control points.
     Descriptor descriptor() const
@@ -40,7 +42,6 @@ public:
         return descriptor;
     }
 
-    double evaluate_at(double input_progress, bool before_flag) const;
     Utf16String const& to_utf16_string() const { return m_text; }
 
     // NB: The serialization is of the value the function was made from, so it tells functions apart.

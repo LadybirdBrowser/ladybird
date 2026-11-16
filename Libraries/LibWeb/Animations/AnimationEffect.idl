@@ -42,7 +42,7 @@ dictionary ComputedEffectTiming : EffectTiming {
 };
 
 // https://drafts.csswg.org/web-animations-1/#the-animationeffect-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface AnimationEffect {
     EffectTiming getTiming();
     ComputedEffectTiming getComputedTiming();

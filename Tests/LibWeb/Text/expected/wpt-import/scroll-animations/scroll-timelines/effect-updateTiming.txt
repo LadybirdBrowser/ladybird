@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 67 tests
 
-65 Pass
-2 Fail
+66 Pass
+1 Fail
 Pass	Allows setting the delay to a positive number
 Pass	Allows setting the delay to a negative number
 Pass	Allows setting the delay of an animation in progress: positive delay that causes the animation to be no longer in-effect
@@ -34,7 +34,7 @@ Pass	Allows setting the iterations of an animation in progress with duration "au
 Pass	Allows creating scroll linked animation with duration Infinity
 Pass	Allows setting the duration to 123.45
 Pass	Allows setting the duration to auto
-Fail	Allows setting the duration to Infinity
+Pass	Allows setting the duration to Infinity
 Pass	Throws when setting invalid duration: -1
 Pass	Throws when setting invalid duration: NaN
 Pass	Throws when setting invalid duration: -Infinity

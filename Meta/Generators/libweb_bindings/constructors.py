@@ -20,16 +20,11 @@ from Utils.webidl_parser import Constructor
 from Utils.webidl_parser import Interface
 
 
-def bindings_constructor_call(
-    interface: Interface, arguments: str, needs_argument_count: bool, needs_realm: bool
-) -> str:
+def bindings_constructor_call(interface: Interface, arguments: str, needs_realm: bool) -> str:
     arguments_with_leading_comma = f", {arguments}" if arguments else ""
-    argument_count = ", vm.argument_count()" if needs_argument_count else ""
     if needs_realm:
-        return f"Web::Bindings::construct_{idl_identifier_cpp_name(interface)}(realm{arguments_with_leading_comma}{argument_count})"
-    if arguments:
-        return f"Web::Bindings::construct_{idl_identifier_cpp_name(interface)}({arguments}{argument_count})"
-    return f"Web::Bindings::construct_{idl_identifier_cpp_name(interface)}({argument_count.removeprefix(', ')})"
+        return f"Web::Bindings::construct_{idl_identifier_cpp_name(interface)}(realm{arguments_with_leading_comma})"
+    return f"Web::Bindings::construct_{idl_identifier_cpp_name(interface)}({arguments})"
 
 
 def write_constructor_function(
@@ -192,7 +187,6 @@ def write_constructor_steps(
         construct_impl_call = bindings_constructor_call(
             interface,
             arguments,
-            "NeedsArgumentCount" in constructor.extended_attributes,
             "RealmFreeConstructor" not in constructor.extended_attributes,
         )
         out.write(

@@ -921,9 +921,9 @@ pub unsafe extern "C" fn style_engine_adopt_lane_transitions(
     adopt: unsafe extern "C" fn(
         context: *mut std::ffi::c_void,
         node: u32,
-        cancelled: *const u64,
+        cancelled: *const crate::animations::effect::AnimationEffectId,
         cancelled_count: usize,
-        seen: *const u64,
+        seen: *const crate::animations::effect::AnimationEffectId,
         seen_count: usize,
         transitions: *const crate::css::transition::FfiLaneTransition,
         transition_count: usize,

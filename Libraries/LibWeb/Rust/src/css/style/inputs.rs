@@ -1470,14 +1470,13 @@ impl RetainedState {
 
     /// Record the CSS animations the host holds for one of an element's animation lists, in the
     /// order it holds them: each one's name, and the definition the last plan applied to it.
-    pub fn set_element_css_defined_animations(
+    pub(crate) fn set_element_css_defined_animations(
         &mut self,
         node: StyleNodeID,
         slot: animations::AnimationSlot,
-        names: Box<[crate::css::css_string::CssString]>,
-        definitions: Box<[animations::HeldAppliedAnimationDefinition]>,
+        animations: Box<[animations::CssDefinedAnimation]>,
     ) {
-        self.css_defined_animations.set(node, slot, names, definitions);
+        self.css_defined_animations.set(node, slot, animations);
     }
 
     /// The CSS animations the host holds for one of an element's animation lists.
@@ -1530,7 +1529,7 @@ impl RetainedState {
     pub(crate) fn refresh_element_animation_effect_timing(
         &mut self,
         node: StyleNodeID,
-        identity: u64,
+        identity: crate::animations::effect::AnimationEffectId,
         timing: &crate::animations::snapshot::EffectTimingSnapshot,
     ) {
         self.animation_effect_descriptions
@@ -1540,21 +1539,15 @@ impl RetainedState {
     /// Keeps the timing the host samples one of an element's described effects with, and answers the
     /// key the effect samples its keyframes at (see
     /// [`super::effect_descriptions::AnimationEffectDescriptions::time_effect`]).
-    ///
-    /// # Safety
-    /// The linear points `easing` names must be live.
-    pub(crate) unsafe fn time_element_animation_effect(
+    pub(crate) fn time_element_animation_effect(
         &mut self,
         node: StyleNodeID,
         slot: animations::AnimationSlot,
-        identity: u64,
-        timing: &crate::animations::snapshot::EffectTimingSnapshot,
-        easing: &crate::css::easing::FfiEasingDescriptor,
+        description: &std::sync::Arc<super::effect_descriptions::EffectDescription>,
+        timing: crate::animations::snapshot::CompactEffectTiming,
     ) -> Option<f64> {
-        unsafe {
-            self.animation_effect_descriptions
-                .time_effect(node, slot, identity, timing, easing)
-        }
+        self.animation_effect_descriptions
+            .time_effect(node, slot, description, timing)
     }
 
     pub fn set_tree_scope_root(&mut self, tree_scope: TreeScopeID, root: StyleNodeID) {

@@ -17,8 +17,10 @@ from Generators.libweb_bindings.rust_members import rust_members
 from Generators.libweb_bindings.rust_types import cpp_interface
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
+from Generators.libweb_bindings.rust_types import is_member_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import runtime_union_type
+from Generators.libweb_bindings.rust_types import rust_implemented_members
 from Generators.libweb_bindings.rust_types import rust_interface
 from Utils.webidl_parser import Dictionary
 from Utils.webidl_parser import IDLType
@@ -36,10 +38,16 @@ def types_named_by_interface(interface: Interface, with_unimplemented_members: b
 
     types = []
     for attribute in interface.regular_attributes + interface.static_attributes:
+        # NB: The Rust bindings convert the values of an attribute marked [ImplementedIn=Rust].
+        if is_member_implemented_in_rust(attribute) and not is_implemented_in_rust(interface):
+            continue
         if is_wanted(attribute.extended_attributes):
             types.append(attribute.type)
     for operation in interface.regular_operations + interface.static_operations:
         if not is_wanted(operation.extended_attributes):
+            continue
+        # NB: The Rust bindings convert the values of an operation marked [ImplementedIn=Rust].
+        if is_member_implemented_in_rust(operation) and not is_implemented_in_rust(interface):
             continue
         types.append(operation.return_type)
         types.extend(parameter.type for parameter in operation.parameters)
@@ -114,38 +122,48 @@ class DefinitionUsage:
                 self._name_for_rust(IDLType(dictionary.name), from_js=True, to_js=False)
         for module in self.context.modules:
             interface = module.interface
+            rust_members_of_cpp_interface = rust_implemented_members(interface)
+            if rust_members_of_cpp_interface is not None:
+                assert interface is not None
+                # NB: The bindings of the members check that their this value implements the interface.
+                self.cpp_interfaces_named_by_rust[interface.name] = interface
+                self._name_members_for_rust(rust_members_of_cpp_interface)
+                continue
             if interface is None or not is_implemented_in_rust(interface):
                 continue
-            members = rust_members(interface)
             parent = self.context.interfaces.get(interface.parent_name)
             if parent is not None and not is_implemented_in_rust(parent):
                 # NB: The bindings of the interface name the interface implemented in C++ it inherits from, whose
                 #     interface prototype object and interface object are the prototypes of its own.
                 self.cpp_interfaces_named_by_rust[parent.name] = parent
-            for attribute in members.attributes:
-                if attribute.event_type is not None:
-                    continue
-                has_setter = attribute.setter_method is not None
-                self._name_for_rust(attribute.attribute.type, from_js=has_setter, to_js=True)
-            operations = [
-                overload.operation
-                for operation_set in members.operation_sets + members.static_operation_sets
-                for overload in operation_set.overloads
-            ]
-            if members.indexed_property_getter is not None:
-                operations.append(members.indexed_property_getter.operation.operation)
-            if members.indexed_property_setter is not None:
-                self._name_for_rust(members.indexed_property_setter.value_parameter.type, from_js=True, to_js=False)
-            for operation in operations:
-                self._name_for_rust(operation.return_type, from_js=False, to_js=True)
-                for parameter in operation.parameters:
-                    self._name_for_rust(parameter.type, from_js=True, to_js=False)
-            for constructor in members.constructors:
-                for parameter in constructor.constructor.parameters:
-                    self._name_for_rust(parameter.type, from_js=True, to_js=False)
-            if members.async_iterator is not None:
-                for parameter in members.async_iterator.parameters:
-                    self._name_for_rust(parameter.type, from_js=True, to_js=False)
+            self._name_members_for_rust(interface)
+
+    def _name_members_for_rust(self, interface: Interface) -> None:
+        members = rust_members(interface)
+        for attribute in members.attributes:
+            if attribute.event_type is not None:
+                continue
+            has_setter = attribute.setter_method is not None
+            self._name_for_rust(attribute.attribute.type, from_js=has_setter, to_js=True)
+        operations = [
+            overload.operation
+            for operation_set in members.operation_sets + members.static_operation_sets
+            for overload in operation_set.overloads
+        ]
+        if members.indexed_property_getter is not None:
+            operations.append(members.indexed_property_getter.operation.operation)
+        if members.indexed_property_setter is not None:
+            self._name_for_rust(members.indexed_property_setter.value_parameter.type, from_js=True, to_js=False)
+        for operation in operations:
+            self._name_for_rust(operation.return_type, from_js=False, to_js=True)
+            for parameter in operation.parameters:
+                self._name_for_rust(parameter.type, from_js=True, to_js=False)
+        for constructor in members.constructors:
+            for parameter in constructor.constructor.parameters:
+                self._name_for_rust(parameter.type, from_js=True, to_js=False)
+        if members.async_iterator is not None:
+            for parameter in members.async_iterator.parameters:
+                self._name_for_rust(parameter.type, from_js=True, to_js=False)
 
     def _name_for_rust(self, idl_type: IDLType, from_js: bool, to_js: bool) -> None:
         if isinstance(idl_type, IDLUnionType):

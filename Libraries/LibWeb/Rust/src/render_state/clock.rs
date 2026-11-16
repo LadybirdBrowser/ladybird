@@ -28,7 +28,8 @@
 
 use super::owner::DocumentId;
 use super::{DocumentHost, RenderState};
-use crate::animations::snapshot::{ScrollProgress, ScrollTimelineId};
+use crate::animations::snapshot::ScrollProgress;
+use crate::animations::timeline::ScrollTimelineSnapshot;
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::ffi_support::OwnedArc;
 use crate::css::style::animations::AnimationTimelineSamples;
@@ -41,9 +42,7 @@ use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutNodeArena};
 use crate::paint_stage::Presenting;
 use crate::painting::paint_passes::{ClockTickVisualContexts, VisualContextsNeedHost, prepare_for_clock_tick};
-use crate::painting::paintable_geometry::{
-    absolute_border_box_rect, absolute_padding_box_rect, committed_content_size, scrollable_overflow_rect,
-};
+use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::presentation::Presentation;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::inputs::UnframedRecordingInputs;
@@ -79,7 +78,7 @@ pub(crate) struct ClockPlan {
     /// past it shows their ends, and after it only a scroll moves anything.
     last_end: f64,
     /// The scroll timelines a tick samples where the compositor has scrolled their scrollers to.
-    scroll_timelines: Vec<FfiPlannedScrollTimeline>,
+    scroll_timelines: Vec<ScrollTimelineSnapshot>,
     round: ClockRound,
     /// What a tick hovers the element under the pointer with, where the lane follows the pointer.
     hover: Option<hover::HoverPlan>,
@@ -88,139 +87,18 @@ pub(crate) struct ClockPlan {
     pub(super) animation_changes: u64,
 }
 
-/// A scroll timeline whose animations the ticks of a lane sample, as a rendering update sealed it.
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct FfiPlannedScrollTimeline {
-    /// The identity the host gave the timeline.
-    pub timeline: u64,
-    /// The unique node id of the element whose scroll node the timeline follows, or of the document for its viewport,
-    /// and whether along the vertical axis.
-    pub scroller: i64,
-    /// The style node of the element whose box scrolls, or 0 for the viewport.
-    pub scroller_element: u32,
-    pub vertical: bool,
-    /// The scroll offset the host laid out, in CSS pixels.
-    pub scroll_offset: f64,
-    /// The scroll offset at 100% progress, in CSS pixels, in the layout the host sealed the plan from, and in the
-    /// layout of the last frame a tick presented from then on.
-    pub max_scroll_offset: f64,
-    pub view: FfiPlannedViewTimeline,
-}
-
-/// What decides the progress of a view progress timeline, along its axis, in CSS pixels, in the layout the host sealed
-/// the plan from, and where a tick's layout moved them in the layout of the last frame a tick presented from then on.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default)]
-pub struct FfiPlannedViewTimeline {
-    /// The style node of the timeline's subject, or 0 for a scroll progress timeline, which has none of this.
-    pub subject: u32,
-    pub scrollport_size: f64,
-    /// The insets of the view progress visibility range, at the start and at the end of the scrollport.
-    pub inset_start: f64,
-    pub inset_end: f64,
-    /// How much of those insets is a percentage of the scrollport's size. Scroll padding counts as none, whose pixels
-    /// hold until the host's next plan.
-    pub inset_start_percentage: f64,
-    pub inset_end_percentage: f64,
-    /// Where the subject's border box starts, from the start of the scrollport, and its size.
-    pub subject_offset: f64,
-    pub subject_size: f64,
-}
-
-impl FfiPlannedViewTimeline {
-    /// The scroll offsets at the start and at the end of the cover range.
-    fn cover_range(&self) -> (f64, f64) {
-        // https://drafts.csswg.org/scroll-animations-1/#valdef-animation-timeline-range-cover
-        // 0% progress represents the latest position at which the start border edge of the element's principal box
-        // coincides with the end edge of its view progress visibility range.
-        // 100% progress represents the earliest position at which the end border edge of the element's principal box
-        // coincides with the start edge of its view progress visibility range.
-        (
-            self.subject_offset - (self.scrollport_size - self.inset_end),
-            self.subject_offset + self.subject_size - self.inset_start,
-        )
-    }
-
-    /// https://drafts.csswg.org/scroll-animations-1/#view-timeline-progress
-    /// The progress, in percent, at the scroll offset `position`.
-    /// NB: The 0% and 100% positions never coincide: the host plans no such timeline, and `follow_layout` leaves one
-    ///     where they would.
-    fn progress_at(&self, position: f64) -> f64 {
-        let (cover_start, cover_end) = self.cover_range();
-        (position - cover_start) / (cover_end - cover_start) * 100.0
-    }
-}
-
-impl FfiPlannedScrollTimeline {
-    /// Where `scroll_offsets` scrolled the timeline's scroller to, or where the host laid it out without one for it, up
-    /// to the end of the scroll range: a tick's layout may have shrunk it before the compositor hears of that.
-    /// NB: A scroller that overflows towards its start, as with `direction: rtl`, scrolls to negative offsets.
-    fn position_in(&self, scroll_offsets: &[FfiScrollOffset]) -> f64 {
-        let position = scroll_offsets
-            .iter()
-            .find(|offset| offset.scroller == self.scroller)
-            .map_or(
-                self.scroll_offset,
-                |offset| {
-                    if self.vertical { offset.y } else { offset.x }
-                },
-            );
-        position.min(self.max_scroll_offset)
-    }
-
-    /// The progress, in percent, of the timeline at the scroll offset `position`.
-    fn progress_at(&self, position: f64) -> f64 {
-        if self.view.subject == 0 {
-            return position / self.max_scroll_offset * 100.0;
-        }
-        self.view.progress_at(position)
-    }
-
-    /// Has the timeline follow the layout `arena` holds, as a host's layout decides its next rendering update's
-    /// samples.
-    /// What makes the timeline inactive there leaves it where it was: the host decides that.
-    fn follow_layout(&mut self, arena: &LayoutNodeArena) {
-        let rows = arena.paintable_rows();
-        let scroller = StyleNodeID::from_raw(self.scroller_element)
-            .map_or_else(|| arena.layout_root(), |element| arena.bound_row(element));
-        let Some(overflow) = scrollable_overflow_rect(&rows, scroller) else {
-            return;
-        };
-        let content = committed_content_size(&rows, scroller);
-        let max_scroll_offset = match self.vertical {
-            true => overflow.height.to_double() - content.height.to_double(),
-            false => overflow.width.to_double() - content.width.to_double(),
-        };
-        if max_scroll_offset <= 0.0 {
-            return;
-        }
-        self.max_scroll_offset = max_scroll_offset;
-        let Some(subject) = StyleNodeID::from_raw(self.view.subject) else {
-            return;
-        };
-        let subject = arena.bound_row(subject);
-        if !rows.paintable_row_is_populated(subject) {
-            return;
-        }
-        let along = |rect: CssPixelRect| match self.vertical {
-            true => (rect.y.to_double(), rect.height.to_double()),
-            false => (rect.x.to_double(), rect.width.to_double()),
-        };
-        let mut view = self.view;
-        let (scrollport_start, scrollport_size) = along(absolute_padding_box_rect(&rows, scroller));
-        let (subject_start, subject_size) = along(absolute_border_box_rect(&rows, subject));
-        let resized_by = scrollport_size - view.scrollport_size;
-        view.scrollport_size = scrollport_size;
-        view.inset_start += view.inset_start_percentage / 100.0 * resized_by;
-        view.inset_end += view.inset_end_percentage / 100.0 * resized_by;
-        view.subject_offset = subject_start - scrollport_start;
-        view.subject_size = subject_size;
-        let (cover_start, cover_end) = view.cover_range();
-        if cover_start != cover_end {
-            self.view = view;
-        }
-    }
+/// Where `scroll_offsets` scrolled the scroller of `timeline` to, or where the host laid it out without one for it, up to
+/// the end of the scroll range: a tick's layout may have shrunk it before the compositor hears of that.
+/// NB: A scroller that overflows towards its start, as with `direction: rtl`, scrolls to negative offsets.
+fn position_in(timeline: &ScrollTimelineSnapshot, scroll_offsets: &[FfiScrollOffset]) -> f64 {
+    let scroller = &timeline.scroller;
+    let position = scroll_offsets
+        .iter()
+        .find(|offset| offset.scroller == scroller.scroll_node.node_id)
+        .map_or(scroller.scroll_offset, |offset| {
+            if scroller.vertical { offset.y } else { offset.x }
+        });
+    position.min(scroller.max_scroll_offset)
 }
 
 /// Where the compositor had scrolled the scroll node of an element, or of a document's viewport, by its unique node id,
@@ -238,7 +116,7 @@ impl ClockPlan {
         elements: Vec<StyleNodeID>,
         time_origin: f64,
         last_end: f64,
-        mut scroll_timelines: Vec<FfiPlannedScrollTimeline>,
+        mut scroll_timelines: Vec<ScrollTimelineSnapshot>,
         round: ClockRound,
         hover: Option<hover::HoverPlan>,
     ) -> Self {
@@ -259,7 +137,7 @@ impl ClockPlan {
     fn scroll_positions(&self, scroll_offsets: &[FfiScrollOffset]) -> SmallVec<[f64; 2]> {
         self.scroll_timelines
             .iter()
-            .map(|timeline| timeline.position_in(scroll_offsets))
+            .map(|timeline| position_in(timeline, scroll_offsets))
             .collect()
     }
 
@@ -270,7 +148,7 @@ impl ClockPlan {
             .iter()
             .zip(positions)
             .map(|(timeline, &position)| ScrollProgress {
-                timeline: ScrollTimelineId(timeline.timeline),
+                timeline: timeline.timeline,
                 progress: timeline.progress_at(position),
             })
             .collect()

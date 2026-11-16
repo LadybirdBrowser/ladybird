@@ -23,7 +23,6 @@ mod owner;
 pub(crate) use owner::{process_style, release_unused_memory_of_style_layout_threads};
 mod wait;
 
-pub use clock::FfiPlannedScrollTimeline;
 pub use clock::hover::FfiHoverPlanInputs;
 pub(crate) use clock::hover::HoverPlan;
 pub(crate) use clock::{ClockPlan, CommittedContent, CommittedFrame, LaneDelivery, SampledFrame};

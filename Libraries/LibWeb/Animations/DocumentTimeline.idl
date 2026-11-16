@@ -4,7 +4,7 @@ dictionary DocumentTimelineOptions {
 };
 
 // https://drafts.csswg.org/web-animations-1/#documenttimeline
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface DocumentTimeline : AnimationTimeline {
     constructor(optional DocumentTimelineOptions options = {});
 };

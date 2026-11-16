@@ -8,17 +8,17 @@
 //! Libraries/LibWeb/CSS/TypedOM.cpp.
 
 use core::ffi::c_void;
-use core::ptr::{NonNull, null_mut};
+use core::ptr::null_mut;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use ak::Utf16String;
 use libcompositing_rust::css_pixels::{CssPixelRect, FfiCssPixelPoint, FfiCssPixelRect};
-use libjs_rust::api::{Gc, MarkedVec, Vm};
+use libjs_rust::api::{MarkedVec, Vm};
 use libweb_rust::typed_om::{FfiNumericType, RetainedStyleValue};
 use libweb_rust::{NativeMediaList, NativeRule, NativeRuleList};
 
-use super::animation_event::{AnimationEvent, AnimationEventInit};
+use super::animation_event::{AnimationEvent, AnimationEventInit, EventAnimation};
 use super::css_container_rule::CSSContainerRule;
 use super::css_counter_style_rule::CSSCounterStyleRule;
 use super::css_font_face_rule::CSSFontFaceRule;
@@ -68,7 +68,6 @@ use super::style_sheet_list::StyleSheetList;
 use super::transition_event::{TransitionEvent, TransitionEventInit};
 use super::typed_om;
 use super::visual_viewport::VisualViewport;
-use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_if_abi, cell_into_abi, realm_arguments};
 use crate::dom::event::EventInit;
@@ -676,23 +675,12 @@ pub unsafe extern "C" fn web_screen_create(vm: *mut c_void, realm: *mut c_void, 
     cell_into_abi(Screen::create(vm, realm, window))
 }
 
-/// The object of a wrapper that C++ passes, if it passes one.
-///
-/// # Safety
-///
-/// `wrapper` must be null or a live wrapper of an object of an interface that LibWeb implements in C++.
-unsafe fn cpp_interface_from_abi(wrapper: *mut c_void) -> Option<CppInterface> {
-    let wrapper = NonNull::new(wrapper.cast())?;
-    // SAFETY: The caller passes a live wrapper.
-    Some(unsafe { CppInterface::from_wrapper(Gc::from_non_null(wrapper)) })
-}
-
 /// A new AnimationEvent that bubbles, as the Event that C++ dispatches.
 ///
 /// # Safety
 ///
 /// `vm` must be the live VM, `realm` a live realm, `event_name`, `animation_name` and `pseudo_element` raw strings that
-/// C++ hands over, and `animation` a live wrapper of a CSSAnimation.
+/// C++ hands over, and `animation` a CSS animation C++ holds a reference to.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_animation_event_create(
     vm: *mut c_void,
@@ -701,27 +689,27 @@ pub unsafe extern "C" fn web_animation_event_create(
     animation_name: usize,
     elapsed_time: f64,
     pseudo_element: usize,
-    animation: *mut c_void,
+    animation: *const c_void,
 ) -> *mut c_void {
     // SAFETY: The caller passes the live VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    // SAFETY: The caller hands over the strings and passes a live wrapper.
+    // SAFETY: The caller hands over the strings and passes an animation it holds a reference to.
     let (event_name, animation_name, pseudo_element, animation) = unsafe {
         (
             Utf16String::from_raw_owned(event_name),
             Utf16String::from_raw_owned(animation_name),
             Utf16String::from_raw_owned(pseudo_element),
-            cpp_interface_from_abi(animation),
+            EventAnimation::retained_from_host(animation),
         )
     };
     let event_init = AnimationEventInit {
         parent: bubbling_event_init(),
-        animation,
+        animation: None,
         animation_name,
         elapsed_time,
         pseudo_element,
     };
-    let event = AnimationEvent::create(vm, realm, &event_name, event_init);
+    let event = AnimationEvent::create_for_animation(vm, realm, &event_name, event_init, Some(animation));
     event.event().set_is_trusted(true);
     event.event().as_ptr()
 }
@@ -731,7 +719,7 @@ pub unsafe extern "C" fn web_animation_event_create(
 /// # Safety
 ///
 /// `vm` must be the live VM, `realm` a live realm, `event_name`, `property_name` and `pseudo_element` raw strings that
-/// C++ hands over, and `animation` a live wrapper of a CSSTransition.
+/// C++ hands over, and `animation` a CSS transition C++ holds a reference to.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_transition_event_create(
     vm: *mut c_void,
@@ -740,27 +728,27 @@ pub unsafe extern "C" fn web_transition_event_create(
     property_name: usize,
     elapsed_time: f64,
     pseudo_element: usize,
-    animation: *mut c_void,
+    animation: *const c_void,
 ) -> *mut c_void {
     // SAFETY: The caller passes the live VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    // SAFETY: The caller hands over the strings and passes a live wrapper.
+    // SAFETY: The caller hands over the strings and passes an animation it holds a reference to.
     let (event_name, property_name, pseudo_element, animation) = unsafe {
         (
             Utf16String::from_raw_owned(event_name),
             Utf16String::from_raw_owned(property_name),
             Utf16String::from_raw_owned(pseudo_element),
-            cpp_interface_from_abi(animation),
+            EventAnimation::retained_from_host(animation),
         )
     };
     let event_init = TransitionEventInit {
         parent: bubbling_event_init(),
-        animation,
+        animation: None,
         elapsed_time,
         property_name,
         pseudo_element,
     };
-    let event = TransitionEvent::create(vm, realm, &event_name, event_init);
+    let event = TransitionEvent::create_for_animation(vm, realm, &event_name, event_init, Some(animation));
     event.event().set_is_trusted(true);
     event.event().as_ptr()
 }

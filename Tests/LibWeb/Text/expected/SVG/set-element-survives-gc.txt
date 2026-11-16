@@ -1,0 +1,4 @@
+before gc: rgb(0, 128, 0)
+after gc: rgb(0, 128, 0)
+after its end: rgb(255, 0, 0)
+seeked back: rgb(0, 128, 0)

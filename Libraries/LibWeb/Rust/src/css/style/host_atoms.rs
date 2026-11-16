@@ -477,6 +477,7 @@ pub(crate) fn note_attr_names_read_by_change(host: &DocumentHost, change: &Arena
             | Engine::UnparkRandomBaseValues { .. }
             | Engine::NoteCustomPropertyEnvironment { .. }
             | Engine::AnimationKeyframes { .. }
+            | Engine::CssDefinedAnimations { .. }
             | Engine::AnimationEffectTimings { .. } => {}
         },
         _ => {}

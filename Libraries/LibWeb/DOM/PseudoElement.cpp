@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Animations/KeyframeEffect.h>
+#include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -73,11 +73,11 @@ Node& SyntheticPseudoElement::root() const
     return m_originating_element->root();
 }
 
-void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
+void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::EffectRef> const&, DOM::AbstractElement abstract_element, Web::Animations::EffectRef const& effect, Web::Animations::AnimationUpdateContext& context)
 {
     if (!m_installed_style.record())
         return;
-    effect.update_computed_properties_for_style(context, abstract_element);
+    context.add_effect(abstract_element, effect);
 }
 
 void SyntheticPseudoElement::replace_installed_style(Layout::BegunRead const& read, CSS::InstalledStyle style)
@@ -170,7 +170,7 @@ CSS::InstalledStyle const& ElementReferencePseudoElement::installed_style() cons
     return m_referenced_element->installed_style({});
 }
 
-void ElementReferencePseudoElement::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const& badge, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
+void ElementReferencePseudoElement::update_animated_properties(Badge<Web::Animations::EffectRef> const& badge, DOM::AbstractElement abstract_element, Web::Animations::EffectRef const& effect, Web::Animations::AnimationUpdateContext& context)
 {
     m_referenced_element->update_animated_properties_for_abstract_element(badge, abstract_element, effect, context);
 }

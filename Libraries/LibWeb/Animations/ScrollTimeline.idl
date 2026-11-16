@@ -1,8 +1,8 @@
 // https://drafts.csswg.org/scroll-animations-1/#scrolltimeline
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface ScrollTimeline : AnimationTimeline {
     constructor(optional ScrollTimelineOptions options = {});
-    [ImplementedAs=source_for_bindings] readonly attribute Element? source;
+    readonly attribute Element? source;
     readonly attribute ScrollAxis axis;
 };
 

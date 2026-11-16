@@ -1486,6 +1486,11 @@ fn parse_pseudo_element_selector(
     Ok((selector, pseudo_element_type))
 }
 
+/// The pseudo-element selector the text parses as, for the target pseudo-selector of an animation effect.
+pub(crate) fn parse_pseudo_element_selector_from_utf16(input: &[u16]) -> Result<(SelectorRef, PseudoElementType), ()> {
+    parse_pseudo_element_selector(input.into(), false)
+}
+
 /// A parsed selector list, in the arena it is packed into.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RustParsedSelectorList {

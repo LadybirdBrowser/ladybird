@@ -20,10 +20,11 @@ use ak::math;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use crate::animations::keyframes::KeyframeValue;
 use crate::css::custom_properties::CustomPropertyValueToFinalize;
-use crate::css::easing::{Easing, FfiEasingDescriptor, FfiLinearEasingPoint, evaluate_easing_descriptor};
+use crate::css::easing::{Easing, FfiEasingDescriptor, FfiLinearEasingPoint};
 use crate::css::property_metadata::{property_animation_type, property_numeric_ranges};
-use crate::css::style::effect_descriptions::{PublishedEffect, PublishedValue};
+use crate::css::style::effect_descriptions::PublishedEffect;
 use crate::css::style_value::{
     BasicShapeData, ColorBase, CssString, CssStringList, FILTER_KIND_BLUR, FILTER_KIND_COLOR, FILTER_KIND_DROP_SHADOW,
     FILTER_KIND_HUE_ROTATE, GridTrackEntryKind, OwnedBasicShapeData, RetainedGridTrackEntry,
@@ -199,20 +200,6 @@ pub(crate) unsafe fn style_value_from_easing(descriptor: &FfiEasingDescriptor) -
     ))))
 }
 
-/// Evaluate a resolved easing descriptor without consulting C++.
-///
-/// # Safety
-/// `descriptor` must point to a live descriptor. Its linear point range must be live when the
-/// descriptor kind is linear.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_evaluate_easing(
-    descriptor: &FfiEasingDescriptor,
-    input_progress: f64,
-    before_flag: bool,
-) -> f64 {
-    evaluate_easing_descriptor(descriptor, input_progress, before_flag)
-}
-
 /// Describes the easing a computed timing function value names, appending a linear easing's
 /// control points through `append_point`. Returns false for a value that names none.
 ///
@@ -332,21 +319,12 @@ struct AnimationValueInput<'a> {
     keyframe_plans: &'a [AnimationKeyframePlan],
 }
 
-/// The version of an effect a preparation was made from.
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiAnimationPreparationEffect {
-    pub identity: u64,
-    pub generation: u64,
-}
-
-/// One effect a sample composes, in composite order: the version a preparation is keyed by, and
-/// where the effect is.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiSampledAnimationEffect {
-    pub effect: FfiAnimationPreparationEffect,
-    pub current_key: f64,
+/// One effect a sample composes, in composite order: its description, which a preparation is keyed by, and where the
+/// effect is.
+#[derive(Clone)]
+pub(crate) struct SampledAnimationEffect {
+    pub(crate) description: std::sync::Arc<crate::css::style::effect_descriptions::EffectDescription>,
+    pub(crate) current_key: f64,
 }
 
 /// The declarations an element's effects resolved to, and the computed value of each, which a
@@ -361,7 +339,7 @@ pub(crate) struct ComputedAnimationBatch<'a> {
     pub(crate) context: FfiAnimationContext<'a>,
     /// The device pixel ratio that animated border widths are snapped to.
     pub(crate) device_pixels_per_css_pixel: f64,
-    pub(crate) sampled_effects: &'a [FfiSampledAnimationEffect],
+    pub(crate) sampled_effects: &'a [SampledAnimationEffect],
     /// The identities of the custom-property environments of the element and of the one it
     /// inherits from, which a preparation that substituted keyframe values against the element was
     /// made under.
@@ -8814,6 +8792,11 @@ pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
     })
 }
 
+/// The key of `keyframe` on the scale keyframes are interpolated on.
+fn keyframe_key(keyframe: &crate::animations::keyframes::Keyframe) -> i64 {
+    i64::try_from(keyframe.key).expect("a keyframe's offset is at most 100%")
+}
+
 #[derive(Clone, Copy)]
 struct CustomPropertyKeyframeLookup {
     keyframe_index: usize,
@@ -8851,12 +8834,12 @@ fn select_custom_property_interval_span(
     current_key: f64,
 ) -> [CustomPropertyKeyframeLookup; 2] {
     let first_lookup = keyframe_lookups[0];
-    let first_composite = effect.keyframes()[first_lookup.keyframe_index].composite;
+    let first_composite = effect.composite_of(&effect.keyframes()[first_lookup.keyframe_index]);
     let first_value = &effect.custom_declaration_at(first_lookup.declaration_index).value;
 
-    let can_use_constant_interpolation = !matches!(first_value, PublishedValue::ElementValue)
+    let can_use_constant_interpolation = !matches!(first_value, KeyframeValue::ElementValue)
         && keyframe_lookups.iter().all(|lookup| {
-            let composite = effect.keyframes()[lookup.keyframe_index].composite;
+            let composite = effect.composite_of(&effect.keyframes()[lookup.keyframe_index]);
             let value = &effect.custom_declaration_at(lookup.declaration_index).value;
             composite == first_composite && value == first_value
         });
@@ -8867,7 +8850,7 @@ fn select_custom_property_interval_span(
         (0, keyframe_lookups.len() - 1)
     } else {
         keyframe_interval(keyframe_lookups.len(), current_key, |index| {
-            effect.keyframes()[keyframe_lookups[index].keyframe_index].key
+            keyframe_key(&effect.keyframes()[keyframe_lookups[index].keyframe_index])
         })
     };
 
@@ -8888,7 +8871,7 @@ fn select_contributing_custom_property_intervals(
         let effect = selection.effect;
         let mut intervals = Vec::new();
         for (name_id, keyframe_lookups) in build_custom_property_keyframe_lookups(effect, custom_properties) {
-            if keyframe_lookups.len() < 2 || custom_properties.is_important(name_id) && !effect.is_transition {
+            if keyframe_lookups.len() < 2 || custom_properties.is_important(name_id) && !effect.is_transition() {
                 continue;
             }
             if replaced_names.contains(&name_id) {
@@ -8898,10 +8881,11 @@ fn select_contributing_custom_property_intervals(
             let interpolable = registry.name_has_interpolable_syntax(custom_properties.units(name_id));
             let replaces_underlying = interval_span.iter().all(|lookup| {
                 let composite_replaces = !interpolable
-                    || effect.keyframes()[lookup.keyframe_index].composite == FfiCompositeOperation::Replace;
+                    || effect.composite_of(&effect.keyframes()[lookup.keyframe_index])
+                        == FfiCompositeOperation::Replace;
                 let has_declared_value = matches!(
                     effect.custom_declaration_at(lookup.declaration_index).value,
-                    PublishedValue::Declared(_)
+                    KeyframeValue::Declared(_)
                 );
                 composite_replaces && has_declared_value
             });
@@ -8917,7 +8901,7 @@ fn select_contributing_custom_property_intervals(
                 name: custom_properties.name(name_id).clone(),
                 declared_values: interval_span.map(|lookup| {
                     match &effect.custom_declaration_at(lookup.declaration_index).value {
-                        PublishedValue::Declared(value) => value.clone(),
+                        KeyframeValue::Declared(value) => value.clone(),
                         _ => RetainedStyleValueData::none(),
                     }
                 }),
@@ -8947,7 +8931,8 @@ pub(crate) fn resolve_published_animation_declarations(
     important_property_bitmap: &[u8],
     conversions: &std::cell::RefCell<KeyframeConversionCache>,
 ) -> PublishedAnimationDeclarations {
-    use crate::css::style::effect_descriptions::{PublishedValue, easing_from_computed_timing_function};
+    use crate::animations::keyframes::KeyframeEasing;
+    use crate::css::style::effect_descriptions::easing_from_computed_timing_function;
     let registry = engine.custom_property_registry();
     let mut custom_properties = AnimatedCustomProperties {
         stores,
@@ -8982,7 +8967,7 @@ pub(crate) fn resolve_published_animation_declarations(
     let intervals_by_effect = select_contributing_custom_property_intervals(selected, &mut custom_properties, registry);
     for (selection, intervals) in selected.iter().zip(intervals_by_effect) {
         let effect = selection.effect;
-        let is_transition = effect.is_transition;
+        let is_transition = effect.is_transition();
         let style_sheet_resource_context = match effect.resource_context() {
             None => FfiAnimationStyleSheetResourceContext {
                 base_url: std::ptr::null(),
@@ -9003,10 +8988,14 @@ pub(crate) fn resolve_published_animation_declarations(
         let first_keyframe_index = keyframes.len();
         for keyframe in effect.keyframes() {
             let keyframe_index = keyframes.len();
-            keyframes.push((keyframe.key, keyframe.composite));
+            keyframes.push((keyframe_key(keyframe), effect.composite_of(keyframe)));
             // A keyframe's own easing written as a value substitutes against the element; one that
-            // resolves to no easing runs its animation's.
-            let substituted_easing = keyframe.easing_value.as_ref().and_then(|written| {
+            // resolves to no easing runs its animation's, as does one that declares none.
+            let written_easing = match &keyframe.easing {
+                KeyframeEasing::Value(written) => Some(written),
+                KeyframeEasing::None | KeyframeEasing::Easing(_) => None,
+            };
+            let substituted_easing = written_easing.and_then(|written| {
                 let substituted;
                 let mut value = written.data();
                 if matches!(value, StyleValueData::Unresolved { .. }) {
@@ -9022,20 +9011,24 @@ pub(crate) fn resolve_published_animation_declarations(
                 }
                 easing_from_computed_timing_function(value)
             });
-            easings.push(substituted_easing.unwrap_or_else(|| keyframe.easing.clone()));
+            easings.push(match (&keyframe.easing, substituted_easing) {
+                (KeyframeEasing::Easing(easing), _) => easing.clone(),
+                (_, Some(substituted_easing)) => substituted_easing,
+                (_, None) => effect.default_easing(),
+            });
             let keyframe_declarations = effect.declarations_of(keyframe);
             // The values of the shorthands written with arbitrary substitution functions that this keyframe's
             // longhands pend the substitution of, each already standing for its longhands.
             let mut substituted_shorthand_values: Vec<*const StyleValueData> = Vec::new();
-            for declaration in keyframe_declarations {
+            for declaration in keyframe_declarations.clone() {
                 let (value, use_initial) = match &declaration.value {
-                    PublishedValue::ElementValue => {
+                    KeyframeValue::ElementValue => {
                         let Some(value) = longhands.handle(declaration.property_id) else {
                             continue;
                         };
                         (value.clone_retained(), true)
                     }
-                    PublishedValue::Declared(value) => match value.data() {
+                    KeyframeValue::Declared(value) => match value.data() {
                         // https://drafts.csswg.org/css-values-5/#pending-substitution-value
                         // The longhands of a shorthand written with an arbitrary substitution function take their
                         // parts of its value once it substitutes, so the shorthand stands for them.
@@ -9058,9 +9051,9 @@ pub(crate) fn resolve_published_animation_declarations(
                             }
                             substituted_shorthand_values.push(original);
                             let pending_longhands = keyframe_declarations
-                                .iter()
+                                .clone()
                                 .filter(|candidate| {
-                                    matches!(&candidate.value, PublishedValue::Declared(written)
+                                    matches!(&candidate.value, KeyframeValue::Declared(written)
                                         if matches!(written.data(), StyleValueData::PendingSubstitution { .. })
                                             && written_shorthand_value(written).pointer() == original)
                                 })
@@ -9143,13 +9136,13 @@ pub(crate) fn resolve_published_animation_declarations(
                     interval.interval_span.map(|lookup| {
                         let declaration = effect.custom_declaration_at(lookup.declaration_index);
                         match &declaration.value {
-                            PublishedValue::ElementValue => custom_properties.underlying_value(registry, name_id),
+                            KeyframeValue::ElementValue => custom_properties.underlying_value(registry, name_id),
                             // A custom property's value is a token stream; only the substitution functions
                             // in it resolve against the element.
-                            PublishedValue::Declared(value) if holds_arbitrary_substitution(value.data()) => {
+                            KeyframeValue::Declared(value) if holds_arbitrary_substitution(value.data()) => {
                                 substitute(crate::css::property_metadata::property_id::CUSTOM, name, value)
                             }
-                            PublishedValue::Declared(value) => value.clone_retained(),
+                            KeyframeValue::Declared(value) => value.clone_retained(),
                         }
                     })
                 }
@@ -9172,7 +9165,7 @@ pub(crate) fn resolve_published_animation_declarations(
                     custom_is_important: important,
                     value,
                     style_sheet_resource_context,
-                    use_initial: matches!(declaration.value, PublishedValue::ElementValue),
+                    use_initial: matches!(declaration.value, KeyframeValue::ElementValue),
                     is_transition,
                 });
             }
@@ -9221,20 +9214,22 @@ fn holds_arbitrary_substitution(value: &StyleValueData) -> bool {
 }
 
 struct AnimationPreparationKey {
-    effects: Box<[FfiAnimationPreparationEffect]>,
+    /// The descriptions of the effects the preparation was made from, which it holds, so that no other description
+    /// can take the place of one.
+    effects: Box<[std::sync::Arc<crate::css::style::effect_descriptions::EffectDescription>]>,
     /// The custom-property environments a preparation that substituted keyframe values against the
     /// element was made under, which it holds for only as long as they stand.
     custom_property_environments: Option<[u64; 2]>,
 }
 
 impl AnimationPreparationKey {
-    fn matches(&self, sampled: &[FfiSampledAnimationEffect], custom_property_environments: [u64; 2]) -> bool {
+    fn matches(&self, sampled: &[SampledAnimationEffect], custom_property_environments: [u64; 2]) -> bool {
         self.effects.len() == sampled.len()
             && self
                 .effects
                 .iter()
                 .zip(sampled)
-                .all(|(effect, sampled)| *effect == sampled.effect)
+                .all(|(effect, sampled)| std::sync::Arc::ptr_eq(effect, &sampled.description))
             && self
                 .custom_property_environments
                 .is_none_or(|environments| environments == custom_property_environments)
@@ -9306,7 +9301,7 @@ unsafe impl Sync for PreparedAnimationBatch {}
 /// under the custom-property environments a sample reads.
 pub(crate) fn animation_preparation_matches(
     overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
-    sampled: &[FfiSampledAnimationEffect],
+    sampled: &[SampledAnimationEffect],
     custom_property_environments: [u64; 2],
 ) -> bool {
     overlay
@@ -9400,7 +9395,7 @@ pub(crate) fn prepare_animations(batch: &mut ComputedAnimationBatch<'_>) -> Arc<
                 .collect();
             std::sync::Arc::new(PreparedAnimationBatch {
                 key: AnimationPreparationKey {
-                    effects: sampled.iter().map(|sampled| sampled.effect).collect(),
+                    effects: sampled.iter().map(|sampled| sampled.description.clone()).collect(),
                     custom_property_environments: preparation_reads_custom_property_environments
                         .then_some(*custom_property_environments),
                 },
@@ -9526,64 +9521,38 @@ mod tests {
 
     #[test]
     fn preserves_lower_custom_property_effects_for_single_endpoint_intervals() {
-        use crate::css::retained_fly_string::RetainedUtf16FlyString;
-        use crate::css::style::bridge::{
-            FfiPublishedAnimationCustomDeclaration, FfiPublishedAnimationEffect, FfiPublishedAnimationKeyframe,
-            FfiPublishedEasingKind,
+        use crate::animations::easing::CompactEasing;
+        use crate::animations::effect::AnimationEffectId;
+        use crate::animations::keyframes::{
+            CompositeOperationOrAuto, FINAL_KEY, KeyframeEasing, KeyframeProperty, KeyframeSet,
         };
-        use crate::css::style::effect_descriptions::PublishedEffectBuffers;
+        use crate::css::retained_fly_string::RetainedUtf16FlyString;
+        use crate::css::style::effect_descriptions::{EffectAnimation, EffectDescription};
 
         let name = RetainedUtf16FlyString::from_utf16(&"--value".encode_utf16().collect::<Vec<_>>());
         let values = [1.0, 1.0, 2.0, 3.0, 4.0, 5.0]
             .map(|value| RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value })));
-        let declarations = values.each_ref().map(|value| FfiPublishedAnimationCustomDeclaration {
-            name: name.raw(),
-            value: value.pointer().cast(),
+        let keys = [0, FINAL_KEY, 0, 0, FINAL_KEY, FINAL_KEY];
+        let effects = [(0, 2), (2, 4)].map(|(first_keyframe, keyframe_count)| {
+            let keyframes = (first_keyframe..first_keyframe + keyframe_count)
+                .map(|index| {
+                    (
+                        keys[index],
+                        CompositeOperationOrAuto::Replace,
+                        KeyframeEasing::None,
+                        vec![(
+                            KeyframeProperty::Custom(name.clone()),
+                            KeyframeValue::Declared(values[index].clone()),
+                        )],
+                    )
+                })
+                .collect();
+            PublishedEffect::new(Arc::new(EffectDescription {
+                keyframe_set: Some(Arc::new(KeyframeSet::from_keyframes_as_given(keyframes))),
+                animation: EffectAnimation::Animation(CompactEasing::Linear),
+                ..EffectDescription::new(AnimationEffectId(u64::try_from(first_keyframe).unwrap()))
+            }))
         });
-        let keyframes =
-            [(0, 0), (100, 1), (0, 2), (0, 3), (100, 4), (100, 5)].map(|(key, first_custom_declaration)| {
-                FfiPublishedAnimationKeyframe {
-                    key,
-                    easing_kind: FfiPublishedEasingKind::Linear,
-                    step_position: 0,
-                    interval_count: 0,
-                    x1: 0.0,
-                    y1: 0.0,
-                    x2: 0.0,
-                    y2: 0.0,
-                    first_linear_point: 0,
-                    linear_point_count: 0,
-                    easing_value: std::ptr::null(),
-                    composite: FfiCompositeOperation::Replace,
-                    first_declaration: 0,
-                    declaration_count: 0,
-                    first_custom_declaration,
-                    custom_declaration_count: 1,
-                }
-            });
-        let effects = [(0, 2), (2, 4)].map(|(first_keyframe, keyframe_count)| FfiPublishedAnimationEffect {
-            identity: u64::from(first_keyframe),
-            generation: 0,
-            is_transition: false,
-            has_resource_context: false,
-            resource_context_is_origin_clean: false,
-            first_keyframe,
-            keyframe_count,
-            base_url_offset: 0,
-            base_url_length: 0,
-            reversing_adjusted_start_value: std::ptr::null(),
-            reversing_shortening_factor: 1.0,
-        });
-        let buffers = PublishedEffectBuffers {
-            effects: &effects,
-            keyframes: &keyframes,
-            declarations: &[],
-            custom_declarations: &declarations,
-            linear_points: &[],
-            base_url_bytes: &[],
-        };
-        // SAFETY: The name and values remain live while the descriptions retain them.
-        let effects = unsafe { buffers.effects() };
         let registry = Registry::shared_empty();
         let mut custom_properties = AnimatedCustomProperties {
             stores: KeyframeStores {
@@ -9599,7 +9568,11 @@ mod tests {
             has_uncached_interval_values: false,
         };
 
-        for (current_key, expected_span, lower_count) in [(50.0, [1, 2], 0), (100.0, [3, 3], 1), (-1.0, [0, 0], 1)] {
+        #[expect(clippy::cast_precision_loss)]
+        let final_key = FINAL_KEY as f64;
+        for (current_key, expected_span, lower_count) in
+            [(final_key / 2.0, [1, 2], 0), (final_key, [3, 3], 1), (-1.0, [0, 0], 1)]
+        {
             let selected = effects
                 .iter()
                 .map(|effect| SelectedEffect { effect, current_key })

@@ -57,7 +57,7 @@ pub(crate) mod selector;
 mod selector_arena;
 mod selector_operations;
 pub(crate) mod selector_parser;
-mod selector_serialization;
+pub(crate) mod selector_serialization;
 pub(crate) mod selector_tree;
 pub(crate) mod serialize;
 pub mod style;

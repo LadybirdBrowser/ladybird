@@ -7,23 +7,21 @@
 
 #pragma once
 
-#include <LibWeb/Animations/Animation.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
-class CSSTransition : public Animations::Animation {
-    WEB_WRAPPABLE(CSSTransition, Animations::Animation);
-    GC_DECLARE_ALLOCATOR(CSSTransition);
-
+// What the style engine does with the records of CSS transitions, whose objects Bindings/Rust/src/css implements.
+class CSSTransition {
 public:
-    // A new TransitionEvent for this transition that bubbles, which is implemented in Rust.
-    GC::Ref<DOM::Event> create_event(DOM::Document const&, Utf16FlyString const& type, double elapsed_time, Utf16String pseudo_element);
+    // A new TransitionEvent for `transition`, a CSS transition, that bubbles, which is implemented in Rust.
+    static GC::Ref<DOM::Event> create_event(Animations::AnimationRef const& transition, DOM::Document const&, Utf16FlyString const& type, double elapsed_time, Utf16String pseudo_element);
 
     // A transition is started provisionally, and associated with its target only once committed.
-    static GC::Ref<CSSTransition> start_a_provisional_transition(
+    static Animations::AnimationRef start_a_provisional_transition(
         DOM::AbstractElement,
         PropertyNameAndID,
         size_t transition_generation,
@@ -36,91 +34,16 @@ public:
         double reversing_shortening_factor,
         EasingFunction timing_function);
 
-    void commit_provisional_transition();
-    void discard_provisional_transition();
+    static void commit_provisional_transition(Animations::AnimationRef const&, Animations::RustFFI::TransitionOrigin = Animations::RustFFI::TransitionOrigin::StyleChange);
+    static void discard_provisional_transition(Animations::AnimationRef const&);
 
     // AD-HOC: Runs the transitions the hover of the document's clock lane left elements running beside a task, which
     //         the screen showed, in place of those its steps ended, as the rendering update that takes them in begins.
     static void adopt_lane_transitions(DOM::Document&);
 
-    Utf16FlyString const& transition_property() const;
+    static PropertyNameAndID transition_property_name_and_id(Animations::AnimationRef const&);
 
-    virtual Animations::AnimationClass animation_class() const override;
-    virtual int class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
-
-    double style_change_event_time() const;
-    double transition_start_time() const { return m_start_time; }
-    double transition_end_time() const { return m_end_time; }
-    NonnullRefPtr<StyleValue const> transition_start_value() const { return m_start_value; }
-    NonnullRefPtr<StyleValue const> transition_end_value() const { return m_end_value; }
-    NonnullRefPtr<StyleValue const> reversing_adjusted_start_value() const { return m_reversing_adjusted_start_value; }
-    double reversing_shortening_factor() const { return m_reversing_shortening_factor; }
-
-    double timing_function_output_at_time(double t) const;
-
-    // This is designed to be created from AnimationEffect::Phase.
-    enum class Phase : u8 {
-        Before,
-        Active,
-        After,
-        Idle,
-        Pending,
-    };
-    Phase previous_phase() const { return m_previous_phase; }
-    void set_previous_phase(Phase phase) { m_previous_phase = phase; }
-
-private:
-    CSSTransition(
-        HTML::EnvironmentSettingsObject&,
-        DOM::AbstractElement,
-        PropertyNameAndID,
-        size_t transition_generation,
-        double delay,
-        double start_time,
-        double end_time,
-        NonnullRefPtr<StyleValue const> start_value,
-        NonnullRefPtr<StyleValue const> end_value,
-        NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
-        double reversing_shortening_factor,
-        EasingFunction timing_function);
-
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    virtual bool is_css_transition() const override { return true; }
-
-    PropertyNameAndID m_transition_property;
-
-    // https://drafts.csswg.org/css-transitions-2/#transition-generation
-    size_t m_transition_generation;
-
-    // https://drafts.csswg.org/css-transitions/#transition-start-time
-    double m_start_time;
-
-    // https://drafts.csswg.org/css-transitions/#transition-end-time
-    double m_end_time;
-
-    // https://drafts.csswg.org/css-transitions/#transition-start-value
-    NonnullRefPtr<CSS::StyleValue const> m_start_value;
-
-    // https://drafts.csswg.org/css-transitions/#transition-end-value
-    NonnullRefPtr<CSS::StyleValue const> m_end_value;
-
-    // https://drafts.csswg.org/css-transitions/#transition-reversing-adjusted-start-value
-    NonnullRefPtr<CSS::StyleValue const> m_reversing_adjusted_start_value;
-
-    // https://drafts.csswg.org/css-transitions/#transition-reversing-shortening-factor
-    double m_reversing_shortening_factor;
-
-    GC::Ref<Animations::KeyframeEffect> m_keyframe_effect;
-
-    GC::Ptr<CSS::CSSStyleDeclaration const> m_cached_declaration;
-
-    bool m_is_provisional { true };
-
-    // Whether the transition is one the hover of a clock lane started, which the host took in.
-    bool m_adopted_from_lane { false };
-
-    Phase m_previous_phase { Phase::Idle };
+    static NonnullRefPtr<StyleValue const> transition_start_value(Animations::AnimationRef const&);
 };
 
 }

@@ -12,7 +12,6 @@ def bindings_glue_header_for_interface(interface: Interface, wrapper_interface_n
     module = interface.path.parent.name
 
     module_headers = {
-        "Animations": "LibWeb/Animations/BindingsGlue.h",
         "CSS": "LibWeb/CSS/BindingsGlue.h",
         "IndexedDB": "LibWeb/IndexedDB/BindingsGlue.h",
         "WebRTC": "LibWeb/WebRTC/BindingsGlue.h",

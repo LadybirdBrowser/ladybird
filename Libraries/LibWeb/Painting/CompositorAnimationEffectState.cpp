@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Animations/Animation.h>
-#include <LibWeb/Animations/KeyframeEffect.h>
-#include <LibWeb/CSS/CSSAnimation.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -26,99 +24,50 @@ namespace Web::Painting {
 struct CompositorAnimationKeyframes::Data {
     AK_ALLOC_WITH_KMALLOC;
 
-    Data(Animations::KeyframeEffect const& effect, Animations::Animation const& animation, DOM::AbstractElement target)
-        : effect(effect)
-        , animation(animation)
+    Data(Animations::EffectRef effect, Animations::AnimationRef animation, DOM::AbstractElement target)
+        : effect(move(effect))
+        , animation(move(animation))
         , target(target)
     {
     }
 
-    GC::Ref<Animations::KeyframeEffect const> effect;
-    GC::Ref<Animations::Animation const> animation;
+    Animations::EffectRef effect;
+    Animations::AnimationRef animation;
     DOM::AbstractElement target;
-    // The linear easing control points each keyframe's descriptor borrows.
-    Vector<Vector<Compositing::RustFFI::FfiLinearEasingPoint>> linear_easing_points;
-    Vector<Layout::RustFFI::FfiCompositorAnimationKeyframe> keyframes;
-    Vector<Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const*> entries;
+    // The keyframes the builder reads, which the build keeps live.
+    Animations::KeyframeSetHandle keyframe_set;
+    // The easing a keyframe that declares none runs, with the linear easing control points its descriptor borrows.
+    Vector<Compositing::RustFFI::FfiLinearEasingPoint> default_easing_points;
+    Compositing::RustFFI::FfiEasingDescriptor default_easing {};
 };
 
-static Layout::RustFFI::FfiCompositorKeyframeValueState keyframe_value_state(Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const& entry, CSS::PropertyID property_id)
-{
-    auto value = entry.properties.get(CSS::PropertyNameAndID::from_id(property_id));
-    if (!value.has_value())
-        return Layout::RustFFI::FfiCompositorKeyframeValueState::Absent;
-    if (value->has<Animations::KeyframeEffect::KeyFrameSet::UseInitial>())
-        return Layout::RustFFI::FfiCompositorKeyframeValueState::UsesUnderlyingStyle;
-    return Layout::RustFFI::FfiCompositorKeyframeValueState::Present;
-}
-
-CompositorAnimationKeyframes::CompositorAnimationKeyframes(Animations::KeyframeEffect const& effect, Animations::Animation const& animation, DOM::AbstractElement target)
+CompositorAnimationKeyframes::CompositorAnimationKeyframes(Animations::EffectRef const& effect, Animations::AnimationRef const& animation, DOM::AbstractElement target)
     : m_data(make<Data>(effect, animation, target))
 {
-    auto const* key_frame_set = effect.key_frame_set();
-    if (!key_frame_set)
+    m_data->keyframe_set = Animations::KeyframeSetHandle::retained(effect.keyframe_set().ptr());
+    if (animation.timing_state().kind != Animations::RustFFI::FfiAnimationKind::CssAnimation) {
+        m_data->default_easing = CSS::EasingFunction::linear().descriptor_with_points_in(m_data->default_easing_points);
         return;
-    auto keyframe_count = key_frame_set->keyframes_by_key.size();
-    m_data->linear_easing_points.ensure_capacity(keyframe_count);
-    m_data->keyframes.ensure_capacity(keyframe_count);
-    m_data->entries.ensure_capacity(keyframe_count);
-    for (auto it = key_frame_set->keyframes_by_key.begin(); it != key_frame_set->keyframes_by_key.end(); ++it) {
-        auto const& entry = *it;
-        m_data->entries.unchecked_append(&entry);
-        Layout::RustFFI::FfiCompositorAnimationKeyframe keyframe {};
-        keyframe.offset = static_cast<double>(it.key()) / (100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
-        auto composite = [&] {
-            switch (entry.composite) {
-            case Bindings::CompositeOperationOrAuto::Replace:
-                return Bindings::CompositeOperation::Replace;
-            case Bindings::CompositeOperationOrAuto::Add:
-                return Bindings::CompositeOperation::Add;
-            case Bindings::CompositeOperationOrAuto::Accumulate:
-                return Bindings::CompositeOperation::Accumulate;
-            case Bindings::CompositeOperationOrAuto::Auto:
-                return effect.composite();
-            }
-            VERIFY_NOT_REACHED();
-        }();
-        keyframe.composite_is_replace = composite == Bindings::CompositeOperation::Replace;
-        m_data->linear_easing_points.unchecked_append({});
-        auto& linear_easing_points = m_data->linear_easing_points.last();
-        auto describe_easing = [&](CSS::EasingFunction const& easing) {
-            return easing.descriptor_with_points_in(linear_easing_points);
-        };
-        keyframe.easing_is_supported = entry.easing.visit(
-            [&](Empty) {
-                auto easing = animation.is_css_animation()
-                    ? static_cast<CSS::CSSAnimation const&>(animation).default_easing()
-                    : CSS::EasingFunction::linear();
-                keyframe.easing = describe_easing(easing);
-                return true;
-            },
-            [&](CSS::EasingFunction const& easing) {
-                keyframe.easing = describe_easing(easing);
-                return true;
-            },
-            [&](CSS::RustStyleValueHandle const&) {
-                keyframe.easing = describe_easing(CSS::EasingFunction::linear());
-                return false;
-            });
-        keyframe.opacity = keyframe_value_state(entry, CSS::PropertyID::Opacity);
-        keyframe.background_color = keyframe_value_state(entry, CSS::PropertyID::BackgroundColor);
-        keyframe.filter = keyframe_value_state(entry, CSS::PropertyID::Filter);
-        keyframe.translate = keyframe_value_state(entry, CSS::PropertyID::Translate);
-        keyframe.rotate = keyframe_value_state(entry, CSS::PropertyID::Rotate);
-        keyframe.scale = keyframe_value_state(entry, CSS::PropertyID::Scale);
-        keyframe.transform = keyframe_value_state(entry, CSS::PropertyID::Transform);
-        m_data->keyframes.unchecked_append(keyframe);
     }
+    auto default_easing = Animations::RustFFI::animations_css_animation_state(&animation.record()).default_easing;
+    m_data->default_easing_points.append(default_easing.linear_points, default_easing.linear_point_count);
+    default_easing.linear_points = m_data->default_easing_points.data();
+    m_data->default_easing = default_easing;
 }
 
 CompositorAnimationKeyframes::~CompositorAnimationKeyframes() = default;
 
-static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(Layout::BegunRead const& read, CSS::PropertyID property_id, CSS::RustStyleValueHandle const& value, DOM::AbstractElement target)
+void CompositorAnimationKeyframes::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    m_data->effect.visit_edges(visitor);
+    m_data->animation.visit_edges(visitor);
+    m_data->target.visit_edges(visitor);
+}
+
+static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(Layout::BegunRead const& read, CSS::PropertyID property_id, CSS::StyleValueFFI::StyleValueData const* value, DOM::AbstractElement target)
 {
     HTML::note_rendering_trace_event("compositor keyframe values resolved"sv);
-    auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value.data()));
+    auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value));
     if (style_value->is_unresolved()) {
         // The engine substitutes the value as a sample on the main thread would, against the custom properties the
         // element holds and inherits.
@@ -132,7 +81,7 @@ static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(L
             custom_property_data ? custom_property_data->rust_store() : nullptr,
             inheritance_custom_property_data ? inheritance_custom_property_data->rust_store() : nullptr,
             to_underlying(property_id),
-            value.data());
+            value);
         if (!substituted)
             return nullptr;
         style_value = CSS::StyleValue::adopt_rust_style_value_data(substituted);
@@ -156,22 +105,19 @@ struct CompositorAnimationBuild {
     Layout::BegunRead const& read;
 };
 
-static void const* resolved_compositor_keyframe_value(void* context, size_t keyframe_index, u16 property_id, bool uses_underlying_style)
+static void const* resolved_compositor_keyframe_value(void* context, u16 property_id, void const* declared_value)
 {
     auto& [data, read] = *static_cast<CompositorAnimationBuild*>(context);
     auto property = static_cast<CSS::PropertyID>(property_id);
     RefPtr<CSS::StyleValue const> style_value;
-    if (uses_underlying_style) {
+    if (!declared_value) {
         // NB: Synthesized endpoints use the underlying style, just as main-thread keyframe sampling does.
         auto computed_style = data.target.computed_style();
         if (!computed_style)
             return nullptr;
         style_value = computed_style->computed_style_value(property, CSS::ComputedValues::WithAnimationsApplied::No);
     } else {
-        auto value = data.entries[keyframe_index]->properties.get(CSS::PropertyNameAndID::from_id(property));
-        if (!value.has_value() || !value->has<CSS::RustStyleValueHandle>())
-            return nullptr;
-        style_value = resolved_compositor_animation_style_value(read, property, value->get<CSS::RustStyleValueHandle>(), data.target);
+        style_value = resolved_compositor_animation_style_value(read, property, static_cast<CSS::StyleValueFFI::StyleValueData const*>(declared_value), data.target);
     }
     if (!style_value)
         return nullptr;
@@ -188,16 +134,16 @@ static Layout::RustFFI::FfiCompositorAnimationHost compositor_animation_host(Com
 
 static Layout::RustFFI::FfiCompositorAnimationRequest compositor_animation_request(CompositorAnimationKeyframes::Data const& data, Layout::Node const& layout_node, Compositing::RustFFI::FfiVisualAnimationTargetKind target_kind)
 {
-    auto const& effect = *data.effect;
+    auto const& effect = data.effect;
     Layout::RustFFI::FfiCompositorAnimationRequest request {};
     request.target_kind = target_kind;
     request.layout_node = Layout::Node::slot_id(&layout_node);
     auto target_color_resolution_style = CSS::ColorResolutionStyle::for_element(data.target);
     request.target_inherited_ui_values = target_color_resolution_style.inherited_ui_values;
     request.target_inherited_text_values = target_color_resolution_style.inherited_text_values;
-    request.keyframes = data.keyframes.data();
-    request.keyframe_count = data.keyframes.size();
-    request.key_frame_set_identity = reinterpret_cast<uintptr_t>(effect.key_frame_set());
+    request.keyframe_set = data.keyframe_set.ptr();
+    request.effect_composite_is_replace = effect.composite_is_replace();
+    request.default_easing = data.default_easing;
     request.target_style_generation = data.target.element().animation_style_generation();
     request.style_environment_version = data.target.document().style_computer().style_environment_version_for_sharing();
     if (target_kind == Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform) {
@@ -250,27 +196,17 @@ static Layout::RustFFI::DocumentHost* document_host(DOM::Document& document)
     return document.layout_node_arena().host();
 }
 
-CompositorAnimationEffectState::CompositorAnimationEffectState()
-    : m_handle(Layout::RustFFI::compositor_animation_effect_state_create())
-{
-}
-
-CompositorAnimationEffectState::~CompositorAnimationEffectState()
-{
-    Layout::RustFFI::compositor_animation_effect_state_destroy(m_handle);
-}
-
 CompositorAnimationEffectState::BuildOutcome CompositorAnimationEffectState::build(Layout::BegunRead const& read, CompositorAnimationKeyframes const& keyframes, Layout::Node const& layout_node, Compositing::RustFFI::FfiVisualAnimationTargetKind target_kind, TimingAnchor timing_anchor)
 {
     auto& data = *keyframes.m_data;
-    auto const& effect = *data.effect;
+    auto const& effect = data.effect;
     auto request = compositor_animation_request(data, layout_node, target_kind);
     Vector<Compositing::RustFFI::FfiLinearEasingPoint> effect_easing_points;
     request.timing.monotonic_time_at_anchor_ns = static_cast<i64>(timing_anchor.monotonic_time_ms * 1'000'000.0);
     request.timing.local_time_at_anchor_ms = timing_anchor.local_time_ms;
-    request.timing.playback_rate = data.animation->playback_rate();
-    request.timing.effect = effect.effect_timing(effect.fill_mode());
-    request.timing.easing = effect.timing_function().descriptor_with_points_in(effect_easing_points);
+    request.timing.playback_rate = Animations::RustFFI::animations_animation_playback(&data.animation.record()).playback_rate;
+    request.timing.effect = effect.timing();
+    request.timing.easing = effect.timing_function_with_points_in(effect_easing_points);
 
     CompositorAnimationBuild lent { data, read };
     auto host = compositor_animation_host(lent);
@@ -310,11 +246,6 @@ bool CompositorAnimationEffectState::has_retained() const
 void CompositorAnimationEffectState::clear_retained()
 {
     Layout::RustFFI::compositor_animation_effect_clear_retained(m_handle);
-}
-
-void CompositorAnimationEffectState::reset()
-{
-    Layout::RustFFI::compositor_animation_effect_reset(m_handle);
 }
 
 }

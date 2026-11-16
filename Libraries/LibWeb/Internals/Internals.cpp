@@ -33,7 +33,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
-#include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -1342,7 +1342,7 @@ void Internals::load_url(Utf16String const& url_string)
 
 GC::Ref<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
 {
-    return InternalAnimationTimeline::create(window().associated_document());
+    return static_cast<InternalAnimationTimeline&>(static_cast<Bindings::RustInterfaceCell&>(*Animations::AnimationTimeline::create_internal_timeline(window().associated_document())));
 }
 
 WebIDL::ExceptionOr<void> Internals::simulate_drag_start(double x, double y, Utf16String const& name, Utf16String const& contents)
@@ -3118,6 +3118,41 @@ void Internals::force_parallel_layout()
     Layout::RustFFI::render_state_force_parallel_layout(window().associated_document().layout_node_arena().host());
 }
 
+// NB: The Animation objects of the animations associated with the document's elements, which a CSS animation or
+//     transition only has once script asks for it.
+static u64 animation_object_bytes(DOM::Document& document)
+{
+    u64 bytes = 0;
+    document.for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
+        for (auto const& animation : element.associated_animations_unordered())
+            bytes += Animations::object_memory_size(animation);
+        return TraversalDecision::Continue;
+    });
+    return bytes;
+}
+
+// The records the C++ animation objects keep their state in, the keyframe sets they run, each counted once however
+// many effects share it, and each element's lists of its animations and transitions.
+static u64 animation_record_bytes(DOM::Document& document)
+{
+    u64 bytes = 0;
+    HashTable<Animations::RustFFI::KeyframeSet const*> counted_keyframe_sets;
+    document.for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
+        bytes += element.animation_lists_memory_size();
+        for (auto const& animation : element.associated_animations_unordered()) {
+            bytes += Animations::RustFFI::animations_animation_memory_size(&animation.record());
+            auto effect = animation.effect();
+            if (!effect.has_value())
+                continue;
+            bytes += Animations::RustFFI::animations_effect_memory_size(&effect->record());
+            if (auto const* keyframe_set = effect->keyframe_set().ptr(); keyframe_set && counted_keyframe_sets.set(keyframe_set) == HashSetResult::InsertedNewEntry)
+                bytes += Animations::RustFFI::animations_keyframe_set_memory_size(keyframe_set);
+        }
+        return TraversalDecision::Continue;
+    });
+    return bytes;
+}
+
 GC::Ref<JS::Object> Internals::style_memory_report()
 {
     auto& document = window().associated_document();
@@ -3156,6 +3191,8 @@ GC::Ref<JS::Object> Internals::style_memory_report()
     });
     define(*owners, "cppInstalledStyles"sv, installed_style_bytes);
     define(*owners, "cppHintProperties"sv, hint_bytes);
+    define(*owners, "animationObjects"sv, animation_object_bytes(document));
+    define(*owners, "animationRecords"sv, animation_record_bytes(document));
 
     auto object = JS::Object::create(realm, nullptr);
     object->define_direct_property("owners"_utf16_fly_string, owners, JS::default_attributes);
