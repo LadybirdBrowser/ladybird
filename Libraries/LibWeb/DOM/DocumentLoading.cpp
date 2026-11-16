@@ -84,6 +84,12 @@ static void convert_to_xml_error_document(DOM::Document& document, Utf16String e
     if (document.ready_for_post_load_tasks())
         return;
 
+    // NB: The XML parser stops parsing at an error the way it does at the end of its input, so the end steps it started
+    //     may still be running. They completely finish loading the document, and doing it here too would fire a second
+    //     load event at the document's container.
+    if (document.has_html_parser_end_state())
+        return;
+
     if (!document.is_completely_loaded())
         document.completely_finish_loading();
 
