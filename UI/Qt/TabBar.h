@@ -8,9 +8,11 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Optional.h>
+#include <AK/ScopeGuard.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
@@ -320,6 +322,8 @@ public:
 
     void add_tab(Tab* widget, QString const& label);
     void insert_tab(int index, Tab* widget, QString const& label);
+    ScopeGuard<Function<void()>> defer_tab_updates();
+    bool tab_updates_deferred() const { return m_tab_updates_deferred; }
     void remove_tab(int index);
     Tab* take_tab(int index);
 
@@ -513,6 +517,7 @@ private:
     QWidget* m_toolbar_row_backdrop { nullptr };
     bool m_is_resizing_vertical_tabs { false };
     bool m_is_updating_chrome_style { false };
+    bool m_tab_updates_deferred { false };
     int m_vertical_tabs_expanded_width { 0 };
     int m_vertical_tabs_resize_start_global_x { 0 };
     int m_vertical_tabs_resize_start_width { 0 };
