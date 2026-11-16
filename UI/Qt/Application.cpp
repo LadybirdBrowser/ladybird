@@ -913,6 +913,8 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     m_browser_options.urls = move(state.urls);
     m_browser_options.raw_urls = move(state.raw_urls);
     m_browser_options.devtools_port = state.devtools_port;
+    if (state.devtools_enabled)
+        m_devtools_port = state.devtools_port;
 #    if defined(AK_OS_MACOS)
     set_profile_application_icon(state.profile_identifier, state.profile_identity, state.profile_is_temporary);
 #    endif
@@ -1128,6 +1130,8 @@ void Application::create_platform_actions()
         .blocks_pop_ups = hub.blocks_pop_ups(),
         .devtools_enabled = hub.devtools_enabled(),
     });
+    if (hub.devtools_enabled())
+        m_devtools_port = WebView::Application::browser_options().devtools_port;
 
     RemoteDownloads::the().set_downloads(Hub::ConnectionFromUI::downloads());
 #endif
@@ -2649,15 +2653,17 @@ void Application::report_active_view() const
     hub->async_active_view_changed(tab && tab->is_loaded() ? Optional<u64> { tab->view().view_id() } : Optional<u64> {});
 }
 
-void Application::did_enable_devtools() const
+void Application::did_enable_devtools(u16 port)
 {
+    m_devtools_port = port;
     m_application_actions->devtools_enabled_changed(true);
     if (m_active_window)
         m_active_window->on_devtools_enabled();
 }
 
-void Application::did_disable_devtools() const
+void Application::did_disable_devtools()
 {
+    m_devtools_port = {};
     m_application_actions->devtools_enabled_changed(false);
     if (m_active_window)
         m_active_window->on_devtools_disabled();

@@ -351,8 +351,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     // NB: The toolbar is made before the rest of the window, so it learns of the session's downloads once it is all here.
     toolbar().update_downloads_button();
 
-    auto const& browser_options = Application::browser_options();
-
     // A restored window keeps the session row the store re-adopted for it.
     if (restored_session_window_id.has_value())
         m_session_window_id = restored_session_window_id;
@@ -470,7 +468,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     if (m_current_tab)
         focus_widget_for_tab(*m_current_tab).setFocus();
 
-    if (browser_options.devtools_port.has_value())
+    if (Application::the().devtools_port().has_value())
         on_devtools_enabled();
 }
 
@@ -738,7 +736,7 @@ void BrowserWindow::rebuild_bookmarks_menu()
 
 void BrowserWindow::on_devtools_enabled()
 {
-    m_devtools_banner->set_port(Application::browser_options().devtools_port.value_or(0));
+    m_devtools_banner->set_port(*Application::the().devtools_port());
     m_devtools_banner->show();
 }
 
