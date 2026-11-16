@@ -299,6 +299,9 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
         EGL_TRUE,
         EGL_CONTEXT_OPENGL_BACKWARDS_COMPATIBLE_ANGLE,
         EGL_FALSE,
+        // WebGL has no client arrays. With them, ANGLE's GL backend shares a default vertex array between contexts.
+        EGL_CONTEXT_CLIENT_ARRAYS_ENABLED_ANGLE,
+        EGL_FALSE,
 #    ifdef USE_VULKAN_DMABUF_IMAGES
         // we need GL_OES_EGL_image
         EGL_EXTENSIONS_ENABLED_ANGLE,
