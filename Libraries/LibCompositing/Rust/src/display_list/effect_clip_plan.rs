@@ -11,6 +11,7 @@ use crate::visual_context::{VisualContextTree, clip_lowest_common_ancestor_with_
 /// The tree supplies the clip where each effect begins; recorded contexts can widen
 /// that boundary when positioned descendants escape a clip. Inactive effects do not
 /// participate, so appending unused nodes cannot change a retained list's plan.
+#[derive(PartialEq)]
 pub struct EffectClipPlan {
     output_clips: Vec<Option<ClipNodeIndex>>,
 }
@@ -80,6 +81,10 @@ impl EffectClipPlan {
 
     pub fn output_clip(&self, effect: EffectNodeIndex) -> ClipNodeIndex {
         self.output_clips[effect.0 as usize].expect("an effect used by replay participates in its plan")
+    }
+
+    pub fn output_clip_if_participating(&self, effect: EffectNodeIndex) -> Option<ClipNodeIndex> {
+        self.output_clips.get(effect.0 as usize).copied().flatten()
     }
 }
 

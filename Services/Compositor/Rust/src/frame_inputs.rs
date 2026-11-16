@@ -127,11 +127,14 @@ impl FrameInputs {
     }
 
     fn frame_of<'a>(&'a self, display_list: &'a DisplayListStorage) -> DisplayListFrame<'a> {
+        let tree = self.visual_context_tree.as_arc();
         DisplayListFrame {
             command_bytes: display_list.bytes(),
             command_runs: display_list.command_runs(),
+            chunks: display_list.chunks(),
+            effect_clip_plan: display_list.effect_clip_plan(tree),
             summary: display_list.summary(),
-            visual_context_tree: self.visual_context_tree.as_arc(),
+            visual_context_tree: tree,
             scroll_offsets: self.presented_scroll_state_snapshot.device_offsets(),
         }
     }

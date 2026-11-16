@@ -331,6 +331,24 @@ impl TapeChunks {
         }
         tape_chunks
     }
+
+    #[cfg(test)]
+    pub(crate) fn with_a_chunk_per_run(bytes: &[u8], runs: &[DisplayListCommandRun]) -> Self {
+        let chunks: Vec<DisplayListChunk> = runs
+            .iter()
+            .enumerate()
+            .map(|(run_index, run)| DisplayListChunk {
+                id: chunk_id(
+                    &bytes[run.offset as usize..(run.offset + run.size) as usize],
+                    std::slice::from_ref(run),
+                    run.offset,
+                ),
+                byte_end: run.offset + run.size,
+                run_end: run_index as u32 + 1,
+            })
+            .collect();
+        Self::of_tape(bytes, runs, &chunks)
+    }
 }
 
 #[cfg(test)]
