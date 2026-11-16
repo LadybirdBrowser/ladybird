@@ -68,6 +68,10 @@ def buffer_source_rules(idl_type: IDLType, parameter_attributes: dict[str, str])
     return f"&BufferSourceRules {{ allow_shared: {allow_shared}, allow_resizable: {allow_resizable} }}"
 
 
+def optional_buffer_source_rules(idl_type: Optional[IDLType]) -> str:
+    return f"Some({buffer_source_rules(idl_type, {})})" if idl_type is not None else "None"
+
+
 def rust_to_idl_value(
     idl_type: IDLType,
     parameter_attributes: dict[str, str],
@@ -254,6 +258,9 @@ class UnionMembers:
     sequence_type: Optional[IDLParameterizedType] = None
     record_type: Optional[IDLParameterizedType] = None
     buffer_source_type: Optional[IDLType] = None
+    array_buffer_type: Optional[IDLType] = None
+    shared_array_buffer_type: Optional[IDLType] = None
+    array_buffer_view_type: Optional[IDLType] = None
     typed_array_types: List[IDLType] = field(default_factory=list)
     enumeration_types: List[IDLType] = field(default_factory=list)
     # The interfaces, implemented in either language, in the order of the union.
@@ -277,6 +284,12 @@ def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, 
     for member_type in union_member_types(union_type, context):
         if runtime_union_type(member_type, context) == "BufferSource" and members.buffer_source_type is None:
             members.buffer_source_type = member_type
+        elif runtime_union_type(member_type, context) == "ArrayBufferView":
+            members.array_buffer_view_type = member_type
+        elif member_type.name == "ArrayBuffer":
+            members.array_buffer_type = member_type
+        elif member_type.name == "SharedArrayBuffer":
+            members.shared_array_buffer_type = member_type
         elif member_type.name == "object" and members.object_type is None:
             members.object_type = member_type
         elif resolved_dictionary(member_type, context) is not None and members.dictionary_type is None:
@@ -596,6 +609,9 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
     members = union_members_by_kind(union_type, context, what)
     dictionary_type = members.dictionary_type
     string_type = members.string_type
+    array_buffer_type = members.array_buffer_type
+    shared_array_buffer_type = members.shared_array_buffer_type
+    array_buffer_view_type = members.array_buffer_view_type
     steps = []
     dictionary_conversion = None
     if dictionary_type is not None:
@@ -609,6 +625,9 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
         or members.record_type is not None
         or members.interface_types
         or members.buffer_source_type is not None
+        or array_buffer_type is not None
+        or shared_array_buffer_type is not None
+        or array_buffer_view_type is not None
     ):
         if dictionary_conversion is not None:
             steps.append(
@@ -688,6 +707,62 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
                 }}
 """
             )
+        if array_buffer_type is not None or shared_array_buffer_type is not None or array_buffer_view_type is not None:
+            if array_buffer_type is not None and "AllowShared" in array_buffer_type.extended_attributes:
+                raise UnsupportedByRustBindings(
+                    f"{what} has [AllowShared] ArrayBuffer, which Rust does not convert yet"
+                )
+            steps.append(
+                f"""                // 6. If V is an Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is
+                //    false, then:
+                //     1. If types includes ArrayBuffer, then return the result of converting V to ArrayBuffer.
+                // 7. If V is an Object, V, has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is
+                //    true, then:
+                //     1. If types includes SharedArrayBuffer, then return the result of converting V to
+                //        SharedArrayBuffer.
+                // 8. If V is an Object and V has a [[DataView]] internal slot, then:
+                //     1. If types includes DataView, then return the result of converting V to DataView.
+                // 9. If V is an Object and V has a [[TypedArrayName]] internal slot, then:
+                //     1. If types includes a typed array type whose name is the value of V's [[TypedArrayName]]
+                //        internal slot, then return the result of converting V to that type.
+                if let Some(buffer_source) = buffer_source_if(vm, value.as_object(), BufferSourceTypes {{
+                    array_buffer_type: {optional_buffer_source_rules(array_buffer_type)},
+                    shared_array_buffer_type: {optional_buffer_source_rules(shared_array_buffer_type)},
+                    array_buffer_view_type: {optional_buffer_source_rules(array_buffer_view_type)},
+                }})? {{
+                    // NB: The match wraps the converted value in the union's Rust enum.
+                    return Ok(match buffer_source {{
+"""
+            )
+            if array_buffer_type is not None:
+                guard = " if !buffer.is_shared_array_buffer()" if shared_array_buffer_type is not None else ""
+                buffer = "Some(buffer)" if array_buffer_type.nullable else "buffer"
+                variant = rust_union_variant(array_buffer_type)
+                steps.append(
+                    f"                        BufferSource::ArrayBuffer(buffer){guard} => Self::{variant}({buffer}),\n"
+                )
+            if shared_array_buffer_type is not None:
+                buffer = "Some(buffer)" if shared_array_buffer_type.nullable else "buffer"
+                variant = rust_union_variant(shared_array_buffer_type)
+                steps.append(
+                    f"                        BufferSource::ArrayBuffer(buffer) => Self::{variant}({buffer}),\n"
+                )
+            if array_buffer_view_type is not None:
+                data_view = "ArrayBufferView::DataView(view)"
+                typed_array = "ArrayBufferView::TypedArray(view)"
+                if array_buffer_view_type.nullable:
+                    data_view = f"Some({data_view})"
+                    typed_array = f"Some({typed_array})"
+                steps.append(
+                    f"""                        BufferSource::DataView(view) => Self::ArrayBufferView({data_view}),
+                        BufferSource::TypedArray(view) => Self::ArrayBufferView({typed_array}),
+"""
+                )
+            if array_buffer_view_type is None or (array_buffer_type is None and shared_array_buffer_type is None):
+                steps.append(
+                    '                        _ => unreachable!("buffer_source_if only returns included buffer types"),\n'
+                )
+            steps.append("                    });\n                }\n")
         for typed_array_type in members.typed_array_types:
             name = typed_array_type.name
             conversion = rust_to_idl_value(typed_array_type, {}, "value", "value", context, what)
