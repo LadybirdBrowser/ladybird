@@ -3859,8 +3859,7 @@ mod direct_calls {
             assert_eq!((word(8), word(96)), (FUNCTION_WORDS[0], FUNCTION_WORDS[0]));
             assert_eq!(word(104), 0, "no frame id yet");
             assert_eq!(word(0), 0, "program counter and incumbent counter");
-            assert_eq!(half(112), u32::MAX, "no yield continuation");
-            assert_eq!((byte(116), byte(117), byte(118), byte(24)), (0, 0, 0, 0));
+            assert_eq!((byte(118), byte(24)), (0, 0), "not a construct call, not initialized");
             assert_eq!(word(120), value::EMPTY, "no this value");
             assert_eq!(word(32), callee.executable.as_ptr() as u64);
             assert_eq!(word(8 * FRAME_CALLER_WORD), machine.frame.as_ptr() as u64);

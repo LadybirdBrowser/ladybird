@@ -1661,18 +1661,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// not initialized, and whether its caller waits for it in native code
     /// (and so runs it in JIT code until the runtime finishes it, see
     /// `finish_direct_call`).
-    pub(super) fn new_frame_constants(&self, returns_to_native_caller: bool) -> [ConstantField; 11] {
+    pub(super) fn new_frame_constants(&self, returns_to_native_caller: bool) -> [ConstantField; 8] {
         let offsets = self.runtime.offsets;
         [
             (offsets.execution_context_program_counter, 4, 0),
             (offsets.execution_context_skip_when_determining_incumbent_counter, 4, 0),
-            (
-                offsets.execution_context_yield_continuation,
-                4,
-                u64::from(self.runtime.no_yield_continuation),
-            ),
-            (offsets.execution_context_yield_is_await, 1, 0),
-            (offsets.execution_context_yield_value_is_iterator_result, 1, 0),
             (offsets.execution_context_caller_is_construct, 1, 0),
             (offsets.execution_context_caller_is_derived_construct, 1, 0),
             (offsets.execution_context_frame_initialized, 1, 0),
