@@ -31,6 +31,8 @@ public:
 
     WindowControlButton(ControlButton, QString const& tool_tip, QSize icon_size, QSize button_size, QWidget* parent = nullptr);
 
+    ControlButton type() const { return m_type; }
+
     // GNOME draws its window controls as small circles, at the trailing end of the button's room.
     void set_round(bool);
 

@@ -332,6 +332,11 @@ static constexpr int vertical_tab_width(int available_width, TabLayout tab_layou
     return width - vertical_tabs_horizontal_margin_width(tab_layout);
 }
 
+static int saved_vertical_tabs_expanded_width()
+{
+    return Application::settings().tab_settings().vertical_tabs_expanded_width.value_or(VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH);
+}
+
 static char const* vertical_tabs_position_property_value(WebView::VerticalTabsPosition position)
 {
     switch (position) {
@@ -3395,7 +3400,7 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     if (auto* top_level_window = window(); top_level_window != this)
         top_level_window->installEventFilter(this);
 
-    m_vertical_tabs_expanded_width = Application::settings().tab_settings().vertical_tabs_expanded_width.value_or(VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH);
+    m_vertical_tabs_expanded_width = saved_vertical_tabs_expanded_width();
 
     m_tab_bar = new TabBar(this);
     setAcceptDrops(true);
@@ -3765,6 +3770,13 @@ void TabWidget::set_window_controls_visible(bool visible)
     // NB: The sidebar's top row and a strip with controls on the left keep room for the controls when they are shown.
     if (changed && (m_tab_bar->tab_layout() != TabLayout::Horizontal || (!use_native_macos_window_controls() && window_controls_on_left())))
         rebuild_layout();
+}
+
+void TabWidget::window_control_buttons_changed()
+{
+    // The open sidebar may have widened to fit the earlier window controls.
+    m_vertical_tabs_expanded_width = saved_vertical_tabs_expanded_width();
+    rebuild_layout();
 }
 
 void TabWidget::set_vertical_tabs_enabled(bool enabled)
