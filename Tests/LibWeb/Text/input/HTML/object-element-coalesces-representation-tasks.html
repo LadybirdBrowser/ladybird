@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", "/object-element-coalesces-representation-tasks", {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Access-Control-Allow-Origin": "*" },
+            body: "<!DOCTYPE html><p>Hello</p>",
+        });
+
+        // Creating the object and setting its data attribute both queue a task to determine what it represents. Only
+        // one of them runs, so the document is requested twice: once by the object's fetch, and once by the
+        // navigation of its content navigable.
+        const object = document.createElement("object");
+        const loaded = new Promise(resolve => object.onload = resolve);
+        object.data = url;
+        document.body.appendChild(object);
+        await loaded;
+
+        const requestCount = await (await fetch(server.recordedRequestCountURL(url))).json();
+        println(`Requests for the object's document: ${requestCount}`);
+    });
+</script>

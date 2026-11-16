@@ -88,6 +88,7 @@ void HTMLObjectElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_resource_request);
     visitor.visit(m_document_observer);
+    visitor.visit(m_document_of_queued_object_representation_task);
 }
 
 void HTMLObjectElement::adopted_from(DOM::Document& old_document)
@@ -225,14 +226,25 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
     if (!document().is_fully_active())
         return;
 
+    // OPTIMIZATION: A queued task that has not started yet reads the element's state when it runs, so another task
+    //               would only repeat its work. It would also fetch the resource a second time.
+    // NB: A task queued before the element moved to another document stays with that document, which may never run
+    //     it, so the element's new document queues a task of its own.
+    if (m_document_of_queued_object_representation_task.ptr() == &document())
+        return;
+    m_document_of_queued_object_representation_task = document();
+    auto task_number = ++m_object_representation_task_count;
+
     // This task being queued or actively running must delay the load event of the element's node document.
     m_document_load_event_delayer_for_object_representation_task.empend(document());
     auto release_load_event_delay = GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
         self.m_document_load_event_delayer_for_object_representation_task.take_last();
     });
 
-    auto steps = GC::create_function(GC::Heap::the(), GC::captures(*this, release_load_event_delay), [](auto& self, auto& release_load_event_delay) {
+    auto steps = GC::create_function(GC::Heap::the(), GC::captures(*this, release_load_event_delay, task_number), [](auto& self, auto& release_load_event_delay, auto task_number) {
         ScopeGuard guard { [&] { release_load_event_delay->function()(); } };
+        if (self.m_object_representation_task_count == task_number)
+            self.m_document_of_queued_object_representation_task = nullptr;
 
         auto& realm = HTML::relevant_realm(self);
         // FIXME: 1. If the user has indicated a preference that this object element's fallback content be shown instead of the
@@ -341,7 +353,12 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
         }
     });
 
-    queue_an_element_task(HTML::Task::Source::DOMManipulation, move(steps), release_load_event_delay);
+    auto discard_steps = GC::create_function(GC::Heap::the(), GC::captures(*this, release_load_event_delay, task_number), [](auto& self, auto& release_load_event_delay, auto task_number) {
+        if (self.m_object_representation_task_count == task_number)
+            self.m_document_of_queued_object_representation_task = nullptr;
+        release_load_event_delay->function()();
+    });
+    queue_an_element_task(HTML::Task::Source::DOMManipulation, move(steps), discard_steps);
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element:concept-event-fire-2
