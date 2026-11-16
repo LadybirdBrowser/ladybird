@@ -3128,7 +3128,6 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     m_tab_bar->setDocumentMode(true);
     m_tab_bar->setElideMode(Qt::TextElideMode::ElideRight);
     m_tab_bar->setMovable(false);
-    m_tab_bar->setTabsClosable(true);
     m_tab_bar->setExpanding(false);
     m_tab_bar->setUsesScrollButtons(false);
     m_tab_bar->setDrawBase(false);
