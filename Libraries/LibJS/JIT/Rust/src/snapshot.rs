@@ -1653,8 +1653,6 @@ pub struct RuntimeOffsets {
     pub execution_context_variable_environment: u32,
     /// `ExecutionContext::frame_id` (u64).
     pub execution_context_frame_id: u32,
-    /// `ExecutionContext::skip_when_determining_incumbent_counter` (u32).
-    pub execution_context_skip_when_determining_incumbent_counter: u32,
     /// `ExecutionContext::yield_continuation` (u32).
     pub execution_context_yield_continuation: u32,
     /// `ExecutionContext::yield_is_await` (bool).

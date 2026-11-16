@@ -333,7 +333,6 @@ pub fn generate() -> LayoutHeader {
         private_environment_in_frame,
         frame_id,
         program_counter,
-        skip_when_determining_incumbent_counter,
         yield_continuation,
         yield_is_await,
         yield_value_is_iterator_result,

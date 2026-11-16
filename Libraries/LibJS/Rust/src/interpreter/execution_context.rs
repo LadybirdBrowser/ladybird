@@ -122,7 +122,6 @@ impl ExecutionContext {
                 private_environment_in_frame: Cell::new(None),
                 frame_id: Cell::new(0),
                 program_counter: Cell::new(0),
-                skip_when_determining_incumbent_counter: Cell::new(0),
                 yield_continuation: Cell::new(ExecutionContext::NO_YIELD_CONTINUATION),
                 yield_is_await: Cell::new(false),
                 yield_value_is_iterator_result: Cell::new(false),
