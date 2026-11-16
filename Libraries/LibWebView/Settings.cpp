@@ -87,6 +87,7 @@ static constexpr auto CRASH_REPORT_SENDING_KEY = "crashReportSending"sv;
 static constexpr auto BACKGROUND_NETWORKING_KEY = "backgroundNetworking"sv;
 static constexpr auto BACKGROUND_NETWORKING_ENABLED_KEY = "enabled"sv;
 static constexpr auto BACKGROUND_NETWORKING_FEATURES_KEY = "features"sv;
+static constexpr auto UPDATE_CHECKS_KEY = "updateChecks"sv;
 
 static constexpr auto CONTENT_BLOCKERS_KEY = "contentBlockers"sv;
 static constexpr auto CONTENT_BLOCKER_SUBSCRIPTION_UPDATES_KEY = "contentBlockerSubscriptionUpdates"sv;
@@ -205,6 +206,14 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .title = "Disable HDR surfaces"sv,
         .description = "Draw HDR content into the page tone-mapped to SDR, instead of letting the window server show it in high dynamic range."sv,
         .default_value = false,
+        .array_element_type = {},
+    },
+    {
+        .id = ConfigVariableID::UpdateCheckInterval,
+        .name = "updates.check_interval_minutes"sv,
+        .title = "Update check interval"sv,
+        .description = "How many minutes Ladybird waits after one check for a newer release before it checks again, while it checks for updates by itself. At least 5."sv,
+        .default_value = 4 * 60,
         .array_element_type = {},
     },
 } };
@@ -379,6 +388,11 @@ static bool config_variable_value_is_valid(ConfigVariableDefinition const& varia
         return milliseconds.has_value() && *milliseconds >= 0 && value.get_double_with_precision_loss().value() == *milliseconds;
     }
 
+    if (variable.id == ConfigVariableID::UpdateCheckInterval) {
+        auto minutes = value.get_integer<u32>();
+        return minutes.has_value() && *minutes >= 5 && value.get_double_with_precision_loss() == minutes;
+    }
+
     if (variable.id == ConfigVariableID::MaximumDiskCacheSize) {
         auto size = value.get_integer<u64>();
         return size.has_value() && *size > 0 && *size <= NumericLimits<i64>::max() / MiB
@@ -509,6 +523,8 @@ void Settings::load_from_json(JsonValue const& json_value)
         if (auto features = background_networking->get_object(BACKGROUND_NETWORKING_FEATURES_KEY); features.has_value()) {
             if (auto filter_list_updates_enabled = features->get_bool(CONTENT_BLOCKER_SUBSCRIPTION_UPDATES_KEY); filter_list_updates_enabled.has_value())
                 m_filter_list_updates_enabled = *filter_list_updates_enabled;
+            if (auto update_checks_enabled = features->get_bool(UPDATE_CHECKS_KEY); update_checks_enabled.has_value())
+                m_update_checks_enabled = *update_checks_enabled;
         }
     }
 
@@ -898,6 +914,7 @@ JsonValue Settings::serialize_json() const
 
     JsonObject background_network_features;
     background_network_features.set(CONTENT_BLOCKER_SUBSCRIPTION_UPDATES_KEY, m_filter_list_updates_enabled);
+    background_network_features.set(UPDATE_CHECKS_KEY, m_update_checks_enabled);
 
     JsonObject background_networking;
     background_networking.set(BACKGROUND_NETWORKING_ENABLED_KEY, m_background_networking_enabled);
@@ -1525,6 +1542,18 @@ void Settings::set_filter_list_updates_enabled(bool enabled)
         return;
 
     m_filter_list_updates_enabled = enabled;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.background_networking_settings_changed();
+}
+
+void Settings::set_update_checks_enabled(bool enabled)
+{
+    if (m_update_checks_enabled == enabled)
+        return;
+
+    m_update_checks_enabled = enabled;
     persist_settings();
 
     for (auto& observer : m_observers)

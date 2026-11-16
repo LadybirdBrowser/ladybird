@@ -14,6 +14,7 @@ const searchSuggestionsDescription = document.querySelector("#search-suggestions
 const tabLayoutInputs = document.querySelectorAll('input[name="tab-layout"]');
 const colorThemeInputs = document.querySelectorAll('input[name="color-theme"]');
 const enableContentBlocking = document.querySelector("#enable-content-blocking");
+const enableUpdateChecks = document.querySelector("#enable-update-checks");
 const saveStatus = document.querySelector("#save-status");
 
 let settings;
@@ -109,6 +110,7 @@ function initialize() {
     updateSearchSuggestions();
 
     enableContentBlocking.checked = settings.contentBlockers.enabled;
+    enableUpdateChecks.checked = settings.backgroundNetworking.features.updateChecks;
     setupOptions.disabled = false;
     startBrowsing.disabled = false;
 }
@@ -154,6 +156,11 @@ enableContentBlocking.addEventListener("change", () => {
     ladybird.sendMessage("setFilterListUpdatesEnabled", enableContentBlocking.checked);
 });
 
+enableUpdateChecks.addEventListener("change", () => {
+    if (!initialized) return;
+    ladybird.sendMessage("setUpdateChecksEnabled", enableUpdateChecks.checked);
+});
+
 form.addEventListener("submit", event => {
     event.preventDefault();
     if (!initialized || startBrowsing.disabled) return;
@@ -186,6 +193,8 @@ document.addEventListener("WebUIMessage", event => {
             }
             if (Object.hasOwn(data, "contentBlockers"))
                 enableContentBlocking.checked = settings.contentBlockers.enabled;
+            if (Object.hasOwn(data, "backgroundNetworking"))
+                enableUpdateChecks.checked = settings.backgroundNetworking.features.updateChecks;
         }
     } else if (name === "loadEngines") {
         engines = data;

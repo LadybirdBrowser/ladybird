@@ -124,14 +124,32 @@ SPDX-License-Identifier: BSD-2-Clause
                         </label>
                     </div>
                 </section>
-                <section class="switch-card" aria-labelledby="ad-blocking-title">
-                    <div>
-                        <h2 id="ad-blocking-title">Block ads, trackers and more</h2>
-                        <p class="muted small">
-                            Pages load faster. If a site breaks, turn it off for that site from the address bar.
-                        </p>
+                <section class="switch-list">
+                    <div class="switch-row">
+                        <div>
+                            <h2 id="ad-blocking-title">
+                                <label for="enable-content-blocking">Block ads, trackers and more</label>
+                            </h2>
+                            <p class="muted small">
+                                Pages load faster. If a site breaks, turn it off for that site from the address bar.
+                            </p>
+                        </div>
+                        <input
+                            id="enable-content-blocking"
+                            type="checkbox"
+                            switch
+                            aria-labelledby="ad-blocking-title"
+                        />
                     </div>
-                    <input id="enable-content-blocking" type="checkbox" switch aria-labelledby="ad-blocking-title" />
+                    <div class="switch-row">
+                        <div>
+                            <h2 id="update-checks-title">
+                                <label for="enable-update-checks">Check for updates</label>
+                            </h2>
+                            <p class="muted small">Ladybird tells you when a newer version is available.</p>
+                        </div>
+                        <input id="enable-update-checks" type="checkbox" switch aria-labelledby="update-checks-title" />
+                    </div>
                 </section>
             </fieldset>
             <footer>
