@@ -135,6 +135,26 @@ test("var patterns resolve their names before getting their values", () => {
     expect(evalAddedId).toBe(2);
 });
 
+test("var without an initializer does not resolve its name", () => {
+    const names = [];
+    const object = new Proxy(
+        {},
+        {
+            has(target, name) {
+                names.push(name);
+                return false;
+            },
+        }
+    );
+
+    with (object) {
+        var noInitializerId;
+        for (var noInitializerLoopId; false; );
+    }
+
+    expect(names).toEqual([]);
+});
+
 test("with statement updates empty abrupt completions to undefined", () => {
     expect(eval("1; do { 2; with ({}) { 3; break; } 4; } while (false);")).toBe(3);
     expect(eval("5; do { 6; with ({}) { break; } 7; } while (false);")).toBeUndefined();

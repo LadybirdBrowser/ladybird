@@ -3879,12 +3879,10 @@ impl Generator<'_> {
             }
             let target = self.pop_value();
             self.store_to_target(target, value, kind != DeclarationKind::Var);
-        } else {
+        } else if kind != DeclarationKind::Var {
             let target = self.pop_value();
-            if kind != DeclarationKind::Var {
-                let undefined = self.context.constants.add_undefined();
-                self.store_to_target(target, undefined, true);
-            }
+            let undefined = self.context.constants.add_undefined();
+            self.store_to_target(target, undefined, true);
         }
         if target_ident.local_type == Some(LocalType::Variable) {
             self.mark_local_initialized(target_ident.local_index);
