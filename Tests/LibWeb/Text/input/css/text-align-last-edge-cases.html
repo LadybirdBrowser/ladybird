@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>
+    .t { width: 100px; font: 16px monospace; margin: 4px 0; outline: 1px solid; }
+    .clamp { width: 200px; font: 16px monospace; }
+    .first { text-align: justify; text-align-last: center; }
+    .b { display: inline-block; height: 10px; background: green; }
+</style>
+<div class="t" id="overflow" style="white-space: nowrap; text-align-last: justify"><span class="b" style="width: 80px"></span> <span class="b" style="width: 80px"></span></div>
+<div class="t" id="one-box" style="width: 200px; text-align-last: justify"><span class="b" style="width: 40px"></span></div>
+<div class="t" id="one-word" style="width: 200px; text-align-last: justify">word</div>
+<div class="t" id="plaintext-end" style="width: 200px; direction: ltr; unicode-bidi: plaintext; text-align: center; text-align-last: end">שלום</div>
+<div class="t" id="plaintext-align-end" style="width: 200px; direction: ltr; unicode-bidi: plaintext; text-align: end">שלום</div>
+<div class="clamp" id="clamp" style="line-clamp: 1"><div class="first">aa bb</div><div>more text</div></div>
+<div class="clamp" id="clamp-webkit" style="display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden"><div class="first">aa bb</div><div>more text</div></div>
+<script>
+const box = id => document.getElementById(id).getBoundingClientRect();
+function positions(id) {
+    const b = box(id);
+    const r = document.createRange();
+    r.selectNodeContents(document.getElementById(id));
+    const parts = [...document.getElementById(id).querySelectorAll(".b")].map(e => Math.round(e.getBoundingClientRect().left - b.left));
+    if (parts.length) return parts.join(",");
+    const rects = [...r.getClientRects()];
+    return rects.map(x => `${Math.round(x.left - b.left)}`).join(" ");
+}
+test(() => {
+    for (const id of ["overflow", "one-box", "one-word", "plaintext-end", "plaintext-align-end"])
+        println(`${id}: ${positions(id)}`);
+    // A clamped line that the clamp ends is aligned, and justified, as a last line.
+    for (const id of ["clamp", "clamp-webkit"]) {
+        const b = box(id);
+        const r = document.createRange();
+        r.selectNodeContents(document.querySelector(`#${id} .first`));
+        const rects = [...r.getClientRects()];
+        const left = Math.min(...rects.map(x => x.left)) - b.left;
+        const right = b.right - Math.max(...rects.map(x => x.right));
+        println(`${id}: ${left > 1 && Math.abs(left - right) <= 1 ? "centered" : `not centered (${Math.round(left)}, ${Math.round(right)})`}`);
+    }
+});
+</script>

@@ -274,6 +274,8 @@ pub const INHERITED_BITS_TEXT_WRAP_MODE_SHIFT: u32 = 23;
 pub const INHERITED_BITS_TEXT_WRAP_MODE_WIDTH: u32 = 1;
 pub const INHERITED_BITS_WORD_BREAK_SHIFT: u32 = 24;
 pub const INHERITED_BITS_WORD_BREAK_WIDTH: u32 = 2;
+pub const INHERITED_BITS_TEXT_ALIGN_LAST_SHIFT: u32 = 26;
+pub const INHERITED_BITS_TEXT_ALIGN_LAST_WIDTH: u32 = 3;
 
 /// The keywords of few values of properties that do not inherit a style holds as bits in its
 /// root beside its own groups, in place of fields of its box group: each the code of its keyword

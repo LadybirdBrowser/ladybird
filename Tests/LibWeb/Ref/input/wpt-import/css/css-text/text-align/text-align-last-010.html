@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: text-align-last - right(one line inside block element)</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="author" title="Shiyou Tan" href="mailto:shiyoux.tan@intel.com">
+<link rel="help" title="7.2. Last Line Alignment: the 'text-align-last' property" href="http://www.w3.org/TR/css-text-3/#text-align-last">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/text-align/text-align-last-010-ref.html">
+<meta name="assert" content="The 'text-align-last' property set to 'right' on a block element aligns the only one line text to the right.">
+<style>
+  div {
+    border: 1px solid blue;
+    text-align-last: right;
+  }
+</style>
+<body>
+  <p>Test passes if the line of "FillerText" below is aligned to the right, inside the blue box.</p>
+  <div>FillerText FillerText FillerText FillerText FillerText</div>
+</body>

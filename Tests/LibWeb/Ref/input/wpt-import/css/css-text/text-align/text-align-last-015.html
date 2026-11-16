@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: text-align-last applied to last line in the second column</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#text-align-last-property">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1817235">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/text-align/text-align-last-015-ref.html">
+
+<style>
+:root {
+  font: 25px/1 Ahem;
+}
+.multicol {
+  width: 200px;
+  column-count: 2;
+  column-gap: 0;
+  border: 5px solid orange;
+}
+.multicol > div {
+  text-align: start;
+  text-align-last: end;
+}
+</style>
+
+<div class="multicol">
+  <div>ab ab ab ab</div>
+</div>

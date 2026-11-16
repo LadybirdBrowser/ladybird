@@ -84,6 +84,9 @@ pub(crate) struct LineBoxData {
     pub(crate) text_overflow_elision: Option<TextOverflowElision>,
     /// The block-level box the line holds, where the line is interrupted for one.
     pub(crate) block_level_box: Option<BlockLevelBoxOnLine>,
+    /// Whether placing the line aligned it as the last line of its block, or a line before a forced break, by
+    /// text-align-last. Justification follows the same decision.
+    pub(crate) uses_last_line_alignment: Option<bool>,
     pub(crate) record: inline_content::LineRecord,
 }
 
@@ -110,6 +113,7 @@ impl LineBoxData {
             inline_box_struts: Vec::new(),
             text_overflow_elision: None,
             block_level_box: None,
+            uses_last_line_alignment: None,
             record: inline_content::LineRecord {
                 direction,
                 writing_mode,

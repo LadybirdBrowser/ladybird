@@ -1,0 +1,7 @@
+overflow: 0,88
+one-box: 0
+one-word: 0
+plaintext-end: 0
+plaintext-align-end: 0
+clamp: centered
+clamp-webkit: centered

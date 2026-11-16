@@ -1076,6 +1076,11 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
+    pub(crate) fn text_align_last(self) -> u8 {
+        self.bit(StyleBitField::TextAlignLast)
+    }
+
+    #[inline]
     fn bit(self, field: StyleBitField) -> u8 {
         self.0.0.style_bits().get(field)
     }
