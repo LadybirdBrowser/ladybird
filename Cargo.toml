@@ -26,6 +26,7 @@ members = [
     "Libraries/LibWeb/Rust",
     "Libraries/LibWeb/HTML/Parser/Rust",
     "Libraries/LibWebRTC/Rust",
+    "Libraries/LibXML/Rust",
     "Libraries/RustAllocator",
     "Services/Compositor/Rust",
     "Services/WebRTCClient",
