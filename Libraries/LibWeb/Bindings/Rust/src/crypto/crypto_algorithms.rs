@@ -5584,7 +5584,8 @@ fn parse_jwk_rsa_key(jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<KeyHand
         vec![n, e]
     };
     let components: Vec<_> = components.iter().map(Bytes::as_slice).collect();
-    Ok(libcrypto_rust::rsa_key_from_components(is_private, &components).expect("LibCrypto returns an RSA key"))
+    libcrypto_rust::rsa_key_from_components(is_private, &components)
+        .ok_or_else(|| dom_error("DataError", b"Invalid key"))
 }
 
 fn rsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult<Bytes> {
