@@ -74,7 +74,6 @@ private:
         auto buffer = MUST(Core::AnonymousBuffer::create_with_size(sizeof(Gfx::SystemTheme)));
         auto* theme = buffer.data<Gfx::SystemTheme>();
         theme->color[to_underlying(Gfx::ColorRole::Window)] = Color(Color::White).value();
-        theme->color[to_underlying(Gfx::ColorRole::WindowText)] = Color(Color::Black).value();
         m_palette_impl = Gfx::PaletteImpl::create_with_anonymous_buffer(buffer);
     }
 

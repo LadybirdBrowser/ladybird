@@ -18,72 +18,24 @@ namespace Gfx {
 
 #define ENUMERATE_COLOR_ROLES(C)   \
     C(Accent)                      \
-    C(ActiveLink)                  \
-    C(ActiveWindowBorder1)         \
-    C(ActiveWindowBorder2)         \
-    C(ActiveWindowTitle)           \
-    C(ActiveWindowTitleShadow)     \
-    C(ActiveWindowTitleStripes)    \
     C(Base)                        \
     C(BaseText)                    \
     C(Black)                       \
     C(Blue)                        \
-    C(BrightBlack)                 \
-    C(BrightBlue)                  \
-    C(BrightCyan)                  \
-    C(BrightGreen)                 \
-    C(BrightMagenta)               \
-    C(BrightRed)                   \
-    C(BrightWhite)                 \
-    C(BrightYellow)                \
     C(Button)                      \
     C(ButtonText)                  \
     C(ColorSchemeBackground)       \
     C(ColorSchemeForeground)       \
     C(Cyan)                        \
-    C(DisabledTextFront)           \
-    C(DisabledTextBack)            \
-    C(DesktopBackground)           \
-    C(FocusOutline)                \
     C(Green)                       \
     C(Gutter)                      \
-    C(GutterBorder)                \
-    C(HighlightWindowBorder1)      \
-    C(HighlightWindowBorder2)      \
-    C(HighlightWindowTitle)        \
-    C(HighlightWindowTitleShadow)  \
-    C(HighlightWindowTitleStripes) \
-    C(HighlightSearching)          \
-    C(HighlightSearchingText)      \
-    C(HoverHighlight)              \
     C(InactiveSelection)           \
-    C(InactiveWindowBorder1)       \
-    C(InactiveWindowBorder2)       \
-    C(InactiveWindowTitle)         \
-    C(InactiveWindowTitleShadow)   \
-    C(InactiveWindowTitleStripes)  \
     C(LightSelection)              \
     C(DarkSelection)               \
     C(Link)                        \
     C(Magenta)                     \
-    C(MenuBase)                    \
-    C(MenuBaseText)                \
-    C(MenuSelection)               \
-    C(MenuSelectionText)           \
-    C(MenuStripe)                  \
-    C(MovingWindowBorder1)         \
-    C(MovingWindowBorder2)         \
-    C(MovingWindowTitle)           \
-    C(MovingWindowTitleShadow)     \
-    C(MovingWindowTitleStripes)    \
     C(PlaceholderText)             \
     C(Red)                         \
-    C(RubberBandBorder)            \
-    C(RubberBandFill)              \
-    C(Ruler)                       \
-    C(RulerActiveText)             \
-    C(RulerBorder)                 \
-    C(RulerInactiveText)           \
     C(Selection)                   \
     C(SyntaxComment)               \
     C(SyntaxControlKeyword)        \
@@ -92,28 +44,14 @@ namespace Gfx {
     C(SyntaxNumber)                \
     C(SyntaxOperator)              \
     C(SyntaxPreprocessorStatement) \
-    C(SyntaxPreprocessorValue)     \
     C(SyntaxPunctuation)           \
     C(SyntaxString)                \
     C(SyntaxType)                  \
-    C(SyntaxFunction)              \
-    C(SyntaxVariable)              \
-    C(SyntaxCustomType)            \
-    C(SyntaxNamespace)             \
-    C(SyntaxMember)                \
-    C(SyntaxParameter)             \
-    C(TextCursor)                  \
-    C(ThreedHighlight)             \
     C(ThreedShadow1)               \
-    C(ThreedShadow2)               \
     C(Tooltip)                     \
     C(TooltipText)                 \
-    C(Tray)                        \
-    C(TrayText)                    \
-    C(VisitedLink)                 \
     C(White)                       \
     C(Window)                      \
-    C(WindowText)                  \
     C(Yellow)
 
 #define ENUMERATE_FLAG_ROLES(C) \
