@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .line {
+        font: 20px/20px serif;
+    }
+</style>
+<!-- Text raised above the baseline by a vertical-align length still leaves the strut of the line box at the baseline,
+     so the line box reaches down to the strut's bottom. The line box is 50px tall. -->
+<div class="line"><span style="vertical-align: 30px">x</span></div>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .line {
+        font: 0/0 serif;
+    }
+    .block {
+        display: inline-block;
+        width: 100px;
+        height: 50px;
+        background: blue;
+    }
+</style>
+<!-- An inline block raised above the baseline by a vertical-align length still leaves the strut of the line box at the
+     baseline, so the line box reaches down to the baseline. The first line box is 80px tall, the second 70px. -->
+<div class="line"><div class="block" style="vertical-align: 30px"></div></div>
+<div class="line"><div class="block" style="vertical-align: 20px"></div><div class="block" style="vertical-align: 10px"></div></div>
