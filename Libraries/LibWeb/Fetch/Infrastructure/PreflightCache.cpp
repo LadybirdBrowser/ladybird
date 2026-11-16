@@ -179,12 +179,6 @@ bool PreflightCache::is_cache_entry_match(Entry const& entry, Request const& req
     return entry.credentials || request.credentials_mode() != Request::CredentialsMode::Include;
 }
 
-void PreflightCache::evict_expired_entries()
-{
-    MutexLocker locker(m_mutex);
-    remove_expired_entries();
-}
-
 void PreflightCache::remove_expired_entries()
 {
     m_entries.remove_all_matching([](Entry const& entry) {

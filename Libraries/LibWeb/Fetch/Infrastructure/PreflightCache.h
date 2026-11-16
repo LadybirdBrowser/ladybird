@@ -27,8 +27,6 @@ public:
 
     void clear_cache_entries(Request const&);
 
-    void evict_expired_entries();
-
 private:
     // https://fetch.spec.whatwg.org/#cache-entry
     struct Entry {

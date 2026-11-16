@@ -6829,14 +6829,6 @@ pub unsafe extern "C" fn document_host_set_style_record_host_callbacks(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_needs_full_layout_tree_update(
-    host: &DocumentHost,
-    read: &crate::render_state::BegunRead,
-) -> bool {
-    read_arena(host, read, (), |arena, ()| arena.needs_full_layout_tree_update())
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn render_state_layout_root(host: &DocumentHost, read: &crate::render_state::BegunRead) -> NodeSlotId {
     read_arena(host, read, (), |arena, ()| arena.layout_root())
 }

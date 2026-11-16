@@ -4222,15 +4222,6 @@ void remove_extraneous_line_breaks_before_node(GC::Ref<DOM::Node> node)
         remove_node(*ref);
 }
 
-// https://w3c.github.io/editing/docs/execCommand/#remove-extraneous-line-breaks-from
-void remove_extraneous_line_breaks_from_a_node(GC::Ref<DOM::Node> node)
-{
-    // To remove extraneous line breaks from a node, first remove extraneous line breaks before it,
-    // then remove extraneous line breaks at the end of it.
-    remove_extraneous_line_breaks_before_node(node);
-    remove_extraneous_line_breaks_at_the_end_of_node(node);
-}
-
 // https://w3c.github.io/editing/docs/execCommand/#preserving-its-descendants
 void remove_node_preserving_its_descendants(GC::Ref<DOM::Node> node)
 {

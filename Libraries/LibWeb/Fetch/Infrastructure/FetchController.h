@@ -100,8 +100,6 @@ public:
 
     bool requires_network() const { return m_control_block->requires_network(); }
     bool has_started_request() const { return m_control_block->has_started_request(); }
-    void set_inner_fetch_controller(GC::Ref<FetchController>);
-
     // The fetch this controller's fetch params started last, and the executor its start was posted to. The controller's
     // stops are posted there, for that fetch.
     void set_started_fetch(Engine::FetchId, Engine::FetchExecutor&);

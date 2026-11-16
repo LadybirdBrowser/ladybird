@@ -31,13 +31,6 @@ Optional<i32> parse_integer(Utf16View input)
     return value;
 }
 
-float NumberPercentage::resolve_relative_to(float length) const
-{
-    if (!m_is_percentage)
-        return m_value;
-    return m_value * length;
-}
-
 Optional<float> parse_number(Utf16View input)
 {
     float value;

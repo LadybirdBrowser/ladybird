@@ -194,14 +194,6 @@ public:
         });
     }
 
-    HTTP::MemoryCache* get_if_exists(Utf16String const& key)
-    {
-        auto it = m_cache.find(key);
-        if (it == m_cache.end())
-            return nullptr;
-        return it->value.ptr();
-    }
-
     // NB: Each agent has one, as a cache entry can only be used on one thread.
     static HTTPCache& the()
     {

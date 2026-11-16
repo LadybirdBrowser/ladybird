@@ -48,7 +48,6 @@ public:
 
     using TransformFrameWrittenCallback = AK::Function<void(ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)>;
     void register_transform_frame_callback(u64 transform_id, TransformFrameWrittenCallback callback);
-    void unregister_transform_frame_callback(u64 transform_id);
 
 private:
     WorkerAgentParent(URL::URL, WorkerOptions const&, bool extended_lifetime, GC::Ptr<MessagePort> outside_port,

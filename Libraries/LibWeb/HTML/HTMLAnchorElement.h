@@ -47,7 +47,6 @@ public:
 private:
     HTMLAnchorElement(DOM::Document&, DOM::QualifiedName);
 
-    bool has_download_preference() const;
     virtual void visit_edges(Cell::Visitor&) override;
 
     // ^DOM::EventTarget

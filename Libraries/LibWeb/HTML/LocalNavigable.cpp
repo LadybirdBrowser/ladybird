@@ -5270,15 +5270,6 @@ static Layout::Node* layout_node_for_async_scroll_node(Layout::BegunRead const& 
     return element->layout_node(read);
 }
 
-Layout::Node* LocalNavigable::layout_node_for_async_scroll_node_stable_id(Web::AsyncScrollNodeStableID stable_node_id)
-{
-    auto document = active_document();
-    if (!document)
-        return nullptr;
-    Layout::ForcedReadScope read { *document };
-    return layout_node_for_async_scroll_node(read, *document, stable_node_id);
-}
-
 bool LocalNavigable::set_scroll_offset_for(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset)
 {
     auto document = active_document();
