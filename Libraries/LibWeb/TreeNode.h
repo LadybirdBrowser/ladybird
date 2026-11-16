@@ -139,7 +139,6 @@ public:
     }
 
     void append_child(GC::Ref<T> node);
-    void prepend_child(GC::Ref<T> node);
     void insert_before(GC::Ref<T> node, GC::Ptr<T> child);
     void remove_child(GC::Ref<T> node);
 
@@ -570,23 +569,6 @@ inline void TreeNode<T>::insert_before(GC::Ref<T> node, GC::Ptr<T> child)
     child->m_previous_sibling = node.ptr();
 
     node->m_parent = static_cast<T*>(this);
-}
-
-template<typename T>
-inline void TreeNode<T>::prepend_child(GC::Ref<T> node)
-{
-    VERIFY(!node->m_parent);
-
-    if (m_first_child)
-        m_first_child->m_previous_sibling = node.ptr();
-    node->m_next_sibling = m_first_child;
-    node->m_parent = static_cast<T*>(this);
-    m_first_child = node.ptr();
-    if (!m_last_child)
-        m_last_child = m_first_child;
-    node->inserted_into(static_cast<T&>(*this));
-
-    static_cast<T*>(this)->children_changed();
 }
 
 template<typename T>
