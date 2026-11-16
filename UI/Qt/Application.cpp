@@ -1046,7 +1046,12 @@ Application::~Application()
         // process at once, so it never records a clean exit.
         if (m_session_store) {
             m_session_store->flush_dirty_state();
-            m_session_store->mark_clean_exit(m_restart != Restart::None ? SessionStore::RestartAfterExit::Yes : SessionStore::RestartAfterExit::No);
+            auto after_exit = SessionStore::AfterExit::KeepPinnedTabs;
+            if (m_restart != Restart::None)
+                after_exit = SessionStore::AfterExit::Restart;
+            else if (Application::settings().restore_previous_session())
+                after_exit = SessionStore::AfterExit::KeepEverything;
+            m_session_store->mark_clean_exit(after_exit);
         }
 
         // NB: The views go along with the windows that showed them, and their timers need the QApplication.
