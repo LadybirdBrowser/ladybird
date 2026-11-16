@@ -627,7 +627,10 @@ pub(crate) fn construction_flags(kind: NodeKind, is_anonymous: bool, constructio
     let has_style = kind != NodeKind::Node && !kind_is_text(kind);
     // Some native controls use a generic box so they can host their internal shadow tree, but
     // remain replaced elements for CSS box generation and inline layout.
-    let is_replaced_element = kind_is_replaced_box(kind) || has(fact::IS_HTML_INPUT_ELEMENT);
+    // NB: A progress or meter element lays out its internal shadow tree on its own, as other engines do, so no margin
+    //     inside it collapses with the content around it.
+    let is_replaced_element =
+        kind_is_replaced_box(kind) || has(fact::IS_HTML_INPUT_ELEMENT) || has(fact::IS_HTML_PROGRESS_OR_METER_ELEMENT);
     [
         (NodeFlag::Anonymous, is_anonymous),
         (NodeFlag::HasStyle, has_style),
