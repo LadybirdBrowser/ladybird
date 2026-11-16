@@ -1348,6 +1348,11 @@ impl Generator<'_> {
             });
             self.push_static_variable_environment(environment);
             let scope = &mut self.context.scope;
+            if scope.has_parameter_expressions_with_eval {
+                // NB: The parameters have an environment of their own, so the function environment only gets what an
+                //     `eval` in them declares.
+                scope.environment_binding_count = 0;
+            }
             scope.function_environment_binding_count = Some(scope.environment_binding_count);
         }
         if self.contains_direct_call_to_eval_in_non_strict_mode && captured_count != 0 {
