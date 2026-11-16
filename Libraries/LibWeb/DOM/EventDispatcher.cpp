@@ -284,12 +284,11 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     // 5. Let clearTargets be false.
     bool clear_targets = false;
 
-    // OPTIMIZATION: Only dispatch trusted events if there is at least one listener on the node or its ancestors.
-    //               Activation events are always dispatched. This saves us from going through the path building and
-    //               dispatch phases for events that will be dropped on the floor anyway. Untrusted events are always
-    //               dispatched, since the script that dispatched one can read the target that dispatch leaves on it.
+    // OPTIMIZATION: Only dispatch events if there is at least one listener on the node or its ancestors. Activation
+    //               events are always dispatched. This saves us from going through the path building and dispatch
+    //               phases for events that will be dropped on the floor anyway.
     bool is_activation_event = is<UIEvents::MouseEvent>(event) && event.type() == HTML::EventNames::click;
-    bool should_dispatch = is_activation_event || !event.is_trusted();
+    bool should_dispatch = is_activation_event;
     if (!should_dispatch) {
         auto const* node = as_if<Node>(*target);
         auto has_listener_on_event_path = [&](Utf16FlyString const& type) {
@@ -312,6 +311,16 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         if (!should_dispatch && event.is_trusted()) {
             if (auto legacy_event_type = legacy_event_type_for_event_type(event.type()); legacy_event_type.has_value())
                 should_dispatch = has_listener_on_event_path(*legacy_event_type);
+        }
+
+        // NB: The script that dispatched an untrusted event can read the target that dispatch leaves on it. For a node
+        //     outside any shadow tree, with no related target or touch targets, that's targetOverride itself, so set
+        //     it, and skip the dispatch. Anywhere else, retargeting decides what's left, so dispatch.
+        if (!should_dispatch && !event.is_trusted()) {
+            if (is<ShadowRoot>(node->root()) || event.related_target() || !event.touch_target_list().is_empty())
+                should_dispatch = true;
+            else
+                event.set_target(target_override.ptr());
         }
     }
 
