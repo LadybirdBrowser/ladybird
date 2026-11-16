@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            println(`iframe load event, document readyState: ${iframe.contentDocument.readyState}`);
+            done();
+        };
+        const xml = `<html xmlns="http://www.w3.org/1999/xhtml"><body><p><strong/></strong></p></body></html>`;
+        iframe.src = URL.createObjectURL(new Blob([xml], { type: "text/xml" }));
+        document.body.appendChild(iframe);
+    });
+</script>
