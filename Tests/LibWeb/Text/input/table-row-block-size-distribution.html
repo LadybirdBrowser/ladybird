@@ -335,10 +335,40 @@
 <div class="case"><table class="m">
     <tr class="m"><td style="height: 100%"><div class="m" style="height: 50%"><div style="height: 20px"></div></div></td></tr>
 </table></div>
+<!-- 50: table in a fixed-height box with a scaled-down image above a 100% height row -->
+<div class="case"><div style="height: 400px"><div class="table m" style="height: 100%">
+    <div><a style="display: block; overflow: hidden"><img class="m" style="display: block; width: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='630' height='354'/%3E"></a></div>
+    <a class="row m" style="height: 100%"><div class="m" style="height: 20px"></div></a>
+</div></div></div>
+
+<!-- 51: scaled-down image row beside a 100% height row in a fixed-height table -->
+<div class="case"><table class="m" style="height: 400px">
+    <tr class="m"><td><img class="m" style="display: block; width: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='630' height='354'/%3E"></td></tr>
+    <tr class="m" style="height: 100%"><td><div style="height: 20px"></div></td></tr>
+</table></div>
+
+<!-- 52: scaled-down image row beside a fixed-height row -->
+<div class="case"><table class="m">
+    <tr class="m"><td><img class="m" style="display: block; width: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='630' height='354'/%3E"></td></tr>
+    <tr class="m" style="height: 50px"><td><div style="height: 20px"></div></td></tr>
+</table></div>
+
+<!-- 53: scaled-down image in a cell spanning two rows -->
+<div class="case"><table class="m">
+    <tr class="m"><td rowspan="2"><img class="m" style="display: block; width: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='630' height='354'/%3E"></td><td><div style="height: 20px"></div></td></tr>
+    <tr class="m"><td><div style="height: 20px"></div></td></tr>
+</table></div>
+
+<!-- 54: scaled-down image beside a cell with a min-height -->
+<div class="case"><table class="m">
+    <tr class="m"><td><img class="m" style="display: block; width: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='630' height='354'/%3E"></td><td style="min-height: 10px"><div style="height: 20px"></div></td></tr>
+</table></div>
 </div>
 <script src="include.js"></script>
 <script>
-    test(() => {
+    promiseTest(async () => {
+        // The data: URL images decode asynchronously, so wait for them before measuring.
+        await Promise.all([...document.images].map(image => image.decode()));
         const cases = document.querySelectorAll(".case");
         cases.forEach((c, index) => {
             const origin = c.getBoundingClientRect().top;
