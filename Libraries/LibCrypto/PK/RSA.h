@@ -135,150 +135,22 @@ struct RSAKeyPair {
     PrivKey private_key;
 };
 
-class RSA : public PKSystem<RSAPrivateKey, RSAPublicKey> {
+class RSA {
 public:
-    using KeyPairType = RSAKeyPair<PublicKeyType, PrivateKeyType>;
+    using KeyPairType = RSAKeyPair<RSAPublicKey, RSAPrivateKey>;
 
     static ErrorOr<KeyPairType> parse_rsa_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope);
     static ErrorOr<void> validate_key_generation_parameters(size_t bits);
     static ErrorOr<KeyPairType> generate_key_pair(size_t bits, UnsignedBigInteger e = 65537);
-
-    RSA(KeyPairType const& pair)
-        : PKSystem<RSAPrivateKey, RSAPublicKey>(pair.public_key, pair.private_key)
-    {
-    }
-
-    RSA(PublicKeyType const& pubkey, PrivateKeyType const& privkey)
-        : PKSystem<RSAPrivateKey, RSAPublicKey>(pubkey, privkey)
-    {
-    }
-
-    RSA(PrivateKeyType const& privkey)
-    {
-        m_private_key = privkey;
-        m_public_key = RSAPublicKey(m_private_key.modulus(), m_private_key.public_exponent());
-    }
-
-    RSA(PublicKeyType const& pubkey)
-    {
-        m_public_key = pubkey;
-    }
-
-    virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes in) override;
-    virtual ErrorOr<ByteBuffer> decrypt(ReadonlyBytes in) override;
-
-    PrivateKeyType const& private_key() const { return m_private_key; }
-    PublicKeyType const& public_key() const { return m_public_key; }
-
-protected:
-    virtual ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) = 0;
 };
 
-ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind);
+ErrorOr<ByteBuffer> rsa_oaep_encrypt(RSAPublicKey const&, Hash::HashKind, ReadonlyBytes label, ReadonlyBytes plaintext);
+ErrorOr<ByteBuffer> rsa_oaep_decrypt(RSAPrivateKey const&, Hash::HashKind, ReadonlyBytes label, ReadonlyBytes ciphertext);
 
-class RSA_EME : public RSA {
-public:
-    template<typename... Args>
-    RSA_EME(Hash::HashKind hash_kind, Args... args)
-        : RSA(args...)
-        , m_hash_kind(hash_kind)
-    {
-    }
+ErrorOr<ByteBuffer> rsa_pss_sign(RSAPrivateKey const&, Hash::HashKind, u32 salt_length, ReadonlyBytes message);
+ErrorOr<bool> rsa_pss_verify(RSAPublicKey const&, Hash::HashKind, u32 salt_length, ReadonlyBytes message, ReadonlyBytes signature);
 
-    ~RSA_EME() = default;
-
-    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes) override
-    {
-        return Error::from_string_literal("Signing is not supported");
-    }
-    virtual ErrorOr<bool> verify(ReadonlyBytes, ReadonlyBytes) override
-    {
-        return Error::from_string_literal("Verifying is not supported");
-    }
-
-protected:
-    Hash::HashKind m_hash_kind { Hash::HashKind::Unknown };
-};
-
-class RSA_EMSA : public RSA {
-public:
-    template<typename... Args>
-    RSA_EMSA(Hash::HashKind hash_kind, Args... args)
-        : RSA(args...)
-        , m_hash_kind(hash_kind)
-    {
-    }
-
-    ~RSA_EMSA() = default;
-
-    virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes) override
-    {
-        return Error::from_string_literal("Encrypting is not supported");
-    }
-    virtual ErrorOr<ByteBuffer> decrypt(ReadonlyBytes) override
-    {
-        return Error::from_string_literal("Decrypting is not supported");
-    }
-
-    virtual ErrorOr<bool> verify(ReadonlyBytes message, ReadonlyBytes signature) override;
-    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes message) override;
-
-protected:
-    Hash::HashKind m_hash_kind { Hash::HashKind::Unknown };
-};
-
-class RSA_PKCS1_EMSA : public RSA_EMSA {
-public:
-    template<typename... Args>
-    RSA_PKCS1_EMSA(Hash::HashKind hash_kind, Args... args)
-        : RSA_EMSA(hash_kind, args...)
-    {
-    }
-
-    ~RSA_PKCS1_EMSA() = default;
-
-protected:
-    ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) override;
-};
-
-class RSA_OAEP_EME : public RSA_EME {
-public:
-    template<typename... Args>
-    RSA_OAEP_EME(Hash::HashKind hash_kind, Args... args)
-        : RSA_EME(hash_kind, args...)
-    {
-    }
-
-    ~RSA_OAEP_EME() = default;
-
-    void set_label(ReadonlyBytes label) { m_label = label; }
-
-protected:
-    ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) override;
-
-private:
-    Optional<ReadonlyBytes> m_label {};
-};
-
-class RSA_PSS_EMSA : public RSA_EMSA {
-public:
-    template<typename... Args>
-    RSA_PSS_EMSA(Hash::HashKind hash_kind, Args... args)
-        : RSA_EMSA(hash_kind, args...)
-    {
-    }
-
-    ~RSA_PSS_EMSA() = default;
-
-    void set_salt_length(u32 value) { m_salt_length = value; }
-
-    virtual ErrorOr<bool> verify(ReadonlyBytes message, ReadonlyBytes signature) override;
-
-protected:
-    ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) override;
-
-private:
-    Optional<u32> m_salt_length;
-};
+ErrorOr<ByteBuffer> rsa_pkcs1_sign(RSAPrivateKey const&, Hash::HashKind, ReadonlyBytes message);
+ErrorOr<bool> rsa_pkcs1_verify(RSAPublicKey const&, Hash::HashKind, ReadonlyBytes message, ReadonlyBytes signature);
 
 }
