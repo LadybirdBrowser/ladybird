@@ -22,6 +22,7 @@ class Event;
 class EventLoop;
 class EventReceiver;
 class File;
+class FileWatcher;
 class LocalServer;
 class LocalSocket;
 class MappedFile;
