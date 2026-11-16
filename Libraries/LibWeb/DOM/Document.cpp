@@ -3800,13 +3800,8 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<Utf16
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName
     //    given "element".
-    auto utf8_qualified_name = qualified_name.to_utf8();
-    auto fly_qualified_name = MUST(FlyString::from_utf8(utf8_qualified_name.bytes_as_string_view()));
-    auto fly_namespace = namespace_.map([](auto const& value) {
-        auto utf8 = value.to_utf8();
-        return MUST(FlyString::from_utf8(utf8.bytes_as_string_view()));
-    });
-    auto extracted_qualified_name_or_error = validate_and_extract(fly_namespace, fly_qualified_name, ValidationContext::Element);
+    auto fly_namespace = namespace_.map([](auto const& value) { return Utf16FlyString::from_utf16(value.utf16_view()); });
+    auto extracted_qualified_name_or_error = validate_and_extract(move(fly_namespace), Utf16FlyString::from_utf16(qualified_name.utf16_view()), ValidationContext::Element);
     if (extracted_qualified_name_or_error.is_error())
         return validate_and_extract_error_to_dom_exception(extracted_qualified_name_or_error.release_error());
     auto extracted_qualified_name = extracted_qualified_name_or_error.release_value();
@@ -7415,11 +7410,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(Utf16FlyString con
 WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute_ns(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name)
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "attribute".
-    auto fly_namespace = namespace_.map([](auto const& value) {
-        return FlyString { value.view().to_utf8_but_should_be_ported_to_utf16() };
-    });
-    auto fly_qualified_name = FlyString { qualified_name.view().to_utf8_but_should_be_ported_to_utf16() };
-    auto extracted_qualified_name_or_error = validate_and_extract(move(fly_namespace), fly_qualified_name, ValidationContext::Attribute);
+    auto extracted_qualified_name_or_error = validate_and_extract(move(namespace_), qualified_name, ValidationContext::Attribute);
     if (extracted_qualified_name_or_error.is_error())
         return validate_and_extract_error_to_dom_exception(extracted_qualified_name_or_error.release_error());
     auto extracted_qualified_name = extracted_qualified_name_or_error.release_value();

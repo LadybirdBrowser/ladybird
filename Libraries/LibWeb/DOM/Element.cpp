@@ -975,7 +975,7 @@ bool is_valid_element_local_name(Utf16View const& name)
 }
 
 // https://dom.spec.whatwg.org/#validate-and-extract
-ErrorOr<QualifiedName, ValidateAndExtractError> validate_and_extract(Optional<FlyString> namespace_, FlyString const& qualified_name, ValidationContext context)
+ErrorOr<QualifiedName, ValidateAndExtractError> validate_and_extract(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, ValidationContext context)
 {
     // To validate and extract a namespace and qualifiedName, run these steps:
 
@@ -987,9 +987,7 @@ ErrorOr<QualifiedName, ValidateAndExtractError> validate_and_extract(Optional<Fl
     Optional<Utf16View> prefix_view = {};
 
     // 3. Let localName be qualifiedName.
-    auto utf16_qualified_name = Utf16FlyString::from_fly_string(qualified_name);
-    auto utf16_qualified_name_string = utf16_qualified_name.to_utf16_string();
-    auto qualified_name_view = utf16_qualified_name_string.utf16_view();
+    auto qualified_name_view = qualified_name.view();
     auto local_name_view = qualified_name_view;
 
     // 4. If qualifiedName contains a U+003A (:):
@@ -1022,24 +1020,23 @@ ErrorOr<QualifiedName, ValidateAndExtractError> validate_and_extract(Optional<Fl
         return ValidateAndExtractError::PrefixWithNullNamespace;
 
     // 9. If prefix is "xml" and namespace is not the XML namespace, then throw a "NamespaceError" DOMException.
-    auto utf16_namespace = namespace_.map([](auto const& value) { return Utf16FlyString::from_fly_string(value); });
-    if (prefix_view.has_value() && *prefix_view == u"xml"sv && utf16_namespace != Namespace::XML)
+    if (prefix_view.has_value() && *prefix_view == u"xml"sv && namespace_ != Namespace::XML)
         return ValidateAndExtractError::XMLPrefixWithNonXMLNamespace;
 
     // 10. If either qualifiedName or prefix is "xmlns" and namespace is not the XMLNS namespace, then throw a "NamespaceError" DOMException.
-    if ((qualified_name_view == u"xmlns"sv || (prefix_view.has_value() && *prefix_view == u"xmlns"sv)) && utf16_namespace != Namespace::XMLNS)
+    if ((qualified_name_view == u"xmlns"sv || (prefix_view.has_value() && *prefix_view == u"xmlns"sv)) && namespace_ != Namespace::XMLNS)
         return ValidateAndExtractError::XMLNSPrefixWithNonXMLNSNamespace;
 
     // 11. If namespace is the XMLNS namespace and neither qualifiedName nor prefix is "xmlns", then throw a "NamespaceError" DOMException.
-    if (utf16_namespace == Namespace::XMLNS && !(qualified_name_view == u"xmlns"sv || (prefix_view.has_value() && *prefix_view == u"xmlns"sv)))
+    if (namespace_ == Namespace::XMLNS && !(qualified_name_view == u"xmlns"sv || (prefix_view.has_value() && *prefix_view == u"xmlns"sv)))
         return ValidateAndExtractError::XMLNSNamespaceWithoutXMLNSPrefix;
 
     // 12. Return (namespace, prefix, localName).
-    auto local_name = colon_position.has_value() ? Utf16FlyString::from_utf16(local_name_view) : utf16_qualified_name;
+    auto local_name = colon_position.has_value() ? Utf16FlyString::from_utf16(local_name_view) : qualified_name;
     Optional<Utf16FlyString> prefix;
     if (prefix_view.has_value())
         prefix = Utf16FlyString::from_utf16(*prefix_view);
-    return QualifiedName { local_name, prefix, utf16_namespace };
+    return QualifiedName { local_name, prefix, namespace_ };
 }
 
 GC::Ref<WebIDL::DOMException> validate_and_extract_error_to_dom_exception(ValidateAndExtractError error)
@@ -7359,9 +7356,7 @@ WebIDL::ExceptionOr<void> set_attribute(DOM::Element& element, Utf16String const
 
 WebIDL::ExceptionOr<void> set_attribute_ns(DOM::Element& element, Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
 {
-    auto namespace_utf8 = namespace_.map([](auto const& value) { return FlyString { value.to_utf16_string().to_utf8() }; });
-    auto qualified_name_utf8 = FlyString { qualified_name.to_utf16_string().to_utf8() };
-    auto extracted_qualified_name_or_error = DOM::validate_and_extract(namespace_utf8, qualified_name_utf8, DOM::ValidationContext::Attribute);
+    auto extracted_qualified_name_or_error = DOM::validate_and_extract(namespace_, qualified_name, DOM::ValidationContext::Attribute);
     if (extracted_qualified_name_or_error.is_error())
         return DOM::validate_and_extract_error_to_dom_exception(extracted_qualified_name_or_error.release_error());
     auto extracted_qualified_name = extracted_qualified_name_or_error.release_value();
