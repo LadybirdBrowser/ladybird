@@ -1102,7 +1102,12 @@ impl Generator<'_> {
                     self.begin_disposal(is_async);
                     self.add_disposable_resource(value, is_async);
                 }
-                self.bind_target(target, first_row, value, PatternMode::Declares(kind))
+                let mode = if matches!(self.tree.node_tag(target), tag::ARRAY_PATTERN | tag::OBJECT_PATTERN) {
+                    self.mode_of_declared_pattern(kind)
+                } else {
+                    PatternMode::Declares(kind)
+                };
+                self.bind_target(target, first_row, value, mode)
             }
             LoopTarget::Pattern { target, first_row } => {
                 self.bind_target(target, first_row, value, PatternMode::Assigns)
@@ -1521,15 +1526,22 @@ impl Generator<'_> {
         self.declare_target_names(target, kind)?;
         let value = self.sweep_value(target.index() + 1, init)?;
         self.current_source_offset = position;
-        // NB: The object of a `with` can have a property of the name of a `var`, which makes it a reference like any other.
-        let mode = if kind == DeclarationKind::Var && self.context.scope.is_in_with() {
-            PatternMode::Assigns
-        } else {
-            PatternMode::Declares(kind)
-        };
+        let mode = self.mode_of_declared_pattern(kind);
         self.bind_target(target, first_row, value, mode)?;
         self.end_of_statement();
         Ok(())
+    }
+
+    fn mode_of_declared_pattern(&self, kind: DeclarationKind) -> PatternMode {
+        let scope = &self.context.scope;
+        let is_sloppy_eval = scope.is_program_without_globals() && !self.strict;
+        // NB: The object of a `with` around the code, or around the non-strict `eval` that it is the code of, can have
+        //     a property of the name of a `var`, which makes it a reference like any other.
+        if kind == DeclarationKind::Var && (scope.is_in_with() || is_sloppy_eval) {
+            PatternMode::Assigns
+        } else {
+            PatternMode::Declares(kind)
+        }
     }
 
     /// `[a, b] = c`, whose value is what is on the right side.
