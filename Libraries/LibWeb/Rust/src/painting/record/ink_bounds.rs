@@ -402,18 +402,17 @@ impl<O: Observer> PaintRecorder<'_, O> {
         })
     }
 
-    /// Requires every command and hit-test item the producer just recorded to lie inside the bound of each scope it
-    /// was recorded in: a walk that skipped one of those scopes because its bound missed a region or a point would
-    /// otherwise have dropped something that draws or can be hit there.
+    /// Requires every command the producer just recorded to lie inside the bound of each scope it was recorded in: a
+    /// walk that skipped one of those scopes because its bound missed a region would otherwise have dropped something
+    /// that draws there.
     pub(super) fn verify_producer_against_open_scopes(
         &mut self,
         owner: NodeSlotId,
         kind: ProducerKind,
         bytes: Range<usize>,
-        hit_test_items: Range<usize>,
     ) {
         if self.ink_bounds_audit.open_scopes_with_a_bound == 0
-            || (bytes.is_empty() && hit_test_items.is_empty())
+            || bytes.is_empty()
             || kind == ProducerKind::ScopePreamble
             || self.background_placed_in_another_space(owner, kind).is_some()
         {
@@ -470,11 +469,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 runs[run_index].context,
             );
         });
-        for item in &self.list.items[hit_test_items] {
-            if !item.rect.is_empty() {
-                require_inside_open_scopes(&item.kind, converter.enclosing_device_rect(item.rect), item.context);
-            }
-        }
         if checked {
             self.ink_bounds_audit.count(Count::CheckedAgainstScopes);
         }

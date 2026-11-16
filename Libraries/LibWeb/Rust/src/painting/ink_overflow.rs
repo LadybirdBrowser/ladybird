@@ -593,7 +593,7 @@ impl crate::layout::LayoutNodeArena {
             return;
         }
         let start = verification.report.then(std::time::Instant::now);
-        let state = PublishedPaintState::new(self.paint_state(), 0);
+        let state = PublishedPaintState::new(self.paint_state());
         let recalculated = self.recalculate_requested_ink_overflow(&state);
         if !verification.enabled {
             return;

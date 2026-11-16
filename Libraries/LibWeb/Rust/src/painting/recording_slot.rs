@@ -20,12 +20,11 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::{LayoutNodeArena, RowsVersion};
 use crate::paint_stage::Presenting;
 use crate::painting::ffi::FfiFlightBlocker;
-use crate::painting::hit_test::HitTestList;
 use crate::painting::paint_read::PaintSource;
 use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
 use crate::painting::presentation::Presentation;
 use crate::painting::published_frame::PublishedFrame;
-use crate::painting::record::publish::PresentedOutput;
+use crate::painting::record::publish::HitTestItemsOnScreen;
 use crate::painting::record::recorder_state::RecorderState;
 use crate::painting::record::vector_images::VectorImageRenderRequest;
 use crate::painting::record::{RecordingInputs, RecordingOutput};
@@ -67,7 +66,7 @@ enum Recorded {
     Nothing,
     Pending(PendingRecording),
     Presented {
-        output: PresentedOutput,
+        output: Arc<RecordingOutput>,
         publishes_recording: bool,
     },
     PresentedUnrecorded,
@@ -200,11 +199,10 @@ impl RecordingAnswer {
     /// the frame, and the recording the lane's fork of the render state takes in, if one published. None where the
     /// frame presented nothing a lane starts from.
     pub(crate) fn clock_lane_recorder(&self) -> Option<(RecorderState, Presentation, Option<Arc<RecordingOutput>>)> {
-        let fork_after = |published: Option<&PresentedOutput>| {
+        let fork_after = |published: Option<&Arc<RecordingOutput>>| {
             let mut recorder = self.recorder.fork();
             if let Some(published) = published {
-                recorder.published_hit_test_items = Some(published.published_hit_test_items());
-                recorder.published_recording = Some(published.output.clone());
+                recorder.published_recording = Some(Arc::clone(published));
             }
             recorder
         };
@@ -213,7 +211,7 @@ impl RecordingAnswer {
             Recorded::Presented {
                 output,
                 publishes_recording: true,
-            } => (fork_after(Some(output)), Some(output.output.clone())),
+            } => (fork_after(Some(output)), Some(Arc::clone(output))),
             _ => return None,
         };
         Some((recorder, self.presentation.as_ref()?.for_clock_lane()?, output))
@@ -476,7 +474,6 @@ pub(crate) fn record_frame(
 ) -> (PendingRecording, Option<PendingRecordingTrace>) {
     let RecorderState {
         published_recording,
-        published_hit_test_items,
         paint_order_tree,
         scratch,
         absolute_rects,
@@ -491,7 +488,6 @@ pub(crate) fn record_frame(
             viewport,
             &inputs,
             published_recording.clone(),
-            published_hit_test_items.clone(),
             trace_recordings,
         )
     });
@@ -527,11 +523,11 @@ pub(crate) fn present(
     pending: PendingRecording,
     recorder: &RecorderState,
     presenting: &mut Presenting,
-) -> PresentedOutput {
-    let output = PresentedOutput::of(crate::painting::record::publish::publish_to_presenter(
+) -> Arc<RecordingOutput> {
+    let output = Arc::new(crate::painting::record::publish::publish_to_presenter(
         pending, recorder,
     ));
-    presentation.present(&output.output, presenting);
+    presentation.present(&output, presenting);
     output
 }
 
@@ -543,13 +539,13 @@ pub(crate) fn present_with_vector_images(
     recorder: &RecorderState,
     presenting: &mut Presenting,
     vector_images: &[Arc<VectorImageRecords>],
-) -> PresentedOutput {
-    let output = PresentedOutput::of(crate::painting::record::publish::publish_with_vector_images(
+) -> Arc<RecordingOutput> {
+    let output = Arc::new(crate::painting::record::publish::publish_with_vector_images(
         pending,
         recorder,
         vector_images,
     ));
-    presentation.present(&output.output, presenting);
+    presentation.present(&output, presenting);
     output
 }
 
@@ -560,7 +556,6 @@ pub(crate) struct FrameInputs {
     pub(crate) publishes_recording: bool,
     /// The canvas rect the root background painted in the recording published last, if any.
     pub(crate) published_root_background_canvas_rect: Option<crate::css::css_pixels::CssPixelRect>,
-    pub(crate) hit_test_item_capacity_hint: usize,
 }
 
 /// A document's frame, frozen for a recording, with what the recording reads beside it, and the rows version it was
@@ -603,7 +598,7 @@ pub(crate) fn freeze_recording_frame(arena: &mut LayoutNodeArena, inputs: FrameI
         arena.note_publishing_paint_recording_started();
     }
     // The recording reads the document as it is now: what the host writes after this goes to the next frame.
-    let frame = arena.freeze_frame(inputs.hit_test_item_capacity_hint);
+    let frame = arena.freeze_frame();
     let rows_version = arena.rows_version();
     let paint_state = arena.paint_state();
     Some(FrozenFrame {
@@ -676,23 +671,22 @@ pub(crate) enum RecordingLanding {
     /// [`RecordingSlot::take_vector_image_frame`]); it keeps the presentation.
     NeedsVectorImages,
     /// The recording landed after the host wrote the document's rows. What it recorded stands as
-    /// the compositor's frame, whether it presented it or the host does, but not its hit-test list,
-    /// which names boxes that may be gone: the document keeps none.
+    /// the compositor's frame, whether it presented it or the host does, but not what hit testing reads of
+    /// it, as the boxes it shows may be gone.
     LandedBehindRows(Option<Presentation>),
 }
 
-/// What takes in a recording that presented itself: its output, whether the document's hit-test list
-/// changed, and whether the recording publishes.
-pub(crate) type TakeInPresented<'a> = &'a mut dyn FnMut(Arc<RecordingOutput>, bool, bool);
+/// What takes in a recording that presented itself: its output, and whether the recording publishes.
+pub(crate) type TakeInPresented<'a> = &'a mut dyn FnMut(Arc<RecordingOutput>, bool);
 
 /// A recording the host publishes, with what its publication writes of the document's recordings.
 pub(crate) struct Publication<'a> {
     pub(crate) pending: PendingRecording,
-    /// Whether the recording landed after the host wrote the document's rows, so that the hit-test
-    /// list it made names boxes that may be gone.
+    /// Whether the recording landed after the host wrote the document's rows, so that the boxes the
+    /// frame shows may be gone.
     pub(crate) behind_rows: bool,
     pub(crate) recorder: &'a mut RecorderState,
-    pub(crate) hit_test_list: &'a mut Option<HitTestList>,
+    pub(crate) hit_test_items_on_screen: &'a mut HitTestItemsOnScreen,
 }
 
 /// A recording that landed for the host to publish, and whether it landed behind the rows.
@@ -702,8 +696,8 @@ struct PendingPublication {
 }
 
 /// What a document keeps of its recordings: the recording its host is to publish, the trace that
-/// recording left, the recorder state the next recording records with, and the hit-test list of the
-/// last recording published, which hit testing reads.
+/// recording left, the recorder state the next recording records with, and what the hit-test items of
+/// the frame on screen are as of.
 #[derive(Default)]
 pub(crate) struct RecordingSlot {
     pending_recording: Option<PendingPublication>,
@@ -711,7 +705,7 @@ pub(crate) struct RecordingSlot {
     vector_image_frame: Option<SampledFrame<VectorImageFrame>>,
     pending_recording_trace: Option<PendingRecordingTrace>,
     recorder: Recorder,
-    hit_test_list: Option<HitTestList>,
+    hit_test_items_on_screen: HitTestItemsOnScreen,
 }
 
 impl RecordingSlot {
@@ -720,7 +714,7 @@ impl RecordingSlot {
     }
 
     /// The pending recording, for the host to publish, with the recorder state it recorded with and
-    /// the hit-test list it replaces. A recording is pending only once it has landed.
+    /// what the frame it replaces on screen placed. A recording is pending only once it has landed.
     pub(crate) fn take_publication(&mut self) -> Option<Publication<'_>> {
         let Recorder::Here(recorder) = &mut self.recorder else {
             return None;
@@ -730,7 +724,7 @@ impl RecordingSlot {
             pending,
             behind_rows,
             recorder,
-            hit_test_list: &mut self.hit_test_list,
+            hit_test_items_on_screen: &mut self.hit_test_items_on_screen,
         })
     }
 
@@ -753,14 +747,10 @@ impl RecordingSlot {
         matches!(self.recorder, Recorder::InFlight(_))
     }
 
-    /// The hit-test list of the last recording published, if any was.
-    pub(crate) fn hit_test_list(&mut self) -> &mut Option<HitTestList> {
-        &mut self.hit_test_list
-    }
-
-    /// How many items the next recording's hit-test list may hold, going by the last one's.
-    pub(crate) fn hit_test_item_capacity_hint(&self) -> usize {
-        self.hit_test_list.as_ref().map_or(0, |list| list.items.len())
+    /// The generation of the hit-test items of the frame on screen, which moves on whenever a frame places other
+    /// items, or zero where no frame stands.
+    pub(crate) fn hit_test_items_generation(&self) -> u64 {
+        self.hit_test_items_on_screen.generation()
     }
 
     /// The recorder state, for a recording to take until it answers. The host takes a recording in
@@ -803,17 +793,15 @@ impl RecordingSlot {
                 publishes_recording,
             } => crate::painting::record::publish::take_in_presented_output(
                 &mut recorder,
-                &mut self.hit_test_list,
+                &mut self.hit_test_items_on_screen,
                 output,
                 publishes_recording,
-                |output, hit_test_list_changed| {
-                    take_in(output, hit_test_list_changed || behind_rows, publishes_recording);
-                },
+                |output| take_in(output, publishes_recording),
             ),
         }
         self.recorder = Recorder::Here(recorder);
         if behind_rows {
-            self.hit_test_list = None;
+            self.hit_test_items_on_screen.forget();
         }
         presentation
     }
@@ -821,7 +809,7 @@ impl RecordingSlot {
     /// Takes in what a recording the host waited for answered, leaving it pending for the host to
     /// publish.
     pub(crate) fn accept_recording_answer(&mut self, answer: RecordingAnswer) {
-        let presentation = self.land(answer, false, &mut |_, _, _| {
+        let presentation = self.land(answer, false, &mut |_, _| {
             unreachable!("a recording the host waits for presents nothing itself")
         });
         debug_assert!(
@@ -973,7 +961,7 @@ mod tests {
         recorder_of(&mut slot).unwrap().published_recording = Some(published.clone());
 
         let job = RecordingJob {
-            frame: arena.freeze_frame(0),
+            frame: arena.freeze_frame(),
             rows_version: RowsVersion::default(),
             recorder: slot.take_recorder(),
             viewport: NodeSlotId::INVALID,
@@ -1012,7 +1000,7 @@ mod tests {
         crate::paint_stage::paint_thread().submit(move |_| answer(recorder, recorded))
     }
 
-    fn take_in_nothing(_: Arc<RecordingOutput>, _: bool, _: bool) {
+    fn take_in_nothing(_: Arc<RecordingOutput>, _: bool) {
         panic!("the recording presented nothing itself");
     }
 
@@ -1048,7 +1036,7 @@ mod tests {
         let flight = flight_of(
             &mut slot,
             Recorded::Presented {
-                output: PresentedOutput::of(RecordingOutput::default()),
+                output: Arc::new(RecordingOutput::default()),
                 publishes_recording: true,
             },
         );
@@ -1058,7 +1046,7 @@ mod tests {
             match slot.take_finished_recording_in(
                 &TaskBoundary::for_test(),
                 |_| true,
-                &mut |output, _, publishes_recording| {
+                &mut |output, publishes_recording| {
                     taken_in = Some((output, publishes_recording));
                 },
             ) {
@@ -1074,28 +1062,23 @@ mod tests {
             recorder_of(&mut slot).unwrap().published_recording.as_ref().unwrap(),
             &output
         ));
-        assert!(slot.hit_test_list().is_some());
+        assert_ne!(slot.hit_test_items_generation(), 0);
     }
 
     #[test]
-    fn a_recording_that_lands_behind_the_rows_keeps_no_hit_test_list() {
+    fn a_recording_that_lands_behind_the_rows_leaves_no_hit_test_items_on_screen() {
         let mut slot = RecordingSlot::default();
         let flight = flight_of(
             &mut slot,
             Recorded::Presented {
-                output: PresentedOutput::of(RecordingOutput::default()),
+                output: Arc::new(RecordingOutput::default()),
                 publishes_recording: false,
             },
         );
         slot.fly(flight);
-        let mut hit_test_list_changed = false;
-        let landing = slot.join_recording_in_flight(|_| false, &mut |_, changed, _| hit_test_list_changed = changed);
+        let landing = slot.join_recording_in_flight(|_| false, &mut |_, _| {});
         assert!(matches!(landing, RecordingLanding::LandedBehindRows(None)));
-        assert!(
-            hit_test_list_changed,
-            "the hit-test list the document read is no longer current"
-        );
-        assert!(slot.hit_test_list().is_none());
+        assert_eq!(slot.hit_test_items_generation(), 0);
 
         let flight = flight_of(&mut slot, Recorded::Pending(pending(false)));
         slot.fly(flight);

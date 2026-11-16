@@ -681,9 +681,8 @@ fn take_recorder_for_recording(
     recording.take_recorder()
 }
 
-/// What freezing the frame of `host`'s document's `viewport` for a recording with `inputs` reads.
+/// What freezing the frame of a document's `viewport` for a recording with `inputs` reads.
 fn frame_inputs(
-    host: &crate::render_state::DocumentHost,
     viewport: NodeSlotId,
     inputs: &crate::painting::host::FfiRecordingInputs,
     recorder: &crate::painting::record::recorder_state::RecorderState,
@@ -696,7 +695,6 @@ fn frame_inputs(
             .published_recording
             .as_ref()
             .map(|recording| recording.root_background_canvas_rect),
-        hit_test_item_capacity_hint: host.recording().hit_test_item_capacity_hint(),
     }
 }
 
@@ -715,7 +713,7 @@ pub unsafe extern "C" fn render_state_record_display_list(
     inputs: crate::painting::host::FfiRecordingInputs,
 ) -> FfiRecordingStart {
     let recorder = take_recorder_for_recording(host, read);
-    let frame_inputs = frame_inputs(host, viewport, &inputs, &recorder);
+    let frame_inputs = frame_inputs(viewport, &inputs, &recorder);
     // SAFETY: The host lends the input arrays and buffers for this call, and the inputs copy what they read of them.
     let inputs = unsafe { inputs.recording_inputs() };
     let Some(frame) = read_arena(
@@ -791,7 +789,7 @@ pub unsafe extern "C" fn render_state_commit_recorded_frame(
 ) {
     let recorder = take_recorder_for_recording(host, read);
     let content = crate::render_state::CommittedContent::Recording {
-        frame_inputs: frame_inputs(host, viewport, &inputs, &recorder),
+        frame_inputs: frame_inputs(viewport, &inputs, &recorder),
         // SAFETY: The host lends the input arrays and buffers for this call, and the inputs copy what they read of them.
         inputs: unsafe { inputs.recording_inputs() },
     };
@@ -891,8 +889,8 @@ pub unsafe extern "C" fn render_state_take_finished_recording_in(
     let landing = host.recording().take_finished_recording_in(
         &boundary,
         |rows_version| landed_recording_stands(host, rows_version),
-        &mut |output, hit_test_list_changed, publishes_recording| {
-            take_in_presented_recording(host, output, hit_test_list_changed, publishes_recording);
+        &mut |output, publishes_recording| {
+            take_in_presented_recording(host, output, publishes_recording);
         },
     );
     recording_landing(landing, presented_other_scroll_offsets)
@@ -907,8 +905,8 @@ pub extern "C" fn render_state_join_recording_in_flight(
 ) -> FfiRecordingLanding {
     let landing = host.recording().join_recording_in_flight(
         |rows_version| landed_recording_stands(host, rows_version),
-        &mut |output, hit_test_list_changed, publishes_recording| {
-            take_in_presented_recording(host, output, hit_test_list_changed, publishes_recording);
+        &mut |output, publishes_recording| {
+            take_in_presented_recording(host, output, publishes_recording);
         },
     );
     recording_landing(landing, presented_other_scroll_offsets)
@@ -918,13 +916,11 @@ pub extern "C" fn render_state_join_recording_in_flight(
 fn take_in_presented_recording(
     host: &crate::render_state::DocumentHost,
     output: std::sync::Arc<crate::painting::record::RecordingOutput>,
-    hit_test_list_changed: bool,
     publishes_recording: bool,
 ) {
     host.queue_change(crate::render_state::ArenaChange::Paint(
         crate::painting::paint_changes::PaintChange::TakeInRecording {
             output,
-            hit_test_list_changed,
             publishes_recording,
         },
     ));
@@ -970,8 +966,8 @@ fn give_back(
         given_back.is_some_and(|presentation| presentation.presented_other_scroll_offsets());
 }
 
-/// Whether the rows of `host`'s document are still at `version`, so that the hit-test list of a recording that landed
-/// with a frame frozen there still stands for it. The recording dropped its frame and the lease it held, so the style
+/// Whether the rows of `host`'s document are still at `version`, so that a recording that landed with a frame frozen
+/// there shows what a hit test of the rows finds. The recording dropped its frame and the lease it held, so the style
 /// engine frees what it kept for that lease here too, however idle the document stays.
 fn landed_recording_stands(host: &crate::render_state::DocumentHost, version: crate::layout::RowsVersion) -> bool {
     // A frame in flight, or a round that flew and is not paid yet, writes the rows, which then stand for no recording
@@ -1054,8 +1050,7 @@ fn tree_as_the_query_reads_it<'tree>(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_hit_test_list_generation(host: &crate::render_state::DocumentHost) -> u64 {
-    let mut recording = host.recording();
-    recording.hit_test_list().as_ref().map_or(0, |list| list.generation)
+    host.recording().hit_test_items_generation()
 }
 
 /// The DOM node a hit on the paintable dispatches events to.

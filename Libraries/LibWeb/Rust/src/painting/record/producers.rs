@@ -5,9 +5,8 @@
  */
 
 //! The producers of a frame: each records one kind of output for one row under the contexts it
-//! needs, starting and ending at a closed group boundary with no ambient state, so its bytes and
-//! hit-test items can be copied verbatim by a later frame. The recorder implements the assembly
-//! host with them.
+//! needs, starting and ending at a closed group boundary with no ambient state, so its bytes can
+//! be copied verbatim by a later frame. The recorder implements the assembly host with them.
 
 use super::assemble::{AssemblyEvent, AssemblyHost, OutputPosition, ProducerOutcome, ScopeAction, ScopePlan};
 use super::order_tree::ProducerKind;
@@ -45,15 +44,6 @@ fn draw_kind(phase: PaintPhase) -> ProducerKind {
         PaintPhase::Foreground => ProducerKind::DrawForeground,
         PaintPhase::Outline => ProducerKind::DrawOutline,
         PaintPhase::Overlay => ProducerKind::DrawOverlay,
-    }
-}
-
-pub(crate) fn hit_phase(kind: ProducerKind) -> Option<PaintPhase> {
-    match kind {
-        ProducerKind::HitBackground => Some(PaintPhase::Background),
-        ProducerKind::HitForeground => Some(PaintPhase::Foreground),
-        ProducerKind::HitOverlay => Some(PaintPhase::Overlay),
-        _ => None,
     }
 }
 
@@ -108,13 +98,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
             self.recorder.fill_rect_transparent(device_rect);
         }
         self.declare_mask_contents(owner, MaskLayerSet::CssAndSvg);
-        self.recorder.set_accumulated_visual_context(ContextRef::default());
-    }
-
-    fn record_hit_test_phase(&mut self, owner: NodeSlotId, phase: PaintPhase) {
-        let context = self.context_for_phase(owner, phase);
-        self.recorder.set_accumulated_visual_context(context);
-        self.record_hit_test_items(owner, phase);
         self.recorder.set_accumulated_visual_context(ContextRef::default());
     }
 
@@ -211,9 +194,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
                 }
             }
             _ => {
-                if let Some(phase) = hit_phase(kind) {
-                    self.record_hit_test_phase(owner, phase);
-                } else if let Some(phase) = draw_phase(kind) {
+                if let Some(phase) = draw_phase(kind) {
                     self.record_box_commands(owner, phase);
                 }
             }
@@ -221,15 +202,9 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         let end = self.output_position();
         if self.ink_bounds_audit.enabled {
             self.verify_producer_ink(owner, kind, start.bytes as usize..end.bytes as usize);
-            self.verify_producer_against_open_scopes(
-                owner,
-                kind,
-                start.bytes as usize..end.bytes as usize,
-                start.hits as usize..end.hits as usize,
-            );
+            self.verify_producer_against_open_scopes(owner, kind, start.bytes as usize..end.bytes as usize);
         }
-        self.observer
-            .observe(|log| log.end(end.bytes == start.bytes && end.hits == start.hits));
+        self.observer.observe(|log| log.end(end.bytes == start.bytes));
         debug_assert!(
             self.recorder.is_producer_boundary(),
             "a producer ends at a closed group boundary without ambient state"
@@ -243,25 +218,16 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
     fn output_position(&self) -> OutputPosition {
         OutputPosition {
             bytes: u32::try_from(self.recorder.byte_size()).expect("display list exceeds u32"),
-            hits: u32::try_from(self.list.items.len()).expect("hit-test list exceeds u32"),
             blocking_wheel_event_regions: self.blocking_wheel_event_region_count,
         }
     }
 
-    fn copy_published(&mut self, bytes: Range<u32>, hits: Range<u32>, blocking_wheel_event_regions: u32) {
+    fn copy_published(&mut self, bytes: Range<u32>, blocking_wheel_event_regions: u32) {
         let frame = self
             .source_recording
             .as_ref()
             .expect("clean output is copied from a published recording");
-        let items = self
-            .source_items
-            .as_ref()
-            .expect("clean output is copied from a published recording");
         self.recorder.append_cached_commands(&frame.display_list, bytes);
-        if !hits.is_empty() {
-            self.list
-                .append_copies_of(&items.items[hits.start as usize..hits.end as usize]);
-        }
         self.blocking_wheel_event_region_count += blocking_wheel_event_regions;
     }
 

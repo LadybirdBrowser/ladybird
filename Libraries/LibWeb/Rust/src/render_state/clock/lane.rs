@@ -167,10 +167,8 @@ impl LaneDelivery {
             return;
         };
         let presented = match output {
-            // NB: The fork took no recording in since the frame was sampled, so the hit-test list moved on.
             Some(output) => TickPresented::Frame {
                 output,
-                hit_test_list_changed: true,
                 publishes: true,
             },
             None => TickPresented::Nothing,

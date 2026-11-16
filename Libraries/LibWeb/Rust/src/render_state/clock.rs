@@ -465,7 +465,6 @@ pub(crate) enum TickPresented {
     /// The frame, which the fork takes in as its last recording.
     Frame {
         output: Arc<RecordingOutput>,
-        hit_test_list_changed: bool,
         publishes: bool,
     },
     /// Nothing: the frame renders an SVG image the recording published last did not draw, which only the host renders,
@@ -1781,13 +1780,7 @@ fn freeze_tick_frame(
     } = clock_recorder;
     match std::mem::replace(presented, TickPresented::Nothing) {
         TickPresented::Nothing => {}
-        TickPresented::Frame {
-            output,
-            hit_test_list_changed,
-            publishes,
-        } => {
-            take_in_recording(arena, output, hit_test_list_changed, publishes);
-        }
+        TickPresented::Frame { output, publishes } => take_in_recording(arena, output, publishes),
         TickPresented::LeftToHost => return Err(Park("the host presents the frame")),
     }
     let viewport = arena.layout_root();
@@ -1814,10 +1807,6 @@ fn freeze_tick_frame(
             .published_recording
             .as_ref()
             .map(|recording| recording.root_background_canvas_rect),
-        hit_test_item_capacity_hint: recorder
-            .published_hit_test_items
-            .as_ref()
-            .map_or(0, |published| published.items.len()),
     };
     let Some(frozen) = freeze_recording_frame(arena, frame_inputs) else {
         recorder.published_inputs = Some(inputs);
@@ -1866,10 +1855,9 @@ impl ClockRecorder {
             ),
             None => present(&mut self.presentation, pending, &self.recorder, presenting),
         };
-        self.structural_epoch_on_screen = Some(output.output.recorded_structural_epoch);
+        self.structural_epoch_on_screen = Some(output.recorded_structural_epoch);
         self.presented = TickPresented::Frame {
-            output: output.output,
-            hit_test_list_changed: true,
+            output,
             publishes: false,
         };
         self
@@ -1877,7 +1865,6 @@ impl ClockRecorder {
 
     /// Leaves the frame to the host, whose frame on screen a lane that presents no other frame cannot hit test.
     fn leave_frame_to_host(&mut self) {
-        self.recorder.published_hit_test_items = None;
         self.structural_epoch_on_screen = None;
         self.presented = TickPresented::LeftToHost;
     }

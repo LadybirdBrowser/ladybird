@@ -119,13 +119,10 @@ pub fn spatial_index_cell_key(x: i32, y: i32) -> u64 {
     ((x as u32 as u64) << 32) | (y as u32 as u64)
 }
 
+/// Every hit-test item of a document in paint order, walked from its rows, with spatial indexes for point queries.
 #[derive(Default)]
 pub struct HitTestList {
-    pub generation: u64,
-    /// The structural epoch of the visual context tree the items were recorded against, whose nodes they name.
-    pub recorded_structural_epoch: u64,
     pub items: Arc<Vec<HitTestItem>>,
-    pub item_capacity_hint_from_previous_list: usize,
     /// Point queries read only the spatial indexes, which are built on first use.
     pub spatial_indexes_built: bool,
     pub spatial_indexes_by_context: Vec<(ContextRef, SpatialIndex)>,
@@ -133,33 +130,6 @@ pub struct HitTestList {
 }
 
 impl HitTestList {
-    pub fn append(&mut self, item: HitTestItem) {
-        assert!(
-            !self.spatial_indexes_built,
-            "hit-test item appended after the spatial indexes were built"
-        );
-        let items = Arc::make_mut(&mut self.items);
-        if items.capacity() == 0 {
-            items.reserve(self.item_capacity_hint_from_previous_list);
-        }
-        items.push(item);
-    }
-
-    pub(crate) fn append_copies_of(&mut self, source: &[HitTestItem]) {
-        assert!(
-            !self.spatial_indexes_built,
-            "hit-test item appended after the spatial indexes were built"
-        );
-        if source.is_empty() {
-            return;
-        }
-        let items = Arc::make_mut(&mut self.items);
-        if items.capacity() == 0 {
-            items.reserve(self.item_capacity_hint_from_previous_list.max(source.len()));
-        }
-        items.extend_from_slice(source);
-    }
-
     pub(crate) fn build_spatial_indexes_if_needed(&mut self) {
         if self.spatial_indexes_built {
             return;

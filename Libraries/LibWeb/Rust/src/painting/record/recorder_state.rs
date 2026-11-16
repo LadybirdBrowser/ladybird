@@ -6,10 +6,10 @@
 
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::record::RecordingOutput;
 use crate::painting::record::inputs::RecordingInputs;
 use crate::painting::record::order_tree::{PaintOrderTree, PaintOrderTreeAccess};
 use crate::painting::record::scratch::RecordingScratch;
-use crate::painting::record::{PublishedHitTestItems, RecordingOutput};
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
@@ -76,7 +76,6 @@ impl PaintOrderTreeHandle {
 pub(crate) struct RecorderState {
     /// The last recording that published, which the next one copies clean output from.
     pub(crate) published_recording: Option<Arc<RecordingOutput>>,
-    pub(crate) published_hit_test_items: Option<Arc<PublishedHitTestItems>>,
     /// The paint-order tree describing the published recording; a recording that publishes
     /// appends to it and publication or discarding decides what stays.
     pub(crate) paint_order_tree: PaintOrderTreeHandle,
@@ -95,7 +94,6 @@ impl RecorderState {
     pub(crate) fn fork(&self) -> Self {
         Self {
             published_recording: self.published_recording.clone(),
-            published_hit_test_items: self.published_hit_test_items.clone(),
             paint_order_tree: self.paint_order_tree.reader(),
             scratch: Default::default(),
             absolute_rects: Default::default(),
@@ -136,7 +134,6 @@ impl RecorderState {
     /// copies nothing from it and records from scratch into a tree of its own.
     pub(crate) fn forget_published_recording(&mut self) {
         self.published_recording = None;
-        self.published_hit_test_items = None;
         self.paint_order_tree = Default::default();
     }
 }

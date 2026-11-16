@@ -28,24 +28,23 @@ pub(crate) struct ScopePlan {
     pub items: SmallVec<[PaintOrderItem; 16]>,
 }
 
-/// A box phase in paint order is up to three producers: its hit-test items, the scroll
-/// metadata recorded with the background, and its commands. An SVG root paints its
-/// background, border and then all of its content as one producer.
-pub(crate) fn producer_kinds(producer: PaintProducer) -> SmallVec<[ProducerKind; 5]> {
+/// A box phase in paint order is up to two producers: the scroll metadata recorded with the
+/// background, and its commands. An SVG root paints its background, border and then all of its
+/// content as one producer. What a hit test finds where a box paints nothing is no producer: hit
+/// testing walks the rows.
+pub(crate) fn producer_kinds(producer: PaintProducer) -> SmallVec<[ProducerKind; 4]> {
     use ProducerKind::*;
     match producer {
-        PaintProducer::BoxPhase(PaintPhase::Background) => {
-            smallvec::smallvec![HitBackground, ScrollMetadata, DrawBackground]
-        }
+        PaintProducer::BoxPhase(PaintPhase::Background) => smallvec::smallvec![ScrollMetadata, DrawBackground],
         PaintProducer::BoxPhase(PaintPhase::Border) => smallvec::smallvec![DrawBorder],
         PaintProducer::BoxPhase(PaintPhase::TableCollapsedBorder) => smallvec::smallvec![DrawTableCollapsedBorder],
-        PaintProducer::BoxPhase(PaintPhase::Foreground) => smallvec::smallvec![HitForeground, DrawForeground],
+        PaintProducer::BoxPhase(PaintPhase::Foreground) => smallvec::smallvec![DrawForeground],
         PaintProducer::BoxPhase(PaintPhase::Outline) => smallvec::smallvec![DrawOutline],
-        PaintProducer::BoxPhase(PaintPhase::Overlay) => smallvec::smallvec![HitOverlay, DrawOverlay],
-        PaintProducer::SvgRoot => smallvec::smallvec![HitBackground, ScrollMetadata, DrawBackground, DrawBorder, Svg],
+        PaintProducer::BoxPhase(PaintPhase::Overlay) => smallvec::smallvec![DrawOverlay],
+        PaintProducer::SvgRoot => smallvec::smallvec![ScrollMetadata, DrawBackground, DrawBorder, Svg],
         PaintProducer::SvgBoxForeground => smallvec::smallvec![Svg],
         PaintProducer::ScopePreamble => smallvec::smallvec![ScopePreamble],
-        PaintProducer::ForegroundHitTest => smallvec::smallvec![HitForeground],
+        PaintProducer::ForegroundHitTest => SmallVec::new(),
         PaintProducer::ForegroundCommands => smallvec::smallvec![DrawForeground],
         PaintProducer::InlinePiece(index) => smallvec::smallvec![InlinePiece(index)],
         PaintProducer::TextFragment(index) => smallvec::smallvec![TextFragment(index)],
@@ -80,12 +79,10 @@ pub(crate) enum AssemblyEvent {
     ProducerCopied(NodeSlotId, ProducerKind),
 }
 
-/// The end of the output being assembled: command bytes, hit-test items and blocking wheel
-/// regions so far.
+/// The end of the output being assembled: command bytes and blocking wheel regions so far.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct OutputPosition {
     pub bytes: u32,
-    pub hits: u32,
     pub blocking_wheel_event_regions: u32,
 }
 
@@ -98,8 +95,8 @@ pub(crate) trait AssemblyHost {
 
     fn output_position(&self) -> OutputPosition;
 
-    /// Appends the published recording's command bytes and hit-test items in the given ranges.
-    fn copy_published(&mut self, bytes: Range<u32>, hits: Range<u32>, blocking_wheel_event_regions: u32);
+    /// Appends the published recording's command bytes in the given range.
+    fn copy_published(&mut self, bytes: Range<u32>, blocking_wheel_event_regions: u32);
 
     /// Every damaged row, including the rows of subtrees whose root moved.
     fn damaged_rows(&mut self) -> Vec<NodeSlotId>;
@@ -115,17 +112,15 @@ pub(crate) trait AssemblyHost {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct SourceCursor {
     bytes: u32,
-    hits: u32,
 }
 
 impl SourceCursor {
     fn advance(&mut self, output: OutputSize) {
         self.bytes += output.bytes;
-        self.hits += output.hits;
     }
 }
 
-// Consecutive clean children are copied with one range append each for commands and items.
+// Consecutive clean children are copied with one range append.
 #[derive(Clone, Copy)]
 struct PendingCopy {
     start: SourceCursor,
@@ -197,10 +192,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             Some(prologue_bytes)
                 if !published_root.is_none() && self.tree.read().scope_of(published_root) == root_scope =>
             {
-                let cursor = SourceCursor {
-                    bytes: prologue_bytes,
-                    hits: 0,
-                };
+                let cursor = SourceCursor { bytes: prologue_bytes };
                 let entry = self.assemble_scope(published_root, cursor);
                 self.flush_pending_copy();
                 if let Some(tree) = self.tree.rewrites() {
@@ -474,7 +466,6 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         let after = self.host.output_position();
         let output = OutputSize {
             bytes: after.bytes - before.bytes,
-            hits: after.hits - before.hits,
             blocking_wheel_event_regions: after.blocking_wheel_event_regions - before.blocking_wheel_event_regions,
             live: outcome.live,
             reads_window_focus: outcome.reads_window_focus,
@@ -511,7 +502,6 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         };
         self.host.copy_published(
             pending.start.bytes..pending.end.bytes,
-            pending.start.hits..pending.end.hits,
             pending.blocking_wheel_event_regions,
         );
     }
@@ -520,13 +510,9 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::css::css_pixels::CssPixelRect;
-    use crate::painting::border_radii::BorderRadii;
     use crate::painting::display_list::builder::RecordedDisplayList;
-    use crate::painting::display_list::commands::ContextRef;
     use crate::painting::display_list::recorder::DisplayListRecorder;
     use crate::painting::force_dark::ForceDarkRole;
-    use crate::painting::hit_test::{HitTestItem, HitTestItemKind, HitTestList};
     use crate::painting::paint_order_plan::StackingContextPaintPhase;
     use libgfx_rust::{Color, IntRect};
     use std::collections::{HashMap, HashSet};
@@ -561,16 +547,14 @@ mod tests {
     #[derive(Clone, Copy)]
     struct Content {
         rects: u32,
-        hits: u32,
         version: u8,
         live: bool,
         blocking: u32,
     }
 
-    fn content(rects: u32, hits: u32) -> Content {
+    fn content(rects: u32) -> Content {
         Content {
             rects,
-            hits,
             version: 1,
             live: false,
             blocking: 0,
@@ -579,21 +563,18 @@ mod tests {
 
     struct Frame {
         display_list: RecordedDisplayList,
-        hit_test_items: Vec<HitTestItem>,
         prologue_bytes: u32,
         root_output: OutputSize,
     }
 
     struct Output {
         recorder: DisplayListRecorder,
-        hit_test_list: HitTestList,
         blocking_wheel_event_region_count: u32,
     }
 
     fn new_output() -> Output {
         Output {
             recorder: DisplayListRecorder::new(None),
-            hit_test_list: HitTestList::default(),
             blocking_wheel_event_region_count: 0,
         }
     }
@@ -651,14 +632,6 @@ mod tests {
             self.recorded.clear();
             self.events.clear();
         }
-
-        fn recorded_kinds_of(&self, owner: NodeSlotId) -> Vec<ProducerKind> {
-            self.recorded
-                .iter()
-                .filter(|(recorded_owner, _)| *recorded_owner == owner)
-                .map(|(_, kind)| *kind)
-                .collect()
-        }
     }
 
     impl AssemblyHost for TestHost {
@@ -684,22 +657,6 @@ mod tests {
                     ForceDarkRole::Background,
                 );
             }
-            for index in 0..content.hits {
-                output.hit_test_list.append(HitTestItem {
-                    kind: HitTestItemKind::Box,
-                    paintable: owner,
-                    hit_node: owner,
-                    chrome_widget_kind: 0,
-                    text_fragment_index: Some(index + u32::from(content.version) * 100),
-                    rect: CssPixelRect::default(),
-                    context: ContextRef::default(),
-                    border_radii: BorderRadii::default(),
-                    path: None,
-                    winding_rule: libgfx_rust::WindingRule::Nonzero,
-                    svg_hit_areas: 0,
-                    svg_stroke: None,
-                });
-            }
             output.blocking_wheel_event_region_count += content.blocking;
             ProducerOutcome {
                 live: content.live,
@@ -710,19 +667,13 @@ mod tests {
         fn output_position(&self) -> OutputPosition {
             OutputPosition {
                 bytes: self.output.recorder.byte_size() as u32,
-                hits: self.output.hit_test_list.items.len() as u32,
                 blocking_wheel_event_regions: self.output.blocking_wheel_event_region_count,
             }
         }
 
-        fn copy_published(&mut self, bytes: Range<u32>, hits: Range<u32>, blocking_wheel_event_regions: u32) {
+        fn copy_published(&mut self, bytes: Range<u32>, blocking_wheel_event_regions: u32) {
             let source = self.source.as_ref().expect("a published recording to copy from");
             self.output.recorder.append_cached_commands(&source.display_list, bytes);
-            if !hits.is_empty() {
-                self.output
-                    .hit_test_list
-                    .append_copies_of(&source.hit_test_items[hits.start as usize..hits.end as usize]);
-            }
             self.output.blocking_wheel_event_region_count += blocking_wheel_event_regions;
         }
 
@@ -779,10 +730,8 @@ mod tests {
         let root_output =
             Assembler::new(host, access, &mut marks, source_prologue_bytes, false).assemble_root(context(row(0)));
         let output = std::mem::replace(&mut host.output, new_output());
-        let hit_test_items = std::sync::Arc::try_unwrap(output.hit_test_list.items).expect("items are unshared");
         Frame {
             display_list: output.recorder.into_builder().finish(),
-            hit_test_items,
             prologue_bytes,
             root_output,
         }
@@ -793,7 +742,6 @@ mod tests {
         let frame = record_frame(host, tree);
         let previous = host.source.replace(Frame {
             display_list: frame.display_list.clone(),
-            hit_test_items: frame.hit_test_items.clone(),
             prologue_bytes: frame.prologue_bytes,
             root_output: frame.root_output,
         });
@@ -815,22 +763,11 @@ mod tests {
             "command bytes differ"
         );
         assert_eq!(assembled.display_list.command_runs, fresh.display_list.command_runs);
-        // Comparing whole items would compare their paths through the host's path equality.
-        let item_identities = |items: &[HitTestItem]| -> Vec<(NodeSlotId, Option<u32>)> {
-            items
-                .iter()
-                .map(|item| (item.paintable, item.text_fragment_index))
-                .collect()
-        };
-        assert_eq!(
-            item_identities(&assembled.hit_test_items),
-            item_identities(&fresh.hit_test_items)
-        );
         assert_eq!(assembled.root_output, fresh.root_output);
     }
 
     // A viewport context (row 0) with a background and a foreground scope listing three
-    // card scopes (rows 1..=3) that each draw a background and a foreground with hit items.
+    // card scopes (rows 1..=3) that each draw a background and a foreground.
     fn cards_host() -> TestHost {
         let mut host = TestHost::default();
         host.plan(
@@ -838,7 +775,7 @@ mod tests {
             true,
             &[phase(PaintPhase::Background), child(foreground(row(0)))],
         );
-        host.produce(row(0), ProducerKind::DrawBackground, content(1, 0));
+        host.produce(row(0), ProducerKind::DrawBackground, content(1));
         host.plan(
             foreground(row(0)),
             true,
@@ -854,9 +791,8 @@ mod tests {
                 true,
                 &[phase(PaintPhase::Background), phase(PaintPhase::Foreground)],
             );
-            host.produce(row(card), ProducerKind::DrawBackground, content(1, 0));
-            host.produce(row(card), ProducerKind::HitForeground, content(0, 2));
-            host.produce(row(card), ProducerKind::DrawForeground, content(card, 0));
+            host.produce(row(card), ProducerKind::DrawBackground, content(1));
+            host.produce(row(card), ProducerKind::DrawForeground, content(card));
         }
         host
     }
@@ -869,9 +805,7 @@ mod tests {
 
         let frame = record_frame(&mut host, &mut tree);
 
-        assert_eq!(host.recorded.len(), 1 + 3 * 3);
-        assert_eq!(frame.root_output.hits, 6);
-        assert_eq!(frame.hit_test_items.len(), 6);
+        assert_eq!(host.recorded.len(), 1 + 3 * 2);
         assert_eq!(
             frame.root_output.bytes as usize,
             frame.display_list.bytes.len() - frame.prologue_bytes as usize
@@ -888,7 +822,7 @@ mod tests {
         host.source = Some(first);
         host.clear_damage();
 
-        host.produce(row(2), ProducerKind::DrawForeground, content(2, 0));
+        host.produce(row(2), ProducerKind::DrawForeground, content(2));
         host.contents
             .get_mut(&(row(2), ProducerKind::DrawForeground))
             .unwrap()
@@ -916,21 +850,15 @@ mod tests {
         host.source = Some(first);
         host.clear_damage();
 
-        host.produce(row(1), ProducerKind::DrawForeground, content(5, 0));
-        host.produce(row(1), ProducerKind::HitForeground, content(0, 4));
-        host.push(row(1), PaintDamage::DRAW_FOREGROUND | PaintDamage::HIT_FOREGROUND);
+        host.produce(row(1), ProducerKind::DrawForeground, content(5));
+        host.push(row(1), PaintDamage::DRAW_FOREGROUND);
         host.push(row(0), PaintDamage::DESCENDANT_READERS);
         let grown = record_next_frame(&mut host, &mut tree);
-        assert_eq!(
-            host.recorded_kinds_of(row(1)),
-            vec![ProducerKind::HitForeground, ProducerKind::DrawForeground]
-        );
-        assert_eq!(host.recorded.len(), 2);
-        assert_eq!(grown.hit_test_items.len(), 8);
+        assert_eq!(host.recorded, vec![(row(1), ProducerKind::DrawForeground)]);
         assert_matches_from_scratch(&mut host, &grown);
         host.clear_damage();
 
-        host.produce(row(1), ProducerKind::DrawForeground, content(0, 0));
+        host.produce(row(1), ProducerKind::DrawForeground, content(0));
         host.push(row(1), PaintDamage::DRAW_FOREGROUND);
         host.push(row(0), PaintDamage::DESCENDANT_READERS);
         let shrunk = record_next_frame(&mut host, &mut tree);
@@ -962,7 +890,6 @@ mod tests {
 
         assert!(host.recorded.is_empty());
         assert_matches_from_scratch(&mut host, &second);
-        assert_eq!(second.hit_test_items.len(), 4);
         let parent = tree.published_scope(foreground(row(0)), tree.root()).unwrap();
         assert_eq!(tree.children(parent).len(), 2);
         assert_eq!(tree.published_scope(foreground(row(2)), parent), None);
@@ -993,8 +920,8 @@ mod tests {
             true,
             &[phase(PaintPhase::Background), phase(PaintPhase::Foreground)],
         );
-        host.produce(row(4), ProducerKind::DrawBackground, content(2, 0));
-        host.produce(row(4), ProducerKind::HitForeground, content(0, 1));
+        host.produce(row(4), ProducerKind::DrawBackground, content(2));
+        host.produce(row(4), ProducerKind::DrawForeground, content(1));
         host.push(row(4), PaintDamage::ORDER | PaintDamage::ALL_PRODUCERS);
         host.push(row(0), PaintDamage::ORDER | PaintDamage::DESCENDANT_READERS);
         let second = record_next_frame(&mut host, &mut tree);
@@ -1003,7 +930,7 @@ mod tests {
             host.recorded,
             vec![
                 (row(4), ProducerKind::DrawBackground),
-                (row(4), ProducerKind::HitForeground)
+                (row(4), ProducerKind::DrawForeground)
             ]
         );
         assert_matches_from_scratch(&mut host, &second);
@@ -1020,7 +947,7 @@ mod tests {
         let published_structure = tree.structure();
         let published_root_entry = tree.root_entry();
 
-        host.produce(row(2), ProducerKind::DrawForeground, content(3, 0));
+        host.produce(row(2), ProducerKind::DrawForeground, content(3));
         host.push(row(2), PaintDamage::DRAW_FOREGROUND);
         let unpublished = record_frame_rewriting_tree(&mut host, &mut tree, false);
 
@@ -1062,8 +989,8 @@ mod tests {
             true,
             &[phase(PaintPhase::Background), phase(PaintPhase::Foreground)],
         );
-        host.produce(row(4), ProducerKind::DrawBackground, content(2, 0));
-        host.produce(row(4), ProducerKind::HitForeground, content(0, 1));
+        host.produce(row(4), ProducerKind::DrawBackground, content(2));
+        host.produce(row(4), ProducerKind::DrawForeground, content(1));
         host.push(row(4), PaintDamage::ORDER | PaintDamage::ALL_PRODUCERS);
         host.push(row(0), PaintDamage::ORDER | PaintDamage::DESCENDANT_READERS);
         let unpublished = record_frame_rewriting_tree(&mut host, &mut tree, false);
@@ -1072,7 +999,7 @@ mod tests {
             host.recorded,
             vec![
                 (row(4), ProducerKind::DrawBackground),
-                (row(4), ProducerKind::HitForeground)
+                (row(4), ProducerKind::DrawForeground)
             ]
         );
         assert_matches_from_scratch(&mut host, &unpublished);
@@ -1109,7 +1036,7 @@ mod tests {
             ],
         );
         host.plan(foreground(row(5)), true, &[phase(PaintPhase::Foreground)]);
-        host.produce(row(5), ProducerKind::DrawForeground, content(3, 0));
+        host.produce(row(5), ProducerKind::DrawForeground, content(3));
         let mut tree = PaintOrderTree::default();
         let first = record_frame(&mut host, &mut tree);
         host.source = Some(first);
@@ -1151,7 +1078,7 @@ mod tests {
             &[phase(PaintPhase::Background), child(foreground(row(5)))],
         );
         host.plan(foreground(row(5)), true, &[phase(PaintPhase::Foreground)]);
-        host.produce(row(5), ProducerKind::DrawForeground, content(2, 0));
+        host.produce(row(5), ProducerKind::DrawForeground, content(2));
         let mut tree = PaintOrderTree::default();
         let first = record_frame(&mut host, &mut tree);
         host.source = Some(first);
@@ -1175,10 +1102,10 @@ mod tests {
     fn descendant_readers_record_when_something_below_them_changed() {
         let mut host = cards_host();
         host.plan(foreground(row(3)), true, &[svg(), child(foreground(row(5)))]);
-        host.produce(row(3), ProducerKind::Svg, content(1, 1));
+        host.produce(row(3), ProducerKind::Svg, content(1));
         host.descendant_readers.insert((row(3), ProducerKind::Svg));
         host.plan(foreground(row(5)), true, &[phase(PaintPhase::Foreground)]);
-        host.produce(row(5), ProducerKind::DrawForeground, content(1, 0));
+        host.produce(row(5), ProducerKind::DrawForeground, content(1));
         let mut tree = PaintOrderTree::default();
         let first = record_frame(&mut host, &mut tree);
         host.source = Some(first);
@@ -1204,7 +1131,7 @@ mod tests {
             ProducerKind::DrawBackground,
             Content {
                 live: true,
-                ..content(1, 0)
+                ..content(1)
             },
         );
         let mut tree = PaintOrderTree::default();
@@ -1245,10 +1172,10 @@ mod tests {
         let mut host = cards_host();
         host.produce(
             row(1),
-            ProducerKind::HitForeground,
+            ProducerKind::DrawForeground,
             Content {
                 blocking: 1,
-                ..content(0, 2)
+                ..content(1)
             },
         );
         let mut tree = PaintOrderTree::default();
@@ -1324,7 +1251,7 @@ mod tests {
             true,
             &[phase(PaintPhase::Background), child(foreground(row(0)))],
         );
-        host.produce(row(0), ProducerKind::DrawBackground, content(1, 0));
+        host.produce(row(0), ProducerKind::DrawBackground, content(1));
         let cards: Vec<PaintOrderItem> = CARD_ROWS.iter().map(|card| child(context(row(*card)))).collect();
         host.plan(foreground(row(0)), true, &cards);
         for card in CARD_ROWS {
@@ -1333,17 +1260,16 @@ mod tests {
                 true,
                 &[phase(PaintPhase::Background), child(foreground(row(card)))],
             );
-            host.produce(row(card), ProducerKind::DrawBackground, content(1, 0));
-            host.produce(row(card), ProducerKind::HitForeground, content(0, 2));
-            host.produce(row(card), ProducerKind::DrawForeground, content(card, 0));
+            host.produce(row(card), ProducerKind::DrawBackground, content(1));
+            host.produce(row(card), ProducerKind::DrawForeground, content(card));
             let mut foreground_items = vec![phase(PaintPhase::Foreground)];
             match nested_row(card) {
                 Some(nested) if card == 3 => {
                     foreground_items = vec![svg(), child(foreground(row(nested)))];
-                    host.produce(row(card), ProducerKind::Svg, content(1, 1));
+                    host.produce(row(card), ProducerKind::Svg, content(1));
                     host.descendant_readers.insert((row(card), ProducerKind::Svg));
                     host.plan(foreground(row(nested)), true, &[phase(PaintPhase::Foreground)]);
-                    host.produce(row(nested), ProducerKind::DrawForeground, content(1, 0));
+                    host.produce(row(nested), ProducerKind::DrawForeground, content(1));
                 }
                 Some(nested) => {
                     foreground_items.push(child(context(row(nested))));
@@ -1352,8 +1278,8 @@ mod tests {
                         true,
                         &[phase(PaintPhase::Background), phase(PaintPhase::Foreground)],
                     );
-                    host.produce(row(nested), ProducerKind::DrawBackground, content(2, 1));
-                    host.produce(row(nested), ProducerKind::DrawForeground, content(1, 0));
+                    host.produce(row(nested), ProducerKind::DrawBackground, content(2));
+                    host.produce(row(nested), ProducerKind::DrawForeground, content(1));
                 }
                 None => {}
             }
@@ -1370,13 +1296,6 @@ mod tests {
         let content = host.contents.get_mut(&(row(row_index), kind)).unwrap();
         match random.next(3) {
             0 => content.version = content.version.wrapping_add(1).max(1),
-            1 if matches!(
-                kind,
-                ProducerKind::HitBackground | ProducerKind::HitForeground | ProducerKind::HitOverlay
-            ) =>
-            {
-                content.hits = random.next(4);
-            }
             _ => content.rects = random.next(4),
         }
         push_with_hints(host, row_index, kind.damage());
@@ -1479,7 +1398,7 @@ mod tests {
         for step in 0..400 {
             changes.apply(&mut host);
 
-            // Hit tests between two published frames record frames that publish nothing.
+            // Frames that publish nothing are recorded between two published frames.
             let published_structure = tree.structure();
             for _ in 0..step % 3 {
                 let unpublished = record_frame_rewriting_tree(&mut host, &mut tree, false);
