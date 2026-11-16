@@ -15,10 +15,9 @@ TEST_CASE(test_oaep)
     auto msg = "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends"sv.bytes();
 
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
-    auto rsa = Crypto::PK::RSA_OAEP_EME(Crypto::Hash::HashKind::SHA1, keypair);
-    rsa.set_label("LABEL"sv.bytes());
+    auto label = "LABEL"sv.bytes();
 
-    auto enc = TRY_OR_FAIL(rsa.encrypt(msg));
-    auto dec = TRY_OR_FAIL(rsa.decrypt(enc));
+    auto enc = TRY_OR_FAIL(Crypto::PK::rsa_oaep_encrypt(keypair.public_key, Crypto::Hash::HashKind::SHA1, label, msg));
+    auto dec = TRY_OR_FAIL(Crypto::PK::rsa_oaep_decrypt(keypair.private_key, Crypto::Hash::HashKind::SHA1, label, enc));
     EXPECT_EQ(msg, dec);
 }
