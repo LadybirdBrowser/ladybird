@@ -823,7 +823,6 @@ bool crypto_okp_export_der(OkpCurve curve, bool is_public, ReadonlyBytes key, vo
 
 extern "C" {
 void crypto_hmac_sign(::Crypto::Hash::HashKind, ReadonlyBytes, ReadonlyBytes, void*, ReceiveEncodedBytes);
-bool crypto_timing_safe_compare(ReadonlyBytes, ReadonlyBytes);
 }
 
 static_assert(::Crypto::Hash::SHA1::block_size() == 64);
@@ -836,12 +835,6 @@ void crypto_hmac_sign(::Crypto::Hash::HashKind hash_kind, ReadonlyBytes key, Rea
     ::Crypto::Authentication::HMAC hmac(hash_kind, key);
     auto mac = hmac.process(message);
     receive(state, mac);
-}
-
-bool crypto_timing_safe_compare(ReadonlyBytes left, ReadonlyBytes right)
-{
-    VERIFY(left.size() == right.size());
-    return timing_safe_compare(left.data(), right.data(), left.size());
 }
 
 extern "C" {

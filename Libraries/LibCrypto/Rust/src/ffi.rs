@@ -88,7 +88,6 @@ unsafe extern "C" {
         state: *mut c_void,
         receive: ReceiveBytes,
     ) -> ();
-    pub(super) fn crypto_timing_safe_compare(left: Span<'_, u8>, right: Span<'_, u8>) -> bool;
     pub(super) fn crypto_kmac_default_key_length(kind: KmacKind) -> u32;
     pub(super) fn crypto_kmac_validate_parameters(output_length: u32, customization: OptionalBytes<'_>) -> bool;
     pub(super) fn crypto_kmac_sign(
