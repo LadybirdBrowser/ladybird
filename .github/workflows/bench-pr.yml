@@ -248,6 +248,16 @@ jobs:
           # it takes to tell a real mover from noise in a test, e.g. a bimodal timing, or a drift across the rounds.
           save_logs_and_raw_results() {
             cp "$XDG_CACHE_HOME"/ladybird-bench/compile-*.log "$out"/ 2> /dev/null || true
+            # A compile log names a vcpkg port that failed to build, but the port's own logs hold the error.
+            local arm port
+            for arm in base head; do
+              sed -n 's/^error: building \([^:[]*\).*/\1/p' "$XDG_CACHE_HOME/ladybird-bench/compile-$arm.log" 2> /dev/null \
+                | sort -u | while read -r port; do
+                  mkdir -p "$out/vcpkg-$arm/$port"
+                  cp "$state/worktrees/ladybird-bench-$arm/Build/vcpkg/buildtrees/$port"/*.log "$out/vcpkg-$arm/$port"/ \
+                    2> /dev/null || true
+                done || true
+            done
             local raw
             raw=$(sed -n 's/.*(raw results: \(.*\))$/\1/p' "$out/bench_pr.log" 2> /dev/null | tail -n 1)
             if [ -n "$raw" ] && [ -d "$raw" ]; then
