@@ -5,7 +5,6 @@
  */
 
 #include <AK/Array.h>
-#include <AK/BitCast.h>
 #include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <AK/NumericLimits.h>
@@ -23,16 +22,16 @@ static constexpr u32 INDEX_SCHEMA_BASELINE_VERSION = 1u;
 static constexpr u32 INDEX_SCHEMA_PARTITIONED_CACHE_KEYS_VERSION = 2u;
 static constexpr u32 INDEX_SCHEMA_VARY_KEY_VERSION = 3u;
 static constexpr u32 INDEX_SCHEMA_RESPONSES_ONLY_VERSION = 4u;
+static constexpr u32 INDEX_SCHEMA_SHA256_KEYS_VERSION = 5u;
 
-// Persist full-range hashes as signed bit patterns; keys are only compared for equality.
-static i64 encode_cache_key_for_database(u64 key)
+static ReadonlyBytes encode_cache_key_for_database(CacheDigest const& key)
 {
-    return bit_cast<i64>(key);
+    return key.bytes;
 }
 
-static u64 decode_cache_key_from_database(i64 stored_key)
+static Optional<CacheDigest> decode_cache_key_from_database(ByteBuffer const& stored_key)
 {
-    return bit_cast<u64>(stored_key);
+    return CacheDigest::from_bytes(stored_key);
 }
 
 static ByteString serialize_headers(HeaderList const& headers)
@@ -69,7 +68,7 @@ static NonnullRefPtr<HeaderList> deserialize_headers(StringView serialized_heade
     return headers;
 }
 
-static void remove_cache_entry_files(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key)
+static void remove_cache_entry_files(LexicalPath const& cache_directory, CacheDigest const& cache_key, CacheDigest const& vary_key)
 {
     (void)FileSystem::remove(path_for_cache_entry(cache_directory, cache_key, vary_key).string(), FileSystem::RecursionMode::Disallowed);
 }
@@ -126,7 +125,7 @@ static void log_orphaned_disk_cache_entries(Database::Database& database)
 // a migration here without invalidating the cache entries on disk. Entry files embed
 // CACHE_VERSION in their headers and are validated when read, so an entry format break must
 // append a migration that deletes the index rows referencing the now-unreadable entries.
-static_assert(CACHE_VERSION == 8, "Bumping CACHE_VERSION requires appending a CacheIndex migration that deletes the index rows referencing the old entry format");
+static_assert(CACHE_VERSION == 9, "Bumping CACHE_VERSION requires appending a CacheIndex migration that deletes the index rows referencing the old entry format");
 
 ErrorOr<Database::MigrationOutcome> CacheIndex::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
@@ -181,6 +180,31 @@ ErrorOr<Database::MigrationOutcome> CacheIndex::migrate_schema(Database::Databas
                 for_each_cache_entry_file(database, [](LexicalPath const& cache_entry) {
                     if (cache_entry.basename().contains('.'))
                         (void)FileSystem::remove(cache_entry.string(), FileSystem::RecursionMode::Disallowed);
+                });
+                return {};
+            },
+        },
+        {
+            // CACHE_VERSION 9 changed cache and vary keys to full SHA-256 digests.
+            .version = INDEX_SCHEMA_SHA256_KEYS_VERSION,
+            .sql = R"#(
+                DROP TABLE CacheIndex;
+                CREATE TABLE CacheIndex (
+                    cache_key BLOB,
+                    vary_key BLOB,
+                    url TEXT,
+                    request_headers BLOB,
+                    response_headers BLOB,
+                    data_size INTEGER,
+                    request_time INTEGER,
+                    response_time INTEGER,
+                    last_access_time INTEGER,
+                    PRIMARY KEY(cache_key, vary_key)
+                );
+            )#"sv,
+            .backfill = [](Database::Database& database) -> ErrorOr<void> {
+                for_each_cache_entry_file(database, [](LexicalPath const& cache_entry) {
+                    (void)FileSystem::remove(cache_entry.string(), FileSystem::RecursionMode::Disallowed);
                 });
                 return {};
             },
@@ -269,7 +293,8 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
 
     auto remove_malformed_entries = TRY(database.prepare_statement(R"#(
         DELETE FROM CacheIndex
-        WHERE typeof(cache_key) != 'integer' OR typeof(vary_key) != 'integer' OR typeof(url) != 'text'
+        WHERE typeof(cache_key) != 'blob' OR typeof(vary_key) != 'blob' OR typeof(url) != 'text'
+            OR OCTET_LENGTH(cache_key) != ?2 OR OCTET_LENGTH(vary_key) != ?2
             OR typeof(request_headers) != 'blob' OR typeof(response_headers) != 'blob'
             OR typeof(data_size) != 'integer' OR typeof(request_time) != 'integer' OR typeof(response_time) != 'integer' OR typeof(last_access_time) != 'integer'
             OR data_size NOT BETWEEN 0 AND ?1
@@ -279,15 +304,15 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
     if (auto result = database.try_execute_statement(
             remove_malformed_entries,
             [&](auto statement_id) -> ErrorOr<void> {
-                auto cache_key = database.result_i64_checked(statement_id, 0);
-                auto vary_key = database.result_i64_checked(statement_id, 1);
-                if (cache_key.is_error() || vary_key.is_error())
+                auto cache_key = decode_cache_key_from_database(database.result_column<ByteBuffer>(statement_id, 0));
+                auto vary_key = decode_cache_key_from_database(database.result_column<ByteBuffer>(statement_id, 1));
+                if (!cache_key.has_value() || !vary_key.has_value())
                     return {};
 
-                remove_cache_entry_files(cache_directory, decode_cache_key_from_database(cache_key.value()), decode_cache_key_from_database(vary_key.value()));
+                remove_cache_entry_files(cache_directory, *cache_key, *vary_key);
                 return {};
             },
-            limits.maximum_disk_cache_size);
+            limits.maximum_disk_cache_size, static_cast<i64>(sizeof(CacheDigest::bytes)));
         result.is_error())
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to remove malformed cache entries:\033[0m {}", result.error());
 
@@ -312,7 +337,7 @@ CacheIndex::CacheIndex(Database::Database& database, Statements statements, Limi
 {
 }
 
-ErrorOr<void> CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
+ErrorOr<void> CacheIndex::create_entry(CacheDigest const& cache_key, CacheDigest const& vary_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
 {
     auto now = UnixDateTime::now();
 
@@ -379,7 +404,7 @@ ErrorOr<void> CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, 
     return {};
 }
 
-void CacheIndex::remove_entry(u64 cache_key, u64 vary_key)
+void CacheIndex::remove_entry(CacheDigest const& cache_key, CacheDigest const& vary_key)
 {
     auto result = m_database->try_execute_statement(
         m_statements.remove_entry,
@@ -396,7 +421,7 @@ void CacheIndex::remove_entry(u64 cache_key, u64 vary_key)
     delete_entry(cache_key, vary_key);
 }
 
-void CacheIndex::remove_entries_exceeding_cache_limit(Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
+void CacheIndex::remove_entries_exceeding_cache_limit(OnEntryRemoved on_entry_removed)
 {
     if (m_total_estimated_size <= m_limits.maximum_disk_cache_size)
         return;
@@ -404,14 +429,16 @@ void CacheIndex::remove_entries_exceeding_cache_limit(Function<void(u64 cache_ke
     auto result = m_database->try_execute_statement(
         m_statements.remove_entries_exceeding_cache_limit,
         [&](auto statement_id) -> ErrorOr<void> {
-            auto cache_key = decode_cache_key_from_database(m_database->result_column<i64>(statement_id, 0));
-            auto vary_key = decode_cache_key_from_database(m_database->result_column<i64>(statement_id, 1));
+            auto cache_key = decode_cache_key_from_database(m_database->result_column<ByteBuffer>(statement_id, 0));
+            auto vary_key = decode_cache_key_from_database(m_database->result_column<ByteBuffer>(statement_id, 1));
             auto removed_size = m_database->result_column<i64>(statement_id, 2);
             adjust_total_estimated_size(-removed_size);
-            delete_entry(cache_key, vary_key);
+            if (!cache_key.has_value() || !vary_key.has_value())
+                return {};
+            delete_entry(*cache_key, *vary_key);
 
             if (on_entry_removed)
-                on_entry_removed(cache_key, vary_key);
+                on_entry_removed(*cache_key, *vary_key);
             return {};
         },
         m_limits.maximum_disk_cache_size);
@@ -420,7 +447,7 @@ void CacheIndex::remove_entries_exceeding_cache_limit(Function<void(u64 cache_ke
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to evict cache entries:\033[0m {}", result.error());
 }
 
-void CacheIndex::remove_variants_exceeding_limit(u64 cache_key, u64 vary_key_to_keep, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
+void CacheIndex::remove_variants_exceeding_limit(CacheDigest const& cache_key, CacheDigest const& vary_key_to_keep, OnEntryRemoved on_entry_removed)
 {
     auto& entries = entries_for_cache_key(cache_key);
 
@@ -442,20 +469,20 @@ void CacheIndex::remove_variants_exceeding_limit(u64 cache_key, u64 vary_key_to_
     }
 }
 
-void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
+void CacheIndex::remove_entries_accessed_since(UnixDateTime since, OnEntryRemoved on_entry_removed)
 {
     // Removing every entry must not depend on what their rows contain.
     if (since == UnixDateTime::earliest()) {
         auto result = m_database->try_execute_statement(
             m_statements.remove_all_entries,
             [&](auto statement_id) -> ErrorOr<void> {
-                auto cache_key = m_database->result_i64_checked(statement_id, 0);
-                auto vary_key = m_database->result_i64_checked(statement_id, 1);
-                if (cache_key.is_error() || vary_key.is_error())
+                auto cache_key = decode_cache_key_from_database(m_database->result_column<ByteBuffer>(statement_id, 0));
+                auto vary_key = decode_cache_key_from_database(m_database->result_column<ByteBuffer>(statement_id, 1));
+                if (!cache_key.has_value() || !vary_key.has_value())
                     return {};
 
                 if (on_entry_removed)
-                    on_entry_removed(decode_cache_key_from_database(cache_key.value()), decode_cache_key_from_database(vary_key.value()));
+                    on_entry_removed(*cache_key, *vary_key);
                 return {};
             });
         // The entries stay, as their rows do.
@@ -474,14 +501,16 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
     auto result = m_database->try_execute_statement(
         m_statements.remove_entries_accessed_since,
         [&](auto statement_id) -> ErrorOr<void> {
-            auto cache_key = decode_cache_key_from_database(m_database->result_column<i64>(statement_id, 0));
-            auto vary_key = decode_cache_key_from_database(m_database->result_column<i64>(statement_id, 1));
+            auto cache_key = decode_cache_key_from_database(m_database->result_column<ByteBuffer>(statement_id, 0));
+            auto vary_key = decode_cache_key_from_database(m_database->result_column<ByteBuffer>(statement_id, 1));
             auto removed_size = m_database->result_column<i64>(statement_id, 2);
             adjust_total_estimated_size(-removed_size);
-            delete_entry(cache_key, vary_key);
+            if (!cache_key.has_value() || !vary_key.has_value())
+                return {};
+            delete_entry(*cache_key, *vary_key);
 
             if (on_entry_removed)
-                on_entry_removed(cache_key, vary_key);
+                on_entry_removed(*cache_key, *vary_key);
             return {};
         },
         since);
@@ -489,19 +518,21 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1m{}:\033[0m {}", "Unable to remove cache entries"sv, result.error());
 }
 
-void CacheIndex::remove_entries_accessed_before(UnixDateTime before, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
+void CacheIndex::remove_entries_accessed_before(UnixDateTime before, OnEntryRemoved on_entry_removed)
 {
     auto result = m_database->try_execute_statement(
         m_statements.remove_entries_accessed_before,
         [&](auto statement_id) -> ErrorOr<void> {
-            auto cache_key = decode_cache_key_from_database(m_database->result_column<i64>(statement_id, 0));
-            auto vary_key = decode_cache_key_from_database(m_database->result_column<i64>(statement_id, 1));
+            auto cache_key = decode_cache_key_from_database(m_database->result_column<ByteBuffer>(statement_id, 0));
+            auto vary_key = decode_cache_key_from_database(m_database->result_column<ByteBuffer>(statement_id, 1));
             auto removed_size = m_database->result_column<i64>(statement_id, 2);
             adjust_total_estimated_size(-removed_size);
-            delete_entry(cache_key, vary_key);
+            if (!cache_key.has_value() || !vary_key.has_value())
+                return {};
+            delete_entry(*cache_key, *vary_key);
 
             if (on_entry_removed)
-                on_entry_removed(cache_key, vary_key);
+                on_entry_removed(*cache_key, *vary_key);
             return {};
         },
         before);
@@ -509,13 +540,13 @@ void CacheIndex::remove_entries_accessed_before(UnixDateTime before, Function<vo
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1m{}:\033[0m {}", "Unable to remove cache entries"sv, result.error());
 }
 
-void CacheIndex::remove_entries_for_cache_key(u64 cache_key, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
+void CacheIndex::remove_entries_for_cache_key(CacheDigest const& cache_key, OnEntryRemoved on_entry_removed)
 {
-    Vector<u64> vary_keys;
+    Vector<CacheDigest> vary_keys;
     for (auto const& entry : entries_for_cache_key(cache_key))
         vary_keys.append(entry.vary_key);
 
-    for (auto vary_key : vary_keys) {
+    for (auto const& vary_key : vary_keys) {
         remove_entry(cache_key, vary_key);
 
         if (on_entry_removed)
@@ -523,7 +554,7 @@ void CacheIndex::remove_entries_for_cache_key(u64 cache_key, Function<void(u64 c
     }
 }
 
-ErrorOr<void> CacheIndex::update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList> response_headers, UnixDateTime request_time, UnixDateTime response_time)
+ErrorOr<void> CacheIndex::update_response_headers(CacheDigest const& cache_key, CacheDigest const& vary_key, NonnullRefPtr<HeaderList> response_headers, UnixDateTime request_time, UnixDateTime response_time)
 {
     auto entry = get_entry(cache_key, vary_key);
     if (!entry.has_value())
@@ -553,7 +584,7 @@ ErrorOr<void> CacheIndex::update_response_headers(u64 cache_key, u64 vary_key, N
     return {};
 }
 
-void CacheIndex::update_last_access_time(u64 cache_key, u64 vary_key)
+void CacheIndex::update_last_access_time(CacheDigest const& cache_key, CacheDigest const& vary_key)
 {
     auto entry = get_entry(cache_key, vary_key);
     if (!entry.has_value())
@@ -568,7 +599,7 @@ void CacheIndex::update_last_access_time(u64 cache_key, u64 vary_key)
     entry->last_access_time = now;
 }
 
-Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderList const& request_headers)
+Optional<CacheIndex::Entry const&> CacheIndex::find_entry(CacheDigest const& cache_key, HeaderList const& request_headers)
 {
     auto& entries = entries_for_cache_key(cache_key);
     Optional<Entry const&> selected_entry;
@@ -590,7 +621,7 @@ Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderL
     return selected_entry;
 }
 
-Vector<CacheIndex::Entry>& CacheIndex::entries_for_cache_key(u64 cache_key)
+Vector<CacheIndex::Entry>& CacheIndex::entries_for_cache_key(CacheDigest const& cache_key)
 {
     return m_entries.ensure(cache_key, [&]() {
         Vector<Entry> entries;
@@ -600,7 +631,7 @@ Vector<CacheIndex::Entry>& CacheIndex::entries_for_cache_key(u64 cache_key)
             [&](auto statement_id) -> ErrorOr<void> {
                 int column = 0;
 
-                auto vary_key = decode_cache_key_from_database(m_database->result_column<i64>(statement_id, column++));
+                auto vary_key = decode_cache_key_from_database(m_database->result_column<ByteBuffer>(statement_id, column++));
                 auto url = m_database->result_column<String>(statement_id, column++);
                 auto request_headers = m_database->result_column<ByteString>(statement_id, column++);
                 auto response_headers = m_database->result_column<ByteString>(statement_id, column++);
@@ -609,10 +640,10 @@ Vector<CacheIndex::Entry>& CacheIndex::entries_for_cache_key(u64 cache_key)
                 auto response_time = m_database->result_column<UnixDateTime>(statement_id, column++);
                 auto last_access_time = m_database->result_column<UnixDateTime>(statement_id, column++);
 
-                if (data_size < 0)
+                if (!vary_key.has_value() || data_size < 0)
                     return {};
 
-                entries.empend(vary_key, move(url), deserialize_headers(request_headers), deserialize_headers(response_headers), static_cast<u64>(data_size), request_headers.length(), response_headers.length(), request_time, response_time, last_access_time);
+                entries.empend(vary_key.release_value(), move(url), deserialize_headers(request_headers), deserialize_headers(response_headers), static_cast<u64>(data_size), request_headers.length(), response_headers.length(), request_time, response_time, last_access_time);
                 return {};
             },
             encode_cache_key_for_database(cache_key));
@@ -626,12 +657,12 @@ Vector<CacheIndex::Entry>& CacheIndex::entries_for_cache_key(u64 cache_key)
     });
 }
 
-bool CacheIndex::has_entry(u64 cache_key, u64 vary_key)
+bool CacheIndex::has_entry(CacheDigest const& cache_key, CacheDigest const& vary_key)
 {
     return get_entry(cache_key, vary_key).has_value();
 }
 
-Optional<CacheIndex::Entry&> CacheIndex::get_entry(u64 cache_key, u64 vary_key)
+Optional<CacheIndex::Entry&> CacheIndex::get_entry(CacheDigest const& cache_key, CacheDigest const& vary_key)
 {
     auto& entries = entries_for_cache_key(cache_key);
     return find_value(entries, [&](auto const& entry) { return entry.vary_key == vary_key; });
@@ -650,7 +681,7 @@ void CacheIndex::adjust_total_estimated_size(i64 delta)
         on_total_estimated_size_change();
 }
 
-void CacheIndex::delete_entry(u64 cache_key, u64 vary_key)
+void CacheIndex::delete_entry(CacheDigest const& cache_key, CacheDigest const& vary_key)
 {
     auto entries = m_entries.get(cache_key);
     if (!entries.has_value())

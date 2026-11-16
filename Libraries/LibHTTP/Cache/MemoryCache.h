@@ -32,7 +32,7 @@ struct MemoryCacheUsage : public RefCounted<MemoryCacheUsage> {
 class MemoryCache : public RefCounted<MemoryCache> {
 public:
     struct Entry {
-        u64 vary_key { 0 };
+        CacheDigest vary_key;
 
         u32 status_code { 0 };
         ByteString reason_phrase;
@@ -69,19 +69,19 @@ public:
 
     struct EntryUse {
         CacheKey cache_key;
-        u64 vary_key { 0 };
+        CacheDigest vary_key;
         bool body_is_mapped { false };
         u64 last_use { 0 };
     };
     Vector<EntryUse> complete_entry_uses() const;
-    void evict_complete_entry(CacheKey const& cache_key, u64 vary_key);
+    void evict_complete_entry(CacheKey const& cache_key, CacheDigest const& vary_key);
 
 private:
     explicit MemoryCache(NonnullRefPtr<MemoryCacheUsage>);
 
     void add_to_usage(Entry const&);
     void remove_from_usage(Entry const&);
-    Optional<Entry> take_pending_entry(CacheKey const& cache_key, Optional<u64> vary_key);
+    Optional<Entry> take_pending_entry(CacheKey const& cache_key, Optional<CacheDigest> const& vary_key);
     void remove_complete_entries(CacheKey const& cache_key, Function<bool(Entry const&)> const& predicate);
 
     HashMap<CacheKey, Vector<Entry>> m_pending_entries;
