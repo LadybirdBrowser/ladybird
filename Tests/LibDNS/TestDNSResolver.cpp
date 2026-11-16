@@ -1211,3 +1211,55 @@ TEST_CASE(test_system_resolver_does_not_join_a_lookup_without_ipv4_addresses_onc
 
     loop.spin_until([&] { return has_address_of_family(*first, false); });
 }
+
+TEST_CASE(test_remote_system_resolver_answers_lookups_in_place_of_the_thread_pool)
+{
+    TestLoop loop;
+    DNS::Resolver resolver {
+        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
+        {
+            .resolve_host = [](ByteString const&, Core::Socket::AddressFamily) -> ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> {
+                return Error::from_string_literal("The thread pool's resolver must not be asked");
+            },
+            .is_ipv6_globally_reachable = [] { return true; },
+        },
+    };
+
+    Vector<Core::Socket::AddressFamily> families_asked;
+    resolver.set_remote_system_resolver([&](ByteString const& name, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> on_resolved) {
+        EXPECT_EQ(name, "example.com"sv);
+        families_asked.append(family);
+        // A remote resolver answers later, never from inside the call.
+        Core::deferred_invoke([family, on_resolved = move(on_resolved)] mutable {
+            if (family == Core::Socket::AddressFamily::IPv6Only)
+                on_resolved(Vector<Variant<IPv4Address, IPv6Address>> { IPv6Address::loopback() });
+            else
+                on_resolved(Vector<Variant<IPv4Address, IPv6Address>> { IPv4Address { 192, 0, 2, 1 } });
+        });
+    });
+
+    auto result = TRY_OR_FAIL(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await());
+    EXPECT_EQ(families_asked.size(), 2u);
+    EXPECT(families_asked.contains_slow(Core::Socket::AddressFamily::IPv4Only));
+    EXPECT(families_asked.contains_slow(Core::Socket::AddressFamily::IPv6Only));
+    EXPECT_EQ(result->cached_addresses().size(), 2u);
+    EXPECT(has_address_of_family(*result, false));
+    EXPECT(has_address_of_family(*result, true));
+}
+
+TEST_CASE(test_lookup_fails_when_the_remote_system_resolver_fails)
+{
+    TestLoop loop;
+    DNS::Resolver resolver {
+        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
+        { .resolve_host = {}, .is_ipv6_globally_reachable = [] { return true; } },
+    };
+    resolver.set_remote_system_resolver([](ByteString const&, Core::Socket::AddressFamily, Function<void(DNS::Resolver::SystemResolution)> on_resolved) {
+        Core::deferred_invoke([on_resolved = move(on_resolved)] mutable {
+            on_resolved(Error::from_string_literal("No such name"));
+        });
+    });
+
+    auto result = resolver.lookup("nonexistent.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await();
+    EXPECT(result.is_error());
+}
