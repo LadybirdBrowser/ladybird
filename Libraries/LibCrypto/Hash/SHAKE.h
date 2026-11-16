@@ -26,10 +26,7 @@ public:
 
     ~SHAKE() = default;
 
-    static ErrorOr<void> validate_parameters(
-        u32 length,
-        Optional<ReadonlyBytes> customization,
-        Optional<ReadonlyBytes> function_name);
+    static ErrorOr<void> validate_parameters(u32 length);
 
     ErrorOr<ByteBuffer> digest(
         ReadonlyBytes data,
@@ -38,7 +35,7 @@ public:
         Optional<ReadonlyBytes> function_name) const;
 
 private:
-    EVP_MD const* m_md;
+    SHAKEKind m_kind;
 };
 
 }
