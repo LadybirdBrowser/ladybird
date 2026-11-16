@@ -1,0 +1,6 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/transformed-root-background-blend-mode-ref.html">
+<style>
+    /* The root's image layers blend with its background color, transformed or not: Red over blue multiplies to black. */
+    html { height: 100%; background: blue linear-gradient(red, red); background-blend-mode: multiply; transform: translate(0); }
+</style>

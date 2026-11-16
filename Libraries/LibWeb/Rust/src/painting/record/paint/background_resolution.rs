@@ -885,6 +885,16 @@ pub(crate) fn has_background_to_paint(
     })
 }
 
+/// The root element paints its background over the whole canvas itself, unless it's hidden, transformed, or sticky — in
+/// which case the canvas fill paints it as well, where the root's own paint doesn't reach.
+pub(crate) fn root_paint_covers_canvas(arena: &impl PaintRead, root: NodeSlotId) -> bool {
+    arena.node_style_if_live(root).is_some_and(|style| {
+        style.visibility() == css_enums::visibility::VISIBLE
+            && !style_queries::has_css_transform(arena, root, style)
+            && !style_queries::is_sticky_position(style)
+    })
+}
+
 /// The root background covers the viewport and everything it can scroll to. Moving the viewport
 /// inside that area does not change the recorded background; growing it does.
 pub(crate) fn root_background_canvas_rect(
