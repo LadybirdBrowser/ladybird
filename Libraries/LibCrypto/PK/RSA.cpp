@@ -9,8 +9,6 @@
 #include <AK/Memory.h>
 #include <AK/NumericLimits.h>
 #include <AK/ScopeGuard.h>
-#include <LibCrypto/ASN1/DER.h>
-#include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/RSA.h>
 
@@ -22,14 +20,6 @@
 #include <openssl/x509.h>
 
 namespace Crypto::PK {
-
-static ErrorOr<ByteBuffer> integer_bytes(UnsignedBigInteger const& integer)
-{
-    auto bytes = TRY(ByteBuffer::create_uninitialized(integer.byte_length()));
-    auto written = integer.export_data(bytes.span());
-    VERIFY(written.size() == bytes.size());
-    return bytes;
-}
 
 static ErrorOr<ByteBuffer> integer_parameter(EVP_PKEY* key, char const* name)
 {
@@ -190,6 +180,14 @@ ErrorOr<RSAPrivateKey> RSAPrivateKey::from_components(ReadonlyBytes modulus, Rea
     return RSAPrivateKey { TRY(key_from_parameters(EVP_PKEY_KEYPAIR, builder)), crt_components.has_value() };
 }
 
+RSAPrivateKey RSAPrivateKey::from_openssl_key(OpenSSL_SharedPKEY key)
+{
+    BIGNUM* prime = nullptr;
+    bool has_crt_components = EVP_PKEY_get_bn_param(key.ptr(), OSSL_PKEY_PARAM_RSA_FACTOR1, &prime) == 1;
+    BN_clear_free(prime);
+    return RSAPrivateKey { move(key), has_crt_components };
+}
+
 size_t RSAPrivateKey::modulus_bits() const
 {
     return EVP_PKEY_get_bits(m_key.ptr());
@@ -255,91 +253,6 @@ ErrorOr<ByteBuffer> RSAPrivateKey::export_as_der() const
     if (!m_has_crt_components)
         return Error::from_string_literal("Cannot export private key without prime factors");
     return export_type_specific_der(m_key.ptr(), true);
-}
-
-ErrorOr<RSA::KeyPairType> RSA::parse_rsa_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope)
-{
-    KeyPairType keypair;
-
-    ASN1::Decoder decoder(der);
-
-    if (is_private) {
-        // RSAPrivateKey ::= SEQUENCE {
-        //      version             Version,
-        //      modulus             INTEGER,
-        //      publicExponent      INTEGER,
-        //      privateExponent     INTEGER,
-        //      prime1              INTEGER,
-        //      prime2              INTEGER,
-        //      exponent1           INTEGER,
-        //      exponent2           INTEGER,
-        //      coefficient         INTEGER,
-        //      otherPrimeInfos     OtherPrimeInfos OPTIONAL
-        // }
-
-        ENTER_TYPED_SCOPE(Sequence, "RSAPrivateKey");
-
-        PUSH_SCOPE("version");
-        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, version);
-        POP_SCOPE();
-        if (version != 0) {
-            ERROR_WITH_SCOPE(TRY(String::formatted("Invalid version value at {}", current_scope)));
-        }
-
-        Array<ByteBuffer, 8> components;
-        ScopeGuard const clear_components = [&] {
-            for (auto& component : components)
-                secure_zero(component.data(), component.size());
-        };
-        for (auto& component : components) {
-            READ_OBJECT(Integer, Crypto::UnsignedBigInteger, value);
-            component = TRY(integer_bytes(value));
-        }
-
-        // NB: An RSAPrivateKey always has the second representation of RFC 8017, section 3.2, whose p, q, dP, dQ and
-        //     qInv are positive, so a zero one makes the key invalid.
-        for (size_t i = 3; i < components.size(); ++i) {
-            if (components[i].is_empty())
-                ERROR_WITH_SCOPE("RSAPrivateKey has a zero prime factor or CRT value");
-        }
-
-        RSACRTComponents crt_components { components[3], components[4], components[5], components[6], components[7] };
-        auto private_key = RSAPrivateKey::from_components(components[0], components[1], components[2], crt_components);
-        if (private_key.is_error()) {
-            ERROR_WITH_SCOPE(private_key.release_error());
-        }
-        keypair.private_key = private_key.release_value();
-        keypair.public_key = TRY(keypair.private_key.public_key());
-
-        EXIT_SCOPE();
-        return keypair;
-    }
-
-    // RSAPublicKey ::= SEQUENCE {
-    //      modulus         INTEGER,
-    //      publicExponent  INTEGER
-    // }
-
-    ENTER_TYPED_SCOPE(Sequence, "RSAPublicKey");
-
-    PUSH_SCOPE("modulus");
-    READ_OBJECT(Integer, Crypto::UnsignedBigInteger, modulus);
-    POP_SCOPE();
-
-    PUSH_SCOPE("publicExponent");
-    READ_OBJECT(Integer, Crypto::UnsignedBigInteger, public_exponent);
-    POP_SCOPE();
-
-    auto modulus_bytes = TRY(integer_bytes(modulus));
-    auto public_exponent_bytes = TRY(integer_bytes(public_exponent));
-    auto public_key = RSAPublicKey::from_components(modulus_bytes, public_exponent_bytes);
-    if (public_key.is_error()) {
-        ERROR_WITH_SCOPE(public_key.release_error());
-    }
-    keypair.public_key = public_key.release_value();
-
-    EXIT_SCOPE();
-    return keypair;
 }
 
 ErrorOr<void> RSA::validate_key_generation_parameters(size_t bits)

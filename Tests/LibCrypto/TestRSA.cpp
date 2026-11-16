@@ -6,8 +6,9 @@
  */
 
 #include <AK/Base64.h>
-#include <LibCrypto/Certificate/Certificate.h>
+#include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/Hash/Hash.h>
+#include <LibCrypto/PK/KeyInfo.h>
 #include <LibCrypto/PK/PK.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibTest/TestCase.h>
@@ -59,11 +60,14 @@ TEST_CASE(test_RSA_ASN1_PKCS1_DER_parse)
         "hjMnlORkGSdvWlTHUj6gjEOh4TlWeJzQoQIgAxMZOQKtxCZUuxFwzRq4xLRGnrDlBQpuxz7bwSyQO7UCIHrYMnDohgNbwtA5ZpW3"
         "H1cKKQQvueWm6sxW9P5sUrZ3"sv));
 
-    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::parse_rsa_key(der, true, {}));
-    if (to_integer(TRY_OR_FAIL(keypair.public_key.public_exponent())) != 65537) {
+    // NB: Private keys are imported inside a PrivateKeyInfo.
+    auto private_key_info = TRY_OR_FAIL(Crypto::PK::wrap_in_private_key_info(der, Crypto::ASN1::rsa_encryption_oid, nullptr));
+    size_t consumed = 0;
+    auto private_key = TRY_OR_FAIL(Crypto::PK::parse_private_key_info(private_key_info, consumed)).rsa;
+    if (to_integer(TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PublicExponent))) != 65537) {
         FAIL("Invalid public exponent");
     }
-    if (to_integer(TRY_OR_FAIL(keypair.private_key.component(Crypto::PK::RSAPrivateKey::Component::PrivateExponent))) != "4234603516465654167360850580101327813936403862038934287300450163438938741499875303761385527882335478349599685406941909381269804396099893549838642251053393"_bigint) {
+    if (to_integer(TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PrivateExponent))) != "4234603516465654167360850580101327813936403862038934287300450163438938741499875303761385527882335478349599685406941909381269804396099893549838642251053393"_bigint) {
         FAIL("Invalid private exponent");
     }
 }
@@ -90,8 +94,8 @@ TEST_CASE(test_RSA_ASN1_PKCS8_DER_parse)
         "UEZt2dS/xSUempqVqFGONpP87gvqxkMTtgCA73KXn/cxHWM2kmXyHA3kQlOYw6WHjpldQAxLE+TRHXO2JUtZ09Mu4rVXX7lmwbTm"
         "l3vmuDEF3/Bo1C1HTg0xRV/l"sv));
 
-    auto decoder = Crypto::ASN1::Decoder { der };
-    auto private_key = TRY_OR_FAIL(Crypto::Certificate::parse_private_key_info(decoder, {})).rsa;
+    size_t consumed = 0;
+    auto private_key = TRY_OR_FAIL(Crypto::PK::parse_private_key_info(der, consumed)).rsa;
     if (to_integer(TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PublicExponent))) != 65537) {
         FAIL("Invalid public exponent");
     }
@@ -109,15 +113,14 @@ TEST_CASE(test_RSA_keygen_enc)
         "Giklu4qx48/fYt8Cv6z6JuQ0ZQExAiEA9XRZVUnCJ2xOcCFCbyIF+d3F9Kht5rR77F9KsRlgUbkCIQDuQ7YzLpQ8V8BJwKbDeXw1"
         "vQvcPEnyKnTOoALpF6bqRwIhAIDSm8Ajgf7m3RQEoLVrCe/l8WtCqsuWliOsr6rbQq4hAiEAx8R16wvOtZlNW4jvSU1+WwAaBZl2"
         "1lfKf8OhLRXrmNkCIG9IRdcSiNR/Ut8QfD3N9Bb1HsUm+Bvzc8yGzl89pYST"sv));
-    auto decoder = Crypto::ASN1::Decoder { der };
-    auto priv_key_info = MUST(Crypto::Certificate::parse_private_key_info(decoder, {}));
-    auto keypair = MUST(Crypto::PK::RSA::parse_rsa_key(priv_key_info.raw_key, true, {}));
-    auto rsa_encryption_oid = Array<u32, 7> { 1, 2, 840, 113549, 1, 1, 1 };
-    auto wrapped_priv_der = MUST(Crypto::PK::wrap_in_private_key_info(priv_key_info.raw_key, rsa_encryption_oid, nullptr));
+    size_t consumed = 0;
+    auto priv_key_info = MUST(Crypto::PK::parse_private_key_info(der, consumed));
+    auto public_key = TRY_OR_FAIL(priv_key_info.rsa.public_key());
+    auto wrapped_priv_der = MUST(Crypto::PK::wrap_in_private_key_info(priv_key_info.raw_key, Crypto::ASN1::rsa_encryption_oid, nullptr));
 
     EXPECT_EQ(der.bytes(), wrapped_priv_der.bytes());
 
-    auto enc = TRY_OR_FAIL(Crypto::PK::rsa_oaep_encrypt(keypair.public_key, Crypto::Hash::HashKind::SHA1, {}, "WellHelloFriends"sv.bytes()));
+    auto enc = TRY_OR_FAIL(Crypto::PK::rsa_oaep_encrypt(public_key, Crypto::Hash::HashKind::SHA1, {}, "WellHelloFriends"sv.bytes()));
     auto dec = TRY_OR_FAIL(Crypto::PK::rsa_oaep_decrypt(priv_key_info.rsa, Crypto::Hash::HashKind::SHA1, {}, enc));
 
     EXPECT_EQ(StringView { dec }, "WellHelloFriends"sv);

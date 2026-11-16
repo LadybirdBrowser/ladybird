@@ -4,26 +4,38 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Memory.h>
+#include <AK/ScopeGuard.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/PK/ModuleLatticePrivateKey.h>
 
 namespace Crypto::PK {
 
-static ErrorOr<void> expect_tag(ASN1::Decoder& decoder, ASN1::Class class_, ASN1::Kind kind, ASN1::Type type)
-{
-    auto tag = TRY(decoder.peek());
-    if (tag.class_ != class_ || tag.kind != kind || tag.type != type)
-        return Error::from_string_literal("Unexpected tag in private key");
-    return {};
-}
+enum class Choice {
+    Seed,
+    ExpandedKey,
+    Both,
+};
 
-static ErrorOr<ReadonlyBytes> read_octet_string(ASN1::Decoder& decoder, ASN1::Class class_, ASN1::Kind kind, size_t size)
+static ErrorOr<ByteBuffer> encode(Choice choice, ReadonlyBytes seed, ReadonlyBytes expanded_key)
 {
-    TRY(expect_tag(decoder, class_, kind, ASN1::Type::Primitive));
-    auto contents = TRY(decoder.read<StringView>(ASN1::Class::Universal, ASN1::Kind::OctetString));
-    if (contents.length() != size)
-        return Error::from_string_literal("Unexpected size of an OCTET STRING in private key");
-    return contents.bytes();
+    ASN1::Encoder encoder;
+    switch (choice) {
+    case Choice::Seed:
+        TRY(encoder.write<ReadonlyBytes>(seed, ASN1::Class::Context, static_cast<ASN1::Kind>(0)));
+        break;
+    case Choice::ExpandedKey:
+        TRY(encoder.write<ReadonlyBytes>(expanded_key));
+        break;
+    case Choice::Both:
+        TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+            TRY(encoder.write<ReadonlyBytes>(seed));
+            TRY(encoder.write<ReadonlyBytes>(expanded_key));
+            return {};
+        }));
+        break;
+    }
+    return encoder.finish();
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-lamps-kyber-certificates-11#autoid-7
@@ -38,27 +50,36 @@ ErrorOr<ModuleLatticePrivateKey> parse_module_lattice_private_key(ReadonlyBytes 
     //           expandedKey OCTET STRING (SIZE (expanded_key_size))
     //      }
     // }
-    ASN1::Decoder decoder { der };
-    ModuleLatticePrivateKey key;
+    // NB: The sizes are fixed, so each choice has a single DER layout. The input is a choice when it is the DER encoding
+    //     of the bytes at that choice's places.
+    auto zero_seed = TRY(ByteBuffer::create_zeroed(seed_size));
+    auto zero_expanded_key = TRY(ByteBuffer::create_zeroed(expanded_key_size));
+    auto expanded_key_header_size = TRY(encode(Choice::ExpandedKey, {}, zero_expanded_key)).size() - expanded_key_size;
 
-    auto tag = TRY(decoder.peek());
-    if (tag.class_ == ASN1::Class::Context) {
-        key.seed = TRY(read_octet_string(decoder, ASN1::Class::Context, static_cast<ASN1::Kind>(0), seed_size));
-    } else if (tag.kind == ASN1::Kind::OctetString) {
-        key.expanded_key = TRY(read_octet_string(decoder, ASN1::Class::Universal, ASN1::Kind::OctetString, expanded_key_size));
-    } else {
-        TRY(expect_tag(decoder, ASN1::Class::Universal, ASN1::Kind::Sequence, ASN1::Type::Constructed));
-        TRY(decoder.enter());
-        key.seed = TRY(read_octet_string(decoder, ASN1::Class::Universal, ASN1::Kind::OctetString, seed_size));
-        key.expanded_key = TRY(read_octet_string(decoder, ASN1::Class::Universal, ASN1::Kind::OctetString, expanded_key_size));
-        if (!decoder.eof())
-            return Error::from_string_literal("Trailing data in private key");
-        TRY(decoder.leave());
+    for (auto choice : { Choice::Seed, Choice::ExpandedKey, Choice::Both }) {
+        if (TRY(encode(choice, zero_seed, zero_expanded_key)).size() != der.size())
+            continue;
+
+        ModuleLatticePrivateKey key;
+        switch (choice) {
+        case Choice::Seed:
+            key.seed = der.slice(der.size() - seed_size);
+            break;
+        case Choice::ExpandedKey:
+            key.expanded_key = der.slice(der.size() - expanded_key_size);
+            break;
+        case Choice::Both:
+            key.expanded_key = der.slice(der.size() - expanded_key_size);
+            key.seed = der.slice(der.size() - expanded_key_size - expanded_key_header_size - seed_size, seed_size);
+            break;
+        }
+
+        auto encoded = TRY(encode(choice, key.seed, key.expanded_key));
+        ScopeGuard const clear_encoded = [&] { secure_zero(encoded.data(), encoded.size()); };
+        if (encoded == der)
+            return key;
     }
-
-    if (!decoder.eof())
-        return Error::from_string_literal("Trailing data after private key");
-    return key;
+    return Error::from_string_literal("Invalid module-lattice private key");
 }
 
 }

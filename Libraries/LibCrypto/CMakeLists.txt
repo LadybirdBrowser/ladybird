@@ -9,7 +9,6 @@ set(SOURCES
     Authentication/HMAC.cpp
     Authentication/KMAC.cpp
     BigInt/UnsignedBigInteger.cpp
-    Certificate/Certificate.cpp
     Cipher/AES.cpp
     Cipher/ChaCha.cpp
     Curves/EdwardsCurve.cpp
@@ -19,6 +18,7 @@ set(SOURCES
     Hash/HKDF.cpp
     Hash/PBKDF2.cpp
     PK/EC.cpp
+    PK/KeyInfo.cpp
     PK/MLDSA.cpp
     PK/MLKEM.cpp
     PK/ModuleLatticePrivateKey.cpp

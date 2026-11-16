@@ -50,6 +50,9 @@ public:
     static ErrorOr<ECPrivateKey> generate(size_t scalar_size);
     static ErrorOr<ECPrivateKey> from_scalar(ReadonlyBytes d, Optional<ASN1::ObjectIdentifier> parameters, Optional<ECPublicKey> public_key);
 
+    // The ECPrivateKey inside a PKCS#8 PrivateKeyInfo, whose key OpenSSL has decoded, and whose AlgorithmIdentifier names the curve.
+    static ErrorOr<ECPrivateKey> from_private_key_info(EVP_PKEY*, ASN1::ObjectIdentifier const& curve, ReadonlyBytes encoded);
+
     size_t scalar_size() const { return m_scalar_size; }
 
     ErrorOr<ByteBuffer> d_bytes() const;
@@ -75,18 +78,6 @@ private:
     size_t m_scalar_size { 0 };
     Optional<ASN1::ObjectIdentifier> m_parameters;
     Optional<ECPublicKey> m_public_key;
-};
-
-struct ECKeyPair {
-    ECPublicKey public_key;
-    ECPrivateKey private_key;
-};
-
-class EC {
-public:
-    using KeyPairType = ECKeyPair;
-
-    static ErrorOr<KeyPairType> parse_ec_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope);
 };
 
 struct ECDSASignature {

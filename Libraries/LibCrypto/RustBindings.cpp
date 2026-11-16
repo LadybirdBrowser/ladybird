@@ -17,7 +17,6 @@
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Authentication/HMAC.h>
 #include <LibCrypto/Authentication/KMAC.h>
-#include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Cipher/AES.h>
 #include <LibCrypto/Cipher/ChaCha.h>
 #include <LibCrypto/Curves/EdwardsCurve.h>
@@ -28,6 +27,7 @@
 #include <LibCrypto/Hash/SHAKE.h>
 #include <LibCrypto/KeyHandle.h>
 #include <LibCrypto/PK/EC.h>
+#include <LibCrypto/PK/KeyInfo.h>
 #include <LibCrypto/PK/MLDSA.h>
 #include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/PK.h>
@@ -42,9 +42,9 @@ struct Asn1Storage final {
     T value;
 };
 
-using SubjectPublicKeyStorage = Asn1Storage<Certificate::SubjectPublicKey>;
-using PrivateKeyStorage = Asn1Storage<Certificate::PrivateKey>;
-using OctetStringStorage = Asn1Storage<StringView>;
+using SubjectPublicKeyStorage = Asn1Storage<PK::SubjectPublicKeyInfo>;
+using PrivateKeyStorage = Asn1Storage<PK::PrivateKeyInfo>;
+using OctetStringStorage = Asn1Storage<ReadonlyBytes>;
 
 extern "C" {
 using ReceiveEncodedBytes = void (*)(void*, ReadonlyBytes);
@@ -66,31 +66,31 @@ static bool receive_byte_result(ErrorOr<ByteBuffer> const& result, void* state, 
 
 FlatPtr crypto_decode_asn1_structure(ReadonlyBytes data, Asn1Structure structure, void* out, bool* all_consumed)
 {
-    ::Crypto::ASN1::Decoder decoder(data);
+    size_t consumed = 0;
     switch (structure) {
     case Asn1Structure::SubjectPublicKeyInfo: {
-        auto subject_public_key = ::Crypto::Certificate::parse_subject_public_key_info(decoder);
+        auto subject_public_key = ::Crypto::PK::parse_subject_public_key_info(data, consumed);
         if (subject_public_key.is_error())
             return Utf16String::formatted("{}", subject_public_key.release_error()).into_raw();
         static_cast<SubjectPublicKeyStorage*>(out)->value = subject_public_key.release_value();
         break;
     }
     case Asn1Structure::PrivateKeyInfo: {
-        auto private_key = ::Crypto::Certificate::parse_private_key_info(decoder);
+        auto private_key = ::Crypto::PK::parse_private_key_info(data, consumed);
         if (private_key.is_error())
             return Utf16String::formatted("{}", private_key.release_error()).into_raw();
         static_cast<PrivateKeyStorage*>(out)->value = private_key.release_value();
         break;
     }
     case Asn1Structure::OctetString: {
-        auto octet_string = decoder.read<StringView>(::Crypto::ASN1::Class::Universal, ::Crypto::ASN1::Kind::OctetString);
+        auto octet_string = ::Crypto::PK::parse_octet_string(data, consumed);
         if (octet_string.is_error())
             return Utf16String::formatted("{}", octet_string.error()).into_raw();
         static_cast<OctetStringStorage*>(out)->value = octet_string.release_value();
         break;
     }
     }
-    *all_consumed = decoder.eof();
+    *all_consumed = consumed == data.size();
     return 0;
 }
 
@@ -504,7 +504,7 @@ FlatPtr crypto_ec_compute_coordinate(EcCurve curve, KeyHandle const* key, KeyHan
     return 0;
 }
 
-static ::Crypto::Certificate::AlgorithmIdentifier const& key_info_algorithm(Asn1Structure structure, void const* key_info)
+static ::Crypto::PK::AlgorithmIdentifier const& key_info_algorithm(Asn1Structure structure, void const* key_info)
 {
     if (structure == Asn1Structure::SubjectPublicKeyInfo)
         return static_cast<SubjectPublicKeyStorage const*>(key_info)->value.algorithm;
@@ -728,7 +728,7 @@ void crypto_asn1_key_info_raw_key(Asn1Structure structure, void const* key_info,
 
 void crypto_asn1_octet_string_bytes(OctetStringStorage const* string, ReadonlyBytes* bytes)
 {
-    *bytes = string->value.bytes();
+    *bytes = string->value;
 }
 
 bool crypto_okp_export_der(OkpCurve curve, bool is_public, ReadonlyBytes key, void* state, ReceiveEncodedBytes receive)

@@ -23,6 +23,7 @@ public:
     RSAPublicKey() = default;
 
     static ErrorOr<RSAPublicKey> from_components(ReadonlyBytes modulus, ReadonlyBytes public_exponent);
+    static RSAPublicKey from_openssl_key(OpenSSL_SharedPKEY key) { return RSAPublicKey { move(key) }; }
 
     size_t length() const { return m_length; }
     size_t modulus_bits() const;
@@ -68,6 +69,7 @@ public:
     RSAPrivateKey() = default;
 
     static ErrorOr<RSAPrivateKey> from_components(ReadonlyBytes modulus, ReadonlyBytes public_exponent, ReadonlyBytes private_exponent, Optional<RSACRTComponents>);
+    static RSAPrivateKey from_openssl_key(OpenSSL_SharedPKEY);
 
     size_t length() const { return m_length; }
     size_t modulus_bits() const;
@@ -103,7 +105,6 @@ class RSA {
 public:
     using KeyPairType = RSAKeyPair;
 
-    static ErrorOr<KeyPairType> parse_rsa_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope);
     static ErrorOr<void> validate_key_generation_parameters(size_t bits);
     static ErrorOr<KeyPairType> generate_key_pair(size_t bits, ReadonlyBytes public_exponent);
     static ErrorOr<KeyPairType> generate_key_pair(size_t bits);
