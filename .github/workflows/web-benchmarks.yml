@@ -140,7 +140,7 @@ jobs:
             executable="${GITHUB_WORKSPACE}/Build/bin/Ladybird"
           fi
 
-          ./run.py --iterations=5 --executable="${executable}"
+          ./run.py --iterations=3 --executable="${executable}"
 
       - name: 'Save results as an artifact'
         uses: actions/upload-artifact@v7

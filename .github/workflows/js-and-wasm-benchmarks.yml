@@ -91,7 +91,7 @@ jobs:
           source .venv/bin/activate
           python3 -m pip install -r requirements.txt
 
-          run_options='--iterations=5'
+          run_options='--iterations=3'
 
           js_path="${GITHUB_WORKSPACE}/js-repl/bin/js"
           run_options="${run_options} --executable=${js_path}"
