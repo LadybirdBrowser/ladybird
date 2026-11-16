@@ -13,17 +13,6 @@ static ByteBuffer operator""_b(char const* string, size_t length)
     return MUST(ByteBuffer::copy(string, length));
 }
 
-TEST_CASE(test_hmac_md5_process)
-{
-    auto key = "Well Hello Friends"_b;
-    Crypto::Authentication::HMAC hmac(Crypto::Hash::HashKind::MD5, key);
-    u8 result[] {
-        0x3b, 0x5b, 0xde, 0x30, 0x3a, 0x54, 0x7b, 0xbb, 0x09, 0xfe, 0x78, 0x89, 0xbc, 0x9f, 0x22, 0xa3
-    };
-    auto mac = hmac.process("Some bogus data"sv);
-    EXPECT(memcmp(result, mac.data(), hmac.digest_size()) == 0);
-}
-
 TEST_CASE(test_hmac_sha256_process)
 {
     auto key = "Well Hello Friends"_b;

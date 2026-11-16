@@ -17,9 +17,7 @@ set(SOURCES
     Curves/SECPxxxr1.cpp
     Hash/Argon2.cpp
     Hash/SHAKE.cpp
-    Hash/BLAKE2b.cpp
     Hash/HKDF.cpp
-    Hash/MD5.cpp
     Hash/PBKDF2.cpp
     Hash/SHA1.cpp
     Hash/SHA2.cpp
