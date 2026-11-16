@@ -8,7 +8,6 @@ set(SOURCES
     ASN1/DER.cpp
     Authentication/HMAC.cpp
     Authentication/KMAC.cpp
-    BigInt/SignedBigInteger.cpp
     BigInt/UnsignedBigInteger.cpp
     Certificate/Certificate.cpp
     Cipher/AES.cpp
