@@ -14,7 +14,6 @@
 #include <AK/Span.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16View.h>
-#include <LibCrypto/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Export.h>
@@ -124,15 +123,6 @@ auto modulo(T x, U y)
     } else {
         return ((x % y) + y) % y;
     }
-}
-
-auto modulo(Crypto::BigInteger auto const& x, Crypto::BigInteger auto const& y)
-{
-    VERIFY(!y.is_zero());
-    auto result = x.remainder(y);
-    if (result.is_negative())
-        result = result.plus(y);
-    return result;
 }
 
 }

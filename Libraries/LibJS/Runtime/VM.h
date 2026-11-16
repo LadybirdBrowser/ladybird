@@ -26,7 +26,6 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
-#include <LibCrypto/Forward.h>
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootHashMap.h>
