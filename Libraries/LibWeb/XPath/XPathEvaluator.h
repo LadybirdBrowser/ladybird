@@ -10,7 +10,6 @@
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
-#include "EvaluateResult.h"
 #include "XPathExpression.h"
 #include "XPathNSResolver.h"
 #include "XPathResult.h"

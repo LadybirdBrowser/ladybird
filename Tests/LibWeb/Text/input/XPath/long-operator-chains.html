@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="numbers"><i>3</i><i>7</i><i>x</i><b>5</b><b>y</b><u>4</u><u>4</u><s>q</s></div>
+<script>
+    test(() => {
+        const evaluate = expression => {
+            const result = document.evaluate(expression, document, null, XPathResult.ANY_TYPE);
+            if (result.resultType === XPathResult.NUMBER_TYPE)
+                return result.numberValue;
+            return result.booleanValue;
+        };
+
+        // A chain of operators is as deep a tree as it is long.
+        println(`sum: ${evaluate("1" + " + 1".repeat(200000))}`);
+        println(`or: ${evaluate("0" + " or 0".repeat(200000) + " or 1")}`);
+        println(`union: ${evaluate("count(//i" + " | //b".repeat(200000) + ")")}`);
+
+        for (const expression of [
+            "1 - 2 - 3",
+            "8 div 2 div 2",
+            "1 + 2 * 3 - 4",
+            "3 > 2 > 1",
+            "0 or 1 and 0",
+            "round(0.49999999999999994)",
+            "round(-1.5)",
+            "round(4503599627370497)",
+            "//i < //b",
+            "//i > //b",
+            "//s < //i",
+            "//u < //u",
+            "//u <= //u",
+            "//u != //u",
+            "//i != //i",
+            "//u != //s",
+            "//u = //i",
+            "//missing != //u",
+        ])
+            println(`${expression}: ${evaluate(expression)}`);
+    });
+</script>

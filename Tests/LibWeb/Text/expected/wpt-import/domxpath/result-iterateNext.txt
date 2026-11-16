@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-3 Pass
-4 Fail
+7 Pass
 Pass	Using an ordered iterator without modifying the dom should yield the expected elements in correct order without errors.
 Pass	Using an unordered iterator without modifying the dom should yield the correct number of elements without errors.
 Pass	invalidIteratorState should be false for non-iterable results.
-Fail	Calling iterateNext on a non-iterable XPathResult should throw a TypeError.
-Fail	Calling iterateNext on a non-iterable XPathResult after modifying the DOM should throw a TypeError.
-Fail	Calling iterateNext after having modified the DOM should throw an exception.
-Fail	Calling iterateNext after having modified the DOM should throw an exception even if the iterator is exhausted.
+Pass	Calling iterateNext on a non-iterable XPathResult should throw a TypeError.
+Pass	Calling iterateNext on a non-iterable XPathResult after modifying the DOM should throw a TypeError.
+Pass	Calling iterateNext after having modified the DOM should throw an exception.
+Pass	Calling iterateNext after having modified the DOM should throw an exception even if the iterator is exhausted.

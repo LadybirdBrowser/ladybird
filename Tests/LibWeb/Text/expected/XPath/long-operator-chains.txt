@@ -1,0 +1,21 @@
+sum: 200001
+or: true
+union: 5
+1 - 2 - 3: -4
+8 div 2 div 2: 2
+1 + 2 * 3 - 4: 3
+3 > 2 > 1: false
+0 or 1 and 0: false
+round(0.49999999999999994): 0
+round(-1.5): -1
+round(4503599627370497): 4503599627370497
+//i < //b: true
+//i > //b: true
+//s < //i: false
+//u < //u: false
+//u <= //u: true
+//u != //u: false
+//i != //i: true
+//u != //s: true
+//u = //i: false
+//missing != //u: false

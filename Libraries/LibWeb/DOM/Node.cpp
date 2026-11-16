@@ -2749,6 +2749,11 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
     m_is_connected = false;
     m_in_editable_subtree = false;
 
+    // The nodes of a shadow tree count the versions of their tree on the document while they are connected, and on
+    // their shadow root otherwise. The shadow root has missed every change made in the meantime, so it starts over.
+    if (auto* shadow_root = as_if<ShadowRoot>(*this))
+        shadow_root->m_dom_tree_version = shadow_root->m_character_data_version = ++s_last_tree_version;
+
     // https://html.spec.whatwg.org/multipage/infrastructure.html#dom-trees:concept-node-remove-ext
     // 1. Let document be removedNode's node document.
     auto& document = this->document();
