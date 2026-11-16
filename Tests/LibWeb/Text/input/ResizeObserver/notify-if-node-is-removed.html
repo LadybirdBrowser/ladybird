@@ -13,8 +13,13 @@
 </body>
 <script src="../include.js"></script>
 <script>
+    // Reachable for the whole test: A ResizeObserver holds its targets weakly, so a collection could otherwise take the
+    // removed box, and the observer with it, before the callback that reports the removal.
+    let box = null;
+    let resizeObserver = null;
+
     promiseTest(async () => {
-        const box = document.getElementById("box");
+        box = document.getElementById("box");
 
         let resolve = null;
         function createResizeObserverPromise() {
@@ -23,7 +28,7 @@
             });
         }
 
-        const resizeObserver = new ResizeObserver(entries => {
+        resizeObserver = new ResizeObserver(entries => {
             for (let entry of entries) {
                 const { width, height } = entry.contentRect;
                 println(`Size changed: ${width}px x ${height}px`);
