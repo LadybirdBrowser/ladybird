@@ -566,10 +566,20 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
             - FloatPoint { 0, metrics.ascent }
             + FloatPoint { positions[i].x_offset, -positions[i].y_offset } / text_shaping_resolution;
 
-        auto extra_advance = letter_spacing;
-        if (auto starting_offset = glyph_info[i].cluster; starting_offset < string.length_in_code_units()
-            && is_word_separator(string.code_point_at(starting_offset)))
-            extra_advance += word_spacing;
+        // https://drafts.csswg.org/css-text-3/#letter-spacing-property
+        // This property specifies additional spacing (commonly called tracking) between adjacent typographic character
+        // units.
+        // NB: A cluster's glyphs (a base and its marks, or a conjunct's parts) are one typographic character unit, so
+        //     the spacing goes after the cluster's last glyph only. Spacing after any other glyph of the cluster would
+        //     push the glyphs after it away from the ones they attach to.
+        auto is_last_glyph_of_cluster = i + 1 == glyph_count || glyph_info[i + 1].cluster != glyph_info[i].cluster;
+        float extra_advance = 0;
+        if (is_last_glyph_of_cluster) {
+            extra_advance = letter_spacing;
+            if (auto starting_offset = glyph_info[i].cluster; starting_offset < string.length_in_code_units()
+                && is_word_separator(string.code_point_at(starting_offset)))
+                extra_advance += word_spacing;
+        }
 
         glyphs.unchecked_append({
             .position = position,
@@ -604,14 +614,20 @@ float measure_text_width(Utf16View const& string, Font const& font, float letter
     auto* buffer = setup_text_shaping(string, font, FFI::TextType::Common);
 
     u32 glyph_count;
+    auto const* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
     auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
 
+    // Letter-spacing goes once per cluster; see build_origin_relative_shape().
     double point_x = 0;
-    for (size_t i = 0; i < glyph_count; ++i)
+    size_t cluster_count = 0;
+    for (size_t i = 0; i < glyph_count; ++i) {
         point_x += positions[i].x_advance;
+        if (i + 1 == glyph_count || glyph_info[i + 1].cluster != glyph_info[i].cluster)
+            ++cluster_count;
+    }
 
     hb_buffer_destroy(buffer);
-    return static_cast<float>(point_x / text_shaping_resolution + glyph_count * letter_spacing);
+    return static_cast<float>(point_x / text_shaping_resolution + cluster_count * letter_spacing);
 }
 
 }
