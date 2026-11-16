@@ -59,6 +59,8 @@ public:
         u16 weight { 0 };
         u16 width { 0 };
         u8 slope { 0 };
+        // The features the cascade's request asks of every font, which a system fallback font applies as well.
+        ShapeFeatures shape_features;
     };
     using SystemFontFallbackCallback = Function<RefPtr<Font const>(u32, EmojiPresentation, SystemFallbackRequest const&)>;
 

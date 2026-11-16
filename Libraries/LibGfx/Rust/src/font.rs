@@ -411,6 +411,10 @@ unsafe extern "C" {
         out_entries: *mut FfiCascadeSnapshotEntry,
         out_ranges: *mut FfiCascadeSnapshotRange,
     );
+    fn ladybird_gfx_cascade_snapshot_system_fallback_features(
+        snapshot: *const c_void,
+        out_features: *mut FfiShapeFeature,
+    );
     fn ladybird_gfx_cascade_snapshot_end(snapshot: *const c_void);
     fn ladybird_gfx_system_fallback_font(
         code_point: u32,
@@ -419,6 +423,8 @@ unsafe extern "C" {
         slope: u8,
         prefer_color_emoji: bool,
         point_size: f32,
+        features: *const FfiShapeFeature,
+        feature_count: usize,
     ) -> *const c_void;
     fn ladybird_gfx_font_invisible_variant(font: *const c_void) -> *const c_void;
 
@@ -444,6 +450,15 @@ struct FfiCascadeSnapshotHeader {
     system_fallback_width: u16,
     system_fallback_slope: u8,
     has_system_fallback: bool,
+    system_fallback_feature_count: usize,
+}
+
+/// A `Gfx::ShapeFeature`: an OpenType feature tag and its value.
+#[repr(C)]
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
+struct FfiShapeFeature {
+    tag: [u8; 4],
+    value: u32,
 }
 
 #[repr(C)]
@@ -521,12 +536,14 @@ struct EntrySelection<'a> {
 }
 
 /// How this cascade asks for a font no listed family covers.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct SystemFallbackStyle {
     point_size: f32,
     weight: u16,
     width: u16,
     slope: u8,
+    /// The features the cascade's request asks of every font, which the system fallback font applies as well.
+    features: Box<[FfiShapeFeature]>,
 }
 
 /// The index of the first entry with a font and the ASCII code points it resolves, where one does.
@@ -951,6 +968,11 @@ impl FrozenFontList {
                 ffi_fallback_ranges.as_mut_ptr(),
             );
         }
+        let mut system_fallback_features = vec![FfiShapeFeature::default(); header.system_fallback_feature_count];
+        // SAFETY: The buffer is exactly the size the header asked for.
+        unsafe {
+            ladybird_gfx_cascade_snapshot_system_fallback_features(snapshot, system_fallback_features.as_mut_ptr())
+        };
         let last_resort = (!header.last_resort_font.is_null()).then(|| {
             // SAFETY: The list owns its last-resort font for the snapshot's duration.
             unsafe { FontHandle::intern(header.last_resort_font) }
@@ -1028,6 +1050,7 @@ impl FrozenFontList {
                 weight: header.system_fallback_weight,
                 width: header.system_fallback_width,
                 slope: header.system_fallback_slope,
+                features: system_fallback_features.into_boxed_slice(),
             }),
             fonts: fonts.into_boxed_slice(),
             ascii_cache: std::array::from_fn(|_| std::sync::atomic::AtomicU64::new(0)),
@@ -1091,7 +1114,7 @@ impl FrozenFontList {
     }
 
     fn system_fallback_font(&self, code_point: u32, presentation: EmojiPresentation) -> Option<FontHandle> {
-        let style = self.system_fallback?;
+        let style = self.system_fallback.as_ref()?;
         // SAFETY: The service answers with a font it transfers one reference to, or with null.
         let raw = unsafe {
             ladybird_gfx_system_fallback_font(
@@ -1101,6 +1124,8 @@ impl FrozenFontList {
                 style.slope,
                 presentation.is_emoji,
                 style.point_size,
+                style.features.as_ptr(),
+                style.features.len(),
             )
         };
         // SAFETY: A non-null answer carries the reference this handle takes over.

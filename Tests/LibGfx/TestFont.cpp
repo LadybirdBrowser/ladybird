@@ -436,6 +436,49 @@ TEST_CASE(system_fallback_fonts_can_be_matched_on_several_threads)
     EXPECT_EQ(Gfx::system_fallback_font_cache_size(), 2u);
 }
 
+// A system fallback font applies the features its request asks for, as the cascade's own fonts do, whether the memo
+// already knew its typeface or not.
+TEST_CASE(system_fallback_fonts_apply_the_requested_features)
+{
+    Gfx::clear_system_fallback_font_cache();
+    Gfx::SystemFallbackFontKey key {
+        .code_point = 'A',
+        .weight = 400,
+        .width = Gfx::FontWidth::Normal,
+        .slope = 0,
+        .prefer_color_emoji = false,
+    };
+    Gfx::ShapeFeatures features { { { 'l', 'i', 'g', 'a' }, 0 }, { { 's', 'm', 'c', 'p' }, 1 } };
+
+    // NB: A machine without a font covering the code point answers null, which applies nothing.
+    auto first = Gfx::system_fallback_font(key, 12, features);
+    if (!first)
+        return;
+    EXPECT_EQ(first->features(), features);
+    EXPECT_EQ(Gfx::system_fallback_font(key, 12, features)->features(), features);
+    EXPECT(Gfx::system_fallback_font(key, 12)->features().is_empty());
+}
+
+// A frozen cascade asks the system fallback for its request's features too.
+TEST_CASE(frozen_cascade_asks_the_system_fallback_for_the_requested_features)
+{
+    Gfx::clear_system_fallback_font_cache();
+    auto last_resort_font = load_text_font(16);
+    Gfx::ShapeFeatures features { { { 'l', 'i', 'g', 'a' }, 0 } };
+    auto cascade = Gfx::FontCascadeList::create();
+    cascade->add(last_resort_font, { { 'a', 'a' } });
+    cascade->set_last_resort_font(last_resort_font);
+    cascade->set_system_font_fallback_callback({ .point_size = 12, .weight = 400, .width = Gfx::FontWidth::Normal, .slope = 0, .shape_features = features },
+        [](u32, Gfx::EmojiPresentation, Gfx::FontCascadeList::SystemFallbackRequest const&) -> RefPtr<Gfx::Font const> { return nullptr; });
+    cascade->freeze();
+
+    // NB: Where no installed font covers the code point, the cascade answers with its last-resort font instead.
+    auto const& font = cascade->frozen_font_for_code_point('A');
+    if (&font == last_resort_font.ptr())
+        return;
+    EXPECT_EQ(font.features(), features);
+}
+
 // A frozen cascade answers the same question as the live one, without entering the document.
 TEST_CASE(frozen_cascade_matches_the_live_lookup)
 {

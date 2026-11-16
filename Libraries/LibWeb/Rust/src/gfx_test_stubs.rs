@@ -89,6 +89,8 @@ extern "C" fn ladybird_gfx_system_fallback_font(
     _slope: u8,
     _prefer_color_emoji: bool,
     _point_size: f32,
+    _features: *const c_void,
+    _feature_count: usize,
 ) -> *const c_void {
     unreachable!("no unit test reads a font");
 }

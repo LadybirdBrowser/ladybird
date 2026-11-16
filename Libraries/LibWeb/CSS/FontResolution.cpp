@@ -579,6 +579,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
             .weight = static_cast<u16>(clamp(weight, 1, 1000)),
             .width = static_cast<u16>(font_width_bucket_from_percentage(font_width.value())),
             .slope = static_cast<u8>(slope),
+            .shape_features = shape_features_for(key, nullptr),
         };
         font_list->set_system_font_fallback_callback(request, [](u32 code_point, Gfx::EmojiPresentation presentation, Gfx::FontCascadeList::SystemFallbackRequest const& request) -> RefPtr<Gfx::Font const> {
             Gfx::SystemFallbackFontKey key {
@@ -588,7 +589,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
                 .slope = request.slope,
                 .prefer_color_emoji = presentation == Gfx::EmojiPresentation::Emoji,
             };
-            return Gfx::system_fallback_font(key, request.point_size);
+            return Gfx::system_fallback_font(key, request.point_size, request.shape_features);
         });
     }
 
