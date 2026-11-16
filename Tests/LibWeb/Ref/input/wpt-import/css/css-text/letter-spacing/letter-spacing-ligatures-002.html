@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html  lang="en" >
+<meta charset="utf-8">
+<title>letter spacing and ligatures</title>
+<link rel='author' title='Florian Rivoal' href='https://florian.rivoal.net'>
+<link rel='help' href='https://drafts.csswg.org/css-text-3/#letter-spacing-property'>
+<link rel='match' href='../../../../../expected/wpt-import/css/css-text/letter-spacing/reference/letter-spacing-ligatures-002-ref.html'>
+<meta name=flags content="should">
+<meta name="assert" content="When the effective spacing between two characters is not zero (due to […] letter spacing), user agents should not apply optional ligatures">
+<style>
+@font-face {
+    font-family: 'mplus';
+    src: url('../../../fonts/mplus-1p-regular.woff');
+}
+div {
+    font-size: 2em;
+    font-family: mplus;
+    width: 12ch;
+    letter-spacing: 20px;
+    font-kerning: none;
+}
+i {
+    font-style: normal;
+    padding-left: 20px;
+}
+.ref {
+    color: blue;
+    letter-spacing: 0;
+    font-variant-ligatures: none;
+}
+</style>
+<p>Test passes if the black text looks like the blue one.
+<div>office</div>
+<div class=ref>o<i></i>f<i></i>f<i></i>i<i></i>c<i></i>e</div>

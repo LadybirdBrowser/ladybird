@@ -289,9 +289,9 @@ static Gfx::ShapeFeatures shape_features_for(ComputedFontCacheKey const& key, Fo
             return values->data();
         },
         &features,
-        [](void* features, u32 tag, u32 value) {
+        [](void* features, u32 tag, u32 value, bool set_by_feature_settings) {
             auto four_cc = Gfx::FourCC::from_u32(tag);
-            static_cast<Gfx::ShapeFeatures*>(features)->append({ { four_cc.cc[0], four_cc.cc[1], four_cc.cc[2], four_cc.cc[3] }, value });
+            static_cast<Gfx::ShapeFeatures*>(features)->append({ { four_cc.cc[0], four_cc.cc[1], four_cc.cc[2], four_cc.cc[3] }, value, set_by_feature_settings });
         });
     return features;
 }

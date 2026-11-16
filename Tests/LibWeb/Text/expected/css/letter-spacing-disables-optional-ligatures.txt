@@ -1,0 +1,5 @@
+letter-spacing: 12
+letter-spacing, font-variant-ligatures: common-ligatures: 12
+letter-spacing, font-variant-ligatures: discretionary-ligatures: 12
+letter-spacing, font-feature-settings: "liga": 7
+letter-spacing, font-feature-settings: "liga" 0: 12
