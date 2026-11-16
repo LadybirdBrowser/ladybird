@@ -35,7 +35,6 @@ public:
     };
 
     GetOptResult getopt(Span<StringView> args, StringView short_options, Span<Option const> long_options, Optional<int&> out_long_option_index);
-    void reset_state();
 
 private:
     Optional<ArgumentRequirement> lookup_short_option_requirement(char option) const;

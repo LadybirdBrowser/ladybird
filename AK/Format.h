@@ -263,22 +263,6 @@ public:
         char fill = ' ',
         SignMode sign_mode = SignMode::OnlyIfNeeded);
 
-    ErrorOr<void> put_fixed_point(
-        bool is_negative,
-        i64 integer_value,
-        u64 fraction_value,
-        u64 fraction_one,
-        size_t precision,
-        u8 base = 10,
-        bool upper_case = false,
-        bool zero_pad = false,
-        bool use_separator = false,
-        Align align = Align::Right,
-        size_t min_width = 0,
-        size_t fraction_max_width = 6,
-        char fill = ' ',
-        SignMode sign_mode = SignMode::OnlyIfNeeded);
-
     template<OneOf<float, double, long double> T>
     ErrorOr<void> put_floating_point(
         T value,

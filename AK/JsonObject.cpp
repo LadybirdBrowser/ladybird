@@ -199,12 +199,6 @@ bool JsonObject::has_i64(StringView key) const
     return value.has_value() && value->is_integer<i64>();
 }
 
-bool JsonObject::has_number(StringView key) const
-{
-    auto value = get(key);
-    return value.has_value() && value->is_number();
-}
-
 bool JsonObject::has_array(StringView key) const
 {
     auto value = get(key);

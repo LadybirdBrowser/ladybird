@@ -44,7 +44,6 @@ public:
     [[nodiscard]] bool has_i32(StringView key) const;
     [[nodiscard]] bool has_u32(StringView key) const;
     [[nodiscard]] bool has_i64(StringView key) const;
-    [[nodiscard]] bool has_number(StringView key) const;
     [[nodiscard]] bool has_array(StringView key) const;
     [[nodiscard]] bool has_object(StringView key) const;
 

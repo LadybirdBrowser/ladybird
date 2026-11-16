@@ -9,14 +9,6 @@
 
 namespace AK {
 
-void OptionParser::reset_state()
-{
-    m_arg_index = 0;
-    m_consumed_args = 0;
-    m_index_into_multioption_argument = 0;
-    m_stop_on_first_non_option = false;
-}
-
 OptionParser::GetOptResult OptionParser::getopt(Span<StringView> args, StringView short_options, Span<Option const> long_options, Optional<int&> out_long_option_index)
 {
     m_args = args;
