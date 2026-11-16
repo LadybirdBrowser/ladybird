@@ -1,0 +1,198 @@
+<!doctype html>
+<style>
+    body {
+        margin: 0;
+        width: 5000px;
+        height: 5000px;
+    }
+    .target {
+        position: absolute;
+        box-sizing: border-box;
+        width: 100px;
+        height: 40px;
+    }
+    .scroller {
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        width: 400px;
+        height: 240px;
+        overflow: auto;
+        scrollbar-width: none;
+    }
+    .content {
+        position: relative;
+        width: 2000px;
+        height: 2000px;
+    }
+</style>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const near = (a, b) => Math.abs(a - b) <= 1;
+        const center = rect => [rect.x + rect.width / 2, rect.y + rect.height / 2];
+        const target = (parent, tag = "div") => {
+            const element = document.createElement(tag);
+            element.className = "target";
+            element.tabIndex = 0;
+            parent.append(element);
+            return element;
+        };
+        for (const [name, x, y, startY, options] of [
+            ["visible", 100, 100, 0],
+            ["below", 100, 2000, 0],
+            ["input-below", 100, 2000, 0],
+            ["above", 100, 1500, 2500],
+            ["right", 3000, 100, 0],
+            ["below-right", 3000, 2000, 0],
+            ["partially-visible", 100, innerHeight - 20, 0],
+            ["input-partially-visible", 100, innerHeight - 10, 0],
+            ["preventScroll", 3000, 2000, 0, { preventScroll: true }],
+        ]) {
+            const element = target(document.body, name.startsWith("input-") ? "input" : "div");
+            element.style.left = `${x}px`;
+            element.style.top = `${y}px`;
+            scrollTo(0, startY);
+            element.focus(options);
+            await frame();
+            const [cx, cy] = center(element.getBoundingClientRect());
+            println(
+                `${name}: x=${near(cx, x + 50) ? "unchanged" : near(cx, innerWidth / 2) ? "centered" : cx}, y=${near(cy, y + 20 - startY) ? "unchanged" : near(cy, innerHeight / 2) ? "centered" : cy}`
+            );
+            element.remove();
+        }
+        for (const [name, outerY, block, inline, writingMode, preventScroll] of [
+            ["nested-visible-target", 2000, 20, 20, "horizontal-tb", false],
+            ["nested-clipped-target", 20, 900, 900, "horizontal-tb", false],
+            ["nested-both-offscreen", 2000, 900, 900, "horizontal-tb", false],
+            ["vertical-rl-both", 20, 900, 900, "vertical-rl", false],
+            ["vertical-lr-both", 20, 900, 900, "vertical-lr", false],
+            ["vertical-rl-block-only", 20, 900, 20, "vertical-rl", false],
+            ["vertical-lr-inline-only", 20, 20, 900, "vertical-lr", false],
+            ["nested-preventScroll", 2000, 900, 900, "horizontal-tb", true],
+        ]) {
+            const scroller = document.createElement("div");
+            scroller.className = "scroller";
+            scroller.style.top = `${outerY}px`;
+            scroller.style.writingMode = writingMode;
+            const content = document.createElement("div");
+            content.className = "content";
+            scroller.append(content);
+            document.body.append(scroller);
+            const element = target(content);
+            element.style.insetBlockStart = `${block}px`;
+            element.style.insetInlineStart = `${inline}px`;
+            scrollTo(0, 0);
+            scroller.scrollTo(0, 0);
+            const before = center(element.getBoundingClientRect());
+            const scrollportBefore = scroller.getBoundingClientRect();
+            element.focus({ preventScroll });
+            await frame();
+            const after = center(element.getBoundingClientRect());
+            const scrollport = scroller.getBoundingClientRect();
+            const relative = [after[0] - scrollport.x, after[1] - scrollport.y];
+            const original = [before[0] - scrollportBefore.x, before[1] - scrollportBefore.y];
+            println(
+                `${name}: inner-x=${near(relative[0], original[0]) ? "unchanged" : near(relative[0], scroller.clientWidth / 2) ? "centered" : relative[0]}, inner-y=${near(relative[1], original[1]) ? "unchanged" : near(relative[1], scroller.clientHeight / 2) ? "centered" : relative[1]}, viewport-x=${scrollX === 0 ? "unchanged" : "scrolled"}, viewport-y=${scrollY === 0 ? "unchanged" : near(after[1], innerHeight / 2) ? "centered" : after[1]}`
+            );
+            scroller.remove();
+        }
+        for (const [name, targetStyle, scrollStyle] of [
+            ["visible-with-scroll-margin", "left:100px;top:100px;scroll-margin-top:150px", ""],
+            ["visible-with-scroll-padding", "left:100px;top:20px", "scroll-padding-top:80px"],
+            ["offscreen-with-scroll-margin", "left:100px;top:900px;scroll-margin-top:80px", ""],
+            ["offscreen-with-scroll-padding", "left:100px;top:900px", "scroll-padding-top:80px"],
+            ["rtl", "left:900px;top:20px", "direction:rtl"],
+        ]) {
+            const scroller = document.createElement("div");
+            scroller.className = "scroller";
+            scroller.style.cssText = scrollStyle;
+            const content = document.createElement("div");
+            content.className = "content";
+            scroller.append(content);
+            document.body.append(scroller);
+            const element = target(content);
+            element.style.cssText = targetStyle;
+            scrollTo(0, 0);
+            element.focus();
+            await frame();
+            const rect = element.getBoundingClientRect();
+            const port = scroller.getBoundingClientRect();
+            println(`${name}: x=${rect.x - port.x}, y=${rect.y - port.y}`);
+            scroller.remove();
+        }
+        for (const outerY of [20, 2000]) {
+            const outer = document.createElement("div");
+            outer.className = "scroller";
+            outer.style.top = `${outerY}px`;
+            const outerContent = document.createElement("div");
+            outerContent.className = "content";
+            outer.append(outerContent);
+            document.body.append(outer);
+            const inner = document.createElement("div");
+            inner.className = "scroller";
+            inner.style.cssText = "left:900px;top:900px;width:240px;height:160px";
+            const innerContent = document.createElement("div");
+            innerContent.className = "content";
+            inner.append(innerContent);
+            outerContent.append(inner);
+            const element = target(innerContent);
+            element.style.cssText = "left:900px;top:900px";
+            scrollTo(0, 0);
+            element.focus();
+            await frame();
+            const point = center(element.getBoundingClientRect());
+            const innerCenter = center(inner.getBoundingClientRect());
+            const outerCenter = center(outer.getBoundingClientRect());
+            println(
+                `two-scrollers-${outerY}: inner=${near(point[0], innerCenter[0]) && near(point[1], innerCenter[1])}, outer=${near(point[0], outerCenter[0]) && near(point[1], outerCenter[1])}, viewport-y=${scrollY === 0 ? "unchanged" : near(point[1], innerHeight / 2) ? "centered" : point[1]}`
+            );
+            outer.remove();
+        }
+        for (const [name, left, top, width, height, initialX, initialY] of [
+            ["covers-y-edge", 100, 0, 100, 500, 0, 0],
+            ["covers-y-end-edge", 100, 0, 100, 500, 0, 260],
+            ["covers-y", 100, 0, 100, 500, 0, 100],
+            ["covers-x-edge", 0, 100, 800, 40, 0, 0],
+            ["covers-x-end-edge", 0, 100, 800, 40, 400, 0],
+            ["covers-x", 0, 100, 800, 40, 100, 0],
+            ["covers-both", 0, 0, 800, 500, 100, 100],
+            ["covers-y-offscreen-x", 900, 0, 100, 500, 0, 100],
+            ["covers-x-offscreen-y", 0, 900, 800, 40, 100, 0],
+            ["offscreen-y", 100, 900, 100, 500, 0, 0],
+            ["offscreen-x", 900, 100, 800, 40, 0, 0],
+        ]) {
+            const scroller = document.createElement("div");
+            scroller.className = "scroller";
+            const content = document.createElement("div");
+            content.className = "content";
+            scroller.append(content);
+            document.body.append(scroller);
+            const element = target(content);
+            element.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px`;
+            scroller.scrollTo(initialX, initialY);
+            scrollTo(0, 0);
+            element.focus();
+            await frame();
+            const point = center(element.getBoundingClientRect());
+            const port = center(scroller.getBoundingClientRect());
+            const x = scroller.scrollLeft === initialX ? "unchanged" : near(point[0], port[0]) ? "centered" : point[0];
+            const y = scroller.scrollTop === initialY ? "unchanged" : near(point[1], port[1]) ? "centered" : point[1];
+            println(`oversized-${name}: x=${x}, y=${y}`);
+            scroller.remove();
+        }
+        const visible = target(document.body);
+        visible.style.left = "100px";
+        visible.style.top = "2000px";
+        scrollTo(0, 1900);
+        visible.scrollIntoView({ block: "center", inline: "center" });
+        await frame();
+        println(
+            `scrollIntoView-visible: y=${near(center(visible.getBoundingClientRect())[1], innerHeight / 2) ? "centered" : "not centered"}`
+        );
+        visible.remove();
+        scrollTo(0, 0);
+        done();
+    });
+</script>

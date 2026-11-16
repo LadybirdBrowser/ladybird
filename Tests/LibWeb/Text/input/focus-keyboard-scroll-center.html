@@ -1,0 +1,100 @@
+<!doctype html>
+<style>
+    body {
+        margin: 0;
+        width: 5000px;
+        height: 5000px;
+    }
+    button {
+        position: absolute;
+        box-sizing: border-box;
+        left: 100px;
+        top: 100px;
+        width: 100px;
+        height: 40px;
+    }
+    .scroller {
+        position: absolute;
+        left: 20px;
+        width: 400px;
+        height: 240px;
+        overflow: auto;
+        scrollbar-width: none;
+    }
+    .content {
+        position: relative;
+        width: 2000px;
+        height: 2000px;
+    }
+</style>
+<button id="first">First</button>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const near = (a, b) => Math.abs(a - b) <= 1;
+        const position = (offset, initial, center, expectedCenter) =>
+            near(offset, initial) ? "unchanged" : near(center, expectedCenter) ? "centered" : center;
+        for (const [name, left, top, width, height, startX, startY, backwards] of [
+            ["visible", 200, 100, 100, 40, 0, 0],
+            ["below", 100, 2000, 100, 40, 0, 0],
+            ["backward-below", 100, 2000, 100, 40, 0, 0, true],
+            ["right", 3000, 100, 100, 40, 0, 0],
+            ["below-right", 3000, 2000, 100, 40, 0, 0],
+            ["covers-y", 100, 0, 100, innerHeight + 400, 0, 100],
+            ["covers-x", 0, 100, innerWidth + 400, 40, 100, 0],
+            ["covers-both", 0, 0, innerWidth + 400, innerHeight + 400, 100, 100],
+            ["oversized-offscreen", 100, 2000, 100, innerHeight + 400, 0, 0],
+        ]) {
+            const target = document.createElement("button");
+            target.textContent = "Target";
+            target.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px`;
+            if (backwards) first.before(target);
+            else document.body.append(target);
+            scrollTo(startX, startY);
+            first.focus({ preventScroll: true });
+            internals.sendKey(first, "Tab", backwards ? internals.MOD_SHIFT : 0);
+            await frame();
+            const rect = target.getBoundingClientRect();
+            const x = position(scrollX, startX, rect.x + rect.width / 2, innerWidth / 2);
+            const y = position(scrollY, startY, rect.y + rect.height / 2, innerHeight / 2);
+            println(`${name}: focused=${document.activeElement === target}, x=${x}, y=${y}`);
+            target.remove();
+        }
+        for (const [name, outerY, left, top, width, height] of [
+            ["nested-visible", 20, 100, 100, 100, 40],
+            ["nested-clipped", 20, 900, 900, 100, 40],
+            ["nested-offscreen", 2000, 900, 900, 100, 40],
+            ["nested-covers-y", 20, 900, 0, 100, 500],
+            ["nested-covers-x", 20, 0, 900, 800, 40],
+        ]) {
+            const scroller = document.createElement("div");
+            scroller.className = "scroller";
+            scroller.tabIndex = -1;
+            scroller.style.top = `${outerY}px`;
+            const content = document.createElement("div");
+            content.className = "content";
+            scroller.append(content);
+            document.body.append(scroller);
+            const target = document.createElement("button");
+            target.textContent = "Target";
+            target.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px`;
+            content.append(target);
+            scrollTo(0, 0);
+            first.focus({ preventScroll: true });
+            internals.sendKey(first, "Tab");
+            await frame();
+            const rect = target.getBoundingClientRect();
+            const port = scroller.getBoundingClientRect();
+            const x = position(scroller.scrollLeft, 0, rect.x + rect.width / 2 - port.x, scroller.clientWidth / 2);
+            const y = position(scroller.scrollTop, 0, rect.y + rect.height / 2 - port.y, scroller.clientHeight / 2);
+            const viewportY = position(scrollY, 0, rect.y + rect.height / 2, innerHeight / 2);
+            println(
+                `${name}: focused=${document.activeElement === target}, inner-x=${x}, inner-y=${y}, viewport-x=${scrollX === 0 ? "unchanged" : "scrolled"}, viewport-y=${viewportY}`
+            );
+            scroller.remove();
+        }
+        scrollTo(0, 0);
+        done();
+    });
+</script>

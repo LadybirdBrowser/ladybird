@@ -4165,13 +4165,14 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_text(Utf16View where, Utf16Vi
 }
 
 // https://drafts.csswg.org/cssom-view-1/#determine-the-scroll-into-view-position
-static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead const& read, ScrollIntoViewTarget target, CSSPixelRect target_bounding_border_box, Element::ScrollLogicalPosition block, Element::ScrollLogicalPosition inline_, Node& scrolling_box)
+static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead const& read, ScrollIntoViewTarget target, CSSPixelRect target_bounding_border_box, Element::ScrollLogicalPosition block, Element::ScrollLogicalPosition inline_, Node& scrolling_box, ScrollIntoViewMode scroll_mode)
 {
     // To determine the scroll-into-view position of a target, which is an Element, pseudo-element, or Range, with a
     // block flow direction position block, an inline base direction position inline, and a scrolling box scrolling box,
     // run the following steps:
 
     CSSPixelRect scrolling_box_rect;
+    CSSPixelRect visible_scrollport_rect;
     CSSPixelPoint current_scroll_position;
     Layout::NodeWithStyle const* scrolling_box_layout_node = nullptr;
     if (scrolling_box.is_document()) {
@@ -4184,6 +4185,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
             CSSPixels::nearest_value_for(visual_viewport.height()),
         };
         scrolling_box_rect = { visual_viewport.offset(), visible_size };
+        visible_scrollport_rect = scrolling_box_rect;
         if (auto* layout_node = document.layout_node(read)) {
             scrolling_box_rect = Painting::scroll_snapport_rect(*layout_node, scrolling_box_rect);
             scrolling_box_layout_node = as_if<Layout::NodeWithStyle>(layout_node);
@@ -4196,6 +4198,8 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
         current_scroll_position = Painting::presented_scroll_offset(*layout_node, Painting::scroll_offset(*layout_node));
         scrolling_box_layout_node = as_if<Layout::NodeWithStyle>(layout_node);
         scrolling_box_rect = Painting::rect_to_viewport(*layout_node, Painting::scroll_snapport_rect(*layout_node), Layout::RustFFI::ViewportSpace::LayoutViewport);
+        if (scroll_mode == ScrollIntoViewMode::IfNeeded)
+            visible_scrollport_rect = Painting::rect_to_viewport(*layout_node, Painting::absolute_padding_box_rect(*layout_node), Layout::RustFFI::ViewportSpace::LayoutViewport);
     } else {
         return {};
     }
@@ -4224,6 +4228,19 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
     //    if target is a Range.
     // AD-HOC: The caller performs this step once and passes the result in, moving it outward as each scrolling box is
     //         scrolled, so that an outer scrolling box sees where the target is going to be.
+
+    // AD-HOC: focus() requires centered alignment, but for interoperability, leave each axis unchanged if the target is
+    //         fully visible or covers the scrollport. Compare the border box without scroll-margin or scroll-padding.
+    bool preserve_x = scroll_mode == ScrollIntoViewMode::IfNeeded
+        && ((target_bounding_border_box.left() >= visible_scrollport_rect.left()
+                && target_bounding_border_box.right() <= visible_scrollport_rect.right())
+            || (target_bounding_border_box.left() <= visible_scrollport_rect.left()
+                && target_bounding_border_box.right() >= visible_scrollport_rect.right()));
+    bool preserve_y = scroll_mode == ScrollIntoViewMode::IfNeeded
+        && ((target_bounding_border_box.top() >= visible_scrollport_rect.top()
+                && target_bounding_border_box.bottom() <= visible_scrollport_rect.bottom())
+            || (target_bounding_border_box.top() <= visible_scrollport_rect.top()
+                && target_bounding_border_box.bottom() >= visible_scrollport_rect.bottom()));
 
     // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin and scroll-margin to target
     //         bounding border box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
@@ -4358,7 +4375,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
             inline_delta = -inline_delta;
         auto x = current_scroll_position.x() + (block_axis_is_horizontal ? block_delta : inline_delta);
         auto y = current_scroll_position.y() + (block_axis_is_horizontal ? inline_delta : block_delta);
-        return CSSPixelPoint { x, y };
+        return CSSPixelPoint { preserve_x ? current_scroll_position.x() : x, preserve_y ? current_scroll_position.y() : y };
     }();
 
     // 11. Return position.
@@ -4366,7 +4383,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
 }
 
 // https://drafts.csswg.org/cssom-view-1/#scroll-a-target-into-view
-void scroll_a_target_into_view(Layout::BegunRead const& read, ScrollIntoViewTarget target, Element::ScrollBehavior behavior, Element::ScrollLogicalPosition block, Element::ScrollLogicalPosition inline_, GC::Ptr<Element> container, GC::Ptr<WebIDL::Promise> promise)
+void scroll_a_target_into_view(Layout::BegunRead const& read, ScrollIntoViewTarget target, Element::ScrollBehavior behavior, Element::ScrollLogicalPosition block, Element::ScrollLogicalPosition inline_, GC::Ptr<Element> container, GC::Ptr<WebIDL::Promise> promise, ScrollIntoViewMode scroll_mode)
 {
     auto target_document = [](ScrollIntoViewTarget current_target) -> Document& {
         return current_target.visit(
@@ -4448,7 +4465,7 @@ void scroll_a_target_into_view(Layout::BegunRead const& read, ScrollIntoViewTarg
         // 2. Let position be the scroll position resulting from running the steps to determine the scroll-into-view
         //    position of target with behavior as the scroll behavior, block as the block flow position, inline as the
         //    inline base direction position and scrolling box as the scrolling box.
-        auto position = determine_the_scroll_into_view_position(read, current_target, target_bounding_border_box, block, inline_, scrolling_box);
+        auto position = determine_the_scroll_into_view_position(read, current_target, target_bounding_border_box, block, inline_, scrolling_box, scroll_mode);
 
         // AD-HOC: A smooth scroll leaves the scrolling box at its old scroll position while the outer scrolling boxes
         //         are considered, so move the target to where this scroll is going to leave it. The viewport is always
@@ -4553,7 +4570,7 @@ void scroll_a_target_into_view(Layout::BegunRead const& read, ScrollIntoViewTarg
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview
-void Element::scroll_into_view(Element::ScrollIntoViewOptions const& options, GC::Ptr<WebIDL::Promise> promise)
+void Element::scroll_into_view(Element::ScrollIntoViewOptions const& options, GC::Ptr<WebIDL::Promise> promise, ScrollIntoViewMode scroll_mode)
 {
     // 1. Let behavior be "auto".
     auto behavior = options.behavior;
@@ -4584,7 +4601,7 @@ void Element::scroll_into_view(Element::ScrollIntoViewOptions const& options, GC
 
     // 8. Scroll the element into view with behavior, block, inline, and container. Let scrollPromise be the Promise
     //    returned from this step.
-    scroll_a_target_into_view(read, ScrollIntoViewTarget { this }, behavior, block, inline_, container, promise);
+    scroll_a_target_into_view(read, ScrollIntoViewTarget { this }, behavior, block, inline_, container, promise, scroll_mode);
 
     // FIXME: 9. Optionally perform some other action that brings the element to the user’s attention.
 }

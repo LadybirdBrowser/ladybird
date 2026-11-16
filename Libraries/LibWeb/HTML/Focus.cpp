@@ -871,9 +871,20 @@ void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> 
         return;
 
     Bindings::ScrollIntoViewOptions scroll_options;
-    scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
-    scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
-    (void)focused_element->scroll_into_view(scroll_options, {});
+    auto scroll_mode = DOM::ScrollIntoViewMode::Always;
+    if (focus_trigger == FocusTrigger::Script || focus_trigger == FocusTrigger::Key) {
+        // https://html.spec.whatwg.org/multipage/interaction.html#dom-focus
+        // 4. If options["preventScroll"] is false, then scroll a target into view given this, "auto",
+        //    "center", and "center".
+        // AD-HOC: Use the same alignment for sequential keyboard focus, for interoperability.
+        scroll_options.block = Bindings::ScrollLogicalPosition::Center;
+        scroll_options.inline_ = Bindings::ScrollLogicalPosition::Center;
+        scroll_mode = DOM::ScrollIntoViewMode::IfNeeded;
+    } else {
+        scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
+        scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
+    }
+    (void)focused_element->scroll_into_view(scroll_options, {}, scroll_mode);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#unfocusing-steps

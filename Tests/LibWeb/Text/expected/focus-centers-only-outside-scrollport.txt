@@ -1,0 +1,36 @@
+visible: x=unchanged, y=unchanged
+below: x=unchanged, y=centered
+input-below: x=unchanged, y=centered
+above: x=unchanged, y=centered
+right: x=centered, y=unchanged
+below-right: x=centered, y=centered
+partially-visible: x=unchanged, y=centered
+input-partially-visible: x=unchanged, y=centered
+preventScroll: x=unchanged, y=unchanged
+nested-visible-target: inner-x=unchanged, inner-y=unchanged, viewport-x=unchanged, viewport-y=centered
+nested-clipped-target: inner-x=centered, inner-y=centered, viewport-x=unchanged, viewport-y=unchanged
+nested-both-offscreen: inner-x=centered, inner-y=centered, viewport-x=unchanged, viewport-y=centered
+vertical-rl-both: inner-x=centered, inner-y=centered, viewport-x=unchanged, viewport-y=unchanged
+vertical-lr-both: inner-x=centered, inner-y=centered, viewport-x=unchanged, viewport-y=unchanged
+vertical-rl-block-only: inner-x=centered, inner-y=unchanged, viewport-x=unchanged, viewport-y=unchanged
+vertical-lr-inline-only: inner-x=unchanged, inner-y=centered, viewport-x=unchanged, viewport-y=unchanged
+nested-preventScroll: inner-x=unchanged, inner-y=unchanged, viewport-x=unchanged, viewport-y=unchanged
+visible-with-scroll-margin: x=100, y=100
+visible-with-scroll-padding: x=100, y=20
+offscreen-with-scroll-margin: x=100, y=140
+offscreen-with-scroll-padding: x=100, y=140
+rtl: x=150, y=20
+two-scrollers-20: inner=true, outer=true, viewport-y=unchanged
+two-scrollers-2000: inner=true, outer=true, viewport-y=centered
+oversized-covers-y-edge: x=unchanged, y=unchanged
+oversized-covers-y-end-edge: x=unchanged, y=unchanged
+oversized-covers-y: x=unchanged, y=unchanged
+oversized-covers-x-edge: x=unchanged, y=unchanged
+oversized-covers-x-end-edge: x=unchanged, y=unchanged
+oversized-covers-x: x=unchanged, y=unchanged
+oversized-covers-both: x=unchanged, y=unchanged
+oversized-covers-y-offscreen-x: x=centered, y=unchanged
+oversized-covers-x-offscreen-y: x=unchanged, y=centered
+oversized-offscreen-y: x=unchanged, y=centered
+oversized-offscreen-x: x=centered, y=unchanged
+scrollIntoView-visible: y=centered
