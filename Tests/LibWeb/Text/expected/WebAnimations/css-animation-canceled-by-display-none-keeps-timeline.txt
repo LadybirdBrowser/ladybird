@@ -1,0 +1,3 @@
+follows a scroll timeline: true
+play state after display: none: idle
+timeline kept: true

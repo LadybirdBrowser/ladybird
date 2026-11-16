@@ -45,6 +45,7 @@ from Generators.libweb_bindings.rust_types import rust_interface_path
 from Generators.libweb_bindings.rust_types import rust_type
 from Generators.libweb_bindings.rust_types import rust_union_path
 from Generators.libweb_bindings.rust_types import rust_union_variant
+from Generators.libweb_bindings.rust_types import union_holds_sequence_of_cells
 from Generators.libweb_bindings.rust_types import union_member_types
 from Utils.webidl_parser import Dictionary
 from Utils.webidl_parser import DictionaryMember
@@ -592,6 +593,7 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
     what = f"the union {union_type}"
     path = rust_union_path(union_type, context, what)
     members = union_members_by_kind(union_type, context, what)
+    holds_sequence_of_cells = union_holds_sequence_of_cells(union_type, context)
     dictionary_type = members.dictionary_type
     string_type = members.string_type
     steps = []
@@ -695,7 +697,20 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
                 }}
 """
             )
-        if members.sequence_type is not None:
+        if members.sequence_type is not None and holds_sequence_of_cells:
+            element = rust_to_idl_value(members.sequence_type.parameters[0], {}, "value", "value", context, what)
+            steps.append(
+                f"""                // 11. If V is an Object, then:
+                //     2. If types includes a sequence type, then:
+                //         1. Let method be ? GetMethod(V, %Symbol.iterator%).
+                //         2. If method is not undefined, return the result of creating a sequence of that type from
+                //            V and method.
+                if let Some(method) = iterator_method(vm, value)? {{
+                    return Ok(Self::Sequence(sequence_from_iterable(vm, value, method, MarkedVec::new(vm), |value| {element})?));
+                }}
+"""
+            )
+        elif members.sequence_type is not None:
             element = rust_sequence_element_to_idl_value(members.sequence_type, "value", context, what)
             steps.append(
                 f"""                // 11. If V is an Object, then:
@@ -802,6 +817,13 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
     if members.names_numeric_argument:
         implementation = f"impl {path}"
         conversion = "pub(crate) fn from_js_with_identifier(vm: &Vm, value: Value, identifier: &str)"
+    if holds_sequence_of_cells:
+        # NB: The enum keeps the sequence alive in a MarkedVec for as long as the reference to the VM lives, a lifetime
+        #     that the result of FromJs::from_js() cannot have, so the conversion is its method.
+        implementation = f"impl<'vm> {path}<'vm>"
+        conversion = "pub(crate) fn from_js(vm: &'vm Vm, value: Value)"
+        if members.names_numeric_argument:
+            conversion = "pub(crate) fn from_js_with_identifier(vm: &'vm Vm, value: Value, identifier: &str)"
     out.write(
         f"""
     /// The conversion of a JS value to the union {union_type}, https://webidl.spec.whatwg.org/#js-union

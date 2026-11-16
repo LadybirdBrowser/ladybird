@@ -58,7 +58,6 @@ ALLOWED_EXTENDED_ATTRIBUTES = frozenset(
         "MissingValueDefault",
         # The construct exists only while the navigator claims the named engine, which alone has it.
         "NavigatorCompatibilityMode",
-        "NeedsArgumentCount",
         "NeedsCallerRealm",
         "NewObject",
         "PutForwards",

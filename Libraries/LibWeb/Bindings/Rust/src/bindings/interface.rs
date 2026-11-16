@@ -29,6 +29,7 @@ use libjs_rust::api::{
 };
 
 use crate::bindings::CallContext;
+use crate::bindings::conversions::implements_cpp_interface;
 use crate::bindings::realm_data::wrapper_world_of;
 use crate::bindings::services::{
     web_bindings_define_unforgeable_attributes, web_bindings_ensure_web_constructor, web_bindings_ensure_web_prototype,
@@ -269,6 +270,33 @@ pub(crate) fn this_object(
     // NB: This runs after the check above, which no Window or Location object passes.
     perform_a_security_check(vm, this_value, identifier, check_type)?;
     vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&interface_name])
+}
+
+/// The object an attribute or an operation of an interface implemented in C++ runs on, if it is a wrapper of an object
+/// that implements the interface, which the value of its Web::Bindings::InterfaceName names, with the object's realm.
+/// A nullish this value stands for the global object of the current realm.
+/// https://webidl.spec.whatwg.org/#implementation-check-an-object
+pub(crate) fn this_cpp_object(
+    vm: &Vm,
+    interface_name: u16,
+    name: &str,
+    identifier: &str,
+    check_type: SecurityCheckType,
+) -> ThrowCompletionOr<(Gc<Object>, Gc<Realm>)> {
+    let mut this_value = vm.this_value();
+    if this_value.is_nullish() {
+        let current_realm = vm.current_realm().expect("a native function runs in a realm");
+        this_value = Value::from_object(current_realm.global_object());
+    }
+    if this_value.is_object() {
+        let object = this_value.as_object();
+        if implements_cpp_interface(object, interface_name) {
+            return Ok((object, object.shape().realm()));
+        }
+    }
+    // NB: This runs after the check above, which no Window or Location object passes.
+    perform_a_security_check(vm, this_value, identifier, check_type)?;
+    vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&name])
 }
 
 /// The object that a wrapper of exactly the interface wraps.

@@ -298,12 +298,6 @@ void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::StyleSheetSt
     }
 }
 
-WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animations::Animation>>> ShadowRoot::get_animations()
-{
-    document().update_style();
-    return calculate_get_animations(*this);
-}
-
 ElementByIdMap& ShadowRoot::element_by_id() const
 {
     if (!m_element_by_id)

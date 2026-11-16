@@ -388,13 +388,13 @@ impl super::StyleEngine {
                 .iter()
                 .flat_map(|keyframe| effect.declarations_of(keyframe))
                 .map(|declaration| declaration.property_id);
-            match timing.key_at(samples).ok_or(NeedsHost)? {
+            match timing
+                .key_at(effect.timing_function.as_easing(), samples)
+                .ok_or(NeedsHost)?
+            {
                 Some(current_key) => {
-                    composed.push(anim::FfiSampledAnimationEffect {
-                        effect: anim::FfiAnimationPreparationEffect {
-                            identity: effect.identity,
-                            generation: effect.generation,
-                        },
+                    composed.push(anim::SampledAnimationEffect {
+                        description: effect.description().clone(),
                         current_key,
                     });
                     composed_properties.extend(properties);
@@ -606,7 +606,7 @@ impl super::StyleEngine {
             record_dependencies: true,
             style_node: node.raw(),
             pseudo_kind: crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
-            effects: HostSampledEffects::none(),
+            effects: HostSampledEffects::new(),
             longhands,
             has_animated_overlay: true,
             current_color: working_set_current_color(longhands, Some(overlay)),

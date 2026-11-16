@@ -112,13 +112,7 @@ public:
         });
         return name;
     }
-    void for_each_keyframe(Function<void(ReadonlySpan<double>, RustDeclarationBlockSnapshot const&)> const& callback) const
-    {
-        Parser::ValueParserFFI::rust_rule_view_keyframes(&m_view, &callback, [](void const* context, double const* keys, size_t count, Parser::ValueParserFFI::DeclarationBlockHeader const* declarations) {
-            RustDeclarationBlockSnapshot snapshot { Parser::ValueParserFFI::rust_declaration_data_retain(declarations) };
-            (*static_cast<Function<void(ReadonlySpan<double>, RustDeclarationBlockSnapshot const&)> const*>(context))({ keys, count }, snapshot);
-        });
-    }
+    Parser::ValueParserFFI::NativeRuleView const& native_view() const { return m_view; }
 
 private:
     Parser::ValueParserFFI::NativeRuleView const& m_view;

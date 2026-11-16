@@ -47,7 +47,6 @@
 namespace Web::Animations {
 
 struct AnimationUpdateContext;
-class KeyframeEffect;
 
 }
 
@@ -486,8 +485,8 @@ public:
     void refresh_computed_style(Layout::BegunRead const&, Optional<CSS::PseudoElement>, CSS::InstalledStyle);
     // Install the custom properties beside a pseudo-element record the style engine derived.
     void install_engine_pseudo_element_custom_property_data(Layout::BegunRead const& read, CSS::PseudoElement, u64 environment);
-    void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, Optional<CSS::PseudoElement>, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
-    void update_animated_properties_for_abstract_element(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
+    void update_animated_properties(Badge<Web::Animations::EffectRef> const&, Optional<CSS::PseudoElement>, Web::Animations::EffectRef const&, Web::Animations::AnimationUpdateContext&);
+    void update_animated_properties_for_abstract_element(Badge<Web::Animations::EffectRef> const&, DOM::AbstractElement, Web::Animations::EffectRef const&, Web::Animations::AnimationUpdateContext&);
 
     Optional<SyntheticPseudoElement&> get_synthetic_pseudo_element(CSS::PseudoElement) const;
     Optional<PseudoElement&> get_pseudo_element(CSS::PseudoElement) const;

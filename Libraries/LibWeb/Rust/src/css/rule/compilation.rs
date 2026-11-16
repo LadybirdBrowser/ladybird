@@ -1414,9 +1414,7 @@ mod tests {
         assert_eq!(compiled.get(), 1);
         use crate::css::rule::FfiRuleTraversalOrder;
         use crate::css::rule::function::{CompiledFunction, rust_rule_view_compile_function};
-        use crate::css::rule::read::{
-            NativeRuleView, rust_rule_view_keyframes, rust_rule_view_property, rust_rule_view_type,
-        };
+        use crate::css::rule::read::{NativeRuleView, rust_rule_view_property, rust_rule_view_type};
         use std::sync::Arc;
         #[derive(Default)]
         struct Definitions {
@@ -1426,16 +1424,6 @@ mod tests {
             descriptors: std::cell::Cell<usize>,
             font_features: std::cell::Cell<usize>,
         }
-        unsafe extern "C" fn frame(
-            context: *const c_void,
-            _: *const f64,
-            count: usize,
-            _: *const crate::css::declaration_block::DeclarationBlockHeader,
-        ) {
-            assert_eq!(count, 1);
-            let definitions = unsafe { &*context.cast::<Definitions>() };
-            definitions.keyframes.set(definitions.keyframes.get() + 1);
-        }
         unsafe extern "C" fn definition(context: *const c_void, rule: &NativeRuleView<'_>, _: FfiUtf16View) {
             let definitions = unsafe { &*context.cast::<Definitions>() };
             match rust_rule_view_type(rule) {
@@ -1443,9 +1431,10 @@ mod tests {
                     .functions
                     .borrow_mut()
                     .push(unsafe { Arc::from_raw(rust_rule_view_compile_function(rule)) }),
-                NativeRuleType::Keyframes => unsafe {
-                    rust_rule_view_keyframes(rule, context, frame);
-                },
+                NativeRuleType::Keyframes => rule.for_each_keyframe(|keys, _| {
+                    assert_eq!(keys.len(), 1);
+                    definitions.keyframes.set(definitions.keyframes.get() + 1);
+                }),
                 NativeRuleType::Property => {
                     assert!(!rust_rule_view_property(rule).is_null());
                     definitions.properties.set(definitions.properties.get() + 1);

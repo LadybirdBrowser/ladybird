@@ -8,6 +8,7 @@
 import re
 
 from collections.abc import Iterable
+from dataclasses import replace
 from pathlib import Path
 from typing import FrozenSet
 from typing import List
@@ -124,6 +125,56 @@ def rust_integer_literal(literal: Optional[str], idl_type_name: str) -> Optional
 
 def is_implemented_in_rust(interface: Optional[Interface]) -> bool:
     return interface is not None and interface.extended_attributes.get("ImplementedIn") == "Rust"
+
+
+def is_member_implemented_in_rust(member) -> bool:
+    """Whether an attribute or an operation of an interface implemented in C++ is [ImplementedIn=Rust]: its bindings
+    and its steps are Rust code, which the C++ bindings call to define it on the interface prototype object."""
+    return member.extended_attributes.get("ImplementedIn") == "Rust"
+
+
+def rust_member_definition_entry_point(interface: Interface, member) -> str:
+    """The entry point of the Rust bindings that defines an [ImplementedIn=Rust] member of an interface implemented in
+    C++ on its interface prototype object."""
+    return f"web_rust_{title_case_to_snake_case(interface.name)}_define_{title_case_to_snake_case(member.name)}"
+
+
+def rust_implemented_members(interface: Optional[Interface]) -> Optional[Interface]:
+    """The interface implemented in C++ with only its members that are [ImplementedIn=Rust], without that extended
+    attribute, which is what the Rust bindings write bindings for. None if it has no such member."""
+    if interface is None or is_implemented_in_rust(interface):
+        return None
+    attributes = [attribute for attribute in interface.regular_attributes if is_member_implemented_in_rust(attribute)]
+    operations = [operation for operation in interface.regular_operations if is_member_implemented_in_rust(operation)]
+    if not attributes and not operations:
+        return None
+
+    def without_implemented_in(member):
+        extended_attributes = dict(member.extended_attributes)
+        del extended_attributes["ImplementedIn"]
+        return replace(member, extended_attributes=extended_attributes)
+
+    return replace(
+        interface,
+        extended_attributes={},
+        parent_name="",
+        constants=[],
+        regular_attributes=[without_implemented_in(attribute) for attribute in attributes],
+        static_attributes=[],
+        regular_operations=[without_implemented_in(operation) for operation in operations],
+        static_operations=[],
+        constructors=[],
+        stringifier=None,
+        iterable=None,
+        async_iterable=None,
+        named_property_getter=None,
+        indexed_property_getter=None,
+        named_property_setter=None,
+        named_property_deleter=None,
+        indexed_property_setter=None,
+        maplike=None,
+        setlike=None,
+    )
 
 
 # The interfaces implemented in C++ that an interface implemented in Rust can inherit from
@@ -542,10 +593,23 @@ def is_record_of_cells(idl_type: IDLType, context: GenerationContext) -> bool:
     )
 
 
+def union_holds_sequence_of_cells(idl_type: IDLType, context: GenerationContext) -> bool:
+    """Whether the type is a union with a member that is a sequence of values that are or can hold cells, which the
+    enum of the union keeps alive in a MarkedVec, for as long as the reference to the VM that it was converted with
+    lives."""
+    return isinstance(idl_type, IDLUnionType) and any(
+        is_sequence_of_cells(member_type, context) for member_type in idl_type.flattened_member_types()
+    )
+
+
 def dictionary_holds_sequence_of_cells(dictionary: Dictionary, context: GenerationContext) -> bool:
-    """Whether a member of the dictionary is a sequence of values that are or can hold cells, which the struct of the
-    dictionary keeps alive in a MarkedVec, for as long as the reference to the VM that it was converted with lives."""
-    return any(is_sequence_of_cells(member.type, context) for member in dictionary.members)
+    """Whether a member of the dictionary is a sequence of values that are or can hold cells, or a union with such a
+    member, which the struct of the dictionary keeps alive in a MarkedVec, for as long as the reference to the VM that
+    it was converted with lives."""
+    return any(
+        is_sequence_of_cells(member.type, context) or union_holds_sequence_of_cells(member.type, context)
+        for member in dictionary.members
+    )
 
 
 def rust_dictionary_type(dictionary: Dictionary, context: GenerationContext) -> str:

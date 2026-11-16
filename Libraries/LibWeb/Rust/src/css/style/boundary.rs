@@ -14,8 +14,7 @@
 
 use super::ReplacedContentInput;
 use super::StyleEngine;
-use super::animations::HeldAppliedAnimationDefinition;
-use super::bridge::{ElementBoxKind, FfiAppliedAnimationDefinition, borrow};
+use super::bridge::{ElementBoxKind, borrow};
 use super::bridge::{FfiFrameSetBorder, FfiFrameSetDimension};
 use super::engine_calls::EngineWrite;
 use super::engine_calls::with_engine;
@@ -98,9 +97,6 @@ carried! {
         |span| unsafe { borrow(span.data, span.size) }.iter().copied().map(StyleAtomID).collect();
     Box<[StyleNodeID]>: FfiSpan<u32> as "ReadonlySpan<StyleNodeID>" =
         |span| unsafe { borrow(span.data, span.size) }.iter().copied().filter_map(StyleNodeID::from_raw).collect();
-    Box<[HeldAppliedAnimationDefinition]>: FfiSpan<FfiAppliedAnimationDefinition>
-        as "ReadonlySpan<FfiAppliedAnimationDefinition>" =
-        |span| unsafe { borrow(span.data, span.size) }.iter().map(|&definition| unsafe { HeldAppliedAnimationDefinition::retained(definition) }).collect();
     FfiSpan<u16>: FfiSpan<u16> as "ReadonlySpan<u16>" = |span| span;
     FfiSpan<u32>: FfiSpan<u32> as "ReadonlySpan<StyleNodeID>" = |span| span;
 }
@@ -431,9 +427,6 @@ style_boundary! {
             engine.set_held_pseudo_style_record(node, target, style_record);
             drop(released);
         };
-        set_element_css_defined_animations => SetElementCssDefinedAnimations {
-            node: StyleNodeID, slot: u8, names: Box<[CssString]>, definitions: Box<[HeldAppliedAnimationDefinition]>
-        } => engine.set_element_css_defined_animations(node, slot, names, definitions);
         set_sheet_conditions_hold => SetSheetConditionsHold { sheet: SheetID, conditions_hold: bool };
     }
 

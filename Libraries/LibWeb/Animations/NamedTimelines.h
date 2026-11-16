@@ -12,8 +12,8 @@
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
-#include <LibGC/WeakHashSet.h>
-#include <LibWeb/Animations/ViewTimeline.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Animations {
@@ -29,11 +29,11 @@ public:
     [[nodiscard]] static GC::Ref<NamedTimelines> create(DOM::Document&);
 
     // https://drafts.csswg.org/scroll-animations-1/#target-timeline
-    GC::Ptr<ScrollTimeline> target_timeline(DOM::AbstractElement const&, Utf16FlyString const& name);
+    GC::Ptr<AnimationTimeline> target_timeline(DOM::AbstractElement const&, Utf16FlyString const& name);
 
-    // Tracks an animation whose timeline is a named timeline, so that it follows the timeline its name finds as the
+    // Tracks a CSS animation whose timeline is a named timeline, so that it follows the timeline its name finds as the
     // declarations of the document change.
-    void track_animation(CSS::CSSAnimation&);
+    void track_animation(AnimationRef const&);
 
     // Looks the timelines of the tracked animations up again, where the declarations of the document have changed.
     // Returns whether any animation changed its timeline.
@@ -48,7 +48,7 @@ private:
         Utf16FlyString name;
         bool is_view { false };
         ScrollAxis axis { ScrollAxis::Block };
-        ViewTimeline::Inset view_inset;
+        ViewTimelineInset view_inset;
     };
     struct DeclaringElement {
         GC::Ref<DOM::Element> element;
@@ -65,7 +65,7 @@ private:
     void refresh_declarations();
 
     DeclaringElement const* declaring_element(DOM::Element const&) const;
-    GC::Ref<ScrollTimeline> timeline_for(DOM::Element&, Declaration const&);
+    GC::Ref<AnimationTimeline> timeline_for(DOM::Element&, Declaration const&);
 
     GC::Ref<DOM::Document> m_document;
 
@@ -84,9 +84,9 @@ private:
     struct TimelineKeyTraits : public DefaultTraits<TimelineKey> {
         static unsigned hash(TimelineKey const& key) { return pair_int_hash(ptr_hash(key.element.ptr()), key.name.hash()); }
     };
-    HashMap<TimelineKey, GC::Ref<ScrollTimeline>, TimelineKeyTraits> m_timelines;
+    HashMap<TimelineKey, GC::Ref<AnimationTimeline>, TimelineKeyTraits> m_timelines;
 
-    GC::WeakHashSet<CSS::CSSAnimation> m_tracked_animations;
+    // NB: The document holds the tracked animations, as its animations following named timelines.
     bool m_tracked_animations_need_update { false };
 };
 

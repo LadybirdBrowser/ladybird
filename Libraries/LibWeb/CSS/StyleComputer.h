@@ -15,8 +15,7 @@
 #include <AK/Utf16View.h>
 #include <AK/WeakPtr.h>
 #include <LibGC/Weak.h>
-#include <LibWeb/Animations/KeyframeEffect.h>
-#include <LibWeb/CSS/CSSAnimationProperties.h>
+#include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
@@ -71,7 +70,11 @@ public:
     void register_style_engine_sheet_source(StyleSheetState const&);
     [[nodiscard]] Optional<StyleEngineRuleTarget> style_engine_rule_target(Layout::BegunRead const& read, StyleEngineRuleID rule_id) const;
 
-    Animations::BaseKeyframe::ParsedProperties compute_css_keyframe_values(DOM::AbstractElement, Vector<Animations::BaseKeyframe>&, Optional<Animations::KeyframeEffect::KeyFrameSet::StyleSheetResourceContext> const&) const;
+    // Computes, for script reading the keyframes of a CSS animation, what the declarations `properties` of
+    // `keyframe_count` keyframes from a style sheet with `resource_context` compute to over the style of the element,
+    // emitting each computed value with the index of its keyframe, and each value of the element with `keyframe_count`.
+    using CSSKeyframeValueCallback = void (*)(void*, size_t, u16, StyleValueFFI::StyleValueData const*);
+    void compute_css_keyframe_values(DOM::AbstractElement, ReadonlySpan<ComputedValuesFFI::FfiReflectedKeyframeProperty>, size_t keyframe_count, ComputedValuesFFI::FfiStyleSheetResourceContext const& resource_context, void* context, CSSKeyframeValueCallback) const;
 
     static CSSPixels default_user_font_size();
 
@@ -136,11 +139,11 @@ public:
     // environment the engine resolved them over. Nothing where `identity` is not an environment the engine resolved.
     [[nodiscard]] RefPtr<CustomPropertyData const> engine_custom_property_declarations_over(Layout::BegunRead const& read, u64 identity, RefPtr<CustomPropertyData const> const& inherited) const;
 
-    void collect_animations_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
+    void collect_animations_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<Animations::EffectRef>, ComputedStyleWorkingSet&) const;
     // One element's animations, refreshed over the record it holds as `collect_animations_into()` refreshes them.
     struct AnimationRefreshRequest {
         DOM::AbstractElement abstract_element;
-        ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects;
+        ReadonlySpan<Animations::EffectRef> effects;
         ComputedStyleWorkingSet& computed_properties;
 
         void visit_edges(GC::Cell::Visitor&) const;
@@ -167,7 +170,7 @@ public:
     void apply_animated_properties_to_reconstruction(ComputedStyleWorkingSet&, ComputedValues const&) const;
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties_for_animation(InstalledStyle const&) const;
 
-    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_style_for_animation_commit(Layout::BegunRead const&, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>) const;
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_style_for_animation_commit(Layout::BegunRead const&, DOM::AbstractElement, ReadonlySpan<Animations::EffectRef>) const;
 
     void begin_transition_stabilization_epoch();
     // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
@@ -181,7 +184,7 @@ public:
     // of the style change.
     [[nodiscard]] RequiredInvalidationAfterStyleChange run_transition_step_for_installed_record(Layout::BegunRead const& read, DOM::AbstractElement, InstalledStyle const& before_change_style) const;
     void commit_transition_stabilization_epoch();
-    void for_each_provisional_transition_effect(DOM::AbstractElement const&, Function<void(Animations::KeyframeEffect&)> const&) const;
+    void for_each_provisional_transition_effect(DOM::AbstractElement const&, Function<void(Animations::EffectRef const&)> const&) const;
 
     // The media features of the current style update, which the style engine copies with each transaction.
     [[nodiscard]] Parser::ValueParserFFI::FfiMediaEnvironment const* ensure_media_environment_for_style_update() const;
@@ -193,14 +196,14 @@ private:
 
 private:
     // Samples over the record the element holds, which the working set was reconstructed from.
-    void collect_animation_effects_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
+    void collect_animation_effects_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<Animations::EffectRef>, ComputedStyleWorkingSet&) const;
     enum class AnimationSamplePurpose {
         Rendering,
         CommitStyles,
         KeyframeReflection,
     };
     struct AnimationSample;
-    [[nodiscard]] NonnullOwnPtr<AnimationSample> begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, AnimationSamplePurpose = AnimationSamplePurpose::Rendering) const;
+    [[nodiscard]] NonnullOwnPtr<AnimationSample> begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<Animations::EffectRef>, ComputedStyleWorkingSet&, AnimationSamplePurpose = AnimationSamplePurpose::Rendering) const;
     void finish_animation_sample(AnimationSample&, ComputedValuesFFI::FfiHostAnimationSampleResult const&) const;
     void finish_animation_refresh(Layout::BegunRead const& read, DOM::AbstractElement, ComputedStyleWorkingSet&) const;
     void publish_animated_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
@@ -309,8 +312,8 @@ private:
         GC::Ptr<DOM::Element> element;
         Optional<PseudoElement> pseudo_element;
         PropertyNameAndID property;
-        GC::Ptr<CSSTransition> committed_transition;
-        GC::Ptr<CSSTransition> proposed_transition;
+        Optional<Animations::AnimationRef> committed_transition;
+        Optional<Animations::AnimationRef> proposed_transition;
         StyleValueFFI::FfiTransitionActionKind action {};
         bool has_decision { false };
     };

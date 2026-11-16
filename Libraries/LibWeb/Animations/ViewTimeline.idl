@@ -7,7 +7,7 @@ dictionary ViewTimelineOptions {
 };
 
 // https://drafts.csswg.org/scroll-animations-1/#viewtimeline
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface ViewTimeline : ScrollTimeline {
     constructor(ViewTimelineOptions options);
     readonly attribute Element subject;

@@ -135,31 +135,31 @@ NamedTimelines::DeclaringElement const* NamedTimelines::declaring_element(DOM::E
     return &m_declaring_elements[*index];
 }
 
-GC::Ref<ScrollTimeline> NamedTimelines::timeline_for(DOM::Element& element, Declaration const& declaration)
+GC::Ref<AnimationTimeline> NamedTimelines::timeline_for(DOM::Element& element, Declaration const& declaration)
 {
     TimelineKey key { element, declaration.name };
     if (auto existing = m_timelines.get(key); existing.has_value()) {
         // An element may only define one timeline per name, which keeps its identity while its axis and inset change.
-        if (auto* view_timeline = as_if<ViewTimeline>(*existing.value()); view_timeline && declaration.is_view) {
-            view_timeline->set_axis_and_inset(declaration.axis, declaration.view_inset);
+        if (existing.value()->is_view_timeline() && declaration.is_view) {
+            existing.value()->set_axis_and_inset(declaration.axis, declaration.view_inset);
             return *existing;
         }
-        if (!is<ViewTimeline>(*existing.value()) && !declaration.is_view) {
+        if (!existing.value()->is_view_timeline() && !declaration.is_view) {
             existing.value()->set_axis(declaration.axis);
             return *existing;
         }
     }
 
     HTML::TemporaryExecutionContext context { m_document->relevant_settings_object() };
-    GC::Ref<ScrollTimeline> timeline = declaration.is_view
-        ? GC::Ref<ScrollTimeline> { ViewTimeline::create(m_document, DOM::AbstractElement { element }, declaration.axis, declaration.view_inset) }
-        : ScrollTimeline::create(m_document, GC::Ptr<DOM::Element const> { &element }, declaration.axis);
+    auto timeline = declaration.is_view
+        ? AnimationTimeline::create_view_timeline(m_document, DOM::AbstractElement { element }, declaration.axis, declaration.view_inset)
+        : AnimationTimeline::create_scroll_timeline(m_document, GC::Ptr<DOM::Element const> { &element }, declaration.axis);
     m_timelines.set(key, timeline);
     return timeline;
 }
 
 // https://drafts.csswg.org/scroll-animations-1/#target-timeline
-GC::Ptr<ScrollTimeline> NamedTimelines::target_timeline(DOM::AbstractElement const& element, Utf16FlyString const& name)
+GC::Ptr<AnimationTimeline> NamedTimelines::target_timeline(DOM::AbstractElement const& element, Utf16FlyString const& name)
 {
     refresh_declarations();
 
@@ -212,9 +212,9 @@ GC::Ptr<ScrollTimeline> NamedTimelines::target_timeline(DOM::AbstractElement con
     return nullptr;
 }
 
-void NamedTimelines::track_animation(CSS::CSSAnimation& animation)
+void NamedTimelines::track_animation(AnimationRef const& animation)
 {
-    m_tracked_animations.set(animation);
+    m_document->animations_following_named_timelines().set(animation);
 }
 
 bool NamedTimelines::update_tracked_animations()
@@ -223,14 +223,12 @@ bool NamedTimelines::update_tracked_animations()
     if (!m_tracked_animations_need_update)
         return false;
     m_tracked_animations_need_update = false;
-    GC::RootVector<GC::Ref<CSS::CSSAnimation>> animations;
-    for (auto& animation : m_tracked_animations)
+    GC::RootVector<AnimationRef> animations;
+    for (auto const& animation : m_document->animations_following_named_timelines())
         animations.append(animation);
     bool any_timeline_changed = false;
-    for (auto& animation : animations) {
-        auto previous_timeline = animation->timeline();
-        animation->update_named_timeline();
-        if (animation->timeline() != previous_timeline)
+    for (auto const& animation : animations) {
+        if (CSS::CSSAnimation::update_named_timeline(animation))
             any_timeline_changed = true;
     }
     return any_timeline_changed;

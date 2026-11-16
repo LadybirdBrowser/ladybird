@@ -21,6 +21,8 @@ from Generators.libweb_bindings.glue_headers import bindings_glue_header_for_int
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_passes_realm_to_implementation
 from Generators.libweb_bindings.realms import member_realm_expr
+from Generators.libweb_bindings.rust_types import is_member_implemented_in_rust
+from Generators.libweb_bindings.rust_types import rust_member_definition_entry_point
 from Generators.libweb_bindings.security_checks import implementation_check
 from Generators.libweb_bindings.security_checks import interface_needs_security_check
 from Generators.libweb_bindings.security_checks import on_the_window
@@ -179,10 +181,21 @@ def define_the_regular_operations(
     interface: Interface,
     unforgeable: bool = False,
 ) -> None:
-    for name, operations in overload_resolution.operation_overload_sets(interface).items():
+    for name, operations in overload_resolution.operation_overload_sets(interface, with_rust_operations=True).items():
         if any("LegacyUnforgeable" in operation.extended_attributes for operation in operations) != unforgeable:
             continue
         operation = operations[0]
+        if is_member_implemented_in_rust(operation):
+            # NB: The Rust bindings define the native function of an operation that they implement.
+            out.write(
+                wrap_with_extended_attribute_exposure_checks(
+                    includes,
+                    operation.extended_attributes,
+                    f"    {rust_member_definition_entry_point(interface, operation)}(&vm, &realm, &object);\n\n",
+                    f"{interface.name}.{name}",
+                )
+            )
+            continue
         out.write(
             wrap_with_extended_attribute_exposure_checks(
                 includes,

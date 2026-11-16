@@ -18,7 +18,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Animations/Animation.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/Bindings/Sanitizer.h>
 #include <LibWeb/CSS/ComputedValues.h>

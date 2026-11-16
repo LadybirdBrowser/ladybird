@@ -10,6 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/Types.h>
+#include <LibGC/Cell.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -21,10 +22,9 @@ enum class FfiVisualAnimationTargetKind : u8;
 
 namespace Web::Painting {
 
-// The keyframes of an effect as the compositor animation builder reads them: which properties each
-// keyframe gives a value, the easing descriptors with the storage they borrow, and the keyframe set
-// entries the builder resolves values from by index, against the effect's target. An update pass
-// builds them once for each effect it asks about.
+// The keyframes of an effect as the compositor animation builder reads them: the effect's keyframe
+// set, with the easing a keyframe that declares none runs, and the target the builder resolves the
+// values they declare against. An update pass builds them once for each effect it asks about.
 class WEB_API CompositorAnimationKeyframes {
     AK_MAKE_NONCOPYABLE(CompositorAnimationKeyframes);
     AK_MAKE_NONMOVABLE(CompositorAnimationKeyframes);
@@ -32,8 +32,11 @@ class WEB_API CompositorAnimationKeyframes {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    CompositorAnimationKeyframes(Animations::KeyframeEffect const&, Animations::Animation const&, DOM::AbstractElement target);
+    CompositorAnimationKeyframes(Animations::EffectRef const&, Animations::AnimationRef const&, DOM::AbstractElement target);
     ~CompositorAnimationKeyframes();
+
+    // Visits what keeps the effect, its animation and the target alive, which the holder of the keyframes traces.
+    void visit_edges(GC::Cell::Visitor&) const;
 
     // Whether the transforms the effect animates keep the axes in place: it does not rotate, and
     // its transform keyframes only translate and scale.
@@ -49,17 +52,15 @@ private:
     NonnullOwnPtr<Data> m_data;
 };
 
-// What a keyframe effect has built for the compositor, kept in Rust: the values lowered from its
-// keyframes, the animations built in the current update pass, and the ones it published last.
+// What a keyframe effect has built for the compositor, which the effect's record keeps in Rust: the values lowered
+// from its keyframes, the animations built in the current update pass, and the ones it published last. This borrows
+// it from the record, which keeps it for as long as the effect lives and forgets it as the effect changes.
 class WEB_API CompositorAnimationEffectState {
-    AK_MAKE_NONCOPYABLE(CompositorAnimationEffectState);
-    AK_MAKE_NONMOVABLE(CompositorAnimationEffectState);
-
 public:
-    AK_ALLOC_WITH_KMALLOC;
-
-    CompositorAnimationEffectState();
-    ~CompositorAnimationEffectState();
+    explicit CompositorAnimationEffectState(void* handle)
+        : m_handle(handle)
+    {
+    }
 
     struct BuildOutcome {
         // The animation is built and waits with the effect's other pending animations.
@@ -94,9 +95,6 @@ public:
     void publish_pending(DOM::Document&, ReuseRetainedTimingAnchors);
     bool has_retained() const;
     void clear_retained();
-
-    // The keyframes changed: everything lowered from them is stale.
-    void reset();
 
 private:
     void* m_handle { nullptr };

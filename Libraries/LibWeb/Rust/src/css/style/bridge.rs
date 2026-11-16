@@ -1171,67 +1171,18 @@ impl StyleEngine {
     }
 }
 
-/// The definition a plan last applied to one of the host's CSS animations, published beside the
-/// animation's name: what the style computation handed the host for it, field for field, so that a
-/// definition just computed and one published back compare directly. A plan whose every definition
-/// equals what its animation last had applied changes nothing, and the engine does not hand it
-/// over.
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct FfiAppliedAnimationDefinition {
-    pub values: FfiAppliedAnimationValues,
-    /// The keyframe set the plan gave the animation's effect, which the animation retains.
-    pub keyframe_set: *const c_void,
-    /// The computed `animation-timing-function`, which the animation retains, or null where no plan
-    /// has described the animation yet.
-    pub timing_function: *const c_void,
-    /// The calculations the edges of the attachment range resolve, which the animation retains, or null.
-    pub range_start_calculated: *const c_void,
-    pub range_end_calculated: *const c_void,
-}
-
-/// What an applied animation definition holds by value, its numbers before its bytes, which pack
-/// behind them.
-#[repr(C)]
-#[derive(Clone, Copy, PartialEq)]
-pub struct FfiAppliedAnimationValues {
-    pub duration: f64,
-    pub iteration_count: f64,
-    pub delay: f64,
-    pub range_start_px: f64,
-    pub range_start_percentage: f64,
-    pub range_end_px: f64,
-    pub range_end_percentage: f64,
-    pub duration_is_auto: bool,
-    pub direction: u8,
-    pub play_state: u8,
-    pub fill_mode: u8,
-    pub composition: u8,
-    /// An `FfiAnimationTimelineKind`.
-    pub timeline_kind: u8,
-    pub scroll_scroller: u8,
-    pub scroll_axis: u8,
-    pub range_start_name: u8,
-    pub range_end_name: u8,
-}
-
-const _: () = assert!(size_of::<FfiAppliedAnimationValues>() == 72);
-
-// SAFETY: the keyframe set is only compared by address, and the timing function is immutable style
-// value data the animation retains for as long as the definition is published, read only to
-// compare it.
-unsafe impl Send for FfiAppliedAnimationDefinition {}
-unsafe impl Sync for FfiAppliedAnimationDefinition {}
-
 /// Replaces the `@keyframes` row of one style scope: each name the scope defines, packed into one
-/// buffer of code units with a length each, with the host's keyframe set for it. An empty row gives
-/// the scope's row up; a shadow root's scope is named by the root's pointer identity as well.
+/// buffer of code units with a length each, with the keyframe set for it, by the address of a set
+/// the host holds a reference to. The row takes references of its own. An empty row gives the
+/// scope's row up; a shadow root's scope is named by the root's pointer identity as well.
 ///
-/// The host publishes a scope whenever its rule cache is built, and keeps a reference to every set
-/// the row names until it replaces or gives the row up. The row is written as the host's other
-/// writes are, ahead of the next job, which is the first that resolves keyframes from it.
+/// The host publishes a scope whenever its rule cache is built. The row is written as the host's
+/// other writes are, ahead of the next job, which is the first that resolves keyframes from it.
+///
+/// # Safety
+/// Every set must be a keyframe set the host holds a reference to.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_set_tree_scope_animation_keyframes(
+pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
     host: &DocumentHost,
     tree_scope: u32,
     name_lengths: ak::Span<'_, u32>,
@@ -1243,11 +1194,19 @@ pub extern "C" fn style_engine_set_tree_scope_animation_keyframes(
         keyframe_sets.as_slice().len(),
         "each keyframes name has a set"
     );
-    let row = super::animations::AnimationKeyframes::row(
-        name_lengths.as_slice(),
-        name_units.as_slice(),
-        keyframe_sets.as_slice(),
-    );
+    let keyframe_sets: Vec<_> = keyframe_sets
+        .as_slice()
+        .iter()
+        .map(|&set| {
+            let set = set as *const crate::animations::keyframes::KeyframeSet;
+            // SAFETY: Guaranteed by the caller; the row takes a reference of its own.
+            unsafe {
+                std::sync::Arc::increment_strong_count(set);
+                std::sync::Arc::from_raw(set)
+            }
+        })
+        .collect();
+    let row = super::animations::AnimationKeyframes::row(name_lengths.as_slice(), name_units.as_slice(), keyframe_sets);
     let write = super::engine_calls::EngineWrite::AnimationKeyframes {
         tree_scope: TreeScopeID(tree_scope),
         row,

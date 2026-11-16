@@ -352,6 +352,11 @@ fn property_index(property_id: u16) -> usize {
     (property_id - FIRST_SHORTHAND_PROPERTY_ID) as usize
 }
 
+/// The IDL attribute name of the property, https://drafts.csswg.org/cssom/#css-property-to-idl-attribute
+pub(crate) fn property_idl_name(property_id: u16) -> &'static str {
+    PROPERTY_IDL_NAMES[property_index(property_id)]
+}
+
 pub(crate) fn property_is_logical_alias_including_shorthands(property_id: u16) -> bool {
     PROPERTY_IS_LOGICAL_ALIAS[property_index(property_id)]
 }

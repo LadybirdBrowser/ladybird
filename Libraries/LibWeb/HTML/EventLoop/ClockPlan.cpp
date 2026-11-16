@@ -4,14 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/AnyOf.h>
 #include <AK/Math.h>
-#include <LibWeb/Animations/Animation.h>
-#include <LibWeb/Animations/DocumentTimeline.h>
-#include <LibWeb/Animations/KeyframeEffect.h>
-#include <LibWeb/Animations/ScrollTimeline.h>
-#include <LibWeb/Animations/ViewTimeline.h>
-#include <LibWeb/CSS/CSSTransition.h>
+#include <LibWeb/Animations/AnimationEffect.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/Compositor/RenderClock.h>
@@ -31,102 +27,25 @@
 
 namespace Web::HTML {
 
-// Whether the timing of `effect` is in time values of `type` throughout: milliseconds on the document timeline, and
-// percentages of progress on a scroll timeline.
-static bool timing_is_in(Animations::KeyframeEffect const& effect, Animations::TimeValue::Type type)
-{
-    return effect.start_delay().type == type && effect.iteration_duration().type == type && effect.active_duration().type == type;
-}
-
-// How much of `edge` is a percentage of the scrollport's size, which a tick that resizes the scrollport resolves again.
-static double inset_percentage(Animations::ViewTimeline::InsetEdge const& edge)
-{
-    return edge.is_auto ? 0 : edge.percentage;
-}
-
-// Whether `edge` is a length plus a percentage, which is all a tick that resizes the scrollport can resolve again.
-static bool inset_is_linear(Animations::ViewTimeline::InsetEdge const& edge)
-{
-    return !edge.calculated || CSS::ComputedValuesFFI::rust_length_percentage_is_linear(edge.calculated.data());
-}
-
-// Adds the scroll timeline `timeline` that `effect` runs on, at `local_time`, to `scroll_timelines`, whose last entry
-// is the timeline's where an effect of it was planned before. Answers whether a tick may sample it.
-static bool plan_scroll_timeline(Vector<Layout::RustFFI::FfiPlannedScrollTimeline>& scroll_timelines, Animations::ScrollTimeline const& timeline, Animations::KeyframeEffect const& effect, Optional<Animations::TimeValue> local_time)
-{
-    auto const& scroller = timeline.followed_scroller();
-    auto progress = timeline.current_time();
-    if (!scroller.has_value() || !progress.has_value() || progress->type != Animations::TimeValue::Type::Percentage
-        || !local_time.has_value() || local_time->type != Animations::TimeValue::Type::Percentage
-        || !timing_is_in(effect, Animations::TimeValue::Type::Percentage))
-        return false;
-    // A tick finds the subject of a view timeline by its box, which a pseudo-element does not name.
-    auto const* view_timeline = as_if<Animations::ViewTimeline>(timeline);
-    if (view_timeline && (view_timeline->subject_internal().pseudo_element().has_value() || !view_timeline->subject_internal().element().style_node_id() || !view_timeline->last_metrics().has_value()))
-        return false;
-    // A tick resolves the insets of a view timeline as a length plus a percentage, which not every calculation is.
-    if (view_timeline && (!inset_is_linear(view_timeline->inset().start) || !inset_is_linear(view_timeline->inset().end)))
-        return false;
-    if (scroll_timelines.is_empty() || scroll_timelines.last().timeline != timeline.clock_identity()) {
-        scroll_timelines.append({
-            .timeline = timeline.clock_identity(),
-            .scroller = scroller->scroll_node.node_id.value(),
-            .scroller_element = scroller->scroller_style_node,
-            .vertical = scroller->vertical,
-            .scroll_offset = scroller->scroll_offset,
-            .max_scroll_offset = scroller->max_scroll_offset,
-            .view = view_timeline
-                ? Layout::RustFFI::FfiPlannedViewTimeline {
-                      .subject = view_timeline->subject_internal().element().style_node_id().value(),
-                      .scrollport_size = view_timeline->last_metrics()->scrollport_size,
-                      .inset_start = view_timeline->last_metrics()->inset_start,
-                      .inset_end = view_timeline->last_metrics()->inset_end,
-                      .inset_start_percentage = inset_percentage(view_timeline->inset().start),
-                      .inset_end_percentage = inset_percentage(view_timeline->inset().end),
-                      .subject_offset = view_timeline->last_metrics()->subject_offset,
-                      .subject_size = view_timeline->last_metrics()->subject_size,
-                  }
-                : Layout::RustFFI::FfiPlannedViewTimeline {},
-        });
-    }
-    return true;
-}
-
 // Whether the keyframes of `effect` animate a property a clock tick cannot sample: a custom property, or one that changes
 // the layout tree's shape or what the main thread observes of an element's box.
-static bool animates_what_a_tick_cannot(Animations::KeyframeEffect const& effect)
+static bool animates_what_a_tick_cannot(Animations::EffectRef const& effect)
 {
-    auto const* key_frame_set = effect.key_frame_set();
-    if (!key_frame_set)
-        return false;
-    for (auto const& keyframe : key_frame_set->keyframes_by_key) {
-        for (auto const& [property, value] : keyframe.properties) {
-            if (property.is_custom_property() || first_is_one_of(property.id(), CSS::PropertyID::Display, CSS::PropertyID::Visibility, CSS::PropertyID::ContentVisibility))
-                return true;
-        }
-    }
-    return false;
+    auto const& keyframe_set = effect.keyframe_set();
+    return keyframe_set && keyframe_set.facts().animates_what_a_tick_cannot;
 }
 
 // Whether the keyframes of `effect` animate a property that the children of its target inherit.
-static bool animates_an_inherited_property(Animations::KeyframeEffect const& effect)
+static bool animates_an_inherited_property(Animations::EffectRef const& effect)
 {
-    auto const* key_frame_set = effect.key_frame_set();
-    if (!key_frame_set)
-        return false;
-    for (auto const& keyframe : key_frame_set->keyframes_by_key) {
-        for (auto const& [property, value] : keyframe.properties) {
-            if (property.is_custom_property() || CSS::is_inherited_property(property.id()))
-                return true;
-        }
-    }
-    return false;
+    auto const& keyframe_set = effect.keyframe_set();
+    return keyframe_set && keyframe_set.facts().animates_an_inherited_property;
 }
 
 // Whether no box shows anything of the animation of `effect` on `target`: the target has no box, as under
 // `display: none`, or it is `display: contents`, and the effect animates neither one of its pseudo-elements nor what its
 // children inherit, or those have no boxes either.
-static bool no_box_shows(Animations::KeyframeEffect const& effect, DOM::Element const& target, Layout::BegunRead const& read)
+static bool no_box_shows(Animations::EffectRef const& effect, DOM::Element const& target, Layout::BegunRead const& read)
 {
     if (target.unsafe_layout_node(read))
         return false;
@@ -144,7 +63,7 @@ static bool no_box_shows(Animations::KeyframeEffect const& effect, DOM::Element 
 }
 
 // Whether a tick can sample the animation of `effect` on `target`.
-static bool tick_can_sample(DOM::Document const& document, Animations::KeyframeEffect const& effect, DOM::Element const& target, Layout::BegunRead const& read)
+static bool tick_can_sample(DOM::Document const& document, Animations::EffectRef const& effect, DOM::Element const& target, Layout::BegunRead const& read)
 {
     // The root element and the body paint the background the canvas may take over, which only the host resolves.
     auto const* layout_node = target.unsafe_layout_node(read);
@@ -153,15 +72,14 @@ static bool tick_can_sample(DOM::Document const& document, Animations::KeyframeE
         && layout_node && Painting::has_committed_box(*layout_node) && !animates_what_a_tick_cannot(effect);
 }
 
-// An animation of a scroll timeline that finished runs again as the scroll goes back.
-static bool runs_for_clock_plan(Animations::Animation const& animation, bool on_scroll_timeline)
+// NB: An animation of a scroll timeline that finished runs again as the scroll goes back.
+static bool runs_for_clock_plan(Animations::RustFFI::FfiAnimationTimingState const& state, bool on_scroll_timeline)
 {
-    auto play_state = animation.play_state();
-    return play_state == Bindings::AnimationPlayState::Running || (on_scroll_timeline && play_state == Bindings::AnimationPlayState::Finished);
+    return state.play_state == Animations::RustFFI::AnimationPlayState::Running || (on_scroll_timeline && state.play_state == Animations::RustFFI::AnimationPlayState::Finished);
 }
 
 // The compositor runs these on its own, so the render clock does not sample them.
-static bool runs_on_compositor(Animations::KeyframeEffect const& effect)
+static bool runs_on_compositor(Animations::EffectRef const& effect)
 {
     return effect.is_compositor_driven() || effect.is_compositor_replaced();
 }
@@ -218,7 +136,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
         // main thread sends as it gets to them.
         Vector<u32> elements;
         double last_end = -AK::Infinity<double>;
-        Vector<Layout::RustFFI::FfiPlannedScrollTimeline> scroll_timelines;
+        Vector<Animations::RustFFI::TimelineCell const*> scroll_timelines;
         Vector<u32> held_elements;
         auto plan = [&] {
             if (!document.is_fully_active() || document.hidden() || !document.window())
@@ -227,58 +145,49 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
             auto timeline_time = timeline->current_time();
             if (!timeline_time.has_value() || timeline_time->type != Animations::TimeValue::Type::Milliseconds)
                 return false;
-            auto plan_animation = [&](Animations::Animation const& animation, Animations::ScrollTimeline const* scroll_timeline, Animations::KeyframeEffect const& effect, DOM::Element const& target) {
-                // A tick moves the document's timeline, at the rate it runs, and the scroll timelines, to where the
-                // compositor has scrolled. What the compositor runs already runs there while its play is pending.
-                // Anything else holds still while its play is pending, until the host makes it ready, as it does in
-                // the boxes of the host's frame: the ticks sample nothing of its element.
-                if (animation.pending() && !runs_on_compositor(effect)) {
+            auto plan_animation = [&](Animations::AnimationRef const& animation, Animations::RustFFI::FfiAnimationTimingState const& state, Animations::AnimationTimeline const* scroll_timeline, Animations::EffectRef const& effect, DOM::Element const& target) {
+                // NB: The record decides what the plan makes of the animation as far as its timing goes. One whose play
+                //     is pending holds still, and the ticks sample nothing of its element.
+                auto planned = Animations::RustFFI::animations_animation_clock_plan(&animation.record());
+                if (planned.kind == Animations::RustFFI::FfiClockPlanAnimationKind::Held) {
                     if (!effect.pseudo_element_type().has_value())
                         held_elements.append(target.style_node_id().value());
                     return true;
                 }
-                if (!(animation.playback_rate() > 0))
-                    return false;
-                // A scroll timeline with nothing to scroll holds still, and so do its animations.
-                if (scroll_timeline && !scroll_timeline->followed_scroller().has_value())
+                // NB: Nor does a tick move one it cannot, as one of a scroll timeline with nothing to scroll, or one that a
+                //     tick cannot follow.
+                if (planned.kind == Animations::RustFFI::FfiClockPlanAnimationKind::NotTicked)
                     return false;
                 // What the compositor runs, what the main thread does not sample per frame either, or what no box shows,
                 // a tick does not sample.
                 bool const tick_samples = !runs_on_compositor(effect) && !effect.can_skip_per_frame_style_update() && !no_box_shows(effect, target, read);
                 if (tick_samples && !tick_can_sample(document, effect, target, read))
                     return false;
-                auto local_time = effect.local_time();
-                if (scroll_timeline) {
-                    if (!plan_scroll_timeline(scroll_timelines, *scroll_timeline, effect, local_time))
-                        return false;
-                } else if (!local_time.has_value() || local_time->type != Animations::TimeValue::Type::Milliseconds
-                    || !timing_is_in(effect, Animations::TimeValue::Type::Milliseconds)
-                    || local_time->value >= effect.start_delay().value + effect.active_duration().value) {
-                    return false;
-                }
+                // NB: The plan takes the scroll timelines a tick follows as they are when it is sealed.
+                if (scroll_timeline && (scroll_timelines.is_empty() || scroll_timelines.last() != &scroll_timeline->record()))
+                    scroll_timelines.append(&scroll_timeline->record());
                 if (!tick_samples)
                     return true;
-                if (!scroll_timeline) {
-                    auto active_end = effect.start_delay().value + effect.active_duration().value;
-                    last_end = max(last_end, timeline_time->value + (active_end - local_time->value) / animation.playback_rate());
-                }
+                if (!scroll_timeline)
+                    last_end = max(last_end, timeline_time->value + (planned.active_end.value - planned.local_time.value) / state.playback.playback_rate);
                 auto element = target.style_node_id().value();
                 if (!elements.contains_slow(element))
                     elements.append(element);
                 return true;
             };
             for (auto const& associated_timeline : document.associated_animation_timelines()) {
-                auto const* scroll_timeline = as_if<Animations::ScrollTimeline>(*associated_timeline);
-                for (auto& animation : associated_timeline->associated_animations()) {
-                    if (!runs_for_clock_plan(animation, scroll_timeline != nullptr))
+                Animations::AnimationTimeline const* scroll_timeline = associated_timeline->is_scroll_timeline() ? associated_timeline.ptr() : nullptr;
+                for (auto const& animation : associated_timeline->associated_animations()) {
+                    auto const state = animation.timing_state();
+                    if (!runs_for_clock_plan(state, scroll_timeline != nullptr))
                         continue;
-                    auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
-                    auto target = effect ? effect->target() : nullptr;
+                    auto effect = animation.effect();
+                    auto* target = effect.has_value() ? effect->target() : nullptr;
                     if (!target || &target->document() != &document || !target->is_connected())
                         continue;
                     // A tick moves the document's timeline and the scroll timelines alone.
                     bool const on_a_ticked_timeline = associated_timeline.ptr() == timeline.ptr() || scroll_timeline;
-                    if (on_a_ticked_timeline && plan_animation(animation, scroll_timeline, *effect, *target))
+                    if (on_a_ticked_timeline && plan_animation(animation, state, scroll_timeline, *effect, *target))
                         continue;
                     // The boxes of an element with an animation a tick cannot sample show what the host's frame shows
                     // of it, while the ticks sample the others on.
@@ -297,30 +206,22 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
         // The lane's ticks may also follow the pointer, and hover what is under it while a task runs.
         Optional<Layout::RustFFI::FfiHoverPlanInputs> hover;
         Vector<u32> effect_timing_nodes;
-        Vector<u64> effect_timing_identities;
+        Vector<Animations::RustFFI::AnimationEffectId> effect_timing_identities;
         Vector<Animations::RustFFI::EffectTimingSnapshot> effect_timings;
         if (hover_lane_is_enabled() && document.is_fully_active() && !document.hidden() && document.window()) {
             // A hover decides over the transitions the host runs as they run, where the host runs them without
             // sampling them, which leaves the timing the engine holds of them behind.
             for (auto const& associated_timeline : document.associated_animation_timelines()) {
-                for (auto& animation : associated_timeline->associated_animations()) {
-                    auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
-                    auto target = effect ? effect->target() : nullptr;
-                    if (!effect || !target || effect->pseudo_element_type().has_value() || !target->style_node_id()
+                for (auto const& animation : associated_timeline->associated_animations()) {
+                    auto effect = animation.effect();
+                    auto* target = effect.has_value() ? effect->target() : nullptr;
+                    if (!target || effect->pseudo_element_type().has_value() || !target->style_node_id()
                         || !effect->can_skip_per_frame_style_update())
                         continue;
-                    auto timing = effect->timing_snapshot();
-                    // The compositor runs a transition whose play is still pending from the time of the style change
-                    // event that started it, on the document timeline.
-                    if (auto const* transition = as_if<CSS::CSSTransition>(animation); transition && animation.pending()
-                        && !animation.start_time().has_value() && effect->is_compositor_driven()
-                        && timing.clock.source == Animations::RustFFI::TimelineClockSource::Document) {
-                        timing.playback.start_time = Animations::to_ffi(Animations::TimeValue { Animations::TimeValue::Type::Milliseconds, transition->transition_start_time() - effect->start_delay().value });
-                        timing.playback.hold_time = Animations::to_ffi({});
-                    }
+                    // NB: The record decides the timing the hover runs the animation with.
                     effect_timing_nodes.append(target->style_node_id().value());
-                    effect_timing_identities.append(effect->animation_preparation_identity());
-                    effect_timings.append(timing);
+                    effect_timing_identities.append(effect->id());
+                    effect_timings.append(Animations::RustFFI::animations_animation_hover_timing(&animation.record()));
                 }
             }
             Optional<Web::EventHandler::SelectionDragForLanes> selection_drag;

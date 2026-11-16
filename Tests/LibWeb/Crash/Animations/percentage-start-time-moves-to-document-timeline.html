@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+</style>
+<div id="scroller"><div id="target"></div></div>
+<script>
+    // A start time set as a percentage while the scroll timeline is inactive, as nothing overflows its scroller, leaves
+    // the current time unresolved, and moving the animation to the document timeline must not mix up the units of its
+    // start time and its new timeline's times.
+    const animation = target.animate({ opacity: [0, 1] }, { duration: 1000, timeline: new ScrollTimeline({ source: scroller }) });
+    animation.startTime = CSS.percent(20);
+    animation.timeline = document.timeline;
+    animation.currentTime;
+    animation.playState;
+</script>

@@ -42,7 +42,7 @@ pub struct FfiHoverPlanInputs {
     /// The timings the host runs the effects of elements on without sampling them, as the compositor runs them: the
     /// element's style node, the effect's identity, and the timing, an `EffectTimingSnapshot`, by effect.
     pub effect_timing_nodes: *const u32,
-    pub effect_timing_identities: *const u64,
+    pub effect_timing_identities: *const crate::animations::effect::AnimationEffectId,
     pub effect_timings: *const std::ffi::c_void,
     pub effect_timing_count: usize,
     /// Where a drag selecting text the lane may follow is anchored, if one runs: the style node of a text node or an
@@ -232,7 +232,11 @@ pub(crate) struct HoverPlan {
     link_reporter: Option<HoverLinkReporter>,
     /// The timings the host runs effects on without sampling them, which the descriptions of their elements' effects
     /// hold from before: the step a hover decides over the transitions they run reads them.
-    effect_timings: Vec<(StyleNodeID, u64, EffectTimingSnapshot)>,
+    effect_timings: Vec<(
+        StyleNodeID,
+        crate::animations::effect::AnimationEffectId,
+        EffectTimingSnapshot,
+    )>,
     /// The drag selecting text the ticks show, until the button goes up.
     selection_drag: Option<super::selection::SelectionDrag>,
 }

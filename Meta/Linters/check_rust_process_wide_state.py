@@ -112,6 +112,9 @@ RENDER_STATE_ALLOWED = {
     **render_state_entries(
         IDENTITY,
         [
+            "animations/animation.rs:NEXT",
+            "animations/effect.rs:NEXT",
+            "animations/timeline.rs:NEXT",
             "cow_column.rs:NEXT",
             "css/declaration_block.rs:NEXT_DECLARATION_BLOCK_IDENTITY",
             "css/rule.rs:NEXT_RULE_IDENTITY",
@@ -140,6 +143,7 @@ RENDER_STATE_ALLOWED = {
     **render_state_entries(
         BUILT_ONCE,
         [
+            "animations/easing.rs:LINEAR",
             "css/counter_representation.rs:DECIMAL",
             "css/css_string.rs:EMPTY",
             "css/custom_properties.rs:EMPTY",

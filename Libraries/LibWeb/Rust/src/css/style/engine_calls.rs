@@ -125,6 +125,12 @@ pub(crate) enum EngineWrite {
         slot: super::animations::AnimationSlot,
         effects: Box<[super::effect_descriptions::PublishedEffect]>,
     },
+    /// The CSS animations one of an element's animation lists holds, in its order.
+    CssDefinedAnimations {
+        node: StyleNodeID,
+        slot: super::animations::AnimationSlot,
+        animations: Box<[super::animations::CssDefinedAnimation]>,
+    },
     /// The timing the host sampled each of an element's own effects with, by identity, where it sampled without asking.
     AnimationEffectTimings {
         node: StyleNodeID,
@@ -261,6 +267,9 @@ impl EngineWrite {
             Self::PositionTryRules { tree_scope, row } => engine.position_try_rules.set(tree_scope, row),
             Self::AnimationEffectDescriptions { node, slot, effects } => {
                 engine.animation_effect_descriptions.set(node, slot, effects);
+            }
+            Self::CssDefinedAnimations { node, slot, animations } => {
+                engine.set_element_css_defined_animations(node, slot, animations);
             }
             Self::AnimationEffectTimings { node, timings } => {
                 for (identity, timing) in timings {
@@ -897,8 +906,6 @@ pub(crate) struct EngineMemo {
     pub(crate) held: std::cell::RefCell<HeldEnvironments>,
     /// The element style inputs the engine defers.
     pub(crate) deferred: std::cell::RefCell<DeferredInputs>,
-    /// The versions of the animation effects the host described to the engine.
-    pub(crate) described: std::cell::RefCell<super::effect_descriptions::DescribedVersions>,
     /// The transition baselines the host recorded in the engine.
     pub(crate) baselines: std::cell::RefCell<super::TransitionBaselines>,
     /// The atoms the host interned for the engine.
@@ -934,7 +941,6 @@ impl EngineMemo {
         let bytes = size_of::<Memo<*const c_void>>()
             + self.held.borrow().heap_size()
             + self.deferred.borrow().heap_size()
-            + self.described.borrow().heap_size()
             + self.baselines.borrow().heap_size()
             + self.atoms.borrow().heap_size()
             + vec_bytes(&unpublished.backing_elements)
@@ -977,7 +983,6 @@ impl EngineMemo {
             return;
         }
         self.held.borrow_mut().forget(released);
-        self.described.borrow_mut().forget(released);
         self.baselines.borrow_mut().forget(released);
         self.identities.borrow_mut().release(released);
     }
@@ -1012,7 +1017,6 @@ impl Default for EngineMemo {
             views: Memo::new(std::ptr::null()),
             held: Default::default(),
             deferred: Default::default(),
-            described: Default::default(),
             baselines: Default::default(),
             atoms: Default::default(),
             identities: Default::default(),

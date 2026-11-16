@@ -11,14 +11,14 @@ dictionary KeyframeEffectOptions : EffectTiming {
 };
 
 // https://drafts.csswg.org/web-animations-1/#the-keyframeeffect-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface KeyframeEffect : AnimationEffect {
-    constructor(Element? target, object? keyframes, optional (unrestricted double or KeyframeEffectOptions) options = {});
-    constructor(KeyframeEffect source);
+    [ImplementedAs=construct] constructor(Element? target, object? keyframes, optional (unrestricted double or KeyframeEffectOptions) options = {});
+    [ImplementedAs=construct_from_source] constructor(KeyframeEffect source);
 
     attribute Element? target;
     attribute CSSOMString? pseudoElement;
-    [ImplementedAs=composite_for_bindings] attribute CompositeOperation composite;
+    attribute CompositeOperation composite;
     sequence<object> getKeyframes();
-    [ImplementedAs=set_keyframes_from_js, NeedsCallerRealm] undefined setKeyframes(object? keyframes);
+    undefined setKeyframes(object? keyframes);
 };

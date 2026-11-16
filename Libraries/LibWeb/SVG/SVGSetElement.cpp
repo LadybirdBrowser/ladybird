@@ -25,7 +25,7 @@ void SVGSetElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16
 }
 
 // https://svgwg.org/specs/animations/#SetElementToAttribute
-Vector<Animations::BaseKeyframe> SVGSetElement::keyframes(SVGElement const& target, CSS::PropertyID property_id) const
+Vector<SVGKeyframe> SVGSetElement::keyframes(SVGElement const& target, CSS::PropertyID property_id) const
 {
     // Specifies the value for the attribute during the duration of the ‘set’ element. The argument value must match the
     // attribute type.

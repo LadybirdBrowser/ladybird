@@ -1,5 +1,5 @@
 // https://drafts.csswg.org/web-animations-2/#animationplaybackevent
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface AnimationPlaybackEvent : Event {
     constructor(DOMString type, optional AnimationPlaybackEventInit eventInitDict = {});
     readonly attribute CSSNumberish? currentTime;

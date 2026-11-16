@@ -349,7 +349,7 @@ impl AnyCSSNumericValue {
         values
     }
 
-    fn add(&self, vm: &Vm, initial_values: &MarkedVec<'_, CSSNumberish>) -> WebIdlResult<Self> {
+    pub(crate) fn add(&self, vm: &Vm, initial_values: &MarkedVec<'_, CSSNumberish>) -> WebIdlResult<Self> {
         let own_values = match self {
             Self::CSSMathSum(math_sum) => Some(math_sum.numeric_array()),
             _ => None,

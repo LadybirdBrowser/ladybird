@@ -38,7 +38,6 @@ ALLOWED = {
     "css/rule/read.rs": 1,
     "css/style/bridge.rs": 1,
     "css/style/custom_property_environments.rs": 1,
-    "css/style/effect_descriptions.rs": 1,
     "css/style/engine_calls.rs": 1,
     "css/style/font_resolution.rs": 2,
     "css/style/kept_past_release.rs": 3,

@@ -242,25 +242,6 @@ impl Drop for OwnedStyleValue {
     }
 }
 
-/// A value C++ lends through the pointer `StyleValueArc::into_raw()` gave it.
-#[repr(transparent)]
-pub struct StyleValueRef<'a> {
-    pointer: *const StyleValueData,
-    lent: std::marker::PhantomData<&'a StyleValueData>,
-}
-
-impl StyleValueRef<'_> {
-    /// A reference of Rust's own to the value.
-    pub(crate) fn to_arc(&self) -> StyleValueArc {
-        assert!(!self.pointer.is_null(), "C++ lends a live value");
-        // SAFETY: The value is live while it is lent.
-        unsafe {
-            StyleValueArc::increment_strong_count(self.pointer);
-            StyleValueArc::from_raw(self.pointer)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::StyleValueArc;

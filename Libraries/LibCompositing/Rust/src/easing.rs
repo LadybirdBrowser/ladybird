@@ -110,6 +110,42 @@ impl Easing {
         }
     }
 
+    /// The descriptor of the function, which borrows its control points.
+    #[must_use]
+    pub fn descriptor(&self) -> FfiEasingDescriptor {
+        let mut descriptor = FfiEasingDescriptor {
+            kind: self.kind(),
+            linear_points: std::ptr::null(),
+            linear_point_count: 0,
+            x1: 0.0,
+            y1: 0.0,
+            x2: 0.0,
+            y2: 0.0,
+            interval_count: 0,
+            step_position: 0,
+        };
+        match self {
+            Self::Linear(points) => {
+                descriptor.linear_points = points.as_ptr();
+                descriptor.linear_point_count = points.len();
+            }
+            &Self::CubicBezier { x1, y1, x2, y2 } => {
+                descriptor.x1 = x1;
+                descriptor.y1 = y1;
+                descriptor.x2 = x2;
+                descriptor.y2 = y2;
+            }
+            &Self::Steps {
+                interval_count,
+                position,
+            } => {
+                descriptor.interval_count = interval_count;
+                descriptor.step_position = position;
+            }
+        }
+        descriptor
+    }
+
     pub fn kind(&self) -> FfiEasingKind {
         match self {
             Self::Linear(_) => FfiEasingKind::Linear,

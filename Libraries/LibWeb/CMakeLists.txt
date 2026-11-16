@@ -2,18 +2,11 @@ include(libweb_generators)
 
 set(SOURCES
     Animations/Animatable.cpp
-    Animations/Animation.cpp
     Animations/AnimationEffect.cpp
-    Animations/AnimationPlaybackEvent.cpp
     Animations/AnimationTimeline.cpp
     Animations/TimeValue.cpp
-    Animations/DocumentTimeline.cpp
-    Animations/KeyframeEffect.cpp
     Animations/NamedTimelines.cpp
-    Animations/PseudoElementParsing.cpp
-    Animations/ScrollTimeline.cpp
-    Animations/TimelineRange.cpp
-    Animations/ViewTimeline.cpp
+    Animations/RecordHandles.cpp
     ARIA/AriaData.cpp
     ARIA/ARIAMixin.cpp
     ARIA/AttributeNames.cpp
@@ -642,7 +635,6 @@ set(SOURCES
     IndexedDB/RustIntegration.cpp
     Infra/ByteSequences.cpp
     Infra/JSON.cpp
-    Internals/InternalAnimationTimeline.cpp
     Internals/InternalGamepad.cpp
     Internals/Internals.cpp
     Internals/InternalsBase.cpp
@@ -762,7 +754,6 @@ set(SOURCES
     SVG/AttributeNames.cpp
     SVG/AttributeParsing.cpp
     SVG/Path.cpp
-    SVG/SMILAnimation.cpp
     SVG/SMILTimeContainer.cpp
     SVG/SVGAElement.cpp
     SVG/SVGAngle.cpp

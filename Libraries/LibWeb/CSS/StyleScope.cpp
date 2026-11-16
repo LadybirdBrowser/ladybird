@@ -465,111 +465,11 @@ void StyleRuleCache::add_rules_from_sheet(StyleSheetState& sheet, CascadeOrigin 
         if (rule.type() != RustRule::Type::Keyframes)
             return;
 
-        // Loosely based on https://drafts.csswg.org/css-animations-2/#keyframe-processing
-        auto name = rule.name();
-        auto keyframe_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
-        keyframe_set->css_keyframes.emplace();
         auto base_url = sheet.style_resource_base_url();
-        keyframe_set->style_sheet_resource_context = {
-            .base_url = base_url.has_value() ? base_url->to_string() : String {},
-            .origin_clean = sheet.is_origin_clean(),
-        };
-        HashTable<PropertyNameAndID> animated_properties;
-
-        // Forwards pass, resolve all the user-specified keyframe properties.
-        Function<void(ReadonlySpan<double>, RustDeclarationBlockSnapshot const&)> append_keyframe = [&](ReadonlySpan<double> keys, RustDeclarationBlockSnapshot const& keyframe_style) {
-            Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame resolved_keyframe;
-
-            auto append_property = [&](Parser::ValueParserFFI::FfiDeclaredProperty const& declaration) {
-                auto* value = static_cast<StyleValueFFI::StyleValueData const*>(declaration.value);
-                if (declaration.name.length != 0) {
-                    auto name = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(declaration.name.utf16), declaration.name.length });
-                    auto property = PropertyNameAndID::from_name(name);
-                    if (!property.has_value())
-                        return;
-                    animated_properties.set(*property);
-                    resolved_keyframe.properties.set(*property, RustStyleValueHandle::retained(value));
-                    return;
-                }
-                auto property_id = static_cast<PropertyID>(declaration.property_id);
-                if (property_id == PropertyID::AnimationTimingFunction) {
-                    // animation-timing-function is a list property, but inside @keyframes only
-                    // a single value is meaningful.
-                    if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList) {
-                        auto const& list = value->value_list.values;
-                        if (list.length() == 0)
-                            return;
-                        value = static_cast<StyleValueFFI::StyleValueData const*>(list.pointer[0].pointer);
-                    }
-                    if (value->tag == StyleValueFFI::StyleValueData::Tag::Keyword && is_css_wide_keyword(static_cast<Keyword>(value->keyword.keyword)))
-                        return;
-                    if (value->tag == StyleValueFFI::StyleValueData::Tag::Easing || value->tag == StyleValueFFI::StyleValueData::Tag::Keyword) {
-                        auto easing_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value));
-                        resolved_keyframe.easing = EasingFunction::from_style_value(*easing_value);
-                    } else {
-                        resolved_keyframe.easing = RustStyleValueHandle::retained(value);
-                    }
-                    return;
-                }
-                if (property_id == PropertyID::AnimationComposition) {
-                    AnimationComposition composition = AnimationComposition::Replace;
-                    if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList && value->value_list.values.length() == 1)
-                        value = static_cast<StyleValueFFI::StyleValueData const*>(value->value_list.values.pointer[0].pointer);
-                    if (value->tag == StyleValueFFI::StyleValueData::Tag::Keyword) {
-                        if (static_cast<Keyword>(value->keyword.keyword) == Keyword::Add)
-                            composition = AnimationComposition::Add;
-                        else if (static_cast<Keyword>(value->keyword.keyword) == Keyword::Accumulate)
-                            composition = AnimationComposition::Accumulate;
-                    }
-                    resolved_keyframe.composite = Animations::css_animation_composition_to_composite_operation_or_auto(composition);
-                    return;
-                }
-                if (!is_animatable_property(property_id))
-                    return;
-
-                // Unresolved properties will be resolved in collect_animation_into()
-                auto expansion = ComputedValuesFFI::rust_expand_property_shorthands(
-                    to_underlying(property_id), value);
-                for (size_t i = 0; i < expansion.count; ++i) {
-                    auto const& property = expansion.properties[i];
-                    auto longhand_property = PropertyNameAndID::from_id(static_cast<PropertyID>(property.property_id));
-                    animated_properties.set(longhand_property);
-                    resolved_keyframe.properties.set(longhand_property,
-                        RustStyleValueHandle::retained(static_cast<StyleValueFFI::StyleValueData const*>(property.data)));
-                }
-                ComputedValuesFFI::rust_shorthand_expansion_destroy(expansion.storage);
-            };
-            Parser::ValueParserFFI::rust_declaration_data_visit(keyframe_style.data(), &append_property, [](void* context, Parser::ValueParserFFI::FfiDeclaredProperty const* property) {
-                (*static_cast<decltype(append_property)*>(context))(*property);
-            });
-
-            for (auto key : keys) {
-                auto resolved_key = static_cast<u64>(key * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
-
-                keyframe_set->css_keyframes->append({ resolved_key, resolved_keyframe });
-                if (auto* existing_keyframe = keyframe_set->keyframes_by_key.find(resolved_key)) {
-                    for (auto& [property, value] : resolved_keyframe.properties)
-                        existing_keyframe->properties.set(property, value);
-                    if (resolved_keyframe.composite != Bindings::CompositeOperationOrAuto::Auto)
-                        existing_keyframe->composite = resolved_keyframe.composite;
-                    if (!resolved_keyframe.easing.has<Empty>())
-                        existing_keyframe->easing = resolved_keyframe.easing;
-                } else {
-                    keyframe_set->keyframes_by_key.insert(resolved_key, resolved_keyframe);
-                }
-            }
-        };
-        rule.for_each_keyframe(append_keyframe);
-
-        Animations::KeyframeEffect::generate_initial_and_final_frames(keyframe_set, animated_properties);
-
-        if constexpr (LIBWEB_CSS_DEBUG) {
-            dbgln("Resolved keyframe set '{}' into {} keyframes:", name, keyframe_set->keyframes_by_key.size());
-            for (auto it = keyframe_set->keyframes_by_key.begin(); it != keyframe_set->keyframes_by_key.end(); ++it)
-                dbgln("    - keyframe {}: {} properties", it.key(), it->properties.size());
-        }
-
-        rules_by_animation_keyframes.set(Utf16FlyString { name }, move(keyframe_set));
+        auto base_url_string = base_url.has_value() ? base_url->to_string() : String {};
+        auto keyframe_set = Animations::KeyframeSetHandle::adopt(Animations::RustFFI::animations_keyframe_set_from_keyframes_rule(
+            &rule.native_view(), true, base_url_string.bytes(), sheet.is_origin_clean()));
+        rules_by_animation_keyframes.set(Utf16FlyString { rule.name() }, move(keyframe_set));
     });
 }
 
@@ -605,25 +505,22 @@ void StyleScope::publish_animation_keyframes()
     Vector<u32> name_lengths;
     Vector<u16> name_units;
     Vector<size_t> keyframe_sets;
-    Vector<NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet const>> published;
     name_lengths.ensure_capacity(keyframes.size());
     keyframe_sets.ensure_capacity(keyframes.size());
-    published.ensure_capacity(keyframes.size());
     for (auto const& [name, keyframe_set] : keyframes) {
         name_lengths.unchecked_append(name.length_in_code_units());
         for (size_t index = 0; index < name.length_in_code_units(); ++index)
             name_units.append(name.code_unit_at(index));
         keyframe_sets.unchecked_append(bit_cast<size_t>(keyframe_set.ptr()));
-        published.unchecked_append(*keyframe_set);
     }
     // A scope that defined nothing before and defines nothing now has no row to replace.
-    if (published.is_empty() && m_published_keyframe_sets.is_empty())
+    if (keyframe_sets.is_empty() && !m_has_published_animation_keyframes)
         return;
     StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(
         document().style_computer().style_engine().host(), style_engine_tree_scope().value(),
         name_lengths.span(), name_units.span(),
         keyframe_sets.span());
-    m_published_keyframe_sets = move(published);
+    m_has_published_animation_keyframes = !keyframe_sets.is_empty();
 }
 
 // The @position-try rules this scope defines, as the rule cache just built resolved them. The position options of an
@@ -669,11 +566,12 @@ Optional<StyleScope::DepartedAnimationKeyframes> StyleScope::take_published_anim
     m_published_position_try_names.clear();
     m_published_position_try_declarations.clear();
     auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node);
-    if (!shadow_root || (m_published_keyframe_sets.is_empty() && !has_position_try_rules))
+    bool const has_animation_keyframes = exchange(m_has_published_animation_keyframes, false);
+    if (!shadow_root || (!has_animation_keyframes && !has_position_try_rules))
         return {};
     return DepartedAnimationKeyframes {
         .tree_scope = shadow_root->style_engine_tree_scope(),
-        .keyframe_sets = move(m_published_keyframe_sets),
+        .has_animation_keyframes = has_animation_keyframes,
         .has_position_try_rules = has_position_try_rules,
     };
 }

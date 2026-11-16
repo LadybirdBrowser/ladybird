@@ -7,18 +7,19 @@
 #include <LibWeb/SVG/SVGAnimationElement.h>
 
 #include <AK/Math.h>
-#include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
-#include <LibWeb/SVG/SMILAnimation.h>
 #include <LibWeb/SVG/SMILTimeContainer.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/TimeEvent.h>
@@ -34,7 +35,16 @@ SVGAnimationElement::SVGAnimationElement(DOM::Document& document, DOM::Qualified
 void SVGAnimationElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_animation);
+    if (m_animation.has_value())
+        m_animation->visit_edges(visitor);
+    visitor.visit(m_animation_time_container);
+}
+
+void SVGAnimationElement::finalize()
+{
+    Base::finalize();
+    if (auto animation = exchange(m_animation, {}); animation.has_value())
+        Animations::RustFFI::animations_smil_animation_let_go(&animation->record());
 }
 
 void SVGAnimationElement::inserted()
@@ -142,16 +152,16 @@ double SVGAnimationElement::repeat_count() const
 }
 
 // https://svgwg.org/specs/animations/#FillAttribute
-Bindings::FillMode SVGAnimationElement::fill_mode() const
+Animations::RustFFI::FillMode SVGAnimationElement::fill_mode() const
 {
     // freeze
     //     The animation effect F(t) is defined to freeze the effect value at the last value of the active duration.
     if (auto fill = get_attribute(AttributeNames::fill); fill.has_value() && *fill == "freeze"sv)
-        return Bindings::FillMode::Forwards;
+        return Animations::RustFFI::FillMode::Forwards;
 
     // remove
     //     The animation effect is removed (no longer applied) when the active duration of the animation is over.
-    return Bindings::FillMode::None;
+    return Animations::RustFFI::FillMode::None;
 }
 
 // https://svgwg.org/specs/animations/#RestartAttribute
@@ -252,25 +262,58 @@ double SVGAnimationElement::current_presentation_time()
     return time_container->current_time_in_milliseconds();
 }
 
-Animations::BaseKeyframe SVGAnimationElement::keyframe(double offset, CSS::PropertyID property_id, CSS::StyleValue const& value)
+SVGKeyframe SVGAnimationElement::keyframe(double offset, CSS::PropertyID property_id, CSS::StyleValue const& value)
 {
-    Animations::BaseKeyframe keyframe;
+    SVGKeyframe keyframe;
     keyframe.offset = offset;
-    keyframe.properties = Animations::BaseKeyframe::ParsedProperties {};
     set_keyframe_property(keyframe, property_id, value);
     return keyframe;
 }
 
-void SVGAnimationElement::set_keyframe_property(Animations::BaseKeyframe& keyframe, CSS::PropertyID property_id, CSS::StyleValue const& value)
+void SVGAnimationElement::set_keyframe_property(SVGKeyframe& keyframe, CSS::PropertyID property_id, CSS::StyleValue const& value)
 {
-    keyframe.parsed_properties().set(CSS::PropertyNameAndID::from_id(property_id), CSS::RustStyleValueHandle::retained(value.rust_style_value_data()));
+    keyframe.properties.set(CSS::PropertyNameAndID::from_id(property_id), CSS::RustStyleValueHandle::retained(value.rust_style_value_data()));
+}
+
+// The keyframe set of the keyframes, in their order.
+static Animations::KeyframeSetHandle keyframe_set_of(Vector<SVGKeyframe> const& keyframes)
+{
+    Vector<Animations::RustFFI::FfiProcessedKeyframe> processed_keyframes;
+    Vector<Animations::RustFFI::FfiProcessedKeyframeProperty> properties;
+    processed_keyframes.ensure_capacity(keyframes.size());
+    for (auto const& keyframe : keyframes) {
+        Animations::RustFFI::FfiProcessedKeyframe processed_keyframe {};
+        processed_keyframe.key = static_cast<u64>(keyframe.offset * 100 * 1000.0);
+        processed_keyframe.composite = Animations::RustFFI::CompositeOperationOrAuto::Auto;
+        if (keyframe.easing.has_value()) {
+            processed_keyframe.has_easing = true;
+            processed_keyframe.easing = keyframe.easing->descriptor();
+        }
+        processed_keyframe.first_property = static_cast<u32>(properties.size());
+        for (auto const& [property, property_value] : keyframe.properties) {
+            properties.append({
+                .property_id = to_underlying(property.id()),
+                .custom_name = property.is_custom_property() ? property.name().raw_identity() : 0,
+                .value = property_value.data(),
+            });
+        }
+        processed_keyframe.property_count = static_cast<u32>(properties.size()) - processed_keyframe.first_property;
+        processed_keyframes.unchecked_append(processed_keyframe);
+    }
+    return Animations::KeyframeSetHandle::adopt(Animations::RustFFI::animations_keyframe_set_from_processed_keyframes(processed_keyframes.span(), properties.span()));
 }
 
 void SVGAnimationElement::update_animation()
 {
-    if (m_animation) {
-        m_animation->cancel();
-        m_animation = nullptr;
+    if (auto animation = exchange(m_animation, {}); animation.has_value()) {
+        exchange(m_animation_time_container, nullptr)->remove_animation(*animation);
+        // NB: Cancelling an animation that is not idle runs in an execution context, as an Animation's does.
+        Optional<HTML::TemporaryExecutionContext> execution_context;
+        if (animation->timing_state().play_state != Animations::RustFFI::AnimationPlayState::Idle)
+            execution_context.emplace(document().relevant_settings_object());
+        Animations::RustFFI::animations_animation_cancel(&animation->record(), true, Animations::perform_host_effect);
+        execution_context.clear();
+        Animations::RustFFI::animations_smil_animation_let_go(&animation->record());
     }
 
     if (!is_connected())
@@ -296,33 +339,46 @@ void SVGAnimationElement::update_animation()
     // FIXME: Resolve the interval from the other timing attributes.
     // FIXME: A running animation requests a rendering update on every frame, even when its output cannot change, as
     //        with an indefinite one. This keeps the rendering loop running for as long as such an animation is active.
-    Animations::KeyframeEffect::Options options;
-    auto simple_duration = this->simple_duration();
-    auto repeat_count = this->repeat_count();
-    options.timing.delay = *begin_time;
-    options.timing.duration = simple_duration;
-    options.timing.iterations = repeat_count;
-    options.timing.fill = fill_mode();
+    Animations::RustFFI::SpecifiedEffectTiming timing {
+        .start_delay = *begin_time,
+        .end_delay = 0,
+        .iteration_duration = { .is_auto = false, .milliseconds = simple_duration() },
+        .iteration_start = 0,
+        .iteration_count = repeat_count(),
+        .fill_mode = static_cast<Animations::RustFFI::FillMode>(to_underlying(fill_mode())),
+        .playback_direction = Animations::RustFFI::PlaybackDirection::Normal,
+    };
+    Optional<CSS::EasingFunction> timing_function;
 
     // NB: An end time cuts the active duration short. With an indefinite simple duration, the animation holds the
     //     value at its start for the active duration that remains.
     if (auto end_time = interval_end_time(); end_time.has_value()) {
         auto active_duration = *end_time - *begin_time;
-        if (isinf(simple_duration)) {
-            options.timing.duration = active_duration;
-            options.timing.iterations = 1;
-            options.timing.easing = "linear(0, 0)"_utf16;
+        if (isinf(timing.iteration_duration.milliseconds)) {
+            timing.iteration_duration.milliseconds = active_duration;
+            timing.iteration_count = 1;
+            timing_function = CSS::EasingFunction::parse("linear(0, 0)"_utf16);
         } else {
-            options.timing.iterations = min(repeat_count, active_duration / simple_duration);
+            timing.iteration_count = min(timing.iteration_count, active_duration / timing.iteration_duration.milliseconds);
         }
     }
-    auto effect = MUST(Animations::KeyframeEffect::create_from_processed_keyframes(target, move(keyframes), options));
 
-    auto animation = SMILAnimation::create(*this, *time_container, *begin_time);
-    animation->set_timeline(document().timeline());
-    animation->set_effect(effect);
-    time_container->add_animation(animation);
-    m_animation = animation;
+    auto keyframe_set = keyframe_set_of(keyframes);
+    auto timing_function_descriptor = timing_function.has_value() ? timing_function->descriptor() : CSS::EasingFunction::Descriptor {};
+    Utf16FlyString timing_function_serialization = timing_function.has_value() ? Utf16FlyString { timing_function->to_utf16_string() } : Utf16FlyString {};
+    Animations::RustFFI::FfiSmilAnimation description {
+        .animation_element = this,
+        .target = target.ptr(),
+        .keyframes = keyframe_set.ptr(),
+        .timing = timing,
+        .timing_function = timing_function.has_value() ? &timing_function_descriptor : nullptr,
+        .timing_function_serialization = timing_function_serialization.raw_identity(),
+        .begin_time = *begin_time,
+    };
+    m_animation = Animations::AnimationRef::adopt(*Animations::RustFFI::animations_smil_animation_create(&description, &document().timeline()->record(), Animations::perform_host_effect));
+    CSS::record_attr_names_read_by_keyframes(*target, keyframe_set);
+    m_animation_time_container = time_container;
+    time_container->add_animation(*m_animation);
 
     // NB: Time events are raised for intervals that begin from now on.
     if (!m_time_events_last_checked_time.has_value())
@@ -484,23 +540,45 @@ void SVGAnimationElement::end_element_at(float offset)
     update_animation();
 }
 
-void SVGAnimationElement::queue_time_event(Utf16FlyString const& type, i32 detail)
+void SVGAnimationElement::queue_time_event(Animations::RustFFI::TimeEventType type, i32 detail)
 {
-    // NB: Time events are dispatched along with the other animation events of the document.
-    auto& document = this->document();
-    auto event = TimeEvent::create(type, document.window() ? document.window()->window().ptr() : nullptr, detail,
-        HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)));
-    event->set_is_trusted(true);
+    // NB: Time events are dispatched along with the other animation events of the document, which creates each as it
+    //     dispatches it, with the time stamp of now.
+    auto* timeline = static_cast<Animations::AnimationTimeline*>(Animations::RustFFI::animations_animation_timeline(&m_animation->record()));
+    auto scheduled_event_time = timeline && timeline->can_convert_a_timeline_time_to_an_origin_relative_time()
+        ? timeline->convert_a_timeline_time_to_an_origin_relative_time(timeline->current_time())
+        : Optional<double> {};
+    document().append_pending_animation_event(*m_animation, {
+                                                                .kind = Animations::RustFFI::PendingAnimationEventKind::Time,
+                                                                .css_event_type = {},
+                                                                .playback_event_type = {},
+                                                                .time_event_type = type,
+                                                                .detail = detail,
+                                                                .elapsed_time = 0,
+                                                                .current_time = {},
+                                                                .timeline_time = {},
+                                                                .scheduled_event_time = Animations::to_ffi(scheduled_event_time),
+                                                                .time_stamp = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)),
+                                                            });
+}
 
-    auto timeline = m_animation->timeline();
-    document.append_pending_animation_event({
-        .event = event,
-        .animation = *m_animation,
-        .target = *this,
-        .scheduled_event_time = timeline && timeline->can_convert_a_timeline_time_to_an_origin_relative_time()
-            ? timeline->convert_a_timeline_time_to_an_origin_relative_time(timeline->current_time())
-            : Optional<double> {},
-    });
+void SVGAnimationElement::dispatch_pending_time_event(Animations::RustFFI::FfiPendingAnimationEvent const& pending_event)
+{
+    auto const& type = [&] -> Utf16FlyString const& {
+        switch (pending_event.time_event_type) {
+        case Animations::RustFFI::TimeEventType::Begin:
+            return HTML::EventNames::beginEvent;
+        case Animations::RustFFI::TimeEventType::End:
+            return HTML::EventNames::endEvent;
+        case Animations::RustFFI::TimeEventType::Repeat:
+            return HTML::EventNames::repeatEvent;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    auto& document = this->document();
+    auto event = TimeEvent::create(type, document.window() ? document.window()->window().ptr() : nullptr, pending_event.detail, pending_event.time_stamp);
+    event->set_is_trusted(true);
+    dispatch_event(event);
 }
 
 // https://svgwg.org/specs/animations/#InterfaceTimeEvent
@@ -508,7 +586,7 @@ void SVGAnimationElement::queue_time_events_if_necessary()
 {
     // FIXME: Raise time events for an animation element without a target or animated property too.
     auto time_container = is_connected() ? this->time_container() : nullptr;
-    if (!m_animation || !time_container || !time_container->has_begun())
+    if (!m_animation.has_value() || !time_container || !time_container->has_begun())
         return;
 
     auto current_time = time_container->current_time_in_milliseconds();
@@ -523,7 +601,7 @@ void SVGAnimationElement::queue_time_events_if_necessary()
     //     another begin event, as the element restarts.
     if (m_time_events_reported_active && (!is_active || begin_time != m_time_events_begin_time)) {
         m_time_events_reported_active = false;
-        queue_time_event(HTML::EventNames::endEvent);
+        queue_time_event(Animations::RustFFI::TimeEventType::End);
     }
 
     // beginEvent
@@ -533,7 +611,7 @@ void SVGAnimationElement::queue_time_events_if_necessary()
         m_time_events_reported_active = true;
         m_time_events_begin_time = begin_time;
         m_time_events_iteration = isinf(simple_duration()) ? 0 : floor((current_time - *begin_time) / simple_duration());
-        queue_time_event(HTML::EventNames::beginEvent);
+        queue_time_event(Animations::RustFFI::TimeEventType::Begin);
         return;
     }
 
@@ -541,8 +619,8 @@ void SVGAnimationElement::queue_time_events_if_necessary()
     if (!is_active && begin_time.has_value() && begin_time != m_time_events_begin_time && last_checked_time.has_value()
         && *begin_time >= *last_checked_time && *begin_time <= current_time) {
         m_time_events_begin_time = begin_time;
-        queue_time_event(HTML::EventNames::beginEvent);
-        queue_time_event(HTML::EventNames::endEvent);
+        queue_time_event(Animations::RustFFI::TimeEventType::Begin);
+        queue_time_event(Animations::RustFFI::TimeEventType::End);
         return;
     }
 
@@ -555,7 +633,7 @@ void SVGAnimationElement::queue_time_events_if_necessary()
         auto iteration = floor((current_time - *begin_time) / simple_duration());
         auto previous_iteration = exchange(m_time_events_iteration, iteration);
         if (iteration > previous_iteration)
-            queue_time_event(HTML::EventNames::repeatEvent, static_cast<i32>(min(iteration, static_cast<double>(NumericLimits<i32>::max()))));
+            queue_time_event(Animations::RustFFI::TimeEventType::Repeat, static_cast<i32>(min(iteration, static_cast<double>(NumericLimits<i32>::max()))));
     }
 }
 

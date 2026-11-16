@@ -11,6 +11,7 @@
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::SVG {
@@ -34,8 +35,8 @@ public:
     void seek_to_time_in_milliseconds(double);
     void record_time_to_seek_to_once_begun_in_milliseconds(double);
 
-    void add_animation(SMILAnimation&);
-    void remove_animation(SMILAnimation&);
+    void add_animation(Animations::AnimationRef const&);
+    void remove_animation(Animations::AnimationRef const&);
 
 private:
     explicit SMILTimeContainer(DOM::Document&);
@@ -44,10 +45,12 @@ private:
 
     double document_timeline_time() const;
     void synchronize_animations();
-    void synchronize_animation(SMILAnimation&);
+    void synchronize_animation(Animations::AnimationRef const&);
 
     GC::Ref<DOM::Document> m_document;
-    Vector<GC::Ref<SMILAnimation>> m_animations;
+    // NB: The animations of the animation elements of the timeline, which this traces as their animation elements hold
+    //     them.
+    Vector<Animations::AnimationRef> m_animations;
 
     bool m_has_begun { false };
     bool m_is_paused { false };

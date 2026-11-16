@@ -149,19 +149,20 @@ impl RetainedState {
 
     /// The animation plan `record` decides for an element, or for its pseudo-element `pseudo_kind`,
     /// where applying it would change the animations they run: none where it would not, or where
-    /// the record installs no `animation-name`. The definitions borrow the record's values.
+    /// the record installs no `animation-name`. The definitions borrow the record's values, and the
+    /// keyframe sets the plan holds.
     pub(crate) fn animation_plan_of_record(
         &self,
         node: StyleNodeID,
         pseudo_kind: u8,
         record: &std::sync::Arc<super::pipeline::Record>,
-    ) -> Option<smallvec::SmallVec<[crate::css::style_compute::FfiComputedAnimation; 1]>> {
+    ) -> Option<crate::css::style_compute::AnimationPlan> {
         let longhands = StyleRecordView::of_host_record(record).longhands();
         let declaration_scope = self.animation_name_declaration_scope_of(node, pseudo_kind, record)?;
         let existing_animations =
             self.element_css_defined_animations(node, crate::css::style_compute::animation_slot(pseudo_kind));
         let element_tree_scope = self.element_tree_scope(node);
-        let mut definitions = smallvec::SmallVec::new();
+        let mut plan = crate::css::style_compute::AnimationPlan::default();
         crate::css::style_compute::build_computed_animation_list(
             longhands,
             existing_animations,
@@ -169,9 +170,9 @@ impl RetainedState {
                 self.animation_keyframes()
                     .resolve(declaration_scope, element_tree_scope, name)
             },
-            &mut definitions,
+            &mut plan,
         );
-        (!animations::plan_changes_nothing(&definitions, existing_animations)).then_some(definitions)
+        (!animations::plan_changes_nothing(&plan.definitions, existing_animations)).then_some(plan)
     }
 
     /// Whether installing the `new` record the engine derived for an element, in place of the
@@ -450,10 +451,8 @@ impl RetainedState {
             .iter()
             .any(|effect| {
                 effect.keyframes().iter().any(|keyframe| {
-                    keyframe
-                        .easing_value
-                        .as_ref()
-                        .is_some_and(|value| matches!(value.data(), StyleValueData::Unresolved { .. }))
+                    matches!(&keyframe.easing, crate::animations::keyframes::KeyframeEasing::Value(value)
+                        if matches!(value.data(), StyleValueData::Unresolved { .. }))
                 })
             });
 

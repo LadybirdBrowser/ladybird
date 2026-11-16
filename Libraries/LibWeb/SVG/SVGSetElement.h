@@ -19,7 +19,7 @@ private:
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    virtual Vector<Animations::BaseKeyframe> keyframes(SVGElement const& target, CSS::PropertyID) const override;
+    virtual Vector<SVGKeyframe> keyframes(SVGElement const& target, CSS::PropertyID) const override;
 };
 
 }

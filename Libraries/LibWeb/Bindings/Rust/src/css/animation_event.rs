@@ -10,30 +10,57 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
-use libjs_rust::api::{Gc, Realm, Trace, Vm};
+use libjs_rust::api::{Gc, Realm, Trace, Visitor, Vm};
+use libweb_rust::AnimationRecordRef;
 
-use super::css_rule::wrap_cpp_cell;
-use crate::bindings::conversions::CppInterface;
-use crate::bindings::cpp_cell::CppCell;
+use super::css_animation::CSSAnimation;
+use crate::animations::animation::{Animation, AnyAnimation, animation_object};
 use crate::bindings::event_target::CppEvent;
+use crate::bindings::interface::Inherits;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::event::EventInit;
 
+/// The animation an event names, as its record. The event visits what keeps the record's object, or the elements the
+/// record names, alive.
+pub(crate) struct EventAnimation(AnimationRecordRef);
+
 unsafe extern "C" {
-    fn web_css_animation_of_wrapper(wrapper: *mut c_void) -> *mut c_void;
+    fn web_animation_visit_host_cells(animation: *const c_void, visitor: *mut c_void);
 }
 
-/// The Animation behind a wrapper of it, which an event holds to wrap it again for the world of each caller.
-pub(crate) fn animation_of_wrapper(animation: CppInterface) -> CppCell {
-    // SAFETY: The caller passes a wrapper of an Animation, whose cell is live.
-    unsafe { CppCell::from_raw(web_css_animation_of_wrapper(animation.wrapper().as_ptr().cast())) }
+impl EventAnimation {
+    /// # Safety
+    ///
+    /// `animation` must be an animation the host holds a reference to.
+    pub(crate) unsafe fn retained_from_host(animation: *const c_void) -> Self {
+        // SAFETY: Guaranteed by the caller.
+        Self(unsafe { AnimationRecordRef::retained_from_host(animation) })
+    }
+
+    /// The animation of an object of it.
+    pub(crate) fn of_object(animation: &Animation) -> Self {
+        Self(animation.record().clone())
+    }
+
+    /// The object of the animation, which a CSS animation or transition gets as script first asks for it.
+    pub(crate) fn wrap(&self, cx: &CallContext) -> AnyAnimation {
+        animation_object(cx.vm(), &self.0)
+    }
+}
+
+// SAFETY: Visits the cells of the host that keep the record's object, or the elements the record names, alive.
+unsafe impl Trace for EventAnimation {
+    fn trace(&self, visitor: &mut Visitor) {
+        // SAFETY: The event holds a reference to the record, and the visitor is one LibGC passed in.
+        unsafe { web_animation_visit_host_cells(self.0.as_host_ptr(), visitor.as_raw().cast()) };
+    }
 }
 
 /// The dictionary AnimationEventInit of CSS/AnimationEvent.idl.
 pub(crate) struct AnimationEventInit {
     pub(crate) parent: EventInit,
-    pub(crate) animation: Option<CppInterface>,
+    pub(crate) animation: Option<Ref<CSSAnimation>>,
     pub(crate) animation_name: Utf16String,
     pub(crate) elapsed_time: f64,
     pub(crate) pseudo_element: Utf16String,
@@ -49,7 +76,7 @@ pub(crate) struct AnimationEvent {
     elapsed_time: f64,
     #[gc(untraced)]
     pseudo_element: Utf16String,
-    animation: Option<CppCell>,
+    animation: Option<EventAnimation>,
 }
 
 impl Wrappable for AnimationEvent {
@@ -65,6 +92,21 @@ impl AnimationEvent {
         event_name: &Utf16String,
         event_init: AnimationEventInit,
     ) -> Ref<AnimationEvent> {
+        let animation = event_init
+            .animation
+            .as_ref()
+            .map(|animation| EventAnimation::of_object(animation.parent()));
+        Self::create_for_animation(vm, realm, event_name, event_init, animation)
+    }
+
+    /// A new event that names `animation` in place of the animation of `event_init`.
+    pub(crate) fn create_for_animation(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        event_name: &Utf16String,
+        event_init: AnimationEventInit,
+        animation: Option<EventAnimation>,
+    ) -> Ref<AnimationEvent> {
         let event = CppEvent::create_for_owner(
             realm,
             event_name,
@@ -77,7 +119,7 @@ impl AnimationEvent {
             animation_name: event_init.animation_name,
             elapsed_time: event_init.elapsed_time,
             pseudo_element: event_init.pseudo_element,
-            animation: event_init.animation.map(animation_of_wrapper),
+            animation,
         });
         object.event.set_owner(object);
         object
@@ -107,7 +149,7 @@ impl AnimationEvent {
         Ok(self.pseudo_element.clone())
     }
 
-    pub(crate) fn animation(&self, cx: &mut CallContext) -> WebIdlResult<Option<CppInterface>> {
-        Ok(self.animation.as_ref().map(|animation| wrap_cpp_cell(cx, animation)))
+    pub(crate) fn animation(&self, cx: &mut CallContext) -> WebIdlResult<Option<AnyAnimation>> {
+        Ok(self.animation.as_ref().map(|animation| animation.wrap(cx)))
     }
 }

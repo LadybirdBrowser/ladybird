@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // An iterable that is not an array converts to a list of values.
+        const fromTypedArray = new KeyframeEffect(null, { opacity: new Float32Array([0, 1]) });
+        println(`keyframes from a typed array: ${fromTypedArray.getKeyframes().length}`);
+
+        // Each member is converted before the next is read.
+        const order = [];
+        new KeyframeEffect(null, {
+            get composite() {
+                order.push("get composite");
+                return { toString() { order.push("convert composite"); return "add"; } };
+            },
+            get easing() { order.push("get easing"); return "linear"; },
+            get offset() { order.push("get offset"); return null; },
+        });
+        println(`member order: ${order.join(", ")}`);
+
+        // Each element of a list is converted before the next is read.
+        const values = [];
+        values.push({ toString() { values[1] = "1"; return "0"; } }, "0");
+        const fromChangingList = new KeyframeEffect(null, { opacity: values });
+        println(`values: ${fromChangingList.getKeyframes().map(keyframe => keyframe.opacity).join(", ")}`);
+
+        // The returned keyframes have own properties even where the prototype has setters.
+        Object.defineProperty(Object.prototype, "opacity", { configurable: true, set(value) {} });
+        Object.defineProperty(Object.prototype, "easing", { configurable: true, set(value) {} });
+        const keyframe = new KeyframeEffect(null, { opacity: [0, 1] }).getKeyframes()[0];
+        delete Object.prototype.opacity;
+        delete Object.prototype.easing;
+        println(`own opacity: ${Object.hasOwn(keyframe, "opacity")}, own easing: ${Object.hasOwn(keyframe, "easing")}`);
+    });
+</script>

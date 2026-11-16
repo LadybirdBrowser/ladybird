@@ -39,6 +39,8 @@ pub(crate) mod svg;
 pub mod web_audio;
 
 // What libweb_bindings_rust, whose interfaces are implemented in Rust, uses of this crate.
+pub use animations::animation::AnimationRecordRef;
+pub use animations::bindings_api as web_animations;
 pub use css::font_feature_values::FontFeatureValuesRuleKind;
 pub use css::media_list::{MediaList as NativeMediaList, MediaListDeleteResult};
 pub use css::rule::cssom;

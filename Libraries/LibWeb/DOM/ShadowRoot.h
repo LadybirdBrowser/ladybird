@@ -82,8 +82,6 @@ public:
     void for_each_css_style_sheet(Function<void(CSS::StyleSheetState&)>&& callback) const;
     void for_each_active_css_style_sheet(Function<void(CSS::StyleSheetState&)> const& callback) const;
 
-    WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animations::Animation>>> get_animations();
-
     ElementByIdMap& element_by_id() const;
 
     AnchorNameMap& anchor_name_map() { return m_anchor_name_map; }

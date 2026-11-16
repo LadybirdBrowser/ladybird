@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #content {
+        height: 300px;
+    }
+</style>
+<div id="scroller"><div id="target"></div><div id="content"></div></div>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    (async () => {
+        const animation = target.animate({ opacity: [0, 1] }, { duration: 1000, timeline: new ScrollTimeline({ source: scroller }) });
+        await animation.ready;
+        animation.finish();
+        // The scroll timeline becomes inactive as its scroller stops overflowing, while the finished animation keeps
+        // its hold time, and so stays finished.
+        content.style.height = "0px";
+        await animationFrame();
+        await animationFrame();
+        animation.updatePlaybackRate(2);
+        animation.updatePlaybackRate(0);
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
+</html>

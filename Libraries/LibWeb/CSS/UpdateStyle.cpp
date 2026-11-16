@@ -898,12 +898,11 @@ void Document::drain_style_update_that_flew(Layout::BegunRead const& read)
 {
     // The animations dirtied beside the transaction are the next style update's, as are the writes made beside it: the
     // drain samples those its own reactions create.
-    auto effects_beside = exchange(m_effects_needing_animated_style_update, {});
+    set_aside_effects_needing_animated_style_update();
     bool needed_beside = exchange(m_needs_animated_style_update, false);
     bool forced_beside = exchange(m_force_throttled_animation_style_update, false);
     CSS::update_style(read, *this, CSS::FlownStyleUpdate { m_flown_style_update_inputs.release_value() });
-    for (auto& effect : effects_beside)
-        m_effects_needing_animated_style_update.set(effect);
+    restore_effects_needing_animated_style_update();
     m_needs_animated_style_update |= needed_beside;
     m_force_throttled_animation_style_update |= forced_beside;
 }

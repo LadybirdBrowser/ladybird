@@ -19,15 +19,17 @@
 //! Which `@keyframes` a definition runs is decided here too, from the keyframes each style scope
 //! publishes, so the computation never reaches into a scope's rule cache.
 
-use super::bridge::{FfiAppliedAnimationDefinition, FfiAppliedAnimationValues};
 use super::tree::{StyleNodeID, TreeScopeID};
+use crate::animations::keyframes::KeyframeSet;
 use crate::animations::snapshot::{CompactEffectTiming, ScrollProgress};
 use crate::animations::timing::{
     self, AnimationEffectTiming, AnimationPlayState, AnimationPlayback, OptionalTimeValue, ResolvedEffectTiming,
     TimeValue, TimelineSample,
 };
 use crate::css::css_string::CssString;
+use crate::css::style_value::{RetainedStyleValueData, StyleValueData, retain_style_value};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Which of an element's animation lists a row belongs to, in the host's own numbering: zero for
 /// the element itself, and the pseudo-element's value plus one for each pseudo-element.
@@ -36,89 +38,111 @@ pub(crate) type AnimationSlot = u8;
 /// The definition that claimed no existing animation and asks for a new one.
 pub(crate) const NO_MATCHED_ANIMATION: i32 = -1;
 
-impl FfiAppliedAnimationDefinition {
-    /// What the host publishes back for a definition once it has applied it: the definition's own
-    /// values, field for field.
+/// What an applied animation definition holds by value, its numbers before its bytes, which pack behind them.
+#[derive(Clone, Copy, PartialEq)]
+struct AppliedAnimationValues {
+    duration: f64,
+    iteration_count: f64,
+    delay: f64,
+    range_start_px: f64,
+    range_start_percentage: f64,
+    range_end_px: f64,
+    range_end_percentage: f64,
+    duration_is_auto: bool,
+    direction: u8,
+    play_state: u8,
+    fill_mode: u8,
+    composition: u8,
+    /// An `FfiAnimationTimelineKind`.
+    timeline_kind: u8,
+    scroll_scroller: u8,
+    scroll_axis: u8,
+    range_start_name: u8,
+    range_end_name: u8,
+}
+
+const _: () = assert!(size_of::<AppliedAnimationValues>() == 72);
+
+impl AppliedAnimationValues {
+    /// The values of the definition `animation`, field for field.
     #[must_use]
     fn of(animation: &crate::css::style_compute::FfiComputedAnimation) -> Self {
         Self {
-            values: FfiAppliedAnimationValues {
-                duration_is_auto: animation.duration_is_auto,
-                duration: animation.duration,
-                iteration_count: animation.iteration_count,
-                direction: animation.direction,
-                play_state: animation.play_state,
-                delay: animation.delay,
-                fill_mode: animation.fill_mode,
-                composition: animation.composition,
-                timeline_kind: animation.timeline_kind as u8,
-                scroll_scroller: animation.scroll_scroller,
-                scroll_axis: animation.scroll_axis,
-                range_start_name: animation.range_start_name,
-                range_start_px: animation.range_start_px,
-                range_start_percentage: animation.range_start_percentage,
-                range_end_name: animation.range_end_name,
-                range_end_px: animation.range_end_px,
-                range_end_percentage: animation.range_end_percentage,
-            },
-            keyframe_set: animation.keyframe_set,
-            timing_function: animation.timing_function,
-            range_start_calculated: animation.range_start_calculated,
-            range_end_calculated: animation.range_end_calculated,
+            duration_is_auto: animation.duration_is_auto,
+            duration: animation.duration,
+            iteration_count: animation.iteration_count,
+            direction: animation.direction,
+            play_state: animation.play_state,
+            delay: animation.delay,
+            fill_mode: animation.fill_mode,
+            composition: animation.composition,
+            timeline_kind: animation.timeline_kind as u8,
+            scroll_scroller: animation.scroll_scroller,
+            scroll_axis: animation.scroll_axis,
+            range_start_name: animation.range_start_name,
+            range_start_px: animation.range_start_px,
+            range_start_percentage: animation.range_start_percentage,
+            range_end_name: animation.range_end_name,
+            range_end_px: animation.range_end_px,
+            range_end_percentage: animation.range_end_percentage,
         }
     }
+}
 
-    /// Whether applying `self` to an animation that last had `published` applied would leave it
-    /// exactly as it is. A scroll, view or named timeline is found from the element's surroundings
-    /// every time it is applied, so a definition that names one is never called unchanged, and an animation no
-    /// plan has described yet publishes a null timing function, which no computed definition has.
-    /// The timing function and range calculations are compared by value: a recomputed style builds a fresh allocation for
-    /// a declaration that has not changed.
-    #[must_use]
-    fn would_change_nothing(&self, published: &Self) -> bool {
-        use crate::css::style_compute::FfiAnimationTimelineKind;
-        ![
-            FfiAnimationTimelineKind::Scroll as u8,
-            FfiAnimationTimelineKind::View as u8,
-            FfiAnimationTimelineKind::Named as u8,
+/// Whether applying `definition` to an animation that last had `applied` applied would leave it exactly as it is. A
+/// scroll, view or named timeline is found from the element's surroundings every time it is applied, so a definition
+/// that names one is never called unchanged. The timing function and range calculations are compared by value: a
+/// recomputed style builds a fresh allocation for a declaration that has not changed.
+#[must_use]
+fn would_change_nothing(
+    definition: &crate::css::style_compute::FfiComputedAnimation,
+    applied: &AppliedAnimationDefinition,
+) -> bool {
+    use crate::css::style_compute::FfiAnimationTimelineKind;
+    let keyframe_set = applied
+        .keyframes
+        .as_ref()
+        .map_or(std::ptr::null(), |set| Arc::as_ptr(set).cast());
+    !matches!(
+        definition.timeline_kind,
+        FfiAnimationTimelineKind::Scroll | FfiAnimationTimelineKind::View | FfiAnimationTimelineKind::Named
+    ) && !applied.timing_function.pointer().is_null()
+        && AppliedAnimationValues::of(definition) == applied.values
+        && definition.keyframe_set == keyframe_set
+        && [
+            (definition.timing_function, &applied.timing_function),
+            (definition.range_start_calculated, &applied.range_start_calculated),
+            (definition.range_end_calculated, &applied.range_end_calculated),
         ]
-        .contains(&self.values.timeline_kind)
-            && !published.timing_function.is_null()
-            && self.values == published.values
-            && self.keyframe_set == published.keyframe_set
-            && [
-                (self.timing_function, published.timing_function),
-                (self.range_start_calculated, published.range_start_calculated),
-                (self.range_end_calculated, published.range_end_calculated),
-            ]
-            .into_iter()
-            .all(|(value, published_value)| {
-                use crate::css::style_value::StyleValueData;
-                // SAFETY: Each is null or a value the host holds live.
-                let (value, published_value) = unsafe {
-                    (
-                        value.cast::<StyleValueData>().as_ref(),
-                        published_value.cast::<StyleValueData>().as_ref(),
-                    )
-                };
-                crate::css::style_value::optional_style_values_equal(value, published_value)
-            })
-    }
+        .into_iter()
+        .all(|(value, applied_value)| {
+            // SAFETY: Each is null or a value the plan holds live.
+            let value = unsafe { value.cast::<crate::css::style_value::StyleValueData>().as_ref() };
+            crate::css::style_value::optional_style_values_equal(value, applied_value.optional_data())
+        })
 }
 
-/// A definition the host published as applied, holding the values it names, so that it can read them whenever the
-/// animation it describes has moved on.
-#[derive(Clone)]
-pub(crate) struct HeldAppliedAnimationDefinition {
-    definition: FfiAppliedAnimationDefinition,
-    _values: [crate::css::style_value::RetainedStyleValueData; 3],
+/// The definition the style computation last applied to a CSS animation, which the animation holds, and the style
+/// engine beside the animation's name, so that a plan whose every definition equals what its animation last had
+/// applied changes nothing, and the engine does not hand it over.
+pub(crate) struct AppliedAnimationDefinition {
+    values: AppliedAnimationValues,
+    /// The keyframe set the plan gave the animation's effect.
+    keyframes: Option<Arc<KeyframeSet>>,
+    /// The computed `animation-timing-function`.
+    timing_function: RetainedStyleValueData,
+    /// The calculations the edges of the attachment range resolve, or none.
+    range_start_calculated: RetainedStyleValueData,
+    range_end_calculated: RetainedStyleValueData,
 }
 
-impl HeldAppliedAnimationDefinition {
+impl AppliedAnimationDefinition {
+    /// The definition a style computation applies as it hands `definition` over, holding what it names.
+    ///
     /// # Safety
-    /// The values `definition` names must be null or live style values.
-    pub(crate) unsafe fn retained(definition: FfiAppliedAnimationDefinition) -> Self {
-        use crate::css::style_value::{RetainedStyleValueData, StyleValueData, retain_style_value};
+    /// The values `definition` names must be null or live style values, and its keyframe set null or one the plan
+    /// holds a reference to.
+    pub(crate) unsafe fn retained(definition: &crate::css::style_compute::FfiComputedAnimation) -> Self {
         let hold = |value: *const std::ffi::c_void| {
             if value.is_null() {
                 return RetainedStyleValueData::none();
@@ -126,23 +150,59 @@ impl HeldAppliedAnimationDefinition {
             // SAFETY: Guaranteed by the caller; the handle takes the reference this retains.
             unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value.cast::<StyleValueData>())) }
         };
+        let keyframe_set = definition.keyframe_set.cast::<KeyframeSet>();
         Self {
-            definition,
-            _values: [
-                hold(definition.timing_function),
-                hold(definition.range_start_calculated),
-                hold(definition.range_end_calculated),
-            ],
+            values: AppliedAnimationValues::of(definition),
+            // SAFETY: Guaranteed by the caller.
+            keyframes: (!keyframe_set.is_null()).then(|| unsafe { KeyframeSet::retained_from_host(keyframe_set) }),
+            timing_function: hold(definition.timing_function),
+            range_start_calculated: hold(definition.range_start_calculated),
+            range_end_calculated: hold(definition.range_end_calculated),
         }
+    }
+
+    /// The computed `animation-timing-function`.
+    #[must_use]
+    pub(crate) fn timing_function(&self) -> &RetainedStyleValueData {
+        &self.timing_function
+    }
+
+    /// Whether applying `self` to an animation sets the same properties as applying `other` does, whatever keyframes
+    /// each gives its effect.
+    #[must_use]
+    pub(crate) fn applies_the_same_properties(&self, other: &Self) -> bool {
+        self.values == other.values
+            && [
+                (&self.timing_function, &other.timing_function),
+                (&self.range_start_calculated, &other.range_start_calculated),
+                (&self.range_end_calculated, &other.range_end_calculated),
+            ]
+            .into_iter()
+            .all(|(value, other_value)| {
+                crate::css::style_value::optional_style_values_equal(value.optional_data(), other_value.optional_data())
+            })
     }
 }
 
 /// One of the CSS animations the host holds: its name, and the definition the last plan applied
-/// to it.
+/// to it, which it shares with the animation, or none where no plan has described it yet.
 #[derive(Clone)]
 pub(crate) struct CssDefinedAnimation {
     pub(crate) name: CssString,
-    applied_definition: HeldAppliedAnimationDefinition,
+    pub(crate) applied_definition: Option<Arc<AppliedAnimationDefinition>>,
+}
+
+impl CssDefinedAnimation {
+    /// The name of the CSS animation `animation` and the definition last applied to it.
+    pub(crate) fn of(animation: &crate::animations::animation::AnimationCell) -> Self {
+        let animation = animation.borrow();
+        let state = animation.css_animation();
+        Self {
+            // SAFETY: The animation holds its name.
+            name: unsafe { CssString::from_borrowed_raw(state.name.raw()) },
+            applied_definition: state.applied_definition.clone(),
+        }
+    }
 }
 
 /// The CSS animations the host holds in one of an element's lists, in its order.
@@ -175,28 +235,9 @@ impl CssDefinedAnimations {
         bytes
     }
 
-    /// Replace one list from the names and applied definitions the host publishes, a definition per
-    /// animation. An empty list drops it, so an element that stops animating stops costing anything.
-    pub(crate) fn set(
-        &mut self,
-        node: StyleNodeID,
-        slot: AnimationSlot,
-        names: Box<[CssString]>,
-        definitions: Box<[HeldAppliedAnimationDefinition]>,
-    ) {
-        debug_assert_eq!(
-            definitions.len(),
-            names.len(),
-            "every published animation name comes with its applied definition"
-        );
-        let animations: Box<[CssDefinedAnimation]> = names
-            .into_iter()
-            .zip(definitions)
-            .map(|(name, applied_definition)| CssDefinedAnimation {
-                name,
-                applied_definition,
-            })
-            .collect();
+    /// Replace one list with the animations the host publishes. An empty list drops it, so an element that stops
+    /// animating stops costing anything.
+    pub(crate) fn set(&mut self, node: StyleNodeID, slot: AnimationSlot, animations: Box<[CssDefinedAnimation]>) {
         let lists = self.rows.entry(node).or_default();
         let existing = lists.iter().position(|(list_slot, _)| *list_slot == slot);
         match (existing, animations.is_empty()) {
@@ -286,8 +327,10 @@ pub(crate) fn plan_changes_nothing(
             .enumerate()
             .all(|(index, (definition, animation))| {
                 usize::try_from(definition.matched_existing_index) == Ok(index)
-                    && FfiAppliedAnimationDefinition::of(definition)
-                        .would_change_nothing(&animation.applied_definition.definition)
+                    && animation
+                        .applied_definition
+                        .as_ref()
+                        .is_some_and(|applied| would_change_nothing(definition, applied))
             })
 }
 
@@ -302,18 +345,15 @@ pub(crate) enum DeclarationScope {
     Shadow(TreeScopeID),
 }
 
-/// One style scope's `@keyframes`: the host's keyframe set for each name the scope defines.
-pub(crate) type KeyframesRow = HashMap<Box<[u16]>, usize>;
+/// One style scope's `@keyframes`: the keyframe set for each name the scope defines.
+pub(crate) type KeyframesRow = HashMap<Box<[u16]>, Arc<KeyframeSet>>;
 
 /// The `@keyframes` every style scope of the document defines, as each scope's rule cache resolved
-/// them, with the host's keyframe set for each name.
+/// them, with the keyframe set for each name.
 ///
 /// A scope publishes its row whenever its rule cache is built, and the host builds every scope's
 /// cache before a style update, so resolving an animation's keyframes is a lookup here rather
-/// than building a rule cache in the middle of a style computation. A keyframe set is the host's
-/// refcounted object, borrowed: the scope keeps a reference to every set its row names until it
-/// publishes the row again or gives it up, which the engine takes in ahead of anything that
-/// resolves keyframes.
+/// than building a rule cache in the middle of a style computation.
 #[derive(Clone, Default)]
 pub(crate) struct AnimationKeyframes {
     scopes: crate::cow_map::CowMap<TreeScopeID, KeyframesRow>,
@@ -322,13 +362,13 @@ pub(crate) struct AnimationKeyframes {
 impl AnimationKeyframes {
     /// The row of the names, packed into one buffer of code units with a length each, the way an
     /// element's animation names arrive, and the host's keyframe set for each.
-    pub(crate) fn row(name_lengths: &[u32], name_units: &[u16], keyframe_sets: &[usize]) -> KeyframesRow {
+    pub(crate) fn row(name_lengths: &[u32], name_units: &[u16], keyframe_sets: Vec<Arc<KeyframeSet>>) -> KeyframesRow {
         debug_assert_eq!(name_lengths.len(), keyframe_sets.len());
         let mut offset = 0;
         name_lengths
             .iter()
             .zip(keyframe_sets)
-            .map(|(&length, &set)| {
+            .map(|(&length, set)| {
                 let units = &name_units[offset..offset + length as usize];
                 offset += length as usize;
                 (Box::from(units), set)
@@ -345,7 +385,7 @@ impl AnimationKeyframes {
         self.scopes.insert(tree_scope, row);
     }
 
-    /// The host's keyframe set an animation of this name runs, or `None` where no scope in its chain
+    /// The keyframe set an animation of this name runs, or `None` where no scope in its chain
     /// defines the name.
     ///
     /// The chain is the tree scope of the winning `animation-name` declaration first, because that
@@ -358,11 +398,11 @@ impl AnimationKeyframes {
         declaration_scope: DeclarationScope,
         element_tree_scope: TreeScopeID,
         name: &[u16],
-    ) -> Option<usize> {
+    ) -> Option<&Arc<KeyframeSet>> {
         if self.scopes.is_empty() {
             return None;
         }
-        let in_scope = |scope: TreeScopeID| self.scopes.get(&scope)?.get(name).copied();
+        let in_scope = |scope: TreeScopeID| self.scopes.get(&scope)?.get(name);
         let declared = match declaration_scope {
             DeclarationScope::Shadow(scope) => in_scope(scope),
             DeclarationScope::Unscoped => None,
@@ -409,13 +449,36 @@ impl<'a> AnimationTimelineSamples<'a> {
 }
 
 /// The timing the host sampled each of an element's effects with, by the effect's identity.
-pub(crate) type SampledEffectTimings = Box<[(u64, EffectTiming)]>;
+pub(crate) type SampledEffectTimings = Box<[(crate::animations::effect::AnimationEffectId, CompactEffectTiming)]>;
 
-/// One animation effect's timing and easing, as the host last sampled the effect.
+/// One animation effect's timing and easing, as a hover's lane runs a transition of its own.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct EffectTiming {
     pub(crate) timing: CompactEffectTiming,
     pub(crate) easing: crate::css::easing::Easing,
+}
+
+impl std::ops::Deref for EffectTiming {
+    type Target = CompactEffectTiming;
+
+    fn deref(&self) -> &CompactEffectTiming {
+        &self.timing
+    }
+}
+
+impl std::ops::DerefMut for EffectTiming {
+    fn deref_mut(&mut self) -> &mut CompactEffectTiming {
+        &mut self.timing
+    }
+}
+
+impl EffectTiming {
+    /// The key the effect's keyframes are sampled at with its timeline at `samples` (see
+    /// [`CompactEffectTiming::key_at`]).
+    #[must_use]
+    pub(crate) fn key_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<Option<f64>> {
+        self.timing.key_at(&self.easing, samples)
+    }
 }
 
 /// What the timing calculations read of an effect at one moment: its timing, the playback state of its animation, its
@@ -428,62 +491,49 @@ struct SampledEffect {
     timeline: Option<TimelineSample>,
 }
 
-impl EffectTiming {
-    /// The key the effect samples its keyframes at as the host samples it: the one its timing gives at
-    /// the time the host sampled its timeline, or none for an unresolved progress, which samples nothing.
+impl CompactEffectTiming {
+    /// The key the effect samples its keyframes at as the host samples it, eased by `easing`: the one its timing gives
+    /// at the time the host sampled its timeline, or none for an unresolved progress, which samples nothing.
     #[must_use]
-    pub(crate) fn key(&self) -> Option<f64> {
-        self.key_at(AnimationTimelineSamples::default())
+    pub(crate) fn key(&self, easing: &crate::css::easing::Easing) -> Option<f64> {
+        self.key_at(easing, AnimationTimelineSamples::default())
             .expect("the host's samples move every timeline")
-    }
-
-    /// The key the effect samples its keyframes at as the host samples it, with the endpoint-inclusive active interval
-    /// flag set, as committing the computed styles of its animation samples it.
-    #[must_use]
-    pub(crate) fn endpoint_inclusive_key(&self) -> Option<f64> {
-        self.key_with(
-            AnimationTimelineSamples::default(),
-            timing::EndpointInclusiveActiveInterval::Yes,
-        )
-        .expect("the host's samples move every timeline")
     }
 
     /// The local time of the effect with its timeline at `samples`, in the unit of its timeline's times, or none
     /// where it is unresolved or the samples do not move its timeline.
     #[must_use]
     pub(crate) fn local_time_at(&self, samples: AnimationTimelineSamples) -> Option<f64> {
-        let timeline_time = samples.timeline_time(&self.timing)?;
-        timing::current_time_at(&self.timing.playback(), timeline_time).map(|time| time.value)
+        let timeline_time = samples.timeline_time(self)?;
+        timing::current_time_at(&self.playback(), timeline_time).map(|time| time.value)
     }
 
     /// Whether the effect's animation is paused as the host sampled it.
     #[must_use]
     pub(crate) fn is_paused(&self) -> bool {
-        let playback = self.timing.playback();
-        let current_time = timing::current_time_at(&playback, self.timing.timeline_time());
-        timing::play_state_at(&playback, current_time, timing::end_time(&self.timing.effect()))
-            == AnimationPlayState::Paused
+        let playback = self.playback();
+        let current_time = timing::current_time_at(&playback, self.timeline_time());
+        timing::play_state_at(&playback, current_time, timing::end_time(&self.effect())) == AnimationPlayState::Paused
     }
 
     /// Holds the effect's animation at `local_time`, in milliseconds.
     pub(crate) fn hold_at(&mut self, local_time: f64) {
-        self.timing.set_hold_time(Some(TimeValue::milliseconds(local_time)));
+        self.set_hold_time(Some(TimeValue::milliseconds(local_time)));
     }
 
     /// Whether the effect's animation has neither a start time nor a hold time, so that it runs nothing.
     #[must_use]
     pub(crate) fn has_no_time(&self) -> bool {
-        let playback = self.timing.playback();
+        let playback = self.playback();
         playback.start_time.get().is_none() && playback.hold_time.get().is_none()
     }
 
     /// What the timing calculations read of the effect with its timeline at `samples`, or none where the samples do
     /// not move its timeline.
     fn sample_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<SampledEffect> {
-        let timing = &self.timing;
-        let timeline_time = samples.timeline_time(timing)?;
-        let effect = timing.effect();
-        let playback = timing.playback();
+        let timeline_time = samples.timeline_time(self)?;
+        let effect = self.effect();
+        let playback = self.playback();
 
         // https://www.w3.org/TR/web-animations-1/#animation-current-time
         let unconstrained_time = timing::current_time_at(
@@ -509,7 +559,7 @@ impl EffectTiming {
             Some(hold_time) if !finish_released => Some(hold_time),
             _ => unconstrained_time,
         };
-        let timeline = timing.timeline().map(|timeline| TimelineSample {
+        let timeline = self.timeline().map(|timeline| TimelineSample {
             current_time: timeline_time.into(),
             ..timeline
         });
@@ -523,6 +573,7 @@ impl EffectTiming {
 
     /// The effect's timing, and its phase, active time and overall progress with its timeline at `samples`, or none
     /// where the samples do not move its timeline.
+    /// The phase is determined with the endpoint-inclusive active interval flag `endpoint_inclusive`.
     fn resolve_at(
         &self,
         samples: AnimationTimelineSamples<'_>,
@@ -540,21 +591,40 @@ impl EffectTiming {
         Some((sampled.effect, resolved))
     }
 
-    /// The key the effect's keyframes are sampled at with its timeline at `samples`, which is
+    /// The key the effect's keyframes are sampled at with its timeline at `samples`, eased by `easing`, which is
     /// `AnimationEffect::transformed_progress()` scaled the way the host scales it. The outer `None` is
     /// a timeline the samples do not move; the inner one is an unresolved progress, which samples nothing.
     #[must_use]
-    pub(crate) fn key_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<Option<f64>> {
-        self.key_with(samples, timing::EndpointInclusiveActiveInterval::No)
+    pub(crate) fn key_at(
+        &self,
+        easing: &crate::css::easing::Easing,
+        samples: AnimationTimelineSamples<'_>,
+    ) -> Option<Option<f64>> {
+        self.key_with(easing, samples, timing::EndpointInclusiveActiveInterval::No)
+    }
+
+    /// https://drafts.csswg.org/web-animations-1/#commit-computed-styles
+    /// The key the effect's keyframes are sampled at as the host sampled it, eased by `easing`, with the
+    /// endpoint-inclusive active interval flag set when determining its phase, as committing computed styles samples
+    /// it. None is an unresolved progress, which samples nothing.
+    #[must_use]
+    pub(crate) fn endpoint_inclusive_key(&self, easing: &crate::css::easing::Easing) -> Option<f64> {
+        self.key_with(
+            easing,
+            AnimationTimelineSamples::default(),
+            timing::EndpointInclusiveActiveInterval::Yes,
+        )
+        .expect("the host's samples move every timeline")
     }
 
     fn key_with(
         &self,
+        easing: &crate::css::easing::Easing,
         samples: AnimationTimelineSamples<'_>,
         endpoint_inclusive: timing::EndpointInclusiveActiveInterval,
     ) -> Option<Option<f64>> {
         let (effect, resolved) = self.resolve_at(samples, endpoint_inclusive)?;
-        let Some(output_progress) = timing::transformed_progress(&effect, &resolved, &self.easing) else {
+        let Some(output_progress) = timing::transformed_progress(&effect, &resolved, easing) else {
             return Some(None);
         };
 
@@ -594,41 +664,18 @@ mod tests {
             .collect()
     }
 
-    /// Publish a list of animations of the given names, each with an applied definition no plan
-    /// has described.
+    /// Publish a list of animations of the given names, none of which a plan has described.
     fn set(animations: &mut CssDefinedAnimations, node: StyleNodeID, slot: AnimationSlot, names: &[&str]) {
-        let undescribed = FfiAppliedAnimationDefinition {
-            values: FfiAppliedAnimationValues {
-                duration_is_auto: false,
-                duration: 0.0,
-                iteration_count: 0.0,
-                direction: 0,
-                play_state: 0,
-                delay: 0.0,
-                fill_mode: 0,
-                composition: 0,
-                timeline_kind: 0,
-                scroll_scroller: 0,
-                scroll_axis: 0,
-                range_start_name: 0,
-                range_start_px: 0.0,
-                range_start_percentage: 0.0,
-                range_end_name: 0,
-                range_end_px: 0.0,
-                range_end_percentage: 0.0,
-            },
-            keyframe_set: std::ptr::null(),
-            timing_function: std::ptr::null(),
-            range_start_calculated: std::ptr::null(),
-            range_end_calculated: std::ptr::null(),
-        };
-        // SAFETY: The definition names no values.
-        let undescribed = unsafe { HeldAppliedAnimationDefinition::retained(undescribed) };
         animations.set(
             node,
             slot,
-            self::names(names),
-            vec![undescribed; names.len()].into_boxed_slice(),
+            self::names(names)
+                .into_iter()
+                .map(|name| CssDefinedAnimation {
+                    name,
+                    applied_definition: None,
+                })
+                .collect(),
         );
     }
 
@@ -640,7 +687,8 @@ mod tests {
             .collect()
     }
 
-    use crate::animations::snapshot::{EffectTimingSnapshot, ScrollTimelineId, TimelineClock, TimelineClockSource};
+    use crate::animations::snapshot::{EffectTimingSnapshot, TimelineClock, TimelineClockSource};
+    use crate::animations::timeline::AnimationTimelineId;
     use crate::animations::timing::{AnimationEffectTiming, AnimationReplaceState, FillMode, PlaybackDirection};
 
     impl EffectTiming {
@@ -714,7 +762,7 @@ mod tests {
                 clock: TimelineClock {
                     source: TimelineClockSource::Scroll,
                     origin_time: 0.0,
-                    scroll_timeline: ScrollTimelineId(7),
+                    scroll_timeline: AnimationTimelineId(7),
                 },
             }),
             easing: crate::css::easing::Easing::default(),
@@ -829,7 +877,8 @@ mod tests {
 
     #[test]
     fn a_key_is_where_the_host_sampled_the_timeline() {
-        assert_eq!(timing_at(500.0).key(), Some(50_000.0));
+        let timing = timing_at(500.0);
+        assert_eq!(timing.timing.key(&timing.easing), Some(50_000.0));
         let mut unresolved = timing_at(500.0);
         unresolved.change(|timing| timing.timeline.current_time = OptionalTimeValue::UNRESOLVED);
         assert_eq!(key(&unresolved), Some(None), "an inactive timeline samples nothing");
@@ -840,7 +889,7 @@ mod tests {
         let on_scroll_timeline = scroll_timing_at(25.0);
         let scrolled = |timeline| {
             [ScrollProgress {
-                timeline: ScrollTimelineId(timeline),
+                timeline: AnimationTimelineId(timeline),
                 progress: 60.0,
             }]
         };
@@ -962,50 +1011,67 @@ mod tests {
         assert!(animations.rows.is_empty());
     }
 
-    fn publish(keyframes: &mut AnimationKeyframes, scope: u32, rows: &[(&str, usize)]) {
+    fn publish(keyframes: &mut AnimationKeyframes, scope: u32, rows: &[(&str, &Arc<KeyframeSet>)]) {
         let lengths: Vec<u32> = rows
             .iter()
             .map(|(name, _)| name.encode_utf16().count() as u32)
             .collect();
         let units: Vec<u16> = rows.iter().flat_map(|(name, _)| name.encode_utf16()).collect();
-        let sets: Vec<usize> = rows.iter().map(|&(_, set)| set).collect();
-        keyframes.set(TreeScopeID(scope), AnimationKeyframes::row(&lengths, &units, &sets));
+        let sets = rows.iter().map(|&(_, set)| set.clone()).collect();
+        keyframes.set(TreeScopeID(scope), AnimationKeyframes::row(&lengths, &units, sets));
     }
 
-    fn resolve(keyframes: &AnimationKeyframes, declaration: Option<u32>, scope: u32, name: &str) -> Option<usize> {
+    fn resolve(
+        keyframes: &AnimationKeyframes,
+        declaration: Option<u32>,
+        scope: u32,
+        name: &str,
+    ) -> Option<*const KeyframeSet> {
         let declaration_scope = declaration.map_or(DeclarationScope::Unscoped, |scope| {
             DeclarationScope::Shadow(TreeScopeID(scope))
         });
-        keyframes.resolve(
-            declaration_scope,
-            TreeScopeID(scope),
-            &name.encode_utf16().collect::<Vec<_>>(),
-        )
+        keyframes
+            .resolve(
+                declaration_scope,
+                TreeScopeID(scope),
+                &name.encode_utf16().collect::<Vec<_>>(),
+            )
+            .map(Arc::as_ptr)
+    }
+
+    fn keyframe_sets<const N: usize>() -> [Arc<KeyframeSet>; N] {
+        std::array::from_fn(|_| Arc::new(KeyframeSet::from_processed_keyframes(Vec::new(), None)))
+    }
+
+    fn address(set: &Arc<KeyframeSet>) -> Option<*const KeyframeSet> {
+        Some(Arc::as_ptr(set))
     }
 
     #[test]
     fn keyframes_resolve_in_the_declaration_scope_then_the_element_scope_then_the_document() {
+        let [one, two, three, four, five] = keyframe_sets();
         let mut keyframes = AnimationKeyframes::default();
-        publish(&mut keyframes, 0, &[("a", 1), ("b", 2)]);
-        publish(&mut keyframes, 1, &[("a", 3)]);
-        publish(&mut keyframes, 2, &[("a", 4), ("b", 5)]);
+        publish(&mut keyframes, 0, &[("a", &one), ("b", &two)]);
+        publish(&mut keyframes, 1, &[("a", &three)]);
+        publish(&mut keyframes, 2, &[("a", &four), ("b", &five)]);
 
-        assert_eq!(resolve(&keyframes, None, 0, "a"), Some(1));
-        assert_eq!(resolve(&keyframes, None, 1, "a"), Some(3));
-        assert_eq!(resolve(&keyframes, None, 1, "b"), Some(2));
+        assert_eq!(resolve(&keyframes, None, 0, "a"), address(&one));
+        assert_eq!(resolve(&keyframes, None, 1, "a"), address(&three));
+        assert_eq!(resolve(&keyframes, None, 1, "b"), address(&two));
         // A `:host` rule of scope 2 styling an element of scope 1.
-        assert_eq!(resolve(&keyframes, Some(2), 1, "a"), Some(4));
+        assert_eq!(resolve(&keyframes, Some(2), 1, "a"), address(&four));
         assert_eq!(resolve(&keyframes, Some(2), 1, "c"), None);
     }
 
     #[test]
     fn a_departed_scope_gives_up_its_row() {
+        let [three, four] = keyframe_sets();
         let mut keyframes = AnimationKeyframes::default();
-        publish(&mut keyframes, 1, &[("a", 3)]);
-        publish(&mut keyframes, 2, &[("a", 4)]);
+        publish(&mut keyframes, 1, &[("a", &three)]);
+        publish(&mut keyframes, 2, &[("a", &four)]);
         publish(&mut keyframes, 1, &[]);
         assert_eq!(keyframes.scopes.len(), 1);
-        assert_eq!(resolve(&keyframes, Some(2), 0, "a"), Some(4));
+        assert_eq!(resolve(&keyframes, Some(2), 0, "a"), address(&four));
 
         publish(&mut keyframes, 2, &[]);
         assert!(keyframes.scopes.is_empty());

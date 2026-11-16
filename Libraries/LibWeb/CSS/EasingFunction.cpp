@@ -6,6 +6,9 @@
 
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 
 namespace Web::CSS {
 
@@ -17,20 +20,6 @@ EasingFunction EasingFunction::linear()
     easing.m_descriptor.kind = Compositing::RustFFI::FfiEasingKind::Linear;
     easing.m_linear_points = { { 0, 0 }, { 1, 1 } };
     easing.m_text = "linear"_utf16;
-    return easing;
-}
-
-// https://drafts.csswg.org/css-easing-2/#valdef-cubic-bezier-easing-function-ease
-EasingFunction EasingFunction::ease()
-{
-    // Equivalent to cubic-bezier(0.25, 0.1, 0.25, 1).
-    EasingFunction easing;
-    easing.m_descriptor.kind = Compositing::RustFFI::FfiEasingKind::CubicBezier;
-    easing.m_descriptor.x1 = 0.25;
-    easing.m_descriptor.y1 = 0.1;
-    easing.m_descriptor.x2 = 0.25;
-    easing.m_descriptor.y2 = 1;
-    easing.m_text = "ease"_utf16;
     return easing;
 }
 
@@ -48,10 +37,22 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
     return easing;
 }
 
-double EasingFunction::evaluate_at(double input_progress, bool before_flag) const
+Optional<EasingFunction> EasingFunction::parse(Utf16View value)
 {
-    auto descriptor = this->descriptor();
-    return StyleValueFFI::rust_evaluate_easing(&descriptor, input_progress, before_flag);
+    if (auto style_value = parse_css_value(Parser::ParsingParams(), value, PropertyID::AnimationTimingFunction)) {
+        if (style_value->is_unresolved() || style_value->is_css_wide_keyword())
+            return {};
+
+        auto easing_values = style_value->as_value_list().values();
+
+        if (easing_values.size() != 1)
+            return {};
+
+        // FIXME: We should absolutize the style value to resolve relative lengths within calcs
+        return from_style_value(easing_values[0]);
+    }
+
+    return {};
 }
 
 }

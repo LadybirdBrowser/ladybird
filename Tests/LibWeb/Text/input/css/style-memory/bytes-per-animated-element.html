@@ -46,8 +46,10 @@
     // - animationEffects: describes each running animation for sampling (its effect, beside the keyframes it shares
     //   with every element running the same @keyframes rule).
     // - cssAnimations: each CSS animation's name and applied definition.
-    // - hostMemo: the versions of the effects the host described to the engine.
     // - styleValues: the animated value of the longhand the payload of its group holds.
+    // - animationObjects: the Animation objects, which a CSS animation or transition only has once script asks for it.
+    // - animationRecords: the records the animation and its effect keep their state in, a transition's keyframes, and
+    //   the element's lists of its animations and of the effect descriptions it published to the engine.
     const animationBudgets = {
         records: 464,
         payloads: 656,
@@ -59,10 +61,11 @@
         heldRecordMaps: 12,
         layoutStyleColumns: 28,
         styleValues: 24,
-        animationEffects: 432,
-        cssAnimations: 360,
-        hostMemo: 180,
+        animationEffects: 416,
+        cssAnimations: 240,
         cppInstalledStyles: 8,
+        animationObjects: 0,
+        animationRecords: 856,
     };
     const transitionBudgets = {
         records: 464,
@@ -74,9 +77,10 @@
         hostTree: 24,
         heldRecordMaps: 12,
         layoutStyleColumns: 28,
-        animationEffects: 456,
-        hostMemo: 248,
+        animationEffects: 348,
         cppInstalledStyles: 8,
+        animationObjects: 0,
+        animationRecords: 1058,
     };
 
     // NB: What a transaction in flight holds of earlier generations, and what the style threads keep for the next

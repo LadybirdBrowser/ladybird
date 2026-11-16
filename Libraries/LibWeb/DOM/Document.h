@@ -27,6 +27,7 @@
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibCore/Forward.h>
 #include <LibCore/SharedVersion.h>
+#include <LibGC/Weak.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibGfx/Point.h>
 #include <LibJS/Forward.h>
@@ -89,6 +90,20 @@ namespace Web {
 
 class HoverLinkReporter;
 struct RenderingStats;
+
+}
+
+namespace Web::Animations {
+
+class AnimationRef;
+class EffectRef;
+
+}
+
+namespace Web::Animations::RustFFI {
+
+struct DocumentAnimations;
+struct FfiPendingAnimationEvent;
 
 }
 
@@ -334,7 +349,9 @@ public:
     [[nodiscard]] static GC::Ref<Document> create(Page&, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url = URL::about_blank());
     [[nodiscard]] static GC::Ref<Document> create_for_constructor(JS::Object&);
     [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(Page&, GC::Ref<EventTarget> relevant_global_event_target);
-    virtual ~Document() override;
+    // NB: The animations of the document die when it is swept, not when it is finalized, so that the finalizer of
+    //     another dead cell can still reach them.
+    GC_ALLOW_CELL_DESTRUCTOR virtual ~Document() override;
 
     u64 form_controls_version() const { return m_form_controls_version; }
     void bump_form_controls_version() { ++m_form_controls_version; }
@@ -655,12 +672,7 @@ public:
     void sample_animation_effects_needing_style_update();
     void update_style_computer_viewport_rect();
     bool needs_animated_style_update() const { return m_needs_animated_style_update; }
-    void clear_needs_animated_style_update()
-    {
-        m_needs_animated_style_update = false;
-        m_effects_needing_animated_style_update.clear();
-        m_effects_needing_animated_style_update_after_current_update.clear();
-    }
+    void clear_needs_animated_style_update();
     void set_cursor_may_be_stale() { m_cursor_may_be_stale = true; }
     [[nodiscard]] bool take_cursor_may_be_stale() { return exchange(m_cursor_may_be_stale, false); }
     [[nodiscard]] bool is_running_update_layout() const;
@@ -1397,10 +1409,13 @@ public:
 
     void restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry);
 
-    GC::Ref<Animations::DocumentTimeline> timeline();
+    GC::Ref<Animations::AnimationTimeline> timeline();
 
     // The scroll progress timelines and view progress timelines the elements of the document declare by name.
     Animations::NamedTimelines& named_timelines();
+    // The CSS animations of the elements of the document that follow a named timeline, which the document keeps none
+    // of alive.
+    Animations::WeakAnimationSetView animations_following_named_timelines();
     bool has_named_timelines() const { return m_named_timelines != nullptr; }
     // Moves on whenever the timelines an element declares by name, or the timeline names it scopes, may have changed.
     u64 timeline_declarations_generation() const { return m_timeline_declarations_generation; }
@@ -1409,9 +1424,10 @@ public:
 
     void associate_with_timeline(GC::Ref<Animations::AnimationTimeline>);
     void disassociate_with_timeline(GC::Ref<Animations::AnimationTimeline>);
-    void associate_with_animation(GC::Ref<Animations::Animation>);
-    void disassociate_with_animation(GC::Ref<Animations::Animation>);
-    bool has_associated_animations() const { return !m_associated_animations.is_empty(); }
+    void associate_with_animation(Animations::AnimationRef const&);
+    // Disassociates the animation, whose associated effect was `effect`, from the document.
+    void disassociate_with_animation(Animations::AnimationRef const&, Optional<Animations::EffectRef> const& effect);
+    bool has_associated_animations() const;
     // Negative where `first` comes before `second` in tree order and positive where it comes after, for sorting
     // animations by composite order. Two distinct elements of this document take no walk of their siblings once a tree
     // has been asked about often enough, so that sorting many sibling elements is not quadratic in them per comparison.
@@ -1420,22 +1436,16 @@ public:
     // version stand.
     void keep_element_tree_positions_across_attribute_change(u64 version_before);
 
-    struct PendingAnimationEvent {
-        GC::Ref<DOM::Event> event;
-        GC::Ref<Animations::Animation> animation;
-        GC::Ref<DOM::EventTarget> target;
-        Optional<double> scheduled_event_time;
-
-        void visit_edges(GC::Cell::Visitor&) const;
-    };
-    void append_pending_animation_event(PendingAnimationEvent const&);
+    // https://www.w3.org/TR/web-animations-1/#pending-animation-event-queue
+    // Appends an event of `animation` to the document's pending animation event queue, which holds what the event is
+    // and creates it only as the document dispatches it.
+    void append_pending_animation_event(Animations::AnimationRef const& animation, Animations::RustFFI::FfiPendingAnimationEvent const&);
     void update_animations_and_send_events(double timestamp);
     void prepare_to_observe_css_animation_events();
     void update_compositor_animations(Layout::BegunRead const& read);
-    void dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation>);
+    void dispatch_events_for_animation_if_necessary(Animations::AnimationRef const&);
     void remove_replaced_animations();
 
-    WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animations::Animation>>> get_animations();
     HashTable<GC::Ref<Animations::AnimationTimeline>> const& associated_animation_timelines() const { return m_associated_animation_timelines; }
     void begin_smil_time_container_once_loaded(SVG::SMILTimeContainer&);
     void schedule_svg_referenced_motion_path_update(SVG::SVGAnimateMotionElement&);
@@ -1473,7 +1483,7 @@ public:
     GC::RootVector<GC::Ref<Element>> elements_from_point(double x, double y);
     GC::Ptr<Element const> scrolling_element() const;
 
-    void set_needs_animated_style_update(Animations::KeyframeEffect&);
+    void set_needs_animated_style_update(Animations::EffectRef const&);
 
     // What the style updates of the document measured, for the style update capture tools, and how often a style
     // update stopped at its pass guard.
@@ -1895,6 +1905,11 @@ private:
     void service_compositor_animation_wakeup(double timestamp);
 
     void drain_style_update_that_flew(Layout::BegunRead const&);
+    // The effects whose animated style the next animated style update samples, taken out of the document's set, and
+    // put back.
+    // Sets the effects whose animated style the next animated style update samples aside, and back again.
+    void set_aside_effects_needing_animated_style_update();
+    void restore_effects_needing_animated_style_update();
 
     GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
 
@@ -1944,8 +1959,6 @@ private:
     void queue_an_intersection_observer_entry(IntersectionObserver::IntersectionObserver&, HighResolutionTime::DOMHighResTimeStamp time, GC::Ref<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<Element> target);
 
     Element* find_a_potential_indicated_element(Utf16View fragment) const;
-
-    void dispatch_events_for_transition(GC::Ref<CSS::CSSTransition>);
 
     template<typename GetNotifier, typename... Args>
     void notify_each_document_observer(GetNotifier&& get_notifier, Args&&... args)
@@ -2210,8 +2223,6 @@ private:
     bool m_needs_animated_style_update { false };
     bool m_cursor_may_be_stale { false };
     bool m_reads_layout_as_it_flew { false };
-    GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update;
-    GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update_after_current_update;
     bool m_is_updating_animated_style { false };
     bool m_has_throttled_animation_style_update { false };
     bool m_needs_throttled_animation_style_update_check { false };
@@ -2413,9 +2424,11 @@ private:
     Vector<GC::Ref<SVG::SMILTimeContainer>> m_smil_time_containers_to_begin;
     Vector<GC::Ref<SVG::SVGAnimateMotionElement>> m_animate_motion_elements_to_update;
 
-    // NB: Weak so the document does not unnecessarily keep animations alive. Note that this also includes animations
-    //     associated with elements in shadow trees so differs from getAnimations()
-    GC::WeakHashSet<Animations::Animation> m_associated_animations;
+    // The animations associated with the document's elements, and those associated with it during the current style
+    // stabilization epoch, none of which the document keeps alive.
+    // NB: The associated animations include those associated with elements in shadow trees, so they differ from
+    //     getAnimations().
+    Animations::RustFFI::DocumentAnimations* m_animations { nullptr };
     // The tree position of every element of the document by its unique ID, valid for one DOM tree version. Sorting
     // animations fills it once it asked the tree enough at that version.
     HashMap<UniqueNodeID, u32> m_element_tree_positions;
@@ -2424,17 +2437,10 @@ private:
     u32 m_element_count_at_last_tree_positions_walk { 0 };
 
     // https://www.w3.org/TR/web-animations-1/#document-default-document-timeline
-    GC::Ptr<Animations::DocumentTimeline> m_default_timeline;
+    GC::Ptr<Animations::AnimationTimeline> m_default_timeline;
     GC::Ptr<Animations::NamedTimelines> m_named_timelines;
     u64 m_timeline_declarations_generation { 0 };
     Optional<double> m_last_animation_frame_timestamp;
-
-    // https://www.w3.org/TR/web-animations-1/#pending-animation-event-queue
-    Vector<PendingAnimationEvent> m_pending_animation_event_queue;
-    // Events produced while style and layout feedback is provisional move to the public queue only
-    // when the outer epoch commits.
-    Vector<PendingAnimationEvent> m_provisional_animation_event_queue;
-    GC::WeakHashSet<Animations::Animation> m_animations_created_in_stabilization_epoch;
 
     // https://drafts.csswg.org/css-transitions-2/#current-transition-generation
     size_t m_transition_generation { 0 };

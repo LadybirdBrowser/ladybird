@@ -122,7 +122,7 @@ static Optional<Vector<CSS::EasingFunction>> parse_key_splines(Utf16View attribu
 
         // NB: The keyTimes values are the anchor points of a segment, so its control points describe a cubic-bezier()
         //     easing function across it.
-        auto easing = Animations::AnimationEffect::parse_easing_string(Utf16String::formatted("cubic-bezier({}, {}, {}, {})", control_points[0], control_points[1], control_points[2], control_points[3]));
+        auto easing = CSS::EasingFunction::parse(Utf16String::formatted("cubic-bezier({}, {}, {}, {})", control_points[0], control_points[1], control_points[2], control_points[3]));
         if (!easing.has_value())
             return {};
         key_splines.unchecked_append(easing.release_value());
@@ -131,7 +131,7 @@ static Optional<Vector<CSS::EasingFunction>> parse_key_splines(Utf16View attribu
 }
 
 // https://svgwg.org/specs/animations/#AnimateElement
-Vector<Animations::BaseKeyframe> SVGAnimateElement::keyframes(SVGElement const& target, CSS::PropertyID property_id) const
+Vector<SVGKeyframe> SVGAnimateElement::keyframes(SVGElement const& target, CSS::PropertyID property_id) const
 {
     // NB: A missing value stands for the underlying value of the attribute or property, which the keyframe effect
     //     takes as its missing start keyframe.
@@ -217,14 +217,14 @@ Vector<Animations::BaseKeyframe> SVGAnimateElement::keyframes(SVGElement const& 
         return static_cast<double>(index) / static_cast<double>(values.size() - 1);
     };
 
-    Vector<Animations::BaseKeyframe> keyframes;
+    Vector<SVGKeyframe> keyframes;
     keyframes.ensure_capacity(values.size() + 1);
     for (size_t i = 0; i < values.size(); ++i) {
         if (!values[i])
             continue;
         auto value_keyframe = keyframe(offset_of_value(i), property_id, *values[i]);
         if (calc_mode == CalcMode::Discrete)
-            value_keyframe.easing = Animations::AnimationEffect::parse_easing_string("step-end"_utf16).release_value();
+            value_keyframe.easing = CSS::EasingFunction::parse("step-end"_utf16).release_value();
         else if (key_splines.has_value() && i < key_splines->size())
             value_keyframe.easing = (*key_splines)[i];
         else

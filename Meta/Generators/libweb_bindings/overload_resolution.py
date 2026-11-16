@@ -524,11 +524,17 @@ def distinguishability_category(idl_type: IDLType, context: GenerationContext) -
     return "InterfaceLike"
 
 
-def operation_overload_sets(interface: Interface, static: bool = False) -> dict[str, list[Operation]]:
+def operation_overload_sets(
+    interface: Interface, static: bool = False, with_rust_operations: bool = False
+) -> dict[str, list[Operation]]:
+    """The overload sets of the operations that the C++ bindings implement. With with_rust_operations, those of the
+    operations marked [ImplementedIn=Rust] as well, which the Rust bindings implement, in the order of the IDL."""
     overload_sets: dict[str, list[Operation]] = {}
     operations = interface.static_operations if static else interface.regular_operations
     for operation in operations:
         if "FIXME" in operation.extended_attributes:
+            continue
+        if not with_rust_operations and operation.extended_attributes.get("ImplementedIn") == "Rust":
             continue
         overload_sets.setdefault(operation.name, []).append(operation)
     return overload_sets

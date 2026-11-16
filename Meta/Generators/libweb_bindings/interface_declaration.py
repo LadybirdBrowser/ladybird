@@ -23,6 +23,7 @@ from Generators.libweb_bindings.named_and_indexed_properties import write_legacy
 from Generators.libweb_bindings.named_and_indexed_properties import write_named_properties_object_declaration
 from Generators.libweb_bindings.namespaces import write_namespace_declaration
 from Generators.libweb_bindings.overload_resolution import operation_callback_names
+from Generators.libweb_bindings.rust_types import is_member_implemented_in_rust
 from Generators.libweb_bindings.wrappers import LOCATION_WRAPPER_HOOKS
 from Generators.libweb_bindings.wrappers import create_wrapper_function_name
 from Generators.libweb_bindings.wrappers import cross_origin_property_function_declarations
@@ -130,7 +131,7 @@ private:
             out.write(f"    friend {declaration};\n")
         out.write("\n")
     for attribute in interface.regular_attributes:
-        if "FIXME" in attribute.extended_attributes:
+        if "FIXME" in attribute.extended_attributes or is_member_implemented_in_rust(attribute):
             continue
         out.write(f"    JS_DECLARE_NATIVE_FUNCTION({attribute_getter_callback_name(attribute)});\n")
         if attribute_has_setter(attribute):

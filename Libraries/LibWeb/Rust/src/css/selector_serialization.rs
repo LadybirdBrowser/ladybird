@@ -339,6 +339,20 @@ pub unsafe extern "C" fn rust_selector_serialize(
     }
 }
 
+/// The serialization of a selector that names no namespaces, as a style sheet that declares none serializes it.
+pub(crate) fn serialize_selector_ref(selector: &super::selector::SelectorRef) -> ak::Utf16String {
+    let mut sink = TextSink::new();
+    serialize_selector(
+        &mut sink,
+        selector.view(),
+        &NamespaceContext {
+            has_default_namespace: false,
+            prefixes_mapping_to_default: &[],
+        },
+    );
+    ak::Utf16String::from_utf16(&sink.into_utf16())
+}
+
 #[cfg(test)]
 pub(super) fn serialize_selector_without_namespaces(selector: &RustSelector) -> Vec<u16> {
     let mut sink = TextSink::new();

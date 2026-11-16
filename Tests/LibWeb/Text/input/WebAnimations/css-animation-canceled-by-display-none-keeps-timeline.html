@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade {
+        from { opacity: 0.25; }
+        to { opacity: 0.75; }
+    }
+    #scroller {
+        overflow: scroll;
+        height: 100px;
+        scroll-timeline-name: --scroller;
+    }
+    #spacer {
+        height: 300px;
+    }
+    #target {
+        animation: fade 1s linear;
+        animation-timeline: --scroller;
+    }
+</style>
+<div id="scroller"><div id="target"></div><div id="spacer"></div></div>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    asyncTest(async done => {
+        // A CSS animation canceled by display: none no longer follows the named timeline it was created with.
+        const animation = target.getAnimations()[0];
+        const timeline = animation.timeline;
+        println(`follows a scroll timeline: ${timeline instanceof ScrollTimeline}`);
+        target.style.display = "none";
+        println(`play state after display: none: ${animation.playState}`);
+        scroller.style.scrollTimelineName = "--other";
+        await animationFrame();
+        await animationFrame();
+        println(`timeline kept: ${animation.timeline === timeline}`);
+        done();
+    });
+</script>

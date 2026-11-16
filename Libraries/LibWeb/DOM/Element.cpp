@@ -389,6 +389,7 @@ void Element::finalize()
 {
     Base::finalize();
     CSS::Parser::ValueParserFFI::rust_declaration_block_destroy(exchange(m_inline_declarations, nullptr));
+    finalize_animations();
 }
 
 void Element::append_to_attribute_list(QualifiedName name, Utf16String value)
@@ -3029,6 +3030,7 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     if (m_style_node_id == style_node_id)
         return;
     m_published_presentational_hint_properties.clear();
+    forget_published_effect_descriptions();
     auto old_style_node_id = m_style_node_id;
     m_style_node_id = style_node_id;
     Layout::Node::dom_node_style_node_changed(*this, old_style_node_id);
@@ -5185,7 +5187,7 @@ CSS::InstalledStyle const& Element::installed_style(Optional<CSS::PseudoElement>
     return m_installed_style;
 }
 
-void Element::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const& badge, Optional<CSS::PseudoElement> pseudo_element_type, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
+void Element::update_animated_properties(Badge<Web::Animations::EffectRef> const& badge, Optional<CSS::PseudoElement> pseudo_element_type, Web::Animations::EffectRef const& effect, Web::Animations::AnimationUpdateContext& context)
 {
     DOM::AbstractElement abstract_element { *this, pseudo_element_type };
     if (pseudo_element_type.has_value()) {
@@ -5197,11 +5199,11 @@ void Element::update_animated_properties(Badge<Web::Animations::KeyframeEffect> 
     update_animated_properties_for_abstract_element(badge, abstract_element, effect, context);
 }
 
-void Element::update_animated_properties_for_abstract_element(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
+void Element::update_animated_properties_for_abstract_element(Badge<Web::Animations::EffectRef> const&, DOM::AbstractElement abstract_element, Web::Animations::EffectRef const& effect, Web::Animations::AnimationUpdateContext& context)
 {
     if (!has_style())
         return;
-    effect.update_computed_properties_for_style(context, abstract_element);
+    context.add_effect(abstract_element, effect);
 }
 
 // The animation style group of an installed style, which holds the timelines it declares by name.
@@ -6918,27 +6920,7 @@ void Element::play_or_cancel_animations_after_display_property_change()
         return;
     }
 
-    auto play_or_cancel_depending_on_display = [&](Vector<GC::Ref<CSS::CSSAnimation>> const& animations) {
-        for (auto& animation : animations) {
-            // NOTE: It is safe to assume this has a value as it is set when creating a CSS defined animation
-            auto play_state = animation->last_css_animation_play_state().value();
-
-            if (play_state == CSS::AnimationPlayState::Running) {
-                HTML::TemporaryExecutionContext context(document().relevant_settings_object());
-                animation->play_from_css();
-            } else if (play_state == CSS::AnimationPlayState::Paused) {
-                HTML::TemporaryExecutionContext context(document().relevant_settings_object());
-                animation->pause_from_css();
-            }
-        }
-    };
-
-    play_or_cancel_depending_on_display(*css_defined_animations({}));
-
-    for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); i++) {
-        auto pseudo_element = static_cast<CSS::PseudoElement>(i);
-        play_or_cancel_depending_on_display(*css_defined_animations(pseudo_element));
-    }
+    play_or_pause_css_animations_as_their_play_state_asks();
 }
 
 // https://drafts.csswg.org/selectors/#indicate-focus

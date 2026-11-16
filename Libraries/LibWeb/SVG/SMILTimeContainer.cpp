@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/SVG/SMILAnimation.h>
 #include <LibWeb/SVG/SMILTimeContainer.h>
 
 namespace Web::SVG {
@@ -35,7 +34,8 @@ void SMILTimeContainer::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);
-    visitor.visit(m_animations);
+    for (auto const& animation : m_animations)
+        animation.visit_edges(visitor);
 }
 
 double SMILTimeContainer::document_timeline_time() const
@@ -126,15 +126,15 @@ void SMILTimeContainer::record_time_to_seek_to_once_begun_in_milliseconds(double
     m_time_to_seek_to_once_begun = max(time, 0.);
 }
 
-void SMILTimeContainer::add_animation(SMILAnimation& animation)
+void SMILTimeContainer::add_animation(Animations::AnimationRef const& animation)
 {
     m_animations.append(animation);
     synchronize_animation(animation);
 }
 
-void SMILTimeContainer::remove_animation(SMILAnimation& animation)
+void SMILTimeContainer::remove_animation(Animations::AnimationRef const& animation)
 {
-    m_animations.remove_first_matching([&](auto const& entry) { return entry.ptr() == &animation; });
+    m_animations.remove_first_matching([&](auto const& entry) { return entry == animation; });
 }
 
 void SMILTimeContainer::synchronize_animations()
@@ -143,24 +143,15 @@ void SMILTimeContainer::synchronize_animations()
         synchronize_animation(animation);
 }
 
-// https://drafts.csswg.org/web-animations-1/#setting-the-start-time-of-an-animation
-// https://drafts.csswg.org/web-animations-1/#setting-the-current-time-of-an-animation
-void SMILTimeContainer::synchronize_animation(SMILAnimation& animation)
+void SMILTimeContainer::synchronize_animation(Animations::AnimationRef const& animation)
 {
-    // NB: Both procedures take effect synchronously, and update the finished state of the animation as a seek does. A
-    //     backward seek therefore applies to an animation that already finished, too.
     if (!m_has_begun)
         return;
 
+    // NB: The record sets the start time or the current time of the animation. The animation has no promises to
+    //     settle, but the microtask checkpoint as the execution context ends stays where it was.
     HTML::TemporaryExecutionContext execution_context { m_document->relevant_settings_object() };
-    if (m_is_paused) {
-        // NB: Making the start time unresolved holds the animation at its current time, which setting the current time
-        //     then moves to the time the timeline is paused at.
-        MUST(animation.set_start_time_for_bindings(Animations::NullableCSSNumberish { Empty {} }));
-        MUST(animation.set_current_time_for_bindings(Animations::NullableCSSNumberish { m_paused_time }));
-        return;
-    }
-    MUST(animation.set_start_time_for_bindings(Animations::NullableCSSNumberish { m_zero_time }));
+    Animations::RustFFI::animations_smil_animation_synchronize(&animation.record(), m_zero_time, m_is_paused, m_paused_time, Animations::perform_host_effect);
 }
 
 }
