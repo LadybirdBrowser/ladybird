@@ -12,6 +12,7 @@ pub mod perf_map;
 mod scope_guard;
 mod slice;
 pub mod stack;
+mod string_conversions;
 pub mod waiter_list;
 #[cfg(all(windows, target_arch = "x86_64"))]
 pub mod windows_code_memory;
@@ -19,6 +20,7 @@ pub mod windows_code_memory;
 pub use generic_lexer::GenericLexer;
 pub use scope_guard::ScopeGuard;
 pub use slice::{Span, SpanMut, slice_from_raw_parts, slice_from_raw_parts_mut};
+pub use string_conversions::{UnsignedInteger, parse_ascii_digits};
 
 use core::mem::MaybeUninit;
 use std::num::NonZeroUsize;
