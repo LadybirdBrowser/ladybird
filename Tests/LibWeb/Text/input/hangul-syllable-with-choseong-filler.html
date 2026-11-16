@@ -13,8 +13,11 @@
 <span id="filler">&#x115F;&#x1193;</span>
 <!-- U+1100 HANGUL CHOSEONG KIYEOK, then U+1193 -->
 <span id="kiyeok">&#x1100;&#x1193;</span>
-<!-- U+115F alone -->
+<!-- U+115F alone, and U+1160 HANGUL JUNGSEONG FILLER alone: the font draws each as a spacing glyph. -->
 <span id="lone-filler">&#x115F;</span>
+<span id="lone-jungseong-filler">&#x1160;</span>
+<!-- U+3164 HANGUL FILLER alone, in a font with no Hangul at all: Nothing has a glyph for it. -->
+<span id="lone-filler-without-glyph" style="font: 40px serif">&#x3164;</span>
 <script src="include.js"></script>
 <script>
     asyncTest(async done => {
@@ -22,7 +25,9 @@
         const width = id => document.getElementById(id).getBoundingClientRect().width;
         println(`syllable with a filler initial has a width: ${width("filler") > 0}`);
         println(`syllable with a kiyeok initial has a width: ${width("kiyeok") > 0}`);
-        println(`lone filler has no width: ${width("lone-filler") === 0}`);
+        println(`lone filler has a width: ${width("lone-filler") > 0}`);
+        println(`lone jungseong filler has a width: ${width("lone-jungseong-filler") > 0}`);
+        println(`lone filler with no glyph has no width: ${width("lone-filler-without-glyph") === 0}`);
         done();
     });
 </script>
