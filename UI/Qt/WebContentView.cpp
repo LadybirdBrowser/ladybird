@@ -1812,8 +1812,29 @@ private:
 
 void WebContentView::add_floating_surface(QWidget& surface)
 {
-    m_floating_surfaces.append(&surface);
-    new FloatingSurfaceWatcher(surface, [this] { schedule_repaint(); });
+    if (any_of(m_floating_surfaces, [&](auto const& floating) { return floating.surface == &surface; }))
+        return;
+    auto* watcher = new FloatingSurfaceWatcher(surface, [view = QPointer { this }] {
+        if (view)
+            view->schedule_repaint();
+    });
+    m_floating_surfaces.append({ .surface = &surface, .watcher = watcher });
+
+    // A surface that already shows gets no event of being shown over this view.
+    if (surface.isVisible())
+        schedule_repaint();
+}
+
+void WebContentView::remove_floating_surface(QWidget& surface)
+{
+    auto removed = m_floating_surfaces.remove_all_matching([&](auto const& floating) {
+        if (floating.surface != &surface)
+            return false;
+        delete floating.watcher.data();
+        return true;
+    });
+    if (removed)
+        schedule_repaint();
 }
 
 void WebContentView::set_suggestions_over_page(bool suggestions_over_page)
@@ -1826,7 +1847,7 @@ void WebContentView::set_suggestions_over_page(bool suggestions_over_page)
 
 bool WebContentView::has_floating_surface_over_page() const
 {
-    return m_suggestions_over_page || any_of(m_floating_surfaces, [](auto const& surface) { return surface && surface->isVisible(); });
+    return m_suggestions_over_page || any_of(m_floating_surfaces, [](auto const& floating) { return floating.surface && floating.surface->isVisible(); });
 }
 
 // Overlays are painted by Qt, underneath whatever presents the page on some platforms, which has to step aside for them.

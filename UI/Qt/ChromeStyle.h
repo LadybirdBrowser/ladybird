@@ -119,7 +119,7 @@ QString primary_button_style_sheet();
 
 // Installs the application style, which keeps the platform's look but follows the design's timing.
 void install_application_style();
-QString restore_session_card_style_sheet();
+QString page_card_style_sheet();
 QString screenshot_selection_style_sheet(QPalette const&);
 QString screenshot_viewer_style_sheet();
 

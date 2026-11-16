@@ -35,7 +35,6 @@
 #include <UI/Qt/Motion.h>
 #include <UI/Qt/PermissionPromptPopover.h>
 #include <UI/Qt/Popover.h>
-#include <UI/Qt/RestoreSessionCard.h>
 #include <UI/Qt/SiteSettingsPopover.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/SystemAppearance.h>
@@ -1411,8 +1410,7 @@ bool Tab::eventFilter(QObject* watched, QEvent* event)
     if (watched == m_view && (event->type() == QEvent::Resize || event->type() == QEvent::Move)) {
         if (m_find_in_page->isVisible())
             m_find_in_page->reposition();
-        if (m_restore_session_card)
-            m_restore_session_card->reposition();
+        m_window->reposition_page_cards();
     }
     if (watched == m_location_edit && event->type() == QEvent::DynamicPropertyChange && static_cast<QDynamicPropertyChangeEvent*>(event)->propertyName() == "autocompleteOpen")
         m_view->set_suggestions_over_page(m_location_edit->property("autocompleteOpen").toBool());
@@ -1638,16 +1636,6 @@ void Tab::position_private_session_popover()
     m_private_session_popover->adjustSize();
 
     move_popover_below(*m_private_session_popover, m_window->ladybird_button(), PopoverAlignment::Leading, m_window->ladybird_button().tile_rect());
-}
-
-void Tab::show_restore_session_card(size_t tab_count, Function<void()> on_restore)
-{
-    if (m_restore_session_card)
-        m_restore_session_card->deleteLater();
-    m_restore_session_card = new RestoreSessionCard(*this, *m_view, tab_count);
-    m_view->add_floating_surface(*m_restore_session_card);
-    m_restore_session_card->on_restore = AK::move(on_restore);
-    m_restore_session_card->show();
 }
 
 void Tab::show_find_in_page()
