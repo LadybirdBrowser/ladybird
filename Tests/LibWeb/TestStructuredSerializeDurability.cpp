@@ -161,7 +161,7 @@ TEST_CASE(value_tag_primitives_round_trip)
         value.append(big_integer.data(), big_integer.size());
         auto decoded = decode(value);
         EXPECT(decoded.is_bigint());
-        EXPECT_EQ(MUST(decoded.as_bigint().big_integer().to_base(10)), "123456789012345678901234567890"_string);
+        EXPECT_EQ(decoded.as_bigint().to_string(), "123456789012345678901234567890"_string);
     }
 }
 
@@ -188,7 +188,7 @@ TEST_CASE(value_tag_wrapper_objects_round_trip)
         Array<u8, 3> big_integer { 0x00, 0x03, 0xE7 }; // +999
         append_storage_leb128(value, big_integer.size());
         value.append(big_integer.data(), big_integer.size());
-        EXPECT_EQ(MUST(as<JS::BigIntObject>(decode(value).as_object()).bigint().big_integer().to_base(10)), "999"_string);
+        EXPECT_EQ(as<JS::BigIntObject>(decode(value).as_object()).bigint().to_string(), "999"_string);
     }
 }
 
