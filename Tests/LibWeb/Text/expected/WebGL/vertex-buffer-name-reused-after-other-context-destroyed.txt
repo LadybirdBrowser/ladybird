@@ -1,0 +1,4 @@
+Other context, left half drawn: 255,0,0,255 | 255,0,0,255 | 0,0,255,255 | 0,0,255,255
+Other context collected: true
+Whole quad drawn: 255,0,0,255 | 255,0,0,255 | 255,0,0,255 | 255,0,0,255
+Error: 0
