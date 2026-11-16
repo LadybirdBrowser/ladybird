@@ -6,7 +6,7 @@
 
 #include <AK/Hex.h>
 #include <LibCore/ImmutableBytes.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibWebView/CrashReportDiagnostics.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/CrashReportSubmission.h>
@@ -18,7 +18,7 @@ static constexpr auto diagnostics_name = "crash-diagnostics.txt"sv;
 
 static ByteString sha256_hex(ReadonlyBytes bytes)
 {
-    return encode_hex(Crypto::Hash::SHA256::hash(bytes).bytes());
+    return encode_hex(Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, bytes).bytes());
 }
 
 static ReportSubmission::Contents describe_report(CrashReportSubmission::Options const& options, StringView text)

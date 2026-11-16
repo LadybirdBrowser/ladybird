@@ -11,7 +11,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/StringBuilder.h>
 #include <AK/Vector.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibWeb/SRI/SRI.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
 
@@ -54,33 +54,21 @@ static StringView get_prioritized_hash_function(StringView a, StringView b)
 // https://w3c.github.io/webappsec-subresource-integrity/#apply-algorithm-to-response
 ErrorOr<String> apply_algorithm_to_bytes(StringView algorithm, ByteBuffer const& bytes)
 {
-    // NOTE: The steps are duplicated here because each hash algorithm returns a different result type.
+    auto hash_kind = [&] {
+        if (algorithm == "sha256"sv)
+            return Crypto::Hash::HashKind::SHA256;
+        if (algorithm == "sha384"sv)
+            return Crypto::Hash::HashKind::SHA384;
+        if (algorithm == "sha512"sv)
+            return Crypto::Hash::HashKind::SHA512;
+        VERIFY_NOT_REACHED();
+    }();
 
-    if (algorithm == "sha256"sv) {
-        // 1. Let result be the result of applying algorithm to bytes.
-        auto result = Crypto::Hash::SHA256::hash(bytes);
+    // 1. Let result be the result of applying algorithm to bytes.
+    auto result = Crypto::Hash::digest(hash_kind, bytes);
 
-        // 2. Return the result of base64 encoding result.
-        return encode_base64(result.bytes());
-    }
-
-    if (algorithm == "sha384"sv) {
-        // 1. Let result be the result of applying algorithm to bytes.
-        auto result = Crypto::Hash::SHA384::hash(bytes);
-
-        // 2. Return the result of base64 encoding result.
-        return encode_base64(result.bytes());
-    }
-
-    if (algorithm == "sha512"sv) {
-        // 1. Let result be the result of applying algorithm to bytes.
-        auto result = Crypto::Hash::SHA512::hash(bytes);
-
-        // 2. Return the result of base64 encoding result.
-        return encode_base64(result.bytes());
-    }
-
-    VERIFY_NOT_REACHED();
+    // 2. Return the result of base64 encoding result.
+    return encode_base64(result.bytes());
 }
 
 // https://w3c.github.io/webappsec-subresource-integrity/#parse-metadata

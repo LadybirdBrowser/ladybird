@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibCrypto/Hash/HashManager.h>
+#include <LibCrypto/Hash/Hash.h>
 
 namespace Crypto::Hash {
 
