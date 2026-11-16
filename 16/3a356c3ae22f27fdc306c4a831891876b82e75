@@ -1,0 +1,4 @@
+Ladybird exposes RTCSessionDescription.toJSON(), returning the type and
+the sdp, as the other engines do: WebKit and Gecko declare it as a
+[Default] toJSON() in their RTCSessionDescription IDL, and Blink as a
+toJSON() implemented with its own serializer.
