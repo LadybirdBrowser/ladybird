@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Format.h>
 #include <UI/Qt/SoftwareUpdaterMac.h>
 
 #import <Sparkle/Sparkle.h>
@@ -54,6 +55,119 @@
 
 @end
 
+// Sparkle only runs once the user chose to install an update in Ladybird's own notice, so it installs the update and
+// relaunches without asking again. Its progress and its alerts show in Sparkle's own windows. The window that says
+// Sparkle is checking for updates is left out: Sparkle's update window would replace it, but that window is skipped.
+@interface LadybirdUserDriver : NSObject <SPUUserDriver>
+
+- (instancetype)initWithStandardUserDriver:(SPUStandardUserDriver*)standardUserDriver;
+
+@end
+
+@implementation LadybirdUserDriver
+{
+    SPUStandardUserDriver* _standard;
+}
+
+- (instancetype)initWithStandardUserDriver:(SPUStandardUserDriver*)standardUserDriver
+{
+    if (self = [super init])
+        _standard = standardUserDriver;
+    return self;
+}
+
+- (void)showUpdatePermissionRequest:(SPUUpdatePermissionRequest*)request reply:(void (^)(SUUpdatePermissionResponse*))reply
+{
+    [_standard showUpdatePermissionRequest:request reply:reply];
+}
+
+- (void)showUserInitiatedUpdateCheckWithCancellation:(void (^)(void))cancellation
+{
+}
+
+- (void)showUpdateFoundWithAppcastItem:(SUAppcastItem*)appcastItem state:(SPUUserUpdateState*)state reply:(void (^)(SPUUserUpdateChoice))reply
+{
+    // Sparkle cannot install an update that only informs, so the user sees what it says instead. A check that the user did
+    // not start, such as one that a user default scheduled, asks the user as Sparkle normally does.
+    if (appcastItem.informationOnlyUpdate || !state.userInitiated) {
+        [_standard showUpdateFoundWithAppcastItem:appcastItem state:state reply:reply];
+        return;
+    }
+    reply(SPUUserUpdateChoiceInstall);
+}
+
+- (void)showUpdateReleaseNotesWithDownloadData:(SPUDownloadData*)downloadData
+{
+    [_standard showUpdateReleaseNotesWithDownloadData:downloadData];
+}
+
+- (void)showUpdateReleaseNotesFailedToDownloadWithError:(NSError*)error
+{
+    [_standard showUpdateReleaseNotesFailedToDownloadWithError:error];
+}
+
+- (void)showUpdateNotFoundWithError:(NSError*)error acknowledgement:(void (^)(void))acknowledgement
+{
+    [_standard showUpdateNotFoundWithError:error acknowledgement:acknowledgement];
+}
+
+- (void)showUpdaterError:(NSError*)error acknowledgement:(void (^)(void))acknowledgement
+{
+    [_standard showUpdaterError:error acknowledgement:acknowledgement];
+}
+
+- (void)showDownloadInitiatedWithCancellation:(void (^)(void))cancellation
+{
+    [_standard showDownloadInitiatedWithCancellation:cancellation];
+}
+
+- (void)showDownloadDidReceiveExpectedContentLength:(uint64_t)expectedContentLength
+{
+    [_standard showDownloadDidReceiveExpectedContentLength:expectedContentLength];
+}
+
+- (void)showDownloadDidReceiveDataOfLength:(uint64_t)length
+{
+    [_standard showDownloadDidReceiveDataOfLength:length];
+}
+
+- (void)showDownloadDidStartExtractingUpdate
+{
+    [_standard showDownloadDidStartExtractingUpdate];
+}
+
+- (void)showExtractionReceivedProgress:(double)progress
+{
+    [_standard showExtractionReceivedProgress:progress];
+}
+
+- (void)showReadyToInstallAndRelaunch:(void (^)(SPUUserUpdateChoice))reply
+{
+    reply(SPUUserUpdateChoiceInstall);
+}
+
+- (void)showInstallingUpdateWithApplicationTerminated:(BOOL)applicationTerminated retryTerminatingApplication:(void (^)(void))retryTerminatingApplication
+{
+    [_standard showInstallingUpdateWithApplicationTerminated:applicationTerminated retryTerminatingApplication:retryTerminatingApplication];
+}
+
+- (void)showUpdateInstalledAndRelaunched:(BOOL)relaunched acknowledgement:(void (^)(void))acknowledgement
+{
+    [_standard showUpdateInstalledAndRelaunched:relaunched acknowledgement:acknowledgement];
+}
+
+- (void)showUpdateInFocus
+{
+    [_standard showUpdateInFocus];
+}
+
+- (void)dismissUpdateInstallation
+{
+    [_standard dismissUpdateInstallation];
+}
+
+@end
+
 namespace Ladybird {
 
 namespace Detail {
@@ -61,9 +175,10 @@ namespace Detail {
 struct SparkleUpdater {
     AK_ALLOC_WITH_KMALLOC;
 
-    // NB: Sparkle holds its delegate weakly.
+    // Sparkle holds its delegates weakly.
     LadybirdUpdaterDelegate* delegate { nil };
-    SPUStandardUpdaterController* controller { nil };
+    LadybirdUserDriver* user_driver { nil };
+    SPUUpdater* updater { nil };
 };
 
 }
@@ -74,7 +189,13 @@ NonnullOwnPtr<SoftwareUpdater> SoftwareUpdater::create()
 {
     auto sparkle = make<Detail::SparkleUpdater>();
     sparkle->delegate = [[LadybirdUpdaterDelegate alloc] init];
-    sparkle->controller = [[SPUStandardUpdaterController alloc] initWithStartingUpdater:YES updaterDelegate:sparkle->delegate userDriverDelegate:sparkle->delegate];
+    auto* standard_user_driver = [[SPUStandardUserDriver alloc] initWithHostBundle:NSBundle.mainBundle delegate:sparkle->delegate];
+    sparkle->user_driver = [[LadybirdUserDriver alloc] initWithStandardUserDriver:standard_user_driver];
+    sparkle->updater = [[SPUUpdater alloc] initWithHostBundle:NSBundle.mainBundle applicationBundle:NSBundle.mainBundle userDriver:sparkle->user_driver delegate:sparkle->delegate];
+
+    NSError* error = nil;
+    if (![sparkle->updater startUpdater:&error])
+        warnln("Unable to start Sparkle: {}", error.localizedDescription.UTF8String);
     return adopt_own(*new SoftwareUpdater(move(sparkle)));
 }
 
@@ -85,15 +206,15 @@ SoftwareUpdater::SoftwareUpdater(NonnullOwnPtr<Detail::SparkleUpdater> sparkle)
 
 SoftwareUpdater::~SoftwareUpdater() = default;
 
-void SoftwareUpdater::check_for_updates()
+void SoftwareUpdater::install_update()
 {
-    [m_sparkle->controller checkForUpdates:nil];
+    [m_sparkle->updater checkForUpdates];
 }
 
-void SoftwareUpdater::show_update_dialog_for_latest_version()
+void SoftwareUpdater::install_latest_version()
 {
     m_sparkle->delegate.offersLatestVersion = YES;
-    [m_sparkle->controller checkForUpdates:nil];
+    [m_sparkle->updater checkForUpdates];
 }
 
 }
