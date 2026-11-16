@@ -107,7 +107,7 @@ TEST_CASE(fresh_database_migrates_to_the_latest_schema)
     for (auto table : { "Sessions"sv, "SessionTabs"sv, "SessionUsedSteps"sv, "SessionHistories"sv, "SessionNestedHistories"sv, "SessionEntries"sv, "SessionUpgradeInsecureNavigations"sv })
         EXPECT(TRY_OR_FAIL(database->table_exists(table)));
 
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 9u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 10u });
 }
 
 TEST_CASE(deleting_a_session_cascades_through_its_tabs)
@@ -154,7 +154,7 @@ TEST_CASE(version_4_database_migrates_to_the_latest_schema)
     rewind_sessions_schema_to_version_4(*database);
 
     EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 9u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 10u });
     EXPECT(TRY_OR_FAIL(database->table_exists("SessionUpgradeInsecureNavigations"sv)));
     EXPECT_EQ(select_i64(*database, "SELECT pinned FROM SessionTabs WHERE id = 2;"_string), 0);
     EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM Sessions WHERE id = 1 AND width IS NULL;"_string), 1);
@@ -1591,6 +1591,47 @@ TEST_CASE(closing_the_last_window_restores_it_at_launch)
     EXPECT_EQ(plan[0].tabs.size(), 2uz);
     EXPECT_EQ(plan[0].active_tab_index, 1);
     EXPECT(!store->has_closed_units());
+}
+
+TEST_CASE(a_restart_restores_every_window_once)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto first_window = TRY_OR_FAIL(store->window_opened());
+        auto second_window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, first_window, "https://a.example/"sv);
+        (void)open_tab(*store, second_window, "https://b.example/"sv);
+        store->mark_clean_exit(SessionStore::RestartAfterExit::Yes);
+    }
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+        EXPECT(store->follows_restart());
+        EXPECT_EQ(store->take_launch_plan().size(), 2uz);
+        store->mark_clean_exit();
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    EXPECT(!store->follows_restart());
+    EXPECT(store->take_launch_plan().is_empty());
+}
+
+TEST_CASE(only_the_run_right_after_a_restart_follows_it)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        (void)open_tab(*store, window, "https://a.example/"sv);
+        store->mark_clean_exit(SessionStore::RestartAfterExit::Yes);
+    }
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+        EXPECT(store->follows_restart());
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    EXPECT(!store->follows_restart());
 }
 
 TEST_CASE(pinned_only_restores_the_last_windows_pins)

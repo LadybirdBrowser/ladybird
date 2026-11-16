@@ -61,7 +61,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Ladybird::install_qt_geolocation_provider();
 #endif
 
-    auto app = TRY(Ladybird::Application::create(arguments));
+    OwnPtr<Ladybird::Application> app = TRY(Ladybird::Application::create(arguments));
     if (auto exit_status = app->exit_status_if_done(); exit_status.has_value())
         return *exit_status;
 
@@ -112,9 +112,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto configuration = app->configuration_for_new_window();
         if (auto* restored_window = app->restore_previous_session(configuration)) {
             // A whole restored session replaces the usual startup tab, so only the URLs the user passed open with it.
-            // With only pinned tabs restored, the usual startup tabs open after them.
+            // With only pinned tabs restored, the usual startup tabs open after them. A restart passes on the URLs
+            // that the browser was started with, which are among the restored tabs already.
+            auto follows_restart = Ladybird::Application::session_store(WebView::IsPrivate::No).follows_restart();
             auto restored_everything = app->launch_restore_policy() == Ladybird::SessionLaunchPolicy::Everything;
-            if (!restored_everything || !browser_options.raw_urls.is_empty())
+            if (!follows_restart && (!restored_everything || !browser_options.raw_urls.is_empty()))
                 app->open_startup_tabs(*restored_window, browser_options.urls);
             app->offer_to_restore_unexpectedly_closed_tabs(*restored_window);
         } else {
@@ -128,5 +130,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (auto* hub = Ladybird::HubConnection::the_if_connected())
         hub->async_ui_did_start();
 
-    return app->execute();
+    auto exit_status = TRY(app->execute());
+    auto restart = app->take_restart_command();
+    app = nullptr;
+    if (restart.has_value())
+        TRY(restart->run());
+    return exit_status;
 }

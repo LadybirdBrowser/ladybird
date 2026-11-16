@@ -11,7 +11,9 @@
 #include <AK/Platform.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
+#include <LibCore/Forward.h>
 #include <LibCore/Platform/ProcessStatistics.h>
+#include <LibCore/Process.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Application.h>
@@ -145,6 +147,17 @@ public:
     // the downloads and quits; if a page refuses or the downloads are kept, the quit is canceled and no window closes.
     void quit();
     bool is_quit_in_progress() const { return m_quit_in_progress; }
+    struct RestartCommand {
+        ByteString executable;
+        Vector<ByteString> arguments;
+        Optional<Core::Process> hub;
+        bool relaunched_by_updater { false };
+
+        ErrorOr<void> run();
+    };
+    void offer_restart_after_update();
+    void restart();
+    Optional<RestartCommand> take_restart_command();
     bool is_finishing_quit() const { return m_quit_is_finishing; }
     bool confirm_stop_active_downloads(QWidget* parent = nullptr);
 
@@ -365,6 +378,20 @@ private:
     bool m_quit_in_progress { false };
     bool m_quit_is_finishing { false };
     Vector<QPointer<BrowserWindow>> m_windows_awaiting_quit_preflight;
+
+#if defined(AK_OS_LINUX)
+    void watch_for_replaced_installation();
+    RefPtr<Core::FileWatcher> m_installation_watcher;
+#endif
+    enum class Restart : u8 {
+        None,
+        ByLadybird,
+        ByUpdater,
+    };
+    Restart m_restart { Restart::None };
+    bool m_installation_replaced { false };
+    bool m_profile_is_temporary { false };
+    RestartCommand m_restart_command;
 };
 
 }

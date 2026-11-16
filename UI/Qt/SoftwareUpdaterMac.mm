@@ -16,6 +16,7 @@
 @interface LadybirdUpdaterDelegate : NSObject <SPUUpdaterDelegate, SPUStandardUserDriverDelegate, SUVersionComparison, SUVersionDisplay>
 
 @property (atomic) BOOL offersLatestVersion;
+@property (nonatomic, copy) void (^willRelaunch)(void);
 
 @end
 
@@ -51,6 +52,12 @@
 - (void)updater:(SPUUpdater*)updater didFinishUpdateCycleForUpdateCheck:(SPUUpdateCheck)updateCheck error:(NSError*)error
 {
     self.offersLatestVersion = NO;
+}
+
+- (void)updaterWillRelaunchApplication:(SPUUpdater*)updater
+{
+    if (self.willRelaunch)
+        self.willRelaunch();
 }
 
 @end
@@ -202,6 +209,10 @@ NonnullOwnPtr<SoftwareUpdater> SoftwareUpdater::create()
 SoftwareUpdater::SoftwareUpdater(NonnullOwnPtr<Detail::SparkleUpdater> sparkle)
     : m_sparkle(move(sparkle))
 {
+    m_sparkle->delegate.willRelaunch = ^{
+        if (on_will_relaunch)
+            on_will_relaunch();
+    };
 }
 
 SoftwareUpdater::~SoftwareUpdater() = default;
