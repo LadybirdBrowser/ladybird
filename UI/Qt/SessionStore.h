@@ -177,9 +177,14 @@ public:
 
     // How many runs in a row, ending with the one before this, ended without mark_clean_exit().
     u32 consecutive_unclean_exits() const { return m_consecutive_unclean_exits; }
+    bool follows_restart() const { return m_follows_restart; }
 
+    enum class RestartAfterExit : u8 {
+        No,
+        Yes,
+    };
     // Records that this run is ending normally. Only a normal teardown calls it, so a crash never records one.
-    void mark_clean_exit();
+    void mark_clean_exit(RestartAfterExit = RestartAfterExit::No);
 
     bool is_persistent() const { return m_persisted_storage.has_value(); }
 
@@ -407,6 +412,7 @@ private:
 
     struct RecoveryResult {
         u32 consecutive_unclean_exits { 0 };
+        bool follows_restart { false };
         Vector<RecoveredWindow> windows;
     };
 
@@ -428,7 +434,7 @@ private:
         ErrorOr<void> clear_startup_recovery_origin();
         ErrorOr<void> delete_session_rows(SessionWindowId);
         ErrorOr<void> prune_closed_units(UnitKind, u32 max_units);
-        ErrorOr<void> write_lifecycle(bool clean_exit, u32 consecutive_unclean_exits);
+        ErrorOr<void> write_lifecycle(bool clean_exit, u32 consecutive_unclean_exits, bool restart = false);
 
         ErrorOr<IdAllocators> create_id_allocators();
         ErrorOr<WebView::SessionHistorySnapshot> load_tab_snapshot(SessionTabId, size_t current_used_step_index);
@@ -439,7 +445,11 @@ private:
         Statements statements;
 
     private:
-        ErrorOr<u32> record_run_start();
+        struct RunStart {
+            u32 consecutive_unclean_exits { 0 };
+            bool follows_restart { false };
+        };
+        ErrorOr<RunStart> record_run_start();
         ErrorOr<void> apply_tab_row_write(TabWrite const&);
         ErrorOr<void> apply_window_metadata(WindowMetadataWrite const&);
         ErrorOr<void> insert_closed_unit_row(ClosedUnitWrite const&);
@@ -557,6 +567,7 @@ private:
     Vector<WindowMetadataWrite> m_retired_window_metadata;
     bool m_quitting { false };
     u32 m_consecutive_unclean_exits { 0 };
+    bool m_follows_restart { false };
     Vector<RestoredSessionWindow> m_launch_plan;
 
     IdAllocator m_session_id_allocator;

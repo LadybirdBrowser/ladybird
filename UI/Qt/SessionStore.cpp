@@ -27,6 +27,7 @@ static constexpr u32 SESSIONS_SCHEMA_SESSION_LIFECYCLE_VERSION = 6u;
 static constexpr u32 SESSIONS_SCHEMA_LAUNCH_RESTORE_VERSION = 7u;
 static constexpr u32 SESSIONS_SCHEMA_WINDOW_GEOMETRY_VERSION = 8u;
 static constexpr u32 SESSIONS_SCHEMA_UPGRADE_INSECURE_REQUESTS_VERSION = 9u;
+static constexpr u32 SESSIONS_SCHEMA_RESTART_VERSION = 10u;
 
 // After this many unclean exits in a row, launch restore stops, so a session that crashes the browser doesn't restore
 // into the same crash every time.
@@ -291,6 +292,12 @@ ErrorOr<Database::MigrationOutcome> SessionStore::PersistedStorage::migrate_sche
                 ON SessionUpgradeInsecureNavigations(container_id, tuple_ordinal);
             )#"sv,
         },
+        {
+            .version = SESSIONS_SCHEMA_RESTART_VERSION,
+            .sql = R"#(
+                ALTER TABLE SessionLifecycle ADD COLUMN restart INTEGER NOT NULL DEFAULT 0;
+            )#"sv,
+        },
     });
 
     return database.migrate("Sessions"sv, migrations, mode);
@@ -335,8 +342,8 @@ ErrorOr<SessionStore::PersistedStorage> SessionStore::PersistedStorage::create(D
     statements.reopen_closed_session = TRY(database.prepare_statement("UPDATE Sessions SET kind = :open_window_kind, closed_time = 0, close_sequence = 0, source_window_id = NULL, source_tab_index = NULL, origin = :origin WHERE id = :id;"sv));
     statements.recover_open_session = TRY(database.prepare_statement("UPDATE Sessions SET kind = :closed_window_kind, closed_time = :closed_time, close_sequence = :close_sequence, source_window_id = NULL, source_tab_index = NULL, origin = :origin WHERE id = :id;"sv));
     statements.delete_empty_open_sessions = TRY(database.prepare_statement("DELETE FROM Sessions WHERE kind = :open_window_kind AND NOT EXISTS (SELECT 1 FROM SessionTabs WHERE session_id = Sessions.id);"sv));
-    statements.select_lifecycle = TRY(database.prepare_statement("SELECT clean_exit, consecutive_unclean_exits FROM SessionLifecycle WHERE id = 1;"sv));
-    statements.write_lifecycle = TRY(database.prepare_statement("INSERT INTO SessionLifecycle (id, clean_exit, consecutive_unclean_exits) VALUES (1, :clean_exit, :consecutive_unclean_exits) ON CONFLICT (id) DO UPDATE SET clean_exit = excluded.clean_exit, consecutive_unclean_exits = excluded.consecutive_unclean_exits;"sv));
+    statements.select_lifecycle = TRY(database.prepare_statement("SELECT clean_exit, consecutive_unclean_exits, restart FROM SessionLifecycle WHERE id = 1;"sv));
+    statements.write_lifecycle = TRY(database.prepare_statement("INSERT INTO SessionLifecycle (id, clean_exit, consecutive_unclean_exits, restart) VALUES (1, :clean_exit, :consecutive_unclean_exits, :restart) ON CONFLICT (id) DO UPDATE SET clean_exit = excluded.clean_exit, consecutive_unclean_exits = excluded.consecutive_unclean_exits, restart = excluded.restart;"sv));
     statements.snapshot_statements = TRY(prepare_session_history_snapshot_statements(database));
 
     return PersistedStorage { database, move(statements) };
@@ -964,8 +971,12 @@ ErrorOr<SessionStore::RecoveryResult> SessionStore::PersistedStorage::recover_op
 {
     RecoveryResult result;
     TRY(database->transaction([&]() -> ErrorOr<void> {
-        result.consecutive_unclean_exits = TRY(record_run_start());
+        auto run_start = TRY(record_run_start());
+        result.consecutive_unclean_exits = run_start.consecutive_unclean_exits;
+        result.follows_restart = run_start.follows_restart;
         auto policy = result.consecutive_unclean_exits >= UNCLEAN_EXITS_THAT_STOP_LAUNCH_RESTORE ? SessionLaunchPolicy::None : write.policy;
+        if (result.follows_restart)
+            policy = SessionLaunchPolicy::Everything;
 
         // Only the windows that the last run left open count as left open. Those of the runs before it were already
         // offered back, so they are ordinary closed windows now.
@@ -1093,20 +1104,22 @@ ErrorOr<void> SessionStore::PersistedStorage::delete_session_rows(SessionWindowI
     });
 }
 
-ErrorOr<void> SessionStore::PersistedStorage::write_lifecycle(bool clean_exit, u32 consecutive_unclean_exits)
+ErrorOr<void> SessionStore::PersistedStorage::write_lifecycle(bool clean_exit, u32 consecutive_unclean_exits, bool restart)
 {
     return database->try_execute_bound_statement(statements.write_lifecycle, [&](auto& bind) -> ErrorOr<void> {
         TRY(bind("clean_exit"sv, i64 { clean_exit ? 1 : 0 }));
         TRY(bind("consecutive_unclean_exits"sv, i64 { consecutive_unclean_exits }));
+        TRY(bind("restart"sv, i64 { restart ? 1 : 0 }));
         return {};
     });
 }
 
 // Runs inside the recovery transaction, so it opens none of its own.
-ErrorOr<u32> SessionStore::PersistedStorage::record_run_start()
+ErrorOr<SessionStore::PersistedStorage::RunStart> SessionStore::PersistedStorage::record_run_start()
 {
     // A first run has no row yet, and counts as following a clean exit.
     bool last_run_exited_cleanly = true;
+    bool last_run_restarts = false;
     u32 consecutive_unclean_exits = 0;
     TRY(database->try_execute_bound_statement(
         statements.select_lifecycle,
@@ -1117,9 +1130,11 @@ ErrorOr<u32> SessionStore::PersistedStorage::record_run_start()
             // transient store, since nothing else ever rewrites the row.
             auto clean_exit = row.read_integer<i64>("clean_exit"sv);
             auto unclean_exits = row.read_integer<u32>("consecutive_unclean_exits"sv);
-            if (clean_exit.is_error() || unclean_exits.is_error())
+            auto restart = row.read_integer<i64>("restart"sv);
+            if (clean_exit.is_error() || unclean_exits.is_error() || restart.is_error())
                 return {};
             last_run_exited_cleanly = clean_exit.value() != 0;
+            last_run_restarts = restart.value() != 0;
             consecutive_unclean_exits = unclean_exits.value();
             return {};
         }));
@@ -1129,9 +1144,10 @@ ErrorOr<u32> SessionStore::PersistedStorage::record_run_start()
     else if (consecutive_unclean_exits < NumericLimits<u32>::max())
         ++consecutive_unclean_exits;
 
-    // This run counts as unclean until mark_clean_exit() says otherwise.
+    // This run counts as unclean until mark_clean_exit() says otherwise. A run that ended to restart the browser brings
+    // back every window that it left open, and only the run right after it does.
     TRY(write_lifecycle(false, consecutive_unclean_exits));
-    return consecutive_unclean_exits;
+    return RunStart { .consecutive_unclean_exits = consecutive_unclean_exits, .follows_restart = last_run_exited_cleanly && last_run_restarts };
 }
 
 ErrorOr<void> SessionStore::PersistedStorage::prune_closed_units(UnitKind kind, u32 max_units)
@@ -1527,6 +1543,7 @@ ErrorOr<void> SessionStore::run_startup_recovery(UnixDateTime recovered_at, Sess
                                                                   },
         m_session_id_allocator, m_close_sequence_allocator));
     m_consecutive_unclean_exits = recovery.consecutive_unclean_exits;
+    m_follows_restart = recovery.follows_restart;
 
     for (auto& window : recovery.windows) {
         m_transient_storage.open_window(window.id);
@@ -2217,12 +2234,12 @@ void SessionStore::application_quit_aborted()
     m_quitting = false;
 }
 
-void SessionStore::mark_clean_exit()
+void SessionStore::mark_clean_exit(RestartAfterExit restart_after_exit)
 {
     m_consecutive_unclean_exits = 0;
     if (!m_persisted_storage.has_value())
         return;
-    if (auto result = m_persisted_storage->write_lifecycle(true, 0); result.is_error())
+    if (auto result = m_persisted_storage->write_lifecycle(true, 0, restart_after_exit == RestartAfterExit::Yes); result.is_error())
         dbgln("Unable to record a clean exit in the session store: {}", result.error());
 }
 

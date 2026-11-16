@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 
@@ -29,6 +30,8 @@ public:
 
     void install_update();
     void install_latest_version();
+
+    Function<void()> on_will_relaunch;
 
 private:
     explicit SoftwareUpdater(NonnullOwnPtr<Detail::SparkleUpdater>);
