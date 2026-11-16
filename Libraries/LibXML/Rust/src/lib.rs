@@ -29,6 +29,7 @@ mod parser;
 mod scan;
 pub mod tape;
 pub mod verify;
+pub mod xpath;
 
 pub use parser::Document;
 pub use parser::Error;

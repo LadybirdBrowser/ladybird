@@ -23,7 +23,19 @@ all_features = false
 # The crate's constants are its own business: the interface is what ffi.rs declares.
 item_types = ["enums", "structs", "typedefs", "opaque", "functions"]
 # No function takes or returns these, so they have to be asked for.
-include = ["XmlRowKind", "XmlRowKindBits", "XmlAttributeFlag", "XmlValueFlag"]
+include = [
+    "XmlRowKind",
+    "XmlRowKindBits",
+    "XmlAttributeFlag",
+    "XmlValueFlag",
+    "XPathKind",
+    "XPathAxis",
+    "XPathNodeTest",
+    "XPathFunction",
+]
+
+[export.rename]
+"Step" = "XPathStep"
 
 [export.mangle]
 rename_types = "PascalCase"
