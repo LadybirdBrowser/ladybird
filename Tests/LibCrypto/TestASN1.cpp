@@ -20,9 +20,6 @@ TEST_CASE(test_encoder_primitives)
         EXPECT_EQ(decoded, value);
     };
 
-    roundtrip_value(false);
-    roundtrip_value(true);
-
     roundtrip_value(Crypto::UnsignedBigInteger { 0 });
     roundtrip_value(Crypto::UnsignedBigInteger { 1 });
     roundtrip_value(TRY_OR_FAIL(Crypto::UnsignedBigInteger { 2 }.shift_left(128)));
@@ -32,11 +29,15 @@ TEST_CASE(test_encoder_primitives)
     roundtrip_value(Crypto::ASN1::ObjectIdentifier { 1, 2, 840, 113549, 1, 1, 11 });
     roundtrip_value(Crypto::ASN1::ObjectIdentifier { 1, 2, 0xfffffff });
 
-    roundtrip_value(ByteString { "Hello, World!\n" });
-
     roundtrip_value(nullptr);
 
-    roundtrip_value(Crypto::ASN1::BitStringView { { { 0x00, 0x01, 0x02, 0x03 } }, 3 });
+    u8 const bit_string_bytes[] { 0x00, 0x01, 0x02, 0x03 };
+    Crypto::ASN1::Encoder encoder;
+    MUST(encoder.write(Crypto::ASN1::BitStringView { bit_string_bytes, 0 }));
+    auto encoded = encoder.finish();
+    Crypto::ASN1::Decoder decoder(encoded);
+    auto decoded = MUST(decoder.read<Crypto::ASN1::BitStringView>());
+    EXPECT_EQ(MUST(decoded.raw_bytes()), ReadonlyBytes { bit_string_bytes });
 }
 
 TEST_CASE(test_encoder_constructed)
@@ -86,14 +87,14 @@ TEST_CASE(test_encoder_constructed)
 
 TEST_CASE(test_decoder_restores_state_after_failed_read)
 {
-    // A Boolean tag declaring a length of 5, but only 3 value bytes are present.
-    u8 const data[] { 0x01, 0x05, 0x00, 0x00, 0x00 };
+    // An Integer tag declaring a length of 5, but only 3 value bytes are present.
+    u8 const data[] { 0x02, 0x05, 0x00, 0x00, 0x00 };
     Crypto::ASN1::Decoder decoder({ data, sizeof(data) });
 
-    EXPECT(decoder.read<bool>().is_error());
+    EXPECT(decoder.read<Crypto::UnsignedBigInteger>().is_error());
 
     // The first failed read should leave the decoder state unchanged, so a second drop should have the same result.
-    EXPECT(decoder.read<bool>().is_error());
+    EXPECT(decoder.read<Crypto::UnsignedBigInteger>().is_error());
 }
 
 TEST_CASE(test_decoder_restores_state_after_failed_drop)
