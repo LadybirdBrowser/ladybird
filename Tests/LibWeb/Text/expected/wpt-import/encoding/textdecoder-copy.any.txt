@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	Modify buffer after passing it in (ArrayBuffer)
-Fail	Modify buffer after passing it in (SharedArrayBuffer)
+Pass	Modify buffer after passing it in (SharedArrayBuffer)
