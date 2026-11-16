@@ -167,22 +167,11 @@ public:
     virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes in) override;
     virtual ErrorOr<ByteBuffer> decrypt(ReadonlyBytes in) override;
 
-    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes message) override;
-    virtual ErrorOr<bool> verify(ReadonlyBytes message, ReadonlyBytes signature) override;
-
-    virtual ByteString class_name() const override
-    {
-        return "RSA";
-    }
-
     PrivateKeyType const& private_key() const { return m_private_key; }
     PublicKeyType const& public_key() const { return m_public_key; }
 
-    void set_public_key(PublicKeyType const& key) { m_public_key = key; }
-    void set_private_key(PrivateKeyType const& key) { m_private_key = key; }
-
 protected:
-    virtual ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx);
+    virtual ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) = 0;
 };
 
 ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind);
@@ -238,25 +227,6 @@ protected:
     Hash::HashKind m_hash_kind { Hash::HashKind::Unknown };
 };
 
-class RSA_PKCS1_EME : public RSA_EME {
-public:
-    template<typename... Args>
-    RSA_PKCS1_EME(Args... args)
-        : RSA_EME(Hash::HashKind::None, args...)
-    {
-    }
-
-    ~RSA_PKCS1_EME() = default;
-
-    virtual ByteString class_name() const override
-    {
-        return "RSA_PKCS1-EME";
-    }
-
-protected:
-    ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) override;
-};
-
 class RSA_PKCS1_EMSA : public RSA_EMSA {
 public:
     template<typename... Args>
@@ -266,11 +236,6 @@ public:
     }
 
     ~RSA_PKCS1_EMSA() = default;
-
-    virtual ByteString class_name() const override
-    {
-        return "RSA_PKCS1-EMSA";
-    }
 
 protected:
     ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) override;
@@ -285,11 +250,6 @@ public:
     }
 
     ~RSA_OAEP_EME() = default;
-
-    virtual ByteString class_name() const override
-    {
-        return "RSA_OAEP-EME";
-    }
 
     void set_label(ReadonlyBytes label) { m_label = label; }
 
@@ -309,11 +269,6 @@ public:
     }
 
     ~RSA_PSS_EMSA() = default;
-
-    virtual ByteString class_name() const override
-    {
-        return "RSA_PSS-EMSA";
-    }
 
     void set_salt_length(u32 value) { m_salt_length = value; }
 
