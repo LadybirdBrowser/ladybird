@@ -4855,17 +4855,6 @@ bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
     return false;
 }
 
-bool Node::has_inclusive_ancestor_with_event_listener(Utf16FlyString const& type) const
-{
-    for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (ancestor->has_event_listener(type))
-            return true;
-    }
-    if (auto window = document().window())
-        return window->has_event_listener(type);
-    return false;
-}
-
 GC::Ptr<ShadowRoot> Node::containing_shadow_root()
 {
     if (auto* shadow_root = as_if<ShadowRoot>(*this))

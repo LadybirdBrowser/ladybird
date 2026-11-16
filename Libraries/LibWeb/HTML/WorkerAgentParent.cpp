@@ -340,11 +340,6 @@ void WorkerAgentParent::register_transform_frame_callback(u64 transform_id, Tran
     m_transform_frame_callbacks.set(transform_id, move(callback));
 }
 
-void WorkerAgentParent::unregister_transform_frame_callback(u64 transform_id)
-{
-    m_transform_frame_callbacks.remove(transform_id);
-}
-
 void WorkerAgentParent::did_write_rtc_transform_encoded_audio_frame(WorkerAgentOwnerToken owner_token, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
 {
     auto parent = worker_agent_parents().find(owner_token);

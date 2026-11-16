@@ -111,8 +111,6 @@ public:
         return NumberPercentage(value, false);
     }
 
-    float resolve_relative_to(float length) const;
-
     float value() const { return m_value; }
     bool is_percentage() const { return m_is_percentage; }
 

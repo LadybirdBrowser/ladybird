@@ -931,11 +931,6 @@ void Document::bump_style_environment_version()
     HTML::note_rendering_trace_event("style environment changed"sv);
 }
 
-bool Document::needs_full_layout_tree_update(Layout::BegunRead const& read) const
-{
-    return m_layout_node_arena && Layout::RustFFI::render_state_needs_full_layout_tree_update(m_layout_node_arena->host(), &read);
-}
-
 // A document without an arena has no layout nodes, so its next build creates every box anyway.
 void Document::set_needs_full_layout_tree_update()
 {
@@ -7438,14 +7433,6 @@ void Document::cache_accessible_text(Element const& element, CachedAccessibleTex
         m_cached_accessible_text_depending_on_any_node.set(id);
 }
 
-WebView::AccessibilityNodeData const* Document::cached_accessibility_record(Node const& node) const
-{
-    if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
-        return nullptr;
-    auto it = m_accessibility_record_cache->records.find(node.unique_id());
-    return it == m_accessibility_record_cache->records.end() ? nullptr : &it->value.data;
-}
-
 Document::KeptAccessibilityRecord Document::kept_accessibility_record(Node const& node) const
 {
     if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
@@ -8913,14 +8900,6 @@ void Document::disassociate_with_animation(GC::Ref<Animations::Animation> animat
         m_effects_needing_animated_style_update_after_current_update.remove(effect);
     }
     m_associated_animations.remove(animation);
-}
-
-size_t Document::associated_animation_count() const
-{
-    size_t count = 0;
-    for ([[maybe_unused]] auto& animation : m_associated_animations)
-        ++count;
-    return count;
 }
 
 static bool is_transform_family_property(CSS::PropertyID property_id)

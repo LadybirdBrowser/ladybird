@@ -418,7 +418,6 @@ public:
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior, Optional<CSSPixelPoint> relative_displacement = {});
     bool perform_a_snapped_relative_user_scroll(Layout::Node&, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type, Painting::ScrollKind = Painting::ScrollKind::Relative);
     bool perform_a_scroll_step_for_key_input(Layout::Node&, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type);
-    Layout::Node* layout_node_for_async_scroll_node_stable_id(Web::AsyncScrollNodeStableID);
     void re_snap_scroll_containers_after_layout_change(Layout::BegunRead const& read);
     void abort_in_flight_smooth_scrolls(Web::AsyncScrollNodeStableID);
     void abort_in_flight_smooth_scrolls_taken_over_by_user_input(Web::AsyncScrollNodeStableID, CSSPixelPoint scroll_offset_at_gesture_start);

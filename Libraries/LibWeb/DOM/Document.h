@@ -1120,7 +1120,6 @@ public:
     void set_needs_container_query_evaluation_after_layout(Element const& query_container);
     [[nodiscard]] bool has_size_containers_needing_evaluation_after_layout(Layout::BegunRead const& read) const;
 
-    [[nodiscard]] bool needs_full_layout_tree_update(Layout::BegunRead const& read) const;
     void set_needs_full_layout_tree_update();
 
     CSS::ScrollStateQueryContainers& scroll_state_query_containers() { return m_scroll_state_query_containers; }
@@ -1284,9 +1283,6 @@ public:
     void cache_accessible_text(Element const&, CachedAccessibleText) const;
     void invalidate_cached_accessibility_data(Node const&, Optional<Utf16FlyString> const& attribute_name = {}, ReadonlySpan<GC::Ref<Node>> added_nodes = {}, ReadonlySpan<GC::Ref<Node>> removed_nodes = {});
 
-    // What a build of the accessibility tree keeps of each node's data for the next build, while an assistive
-    // technology consumes the tree; see AccessibilityTreeNode::serialize_tree_as_node_data().
-    WebView::AccessibilityNodeData const* cached_accessibility_record(Node const&) const;
     // A kept record, with the version it got when it was kept: Every record and geometry kept gets a new version, so
     // the same version means the same data.
     struct KeptAccessibilityRecord {
@@ -1415,7 +1411,6 @@ public:
     void disassociate_with_timeline(GC::Ref<Animations::AnimationTimeline>);
     void associate_with_animation(GC::Ref<Animations::Animation>);
     void disassociate_with_animation(GC::Ref<Animations::Animation>);
-    size_t associated_animation_count() const;
     bool has_associated_animations() const { return !m_associated_animations.is_empty(); }
     // Negative where `first` comes before `second` in tree order and positive where it comes after, for sorting
     // animations by composite order. Two distinct elements of this document take no walk of their siblings once a tree

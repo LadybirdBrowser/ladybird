@@ -54,7 +54,6 @@ public:
     };
     HasOrCreatedContext create_2d_context(CanvasRenderingContext2DSettings);
     HasOrCreatedContext create_webgl_context(WebGL::WebGLContextAttributes);
-    HasOrCreatedContext create_webgl2_context(WebGL::WebGLContextAttributes);
     RenderingContext const& context() const { return m_context; }
 
     WebIDL::UnsignedLong width() const;

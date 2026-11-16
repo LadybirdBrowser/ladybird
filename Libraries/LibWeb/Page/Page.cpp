@@ -496,17 +496,6 @@ DevicePixelRect Page::enclosing_device_rect(CSSPixelRect rect) const
         ceil(rect.height().to_double() * scale));
 }
 
-DevicePixelRect Page::rounded_device_rect(CSSPixelRect rect) const
-{
-    auto scale = client().device_pixels_per_css_pixel();
-    return {
-        roundf(rect.x().to_double() * scale),
-        roundf(rect.y().to_double() * scale),
-        roundf(rect.width().to_double() * scale),
-        roundf(rect.height().to_double() * scale)
-    };
-}
-
 ChromeMetrics Page::chrome_metrics() const
 {
     return ChromeMetrics { m_client->zoom_level() };
