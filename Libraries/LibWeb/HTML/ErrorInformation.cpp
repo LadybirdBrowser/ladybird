@@ -60,10 +60,11 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
     // NB: Take the throw site even when an Error's traceback gives the location, so the VM stops keeping it alive.
     auto throw_site = vm.take_throw_site_of(exception);
 
-    // NB: If we got an Error object, then try and extract the information from the location the object was made.
+    // NB: If we got an Error object, then try and extract the information from the location the object was made. Only
+    //     the script-visible frames count, so the location does not change while a debugger is attached.
     bool has_location = false;
     if (auto object = exception.as_if<JS::Object>(); object && object->error_data()) {
-        for (auto const& frame : object->error_data()->traceback()) {
+        for (auto const& frame : object->error_data()->script_visible_traceback()) {
             auto source_range = frame.source_range();
             if (source_range.start.line != 0 || source_range.start.column != 0) {
                 attributes.filename = source_range.filename();

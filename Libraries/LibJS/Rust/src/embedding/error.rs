@@ -214,6 +214,22 @@ pub unsafe extern "C" fn js_error_data_traceback_length(error_data: *const JSErr
     unsafe { error_data_from_abi(error_data) }.traceback().len()
 }
 
+/// How many frames of the call stack of `error_data`, from the innermost, script can observe: those the error would
+/// keep if the VM kept no long stack traces, which js_error_data_traceback_frame writes as it writes the others. The
+/// embedder reads only these for what script can observe, so that does not change while a debugger is attached. Call
+/// on the VM's thread.
+///
+/// # Safety
+///
+/// `error_data` must be error data, or an error data cell, of a live cell of the embedder's VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_error_data_script_visible_traceback_length(error_data: *const JSErrorData) -> usize {
+    // SAFETY: The caller passes error data of a live cell.
+    unsafe { error_data_from_abi(error_data) }
+        .script_visible_traceback()
+        .len()
+}
+
 /// A frame of the call stack of an error, as C++ TracebackFrame: the name of the frame's function, and where in its
 /// source the frame was, which is an empty filename at line and column 0 without a source range. With a source range,
 /// `source_code` is the frame's source code, which the embedder retains to keep it, and null otherwise. The views and

@@ -148,6 +148,8 @@ interface Internals {
     DOMString devtoolsLog(sequence<any> arguments);
     DOMString devtoolsLoggedProperties(unsigned long long objectId);
     DOMString devtoolsLogTable(object tableData);
+    // Whether errors keep long stack traces, as they do while a DevTools client or a WebDriver BiDi session is attached.
+    undefined setLongStackTracesEnabled(boolean enabled);
     sequence<DOMString>? completeConsoleInput(DOMString input);
 
     // Drive marked/preedit-text composition via the same path platform input methods use. setMarkedTextFromInputMethod

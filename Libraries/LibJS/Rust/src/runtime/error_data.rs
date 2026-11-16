@@ -65,6 +65,10 @@ impl StackFrameSyntax {
 /// The initial value of Error.stackTraceLimit.
 pub const DEFAULT_STACK_TRACE_LIMIT: i32 = 10;
 
+/// How many frames an error keeps at least while the VM keeps long stack traces, as it does for a debugger that lists
+/// them.
+pub const LONG_STACK_TRACE_FRAME_COUNT: usize = 200;
+
 /// How many frames a new error keeps: the value of Error.stackTraceLimit on the %Error% of the current realm, cut to an
 /// integer, with negative numbers and NaN as 0 and Infinity as every frame. None, for no stack at all, when the property
 /// is not a number, which includes an accessor (whose getter is never called) and a deleted property. The other engines
@@ -100,9 +104,14 @@ pub enum SkippedFrames {
 pub struct ErrorData {
     #[gc(untraced)]
     traceback: Vec<TracebackFrame>,
-    /// How many of the frames, from the innermost, the stack string shows, or None for an error that captured no stack,
-    /// whose stack is undefined.
+    /// How many of the frames, from the innermost, the stack string shows, or None for an error without a stack, whose
+    /// stack is undefined. Such an error has frames only while the VM keeps long stack traces.
     shown_frame_count: Option<usize>,
+    /// How many of the frames, from the innermost, the error would keep if the VM kept no long stack traces. What script
+    /// can observe, such as the location of an error event, reads only these, so it does not change while a debugger is
+    /// attached. Unlike shown_frame_count, it counts the outermost execution context when the walk got to it inside the
+    /// limit.
+    script_visible_frame_count: usize,
     cached_string: Cell<Option<Gc<PrimitiveString>>>,
 }
 
@@ -151,28 +160,41 @@ impl ErrorData {
                 cached_source_range: Some(source_range),
             }],
             shown_frame_count: Some(0),
+            script_visible_frame_count: 1,
             cached_string: Cell::new(None),
         }
     }
 
+    /// Error data with at most `limit` frames below those that `skipped_frames` leaves out, or with no stack for a
+    /// `limit` of None. While the VM keeps long stack traces, it keeps at least LONG_STACK_TRACE_FRAME_COUNT frames for
+    /// the debugger, even with no stack, but the stack string and the script-visible frames stay as without them.
     fn capture(vm: &Vm, skipped_frames: SkippedFrames, limit: Option<usize>) -> Self {
-        let Some(limit) = limit else {
-            return Self {
-                traceback: Vec::new(),
-                shown_frame_count: None,
-                cached_string: Cell::new(None),
-            };
+        let captured_limit = match limit {
+            Some(limit) if vm.keeps_long_stack_traces() => limit.max(LONG_STACK_TRACE_FRAME_COUNT),
+            Some(limit) => limit,
+            None if vm.keeps_long_stack_traces() => LONG_STACK_TRACE_FRAME_COUNT,
+            None => {
+                return Self {
+                    traceback: Vec::new(),
+                    shown_frame_count: None,
+                    script_visible_frame_count: 0,
+                    cached_string: Cell::new(None),
+                };
+            }
         };
-        let (traceback, reached_limit) = Self::populate_stack(vm, skipped_frames, limit);
+        let (traceback, reached_limit) = Self::populate_stack(vm, skipped_frames, captured_limit);
         // NB: A stack string leaves out the outermost execution context, the last frame when the walk got to it.
-        let shown_frame_count = if reached_limit {
+        let frame_count = if reached_limit {
             traceback.len()
         } else {
             traceback.len().saturating_sub(1)
         };
+        let shown_frame_count = limit.map(|limit| frame_count.min(limit));
+        let script_visible_frame_count = limit.map_or(0, |limit| traceback.len().min(limit));
         Self {
             traceback,
-            shown_frame_count: Some(shown_frame_count),
+            shown_frame_count,
+            script_visible_frame_count,
             cached_string: Cell::new(None),
         }
     }
@@ -226,11 +248,17 @@ impl ErrorData {
         (traceback, reached_limit)
     }
 
+    /// Every frame the error kept, for a debugger that lists them.
     pub fn traceback(&self) -> &[TracebackFrame] {
         &self.traceback
     }
 
-    /// Whether the error captured a stack; its stack is undefined if not.
+    /// The frames the error would keep if the VM kept no long stack traces, for what script can observe.
+    pub fn script_visible_traceback(&self) -> &[TracebackFrame] {
+        &self.traceback[..self.script_visible_frame_count]
+    }
+
+    /// Whether the error has a stack string; its stack is undefined if not, even with frames kept for a debugger.
     pub fn has_stack(&self) -> bool {
         self.shown_frame_count.is_some()
     }

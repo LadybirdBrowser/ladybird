@@ -462,6 +462,11 @@ public:
     // throw.
     [[nodiscard]] Optional<SourceRange> take_throw_site_of(Value);
 
+    // Whether errors keep at least 200 frames, for a debugger that lists them, even when Error.stackTraceLimit is not a
+    // number. What script can observe stays the same: stack strings show as many frames as Error.stackTraceLimit says,
+    // and ErrorData::script_visible_traceback() has the frames that the error would keep without this.
+    void set_keeps_long_stack_traces(bool);
+
     // The source range of the innermost frame on the stack that has one, as the first such element of stack_trace().
     [[nodiscard]] Optional<SourceRange> innermost_source_range() const;
 
