@@ -1080,8 +1080,17 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     // The minimum height consists of a minimum height above the baseline and a minimum depth below
                     // it, exactly as if each line box starts with a zero-width inline box with the element's font and
                     // line height properties.
+                    // NB: That holds for a replaced element too, which leaves the depth of the strut below the
+                    //     baseline it sits on, except in quirks mode, where a line box with no text gets no strut:
+                    //     https://quirks.spec.whatwg.org/#the-line-height-calculation-quirk
+                    //     In a vertical line, the replaced element sits on the central baseline, so the strut fits
+                    //     within it.
+                    let is_replaced_box_with_strut = self.facts(node).is_replaced_box()
+                        && !self.facts(node).document_in_quirks_mode()
+                        && containing_style.writing_mode() == writing_mode::HORIZONTAL_TB;
                     should_align_strut_to_line_box_baseline |= has_line_relative_aligned_subtree
                         || ((style.display().is_inline_block()
+                            || is_replaced_box_with_strut
                             || (style.display().is_inline_outside()
                                 && (style.display().is_flex_inside() || style.display().is_grid_inside())))
                             && alignment_style.vertical_align_keyword() == vertical_align::BASELINE);

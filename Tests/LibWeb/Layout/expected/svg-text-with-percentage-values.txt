@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 277.328125 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 261.328125 0+0+8] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 280.328125 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 264.328125 0+0+8] children: inline
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 784x261.328125] baseline: 261.328125
       SVGSVGBox <svg> at [8,8] [0+0+0 784 0+0+0] [0+0+0 261.328125 0+0+0] viewport-transform=[3.2666016 0 0 3.2666016 0 0] [SVG] children: not-inline
         SVGTextBox <text.small> at [24,17.609375] [0+0+0 16.265625 0+0+0] [0+0+0 13 0+0+0] children: inline
@@ -14,4 +14,4 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x277.328125] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x280.328125] (z-index: auto)

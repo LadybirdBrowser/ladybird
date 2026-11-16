@@ -10,5 +10,5 @@ Layers: none (blend mode reads the root group)
 
 DisplayList:
 DrawCanvas@s1/e0 dst_rect=[8,8 200x120]
-FillRect@s1/e1 rect=[8,128 50x50] color=rgb(255, 165, 0)
+FillRect@s1/e1 rect=[8,131 50x50] color=rgb(255, 165, 0)
 
