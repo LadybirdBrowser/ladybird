@@ -685,6 +685,10 @@ impl BlockMarginState {
 }
 
 /// What the probe for a stored in-flow layout found, and what storing the fresh layout needs.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "a probe result lives on the stack for one child's layout, which boxing would give an allocation"
+)]
 enum InFlowReuse {
     Ineligible,
     Hit {
@@ -3625,6 +3629,16 @@ impl<'pass> BlockFormattingContext<'pass> {
             containing_block_rect_in_root_now,
             &mut probe,
         );
+        if let Some(forced) = input.sizing.forced_table_box_border_box_inline_size.get()
+            && container_facts.is_table_wrapper()
+            && style.display().is_table_inside()
+        {
+            // NB: A flex container sized the wrapper of this table box along its inline axis, and the table box takes
+            //     that size (see TableFormattingContext::used_table_inline_size).
+            let metrics = self.metrics_of(sized_child);
+            let offsets = metrics.border_box_left(false) + metrics.border_box_right(false);
+            probe.content_inline_size = Some((forced - offsets).max(CssPixels::default()));
+        }
         if let Some(content_inline_size) = probe.content_inline_size {
             self.update_cells_of(sized_child, |cells| cells.set_content_inline_size(content_inline_size));
         } else {
@@ -3763,6 +3777,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                     ),
                     forced_min_border_box_block_size: if is_table_formatting_context {
                         input.sizing.forced_min_border_box_block_size
+                    } else {
+                        geometry::PackedOptionalCssPixels::from(None)
+                    },
+                    forced_table_box_border_box_inline_size: if is_table_formatting_context {
+                        input.sizing.forced_table_box_border_box_inline_size
                     } else {
                         geometry::PackedOptionalCssPixels::from(None)
                     },

@@ -118,6 +118,24 @@ impl LengthPercentageRef<'_> {
         }
     }
 
+    /// The percentage the value is, as a fraction, when it is a percentage or a calculation that simplified to one,
+    /// as `calc(10% + 15%)` does.
+    pub(crate) fn percentage_fraction(self) -> Option<f64> {
+        match self.value {
+            StyleValueData::Percentage { .. } => Some(self.as_fraction()),
+            StyleValueData::Calculated(calculated_payload) => {
+                let CalculatedPayload { rust_calculation, .. } = &**calculated_payload;
+                match rust_calculation.node() {
+                    crate::css::calc::CalcNode::Numeric(crate::css::calc::CalcNumericValue::Percentage(value)) => {
+                        Some(value * 0.01)
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
     pub(crate) fn contains_anchor_function(self) -> bool {
         matches!(self.value, StyleValueData::Calculated(calculated) if calculated.rust_calculation.node().contains_anchor_function())
     }
@@ -289,6 +307,16 @@ impl ComputedSize {
         self.value
             .length_percentage()
             .expect("computed length-percentage size lost its style value")
+    }
+
+    /// The percentage the size is, as a fraction, when it is a percentage or a calculation that simplified to one.
+    pub(crate) fn percentage_fraction(&self) -> Option<f64> {
+        match self.kind {
+            ComputedSizeKind::Percentage | ComputedSizeKind::Calculated => {
+                self.length_percentage().percentage_fraction()
+            }
+            _ => None,
+        }
     }
 
     /// The fit-content argument; None for the keyword-only form.
