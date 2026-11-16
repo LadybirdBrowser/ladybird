@@ -700,19 +700,18 @@ NonnullOwnPtr<Segmenter> Segmenter::create(Utf16View locale, SegmenterGranularit
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
-    VERIFY(locale_data.has_value());
+    auto& locale_data = LocaleData::for_locale_or_default(locale);
 
     auto segmenter = adopt_own_if_nonnull([&]() {
         switch (segmenter_granularity) {
         case SegmenterGranularity::Grapheme:
-            return icu::BreakIterator::createCharacterInstance(locale_data->locale(), status);
+            return icu::BreakIterator::createCharacterInstance(locale_data.locale(), status);
         case SegmenterGranularity::Line:
-            return icu::BreakIterator::createLineInstance(locale_data->locale(), status);
+            return icu::BreakIterator::createLineInstance(locale_data.locale(), status);
         case SegmenterGranularity::Sentence:
-            return icu::BreakIterator::createSentenceInstance(locale_data->locale(), status);
+            return icu::BreakIterator::createSentenceInstance(locale_data.locale(), status);
         case SegmenterGranularity::Word:
-            return icu::BreakIterator::createWordInstance(locale_data->locale(), status);
+            return icu::BreakIterator::createWordInstance(locale_data.locale(), status);
         }
         VERIFY_NOT_REACHED();
     }());

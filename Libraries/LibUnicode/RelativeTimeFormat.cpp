@@ -268,16 +268,14 @@ NonnullOwnPtr<RelativeTimeFormat> RelativeTimeFormat::create(Utf16View locale, S
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
-    VERIFY(locale_data.has_value());
+    auto& locale_data = LocaleData::for_locale_or_default(locale);
 
-    auto* number_formatter = icu::NumberFormat::createInstance(locale_data->locale(), UNUM_DECIMAL, status);
-    VERIFY(locale_data.has_value());
+    auto* number_formatter = icu::NumberFormat::createInstance(locale_data.locale(), UNUM_DECIMAL, status);
 
     if (number_formatter->getDynamicClassID() == icu::DecimalFormat::getStaticClassID())
         static_cast<icu::DecimalFormat&>(*number_formatter).setMinimumGroupingDigits(UNUM_MINIMUM_GROUPING_DIGITS_AUTO);
 
-    auto formatter = make<icu::RelativeDateTimeFormatter>(locale_data->locale(), number_formatter, icu_relative_date_time_style(style), UDISPCTX_CAPITALIZATION_NONE, status);
+    auto formatter = make<icu::RelativeDateTimeFormatter>(locale_data.locale(), number_formatter, icu_relative_date_time_style(style), UDISPCTX_CAPITALIZATION_NONE, status);
     verify_icu_success(status);
 
     return make<RelativeTimeFormatImpl>(move(formatter));
