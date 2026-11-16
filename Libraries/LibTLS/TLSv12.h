@@ -8,7 +8,6 @@
 #pragma once
 
 #include <LibCore/Socket.h>
-#include <LibCrypto/Certificate/Certificate.h>
 #include <LibTLS/OpenSSLForward.h>
 
 namespace TLS {
