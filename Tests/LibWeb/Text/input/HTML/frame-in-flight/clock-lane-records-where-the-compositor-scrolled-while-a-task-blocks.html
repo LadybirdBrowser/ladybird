@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    body > div { height: 500px; }
+    body > div:nth-child(odd) { background: #cde; }
+</style>
+<body>
+<script>
+    // The compositor scrolls the page for a wheel while a task blocks the main thread, further than the display list
+    // it has reaches. It asks the render clock for one, and a lane of the document records and presents it beside the
+    // task, which spins until then: the main thread has not seen the scroll yet, and the frame leaves the page where
+    // the compositor scrolled it to.
+    for (let i = 0; i < 12; ++i) {
+        const block = document.createElement("div");
+        block.id = "b" + i;
+        block.textContent = "block " + i;
+        document.body.appendChild(block);
+    }
+    asyncTest(async done => {
+        await twoFramesLanded();
+        const before = internals.lastFramePresentedBy(document);
+        internals.wheelThroughUIProcess(50, 50, 0, 3000, true);
+        while (internals.lastFramePresentedBy(document) !== "clock");
+        const scrollYOnTheMainThread = window.scrollY;
+        const scrollYOnTheCompositor = internals.compositorScrollState().scrollOffset.y;
+        println(`frame presented by: ${before}`);
+        println(`frame presented beside the task by: ${internals.lastFramePresentedBy(document)}`);
+        println(`the page is scrolled to ${scrollYOnTheMainThread} on the main thread`);
+        println(`the page is scrolled to ${scrollYOnTheCompositor} on the compositor`);
+        done();
+    });
+</script>

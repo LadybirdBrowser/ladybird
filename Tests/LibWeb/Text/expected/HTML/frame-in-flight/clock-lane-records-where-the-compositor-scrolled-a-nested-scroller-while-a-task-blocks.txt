@@ -1,0 +1,3 @@
+frame presented beside the task by: clock
+the scroller is scrolled to 0 on the main thread
+the scroller is scrolled to 3000 on the compositor

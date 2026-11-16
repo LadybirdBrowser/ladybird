@@ -12,6 +12,7 @@ use crate::display_list_chunk_stores::chunks_of_list_sent_whole;
 use crate::host::{PresentationId, WebContentClientId};
 use libcompositing_rust::display_list::replay::{ReplayFrame, ReplaySelection, replay_display_list};
 use libcompositing_rust::display_list::storage::DisplayListStorage;
+use libcompositing_rust::display_list::window::RecordedWindow;
 use libcompositing_rust::ipc_types::compositor_presentation_client::messages::DidNotDispatchInputEvent;
 use libcompositing_rust::ipc_types::compositor_presentation_server::messages::{
     HandleAndDispatchKeyEvent, HandleAndDispatchMouseEvent, HandleAndDispatchPinchEvent,
@@ -363,6 +364,16 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             );
             return Ok(());
         }
+        let window = match properties.window.as_ref().map(RecordedWindow::from_ipc) {
+            Some(None) => {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "Compositor: Dropping display list update whose window no recording could have placed"
+                );
+                return Ok(());
+            }
+            window => window.flatten(),
+        };
         let scroll_state_snapshot = message.scroll_state;
         let storage_size = storage.bytes().len();
         let display_list = DisplayList::new(
@@ -372,7 +383,8 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             async_scrolling_metadata,
             properties.surface_clear_color,
             properties.root_group_color,
-        );
+        )
+        .with_window(window);
         if !self.core.install_display_list_update(
             message.context_id,
             Rc::new(display_list),

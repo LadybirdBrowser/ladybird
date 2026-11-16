@@ -156,7 +156,7 @@ pub(crate) struct LaneDelivery {
 impl LaneDelivery {
     /// Hands the lane the recorder state and the seal its ticks present with, from what the recording of its frame
     /// answered. On the Paint thread, once the frame is presented.
-    pub(crate) fn deliver(&self, answer: &RecordingAnswer) {
+    pub(crate) fn deliver(&self, answer: &mut RecordingAnswer) {
         let Some((recorder, presentation, output)) = answer.clock_lane_recorder() else {
             // No lane starts from the frame, and the presenter takes no frame of the lane of an earlier one after it:
             // the moves and the animations are the host's.
@@ -182,6 +182,7 @@ impl LaneDelivery {
             presentation,
             presented,
             structural_epoch_on_screen,
+            held_frame: answer.take_held_frame(),
         };
         let (ticks, frame) = (Arc::clone(&self.ticks), self.frame);
         super::super::post_to_render_side(move || {
@@ -316,6 +317,12 @@ pub(in crate::render_state) fn take_lanes_in(ticks: &Arc<ClockTicks>, update: u6
 #[must_use]
 pub(in crate::render_state) fn take_lane_report(ticks: &Arc<ClockTicks>) -> LaneReport {
     with_slot(ticks.document, LaneSlot::take_report).unwrap_or_default()
+}
+
+/// On the render owner: has the lane of the presented frame of the document `ticks` belong to record it where the
+/// compositor scrolled to past what the display list it shows holds.
+pub(super) fn record_where_scrolled(ticks: &Arc<ClockTicks>) {
+    with_slot(ticks.document, LaneSlot::record_where_scrolled);
 }
 
 /// On the render owner: runs the tick queued for the lanes `ticks` belong to.
@@ -508,6 +515,20 @@ impl LaneSlot {
             target: None,
             handed: false,
         }));
+    }
+
+    fn record_where_scrolled(&mut self) {
+        let Some(scrolled) = self.ticks.take_scrolled_past_display_list() else {
+            return;
+        };
+        // A rendering update that took in the lanes presents a frame of its own, which records for where the
+        // compositor scrolled to.
+        if self.taken_in.is_some() {
+            return;
+        }
+        if let Lanes::Newest(lane) = &mut self.lanes {
+            lane.record_where_scrolled(scrolled);
+        }
     }
 
     fn tick(&mut self) {

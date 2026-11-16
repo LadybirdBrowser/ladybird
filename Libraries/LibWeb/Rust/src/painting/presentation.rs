@@ -20,6 +20,7 @@ use crate::painting::record::RecordingOutput;
 use crate::painting::record::order_tree::RecordedChunk;
 use crate::painting::vector_image_records::{VectorImageRecords, chunk_holding_vector_image_records};
 use crate::painting::visual_context::VisualContextTree;
+use libcompositing_rust::display_list::window::RecordedWindow;
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, PresentFrame, UpdateDisplayList, UpdateScrollState, UpdateVisualContextTree,
 };
@@ -241,6 +242,7 @@ pub(crate) fn display_list_properties_of(output: &RecordingOutput) -> Compositin
         compatible_visual_context_tree_structural_epoch: output.recorded_structural_epoch,
         surface_clear_color: output.surface_clear_color,
         root_group_color: output.root_group_color,
+        window: output.window.as_deref().map(RecordedWindow::to_ipc),
     }
 }
 

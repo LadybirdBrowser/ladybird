@@ -1,0 +1,4 @@
+frame presented by: commit
+frame presented beside the task by: clock
+the page is scrolled to 0 on the main thread
+the page is scrolled to 3000 on the compositor

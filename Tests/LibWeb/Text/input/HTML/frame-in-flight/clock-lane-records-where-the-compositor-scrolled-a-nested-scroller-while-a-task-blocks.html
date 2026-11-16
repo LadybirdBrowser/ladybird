@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller { height: 400px; overflow: scroll; }
+    #scroller > div { height: 500px; }
+    #scroller > div:nth-child(odd) { background: #cde; }
+</style>
+<body>
+<div id="scroller"></div>
+<script>
+    // As for the page, the compositor scrolls a scroller for a wheel while a task blocks the main thread, further than
+    // the display list it has reaches, and a lane of the document records and presents one beside the task.
+    for (let i = 0; i < 12; ++i) {
+        const block = document.createElement("div");
+        block.textContent = "block " + i;
+        scroller.appendChild(block);
+    }
+    asyncTest(async done => {
+        await twoFramesLanded();
+        internals.wheelThroughUIProcess(50, 50, 0, 3000, true);
+        while (internals.lastFramePresentedBy(document) !== "clock");
+        const scrollTopOnTheMainThread = scroller.scrollTop;
+        const scrollTopOnTheCompositor = internals.compositorScrollState(scroller).scrollOffset.y;
+        println(`frame presented beside the task by: ${internals.lastFramePresentedBy(document)}`);
+        println(`the scroller is scrolled to ${scrollTopOnTheMainThread} on the main thread`);
+        println(`the scroller is scrolled to ${scrollTopOnTheCompositor} on the compositor`);
+        done();
+    });
+</script>

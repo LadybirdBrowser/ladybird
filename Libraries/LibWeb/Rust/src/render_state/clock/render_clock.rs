@@ -163,6 +163,21 @@ impl RenderClockLanes {
         }
     }
 
+    fn display_list_coverage_runs_out(
+        &self,
+        context_id: CompositorContextId,
+        scroll_offsets: &[Web_CompositorScrollOffset],
+        lanes_are_ticked: LanesAreTicked,
+    ) {
+        if lanes_are_ticked == LanesAreTicked::ByHandForATest {
+            return;
+        }
+        let Some(lane) = self.pointer_lanes.get(&context_id) else {
+            return;
+        };
+        lane.ticks.display_list_coverage_runs_out(scrollers_of(scroll_offsets));
+    }
+
     fn clock_tick(
         &mut self,
         context_id: CompositorContextId,
@@ -174,16 +189,7 @@ impl RenderClockLanes {
             return;
         };
 
-        // A scroll timeline follows the scroll node of an element or a document's viewport, which its unique id names.
-        let scrollers: Vec<FfiScrollOffset> = scroll_offsets
-            .iter()
-            .filter(|scroll_offset| scroll_offset.scroll_node.kind != Web_AsyncScrollNodeKind::PseudoElement)
-            .map(|scroll_offset| FfiScrollOffset {
-                scroller: scroll_offset.scroll_node.node_id.0,
-                x: scroll_offset.offset.x.to_double(),
-                y: scroll_offset.offset.y.to_double(),
-            })
-            .collect();
+        let scrollers = scrollers_of(scroll_offsets);
 
         // Handing a tick on only queues it, so the next request goes out right after: however long this tick takes,
         // the next one is already on its way, and the Compositor's pacing is the only limit on the rate.
@@ -194,6 +200,19 @@ impl RenderClockLanes {
         let maximum_frames_per_second = armed_context.maximum_frames_per_second;
         self.request_clock_tick(context_id, maximum_frames_per_second);
     }
+}
+
+/// Where the compositor scrolled the scroll nodes of elements and documents' viewports to, by the unique id of the node.
+fn scrollers_of(scroll_offsets: &[Web_CompositorScrollOffset]) -> Vec<FfiScrollOffset> {
+    scroll_offsets
+        .iter()
+        .filter(|scroll_offset| scroll_offset.scroll_node.kind != Web_AsyncScrollNodeKind::PseudoElement)
+        .map(|scroll_offset| FfiScrollOffset {
+            scroller: scroll_offset.scroll_node.node_id.0,
+            x: scroll_offset.offset.x.to_double(),
+            y: scroll_offset.offset.y.to_double(),
+        })
+        .collect()
 }
 
 struct MessagesFromCompositor<'a> {
@@ -245,6 +264,15 @@ impl render_clock_client::Stub for MessagesFromCompositor<'_> {
     ) -> Result<(), Misbehavior> {
         self.lanes
             .pointer_rests_on_moving_content(rests.context_id, self.lanes_are_ticked);
+        Ok(())
+    }
+
+    fn display_list_coverage_runs_out(
+        &mut self,
+        runs_out: render_clock_client::messages::DisplayListCoverageRunsOut,
+    ) -> Result<(), Misbehavior> {
+        self.lanes
+            .display_list_coverage_runs_out(runs_out.context_id, &runs_out.scroll_offsets, self.lanes_are_ticked);
         Ok(())
     }
 }
