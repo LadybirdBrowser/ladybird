@@ -19,7 +19,7 @@
 
 namespace Media {
 
-using VideoDecoderFactory = DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> (*)(CodecID, ReadonlyBytes);
+using VideoDecoderFactory = DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> (*)(CodecID, ReadonlyBytes, DecoderLatency);
 
 struct VideoDecoderRegistration {
     DecoderCapabilitiesFunction capabilities;
@@ -34,6 +34,6 @@ MEDIACODECS_API Optional<DecoderCapabilities> video_decoder_capabilities(ParsedC
 // Identifies the highest-priority decoder after the optionally-provided selection that can handle this codec.
 MEDIACODECS_API VideoDecoderSelection select_video_decoder(ParsedCodec const&, VideoDecoderSelection after = {});
 
-MEDIACODECS_API DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_video_decoder(VideoDecoderSelection, CodecID, ReadonlyBytes codec_initialization_data);
+MEDIACODECS_API DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_video_decoder(VideoDecoderSelection, CodecID, ReadonlyBytes codec_initialization_data, DecoderLatency = DecoderLatency::Default);
 
 }

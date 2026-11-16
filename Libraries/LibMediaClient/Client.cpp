@@ -361,6 +361,24 @@ void Client::playback_session_video_resized(u64 session_id, Media::VideoSinkHand
         playback_manager->video_resized({}, handle, Gfx::Size<u32> { width, height });
 }
 
+void Client::playback_session_live_source_added(u64 session_id, u64 source_id, Media::Track track)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->live_source_added({}, source_id, move(track));
+}
+
+void Client::playback_session_live_source_failed(u64 session_id, u64 source_id, Media::DecoderError error)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->live_source_failed({}, source_id, move(error));
+}
+
+void Client::playback_session_live_source_key_frame_needed(u64 session_id, u64 source_id)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->live_source_key_frame_needed({}, source_id);
+}
+
 void Client::source_buffer_duration_received(u64 session_id, u64 source_buffer_id, double duration)
 {
     if (auto* playback_manager = find_playback_manager(session_id))

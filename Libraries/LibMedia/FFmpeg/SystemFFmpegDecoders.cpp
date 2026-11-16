@@ -27,12 +27,12 @@ Optional<DecoderCapabilities> system_ffmpeg_audio_decoder_capabilities(ParsedCod
     return FFmpegAudioDecoder::capabilities(library->functions(), codec);
 }
 
-DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_system_ffmpeg_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_system_ffmpeg_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data, DecoderLatency latency)
 {
     auto const* library = SystemFFmpeg::the();
     if (library == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No system FFmpeg is loaded"sv);
-    return NonnullOwnPtr<VideoDecoder> { TRY(FFmpegVideoDecoder::try_create(library->functions(), codec_id, codec_initialization_data)) };
+    return NonnullOwnPtr<VideoDecoder> { TRY(FFmpegVideoDecoder::try_create(library->functions(), codec_id, codec_initialization_data, latency)) };
 }
 
 DecoderErrorOr<NonnullOwnPtr<AudioDecoder>> create_system_ffmpeg_audio_decoder(CodecID codec_id, Audio::SampleSpecification const& sample_specification, ReadonlyBytes codec_initialization_data)

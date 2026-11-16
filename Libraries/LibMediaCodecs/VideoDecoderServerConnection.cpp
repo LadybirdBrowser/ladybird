@@ -45,9 +45,9 @@ public:
     };
     using Command = Variant<Submission, EndOfStream, Flush, ReplaceRing>;
 
-    static ErrorOr<NonnullRefPtr<DecoderSession>> create(ThreadSafeWeakRef<VideoDecoderServerConnection> connection, Core::EventLoop& connection_event_loop, ReadonlySpan<VideoDecoderRegistration> hosted_decoders, u64 decoder_id, u32 generation, CodecID codec_id, ByteBuffer codec_initialization_data)
+    static ErrorOr<NonnullRefPtr<DecoderSession>> create(ThreadSafeWeakRef<VideoDecoderServerConnection> connection, Core::EventLoop& connection_event_loop, ReadonlySpan<VideoDecoderRegistration> hosted_decoders, u64 decoder_id, u32 generation, CodecID codec_id, ByteBuffer codec_initialization_data, DecoderLatency latency)
     {
-        auto session = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) DecoderSession(move(connection), connection_event_loop, hosted_decoders, decoder_id, generation, codec_id, move(codec_initialization_data))));
+        auto session = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) DecoderSession(move(connection), connection_event_loop, hosted_decoders, decoder_id, generation, codec_id, move(codec_initialization_data), latency)));
         session->m_thread = TRY(Threading::Thread::try_create("Video Decoder"sv, [session]() -> intptr_t {
             session->run();
             return 0;
@@ -96,13 +96,14 @@ private:
         bool decode_completed { false };
     };
 
-    DecoderSession(ThreadSafeWeakRef<VideoDecoderServerConnection> connection, Core::EventLoop& connection_event_loop, ReadonlySpan<VideoDecoderRegistration> hosted_decoders, u64 decoder_id, u32 generation, CodecID codec_id, ByteBuffer codec_initialization_data)
+    DecoderSession(ThreadSafeWeakRef<VideoDecoderServerConnection> connection, Core::EventLoop& connection_event_loop, ReadonlySpan<VideoDecoderRegistration> hosted_decoders, u64 decoder_id, u32 generation, CodecID codec_id, ByteBuffer codec_initialization_data, DecoderLatency latency)
         : m_connection(move(connection))
         , m_connection_event_loop(connection_event_loop)
         , m_hosted_decoders(hosted_decoders)
         , m_decoder_id(decoder_id)
         , m_codec_id(codec_id)
         , m_codec_initialization_data(move(codec_initialization_data))
+        , m_latency(latency)
         , m_newest_requested_generation(generation)
         , m_generation(generation)
     {
@@ -143,7 +144,7 @@ private:
     {
         auto decoder_or_error = [&] -> DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> {
             for (auto const& registration : m_hosted_decoders) {
-                auto decoder = registration.create(m_codec_id, m_codec_initialization_data);
+                auto decoder = registration.create(m_codec_id, m_codec_initialization_data, m_latency);
                 if (!decoder.is_error() || decoder.error().category() != DecoderErrorCategory::NotImplemented)
                     return decoder;
             }
@@ -347,6 +348,7 @@ private:
     u64 const m_decoder_id;
     CodecID const m_codec_id;
     ByteBuffer const m_codec_initialization_data;
+    DecoderLatency const m_latency;
 
     // Only the connection's thread uses this.
     RefPtr<Threading::Thread> m_thread;
@@ -413,13 +415,13 @@ Messages::VideoDecoderServer::DecoderCapabilitiesResponse VideoDecoderServerConn
     return Optional<DecoderCapabilities> {};
 }
 
-void VideoDecoderServerConnection::create_decoder(u64 decoder_id, u32 generation, CodecID codec_id, ByteBuffer codec_initialization_data)
+void VideoDecoderServerConnection::create_decoder(u64 decoder_id, u32 generation, CodecID codec_id, ByteBuffer codec_initialization_data, DecoderLatency latency)
 {
     if (m_sessions.contains(decoder_id)) {
         did_misbehave("create_decoder: decoder ID already exists");
         return;
     }
-    auto session = DecoderSession::create(make_weak_ref(), m_event_loop, m_hosted_decoders, decoder_id, generation, codec_id, move(codec_initialization_data));
+    auto session = DecoderSession::create(make_weak_ref(), m_event_loop, m_hosted_decoders, decoder_id, generation, codec_id, move(codec_initialization_data), latency);
     if (session.is_error()) {
         async_decoder_failed(decoder_id, generation, DecoderError::format(DecoderErrorCategory::Memory, "Could not start a video decoder: {}", session.error()));
         return;

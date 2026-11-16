@@ -39,6 +39,8 @@ set(SOURCES
     DemuxerRegistry.cpp
     DemuxerScanState.cpp
     IncrementallyPopulatedStream.cpp
+    I420Picture.cpp
+    LiveDemuxer.cpp
     MediaSourceExtensions/ISOBMFFByteStreamParser.cpp
     MediaSourceExtensions/SourceBufferDemuxer.cpp
     MediaSourceExtensions/SourceBufferProcessor.cpp
@@ -108,6 +110,7 @@ target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioDecoder.cpp
         FFmpeg/FFmpegAudioEncoder.cpp
         FFmpeg/FFmpegChannelLayout.cpp
+        FFmpeg/FFmpegVideoEncoder.cpp
 )
 
 if (LINUX AND NOT ANDROID)

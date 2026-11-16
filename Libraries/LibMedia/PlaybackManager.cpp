@@ -9,6 +9,7 @@
 #include <AK/NeverDestroyed.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/DemuxerRegistry.h>
+#include <LibMedia/LiveDemuxer.h>
 #include <LibMedia/MonotonicMediaClock.h>
 #include <LibMedia/PlaybackStates/EndedStateHandler.h>
 #include <LibMedia/PlaybackStates/StartingStateHandler.h>
@@ -505,6 +506,8 @@ void PlaybackManager::set_clock(NonnullRefPtr<MediaClock> const& clock)
     m_time_reader = clock->time_reader();
     if (m_host_hooks.on_clock_changed)
         m_host_hooks.on_clock_changed(m_time_reader);
+    for (auto& live_source : m_live_sources)
+        live_source->set_time_reader(m_time_reader);
     for (auto& track_data : m_video_track_datas) {
         if (!track_data.video_sink)
             continue;
@@ -567,6 +570,37 @@ void PlaybackManager::reserve_video_sink_handle(Track const& track, VideoSinkHan
     apply_track_change_to_ended_state(resume_ended_playback);
     update_pipeline_state();
     dispatch_buffered_ranges_change();
+}
+
+NonnullRefPtr<PlaybackManager::AddMediaSourcePromise> PlaybackManager::add_live_source(NonnullRefPtr<LiveDemuxer> const& live_source)
+{
+    live_source->set_time_reader(m_time_reader);
+    m_live_sources.append(live_source);
+    return add_media_source(NonnullRefPtr<Demuxer> { live_source });
+}
+
+AK::Duration PlaybackManager::live_edge() const
+{
+    // Align incoming video with the end of the audio that has arrived.
+    auto live_edge = m_time_reader.current_time();
+    for (auto const& live_source : m_live_sources) {
+        auto const& track = live_source->track();
+        if (track.type() != TrackType::Audio)
+            continue;
+        // A source's track is unknown until the source has been added.
+        if (!m_audio_tracks.contains_slow(track) || !track_is_enabled(track))
+            continue;
+        live_edge = max(live_edge, live_source->audio_end_time());
+    }
+    return live_edge;
+}
+
+void PlaybackManager::add_to_live_video_source(LiveDemuxer& live_source, CodecID codec_id, FrameFlags flags, AK::Duration source_timestamp, FixedArray<u8> data)
+{
+    // Source timestamps cannot pace frames while the playback clock is stopped.
+    auto clock_is_advancing = m_time_reader.time_state(MonotonicTime::now()).is_advancing;
+    auto pacing = clock_is_advancing ? LiveDemuxer::VideoPacing::FromSource : LiveDemuxer::VideoPacing::OnArrival;
+    live_source.push_video_frame(codec_id, flags, source_timestamp, move(data), live_edge(), pacing);
 }
 
 void PlaybackManager::set_host_hooks(HostHooks hooks)

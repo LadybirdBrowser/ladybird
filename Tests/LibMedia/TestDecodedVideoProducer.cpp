@@ -623,7 +623,7 @@ TEST_CASE(a_decoder_that_cannot_be_created_is_passed_over_for_the_next_one)
         .capabilities = [](Media::ParsedCodec const&) -> Optional<Media::DecoderCapabilities> {
             return Media::DecoderCapabilities { .smooth = true, .power_efficient = true };
         },
-        .create = [](Media::CodecID, ReadonlyBytes) -> Media::DecoderErrorOr<NonnullOwnPtr<Media::VideoDecoder>> {
+        .create = [](Media::CodecID, ReadonlyBytes, Media::DecoderLatency) -> Media::DecoderErrorOr<NonnullOwnPtr<Media::VideoDecoder>> {
             return Media::DecoderError::with_description(Media::DecoderErrorCategory::NotImplemented, "This decoder can never be created"sv);
         },
     };

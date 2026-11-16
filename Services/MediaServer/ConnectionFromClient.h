@@ -79,6 +79,12 @@ private:
     virtual void disable_video_sink(u64 session_id, u64 seek_request_id, Media::VideoSinkHandle handle) override;
     virtual void set_video_sink_ticking(u64 session_id, Media::VideoSinkHandle handle, bool ticking) override;
 
+    virtual void add_live_audio_source(u64 session_id, u64 source_id, u32 sample_rate, u8 channel_count, Utf16String label) override;
+    virtual void add_live_video_source(u64 session_id, u64 source_id, Utf16String label) override;
+    virtual void add_to_live_audio_source(u64 session_id, u64 source_id, ByteBuffer interleaved_samples) override;
+    virtual void add_to_live_video_source(u64 session_id, u64 source_id, Media::CodecID codec_id, bool is_key_frame, AK::Duration source_timestamp, ByteBuffer data) override;
+    virtual void end_live_source(u64 session_id, u64 source_id) override;
+
     virtual void create_source_buffer(u64 session_id, u64 source_buffer_id) override;
     virtual void destroy_source_buffer(u64 session_id, u64 source_buffer_id) override;
     virtual void set_source_buffer_content_type(u64 session_id, u64 source_buffer_id, String subtype) override;

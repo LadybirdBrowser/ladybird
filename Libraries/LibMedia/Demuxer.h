@@ -22,6 +22,7 @@
 #include <LibMediaCodecs/CodecID.h>
 #include <LibMediaCodecs/CodedFrame.h>
 #include <LibMediaCodecs/DecoderError.h>
+#include <LibMediaCodecs/DecoderLatency.h>
 
 namespace Media {
 
@@ -50,6 +51,9 @@ public:
     virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType) = 0;
 
     virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) = 0;
+
+    // Live media needs each decoded frame before the next arrives.
+    virtual DecoderLatency decoder_latency() const { return DecoderLatency::Default; }
 
     virtual AK::Duration select_fast_seek_target_for_track(Track const&, AK::Duration target, SeekMode) = 0;
 

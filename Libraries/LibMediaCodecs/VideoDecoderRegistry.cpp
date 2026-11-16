@@ -47,12 +47,12 @@ VideoDecoderSelection select_video_decoder(ParsedCodec const& codec, VideoDecode
     return {};
 }
 
-DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_video_decoder(VideoDecoderSelection selection, CodecID codec_id, ReadonlyBytes codec_initialization_data)
+DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_video_decoder(VideoDecoderSelection selection, CodecID codec_id, ReadonlyBytes codec_initialization_data, DecoderLatency latency)
 {
     auto const& registrations = installed_video_decoders();
     VERIFY(selection.has_value());
     VERIFY(selection.registration_index() < static_cast<i32>(registrations.size()));
-    return registrations[selection.registration_index()].create(codec_id, codec_initialization_data);
+    return registrations[selection.registration_index()].create(codec_id, codec_initialization_data, latency);
 }
 
 }

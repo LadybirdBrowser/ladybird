@@ -560,18 +560,19 @@ Optional<DecoderCapabilities> RemoteVideoDecoder::capabilities(ParsedCodec const
     return *capabilities;
 }
 
-DecoderErrorOr<NonnullOwnPtr<RemoteVideoDecoder>> RemoteVideoDecoder::try_create(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+DecoderErrorOr<NonnullOwnPtr<RemoteVideoDecoder>> RemoteVideoDecoder::try_create(CodecID codec_id, ReadonlyBytes codec_initialization_data, DecoderLatency latency)
 {
     auto codec_configuration = DECODER_TRY_ALLOC(ByteBuffer::copy(codec_initialization_data));
     auto state = DECODER_TRY_ALLOC(try_make_ref_counted<State>());
-    auto decoder = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) RemoteVideoDecoder(codec_id, move(codec_configuration), move(state))));
+    auto decoder = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) RemoteVideoDecoder(codec_id, move(codec_configuration), latency, move(state))));
     TRY(decoder->start_server_decoder());
     return decoder;
 }
 
-RemoteVideoDecoder::RemoteVideoDecoder(CodecID codec_id, ByteBuffer codec_configuration, NonnullRefPtr<State> state)
+RemoteVideoDecoder::RemoteVideoDecoder(CodecID codec_id, ByteBuffer codec_configuration, DecoderLatency latency, NonnullRefPtr<State> state)
     : m_codec_id(codec_id)
     , m_codec_configuration(move(codec_configuration))
+    , m_latency(latency)
     , m_state(move(state))
 {
 }
@@ -625,7 +626,7 @@ DecoderErrorOr<void> RemoteVideoDecoder::start_server_decoder()
     auto connection_is_open = false;
     connection.with_target([&](auto& connection) {
         connection.register_decoder(decoder_id, m_state);
-        connection.async_create_decoder(decoder_id, generation, m_codec_id, m_codec_configuration);
+        connection.async_create_decoder(decoder_id, generation, m_codec_id, m_codec_configuration, m_latency);
         connection_is_open = true;
     });
     if (!connection_is_open) {

@@ -260,7 +260,7 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder_for_frame(
         if (!selection.has_value())
             return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find a video decoder for codec {}", frame.codec_id());
 
-        auto decoder_or_error = create_video_decoder(selection, frame.codec_id(), *codec_initialization_data);
+        auto decoder_or_error = create_video_decoder(selection, frame.codec_id(), *codec_initialization_data, m_demuxer->decoder_latency());
         if (decoder_or_error.is_error() && decoder_or_error.error().category() == DecoderErrorCategory::NotImplemented)
             continue;
         m_decoder = TRY(move(decoder_or_error));

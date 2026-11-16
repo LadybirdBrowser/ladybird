@@ -14,6 +14,7 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibAudio/OutputSession.h>
+#include <LibMedia/LiveDemuxer.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Track.h>
@@ -45,6 +46,19 @@ public:
     void set_audio_track_enabled(u64 seek_request_id, Media::Track const&, bool enabled, bool resume_ended_playback);
     void reserve_video_sink(u64 seek_request_id, Media::Track const&, Media::VideoSinkHandle, bool resume_ended_playback);
     void disable_video_sink(u64 seek_request_id, Media::VideoSinkHandle);
+
+    // Whether the ID has been used for a live source, which an ended source's ID still counts as.
+    bool has_live_source(u64 source_id) const { return m_live_sources.contains(source_id) || m_ended_live_sources.contains(source_id); }
+    // The sources that have not ended.
+    size_t live_source_count() const { return m_live_sources.size(); }
+    // Every source the session has had, ended or not.
+    size_t live_source_id_count() const { return m_live_sources.size() + m_ended_live_sources.size(); }
+    void add_live_audio_source(u64 source_id, Audio::SampleSpecification, Utf16String const& label);
+    void add_live_video_source(u64 source_id, Utf16String const& label);
+    // These answer whether the source exists and holds that kind of media.
+    bool add_to_live_audio_source(u64 source_id, ReadonlyBytes interleaved_samples);
+    bool add_to_live_video_source(u64 source_id, Media::CodecID, bool is_key_frame, AK::Duration source_timestamp, ReadonlyBytes data);
+    void end_live_source(u64 source_id);
 
     void create_source_buffer(u64 source_buffer_id);
     void destroy_source_buffer(u64 source_buffer_id);
@@ -99,6 +113,8 @@ private:
 
     void report_media_stream_scan_states();
 
+    void add_live_source(u64 source_id, NonnullRefPtr<Media::LiveDemuxer>);
+
     SourceBuffer* find_source_buffer(u64 source_buffer_id);
     Media::MediaSourceExtensions::PublishedState published_state_for_renderer(SourceBuffer const&) const;
     void add_source_buffer_demuxer(u64 source_buffer_id, u64 instance_id, NonnullRefPtr<Media::Demuxer> const&);
@@ -116,6 +132,9 @@ private:
     HashMap<u64, MediaStreamSource> m_media_stream_sources;
     HashMap<u64, SourceBuffer> m_source_buffers;
     u64 m_next_source_buffer_instance_id { 1 };
+    HashMap<u64, NonnullRefPtr<Media::LiveDemuxer>> m_live_sources;
+    // What an ended source held, so that media sent to it before the client heard it had ended is still expected.
+    HashMap<u64, Media::TrackType> m_ended_live_sources;
 };
 
 }

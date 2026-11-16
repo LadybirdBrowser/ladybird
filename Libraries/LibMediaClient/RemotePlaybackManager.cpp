@@ -62,6 +62,12 @@ RemotePlaybackManager::~RemotePlaybackManager()
         m_client->async_destroy_playback_session(m_session_id);
 }
 
+bool RemotePlaybackManager::has_reached_the_end() const
+{
+    // Live playback waits in Ended with no enabled tracks; the next enabled track resumes at the stopped clock.
+    return state() == Media::PlaybackState::Ended && !m_is_live;
+}
+
 bool RemotePlaybackManager::can_send() const
 {
     return m_client && m_client->is_open();
@@ -81,7 +87,11 @@ AK::Duration RemotePlaybackManager::current_time() const
     AK::Duration time;
     switch (state()) {
     case Media::PlaybackState::Ended:
-        return m_timeline.duration;
+        if (has_reached_the_end())
+            return m_timeline.duration;
+        if (m_time_reader.has_value())
+            time = m_time_reader->current_time();
+        break;
     case Media::PlaybackState::BeginningSeek:
     case Media::PlaybackState::Seeking:
         time = m_seek_timestamp;
@@ -100,7 +110,7 @@ Media::VideoSinkHandle RemotePlaybackManager::reserve_video_sink_handle(Media::T
 {
     auto handle = Media::allocate_video_sink_handle();
     m_video_sinks.set(handle, VideoSink { track });
-    bool resume_ended_playback = state() != Media::PlaybackState::Ended;
+    bool resume_ended_playback = !has_reached_the_end();
     advance_seek_request_id();
     if (can_send())
         m_client->async_reserve_video_sink(m_session_id, m_latest_seek_request_id, track, handle, resume_ended_playback);
@@ -132,7 +142,7 @@ void RemotePlaybackManager::set_video_resize_handler(Media::VideoSinkHandle hand
 void RemotePlaybackManager::enable_an_audio_track(Media::Track const& track)
 {
     // Once the end has been observed here, the element is paused at the duration, so the server must not resume.
-    bool resume_ended_playback = state() != Media::PlaybackState::Ended;
+    bool resume_ended_playback = !has_reached_the_end();
     m_enabled_audio_tracks.set(track);
     advance_seek_request_id();
     if (can_send())
@@ -159,6 +169,72 @@ NonnullRefPtr<RemotePlaybackManager::AddMediaSourcePromise> RemotePlaybackManage
     m_pending_media_stream_sources.set(stream.id(), promise);
     m_client->async_add_media_stream_source(m_session_id, stream.id());
     return promise;
+}
+
+void RemotePlaybackManager::set_is_live()
+{
+    m_is_live = true;
+    set_duration(AK::Duration::max());
+}
+
+RemotePlaybackManager::LiveSource RemotePlaybackManager::add_live_audio_source(u32 sample_rate, u8 channel_count, Utf16String const& label)
+{
+    LiveSource live_source { m_next_live_source_id++, AddLiveSourcePromise::construct() };
+    if (!can_send()) {
+        live_source.track->reject(media_server_gone_error());
+        return live_source;
+    }
+    m_pending_live_sources.set(live_source.id, live_source.track);
+    m_client->async_add_live_audio_source(m_session_id, live_source.id, sample_rate, channel_count, label);
+    return live_source;
+}
+
+RemotePlaybackManager::LiveSource RemotePlaybackManager::add_live_video_source(Utf16String const& label)
+{
+    LiveSource live_source { m_next_live_source_id++, AddLiveSourcePromise::construct() };
+    if (!can_send()) {
+        live_source.track->reject(media_server_gone_error());
+        return live_source;
+    }
+    m_pending_live_sources.set(live_source.id, live_source.track);
+    m_client->async_add_live_video_source(m_session_id, live_source.id, label);
+    return live_source;
+}
+
+void RemotePlaybackManager::add_to_live_audio_source(u64 source_id, ReadonlyBytes interleaved_samples)
+{
+    if (can_send())
+        m_client->async_add_to_live_audio_source(m_session_id, source_id, interleaved_samples);
+}
+
+void RemotePlaybackManager::add_to_live_video_source(u64 source_id, Media::CodecID codec_id, bool is_key_frame, AK::Duration source_timestamp, ReadonlyBytes data)
+{
+    if (can_send())
+        m_client->async_add_to_live_video_source(m_session_id, source_id, codec_id, is_key_frame, source_timestamp, data);
+}
+
+void RemotePlaybackManager::end_live_source(u64 source_id)
+{
+    if (can_send())
+        m_client->async_end_live_source(m_session_id, source_id);
+}
+
+void RemotePlaybackManager::live_source_added(Badge<Client>, u64 source_id, Media::Track track)
+{
+    if (auto promise = m_pending_live_sources.take(source_id); promise.has_value())
+        promise.value()->resolve(move(track));
+}
+
+void RemotePlaybackManager::live_source_failed(Badge<Client>, u64 source_id, Media::DecoderError error)
+{
+    if (auto promise = m_pending_live_sources.take(source_id); promise.has_value())
+        promise.value()->reject(move(error));
+}
+
+void RemotePlaybackManager::live_source_key_frame_needed(Badge<Client>, u64 source_id)
+{
+    if (on_live_source_key_frame_needed)
+        on_live_source_key_frame_needed(source_id);
 }
 
 void RemotePlaybackManager::start()
@@ -351,6 +427,8 @@ void RemotePlaybackManager::handle_connection_lost()
     for (auto& [id, source_buffer] : m_source_buffers)
         source_buffer->connection_lost({});
     // The pending media sources can't be added anymore, and the sources already added can't play anymore.
+    for (auto& [id, promise] : exchange(m_pending_live_sources, {}))
+        promise->reject(media_server_gone_error());
     auto pending_media_stream_sources = move(m_pending_media_stream_sources);
     for (auto& [id, promise] : pending_media_stream_sources)
         promise->reject(media_server_gone_error());

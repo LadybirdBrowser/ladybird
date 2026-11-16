@@ -21,9 +21,9 @@
 
 namespace Media {
 
-static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_remote_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_remote_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data, DecoderLatency latency)
 {
-    return NonnullOwnPtr<VideoDecoder> { TRY(RemoteVideoDecoder::try_create(codec_id, codec_initialization_data)) };
+    return NonnullOwnPtr<VideoDecoder> { TRY(RemoteVideoDecoder::try_create(codec_id, codec_initialization_data, latency)) };
 }
 
 ReadonlySpan<VideoDecoderRegistration> remote_video_decoders()
@@ -34,9 +34,9 @@ ReadonlySpan<VideoDecoderRegistration> remote_video_decoders()
     return decoders;
 }
 
-static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_ffmpeg_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_ffmpeg_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data, DecoderLatency latency)
 {
-    return NonnullOwnPtr<VideoDecoder> { TRY(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data)) };
+    return NonnullOwnPtr<VideoDecoder> { TRY(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data, latency)) };
 }
 
 ReadonlySpan<VideoDecoderRegistration> ffmpeg_video_decoders()
