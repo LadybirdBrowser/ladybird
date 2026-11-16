@@ -57,12 +57,19 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
                 update(MonotonicTime::now());
                 return;
             }
+            m_latest_status = PipelineStatus::Suspended;
             dispatch_state_if_changed(PipelineStatus::Suspended);
             return;
         }
-        // Update the sink to dispatch a status if we're still resolving a seek. If we're not, avoid the update so that
-        // we don't count dropped frames due to the decoder waiting for room while we're not consuming frames.
-        if (!m_is_ticking && m_seek_status == SeekStatus::None && !m_seek_resolution_is_pending_frame_at_target)
+        // Update the sink to dispatch a status if we're still resolving a seek or waiting for data. If we're not, avoid
+        // the update so that we don't count dropped frames due to the decoder waiting for room while we're not
+        // consuming frames.
+        auto status_may_change = [&] {
+            if (m_seek_status != SeekStatus::None || m_seek_resolution_is_pending_frame_at_target)
+                return true;
+            return is_waiting_for_data(m_latest_status);
+        }();
+        if (!m_is_ticking && !status_may_change)
             return;
         update(MonotonicTime::now());
     });
@@ -82,6 +89,7 @@ void DisplayingVideoSink::disconnect_input(NonnullRefPtr<VideoProducer> const& i
 void DisplayingVideoSink::seek(AK::Duration timestamp, InvalidateHeldData invalidate_held_data)
 {
     m_seek_id++;
+    m_latest_status = PipelineStatus::Pending;
     m_last_dispatched_status = PipelineStatus::Pending;
     m_seek_resolution_is_pending_frame_at_target = true;
 
@@ -254,6 +262,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
     if (new_frame_available && m_on_present_needed)
         m_on_present_needed();
 
+    m_latest_status = status_to_dispatch;
     if (status_to_dispatch != m_last_dispatched_status) {
         // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while
         // an update is being processed.
