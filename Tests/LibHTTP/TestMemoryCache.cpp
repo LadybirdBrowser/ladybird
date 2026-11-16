@@ -236,3 +236,60 @@ TEST_CASE(force_cache_reuses_stale_must_revalidate_entries)
     EXPECT(cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::OnlyIfCached).has_value());
     EXPECT(!cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
 }
+
+// Legacy memory SHA-1 prefix: 5955c546f462acaa, for URL + GET.
+TEST_CASE(legacy_memory_hash_collision_does_not_alias_responses)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto a = parse_url("https://b.example/a3e7f95e82b770fa"sv);
+    auto b = parse_url("https://a.example/59179468b3084f39"sv);
+    auto headers = create_cacheable_request_headers();
+    auto response_a = create_cacheable_response_headers();
+    response_a->append({ "X-Identity"sv, "A"sv });
+    auto response_b = create_cacheable_response_headers();
+    response_b->append({ "X-Identity"sv, "B"sv });
+    cache->create_entry(a, "GET"sv, *headers, UnixDateTime::now(), 200, "OK"sv, *response_a);
+    cache->finalize_entry(a, "GET"sv, *headers, 200, *response_a, immutable_bytes("response A"sv));
+    EXPECT(!cache->open_entry(b, "GET"sv, *headers, HTTP::CacheMode::Default).has_value());
+    cache->create_entry(b, "GET"sv, *headers, UnixDateTime::now(), 200, "OK"sv, *response_b);
+    cache->finalize_entry(b, "GET"sv, *headers, 200, *response_b, immutable_bytes("response B"sv));
+    for (auto which : { 0, 1 }) {
+        auto entry = cache->open_entry(which == 0 ? a : b, "GET"sv, *headers, HTTP::CacheMode::Default);
+        VERIFY(entry.has_value());
+        EXPECT_EQ(entry->response_body.bytes(), (which == 0 ? "response A"sv : "response B"sv).bytes());
+        EXPECT_EQ(entry->response_headers->get("X-Identity"sv), Optional<ByteString> { which == 0 ? "A" : "B" });
+    }
+    cache->invalidate(a);
+    EXPECT(!cache->open_entry(a, "GET"sv, *headers, HTTP::CacheMode::Default).has_value());
+    EXPECT(cache->open_entry(b, "GET"sv, *headers, HTTP::CacheMode::Default).has_value());
+}
+
+TEST_CASE(colliding_resources_keep_pending_responses_and_eviction_independent)
+{
+    auto usage = adopt_ref(*new HTTP::MemoryCacheUsage);
+    auto cache = HTTP::MemoryCache::create(usage);
+    auto a = parse_url("https://b.example/a3e7f95e82b770fa"sv);
+    auto b = parse_url("https://a.example/59179468b3084f39"sv);
+    auto headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+    cache->create_entry(a, "GET"sv, *headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->create_entry(b, "GET"sv, *headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->finalize_entry(b, "GET"sv, *headers, 200, *response_headers, immutable_bytes("B"sv));
+    cache->abandon_entry(a, "GET"sv, *headers, *response_headers, HTTP::MemoryCache::StoredResponse::Retire);
+    cache->finalize_entry(a, "GET"sv, *headers, 200, *response_headers, immutable_bytes("abandoned"sv));
+    EXPECT(!cache->open_entry(a, "GET"sv, *headers, HTTP::CacheMode::Default).has_value());
+    auto b_entry = cache->open_entry(b, "GET"sv, *headers, HTTP::CacheMode::Default);
+    VERIFY(b_entry.has_value());
+    EXPECT_EQ(b_entry->response_body.bytes(), "B"sv.bytes());
+    cache->create_entry(a, "GET"sv, *headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->finalize_entry(a, "GET"sv, *headers, 200, *response_headers, immutable_bytes("A"sv));
+    for (auto const& use : cache->complete_entry_uses()) {
+        if (use.cache_key.url == HTTP::serialize_url_for_cache_storage(b))
+            cache->evict_complete_entry(use.cache_key, use.vary_key);
+    }
+    EXPECT(cache->open_entry(a, "GET"sv, *headers, HTTP::CacheMode::Default).has_value());
+    EXPECT(!cache->open_entry(b, "GET"sv, *headers, HTTP::CacheMode::Default).has_value());
+    cache->invalidate(a);
+    EXPECT_EQ(usage->bytes_in_memory, 0u);
+    EXPECT_EQ(usage->mapped_bodies, 0u);
+}

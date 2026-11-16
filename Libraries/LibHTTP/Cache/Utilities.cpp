@@ -123,13 +123,9 @@ u64 create_cache_key(Utf16View const& partition, StringView url, StringView meth
     return serialize_hash(hasher);
 }
 
-u64 create_cache_key(StringView url, StringView method)
+CacheKey create_cache_key(StringView url, StringView method)
 {
-    Crypto::Hash::Hasher hasher { Crypto::Hash::HashKind::SHA1 };
-    hasher.update(url);
-    hasher.update(method);
-
-    return serialize_hash(hasher);
+    return { MUST(String::from_utf8(url)), MUST(String::from_utf8(method)) };
 }
 
 // https://httpwg.org/specs/rfc9111.html#caching.negotiated.responses
