@@ -936,6 +936,9 @@ void TabBar::lock_tab_widths()
 
 void TabBar::refresh_tab_layout()
 {
+    if (m_tab_widget && m_tab_widget->tab_updates_deferred())
+        return;
+
     // NB: Qt lays the tabs out only as the bar resizes, but their size can change while the bar's does not, such as when
     //     the sidebar collapses to the width its tab bar had in the open layout.
     QResizeEvent resize_event(size(), size());
@@ -1075,6 +1078,8 @@ void TabBar::tabRemoved(int index)
 void TabBar::tabLayoutChange()
 {
     QTabBar::tabLayoutChange();
+    if (m_tab_widget && m_tab_widget->tab_updates_deferred())
+        return;
     update_layout_animation();
     set_scroll_offset(m_scroll_offset);
     update_tab_button_geometry();
@@ -2542,6 +2547,9 @@ qreal TabBar::loading_ring_opacity(int index) const
 // The ring only needs repainting while a tab is loading and the tab bar can be seen.
 void TabBar::update_loading_ring_animation()
 {
+    if (m_tab_widget && m_tab_widget->tab_updates_deferred())
+        return;
+
     auto any_tab_loading = false;
     for (int index = 0; index < count() && !any_tab_loading; ++index)
         any_tab_loading = loading_ring_opacity(index) > 0;
@@ -2556,6 +2564,9 @@ void TabBar::update_loading_ring_animation()
 
 void TabBar::update_microphone_indicators()
 {
+    if (m_tab_widget && m_tab_widget->tab_updates_deferred())
+        return;
+
     HashTable<Tab const*> capturing_tabs;
     for (int index = 0; index < count(); ++index) {
         if (auto* tab = m_tab_widget ? m_tab_widget->tab(index) : nullptr; tab && tab->is_loaded() && tab->view().tab_indicator_visible(WebView::TabIndicator::UsingMicrophone))
@@ -2819,6 +2830,9 @@ void TabBar::set_hovered_tab_index(int index)
 
 void TabBar::update_tab_button_geometry()
 {
+    if (m_tab_widget && m_tab_widget->tab_updates_deferred())
+        return;
+
     auto prepare_button = [&](QWidget* button, TabBarButton::Placement placement) {
         if (!button)
             return;
@@ -3383,6 +3397,23 @@ void TabWidget::add_tab(Tab* widget, QString const& label)
     insert_tab(m_tab_bar->count(), widget, label);
 }
 
+ScopeGuard<Function<void()>> TabWidget::defer_tab_updates()
+{
+    VERIFY(!m_tab_updates_deferred);
+    m_tab_updates_deferred = true;
+    auto layout_was_enabled = m_stacked_widget->layout()->isEnabled();
+    m_stacked_widget->layout()->setEnabled(false);
+    return ScopeGuard<Function<void()>> { [this, layout_was_enabled] {
+        m_stacked_widget->layout()->setEnabled(layout_was_enabled);
+        m_tab_updates_deferred = false;
+        update_tab_button_visibility();
+        update_tab_layout();
+        place_toolbar_over_page_column();
+        m_tab_bar->update_microphone_indicators();
+        m_tab_bar->update_loading_ring_animation();
+    } };
+}
+
 // Sizing the hidden page's view alone doesn't hold: The page itself still has its placeholder geometry, and the next
 // pass of the page's own layout pulls the view back to it. So, give the whole page the current page's geometry, laid
 // out now — and only then push the view's viewport.
@@ -3426,7 +3457,8 @@ void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
 
     m_stacked_widget->insertWidget(index, widget);
     m_tab_bar->insertTab(index, label);
-    place_toolbar_over_page_column();
+    if (!m_tab_updates_deferred)
+        place_toolbar_over_page_column();
 
     update_tab_layout();
     update_tab_button_visibility();
@@ -5270,6 +5302,9 @@ void TabWidget::update_vertical_tabs_button_layout()
 
 void TabWidget::update_tab_layout()
 {
+    if (m_tab_updates_deferred)
+        return;
+
     if (m_tab_bar->tab_layout() != TabLayout::Horizontal) {
         auto reserved_width = vertical_tabs_layout_width();
         auto side_bar_width = current_vertical_tabs_width();
@@ -5314,6 +5349,9 @@ void TabWidget::update_tab_layout()
 
 void TabWidget::update_tab_button_visibility()
 {
+    if (m_tab_updates_deferred)
+        return;
+
     if (m_tab_bar->tab_layout() == TabLayout::VerticalCollapsed) {
         for (int index = 0; index < m_tab_bar->count(); ++index) {
             if (auto* button = m_tab_bar->tabButton(index, QTabBar::RightSide))
