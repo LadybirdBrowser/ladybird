@@ -11,9 +11,29 @@ use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule, ScriptOrModuleSlot};
 use crate::layout::value::Value;
+use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use libjs_abi::register::RESERVED_REGISTER_COUNT;
 
 impl ExecutionContext {
+    /// The [[ScriptOrModule]] of the context. That of a frame with a function is the function's, which is null for a
+    /// native function.
+    pub fn script_or_module(&self) -> ScriptOrModule {
+        match self.function.get() {
+            Some(function) => as_ecmascript_function_object(function)
+                .map_or(ScriptOrModule::Empty, |function| function.script_or_module()),
+            None => self.script_or_module_without_function.get(),
+        }
+    }
+
+    /// Sets the [[ScriptOrModule]] of a context without a function.
+    pub fn set_script_or_module(&self, script_or_module: ScriptOrModule) {
+        debug_assert!(
+            self.function.get().is_none(),
+            "a context with a function has the function's ScriptOrModule"
+        );
+        self.script_or_module_without_function.set(script_or_module);
+    }
+
     /// Constructs a context for a frame of `slot_count` slots, the last `argument_count` of which hold arguments, at
     /// `context`.
     ///
@@ -32,7 +52,7 @@ impl ExecutionContext {
             context.write(ExecutionContext {
                 function: Cell::new(None),
                 realm: Cell::new(None),
-                script_or_module: ScriptOrModuleSlot::new(ScriptOrModule::Empty),
+                script_or_module_without_function: ScriptOrModuleSlot::new(ScriptOrModule::Empty),
                 lexical_environment: Cell::new(None),
                 variable_environment: Cell::new(None),
                 private_environment: Cell::new(None),
@@ -96,7 +116,8 @@ impl ExecutionContext {
         let copy = OwnedExecutionContext::create(slot_count - argument_count, 0, argument_count);
         copy.function.set(self.function.get());
         copy.realm.set(self.realm.get());
-        copy.script_or_module.set(self.script_or_module.get());
+        copy.script_or_module_without_function
+            .set(self.script_or_module_without_function.get());
         copy.lexical_environment.set(self.lexical_environment.get());
         copy.variable_environment.set(self.variable_environment.get());
         copy.private_environment.set(self.private_environment.get());
@@ -133,7 +154,8 @@ impl ExecutionContext {
         let copy = OwnedExecutionContext::create(slot_count - argument_count, 0, argument_count);
         copy.function.set(self.function.get());
         copy.realm.set(self.realm.get());
-        copy.script_or_module.set(self.script_or_module.get());
+        copy.script_or_module_without_function
+            .set(self.script_or_module_without_function.get());
         copy.lexical_environment.set(self.lexical_environment.get());
         copy.variable_environment.set(self.variable_environment.get());
         copy.private_environment.set(self.private_environment.get());
@@ -166,10 +188,13 @@ unsafe impl Trace for ExecutionContext {
         self.this_value.trace(visitor);
         self.new_target.trace(visitor);
         self.executable.trace(visitor);
-        match self.script_or_module.get() {
-            ScriptOrModule::Empty => {}
-            ScriptOrModule::Script(script) => script.trace(visitor),
-            ScriptOrModule::Module(module) => module.trace(visitor),
+        // NB: The field of a frame with a function holds an old value, as script_or_module() says.
+        if self.function.get().is_none() {
+            match self.script_or_module_without_function.get() {
+                ScriptOrModule::Empty => {}
+                ScriptOrModule::Script(script) => script.trace(visitor),
+                ScriptOrModule::Module(module) => module.trace(visitor),
+            }
         }
         let slots = self.slots();
         if self.frame_initialized.get() {

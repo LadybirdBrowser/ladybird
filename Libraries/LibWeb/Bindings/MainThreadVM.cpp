@@ -304,7 +304,7 @@ void initialize_agent(HTML::AgentType type)
         // 1. Let script be the running script.
         //    The running script is the script in the [[HostDefined]] field in the ScriptOrModule component of the running JavaScript execution context.
         HTML::Script* script { nullptr };
-        vm.running_execution_context().script_or_module.visit(
+        vm.running_execution_context().script_or_module().visit(
             [&script](GC::Ref<JS::Script>& js_script) {
                 script = as<HTML::ClassicScript>(HTML::script_from_host_defined(js_script->host_defined()));
             },
@@ -481,13 +481,13 @@ void initialize_agent(HTML::AgentType type)
 
                 // IMPLEMENTATION DEFINED: Per the previous "implementation defined" comment, we must now make the script or module the active script or module.
                 //                         Since the only active execution context currently is the realm execution context of job settings, lets attach it here.
-                job_settings->realm_execution_context().script_or_module = script_or_module;
+                job_settings->realm_execution_context().set_script_or_module(script_or_module);
             } else {
                 // FIXME: We need to setup a dummy execution context in case a JS::NativeFunction is called when processing the job.
                 //        This is because JS::NativeFunction::call excepts something to be on the execution context stack to be able to get the caller context to initialize the environment.
                 //        Do note that the JS spec gives _no_ guarantee that the execution context stack has something on it if HostEnqueuePromiseJob was called with a null realm: https://tc39.es/ecma262/#job-preparedtoevaluatecode
                 dummy_execution_context = JS::ExecutionContext::create(0, ReadonlySpan<JS::Value> {}, 0);
-                dummy_execution_context->script_or_module = script_or_module;
+                dummy_execution_context->set_script_or_module(script_or_module);
                 vm.push_execution_context(*dummy_execution_context);
             }
 
@@ -497,7 +497,7 @@ void initialize_agent(HTML::AgentType type)
             // 3. If job settings is not null, then clean up after running script with job settings.
             if (job_settings) {
                 // IMPLEMENTATION DEFINED: Disassociate the realm execution context from the script or module.
-                job_settings->realm_execution_context().script_or_module = Empty {};
+                job_settings->realm_execution_context().set_script_or_module(Empty {});
 
                 // IMPLEMENTATION DEFINED: See comment above, we need to clean up the non-standard prepare_to_run_callback() call.
                 HTML::clean_up_after_running_callback(*job_settings);
@@ -536,11 +536,11 @@ void initialize_agent(HTML::AgentType type)
             script_execution_context->function = nullptr;
             script_execution_context->realm = &script->settings_object().realm();
             if (is<HTML::ClassicScript>(script)) {
-                script_execution_context->script_or_module = GC::Ref<JS::Script>(*as<HTML::ClassicScript>(script)->script_record());
+                script_execution_context->set_script_or_module(GC::Ref<JS::Script>(*as<HTML::ClassicScript>(script)->script_record()));
             } else if (is<HTML::ModuleScript>(script)) {
-                script_execution_context->script_or_module = as<HTML::ModuleScript>(script)->record().visit(
+                script_execution_context->set_script_or_module(as<HTML::ModuleScript>(script)->record().visit(
                     [](Empty) -> JS::ScriptOrModule { return {}; },
-                    [](auto& module) -> JS::ScriptOrModule { return GC::Ref<JS::Module> { module }; });
+                    [](auto& module) -> JS::ScriptOrModule { return GC::Ref<JS::Module> { module }; }));
             } else {
                 VERIFY_NOT_REACHED();
             }
@@ -810,7 +810,7 @@ void initialize_agent(HTML::AgentType type)
             VERIFY(module_execution_context);
             module_execution_context->realm = realm;
             if (module)
-                module_execution_context->script_or_module = GC::Ref { *module };
+                module_execution_context->set_script_or_module(GC::Ref { *module });
             vm.push_execution_context(*module_execution_context);
 
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);

@@ -41,6 +41,7 @@ use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
+use crate::layout::execution_context::ScriptOrModuleSlot;
 use crate::layout::function_object::{
     DirectGetterFunction, EcmascriptFunctionObject, FunctionObject, NativeFunction, RawNativeFunction,
 };
@@ -1600,7 +1601,7 @@ pub fn capture_snapshot<'d>(
     let compiled_function_fields = match function {
         Some(function) => function_frame_fields(function),
         None => FunctionFrameFields {
-            script_or_module: vm.running_execution_context_ref().script_or_module.word(),
+            script_or_module: ScriptOrModuleSlot::new(vm.running_execution_context_ref().script_or_module()).word(),
             ..FunctionFrameFields::default()
         },
     };

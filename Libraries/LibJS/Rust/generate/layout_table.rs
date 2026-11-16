@@ -333,7 +333,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     assert_eq!(align_of::<ExecutionContext>(), value_size);
     field!(w, "EXECUTION_CONTEXT_FUNCTION", "ExecutionContext.function", "Object", ExecutionContext, function, 8, "nullable", "cell", "function_and_realm");
     field!(w, "EXECUTION_CONTEXT_REALM", "ExecutionContext.realm", "Realm", ExecutionContext, realm, 8, "nullable", "cell", "function_and_realm");
-    field!(w, "EXECUTION_CONTEXT_SCRIPT_OR_MODULE", "ExecutionContext.script_or_module", "u64", ExecutionContext, script_or_module, 8, "nullable", "scalar");
+    field!(w, "EXECUTION_CONTEXT_SCRIPT_OR_MODULE_WITHOUT_FUNCTION", "ExecutionContext.script_or_module_without_function", "u64", ExecutionContext, script_or_module_without_function, 8, "nullable", "scalar");
     field!(w, "EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT", "ExecutionContext.lexical_environment", "Environment", ExecutionContext, lexical_environment, 8, "nullable", "cell", "environments");
     field!(w, "EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT", "ExecutionContext.variable_environment", "Environment", ExecutionContext, variable_environment, 8, "nullable", "cell", "environments");
     field!(w, "EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT", "ExecutionContext.private_environment", "PrivateEnvironment", ExecutionContext, private_environment, 8, "nullable", "cell");

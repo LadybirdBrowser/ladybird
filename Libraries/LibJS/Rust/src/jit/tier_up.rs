@@ -146,7 +146,7 @@ fn code_to_compile(vm: &Vm) -> Option<CompileTarget> {
     let Some(function) = frame.function.get() else {
         // NB: The top-level code of a script or of a module runs once, but its loops can run long. Other code without
         //     a function, like that of eval, is not compiled.
-        let top_level_executable = match frame.script_or_module.get() {
+        let top_level_executable = match frame.script_or_module() {
             ScriptOrModule::Script(script) => script.cached_executable(),
             ScriptOrModule::Module(module) => module.downcast_ref::<SourceTextModule>()?.cached_executable(),
             _ => None,

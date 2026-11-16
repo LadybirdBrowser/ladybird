@@ -2198,7 +2198,7 @@ impl Vm {
         // 2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null.
         let mut script_or_module = ScriptOrModule::Empty;
         self.for_each_execution_context_top_to_bottom(|execution_context| {
-            script_or_module = execution_context.script_or_module.get();
+            script_or_module = execution_context.script_or_module();
             if matches!(script_or_module, ScriptOrModule::Empty) {
                 return ControlFlow::Continue(());
             }

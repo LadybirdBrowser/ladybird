@@ -55,7 +55,6 @@ fn offsets() -> RuntimeOffsets {
         accessor_setter: 16,
         execution_context_function: 64,
         execution_context_realm: 72,
-        execution_context_script_or_module: 80,
         execution_context_variable_environment: 96,
         execution_context_frame_id: 104,
         execution_context_skip_when_determining_incumbent_counter: 4,
@@ -76,7 +75,6 @@ fn offsets() -> RuntimeOffsets {
         execution_context_new_target: 160,
         ecmascript_function_environment: 0,
         ecmascript_function_private_environment: 8,
-        shared_function_script_or_module: 24,
         object_class_bits: 40,
         ecmascript_function_flag_has_rare_data: 8,
         vm_execution_generation: 8 * VM_EXECUTION_GENERATION_WORD as u32,
@@ -3858,7 +3856,6 @@ mod direct_calls {
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
             assert_eq!(word(72), REALM);
-            assert_eq!(word(80), FUNCTION_WORDS[2]);
             assert_eq!(
                 (word(8), word(96), word(16)),
                 (FUNCTION_WORDS[0], FUNCTION_WORDS[0], FUNCTION_WORDS[1])
@@ -4262,7 +4259,6 @@ mod direct_calls {
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
             assert_eq!(word(72), callee.realm);
-            assert_eq!(word(80), FUNCTION_WORDS[2]);
             assert_eq!(
                 (word(8), word(96), word(16)),
                 (

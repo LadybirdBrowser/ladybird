@@ -8,8 +8,9 @@
 //!
 //! A JSExecutionContext is the runtime's ExecutionContext. LibJS/Embedding/Layout.h gives the offset and size of each
 //! of its fields as JS_LAYOUT_EXECUTION_CONTEXT_*, and its value slots, the arguments last, follow it directly. An
-//! embedder reads and writes the fields there, among them the realm, the ScriptOrModule, the this value and the
-//! skip-when-determining-incumbent counter. It also finds the running context at
+//! embedder reads and writes the fields there, among them the realm, the this value and the
+//! skip-when-determining-incumbent counter. It reads the ScriptOrModule with js_execution_context_script_or_module(),
+//! because that of a context with a function comes from the function. It also finds the running context at
 //! JS_LAYOUT_VM_RUNNING_EXECUTION_CONTEXT_OFFSET in the VM, and with it the current realm and the arguments and this
 //! value of the running code, without a call.
 //!
@@ -216,6 +217,22 @@ pub unsafe extern "C" fn js_execution_context_restore_stack(vm: *mut JSVM) {
     // SAFETY: The caller passes a live VM.
     let vm = unsafe { vm_from_abi(vm) };
     vm.restore_execution_context_stack();
+}
+
+/// ExecutionContext::script_or_module(): the [[ScriptOrModule]] of `execution_context`. That of a context with a
+/// function comes from the function, and the field holds it only for a context without one.
+///
+/// # Safety
+///
+/// `execution_context` must be a live execution context. Must be called on the thread that runs the VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_execution_context_script_or_module(
+    execution_context: *const JSExecutionContext,
+) -> JSScriptOrModule {
+    assert!(!execution_context.is_null(), "the embedder passes an execution context");
+    // SAFETY: The caller passes a live execution context.
+    let execution_context = unsafe { &*execution_context.cast::<ExecutionContext>() };
+    execution_context.script_or_module().into()
 }
 
 /// ExecutionContext::function_name(): the name of the function whose bytecode the context runs, as an owned

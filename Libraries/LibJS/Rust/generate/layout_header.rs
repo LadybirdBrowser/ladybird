@@ -327,7 +327,7 @@ pub fn generate() -> LayoutHeader {
     every_field_offset!(w, "EXECUTION_CONTEXT", ExecutionContext {
         function,
         realm,
-        script_or_module,
+        script_or_module_without_function,
         lexical_environment,
         variable_environment,
         private_environment,

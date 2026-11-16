@@ -3328,7 +3328,6 @@ handler GetById(
         native_frame.private_environment = exec_ctx.private_environment;
         let receiver: Value = alias(box_object(receiver_object));
         native_frame.this_value = receiver;
-        native_frame.script_or_module = 0;
         native_frame.executable = null;
         native_frame.program_counter = 0;
         native_frame.skip_when_determining_incumbent_counter = 0;
@@ -4054,8 +4053,6 @@ inline fn enter_ecmascript_function_call(
     frame.this_value_register = receiver;
     frame.return_value = empty_tag;
     frame.saved_lexical_environment = empty_tag;
-    let frame_shared_data = ecmascript_function.shared_data;
-    frame.script_or_module = frame_shared_data.script_or_module;
     frame.program_counter = 0;
     let frame_id_vm = current_vm();
     let frame_id = frame_id_vm.interpreter_stack_next_frame_id;
@@ -4153,7 +4150,6 @@ inline fn call_raw_native_function(
     native_frame.private_environment = private_environment;
     let receiver = load(this_value);
     native_frame.this_value = receiver;
-    native_frame.script_or_module = 0;
     # Raw native frames deliberately have no executable.
     native_frame.executable = null;
     native_frame.program_counter = 0;
