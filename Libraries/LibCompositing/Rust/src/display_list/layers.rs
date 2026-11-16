@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::display_list::builder::{HEADER_SIZE, for_each_command, read_command, read_header};
+use crate::display_list::builder::{
+    HEADER_SIZE, bounding_rect_computed_from_payload, for_each_command, read_command, read_header,
+};
 use crate::display_list::commands::{
     ClipMode, ClipNodeIndex, DeclareMaskContent, DisplayListCommandRun, DisplayListCommandType, EffectNodeIndex,
 };
@@ -602,7 +604,10 @@ fn media_layer_rejection(
     if !bounds.world.draw_matrix(run.context.spatial).is_2d_affine() {
         return Some(MediaLayerRejection::UnderTransformThatIsNot2DAffine);
     }
-    if bounds.ink_device_rect(run, header.bounding_rect).is_empty() {
+    let payload_start = record_offset as usize + HEADER_SIZE;
+    let payload = &inputs.tape[payload_start..payload_start + header.payload_size as usize];
+    let bounding_rect = bounding_rect_computed_from_payload(&header, payload).unwrap_or_default();
+    if bounds.ink_device_rect(run, bounding_rect).is_empty() {
         return Some(MediaLayerRejection::DrawsNothingVisible);
     }
     if !run_is_a_chunk_of_its_own(run_index) {
@@ -760,17 +765,19 @@ fn place_records_in_layers(
             if let Some((media_index, candidate)) =
                 media_iter.next_if(|(_, candidate)| candidate.record_offset == begin_offset)
             {
-                let media_bounds = bounds.ink_device_rect(run, header.bounding_rect);
+                let bounding_rect = bounding_rect_computed_from_payload(header, payload).unwrap_or_default();
+                let media_bounds = bounds.ink_device_rect(run, bounding_rect);
                 let window_server_shows_content = !matches!(candidate.content, LiveContent::CompositedContext(_));
                 let placement = window_server_shows_content.then(|| {
                     window_server_placement(inputs.tree, &bounds.world, inputs.viewport_rect, run, header, payload)
                 });
                 planned.add_media_layer(media_index, candidate.content, span, media_bounds, placement);
                 layer_of_previous_painted_record = LayersBeingPlanned::BASE_LAYER_INDEX;
-            } else if !header.has_bounding_rect {
+            } else if header.command_type.is_compositor_metadata() {
                 planned.append_records_to_layer(layer_of_previous_painted_record, span);
             } else {
-                let record_bounds = bounds.ink_device_rect(run, header.bounding_rect);
+                let bounding_rect = bounding_rect_computed_from_payload(header, payload).unwrap_or_default();
+                let record_bounds = bounds.ink_device_rect(run, bounding_rect);
                 layer_of_previous_painted_record = planned.place_painted_records(span, record_bounds);
             }
         });

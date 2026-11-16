@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::builder::read_command;
 use crate::display_list::ffi_bytes::FfiBytes;
 use crate::ffi_bytes_fields;
 use crate::ffi_enum_bytes;
@@ -688,6 +689,67 @@ pub trait DisplayListCommand: Copy + FfiBytes {
             );
         };
         None
+    }
+}
+
+pub fn command_bounding_rect_computed_from_payload(
+    command_type: DisplayListCommandType,
+    payload: &[u8],
+) -> Option<IntRect> {
+    fn of<C: DisplayListCommand>(payload: &[u8]) -> Option<IntRect> {
+        read_command::<C>(payload).bounding_rect()
+    }
+    use DisplayListCommandType as T;
+    match command_type {
+        T::DrawGlyphRun => of::<DrawGlyphRun>(payload),
+        T::FillRect => of::<FillRect>(payload),
+        T::PaintCaret => of::<PaintCaret>(payload),
+        T::DrawScaledDecodedImageFrame => of::<DrawScaledDecodedImageFrame>(payload),
+        T::DrawRepeatedDecodedImageFrame => of::<DrawRepeatedDecodedImageFrame>(payload),
+        T::DrawRepeatedTile => of::<DrawRepeatedTile>(payload),
+        T::DrawTiledDecodedImageFrame => of::<DrawTiledDecodedImageFrame>(payload),
+        T::DrawCompositedContext => of::<DrawCompositedContext>(payload),
+        T::DrawCanvas => of::<DrawCanvas>(payload),
+        T::DrawVideoFrame => of::<DrawVideoFrame>(payload),
+        T::PaintLinearGradient => of::<PaintLinearGradient>(payload),
+        T::PaintRadialGradient => of::<PaintRadialGradient>(payload),
+        T::PaintConicGradient => of::<PaintConicGradient>(payload),
+        T::PaintOuterBoxShadow => of::<PaintOuterBoxShadow>(payload),
+        T::PaintInnerBoxShadow => of::<PaintInnerBoxShadow>(payload),
+        T::PaintPathBoxShadow => of::<PaintPathBoxShadow>(payload),
+        T::PaintTextShadow => of::<PaintTextShadow>(payload),
+        T::FillRectWithRoundedCorners => of::<FillRectWithRoundedCorners>(payload),
+        T::FillRoundedRectRing => of::<FillRoundedRectRing>(payload),
+        T::FillPath => of::<FillPath>(payload),
+        T::StrokePath => of::<StrokePath>(payload),
+        T::DrawEllipse => of::<DrawEllipse>(payload),
+        T::DrawLine => of::<DrawLine>(payload),
+        T::BackdropFilterRegion => of::<BackdropFilterRegion>(payload),
+        T::DrawRect => of::<DrawRect>(payload),
+        T::PaintVectorImage => of::<PaintVectorImage>(payload),
+        T::DrawIsolatedGroup => of::<DrawIsolatedGroup>(payload),
+        T::DeclareMaskContent => of::<DeclareMaskContent>(payload),
+        T::CompositorWheelHitTestTarget => of::<CompositorWheelHitTestTarget>(payload),
+        T::CompositorWheelHitTestTargetWithCornerRadii => of::<CompositorWheelHitTestTargetWithCornerRadii>(payload),
+        T::CompositorMainThreadWheelEventRegion => of::<CompositorMainThreadWheelEventRegion>(payload),
+        T::CompositorScrollbar => of::<CompositorScrollbar>(payload),
+        T::CompositorBlockingWheelEventRegion => of::<CompositorBlockingWheelEventRegion>(payload),
+        T::PaintScrollBar => of::<PaintScrollBar>(payload),
+        T::CompositorNestedContextWheelRegion => of::<CompositorNestedContextWheelRegion>(payload),
+        T::Canvas2DFillPath => of::<Canvas2DFillPath>(payload),
+        T::Canvas2DStrokePath => of::<Canvas2DStrokePath>(payload),
+        T::Canvas2DDrawGlyphRuns => of::<Canvas2DDrawGlyphRuns>(payload),
+        T::Canvas2DClearRect => of::<Canvas2DClearRect>(payload),
+        T::Canvas2DDrawImageFrame => of::<Canvas2DDrawImageFrame>(payload),
+        T::Canvas2DDrawCanvas => of::<Canvas2DDrawCanvas>(payload),
+        T::Canvas2DDrawVideoFrame => of::<Canvas2DDrawVideoFrame>(payload),
+        T::Canvas2DSetTransform => of::<Canvas2DSetTransform>(payload),
+        T::Canvas2DSave => of::<Canvas2DSave>(payload),
+        T::Canvas2DRestore => of::<Canvas2DRestore>(payload),
+        T::Canvas2DClipPath => of::<Canvas2DClipPath>(payload),
+        T::Canvas2DReset => of::<Canvas2DReset>(payload),
+        T::Canvas2DClearCanvas => of::<Canvas2DClearCanvas>(payload),
+        T::Canvas2DPutImageFrame => of::<Canvas2DPutImageFrame>(payload),
     }
 }
 

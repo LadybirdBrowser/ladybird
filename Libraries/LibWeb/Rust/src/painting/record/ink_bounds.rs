@@ -12,9 +12,9 @@ use super::trace::Observer;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::fast_hash::FastMap;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::painting::display_list::builder::for_each_command;
+use crate::painting::display_list::builder::{bounding_rect_computed_from_payload, for_each_command};
 use crate::painting::display_list::commands::{
-    ClipMode, ClipNodeIndex, ContextRef, DisplayListCommandHeader, DisplayListCommandType, SpatialNodeIndex,
+    ClipMode, ClipNodeIndex, ContextRef, DisplayListCommandType, SpatialNodeIndex,
 };
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::ink_overflow::{InkOverflow, ScopeInkBound, own_ink_overflow, scope_ink_bound};
@@ -143,14 +143,15 @@ fn command_draws_inputs_driven_ink(
     converter: DevicePixelConverter,
     owner: NodeSlotId,
     inputs_ink_in_device_pixels: Option<IntRect>,
-    header: &DisplayListCommandHeader,
+    command_type: DisplayListCommandType,
+    bounding_rect: IntRect,
 ) -> bool {
-    inputs_ink_in_device_pixels.is_some_and(|rect| rect.contains_rect(header.bounding_rect))
-        && (header.command_type == DisplayListCommandType::PaintCaret
-            || (header.command_type == DisplayListCommandType::FillRect
+    inputs_ink_in_device_pixels.is_some_and(|rect| rect.contains_rect(bounding_rect))
+        && (command_type == DisplayListCommandType::PaintCaret
+            || (command_type == DisplayListCommandType::FillRect
                 && inputs.caret.is_some_and(|caret| {
                     caret.target == CaretTarget::EmptyInline(owner)
-                        && converter.rounded_device_rect(caret.rect) == header.bounding_rect
+                        && converter.rounded_device_rect(caret.rect) == bounding_rect
                 })))
 }
 
@@ -273,30 +274,44 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let runs = self.recorder.command_runs();
         let mut run_index = runs.partition_point(|run| (run.offset + run.size) as usize <= bytes.start);
         let mut counts = [false; COUNT_NAMES.len()];
-        for_each_command(&self.recorder.bytes()[bytes.clone()], |header, offset, _| {
+        for_each_command(&self.recorder.bytes()[bytes.clone()], |header, offset, payload| {
             let absolute_offset = bytes.start + offset;
             while absolute_offset >= (runs[run_index].offset + runs[run_index].size) as usize {
                 run_index += 1;
             }
             let spatial = runs[run_index].context.spatial;
-            let reason = if header.command_type.is_compositor_metadata() || !header.has_bounding_rect {
-                Count::MetadataOrCanvas
-            } else if spatial != own_spatial && spatial != descendants_spatial {
-                Count::OtherSpatialNode
-            } else if command_draws_inputs_driven_ink(self.inputs, self.converter, owner, inputs_ink, header) {
-                Count::InputDriven
-            } else if !header.bounding_rect.is_empty() && !estimate_device.contains_rect(header.bounding_rect) {
-                panic!(
-                    "Paint ink bounds violation: {kind:?} of {:?} {owner:?}, border box {:?}, recorded {} {:?} outside own estimate {:?} (device pixels, including 2px comparison slack; CSS estimate {:?})",
-                    self.source.node_kind_if_live(owner),
-                    crate::painting::paintable_geometry::absolute_border_box_rect(self.source, owner),
-                    header.command_type.name(),
-                    header.bounding_rect,
-                    estimate_device,
-                    estimate.rect
-                );
+            let bounding_rect = if header.command_type.is_compositor_metadata() {
+                None
             } else {
-                Count::Checked
+                bounding_rect_computed_from_payload(header, payload)
+            };
+            let reason = match bounding_rect {
+                None => Count::MetadataOrCanvas,
+                Some(_) if spatial != own_spatial && spatial != descendants_spatial => Count::OtherSpatialNode,
+                Some(bounding_rect)
+                    if command_draws_inputs_driven_ink(
+                        self.inputs,
+                        self.converter,
+                        owner,
+                        inputs_ink,
+                        header.command_type,
+                        bounding_rect,
+                    ) =>
+                {
+                    Count::InputDriven
+                }
+                Some(bounding_rect) if !bounding_rect.is_empty() && !estimate_device.contains_rect(bounding_rect) => {
+                    panic!(
+                        "Paint ink bounds violation: {kind:?} of {:?} {owner:?}, border box {:?}, recorded {} {:?} outside own estimate {:?} (device pixels, including 2px comparison slack; CSS estimate {:?})",
+                        self.source.node_kind_if_live(owner),
+                        crate::painting::paintable_geometry::absolute_border_box_rect(self.source, owner),
+                        header.command_type.name(),
+                        bounding_rect,
+                        estimate_device,
+                        estimate.rect
+                    );
+                }
+                Some(_) => Count::Checked,
             };
             counts[reason as usize] = true;
         });
@@ -454,23 +469,30 @@ impl<O: Observer> PaintRecorder<'_, O> {
         };
         let runs = self.recorder.command_runs();
         let mut run_index = runs.partition_point(|run| (run.offset + run.size) as usize <= bytes.start);
-        for_each_command(&self.recorder.bytes()[bytes.clone()], |header, offset, _| {
+        for_each_command(&self.recorder.bytes()[bytes.clone()], |header, offset, payload| {
             let absolute_offset = bytes.start + offset;
             while absolute_offset >= (runs[run_index].offset + runs[run_index].size) as usize {
                 run_index += 1;
             }
-            if header.command_type.is_compositor_metadata()
-                || !header.has_bounding_rect
-                || header.bounding_rect.is_empty()
-                || command_draws_inputs_driven_ink(inputs, converter, owner, inputs_ink, header)
+            if header.command_type.is_compositor_metadata() {
+                return;
+            }
+            let Some(bounding_rect) = bounding_rect_computed_from_payload(header, payload) else {
+                return;
+            };
+            if bounding_rect.is_empty()
+                || command_draws_inputs_driven_ink(
+                    inputs,
+                    converter,
+                    owner,
+                    inputs_ink,
+                    header.command_type,
+                    bounding_rect,
+                )
             {
                 return;
             }
-            require_inside_open_scopes(
-                &header.command_type.name(),
-                header.bounding_rect,
-                runs[run_index].context,
-            );
+            require_inside_open_scopes(&header.command_type.name(), bounding_rect, runs[run_index].context);
         });
         if checked {
             self.ink_bounds_audit.count(Count::CheckedAgainstScopes);

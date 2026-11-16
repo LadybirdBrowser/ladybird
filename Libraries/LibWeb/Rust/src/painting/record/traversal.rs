@@ -268,7 +268,7 @@ fn require_only_what_misses_the_window_is_left_out(
     of_whole_document: &RecordingOutput,
     spaces: &WindowSpaces<'_>,
 ) {
-    use crate::painting::display_list::builder::for_each_command;
+    use crate::painting::display_list::builder::{bounding_rect_computed_from_payload, for_each_command};
     use crate::painting::display_list::chunks::chunks_of;
     let (windowed, whole) = (&of_window.display_list, &of_whole_document.display_list);
     let mut chunks_of_window = chunks_of(&windowed.bytes, &windowed.command_runs, &windowed.chunks).peekable();
@@ -288,15 +288,18 @@ fn require_only_what_misses_the_window_is_left_out(
         for run in runs {
             let run_start = (run.offset - chunk_start) as usize;
             let run_bytes = &bytes[run_start..run_start + run.size as usize];
-            for_each_command(run_bytes, |header, _, _| {
-                if header.command_type.is_compositor_metadata() || !header.has_bounding_rect {
+            for_each_command(run_bytes, |header, _, payload| {
+                if header.command_type.is_compositor_metadata() {
                     return;
                 }
+                let Some(bounding_rect) = bounding_rect_computed_from_payload(header, payload) else {
+                    return;
+                };
                 assert!(
-                    spaces.shows_in_window(header.bounding_rect.to_float(), run.context) != Some(true),
+                    spaces.shows_in_window(bounding_rect.to_float(), run.context) != Some(true),
                     "A recording of a window left out {} at {:?} under {:?}, which shows in the window",
                     header.command_type.name(),
-                    header.bounding_rect,
+                    bounding_rect,
                     run.context
                 );
             });
@@ -339,7 +342,7 @@ fn reused_output_is_verified() -> bool {
 /// Requires a recording that reused clean output of the published one to be the recording the same frame gives when
 /// everything is recorded: a difference is output that was reused though what it shows changed.
 fn require_same_recording(assembled: &RecordingOutput, from_scratch: &RecordingOutput) {
-    use crate::painting::display_list::builder::for_each_command;
+    use crate::painting::display_list::builder::{bounding_rect_computed_from_payload, for_each_command};
     use crate::painting::display_list::chunks::{chunk_id, chunks_of};
     let (assembled_list, scratch_list) = (&assembled.display_list, &from_scratch.display_list);
     let assembled_bytes = without_vector_image_ids(&assembled_list.bytes);
@@ -352,9 +355,13 @@ fn require_same_recording(assembled: &RecordingOutput, from_scratch: &RecordingO
             .unwrap_or(assembled_bytes.len().min(scratch_bytes.len()));
         let command_at = |bytes: &[u8]| {
             let mut found = None;
-            for_each_command(bytes, |header, offset, _| {
+            for_each_command(bytes, |header, offset, payload| {
                 if offset <= first_differing_byte {
-                    found = Some((offset, header.command_type.name(), header.bounding_rect));
+                    found = Some((
+                        offset,
+                        header.command_type.name(),
+                        bounding_rect_computed_from_payload(header, payload),
+                    ));
                 }
             });
             found

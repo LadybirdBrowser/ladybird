@@ -11,7 +11,8 @@ use super::layers::{LayerKind, LayerPlan};
 use super::replay::{OwnSpaceClipExtent, own_space_clip_extent};
 use super::summary::{DisplayListSummary, LiveContent};
 use crate::display_list::builder::{
-    HEADER_SIZE, for_each_command, has_inline_clip_in_its_own_space, inline_clips_of, read_header,
+    HEADER_SIZE, bounding_rect_computed_from_payload, for_each_command, has_inline_clip_in_its_own_space,
+    inline_clips_of, read_header,
 };
 use crate::display_list::commands::{
     CanvasId, ClipMode, ClipNodeIndex, CompositorContextId, ContextRef, DisplayListCommandHeader,
@@ -452,17 +453,15 @@ impl<'a> SideGeometry<'a> {
 
     // Where a command's inline clips in spaces of their own let it draw on one side of the comparison.
     fn own_space_clip_extent_of(&self, record: &RecordOnTape<'_>) -> Option<OwnSpaceClipExtent> {
-        if record.header.inline_clip_count == 0
-            || !record.header.has_bounding_rect
-            || !has_inline_clip_in_its_own_space(&record.header, record.payload)
-        {
+        if record.header.inline_clip_count == 0 || !has_inline_clip_in_its_own_space(&record.header, record.payload) {
             return None;
         }
+        let bounding_rect = bounding_rect_computed_from_payload(&record.header, record.payload)?;
         let world = self.world();
         own_space_clip_extent(
             &record.header,
             record.payload,
-            record.header.bounding_rect.to_float(),
+            bounding_rect.to_float(),
             world.draw_matrix_if_known(record.context.spatial)?,
             |space| world.draw_matrix_if_known(space),
         )
@@ -630,14 +629,15 @@ impl DamageAccumulator<'_> {
         if side.geometry.culling().context_culls_everything(record.context) {
             return;
         }
-        // Only compositor metadata, which draws nothing, has no bounding rect.
-        if !record.header.has_bounding_rect {
+        if record.header.command_type.is_compositor_metadata() {
             return;
         }
         // The bounds of a command leave out its inline clips in spaces of their own, so they limit it here.
         let rect = match side.geometry.own_space_clip_extent_of(record) {
             Some(OwnSpaceClipExtent::Within(rect)) => rect,
-            _ => record.header.bounding_rect.to_float(),
+            _ => bounding_rect_computed_from_payload(&record.header, record.payload)
+                .unwrap_or_default()
+                .to_float(),
         };
         if rect.is_empty() {
             return;
@@ -1036,8 +1036,9 @@ pub fn animated_content_may_affect_viewport(
                 may_affect_viewport = true;
                 return;
             }
-            let mut rect = header.bounding_rect.to_float();
-            if has_inline_clip_in_its_own_space && header.has_bounding_rect {
+            let bounding_rect = bounding_rect_computed_from_payload(header, payload);
+            let mut rect = bounding_rect.unwrap_or_default().to_float();
+            if has_inline_clip_in_its_own_space && bounding_rect.is_some() {
                 let world =
                     world.get_or_init(|| WorldTransforms::new(tree, scroll_offsets, Some(FloatMatrix4x4::identity())));
                 if let Some(command_to_root) = world.draw_matrix_if_known(run.context.spatial)
