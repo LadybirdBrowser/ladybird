@@ -14,6 +14,9 @@ namespace Gfx {
 struct ShapeFeature {
     char tag[4];
     u32 value;
+    // Whether font-feature-settings set this feature, which keeps it in place over the optional ligatures that a
+    // non-zero letter-spacing turns off: https://drafts.csswg.org/css-fonts-4/#feature-variation-precedence
+    bool set_by_feature_settings { false };
 
     bool operator==(ShapeFeature const&) const = default;
     bool operator!=(ShapeFeature const&) const = default;
@@ -47,6 +50,7 @@ struct Traits<Gfx::ShapeFeatures> : public DefaultTraits<Gfx::ShapeFeatures> {
             hash = pair_int_hash(hash, feature.tag[2]);
             hash = pair_int_hash(hash, feature.tag[3]);
             hash = pair_int_hash(hash, feature.value);
+            hash = pair_int_hash(hash, feature.set_by_feature_settings);
         }
 
         return hash;

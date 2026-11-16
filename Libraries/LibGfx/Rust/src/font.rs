@@ -453,12 +453,13 @@ struct FfiCascadeSnapshotHeader {
     system_fallback_feature_count: usize,
 }
 
-/// A `Gfx::ShapeFeature`: an OpenType feature tag and its value.
+/// A `Gfx::ShapeFeature`: an OpenType feature tag, its value, and whether font-feature-settings set it.
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
 struct FfiShapeFeature {
     tag: [u8; 4],
     value: u32,
+    set_by_feature_settings: bool,
 }
 
 #[repr(C)]

@@ -583,8 +583,9 @@ extern "C" void ladybird_gfx_cascade_snapshot_header(void const* handle, Gfx::FF
 }
 
 // NB: Rust reads these as its FfiShapeFeature.
-static_assert(sizeof(Gfx::ShapeFeature) == 8);
+static_assert(sizeof(Gfx::ShapeFeature) == 12);
 static_assert(offsetof(Gfx::ShapeFeature, value) == 4);
+static_assert(offsetof(Gfx::ShapeFeature, set_by_feature_settings) == 8);
 
 extern "C" void ladybird_gfx_cascade_snapshot_system_fallback_features(void const* handle, Gfx::ShapeFeature* out_features)
 {

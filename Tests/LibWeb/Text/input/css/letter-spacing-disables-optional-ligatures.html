@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    @font-face {
+        font-family: "mplus";
+        src: url("../wpt-import/fonts/mplus-1p-regular.woff");
+    }
+    span {
+        font: 32px mplus;
+        font-kerning: none;
+        white-space: pre;
+    }
+    .spaced {
+        letter-spacing: 20px;
+    }
+    .unligated {
+        font-variant-ligatures: none;
+    }
+</style>
+<div><span class="unligated">office affix</span></div>
+    <div><span class="spaced" style=''>office affix</span></div>
+    <div><span class="spaced" style='font-variant-ligatures: common-ligatures;'>office affix</span></div>
+    <div><span class="spaced" style='font-variant-ligatures: discretionary-ligatures;'>office affix</span></div>
+    <div><span class="spaced" style='font-feature-settings: "liga";'>office affix</span></div>
+    <div><span class="spaced" style='font-feature-settings: "liga" 0;'>office affix</span></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // How many times the spacing went into each sample: what letter-spacing adds to the width of the text without
+        // ligatures, over the spacing. A ligature the spacing leaves in place joins two or three letters into one glyph,
+        // which takes the spacing once.
+        const names = [
+            'letter-spacing',
+            'letter-spacing, font-variant-ligatures: common-ligatures',
+            'letter-spacing, font-variant-ligatures: discretionary-ligatures',
+            'letter-spacing, font-feature-settings: "liga"',
+            'letter-spacing, font-feature-settings: "liga" 0',
+        ];
+        await document.fonts.ready;
+        const [unligated, ...samples] = document.querySelectorAll("span");
+        const base = unligated.getBoundingClientRect().width;
+        samples.forEach((sample, index) => {
+            const count = Math.round((sample.getBoundingClientRect().width - base) / 20);
+            println(`${names[index]}: ${count}`);
+        });
+    });
+</script>

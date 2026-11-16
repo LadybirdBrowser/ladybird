@@ -409,7 +409,7 @@ Vector<float> glyph_run_glyph_intercepts(Font const& font, ReadonlySpan<ShapedGl
     return intervals;
 }
 
-static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, FFI::TextType text_type, FFI::JoiningContext joining_context = {})
+static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, FFI::TextType text_type, float letter_spacing, FFI::JoiningContext joining_context = {})
 {
     hb_buffer_t* buffer = hb_buffer_create();
 
@@ -445,22 +445,35 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
         hb_buffer_add_codepoints(buffer, &ZERO_WIDTH_JOINER, 1, 0, 0);
 
     auto* hb_font = font.harfbuzz_font();
-    hb_feature_t const* hb_features_data = nullptr;
-    Vector<hb_feature_t, 4> hb_features;
-    if (!font.features().is_empty()) {
-        hb_features.ensure_capacity(font.features().size());
-        for (auto const& feature : font.features()) {
-            hb_features.unchecked_append({
-                .tag = HB_TAG(feature.tag[0], feature.tag[1], feature.tag[2], feature.tag[3]),
-                .value = feature.value,
-                .start = 0,
-                .end = HB_FEATURE_GLOBAL_END,
-            });
-        }
-        hb_features_data = hb_features.data();
+    Vector<hb_feature_t, 8> hb_features;
+    hb_features.ensure_capacity(font.features().size());
+    for (auto const& feature : font.features()) {
+        hb_features.unchecked_append({
+            .tag = HB_TAG(feature.tag[0], feature.tag[1], feature.tag[2], feature.tag[3]),
+            .value = feature.value,
+            .start = 0,
+            .end = HB_FEATURE_GLOBAL_END,
+        });
     }
 
-    hb_shape(hb_font, buffer, hb_features_data, font.features().size());
+    // https://drafts.csswg.org/css-fonts-4/#feature-variation-precedence
+    // 11. Feature settings determined by properties other than font-variant or font-feature-settings are applied. For
+    //     example, setting a non-default value for the letter-spacing property disables optional ligatures.
+    // NB: The optional ligatures are the ones CSS Text names: those not required for fundamentally correct glyph
+    //     shaping, which leaves rlig on. A feature that font-feature-settings set stays as it is, since step 13
+    //     applies font-feature-settings after this step. And HarfBuzz applies the last of the features with one tag,
+    //     so these go after the font's own.
+    if (letter_spacing != 0) {
+        for (auto tag : { HB_TAG('l', 'i', 'g', 'a'), HB_TAG('c', 'l', 'i', 'g'), HB_TAG('d', 'l', 'i', 'g'), HB_TAG('h', 'l', 'i', 'g') }) {
+            auto set_by_feature_settings = any_of(font.features(), [&](auto const& feature) {
+                return feature.set_by_feature_settings && HB_TAG(feature.tag[0], feature.tag[1], feature.tag[2], feature.tag[3]) == tag;
+            });
+            if (!set_by_feature_settings)
+                hb_features.append({ .tag = tag, .value = 0, .start = 0, .end = HB_FEATURE_GLOBAL_END });
+        }
+    }
+
+    hb_shape(hb_font, buffer, hb_features.data(), hb_features.size());
 
     return buffer;
 }
@@ -545,7 +558,7 @@ struct ShapedGlyphs {
 static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font const& font, FFI::TextType text_type, float letter_spacing, float word_spacing, FFI::JoiningContext joining_context)
 {
     auto const& metrics = font.pixel_metrics();
-    auto* buffer = setup_text_shaping(string, font, text_type, joining_context);
+    auto* buffer = setup_text_shaping(string, font, text_type, letter_spacing, joining_context);
 
     u32 glyph_count;
     auto const* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
@@ -658,7 +671,7 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
 
 float measure_text_width(Utf16View const& string, Font const& font, float letter_spacing)
 {
-    auto* buffer = setup_text_shaping(string, font, FFI::TextType::Common);
+    auto* buffer = setup_text_shaping(string, font, FFI::TextType::Common, letter_spacing);
 
     u32 glyph_count;
     auto const* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
