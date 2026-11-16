@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCrypto/ASN1/PEM.h>
+#include <AK/Base64.h>
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibCrypto/PK/PK.h>
@@ -68,95 +68,75 @@ TEST_CASE(test_RSA_PKCS_1_encrypt)
     EXPECT(memcmp(dec.data(), "hellohellohellohellohellohellohellohellohello123-", 49) == 0);
 }
 
-// RSA | ASN1 PKCS1 DER / PEM encoded Key import
-TEST_CASE(test_RSA_ASN1_PKCS1_DER_PEM_parse)
+// RSA | ASN1 PKCS1 DER encoded Key import
+TEST_CASE(test_RSA_ASN1_PKCS1_DER_parse)
 {
-    auto privkey = R"(-----BEGIN RSA PRIVATE KEY-----
-MIIBOgIBAAJBAJsrIYHxs1YL9tpfodaWs1lJoMdF4kgFisUFSj6nvBhJUlmBh607AlgTaX0E
-DGPYycXYGZ2n6rqmms5lpDXBpUcCAwEAAQJAUNpPkmtEHDENxsoQBUXvXDYeXdePSiIBJhpU
-joNOYoR5R9z5oX2cpcyykQ58FC2vKKg+x8N6xczG7qO95tw5UQIhAN354CP/FA+uTeJ6KJ+i
-zCBCl58CjNCzO0s5HTc56el5AiEAsvPKXo5/9gS/S4UzDRP6abq7GreixTfjR8LXidk3FL8C
-IQCTjYI861Y+hjMnlORkGSdvWlTHUj6gjEOh4TlWeJzQoQIgAxMZOQKtxCZUuxFwzRq4xLRG
-nrDlBQpuxz7bwSyQO7UCIHrYMnDohgNbwtA5ZpW3H1cKKQQvueWm6sxW9P5sUrZ3
------END RSA PRIVATE KEY-----)"sv;
+    auto der = TRY_OR_FAIL(decode_base64(
+        "MIIBOgIBAAJBAJsrIYHxs1YL9tpfodaWs1lJoMdF4kgFisUFSj6nvBhJUlmBh607AlgTaX0EDGPYycXYGZ2n6rqmms5lpDXBpUcC"
+        "AwEAAQJAUNpPkmtEHDENxsoQBUXvXDYeXdePSiIBJhpUjoNOYoR5R9z5oX2cpcyykQ58FC2vKKg+x8N6xczG7qO95tw5UQIhAN35"
+        "4CP/FA+uTeJ6KJ+izCBCl58CjNCzO0s5HTc56el5AiEAsvPKXo5/9gS/S4UzDRP6abq7GreixTfjR8LXidk3FL8CIQCTjYI861Y+"
+        "hjMnlORkGSdvWlTHUj6gjEOh4TlWeJzQoQIgAxMZOQKtxCZUuxFwzRq4xLRGnrDlBQpuxz7bwSyQO7UCIHrYMnDohgNbwtA5ZpW3"
+        "H1cKKQQvueWm6sxW9P5sUrZ3"sv));
 
-    Crypto::PK::RSA rsa(privkey);
-    if (rsa.public_key().public_exponent() != 65537) {
+    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::parse_rsa_key(der, true, {}));
+    if (keypair.public_key.public_exponent() != 65537) {
         FAIL("Invalid public exponent");
     }
-    if (rsa.private_key().private_exponent() != "4234603516465654167360850580101327813936403862038934287300450163438938741499875303761385527882335478349599685406941909381269804396099893549838642251053393"_bigint) {
+    if (keypair.private_key.private_exponent() != "4234603516465654167360850580101327813936403862038934287300450163438938741499875303761385527882335478349599685406941909381269804396099893549838642251053393"_bigint) {
         FAIL("Invalid private exponent");
     }
 }
 
-// RSA | ASN1 PKCS8 DER / PEM encoded Key import
-TEST_CASE(test_RSA_ASN1_PKCS8_DER_PEM_parse)
+// RSA | ASN1 PKCS8 DER encoded Key import
+TEST_CASE(test_RSA_ASN1_PKCS8_DER_parse)
 {
-    auto privkey = R"(-----BEGIN PRIVATE KEY-----
-MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7ZBYaG9+CcJP7
-WVFJRI/uw3hljc7WpzeYs8MN82/g9CG1gnEF3P3ZSBdWVr8gnbh05EsSGHKghIce
-CB7DNrM5Ab0ru04CuODdPx56xCj+4MmzTc/aq79ntmOt131NGHgq9yVwfJqnSpyl
-OoVw7j/Wg4ciwPDQaeLmD1BsE/W9UsF1km7DWasBpW5br82DpudKgJq2Ixf52+rY
-TCkMgyWcetx4MfXll4y5ZVtJXCnHJfkCS64EaCqXmClP4ovOuHH4khJ3rW9j4yuL
-e5ck3PSXOrtOTR43HZkCXzseCkbW7qKSmk/9ZreImOzOgu8vvw7ewLAQR9qYVS6X
-PXY8IilDAgMBAAECggEBAIV3ld5mt90Z/exqA2Fh+fofMyNxyz5Lv2d9sZHAL5FT
-kKbND18TtaIKnMSb6Gl8rKJk76slyo7Vlb8oHXEBBsm1mV0KfVenAlHS4QyjpmdT
-B5Yz97VR2nQuDfUFpHNC2GQRv5LMzQIWPFfaxKxYpRNOfvOb5Gks4bTmd2tjFAYR
-MCbHgPw1liKA9dYKk4NB0301EY05e4Zz8RjqYHkkmOPD7DnjFbHqcFUjVKK5E3vD
-WjxNXUbiSudCCN7WLEOyeHZNd+l6kSAVxZuCAp0G3Da5ndXgIStcy4hYi/fL3XQQ
-bNpxjfhsjlD3tdHNr3NNYDAqxcxpsyO1NCpCIW3ZVrECgYEA7l6gTZ3e9AiSNlMd
-2O2vNnbQ6UZfsEfu2y7HmpCuNJkFkAnM/1h72Krejnn31rRuR6uCFn4YgQUN9Eq0
-E1PJCtTay2ucZw5rqtkewT9QzXvVD9eiGM+MF89UzSCC+dOW0/odkD+xP2evnPvG
-PbXztnuERC1pi0YWLj1YcsfsEX0CgYEAyUA2UtYjnvCcteIy+rURT0aoZ9tDMrG+
-Es42EURVv1sduVdUst5R+bXx1aDzpCkcdni3TyxeosvTGAZngI3O8ghh1GV7NPZR
-nkiPXjMnhL0Zf+X9gCA6TFANfPuWhMSGijYsCd46diKGDReGYUnmcN9XopeG1h6i
-3JiOuVPAIb8CgYBmIcUtfGb6yHFdNV+kgrJ/84ivaqe1MBz3bKO5ZiQ+BRKNFKXx
-AkiOHSgeg8PdCpH1w1aJrJ1zKmdANIHThiKtsWXNot3wig03tq+mvSox4Mz5bLrX
-RpYP3ZXIDhYQVMhbKt9f3upi8FoeOQJHjp5Nob6aN5rxQaZfSYmMJHzRQQKBgQCO
-ALwUGTtLNBYvlKtKEadkG8RKfAFfbOFkXZLy/hfPDRjdJY0DJTIMk+BPT+F6rPOD
-eMxHllQ0ZMPPiP1RTT5/s4BsISsdhMy0dhiLbGbvF4s9nugPly3rmPTbgp6DkjQo
-o+7RC7iOkO+rnzTXwxBSBpXMiUTAIx/hrdfPVxQT+wKBgCh7N3OLIOH6EWcW1fif
-UoENh8rkt/kzm89G1JLwBhuBIBPXUEZt2dS/xSUempqVqFGONpP87gvqxkMTtgCA
-73KXn/cxHWM2kmXyHA3kQlOYw6WHjpldQAxLE+TRHXO2JUtZ09Mu4rVXX7lmwbTm
-l3vmuDEF3/Bo1C1HTg0xRV/l
------END PRIVATE KEY-----)"sv;
+    auto der = TRY_OR_FAIL(decode_base64(
+        "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7ZBYaG9+CcJP7WVFJRI/uw3hljc7WpzeYs8MN82/g9CG1gnEF"
+        "3P3ZSBdWVr8gnbh05EsSGHKghIceCB7DNrM5Ab0ru04CuODdPx56xCj+4MmzTc/aq79ntmOt131NGHgq9yVwfJqnSpylOoVw7j/W"
+        "g4ciwPDQaeLmD1BsE/W9UsF1km7DWasBpW5br82DpudKgJq2Ixf52+rYTCkMgyWcetx4MfXll4y5ZVtJXCnHJfkCS64EaCqXmClP"
+        "4ovOuHH4khJ3rW9j4yuLe5ck3PSXOrtOTR43HZkCXzseCkbW7qKSmk/9ZreImOzOgu8vvw7ewLAQR9qYVS6XPXY8IilDAgMBAAEC"
+        "ggEBAIV3ld5mt90Z/exqA2Fh+fofMyNxyz5Lv2d9sZHAL5FTkKbND18TtaIKnMSb6Gl8rKJk76slyo7Vlb8oHXEBBsm1mV0KfVen"
+        "AlHS4QyjpmdTB5Yz97VR2nQuDfUFpHNC2GQRv5LMzQIWPFfaxKxYpRNOfvOb5Gks4bTmd2tjFAYRMCbHgPw1liKA9dYKk4NB0301"
+        "EY05e4Zz8RjqYHkkmOPD7DnjFbHqcFUjVKK5E3vDWjxNXUbiSudCCN7WLEOyeHZNd+l6kSAVxZuCAp0G3Da5ndXgIStcy4hYi/fL"
+        "3XQQbNpxjfhsjlD3tdHNr3NNYDAqxcxpsyO1NCpCIW3ZVrECgYEA7l6gTZ3e9AiSNlMd2O2vNnbQ6UZfsEfu2y7HmpCuNJkFkAnM"
+        "/1h72Krejnn31rRuR6uCFn4YgQUN9Eq0E1PJCtTay2ucZw5rqtkewT9QzXvVD9eiGM+MF89UzSCC+dOW0/odkD+xP2evnPvGPbXz"
+        "tnuERC1pi0YWLj1YcsfsEX0CgYEAyUA2UtYjnvCcteIy+rURT0aoZ9tDMrG+Es42EURVv1sduVdUst5R+bXx1aDzpCkcdni3Tyxe"
+        "osvTGAZngI3O8ghh1GV7NPZRnkiPXjMnhL0Zf+X9gCA6TFANfPuWhMSGijYsCd46diKGDReGYUnmcN9XopeG1h6i3JiOuVPAIb8C"
+        "gYBmIcUtfGb6yHFdNV+kgrJ/84ivaqe1MBz3bKO5ZiQ+BRKNFKXxAkiOHSgeg8PdCpH1w1aJrJ1zKmdANIHThiKtsWXNot3wig03"
+        "tq+mvSox4Mz5bLrXRpYP3ZXIDhYQVMhbKt9f3upi8FoeOQJHjp5Nob6aN5rxQaZfSYmMJHzRQQKBgQCOALwUGTtLNBYvlKtKEadk"
+        "G8RKfAFfbOFkXZLy/hfPDRjdJY0DJTIMk+BPT+F6rPODeMxHllQ0ZMPPiP1RTT5/s4BsISsdhMy0dhiLbGbvF4s9nugPly3rmPTb"
+        "gp6DkjQoo+7RC7iOkO+rnzTXwxBSBpXMiUTAIx/hrdfPVxQT+wKBgCh7N3OLIOH6EWcW1fifUoENh8rkt/kzm89G1JLwBhuBIBPX"
+        "UEZt2dS/xSUempqVqFGONpP87gvqxkMTtgCA73KXn/cxHWM2kmXyHA3kQlOYw6WHjpldQAxLE+TRHXO2JUtZ09Mu4rVXX7lmwbTm"
+        "l3vmuDEF3/Bo1C1HTg0xRV/l"sv));
 
-    Crypto::PK::RSA rsa(privkey);
-    if (rsa.public_key().public_exponent() != 65537) {
+    auto decoder = Crypto::ASN1::Decoder { der };
+    auto private_key = TRY_OR_FAIL(Crypto::Certificate::parse_private_key_info(decoder, {})).rsa;
+    if (private_key.public_exponent() != 65537) {
         FAIL("Invalid public exponent");
     }
 
-    if (rsa.private_key().private_exponent() != "16848664331299797559656678180469464902267415922431923391961407795209879741791261105581093539484181644099608161661780611501562625272630894063592208758992911105496755004417051031019663332258403844985328863382168329621318366311519850803972480500782200178279692319955495383119697563295214236936264406600739633470565823022975212999060908747002623721589308539473108154612454595201561671949550531384574873324370774408913092560971930541734744950937900805812300970883306404011323308000168926094053141613790857814489531436452649384151085451448183385611208320292948291211969430321231180227006521681776197974694030147965578466993"_bigint) {
+    if (private_key.private_exponent() != "16848664331299797559656678180469464902267415922431923391961407795209879741791261105581093539484181644099608161661780611501562625272630894063592208758992911105496755004417051031019663332258403844985328863382168329621318366311519850803972480500782200178279692319955495383119697563295214236936264406600739633470565823022975212999060908747002623721589308539473108154612454595201561671949550531384574873324370774408913092560971930541734744950937900805812300970883306404011323308000168926094053141613790857814489531436452649384151085451448183385611208320292948291211969430321231180227006521681776197974694030147965578466993"_bigint) {
         FAIL("Invalid private exponent");
     }
 }
 
 TEST_CASE(test_RSA_keygen_enc)
 {
-    auto keypem = R"(-----BEGIN PRIVATE KEY-----
-MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEA5HMXMnY+RhEcYXsa
-OyB/YkcrO1nxIeyDCMqwg5MDrSXO8vPXSEb9AZUNMF1jKiFWPoHxZ+foRxrLv4d9
-sV/ETwIDAQABAkBpC37UJkjWQRHyxP83xuasExuO6/mT5sQN692kcppTJ9wHNWoD
-9ZcREk4GGiklu4qx48/fYt8Cv6z6JuQ0ZQExAiEA9XRZVUnCJ2xOcCFCbyIF+d3F
-9Kht5rR77F9KsRlgUbkCIQDuQ7YzLpQ8V8BJwKbDeXw1vQvcPEnyKnTOoALpF6bq
-RwIhAIDSm8Ajgf7m3RQEoLVrCe/l8WtCqsuWliOsr6rbQq4hAiEAx8R16wvOtZlN
-W4jvSU1+WwAaBZl21lfKf8OhLRXrmNkCIG9IRdcSiNR/Ut8QfD3N9Bb1HsUm+Bvz
-c8yGzl89pYST
------END PRIVATE KEY-----
-)"sv;
-    auto decoded = Crypto::decode_pem(keypem.bytes());
-    EXPECT_EQ(decoded.type, Crypto::PEMType::PrivateKey);
-    auto decoder = Crypto::ASN1::Decoder { decoded.data };
+    auto der = TRY_OR_FAIL(decode_base64(
+        "MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEA5HMXMnY+RhEcYXsaOyB/YkcrO1nxIeyDCMqwg5MDrSXO8vPXSEb9"
+        "AZUNMF1jKiFWPoHxZ+foRxrLv4d9sV/ETwIDAQABAkBpC37UJkjWQRHyxP83xuasExuO6/mT5sQN692kcppTJ9wHNWoD9ZcREk4G"
+        "Giklu4qx48/fYt8Cv6z6JuQ0ZQExAiEA9XRZVUnCJ2xOcCFCbyIF+d3F9Kht5rR77F9KsRlgUbkCIQDuQ7YzLpQ8V8BJwKbDeXw1"
+        "vQvcPEnyKnTOoALpF6bqRwIhAIDSm8Ajgf7m3RQEoLVrCe/l8WtCqsuWliOsr6rbQq4hAiEAx8R16wvOtZlNW4jvSU1+WwAaBZl2"
+        "1lfKf8OhLRXrmNkCIG9IRdcSiNR/Ut8QfD3N9Bb1HsUm+Bvzc8yGzl89pYST"sv));
+    auto decoder = Crypto::ASN1::Decoder { der };
     auto priv_key_info = MUST(Crypto::Certificate::parse_private_key_info(decoder, {}));
     auto keypair = MUST(Crypto::PK::RSA::parse_rsa_key(priv_key_info.raw_key, true, {}));
-    auto priv_der = MUST(priv_key_info.rsa.export_as_der());
     auto rsa_encryption_oid = Array<u32, 7> { 1, 2, 840, 113549, 1, 1, 1 };
     auto wrapped_priv_der = MUST(Crypto::PK::wrap_in_private_key_info(priv_key_info.raw_key, rsa_encryption_oid, nullptr));
-    auto priv_pem = MUST(Crypto::encode_pem(wrapped_priv_der, Crypto::PEMType::PrivateKey));
     auto rsa_from_pair = Crypto::PK::RSA(keypair.public_key, keypair.private_key);
-    auto rsa_from_pem = Crypto::PK::RSA(priv_pem);
+    auto rsa_from_der = Crypto::PK::RSA(priv_key_info.rsa);
 
-    EXPECT_EQ(keypem, StringView(priv_pem));
+    EXPECT_EQ(der.bytes(), wrapped_priv_der.bytes());
 
     ByteBuffer msg_buffer = {};
     msg_buffer.resize(rsa_from_pair.public_key().length());
@@ -165,7 +145,7 @@ c8yGzl89pYST
     msg.overwrite(0, "WellHelloFriends", 16);
 
     auto enc = TRY_OR_FAIL(rsa_from_pair.encrypt(msg));
-    auto dec = TRY_OR_FAIL(rsa_from_pem.decrypt(enc));
+    auto dec = TRY_OR_FAIL(rsa_from_der.decrypt(enc));
 
     EXPECT_EQ(memcmp(dec.data(), "WellHelloFriends", 16), 0);
 }

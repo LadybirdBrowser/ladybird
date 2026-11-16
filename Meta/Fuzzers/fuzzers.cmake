@@ -7,7 +7,6 @@ set(FUZZER_TARGETS
     Js
     JsonParser
     MatroskaReader
-    PEM
     PNGLoader
     RegexECMA262
     RSAKeyParsing
@@ -30,7 +29,6 @@ set(FUZZER_DEPENDENCIES_GIFLoader LibGfx LibImageDecoders)
 set(FUZZER_DEPENDENCIES_ICOLoader LibGfx LibImageDecoders)
 set(FUZZER_DEPENDENCIES_Js LibJSStandalone LibGC)
 set(FUZZER_DEPENDENCIES_MatroskaReader LibMedia)
-set(FUZZER_DEPENDENCIES_PEM LibCrypto)
 set(FUZZER_DEPENDENCIES_PNGLoader LibGfx LibImageDecoders)
 set(FUZZER_DEPENDENCIES_Poly1305 LibCrypto)
 set(FUZZER_DEPENDENCIES_RegexECMA262 LibRegex)

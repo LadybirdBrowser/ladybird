@@ -8,7 +8,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/NumericLimits.h>
 #include <LibCrypto/ASN1/DER.h>
-#include <LibCrypto/ASN1/PEM.h>
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/RSA.h>
@@ -441,68 +440,6 @@ ErrorOr<bool> RSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
         return false;
     OPENSSL_TRY(ret);
     VERIFY_NOT_REACHED();
-}
-
-void RSA::import_private_key(ReadonlyBytes bytes, bool pem)
-{
-    ByteBuffer decoded_bytes;
-    if (pem) {
-        auto decoded = decode_pem(bytes);
-        if (decoded.type == PEMType::RSAPrivateKey) {
-            decoded_bytes = decoded.data;
-        } else if (decoded.type == PEMType::PrivateKey) {
-            ASN1::Decoder decoder(decoded.data);
-            auto maybe_key = Certificate::parse_private_key_info(decoder, {});
-            if (maybe_key.is_error()) {
-                dbgln("Failed to parse private key info: {}", maybe_key.error());
-                VERIFY_NOT_REACHED();
-            }
-
-            m_private_key = maybe_key.release_value().rsa;
-            return;
-        } else {
-            dbgln("Expected a PEM encoded private key");
-            VERIFY_NOT_REACHED();
-        }
-    }
-
-    auto maybe_key = parse_rsa_key(decoded_bytes, true, {});
-    if (maybe_key.is_error()) {
-        dbgln("Failed to parse RSA private key: {}", maybe_key.error());
-        VERIFY_NOT_REACHED();
-    }
-    m_private_key = maybe_key.release_value().private_key;
-}
-
-void RSA::import_public_key(ReadonlyBytes bytes, bool pem)
-{
-    ByteBuffer decoded_bytes;
-    if (pem) {
-        auto decoded = decode_pem(bytes);
-        if (decoded.type == PEMType::RSAPublicKey) {
-            decoded_bytes = decoded.data;
-        } else if (decoded.type == PEMType::PublicKey) {
-            ASN1::Decoder decoder(decoded.data);
-            auto maybe_key = Certificate::parse_subject_public_key_info(decoder, {});
-            if (maybe_key.is_error()) {
-                dbgln("Failed to parse subject public key info: {}", maybe_key.error());
-                VERIFY_NOT_REACHED();
-            }
-
-            m_public_key = maybe_key.release_value().rsa;
-            return;
-        } else {
-            dbgln("Expected a PEM encoded public key");
-            VERIFY_NOT_REACHED();
-        }
-    }
-
-    auto maybe_key = parse_rsa_key(decoded_bytes, false, {});
-    if (maybe_key.is_error()) {
-        dbgln("Failed to parse RSA public key: {}", maybe_key.error());
-        VERIFY_NOT_REACHED();
-    }
-    m_public_key = maybe_key.release_value().public_key;
 }
 
 ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind)
