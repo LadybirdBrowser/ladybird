@@ -63,37 +63,15 @@ struct MLDSAKeyPair {
     PrivKey private_key;
 };
 
-class MLDSA : public PKSystem<MLDSAPrivateKey, MLDSAPublicKey> {
+class MLDSA {
 public:
-    using KeyPairType = MLDSAKeyPair<PublicKeyType, PrivateKeyType>;
+    using KeyPairType = MLDSAKeyPair<MLDSAPublicKey, MLDSAPrivateKey>;
 
     static ErrorOr<KeyPairType> parse_mldsa_key(MLDSASize, ReadonlyBytes der);
     static ErrorOr<KeyPairType> generate_key_pair(MLDSASize, ByteBuffer seed = {});
-
-    MLDSA(MLDSASize size, PrivateKeyType const& priv_key, ByteBuffer context)
-        : m_size(size)
-        , m_context(move(context))
-    {
-        m_private_key = priv_key;
-        m_public_key = { priv_key.public_key() };
-    }
-
-    MLDSA(MLDSASize size, PublicKeyType const& pub_key, ByteBuffer context)
-        : m_size(size)
-        , m_context(move(context))
-    {
-        m_public_key = pub_key;
-    }
-
-    ErrorOr<ByteBuffer> sign(ReadonlyBytes message) override;
-
-    ErrorOr<ByteBuffer> encrypt(ReadonlyBytes) override { return Error::from_string_literal("Operation not supported"); }
-    ErrorOr<ByteBuffer> decrypt(ReadonlyBytes) override { return Error::from_string_literal("Operation not supported"); }
-    ErrorOr<bool> verify(ReadonlyBytes, ReadonlyBytes) override;
-
-private:
-    MLDSASize m_size;
-    ByteBuffer m_context;
 };
+
+ErrorOr<ByteBuffer> mldsa_sign(MLDSASize, MLDSAPrivateKey const&, ReadonlyBytes context, ReadonlyBytes message);
+ErrorOr<bool> mldsa_verify(MLDSASize, MLDSAPublicKey const&, ReadonlyBytes context, ReadonlyBytes message, ReadonlyBytes signature);
 
 }
