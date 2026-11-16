@@ -2088,12 +2088,8 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
         palette.set_color(gfx_color_role, new_color);
     };
 
-    translate(Gfx::ColorRole::ThreedHighlight, QPalette::ColorRole::Light);
     translate(Gfx::ColorRole::ThreedShadow1, QPalette::ColorRole::Mid);
-    translate(Gfx::ColorRole::ThreedShadow2, QPalette::ColorRole::Dark);
-    translate(Gfx::ColorRole::HoverHighlight, QPalette::ColorRole::Light);
     translate(Gfx::ColorRole::Link, QPalette::ColorRole::Link);
-    translate(Gfx::ColorRole::VisitedLink, QPalette::ColorRole::LinkVisited);
     translate(Gfx::ColorRole::Button, QPalette::ColorRole::Button);
     translate(Gfx::ColorRole::ButtonText, QPalette::ColorRole::ButtonText);
     // NB: Content whose color scheme is not the palette's own takes the selection color for its scheme.
