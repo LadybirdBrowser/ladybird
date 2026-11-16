@@ -1069,8 +1069,13 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             } else {
                 fragment_baseline + alignment_style.vertical_align_value().to_px(style.line_height())
             };
+            // NB: A vertical-align length or percentage shifts the box relative to the baseline, which leaves the
+            //     strut on the baseline, whichever box ends up setting the baseline of the line box.
+            if !alignment_style.vertical_align_is_keyword() {
+                should_align_strut_to_line_box_baseline = true;
+            }
             if adjusted_baseline > line_box_baseline {
-                if !self.facts(node).is_text_node() && alignment_style.vertical_align_is_keyword() {
+                if alignment_style.vertical_align_is_keyword() && !self.facts(node).is_text_node() {
                     // https://drafts.csswg.org/css2/#line-height
                     // The minimum height consists of a minimum height above the baseline and a minimum depth below
                     // it, exactly as if each line box starts with a zero-width inline box with the element's font and
