@@ -426,6 +426,7 @@ struct FfiCascadeSnapshotHeader {
     u16 system_fallback_width;
     u8 system_fallback_slope;
     bool has_system_fallback;
+    size_t system_fallback_feature_count;
 };
 
 struct FfiCascadeSnapshotEntry {
@@ -455,6 +456,7 @@ void const* ladybird_gfx_font_cascade_list_frozen(void const*);
 void const* ladybird_gfx_cascade_snapshot_begin(void const*);
 void ladybird_gfx_cascade_snapshot_header(void const*, Gfx::FFI::FfiCascadeSnapshotHeader*);
 void ladybird_gfx_cascade_snapshot_fill(void const*, bool, Gfx::FFI::FfiCascadeSnapshotEntry*, Gfx::FFI::FfiCascadeSnapshotRange*);
+void ladybird_gfx_cascade_snapshot_system_fallback_features(void const*, Gfx::ShapeFeature*);
 void ladybird_gfx_cascade_snapshot_end(void const*);
 bool ladybird_gfx_resolve_pending_face(u64);
 }
@@ -519,6 +521,7 @@ struct CascadeSnapshot {
     u16 system_fallback_weight { 0 };
     u16 system_fallback_width { 0 };
     u8 system_fallback_slope { 0 };
+    Gfx::ShapeFeatures system_fallback_features {};
 };
 
 size_t total_range_count(Vector<Gfx::FontCascadeList::SnapshotEntry> const& entries)
@@ -554,6 +557,7 @@ extern "C" void const* ladybird_gfx_cascade_snapshot_begin(void const* list)
         snapshot->system_fallback_weight = request.weight;
         snapshot->system_fallback_width = request.width;
         snapshot->system_fallback_slope = request.slope;
+        snapshot->system_fallback_features = request.shape_features;
     }
     return snapshot;
 }
@@ -574,7 +578,20 @@ extern "C" void ladybird_gfx_cascade_snapshot_header(void const* handle, Gfx::FF
         .system_fallback_width = snapshot.system_fallback_width,
         .system_fallback_slope = snapshot.system_fallback_slope,
         .has_system_fallback = snapshot.has_system_fallback,
+        .system_fallback_feature_count = snapshot.system_fallback_features.size(),
     };
+}
+
+// NB: Rust reads these as its FfiShapeFeature.
+static_assert(sizeof(Gfx::ShapeFeature) == 8);
+static_assert(offsetof(Gfx::ShapeFeature, value) == 4);
+
+extern "C" void ladybird_gfx_cascade_snapshot_system_fallback_features(void const* handle, Gfx::ShapeFeature* out_features)
+{
+    VERIFY(handle);
+    auto const& features = static_cast<CascadeSnapshot const*>(handle)->system_fallback_features;
+    for (size_t index = 0; index < features.size(); ++index)
+        out_features[index] = features[index];
 }
 
 extern "C" void ladybird_gfx_cascade_snapshot_fill(void const* handle, bool fallback, Gfx::FFI::FfiCascadeSnapshotEntry* out_entries, Gfx::FFI::FfiCascadeSnapshotRange* out_ranges)

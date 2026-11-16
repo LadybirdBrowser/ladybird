@@ -9,6 +9,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/ShapeFeature.h>
 
 namespace Gfx {
 
@@ -26,7 +27,7 @@ struct SystemFallbackFontKey {
 // font set alone, never on a document, so one memo serves every document in the process and the
 // answer for a key never changes while the font set stands. The memo keeps one typeface per code
 // point and style until the font set changes; the point size only picks a font from that typeface.
-RefPtr<Font const> system_fallback_font(SystemFallbackFontKey const&, float point_size);
+RefPtr<Font const> system_fallback_font(SystemFallbackFontKey const&, float point_size, ShapeFeatures const& = {});
 
 // Drops every memoized answer. Call this whenever the installed font set changes.
 void clear_system_fallback_font_cache();

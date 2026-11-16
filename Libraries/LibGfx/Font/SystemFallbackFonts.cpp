@@ -43,7 +43,7 @@ SystemFallbackFontCache& system_fallback_font_cache()
 
 }
 
-RefPtr<Font const> system_fallback_font(SystemFallbackFontKey const& key, float point_size)
+RefPtr<Font const> system_fallback_font(SystemFallbackFontKey const& key, float point_size, ShapeFeatures const& shape_features)
 {
     auto& cache = system_fallback_font_cache();
     // NB: The lookup runs under the lock rather than beside it, so one code point is matched once
@@ -52,11 +52,13 @@ RefPtr<Font const> system_fallback_font(SystemFallbackFontKey const& key, float 
     if (auto cached = cache.typefaces.get(key); cached.has_value()) {
         if (!*cached)
             return nullptr;
-        return (*cached)->font(point_size, {});
+        return (*cached)->font(point_size, {}, shape_features);
     }
     RefPtr<Font const> font = FontDatabase::the().get_font_for_code_point(
         key.code_point, point_size, key.weight, key.width, key.slope, key.prefer_color_emoji);
     cache.typefaces.set(key, font ? &font->typeface() : nullptr);
+    if (font && !shape_features.is_empty())
+        return font->typeface().font(point_size, {}, shape_features);
     return font;
 }
 
@@ -77,13 +79,15 @@ size_t system_fallback_font_cache_size()
 }
 
 extern "C" {
-void const* ladybird_gfx_system_fallback_font(u32, u16, u16, u8, bool, float);
+void const* ladybird_gfx_system_fallback_font(u32, u16, u16, u8, bool, float, Gfx::ShapeFeature const*, size_t);
 void const* ladybird_gfx_font_invisible_variant(void const*);
 }
 
 // Transfers one reference to the caller, or answers null where no installed font covers the code point.
-extern "C" void const* ladybird_gfx_system_fallback_font(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji, float point_size)
+extern "C" void const* ladybird_gfx_system_fallback_font(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji, float point_size, Gfx::ShapeFeature const* features, size_t feature_count)
 {
+    Gfx::ShapeFeatures shape_features;
+    shape_features.append(features, feature_count);
     auto font = Gfx::system_fallback_font(
         {
             .code_point = code_point,
@@ -92,7 +96,7 @@ extern "C" void const* ladybird_gfx_system_fallback_font(u32 code_point, u16 wei
             .slope = slope,
             .prefer_color_emoji = prefer_color_emoji,
         },
-        point_size);
+        point_size, shape_features);
     return font ? font.leak_ref() : nullptr;
 }
 
