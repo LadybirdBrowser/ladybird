@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<iframe id="frame" srcdoc="<script>function makeError() { return new Error('inner'); }</script>"></iframe>
+<script>
+    function recurse(depth, callback) {
+        return depth > 0 ? recurse(depth - 1, callback) : callback();
+    }
+
+    function frameCount(stack) {
+        if (stack === undefined) return "undefined";
+        return stack.split("\n").filter(line => line.startsWith("    at ") || line.includes("@")).length;
+    }
+
+    asyncTest(done => {
+        frame.onload = () => {
+            const innerWindow = frame.contentWindow;
+            const savedOuter = Error.stackTraceLimit;
+            const savedInner = innerWindow.Error.stackTraceLimit;
+            try {
+                println(`inner window Error.stackTraceLimit: ${innerWindow.Error.stackTraceLimit}`);
+
+                // An error takes the limit of the realm whose Error constructor makes it.
+                innerWindow.Error.stackTraceLimit = 2;
+                println(`inner limit 2, inner error: ${frameCount(recurse(20, innerWindow.makeError).stack)}`);
+                println(`inner limit 2, outer error: ${frameCount(recurse(20, () => new Error()).stack)}`);
+                innerWindow.Error.stackTraceLimit = "x";
+                println(`inner limit "x", inner error: ${frameCount(recurse(20, innerWindow.makeError).stack)}`);
+                innerWindow.Error.stackTraceLimit = savedInner;
+
+                // The limit is the same in every navigator compatibility mode.
+                for (const mode of ["chrome", "gecko", "webkit"]) {
+                    internals.setNavigatorCompatibilityMode(mode);
+                    Error.stackTraceLimit = 10;
+                    const limited = frameCount(recurse(20, () => new Error()).stack);
+                    Error.stackTraceLimit = 3;
+                    const three = frameCount(recurse(20, () => new Error()).stack);
+                    Error.stackTraceLimit = 0;
+                    const none = frameCount(recurse(20, () => new Error()).stack);
+                    Error.stackTraceLimit = 3;
+                    const domException = frameCount(recurse(20, () => new DOMException("d")).stack);
+                    println(`${mode}: ${limited} ${three} ${none}, DOMException ${domException}`);
+                }
+            } finally {
+                internals.setNavigatorCompatibilityMode("chrome");
+                Error.stackTraceLimit = savedOuter;
+                innerWindow.Error.stackTraceLimit = savedInner;
+            }
+            done();
+        };
+    });
+</script>

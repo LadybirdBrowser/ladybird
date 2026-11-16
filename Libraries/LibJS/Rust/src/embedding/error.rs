@@ -202,8 +202,8 @@ pub unsafe extern "C" fn js_error_data_stack_string(
     owned_utf16_string_into_abi(error_data.stack_string(compact))
 }
 
-/// How many frames the call stack of `error_data` has, the outermost execution context included. Call on the VM's
-/// thread.
+/// How many frames the call stack of `error_data` has, the outermost execution context included when the stack was not
+/// cut at Error.stackTraceLimit. Call on the VM's thread.
 ///
 /// # Safety
 ///
@@ -275,4 +275,17 @@ pub unsafe extern "C" fn js_error_data_cell_capture(vm: *mut JSVM) -> *mut JSErr
     // SAFETY: The caller passes its VM.
     let vm = unsafe { vm_from_abi(vm) };
     cell_into_abi(ErrorDataCell::capture(vm))
+}
+
+/// ErrorDataCell::capture_whole_stack(vm): error data with every frame of the current call stack, whatever
+/// Error.stackTraceLimit is, for a trace of the running code that is not the stack of an error. Call on the VM's thread.
+///
+/// # Safety
+///
+/// `vm` must be the embedder's VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_error_data_cell_capture_whole_stack(vm: *mut JSVM) -> *mut JSErrorDataCell {
+    // SAFETY: The caller passes its VM.
+    let vm = unsafe { vm_from_abi(vm) };
+    cell_into_abi(ErrorDataCell::capture_whole_stack(vm))
 }
