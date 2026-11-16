@@ -57,7 +57,6 @@ set(SOURCES
     CSS/ContainerQuery.cpp
     CSS/CountersSet.cpp
     CSS/CustomPropertyRegistration.cpp
-    CSS/GeneratedContent.cpp
     CSS/CSS.cpp
     CSS/CSSDescriptors.cpp
     CSS/CSSFontFaceRule.cpp
