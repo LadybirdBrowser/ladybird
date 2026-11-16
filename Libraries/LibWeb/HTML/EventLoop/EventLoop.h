@@ -114,7 +114,6 @@ public:
 
     bool microtask_queue_empty() const { return m_microtask_queue.is_empty(); }
     void enqueue_microtask(GC::Ref<HTML::Task> task) { m_microtask_queue.enqueue(task); }
-    GC::Ref<HTML::Task> dequeue_microtask() { return m_microtask_queue.dequeue(); }
 
     void spin_until(GC::Ref<GC::Function<bool()>> goal_condition);
     void process();
@@ -234,8 +233,6 @@ public:
     void hold_next_frame_for_testing() { m_holds_next_frame_for_testing = true; }
     void hold_next_layout_for_testing() { m_holds_next_layout_for_testing = true; }
     void release_held_frames_for_testing();
-
-    RenderingSchedulerCounters const& rendering_scheduler_counters() const { return m_rendering_scheduler_counters; }
 
     void begin_rendering_trace() { m_rendering_trace = Vector<RenderingTraceLine> {}; }
     String take_rendering_trace();

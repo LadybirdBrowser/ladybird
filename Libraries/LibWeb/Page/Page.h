@@ -517,7 +517,6 @@ public:
     void container_fullscreen_complete(HTML::CrossProcessId hosted_root_id);
     void container_unfullscreen_complete(HTML::CrossProcessId hosted_root_id);
 
-    ViewportIsFullscreen viewport_is_fullscreen() const { return m_viewport_is_fullscreen; }
     void set_viewport_is_fullscreen(ViewportIsFullscreen);
     void did_deny_fullscreen_window();
 
