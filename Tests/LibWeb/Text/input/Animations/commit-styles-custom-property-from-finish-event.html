@@ -1,0 +1,30 @@
+<!doctype html>
+<style>
+    div {
+        transform: translateX(var(--x));
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        // Each element runs a second animation too, and commits its custom property animation from that animation's own
+        // finish event, once it no longer animates the property.
+        const targets = [];
+        let finished = 0;
+        for (let i = 0; i < 3; ++i) {
+            const target = document.body.appendChild(document.createElement("div"));
+            targets.push(target);
+            const animation = target.animate({ "--x": ["24px", "0px"] }, 50);
+            target.animate({ color: ["red", "blue"] }, 50);
+            animation.onfinish = () => {
+                animation.commitStyles();
+                animation.cancel();
+                if (++finished < targets.length)
+                    return;
+                for (const target of targets)
+                    println(`committed --x: ${target.style.getPropertyValue("--x")}`);
+                done();
+            };
+        }
+    });
+</script>
