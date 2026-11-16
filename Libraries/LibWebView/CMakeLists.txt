@@ -80,6 +80,7 @@ set(SOURCES
     TestTranslator.cpp
     Translator.cpp
     URL.cpp
+    UpdateCheck.cpp
     UserAgent.cpp
     Utilities.cpp
     VideoDecoderServerControlClient.cpp
