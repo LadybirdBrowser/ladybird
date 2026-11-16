@@ -1,0 +1,20 @@
+Ladybird preserves each original shaping run when shortening mixed-
+direction text for a standard block ellipsis. It retains run boundaries
+with the soft wrap offsets, and shapes each retained range with its
+original text type. LineBoxFragmentData::append_glyph_run combines the
+glyphs, preserving their directional placement. Normal fragment merging
+and legacy glyph-based truncation are unchanged.
+
+Blink reserves ellipsis space in LineBreaker::UpdateAvailableWidth.
+LineBreaker::ShapeText reshapes each InlineItem with its own direction.
+WebKit reserves space in LineBuilder::layoutInlineContent, keeping the
+directional runs through its trailingBlockEllipsis helper. Gecko’s
+TextOverflow clips nsTextFrame content through MeasureCharClippedText,
+using its directional gfxTextRun. All three preserve directional shaping
+rather than assigning one direction to merged mixed-direction text.
+
+The regression combines an opening parenthesis with Hebrew grapheme
+clusters under word-break:break-all and standard line-clamp. Chrome’s
+experimental implementation matches the explicit retained-text reference
+at three widths. The unchanged Ladybird branch fails that comparison
+when ellipsis placement requires reshaping an internal prefix.
