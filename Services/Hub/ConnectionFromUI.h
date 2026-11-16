@@ -68,6 +68,8 @@ private:
     void start_request(u64 request_id, ByteString const& method, URL::URL const&, HTTP::HeaderList const& headers, ByteString const& body, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, WebView::IsPrivate, ReadonlySpan<StringView> response_header_names);
     virtual void stop_request(u64 request_id) override;
     virtual void toggle_devtools_enabled() override;
+    virtual void check_for_updates(WebView::UpdateCheckTrigger) override;
+    virtual void skip_update_version(String) override;
     virtual void set_preferred_contrast(Web::CSS::PreferredContrast) override;
     virtual void set_preferred_motion(Web::CSS::PreferredMotion) override;
     virtual void set_user_agent_string(String user_agent) override;
