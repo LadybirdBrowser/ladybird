@@ -101,6 +101,53 @@ pub(crate) enum PaintOrderItem {
     Scope(PaintScope),
 }
 
+<<<<<<< HEAD
+=======
+/// A line root whose plain text is taller than this, in CSS pixels, has its text fragments planned one at a time, so
+/// that a recording of a window can leave out the lines far from it.
+const TALLEST_TEXT_PLANNED_IN_ONE_PIECE: i64 = 512;
+
+/// Whether the foreground of a box with lines of `content` is planned with a producer for each of its text fragments:
+/// where its lines interleave text with boxes, or where its lines of text reach further than may be painted in one
+/// piece.
+pub(crate) fn text_fragments_of_content_are_producers(content: &crate::layout::inline_content::InlineContent) -> bool {
+    if !content.items.is_empty() {
+        return true;
+    }
+    let (Some(first), Some(last)) = (content.lines.first(), content.lines.last()) else {
+        return false;
+    };
+    let top = first.rect.y.min(last.rect.y);
+    let bottom = (first.rect.y + first.rect.height).max(last.rect.y + last.rect.height);
+    !content.fragments.is_empty()
+        && bottom - top > crate::css::css_pixels::CssPixels::from_integer(TALLEST_TEXT_PLANNED_IN_ONE_PIECE)
+}
+
+/// Whether the foreground of a box with lines is planned the same for `content` as it was for `previous`, both as the
+/// box's row holds them: the same producers, in the same order.
+pub(crate) fn content_plans_same_foreground(
+    previous: &crate::layout::inline_content::InlineContent,
+    content: &crate::layout::inline_content::InlineContent,
+) -> bool {
+    let text_fragments_are_producers = text_fragments_of_content_are_producers(content);
+    if text_fragments_are_producers != text_fragments_of_content_are_producers(previous) {
+        return false;
+    }
+    // NB: Plain text has no items. Where its text fragments are producers, the plan lists every one of them.
+    if text_fragments_are_producers && content.items.is_empty() && content.fragments.len() != previous.fragments.len() {
+        return false;
+    }
+    previous.has_same_item_order(content)
+}
+
+pub(crate) fn text_fragments_are_producers(rows: &impl PaintRead, root: NodeSlotId) -> bool {
+    rows.committed_side_data(root)
+        .inline_content
+        .as_ref()
+        .is_some_and(|content| text_fragments_of_content_are_producers(content))
+}
+
+>>>>>>> 3ca44a63 (LibWeb: Replan tall plain text when its fragment count changes)
 pub(crate) struct PaintScopePlan {
     pub establishes_stacking_context: bool,
     pub items: SmallVec<[PaintOrderItem; 16]>,

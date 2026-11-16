@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/tall-plain-text-changes-line-count-then-repaint-ref.html">
+<style>
+    div {
+        float: left;
+        width: 0;
+        margin-right: 100px;
+        font: 20px monospace;
+        line-height: 300px;
+    }
+    .vertical {
+        writing-mode: vertical-rl;
+        width: auto;
+        height: 800px;
+        line-height: 30px;
+    }
+    .columns {
+        columns: 2;
+        column-gap: 100px;
+        height: 700px;
+    }
+</style>
+<div id="shrinks">a b c</div>
+<div id="grows">a b</div>
+<div id="becomes-short">a b c</div>
+<div id="becomes-tall">a</div>
+<div id="vertical-shrinks" class="vertical">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</div>
+<div id="vertical-grows" class="vertical">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</div>
+<div id="columns-shrinks" class="columns">a b c d e f</div>
+<div id="columns-grows" class="columns">a b c</div>
+<script>
+    window.onload = () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const setText = (id, text) => (document.getElementById(id).firstChild.data = text);
+                const word = "a".repeat(60);
+                setText("shrinks", "a b");
+                setText("grows", "a b c");
+                setText("becomes-short", "a");
+                setText("becomes-tall", "a b c");
+                setText("vertical-shrinks", `${word} ${word}`);
+                setText("vertical-grows", `${word} ${word} ${word}`);
+                setText("columns-shrinks", "a b c");
+                setText("columns-grows", "a b c d e f");
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    };
+</script>
+</html>
