@@ -462,6 +462,9 @@ public:
     // throw.
     [[nodiscard]] Optional<SourceRange> take_throw_site_of(Value);
 
+    // The source range of the innermost frame on the stack that has one, as the first such element of stack_trace().
+    [[nodiscard]] Optional<SourceRange> innermost_source_range() const;
+
 private:
     friend class InterpreterStack;
     friend struct HostHookThunks;

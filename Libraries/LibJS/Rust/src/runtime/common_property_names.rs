@@ -546,6 +546,7 @@ define_common_property_names! {
     SQRT1_2,
     SQRT2,
     stack,
+    stackTraceLimit,
     startOfDay,
     startsWith,
     status,

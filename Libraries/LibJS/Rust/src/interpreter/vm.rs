@@ -1534,22 +1534,28 @@ impl Vm {
     pub fn stack_trace(&self) -> MarkedVec<'_, StackTraceElement> {
         let stack_trace = MarkedVec::new(self);
         self.for_each_stack_frame_top_to_bottom(|frame| {
-            // NB: Builtins written in JavaScript show up like other builtins, without a position in their source.
-            let runs_builtin = frame
-                .function
-                .is_some_and(|function| function.is::<NativeJavaScriptBackedFunction>());
-            let source_range = frame
-                .executable
-                .filter(|_| !runs_builtin)
-                .map(|executable| executable.get_source_range(frame.program_counter));
             stack_trace.push(StackTraceElement {
                 execution_context: NonNull::from(frame.execution_context),
                 function: frame.function,
-                source_range,
+                source_range: frame.source_range(),
             });
             ControlFlow::Continue(())
         });
         stack_trace
+    }
+
+    /// The source range of the innermost frame that has one, as the first such element of stack_trace() has, without
+    /// walking the rest of the stack.
+    pub fn innermost_source_range(&self) -> Option<SourceRange> {
+        let mut source_range = None;
+        self.for_each_stack_frame_top_to_bottom(|frame| {
+            source_range = frame.source_range();
+            if source_range.is_some() {
+                return ControlFlow::Break(());
+            }
+            ControlFlow::Continue(())
+        });
+        source_range
     }
 
     /// Calls `callback` with each frame from the running one down, until it breaks, like
@@ -2467,6 +2473,19 @@ pub struct StackFrame<'a> {
     pub program_counter: u32,
     /// For a frame of a call that JIT code inlined: where its values are.
     pub inlined_call: Option<InlinedCallStackFrame>,
+}
+
+impl StackFrame<'_> {
+    /// Where the frame is in the source of its executable, which is nowhere for a frame that runs no bytecode.
+    pub fn source_range(&self) -> Option<SourceRange> {
+        // NB: Builtins written in JavaScript show up like other builtins, without a position in their source.
+        let runs_builtin = self
+            .function
+            .is_some_and(|function| function.is::<NativeJavaScriptBackedFunction>());
+        self.executable
+            .filter(|_| !runs_builtin)
+            .map(|executable| executable.get_source_range(self.program_counter))
+    }
 }
 
 /// Where the values of a frame of a call that JIT code inlined are: the inlined call site of the code running the

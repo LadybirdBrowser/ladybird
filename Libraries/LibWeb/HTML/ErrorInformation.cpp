@@ -79,16 +79,10 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
         attributes.colno = throw_site->start.column;
     }
     // NB: Otherwise, we fall back to try and find the location of the invocation of the function itself.
-    else {
-        for (auto const& frame : vm.stack_trace()) {
-            if (frame.source_range.has_value()) {
-                auto const& source_range = *frame.source_range;
-                attributes.filename = source_range.filename();
-                attributes.lineno = source_range.start.line;
-                attributes.colno = source_range.start.column;
-                break;
-            }
-        }
+    else if (auto source_range = vm.innermost_source_range(); source_range.has_value()) {
+        attributes.filename = source_range->filename();
+        attributes.lineno = source_range->start.line;
+        attributes.colno = source_range->start.column;
     }
 
     // 4. Return attributes.
