@@ -1,11 +1,15 @@
 const allowServicesNetworkAccess = document.querySelector("#allow-services-network-access");
 const filterListUpdates = document.querySelector("#filter-list-updates");
+const updateChecks = document.querySelector("#update-checks");
 
 allowServicesNetworkAccess.addEventListener("change", () => {
     ladybird.sendMessage("setServicesNetworkAccessEnabled", allowServicesNetworkAccess.checked);
 });
 filterListUpdates.addEventListener("change", () => {
     ladybird.sendMessage("setFilterListUpdatesEnabled", filterListUpdates.checked);
+});
+updateChecks.addEventListener("change", () => {
+    ladybird.sendMessage("setUpdateChecksEnabled", updateChecks.checked);
 });
 
 document.addEventListener("WebUIMessage", event => {
@@ -20,5 +24,7 @@ document.addEventListener("WebUIMessage", event => {
     allowServicesNetworkAccess.checked = settings.enabled;
     filterListUpdates.checked = settings.features.contentBlockerSubscriptionUpdates;
     filterListUpdates.disabled = !settings.enabled;
+    updateChecks.checked = settings.features.updateChecks;
+    updateChecks.disabled = !settings.enabled;
     document.querySelector("#services-paused-note").classList.toggle("hidden", settings.enabled);
 });
