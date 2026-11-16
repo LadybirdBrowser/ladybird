@@ -13,6 +13,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Decoder.h>
+#include <LibWebView/UpdateCheck.h>
 #include <LibWebView/WebContentPage.h>
 
 namespace Hub {
@@ -228,6 +229,21 @@ void Application::display_error_dialog(StringView error_message) const
         ui->async_app_display_error_dialog(MUST(String::from_utf8(error_message)));
     else
         WebView::Application::display_error_dialog(error_message);
+}
+
+void Application::display_update_check_result(WebView::UpdateCheckResult const& result, WebView::UpdateCheckTrigger trigger)
+{
+    auto* ui = ConnectionFromUI::the();
+    if (!ui)
+        return;
+
+    Optional<String> version;
+    auto install_method = WebView::InstallMethod::Source;
+    if (result.update.has_value()) {
+        version = result.update->version;
+        install_method = result.update->install_method;
+    }
+    ui->async_app_display_update_check_result(result.kind, move(version), install_method, trigger);
 }
 
 void Application::set_clipboard_text(String text, ClipboardType type)
