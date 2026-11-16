@@ -1,0 +1,7 @@
+Under “word-break: keep-all”, Ladybird now keeps the iteration marks
+U+3005, U+303B, U+309D, U+309E, U+30FD, and U+30FE together with the
+letters around them, and still breaks after the middle dot and the
+ideographic full stop. Run in a box too narrow for any of them, Chrome
+157 and WebKit 26.5 did the same on all nine samples. Firefox 151 broke
+after each iteration mark, as Ladybird did before. That comparison comes
+from running the engines; their code for it wasn’t traced.
