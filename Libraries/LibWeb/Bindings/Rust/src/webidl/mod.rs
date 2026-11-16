@@ -6,5 +6,6 @@
 
 //! The serialization steps of the serializable interfaces of Web IDL, which LibWeb implements in C++.
 
+pub(crate) mod buffers;
 pub(crate) mod dom_exception;
 pub(crate) mod quota_exceeded_error;
