@@ -8,7 +8,10 @@
 //! or a tape that came from another process and passed validation.
 
 use super::builder::RecordedDisplayList;
-use super::chunks::{Chunk, ChunkId, chunk_id};
+use super::chunks::{
+    Chunk, ChunkId, TapeChunks, TopLevelRecordReachingOutsideItsChunk, chunk_id,
+    top_level_records_reaching_outside_their_chunk,
+};
 use super::commands::{ContextRef, DisplayListCommandRun};
 use super::effect_clip_plan::EffectClipPlan;
 use super::summary::{DisplayListSummary, summarize};
@@ -59,15 +62,17 @@ pub struct DisplayListStorage {
     // one plan serves every replay.
     effect_clip_plan: OnceLock<EffectClipPlan>,
     summary: OnceLock<DisplayListSummary>,
+    chunks: OnceLock<TapeChunks>,
 }
 
 impl DisplayListStorage {
-    fn new(tape: Tape, visual_context_tree: Option<Arc<VisualContextTree>>) -> Arc<Self> {
+    fn new(tape: Tape, visual_context_tree: Option<Arc<VisualContextTree>>, chunks: OnceLock<TapeChunks>) -> Arc<Self> {
         Arc::new(Self {
             tape,
             visual_context_tree,
             effect_clip_plan: OnceLock::new(),
             summary: OnceLock::new(),
+            chunks,
         })
     }
 
@@ -101,17 +106,31 @@ impl DisplayListStorage {
             EffectClipPlan::new(tree, self.command_runs()).expect("a display list's runs name live nodes of its tree")
         })
     }
+
+    pub fn chunks(&self) -> &TapeChunks {
+        self.chunks.get_or_init(|| {
+            let recorded_chunks = match &self.tape {
+                Tape::Recorded(recorded) => &recorded.chunks[..],
+                Tape::Empty | Tape::Received { .. } => &[],
+            };
+            TapeChunks::of_tape(self.bytes(), self.command_runs(), recorded_chunks)
+        })
+    }
 }
 
 impl DisplayListStorage {
     /// A list this process recorded against `visual_context_tree`.
     pub fn recorded(recorded: Arc<RecordedDisplayList>, visual_context_tree: Arc<VisualContextTree>) -> Arc<Self> {
-        Self::new(Tape::Recorded(recorded), Some(visual_context_tree))
+        Self::new(Tape::Recorded(recorded), Some(visual_context_tree), OnceLock::new())
     }
 
     /// An empty list, recorded against a tree with no node but the visual viewport.
     pub fn empty() -> Arc<Self> {
-        Self::new(Tape::Empty, Some(Arc::new(VisualContextTree::create_identity())))
+        Self::new(
+            Tape::Empty,
+            Some(Arc::new(VisualContextTree::create_identity())),
+            OnceLock::new(),
+        )
     }
 }
 
@@ -214,6 +233,7 @@ pub struct ReceivedChunk {
     pub id: ChunkId,
     records: AlignedBytes,
     runs: Vec<DisplayListCommandRun>,
+    records_reaching_outside: Vec<TopLevelRecordReachingOutsideItsChunk>,
 }
 
 impl ReceivedChunk {
@@ -223,6 +243,10 @@ impl ReceivedChunk {
 
     pub fn runs(&self) -> &[DisplayListCommandRun] {
         &self.runs
+    }
+
+    pub fn records_reaching_outside(&self) -> &[TopLevelRecordReachingOutsideItsChunk] {
+        &self.records_reaching_outside
     }
 }
 
@@ -271,6 +295,7 @@ pub unsafe fn receive_packed_chunks_from_shared_memory(
         let runs = validate_tape(records.as_slice(), &packed_runs)?;
         chunks.push(ReceivedChunk {
             id: chunk_id(records.as_slice(), &runs, 0),
+            records_reaching_outside: top_level_records_reaching_outside_their_chunk(records.as_slice(), &runs),
             records,
             runs,
         });
@@ -301,17 +326,33 @@ impl DisplayListStorage {
         command_runs
             .try_reserve_exact(chunks.iter().map(|chunk| chunk.runs().len()).sum())
             .map_err(|_| "Display list is too large to receive")?;
+        let mut tape_chunks = TapeChunks::default();
+        tape_chunks.try_reserve(
+            chunks.len(),
+            chunks.iter().map(|chunk| chunk.records_reaching_outside().len()).sum(),
+        )?;
         let mut chunk_start = 0;
         for chunk in chunks {
             let records = chunk.records();
             bytes.as_mut_slice()[chunk_start..chunk_start + records.len()].copy_from_slice(records);
+            tape_chunks.push_chunk(
+                chunk.id,
+                command_runs.len() as u32,
+                chunk.runs().len(),
+                chunk_start as u32,
+                chunk.records_reaching_outside(),
+            );
             command_runs.extend(chunk.runs().iter().map(|run| DisplayListCommandRun {
                 offset: run.offset + chunk_start as u32,
                 ..*run
             }));
             chunk_start += records.len();
         }
-        Ok(DisplayListStorage::new(Tape::Received { bytes, command_runs }, None))
+        Ok(DisplayListStorage::new(
+            Tape::Received { bytes, command_runs },
+            None,
+            OnceLock::from(tape_chunks),
+        ))
     }
 }
 
@@ -322,7 +363,8 @@ mod tests {
     #[test]
     fn chunks_packed_for_transport_come_back_as_the_tape_they_make() {
         use super::super::builder::DisplayListBuilder;
-        use super::super::commands::{ClipNodeIndex, EffectNodeIndex, FillRect, SpatialNodeIndex};
+        use super::super::chunks::ReachOutsideChunk;
+        use super::super::commands::{ClipNodeIndex, EffectNodeIndex, FillRect, PaintScrollBar, SpatialNodeIndex};
         use libgfx_rust::{Color, CompositingAndBlendingOperator, IntRect};
         let context = |spatial| ContextRef {
             spatial: SpatialNodeIndex(spatial),
@@ -340,6 +382,23 @@ mod tests {
         let first = builder.take_chunk();
         builder.append(&fill_rect(10), &[], context(1));
         builder.append(&fill_rect(20), &[], context(2));
+        let scrollbar_offset_in_second_chunk = builder.byte_size() as u32;
+        builder.append(
+            &PaintScrollBar {
+                scroll_node_index: SpatialNodeIndex(3),
+                gutter_rect: IntRect::new(90, 0, 10, 100),
+                thumb_rect: IntRect::new(90, 0, 10, 20),
+                track_rect: IntRect::new(90, 0, 10, 100),
+                expanded_gutter_rect: IntRect::new(86, 0, 14, 100),
+                scroll_size: 0.5,
+                thumb_color: Color::default(),
+                thumb_outline_color: Color::default(),
+                track_color: Color::default(),
+                vertical: true,
+            },
+            &[],
+            context(2),
+        );
         let second = builder.take_chunk();
         let chunks = [&first, &second];
         let mut packed = vec![0; packed_size_of_chunks(&chunks)];
@@ -357,6 +416,26 @@ mod tests {
         let tape = RecordedDisplayList::of_chunks(chunks);
         assert_eq!(storage.bytes(), &tape.bytes[..]);
         assert_eq!(storage.command_runs(), &tape.command_runs[..]);
+
+        let tape_chunks = storage.chunks();
+        assert_eq!(
+            tape_chunks,
+            &TapeChunks::of_tape(&tape.bytes, &tape.command_runs, &tape.chunks)
+        );
+        assert_eq!(
+            (tape_chunks.len(), tape_chunks.id(0), tape_chunks.id(1)),
+            (2, first.id, second.id)
+        );
+        assert_eq!((tape_chunks.runs_of(0), tape_chunks.runs_of(1)), (0..1, 1..3));
+        assert!(tape_chunks.records_reaching_outside(0).is_empty());
+        assert_eq!(
+            tape_chunks.records_reaching_outside(1),
+            [TopLevelRecordReachingOutsideItsChunk {
+                record_offset: first.records.len() as u32 + scrollbar_offset_in_second_chunk,
+                run_index: 2,
+                reach: ReachOutsideChunk::ScrollbarThumbFollowsScrollOffsetOf(SpatialNodeIndex(3)),
+            }]
+        );
 
         // Sizes that leave bytes over or claim more than the buffer holds are refused.
         assert!(receive_packed_chunks(&packed, &sizes[..1]).is_err());
