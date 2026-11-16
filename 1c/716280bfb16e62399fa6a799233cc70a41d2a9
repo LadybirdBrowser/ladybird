@@ -1,0 +1,6 @@
+Ladybird resolves a unitless line-height to the number times the
+computed font size, in pixels, whether or not the element has a box.
+Blink’s ComputedStyleUtils::ValueForLineHeight() does the same from
+the style alone, and so does WebKit’s LineHeight extractor, which
+multiplies the number by the used font size for every value type but
+the computed one. Firefox returns pixels for unrendered elements too.
