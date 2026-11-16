@@ -26,7 +26,7 @@ public:
 
     MLKEMPublicKey() = default;
 
-    ByteBuffer public_key() const { return m_public_key; }
+    ByteBuffer const& public_key() const { return m_public_key; }
 
 private:
     ByteBuffer m_public_key;

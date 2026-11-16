@@ -241,9 +241,15 @@ KeyHandle* crypto_rsa_key_from_jwk_components(bool is_private, ReadonlySpan<Read
 
 bool crypto_rsa_export_der(KeyHandle const* key, bool is_public, void* state, ReceiveEncodedBytes receive)
 {
-    auto result = is_public
-        ? ::Crypto::PK::wrap_in_subject_public_key_info(key->get<::Crypto::PK::RSAPublicKey>(), ::Crypto::ASN1::rsa_encryption_oid, nullptr)
-        : ::Crypto::PK::wrap_in_private_key_info(key->get<::Crypto::PK::RSAPrivateKey>(), ::Crypto::ASN1::rsa_encryption_oid, nullptr);
+    auto result = [&]() -> ErrorOr<ByteBuffer> {
+        if (is_public) {
+            auto public_key = TRY(key->get<::Crypto::PK::RSAPublicKey>().export_as_der());
+            return ::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr);
+        }
+        auto private_key = TRY(key->get<::Crypto::PK::RSAPrivateKey>().export_as_der());
+        ScopeGuard const clear_private_key = [&] { secure_zero(private_key.data(), private_key.size()); };
+        return ::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr);
+    }();
     return receive_byte_result(result, state, receive);
 }
 
@@ -606,7 +612,9 @@ bool crypto_ec_export_der(EcCurve curve, KeyHandle const* key, bool is_public, v
             auto public_key_bytes = TRY(key->get<::Crypto::PK::ECPublicKey>().to_uncompressed());
             return ::Crypto::PK::wrap_in_subject_public_key_info(public_key_bytes, ::Crypto::ASN1::ec_public_key_encryption_oid, ec_params);
         }
-        return ::Crypto::PK::wrap_in_private_key_info(key->get<::Crypto::PK::ECPrivateKey>(), ::Crypto::ASN1::ec_public_key_encryption_oid, ec_params);
+        auto private_key = TRY(key->get<::Crypto::PK::ECPrivateKey>().export_as_der());
+        ScopeGuard const clear_private_key = [&] { secure_zero(private_key.data(), private_key.size()); };
+        return ::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::ec_public_key_encryption_oid, ec_params);
     }();
     return receive_byte_result(result, state, receive);
 }
@@ -761,10 +769,12 @@ bool crypto_okp_export_der(OkpCurve curve, bool is_public, ReadonlyBytes key, vo
     auto result = [&]() -> ErrorOr<ByteBuffer> {
         auto oid = okp_curve_oid(curve);
         if (is_public)
-            return ::Crypto::PK::wrap_in_subject_public_key_info(TRY(ByteBuffer::copy(key)), oid);
+            return ::Crypto::PK::wrap_in_subject_public_key_info(key, oid);
         ::Crypto::ASN1::Encoder encoder;
         TRY(encoder.write(key));
-        return ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), oid);
+        auto private_key = encoder.finish();
+        ScopeGuard const clear_private_key = [&] { secure_zero(private_key.data(), private_key.size()); };
+        return ::Crypto::PK::wrap_in_private_key_info(private_key, oid);
     }();
     return receive_byte_result(result, state, receive);
 }
@@ -853,9 +863,13 @@ void crypto_mldsa_seed_bytes(KeyHandle const* key, ReadonlyBytes* bytes)
 
 bool crypto_mldsa_export_der(KeyHandle const* key, bool is_public, ReadonlySpan<u32> oid, void* state, ReceiveEncodedBytes receive)
 {
-    auto result = is_public
-        ? ::Crypto::PK::wrap_in_subject_public_key_info(key->get<::Crypto::PK::MLDSAPublicKey>().public_key(), oid)
-        : ::Crypto::PK::wrap_in_private_key_info(key->get<::Crypto::PK::MLDSAPrivateKey>(), oid);
+    auto result = [&]() -> ErrorOr<ByteBuffer> {
+        if (is_public)
+            return ::Crypto::PK::wrap_in_subject_public_key_info(key->get<::Crypto::PK::MLDSAPublicKey>().public_key(), oid);
+        auto private_key = TRY(key->get<::Crypto::PK::MLDSAPrivateKey>().export_as_der());
+        ScopeGuard const clear_private_key = [&] { secure_zero(private_key.data(), private_key.size()); };
+        return ::Crypto::PK::wrap_in_private_key_info(private_key, oid);
+    }();
     return receive_byte_result(result, state, receive);
 }
 
@@ -896,8 +910,7 @@ KeyHandle* crypto_mlkem_read_public_key(ReadonlyBytes bytes)
 
 void crypto_mlkem_public_bytes(KeyHandle const* key, void* state, ReceiveEncodedBytes receive)
 {
-    auto public_key = key->get<::Crypto::PK::MLKEMPublicKey>().public_key();
-    receive(state, public_key);
+    receive(state, key->get<::Crypto::PK::MLKEMPublicKey>().public_key());
 }
 
 void crypto_mlkem_seed_bytes(KeyHandle const* key, ReadonlyBytes* bytes)
@@ -907,9 +920,13 @@ void crypto_mlkem_seed_bytes(KeyHandle const* key, ReadonlyBytes* bytes)
 
 bool crypto_mlkem_export_der(KeyHandle const* key, bool is_public, ReadonlySpan<u32> oid, void* state, ReceiveEncodedBytes receive)
 {
-    auto result = is_public
-        ? ::Crypto::PK::wrap_in_subject_public_key_info(key->get<::Crypto::PK::MLKEMPublicKey>().public_key(), oid)
-        : ::Crypto::PK::wrap_in_private_key_info(key->get<::Crypto::PK::MLKEMPrivateKey>(), oid);
+    auto result = [&]() -> ErrorOr<ByteBuffer> {
+        if (is_public)
+            return ::Crypto::PK::wrap_in_subject_public_key_info(key->get<::Crypto::PK::MLKEMPublicKey>().public_key(), oid);
+        auto private_key = TRY(key->get<::Crypto::PK::MLKEMPrivateKey>().export_as_der());
+        ScopeGuard const clear_private_key = [&] { secure_zero(private_key.data(), private_key.size()); };
+        return ::Crypto::PK::wrap_in_private_key_info(private_key, oid);
+    }();
     return receive_byte_result(result, state, receive);
 }
 
