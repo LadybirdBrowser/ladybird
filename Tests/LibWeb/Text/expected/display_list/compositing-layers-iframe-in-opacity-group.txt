@@ -10,9 +10,9 @@ Layers: none (composited context inside a group effect)
 
 DisplayList:
 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x133]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x120]
-CompositorWheelHitTestTarget@s1/e1 target_scroll_node_index=s0 rect=[0,0 800x120]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x136]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x123]
+CompositorWheelHitTestTarget@s1/e1 target_scroll_node_index=s0 rect=[0,0 800x123]
 CompositorWheelHitTestTarget@s1/e1 target_scroll_node_index=s0 rect=[0,0 200x120]
 DrawCompositedContext@s1/e1 dst_rect=[0,0 200x120] inline_clips=[clip=[0,0 200x120]]
 CompositorNestedContextWheelRegion@s1/e1 rect=[0,0 200x120]

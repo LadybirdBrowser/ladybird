@@ -16,9 +16,9 @@ ScrollNode scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[0,0
 
 DisplayList:
 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x121]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 784x100]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 784x100]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x124]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 784x103]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 784x103]
 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 100x100]
 StrokePath@s2/c0/e0 path_bounding_rect=[9.5,9.5 81x81] thickness=1 color=rgb(0, 0, 0)
 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s0 rect=[0,0 100x100]

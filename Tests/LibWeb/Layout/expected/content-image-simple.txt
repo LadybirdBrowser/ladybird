@@ -1,7 +1,7 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x1222]
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1222 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 1206 0+0+8] children: not-inline
-      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 1206 0+0+0] children: inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x1225]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1225 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 1209 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 1209 0+0+0] children: inline
         frag 0 from ImageBox start: 0, length: 0, rect: [8,814 400x400] baseline: 400
         InlineNode <(anonymous)> at [8,395] [0+0+0 454.796875 0+0+0] [0+0+0 419 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 3, rect: [8,395 27.15625x16] baseline: 13
@@ -21,4 +21,4 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x1222] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x1225] (z-index: auto)

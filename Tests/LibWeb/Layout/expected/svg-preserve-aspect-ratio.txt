@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 273 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 257 0+0+8] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 276 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 260 0+0+8] children: inline
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [9,84 100x50] baseline: 52
       frag 1 from TextNode start: 0, length: 1, rect: [110,122 8x16] baseline: 13
           " "
@@ -23,19 +23,19 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 13 from TextNode start: 0, length: 1, rect: [720,122 8x16] baseline: 13
           " "
       frag 14 from SVGSVGBox start: 0, length: 0, rect: [729,9 50x125] baseline: 127
-      frag 15 from SVGSVGBox start: 0, length: 0, rect: [9,136 50x125] baseline: 127
-      frag 16 from TextNode start: 0, length: 1, rect: [60,249 8x16] baseline: 13
+      frag 15 from SVGSVGBox start: 0, length: 0, rect: [9,139 50x125] baseline: 127
+      frag 16 from TextNode start: 0, length: 1, rect: [60,252 8x16] baseline: 13
           " "
-      frag 17 from SVGSVGBox start: 0, length: 0, rect: [69,136 50x125] baseline: 127
-      frag 18 from TextNode start: 0, length: 1, rect: [120,249 8x16] baseline: 13
+      frag 17 from SVGSVGBox start: 0, length: 0, rect: [69,139 50x125] baseline: 127
+      frag 18 from TextNode start: 0, length: 1, rect: [120,252 8x16] baseline: 13
           " "
-      frag 19 from SVGSVGBox start: 0, length: 0, rect: [129,136 50x125] baseline: 127
-      frag 20 from TextNode start: 0, length: 1, rect: [180,249 8x16] baseline: 13
+      frag 19 from SVGSVGBox start: 0, length: 0, rect: [129,139 50x125] baseline: 127
+      frag 20 from TextNode start: 0, length: 1, rect: [180,252 8x16] baseline: 13
           " "
-      frag 21 from SVGSVGBox start: 0, length: 0, rect: [189,136 50x125] baseline: 127
-      frag 22 from TextNode start: 0, length: 1, rect: [240,249 8x16] baseline: 13
+      frag 21 from SVGSVGBox start: 0, length: 0, rect: [189,139 50x125] baseline: 127
+      frag 22 from TextNode start: 0, length: 1, rect: [240,252 8x16] baseline: 13
           " "
-      frag 23 from SVGSVGBox start: 0, length: 0, rect: [249,201 160x60] baseline: 62
+      frag 23 from SVGSVGBox start: 0, length: 0, rect: [249,204 160x60] baseline: 62
       SVGSVGBox <svg> at [9,84] [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] viewport-transform=[0.5 0 0 0.5 25 0] [SVG] children: not-inline
         SVGGeometryBox <circle> at [0,0] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       TextNode <#text> (not painted)
@@ -60,21 +60,21 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       SVGSVGBox <svg> at [729,9] [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] viewport-transform=[0.5 0 0 0.5 0 37.5] [SVG] children: not-inline
         SVGGeometryBox <circle> at [0,0] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       TextNode <#text> (not painted)
-      SVGSVGBox <svg> at [9,136] [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] viewport-transform=[0.5 0 0 0.5 0 75] [SVG] children: not-inline
+      SVGSVGBox <svg> at [9,139] [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] viewport-transform=[0.5 0 0 0.5 0 75] [SVG] children: not-inline
         SVGGeometryBox <circle> at [0,0] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       TextNode <#text> (not painted)
-      SVGSVGBox <svg> at [69,136] [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] viewport-transform=[1.25 0 0 1.25 0 0] [SVG] children: not-inline
+      SVGSVGBox <svg> at [69,139] [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] viewport-transform=[1.25 0 0 1.25 0 0] [SVG] children: not-inline
         SVGGeometryBox <circle> at [0,0] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       TextNode <#text> (not painted)
-      SVGSVGBox <svg> at [129,136] [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] viewport-transform=[1.25 0 0 1.25 -37.5 0] [SVG] children: not-inline
+      SVGSVGBox <svg> at [129,139] [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] viewport-transform=[1.25 0 0 1.25 -37.5 0] [SVG] children: not-inline
         SVGGeometryBox <circle> at [0,0] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       TextNode <#text> (not painted)
-      SVGSVGBox <svg> at [189,136] [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] viewport-transform=[1.25 0 0 1.25 -75 0] [SVG] children: not-inline
+      SVGSVGBox <svg> at [189,139] [0+1+0 50 0+1+0] [0+1+0 125 0+1+0] viewport-transform=[1.25 0 0 1.25 -75 0] [SVG] children: not-inline
         SVGGeometryBox <circle> at [0,0] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       TextNode <#text> (not painted)
-      SVGSVGBox <svg> at [249,201] [0+1+0 160 0+1+0] [0+1+0 60 0+1+0] viewport-transform=[1.6 0 0 0.6 0 0] [SVG] children: not-inline
+      SVGSVGBox <svg> at [249,204] [0+1+0 160 0+1+0] [0+1+0 60 0+1+0] viewport-transform=[1.6 0 0 0.6 0 0] [SVG] children: not-inline
         SVGGeometryBox <circle> at [0,0] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x273] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x276] (z-index: auto)
