@@ -1,0 +1,34 @@
+Ladybird shapes compatible text across unused soft-wrap opportunities,
+and keeps the permitted break offsets separately. It reshapes the
+pieces when a line needs a break. Min-content sizing measures each
+piece independently, while line fitting includes the unbreakable
+continuation in following inline boxes and fallback-font runs.
+
+The shaping cache retains a conservative indication of contextual
+substitution or positioning from HarfBuzz, including multi-unit
+clusters. Runs without either keep their small independent chunks.
+This avoids repeatedly shaping long suffixes of ordinary independent
+text, and leaves the compact prepared-item representation unchanged.
+
+Blink keeps a fitting shape in ShapingLineBreaker::ShapeLine, and
+reshapes boundaries that need context when a line breaks. WebKit
+measures candidate text ranges in TextUtil::width, and combines
+compatible text items from one box in Line::appendText. Ladybird
+matches their preservation of substitutions across unused breaks.
+
+Gecko measures pre-shaped text with independent break flags in
+gfxTextRun::BreakAndMeasureText. Its gfxTextRun::SetLineBreaks leaves
+shaping unchanged at actual wraps. Ladybird instead reshapes the
+chosen pieces: In the Chrome comparison, a wrapped programming arrow
+uses the glyphs of each resulting line, not parts of the full arrow.
+
+Chrome renders the Fira Code sequences identically with normal wrap,
+word-break:break-all, and white-space:nowrap when they fit. Disabling
+contextual substitutions removes the arrows. The narrow normal-wrap
+cases match explicit line breaks, including an arrow in the suffix.
+The intrinsic-width and adjacent-inline controls match Chrome too.
+
+A separate punctuation-break limitation remains: word-break:break-all
+omits some opportunities between consecutive hyphens that normal
+wrapping permits. This change preserves those break rules; it fixes
+shaping at the opportunities they already provide.
