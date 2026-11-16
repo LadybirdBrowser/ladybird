@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<!-- Removing the span clears its paintable row while its line root still lists its inline box pieces. Restyling the
+     document element of a snapping viewport then asks what the viewport snaps before layout, which measures the ink
+     overflow of the line root. -->
+<style>
+    html { scroll-snap-type: y mandatory; }
+    html.restyled { color: green; }
+    #root { width: 100px; }
+</style>
+<div id="root">text <span id="span">an inline box with text that wraps over several lines</span> more</div>
+<script>
+    document.body.offsetWidth;
+    span.remove();
+    document.documentElement.classList.add("restyled");
+    document.body.offsetWidth;
+</script>
