@@ -123,6 +123,7 @@ public:
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
     void set_has_devtools_client(bool);
+    static void update_keeps_long_stack_traces();
     bool has_devtools_client() const { return m_has_devtools_client; }
     virtual bool has_active_devtools_client() const override { return has_devtools_client(); }
     void start_sending_console_output(bool messages, bool errors);

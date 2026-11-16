@@ -148,6 +148,20 @@ pub unsafe extern "C" fn js_vm_throw_site_of(vm: *mut JSVM, value: JSValue) -> J
     source_range_into_abi(vm.throw_site_of(value_from_abi(value)).as_ref())
 }
 
+/// VM::set_keeps_long_stack_traces(): whether errors keep at least 200 frames, even when Error.stackTraceLimit is not a
+/// number, for an embedder whose debugger lists the frames of an error. What script can observe stays the same: stack
+/// strings show as many frames as Error.stackTraceLimit says, and js_error_data_script_visible_traceback_length() counts
+/// the frames the error would keep without this. Only the VM's thread may call this.
+///
+/// # Safety
+///
+/// `vm` must be a live VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_set_keeps_long_stack_traces(vm: *mut JSVM, keeps_long_stack_traces: bool) {
+    // SAFETY: The caller passes a live VM.
+    unsafe { vm_from_abi(vm) }.set_keeps_long_stack_traces(keeps_long_stack_traces);
+}
+
 /// VM::innermost_source_range(): the source range of the innermost frame on the stack that has one, or none. Only the
 /// VM's thread may call this.
 ///

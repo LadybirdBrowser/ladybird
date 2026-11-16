@@ -656,6 +656,9 @@ pub struct Vm {
     host_finalize_import_meta: Cell<HostFinalizeImportMeta>,
     host_get_supported_import_attributes: Cell<HostGetSupportedImportAttributes>,
     dynamic_imports_allowed: Cell<bool>,
+    /// Whether errors keep at least LONG_STACK_TRACE_FRAME_COUNT frames, for a debugger that lists them, even when
+    /// Error.stackTraceLimit is not a number. Their stack strings and script-visible frames stay as without it.
+    keeps_long_stack_traces: Cell<bool>,
     loaded_modules: OnceCell<Gc<LoadedModules>>,
     module_execution_depth: Cell<u32>,
     module_async_evaluation_count: Cell<u64>, // [[ModuleAsyncEvaluationCount]]
@@ -827,6 +830,7 @@ impl Vm {
             host_finalize_import_meta: Cell::new(default_host_finalize_import_meta),
             host_get_supported_import_attributes: Cell::new(default_host_get_supported_import_attributes),
             dynamic_imports_allowed: Cell::new(false),
+            keeps_long_stack_traces: Cell::new(false),
             loaded_modules: OnceCell::new(),
             module_execution_depth: Cell::new(0),
             module_async_evaluation_count: Cell::new(0),
@@ -1980,6 +1984,14 @@ impl Vm {
 
     pub fn set_dynamic_imports_allowed(&self, value: bool) {
         self.dynamic_imports_allowed.set(value);
+    }
+
+    pub fn keeps_long_stack_traces(&self) -> bool {
+        self.keeps_long_stack_traces.get()
+    }
+
+    pub fn set_keeps_long_stack_traces(&self, value: bool) {
+        self.keeps_long_stack_traces.set(value);
     }
 
     pub fn enter_module_execution(&self) {

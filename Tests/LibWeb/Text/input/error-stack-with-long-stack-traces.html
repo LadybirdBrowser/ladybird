@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    removeTestErrorHandler();
+
+    function runUncaught(source) {
+        let reported;
+        window.onerror = (message, filename, lineno, colno) => {
+            reported = { lineno, colno };
+            return true;
+        };
+        const script = document.createElement("script");
+        script.textContent = source;
+        document.body.appendChild(script);
+        window.onerror = null;
+        script.remove();
+        return reported;
+    }
+
+    function stackLineCount(depth) {
+        if (depth > 0)
+            return stackLineCount(depth - 1);
+        return new Error().stack.split("\n").filter(line => line.length).length;
+    }
+
+    function check(mode) {
+        Error.stackTraceLimit = 10;
+        println(`${mode}: default limit, stack lines ${stackLineCount(250)}`);
+        Error.stackTraceLimit = 3;
+        println(`${mode}: limit 3, stack lines ${stackLineCount(250)}`);
+
+        const madeThenThrown = `\n  var error = new Error("made");\n  throw error;`;
+        Error.stackTraceLimit = 0;
+        println(`${mode}: limit 0, made then thrown ${JSON.stringify(runUncaught(madeThenThrown))}`);
+
+        Error.stackTraceLimit = "not a number";
+        println(`${mode}: not a number, stack ${new Error().stack}`);
+        println(`${mode}: not a number, made then thrown ${JSON.stringify(runUncaught(madeThenThrown))}`);
+    }
+
+    test(() => {
+        const savedStackTraceLimit = Error.stackTraceLimit;
+        try {
+            check("off");
+            internals.setLongStackTracesEnabled(true);
+            check("on");
+        } finally {
+            internals.setLongStackTracesEnabled(false);
+            Error.stackTraceLimit = savedStackTraceLimit;
+        }
+    });
+</script>

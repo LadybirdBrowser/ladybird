@@ -27,6 +27,7 @@
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibMediaClient/RemotePlaybackManager.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleSheetImport.h>
@@ -178,11 +179,23 @@ PageClient::PageClient(PageHost& owner, Web::PageId id, Optional<Web::HTML::Cros
 
 PageClient::~PageClient() = default;
 
+// How many pages of this process have a DevTools client.
+static size_t s_pages_with_devtools_client = 0;
+
+// Errors keep long stacks while a DevTools client or a WebDriver BiDi session may list their frames.
+void PageClient::update_keeps_long_stack_traces()
+{
+    Web::Bindings::main_thread_vm().set_keeps_long_stack_traces(s_pages_with_devtools_client > 0 || Web::WebDriver::BiDi::is_active());
+}
+
 void PageClient::finalize()
 {
     Base::finalize();
-    if (m_has_devtools_client)
+    if (m_has_devtools_client) {
         m_network_activity_observers->page_did_lose_devtools_client();
+        --s_pages_with_devtools_client;
+        update_keeps_long_stack_traces();
+    }
 }
 
 void PageClient::visit_edges(JS::Cell::Visitor& visitor)
@@ -1824,8 +1837,11 @@ void PageClient::page_did_close()
     m_is_closed = true;
 
     // A closed page has no DevTools client.
-    if (exchange(m_has_devtools_client, false))
+    if (exchange(m_has_devtools_client, false)) {
         m_network_activity_observers->page_did_lose_devtools_client();
+        --s_pages_with_devtools_client;
+        update_keeps_long_stack_traces();
+    }
 
     // NOTE: This only removes the strong reference the PageHost has for this PageClient.
     //       It will be GC'd 'later'.
@@ -2595,10 +2611,14 @@ void PageClient::set_has_devtools_client(bool has_devtools_client)
     if (m_has_devtools_client == has_devtools_client)
         return;
     m_has_devtools_client = has_devtools_client;
-    if (has_devtools_client)
+    if (has_devtools_client) {
         m_network_activity_observers->page_did_gain_devtools_client();
-    else
+        ++s_pages_with_devtools_client;
+    } else {
         m_network_activity_observers->page_did_lose_devtools_client();
+        --s_pages_with_devtools_client;
+    }
+    update_keeps_long_stack_traces();
 
     for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (&navigable->page() != &page())

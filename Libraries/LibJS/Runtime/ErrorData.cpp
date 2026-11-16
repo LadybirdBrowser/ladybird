@@ -30,11 +30,8 @@ Utf16String ErrorData::stack_string(CompactTraceback compact) const
     return owned_utf16_string_from_abi(js_error_data_stack_string(error_data_to_abi(*this), compact == CompactTraceback::Yes));
 }
 
-Vector<TracebackFrame, 32> ErrorData::traceback() const
+static Vector<TracebackFrame, 32> innermost_traceback_frames(JSErrorData const* error_data, size_t frame_count)
 {
-    auto const* error_data = error_data_to_abi(*this);
-    auto frame_count = js_error_data_traceback_length(error_data);
-
     Vector<TracebackFrame, 32> traceback;
     traceback.ensure_capacity(frame_count);
     for (size_t index = 0; index < frame_count; ++index) {
@@ -47,6 +44,18 @@ Vector<TracebackFrame, 32> ErrorData::traceback() const
         traceback.unchecked_append({ Utf16String::from_utf16(utf16_view_from_abi(frame.function_name)), move(source_range) });
     }
     return traceback;
+}
+
+Vector<TracebackFrame, 32> ErrorData::traceback() const
+{
+    auto const* error_data = error_data_to_abi(*this);
+    return innermost_traceback_frames(error_data, js_error_data_traceback_length(error_data));
+}
+
+Vector<TracebackFrame, 32> ErrorData::script_visible_traceback() const
+{
+    auto const* error_data = error_data_to_abi(*this);
+    return innermost_traceback_frames(error_data, js_error_data_script_visible_traceback_length(error_data));
 }
 
 GC::Ref<ErrorDataCell> ErrorDataCell::capture(VM& vm)

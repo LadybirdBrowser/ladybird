@@ -48,6 +48,10 @@ public:
     // The frames are copied out of the runtime, so this returns them by value.
     [[nodiscard]] Vector<TracebackFrame, 32> traceback() const;
 
+    // NB: The innermost frames that the error would keep if the VM kept no long stack traces. What script can observe
+    //     reads only these, so it does not change while a debugger is attached; traceback() is for the debugger.
+    [[nodiscard]] Vector<TracebackFrame, 32> script_visible_traceback() const;
+
 protected:
     ErrorData() = delete;
     ~ErrorData() = delete;

@@ -50,6 +50,7 @@ void set_webdriver_bidi_session_state(Web::WebDriver::BiDiSessionState state)
     }
 
     Web::WebDriver::BiDi::set_session_state(move(state));
+    PageClient::update_keeps_long_stack_traces();
 }
 
 // https://w3c.github.io/webdriver-bidi/#command-browsingContext-create
