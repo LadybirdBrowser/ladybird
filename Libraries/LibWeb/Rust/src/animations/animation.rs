@@ -79,7 +79,6 @@ pub(crate) struct OwningElement {
 }
 
 /// What the host's `CSSAnimation` notes of what script did to it and what it is doing, by bit.
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CssAnimationFlag {
     /// Script changed the play state, which `animation-play-state` no longer changes.
@@ -117,12 +116,29 @@ pub(crate) struct CssAnimationState {
     pub(crate) flags: u8,
 }
 
+impl CssAnimationState {
+    pub(crate) fn has_flag(&self, flag: CssAnimationFlag) -> bool {
+        self.flags & flag as u8 != 0
+    }
+
+    pub(crate) fn set_flag(&mut self, flag: CssAnimationFlag) {
+        self.flags |= flag as u8;
+    }
+}
+
 /// The host's `CSS::AnimationPlayState::Paused` and `CSS::AnimationPlayState::Running`.
 pub(crate) const CSS_ANIMATION_PLAY_STATE_PAUSED: u8 = 0;
 pub(crate) const CSS_ANIMATION_PLAY_STATE_RUNNING: u8 = 1;
 
-/// The host's `CSSTransition::Phase::Idle`.
-pub(crate) const CSS_TRANSITION_PHASE_IDLE: u8 = 3;
+/// https://drafts.csswg.org/css-transitions-2/#transition-phase
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TransitionPhase {
+    Before,
+    Active,
+    After,
+    Idle,
+    Pending,
+}
 
 /// The state of a CSS transition.
 /// https://drafts.csswg.org/css-transitions-2/#the-CSSTransition-interface
@@ -145,8 +161,8 @@ pub(crate) struct CssTransitionState {
     pub(crate) reversing_shortening_factor: f64,
     /// The host's `PropertyID` of the property the transition runs.
     pub(crate) property_id: u16,
-    /// The host's `CSSTransition::Phase` the transition was in when the host last dispatched its events.
-    pub(crate) previous_phase: u8,
+    /// The phase the transition was in when its events were last established.
+    pub(crate) previous_phase: TransitionPhase,
     /// Whether the transition was started provisionally and is neither committed nor discarded yet.
     pub(crate) provisional: bool,
     /// Whether the transition is one the hover of a clock lane started, which the host took in.
@@ -180,7 +196,7 @@ pub(crate) enum AnimationKind {
         /// The host's `SVGAnimationElement` whose animation it is, which whatever the GC traces of the host that holds
         /// the record keeps alive.
         animation_element: NonNull<c_void>,
-        /// The `SmilHolders` that hold the animation.
+        /// The `SmilHolder` bits of what holds the animation.
         holders: u8,
     },
 }
@@ -198,7 +214,6 @@ pub enum HostCellKind {
 /// What of the host holds the animation of an SVG animation element, by bit. The animation is alive to the host while
 /// one does, as each lets go of it when it is done with it or the host finalizes it.
 #[derive(Clone, Copy)]
-#[repr(u8)]
 pub(crate) enum SmilHolder {
     /// Its animation element, until it lets go of the animation or is finalized.
     AnimationElement = 1 << 0,
@@ -225,20 +240,20 @@ pub(crate) struct AnimationRecord {
     /// found finished, and the replace state.
     playback: AnimationPlayback,
     /// https://www.w3.org/TR/web-animations-1/#previous-current-time
-    previous_current_time: Option<TimeValue>,
-    /// The current time of the associated effect where the animation was last cancelled, until the host takes it.
-    saved_cancel_time: Option<TimeValue>,
+    pub(crate) previous_current_time: Option<TimeValue>,
+    /// The current time of the associated effect where the animation was last canceled, until the host takes it.
+    pub(crate) saved_cancel_time: Option<TimeValue>,
     /// The attachment interval the effect's timing was last normalized against.
-    normalized_attachment_interval: Option<AttachmentInterval>,
+    pub(crate) normalized_attachment_interval: Option<AttachmentInterval>,
     /// The play state the animation was in when it was disassociated from its target as inert.
-    play_state_when_disassociated_from_target: Option<AnimationPlayState>,
-    /// https://drafts.csswg.org/web-animations-2/#auto-align-start-time
-    auto_align_start_time: bool,
+    pub(crate) play_state_when_disassociated_from_target: Option<AnimationPlayState>,
+    /// https://drafts.csswg.org/web-animations-2/#auto-aligning-start-time
+    pub(crate) auto_align_start_time: bool,
     /// Whether the animation is disassociated from its target once it is inert.
-    disassociation_from_target_pending: bool,
+    pub(crate) disassociation_from_target_pending: bool,
     /// https://www.w3.org/TR/web-animations-1/#dom-animation-id
     /// None where it is the empty string.
-    dom_id: RetainedUtf16FlyString,
+    pub(crate) dom_id: RetainedUtf16FlyString,
     /// https://www.w3.org/TR/web-animations-1/#global-animation-list
     global_animation_list_order: GlobalAnimationListOrder,
     /// https://drafts.csswg.org/scroll-animations-1/#animation-attachment-range
@@ -250,9 +265,9 @@ pub(crate) struct AnimationRecord {
     owning_pseudo_element: Option<u8>,
     /// The task the host last queued to run the finish notification steps of the animation, or to dispatch its finish
     /// event, if any.
-    /// NB: Nothing forgets the task once it ran or was cancelled, which keeps a later finish notification task from
-    ///     being queued, as the host's `Animation` did before the record kept it.
-    finish_notification_task: Option<HostTaskId>,
+    /// NB: Canceling the task forgets it. Nothing forgets the task once it ran, which keeps a later finish
+    ///     notification task from being queued until one is canceled.
+    pub(crate) finish_notification_task: Option<HostTaskId>,
     kind: AnimationKind,
 }
 
@@ -360,74 +375,12 @@ impl AnimationRecord {
         &mut self.playback
     }
 
-    #[must_use]
-    pub(crate) fn previous_current_time(&self) -> Option<TimeValue> {
-        self.previous_current_time
-    }
-
-    pub(crate) fn set_previous_current_time(&mut self, time: Option<TimeValue>) {
-        self.previous_current_time = time;
-    }
-
-    pub(crate) fn set_saved_cancel_time(&mut self, time: Option<TimeValue>) {
-        self.saved_cancel_time = time;
-    }
-
-    pub(crate) fn take_saved_cancel_time(&mut self) -> Option<TimeValue> {
-        self.saved_cancel_time.take()
-    }
-
-    #[must_use]
-    pub(crate) fn normalized_attachment_interval(&self) -> Option<AttachmentInterval> {
-        self.normalized_attachment_interval
-    }
-
-    pub(crate) fn set_normalized_attachment_interval(&mut self, interval: Option<AttachmentInterval>) {
-        self.normalized_attachment_interval = interval;
-    }
-
-    pub(crate) fn set_play_state_when_disassociated_from_target(&mut self, play_state: Option<AnimationPlayState>) {
-        self.play_state_when_disassociated_from_target = play_state;
-    }
-
-    #[must_use]
-    pub(crate) fn play_state_when_disassociated_from_target(&self) -> Option<AnimationPlayState> {
-        self.play_state_when_disassociated_from_target
-    }
-
     /// Notes that the animation was associated with the target of its associated effect again. Joining a target does
     /// not make an animation that was disassociated from it as inert relevant, so whether it is inert is checked again.
     pub(crate) fn did_associate_with_target(&mut self) {
         if self.play_state_when_disassociated_from_target.take().is_some() {
             self.disassociation_from_target_pending = true;
         }
-    }
-
-    #[must_use]
-    pub(crate) fn auto_align_start_time(&self) -> bool {
-        self.auto_align_start_time
-    }
-
-    pub(crate) fn set_auto_align_start_time(&mut self, value: bool) {
-        self.auto_align_start_time = value;
-    }
-
-    #[must_use]
-    pub(crate) fn disassociation_from_target_pending(&self) -> bool {
-        self.disassociation_from_target_pending
-    }
-
-    pub(crate) fn set_disassociation_from_target_pending(&mut self, value: bool) {
-        self.disassociation_from_target_pending = value;
-    }
-
-    #[must_use]
-    pub(crate) fn dom_id(&self) -> &RetainedUtf16FlyString {
-        &self.dom_id
-    }
-
-    pub(crate) fn set_dom_id(&mut self, id: RetainedUtf16FlyString) {
-        self.dom_id = id;
     }
 
     #[must_use]
@@ -469,15 +422,6 @@ impl AnimationRecord {
     pub(crate) fn set_owning_element(&mut self, owning_element: Option<OwningElement>) {
         self.owning_element = owning_element.map(|owner| owner.element);
         self.owning_pseudo_element = owning_element.and_then(|owner| owner.pseudo_element);
-    }
-
-    #[must_use]
-    pub(crate) fn finish_notification_task(&self) -> Option<HostTaskId> {
-        self.finish_notification_task
-    }
-
-    pub(crate) fn set_finish_notification_task(&mut self, task: HostTaskId) {
-        self.finish_notification_task = Some(task);
     }
 
     #[must_use]
@@ -547,7 +491,7 @@ pub struct AnimationCell {
     record: RefCell<AnimationRecord>,
     /// The GC cell of the object script sees of the animation, which holds a reference to the record until it is
     /// finalized and clears this as it does.
-    facade: Cell<Option<NonNull<c_void>>>,
+    object_cell: Cell<Option<NonNull<c_void>>>,
 }
 
 impl AnimationCell {
@@ -560,8 +504,8 @@ impl AnimationCell {
     }
 
     /// The host's `Animation` of the animation, while it is alive.
-    pub(crate) fn facade(&self) -> Option<NonNull<c_void>> {
-        self.facade.get()
+    pub(crate) fn object_cell(&self) -> Option<NonNull<c_void>> {
+        self.object_cell.get()
     }
 
     /// Whether the host may reach the animation and the elements its record names. One with an object script sees is
@@ -572,7 +516,7 @@ impl AnimationCell {
     ///     element never has an object. It is alive while a holder its record notes holds it, each of which keeps the
     ///     elements the record names alive while it does.
     pub(crate) fn is_alive(&self) -> bool {
-        if self.facade().is_some() {
+        if self.object_cell().is_some() {
             return true;
         }
         let record = self.borrow();
@@ -597,8 +541,8 @@ impl AnimationCell {
     /// Calls `visit` with each GC cell of the host that keeps alive the elements the record names: the animation's
     /// object, or, for an animation without one, the cells the record names.
     pub(crate) fn for_each_host_cell(&self, mut visit: impl FnMut(NonNull<c_void>, HostCellKind)) {
-        if let Some(facade) = self.facade() {
-            visit(facade, HostCellKind::Cell);
+        if let Some(object_cell) = self.object_cell() {
+            visit(object_cell, HostCellKind::Cell);
             return;
         }
         let record = self.borrow();
@@ -622,8 +566,8 @@ impl AnimationCell {
             visit(owner, HostCellKind::Element);
         }
         if let Some(effect) = record.effect() {
-            match effect.facade() {
-                Some(facade) => visit(facade, HostCellKind::Cell),
+            match effect.object_cell() {
+                Some(object_cell) => visit(object_cell, HostCellKind::Cell),
                 None => {
                     if let Some(target) = effect.borrow().target_element() {
                         visit(target, HostCellKind::Element);
@@ -631,13 +575,13 @@ impl AnimationCell {
                 }
             }
         }
-        if let Some(timeline) = record.timeline().and_then(|timeline| timeline.facade()) {
-            visit(timeline, HostCellKind::Cell);
+        if let Some(timeline) = record.timeline() {
+            timeline.for_each_holder_cell(&mut visit);
         }
     }
 
-    pub(crate) fn set_facade(&self, facade: Option<NonNull<c_void>>) {
-        self.facade.set(facade);
+    pub(crate) fn set_object_cell(&self, object_cell: Option<NonNull<c_void>>) {
+        self.object_cell.set(object_cell);
     }
 
     /// The bytes of the allocation every handle shares, and those the record holds beyond it.
@@ -684,7 +628,7 @@ impl AnimationHandle {
     pub(crate) fn new(kind: AnimationKind) -> Self {
         Self(Rc::new(AnimationCell {
             record: RefCell::new(AnimationRecord::new(kind)),
-            facade: Cell::new(None),
+            object_cell: Cell::new(None),
         }))
     }
 
@@ -791,6 +735,17 @@ impl WeakAnimationSet {
     /// The animation of the entry at `index`, where it is alive.
     pub(crate) fn get(&self, index: usize) -> Option<AnimationHandle> {
         self.0.get(index).map(AnimationHandle)
+    }
+
+    /// The animations of the set that are alive, in insertion order, as enumerating the entries in place finds them.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = AnimationHandle> + '_ {
+        (0..self.entry_count()).filter_map(|index| self.get(index))
+    }
+
+    /// The animations of the set that are alive.
+    pub(crate) fn alive(&mut self) -> Vec<AnimationHandle> {
+        self.prune();
+        self.iter().collect()
     }
 
     /// Removes every animation.

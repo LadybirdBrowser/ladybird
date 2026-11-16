@@ -18,13 +18,6 @@
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/Export.h>
 
-namespace Web::CSS {
-
-class CSSAnimation;
-class CSSTransition;
-
-}
-
 namespace Web::Animations {
 
 // One of the lists of animations an element holds, which a loop over it reads entry by entry as it goes, so the loop
@@ -75,26 +68,21 @@ class WEB_API Animatable {
 public:
     virtual ~Animatable();
 
-    enum class IncludeSubtree {
-        No,
-        Yes
-    };
-
-    // The relevant animations of the element, and of its descendants with IncludeSubtree::Yes, in no particular order.
-    void for_each_relevant_animation(IncludeSubtree, Function<void(AnimationRef const&)> const&) const;
     ElementAnimationList associated_animations_in_composite_order();
     ElementAnimationList associated_animations_unordered() const;
     void invalidate_associated_animation_composite_order();
-    bool has_relevant_animations() const;
     bool has_associated_animations() const;
+    // The element's lists of its animations, where it holds any.
+    RustFFI::ElementAnimations const* element_animations_if_created() const { return m_animations; }
     // The element's lists of its animations, created where it holds none yet, which also follow what the element
     // published of the effects that target it to the style engine.
     RustFFI::ElementAnimations& ensure_animations();
     // Forgets what the element published to the style engine of the effects that target it, as its identity there
     // changes.
     void forget_published_effect_descriptions();
-    // The bytes of the element's lists of its animations and transitions, beside the animations themselves.
-    size_t animation_lists_memory_size() const;
+    // The bytes of the element's lists of its animations and transitions, with the records of the animations associated
+    // with it and of their effects, and of the keyframe sets those run that `first_counted` answers are counted first.
+    size_t animation_record_memory_size(bool (*first_counted)(void*, RustFFI::KeyframeSet const*), void* context) const;
 
     void associate_with_animation(AnimationRef const&);
     // Disassociates the animation from the element, which `effect`, the animation's associated effect, targeted.
@@ -105,25 +93,15 @@ public:
     // computed.
     void play_or_pause_css_animations_as_their_play_state_asks();
 
-    // Whether the element or the pseudo-element can own CSS animations and transitions, which only the known
-    // pseudo-elements can.
-    static bool can_own_css_animations_and_transitions(Optional<CSS::PseudoElement>);
+    // The list of the element, or of one of its known pseudo-elements, of the CSS animations and transitions it owns.
+    static Optional<RustFFI::AnimationOwnerSlot> owner_slot(Optional<CSS::PseudoElement>);
 
     bool has_css_animations_or_transitions() const;
     bool has_css_defined_animations(Optional<CSS::PseudoElement>) const;
-    GC::RootVector<AnimationRef> css_defined_animations(Optional<CSS::PseudoElement>) const;
-    void set_css_defined_animations(Optional<CSS::PseudoElement>, ReadonlySpan<AnimationRef>);
 
     // Whether the installed style gives any longhand a matching transition-property entry, answered without listing them.
     bool has_matching_transition_property_entry(Optional<CSS::PseudoElement>) const;
-    // Commits a transition started provisionally, whose target is now associated with it, as the transition of its
-    // property the element or pseudo-element holds.
-    void commit_provisional_transition(Optional<CSS::PseudoElement>, AnimationRef const&, RustFFI::TransitionOrigin);
-    void remove_transition(Optional<CSS::PseudoElement>, CSS::PropertyNameAndID const&);
     bool has_existing_transitions(Optional<CSS::PseudoElement>) const;
-    // The running or completed transition of each property the element or pseudo-element has.
-    ElementAnimationList existing_transitions(Optional<CSS::PseudoElement>) const;
-    Optional<AnimationRef> property_transition(Optional<CSS::PseudoElement>, CSS::PropertyNameAndID const&) const;
 
 protected:
     void visit_edges(JS::Cell::Visitor&);

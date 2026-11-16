@@ -535,8 +535,8 @@ impl VisualAnimation {
         if !local_time.is_finite() {
             return None;
         }
-        // The compositor runs the animation at its playback rate from where the main thread anchored it, which holds
-        // its local time.
+        // NB: The compositor runs the animation at its playback rate from where the main thread anchored it, which
+        //     holds its local time.
         let local_time = Some(TimeValue::milliseconds(local_time));
         let playback = AnimationPlayback {
             hold_time: OptionalTimeValue::from(local_time),

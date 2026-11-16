@@ -93,16 +93,10 @@ struct RenderingStats;
 
 }
 
-namespace Web::Animations {
-
-class AnimationRef;
-class EffectRef;
-
-}
-
 namespace Web::Animations::RustFFI {
 
 struct DocumentAnimations;
+struct FfiNamedTimelinesHost;
 struct FfiPendingAnimationEvent;
 
 }
@@ -129,6 +123,7 @@ enum class TemporaryDocumentForFragmentParsing : u8 {
 };
 
 struct AdoptedStyleSheetsAccess;
+struct CompositorAnimationUpdatePass;
 
 enum class QuirksMode {
     No,
@@ -1409,24 +1404,22 @@ public:
 
     void restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry);
 
-    GC::Ref<Animations::AnimationTimeline> timeline();
+    // https://www.w3.org/TR/web-animations-1/#dom-document-timeline
+    Animations::TimelineView timeline();
 
     // The scroll progress timelines and view progress timelines the elements of the document declare by name.
     Animations::NamedTimelines& named_timelines();
-    // The CSS animations of the elements of the document that follow a named timeline, which the document keeps none
-    // of alive.
-    Animations::WeakAnimationSetView animations_following_named_timelines();
+    // Looks the named timeline each CSS animation that follows one looks up again, answering whether that changed the
+    // timeline of any.
+    bool update_named_timelines_of_animations(Animations::RustFFI::FfiNamedTimelinesHost const&);
     bool has_named_timelines() const { return m_named_timelines != nullptr; }
     // Moves on whenever the timelines an element declares by name, or the timeline names it scopes, may have changed.
     u64 timeline_declarations_generation() const { return m_timeline_declarations_generation; }
     void did_change_timeline_declarations() { ++m_timeline_declarations_generation; }
     auto const& last_animation_frame_timestamp() const { return m_last_animation_frame_timestamp; }
 
-    void associate_with_timeline(GC::Ref<Animations::AnimationTimeline>);
-    void disassociate_with_timeline(GC::Ref<Animations::AnimationTimeline>);
-    void associate_with_animation(Animations::AnimationRef const&);
-    // Disassociates the animation, whose associated effect was `effect`, from the document.
-    void disassociate_with_animation(Animations::AnimationRef const&, Optional<Animations::EffectRef> const& effect);
+    // What the document knows of the animations associated with its elements.
+    Animations::RustFFI::DocumentAnimations& document_animations() const { return *m_animations; }
     bool has_associated_animations() const;
     // Negative where `first` comes before `second` in tree order and positive where it comes after, for sorting
     // animations by composite order. Two distinct elements of this document take no walk of their siblings once a tree
@@ -1443,10 +1436,10 @@ public:
     void update_animations_and_send_events(double timestamp);
     void prepare_to_observe_css_animation_events();
     void update_compositor_animations(Layout::BegunRead const& read);
-    void dispatch_events_for_animation_if_necessary(Animations::AnimationRef const&);
     void remove_replaced_animations();
 
-    HashTable<GC::Ref<Animations::AnimationTimeline>> const& associated_animation_timelines() const { return m_associated_animation_timelines; }
+    // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
+    Vector<Animations::TimelineView> associated_animation_timelines() const;
     void begin_smil_time_container_once_loaded(SVG::SMILTimeContainer&);
     void schedule_svg_referenced_motion_path_update(SVG::SVGAnimateMotionElement&);
 
@@ -1898,6 +1891,7 @@ private:
 
     void did_add_supported_property_name();
     friend struct AdoptedStyleSheetsAccess;
+    friend struct CompositorAnimationUpdatePass;
 
     void republish_svg_patterns_inheriting_from(Utf16FlyString const& id, HashTable<SVG::SVGPatternElement const*>& republished);
 
@@ -1905,8 +1899,6 @@ private:
     void service_compositor_animation_wakeup(double timestamp);
 
     void drain_style_update_that_flew(Layout::BegunRead const&);
-    // The effects whose animated style the next animated style update samples, taken out of the document's set, and
-    // put back.
     // Sets the effects whose animated style the next animated style update samples aside, and back again.
     void set_aside_effects_needing_animated_style_update();
     void restore_effects_needing_animated_style_update();
@@ -2419,8 +2411,6 @@ private:
     //     most url() values are.
     HashMap<CSS::ImageStyleValueResourceKey, OwnPtr<CSS::ImageStyleValueResource>> m_css_image_resources_with_request_url_modifiers;
 
-    // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
-    HashTable<GC::Ref<Animations::AnimationTimeline>> m_associated_animation_timelines;
     Vector<GC::Ref<SVG::SMILTimeContainer>> m_smil_time_containers_to_begin;
     Vector<GC::Ref<SVG::SVGAnimateMotionElement>> m_animate_motion_elements_to_update;
 
@@ -2436,8 +2426,6 @@ private:
     u32 m_tree_order_compares_at_dom_tree_version { 0 };
     u32 m_element_count_at_last_tree_positions_walk { 0 };
 
-    // https://www.w3.org/TR/web-animations-1/#document-default-document-timeline
-    GC::Ptr<Animations::AnimationTimeline> m_default_timeline;
     GC::Ptr<Animations::NamedTimelines> m_named_timelines;
     u64 m_timeline_declarations_generation { 0 };
     Optional<double> m_last_animation_frame_timestamp;

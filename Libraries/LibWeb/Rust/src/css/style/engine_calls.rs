@@ -1592,31 +1592,26 @@ pub extern "C" fn style_engine_counter(
     name.as_ptr()
 }
 
-/// Decides what the transition step of `input`'s target does to its transitions, as the target's style changes from the
-/// record `before` to the record `after` it installed, and hands `on_actions` one action per property it decided over.
-/// The style update the host drains decided the step beside the row of an element whose step nothing but the
-/// engine's records decides; any other the render owner decides, reading the transform reference box of the target's
-/// element's box as it does.
+/// Decides what the transition step of the target `input` names, which holds the transitions `existing`, does to its
+/// transitions, as the target's style changes from the record `before` to the record `after` it installed, and hands
+/// `on_actions` one action per property it decided over. The style update the host drains decided the step beside the
+/// row of an element whose step nothing but the engine's records decides; any other the render owner decides, reading
+/// the transform reference box of the target's element's box as it does.
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread, `before` and `after` records the host holds, and
-/// `input` must be valid. The values the actions point at live until `on_actions` returns.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_decide_transitions(
+/// `before` and `after` must be records the host holds. The values the actions point at live until `on_actions`
+/// returns.
+pub(crate) unsafe fn decide_transitions(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     before: *const c_void,
     after: *const c_void,
     input: &FfiTransitionInput,
-    on_actions: unsafe extern "C" fn(*mut c_void, *const FfiTransitionAction, usize),
-    context: *mut c_void,
+    existing: &[crate::css::transition::FfiExistingTransition],
+    mut on_actions: impl FnMut(&[FfiTransitionAction]),
 ) {
     // SAFETY: Guaranteed by the caller.
-    let existing = unsafe { ak::slice_from_raw_parts(input.existing_transitions, input.existing_transition_count) };
-    // SAFETY: As above.
-    let hand_over = |actions: &[FfiTransitionAction]| unsafe { on_actions(context, actions.as_ptr(), actions.len()) };
-    // SAFETY: As above.
     let (Some(before), Some(after)) = (unsafe { super::bridge::retain_host_record(before) }, unsafe {
         super::bridge::retain_host_record(after)
     }) else {
@@ -1631,7 +1626,7 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
             .flatten(),
     };
     if decision.element.is_some()
-        && host.answer_decided_transition_step(input.target_node, &decision, existing, hand_over)
+        && host.answer_decided_transition_step(input.target_node, &decision, existing, &mut on_actions)
     {
         return;
     }
@@ -1647,7 +1642,7 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
         )
     });
     actions.extend_from_slice(&custom_properties.actions);
-    hand_over(&actions);
+    on_actions(&actions);
 }
 
 #[cfg(test)]

@@ -26,7 +26,7 @@ use super::css_unit_value::CSSUnitValue;
 use super::css_unparsed_value::CSSUnparsedValue;
 use super::typed_om;
 use crate::bindings::conversions::{ToJs, UsvString};
-use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, cell_into_abi, wrap};
+use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, wrap};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use libjs_rust::api::{ThrowCompletionOr, Value};
 
@@ -99,27 +99,6 @@ impl AnyCSSStyleValue {
             Self::CSSTransformValue(object) => object.style_value(),
             Self::CSSUnitValue(object) => <CSSUnitValue as Inherits<CSSNumericValue>>::parent(object).parent(),
             Self::CSSUnparsedValue(object) => object.style_value(),
-        }
-    }
-
-    /// The cell of the object, as LibWeb's C++ code holds it.
-    pub(crate) fn cell_into_abi(self) -> *mut core::ffi::c_void {
-        match self {
-            Self::CSSStyleValue(object) => cell_into_abi(object),
-            Self::CSSImageValue(object) => cell_into_abi(object),
-            Self::CSSKeywordValue(object) => cell_into_abi(object),
-            Self::CSSMathClamp(object) => cell_into_abi(object),
-            Self::CSSMathInvert(object) => cell_into_abi(object),
-            Self::CSSMathMax(object) => cell_into_abi(object),
-            Self::CSSMathMin(object) => cell_into_abi(object),
-            Self::CSSMathNegate(object) => cell_into_abi(object),
-            Self::CSSMathProduct(object) => cell_into_abi(object),
-            Self::CSSMathSum(object) => cell_into_abi(object),
-            Self::CSSMathValue(object) => cell_into_abi(object),
-            Self::CSSNumericValue(object) => cell_into_abi(object),
-            Self::CSSTransformValue(object) => cell_into_abi(object),
-            Self::CSSUnitValue(object) => cell_into_abi(object),
-            Self::CSSUnparsedValue(object) => cell_into_abi(object),
         }
     }
 

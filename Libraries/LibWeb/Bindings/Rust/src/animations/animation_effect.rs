@@ -81,9 +81,9 @@ pub(crate) struct OptionalEffectTiming {
     pub(crate) iterations: Option<f64>,
 }
 
-/// Whether the string is the ASCII text.
-pub(crate) fn utf16_string_equals(string: &Utf16String, text: &str) -> bool {
-    string.to_utf16().iter().copied().eq(text.encode_utf16())
+/// Whether the UTF-16 code units are the ASCII text.
+pub(crate) fn units_equal(units: &[u16], text: &str) -> bool {
+    units.iter().copied().eq(text.encode_utf16())
 }
 
 // https://www.w3.org/TR/web-animations-1/#the-animationeffect-interface
@@ -136,7 +136,7 @@ impl AnimationEffect {
     pub(crate) fn get_timing(&self, _cx: &mut CallContext) -> WebIdlResult<EffectTiming> {
         self.update_style_if_needed();
 
-        // 1. Returns the specified timing properties for this animation effect.
+        // Returns the specified timing properties for this animation effect.
         let specified = self.record.specified_timing();
         let timing = self.record.timing();
         Ok(EffectTiming {
@@ -168,18 +168,20 @@ impl AnimationEffect {
             .associated_animation()
             .and_then(|animation| current_time_for_observation(&animation));
 
-        // 1. Returns the calculated timing properties for this animation effect.
+        // Returns the calculated timing properties for this animation effect.
 
-        // Note: Although some of the attributes of the object returned by getTiming() and getComputedTiming() are
-        //       common, their values may differ in the following ways:
+        // Although some of the attributes of the object returned by getTiming() and getComputedTiming() are common,
+        // their values can differ in the following ways:
 
-        //     - duration: while getTiming() may return the string auto, getComputedTiming() must return a number
+        //     - duration: while getTiming() can return the string auto, getComputedTiming() must return a number
         //       corresponding to the calculated value of the iteration duration as defined in the description of the
         //       duration member of the EffectTiming interface.
         //
-        //       If duration is the string auto, this attribute will return the current calculated value of the
-        //       intrinsic iteration duration, which may be a expressed as a double representing the duration in
-        //       milliseconds or a percentage when the effect is associated with a progress-based timeline.
+        // https://drafts.csswg.org/web-animations-2/#dom-animationeffect-getcomputedtiming
+        // The description of the duration attribute of the object needs to indicate that if timing.duration is the
+        // string auto, this attribute will return the current calculated value of the intrinsic iteration duration,
+        // which may be a expressed as a double representing the duration in milliseconds or a percentage when the
+        // effect is associated with a progress-based timeline.
         let timing_properties = self.record.timing();
         let duration = match time_value_as_css_numberish(vm, timing_properties.iteration_duration) {
             CSSNumberish::Double(value) => UnrestrictedDoubleOrCSSNumericValueOrDOMString::UnrestrictedDouble(value),
@@ -188,7 +190,7 @@ impl AnimationEffect {
             }
         };
 
-        //     - fill: likewise, while getTiming() may return the string auto, getComputedTiming() must return the
+        //     - fill: likewise, while getTiming() can return the string auto, getComputedTiming() must return the
         //       specific FillMode used for timing calculations as defined in the description of the fill member of the
         //       EffectTiming interface.
         //
@@ -216,10 +218,10 @@ impl AnimationEffect {
                 iterations: timing_properties.iteration_count,
             },
             active_duration: Some(as_css_numberish(timing.active_duration)),
-            current_iteration: Some(timing.current_iteration.get()),
+            current_iteration: Some(timing.current_iteration),
             end_time: Some(as_css_numberish(timing.end_time)),
             local_time: Some(local_time.map(as_css_numberish)),
-            progress: Some(timing.transformed_progress.get()),
+            progress: Some(timing.transformed_progress),
         })
     }
 
@@ -249,15 +251,14 @@ impl AnimationEffect {
             return Err(Exception::type_error("Invalid iteration count value"));
         }
 
-        // 3. If the duration member of input exists, and is less than zero or is the value NaN, throw a TypeError and
-        //    abort this procedure.
-        // Note: "auto", the only valid string value, is treated as 0.
+        // 3. If the duration member of input exists, and is less than zero, is the value NaN, or is a string other than
+        //    the lowercase auto, throw a TypeError and abort this procedure.
         let has_valid_duration_value = match &timing.duration {
             None => true,
             Some(UnrestrictedDoubleOrDOMString::UnrestrictedDouble(duration)) => {
                 !(*duration < 0.0 || duration.is_nan())
             }
-            Some(UnrestrictedDoubleOrDOMString::DOMString(duration)) => utf16_string_equals(duration, "auto"),
+            Some(UnrestrictedDoubleOrDOMString::DOMString(duration)) => units_equal(&duration.to_utf16(), "auto"),
         };
         if !has_valid_duration_value {
             return Err(Exception::type_error("Invalid duration value"));
@@ -402,8 +403,8 @@ impl AnyAnimationEffect {
 
 /// The object of the effect, if it has one.
 pub(crate) fn existing_effect_object(effect: &EffectRecordRef) -> Option<AnyAnimationEffect> {
-    let cell = effect.facade()?;
-    // SAFETY: The facade of an effect is the live cell of its object, a KeyframeEffect, the only AnimationEffect there
+    let cell = effect.object_cell()?;
+    // SAFETY: The object cell of an effect is the live cell of its object, a KeyframeEffect, the only AnimationEffect there
     //         is.
     Some(AnyAnimationEffect::KeyframeEffect(unsafe {
         cell_from_abi(cell.as_ptr())
@@ -417,6 +418,6 @@ pub(crate) fn effect_object(vm: &Vm, effect: &EffectRecordRef) -> AnyAnimationEf
         return object;
     }
     let object = KeyframeEffect::create_for_record(vm, effect.clone());
-    effect.set_facade(NonNull::new(cell_into_abi(object)));
+    effect.set_object_cell(NonNull::new(cell_into_abi(object)));
     AnyAnimationEffect::KeyframeEffect(object)
 }

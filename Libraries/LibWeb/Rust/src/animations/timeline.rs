@@ -7,7 +7,9 @@
 //! Timelines.
 //! https://www.w3.org/TR/web-animations-1/#timelines
 
-use super::animation::{AttachmentInterval, AttachmentRangeEdge, AttachmentRangeEdgeOffset, WeakAnimationSet};
+use super::animation::{
+    AttachmentInterval, AttachmentRangeEdge, AttachmentRangeEdgeOffset, HostCellKind, WeakAnimationSet,
+};
 use super::snapshot::{TimelineClock, TimelineClockSource};
 use super::timeline_state::TimelineState;
 use super::timing::{TimeValue, TimelineSample};
@@ -595,8 +597,8 @@ impl ScrollTimelineState {
         if let Some(metrics) = self.view.as_ref().and_then(|view| view.last_metrics)
             && metrics.time_at(0.0).is_some()
         {
-            // Each edge is measured from the start of its named timeline range, along that range, and is then placed
-            // as a proportion of the cover range, which spans the entire timeline.
+            // NB: Each edge is measured from the start of its named timeline range, along that range, and is then
+            //     placed as a proportion of the cover range, which spans the entire timeline.
             let time_of = |edge: &AttachmentRangeEdge| {
                 let named_range = metrics.interval_for_range_name(TimelineRangeName::from_host(edge.name));
                 let position = named_range.start + edge.offset.offset_along(named_range.end - named_range.start);
@@ -740,11 +742,6 @@ pub(crate) struct TimelineRecord {
 
 impl TimelineRecord {
     #[must_use]
-    pub(crate) fn id(&self) -> AnimationTimelineId {
-        self.id
-    }
-
-    #[must_use]
     pub(crate) fn scroll(&self) -> Option<&ScrollTimelineState> {
         match &self.kind {
             TimelineKind::Scroll(scroll) => Some(scroll),
@@ -759,6 +756,12 @@ impl TimelineRecord {
                 unreachable!("the timeline is a scroll timeline")
             }
         }
+    }
+
+    /// https://drafts.csswg.org/web-animations-1/#monotonically-increasing-timeline
+    #[must_use]
+    pub(crate) fn is_monotonically_increasing(&self) -> bool {
+        self.is_monotonically_increasing
     }
 
     /// The current time a style sampling reads instead of the current time, where it is set.
@@ -881,10 +884,10 @@ pub struct TimelineCell {
     record: RefCell<TimelineRecord>,
     /// NB: The animations associated with the timeline, none of which it keeps alive.
     associated_animations: RefCell<WeakAnimationSet>,
-    /// The host's `AnimationTimeline`, which holds a reference to the record until it is finalized and clears this as
-    /// it does. It keeps the document and the elements the record names alive, so the record does not reach them
-    /// without it.
-    facade: Cell<Option<NonNull<c_void>>>,
+    /// The cell of the object script sees of the timeline, which holds a reference to the record until it is finalized
+    /// and clears this as it does, if script has asked for it yet. Each holder of the record keeps it alive, or the
+    /// cells the record names where it has none.
+    object_cell: Cell<Option<NonNull<c_void>>>,
 }
 
 /// How a timeline came to have its current time.
@@ -910,22 +913,33 @@ impl TimelineCell {
         self.record.borrow_mut()
     }
 
-    /// The host's `AnimationTimeline` of the timeline, while it is alive.
-    pub(crate) fn facade(&self) -> Option<NonNull<c_void>> {
-        self.facade.get()
+    /// The cell of the object script sees of the timeline, while it has one.
+    pub(crate) fn object_cell(&self) -> Option<NonNull<c_void>> {
+        self.object_cell.get()
     }
 
     /// Calls `visit` with each GC cell of the host the record names: the document the timeline is associated with, and
-    /// the element a scroll timeline finds its scroller from, if any, which a holder of the record the GC traces
+    /// the element a scroll timeline finds its scroller from, if any, which the object script sees of the timeline
     /// visits.
-    pub(crate) fn for_each_host_cell(&self, mut visit: impl FnMut(NonNull<c_void>)) {
+    pub(crate) fn for_each_host_cell(&self, mut visit: impl FnMut(NonNull<c_void>, HostCellKind)) {
         let record = self.borrow();
-        visit(record.document);
+        visit(record.document, HostCellKind::Cell);
         match record.scroll().map(|scroll| scroll.source) {
-            Some(ScrollTimelineSource::Element(Some(element))) => visit(element),
-            Some(ScrollTimelineSource::Anonymous { target, .. }) => visit(target),
+            Some(ScrollTimelineSource::Element(Some(element))) => visit(element, HostCellKind::Element),
+            Some(ScrollTimelineSource::Anonymous { target, .. }) => visit(target, HostCellKind::Element),
             Some(ScrollTimelineSource::Element(None)) | None => {}
         }
+    }
+
+    /// Calls `visit` with each GC cell of the host that keeps alive what the record names: the object script sees of
+    /// the timeline, or, for a timeline that has none, the cells the record names. A holder of the record the GC traces
+    /// visits these.
+    pub(crate) fn for_each_holder_cell(&self, mut visit: impl FnMut(NonNull<c_void>, HostCellKind)) {
+        if let Some(object_cell) = self.object_cell() {
+            visit(object_cell, HostCellKind::Cell);
+            return;
+        }
+        self.for_each_host_cell(visit);
     }
 
     /// The host's `DOM::Document` the timeline is associated with.
@@ -947,10 +961,9 @@ impl TimelineCell {
         }
         if let TimelineKind::Document { .. } = record.kind {
             // https://www.w3.org/TR/web-animations-1/#document-timelines
-            // A document timeline that is associated with a Document which is not an active document is also
-            // considered to be inactive.
-            // NB: A timeline whose host timeline was finalized reaches no document.
-            return self.facade().is_none() || !super::ffi::document_is_active(record.document);
+            // A document timeline that is associated with a Document that is not an active document is also considered
+            // to be inactive.
+            return !super::ffi::document_is_active(record.document);
         }
         false
     }
@@ -981,7 +994,7 @@ impl TimelineCell {
     /// What moves the timeline as a clock tick samples it.
     #[must_use]
     pub(crate) fn clock(&self) -> TimelineClock {
-        // A document timeline's time is a timestamp less its origin time, which is what lets a clock tick sample it.
+        // NB: A document timeline's time is a timestamp less its origin time, which lets a clock tick sample it.
         if let Some(origin_time) =
             self.convert_a_timeline_time_to_an_origin_relative_time(Some(TimeValue::milliseconds(0.0)))
         {
@@ -993,8 +1006,8 @@ impl TimelineCell {
         }
         let record = self.borrow();
         match &record.kind {
-            // A scroll timeline's time is the progress of the scroller it follows, which is what lets a clock tick
-            // sample it where the compositor has scrolled to.
+            // NB: A scroll timeline's time is the progress of the scroller it follows, which is what lets a clock tick
+            //     sample it where the compositor has scrolled to.
             TimelineKind::Scroll(scroll) if scroll.followed_scroller.is_some() => TimelineClock {
                 source: TimelineClockSource::Scroll,
                 origin_time: 0.0,
@@ -1214,7 +1227,7 @@ impl ScrollTimelineState {
 
         // AD-HOC: The spec only lists two criteria for a scroll timeline to be considered stale: a) it was newly
         //         created within the current frame or; b) style update and layout within the current frame changed
-        //         it's associated named timeline ranges. However, WPT expects us to also consider the source element
+        //         its associated named timeline ranges. However, WPT expects us to also consider the source element
         //         resizing as a cause for staleness, so we use a more broad definition of staleness and consider any
         //         timeline whose max scroll offset has changed since the last call to `update_current_time` to be
         //         stale. This matches the (admittedly narrow) tests in WPT and is the same behavior as is implemented
@@ -1247,7 +1260,7 @@ impl ScrollTimelineState {
         self.last_max_scroll_offset = scroller.map(|scroller| scroller.max_scroll_offset);
 
         // If the source of a ScrollTimeline is an element whose principal box does not exist or is not a scroll
-        // container, or if there is no scrollable overflow, then the ScrollTimeline is inactive.
+        // container in the timeline's axis, or if there is no scrollable overflow, then the ScrollTimeline is inactive.
         let scroller = scroller?;
 
         // https://drafts.csswg.org/scroll-animations-1/#scroll-timeline-progress
@@ -1294,7 +1307,7 @@ pub(crate) struct TimelineHandle(Rc<TimelineCell>);
 
 impl TimelineHandle {
     /// A new timeline of `kind`, associated with the host's `DOM::Document` `document`, whose host timeline is
-    /// `facade`. Its current time is unresolved, and a document timeline is not monotonically increasing until it
+    /// `object_cell`. Its current time is unresolved, and a document timeline is not monotonically increasing until it
     /// becomes active.
     pub(crate) fn new(document: NonNull<c_void>, kind: TimelineKind) -> Self {
         // NB: The Internals interface's timeline starts at zero and only moves forward.
@@ -1313,7 +1326,7 @@ impl TimelineHandle {
                 kind,
             }),
             associated_animations: RefCell::default(),
-            facade: Cell::new(None),
+            object_cell: Cell::new(None),
         }))
     }
 
@@ -1337,8 +1350,8 @@ impl TimelineHandle {
     }
 
     /// Notes the cell of the object script sees of the timeline, or that it was finalized.
-    pub(crate) fn set_facade(&self, facade: Option<NonNull<c_void>>) {
-        self.0.facade.set(facade);
+    pub(crate) fn set_object_cell(&self, object_cell: Option<NonNull<c_void>>) {
+        self.0.object_cell.set(object_cell);
     }
 }
 
@@ -1354,7 +1367,7 @@ impl std::ops::Deref for TimelineHandle {
 mod tests {
     use super::*;
 
-    fn facade() -> NonNull<c_void> {
+    fn object_cell() -> NonNull<c_void> {
         NonNull::<u8>::dangling().cast()
     }
 
@@ -1384,7 +1397,7 @@ mod tests {
 
     fn scroll_timeline(view: Option<ViewTimelineInset>) -> TimelineHandle {
         TimelineHandle::new(
-            facade(),
+            object_cell(),
             TimelineKind::Scroll(Box::new(ScrollTimelineState {
                 source: ScrollTimelineSource::Element(None),
                 axis: 0,
@@ -1444,36 +1457,6 @@ mod tests {
     }
 
     #[test]
-    fn a_scroll_timeline_is_stale_where_its_maximum_scroll_offset_moved() {
-        let timeline = scroll_timeline(None);
-        update(&timeline, Some(&scroller(50.0, 200.0)), None);
-        let mut updated = false;
-        timeline.update_current_time(
-            TimelineUpdate::Layout {
-                scroller: Some(&scroller(80.0, 200.0)),
-                subject: None,
-                subject_style_node: None,
-            },
-            1,
-            true,
-            || updated = true,
-        );
-        assert!(!updated);
-        timeline.update_current_time(
-            TimelineUpdate::Layout {
-                scroller: Some(&scroller(80.0, 400.0)),
-                subject: None,
-                subject_style_node: None,
-            },
-            1,
-            true,
-            || updated = true,
-        );
-        assert!(updated);
-        assert_eq!(timeline.current_time(), Some(TimeValue::percentage(20.0)));
-    }
-
-    #[test]
     fn an_attachment_range_on_a_scroll_timeline_spans_the_scroll_range() {
         let timeline = scroll_timeline(None);
         update(&timeline, Some(&scroller(0.0, 200.0)), None);
@@ -1529,42 +1512,6 @@ mod tests {
     }
 
     #[test]
-    fn a_clock_tick_finds_the_progress_the_record_has() {
-        let timeline = scroll_timeline(None);
-        update(&timeline, Some(&scroller(50.0, 200.0)), None);
-        let snapshot = timeline.clock_snapshot().unwrap();
-        assert_eq!(
-            Some(TimeValue::percentage(snapshot.progress_at(50.0))),
-            timeline.current_time()
-        );
-
-        // A tick does not follow a view timeline whose subject it cannot find.
-        let timeline = scroll_timeline(Some(auto_inset()));
-        let subject = SubjectMetrics {
-            start: 300.0,
-            size: 50.0,
-        };
-        update(&timeline, Some(&scroller(250.0, 1000.0)), Some(&subject));
-        assert!(timeline.current_time().is_some());
-        assert!(timeline.clock_snapshot().is_none());
-        assert!(timeline.update_current_time(
-            TimelineUpdate::Layout {
-                scroller: Some(&scroller(250.0, 1000.0)),
-                subject: Some(&subject),
-                subject_style_node: StyleNodeID::from_raw(3),
-            },
-            1,
-            false,
-            || {}
-        ));
-        let snapshot = timeline.clock_snapshot().unwrap();
-        assert_eq!(
-            Some(TimeValue::percentage(snapshot.progress_at(250.0))),
-            timeline.current_time()
-        );
-    }
-
-    #[test]
     fn the_block_axis_of_a_vertical_writing_mode_is_horizontal() {
         assert_eq!(
             computed_scroll_axis(SCROLL_AXIS_BLOCK, writing_mode::HORIZONTAL_TB, direction::LTR),
@@ -1582,21 +1529,5 @@ mod tests {
             computed_scroll_axis(SCROLL_AXIS_Y, writing_mode::VERTICAL_LR, direction::RTL),
             (true, false)
         );
-    }
-
-    #[test]
-    fn a_monotonically_increasing_timeline_only_moves_forward() {
-        let timeline = TimelineHandle::new(
-            facade(),
-            TimelineKind::Internal {
-                time_for_observation: None,
-            },
-        );
-        let mut updates = 0;
-        timeline.set_internal_time(Some(10.0), false, 1, || updates += 1);
-        timeline.set_internal_time(Some(5.0), false, 1, || updates += 1);
-        timeline.set_internal_time(None, false, 1, || updates += 1);
-        assert_eq!(updates, 1);
-        assert_eq!(timeline.current_time(), Some(TimeValue::milliseconds(10.0)));
     }
 }

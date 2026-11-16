@@ -47,6 +47,14 @@ impl Wrappable for TransitionEvent {
     fn cpp_parent(&self) -> Option<NonNull<c_void>> {
         self.event.as_cpp_parent()
     }
+
+    const FINALIZES: bool = true;
+
+    fn finalize(object: Ref<Self>) {
+        if let Some(animation) = &object.animation {
+            animation.release();
+        }
+    }
 }
 
 impl TransitionEvent {

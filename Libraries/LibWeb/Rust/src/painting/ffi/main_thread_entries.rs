@@ -369,19 +369,6 @@ pub extern "C" fn render_state_begin_compositor_animation_update(host: &crate::r
     host.begin_compositor_animation_update();
 }
 
-/// Publishes the effect's pending animations: they become the ones it retains, and copies join the compositor
-/// animations of the current update pass of `host`'s document.
-///
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_animation_effect_publish_pending(
-    state: &mut crate::painting::visual_animation_builder::CompositorAnimationEffectState,
-    host: &crate::render_state::DocumentHost,
-    reuse_retained_timing_anchors: bool,
-) {
-    let animations = state.publish_pending(reuse_retained_timing_anchors);
-    host.publish_compositor_animations(animations);
-}
-
 /// Ends the current update pass of the compositor animations of `host`'s document, and gives the visual context tree,
 /// prepared up to date, what its effects published where `publish_pending`, or none.
 ///

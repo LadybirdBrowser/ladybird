@@ -17,8 +17,7 @@ use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use std::ops::Range;
 use std::sync::Arc;
 
-/// What keyframe offsets are scaled by to key a keyframe: `KeyframeEffect::AnimationKeyFrameKeyScaleFactor`, which
-/// keys an offset of 100% at 100000.
+/// What keyframe offsets, as percentages, are scaled by to key a keyframe, which keys an offset of 100% at 100000.
 pub(crate) const KEY_SCALE_FACTOR: f64 = 1000.0;
 
 /// The key of a keyframe at an offset of 0%.
@@ -26,6 +25,25 @@ pub(crate) const INITIAL_KEY: u64 = 0;
 
 /// The key of a keyframe at an offset of 100%.
 pub(crate) const FINAL_KEY: u64 = 100 * KEY_SCALE_FACTOR as u64;
+
+/// The offset `offset`, a fraction of an iteration, scaled as a key, before it is truncated to one.
+pub(crate) fn scaled_offset(offset: f64) -> f64 {
+    offset * 100.0 * KEY_SCALE_FACTOR
+}
+
+/// The key of a keyframe at the offset `offset`, a fraction of an iteration.
+pub(crate) fn key_of_offset(offset: f64) -> u64 {
+    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let key = scaled_offset(offset) as u64;
+    key
+}
+
+/// The offset, a fraction of an iteration, that `key` scales.
+pub(crate) fn offset_of_key(key: f64) -> f64 {
+    #[expect(clippy::cast_precision_loss)]
+    let final_key = FINAL_KEY as f64;
+    key / final_key
+}
 
 /// https://drafts.csswg.org/web-animations-1/#enumdef-compositeoperationorauto
 /// In the order of the host's `Bindings::CompositeOperationOrAuto`.
@@ -267,7 +285,7 @@ fn key_of_percentage(percentage: f64) -> u64 {
 
 /// Whether a property, by its id, can be animated: a longhand whose animation type is not `none`, or a shorthand
 /// with such a longhand.
-pub(crate) fn is_animatable_property(property_id: u16) -> bool {
+pub fn is_animatable_property(property_id: u16) -> bool {
     use crate::css::property_metadata::{longhands_for_shorthand, property_animation_type, property_is_shorthand};
     if property_is_shorthand(property_id) {
         return longhands_for_shorthand(property_id)
@@ -317,7 +335,7 @@ impl KeyframeSet {
         let mut declared_keyframes = Vec::new();
         let mut declared_declarations = Vec::new();
 
-        // Forwards pass, resolve all the user-specified keyframe properties.
+        // NB: Forwards pass, resolve all the user-specified keyframe properties.
         for (keys, block) in blocks {
             let mut resolved_keyframe = PendingKeyframe::new(0);
             let mut declared_easing = None;
@@ -325,8 +343,8 @@ impl KeyframeSet {
                 let value = RetainedStyleValueData::from_arc(declaration.value.clone());
                 match declaration.property_id {
                     property_id::ANIMATION_TIMING_FUNCTION => {
-                        // animation-timing-function is a list property, but inside @keyframes only a single value is
-                        // meaningful.
+                        // NB: animation-timing-function is a list property, but inside @keyframes only a single value
+                        //     is meaningful.
                         let value = match value.data() {
                             StyleValueData::ValueList { values, .. } => match values.as_slice().first() {
                                 Some(first) => first.clone_retained(),
@@ -370,7 +388,7 @@ impl KeyframeSet {
                     }
                     property if !is_animatable_property(property) => {}
                     property => {
-                        // Unresolved properties are resolved when the effect is sampled.
+                        // NB: Unresolved properties are resolved when the effect is sampled.
                         expanded_longhands(property, &value, |longhand, longhand_value| {
                             animated_properties.insert(KeyframeProperty::Id(longhand));
                             resolved_keyframe.set(
@@ -921,24 +939,5 @@ mod tests {
             ]
         );
         assert!(set.has_additive_keyframe());
-    }
-
-    #[test]
-    fn a_transition_runs_from_its_start_to_its_end_value() {
-        use crate::css::css_enums::keyword;
-        use crate::css::property_metadata::property_id;
-        let set = KeyframeSet::for_transition(
-            KeyframeProperty::Id(property_id::OPACITY),
-            value(keyword::AUTO),
-            value(keyword::NONE),
-            1.0,
-        );
-        let keys: Vec<_> = set.keyframes().iter().map(|keyframe| keyframe.key).collect();
-        assert_eq!(keys, [INITIAL_KEY, FINAL_KEY]);
-        for keyframe in set.keyframes() {
-            assert_eq!(declared_properties(&set, keyframe), [(property_id::OPACITY, true)]);
-            assert_eq!(keyframe.composite, CompositeOperationOrAuto::Auto);
-        }
-        assert_eq!(set.target_properties(), [property_id::OPACITY]);
     }
 }

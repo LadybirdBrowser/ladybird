@@ -8,7 +8,6 @@
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Animations/AnimationEffect.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
@@ -16,6 +15,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
@@ -69,25 +69,19 @@ AnimationUpdateContext::AnimationUpdateContext() = default;
 
 extern "C" {
 
-// Declared in Bindings/Rust/src/animations/animation_effect.rs and keyframe_effect.rs.
+// Declared in Bindings/Rust/src/animations/animation_effect.rs and keyframe_effect.rs, and in
+// Bindings/Rust/src/dom/document.rs.
 void web_animation_effect_visit_host_cells(RustFFI::AnimationEffectCell const*, void* visitor);
 void web_animation_effect_set_target(RustFFI::AnimationEffectCell const*, DOM::Element*, bool update);
-void web_animation_effect_invalidate(RustFFI::AnimationEffectCell const*);
-void web_animation_effect_set_composite(RustFFI::AnimationEffectCell const*, CSS::StyleValueFFI::FfiCompositeOperation);
 void web_animation_effect_set_keyframe_set(RustFFI::AnimationEffectCell const*, RustFFI::KeyframeSet const*);
 DOM::Element* web_animation_element_of_wrapper(JSObject*);
 JSObject* web_animation_wrap_element(void* realm, DOM::Element*);
-void* web_animation_document_timeline(JSObject* document_wrapper);
-}
-
-EffectRef EffectRef::create_keyframe_effect()
-{
-    return EffectRef::adopt(*RustFFI::animations_effect_create());
+DOM::Document* web_animation_document_of_wrapper(JSObject* document_wrapper);
 }
 
 void EffectRef::visit_edges(GC::Cell::Visitor& visitor) const
 {
-    if (auto* effect = static_cast<GC::Cell*>(RustFFI::animations_effect_facade(&record()))) {
+    if (auto* effect = static_cast<GC::Cell*>(RustFFI::animations_effect_object_cell(&record()))) {
         visitor.visit(effect);
         return;
     }
@@ -103,24 +97,35 @@ void web_animation_effect_visit_host_cells(RustFFI::AnimationEffectCell const* r
     cell_visitor.visit(effect.target());
 }
 
+// Sets the target element, and where `update`, notes what the keyframes read of it and invalidates the style the effect
+// produces.
 void web_animation_effect_set_target(RustFFI::AnimationEffectCell const* record, DOM::Element* target, bool update)
 {
-    EffectRef { *record }.set_target(target, update ? EffectRef::InvalidateEffect::Yes : EffectRef::InvalidateEffect::No);
+    EffectRef effect { *record };
+    // NB: The record associates the associated animation with the new target rather than the old.
+    RustFFI::animations_effect_set_target_element(record, target, web_animation_perform_host_effect);
+    if (!update)
+        return;
+
+    if (target)
+        CSS::record_attr_names_read_by_keyframes(*target, effect.keyframe_set());
+    effect.invalidate();
+    // FIXME: We don't remove the animated style from the old target element as part of normal animated style update and
+    //        it will remain "stuck" until its style is fully invalidated for some other reason.
 }
 
-void web_animation_effect_invalidate(RustFFI::AnimationEffectCell const* record)
+// Sets the keyframes the effect runs, invalidating the style it produces where they change.
+void web_animation_effect_set_keyframe_set(RustFFI::AnimationEffectCell const* record, RustFFI::KeyframeSet const* keyframe_set_pointer)
 {
-    EffectRef { *record }.invalidate();
-}
+    EffectRef effect { *record };
+    auto keyframe_set = KeyframeSetHandle::adopt(keyframe_set_pointer);
+    if (effect.keyframe_set() == keyframe_set)
+        return;
 
-void web_animation_effect_set_composite(RustFFI::AnimationEffectCell const* record, CSS::StyleValueFFI::FfiCompositeOperation composite)
-{
-    EffectRef { *record }.set_composite(composite);
-}
-
-void web_animation_effect_set_keyframe_set(RustFFI::AnimationEffectCell const* record, RustFFI::KeyframeSet const* keyframe_set)
-{
-    EffectRef { *record }.set_keyframe_set(KeyframeSetHandle::adopt(keyframe_set));
+    RustFFI::animations_effect_set_keyframe_set(record, keyframe_set.ptr());
+    if (auto* target = effect.target())
+        CSS::record_attr_names_read_by_keyframes(*target, effect.keyframe_set());
+    effect.invalidate();
 }
 
 DOM::Element* web_animation_element_of_wrapper(JSObject* wrapper)
@@ -140,10 +145,9 @@ JSObject* web_animation_wrap_element(void* realm, DOM::Element* element)
     return wrap_in_realm(realm, *element);
 }
 
-void* web_animation_document_timeline(JSObject* document_wrapper)
+DOM::Document* web_animation_document_of_wrapper(JSObject* document_wrapper)
 {
-    auto& document = *Bindings::impl_from<DOM::Document>(JS::HostABI::object_from_abi(document_wrapper));
-    return document.timeline().ptr();
+    return Bindings::impl_from<DOM::Document>(JS::HostABI::object_from_abi(document_wrapper));
 }
 
 AnimationUpdateContext::~AnimationUpdateContext()
@@ -181,12 +185,20 @@ void AnimationUpdateContext::publish()
         // style. Collect them first, in composite order below every associated effect, or this
         // update would rebuild the style without them.
         Vector<EffectRef> effects_to_collect;
-        target->document().style_computer().for_each_provisional_transition_effect(element, [&](EffectRef const& effect) {
-            effects_to_collect.append(effect);
-        });
+        RustFFI::FfiOwningElement owner {
+            .element = target.ptr(),
+            .pseudo_element = element.pseudo_element().has_value() ? to_underlying(*element.pseudo_element()) : u8 { 0 },
+            .has_pseudo_element = element.pseudo_element().has_value(),
+        };
+        for (size_t index = 0;; ++index) {
+            auto const* effect = RustFFI::animations_document_animations_proposed_transition_effect(&target->document().document_animations(), owner, index);
+            if (!effect)
+                break;
+            effects_to_collect.append(EffectRef { *effect });
+        }
         for (auto const& animation : target->associated_animations_in_composite_order()) {
             auto effect = animation.effect();
-            if (!effect.has_value() || animation.timing_state().play_state == RustFFI::AnimationPlayState::Idle)
+            if (!effect.has_value() || animation.play_state() == RustFFI::AnimationPlayState::Idle)
                 continue;
             if (effect->target() != target.ptr() || effect->pseudo_element_type() != element.pseudo_element())
                 continue;
@@ -233,9 +245,9 @@ void AnimationUpdateContext::publish()
         // A timeline script observed ahead of its current time in this task is sampled at that time, as an update of the
         // effects needing it is, or the style installed here and the one that update sampled would keep disagreeing about
         // an effect that ended between the two times.
-        AnimationTimeline::at_times_observed_ahead(document.associated_animation_timelines().begin(), document.associated_animation_timelines().end(), [&] {
-            style_computer.refresh_animations_into_each(read, requests);
-        });
+        auto refresh = [&] { style_computer.refresh_animations_into_each(read, requests); };
+        using Refresh = decltype(refresh);
+        RustFFI::animations_document_animations_at_times_observed_ahead(&document.document_animations(), &refresh, [](void* context) { (*static_cast<Refresh*>(context))(); });
 
         publications.clear_with_capacity();
         overlays.clear_with_capacity();

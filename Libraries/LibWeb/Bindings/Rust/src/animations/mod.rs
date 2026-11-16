@@ -13,7 +13,6 @@ pub(crate) mod animation_playback_event;
 pub(crate) mod animation_timeline;
 pub(crate) mod document_or_shadow_root;
 pub(crate) mod document_timeline;
-pub(crate) mod exports;
 pub(crate) mod keyframe_effect;
 pub(crate) mod scroll_timeline;
 pub(crate) mod view_timeline;

@@ -216,6 +216,8 @@ impl ViewTimeline {
     pub(crate) fn start_offset(&self, cx: &mut CallContext) -> WebIdlResult<AnyCSSNumericValue> {
         // Represents the starting (0% progress) scroll position of the view progress timeline as a length offset (in
         // px) from the scroll origin.
+        // Null when the timeline is inactive.
+        // AD-HOC: The attribute is not nullable in the IDL, so an inactive timeline gives 0px.
         let start = self.record().cover_range().map_or(0.0, |(start, _)| start);
         Ok(AnyCSSNumericValue::CSSUnitValue(CSSUnitValue::create(
             cx.vm(),
@@ -228,6 +230,8 @@ impl ViewTimeline {
     pub(crate) fn end_offset(&self, cx: &mut CallContext) -> WebIdlResult<AnyCSSNumericValue> {
         // Represents the ending (100% progress) scroll position of the view progress timeline as a length offset (in
         // px) from the scroll origin.
+        // Null when the timeline is inactive.
+        // AD-HOC: The attribute is not nullable in the IDL, so an inactive timeline gives 0px.
         let end = self.record().cover_range().map_or(0.0, |(_, end)| end);
         Ok(AnyCSSNumericValue::CSSUnitValue(CSSUnitValue::create(
             cx.vm(),

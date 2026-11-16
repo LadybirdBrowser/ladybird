@@ -21,7 +21,6 @@ use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, cell_into_a
 use crate::bindings::{CallContext, WebIdlResult};
 
 unsafe extern "C" {
-    fn web_scroll_timeline_source(timeline: *mut c_void) -> *mut c_void;
     fn web_animation_document_scrolling_element(document: *mut c_void) -> *mut c_void;
 }
 
@@ -126,8 +125,7 @@ impl ScrollTimeline {
     pub(crate) fn source(&self, cx: &mut CallContext) -> WebIdlResult<Option<CppInterface>> {
         // NB: The host finds the scroll container element an anonymous source names from its target, and the source of a
         //     view timeline from its subject.
-        // SAFETY: The cell is that of this live timeline.
-        let source = NonNull::new(unsafe { web_scroll_timeline_source(self.timeline.cell()) });
+        let source = self.timeline.record().source_element();
         Ok(source.map(|source| element_wrapper(cx, source)))
     }
 

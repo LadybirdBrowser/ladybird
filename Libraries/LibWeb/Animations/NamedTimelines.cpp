@@ -6,7 +6,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Animations/NamedTimelines.h>
-#include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -14,7 +13,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::Animations {
 
@@ -36,10 +35,8 @@ void NamedTimelines::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_document);
     for (auto& declaring_element : m_declaring_elements)
         visitor.visit(declaring_element.element);
-    for (auto& [key, timeline] : m_timelines) {
+    for (auto& [key, timeline] : m_timelines)
         visitor.visit(key.element);
-        visitor.visit(timeline);
-    }
 }
 
 NamedTimelines::Declaration const* NamedTimelines::DeclaringElement::declaration_named(Utf16FlyString const& name) const
@@ -103,11 +100,17 @@ void NamedTimelines::refresh_declarations()
 
         DeclaringElement declaring_element { .element = *element, .declarations = {}, .scopes_all_names = false, .scoped_names = {} };
         CSS::ComputedValuesFFI::rust_animation_values_timeline_declarations(&values, &declaring_element, [](void* context, CSS::ComputedValuesFFI::FfiTimelineDeclaration const* declaration) {
+            // NB: The style engine hands over a reference to a calculated inset, which may be null.
+            auto retain = [](void const* value) {
+                return value ? CSS::RustStyleValueHandle::retained(static_cast<CSS::StyleValueFFI::StyleValueData const*>(value)) : CSS::RustStyleValueHandle {};
+            };
+            auto const& inset = declaration->view_inset;
             static_cast<DeclaringElement*>(context)->declarations.append({
                 .name = CSS::css_string_from_rust(declaration->name),
                 .is_view = declaration->is_view,
-                .axis = scroll_axis_from_css_axis(static_cast<CSS::Axis>(declaration->axis)),
-                .view_inset = view_timeline_inset_from_ffi(declaration->view_inset),
+                .axis = declaration->axis,
+                .view_inset_start = { inset.start_is_auto, inset.start_px, inset.start_percentage, retain(inset.start_calculated) },
+                .view_inset_end = { inset.end_is_auto, inset.end_px, inset.end_percentage, retain(inset.end_calculated) },
             });
         });
         auto scope = CSS::ComputedValuesFFI::rust_animation_values_timeline_scope(&values, &declaring_element, [](void* context, CSS::StyleValueFFI::CssString const* name) {
@@ -135,31 +138,39 @@ NamedTimelines::DeclaringElement const* NamedTimelines::declaring_element(DOM::E
     return &m_declaring_elements[*index];
 }
 
-GC::Ref<AnimationTimeline> NamedTimelines::timeline_for(DOM::Element& element, Declaration const& declaration)
+TimelineView NamedTimelines::timeline_for(DOM::Element& element, Declaration const& declaration)
 {
+    auto edge = [](ViewTimelineInsetEdge const& edge) -> RustFFI::FfiViewTimelineInsetEdge {
+        return { .is_auto = edge.is_auto, .px = edge.px, .percentage = edge.percentage, .calculated = edge.calculated.data() };
+    };
+    RustFFI::FfiViewTimelineInset inset { .start = edge(declaration.view_inset_start), .end = edge(declaration.view_inset_end) };
+
     TimelineKey key { element, declaration.name };
-    if (auto existing = m_timelines.get(key); existing.has_value()) {
+    if (auto existing = m_timelines.get(key); existing.has_value() && existing->is_view_timeline() == declaration.is_view) {
         // An element may only define one timeline per name, which keeps its identity while its axis and inset change.
-        if (existing.value()->is_view_timeline() && declaration.is_view) {
-            existing.value()->set_axis_and_inset(declaration.axis, declaration.view_inset);
-            return *existing;
-        }
-        if (!existing.value()->is_view_timeline() && !declaration.is_view) {
-            existing.value()->set_axis(declaration.axis);
-            return *existing;
-        }
+        // NB: The animations the timeline updates as they change stay alive through it, which can run script.
+        GC::RootVector<AnimationRef> updated_animations;
+        RustFFI::FfiTimelineAnimationsHost host { .context = &updated_animations, .keep_alive = keep_animation_alive_in, .perform = web_animation_perform_host_effect };
+        RustFFI::animations_scroll_timeline_set_axis_and_inset(&existing->record(), declaration.axis, declaration.is_view ? &inset : nullptr, &host);
+        return *existing;
     }
 
-    HTML::TemporaryExecutionContext context { m_document->relevant_settings_object() };
-    auto timeline = declaration.is_view
-        ? AnimationTimeline::create_view_timeline(m_document, DOM::AbstractElement { element }, declaration.axis, declaration.view_inset)
-        : AnimationTimeline::create_scroll_timeline(m_document, GC::Ptr<DOM::Element const> { &element }, declaration.axis);
+    RustFFI::FfiTimelineDescription description {
+        .kind = declaration.is_view ? RustFFI::FfiTimelineKind::View : RustFFI::FfiTimelineKind::Scroll,
+        .origin_time = 0,
+        .source = declaration.is_view
+            ? RustFFI::FfiScrollTimelineSource { .element = nullptr, .is_anonymous = true, .scroller = to_underlying(CSS::Scroller::Nearest), .target = &element, .pseudo_element = 0, .has_pseudo_element = false }
+            : RustFFI::FfiScrollTimelineSource { .element = &element, .is_anonymous = false, .scroller = 0, .target = nullptr, .pseudo_element = 0, .has_pseudo_element = false },
+        .axis = declaration.axis,
+        .inset = inset,
+    };
+    TimelineView timeline { *RustFFI::animations_document_create_timeline(m_document.ptr(), &description) };
     m_timelines.set(key, timeline);
     return timeline;
 }
 
 // https://drafts.csswg.org/scroll-animations-1/#target-timeline
-GC::Ptr<AnimationTimeline> NamedTimelines::target_timeline(DOM::AbstractElement const& element, Utf16FlyString const& name)
+Optional<TimelineView> NamedTimelines::target_timeline(DOM::AbstractElement const& element, Utf16FlyString const& name)
 {
     refresh_declarations();
 
@@ -200,7 +211,7 @@ GC::Ptr<AnimationTimeline> NamedTimelines::target_timeline(DOM::AbstractElement 
                 if (declaration && is_in_scope_of(candidate.element, current_element))
                     return timeline_for(candidate.element, *declaration);
             }
-            return nullptr;
+            return {};
         }
 
         // Otherwise, the target timeline for element's flat tree parent referencing name.
@@ -209,12 +220,30 @@ GC::Ptr<AnimationTimeline> NamedTimelines::target_timeline(DOM::AbstractElement 
             break;
         current = DOM::AbstractElement { *parent };
     }
-    return nullptr;
+    return {};
 }
 
-void NamedTimelines::track_animation(AnimationRef const& animation)
+namespace {
+
+// What looking up the named timelines of the CSS animations of the document again asks of the host.
+struct NamedTimelinesHostContext {
+    GC::Ref<NamedTimelines> named_timelines;
+    // NB: The animations stay alive while their timelines are looked up, which can run script.
+    GC::RootVector<AnimationRef> animations;
+};
+
+RustFFI::TimelineCell const* target_timeline_of_owner(void* context, RustFFI::FfiOwningElement owner, size_t name)
 {
-    m_document->animations_following_named_timelines().set(animation);
+    DOM::AbstractElement target { *static_cast<DOM::Element*>(owner.element), owner.has_pseudo_element ? static_cast<CSS::PseudoElement>(owner.pseudo_element) : Optional<CSS::PseudoElement> {} };
+    auto timeline = static_cast<NamedTimelinesHostContext*>(context)->named_timelines->target_timeline(target, Utf16FlyString::from_raw(name));
+    return timeline.has_value() ? &timeline->record() : nullptr;
+}
+
+void keep_alive(void* context, RustFFI::AnimationCell const* animation)
+{
+    keep_animation_alive_in(&static_cast<NamedTimelinesHostContext*>(context)->animations, animation);
+}
+
 }
 
 bool NamedTimelines::update_tracked_animations()
@@ -223,15 +252,15 @@ bool NamedTimelines::update_tracked_animations()
     if (!m_tracked_animations_need_update)
         return false;
     m_tracked_animations_need_update = false;
-    GC::RootVector<AnimationRef> animations;
-    for (auto const& animation : m_document->animations_following_named_timelines())
-        animations.append(animation);
-    bool any_timeline_changed = false;
-    for (auto const& animation : animations) {
-        if (CSS::CSSAnimation::update_named_timeline(animation))
-            any_timeline_changed = true;
-    }
-    return any_timeline_changed;
+    NamedTimelinesHostContext context { *this, {} };
+    RustFFI::FfiNamedTimelinesHost host {
+        .context = &context,
+        .target_timeline = target_timeline_of_owner,
+        .keep_alive = keep_alive,
+        .in_execution_context = in_execution_context_of_animation,
+        .perform = web_animation_perform_host_effect,
+    };
+    return m_document->update_named_timelines_of_animations(host);
 }
 
 }

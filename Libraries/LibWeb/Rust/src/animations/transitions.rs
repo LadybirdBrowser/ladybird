@@ -19,8 +19,6 @@ use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::transition::{FfiExistingTransition, FfiLaneTransition};
 
 /// Who started a transition the element comes to hold.
-#[expect(dead_code, reason = "C++ constructs the variants")]
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransitionOrigin {
     /// A style change event of the host's.
@@ -31,7 +29,6 @@ pub enum TransitionOrigin {
 
 /// What becomes of a running transition of the host's as it takes in what the hover of a clock lane left the element
 /// running.
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LaneAdoption {
     /// The transition stands: the lane runs it as the host does, or the lane's steps saw it without ending it.
@@ -106,7 +103,7 @@ impl AnimationRecord {
     /// a custom property.
     pub(crate) fn existing_transition(&self, t: f64) -> FfiExistingTransition {
         let state = self.css_transition();
-        let running = !self.playback().is_finished && self.timing_state(None).play_state != AnimationPlayState::Idle;
+        let running = !self.playback().is_finished && self.play_state() != AnimationPlayState::Idle;
         FfiExistingTransition {
             property_id: state.property_id,
             custom_name: state.custom_property_name.raw(),

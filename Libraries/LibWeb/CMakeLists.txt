@@ -3,8 +3,6 @@ include(libweb_generators)
 set(SOURCES
     Animations/Animatable.cpp
     Animations/AnimationEffect.cpp
-    Animations/AnimationTimeline.cpp
-    Animations/TimeValue.cpp
     Animations/NamedTimelines.cpp
     Animations/RecordHandles.cpp
     ARIA/AriaData.cpp
@@ -61,7 +59,6 @@ set(SOURCES
     CSS/CustomPropertyRegistration.cpp
     CSS/GeneratedContent.cpp
     CSS/CSS.cpp
-    CSS/CSSAnimation.cpp
     CSS/CSSDescriptors.cpp
     CSS/CSSFontFaceRule.cpp
     CSS/CSSFontFeatureValuesRule.cpp
@@ -76,7 +73,6 @@ set(SOURCES
     CSS/CSSStyleProperties.cpp
     CSS/CSSStyleRule.cpp
     CSS/CSSStyleSheet.cpp
-    CSS/CSSTransition.cpp
     CSS/ColorFunctionDescriptor.cpp
     CSS/CustomPropertyData.cpp
     CSS/Descriptor.cpp
@@ -171,7 +167,6 @@ set(SOURCES
     CSS/Supports.cpp
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp
     CSS/Time.cpp
-    CSS/TypedOM.cpp
     CSS/URL.cpp
     CSS/UpdateStyle.cpp
     CSS/ValueType.cpp
@@ -703,7 +698,6 @@ set(SOURCES
     Painting/DocumentPaintState.cpp
     Painting/HitTestDisplayList.cpp
     Painting/HitTestResult.cpp
-    Painting/CompositorAnimationEffectState.cpp
     Painting/PaintingRustBridge.cpp
     Painting/ResizeHandle.cpp
     Painting/Scrolling.cpp

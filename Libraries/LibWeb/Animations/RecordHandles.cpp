@@ -8,7 +8,6 @@
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Animations/AnimationEffect.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
@@ -41,7 +40,6 @@
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/Painting/CompositorAnimationEffectState.h>
 #include <LibWeb/Painting/Scrolling.h>
 #include <LibWeb/SVG/SVGAnimationElement.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -62,25 +60,15 @@ void visit_host_cell(void* visitor, void* cell, RustFFI::HostCellKind kind)
     VERIFY_NOT_REACHED();
 }
 
-extern "C" {
-
-// Declared in Bindings/Rust/src/css/animation_event.rs.
-void web_animation_visit_host_cells(RustFFI::AnimationCell const*, void* visitor);
-}
-
-void web_animation_visit_host_cells(RustFFI::AnimationCell const* animation, void* visitor)
-{
-    RustFFI::animations_animation_visit_host_cells(animation, visitor, visit_host_cell);
-}
-
 void keep_animation_alive_in(void* root_vector, RustFFI::AnimationCell const* animation)
 {
     static_cast<GC::RootVector<AnimationRef>*>(root_vector)->append(AnimationRef { *animation });
 }
 
-i32 AnimationRef::composite_order(AnimationRef const& a, AnimationRef const& b)
+void in_execution_context_of_animation(void*, RustFFI::AnimationCell const* animation, void (*run)(void*), void* run_context)
 {
-    return RustFFI::animations_composite_order(&a.record(), &b.record(), compare_elements_in_tree_order_for_composite_order);
+    HTML::TemporaryExecutionContext execution_context { HTML::relevant_realm(relevant_global_object_of(AnimationRef { *animation })) };
+    run(run_context);
 }
 
 Optional<CSS::PseudoElement> EffectRef::pseudo_element_type() const
@@ -91,45 +79,20 @@ Optional<CSS::PseudoElement> EffectRef::pseudo_element_type() const
     return static_cast<CSS::PseudoElement>(pseudo_element.kind);
 }
 
-Optional<DOM::AbstractElement> EffectRef::target_abstract_element() const
+void EffectRef::invalidate() const
 {
+    RustFFI::animations_effect_forget_what_the_host_concluded(&record());
     if (auto* target = this->target())
-        return DOM::AbstractElement { *target, pseudo_element_type() };
-    return {};
+        target->document().set_needs_animated_style_update(*this);
 }
 
-CSS::EasingFunction::Descriptor EffectRef::timing_function_with_points_in(Vector<CSS::EasingFunction::LinearPoint>& storage) const
-{
-    auto descriptor = RustFFI::animations_effect_timing_function(&record()).descriptor;
-    storage.append(descriptor.linear_points, descriptor.linear_point_count);
-    descriptor.linear_points = storage.data();
-    descriptor.linear_point_count = storage.size();
-    return descriptor;
-}
+// What the animation records ask of the host.
+extern "C" void web_animation_set_needs_animated_style_update(void const* effect, DOM::Element* target);
+extern "C" RustFFI::FfiTargetFacts web_animation_target_facts(DOM::Element* target, u32 wanted);
 
-RustFFI::FfiResolvedEffectTiming EffectRef::resolve_timing() const
+void web_animation_set_needs_animated_style_update(void const* effect, DOM::Element* target)
 {
-    auto animation = associated_animation();
-    auto local_time = animation.has_value() ? animation->timing_state().current_time : to_ffi(Optional<TimeValue> {});
-    return RustFFI::animations_effect_resolve_timing(&record(), local_time, timing().fill_mode, animation.has_value() ? &animation->record() : nullptr, false);
-}
-
-Painting::CompositorAnimationEffectState EffectRef::compositor_animation_state() const
-{
-    return Painting::CompositorAnimationEffectState { RustFFI::animations_effect_compositor_animation_state(&record(), RustFFI::CompositorAnimationStateAccess::CreateIfMissing) };
-}
-
-Optional<Painting::CompositorAnimationEffectState> EffectRef::existing_compositor_animation_state() const
-{
-    if (auto* state = RustFFI::animations_effect_compositor_animation_state(&record(), RustFFI::CompositorAnimationStateAccess::Existing))
-        return Painting::CompositorAnimationEffectState { state };
-    return {};
-}
-
-bool EffectRef::has_retained_compositor_animations() const
-{
-    auto state = existing_compositor_animation_state();
-    return state.has_value() && state->has_retained();
+    target->document().set_needs_animated_style_update(EffectRef { *static_cast<RustFFI::AnimationEffectCell const*>(effect) });
 }
 
 // Whether nothing shows the target's style, as a display: none ancestor leaves the target without a box.
@@ -148,247 +111,6 @@ static bool target_is_unseen_in_display_none_subtree(DOM::Element const& target)
     return !has_referenceable_svg_element;
 }
 
-// NB: A custom property can feed the display of the target through var().
-bool EffectRef::may_animate_display() const
-{
-    return any_of(target_properties(), [](auto const& property) {
-        return property.id() == CSS::PropertyID::Display || property.is_custom_property();
-    });
-}
-
-bool EffectRef::can_skip_per_frame_style_update() const
-{
-    if (is_compositor_driven() || is_compositor_replaced())
-        return true;
-    if (is_offscreen_throttled() && all_of(target_properties(), [](auto const& property) {
-            return !first_is_one_of(property.id(), CSS::PropertyID::Transform, CSS::PropertyID::Translate, CSS::PropertyID::Rotate, CSS::PropertyID::Scale);
-        }))
-        return true;
-
-    auto* target = this->target();
-    if (!target)
-        return false;
-
-    // An animation inside a box-less iframe can't affect its embedding document's rendering. Check the containers
-    // before the target-local cache, since their layout can change without changing the target's style or layout box.
-    // Reverse playback and effects with a finite end time need ticks to finish, even with an infinite iteration count.
-    auto const timing = this->timing();
-    if (auto animation = associated_animation(); animation.has_value()) {
-        auto const state = animation->timing_state();
-        if (state.playback.playback_rate > 0 && isinf(timing.iteration_count) && isinf(state.end_time.value)) {
-            for (auto navigable = target->document().navigable(); navigable;) {
-                auto container = navigable->container();
-                if (!container)
-                    break;
-                if (container->document().layout_is_up_to_date() && !container->has_layout_box())
-                    return true;
-                navigable = container->document().navigable();
-            }
-        }
-    }
-
-    Layout::ForcedReadScope read { target->document() };
-    auto skip_key = [&] {
-        return RustFFI::PerFrameStyleUpdateSkipKey {
-            .target_style_generation = target->animation_style_generation(),
-            .target_subtree_style_generation = target->animation_subtree_style_generation(),
-            .layout_node = bit_cast<FlatPtr>(target->unsafe_layout_node(read)),
-            .target_is_connected = target->is_connected(),
-        };
-    };
-    auto cache_result = [&](bool result) {
-        if (target->document().layout_is_up_to_date()) {
-            auto key = skip_key();
-            RustFFI::animations_effect_note_per_frame_style_update_skip_decision(&record(), &key, result);
-        }
-        return result;
-    };
-    if (target->document().layout_is_up_to_date()) {
-        auto key = skip_key();
-        switch (RustFFI::animations_effect_per_frame_style_update_skip_decision(&record(), &key)) {
-        case RustFFI::PerFrameStyleUpdateSkipDecision::CanSkip:
-            HTML::note_rendering_trace_event("animation style skip cache hit"sv);
-            return true;
-        case RustFFI::PerFrameStyleUpdateSkipDecision::CannotSkip:
-            HTML::note_rendering_trace_event("animation style skip cache hit"sv);
-            return false;
-        case RustFFI::PerFrameStyleUpdateSkipDecision::Stale:
-            HTML::note_rendering_trace_event("animation style skip cache miss"sv);
-            break;
-        case RustFFI::PerFrameStyleUpdateSkipDecision::Unknown:
-            break;
-        }
-    }
-
-    // Restrict throttling within a rendered document to infinite transform-only effects until animation overflow
-    // updates can also be throttled safely.
-    if (!isinf(timing.iteration_count) || pseudo_element_type().has_value())
-        return cache_result(false);
-
-    if (!target->is_connected())
-        return cache_result(true);
-    if (target->document().layout_is_up_to_date() && !may_animate_display() && target_is_unseen_in_display_none_subtree(*target))
-        return cache_result(true);
-    if (!keyframe_set())
-        return false;
-    if (target_properties().is_empty() || any_of(target_properties(), [](auto const& property) {
-            return !first_is_one_of(property.id(),
-                CSS::PropertyID::Transform,
-                CSS::PropertyID::Translate,
-                CSS::PropertyID::Rotate,
-                CSS::PropertyID::Scale);
-        }))
-        return cache_result(false);
-
-    // NB: Transforms cannot affect rendering without a layout box. This also covers SVG content inside
-    //     display-none subtrees and closed details elements.
-    if (target->document().layout_is_up_to_date() && !target->has_layout_box())
-        return cache_result(true);
-    if (target->namespace_uri() == Namespace::SVG)
-        return cache_result(false);
-
-    if (is_offscreen_throttled())
-        return cache_result(true);
-
-    if (!target->document().layout_is_up_to_date())
-        return false;
-    auto const* layout_node = target->unsafe_layout_node(read);
-    if (!layout_node || layout_node->visibility() != CSS::Visibility::Hidden)
-        return cache_result(false);
-
-    bool has_visible_descendant = false;
-    layout_node->for_each_in_inclusive_subtree_of_type<Layout::NodeWithStyle>([&](auto const& descendant) {
-        if (descendant.visibility() != CSS::Visibility::Visible)
-            return TraversalDecision::Continue;
-        has_visible_descendant = true;
-        return TraversalDecision::Break;
-    });
-    if (has_visible_descendant)
-        return cache_result(false);
-
-    return cache_result(true);
-}
-
-void EffectRef::set_composite(CSS::StyleValueFFI::FfiCompositeOperation composite) const
-{
-    RustFFI::animations_effect_set_composite(&record(), composite);
-    invalidate();
-}
-
-void EffectRef::set_keyframe_set(KeyframeSetHandle keyframe_set) const
-{
-    if (this->keyframe_set() == keyframe_set)
-        return;
-
-    if (!RustFFI::animations_effect_set_keyframe_set(&record(), keyframe_set.ptr()))
-        return;
-    if (auto* target = this->target())
-        CSS::record_attr_names_read_by_keyframes(*target, this->keyframe_set());
-    invalidate();
-}
-
-void EffectRef::set_target(DOM::Element* target, InvalidateEffect invalidate) const
-{
-    // NB: The record associates the associated animation with the new target rather than the old.
-    RustFFI::animations_effect_set_target_element(&record(), target, perform_host_effect);
-    if (invalidate == InvalidateEffect::No)
-        return;
-
-    if (target)
-        CSS::record_attr_names_read_by_keyframes(*target, keyframe_set());
-    this->invalidate();
-    // FIXME: We don't remove the animated style from the old target element as part of normal animated style update and
-    //        it will remain "stuck" until it's style is fully invalidated for some other reason.
-}
-
-void EffectRef::set_target(DOM::AbstractElement abstract_element, InvalidateEffect invalidate) const
-{
-    if (invalidate == InvalidateEffect::Yes) {
-        set_target(&abstract_element.element());
-    } else {
-        VERIFY(!associated_animation().has_value());
-        set_target(&abstract_element.element(), InvalidateEffect::No);
-        CSS::record_attr_names_read_by_keyframes(abstract_element.element(), keyframe_set());
-    }
-    set_pseudo_element(abstract_element.pseudo_element());
-}
-
-void EffectRef::set_pseudo_element(Optional<CSS::PseudoElement> pseudo_element) const
-{
-    if (!pseudo_element.has_value()) {
-        RustFFI::animations_effect_set_pseudo_element(&record(), { .kind = 0, .serialization = 0 });
-        return;
-    }
-    Utf16FlyString serialization { CSS::Selector::PseudoElementSelector { *pseudo_element }.serialize() };
-    RustFFI::animations_effect_set_pseudo_element(&record(), { .kind = to_underlying(*pseudo_element), .serialization = serialization.raw_identity() });
-}
-
-void EffectRef::invalidate() const
-{
-    RustFFI::animations_effect_forget_what_the_host_concluded(&record());
-    if (auto* target = this->target())
-        target->document().set_needs_animated_style_update(*this);
-}
-
-void EffectRef::request_observation_sample() const
-{
-    if (set_flag(RustFFI::EffectFlag::NeedsObservationSample, true))
-        note_observation_sample_requested();
-}
-
-bool EffectRef::request_element_scoped_observation_sample(u64 task_generation) const
-{
-    switch (RustFFI::animations_effect_request_observation_sample_in_task(&record(), task_generation)) {
-    case RustFFI::ObservationSampleRequest::AlreadyRequestedInTask:
-        return false;
-    case RustFFI::ObservationSampleRequest::Requested:
-        return true;
-    case RustFFI::ObservationSampleRequest::NewlyRequested:
-        note_observation_sample_requested();
-        return true;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-void EffectRef::note_observation_sample_requested() const
-{
-    if (auto* target = this->target())
-        target->document().set_needs_animated_style_update(*this);
-}
-
-bool EffectRef::can_skip_per_frame_animation_tick() const
-{
-    auto animation = associated_animation();
-    auto const state = animation.has_value() ? animation->timing_state() : RustFFI::FfiAnimationTimingState {};
-    auto const phase = animation.has_value() ? state.phase : resolve_timing().phase;
-    auto const timing = this->timing();
-
-    if (animation.has_value() && !state.playback.has_pending_play_task && !state.playback.has_pending_pause_task
-        && state.play_state == RustFFI::AnimationPlayState::Running
-        && state.playback.playback_rate > 0
-        && state.has_monotonically_increasing_timeline
-        && phase == RustFFI::AnimationEffectPhase::Before)
-        return true;
-
-    if (!is_compositor_driven() && !is_compositor_replaced() && !can_skip_per_frame_style_update())
-        return false;
-
-    // NB: Playing backward, an effect with an infinite iteration count finishes at time zero, and with a zero iteration
-    //     duration it finishes at its end time. No timer wakes the main thread for either.
-    if (animation.has_value() && isinf(timing.iteration_count) && (state.playback.playback_rate < 0 || !isinf(state.end_time.value)))
-        return false;
-
-    // A compositor-handled one-iteration effect has a document timer that wakes the main thread at its active end.
-    if ((is_compositor_driven() || is_compositor_replaced()) && (!isinf(timing.iteration_count) || is_observation_relevant_compositor_animation()))
-        return true;
-
-    // NB: Infinite effects cannot reach their natural end, and finite offscreen paint effects have an end timer.
-    //     Neither needs a continuous tick for animationend listeners.
-    // NB: Starting or cancelling an active animation requests an update independently of playback.
-    //     Only iteration events require future updates while a visually throttled effect runs.
-    return !css_animation_events_are_heard(state, phase == RustFFI::AnimationEffectPhase::Active);
-}
-
 // Whether a listener on `target`, the nodes its events bubble to or its window hears an event `hears` names.
 template<typename Hears>
 static bool event_is_heard_at(DOM::Element& target, Hears const& hears)
@@ -405,39 +127,85 @@ static bool event_is_heard_at(DOM::Element& target, Hears const& hears)
     return window && hears(*window);
 }
 
-// Whether a listener hears the CSS animation events of the effect, whose associated animation's timing is `state`,
-// that need a tick: only its iteration events if `only_iteration_events`.
-bool EffectRef::css_animation_events_are_heard(RustFFI::FfiAnimationTimingState const& state, bool only_iteration_events) const
+static bool target_fact_holds(DOM::Element& target, u32 fact)
 {
-    auto animation = associated_animation();
-
-    // NB: SMIL animations raise time events at their animation element instead, which do not bubble.
-    if (animation.has_value() && state.kind == RustFFI::FfiAnimationKind::Smil) {
-        auto& animation_element = *static_cast<SVG::SVGAnimationElement*>(RustFFI::animations_smil_animation_element(&animation->record()));
-        if (only_iteration_events)
-            return animation_element.has_event_listener(HTML::EventNames::repeatEvent);
-        return animation_element.has_event_listener(HTML::EventNames::beginEvent)
-            || animation_element.has_event_listener(HTML::EventNames::endEvent)
-            || animation_element.has_event_listener(HTML::EventNames::repeatEvent);
-    }
-
-    // Script animations do not dispatch CSS animation events, even when an ancestor listens for them.
-    if (animation.has_value() && state.kind != RustFFI::FfiAnimationKind::CssAnimation)
+    switch (fact) {
+    case RustFFI::TARGET_FACT_LAYOUT_IS_UP_TO_DATE:
+        return target.document().layout_is_up_to_date();
+    case RustFFI::TARGET_FACT_IS_CONNECTED:
+        return target.is_connected();
+    case RustFFI::TARGET_FACT_HAS_LAYOUT_BOX:
+        return target.has_layout_box();
+    case RustFFI::TARGET_FACT_IS_SVG:
+        return target.namespace_uri() == Namespace::SVG;
+    case RustFFI::TARGET_FACT_INSIDE_BOXLESS_CONTAINER:
+        for (auto navigable = target.document().navigable(); navigable;) {
+            auto container = navigable->container();
+            if (!container)
+                break;
+            if (container->document().layout_is_up_to_date() && !container->has_layout_box())
+                return true;
+            navigable = container->document().navigable();
+        }
         return false;
-
-    auto* target = this->target();
-    VERIFY(target);
-    return event_is_heard_at(*target, [only_iteration_events](DOM::EventTarget const& event_target) {
-        if (only_iteration_events)
+    case RustFFI::TARGET_FACT_UNSEEN_IN_DISPLAY_NONE_SUBTREE:
+        return target_is_unseen_in_display_none_subtree(target);
+    case RustFFI::TARGET_FACT_HIDDEN_WITHOUT_VISIBLE_DESCENDANT: {
+        Layout::ForcedReadScope read { target.document() };
+        auto const* layout_node = target.unsafe_layout_node(read);
+        if (!layout_node || layout_node->visibility() != CSS::Visibility::Hidden)
+            return false;
+        bool has_visible_descendant = false;
+        layout_node->for_each_in_inclusive_subtree_of_type<Layout::NodeWithStyle>([&](auto const& descendant) {
+            if (descendant.visibility() != CSS::Visibility::Visible)
+                return TraversalDecision::Continue;
+            has_visible_descendant = true;
+            return TraversalDecision::Break;
+        });
+        return !has_visible_descendant;
+    }
+    case RustFFI::TARGET_FACT_HEARS_CSS_ANIMATION_EVENTS:
+        return event_is_heard_at(target, [](DOM::EventTarget const& event_target) {
+            return event_target.has_event_listener(HTML::EventNames::animationcancel)
+                || event_target.has_event_listener(HTML::EventNames::animationiteration)
+                || event_target.has_event_listener(HTML::EventNames::animationstart)
+                || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration)
+                || event_target.has_event_listener(HTML::EventNames::webkitAnimationStart);
+        });
+    case RustFFI::TARGET_FACT_HEARS_CSS_ANIMATION_ITERATION_EVENTS:
+        return event_is_heard_at(target, [](DOM::EventTarget const& event_target) {
             return event_target.has_event_listener(HTML::EventNames::animationiteration)
                 || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration);
+        });
+    case RustFFI::TARGET_FACT_HEARS_TIME_EVENTS:
+        return target.has_event_listener(HTML::EventNames::beginEvent)
+            || target.has_event_listener(HTML::EventNames::endEvent)
+            || target.has_event_listener(HTML::EventNames::repeatEvent);
+    case RustFFI::TARGET_FACT_HEARS_REPEAT_EVENT:
+        return target.has_event_listener(HTML::EventNames::repeatEvent);
+    }
+    VERIFY_NOT_REACHED();
+}
 
-        return event_target.has_event_listener(HTML::EventNames::animationcancel)
-            || event_target.has_event_listener(HTML::EventNames::animationiteration)
-            || event_target.has_event_listener(HTML::EventNames::animationstart)
-            || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration)
-            || event_target.has_event_listener(HTML::EventNames::webkitAnimationStart);
-    });
+RustFFI::FfiTargetFacts web_animation_target_facts(DOM::Element* target, u32 wanted)
+{
+    RustFFI::FfiTargetFacts answer {};
+    for (u32 fact = 1; fact <= wanted; fact <<= 1) {
+        if (!(wanted & fact))
+            continue;
+        if (fact == RustFFI::TARGET_FACT_SKIP_KEY) {
+            Layout::ForcedReadScope read { target->document() };
+            answer.key = {
+                .target_style_generation = target->animation_style_generation(),
+                .target_subtree_style_generation = target->animation_subtree_style_generation(),
+                .layout_node = bit_cast<FlatPtr>(target->unsafe_layout_node(read)),
+                .target_is_connected = target->is_connected(),
+            };
+        } else if (target_fact_holds(*target, fact)) {
+            answer.facts |= fact;
+        }
+    }
+    return answer;
 }
 
 static bool is_in_display_none_subtree_ignoring_animations(DOM::AbstractElement abstract_element)
@@ -461,7 +229,7 @@ void EffectRef::update_computed_properties(AnimationUpdateContext& context) cons
     //     keep their style under display: none.
     DOM::AbstractElement abstract_element { *target, pseudo_element_type() };
     if (abstract_element.pseudo_element().has_value()
-        && !target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Display))
+        && !target_properties().contains(CSS::PropertyID::Display)
         && is_in_display_none_subtree_ignoring_animations(abstract_element))
         return;
 
@@ -472,45 +240,31 @@ extern "C" {
 
 // Declared in Bindings/Rust/src/animations/animation.rs.
 void* web_animation_object_realm(RustFFI::AnimationCell const*);
-void* web_animation_object_event_target(RustFFI::AnimationCell const*);
-size_t web_animation_object_memory_size(RustFFI::AnimationCell const*);
-void web_animation_perform_promise_effect(JSVM*, RustFFI::FfiHostEffect const*);
-
-// Defined in Bindings/Rust/src/animations/exports.rs.
-void* web_animation_playback_event_create(JSVM*, void* realm, FlatPtr event_name, RustFFI::OptionalTimeValue current_time, RustFFI::OptionalTimeValue timeline_time);
+void web_animation_perform_object_effect(JSVM*, RustFFI::FfiHostEffect const*);
 
 // What Bindings/Rust/src/animations asks of the host.
-void web_animation_perform_host_effect(RustFFI::FfiHostEffect const*);
-void web_animation_update_style_of_owning_element(RustFFI::AnimationCell const*);
-void web_animation_update_style_of_owning_element_document(RustFFI::AnimationCell const*);
+enum class StyleUpdateScope : u8 {
+    Element,
+    Document,
+};
+void web_animation_update_style_of_element(DOM::Element*, bool has_pseudo_element, u8 pseudo_element, StyleUpdateScope);
 void* web_animation_realm_of_element(DOM::Element*);
-void* web_animation_document_timeline_of_document(DOM::Document*);
-void web_animation_visit_named_cells(RustFFI::AnimationCell const*, void* visitor);
+void* web_animation_realm_of_document(DOM::Document*);
+double web_animation_current_high_resolution_time(void* realm);
+void web_animation_append_pending_playback_event(DOM::Document*, RustFFI::AnimationCell const*, RustFFI::PlaybackEventType, RustFFI::OptionalTimeValue current_time, RustFFI::OptionalTimeValue timeline_time, RustFFI::OptionalNumber scheduled_event_time, double time_stamp);
+void web_animation_event_set_time_stamp(DOM::Event*, double time_stamp);
 }
 
-static Optional<DOM::AbstractElement> owning_element_of(AnimationRef const& animation)
+// NB: Script observes a CSS animation or transition with the style of its owning element computed, and the play state
+//     of an animation with the style of the document of its owning element computed.
+void web_animation_update_style_of_element(DOM::Element* element, bool has_pseudo_element, u8 pseudo_element, StyleUpdateScope scope)
 {
-    auto owner = RustFFI::animations_animation_owning_element(&animation.record());
-    if (!owner.element)
-        return {};
-    Optional<CSS::PseudoElement> pseudo_element;
-    if (owner.has_pseudo_element)
-        pseudo_element = static_cast<CSS::PseudoElement>(owner.pseudo_element);
-    return DOM::AbstractElement { *static_cast<DOM::Element*>(owner.element), pseudo_element };
-}
-
-// NB: Script observes a CSS animation or transition with the style of its owning element computed.
-void web_animation_update_style_of_owning_element(RustFFI::AnimationCell const* record)
-{
-    if (auto owning_element = owning_element_of(AnimationRef { *record }); owning_element.has_value())
-        owning_element->document().update_style_for_element(*owning_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
-}
-
-// NB: Script observes the play state of an animation with the style of the document of its owning element computed.
-void web_animation_update_style_of_owning_element_document(RustFFI::AnimationCell const* record)
-{
-    if (auto owning_element = owning_element_of(AnimationRef { *record }); owning_element.has_value())
-        owning_element->document().update_style();
+    if (scope == StyleUpdateScope::Document) {
+        element->document().update_style();
+        return;
+    }
+    DOM::AbstractElement owning_element { *element, has_pseudo_element ? static_cast<CSS::PseudoElement>(pseudo_element) : Optional<CSS::PseudoElement> {} };
+    element->document().update_style_for_element(owning_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
 }
 
 void* web_animation_realm_of_element(DOM::Element* element)
@@ -518,73 +272,40 @@ void* web_animation_realm_of_element(DOM::Element* element)
     return &HTML::relevant_realm(element->document());
 }
 
-void* web_animation_document_timeline_of_document(DOM::Document* document)
+void* web_animation_realm_of_document(DOM::Document* document)
 {
-    return document->timeline().ptr();
+    return &HTML::relevant_realm(*document);
 }
 
-void web_animation_visit_named_cells(RustFFI::AnimationCell const* animation, void* visitor)
+double web_animation_current_high_resolution_time(void* realm)
 {
-    RustFFI::animations_animation_visit_named_cells(animation, visitor, visit_host_cell);
+    return HighResolutionTime::current_high_resolution_time(static_cast<JS::Realm*>(realm)->global_object());
 }
 
-void set_owning_element(AnimationRef const& animation, DOM::AbstractElement owner)
+void web_animation_append_pending_playback_event(DOM::Document* document, RustFFI::AnimationCell const* animation, RustFFI::PlaybackEventType type, RustFFI::OptionalTimeValue current_time, RustFFI::OptionalTimeValue timeline_time, RustFFI::OptionalNumber scheduled_event_time, double time_stamp)
 {
-    auto pseudo_element = owner.pseudo_element();
-    RustFFI::animations_animation_set_owning_element(&animation.record(), {
-                                                                              .element = const_cast<DOM::Element*>(&owner.element()),
-                                                                              .pseudo_element = pseudo_element.has_value() ? to_underlying(*pseudo_element) : u8 { 0 },
-                                                                              .has_pseudo_element = pseudo_element.has_value(),
+    document->append_pending_animation_event(AnimationRef { *animation }, {
+                                                                              .kind = RustFFI::PendingAnimationEventKind::Playback,
+                                                                              .css_event_type = {},
+                                                                              .playback_event_type = type,
+                                                                              .time_event_type = {},
+                                                                              .detail = 0,
+                                                                              .elapsed_time = 0,
+                                                                              .current_time = current_time,
+                                                                              .timeline_time = timeline_time,
+                                                                              .scheduled_event_time = scheduled_event_time,
+                                                                              .time_stamp = time_stamp,
                                                                           });
 }
 
-size_t object_memory_size(AnimationRef const& animation)
+void web_animation_event_set_time_stamp(DOM::Event* event, double time_stamp)
 {
-    return web_animation_object_memory_size(&animation.record());
+    event->set_time_stamp(time_stamp);
 }
 
 void AnimationRef::visit_edges(GC::Cell::Visitor& visitor) const
 {
     RustFFI::animations_animation_visit_host_cells(&record(), &visitor, visit_host_cell);
-}
-
-// https://www.w3.org/TR/web-animations-1/#animation-relevant
-bool AnimationRef::is_relevant() const
-{
-    // NB: The local time of the associated effect is the current time of the animation.
-    auto state = timing_state();
-    return RustFFI::animations_is_relevant(&record(), state.has_effect ? state.current_time : to_ffi(Optional<TimeValue> {}));
-}
-
-void AnimationRef::update() const
-{
-    RustFFI::animations_animation_update(&record(), perform_host_effect);
-}
-
-void AnimationRef::disassociate_from_target_if_inert() const
-{
-    RustFFI::animations_animation_disassociate_from_target_if_inert(&record(), perform_host_effect);
-}
-
-void AnimationRef::run_pending_play_task_if_ready() const
-{
-    RustFFI::animations_animation_run_pending_play_task_if_ready(&record(), perform_host_effect);
-}
-
-void AnimationRef::cancel(bool invalidate) const
-{
-    // Note: When called from JS, we always want to invalidate the animation target's style. However, this method is
-    //       also called from the StyleComputer when the animation-name CSS property changes. That happens in the
-    //       middle of a cascade, and importantly, _before_ computing the animation effect stack, so there is no
-    //       need for another invalidation. It would also schedule a redundant follow-up reaction while the current
-    //       style computation is already updating the animation effect stack.
-
-    // NB: Cancelling an animation that is not idle settles its promises and creates its cancel event.
-    Optional<HTML::TemporaryExecutionContext> execution_context;
-    if (timing_state().play_state != RustFFI::AnimationPlayState::Idle)
-        execution_context.emplace(HTML::relevant_realm(relevant_global_object_of(*this)));
-
-    RustFFI::animations_animation_cancel(&record(), invalidate, perform_host_effect);
 }
 
 i32 compare_elements_in_tree_order_for_composite_order(void* first, void* second)
@@ -594,15 +315,9 @@ i32 compare_elements_in_tree_order_for_composite_order(void* first, void* second
     return first_element.document().compare_elements_in_tree_order_for_composite_order(first_element, second_element);
 }
 
-// The realm of the object of the animation, or null where it has none.
-static JS::Realm* realm_of_object(AnimationRef const& animation)
-{
-    return static_cast<JS::Realm*>(web_animation_object_realm(&animation.record()));
-}
-
 JS::Object& relevant_global_object_of(AnimationRef const& animation)
 {
-    if (auto* realm = realm_of_object(animation))
+    if (auto* realm = static_cast<JS::Realm*>(web_animation_object_realm(&animation.record())))
         return realm->global_object();
     auto* element = static_cast<DOM::Element*>(RustFFI::animations_animation_owning_element(&animation.record()).element);
     if (!element)
@@ -630,125 +345,7 @@ static void invalidate_effect(AnimationRef const& animation, ChangesPlan changes
     effect->invalidate();
 }
 
-// https://www.w3.org/TR/web-animations-1/#update-an-animations-finished-state
-// https://www.w3.org/TR/web-animations-1/#cancel-an-animation
-// https://www.w3.org/TR/web-animations-1/#remove-replaced-animations
-static Utf16FlyString const& playback_event_type_name(RustFFI::PlaybackEventType type)
-{
-    switch (type) {
-    case RustFFI::PlaybackEventType::Finish:
-        return HTML::EventNames::finish;
-    case RustFFI::PlaybackEventType::Cancel:
-        return HTML::EventNames::cancel;
-    case RustFFI::PlaybackEventType::Remove:
-        return HTML::EventNames::remove;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-// NB: A remove event is created in the realm of the document whose replaced animations are removed, which is the
-//     document for timing of the animation, and whose pending animation event queue it joins.
-static JS::Realm& playback_event_realm(JS::Realm& realm, RustFFI::PlaybackEventType type, DOM::Document const* document_for_timing)
-{
-    if (type == RustFFI::PlaybackEventType::Remove && document_for_timing)
-        return HTML::relevant_realm(*document_for_timing);
-    return realm;
-}
-
-// A new AnimationPlaybackEvent of the type, created in the realm.
-// https://drafts.csswg.org/web-animations-2/#animationplaybackevent
-static GC::Ref<DOM::Event> create_animation_playback_event(JS::Realm& realm, Utf16FlyString const& type, RustFFI::OptionalTimeValue current_time, RustFFI::OptionalTimeValue timeline_time)
-{
-    auto* event = web_animation_playback_event_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, type.to_utf16_string().into_raw(), current_time, timeline_time);
-    return GC::Ref { *static_cast<DOM::Event*>(static_cast<GC::Cell*>(event)) };
-}
-
-static DOM::EventTarget& event_target_of_object(AnimationRef const& animation)
-{
-    return *static_cast<DOM::EventTarget*>(static_cast<GC::Cell*>(web_animation_object_event_target(&animation.record())));
-}
-
-// https://www.w3.org/TR/web-animations-1/#animation-document-for-timing
-static GC::Ptr<DOM::Document> document_for_timing(AnimationRef const& animation)
-{
-    // An animation’s document for timing is the Document with which its timeline is associated. If an animation is not
-    // associated with a timeline, or its timeline is not associated with a document, then it has no document for
-    // timing.
-    auto* timeline = static_cast<AnimationTimeline*>(RustFFI::animations_animation_timeline(&animation.record()));
-    if (!timeline)
-        return {};
-    return timeline->associated_document();
-}
-
-static void queue_playback_event(AnimationRef const& animation, JS::Realm& realm, RustFFI::FfiHostEffect const& effect)
-{
-    auto is_finish = effect.playback_event_type == RustFFI::PlaybackEventType::Finish;
-    auto document = document_for_timing(animation);
-    auto& event_realm = playback_event_realm(realm, effect.playback_event_type, document.ptr());
-
-    // If animation has a document for timing, then append the event to its document for timing's pending animation
-    // event queue along with its target, animation.
-    if (document) {
-        // https://www.w3.org/TR/web-animations-1/#animation-time-to-origin-relative-time
-        // NB: The procedure converted the time to a timeline time.
-        Optional<double> scheduled_event_time;
-        auto* timeline = static_cast<AnimationTimeline*>(RustFFI::animations_animation_timeline(&animation.record()));
-        if (auto timeline_time = from_ffi(effect.scheduled_timeline_time); timeline_time.has_value()
-            && timeline && !timeline->is_inactive() && timeline->can_convert_a_timeline_time_to_an_origin_relative_time())
-            scheduled_event_time = timeline->convert_a_timeline_time_to_an_origin_relative_time(timeline_time);
-        // NB: The queue holds what the event is, which the document creates as it dispatches it, with the time stamp
-        //     of now, when the event is created in the spec.
-        document->append_pending_animation_event(animation, {
-                                                                .kind = RustFFI::PendingAnimationEventKind::Playback,
-                                                                .css_event_type = {},
-                                                                .playback_event_type = effect.playback_event_type,
-                                                                .time_event_type = {},
-                                                                .detail = 0,
-                                                                .elapsed_time = 0,
-                                                                .current_time = effect.current_time,
-                                                                .timeline_time = effect.timeline_time,
-                                                                .scheduled_event_time = to_ffi(scheduled_event_time),
-                                                                .time_stamp = HighResolutionTime::current_high_resolution_time(event_realm.global_object()),
-                                                            });
-        return;
-    }
-
-    auto event = create_animation_playback_event(event_realm, playback_event_type_name(effect.playback_event_type), effect.current_time, effect.timeline_time);
-    auto& target = event_target_of_object(animation);
-
-    // Otherwise, queue a task to dispatch the event at animation. The task source for this task is the DOM manipulation
-    // task source.
-    if (!is_finish) {
-        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(target, event), [](auto& target, auto& event) {
-            target.dispatch_event(event);
-        }));
-        return;
-    }
-
-    // NB: The task to dispatch a finish event is created manually so its ID can be saved.
-    auto& window_document = HTML::relevant_window(realm.global_object()).associated_document();
-    auto task = HTML::Task::create(HTML::Task::Source::DOMManipulation, &window_document, GC::create_function(GC::Heap::the(), GC::captures(target, event), [](auto& target, auto& event) {
-        target.dispatch_event(event);
-    }));
-    RustFFI::animations_animation_set_finish_notification_task(&animation.record(), task->id().value());
-    (void)HTML::main_thread_event_loop().task_queue().add(task);
-}
-
-void dispatch_pending_playback_event(AnimationRef const& animation, DOM::Document const& document, RustFFI::FfiPendingAnimationEvent const& pending_event)
-{
-    auto* realm = realm_of_object(animation);
-    VERIFY(realm);
-    auto event = create_animation_playback_event(playback_event_realm(*realm, pending_event.playback_event_type, &document), playback_event_type_name(pending_event.playback_event_type), pending_event.current_time, pending_event.timeline_time);
-    event->set_time_stamp(pending_event.time_stamp);
-    event_target_of_object(animation).dispatch_event(event);
-}
-
 void web_animation_perform_host_effect(RustFFI::FfiHostEffect const* host_effect)
-{
-    perform_host_effect(host_effect);
-}
-
-void perform_host_effect(RustFFI::FfiHostEffect const* host_effect)
 {
     auto const& effect = *host_effect;
     AnimationRef animation { *effect.animation };
@@ -764,13 +361,8 @@ void perform_host_effect(RustFFI::FfiHostEffect const* host_effect)
     case Kind::ReplaceFinishedPromise:
     case Kind::ResolveFinishedPromise:
     case Kind::RejectFinishedPromise:
-        // NB: Only an animation with an object has promises script can observe.
-        web_animation_perform_promise_effect(JS::HostABI::vm_to_abi(JS::VM::the()), host_effect);
-        return;
     case Kind::QueuePlaybackEvent:
-        // NB: Only an animation with an object can hear its playback events.
-        if (auto* realm = realm_of_object(animation))
-            queue_playback_event(animation, *realm, effect);
+        web_animation_perform_object_effect(JS::HostABI::vm_to_abi(JS::VM::the()), host_effect);
         return;
     case Kind::QueueFinishNotificationTask: {
         // NB: The task runs whether or not the animation has an object, as the finish notification steps note that the
@@ -779,7 +371,7 @@ void perform_host_effect(RustFFI::FfiHostEffect const* host_effect)
         auto& document = HTML::relevant_window(global).associated_document();
         auto task = HTML::Task::create(HTML::Task::Source::DOMManipulation, &document, GC::create_function(GC::Heap::the(), GC::captures(animation, global), [](AnimationRef const& animation, JS::Object& global) {
             HTML::TemporaryExecutionContext context { HTML::relevant_realm(global) };
-            RustFFI::animations_animation_run_finish_notification_steps(&animation.record(), perform_host_effect);
+            RustFFI::animations_animation_run_finish_notification_steps(&animation.record(), web_animation_perform_host_effect);
         }));
         RustFFI::animations_animation_set_finish_notification_task(&animation.record(), task->id().value());
         (void)HTML::main_thread_event_loop().task_queue().add(move(task));
@@ -826,6 +418,161 @@ void perform_host_effect(RustFFI::FfiHostEffect const* host_effect)
         return;
     }
     VERIFY_NOT_REACHED();
+}
+
+// NB: What the timelines associated with a document ask of it and of its layout.
+extern "C" {
+
+// Declared in Rust/src/animations/timeline_host.rs.
+RustFFI::DocumentAnimations* web_animation_document_animations(DOM::Document*);
+RustFFI::FfiDocumentClock web_animation_document_clock(DOM::Document*);
+void web_animation_find_scroll_timeline_boxes(RustFFI::FfiScrollTimelineSource const*, bool is_view, void* context, void (*measure)(void*, RustFFI::FfiScrollTimelineBoxes const*));
+DOM::Element* web_animation_scroll_timeline_source(RustFFI::FfiScrollTimelineSource const*, bool is_view);
+
+// Declared in Bindings/Rust/src/animations.
+DOM::Element* web_animation_document_scrolling_element(DOM::Document*);
+CSS::StyleValueFFI::StyleValueData const* web_animation_absolutize_style_value(DOM::Document*, CSS::StyleValueFFI::StyleValueData const*);
+}
+
+RustFFI::DocumentAnimations* web_animation_document_animations(DOM::Document* document)
+{
+    return &document->document_animations();
+}
+
+RustFFI::FfiDocumentClock web_animation_document_clock(DOM::Document* document)
+{
+    auto& settings = document->relevant_settings_object();
+    auto& global = settings.global_object();
+    return {
+        .now = HighResolutionTime::relative_high_resolution_time(HighResolutionTime::unsafe_shared_current_time(), global),
+        .task_generation = settings.responsible_event_loop().task_generation(),
+        .timeline_start_time = document->last_animation_frame_timestamp().value_or_lazy_evaluated([&] {
+            return HighResolutionTime::relative_high_resolution_time(document->load_timing_info().navigation_start_time, global);
+        }),
+    };
+}
+
+// The target an anonymous scroll timeline finds its scroller from.
+static DOM::AbstractElement anonymous_target(RustFFI::FfiScrollTimelineSource const& source)
+{
+    Optional<CSS::PseudoElement> pseudo_element;
+    if (source.has_pseudo_element)
+        pseudo_element = static_cast<CSS::PseudoElement>(source.pseudo_element);
+    return DOM::AbstractElement { *static_cast<DOM::Element*>(source.target), pseudo_element };
+}
+
+// https://drafts.csswg.org/scroll-animations-1/#dom-scrolltimeline-source
+static GC::Ptr<DOM::Element const> scroll_timeline_source(RustFFI::FfiScrollTimelineSource const& source)
+{
+    if (!source.is_anonymous)
+        return static_cast<DOM::Element const*>(source.element);
+    auto target = anonymous_target(source);
+    switch (static_cast<CSS::Scroller>(source.scroller)) {
+    case CSS::Scroller::Root:
+        return target.document().document_element();
+    case CSS::Scroller::Nearest: {
+        GC::Ptr<DOM::Element const> ancestor = target.flat_tree_parent_element();
+
+        // Whether a box is a scroll container depends on its used overflow, which is visible for a body whose
+        // overflow is propagated to the viewport. The document element stands for the viewport.
+        Layout::ForcedReadScope read { target.document() };
+        while (ancestor && !ancestor->is_document_element()) {
+            auto const* layout_node = ancestor->unsafe_layout_node(read);
+            if (layout_node && layout_node->is_scroll_container())
+                break;
+            ancestor = ancestor->flat_tree_parent_element();
+        }
+
+        return ancestor;
+    }
+    case CSS::Scroller::Self:
+        return target.element();
+    }
+    VERIFY_NOT_REACHED();
+}
+
+void web_animation_find_scroll_timeline_boxes(RustFFI::FfiScrollTimelineSource const* source, bool is_view, void* context, void (*measure)(void*, RustFFI::FfiScrollTimelineBoxes const*))
+{
+    // NB: The record measures the boxes the timeline follows where the render state of the document whose viewport or
+    //     element the source propagates to lays them out.
+    RustFFI::FfiScrollTimelineBoxes boxes {
+        .host = nullptr,
+        .read = nullptr,
+        .scroller = Compositing::RustFFI::NodeSlotId_INVALID,
+        .has_scroll_node = false,
+        .scroll_node = {},
+        .scroller_style_node = 0,
+        .subject = Compositing::RustFFI::NodeSlotId_INVALID,
+        .subject_style_node = 0,
+    };
+
+    // https://drafts.csswg.org/scroll-animations-1/#scroll-notation
+    // References to the root element propagate to the document viewport (which functions as its scroll container).
+    auto const element = scroll_timeline_source(*source);
+    Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> propagated_source = element;
+    if (element && element.ptr() == element->document().document_element())
+        propagated_source = element->owner_document();
+    if (propagated_source.visit([](auto const& source) { return source == nullptr; }))
+        return measure(context, &boxes);
+
+    Layout::ForcedReadScope read { propagated_source.visit([](auto const& source) -> DOM::Document const& { return source->document(); }) };
+    auto const* layout_node = propagated_source.visit([&read](auto const& source) -> Layout::NodeWithStyle const* { return source->unsafe_layout_node(read); });
+    if (!layout_node)
+        return measure(context, &boxes);
+
+    boxes.host = layout_node->document_host();
+    boxes.read = read;
+    boxes.scroller = Layout::Node::slot_id(layout_node);
+    if (auto scroll_node = Painting::async_scroll_node_stable_id(*layout_node); scroll_node.has_value()) {
+        boxes.has_scroll_node = true;
+        boxes.scroll_node = { .node_id = scroll_node->node_id.value(), .kind = to_underlying(scroll_node->kind), .pseudo_element_type = scroll_node->pseudo_element_type };
+    }
+    boxes.scroller_style_node = propagated_source.visit(
+        [](GC::Ptr<DOM::Element const> const& element) { return element->style_node_id().value(); },
+        [](GC::Ptr<DOM::Document> const&) -> u32 { return 0; });
+    // NB: A view timeline follows the box of its subject besides its scroller's.
+    if (is_view) {
+        auto subject = anonymous_target(*source);
+        boxes.subject = Layout::Node::slot_id(subject.unsafe_layout_node(read));
+        // NB: A clock tick finds the subject by its style node, which a pseudo-element does not name.
+        if (!subject.pseudo_element().has_value())
+            boxes.subject_style_node = subject.element().style_node_id().value();
+    }
+    measure(context, &boxes);
+}
+
+DOM::Element* web_animation_scroll_timeline_source(RustFFI::FfiScrollTimelineSource const* source, bool is_view)
+{
+    if (is_view) {
+        // The values of subject, source, and currentTime are all computed when any of them is requested or updated.
+        auto subject = anonymous_target(*source);
+        subject.document().update_layout(DOM::UpdateLayoutReason::ViewTimelineSource);
+
+        // If the source or subject of a ViewTimeline is an element whose principal box does not exist, [...] then the
+        // ViewTimeline is inactive.
+        // INTEROP: Its source is then null, as WebKit and Blink have it.
+        for (GC::Ptr<DOM::Element const> element = &subject.element(); element; element = element->flat_tree_parent_element()) {
+            if (!element->has_style() || element->installed_style().display_is_none())
+                return nullptr;
+        }
+    } else if (source->is_anonymous && static_cast<CSS::Scroller>(source->scroller) == CSS::Scroller::Nearest) {
+        // The nearest scroll container is the nearest one by used overflow, which layout decides.
+        anonymous_target(*source).document().update_layout(DOM::UpdateLayoutReason::ScrollTimelineSource);
+    }
+    return const_cast<DOM::Element*>(scroll_timeline_source(*source).ptr());
+}
+
+DOM::Element* web_animation_document_scrolling_element(DOM::Document* document)
+{
+    return const_cast<DOM::Element*>(document->scrolling_element().ptr());
+}
+
+// NB: Absolutizes a style value that script gave, as the document's values are.
+CSS::StyleValueFFI::StyleValueData const* web_animation_absolutize_style_value(DOM::Document* document, CSS::StyleValueFFI::StyleValueData const* value)
+{
+    auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value));
+    auto computed = style_value->absolutized(CSS::ComputationContext { .length_resolution_context = CSS::Length::ResolutionContext::for_document(*document) });
+    return CSS::StyleValueFFI::rust_style_value_retain(computed->rust_style_value_data());
 }
 
 // NB: What committing the computed styles of an animation answers its bindings.
@@ -901,7 +648,7 @@ extern "C" WEB_API CommitStylesResult web_animation_commit_styles(RustFFI::Anima
         for (auto other_animation : target->associated_animations_in_composite_order()) {
             auto other_effect = other_animation.effect();
             if (other_effect.has_value() && !other_effect->pseudo_element_type().has_value()
-                && RustFFI::animations_composite_order(&other_animation.record(), animation_cell, compare_elements_in_tree_order_for_composite_order) < 0)
+                && RustFFI::animations_animation_composite_order(&other_animation.record(), animation_cell, compare_elements_in_tree_order_for_composite_order) < 0)
                 effects.append(other_effect.release_value());
         }
         effects.append(*effect);
@@ -915,7 +662,8 @@ extern "C" WEB_API CommitStylesResult web_animation_commit_styles(RustFFI::Anima
         //     update above was, so the committed values are those of the time script read.
         RefPtr<CSS::ComputedStyleWorkingSet> committed_style;
         auto commit = [&] { committed_style = document.style_computer().compute_style_for_animation_commit(read, element, effects.span()); };
-        AnimationTimeline::at_times_observed_ahead(document.associated_animation_timelines().begin(), document.associated_animation_timelines().end(), commit);
+        using Commit = decltype(commit);
+        RustFFI::animations_document_animations_at_times_observed_ahead(&document.document_animations(), &commit, [](void* context) { (*static_cast<Commit*>(context))(); });
         auto style = committed_style.release_nonnull();
         auto custom_properties = element.custom_property_data();
         if (custom_properties && element.custom_property_data_is_animation_overlay())
@@ -972,4 +720,25 @@ extern "C" WEB_API double web_animation_effective_zoom_of_target(DOM::Element* t
     return 1;
 }
 
+// NB: What the timeline records ask of the document a timeline is associated with.
+extern "C" WEB_API void web_animation_note_rendering_trace_event(u8 const* event, size_t length);
+
+extern "C" WEB_API void web_animation_note_rendering_trace_event(u8 const* event, size_t length)
+{
+    HTML::note_rendering_trace_event(StringView { reinterpret_cast<char const*>(event), length });
+}
+
+}
+
+extern "C" WEB_API bool ladybird_animations_document_is_active(void* document);
+extern "C" WEB_API void* ladybird_animations_element_node_document(void* element);
+
+extern "C" WEB_API bool ladybird_animations_document_is_active(void* document)
+{
+    return static_cast<Web::DOM::Document const*>(document)->is_active();
+}
+
+extern "C" WEB_API void* ladybird_animations_element_node_document(void* element)
+{
+    return &static_cast<Web::DOM::Element*>(element)->document();
 }

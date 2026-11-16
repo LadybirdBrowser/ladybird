@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes grow {
+        from { width: 10px; }
+        to { width: 20px; }
+    }
+    #host {
+        height: 100px;
+        overflow: scroll;
+    }
+    #slotted {
+        height: 200px;
+        animation: grow 1s linear;
+        animation-timeline: scroll(nearest);
+    }
+</style>
+<div id="host"></div>
+<div id="slotted-host"><div id="slotted"></div></div>
+<script>
+    test(() => {
+        // The nearest scroll container of a direct child of a shadow root is found through the flat tree: the shadow
+        // host here.
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>
+            @keyframes grow { from { width: 10px; } to { width: 20px; } }
+            #target { height: 200px; animation: grow 1s linear; animation-timeline: scroll(nearest); }
+        </style><div id="target"></div>`;
+        const target = shadow.getElementById("target");
+        println(`shadow root child: ${target.getAnimations()[0].timeline.source?.id}`);
+
+        // The nearest scroll container of a slotted element is the one around its slot.
+        document.getElementById("slotted-host").attachShadow({ mode: "open" }).innerHTML =
+            `<div id="slot-scroller" style="height: 100px; overflow: scroll"><slot></slot></div>`;
+        const source = document.getElementById("slotted").getAnimations()[0].timeline.source;
+        println(`slotted: ${source?.id || source?.tagName}`);
+    });
+</script>

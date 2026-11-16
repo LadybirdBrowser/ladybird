@@ -57,8 +57,8 @@ pub(crate) fn composite_order(a: &AnimationRecord, b: &AnimationRecord, tree_ord
 
     // 1. Sort A and B by applying the following conditions in turn until the order is resolved,
 
-    //    1. If A and B’s associated animations differ by class, sort by any inter-class composite order defined for
-    //       the corresponding classes.
+    //    1. If A and B’s associated animations differ by class, sort by any inter-class composite order as defined
+    //       for the corresponding classes.
     // From https://www.w3.org/TR/css-animations-2/#animation-composite-order:
     // "CSS Animations with an owning element have a later composite order than CSS Transitions but an earlier
     // composite order than animations without a specific animation class."
@@ -214,7 +214,7 @@ fn pseudo_element_rank(pseudo_element: Option<PseudoElementType>) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::animations::animation::{AnimationHandle, CssTransitionState};
+    use crate::animations::animation::{AnimationHandle, CssTransitionState, TransitionPhase};
     use crate::css::retained_fly_string::RetainedUtf16FlyString;
     use crate::css::style_value::RetainedStyleValueData;
 
@@ -237,7 +237,7 @@ mod tests {
             reversing_adjusted_start_value: RetainedStyleValueData::none(),
             reversing_shortening_factor: 1.0,
             property_id,
-            previous_phase: 0,
+            previous_phase: TransitionPhase::Before,
             provisional: false,
             adopted_from_lane: false,
             effect_started_with: None,

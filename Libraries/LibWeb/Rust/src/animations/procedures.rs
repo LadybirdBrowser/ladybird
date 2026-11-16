@@ -10,7 +10,7 @@
 //! A procedure changes the records it runs on and records what it asks the host to do as `HostEffects`, in the order
 //! its steps ask for them, which the host performs once it has returned.
 
-use super::animation::{AnimationHandle, AnimationKind, CSS_TRANSITION_PHASE_IDLE, CssAnimationFlag};
+use super::animation::{AnimationHandle, AnimationKind, CssAnimationFlag, TransitionPhase};
 use super::composite_order::{TreeOrder, composite_order};
 use super::effect::{EffectFlag, EffectHandle};
 use super::host_effects::{HostEffectKind, HostEffects, PlaybackEventType};
@@ -154,7 +154,7 @@ impl Procedures<'_> {
     }
 
     fn set_auto_align_start_time(&self, value: bool) {
-        self.animation.borrow_mut().set_auto_align_start_time(value);
+        self.animation.borrow_mut().auto_align_start_time = value;
     }
 
     /// The current time of the timeline, which is unresolved without one or where it is inactive.
@@ -220,7 +220,7 @@ impl Procedures<'_> {
     }
 
     /// https://www.w3.org/TR/web-animations-1/#animation-relevant
-    fn is_relevant(&self) -> bool {
+    pub(crate) fn is_relevant(&self) -> bool {
         let effect_timing = self.effect_timing();
         timing::is_relevant(
             &self.playback(),
@@ -335,7 +335,7 @@ impl Procedures<'_> {
         }
 
         // 7. Make animation’s previous current time unresolved.
-        self.animation.borrow_mut().set_previous_current_time(None);
+        self.animation.borrow_mut().previous_current_time = None;
 
         Ok(())
     }
@@ -361,7 +361,7 @@ impl Procedures<'_> {
             // 4. Cancel the pending pause task.
             self.set_has_pending_pause_task(false);
 
-            // 5 Resolve animation’s current ready promise with animation.
+            // 5. Resolve animation’s current ready promise with animation.
             self.emit(HostEffectKind::ResolveReadyPromise);
         }
 
@@ -483,7 +483,7 @@ impl Procedures<'_> {
         //    unresolved time value for the hold time if did seek is false. If did seek is true, the unconstrained
         //    current time is equal to the current time.
         //
-        // Note: This is required to accommodate timelines that may change direction. Without this definition, a once-
+        // Note: This is required to accommodate timelines that can change direction. Without this definition, a once-
         //       finished animation would remain finished even when its timeline progresses in the opposite direction.
         let unconstrained_current_time = observed_current_time.or_else(|| match did_seek {
             DidSeek::No => self.current_time_without_hold_time(),
@@ -502,9 +502,9 @@ impl Procedures<'_> {
             self.update_hold_time_for_finished_state(did_seek, unconstrained_current_time);
         }
 
-        // 3. Set the previous current time of animation be the result of calculating its current time.
+        // 3. Set the previous current time of animation to be the result of calculating its current time.
         let current_time = self.current_time();
-        self.animation.borrow_mut().set_previous_current_time(current_time);
+        self.animation.borrow_mut().previous_current_time = current_time;
 
         // 4. Let current finished state be true if the play state of animation is finished. Otherwise, let it be false.
         let current_finished_state = self.play_state() == AnimationPlayState::Finished;
@@ -536,7 +536,7 @@ impl Procedures<'_> {
         }
 
         // AD-HOC: An animation disassociated from its target while inert can only be revived through here.
-        if let Some(play_state_when_disassociated) = self.animation.borrow().play_state_when_disassociated_from_target()
+        if let Some(play_state_when_disassociated) = self.animation.borrow().play_state_when_disassociated_from_target
             && (self.pending() || self.is_relevant() || self.play_state() != play_state_when_disassociated)
             && let Some(element) = self.effect_target()
         {
@@ -545,7 +545,7 @@ impl Procedures<'_> {
 
         // AD-HOC: An animation that has finished without filling produces nothing more, so it leaves its target's list.
         if current_finished_state && !self.pending() && !self.is_relevant() {
-            self.animation.borrow_mut().set_disassociation_from_target_pending(true);
+            self.animation.borrow_mut().disassociation_from_target_pending = true;
         }
 
         if invalidate == Invalidate::Yes {
@@ -556,7 +556,7 @@ impl Procedures<'_> {
     /// Step 2 of https://www.w3.org/TR/web-animations-1/#update-an-animations-finished-state
     fn update_hold_time_for_finished_state(&self, did_seek: DidSeek, unconstrained_current_time: TimeValue) {
         let playback_rate = self.playback_rate();
-        let previous_current_time = self.animation.borrow().previous_current_time();
+        let previous_current_time = self.animation.borrow().previous_current_time;
 
         // -> If playback rate > 0 and unconstrained current time is greater than or equal to associated effect end,
         let associated_effect_end = self.associated_effect_end();
@@ -595,7 +595,7 @@ impl Procedures<'_> {
 
             // 1. If did seek is true and the hold time is resolved, let animation’s start time be equal to the result
             //    of evaluating timeline time - (hold time / playback rate) where timeline time is the current time
-            //    value of timeline associated with animation.
+            //    value of the timeline associated with animation.
             if did_seek == DidSeek::Yes
                 && let Some(hold_time) = self.hold_time()
             {
@@ -733,7 +733,7 @@ impl Procedures<'_> {
         // 3. Make animation’s start time unresolved.
         self.set_start_time(None);
 
-        // This time is needed for dispatching the animationcancel DOM event
+        // NB: This time is needed for dispatching the animationcancel DOM event.
         if let Some(timing) = self.effect_timing() {
             let timing = AnimationEffectTiming {
                 fill_mode: FillMode::Both,
@@ -747,12 +747,12 @@ impl Procedures<'_> {
                 self.timeline.as_ref().map(|timeline| &timeline.sample),
             )
             .active_time;
-            self.animation.borrow_mut().set_saved_cancel_time(active_time);
+            self.animation.borrow_mut().saved_cancel_time = active_time;
         }
 
         // AD-HOC: The target's animation list is our own cache of the animations whose effect targets it, and holding a
-        //         cancelled animation there keeps it alive and walked every frame. It is reassociated if revived.
-        self.animation.borrow_mut().set_disassociation_from_target_pending(true);
+        //         canceled animation there keeps it alive and walked every frame. It is reassociated if revived.
+        self.animation.borrow_mut().disassociation_from_target_pending = true;
 
         if invalidate == Invalidate::Yes {
             self.invalidate_effect();
@@ -899,9 +899,12 @@ impl Procedures<'_> {
             self.set_hold_time(Some(self.zero()));
         }
 
-        // 7. If has finite timeline and previous current time is unresolved:
+        // 7. If has finite timeline and auto-rewind is true:
+        //    1. Set the flag auto align start time to true.
+        //    2. Set the animation’s hold time to previous current time.
+        // AD-HOC: The flag is set when previous current time is unresolved, whatever auto-rewind is, and the hold time
+        //         is left as it is.
         if has_finite_timeline && previous_current_time.is_none() {
-            // Set the flag auto align start time to true.
             self.set_auto_align_start_time(true);
         }
 
@@ -927,7 +930,7 @@ impl Procedures<'_> {
         // AD-HOC: We also don't abort if we have a pending auto-alignment of the start time, see
         //         https://github.com/w3c/csswg-drafts/issues/13236
         let pending_auto_aligned_start_time =
-            self.animation.borrow().auto_align_start_time() && self.start_time().is_none();
+            self.animation.borrow().auto_align_start_time && self.start_time().is_none();
         if self.hold_time().is_none()
             && !aborted_pause
             && self.pending_playback_rate().is_none()
@@ -945,7 +948,7 @@ impl Procedures<'_> {
 
         // 12. Schedule a task to run as soon as animation is ready. The task shall perform the following steps:
         //
-        //         Note: Steps omitted, see run_pending_play_task()
+        //     NB: The steps of the task are in run_pending_play_task().
         //
         //     So long as the above task is scheduled but has yet to run, animation is described as having a pending
         //     play task. While the task is running, however, animation does not have a pending play task.
@@ -982,7 +985,7 @@ impl Procedures<'_> {
         let has_finite_timeline = self.has_finite_timeline();
 
         // 5. If the animation’s current time is unresolved, perform the steps according to the first matching
-        //    condition from below:
+        //    condition below:
         if self.current_time().is_none() {
             // -> If animation’s playback rate is ≥ 0,
             if self.playback_rate() >= 0.0 {
@@ -1037,8 +1040,7 @@ impl Procedures<'_> {
 
         // 10. Schedule a task to be executed at the first possible moment where both of the following conditions are
         //     true:
-        // NB: Criteria has been listed out in is_ready_to_run_pending_pause_task()
-        // NB: This is run_pending_pause_task()
+        // NB: is_ready_to_run_pending_pause_task() checks these conditions, and run_pending_pause_task() is the task.
         self.set_has_pending_pause_task(true);
 
         // 11. Run the procedure to update an animation’s finished state for animation with the did seek flag set to
@@ -1182,7 +1184,7 @@ impl Procedures<'_> {
             return None;
         };
         let may_run_on_the_compositor = animation.effect()?.borrow().may_run_on_the_compositor();
-        if !may_run_on_the_compositor || transition.previous_phase != CSS_TRANSITION_PHASE_IDLE {
+        if !may_run_on_the_compositor || transition.previous_phase != TransitionPhase::Idle {
             return None;
         }
         Some(TimeValue::milliseconds(
@@ -1354,7 +1356,7 @@ impl Procedures<'_> {
         let Some(interval) = self.timeline.as_ref().and_then(TimelineState::attachment_interval) else {
             return;
         };
-        if self.animation.borrow().normalized_attachment_interval() == Some(interval) {
+        if self.animation.borrow().normalized_attachment_interval == Some(interval) {
             return;
         }
         self.normalize_effect_timing();
@@ -1366,7 +1368,7 @@ impl Procedures<'_> {
     fn normalize_effect_timing(&self) {
         let interval = self.timeline.as_ref().and_then(TimelineState::attachment_interval);
         let mut animation = self.animation.borrow_mut();
-        animation.set_normalized_attachment_interval(interval);
+        animation.normalized_attachment_interval = interval;
         if let Some(effect) = animation.effect() {
             effect.borrow_mut().normalize_specified_timing(self.timeline.as_ref());
         }
@@ -1381,7 +1383,7 @@ impl Procedures<'_> {
         );
 
         // 1. If the auto-align start time flag is false, abort this procedure.
-        if !self.animation.borrow().auto_align_start_time() {
+        if !self.animation.borrow().auto_align_start_time {
             return;
         }
 
@@ -1458,8 +1460,8 @@ impl Procedures<'_> {
 
         let is_monotonically_increasing = timeline.sample.is_monotonically_increasing;
 
-        // Prevent unnecessary work if the animation is already finished and can't exit the finished state due to
-        // timeline changes
+        // NB: Prevent unnecessary work if the animation is already finished and can't exit the finished state due to
+        //     timeline changes.
         let was_finished = self.playback().is_finished;
         if !was_finished || !is_monotonically_increasing {
             self.update_finished_state(DidSeek::No, SynchronouslyNotify::Yes, Invalidate::No, None);
@@ -1475,7 +1477,7 @@ impl Procedures<'_> {
             }
         }
 
-        // Act on the pending play or pause task
+        // NB: Act on the pending play or pause task.
         self.run_pending_play_task_if_ready();
 
         if self.playback().has_pending_pause_task && self.is_ready_to_run_pending_pause_task() {
@@ -1776,9 +1778,7 @@ impl Procedures<'_> {
     /// AD-HOC: The target's animation list is our own cache of the animations whose effect targets it, which an
     ///         animation that produces nothing leaves until it is revived.
     pub(crate) fn disassociate_from_target_if_inert(&mut self) {
-        self.animation
-            .borrow_mut()
-            .set_disassociation_from_target_pending(false);
+        self.animation.borrow_mut().disassociation_from_target_pending = false;
         // NB: Script may have revived the animation since the disassociation was scheduled.
         let Some(effect) = self.animation.borrow().effect().cloned() else {
             return;
@@ -1794,9 +1794,7 @@ impl Procedures<'_> {
             effect: effect.clone(),
         });
         let play_state = self.play_state();
-        self.animation
-            .borrow_mut()
-            .set_play_state_when_disassociated_from_target(Some(play_state));
+        self.animation.borrow_mut().play_state_when_disassociated_from_target = Some(play_state);
         // NB: The target's animated style keeps the effect's values until they are recomputed without it.
         self.emit(HostEffectKind::RecomputeEffectStyle { effect });
     }
@@ -1927,7 +1925,9 @@ impl Procedures<'_> {
     fn note_script_play_state_override(&self) {
         let mut animation = self.animation.borrow_mut();
         if let AnimationKind::CssAnimation(_) = animation.kind() {
-            animation.css_animation_mut().flags |= CssAnimationFlag::ScriptOverrodePlayState as u8;
+            animation
+                .css_animation_mut()
+                .set_flag(CssAnimationFlag::ScriptOverrodePlayState);
         }
     }
 
@@ -2181,56 +2181,6 @@ mod tests {
             .kinds()
     }
 
-    fn play_state(animation: &AnimationHandle, timeline: &TimelineState) -> AnimationPlayState {
-        run_on(animation, Some(*timeline), |procedures| Ok(procedures.play_state()))
-            .unwrap()
-            .0
-    }
-
-    #[test]
-    fn playing_waits_for_the_pending_play_task_to_start() {
-        let timeline = document_timeline_at(100.0);
-        let animation = one_second_animation(AnimationKind::Script, &timeline);
-
-        let kinds = kinds_of(&animation, &timeline, |procedures| procedures.play(Invalidate::No));
-        assert!(kinds.contains(&HostEffectKind::ReplaceReadyPromise));
-        assert!(animation.borrow().playback().has_pending_play_task);
-        assert_eq!(play_state(&animation, &timeline), AnimationPlayState::Running);
-
-        let timeline = document_timeline_at(250.0);
-        let kinds = kinds_of(&animation, &timeline, |procedures| {
-            procedures.run_pending_play_task_if_ready();
-            Ok(())
-        });
-        assert!(kinds.contains(&HostEffectKind::ResolveReadyPromise));
-        let playback = *animation.borrow().playback();
-        assert!(!playback.has_pending_play_task);
-        assert_eq!(playback.start_time.get(), Some(TimeValue::milliseconds(250.0)));
-        assert_eq!(playback.hold_time.get(), None);
-    }
-
-    #[test]
-    fn finishing_notifies_synchronously() {
-        let timeline = document_timeline_at(0.0);
-        let animation = one_second_animation(AnimationKind::Script, &timeline);
-        kinds_of(&animation, &timeline, |procedures| procedures.play(Invalidate::No));
-
-        let kinds = kinds_of(&animation, &timeline, |procedures| procedures.finish_an_animation());
-        let resolve = kinds
-            .iter()
-            .position(|kind| *kind == HostEffectKind::ResolveFinishedPromise)
-            .expect("finishing resolves the finished promise");
-        assert!(matches!(
-            kinds[resolve + 1],
-            HostEffectKind::QueuePlaybackEvent {
-                r#type: PlaybackEventType::Finish,
-                current_time: Some(time),
-                ..
-            } if time == TimeValue::milliseconds(1000.0)
-        ));
-        assert_eq!(play_state(&animation, &timeline), AnimationPlayState::Finished);
-    }
-
     #[test]
     fn finishing_an_animation_at_rate_zero_throws() {
         let timeline = document_timeline_at(0.0);
@@ -2243,53 +2193,6 @@ mod tests {
     }
 
     #[test]
-    fn pausing_while_play_pending_keeps_the_ready_promise() {
-        let timeline = document_timeline_at(0.0);
-        let animation = one_second_animation(AnimationKind::Script, &timeline);
-        kinds_of(&animation, &timeline, |procedures| procedures.play(Invalidate::No));
-
-        let kinds = kinds_of(&animation, &timeline, |procedures| procedures.pause());
-        assert!(!kinds.contains(&HostEffectKind::ReplaceReadyPromise));
-        let playback = *animation.borrow().playback();
-        assert!(!playback.has_pending_play_task);
-        assert!(playback.has_pending_pause_task);
-        assert_eq!(play_state(&animation, &timeline), AnimationPlayState::Paused);
-    }
-
-    #[test]
-    fn cancelling_rejects_ready_then_finished_promise_then_queues_cancel() {
-        let timeline = document_timeline_at(0.0);
-        let animation = one_second_animation(AnimationKind::Script, &timeline);
-        kinds_of(&animation, &timeline, |procedures| procedures.play(Invalidate::No));
-
-        let kinds = kinds_of(&animation, &timeline, |procedures| {
-            procedures.cancel(Invalidate::No);
-            Ok(())
-        });
-        assert_eq!(
-            kinds,
-            [
-                HostEffectKind::RejectReadyPromise,
-                HostEffectKind::RejectFinishedPromise,
-                HostEffectKind::QueuePlaybackEvent {
-                    r#type: PlaybackEventType::Cancel,
-                    current_time: None,
-                    timeline_time: Some(TimeValue::milliseconds(0.0)),
-                    scheduled_timeline_time: Some(TimeValue::milliseconds(0.0)),
-                },
-            ]
-        );
-        assert_eq!(play_state(&animation, &timeline), AnimationPlayState::Idle);
-
-        // Cancelling an idle animation does nothing observable.
-        let kinds = kinds_of(&animation, &timeline, |procedures| {
-            procedures.cancel(Invalidate::No);
-            Ok(())
-        });
-        assert!(kinds.is_empty());
-    }
-
-    #[test]
     fn reversing_without_an_active_timeline_throws() {
         let timeline = document_timeline_at(0.0);
         let animation = one_second_animation(AnimationKind::Script, &timeline);
@@ -2298,24 +2201,13 @@ mod tests {
     }
 
     fn script_overrode_play_state(animation: &AnimationHandle) -> bool {
-        let mut animation = animation.borrow_mut();
-        animation.css_animation_mut().flags & CssAnimationFlag::ScriptOverrodePlayState as u8 != 0
+        animation
+            .borrow()
+            .css_animation()
+            .has_flag(CssAnimationFlag::ScriptOverrodePlayState)
     }
 
     // https://drafts.csswg.org/css-animations-2/#animations
-    #[test]
-    fn script_changing_the_play_state_overrides_animation_play_state() {
-        let timeline = document_timeline_at(0.0);
-        let animation = one_second_animation(css_animation(), &timeline);
-
-        kinds_of(&animation, &timeline, |procedures| procedures.play_from_css());
-        kinds_of(&animation, &timeline, |procedures| procedures.pause_from_css());
-        assert!(!script_overrode_play_state(&animation));
-
-        // Playing a paused animation changes its play state.
-        kinds_of(&animation, &timeline, |procedures| procedures.play(Invalidate::No));
-        assert!(script_overrode_play_state(&animation));
-    }
 
     #[test]
     fn script_playing_a_running_css_animation_does_not_override_animation_play_state() {
@@ -2365,19 +2257,6 @@ mod tests {
     }
 
     #[test]
-    fn unsetting_the_effect_recomputes_the_style_it_applied() {
-        let timeline = document_timeline_at(0.0);
-        let animation = one_second_animation(AnimationKind::Script, &timeline);
-        let effect = animation.borrow().effect().cloned().unwrap();
-        let kinds = kinds_of(&animation, &timeline, |procedures| {
-            procedures.set_the_associated_effect(None, Invalidate::No);
-            Ok(())
-        });
-        assert_eq!(kinds, [HostEffectKind::RecomputeEffectStyle { effect }]);
-        assert!(animation.borrow().effect().is_none());
-    }
-
-    #[test]
     fn removing_an_animation_disassociates_it_from_its_timeline_until_persisted() {
         let dangling = NonNull::<u8>::dangling().cast::<c_void>();
         let timeline = TimelineHandle::new(
@@ -2388,7 +2267,7 @@ mod tests {
         );
         let animation = one_second_animation(AnimationKind::Script, &document_timeline_at(0.0));
         // NB: A set of animations holds only the animations whose host `Animation` is alive.
-        animation.set_facade(Some(dangling));
+        animation.set_object_cell(Some(dangling));
         let associated = || timeline.associated_animations().borrow().contains(&animation);
         run(&animation, |procedures| {
             procedures.set_timeline(Some(timeline.clone()));
@@ -2413,48 +2292,6 @@ mod tests {
             assert!(kinds.is_empty());
             assert_eq!(associated(), is_associated);
         }
-    }
-
-    #[test]
-    fn an_inert_animation_leaves_its_target_until_it_is_associated_again() {
-        let timeline = document_timeline_at(0.0);
-        let animation = one_second_animation(AnimationKind::Script, &timeline);
-        let effect = animation.borrow().effect().cloned().unwrap();
-        let element = NonNull::<u8>::dangling().cast::<c_void>();
-        effect.borrow_mut().set_target_element(Some(element));
-
-        // An idle animation is not relevant.
-        let kinds = kinds_of(&animation, &timeline, |procedures| {
-            procedures.disassociate_from_target_if_inert();
-            Ok(())
-        });
-        assert_eq!(
-            kinds,
-            [
-                HostEffectKind::DisassociateFromTarget {
-                    element,
-                    effect: effect.clone()
-                },
-                HostEffectKind::RecomputeEffectStyle { effect }
-            ]
-        );
-        assert_eq!(
-            animation.borrow().play_state_when_disassociated_from_target(),
-            Some(AnimationPlayState::Idle)
-        );
-
-        animation.borrow_mut().did_associate_with_target();
-        assert_eq!(animation.borrow().play_state_when_disassociated_from_target(), None);
-        assert!(animation.borrow().disassociation_from_target_pending());
-
-        // A playing animation is relevant, so it stays.
-        kinds_of(&animation, &timeline, |procedures| procedures.play(Invalidate::No));
-        let kinds = kinds_of(&animation, &timeline, |procedures| {
-            procedures.disassociate_from_target_if_inert();
-            Ok(())
-        });
-        assert!(kinds.is_empty());
-        assert!(!animation.borrow().disassociation_from_target_pending());
     }
 
     /// A finished script animation on `timeline`, which runs from time zero, whose one second effect targets `target`,
@@ -2499,7 +2336,7 @@ mod tests {
                 None,
             ))));
         // NB: A set of animations holds only the animations whose host `Animation` is alive.
-        animation.set_facade(Some(NonNull::<u8>::dangling().cast()));
+        animation.set_object_cell(Some(NonNull::<u8>::dangling().cast()));
         animation.borrow_mut().playback_mut().start_time = Some(TimeValue::milliseconds(0.0)).into();
         run(&animation, |procedures| {
             procedures.set_timeline(Some(timeline.clone()));

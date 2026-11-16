@@ -12,7 +12,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 pub use crate::css::calc::{CalcNode, CalcNumericType as NumericType, FfiNumericType};
-use crate::css::calc::{CalcNumericValue, base_type_from_value_type, canonical_unit_code, resolve_as_for_value_type};
+use crate::css::calc::{
+    CalcNodeHandle, CalcNumericValue, base_type_from_value_type, canonical_unit_code, resolve_as_for_value_type,
+};
 use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive};
 use crate::css::css_string::CssString;
 use crate::css::dimension_units::{
@@ -40,10 +42,11 @@ use crate::css::style_compute::{
     LENGTH_UNIT_CANONICAL_PX_RATIOS, LENGTH_UNIT_NAMES, rust_style_value_is_computationally_independent,
 };
 use crate::css::style_value::style_value_create_grid_track_size_list;
-pub use crate::css::style_value::{ReifiedUnresolvedSegment, RetainedStyleValueData as RetainedStyleValue};
 use crate::css::style_value::{
-    RetainedNumericRangeByType, StyleValueData, rust_style_value_create_calculated, rust_style_value_create_value_list,
+    CalculatedPayload, RetainedNumericRangeByType, RetainedNumericRangeList, StyleValueBox, StyleValueData,
+    rust_style_value_create_value_list,
 };
+pub use crate::css::style_value::{ReifiedUnresolvedSegment, RetainedStyleValueData as RetainedStyleValue};
 use crate::css::style_value_arc::StyleValueArc;
 use crate::css::value_codes::{
     VALUE_TYPE_ANGLE, VALUE_TYPE_FLEX, VALUE_TYPE_FREQUENCY, VALUE_TYPE_IMAGE, VALUE_TYPE_INTEGER, VALUE_TYPE_LENGTH,
@@ -787,23 +790,18 @@ pub(crate) fn calculated_value(
             .map(|range| RetainedNumericRangeByType::new(range.value_type, range.min, range.max))
             .collect()
     };
-    let calculation = Arc::into_raw(calculation);
-    // SAFETY: This hands over one strong reference to the calculation, and the ranges are readable for their length.
-    let value = unsafe {
-        rust_style_value_create_calculated(
-            calculation,
-            FfiNumericType::from_calc(Some(numeric_type)),
-            resolve_as.is_some(),
-            resolve_as == Some(VALUE_TYPE_NUMBER),
-            resolve_as.and_then(base_type_from_value_type).unwrap_or(0),
-            resolve_as.unwrap_or(0),
-            property_accepts_value_type(property_id, VALUE_TYPE_INTEGER),
-            ranges.as_ptr(),
-            ranges.len(),
-        )
-    };
-    // SAFETY: The call hands over a strong reference to a new value.
-    unsafe { RetainedStyleValue::from_raw(value.cast()) }
+    RetainedStyleValue::from_arc(StyleValueArc::new(StyleValueData::Calculated(StyleValueBox::new(
+        CalculatedPayload {
+            rust_calculation: CalcNodeHandle::from_arc(calculation),
+            resolve_as_is_number: resolve_as == Some(VALUE_TYPE_NUMBER),
+            resolve_as_base: resolve_as.and_then(base_type_from_value_type).unwrap_or(0),
+            resolved_type: FfiNumericType::from_calc(Some(numeric_type)),
+            has_percentages_resolve_as: resolve_as.is_some(),
+            percentages_resolve_as: resolve_as.unwrap_or(0),
+            resolve_numbers_as_integers: property_accepts_value_type(property_id, VALUE_TYPE_INTEGER),
+            accepted_ranges: RetainedNumericRangeList::from_vec(ranges),
+        },
+    ))))
 }
 
 fn opacity_value(value: RetainedStyleValue) -> RetainedStyleValue {

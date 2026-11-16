@@ -13,7 +13,6 @@
 //! Nothing constructs these yet; the FFI construction surface follows with
 //! the C++ staging.
 
-use crate::css::ffi_support::OwnedArc;
 use crate::css::style_value::{
     AnchorPayload, AnchorSizePayload, CalculatedPayload, RandomValueSharingPayload, StyleValueBox,
 };
@@ -941,12 +940,6 @@ unsafe impl Send for CalcNodeHandle where CalcNode: Send + Sync {}
 unsafe impl Sync for CalcNodeHandle where CalcNode: Send + Sync {}
 
 impl CalcNodeHandle {
-    /// # Safety
-    /// `raw` must be a handle from one of the construction functions below.
-    pub(crate) unsafe fn from_raw(raw: *const CalcNode) -> Self {
-        Self { node: raw }
-    }
-
     pub(crate) fn from_arc(node: Arc<CalcNode>) -> Self {
         Self {
             node: Arc::into_raw(node),
@@ -1264,27 +1257,6 @@ pub(crate) fn calc_node_create_numeric_dimension(kind: u8, value: f64, unit: u8)
         _ => unreachable!("invalid numeric dimension kind {kind}"),
     };
     handle(CalcNode::Numeric(numeric))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_calc_node_release(node: OwnedArc<CalcNode>) {
-    drop(node);
-}
-
-/// https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
-/// Determines the type of the calculation rooted at `node` under the given
-/// resolve-as target. The result's valid flag is false when the tree does not
-/// type-check.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_calc_node_determine_type(
-    node: &CalcNode,
-    has_percentages_resolve_as: bool,
-    resolve_as_is_number: bool,
-    resolve_as_base: u8,
-) -> FfiNumericType {
-    let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
-    let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
-    FfiNumericType::from_calc(node.numeric_type(&percentage_leaf_type))
 }
 
 /// Whether any leaf of the calculation is a percentage.

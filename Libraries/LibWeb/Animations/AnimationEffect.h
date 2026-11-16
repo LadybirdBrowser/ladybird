@@ -15,36 +15,11 @@
 #include <LibWeb/Animations/KeyframeSetHandle.h>
 #include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/Animations/RustFFI.h>
-#include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/InstalledStyle.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 
 namespace Web::Animations {
-
-inline RustFFI::OptionalTimeValue to_ffi(Optional<TimeValue> const& time)
-{
-    return { .value = time.value_or(TimeValue { TimeValue::Type::Milliseconds, 0 }), .has_value = time.has_value() };
-}
-
-inline Optional<TimeValue> from_ffi(RustFFI::OptionalTimeValue const& time)
-{
-    if (!time.has_value)
-        return {};
-    return time.value;
-}
-
-inline Optional<double> from_ffi(RustFFI::OptionalNumber const& number)
-{
-    if (!number.has_value)
-        return {};
-    return number.value;
-}
-
-inline RustFFI::OptionalNumber to_ffi(Optional<double> const& number)
-{
-    return { .value = number.value_or(0), .has_value = number.has_value() };
-}
 
 // This object lives for the duration of an animation update, and is used to store per-element data about animated CSS properties.
 struct AnimationUpdateContext {

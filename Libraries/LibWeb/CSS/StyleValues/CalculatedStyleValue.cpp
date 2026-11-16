@@ -15,7 +15,6 @@
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
@@ -27,52 +26,7 @@
 
 namespace Web::CSS {
 
-// Marshals a numeric type into its FFI mirror.
-static StyleValueFFI::FfiNumericType to_ffi_numeric_type(Optional<NumericType> const& type)
-{
-    StyleValueFFI::FfiNumericType result {};
-    result.valid = type.has_value();
-    if (type.has_value()) {
-        type->for_each_type_and_exponent([&](auto base_type, i32 exponent) {
-            result.has_exponent_bits |= 1u << to_underlying(base_type);
-            result.exponents[to_underlying(base_type)] = exponent;
-        });
-        if (auto hint = type->percent_hint(); hint.has_value()) {
-            result.has_percent_hint = true;
-            result.percent_hint = to_underlying(hint.value());
-        }
-    }
-    return result;
-}
-
 static Optional<NumericType> from_ffi_numeric_type(StyleValueFFI::FfiNumericType const&);
-
-// Builds the Rust mirror of a calculation tree, transferring ownership of the
-// returned handle to the caller. The child orders follow each node's members.
-StyleValueFFI::StyleValueData const* CalculatedStyleValue::make_calculated_data_from_rust_root(StyleValueFFI::CalcNode const* rust_root, NumericType const& resolved_type, CalculationContext const& context)
-{
-    Vector<StyleValueFFI::RetainedNumericRangeByType> ranges;
-    ranges.ensure_capacity(context.accepted_ranges_by_type.size());
-    for (auto const& [value_type, range] : context.accepted_ranges_by_type)
-        ranges.unchecked_append({ to_underlying(value_type), range.min, range.max });
-    auto resolve_as_base = context.percentages_resolve_as.has_value()
-        ? NumericType::base_type_from_value_type(*context.percentages_resolve_as)
-        : OptionalNone {};
-    return StyleValueFFI::rust_style_value_create_calculated(
-        rust_root,
-        to_ffi_numeric_type(resolved_type),
-        context.percentages_resolve_as.has_value(),
-        context.percentages_resolve_as == ValueType::Number,
-        resolve_as_base.has_value() ? to_underlying(*resolve_as_base) : 0,
-        context.percentages_resolve_as.has_value() ? to_underlying(*context.percentages_resolve_as) : 0,
-        context.resolve_numbers_as_integers,
-        ranges.data(), ranges.size());
-}
-
-ValueComparingNonnullRefPtr<CalculatedStyleValue const> CalculatedStyleValue::create(CalcNodeRef root, NumericType resolved_type, CalculationContext context)
-{
-    return adopt_ref(*new (nothrow) CalculatedStyleValue(root.release(), move(resolved_type), move(context)));
-}
 
 NumericType CalculatedStyleValue::resolved_type() const
 {
@@ -245,17 +199,6 @@ Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolut
     return {};
 }
 
-Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext const& context) const
-{
-    auto calculation_context = this->calculation_context();
-    auto result = resolve_value(context);
-
-    if (result.has_value() && result->type.has_value() && result->type->matches_time(calculation_context.percentages_resolve_as))
-        return Time::make_seconds(result->value);
-
-    return {};
-}
-
 Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
@@ -271,18 +214,6 @@ bool CalculatedStyleValue::contains_percentage() const
 {
     // The Rust mirror answers.
     return StyleValueFFI::rust_calc_node_contains_percentage(m_value->calculated._0->rust_calculation.node);
-}
-
-Optional<NumericType> CalcNodeRef::determine_type(CalculationContext const& context) const
-{
-    auto resolve_as_base = context.percentages_resolve_as.has_value()
-        ? NumericType::base_type_from_value_type(*context.percentages_resolve_as)
-        : OptionalNone {};
-    return from_ffi_numeric_type(StyleValueFFI::rust_calc_node_determine_type(
-        m_node,
-        context.percentages_resolve_as.has_value(),
-        context.percentages_resolve_as == ValueType::Number,
-        resolve_as_base.has_value() ? to_underlying(*resolve_as_base) : 0));
 }
 
 }

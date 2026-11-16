@@ -14,10 +14,9 @@
 #include <LibGC/Heap.h>
 #include <LibGC/HeapAccess.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/NamedTimelines.h>
+#include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -769,27 +768,6 @@ void EventLoop::finish_rendering_update(double update_start_time)
     m_last_rendering_update_end_time = update_end_time;
 }
 
-// Whether `animation` is a CSS animation or transition that the style of a rendering update began, which the update
-// makes ready once its style and layout are done.
-static bool rendering_update_makes_ready(Animations::AnimationRef const& animation)
-{
-    auto effect = animation.effect();
-    if (!effect.has_value())
-        return false;
-    auto const state = animation.timing_state();
-    return (state.playback.has_pending_play_task || state.playback.has_pending_pause_task)
-        && (state.kind == Animations::RustFFI::FfiAnimationKind::CssAnimation || state.kind == Animations::RustFFI::FfiAnimationKind::CssTransition)
-        && !effect->may_run_on_the_compositor();
-}
-
-// Whether `animation` runs on the compositor, whose animations, the wake-ups they arm and the ones that leave it, a
-// rendering update publishes with its frame.
-static bool runs_on_the_compositor(Animations::AnimationRef const& animation)
-{
-    auto effect = animation.effect();
-    return effect.has_value() && effect->is_compositor_driven();
-}
-
 enum class StyleTakenIn : u8 {
     No,
     Yes,
@@ -832,12 +810,8 @@ static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> co
         return HeldTasks::OfLastDocument;
     if (lanes_wait(document))
         return HeldTasks::OfLastDocument;
-    for (auto const& timeline : document.associated_animation_timelines()) {
-        for (auto const& animation : timeline->associated_animations()) {
-            if (style_taken_in == StyleTakenIn::No || rendering_update_makes_ready(animation) || runs_on_the_compositor(animation))
-                return HeldTasks::OfLastDocument;
-        }
-    }
+    if (Animations::RustFFI::animations_document_timelines_hold_rendering_update_tasks(&document.document_animations(), style_taken_in == StyleTakenIn::Yes))
+        return HeldTasks::OfLastDocument;
     if (style_taken_in == StyleTakenIn::No && document.style_computer().style_engine().css_transitions_may_observe_style_changes())
         return HeldTasks::OfLastDocument;
     return HeldTasks::None;
@@ -929,7 +903,7 @@ Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(
         // their reactions run once every document took in what its lanes did.
         HTML::TemporaryExecutionContext execution_context { documents_with_lanes.first()->relevant_settings_object() };
         for (auto& document : documents_with_lanes)
-            CSS::CSSTransition::adopt_lane_transitions(*document);
+            document->style_computer().adopt_lane_transitions();
     }
 
     process_input_events();
@@ -1339,19 +1313,17 @@ static void update_style_and_layout_for_rendering(DOM::Document& document, u64 u
     if (animations_changed_timeline)
         requires_style_and_layout_update = true;
 
-    GC::RootVector timelines = { document.associated_animation_timelines().values() };
-    for (auto const& timeline : timelines) {
-        if (!timeline->is_scroll_timeline())
-            continue;
-
-        if (animations_changed_timeline) {
-            // NB: The passed timestamp is ignored for ScrollTimelines so we can just use 0.
-            timeline->update_current_time(0);
-            requires_style_and_layout_update = true;
-            continue;
-        }
-
-        if (timeline->update_current_time_if_stale())
+    {
+        // NB: The animations the timelines update stay alive through it, which can run script.
+        GC::RootVector<Animations::AnimationRef> updated_animations;
+        Animations::RustFFI::FfiTimelineAnimationsHost host {
+            .context = &updated_animations,
+            .keep_alive = Animations::keep_animation_alive_in,
+            .perform = Animations::web_animation_perform_host_effect,
+        };
+        // https://drafts.csswg.org/scroll-animations-1/#stale-timelines
+        auto update = animations_changed_timeline ? Animations::RustFFI::FfiTimelinesUpdate::ScrollTimelines : Animations::RustFFI::FfiTimelinesUpdate::StaleScrollTimelines;
+        if (Animations::RustFFI::animations_document_update_timelines(&document.document_animations(), update, 0, &host))
             requires_style_and_layout_update = true;
     }
 
@@ -1374,17 +1346,9 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
     for (auto& document : docs) {
         // NB: A play task resolves the animation's ready promise.
         TemporaryExecutionContext execution_context { document->relevant_settings_object() };
-        GC::RootVector timelines = { document->associated_animation_timelines().values() };
-        for (auto const& timeline : timelines) {
-            // NB: Running a play task can run script, which the animations stay alive through.
-            GC::RootVector<Animations::AnimationRef> pending_css_animations;
-            for (auto const& animation : timeline->associated_animations()) {
-                if (rendering_update_makes_ready(animation))
-                    pending_css_animations.append(animation);
-            }
-            for (auto const& animation : pending_css_animations)
-                animation.run_pending_play_task_if_ready();
-        }
+        // NB: Running a play task can run script, which the animations stay alive through.
+        GC::RootVector<Animations::AnimationRef> pending_css_animations;
+        Animations::RustFFI::animations_document_run_pending_css_play_tasks(&document->document_animations(), &pending_css_animations, Animations::keep_animation_alive_in, Animations::web_animation_perform_host_effect);
     }
 
     // 17. For each doc of docs, if the focused area of doc is not a focusable area, then run the focusing steps for doc's viewport, and set doc's relevant global object's navigation API's focus changed during ongoing navigation to false.
@@ -1535,10 +1499,8 @@ Layout::RustFFI::FfiFlightBlocker EventLoop::style_flight_blocker(DOM::Document&
         return Blocker::ScrollStateContainer;
     if (document.has_boxes_with_auto_content_visibility())
         return Blocker::ContentVisibilityAuto;
-    for (auto const& timeline : document.associated_animation_timelines()) {
-        if (timeline->is_scroll_timeline())
-            return Blocker::ScrollTimeline;
-    }
+    if (Animations::RustFFI::animations_document_animations_query(&document.document_animations(), Animations::RustFFI::DocumentAnimationsQuery::AnyScrollTimeline))
+        return Blocker::ScrollTimeline;
     // The animations that name their timeline look it up again after style and layout.
     if (document.has_named_timelines())
         return Blocker::ScrollTimeline;

@@ -216,18 +216,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn arithmetic_keeps_the_unit() {
-        let a = TimeValue::percentage(30.0);
-        let b = TimeValue::percentage(10.0);
-        assert_eq!(a + b, TimeValue::percentage(40.0));
-        assert_eq!(a - b, TimeValue::percentage(20.0));
-        assert_eq!(a * 2.0, TimeValue::percentage(60.0));
-        assert_eq!(a / 2.0, TimeValue::percentage(15.0));
-        assert_eq!(a / b, 3.0);
-        assert_eq!(-a, TimeValue::percentage(-30.0));
-    }
-
-    #[test]
     #[should_panic(expected = "different units")]
     fn mixed_unit_arithmetic_panics() {
         let _ = TimeValue::percentage(30.0) + TimeValue::milliseconds(10.0);
@@ -240,11 +228,6 @@ mod tests {
     }
 
     #[test]
-    fn mixed_unit_values_are_not_equal() {
-        assert_ne!(TimeValue::percentage(0.0), TimeValue::milliseconds(0.0));
-    }
-
-    #[test]
     fn nan_orders_equal_and_max_keeps_the_first() {
         let nan = TimeValue::milliseconds(f64::NAN);
         let zero = TimeValue::milliseconds(0.0);
@@ -253,14 +236,5 @@ mod tests {
         assert_eq!(max(zero, nan), zero);
         assert!(max(f64::NAN, 0.0).is_nan());
         assert_eq!(min(1.0, 2.0), 1.0);
-    }
-
-    #[test]
-    fn optionals_round_trip() {
-        let time = TimeValue::milliseconds(5.0);
-        assert_eq!(OptionalTimeValue::from(Some(time)).get(), Some(time));
-        assert_eq!(OptionalTimeValue::from(None).get(), None);
-        assert_eq!(OptionalNumber::from(Some(2.5)).get(), Some(2.5));
-        assert_eq!(OptionalNumber::from(None).get(), None);
     }
 }

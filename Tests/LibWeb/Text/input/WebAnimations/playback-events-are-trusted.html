@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        const finishing = target.animate({ opacity: [0, 1] }, 1000);
+        const finishEvent = new Promise(resolve => { finishing.onfinish = resolve; });
+        finishing.finish();
+        println(`finish isTrusted: ${(await finishEvent).isTrusted}`);
+
+        const canceling = target.animate({ opacity: [0, 1] }, 1000);
+        const cancelEvent = new Promise(resolve => { canceling.oncancel = resolve; });
+        canceling.cancel();
+        println(`cancel isTrusted: ${(await cancelEvent).isTrusted}`);
+
+        println(`constructed isTrusted: ${new AnimationPlaybackEvent("finish").isTrusted}`);
+        done();
+    });
+</script>

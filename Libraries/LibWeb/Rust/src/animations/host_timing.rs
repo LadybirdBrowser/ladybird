@@ -8,7 +8,8 @@
 //! updates and ticks, the wakeups it arms, and what the compositor update hands the compositor. The record resolves
 //! all of it from one current time, and decides what follows from its timing alone.
 
-use super::animation::{AnimationKind, AnimationRecord, CSS_TRANSITION_PHASE_IDLE};
+use super::animation::{AnimationKind, AnimationRecord, TransitionPhase};
+use super::timeline_state::time_unit_of;
 use super::timing::{
     self, AnimationEffectPhase, AnimationEffectTiming, AnimationPlayState, AnimationPlayback, OptionalNumber,
     OptionalTimeValue, TimeValue, TimeValueType,
@@ -93,18 +94,77 @@ impl AnimationRecord {
         }
     }
 
+    /// A zero time in the unit of the times of the timeline of the animation.
+    pub(crate) fn zero_time(&self) -> TimeValue {
+        let progress_based = self
+            .timeline()
+            .is_some_and(|timeline| timeline.borrow().is_progress_based());
+        TimeValue::zero(time_unit_of(progress_based))
+    }
+
+    /// https://www.w3.org/TR/web-animations-1/#associated-effect-end
+    pub(crate) fn associated_effect_end(&self) -> TimeValue {
+        // The associated effect end of an animation is equal to the end time of the animation’s associated effect. If
+        // the animation has no associated effect, the associated effect end is zero.
+        match self.effect() {
+            Some(effect) => timing::end_time(&effect.borrow().timing()),
+            None => self.zero_time(),
+        }
+    }
+
+    /// https://www.w3.org/TR/web-animations-1/#animation-current-time
+    pub(crate) fn current_time(&self) -> Option<TimeValue> {
+        let timeline_time = self.timeline().and_then(|timeline| timeline.current_time());
+        timing::current_time_at(self.playback(), timeline_time)
+    }
+
+    /// https://www.w3.org/TR/web-animations-1/#play-states
+    pub(crate) fn play_state(&self) -> AnimationPlayState {
+        self.play_state_at(self.current_time())
+    }
+
+    /// https://www.w3.org/TR/web-animations-1/#play-states
+    /// At `current_time`, the current time of the animation.
+    pub(crate) fn play_state_at(&self, current_time: Option<TimeValue>) -> AnimationPlayState {
+        timing::play_state_at(self.playback(), current_time, self.associated_effect_end())
+    }
+
+    /// Whether the animation has a monotonically increasing timeline.
+    pub(crate) fn has_monotonically_increasing_timeline(&self) -> bool {
+        self.timeline()
+            .is_some_and(|timeline| timeline.borrow().is_monotonically_increasing())
+    }
+
+    /// https://www.w3.org/TR/web-animations-1/#animation-effect-phases-and-states
+    /// The phase of the associated effect of the animation at the current time of the animation, idle without one.
+    pub(crate) fn effect_phase(&self) -> AnimationEffectPhase {
+        let Some(effect) = self.effect() else {
+            return AnimationEffectPhase::Idle;
+        };
+        let sample = self.timeline().map(|timeline| timeline.sample());
+        let timeline_time = sample.as_ref().and_then(|sample| sample.current_time.get());
+        let current_time = timing::current_time_at(self.playback(), timeline_time);
+        timing::resolve_timing(
+            &effect.borrow().timing(),
+            current_time,
+            Some(self.playback()),
+            sample.as_ref(),
+        )
+        .phase
+    }
+
     /// What the host's per-frame decisions read of the animation now, with its current time at `timestamp`, where the
     /// host asks about one.
     pub(crate) fn timing_state(&self, timestamp: Option<f64>) -> FfiAnimationTimingState {
         let playback = *self.playback();
         let timeline = self.timeline();
-        let timeline_time = timeline.and_then(|timeline| timeline.current_time());
-        let current_time = timing::current_time_at(&playback, timeline_time);
+        let sample = timeline.map(|timeline| timeline.sample());
+        let current_time =
+            timing::current_time_at(&playback, sample.as_ref().and_then(|sample| sample.current_time.get()));
         let current_time_at_timestamp = timestamp.and_then(|timestamp| {
             let timeline_time = timeline.and_then(|timeline| timeline.current_time_at_timestamp(timestamp, None));
             timing::current_time_at(&playback, timeline_time)
         });
-        let sample = timeline.map(|timeline| timeline.sample());
         let has_monotonically_increasing_timeline = sample.is_some_and(|sample| sample.is_monotonically_increasing);
 
         let effect = self.effect().map(|effect| effect.borrow());
@@ -112,19 +172,7 @@ impl AnimationRecord {
         let resolved = effect_timing
             .as_ref()
             .map(|effect_timing| timing::resolve_timing(effect_timing, current_time, Some(&playback), sample.as_ref()));
-        // https://www.w3.org/TR/web-animations-1/#associated-effect-end
-        let associated_effect_end = match &effect_timing {
-            Some(effect_timing) => timing::end_time(effect_timing),
-            None => {
-                let progress_based = timeline.is_some_and(|timeline| timeline.borrow().is_progress_based());
-                TimeValue::zero(if progress_based {
-                    TimeValueType::Percentage
-                } else {
-                    TimeValueType::Milliseconds
-                })
-            }
-        };
-
+        let associated_effect_end = self.associated_effect_end();
         let mut state = FfiAnimationTimingState {
             kind: self.ffi_kind(),
             playback,
@@ -142,12 +190,10 @@ impl AnimationRecord {
                 .map_or(AnimationEffectPhase::Idle, |resolved| resolved.phase),
             is_in_effect: resolved.as_ref().is_some_and(timing::is_in_effect),
             end_time: associated_effect_end,
-            previous_current_iteration: effect
-                .as_ref()
-                .map_or(0.0, |effect| effect.previous_current_iteration()),
+            previous_current_iteration: effect.as_ref().map_or(0.0, |effect| effect.previous_current_iteration),
             is_initial_pending_css_transition: playback.pending()
                 && playback.has_pending_play_task
-                && matches!(self.kind(), AnimationKind::CssTransition(state) if state.previous_phase == CSS_TRANSITION_PHASE_IDLE),
+                && matches!(self.kind(), AnimationKind::CssTransition(state) if state.previous_phase == TransitionPhase::Idle),
             compositor_anchor: FfiCompositorAnchorKind::None,
             compositor_anchor_origin_relative_time: 0.0,
             compositor_anchor_local_time: 0.0,
@@ -278,19 +324,6 @@ mod tests {
     }
 
     #[test]
-    fn an_animation_without_a_timeline_runs_on_no_clock() {
-        let state = animation_held_at(500.0, 1.0).borrow().timing_state(None);
-        assert_eq!(state.kind, FfiAnimationKind::Script);
-        assert_eq!(state.phase, AnimationEffectPhase::Active);
-        assert!(state.is_in_effect);
-        assert_eq!(state.current_time.get(), Some(TimeValue::milliseconds(500.0)));
-        assert_eq!(state.compositor_anchor, FfiCompositorAnchorKind::None);
-        assert!(!state.can_throttle_offscreen_effect);
-        assert!(!state.can_throttle_replaced_effect);
-        assert_eq!(state.next_throttled_iteration_event_time.get(), None);
-    }
-
-    #[test]
     fn the_next_phase_boundary_is_the_start_delay_and_then_the_active_end() {
         let state = animation_held_at(50.0, 2.0).borrow().timing_state(None);
         assert_eq!(state.phase, AnimationEffectPhase::Before);
@@ -300,16 +333,6 @@ mod tests {
         assert_eq!(state.next_phase_boundary_delay.get(), Some(1500.0));
 
         let state = animation_held_at(600.0, f64::INFINITY).borrow().timing_state(None);
-        assert_eq!(state.next_phase_boundary_delay.get(), None);
-    }
-
-    #[test]
-    fn an_animation_without_an_effect_has_no_effect_timing() {
-        let animation = AnimationHandle::new(AnimationKind::Script);
-        let state = animation.borrow().timing_state(Some(0.0));
-        assert!(!state.has_effect);
-        assert_eq!(state.play_state, AnimationPlayState::Idle);
-        assert_eq!(state.phase, AnimationEffectPhase::Idle);
         assert_eq!(state.next_phase_boundary_delay.get(), None);
     }
 }

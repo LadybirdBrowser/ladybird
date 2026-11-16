@@ -32,16 +32,6 @@ public:
         return descriptor;
     }
 
-    // The descriptor reads its control points from a copy in storage the caller keeps alive.
-    Descriptor descriptor_with_points_in(Vector<LinearPoint>& storage) const
-    {
-        storage.extend(m_linear_points);
-        auto descriptor = m_descriptor;
-        descriptor.linear_points = storage.data();
-        descriptor.linear_point_count = storage.size();
-        return descriptor;
-    }
-
     Utf16String const& to_utf16_string() const { return m_text; }
 
     // NB: The serialization is of the value the function was made from, so it tells functions apart.

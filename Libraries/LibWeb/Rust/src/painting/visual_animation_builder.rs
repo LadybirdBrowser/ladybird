@@ -10,7 +10,7 @@
 //! context tree receives.
 
 use crate::animations::keyframes::{
-    CompositeOperationOrAuto, FINAL_KEY, Keyframe, KeyframeEasing, KeyframeSet, KeyframeValue,
+    CompositeOperationOrAuto, Keyframe, KeyframeEasing, KeyframeSet, KeyframeValue, offset_of_key,
 };
 use crate::css::absolutize::number_from_value;
 use crate::css::color_resolution::{ColorResolutionInput, FfiColorResolutionStyle, to_color};
@@ -851,7 +851,7 @@ impl CompositorAnimationEffectState {
                 let value = value.as_ref()?.clone();
                 Some(VisualAnimationKeyframe {
                     #[expect(clippy::cast_precision_loss)]
-                    offset: keyframe.key as f64 / FINAL_KEY as f64,
+                    offset: offset_of_key(keyframe.key as f64),
                     easing: request.easing_of(keyframe)?,
                     value,
                 })
@@ -1172,8 +1172,7 @@ mod tests {
                             })),
                         )],
                     };
-                    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                    let key = (keyframe.offset * FINAL_KEY as f64) as u64;
+                    let key = crate::animations::keyframes::key_of_offset(keyframe.offset);
                     (key, keyframe.composite, keyframe.easing.clone(), declarations)
                 })
                 .collect(),

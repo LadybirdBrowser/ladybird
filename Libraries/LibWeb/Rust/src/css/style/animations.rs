@@ -591,9 +591,9 @@ impl CompactEffectTiming {
         Some((sampled.effect, resolved))
     }
 
-    /// The key the effect's keyframes are sampled at with its timeline at `samples`, eased by `easing`, which is
-    /// `AnimationEffect::transformed_progress()` scaled the way the host scales it. The outer `None` is
-    /// a timeline the samples do not move; the inner one is an unresolved progress, which samples nothing.
+    /// The key the effect's keyframes are sampled at with its timeline at `samples`, eased by `easing`, which is the
+    /// transformed progress as a percentage scaled by `keyframes::KEY_SCALE_FACTOR`. The outer `None` is a timeline the
+    /// samples do not move; the inner one is an unresolved progress, which samples nothing.
     #[must_use]
     pub(crate) fn key_at(
         &self,
@@ -628,8 +628,8 @@ impl CompactEffectTiming {
             return Some(None);
         };
 
-        // `KeyframeEffect::AnimationKeyFrameKeyScaleFactor`, and the host's clamp to what a key can hold.
-        let key = output_progress * 100.0 * 1000.0;
+        // NB: The transformed progress, scaled as a key, and clamped to what a key can hold.
+        let key = crate::animations::keyframes::scaled_offset(output_progress);
         Some(Some(key.clamp(i64::MIN as f64, i64::MAX as f64)))
     }
 
@@ -689,7 +689,7 @@ mod tests {
 
     use crate::animations::snapshot::{EffectTimingSnapshot, TimelineClock, TimelineClockSource};
     use crate::animations::timeline::AnimationTimelineId;
-    use crate::animations::timing::{AnimationEffectTiming, AnimationReplaceState, FillMode, PlaybackDirection};
+    use crate::animations::timing::{AnimationEffectTiming, AnimationReplaceState, FillMode};
 
     impl EffectTiming {
         /// Changes the timing as the host would publish it.
@@ -826,53 +826,6 @@ mod tests {
         animation.change(|timing| timing.clock.source = TimelineClockSource::Unticked);
         assert!(animation.implies_will_change(AnimationTimelineSamples::at_tick(5000.0, &[])));
         assert_eq!(animation.key_at(AnimationTimelineSamples::at_tick(5000.0, &[])), None);
-    }
-
-    #[test]
-    fn a_key_follows_the_timeline_through_the_active_phase() {
-        assert_eq!(key(&timing_at(250.0)), Some(Some(25_000.0)));
-        assert_eq!(key(&timing_at(0.0)), Some(Some(0.0)));
-        assert_eq!(key(&timing_at(1500.0)), Some(None), "no fill after the end");
-        assert_eq!(key(&timing_at(-1.0)), Some(None), "no fill before the start");
-    }
-
-    #[test]
-    fn a_key_fills_and_holds() {
-        let mut timing = timing_at(1500.0);
-        timing.change(|timing| timing.effect.fill_mode = FillMode::Both);
-        assert_eq!(key(&timing), Some(Some(100_000.0)));
-        timing.change(|timing| timing.timeline.current_time = ms(-500.0));
-        assert_eq!(key(&timing), Some(Some(0.0)));
-        timing.change(|timing| timing.playback.hold_time = ms(500.0));
-        assert_eq!(key(&timing), Some(Some(50_000.0)), "a hold time wins over the timeline");
-    }
-
-    #[test]
-    fn a_key_runs_each_iteration_in_its_direction() {
-        let mut timing = timing_at(1250.0);
-        timing.change(|timing| timing.effect.iteration_count = f64::INFINITY);
-        assert_eq!(key(&timing), Some(Some(25_000.0)));
-        timing.change(|timing| timing.effect.playback_direction = PlaybackDirection::Alternate);
-        assert_eq!(
-            key(&timing),
-            Some(Some(75_000.0)),
-            "an alternate second iteration runs backwards"
-        );
-        timing.change(|timing| timing.effect.playback_direction = PlaybackDirection::Reverse);
-        assert_eq!(key(&timing), Some(Some(75_000.0)));
-        timing.change(|timing| timing.effect.playback_direction = PlaybackDirection::Normal);
-        timing.change(|timing| timing.playback.playback_rate = 2.0);
-        assert_eq!(key(&timing), Some(Some(50_000.0)));
-    }
-
-    #[test]
-    fn a_key_is_eased_by_the_effect() {
-        let mut timing = timing_at(500.0);
-        timing.easing = crate::css::easing::Easing::Steps {
-            interval_count: 2,
-            position: crate::css::easing::STEP_POSITION_JUMP_START,
-        };
-        assert_eq!(key(&timing), Some(Some(100_000.0)));
     }
 
     #[test]

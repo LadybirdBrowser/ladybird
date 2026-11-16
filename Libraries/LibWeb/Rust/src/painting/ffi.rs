@@ -1338,22 +1338,32 @@ pub unsafe extern "C" fn render_state_background_color_animation_keyframe_colors
 }
 
 /// Builds the animation of the request's target kind for the effect and keeps it pending with the
-/// effect. The target's nodes come from the arena's main tree.
+/// effect, which runs with the timing of the effect record `effect` and of the record of its associated animation
+/// `animation`. The target's nodes come from the arena's main tree.
 ///
 /// # Safety
 ///
 /// `document_host` must be a live document host on its document's thread, and the request and host, with every range
-/// they address, live for the call. The host's callbacks run synchronously and may not touch the arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_build(
+/// they address, live for the call. The host's callbacks run synchronously and may not touch the arena or the records.
+pub(crate) unsafe fn build_compositor_animation_effect(
     state: &mut CompositorAnimationEffectState,
     document_host: &DocumentHost,
-    request: *const crate::painting::host::FfiCompositorAnimationRequest,
+    mut ffi_request: crate::painting::host::FfiCompositorAnimationRequest,
+    effect: &crate::animations::effect::AnimationEffectCell,
+    animation: &crate::animations::animation::AnimationCell,
     host: &crate::painting::host::FfiCompositorAnimationHost,
 ) -> crate::painting::host::FfiCompositorAnimationBuildOutcome {
     use crate::painting::visual_animation_builder::{Host, Request};
+    // NB: The easing descriptor borrows the control points of the effect's timing function, which the build leaves as
+    //     they are.
+    ffi_request.timing.playback_rate = animation.borrow().playback().playback_rate;
+    {
+        let effect = effect.borrow();
+        ffi_request.timing.effect = effect.timing();
+        ffi_request.timing.easing = effect.timing_function().descriptor();
+    }
     // SAFETY: Guaranteed by the caller.
-    let mut request = unsafe { Request::new(&*request) };
+    let mut request = unsafe { Request::new(&ffi_request) };
     let host = Host::new(host);
     let layout_node = request.layout_node();
     if request.target_kind() == crate::painting::host::FfiVisualAnimationTargetKind::Transform {
@@ -1375,60 +1385,6 @@ pub unsafe extern "C" fn compositor_animation_effect_build(
             },
         )
     })
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_animation_effect_discard_pending(
-    state: &mut CompositorAnimationEffectState,
-    kind: crate::painting::host::FfiVisualAnimationTargetKind,
-) {
-    state.discard_pending(kind);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_animation_effect_has_pending(state: &CompositorAnimationEffectState) -> bool {
-    state.has_pending()
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_animation_effect_clear_pending(state: &mut CompositorAnimationEffectState) {
-    state.clear_pending();
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_animation_effect_has_retained(state: &CompositorAnimationEffectState) -> bool {
-    state.has_retained()
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn compositor_animation_effect_clear_retained(state: &mut CompositorAnimationEffectState) {
-    state.clear_retained();
-}
-
-/// # Safety
-///
-/// The request and host, with every range they address, must be live for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_only_translates_horizontally(
-    request: *const crate::painting::host::FfiCompositorAnimationRequest,
-    host: &crate::painting::host::FfiCompositorAnimationHost,
-) -> bool {
-    use crate::painting::visual_animation_builder::{Host, Request, effect_only_translates_horizontally};
-    let request = unsafe { Request::new(&*request) };
-    effect_only_translates_horizontally(&request, &Host::new(host))
-}
-
-/// # Safety
-///
-/// The request and host, with every range they address, must be live for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_transform_preserves_axes(
-    request: *const crate::painting::host::FfiCompositorAnimationRequest,
-    host: &crate::painting::host::FfiCompositorAnimationHost,
-) -> bool {
-    use crate::painting::visual_animation_builder::{Host, Request, effect_transform_preserves_axes};
-    let request = unsafe { Request::new(&*request) };
-    effect_transform_preserves_axes(&request, &Host::new(host))
 }
 
 /// Starts an update pass: the effects publish into an empty document list.

@@ -52,8 +52,8 @@ pub fn intrinsic_iteration_duration(
         Some(_) if iteration_count == 0.0 => TimeValue::zero(time_unit),
         // Otherwise
         Some(timeline_duration) => {
-            // Return(100% - start delay - end delay) / iteration count
-            // Note : Presently start and end delays are zero until such time as percentage based delays are supported.
+            // Return (100% - start delay - end delay) / iteration count
+            // Note: Presently start and end delays are zero until such time as percentage based delays are supported.
             // AD-HOC: An effect fills its animation's attachment range rather than the whole timeline, which is what the
             //         timeline duration is here. This matches WebKit.
             (timeline_duration - start_delay - end_delay) / iteration_count
@@ -71,7 +71,7 @@ pub fn convert_a_time_based_animation_to_a_proportional_animation(
 ) -> AnimationEffectTiming {
     let mut timing = specified_timing_with(specified, TimeValue::zero(time_unit));
 
-    // AD-HOC: We use the specified interation duration instead of the iteration duration here, see
+    // AD-HOC: We use the specified iteration duration instead of the iteration duration here, see
     //         https://github.com/w3c/csswg-drafts/pull/13170
     // If the iteration duration is auto, then perform the following steps.
     let Some(specified_iteration_duration) = specified.iteration_duration.time() else {
@@ -173,7 +173,7 @@ pub fn normalize_specified_timing(
     timing.end_delay = TimeValue::milliseconds(specified.end_delay);
 
     // 3. If iteration duration is auto:
-    // AD-HOC: We use the specified interation duration instead of the iteration duration here, see
+    // AD-HOC: We use the specified iteration duration instead of the iteration duration here, see
     //         https://github.com/w3c/csswg-drafts/pull/13170
     timing.iteration_duration = match specified.iteration_duration.time() {
         // Set iteration duration = intrinsic iteration duration
@@ -196,8 +196,8 @@ pub fn normalize_specified_timing(
 #[inline]
 #[must_use]
 pub fn animation_direction(animation: Option<&AnimationPlayback>) -> AnimationDirection {
-    // "backwards" if the effect is associated with an animation and the associated animation’s playback rate is less
-    // than zero; in all other cases, the animation direction is "forwards".
+    // “backwards” if the effect is associated with an animation and the associated animation’s playback rate is less
+    // than zero; in all other cases, the animation direction is “forward”.
     match animation {
         Some(animation) if animation.playback_rate < 0.0 => AnimationDirection::Backwards,
         _ => AnimationDirection::Forwards,
@@ -208,10 +208,12 @@ pub fn animation_direction(animation: Option<&AnimationPlayback>) -> AnimationDi
 #[inline]
 #[must_use]
 pub fn active_duration(timing: &AnimationEffectTiming) -> TimeValue {
-    // The active duration is calculated as follows:
+    // The length of the active interval is called the active duration, and is determined by the iteration duration and
+    // iteration count as defined below.
     //     active duration = iteration duration × iteration count
-    // If either the iteration duration or iteration count are zero, the active duration is zero. This clarification is
-    // needed since the result of infinity multiplied by zero is undefined according to IEEE 754-2008.
+    // If either the iteration duration or iteration count are zero, the active duration is zero.
+    // Note: This clarification is needed since the result of infinity multiplied by zero is undefined according to
+    //       IEEE 754-2008.
     if timing.iteration_duration.value == 0.0 || timing.iteration_count == 0.0 {
         return timing.zero();
     }
@@ -222,8 +224,8 @@ pub fn active_duration(timing: &AnimationEffectTiming) -> TimeValue {
 #[inline]
 #[must_use]
 pub fn end_time(timing: &AnimationEffectTiming) -> TimeValue {
-    // 1. The end time of an animation effect is the result of evaluating
-    //    max(start delay + active duration + end delay, 0).
+    // The end time, of an animation effect is the result of evaluating
+    // max(start delay + active duration + end delay, 0).
     max(
         timing.start_delay + active_duration(timing) + timing.end_delay,
         timing.zero(),
@@ -327,8 +329,8 @@ pub fn phase(
     }
 
     // https://www.w3.org/TR/web-animations-1/#animation-effect-active-phase
-    // An animation effect is in the active phase if the animation effect’s local time is not unresolved and it is not
-    // in either the before phase nor the after phase.
+    // An animation effect is in the active phase if the animation effect’s local time is not unresolved and it is
+    // neither in the before phase nor in the after phase.
     AnimationEffectPhase::Active
 }
 
@@ -400,7 +402,7 @@ pub fn overall_progress(
     // 1. If the active time is unresolved, return unresolved.
     let active_time = active_time?;
 
-    // 2. Calculate an initial value for overall progress based on the first matching condition from below,
+    // 2. Calculate an initial value for overall progress based on the first matching condition below:
     // -> If the iteration duration is zero,
     let overall_progress = if timing.iteration_duration.value == 0.0 {
         // If the animation effect is in the before phase, let overall progress be zero, otherwise, let it be equal to
@@ -513,7 +515,7 @@ pub fn simple_iteration_progress(timing: &AnimationEffectTiming, resolved: &Reso
     Some(simple_iteration_progress)
 }
 
-/// https://www.w3.org/TR/web-animations-1/#current-iteration
+/// https://drafts.csswg.org/web-animations-1/#current-iteration-index
 #[must_use]
 pub fn current_iteration(timing: &AnimationEffectTiming, resolved: &ResolvedEffectTiming) -> Option<f64> {
     current_iteration_with(timing, resolved, || simple_iteration_progress(timing, resolved))
@@ -571,7 +573,7 @@ fn current_direction_with(
 
         // -> Otherwise,
         PlaybackDirection::Alternate | PlaybackDirection::AlternateReverse => {
-            //    1. Let d be the current iteration.
+            //    1. Let d be the current iteration index.
             let mut d = current_iteration_with(timing, resolved, simple_iteration_progress)
                 .expect("an effect with a resolved simple iteration progress has a current iteration");
 
@@ -644,7 +646,7 @@ pub fn transformed_progress_with(
 
     // 2. Calculate the value of the before flag as follows:
 
-    //    1. Determine the current direction using the procedure defined in §4.9.1 Calculating the directed progress.
+    //    1. Determine the current direction using the procedure defined in Calculating the directed progress.
     // NB: Calculating the directed progress in step 1 determined it.
 
     //    2. If the current direction is forwards, let going forwards be true, otherwise it is false.
@@ -655,8 +657,8 @@ pub fn transformed_progress_with(
     let before_flag = (resolved.phase == AnimationEffectPhase::Before && going_forwards)
         || (resolved.phase == AnimationEffectPhase::After && !going_forwards);
 
-    // 3. Return the result of evaluating the animation effect’s timing function passing directed progress as the input
-    //    progress value and before flag as the before flag.
+    // 3. Return the result of evaluating the effect easing function passing directed progress as the input progress
+    //    value and before flag as the before flag.
     Some(evaluate_timing_function(directed_progress, before_flag))
 }
 
@@ -691,14 +693,12 @@ pub fn is_current(
     };
     let playback_rate = animation.playback_rate;
 
-    // - the animation effect is associated with an animation with a playback rate > 0 and the animation effect is
-    //   in the before phase, or
+    // - the animation effect is in the before phase and is associated with an animation with a playback rate > 0, or
     if playback_rate > 0.0 && phase == AnimationEffectPhase::Before {
         return true;
     }
 
-    // - the animation effect is associated with an animation with a playback rate < 0 and the animation effect is
-    //   in the after phase, or
+    // - the animation effect is in the after phase and is associated with an animation with a playback rate < 0, or
     if playback_rate < 0.0 && phase == AnimationEffectPhase::After {
         return true;
     }
@@ -714,8 +714,8 @@ pub fn is_current(
 #[inline]
 #[must_use]
 pub fn is_in_effect(resolved: &ResolvedEffectTiming) -> bool {
-    // An animation effect is in effect if its active time, as calculated according to the procedure in
-    // §4.8.3.1 Calculating the active time, is not unresolved.
+    // An animation effect is in effect if its active time, as calculated according to the procedure in Calculating the
+    // active time, is not unresolved.
     resolved.active_time.is_some()
 }
 
@@ -725,7 +725,7 @@ pub fn is_in_effect(resolved: &ResolvedEffectTiming) -> bool {
 #[inline]
 #[must_use]
 pub fn current_time_at(animation: &AnimationPlayback, timeline_time: Option<TimeValue>) -> Option<TimeValue> {
-    // The current time is calculated from the first matching condition from below:
+    // The current time is calculated from the first matching condition below:
 
     // -> If the animation’s hold time is resolved,
     if let Some(hold_time) = animation.hold_time.get() {
@@ -743,7 +743,7 @@ pub fn current_time_at(animation: &AnimationPlayback, timeline_time: Option<Time
     // -> Otherwise,
     //    current time = (timeline time - start time) × playback rate
     //    Where timeline time is the current time value of the associated timeline. The playback rate value is defined
-    //    in §4.4.15 Speed control.
+    //    in Speed control.
     Some((timeline_time - start_time) * animation.playback_rate)
 }
 

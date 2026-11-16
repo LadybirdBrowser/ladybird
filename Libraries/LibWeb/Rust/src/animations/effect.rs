@@ -7,11 +7,11 @@
 //! Animation effects.
 //! https://www.w3.org/TR/web-animations-1/#animation-effects
 
-use super::animation::{AnimationHandle, WeakAnimationHandle};
+use super::animation::{AnimationCell, AnimationHandle, WeakAnimationHandle};
 use super::easing::CompactEasing;
 use super::keyframes::{KeyframeOrigin, KeyframeSet};
 use super::timeline_state::{TimelineState, time_unit};
-use super::timing::{self, AnimationEffectPhase, AnimationEffectTiming, SpecifiedEffectTiming, TimeValue};
+use super::timing::{self, AnimationEffectPhase, AnimationEffectTiming, FillMode, SpecifiedEffectTiming, TimeValue};
 use super::weak_record_set::WeakRecordSet;
 use crate::css::animation::FfiCompositeOperation;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
@@ -37,7 +37,6 @@ impl AnimationEffectId {
 }
 
 /// What the host notes of an effect as it runs it on the compositor, throttles it, or samples it for script, by bit.
-#[expect(dead_code, reason = "C++ constructs the variants")]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EffectFlag {
@@ -100,7 +99,6 @@ impl RememberedPerFrameStyleUpdateSkipDecision {
 }
 
 /// What an effect remembers of whether a frame can skip its style update, for a key.
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PerFrameStyleUpdateSkipDecision {
     /// The effect remembers no decision.
@@ -115,7 +113,6 @@ pub enum PerFrameStyleUpdateSkipDecision {
 
 /// What became of a request that the next style update take an observation sample of an effect, at most once in a
 /// task.
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObservationSampleRequest {
     /// The effect was already asked for a sample in the task.
@@ -127,8 +124,6 @@ pub enum ObservationSampleRequest {
 }
 
 /// How to reach the compositor animations of an effect.
-#[expect(dead_code, reason = "C++ constructs the variants")]
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CompositorAnimationStateAccess {
     /// Only where the effect built any before.
@@ -172,11 +167,11 @@ pub(crate) struct AnimationEffectRecord {
     /// https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-pseudoelement
     pseudo_element_serialization: RetainedUtf16FlyString,
     /// The current iteration the effect was at when the host last dispatched its style events.
-    previous_current_iteration: f64,
+    pub(crate) previous_current_iteration: f64,
     /// The host's `PseudoElement` of the target pseudo-selector.
     pseudo_element_kind: u8,
     /// The phase the effect was in when the host last dispatched its style events.
-    previous_phase: AnimationEffectPhase,
+    pub(crate) previous_phase: AnimationEffectPhase,
     /// The `EffectFlag`s set.
     flags: u8,
     /// Whether script replaced keyframes the effect took from CSS, after which it takes no more from CSS.
@@ -395,24 +390,6 @@ impl AnimationEffectRecord {
     }
 
     #[must_use]
-    pub(crate) fn previous_phase(&self) -> AnimationEffectPhase {
-        self.previous_phase
-    }
-
-    #[must_use]
-    pub(crate) fn previous_current_iteration(&self) -> f64 {
-        self.previous_current_iteration
-    }
-
-    pub(crate) fn set_previous_phase(&mut self, phase: AnimationEffectPhase) {
-        self.previous_phase = phase;
-    }
-
-    pub(crate) fn set_previous_current_iteration(&mut self, current_iteration: f64) {
-        self.previous_current_iteration = current_iteration;
-    }
-
-    #[must_use]
     pub(crate) fn has_flag(&self, flag: EffectFlag) -> bool {
         self.flags & flag as u8 != 0
     }
@@ -508,7 +485,7 @@ pub struct AnimationEffectCell {
     record: RefCell<AnimationEffectRecord>,
     /// The host's `AnimationEffect`, which holds a reference to the record until it is finalized and clears this as it
     /// does.
-    facade: Cell<Option<NonNull<c_void>>>,
+    object_cell: Cell<Option<NonNull<c_void>>>,
 }
 
 impl AnimationEffectCell {
@@ -521,18 +498,18 @@ impl AnimationEffectCell {
     }
 
     /// The host's `AnimationEffect` of the effect, while it is alive.
-    pub(crate) fn facade(&self) -> Option<NonNull<c_void>> {
-        self.facade.get()
+    pub(crate) fn object_cell(&self) -> Option<NonNull<c_void>> {
+        self.object_cell.get()
     }
 
-    pub(crate) fn set_facade(&self, facade: Option<NonNull<c_void>>) {
-        self.facade.set(facade);
+    pub(crate) fn set_object_cell(&self, object_cell: Option<NonNull<c_void>>) {
+        self.object_cell.set(object_cell);
     }
 
     /// Whether the host may reach the effect and the element it targets: while the object script sees of it is, or,
     /// for an effect without one, while its associated animation is.
     pub(crate) fn is_alive(&self) -> bool {
-        if self.facade().is_some() {
+        if self.object_cell().is_some() {
             return true;
         }
         let animation = self.borrow().associated_animation();
@@ -555,7 +532,7 @@ impl EffectHandle {
     pub(crate) fn new() -> Self {
         Self(Rc::new(AnimationEffectCell {
             record: RefCell::new(AnimationEffectRecord::new()),
-            facade: Cell::new(None),
+            object_cell: Cell::new(None),
         }))
     }
 
@@ -645,5 +622,46 @@ impl std::ops::Deref for EffectHandle {
 
     fn deref(&self) -> &AnimationEffectCell {
         &self.0
+    }
+}
+
+/// The timing of an effect at one local time, and what follows from its timing alone.
+pub struct EffectTimingAtLocalTime {
+    pub phase: AnimationEffectPhase,
+    pub current_iteration: Option<f64>,
+    /// Unresolved where it was not asked for.
+    pub transformed_progress: Option<f64>,
+    pub active_duration: TimeValue,
+    pub end_time: TimeValue,
+}
+
+/// The timing of `effect` at `local_time` with `fill_mode` as its fill mode, associated with `animation`, if any, on
+/// its timeline, if it has one, and with its transformed progress through its timing function where
+/// `with_transformed_progress`.
+pub(crate) fn resolve_effect_timing(
+    effect: &AnimationEffectCell,
+    local_time: Option<TimeValue>,
+    fill_mode: FillMode,
+    animation: Option<&AnimationCell>,
+    with_transformed_progress: bool,
+) -> EffectTimingAtLocalTime {
+    let timeline = animation.and_then(|animation| animation.borrow().timeline().map(|timeline| timeline.sample()));
+    let timeline = timeline.as_ref();
+    let animation = animation.map(|animation| *animation.borrow().playback());
+    let effect = effect.borrow();
+    let timing = AnimationEffectTiming {
+        fill_mode,
+        ..effect.timing()
+    };
+    let resolved = timing::resolve_timing(&timing, local_time, animation.as_ref(), timeline);
+    let transformed_progress = with_transformed_progress
+        .then(|| timing::transformed_progress(&timing, &resolved, effect.timing_function().as_easing()))
+        .flatten();
+    EffectTimingAtLocalTime {
+        phase: resolved.phase,
+        current_iteration: timing::current_iteration(&timing, &resolved),
+        transformed_progress,
+        active_duration: timing::active_duration(&timing),
+        end_time: timing::end_time(&timing),
     }
 }
