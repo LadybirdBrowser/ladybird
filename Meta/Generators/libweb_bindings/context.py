@@ -262,7 +262,9 @@ class GenerationContext:
             seen_types.add(resolved_type_without_nullable)
 
             typedef_type = self.typedefs[resolved_type.name].type
-            resolved_type = typedef_type.clone_with_nullable(resolved_type.nullable or typedef_type.nullable)
+            resolved_type = typedef_type.clone_with_nullable(
+                resolved_type.nullable or typedef_type.nullable
+            ).with_extended_attributes({**typedef_type.extended_attributes, **resolved_type.extended_attributes})
 
             if isinstance(resolved_type, IDLUnionType):
                 return IDLUnionType(
