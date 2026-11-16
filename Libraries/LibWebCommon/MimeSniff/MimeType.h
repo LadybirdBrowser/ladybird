@@ -56,8 +56,6 @@ public:
 
     String const& essence() const;
     [[nodiscard]] String serialized() const;
-    [[nodiscard]] Utf16String serialized_as_utf16() const;
-
     static MimeType from_ffi(FFI::FfiMimeType const&);
     void lend_to_ffi(Function<void(FFI::FfiMimeType const&)> const&) const;
 

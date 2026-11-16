@@ -154,12 +154,6 @@ String MimeType::serialized() const
     return serialization;
 }
 
-// https://mimesniff.spec.whatwg.org/#serialize-a-mime-type
-Utf16String MimeType::serialized_as_utf16() const
-{
-    return Utf16String::from_utf8_without_validation(serialized());
-}
-
 void MimeType::set_parameter(String name, String value)
 {
     // https://mimesniff.spec.whatwg.org/#parameters
