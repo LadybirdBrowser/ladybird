@@ -452,6 +452,10 @@ pub(crate) fn is_transformable(arena: &impl PaintRead, node: NodeSlotId) -> bool
         && !node_facts::kind_is_text(kind)
         && kind != NodeKind::Viewport;
     let is_element_or_pseudo_element = is_dom_element || row.generated_for() != 0;
+    // NB: A table's wrapper box takes the transform of the table (see LayoutStyle::copy_table_properties).
+    if kind == NodeKind::TableWrapper {
+        return true;
+    }
     if is_element_or_pseudo_element && node_facts::kind_is_box(kind) {
         let Some(style) = row.style() else {
             return false;
