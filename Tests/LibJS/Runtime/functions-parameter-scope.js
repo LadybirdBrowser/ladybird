@@ -192,6 +192,24 @@ test("a function in a block does not get hoisted to a parameter of the same name
         return [before, g];
     }
     expect(f()).toEqual([123, 123]);
+
+    function g(a = 1, read = () => a) {
+        {
+            function a() {}
+        }
+        a = 5;
+        return read();
+    }
+    expect(g()).toBe(5);
+
+    function h(a = 1, write = value => (a = value)) {
+        {
+            function a() {}
+        }
+        write(9);
+        return a;
+    }
+    expect(h()).toBe(9);
 });
 
 test("a function in the parameters checks the dead zone of a parameter that a var of the body has the name of", () => {

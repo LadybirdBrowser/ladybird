@@ -1266,10 +1266,12 @@ impl<'a, U: Unit> Parser<'a, U> {
                 }
             }
             if row == NONE {
-                self.add_declaration(hoist.name, top, decl::ANNEX_B);
-                if self.records_summaries {
-                    let d = self.decls.len() - 1;
-                    self.decls[d].summary_slot = SUMMARY_SLOT_EARLY;
+                if !is_parameter {
+                    self.add_declaration(hoist.name, top, decl::ANNEX_B);
+                    if self.records_summaries {
+                        let d = self.decls.len() - 1;
+                        self.decls[d].summary_slot = SUMMARY_SLOT_EARLY;
+                    }
                 }
             } else if flags & !decl::FUNCTION_NAME == 0 {
                 // NB: The name of a function expression is bound outside of the function, which gets a `var` of its own.
