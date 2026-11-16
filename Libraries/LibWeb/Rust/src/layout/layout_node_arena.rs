@@ -1173,6 +1173,12 @@ pub(crate) struct LayoutNodeArena {
     style_records: ForkVec<u64>,
     /// How many of `style_records` name a record other than one the engine installed.
     rows_naming_uninstalled_records: u32,
+    /// The rows whose style positions them against an implicit anchor element: absolutely positioned, with
+    /// position-anchor auto, or normal and a position-area. refresh_style_flags() keeps it, which every pseudo-element
+    /// row's style passes through; a row a planned build stamps whole can be missing, but anchor candidate discovery
+    /// only asks about pseudo-element rows. Almost every document has none, so an empty set lets that discovery skip
+    /// the pseudo-elements of every box it places.
+    rows_positioned_against_implicit_anchor: CowSet<NodeSlotId>,
     /// The style record whose image resources the host was last owed for each row, or zero. A row whose record has not
     /// changed since holds those resources still, so a build that visits it again owes it nothing.
     image_resources_owed_records: ForkVec<u64>,
@@ -1354,6 +1360,7 @@ impl LayoutNodeArena {
             slot_metadata: ForkVec::default(),
             style_records: ForkVec::default(),
             rows_naming_uninstalled_records: 0,
+            rows_positioned_against_implicit_anchor: Default::default(),
             image_resources_owed_records: ForkVec::default(),
             style_record_pins: ForkVec::default(),
             style_records_pinned_by_host: ForkVec::default(),
@@ -1798,6 +1805,9 @@ impl LayoutNodeArena {
         }
         self.inline_boxes_lifted_out_of.remove(&id);
         self.out_of_flow_positioning_contained.remove(&id);
+        if !self.rows_positioned_against_implicit_anchor.is_empty() {
+            self.rows_positioned_against_implicit_anchor.remove(&id);
+        }
         self.pre_order_labels[index as usize] = 0;
         self.partial_relayout_boundary_roots.note_freed(id);
         self.metadata_mut(index).set_occupied(false);
@@ -2241,20 +2251,23 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn node_is_anchor_candidate(&self, node: NodeSlotId) -> bool {
-        super::node_facts::has_flag(self.data(node), NodeFlag::HasAnchorNames)
-            || self.dom_node_style_node(node).is_some_and(|element| {
-                self.style_node_tables.implicit_anchor_candidates.contains(&element)
-                    || self.bound_rows.pseudo_elements.get(&element).is_some_and(|rows| {
-                        rows.0.iter().any(|&row| {
-                            self.node_style_if_live(row).is_some_and(|style| {
-                                style.is_absolutely_positioned()
-                                    && (style.anchor().position_anchor_type == 2
-                                        || (style.anchor().position_anchor_type == 0
-                                            && !style.anchor().position_area.as_slice().is_empty()))
-                            })
-                        })
-                    })
-            })
+        if super::node_facts::has_flag(self.data(node), NodeFlag::HasAnchorNames) {
+            return true;
+        }
+        let implicit_anchors = &self.style_node_tables.implicit_anchor_candidates;
+        let implicitly_anchored_rows = &self.rows_positioned_against_implicit_anchor;
+        if implicit_anchors.is_empty() && implicitly_anchored_rows.is_empty() {
+            return false;
+        }
+        self.dom_node_style_node(node).is_some_and(|element| {
+            implicit_anchors.contains(&element)
+                || (!implicitly_anchored_rows.is_empty()
+                    && self
+                        .bound_rows
+                        .pseudo_elements
+                        .get(&element)
+                        .is_some_and(|rows| rows.0.iter().any(|row| implicitly_anchored_rows.contains(row))))
+        })
     }
 
     /// Replaces the elements registered under `anchor_name` in the tree scope hosted by
@@ -4351,7 +4364,18 @@ impl LayoutNodeArena {
             style.transform().transform_style == crate::css::css_enums::transform_style::PRESERVE_3D;
         let had_preserve_3d_transform_style =
             super::node_facts::has_flag(self.data(slot), NodeFlag::HasPreserve3dTransformStyle);
+        // https://drafts.csswg.org/css-anchor-position-1/#default-anchor
+        let positioned_against_implicit_anchor = style.is_absolutely_positioned()
+            && (style.anchor().position_anchor_type == 2
+                || (style.anchor().position_anchor_type == 0 && !style.anchor().position_area.as_slice().is_empty()));
         self.set_node_flag(slot, NodeFlag::HasAnchorNames, has_anchor_names);
+        if positioned_against_implicit_anchor != self.rows_positioned_against_implicit_anchor.contains(&slot) {
+            if positioned_against_implicit_anchor {
+                self.rows_positioned_against_implicit_anchor.insert(slot);
+            } else {
+                self.rows_positioned_against_implicit_anchor.remove(&slot);
+            }
+        }
         self.refresh_insets_use_anchor_functions_flag(slot);
         self.set_node_flag(slot, NodeFlag::HasAnimatedOpacityOrTransform, false);
         self.set_node_flag(
@@ -7560,6 +7584,58 @@ mod tests {
         arena
             .free_subtree(cell)
             .destroy_shells_and_invoke_callbacks(&main_thread);
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::null());
+    }
+
+    #[test]
+    fn an_element_is_an_anchor_candidate_while_a_pseudo_element_is_positioned_against_it() {
+        use crate::css::css_enums::positioning;
+        use crate::css::style::StyleEngine;
+        use crate::css::style::layout_style::LayoutScratchStyle;
+        use crate::css::style::tree::StyleNodeID;
+        use crate::layout::node_data::GENERATED_FOR_BEFORE;
+
+        let mut engine = StyleEngine::new();
+        let mut element = [0_u32];
+        engine.allocate_style_nodes(&mut element);
+        let element = StyleNodeID::from_raw(element[0]).unwrap();
+        let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
+
+        let in_flow = LayoutScratchStyle::over_defaults(|_| {});
+        let positioned_against_implicit_anchor = LayoutScratchStyle::over_defaults(|style| {
+            style.set_position(positioning::ABSOLUTE);
+            // position-anchor: auto
+            style.anchor_mut().position_anchor_type = 2;
+        });
+        let principal = arena.allocate_unbound();
+        arena.stamp_dom_row(principal, NodeKind::BlockContainer, Some(element));
+        arena.set_node_style(principal, 0, Some(in_flow.style()));
+        arena.refresh_style_flags(principal);
+        let pseudo_element = arena.allocate_unbound();
+        arena.write_shape(pseudo_element).set_kind(NodeKind::BlockContainer);
+        arena.stamp_pseudo_element_box(pseudo_element, element, GENERATED_FOR_BEFORE);
+        arena.insert_child(principal, pseudo_element, NodeSlotId::INVALID);
+        let give_pseudo_element = |arena: &mut LayoutNodeArena, style: &LayoutScratchStyle| {
+            arena.set_node_style(pseudo_element, 0, Some(style.style()));
+            arena.refresh_style_flags(pseudo_element);
+        };
+
+        give_pseudo_element(&mut arena, &in_flow);
+        assert!(!arena.node_is_anchor_candidate(principal));
+        give_pseudo_element(&mut arena, &positioned_against_implicit_anchor);
+        assert!(arena.node_is_anchor_candidate(principal));
+        give_pseudo_element(&mut arena, &in_flow);
+        assert!(!arena.node_is_anchor_candidate(principal));
+        assert!(arena.rows_positioned_against_implicit_anchor.is_empty());
+
+        // A freed row stops counting.
+        give_pseudo_element(&mut arena, &positioned_against_implicit_anchor);
+        assert!(!arena.rows_positioned_against_implicit_anchor.is_empty());
+        arena
+            .free_subtree(principal)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        assert!(arena.rows_positioned_against_implicit_anchor.is_empty());
         arena.set_style_engine(crate::css::style::StyleEngineHandle::null());
     }
 

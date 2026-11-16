@@ -168,6 +168,18 @@ impl ScratchGroups {
         self.group_mut()
     }
 
+    pub(crate) fn anchor_mut(&mut self) -> &mut AnchorValues {
+        self.group_mut()
+    }
+
+    pub(crate) fn set_position(&mut self, position: u8) {
+        let reset = self
+            .groups
+            .reset_bits()
+            .with(crate::css::computed_values::StyleBitField::Position, position);
+        self.groups.set_reset_bits(reset);
+    }
+
     pub(crate) fn set_white_space_collapse(&mut self, collapse: u8) {
         let mut values = self.groups.inherited_values();
         values.bits = values
