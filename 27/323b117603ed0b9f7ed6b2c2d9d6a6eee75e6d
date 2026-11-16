@@ -1,0 +1,22 @@
+Ladybird measures the first grapheme when overflow wrapping needs a
+minimum width for float placement or for a line after a forced break.
+The glyph-position fast path applies only when the glyph boundary is
+the first grapheme boundary. Otherwise, the existing shaping fallback
+measures that grapheme, preserving its joining context.
+
+Chrome 157.0.8103.78 and WebKit 26.5 keep a fitting character beside
+a float in the tested overflow-wrapping cases. Blink’s LineBreaker::
+BreakText() calls ShapingLineBreaker::ShapeLine(), which reshapes pieces
+at unsafe shaping boundaries. WebKit’s InlineContentBreaker uses
+midWordBreak() and TextUtil::breakWord() to measure candidate prefixes.
+
+Gecko’s nsTextFrame::Reflow() calls gfxTextRun::BreakAndMeasureText(),
+which tracks character-cluster boundaries and measures ligature pieces.
+Firefox 151.0 differs in these float cases: It places the float on the
+first line but moves the tested text below it. Ladybird follows the
+measured Chrome and WebKit behavior for these cases.
+
+Plain word-break:break-all doesn’t use this overflow-wrapping estimate.
+Its explicit soft-wrap opportunities use separately measured prefixes.
+The correction covers overflow-wrap:anywhere, overflow-wrap:break-word,
+and word-break:break-word, without changing ordinary word wrapping.
