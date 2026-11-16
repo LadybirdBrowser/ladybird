@@ -15,12 +15,6 @@
 
 namespace Gfx {
 
-u8 FontDataReader::u8_at(size_t offset) const
-{
-    VERIFY(contains(offset, 1));
-    return m_bytes[offset];
-}
-
 u16 FontDataReader::u16_at(size_t offset) const
 {
     VERIFY(contains(offset, 2));
