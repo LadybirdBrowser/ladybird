@@ -209,7 +209,7 @@ impl Drop for HoverLinkReporter {
 
 /// A frame paints the overlays of its stacking contexts, the scrollbars among them, which a hit test of what the
 /// frame shows finds.
-const FRAMES_PAINT_OVERLAYS: bool = true;
+pub(super) const FRAMES_PAINT_OVERLAYS: bool = true;
 
 /// The immutable inputs needed to hit test the presented frame and resolve its predefined cursors.
 struct ReadOnlyHoverFrame {

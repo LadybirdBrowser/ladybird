@@ -26,8 +26,9 @@ use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::svg_formatting_context::FfiFloatRect;
+use crate::painting::hit_test::caret::caret_position_from_point;
 use crate::painting::hit_test::resolve::row_dom_style_node;
-use crate::painting::hit_test::walk::WholeDocumentHitTestList;
+use crate::painting::hit_test::walk::{PointQuery, topmost_hit};
 use crate::painting::host::{FfiCaretBoundaryKind, FfiHitTestQueryCallbacks, FfiResolvedCaret};
 use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_data::{
@@ -428,7 +429,6 @@ impl Lane {
         if let Some(plan) = &mut self.plan.hover {
             plan.end_selection_drag();
         }
-        self.selection_hit_test_list = None;
         self.selection_styles = None;
     }
 
@@ -489,15 +489,11 @@ impl Lane {
             return Err(LeftToHost("scrolled since the frame"));
         }
         let tree = self.tree_on_screen(state, frame_time_nanoseconds).map_err(LeftToHost)?;
+        // The walk skips the boxes whose ink overflow the pointer misses.
+        state.arena.arena_mut().settle_ink_overflow();
         let arena = state.arena.arena();
         let engine = state.engine_ref();
         let scroll_offsets = self.scroll_offsets_on_screen(arena, &arena.paint_state().visual_context, plan);
-        // NB: The list walks the rows and its spatial indexes walk every item, which a drag need not repeat over the
-        //     same frame.
-        let list =
-            WholeDocumentHitTestList::current(&mut self.selection_hit_test_list, arena, &tree, arena.layout_root());
-        list.build_spatial_indexes_if_needed();
-        let list = &*list;
         let callbacks = FfiHitTestQueryCallbacks::sealed(
             plan.device_pixels_per_css_pixel(),
             &scroll_offsets,
@@ -506,20 +502,23 @@ impl Lane {
         let world = callbacks.build_world_transforms(&tree);
         let callbacks = callbacks.with_world_transforms(&world);
         let pixel_ratio = plan.device_pixels_per_css_pixel() as f32;
-        let css_point =
-            |x, y| CssPixelPoint::new(CssPixels::nearest_value_for_f32(x), CssPixels::nearest_value_for_f32(y));
+        let query_at = |x, y| PointQuery {
+            tree: &tree,
+            callbacks: &callbacks,
+            viewport: arena.layout_root(),
+            paint_overlay: hover::FRAMES_PAINT_OVERLAYS,
+            point: CssPixelPoint::new(CssPixels::nearest_value_for_f32(x), CssPixels::nearest_value_for_f32(y)),
+        };
         let (x, y) = (position.x / pixel_ratio, position.y / pixel_ratio);
         // The host hands a move over the content of another navigable to it, and the selection here stays as it is.
-        let over_a_frame = list
-            .find_topmost_item(arena, &tree, &callbacks, css_point(x, y))
-            .and_then(|topmost| arena.node_kind_if_live(list.items[topmost.index].paintable))
+        let over_a_frame = topmost_hit(arena, query_at(x, y))
+            .and_then(|topmost| arena.node_kind_if_live(topmost.item.paintable))
             == Some(NodeKind::NavigableContainerViewport);
         if over_a_frame {
             return Err(LeftToHost("the content of another navigable"));
         }
         let (x, y) = drag.constrained(x, y);
-        let caret = list
-            .caret_position_from_point(arena, &tree, &callbacks, css_point(x, y), NodeSlotId::INVALID)
+        let caret = caret_position_from_point(arena, query_at(x, y), NodeSlotId::INVALID)
             .filter(|caret| caret.caret.has_position)
             .ok_or(LeftToHost("no caret position"))?;
         let (focus, focus_node) = focus_at(engine, &caret.caret, drag.anchor)?;

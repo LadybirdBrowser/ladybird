@@ -68,9 +68,6 @@ pub struct DocumentHost {
     recording: RefCell<RecordingSlot>,
     /// The rows the render state published last, which the host reads between its jobs.
     rows: RefCell<Option<Rc<RowSnapshot>>>,
-    /// Every hit-test item of the document, which caret queries walk the rows for when they first need them and
-    /// read until the rows say something else can be hit.
-    whole_document_hit_test_list: RefCell<Option<crate::painting::hit_test::walk::WholeDocumentHitTestList>>,
     /// The reactions of the style update the host took last, which it reads until it ends the transaction.
     style_update: RefCell<Option<StyleJobAnswer>>,
     /// The first sample of the transitions a step the host read from the style update starts, by element, which
@@ -210,7 +207,6 @@ impl DocumentHost {
             host_tables: HostTables::default(),
             recording: RefCell::default(),
             rows: RefCell::default(),
-            whole_document_hit_test_list: RefCell::default(),
             style_update: RefCell::default(),
             fresh_transition_sample: Cell::default(),
             absolute_rects: RefCell::default(),
@@ -1541,12 +1537,6 @@ impl DocumentHost {
     /// Ends the current update pass of the document's compositor animations, answering what its effects published.
     pub(crate) fn take_compositor_animations(&self) -> Vec<VisualAnimation> {
         self.compositor_animations.take()
-    }
-
-    pub(crate) fn whole_document_hit_test_list(
-        &self,
-    ) -> RefMut<'_, Option<crate::painting::hit_test::walk::WholeDocumentHitTestList>> {
-        self.whole_document_hit_test_list.borrow_mut()
     }
 
     /// What the document keeps of its recordings.

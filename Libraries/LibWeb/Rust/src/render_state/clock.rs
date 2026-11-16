@@ -356,8 +356,6 @@ pub(crate) struct Lane {
     /// Whether a move of the hover had boxes show the styles the host installed in them again in place of samples, which
     /// the tick shows again.
     samples_restored: bool,
-    /// The list a drag selection finds its caret positions in, for the frame whose items it holds.
-    selection_hit_test_list: Option<crate::painting::hit_test::walk::WholeDocumentHitTestList>,
     /// What a drag selection owes the rows of the fork of `::selection` styles, once a tick asked.
     selection_styles: Option<crate::css::style::drag_selection::SelectionStyles>,
     /// Where the highlight the fork holds ends, if a tick moved it.
@@ -1303,7 +1301,6 @@ impl Lane {
             hovered: hover::LaneHover::default(),
             unshown_move: None,
             samples_restored: false,
-            selection_hit_test_list: None,
             selection_styles: None,
             selection_focus_shown: None,
         }
@@ -1362,9 +1359,6 @@ impl Lane {
         self.shown_at = f64::NEG_INFINITY;
         self.selection_focus_shown = None;
         self.selection_styles = None;
-        if plan.hover.as_ref().is_none_or(|hover| hover.selection_drag().is_none()) {
-            self.selection_hit_test_list = None;
-        }
         self.replan_host_effects(&plan.elements);
         self.plan = plan;
     }

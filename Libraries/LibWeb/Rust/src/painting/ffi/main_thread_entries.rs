@@ -982,57 +982,6 @@ fn landed_recording_stands(host: &crate::render_state::DocumentHost, version: cr
     })
 }
 
-/// Answers `query` from every hit-test item of `host`'s document, built up by `build`, and the rows as of every write
-/// the host made, with every row's overflow measured, in `read`. The items are walked from those rows where the ones
-/// the host kept no longer say what the rows do. Answers `default` where the document has no visual context tree.
-/// Every entry that hits tests is called with a live document host, on its document's thread.
-fn with_hit_test_list<R>(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    default: R,
-    build: impl FnOnce(&mut crate::painting::hit_test::HitTestList, &crate::painting::paint_read::PaintSource<'_>),
-    query: impl FnOnce(
-        &crate::painting::hit_test::HitTestList,
-        &crate::layout::row_reads::RowSnapshot,
-        &crate::painting::paint_read::PaintSource<'_>,
-    ) -> R,
-) -> R {
-    let rows = host.fresh_measured_rows(read);
-    let Some(tree) = rows.visual_context_tree.as_deref() else {
-        return default;
-    };
-    let absolute_rects = std::cell::RefCell::default();
-    let source = crate::painting::paint_read::PaintSource::over_rows(&rows.paintable, &absolute_rects);
-    let mut kept = host.whole_document_hit_test_list();
-    let list =
-        crate::painting::hit_test::walk::WholeDocumentHitTestList::current(&mut kept, &source, tree, rows.viewport);
-    build(list, &source);
-    query(list, &rows, &source)
-}
-
-fn with_hit_test_list_spatial_indexes_and_visual_context_tree<R>(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    default: R,
-    query: impl FnOnce(
-        &crate::painting::hit_test::HitTestList,
-        &crate::painting::visual_context::VisualContextTree,
-        &crate::painting::paint_read::PaintSource<'_>,
-    ) -> R,
-) -> R {
-    with_hit_test_list(
-        host,
-        read,
-        None,
-        |list, _| list.build_spatial_indexes_if_needed(),
-        |list, rows, source| {
-            let tree = rows.visual_context_tree.as_deref()?;
-            Some(query(list, tree, source))
-        },
-    )
-    .unwrap_or(default)
-}
-
 /// `tree` with the compositor's animations sampled at the time the query reads them at, where it reads them so, kept in
 /// `sampled`; otherwise `tree` itself.
 fn tree_as_the_query_reads_it<'tree>(
@@ -1184,18 +1133,8 @@ pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
     constraint_scope: NodeSlotId,
     out: &mut FfiCaretAt,
 ) {
-    let scroll_state = host.scroll_state();
-    let callbacks =
-        crate::painting::host::FfiHitTestQueryCallbacks::for_host_query(&query, scroll_state.device_offsets());
-    *out = with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, None, |list, tree, arena| {
-        let world = callbacks.build_world_transforms(tree);
-        list.caret_position_from_point(
-            arena,
-            tree,
-            &callbacks.with_world_transforms(&world),
-            point.into(),
-            constraint_scope,
-        )
+    *out = with_point_query(host, read, &query, point, None, |source, point_query| {
+        crate::painting::hit_test::caret::caret_position_from_point(source, point_query, constraint_scope)
     })
     .unwrap_or_else(FfiCaretAt::none);
 }

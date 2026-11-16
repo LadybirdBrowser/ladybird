@@ -9,9 +9,8 @@ use crate::painting::chrome_geometry::{ChromeGeometry, scrollbar_is_hidden};
 use crate::painting::ffi::ScrollDirection;
 use crate::painting::host::FfiHitTestQueryCallbacks;
 use crate::painting::paint_read::PaintRead;
-use crate::painting::viewport_mapping::ViewportSpace;
 use crate::painting::visual_context::{
-    ClipBehavior, NO_SORTING_CONTEXT, SortingContexts, SpatialNodeIndex, VisualContextTree, WorldTransforms,
+    NO_SORTING_CONTEXT, SortingContexts, SpatialNodeIndex, VisualContextTree, WorldTransforms,
 };
 use libgfx_rust::FloatPoint;
 use std::collections::HashMap;
@@ -86,12 +85,6 @@ impl<'a> DepthSortingState<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TopmostItem {
-    pub index: usize,
-    pub local_point: CssPixelPoint,
-}
-
 pub(super) fn item_contains_point(
     layout_arena: &impl PaintRead,
     callbacks: &FfiHitTestQueryCallbacks,
@@ -155,139 +148,5 @@ pub(super) fn item_contains_point(
                 _ => false,
             }
         }
-    }
-}
-
-impl HitTestList {
-    fn find_topmost_item_in_list(
-        &self,
-        layout_arena: &impl PaintRead,
-        callbacks: &FfiHitTestQueryCallbacks,
-        item_indices: &[usize],
-        local: FloatPoint,
-        topmost: &mut Option<usize>,
-    ) {
-        for item_index in item_indices.iter().rev() {
-            if topmost.is_some_and(|topmost| *item_index <= topmost) {
-                return;
-            }
-            if item_contains_point(layout_arena, callbacks, &self.items[*item_index], local) {
-                *topmost = Some(*item_index);
-                return;
-            }
-        }
-    }
-
-    fn candidate_item_lists(spatial_index: &SpatialIndex, local_point: CssPixelPoint) -> [Option<&[usize]>; 2] {
-        let x = spatial_index_cell_for(local_point.x);
-        let y = spatial_index_cell_for(local_point.y);
-        let bucket = spatial_index.cells.get(&spatial_index_cell_key(x, y));
-        [
-            Some(spatial_index.unbucketed_items.as_slice()),
-            bucket.map(|bucket| bucket.as_slice()),
-        ]
-    }
-
-    fn find_topmost(
-        &self,
-        layout_arena: &impl PaintRead,
-        visual_context_tree: &VisualContextTree,
-        callbacks: &FfiHitTestQueryCallbacks,
-        point: CssPixelPoint,
-    ) -> Option<TopmostItem> {
-        debug_assert!(self.spatial_indexes_built);
-        let mut topmost: Option<TopmostItem> = None;
-        let mut topmost_index: Option<usize> = None;
-        let viewport_mapping = callbacks.viewport_mapping(visual_context_tree);
-        for (context, spatial_index) in &self.spatial_indexes_by_context {
-            let Some(local) =
-                viewport_mapping.point_to_local(*context, point, ViewportSpace::VisualViewport, ClipBehavior::Respect)
-            else {
-                continue;
-            };
-            let local_point = to_css_point(local);
-            let previous = topmost_index;
-            for candidate_list in Self::candidate_item_lists(spatial_index, local_point)
-                .into_iter()
-                .flatten()
-            {
-                self.find_topmost_item_in_list(layout_arena, callbacks, candidate_list, local, &mut topmost_index);
-            }
-            if topmost_index != previous {
-                topmost = topmost_index.map(|index| TopmostItem { index, local_point });
-            }
-        }
-        topmost
-    }
-
-    // Planes of a 3D rendering context paint depth sorted, so the front-most plane at the point wins over a
-    // plane recorded later. Coplanar planes compare equal and fall back to record order.
-    fn depth_sort_key(&self, depth_sorting: &mut DepthSortingState<'_>, item_index: usize) -> (Option<i64>, usize) {
-        (
-            depth_sorting.depth_key_for(self.items[item_index].context.spatial),
-            item_index,
-        )
-    }
-
-    fn topmost_item_by_plane_depth(
-        &self,
-        layout_arena: &impl PaintRead,
-        visual_context_tree: &VisualContextTree,
-        callbacks: &FfiHitTestQueryCallbacks,
-        point: CssPixelPoint,
-        topmost: TopmostItem,
-    ) -> TopmostItem {
-        let mut depth_sorting = DepthSortingState::new(callbacks, visual_context_tree, point);
-        let Some(group) = depth_sorting.group_for(self.items[topmost.index].context.spatial) else {
-            return topmost;
-        };
-        let mut winner = topmost;
-        let viewport_mapping = callbacks.viewport_mapping(visual_context_tree);
-        for (context, spatial_index) in &self.spatial_indexes_by_context {
-            if depth_sorting.group_for(context.spatial) != Some(group) {
-                continue;
-            }
-            let Some(local) =
-                viewport_mapping.point_to_local(*context, point, ViewportSpace::VisualViewport, ClipBehavior::Respect)
-            else {
-                continue;
-            };
-            let local_point = to_css_point(local);
-            for candidate_list in Self::candidate_item_lists(spatial_index, local_point)
-                .into_iter()
-                .flatten()
-            {
-                for item_index in candidate_list {
-                    if *item_index == winner.index
-                        || !item_contains_point(layout_arena, callbacks, &self.items[*item_index], local)
-                    {
-                        continue;
-                    }
-                    let candidate_key = self.depth_sort_key(&mut depth_sorting, *item_index);
-                    let winner_key = self.depth_sort_key(&mut depth_sorting, winner.index);
-                    if candidate_key > winner_key {
-                        winner = TopmostItem {
-                            index: *item_index,
-                            local_point,
-                        };
-                    }
-                }
-            }
-        }
-        winner
-    }
-
-    pub(crate) fn find_topmost_item(
-        &self,
-        layout_arena: &impl PaintRead,
-        visual_context_tree: &VisualContextTree,
-        callbacks: &FfiHitTestQueryCallbacks,
-        point: CssPixelPoint,
-    ) -> Option<TopmostItem> {
-        let topmost = self.find_topmost(layout_arena, visual_context_tree, callbacks, point)?;
-        // Record order misranks content inside a 3D rendering context, whose planes paint depth sorted. A winner
-        // on such a plane is re-resolved against every hit plane of its outermost context. Content outside the
-        // context keeps record order, which stays correct because a context's items are recorded contiguously.
-        Some(self.topmost_item_by_plane_depth(layout_arena, visual_context_tree, callbacks, point, topmost))
     }
 }
