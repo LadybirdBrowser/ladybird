@@ -105,7 +105,6 @@ private:
     ErrorOr<NonnullRefPtr<RequestServerInstance>> launch(NonnullRefPtr<BrowsingSession>, Optional<Utf16String> site);
     ErrorOr<void> launch_process(RequestServerInstance&);
     void did_lose_process(RequestServerInstance&);
-    void reconnect_clients(RequestServerInstance&);
     void client_disconnected(RequestServerInstance&, int client_id);
     void retire(RequestServerInstance&);
     void retire_idle_instances();
