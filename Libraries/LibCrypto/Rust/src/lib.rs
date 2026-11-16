@@ -845,11 +845,11 @@ pub fn mldsa_generate_key_pair(size: MlDsaSize, seed: &[u8]) -> Result<KeyPair, 
     Ok(unsafe { KeyPair::from_raw(public_key, private_key) })
 }
 
-pub fn mldsa_read_public_key(bytes: &[u8]) -> KeyHandle {
+pub fn mldsa_read_public_key(bytes: &[u8]) -> Option<KeyHandle> {
     // SAFETY: The input is borrowed for the call.
     let raw = unsafe { ffi::crypto_mldsa_read_public_key(Span::new(bytes)) };
-    // SAFETY: The native operation transfers ownership of the key.
-    unsafe { KeyHandle::from_raw(raw) }.expect("LibCrypto returns a key")
+    // SAFETY: A non-null result transfers ownership of the key.
+    unsafe { KeyHandle::from_raw(raw) }
 }
 
 pub fn mldsa_public_bytes(key: &KeyHandle) -> &[u8] {
@@ -859,11 +859,12 @@ pub fn mldsa_public_bytes(key: &KeyHandle) -> &[u8] {
     bytes.as_slice()
 }
 
-pub fn mldsa_seed_bytes(key: &KeyHandle) -> &[u8] {
-    let mut bytes = Span::default();
-    // SAFETY: The key owns the bytes returned by the native call.
-    unsafe { ffi::crypto_mldsa_seed_bytes(key.as_raw(), &mut bytes) };
-    bytes.as_slice()
+pub fn mldsa_seed_bytes(key: &KeyHandle) -> Result<Vec<u8>, BackendError> {
+    // SAFETY: Inputs and output are borrowed for the synchronous native call.
+    let (status, bytes) =
+        receive_native_bytes(|state, receive| unsafe { ffi::crypto_mldsa_seed_bytes(key.as_raw(), state, receive) });
+    status.then_some(()).ok_or(BackendError)?;
+    Ok(bytes)
 }
 
 pub fn mldsa_export_der(key: &KeyHandle, is_public: bool, oid: &[u32]) -> Result<Vec<u8>, BackendError> {
@@ -886,11 +887,11 @@ pub fn mlkem_generate_key_pair(size: MlKemSize, seed: &[u8]) -> Result<KeyPair, 
     Ok(unsafe { KeyPair::from_raw(public_key, private_key) })
 }
 
-pub fn mlkem_read_public_key(bytes: &[u8]) -> KeyHandle {
+pub fn mlkem_read_public_key(bytes: &[u8]) -> Option<KeyHandle> {
     // SAFETY: The input is borrowed for the call.
     let raw = unsafe { ffi::crypto_mlkem_read_public_key(Span::new(bytes)) };
-    // SAFETY: The native operation transfers ownership of the key.
-    unsafe { KeyHandle::from_raw(raw) }.expect("LibCrypto returns a key")
+    // SAFETY: A non-null result transfers ownership of the key.
+    unsafe { KeyHandle::from_raw(raw) }
 }
 
 pub fn mlkem_public_bytes(key: &KeyHandle) -> Vec<u8> {
@@ -900,11 +901,18 @@ pub fn mlkem_public_bytes(key: &KeyHandle) -> Vec<u8> {
     bytes
 }
 
-pub fn mlkem_seed_bytes(key: &KeyHandle) -> &[u8] {
-    let mut bytes = Span::default();
-    // SAFETY: The key owns the bytes returned by the native call.
-    unsafe { ffi::crypto_mlkem_seed_bytes(key.as_raw(), &mut bytes) };
-    bytes.as_slice()
+pub fn mlkem_seed_bytes(key: &KeyHandle) -> Result<Vec<u8>, BackendError> {
+    // SAFETY: Inputs and output are borrowed for the synchronous native call.
+    let (status, bytes) =
+        receive_native_bytes(|state, receive| unsafe { ffi::crypto_mlkem_seed_bytes(key.as_raw(), state, receive) });
+    status.then_some(()).ok_or(BackendError)?;
+    Ok(bytes)
+}
+
+/// Whether an ML-DSA or ML-KEM private key has its seed, which a key given in the expandedKey form does not.
+pub fn ml_private_key_has_seed(key: &KeyHandle) -> bool {
+    // SAFETY: The key is borrowed for the call.
+    unsafe { ffi::crypto_ml_private_key_has_seed(key.as_raw()) }
 }
 
 pub fn mlkem_export_der(key: &KeyHandle, is_public: bool, oid: &[u32]) -> Result<Vec<u8>, BackendError> {

@@ -381,7 +381,7 @@ unsafe extern "C" {
     pub(super) fn crypto_mldsa_key_info_read_private_key(key_info: *const c_void) -> *mut c_void;
     pub(super) fn crypto_mldsa_read_public_key(bytes: Span<'_, u8>) -> *mut c_void;
     pub(super) fn crypto_mldsa_public_bytes(key: *const c_void, bytes: &mut Span<'_, u8>) -> ();
-    pub(super) fn crypto_mldsa_seed_bytes(key: *const c_void, bytes: &mut Span<'_, u8>) -> ();
+    pub(super) fn crypto_mldsa_seed_bytes(key: *const c_void, state: *mut c_void, receive: ReceiveBytes) -> bool;
     pub(super) fn crypto_mldsa_export_der(
         key: *const c_void,
         is_public: bool,
@@ -398,7 +398,8 @@ unsafe extern "C" {
     pub(super) fn crypto_mlkem_key_info_read_private_key(key_info: *const c_void) -> *mut c_void;
     pub(super) fn crypto_mlkem_read_public_key(bytes: Span<'_, u8>) -> *mut c_void;
     pub(super) fn crypto_mlkem_public_bytes(key: *const c_void, state: *mut c_void, receive: ReceiveBytes) -> ();
-    pub(super) fn crypto_mlkem_seed_bytes(key: *const c_void, bytes: &mut Span<'_, u8>) -> ();
+    pub(super) fn crypto_mlkem_seed_bytes(key: *const c_void, state: *mut c_void, receive: ReceiveBytes) -> bool;
+    pub(super) fn crypto_ml_private_key_has_seed(key: *const c_void) -> bool;
     pub(super) fn crypto_mlkem_export_der(
         key: *const c_void,
         is_public: bool,
