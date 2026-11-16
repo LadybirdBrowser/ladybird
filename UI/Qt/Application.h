@@ -19,6 +19,7 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/ProcessSnapshot.h>
+#include <LibWebView/UpdateCheck.h>
 #include <UI/Qt/ApplicationActions.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/HubConnection.h>
@@ -258,6 +259,7 @@ private:
     void ask_user_for_download_path(u64 request_id, ByteString const& file) const;
     void display_download_confirmation_dialog(StringView download_name, ByteString const& path) const;
     void display_error_dialog(StringView error_message) const;
+    void display_update_check_result(WebView::UpdateCheckResult::Kind, Optional<String> const& version, WebView::InstallMethod, WebView::UpdateCheckTrigger);
     void open_file(String const& path) const;
 
     virtual void crash_reports_changed() override;

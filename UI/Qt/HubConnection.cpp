@@ -341,6 +341,11 @@ void HubConnection::app_display_error_dialog(String message)
     Application::the().display_error_dialog(message);
 }
 
+void HubConnection::app_display_update_check_result(WebView::UpdateCheckResult::Kind kind, Optional<String> version, WebView::InstallMethod install_method, WebView::UpdateCheckTrigger trigger)
+{
+    Application::the().display_update_check_result(kind, version, install_method, trigger);
+}
+
 void HubConnection::app_display_download_confirmation_dialog(String download_name, ByteString path)
 {
     Application::the().display_download_confirmation_dialog(download_name, path);

@@ -27,6 +27,7 @@
 #include <LibWebView/ProcessSnapshot.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/Translator.h>
+#include <LibWebView/UpdateCheck.h>
 #include <LibWebView/ViewImplementation.h>
 
 [ExistingCpp]
@@ -132,6 +133,8 @@ endpoint HubServer
     stop_request(u64 request_id) =|
 
     toggle_devtools_enabled() =|
+    check_for_updates(WebView::UpdateCheckTrigger trigger) =|
+    skip_update_version(String version) =|
     set_preferred_contrast(Web::CSS::PreferredContrast contrast) =|
     set_preferred_motion(Web::CSS::PreferredMotion motion) =|
     set_user_agent_string(String user_agent) =|

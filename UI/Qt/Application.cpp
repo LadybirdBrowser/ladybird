@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/Hex.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/BrowserVersion.h>
 #include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/GeolocationProvider.h>
@@ -17,6 +19,7 @@
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Transport.h>
 #include <LibURL/InternalURLs.h>
+#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 #include <LibWebCommon/WebView/Utilities.h>
@@ -520,24 +523,20 @@ public:
         m_help_menu->addSeparator();
         m_help_menu->addAction(create_application_action(*m_application_widget, application.open_about_page_action(), IncludeActionIcon::No));
 
-#if defined(AK_OS_MACOS)
-        if (auto* software_updater = Application::the().software_updater()) {
-            // NB: On macOS, this moves the item into the application menu, below About Ladybird.
-            auto* check_for_updates_action = make_action("Check for Updates…");
-            check_for_updates_action->setMenuRole(QAction::ApplicationSpecificRole);
-            QObject::connect(check_for_updates_action, &QAction::triggered, this, [software_updater]() {
-                software_updater->check_for_updates();
-            });
-            m_help_menu->addAction(check_for_updates_action);
+        auto* check_for_updates_action = make_action("Check for Updates…");
+        // NB: On macOS, this moves the item into the application menu, below About Ladybird.
+        check_for_updates_action->setMenuRole(QAction::ApplicationSpecificRole);
+        QObject::connect(check_for_updates_action, &QAction::triggered, this, [] {
+            HubConnection::the().async_check_for_updates(WebView::UpdateCheckTrigger::UserInitiated);
+        });
+        m_help_menu->addAction(check_for_updates_action);
 
-            auto* show_update_dialog_action = make_action("Show Update Dialog for Latest Version");
-            QObject::connect(show_update_dialog_action, &QAction::triggered, this, [software_updater]() {
-                software_updater->show_update_dialog_for_latest_version();
-            });
-            m_debug_menu->addSeparator();
-            m_debug_menu->addAction(show_update_dialog_action);
-        }
-#endif
+        auto* simulate_update_action = make_action("Simulate Available Update");
+        QObject::connect(simulate_update_action, &QAction::triggered, this, [] {
+            HubConnection::the().async_check_for_updates(WebView::UpdateCheckTrigger::Debug);
+        });
+        m_debug_menu->addSeparator();
+        m_debug_menu->addAction(simulate_update_action);
     }
 
 #if defined(AK_OS_MACOS)
@@ -2307,6 +2306,70 @@ void Application::display_download_confirmation_dialog(StringView download_name,
 void Application::display_error_dialog(StringView error_message) const
 {
     create_message_box(QMessageBox::Warning, error_message, active_window_if_any())->open();
+}
+
+void Application::display_update_check_result(WebView::UpdateCheckResult::Kind kind, Optional<String> const& version, WebView::InstallMethod install_method, WebView::UpdateCheckTrigger trigger)
+{
+    static constexpr auto current_version = BROWSER_VERSION ""sv;
+
+    switch (kind) {
+    case WebView::UpdateCheckResult::Kind::UpToDate:
+        create_message_box(QMessageBox::Information, MUST(String::formatted("Ladybird {} is the newest version.", current_version)), active_window_if_any())->open();
+        return;
+    case WebView::UpdateCheckResult::Kind::DevelopmentBuild:
+        create_message_box(QMessageBox::Information, "Development builds of Ladybird do not check for updates."sv, active_window_if_any())->open();
+        return;
+    case WebView::UpdateCheckResult::Kind::Failed:
+        display_error_dialog("Ladybird could not check for updates. Check your internet connection, and try again."sv);
+        return;
+    case WebView::UpdateCheckResult::Kind::UpdateAvailable:
+        break;
+    }
+
+    if (!version.has_value())
+        return;
+
+    // A later automatic check finds the update again, but one that the user asked for answers now, in a new window if
+    // no window is open. On macOS, the menu bar outlives the last window.
+    auto* window = active_window_if_any();
+    if (!window && trigger == WebView::UpdateCheckTrigger::Automatic)
+        return;
+    if (!window)
+        window = &new_window({ Application::settings().new_tab_page_url() }, configuration_for_new_window());
+
+    Vector<PageCard::Button> buttons;
+    // A version skipped for the debug action would also be skipped when it is offered for real.
+    buttons.append({ "Skip", PageCard::ButtonRole::Secondary, [version = *version, trigger] {
+                        if (trigger != WebView::UpdateCheckTrigger::Debug)
+                            HubConnection::the().async_skip_update_version(version);
+                    } });
+
+    auto text = qformatted("You have Ladybird {}.", current_version);
+    if (first_is_one_of(install_method, WebView::InstallMethod::DEB, WebView::InstallMethod::RPM, WebView::InstallMethod::Flatpak)) {
+        text = qformatted("You have Ladybird {}. Update it with your system's software updater.", current_version);
+        buttons.append({ "Remind me later", PageCard::ButtonRole::Primary, {} });
+    } else if (install_method == WebView::InstallMethod::MacOSApp) {
+        buttons.append({ "Remind me later", PageCard::ButtonRole::Secondary, {} });
+#if defined(AK_OS_MACOS)
+        buttons.append({ "Install update", PageCard::ButtonRole::Primary, [trigger] {
+                            auto* software_updater = Application::the().software_updater();
+                            if (!software_updater)
+                                return;
+                            if (trigger == WebView::UpdateCheckTrigger::Debug)
+                                software_updater->install_latest_version();
+                            else
+                                software_updater->install_update();
+                        } });
+#endif
+    } else {
+        buttons.append({ "Remind me later", PageCard::ButtonRole::Secondary, {} });
+        buttons.append({ "View release", PageCard::ButtonRole::Primary, [url = WebView::release_page_url(*version)] {
+                            if (auto release_page = URL::Parser::basic_parse(url); release_page.has_value())
+                                Application::the().open_url_in_new_tab(*release_page, Web::HTML::ActivateTab::Yes, {}, WebView::IsPrivate::No);
+                        } });
+    }
+
+    window->show_page_card(BrowserWindow::PageCardSlot::Update, qformatted("Ladybird {} is available", *version), text, move(buttons));
 }
 
 void Application::open_file(String const& path) const
