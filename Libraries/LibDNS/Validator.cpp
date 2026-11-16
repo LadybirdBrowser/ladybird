@@ -127,8 +127,7 @@ static ErrorOr<bool> verify_signature(Records::DNSKEY const& key, ReadonlyBytes 
         };
         if (!TRY(public_key.is_valid()))
             return false;
-        Crypto::PK::RSA_PKCS1_EMSA rsa { hash_kind, move(public_key) };
-        return rsa.verify(signed_data, signature);
+        return Crypto::PK::rsa_pkcs1_verify(public_key, hash_kind, signed_data, signature);
     }
     case Algorithm::ECDSAP256SHA256:
     case Algorithm::ECDSAP384SHA384: {

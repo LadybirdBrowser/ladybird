@@ -179,7 +179,7 @@ ErrorOr<RSA::KeyPairType> RSA::generate_key_pair(size_t bits, UnsignedBigInteger
 
 #undef OPENSSL_GET_KEY_PARAM
 
-    RSAKeyPair<PublicKeyType, PrivateKeyType> keys {
+    KeyPairType keys {
         { n, e },
         { n, d, e, p, q, dp, dq, qinv }
     };
@@ -361,91 +361,63 @@ ErrorOr<bool> RSAPrivateKey::is_valid() const
     return false;
 }
 
-ErrorOr<ByteBuffer> RSA::encrypt(ReadonlyBytes in)
+static ErrorOr<Array<OSSL_PARAM, 5>> oaep_parameters(Hash::HashKind hash_kind, ReadonlyBytes const& label)
 {
-    auto key = TRY(public_key_to_openssl_pkey(m_public_key));
+    auto* hash_name = const_cast<char*>(TRY(Hash::openssl_digest_name(hash_kind)));
+    Array<OSSL_PARAM, 5> params {
+        OSSL_PARAM_construct_utf8_string(OSSL_ASYM_CIPHER_PARAM_PAD_MODE, const_cast<char*>(OSSL_PKEY_RSA_PAD_MODE_OAEP), 0),
+        OSSL_PARAM_construct_utf8_string(OSSL_ASYM_CIPHER_PARAM_OAEP_DIGEST, hash_name, 0),
+        OSSL_PARAM_construct_utf8_string(OSSL_ASYM_CIPHER_PARAM_MGF1_DIGEST, hash_name, 0),
+        OSSL_PARAM_construct_end(),
+        OSSL_PARAM_construct_end(),
+    };
+    // NB: OpenSSL copies the label.
+    if (!label.is_empty())
+        params[3] = OSSL_PARAM_construct_octet_string(OSSL_ASYM_CIPHER_PARAM_OAEP_LABEL, const_cast<u8*>(label.data()), label.size());
+    return params;
+}
 
+ErrorOr<ByteBuffer> rsa_oaep_encrypt(RSAPublicKey const& public_key, Hash::HashKind hash_kind, ReadonlyBytes label, ReadonlyBytes plaintext)
+{
+    auto key = TRY(public_key_to_openssl_pkey(public_key));
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
 
-    OPENSSL_TRY(EVP_PKEY_encrypt_init(ctx.ptr()));
-    TRY(configure(ctx));
+    auto params = TRY(oaep_parameters(hash_kind, label));
+    OPENSSL_TRY(EVP_PKEY_encrypt_init_ex(ctx.ptr(), params.data()));
 
     size_t out_size = 0;
-    OPENSSL_TRY(EVP_PKEY_encrypt(ctx.ptr(), nullptr, &out_size, in.data(), in.size()));
+    OPENSSL_TRY(EVP_PKEY_encrypt(ctx.ptr(), nullptr, &out_size, plaintext.data(), plaintext.size()));
 
     auto out = TRY(ByteBuffer::create_uninitialized(out_size));
-    OPENSSL_TRY(EVP_PKEY_encrypt(ctx.ptr(), out.data(), &out_size, in.data(), in.size()));
+    OPENSSL_TRY(EVP_PKEY_encrypt(ctx.ptr(), out.data(), &out_size, plaintext.data(), plaintext.size()));
     return out.slice(0, out_size);
 }
 
-ErrorOr<ByteBuffer> RSA::decrypt(ReadonlyBytes in)
+ErrorOr<ByteBuffer> rsa_oaep_decrypt(RSAPrivateKey const& private_key, Hash::HashKind hash_kind, ReadonlyBytes label, ReadonlyBytes ciphertext)
 {
-    if (in.size() != m_private_key.length())
+    if (ciphertext.size() != private_key.length())
         return Error::from_string_literal("RSA ciphertext has an invalid length");
 
-    auto key = TRY(private_key_to_openssl_pkey(m_private_key));
-
+    auto key = TRY(private_key_to_openssl_pkey(private_key));
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
 
-    OPENSSL_TRY(EVP_PKEY_decrypt_init(ctx.ptr()));
-    TRY(configure(ctx));
+    auto params = TRY(oaep_parameters(hash_kind, label));
+    OPENSSL_TRY(EVP_PKEY_decrypt_init_ex(ctx.ptr(), params.data()));
 
     size_t out_size = 0;
-    OPENSSL_TRY(EVP_PKEY_decrypt(ctx.ptr(), nullptr, &out_size, in.data(), in.size()));
+    OPENSSL_TRY(EVP_PKEY_decrypt(ctx.ptr(), nullptr, &out_size, ciphertext.data(), ciphertext.size()));
 
     auto out = TRY(ByteBuffer::create_uninitialized(out_size));
-    OPENSSL_TRY(EVP_PKEY_decrypt(ctx.ptr(), out.data(), &out_size, in.data(), in.size()));
+    OPENSSL_TRY(EVP_PKEY_decrypt(ctx.ptr(), out.data(), &out_size, ciphertext.data(), ciphertext.size()));
     return out.slice(0, out_size);
 }
 
-ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind)
+static ErrorOr<ByteBuffer> sign(RSAPrivateKey const& private_key, Hash::HashKind hash_kind, OSSL_PARAM const* params, ReadonlyBytes message)
 {
-    return OPENSSL_TRY_PTR(EVP_get_digestbyname(TRY(Hash::openssl_digest_name(hash_kind))));
-}
-
-ErrorOr<bool> RSA_EMSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
-{
-    if (!TRY(m_public_key.is_valid()))
-        return false;
-
-    if (signature.size() != m_public_key.length())
-        return false;
-
-    if (!TRY(m_public_key.is_valid()))
-        return false;
-
-    auto key = TRY(public_key_to_openssl_pkey(m_public_key));
-    auto const* hash_type = TRY(hash_kind_to_hash_type(m_hash_kind));
-
+    auto key = TRY(private_key_to_openssl_pkey(private_key));
     auto ctx = TRY(OpenSSL_MD_CTX::create());
 
-    auto key_ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new(key.ptr(), nullptr)));
-    EVP_MD_CTX_set_pkey_ctx(ctx.ptr(), key_ctx.ptr());
-
-    OPENSSL_TRY(EVP_DigestVerifyInit(ctx.ptr(), nullptr, hash_type, nullptr, key.ptr()));
-    TRY(configure(key_ctx));
-
-    auto res = EVP_DigestVerify(ctx.ptr(), signature.data(), signature.size(), message.data(), message.size());
-    if (res == 1)
-        return true;
-    if (res == 0)
-        return false;
-    OPENSSL_TRY(res);
-    VERIFY_NOT_REACHED();
-}
-
-ErrorOr<ByteBuffer> RSA_EMSA::sign(ReadonlyBytes message)
-{
-    auto key = TRY(private_key_to_openssl_pkey(m_private_key));
-    auto const* hash_type = TRY(hash_kind_to_hash_type(m_hash_kind));
-
-    auto ctx = TRY(OpenSSL_MD_CTX::create());
-
-    auto key_ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new(key.ptr(), nullptr)));
-    EVP_MD_CTX_set_pkey_ctx(ctx.ptr(), key_ctx.ptr());
-
-    OPENSSL_TRY(EVP_DigestSignInit(ctx.ptr(), nullptr, hash_type, nullptr, key.ptr()));
-    TRY(configure(key_ctx));
+    OPENSSL_TRY(EVP_DigestSignInit_ex(ctx.ptr(), nullptr, TRY(Hash::openssl_digest_name(hash_kind)), nullptr, nullptr, key.ptr(), params));
 
     size_t signature_size = 0;
     OPENSSL_TRY(EVP_DigestSign(ctx.ptr(), nullptr, &signature_size, message.data(), message.size()));
@@ -455,56 +427,79 @@ ErrorOr<ByteBuffer> RSA_EMSA::sign(ReadonlyBytes message)
     return signature.slice(0, signature_size);
 }
 
-ErrorOr<void> RSA_PKCS1_EMSA::configure(OpenSSL_PKEY_CTX& ctx)
+static ErrorOr<bool> verify(RSAPublicKey const& public_key, Hash::HashKind hash_kind, OSSL_PARAM const* params, ReadonlyBytes message, ReadonlyBytes signature)
 {
-    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_PKCS1_PADDING));
-    return {};
-}
+    if (!TRY(public_key.is_valid()))
+        return false;
 
-ErrorOr<void> RSA_OAEP_EME::configure(OpenSSL_PKEY_CTX& ctx)
-{
-    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_PKCS1_OAEP_PADDING));
-    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_oaep_md(ctx.ptr(), TRY(hash_kind_to_hash_type(m_hash_kind))));
-    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_mgf1_md(ctx.ptr(), TRY(hash_kind_to_hash_type(m_hash_kind))));
+    if (signature.size() != public_key.length())
+        return false;
 
-    if (m_label.has_value() && !m_label->is_empty()) {
-        // https://docs.openssl.org/3.0/man3/EVP_PKEY_CTX_ctrl/#rsa-parameters
-        // The library takes ownership of the label so the caller should not free the original memory pointed to by label.
-        auto* label = OPENSSL_malloc(m_label->size());
-        memcpy(label, m_label->data(), m_label->size());
-        OPENSSL_TRY(EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.ptr(), label, m_label->size()));
-    }
+    auto key = TRY(public_key_to_openssl_pkey(public_key));
+    auto ctx = TRY(OpenSSL_MD_CTX::create());
 
-    return {};
+    OPENSSL_TRY(EVP_DigestVerifyInit_ex(ctx.ptr(), nullptr, TRY(Hash::openssl_digest_name(hash_kind)), nullptr, nullptr, key.ptr(), params));
+
+    auto result = EVP_DigestVerify(ctx.ptr(), signature.data(), signature.size(), message.data(), message.size());
+    if (result == 1)
+        return true;
+    if (result == 0)
+        return false;
+    OPENSSL_TRY(result);
+    VERIFY_NOT_REACHED();
 }
 
 // NB: OpenSSL takes the salt length as an int and gives negative values special meanings, such as salt length
 //     auto-detection, so a length that does not fit in an int must never reach it. No RSA key is large enough
 //     for such a salt.
-static bool salt_length_fits_in_int(Optional<u32> salt_length)
+static bool salt_length_fits_in_int(u32 salt_length)
 {
-    return !salt_length.has_value() || *salt_length <= static_cast<u32>(NumericLimits<int>::max());
+    return salt_length <= static_cast<u32>(NumericLimits<int>::max());
 }
 
-ErrorOr<bool> RSA_PSS_EMSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
+static ErrorOr<Array<OSSL_PARAM, 4>> pss_parameters(Hash::HashKind hash_kind, int& salt_length)
 {
-    if (!salt_length_fits_in_int(m_salt_length))
-        return false;
-    return RSA_EMSA::verify(message, signature);
+    return Array<OSSL_PARAM, 4> {
+        OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE, const_cast<char*>(OSSL_PKEY_RSA_PAD_MODE_PSS), 0),
+        OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_MGF1_DIGEST, const_cast<char*>(TRY(Hash::openssl_digest_name(hash_kind))), 0),
+        OSSL_PARAM_construct_int(OSSL_SIGNATURE_PARAM_PSS_SALTLEN, &salt_length),
+        OSSL_PARAM_construct_end(),
+    };
 }
 
-ErrorOr<void> RSA_PSS_EMSA::configure(OpenSSL_PKEY_CTX& ctx)
+ErrorOr<ByteBuffer> rsa_pss_sign(RSAPrivateKey const& private_key, Hash::HashKind hash_kind, u32 salt_length, ReadonlyBytes message)
 {
-    if (!salt_length_fits_in_int(m_salt_length))
+    if (!salt_length_fits_in_int(salt_length))
         return Error::from_string_literal("Salt length is too large");
 
-    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_PKCS1_PSS_PADDING));
-    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_mgf1_md(ctx.ptr(), TRY(hash_kind_to_hash_type(m_hash_kind))));
-    if (m_salt_length.has_value())
-        OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_pss_saltlen(ctx.ptr(), static_cast<int>(*m_salt_length)));
-    else
-        OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_pss_saltlen(ctx.ptr(), RSA_PSS_SALTLEN_MAX));
-    return {};
+    auto salt_length_int = static_cast<int>(salt_length);
+    auto params = TRY(pss_parameters(hash_kind, salt_length_int));
+    return sign(private_key, hash_kind, params.data(), message);
+}
+
+ErrorOr<bool> rsa_pss_verify(RSAPublicKey const& public_key, Hash::HashKind hash_kind, u32 salt_length, ReadonlyBytes message, ReadonlyBytes signature)
+{
+    if (!salt_length_fits_in_int(salt_length))
+        return false;
+
+    auto salt_length_int = static_cast<int>(salt_length);
+    auto params = TRY(pss_parameters(hash_kind, salt_length_int));
+    return verify(public_key, hash_kind, params.data(), message, signature);
+}
+
+static OSSL_PARAM const pkcs1_parameters[] {
+    OSSL_PARAM_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE, const_cast<char*>(OSSL_PKEY_RSA_PAD_MODE_PKCSV15), sizeof(OSSL_PKEY_RSA_PAD_MODE_PKCSV15) - 1),
+    OSSL_PARAM_END,
+};
+
+ErrorOr<ByteBuffer> rsa_pkcs1_sign(RSAPrivateKey const& private_key, Hash::HashKind hash_kind, ReadonlyBytes message)
+{
+    return sign(private_key, hash_kind, pkcs1_parameters, message);
+}
+
+ErrorOr<bool> rsa_pkcs1_verify(RSAPublicKey const& public_key, Hash::HashKind hash_kind, ReadonlyBytes message, ReadonlyBytes signature)
+{
+    return verify(public_key, hash_kind, pkcs1_parameters, message, signature);
 }
 
 }

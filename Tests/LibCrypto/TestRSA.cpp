@@ -39,8 +39,7 @@ TEST_CASE(test_RSA_rejects_invalid_public_key)
     __builtin_memcpy(encoded_message.data() + separator + 1 + digest_info_prefix.size(), digest.bytes().data(), digest.bytes().size());
 
     Crypto::PK::RSAPublicKey invalid_key { Crypto::UnsignedBigInteger::import_data(modulus), 1 };
-    Crypto::PK::RSA_PKCS1_EMSA verifier { Crypto::Hash::HashKind::SHA256, invalid_key };
-    EXPECT(!TRY_OR_FAIL(verifier.verify(message, encoded_message)));
+    EXPECT(!TRY_OR_FAIL(Crypto::PK::rsa_pkcs1_verify(invalid_key, Crypto::Hash::HashKind::SHA256, message, encoded_message)));
 }
 
 // RSA PKCS #1 1.5
@@ -109,13 +108,11 @@ TEST_CASE(test_RSA_keygen_enc)
     auto keypair = MUST(Crypto::PK::RSA::parse_rsa_key(priv_key_info.raw_key, true, {}));
     auto rsa_encryption_oid = Array<u32, 7> { 1, 2, 840, 113549, 1, 1, 1 };
     auto wrapped_priv_der = MUST(Crypto::PK::wrap_in_private_key_info(priv_key_info.raw_key, rsa_encryption_oid, nullptr));
-    Crypto::PK::RSA_OAEP_EME rsa_from_pair { Crypto::Hash::HashKind::SHA1, keypair.public_key, keypair.private_key };
-    Crypto::PK::RSA_OAEP_EME rsa_from_der { Crypto::Hash::HashKind::SHA1, priv_key_info.rsa };
 
     EXPECT_EQ(der.bytes(), wrapped_priv_der.bytes());
 
-    auto enc = TRY_OR_FAIL(rsa_from_pair.encrypt("WellHelloFriends"sv.bytes()));
-    auto dec = TRY_OR_FAIL(rsa_from_der.decrypt(enc));
+    auto enc = TRY_OR_FAIL(Crypto::PK::rsa_oaep_encrypt(keypair.public_key, Crypto::Hash::HashKind::SHA1, {}, "WellHelloFriends"sv.bytes()));
+    auto dec = TRY_OR_FAIL(Crypto::PK::rsa_oaep_decrypt(priv_key_info.rsa, Crypto::Hash::HashKind::SHA1, {}, enc));
 
     EXPECT_EQ(StringView { dec }, "WellHelloFriends"sv);
 }
@@ -123,18 +120,18 @@ TEST_CASE(test_RSA_keygen_enc)
 TEST_CASE(test_RSA_OAEP_rejects_short_ciphertext)
 {
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
-    Crypto::PK::RSA_OAEP_EME rsa { Crypto::Hash::HashKind::SHA256, keypair };
+    auto hash_kind = Crypto::Hash::HashKind::SHA256;
     u8 message = 42;
 
     for (size_t i = 0; i < 4096; ++i) {
-        auto encrypted = TRY_OR_FAIL(rsa.encrypt({ &message, 1 }));
+        auto encrypted = TRY_OR_FAIL(Crypto::PK::rsa_oaep_encrypt(keypair.public_key, hash_kind, {}, { &message, 1 }));
         if (encrypted[0] != 0)
             continue;
 
-        auto decrypted = TRY_OR_FAIL(rsa.decrypt(encrypted));
+        auto decrypted = TRY_OR_FAIL(Crypto::PK::rsa_oaep_decrypt(keypair.private_key, hash_kind, {}, encrypted));
         EXPECT_EQ(decrypted.size(), 1u);
         EXPECT_EQ(decrypted[0], message);
-        EXPECT(rsa.decrypt(encrypted.bytes().slice(1)).is_error());
+        EXPECT(Crypto::PK::rsa_oaep_decrypt(keypair.private_key, hash_kind, {}, encrypted.bytes().slice(1)).is_error());
         return;
     }
 
@@ -144,17 +141,16 @@ TEST_CASE(test_RSA_OAEP_rejects_short_ciphertext)
 TEST_CASE(test_RSA_PSS_rejects_short_signature)
 {
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
-    Crypto::PK::RSA_PSS_EMSA rsa { Crypto::Hash::HashKind::SHA256, keypair };
-    rsa.set_salt_length(32);
+    auto hash_kind = Crypto::Hash::HashKind::SHA256;
     ByteBuffer message { "message"_b };
 
     for (size_t i = 0; i < 4096; ++i) {
-        auto signature = TRY_OR_FAIL(rsa.sign(message));
+        auto signature = TRY_OR_FAIL(Crypto::PK::rsa_pss_sign(keypair.private_key, hash_kind, 32, message));
         if (signature[0] != 0)
             continue;
 
-        EXPECT(TRY_OR_FAIL(rsa.verify(message, signature)));
-        EXPECT(!TRY_OR_FAIL(rsa.verify(message, signature.bytes().slice(1))));
+        EXPECT(TRY_OR_FAIL(Crypto::PK::rsa_pss_verify(keypair.public_key, hash_kind, 32, message, signature)));
+        EXPECT(!TRY_OR_FAIL(Crypto::PK::rsa_pss_verify(keypair.public_key, hash_kind, 32, message, signature.bytes().slice(1))));
         return;
     }
 
@@ -165,7 +161,6 @@ TEST_CASE(test_RSA_rejects_exponent_one)
 {
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
     Crypto::PK::RSAPublicKey public_key { keypair.public_key.modulus(), Crypto::UnsignedBigInteger { 1 } };
-    Crypto::PK::RSA_PKCS1_EMSA rsa { Crypto::Hash::HashKind::SHA256, public_key };
 
     // With e = 1, the EMSA-PKCS1-v1_5 encoding of the message is its own signature.
     ByteBuffer message { "message"_b };
@@ -180,5 +175,5 @@ TEST_CASE(test_RSA_rejects_exponent_one)
     encoded.overwrite(padding_end + 1, sha256_digest_info.data(), sha256_digest_info.size());
     encoded.overwrite(padding_end + 1 + sha256_digest_info.size(), digest.bytes().data(), digest.bytes().size());
 
-    EXPECT(!TRY_OR_FAIL(rsa.verify(message, encoded)));
+    EXPECT(!TRY_OR_FAIL(Crypto::PK::rsa_pkcs1_verify(public_key, Crypto::Hash::HashKind::SHA256, message, encoded)));
 }
