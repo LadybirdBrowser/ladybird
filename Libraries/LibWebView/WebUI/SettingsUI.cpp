@@ -112,6 +112,9 @@ void SettingsUI::register_interfaces()
     register_interface("setFilterListUpdatesEnabled"sv, [this](auto const& data) {
         set_filter_list_updates_enabled(data);
     });
+    register_interface("setUpdateChecksEnabled"sv, [this](auto const& data) {
+        set_update_checks_enabled(data);
+    });
     register_interface("setAppearance"sv, [this](auto const& data) {
         set_appearance(data);
     });
@@ -724,6 +727,14 @@ void SettingsUI::set_filter_list_updates_enabled(JsonValue const& enabled)
         return;
 
     Application::settings().set_filter_list_updates_enabled(enabled.as_bool());
+}
+
+void SettingsUI::set_update_checks_enabled(JsonValue const& enabled)
+{
+    if (!enabled.is_bool())
+        return;
+
+    Application::settings().set_update_checks_enabled(enabled.as_bool());
 }
 
 void SettingsUI::update_content_blocker_lists(JsonValue const&)

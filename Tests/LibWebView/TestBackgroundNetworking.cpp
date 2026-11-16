@@ -74,6 +74,34 @@ TEST_CASE(feature_policy)
     remove_settings_file();
 }
 
+TEST_CASE(update_check_policy)
+{
+    remove_settings_file();
+    auto settings = WebView::Settings::create(settings_path());
+
+    EXPECT(settings.update_checks_enabled());
+    EXPECT(settings.automatic_update_checks_allowed());
+
+    settings.set_background_networking_enabled(false);
+    EXPECT(!settings.automatic_update_checks_allowed());
+    EXPECT(settings.update_checks_enabled());
+
+    settings.set_background_networking_enabled(true);
+    settings.set_update_checks_enabled(false);
+    EXPECT(!settings.automatic_update_checks_allowed());
+
+    auto reloaded = WebView::Settings::create(settings_path());
+    EXPECT(!reloaded.update_checks_enabled());
+    EXPECT(reloaded.automatic_update_checks_allowed() == false);
+    EXPECT_EQ(reloaded.config_variable_as_integer<u32>(WebView::ConfigVariableID::UpdateCheckInterval), 240u);
+
+    reloaded.set_config_variable(WebView::ConfigVariableID::UpdateCheckInterval, JsonValue { 4 });
+    EXPECT_EQ(reloaded.config_variable_as_integer<u32>(WebView::ConfigVariableID::UpdateCheckInterval), 240u);
+    reloaded.set_config_variable(WebView::ConfigVariableID::UpdateCheckInterval, JsonValue { 5 });
+    EXPECT_EQ(reloaded.config_variable_as_integer<u32>(WebView::ConfigVariableID::UpdateCheckInterval), 5u);
+    remove_settings_file();
+}
+
 TEST_CASE(settings_are_persistent)
 {
     remove_settings_file();

@@ -98,6 +98,7 @@ private:
 
     void set_services_network_access_enabled(JsonValue const&);
     void set_filter_list_updates_enabled(JsonValue const&);
+    void set_update_checks_enabled(JsonValue const&);
     void update_content_blocker_lists(JsonValue const&);
     void set_content_blocker_enabled(JsonValue const&);
     void set_content_blocker_enabled_for_site(JsonValue const&);
