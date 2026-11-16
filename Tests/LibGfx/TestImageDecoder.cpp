@@ -604,6 +604,58 @@ TEST_CASE(test_jpeg_sof2_successive_approximation)
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 600, 800 }));
 }
 
+TEST_CASE(test_jpeg_sof2_truncated)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/successive_approximation.jpg"sv)));
+    auto full_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto full_image = TRY_OR_FAIL(full_decoder->frame(0)).image;
+
+    // Cut off within the later scans, which only refine the image the earlier ones already cover.
+    auto truncated_file = file->bytes().slice(0, file->bytes().size() * 6 / 10);
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(truncated_file));
+    TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 600, 800 }));
+
+    auto image = plugin_decoder->frame(0).value().image;
+    for (auto point : { Gfx::IntPoint { 100, 100 }, Gfx::IntPoint { 300, 400 }, Gfx::IntPoint { 500, 700 } }) {
+        auto pixel = image->get_pixel(point.x(), point.y());
+        auto full_pixel = full_image->get_pixel(point.x(), point.y());
+        EXPECT(abs(pixel.red() - full_pixel.red()) < 48);
+        EXPECT(abs(pixel.green() - full_pixel.green()) < 48);
+        EXPECT(abs(pixel.blue() - full_pixel.blue()) < 48);
+    }
+}
+
+TEST_CASE(test_jpeg_sof2_truncated_after_first_scan)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/successive_approximation.jpg"sv)));
+    auto bytes = file->bytes();
+    auto full_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(bytes));
+    auto full_image = TRY_OR_FAIL(full_decoder->frame(0)).image;
+
+    // Cut off where the second scan's SOS marker starts, so only the first scan arrives, but all of it.
+    size_t start_of_scan_markers = 0;
+    size_t cut = 0;
+    for (size_t i = 0; i + 1 < bytes.size(); ++i) {
+        if (bytes[i] == 0xFF && bytes[i + 1] == 0xDA && ++start_of_scan_markers == 2) {
+            cut = i;
+            break;
+        }
+    }
+    EXPECT(cut > 0);
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(bytes.slice(0, cut)));
+    TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 600, 800 }));
+
+    // Every row comes out, the bottom ones too, as a coarser version of the full image.
+    auto image = plugin_decoder->frame(0).value().image;
+    for (int y = 790; y < 800; ++y) {
+        auto pixel = image->get_pixel(300, y);
+        auto full_pixel = full_image->get_pixel(300, y);
+        EXPECT(abs(pixel.red() - full_pixel.red()) < 64);
+        EXPECT(abs(pixel.green() - full_pixel.green()) < 64);
+        EXPECT(abs(pixel.blue() - full_pixel.blue()) < 64);
+    }
+}
+
 TEST_CASE(test_jpeg_empty_icc)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/gradient_empty_icc.jpg"sv)));
