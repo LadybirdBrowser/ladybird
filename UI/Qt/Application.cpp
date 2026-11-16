@@ -2433,6 +2433,7 @@ void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
     }
 
     auto& window = active_window();
+    auto deferred_tab_updates = window.tab_widget().defer_tab_updates();
     auto* previous_tab = window.current_tab();
     for (auto const& url : urls) {
         auto location = previous_tab
