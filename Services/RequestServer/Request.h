@@ -232,6 +232,7 @@ private:
     void handle_serve_substitution_state();
     void handle_dns_lookup_state();
     void continue_after_dns_lookup();
+    void set_curl_resolve_list(Optional<ByteString> host_entry);
     StringView connect_host() const;
     void reset_for_retry();
     void update_alternative_services();
@@ -346,6 +347,8 @@ private:
 
     NonnullRefPtr<Resolver> m_resolver;
     RefPtr<DNS::LookupResult const> m_dns_result;
+    bool m_proxy_host_resolved { false };
+    Optional<HTTP::Proxy> m_resolved_proxy;
     Optional<HTTP::Proxy> m_proxy;
     CacheLevel m_connect_cache_level { CacheLevel::ResolveOnly };
 

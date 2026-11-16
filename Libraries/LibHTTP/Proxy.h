@@ -32,6 +32,8 @@ struct Proxy {
     // For CURLOPT_PROXY.
     ByteString to_curl_url() const;
 
+    bool operator==(Proxy const&) const = default;
+
     Type type { Type::HTTP };
     ByteString host;
     u16 port { 0 };
