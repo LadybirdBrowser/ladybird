@@ -56,11 +56,6 @@ void DecodedVideoProducer::set_error_handler(ErrorHandler&& handler)
     m_thread_data->set_error_handler(move(handler));
 }
 
-void DecodedVideoProducer::set_read_blocked_change_handler(ReadBlockedChangeHandler handler)
-{
-    m_thread_data->set_read_blocked_change_handler(move(handler));
-}
-
 void DecodedVideoProducer::start()
 {
     m_thread_data->start();
@@ -91,12 +86,19 @@ VideoProducerOutput DecodedVideoProducer::ThreadData::peek()
     return output;
 }
 
+bool DecodedVideoProducer::ThreadData::read_is_blocked_while_locked() const
+{
+    return m_demuxer_read_is_blocked.load() && !m_decoder_has_decode_in_progress;
+}
+
 VideoProducerOutput DecodedVideoProducer::ThreadData::peek_while_locked()
 {
     if (m_last_processed_seek_id != m_seek_id)
-        return { nullptr, PipelineStatus::Pending };
+        return { nullptr, read_is_blocked_while_locked() ? PipelineStatus::Blocked : PipelineStatus::Pending };
     if (!m_queue.is_empty())
         return { m_queue.head().frame, PipelineStatus::HaveData };
+    if (m_current_halting_status == PipelineStatus::Pending && read_is_blocked_while_locked())
+        return { nullptr, PipelineStatus::Blocked };
     return { nullptr, m_current_halting_status };
 }
 
@@ -163,7 +165,11 @@ DecodedVideoProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_
     , m_auto_suspend_idle_timeout(auto_suspend_idle_timeout)
 {
     m_demuxer->set_read_blocked_change_handler_for_track(m_track, [this](ReadBlocked blocked) {
-        dispatch_read_blocked_change(blocked);
+        m_demuxer_read_is_blocked.store(blocked == ReadBlocked::Yes);
+        m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this)] {
+            auto locker = self->take_lock();
+            self->dispatch_wake_if_needed_while_locked();
+        });
     });
 }
 
@@ -222,10 +228,9 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder_for_frame(
         wait_state->frame_storage_was_freed = true;
         wait_state->condition.broadcast();
     });
-    // Output that arrives while the decode thread reads coded data is taken as soon as the read returns.
-    m_decoder->set_decode_completed_callback([wait_state = m_wait_state, demuxer = m_demuxer, track = m_track](DecodeCompletion completion) {
-        if (completion != DecodeCompletion::ProducedOutput)
-            return;
+    // A decode that finishes while the decode thread reads coded data is handled as soon as the read returns, either
+    // to take its output or to report that the read has become blocked when output runs out.
+    m_decoder->set_decode_completed_callback([wait_state = m_wait_state, demuxer = m_demuxer, track = m_track](DecodeCompletion) {
         if (wait_state->output_should_interrupt_demuxer_reads.load(MemoryOrder::memory_order_relaxed))
             demuxer->set_blocking_reads_aborted_for_track(track);
     });
@@ -248,6 +253,13 @@ bool DecodedVideoProducer::ThreadData::check_if_seek_is_needed_or_allow_demuxer_
     m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
     m_wait_state->output_should_interrupt_demuxer_reads.store(true, MemoryOrder::memory_order_relaxed);
     return false;
+}
+
+void DecodedVideoProducer::ThreadData::note_whether_decoder_has_decode_in_progress()
+{
+    VERIFY(m_decode_thread_id.is_current_thread());
+    auto locker = take_lock();
+    m_decoder_has_decode_in_progress = m_decoder != nullptr && m_decoder->has_any_decode_in_progress();
 }
 
 DecoderErrorOr<void> DecodedVideoProducer::ThreadData::receive_coded_frame(CodedFrame const& frame, DecodeIntent intent)
@@ -299,19 +311,6 @@ DecodedVideoProducer::ThreadData::~ThreadData()
 void DecodedVideoProducer::ThreadData::set_error_handler(ErrorHandler&& handler)
 {
     m_error_handler = move(handler);
-}
-
-void DecodedVideoProducer::ThreadData::set_read_blocked_change_handler(ReadBlockedChangeHandler handler)
-{
-    m_read_blocked_change_handler = move(handler);
-}
-
-void DecodedVideoProducer::ThreadData::dispatch_read_blocked_change(ReadBlocked blocked)
-{
-    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), blocked] {
-        if (self->m_read_blocked_change_handler)
-            self->m_read_blocked_change_handler(blocked);
-    });
 }
 
 void DecodedVideoProducer::ThreadData::start()
@@ -388,6 +387,8 @@ void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp, InvalidateHe
     m_seek_id++;
     m_seek_timestamp = timestamp;
     m_demuxer->set_blocking_reads_aborted_for_track(m_track);
+    // The aborted read reports that it stopped blocking only once the decode thread wakes.
+    m_demuxer_read_is_blocked.store(false);
     wake();
 }
 
@@ -583,6 +584,8 @@ void DecodedVideoProducer::ThreadData::handle_seek()
                 return;
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
             m_wait_state->output_should_interrupt_demuxer_reads.store(false, MemoryOrder::memory_order_relaxed);
+            // Whatever the decoder is still decoding precedes the seek, so it doesn't keep the seek from blocking.
+            m_decoder_has_decode_in_progress = false;
 
             if (seek_reason == SeekReason::Normal) {
                 if (is_within_available_range_while_locked(timestamp)) {
@@ -749,6 +752,7 @@ void DecodedVideoProducer::ThreadData::handle_seek()
             if (new_seek_id != seek_id)
                 break;
 
+            note_whether_decoder_has_decode_in_progress();
             auto coded_frame_result = m_demuxer->get_next_sample_for_track(m_track);
             m_wait_state->output_should_interrupt_demuxer_reads.store(false, MemoryOrder::memory_order_relaxed);
             if (coded_frame_result.is_error()) {
@@ -894,6 +898,7 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
     if (seek_is_pending())
         return;
 
+    note_whether_decoder_has_decode_in_progress();
     auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
     m_wait_state->output_should_interrupt_demuxer_reads.store(false, MemoryOrder::memory_order_relaxed);
     if (sample_result.is_error()) {

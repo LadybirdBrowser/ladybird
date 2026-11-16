@@ -52,7 +52,6 @@ public:
     ~DecodedAudioProducer();
 
     void set_error_handler(ErrorHandler&&);
-    void set_read_blocked_change_handler(ReadBlockedChangeHandler);
     virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) override;
 
     virtual void start() override;
@@ -70,7 +69,6 @@ private:
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
-        void set_read_blocked_change_handler(ReadBlockedChangeHandler);
         ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification);
         void set_wake_handler(PipelineWakeHandler);
 
@@ -132,7 +130,6 @@ private:
             ExitDecodeLoop,
         };
         WaitResult wait_for_queue_space_while_locked();
-        void dispatch_read_blocked_change(ReadBlocked blocked);
 
         Core::EventLoop& m_main_thread_event_loop;
 
@@ -156,8 +153,9 @@ private:
         AudioQueue m_queue;
         AK::Duration m_consumed_media_time_end;
         ErrorHandler m_error_handler;
-        ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
+        // Set by the demuxer under its own lock, which may be taken while ours is held.
+        Atomic<bool> m_demuxer_read_is_blocked { false };
 
         enum class SeekReason : u8 {
             Normal,
