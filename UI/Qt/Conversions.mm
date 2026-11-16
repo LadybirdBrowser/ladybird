@@ -11,19 +11,6 @@
 
 namespace Ladybird {
 
-Gfx::Color ns_color_to_gfx_color(NSColor* color)
-{
-    auto rgb_color = [color colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
-    if (rgb_color != nil)
-        return {
-            static_cast<u8>([rgb_color redComponent] * 255),
-            static_cast<u8>([rgb_color greenComponent] * 255),
-            static_cast<u8>([rgb_color blueComponent] * 255),
-            static_cast<u8>([rgb_color alphaComponent] * 255)
-        };
-    return {};
-}
-
 NSURL* url_to_ns_url(URL::URL const& url)
 {
     auto serialized_url = url.serialize();
