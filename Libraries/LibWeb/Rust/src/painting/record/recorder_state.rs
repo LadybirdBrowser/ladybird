@@ -81,24 +81,33 @@ impl RecorderState {
     }
 }
 
-/// Each row's absolute rect, with the geometry epoch of the frame it was computed from.
+const ABSOLUTE_RECTS_PER_PAGE: usize = 64;
+
+type MemoizedAbsoluteRect = Option<(NodeSlotId, u64, CssPixelRect)>;
+
+/// Each row's absolute rect, with the geometry epoch of the frame it was computed from, in pages of rows made as a rect
+/// in them is memoized: a memo of a few rows costs their pages, wherever the rows are in the arena.
 #[derive(Default)]
 pub(crate) struct AbsoluteRectMemo {
-    rects: Vec<Option<(NodeSlotId, u64, CssPixelRect)>>,
+    pages: Vec<Option<Box<[MemoizedAbsoluteRect; ABSOLUTE_RECTS_PER_PAGE]>>>,
 }
 
 impl AbsoluteRectMemo {
     pub(crate) fn get(&self, id: NodeSlotId, epoch: u64) -> Option<CssPixelRect> {
-        let (memoized_id, memoized_epoch, rect) = (*self.rects.get(id.slot_index() as usize)?)?;
+        let index = id.slot_index() as usize;
+        let page = self.pages.get(index / ABSOLUTE_RECTS_PER_PAGE)?.as_deref()?;
+        let (memoized_id, memoized_epoch, rect) = page[index % ABSOLUTE_RECTS_PER_PAGE]?;
         (memoized_id == id && memoized_epoch == epoch).then_some(rect)
     }
 
     pub(crate) fn set(&mut self, id: NodeSlotId, epoch: u64, rect: CssPixelRect) {
         let index = id.slot_index() as usize;
-        if self.rects.len() <= index {
-            self.rects.resize(index + 1, None);
+        let page_index = index / ABSOLUTE_RECTS_PER_PAGE;
+        if self.pages.len() <= page_index {
+            self.pages.resize_with(page_index + 1, || None);
         }
-        self.rects[index] = Some((id, epoch, rect));
+        let page = self.pages[page_index].get_or_insert_with(|| Box::new([None; ABSOLUTE_RECTS_PER_PAGE]));
+        page[index % ABSOLUTE_RECTS_PER_PAGE] = Some((id, epoch, rect));
     }
 }
 
