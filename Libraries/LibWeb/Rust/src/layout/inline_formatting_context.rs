@@ -324,7 +324,7 @@ fn apply_block_ellipsis(
         ellipsis_inline_offset,
         CssPixels::default(),
         ellipsis_inline_size,
-        line_builder::normal_line_height(style),
+        line_builder::content_area_block_size(style),
         CssPixels::default(),
         line.direction,
         line.writing_mode,
@@ -766,7 +766,7 @@ pub(crate) fn compute(
                     (block_start, line.max_direct_fragment_block_length)
                 } else {
                     let style = context.style(node);
-                    let height = line_builder::normal_line_height(style);
+                    let height = line_builder::content_area_block_size(style);
                     let baseline = line_builder::LineBuilder::baseline_for_style(style, height);
                     (inline_box_baseline - baseline, height)
                 };
@@ -878,7 +878,7 @@ pub(crate) fn compute(
                 placeholder_rect.y = block_offset;
                 placeholder_rect.height = CssPixels::default();
             } else {
-                placeholder_rect.height = line_builder::normal_line_height(style);
+                placeholder_rect.height = line_builder::content_area_block_size(style);
                 placeholder_rect.y = line.block_start + line.baseline
                     - line_builder::LineBuilder::baseline_for_style(style, placeholder_rect.height);
             }

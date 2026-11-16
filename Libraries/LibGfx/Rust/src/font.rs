@@ -45,6 +45,7 @@ pub struct FfiFontSnapshot {
     pub id: u64,
     pub ascent: f32,
     pub descent: f32,
+    pub line_gap: f32,
     pub x_height: f32,
     pub zero_advance: f32,
     pub pixel_size: f32,
@@ -58,6 +59,7 @@ pub struct FontId(pub u64);
 pub struct FontFacts {
     pub ascent: f32,
     pub descent: f32,
+    pub line_gap: f32,
     pub x_height: f32,
     pub zero_advance: f32,
     pub pixel_size: f32,
@@ -140,6 +142,7 @@ impl FontHandle {
             facts: FontFacts {
                 ascent: snapshot.ascent,
                 descent: snapshot.descent,
+                line_gap: snapshot.line_gap,
                 x_height: snapshot.x_height,
                 zero_advance: snapshot.zero_advance,
                 pixel_size: snapshot.pixel_size,

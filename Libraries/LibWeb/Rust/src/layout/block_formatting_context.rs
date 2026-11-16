@@ -3699,7 +3699,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             let marker_facts = self.facts(marker);
             if !marker_facts.list_marker_is_inside() {
                 let marker_style = self.style(marker);
-                let estimated_block_size = line_builder::normal_line_height(marker_style);
+                let estimated_block_size = line_builder::content_area_block_size(marker_style);
                 let marker_block_offset =
                     Self::marker_centered_block_offset(marker_style.line_height(), estimated_block_size);
                 let list_item_block_size = self.metrics_of(sized_child).content_block_size();

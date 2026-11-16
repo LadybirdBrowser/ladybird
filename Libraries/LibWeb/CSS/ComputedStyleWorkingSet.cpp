@@ -334,7 +334,7 @@ PreferredColorScheme ComputedStyleWorkingSet::color_scheme(PreferredColorScheme 
 
 CSSPixels normal_line_height(Gfx::FontPixelMetrics const& font_metrics)
 {
-    return CSSPixels { round_to<i32>(font_metrics.ascent) + round_to<i32>(font_metrics.descent) };
+    return CSSPixels { round_to<i32>(font_metrics.ascent) + round_to<i32>(font_metrics.descent) + round_to<i32>(font_metrics.line_gap) };
 }
 
 CSSPixels ComputedStyleWorkingSet::line_height(FontComputer const& font_computer) const

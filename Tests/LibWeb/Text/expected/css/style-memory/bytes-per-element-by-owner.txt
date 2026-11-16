@@ -105,7 +105,7 @@ uniqueFont: 500 elements, 500 styled
   otherMaps: within 0
   styleValues: within 28
   animationEffects: within 0
-  fontResolutions: within 244
+  fontResolutions: within 250
   cssAnimations: within 0
   hostMemo: within 0
   cppInstalledStyles: within 8

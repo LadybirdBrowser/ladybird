@@ -445,6 +445,7 @@ pub struct FfiResolvedFont {
     pub font_cascade_list: FfiHostHandle,
     pub ascent: f32,
     pub descent: f32,
+    pub line_gap: f32,
     pub x_height: f32,
     pub zero_advance: f32,
     /// For a request naming `from-font`, the number it computes to: the request's metric of the

@@ -1445,7 +1445,11 @@ const _: () = {
 
 /// The line height `normal` uses for a resolved font.
 pub(super) fn normal_line_height(resolved: &bridge::FfiResolvedFont) -> f64 {
-    f64::from(resolved.ascent.round() as i32 + resolved.descent.round() as i32)
+    f64::from(
+        resolved.ascent.round_ties_even() as i32
+            + resolved.descent.round_ties_even() as i32
+            + resolved.line_gap.round_ties_even() as i32,
+    )
 }
 
 /// The used line height, as the C++ working set reads it from the computed value in `values`
