@@ -19,7 +19,6 @@ displayListTest({
         {
             name: "quiet pattern fill",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -67,7 +66,6 @@ displayListTest({
             name: "recolor the tile",
             mutate: () => { tile.setAttribute("fill", "green"); },
             expect: `
-                damage: rows=7 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

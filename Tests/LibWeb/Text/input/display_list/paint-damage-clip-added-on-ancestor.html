@@ -19,7 +19,6 @@ displayListTest({
             mutate: () => { wrap.style.overflow = "hidden"; },
             check: equal => { equal(document.elementFromPoint(10, 10).id, "inner", "hit target"); },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -68,7 +67,6 @@ displayListTest({
         {
             name: "quiet after clipping",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

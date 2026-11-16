@@ -21,7 +21,6 @@ displayListTest({
             mutate: () => { c0.style.height = "10px"; },
             check: equal => { equal(document.elementFromPoint(15, 15).id, "c1-text", "hit target"); },
             expect: `
-                damage: rows=7 moved=2 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -109,7 +108,6 @@ displayListTest({
         {
             name: "quiet after the shift",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

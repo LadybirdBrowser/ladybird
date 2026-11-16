@@ -26,7 +26,6 @@ displayListTest({
         {
             name: "quiet siblings",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -35,7 +34,6 @@ displayListTest({
             name: "change inside B",
             mutate: () => { b0.style.color = "red"; },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -93,7 +91,6 @@ displayListTest({
             name: "change inside A while B is clean",
             mutate: () => { a0.style.color = "red"; },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

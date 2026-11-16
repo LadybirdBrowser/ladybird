@@ -656,7 +656,7 @@ pub(crate) fn update_accumulated_visual_contexts(
     if viewport_overflow_changed {
         // The wheel targets of every hit-test item end at the viewport where it scrolls, which no box capture of the
         // last recording knows: none of its scroll metadata stands.
-        arena.push_scroll_metadata_damage_everywhere();
+        arena.note_everything_paints_anew();
     }
     if state.last_tree_inputs.is_some_and(|last| {
         last.device_pixels_per_css_pixel != inputs.device_pixels_per_css_pixel || viewport_overflow_changed
@@ -753,8 +753,7 @@ fn fresh_visual_context_tree_build(
             unreachable!("a fresh tree walk has a tree and a viewport record")
         }
     };
-    // Everything records again; pushing that first keeps the per-row pushes below free.
-    arena.push_all_paint_damage();
+    arena.note_everything_paints_anew();
     super::ffi::apply_walk_assignments(arena, &mut outcome);
     arena.rebuild_all_stacking_context_entries_from_records(viewport);
     arena.take_line_roots_needing_fragment_ownership();
@@ -853,7 +852,7 @@ pub(crate) fn publish_resolved_svg_paint_resources(
     arena: &mut LayoutNodeArena,
     resolved: Vec<ResolvedSvgPaintResource>,
 ) -> bool {
-    use crate::painting::record::damage::PaintDamage;
+    use crate::painting::record::change_ticks::RowPaintChange;
     let mut any_changed = false;
     for resolved in resolved {
         match resolved {
@@ -864,7 +863,7 @@ pub(crate) fn publish_resolved_svg_paint_resources(
                         .publish_paint_server(slot, kind, published)
                 {
                     any_changed = true;
-                    arena.push_paint_damage(slot, PaintDamage::SVG | PaintDamage::SCOPE_PREAMBLE);
+                    arena.note_paint_change(slot, RowPaintChange::DRAWING);
                 }
             }
             ResolvedSvgPaintResource::Filter { slot, kind, published } => {
@@ -877,7 +876,7 @@ pub(crate) fn publish_resolved_svg_paint_resources(
                         slot,
                         crate::painting::visual_context::dirty::VisualContextBoxDirtyKind::StyleValueChange,
                     );
-                    arena.push_paint_damage(slot, PaintDamage::SVG | PaintDamage::SCOPE_PREAMBLE);
+                    arena.note_paint_change(slot, RowPaintChange::DRAWING);
                 }
             }
         }

@@ -11,6 +11,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_order;
 use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_rows::PAINTABLE_SLOTS_PER_CHUNK;
+use crate::painting::record::change_ticks::RowPaintChange;
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -357,7 +358,7 @@ impl LayoutNodeArena {
                 cursor = self.next_node_in_layout_subtree_in_pre_order(subtree_root, node);
             }
         }
-        self.push_enclosing_paint_order_damage(subtree_root);
+        self.note_enclosing_paint_order_change(subtree_root);
     }
 
     pub(crate) fn note_layout_subtree_attached(&mut self, subtree_root: NodeSlotId) {
@@ -366,12 +367,12 @@ impl LayoutNodeArena {
         }
         // The new parent lists the subtree from now on, and every row inside plans its own
         // descendants under the new ancestry.
-        self.push_enclosing_paint_order_damage(subtree_root);
+        self.note_enclosing_paint_order_change(subtree_root);
         let mut cursor = Some(subtree_root);
         while let Some(node) = cursor {
             if self.paintable_row_is_populated(node) {
                 self.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ReattachedInLayoutTree);
-                self.push_paint_damage(node, crate::painting::record::damage::PaintDamage::ORDER);
+                self.note_paint_change(node, RowPaintChange::ORDER);
             }
             cursor = self.next_node_in_layout_subtree_in_pre_order(subtree_root, node);
         }

@@ -8,7 +8,7 @@
 //!
 //! A [`PublishedFrame`] is what one recording reads: [`PublishedRows`], one generation of a
 //! document's layout tree shape, paintable rows and paint facts and of the columns read beside them,
-//! with the paint damage and the paint state the recording reads. It is immutable: every column in
+//! with the paint generation and the paint state the recording reads. It is immutable: every column in
 //! it is a [`ColumnSnapshot`] or an `Arc` the document shares with it, so the document writes its
 //! live columns (copying a chunk a frame still shares) while it is read.
 
@@ -25,7 +25,7 @@ use crate::painting::layer_image_paint_facts::LayerImagePaintFactsTable;
 use crate::painting::paint_state::{CustomHighlightPseudoStyles, PaintState, SelectionPseudoStyles};
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::paintable_rows::{CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK};
-use crate::painting::record::damage::FrameDamage;
+use crate::painting::record::change_ticks::{PaintChangeStamps, PaintGeneration};
 use crate::painting::replaced_paint_facts::ReplacedPaintFactsTable;
 use crate::painting::selection::{
     CustomHighlights, HighlightPseudoElement, SearchTextHighlights, SelectionRange, SpellingErrorHighlights,
@@ -55,6 +55,7 @@ pub(crate) struct PublishedRows {
     pub(super) ink_overflow: ColumnSnapshot<crate::painting::ink_overflow::InkOverflow, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(crate) ink_overflow_stamp: u64,
     pub(crate) hit_test_items_stamp: u64,
+    pub(super) paint_change_stamps: ColumnSnapshot<PaintChangeStamps, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(super) nodes: ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
     pub(super) paint_facts: PublishedPaintFacts,
     pub(super) rows: ColumnSnapshot<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
@@ -131,6 +132,16 @@ impl PublishedRows {
                 .get(id.slot_index() as usize)
                 .and_then(|slot| slot.link_for(id.generation())),
         )
+    }
+
+    pub(crate) fn paint_change_stamps(&self, id: NodeSlotId) -> PaintChangeStamps {
+        if !self.paintable_row_is_populated(id) {
+            return PaintChangeStamps::default();
+        }
+        self.paint_change_stamps
+            .get(id.slot_index() as usize)
+            .copied()
+            .unwrap_or_default()
     }
 
     pub(crate) fn committed_side_data(&self, id: NodeSlotId) -> &CommittedSideData {
@@ -231,13 +242,14 @@ impl PublishedPaintState {
     }
 }
 
-/// What a document published for one recording to read: its rows, its paint damage and the paint
-/// state the recording reads, with a lease on the style records its rows name. [`LayoutNodeArena::freeze_frame`] is
+/// What a document published for one recording to read: its rows, the paint generation it was published as of and the
+/// paint state the recording reads, with a lease on the style records its rows name. [`LayoutNodeArena::freeze_frame`] is
 /// its only constructor and it has no `Clone`: a recording takes a frame and drops it before it returns, and nothing
 /// keeps one past the next write to the arena.
 pub(crate) struct PublishedFrame {
     pub(super) rows: PublishedRows,
-    damage: FrameDamage,
+    paint_generation: PaintGeneration,
+    everything_changed_at: PaintGeneration,
     paint_state: PublishedPaintState,
     _style_records: StyleRecordLease,
 }
@@ -258,7 +270,8 @@ impl LayoutNodeArena {
         let rows = self.publish_rows();
         PublishedFrame {
             rows,
-            damage: self.paint_damage_for_frame(),
+            paint_generation: self.take_paint_generation(),
+            everything_changed_at: self.everything_changed_at(),
             paint_state: PublishedPaintState::new(self.paint_state()),
             _style_records: self.with_style_store(|engine| engine.lease_style_records()),
         }
@@ -271,9 +284,13 @@ impl PublishedFrame {
         &self.paint_state
     }
 
-    /// The paint damage the frame was published with.
-    pub(crate) fn damage(&self) -> &FrameDamage {
-        &self.damage
+    /// The generation the frame was published as of.
+    pub(crate) fn paint_generation(&self) -> PaintGeneration {
+        self.paint_generation
+    }
+
+    pub(crate) fn everything_paints_anew_since(&self, as_of: PaintGeneration) -> bool {
+        self.everything_changed_at > as_of
     }
 
     /// The SVG paint resources the frame was published with.
@@ -415,7 +432,7 @@ mod tests {
                 arena.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets.top))
             );
             assert!(*source.committed_side_data(node) == *arena.committed_side_data(node));
-            assert_eq!(source.paint_damage_of_row(node), arena.paint_damage_of_row(node));
+            assert_eq!(source.paint_change_stamps(node), arena.paint_change_stamps(node));
             assert!(source.stacking_context_entries(node).is_none() == arena.stacking_context_entries(node).is_none());
         }
     }

@@ -21,7 +21,6 @@ displayListTest({
         {
             name: "quiet clipped shape",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -30,7 +29,6 @@ displayListTest({
             name: "widen the clip content",
             mutate: () => { document.getElementById("clip-rect").setAttribute("width", "200"); },
             expect: `
-                damage: rows=8 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -92,7 +90,6 @@ displayListTest({
         {
             name: "quiet after the clip change",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

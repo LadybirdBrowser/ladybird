@@ -16,7 +16,6 @@ use std::rc::Rc;
 pub struct CaptureLog {
     pub(crate) events: Vec<Event>,
     pub(crate) open_events: Vec<usize>,
-    pub(crate) damage: Option<DamageSummary>,
 }
 
 // The normal recorder carries no observation state. Keeping the policy static also removes
@@ -85,16 +84,6 @@ pub(crate) struct Event {
     pub empty: bool,
 }
 
-/// The damage a recording started from, for tests that pin the exact amount of work.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct DamageSummary {
-    pub rows: usize,
-    pub moved: usize,
-    pub order: usize,
-    pub eligibility: usize,
-    pub all: bool,
-}
-
 impl<O: Observer> super::PaintRecorder<'_, O> {
     pub(crate) fn trace_scope<R>(
         &mut self,
@@ -142,14 +131,6 @@ impl CaptureLog {
     pub(crate) fn format(&self, mut name: impl FnMut(NodeSlotId) -> String) -> String {
         assert!(self.open_events.is_empty(), "incomplete recording trace");
         let mut output = String::new();
-        if let Some(damage) = self.damage {
-            writeln!(
-                output,
-                "damage: rows={} moved={} order={} eligibility={} all={}",
-                damage.rows, damage.moved, damage.order, damage.eligibility, damage.all
-            )
-            .unwrap();
-        }
         let mut depths = Vec::with_capacity(self.events.len());
         for event in &self.events {
             let depth = event.parent.map_or(0, |parent| depths[parent] + 1);
@@ -224,10 +205,6 @@ mod tests {
     fn nested_work_is_indented_and_only_recording_reports_emptiness() {
         let mut log = CaptureLog::default();
         let owner = NodeSlotId::new(0, 1);
-        log.damage = Some(DamageSummary {
-            rows: 1,
-            ..DamageSummary::default()
-        });
         log.begin(Operation::Scope(PaintScope::stacking_context(owner)), Action::Assemble);
         log.leaf(
             Operation::Producer(owner, ProducerKind::DrawBackground),
@@ -248,7 +225,7 @@ mod tests {
         let text = log.format(|_| "box".to_string());
         assert_eq!(
             text,
-            "damage: rows=1 moved=0 order=0 eligibility=0 all=false\nbox ASSEMBLE\n  box/background COPY\n  box/foreground RECORD (empty)\n  box/outline SKIP\n"
+            "box ASSEMBLE\n  box/background COPY\n  box/foreground RECORD (empty)\n  box/outline SKIP\n"
         );
     }
 }

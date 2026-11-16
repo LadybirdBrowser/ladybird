@@ -22,7 +22,6 @@ displayListTest({
                 equal(document.elementFromPoint(10, 30).id, "stay", "hit target on the flex item");
             },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -35,7 +34,6 @@ displayListTest({
                 equal(document.elementFromPoint(70, 10).id, "moved", "hit target on the moved item");
             },
             expect: `
-                damage: rows=6 moved=2 order=3 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

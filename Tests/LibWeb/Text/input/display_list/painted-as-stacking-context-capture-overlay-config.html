@@ -17,7 +17,6 @@ displayListTest({
         {
             name: "quiet without overlays",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -26,7 +25,6 @@ displayListTest({
             name: "enable overlays",
             paintOverlay: true,
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport RECORD
                   @viewport/preamble RECORD (empty)
@@ -87,7 +85,6 @@ displayListTest({
         {
             name: "disable overlays",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport RECORD
                   @viewport/preamble RECORD (empty)
@@ -144,7 +141,6 @@ displayListTest({
         {
             name: "quiet without overlays again",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

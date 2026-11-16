@@ -18,7 +18,6 @@ displayListTest({
             name: "quiet before moving B",
             check: equal => { equal(document.elementFromPoint(10, 110).id, "html", "hit target"); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -29,7 +28,6 @@ displayListTest({
             mutate: () => { b.style.top = "20px"; },
             check: equal => { equal(document.elementFromPoint(10, 110).id, "b2", "hit target"); },
             expect: `
-                damage: rows=4 moved=1 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -50,9 +48,9 @@ displayListTest({
                       BlockContainer<BODY>#body/border SKIP
                       BlockContainer<DIV>#a/descendants(background-and-borders) COPY
                       BlockContainer<DIV>#b/descendants(background-and-borders) ASSEMBLE
-                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
                       BlockContainer<DIV>#a/descendants(foreground) COPY
                       BlockContainer<DIV>#b/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/outline SKIP
@@ -95,14 +93,13 @@ displayListTest({
                         BlockContainer<DIV>#b2.row/overlay SKIP
                       BlockContainer<DIV>#b/outline SKIP
                       BlockContainer<DIV>#b/overlay SKIP
-                    BlockContainer<HTML>#html/outline COPY
+                    BlockContainer<HTML>#html/outline SKIP
                   @viewport/outline COPY
             `
         },
         {
             name: "quiet after moving B",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

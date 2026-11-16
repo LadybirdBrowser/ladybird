@@ -9,7 +9,7 @@ use crate::painting::record::trace::{Observer, Operation};
 
 pub(crate) mod assemble;
 pub mod async_scroll_metadata;
-pub(crate) mod damage;
+pub(crate) mod change_ticks;
 pub(crate) mod frame_inputs;
 pub mod hit_test_items;
 pub(crate) mod ink_bounds;
@@ -45,11 +45,12 @@ pub(crate) use inputs::RecordingInputs;
 #[derive(Default)]
 pub struct RecordingOutput {
     pub recorded_structural_epoch: u64,
+    pub(crate) recorded_as_of: change_ticks::PaintGeneration,
     /// The visual context tree the recording was recorded against: the frozen frame's.
     pub visual_context_tree: Option<Arc<crate::painting::visual_context::VisualContextTree>>,
     pub(crate) frame_inputs: FrameInputs,
     // The area the root background painted: the viewport united with the root's overflow. Only
-    // the root's background reads it, so a change pushes that producer instead of a new frame.
+    // the root's background reads it, so a change stamps the root instead of asking for everything anew.
     pub(crate) root_background_canvas_rect: CssPixelRect,
     /// The name of the chunk the canvas was recorded into, outside the walked scopes, or none where it drew nothing.
     pub(crate) prologue_id: Option<crate::painting::display_list::chunks::ChunkId>,

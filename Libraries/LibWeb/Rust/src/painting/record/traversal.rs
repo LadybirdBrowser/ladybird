@@ -73,12 +73,10 @@ fn record_display_list_impl<O: Observer>(
         inputs.css_viewport_rect,
     );
     // The published recording is reused from while every input its producers read is unchanged and
-    // no push asked for everything; otherwise this frame records from scratch.
-    let source_is_usable = source_recording
-        .as_ref()
-        .is_some_and(|frame| frame.frame_inputs == frame_inputs)
-        && !source.frame().damage().covers_everything()
-        && !source.frame().damage().scroll_metadata_everywhere();
+    // nothing asked for everything to paint anew since; otherwise this frame records from scratch.
+    let source_is_usable = source_recording.as_ref().is_some_and(|published| {
+        published.frame_inputs == frame_inputs && !source.frame().everything_paints_anew_since(published.recorded_as_of)
+    });
     let source_recording = source_recording.filter(|_| source_is_usable);
     let window_focus_changed = source_recording
         .as_ref()
@@ -104,9 +102,6 @@ fn record_display_list_impl<O: Observer>(
         scratch,
         resources: RecordingResourceManifest::default(),
     };
-    recorder
-        .observer
-        .observe(|log| log.damage = Some(source.frame().damage().summary()));
     let root_group_color = recorder.record_canvas();
     let prologue = recorder.take_run_chunk();
     let prologue_id = prologue.as_ref().map(|chunk| chunk.recorded().id);
@@ -120,14 +115,17 @@ fn record_display_list_impl<O: Observer>(
         .source_recording
         .as_ref()
         .and_then(|frame| frame.recorded_root.clone());
-    // Nothing was pushed and nothing records every frame: the published chunks are this frame's, which lets the
+    // Nothing changed and nothing records every frame: the published chunks are this frame's, which lets the
     // compositor skip its update as well.
     let unchanged_frame = recorder
         .source_recording
         .as_ref()
         .zip(published_root.as_ref())
         .filter(|(frame, root)| {
-            frame_is_unchanged(root, !source.frame().damage().is_empty(), window_focus_changed)
+            let anything_changed = source
+                .paint_change_stamps(viewport)
+                .row_or_anything_below_it_changed_since(frame.recorded_as_of);
+            frame_is_unchanged(root, anything_changed, window_focus_changed)
                 && !has_inspector_overlays
                 && frame.prologue_id == prologue_id
         })
@@ -178,6 +176,7 @@ fn record_display_list_impl<O: Observer>(
     };
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
+        recorded_as_of: source.frame().paint_generation(),
         visual_context_tree: paint_state.visual_context_tree.clone(),
         frame_inputs,
         root_background_canvas_rect,

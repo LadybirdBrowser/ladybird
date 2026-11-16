@@ -17,7 +17,6 @@ displayListTest({
         {
             name: "quiet SVG with external paint server",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -26,7 +25,6 @@ displayListTest({
             name: "edit external gradient",
             mutate: () => { s0.setAttribute("stop-color", "blue"); },
             expect: `
-                damage: rows=6 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

@@ -16,12 +16,10 @@
 use crate::css::css_pixels::CssPixelPoint;
 use crate::painting::display_list::chunks::Chunk;
 use crate::painting::paint_order_plan::{PaintOrderItem, PaintScope};
-use crate::painting::record::damage::PaintDamage;
 use std::ops::Range;
 use std::sync::{Arc, OnceLock};
 
-/// One unit of recorded output owned by a row. The order of the draw phases mirrors `PaintPhase`, and every kind has
-/// the damage bit that makes it record again.
+/// One unit of recorded output owned by a row. The order of the draw phases mirrors `PaintPhase`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub(crate) enum ProducerKind {
@@ -36,26 +34,6 @@ pub(crate) enum ProducerKind {
     Svg,
     InlinePiece(u32),
     TextFragment(u32),
-}
-
-impl ProducerKind {
-    pub(crate) fn damage(self) -> PaintDamage {
-        match self {
-            Self::DrawBackground => PaintDamage::DRAW_BACKGROUND,
-            Self::DrawBorder => PaintDamage::DRAW_BORDER,
-            Self::DrawTableCollapsedBorder => PaintDamage::DRAW_TABLE_COLLAPSED_BORDER,
-            Self::DrawForeground => PaintDamage::DRAW_FOREGROUND,
-            Self::DrawOutline => PaintDamage::DRAW_OUTLINE,
-            Self::DrawOverlay => PaintDamage::DRAW_OVERLAY,
-            Self::ScrollMetadata => PaintDamage::SCROLL_METADATA,
-            Self::ScopePreamble => PaintDamage::SCOPE_PREAMBLE,
-            Self::Svg => PaintDamage::SVG,
-            Self::InlinePiece(_) => {
-                PaintDamage::DRAW_BACKGROUND | PaintDamage::DRAW_BORDER | PaintDamage::DRAW_FOREGROUND
-            }
-            Self::TextFragment(_) => PaintDamage::DRAW_FOREGROUND,
-        }
-    }
 }
 
 /// What one part of a recording recorded, besides its chunks, that decides whether it can be reused.
@@ -78,7 +56,7 @@ impl OutputFacts {
     }
 }
 
-/// Where a row's boxes are, as far as an ancestor can move them without anything pushing damage for the row: the
+/// Where a row's boxes are, as far as an ancestor can move them without anything stamping the row: the
 /// origin of its first fragment, and for a row in several fragments a digest of where the later ones are, which a
 /// change of the columns they sit in moves on its own.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -173,7 +151,7 @@ impl RecordedChunk {
 }
 
 /// What a run recorded, and where the owners of its child scopes were when it did: a child that an ancestor moved
-/// since records again though nothing pushed damage for it.
+/// since records again though nothing stamped it.
 #[derive(Debug)]
 pub(crate) struct RecordedRun {
     /// None where the run recorded nothing.

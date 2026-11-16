@@ -32,7 +32,6 @@ displayListTest({
                           CanvasBox<CANVAS>#trigger/internal-replaced RUN (cache=bypass)
                 `,
                 displayList: `
-                    damage: rows=0 moved=0 order=0 eligibility=0 all=false
                     @canvas RECORD (empty)
                     @viewport COPY
                 `,
@@ -43,7 +42,6 @@ displayListTest({
             mutate: () => { document.getElementById("inline").firstChild.data = "Changed!"; },
             check: equal => { equal(target.getBoundingClientRect().height, 40, "unchanged target height"); },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -114,7 +112,6 @@ displayListTest({
                           CanvasBox<CANVAS>#trigger/internal-replaced RUN (cache=bypass)
                 `,
                 displayList: `
-                    damage: rows=5 moved=0 order=0 eligibility=0 all=false
                     @canvas RECORD (empty)
                     @viewport ASSEMBLE
                       @viewport/preamble COPY

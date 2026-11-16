@@ -20,7 +20,6 @@ displayListTest({
             name: "quiet without listeners",
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(50, 150), false, "blocking wheel region"); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -30,7 +29,6 @@ displayListTest({
             mutate: () => { target.addEventListener("wheel", passive, { passive: true }); },
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(50, 150), false, "blocking wheel region"); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -40,7 +38,6 @@ displayListTest({
             mutate: () => { target.addEventListener("wheel", blocking, { passive: false }); },
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(50, 150), true, "blocking wheel region"); },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -94,7 +91,6 @@ displayListTest({
             name: "quiet with blocking listener",
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(50, 150), true, "blocking wheel region"); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -104,7 +100,6 @@ displayListTest({
             mutate: () => { target.removeEventListener("wheel", blocking); },
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(50, 150), false, "blocking wheel region"); },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

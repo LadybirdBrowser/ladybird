@@ -21,7 +21,7 @@ use crate::painting::paintable_data::{
     FfiSpellingError, SELECTION_STATE_END, SELECTION_STATE_NONE, SELECTION_STATE_START, SELECTION_STATE_START_AND_END,
 };
 use crate::painting::paintable_rows::PaintableRowsMut;
-use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::change_ticks::RowPaintChange;
 use crate::painting::record::paint::text::{
     HighlightDecorationMetrics, HighlightShadowLayer, SelectionStyleAnswer, ShadowLayer,
 };
@@ -73,10 +73,10 @@ pub(crate) struct SelectionRange {
 
 fn invalidate_text_node(layout_arena: &mut PaintableRowsMut<'_>, node: NodeSlotId) {
     if let Some(containing_block) = text_fragment::containing_block_paintable_of_node(layout_arena, node) {
-        layout_arena.push_paint_damage(containing_block, PaintDamage::ALL_DRAW);
+        layout_arena.note_paint_change(containing_block, RowPaintChange::DRAWING);
     }
     if let Some(inline_box) = fragment_ownership::nearest_self_painting_inline_box(layout_arena, node) {
-        layout_arena.push_paint_damage(inline_box, PaintDamage::ALL_DRAW);
+        layout_arena.note_paint_change(inline_box, RowPaintChange::DRAWING);
     }
 }
 
@@ -92,7 +92,7 @@ pub(crate) fn clear(layout_arena: &mut PaintableRowsMut<'_>) {
             && layout_arena.paintable_data(row).selection_state != SELECTION_STATE_NONE
         {
             layout_arena.paintable_data_mut(row).selection_state = SELECTION_STATE_NONE;
-            layout_arena.push_paint_damage(row, PaintDamage::ALL_DRAW);
+            layout_arena.note_paint_change(row, RowPaintChange::DRAWING);
         }
     }
 }
@@ -118,7 +118,7 @@ pub(crate) fn apply(
             }
             if layout_arena.paintable_data(entry.layout_node).selection_state != entry.state {
                 layout_arena.paintable_data_mut(entry.layout_node).selection_state = entry.state;
-                layout_arena.push_paint_damage(entry.layout_node, PaintDamage::ALL_DRAW);
+                layout_arena.note_paint_change(entry.layout_node, RowPaintChange::DRAWING);
                 boxes_with_selection_state.push(entry.layout_node);
             }
         }
@@ -313,7 +313,7 @@ fn damage_custom_highlight_changes(
         if previous.replaced_signature(node) != highlights.replaced_signature(node)
             && layout_arena.paintable_row_is_populated(node)
         {
-            layout_arena.push_paint_damage(node, PaintDamage::ALL_DRAW);
+            layout_arena.note_paint_change(node, RowPaintChange::DRAWING);
         }
     }
 }

@@ -56,7 +56,7 @@ impl PaintableVisualContextAssignment {
     }
 
     pub(crate) fn apply(self, layout_arena: &mut impl PaintableRowsWrite) {
-        use crate::painting::record::damage::PaintDamage;
+        use crate::painting::record::change_ticks::RowPaintChange;
         if let Some(svg_filter_bounds) = self.gathered_svg_filter_bounds {
             super::node_values::set_svg_filter_bounds(layout_arena, self.slot, svg_filter_bounds);
         }
@@ -90,11 +90,11 @@ impl PaintableVisualContextAssignment {
         }
         layout_arena.set_paintable_visual_context_record(self.slot, self.record, self.node_handles);
         if scroll_nodes_changed {
-            layout_arena.push_paint_damage(self.slot, PaintDamage::ALL_PRODUCERS);
-            layout_arena.push_paint_damage_to_paint_subtree(self.slot, PaintDamage::SCROLL_METADATA);
+            layout_arena.note_paint_change(self.slot, RowPaintChange::EVERYTHING_IT_PAINTS);
+            layout_arena.note_paint_change_in_paint_subtree(self.slot, RowPaintChange::SCROLL_METADATA);
         }
         if non_invertible_transform_flipped {
-            layout_arena.push_paint_damage(self.slot, PaintDamage::ELIGIBILITY | PaintDamage::ALL_PRODUCERS);
+            layout_arena.note_paint_change(self.slot, RowPaintChange::ORDER | RowPaintChange::EVERYTHING_IT_PAINTS);
         }
     }
 }

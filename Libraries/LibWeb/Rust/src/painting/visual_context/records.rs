@@ -21,8 +21,8 @@ pub struct VisualContextState {
     pub(crate) last_compositor_scroll_inputs: Option<super::compositor_scroll_table::CompositorScrollInputs>,
     // The owners of the tree's compositor scroll rows, in row order, so refresh can find boxes that left the table.
     pub(crate) compositor_scroll_owners: Vec<NodeSlotId>,
-    // The paint damage push revision the table's snap geometry was last brought up to.
-    pub(crate) compositor_snap_damage_revision: Option<u64>,
+    // The paint generation the table's snap geometry was last brought up to.
+    pub(crate) compositor_snap_records_as_of: Option<crate::painting::record::change_ticks::PaintGeneration>,
     pub last_tree_inputs: Option<crate::painting::host::FfiVisualContextTreeInputs>,
     // The viewport's overflow when the tree was last updated. A sticky box finds its scrolling box by it.
     pub last_viewport_overflow: (u8, u8),

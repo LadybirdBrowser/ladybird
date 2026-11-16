@@ -10,7 +10,7 @@ use crate::painting::host::{
     FfiVideoPaintFacts, FfiVideoRepresentation,
 };
 use crate::painting::image_content::ImageContent;
-use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::change_ticks::RowPaintChange;
 use libgfx_rust::image_frame::ImageFrameHandle;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -103,15 +103,17 @@ pub(crate) enum ReplacedPaintFacts {
 }
 
 impl ReplacedPaintFacts {
-    /// The damage a row takes where its facts change to these. A canvas or a navigable container caches what it paints
+    /// What changes of a row where its facts change to these. A canvas or a navigable container caches what it paints
     /// and is hit-tested with beside its row, which goes with the facts. Whether a navigable container's content is
     /// composited also decides which wheel region its scroll metadata records.
-    pub(crate) fn damage_when_changed(&self) -> PaintDamage {
+    pub(crate) fn paint_change_when_changed(&self) -> RowPaintChange {
         match self {
-            Self::FormControl(_) => PaintDamage::DRAW_FOREGROUND,
-            Self::Canvas(_) => PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT,
-            Self::NavigableContainer(_) => PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT | PaintDamage::SCROLL_METADATA,
-            Self::Image(_) | Self::Video(_) | Self::FrameSet(_) => PaintDamage::ALL_DRAW,
+            Self::FormControl(_) => RowPaintChange::DRAWING,
+            Self::Canvas(_) => RowPaintChange::DRAWING | RowPaintChange::HIT_TESTING,
+            Self::NavigableContainer(_) => {
+                RowPaintChange::DRAWING | RowPaintChange::HIT_TESTING | RowPaintChange::SCROLL_METADATA
+            }
+            Self::Image(_) | Self::Video(_) | Self::FrameSet(_) => RowPaintChange::DRAWING,
         }
     }
 

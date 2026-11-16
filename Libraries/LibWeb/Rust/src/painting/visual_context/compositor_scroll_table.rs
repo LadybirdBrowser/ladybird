@@ -166,7 +166,7 @@ pub(crate) fn refresh_compositor_scroll_table(
     state: &mut super::VisualContextState,
     inputs: CompositorScrollInputs,
 ) -> CompositorScrollRefreshOutcome {
-    use crate::painting::record::damage::PaintDamage;
+    use crate::painting::record::change_ticks::RowPaintChange;
     use libcompositing_rust::visual_context::CompositorScrollTable;
     use std::sync::Arc;
 
@@ -175,8 +175,15 @@ pub(crate) fn refresh_compositor_scroll_table(
     };
     let previous = tree.compositor_scroll_table();
     let inputs_changed = state.last_compositor_scroll_inputs != Some(inputs);
-    let new_damage = state.compositor_snap_damage_revision != Some(arena.paint_damage_push_revision());
-    let damage_everywhere = arena.paint_damage_covers_everything() || arena.scroll_metadata_damaged_everywhere();
+    let snap_records_as_of = state.compositor_snap_records_as_of;
+    let snap_records_are_stale = |owner: NodeSlotId| {
+        snap_records_as_of.is_none_or(|as_of| {
+            arena.everything_paints_anew_since(as_of)
+                || arena
+                    .paint_change_stamps(owner)
+                    .row_or_anything_below_it_changed_since(as_of)
+        })
+    };
     let source = arena.paintable_rows();
     let wheel_axes = |slot| crate::painting::chrome_geometry::wheel_scrollable_axes(&source, slot);
     let mut nodes_with_owners = Vec::new();
@@ -221,9 +228,7 @@ pub(crate) fn refresh_compositor_scroll_table(
         {
             damaged_subtrees.push(*owner);
         }
-        let recompute = inputs_changed
-            || !same_identity
-            || (new_damage && (damage_everywhere || !arena.row_paint_state(*owner).damage().is_empty()));
+        let recompute = inputs_changed || !same_identity || snap_records_are_stale(*owner);
         let snap_records = if recompute {
             compositor_snap_container_and_area_records(&source, *owner)
         } else {
@@ -270,10 +275,10 @@ pub(crate) fn refresh_compositor_scroll_table(
     }
     let requires_display_list_recording = !damaged_subtrees.is_empty();
     for owner in damaged_subtrees {
-        arena.push_paint_damage_to_paint_subtree(owner, PaintDamage::SCROLL_METADATA);
+        arena.note_paint_change_in_paint_subtree(owner, RowPaintChange::SCROLL_METADATA);
     }
     state.last_compositor_scroll_inputs = Some(inputs);
-    state.compositor_snap_damage_revision = Some(arena.paint_damage_push_revision());
+    state.compositor_snap_records_as_of = Some(arena.take_paint_generation());
     CompositorScrollRefreshOutcome {
         table_changed,
         requires_display_list_recording,

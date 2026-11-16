@@ -17,7 +17,6 @@ displayListTest({
             name: "paint with overlays",
             paintOverlay: true,
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD
                 @viewport RECORD
                   @viewport/preamble RECORD (empty)
@@ -60,7 +59,6 @@ displayListTest({
             paintOverlay: true,
             mutate: () => { document.body.style.background = "black"; },
             expect: `
-                damage: rows=3 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD
                 @viewport RECORD
                   @viewport/preamble RECORD (empty)
@@ -102,7 +100,6 @@ displayListTest({
             name: "quiet with overlays",
             paintOverlay: true,
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD
                 @viewport COPY
             `

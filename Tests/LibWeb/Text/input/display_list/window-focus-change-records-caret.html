@@ -13,7 +13,6 @@
 // The caret paints only while the window is focused, so a focus change records the block that paints it
 // again and copies everything else.
 const focusChangeTrace = `
-    damage: rows=0 moved=0 order=0 eligibility=0 all=false
     @canvas RECORD (empty)
     @viewport ASSEMBLE
       @viewport/preamble COPY
@@ -52,7 +51,6 @@ displayListTest({
         {
             name: "quiet before focus changes",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `,

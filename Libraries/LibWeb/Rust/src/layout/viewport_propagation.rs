@@ -17,6 +17,7 @@ use crate::css::style::bridge::{element_adjustment_fact, element_construction_fa
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::record::change_ticks::RowPaintChange;
 
 /// What the propagation reads of the document element and its first HTML body child element.
 #[derive(Clone, Copy)]
@@ -343,7 +344,7 @@ pub(crate) fn propagate_root_styles_to_viewport(
         // The viewport's scroll node records what the viewport does at its boundary, and a new style for the
         // viewport box does not get it recorded again by itself.
         if changed {
-            arena.push_paint_damage(viewport, crate::painting::record::damage::PaintDamage::SCROLL_METADATA);
+            arena.note_paint_change(viewport, RowPaintChange::SCROLL_METADATA);
         }
     };
 

@@ -22,7 +22,6 @@ displayListTest({
             name: "quiet modal",
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), false, "blocking wheel region"); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -32,7 +31,6 @@ displayListTest({
             mutate: () => { host.style.height = "101px"; host.addEventListener("wheel", blocking, { passive: false }); },
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), true, "blocking wheel region"); },
             expect: `
-                damage: rows=6 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -91,7 +89,6 @@ displayListTest({
             name: "quiet modal with listener",
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), true, "blocking wheel region"); },
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -101,7 +98,6 @@ displayListTest({
             mutate: () => { host.removeEventListener("wheel", blocking); },
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), false, "blocking wheel region"); },
             expect: `
-                damage: rows=6 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

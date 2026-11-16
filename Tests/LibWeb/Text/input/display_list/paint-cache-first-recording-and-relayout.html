@@ -25,7 +25,6 @@ displayListTest({
             name: "cold recording",
             cold: true,
             expect: `
-                damage: rows=6 moved=0 order=0 eligibility=0 all=true
                 @canvas RECORD (empty)
                 @viewport RECORD
                   @viewport/preamble RECORD (empty)
@@ -81,7 +80,6 @@ displayListTest({
             name: "relayout one card",
             mutate: () => { card1.firstChild.data = "Edited"; },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY

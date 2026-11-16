@@ -31,7 +31,6 @@ displayListTest({
                 equal(document.elementFromPoint(220, 20).id, "card4", "hit target on the next card");
             },
             expect: `
-                damage: rows=4 moved=0 order=1 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -86,7 +85,6 @@ displayListTest({
         {
             name: "quiet after the removal",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

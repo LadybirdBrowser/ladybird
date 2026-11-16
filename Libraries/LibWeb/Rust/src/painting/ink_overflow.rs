@@ -842,7 +842,7 @@ mod tests {
         moved_child.offset.x = CssPixels::from_integer(-400);
         arena.set_committed_fragment_link(child, moved_child, None);
         arena.clear_absolute_rect_memo();
-        arena.push_paint_damage(child, crate::painting::record::damage::PaintDamage::MOVED);
+        arena.note_paint_change(child, crate::painting::record::change_ticks::RowPaintChange::PLACE);
         arena.settle_ink_overflow();
         assert_eq!(arena.stored_ink_overflow(root).rect, rect(-400, 0, 500, 320));
         assert_ne!(arena.ink_overflow_stamp(), stamp);

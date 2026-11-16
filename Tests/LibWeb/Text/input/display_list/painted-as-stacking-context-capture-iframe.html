@@ -17,7 +17,6 @@ displayListTest({
         {
             name: "quiet iframe",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `
@@ -27,7 +26,6 @@ displayListTest({
             mutate: () => { after.style.color = "red"; },
             check: equal => { equal(document.elementFromPoint(50, 30).id, "frame", "hit target"); },
             expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -83,7 +81,6 @@ displayListTest({
         {
             name: "quiet after adjacent change",
             expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport COPY
             `

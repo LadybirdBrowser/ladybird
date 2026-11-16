@@ -96,7 +96,7 @@ impl PaintState {
 }
 
 impl crate::layout::LayoutNodeArena {
-    /// Makes `source` the root background source, and pushes the damage of the boxes the move changes which paints
+    /// Makes `source` the root background source, and stamps the boxes the move changes which paints
     /// the root's background. Answers whether the source moved.
     pub(crate) fn update_root_background_source(
         &mut self,
@@ -108,22 +108,22 @@ impl crate::layout::LayoutNodeArena {
         if previous == source {
             return false;
         }
-        use crate::painting::record::damage::PaintDamage;
-        // Propagation changes which box paints the body's background. Push both the old
+        use crate::painting::record::change_ticks::RowPaintChange;
+        // Propagation changes which box paints the body's background. Stamp both the old
         // and new owners, including inline pieces painted by their containing block.
         for source in [previous, source] {
             for slot in [source.root_layout_node, source.body_layout_node] {
-                self.push_paint_damage_for_repaint(slot, PaintDamage::DRAW_BACKGROUND);
+                self.note_paint_change_for_repaint(slot, RowPaintChange::DRAWING);
             }
             // The viewport's scrollbars take their colors from the propagated background.
             if let Some(viewport) = self.node_parent_if_live(source.root_layout_node) {
-                self.push_paint_damage(viewport, PaintDamage::DRAW_OVERLAY | PaintDamage::SCROLL_METADATA);
+                self.note_paint_change(viewport, RowPaintChange::DRAWING | RowPaintChange::SCROLL_METADATA);
             }
         }
         true
     }
 
-    /// Lends the visual context state to `update`, which can read the rows and push paint damage beside it.
+    /// Lends the visual context state to `update`, which can read the rows and stamp paint changes beside it.
     pub(crate) fn with_visual_context_state_lent<T>(
         &mut self,
         update: impl FnOnce(&mut Self, &mut crate::painting::visual_context::VisualContextState) -> T,

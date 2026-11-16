@@ -220,7 +220,7 @@ fn take_previous_fragment_ownership(
 }
 
 fn assign_for_block(layout_arena: &mut impl PaintableRowsWrite, block: NodeSlotId) {
-    use crate::painting::record::damage::PaintDamage;
+    use crate::painting::record::change_ticks::RowPaintChange;
     let owners_with_filters = compute_fragment_ownership_for_block(&*layout_arena, block);
     // Start every piece's box from a clean slate. A box whose filter changes paints a
     // different selection of the block's fragments.
@@ -241,9 +241,9 @@ fn assign_for_block(layout_arena: &mut impl PaintableRowsWrite, block: NodeSlotI
             .iter()
             .any(|(previous_owner, previous)| *previous_owner == owner && **previous == filter);
         if !unchanged {
-            layout_arena.push_paint_damage(
+            layout_arena.note_paint_change(
                 owner,
-                PaintDamage::DRAW_FOREGROUND | PaintDamage::HIT_FOREGROUND | PaintDamage::ORDER,
+                RowPaintChange::DRAWING | RowPaintChange::HIT_TESTING | RowPaintChange::ORDER,
             );
         }
         layout_arena.committed_side_data_mut(owner).fragment_ownership = Some(std::sync::Arc::new(filter));
@@ -254,9 +254,9 @@ fn assign_for_block(layout_arena: &mut impl PaintableRowsWrite, block: NodeSlotI
             .fragment_ownership
             .is_none()
         {
-            layout_arena.push_paint_damage(
+            layout_arena.note_paint_change(
                 previous_owner,
-                PaintDamage::DRAW_FOREGROUND | PaintDamage::HIT_FOREGROUND | PaintDamage::ORDER,
+                RowPaintChange::DRAWING | RowPaintChange::HIT_TESTING | RowPaintChange::ORDER,
             );
         }
     }
