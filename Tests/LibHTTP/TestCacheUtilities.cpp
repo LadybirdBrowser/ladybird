@@ -118,7 +118,7 @@ TEST_CASE(vary_wildcard_never_produces_a_vary_key)
     EXPECT(!HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "Accept, *" } })).has_value());
     EXPECT(!HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "," }, { "Vary", "*" } })).has_value());
 
-    EXPECT_EQ(HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create()), Optional<u64> { 0 });
+    EXPECT(HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create()) == Optional<HTTP::CacheDigest> { HTTP::CacheDigest {} });
 }
 
 TEST_CASE(vary_key_does_not_depend_on_order_or_case_of_nominated_fields)
@@ -126,8 +126,8 @@ TEST_CASE(vary_key_does_not_depend_on_order_or_case_of_nominated_fields)
     auto request_headers = HTTP::HeaderList::create({ { "Accept", "text/html" }, { "X-Variant", "a" } });
 
     auto vary_key = HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "Accept, X-Variant" } }));
-    EXPECT_EQ(HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "x-variant, ACCEPT" } })), vary_key);
-    EXPECT_EQ(HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "X-Variant" }, { "Vary", "Accept, X-Variant, accept" } })), vary_key);
+    EXPECT(HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "x-variant, ACCEPT" } })) == vary_key);
+    EXPECT(HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "X-Variant" }, { "Vary", "Accept, X-Variant, accept" } })) == vary_key);
 }
 
 TEST_CASE(vary_nominating_too_many_fields_is_not_cacheable)
@@ -155,7 +155,7 @@ TEST_CASE(vary_nominating_too_many_fields_is_not_cacheable)
 
     auto repeated_response_headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=60" }, { "Vary", repeated_vary.to_byte_string() } });
     EXPECT(HTTP::is_cacheable(200, *repeated_response_headers));
-    EXPECT_EQ(HTTP::create_vary_key(*request_headers, *repeated_response_headers), HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "X-Fill" } })));
+    EXPECT(HTTP::create_vary_key(*request_headers, *repeated_response_headers) == HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "X-Fill" } })));
 }
 
 TEST_CASE(not_modified_response_must_not_change_vary)
@@ -235,10 +235,10 @@ TEST_CASE(vary_key_frames_each_nominated_field)
 
     auto first_request_headers = HTTP::HeaderList::create({ { "Accept", "x" }, { "Accept-Language", "b" }, { "Authorization", "A" } });
     auto second_request_headers = HTTP::HeaderList::create({ { "Accept", "x" }, { "Accept-Language", "" }, { "Authorization", "bA" } });
-    EXPECT_NE(HTTP::create_vary_key(*first_request_headers, *response_headers), HTTP::create_vary_key(*second_request_headers, *response_headers));
+    EXPECT(HTTP::create_vary_key(*first_request_headers, *response_headers) != HTTP::create_vary_key(*second_request_headers, *response_headers));
 
     auto absent_request_headers = HTTP::HeaderList::create({ { "Accept", "x" }, { "Authorization", "bA" } });
-    EXPECT_NE(HTTP::create_vary_key(*second_request_headers, *response_headers), HTTP::create_vary_key(*absent_request_headers, *response_headers));
+    EXPECT(HTTP::create_vary_key(*second_request_headers, *response_headers) != HTTP::create_vary_key(*absent_request_headers, *response_headers));
 }
 
 TEST_CASE(vary_key_normalizes_list_based_fields)
@@ -246,8 +246,8 @@ TEST_CASE(vary_key_normalizes_list_based_fields)
     auto response_headers = HTTP::HeaderList::create({ { "Vary", "Accept" } });
 
     auto vary_key = HTTP::create_vary_key(*HTTP::HeaderList::create({ { "Accept", "text/html, application/json;q=0.5" } }), *response_headers);
-    EXPECT_EQ(HTTP::create_vary_key(*HTTP::HeaderList::create({ { "Accept", "Application/JSON;q=0.5,text/html" } }), *response_headers), vary_key);
-    EXPECT_EQ(HTTP::create_vary_key(*HTTP::HeaderList::create({ { "Accept", "application/json;q=0.5" }, { "Accept", "text/html" } }), *response_headers), vary_key);
+    EXPECT(HTTP::create_vary_key(*HTTP::HeaderList::create({ { "Accept", "Application/JSON;q=0.5,text/html" } }), *response_headers) == vary_key);
+    EXPECT(HTTP::create_vary_key(*HTTP::HeaderList::create({ { "Accept", "application/json;q=0.5" }, { "Accept", "text/html" } }), *response_headers) == vary_key);
 }
 
 TEST_CASE(vary_key_keeps_quoted_strings_intact)
@@ -257,11 +257,11 @@ TEST_CASE(vary_key_keeps_quoted_strings_intact)
     // Comma splitting loses the association between parameters and media types.
     auto first_request_headers = HTTP::HeaderList::create({ { "Accept", "text/a;p=\"x,y\", text/b;p=\"z,w\"" } });
     auto second_request_headers = HTTP::HeaderList::create({ { "Accept", "text/a;p=\"x,w\", text/b;p=\"z,y\"" } });
-    EXPECT_NE(HTTP::create_vary_key(*first_request_headers, *response_headers), HTTP::create_vary_key(*second_request_headers, *response_headers));
+    EXPECT(HTTP::create_vary_key(*first_request_headers, *response_headers) != HTTP::create_vary_key(*second_request_headers, *response_headers));
 
     auto lowercase_request_headers = HTTP::HeaderList::create({ { "Accept", "text/html;p=\"value\"" } });
     auto uppercase_request_headers = HTTP::HeaderList::create({ { "Accept", "TEXT/HTML;p=\"VALUE\"" } });
-    EXPECT_NE(HTTP::create_vary_key(*lowercase_request_headers, *response_headers), HTTP::create_vary_key(*uppercase_request_headers, *response_headers));
+    EXPECT(HTTP::create_vary_key(*lowercase_request_headers, *response_headers) != HTTP::create_vary_key(*uppercase_request_headers, *response_headers));
 }
 
 TEST_CASE(invalid_max_age_does_not_cache_temporary_redirect)
