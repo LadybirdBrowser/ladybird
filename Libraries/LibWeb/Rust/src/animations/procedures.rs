@@ -2076,11 +2076,19 @@ pub(crate) fn remove_replaced_animations<'a>(
     let mut properties_with_a_higher_animation = HashSet::new();
     for animation in replaceable_animations.iter().rev() {
         let mut has_any_highest_priority_property = false;
-        if let Some(keyframes) = animation
-            .borrow()
-            .effect()
-            .and_then(|effect| effect.borrow().keyframes().cloned())
+        let effect = animation.borrow().effect().cloned();
+        if let Some(effect) = effect
+            && let Some(keyframes) = effect.borrow().keyframes().cloned()
         {
+            // NB: An animation is replaced by those whose effects animate the same target properties of the same
+            //     effect target, as only those come above it in its effect stack.
+            let effect_target = {
+                let effect = effect.borrow();
+                (
+                    effect.target_element(),
+                    effect.pseudo_element().map(|pseudo_element| pseudo_element.kind),
+                )
+            };
             let properties = keyframes
                 .target_properties()
                 .iter()
@@ -2092,7 +2100,8 @@ pub(crate) fn remove_replaced_animations<'a>(
                         .map(|name| TargetProperty::Custom(name.raw())),
                 );
             for property in properties {
-                has_any_highest_priority_property |= properties_with_a_higher_animation.insert(property);
+                has_any_highest_priority_property |=
+                    properties_with_a_higher_animation.insert((effect_target, property));
             }
         }
 

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 153 tests
 
-151 Pass
-2 Fail
+152 Pass
+1 Fail
 Pass	Element.animate() creates an Animation object
 Pass	Element.animate() creates an Animation object in the relevant realm of the target element
 Pass	Element.animate() creates an Animation object with a KeyframeEffect
@@ -156,4 +156,4 @@ Pass	animate() with a non-null invalid pseudoElement 'before' throws a SyntaxErr
 Pass	animate() with a non-null invalid pseudoElement ':abc' throws a SyntaxError
 Pass	animate() with a non-null invalid pseudoElement '::abc' throws a SyntaxError
 Pass	animate() with pseudoElement ::placeholder does not throw
-Fail	Finished fill animation doesn't replace animation on a different pseudoElement
+Pass	Finished fill animation doesn't replace animation on a different pseudoElement
