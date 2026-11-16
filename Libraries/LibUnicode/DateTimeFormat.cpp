@@ -105,7 +105,7 @@ Optional<HourCycle> default_hour_cycle(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
+    auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
         return {};
 
@@ -896,21 +896,20 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_date_and_time_style(
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
-    VERIFY(locale_data.has_value());
+    auto& locale_data = LocaleData::for_locale_or_default(locale);
 
     auto formatter = adopt_own(*as<icu::SimpleDateFormat>([&]() {
         if (date_style.has_value() && time_style.has_value()) {
             return icu::DateFormat::createDateTimeInstance(
-                icu_date_time_style(*date_style), icu_date_time_style(*time_style), locale_data->locale());
+                icu_date_time_style(*date_style), icu_date_time_style(*time_style), locale_data.locale());
         }
         if (date_style.has_value()) {
             return icu::DateFormat::createDateInstance(
-                icu_date_time_style(*date_style), locale_data->locale());
+                icu_date_time_style(*date_style), locale_data.locale());
         }
         if (time_style.has_value()) {
             return icu::DateFormat::createTimeInstance(
-                icu_date_time_style(*time_style), locale_data->locale());
+                icu_date_time_style(*time_style), locale_data.locale());
         }
         VERIFY_NOT_REACHED();
     }()));
@@ -922,16 +921,16 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_date_and_time_style(
     verify_icu_success(status);
 
     if (apply_hour_cycle_to_skeleton(skeleton, hour_cycle, hour12)) {
-        pattern = locale_data->date_time_pattern_generator()->getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
+        pattern = locale_data.date_time_pattern_generator()->getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
         verify_icu_success(status);
 
         apply_hour_cycle_to_skeleton(pattern, hour_cycle, hour12);
 
-        formatter = adopt_own(*new icu::SimpleDateFormat(pattern, locale_data->locale(), status));
+        formatter = adopt_own(*new icu::SimpleDateFormat(pattern, locale_data.locale(), status));
         verify_icu_success(status);
     }
 
-    return adopt_own(*new DateTimeFormatImpl(locale_data->locale(), pattern, time_zone_identifier, move(formatter)));
+    return adopt_own(*new DateTimeFormatImpl(locale_data.locale(), pattern, time_zone_identifier, move(formatter)));
 }
 
 NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_pattern_options(
@@ -941,8 +940,7 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_pattern_options(
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
-    VERIFY(locale_data.has_value());
+    auto& locale_data = LocaleData::for_locale_or_default(locale);
 
     icu::UnicodeString pattern;
 
@@ -950,16 +948,16 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_pattern_options(
         pattern = icu_string(*options.pattern);
     } else {
         auto skeleton = icu_string(options.to_pattern());
-        pattern = locale_data->date_time_pattern_generator()->getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
+        pattern = locale_data.date_time_pattern_generator()->getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
         verify_icu_success(status);
     }
 
     apply_hour_cycle_to_skeleton(pattern, options.hour_cycle, {});
 
-    auto formatter = adopt_own(*new icu::SimpleDateFormat(pattern, locale_data->locale(), status));
+    auto formatter = adopt_own(*new icu::SimpleDateFormat(pattern, locale_data.locale(), status));
     verify_icu_success(status);
 
-    return adopt_own(*new DateTimeFormatImpl(locale_data->locale(), pattern, time_zone_identifier, move(formatter)));
+    return adopt_own(*new DateTimeFormatImpl(locale_data.locale(), pattern, time_zone_identifier, move(formatter)));
 }
 
 static constexpr Weekday icu_calendar_day_to_weekday(UCalendarDaysOfWeek day)
@@ -987,7 +985,7 @@ WeekInfo week_info_of_locale(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
+    auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
         return {};
 

@@ -990,15 +990,14 @@ NonnullOwnPtr<NumberFormat> NumberFormat::create(
     DisplayOptions const& display_options,
     RoundingOptions const& rounding_options)
 {
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
-    VERIFY(locale_data.has_value());
+    auto& locale_data = LocaleData::for_locale_or_default(locale);
 
-    auto formatter = icu::number::NumberFormatter::withLocale(locale_data->locale());
+    auto formatter = icu::number::NumberFormatter::withLocale(locale_data.locale());
     apply_display_options(formatter, display_options);
     apply_rounding_options(formatter, rounding_options);
 
     bool is_unit = display_options.style == NumberFormatStyle::Unit;
-    return adopt_own(*new NumberFormatImpl(locale_data->locale(), move(formatter), is_unit));
+    return adopt_own(*new NumberFormatImpl(locale_data.locale(), move(formatter), is_unit));
 }
 
 }

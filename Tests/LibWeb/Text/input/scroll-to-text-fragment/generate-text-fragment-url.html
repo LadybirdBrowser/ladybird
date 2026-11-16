@@ -42,6 +42,18 @@ test(() => {
 }, "Selection endpoints inside words expand to word boundaries");
 
 test(() => {
+    setFixture(`<p id="target" lang="en_US">before partially after</p>`);
+    const range = rangeWithin(target, 10, 15);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=before-,partially");
+}, "A lang value that isn't a language tag expands to word boundaries by the default rules");
+
+test(() => {
+    setFixture(`<p id="target" lang="日本語">before partially after</p>`);
+    const range = rangeWithin(target, 10, 15);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=before-,partially");
+}, "A non-ASCII lang value expands to word boundaries by the default rules");
+
+test(() => {
     setFixture(`<p id="target">these <span>five words</span> form unique text</p>`);
     const range = document.createRange();
     range.setStart(target.firstChild, 0);

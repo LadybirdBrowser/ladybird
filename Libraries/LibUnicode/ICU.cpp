@@ -64,6 +64,24 @@ Optional<LocaleData&> LocaleData::for_locale(StringView locale)
     return {};
 }
 
+Optional<LocaleData&> LocaleData::for_locale(Utf16View const& locale)
+{
+    if (!locale.is_ascii())
+        return {};
+    if (locale.has_ascii_storage() || locale.has_latin1_storage())
+        return for_locale(locale.ascii_bytes());
+    return for_locale(MUST(locale.to_utf8()));
+}
+
+LocaleData& LocaleData::for_locale_or_default(Utf16View const& locale)
+{
+    auto locale_data = for_locale(locale);
+    if (!locale_data.has_value())
+        locale_data = for_locale(default_locale());
+    VERIFY(locale_data.has_value());
+    return *locale_data;
+}
+
 LocaleData::LocaleData(icu::Locale locale)
     : m_locale(move(locale))
 {

@@ -703,7 +703,7 @@ Optional<Utf16String> add_likely_subtags(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
+    auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
         return {};
 
@@ -730,7 +730,7 @@ Optional<Utf16String> remove_likely_subtags(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
+    auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
         return {};
 

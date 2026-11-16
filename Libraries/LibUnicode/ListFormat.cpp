@@ -156,10 +156,9 @@ NonnullOwnPtr<ListFormat> ListFormat::create(Utf16View locale, ListFormatType ty
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale.ascii_bytes());
-    VERIFY(locale_data.has_value());
+    auto& locale_data = LocaleData::for_locale_or_default(locale);
 
-    auto formatter = adopt_own(*icu::ListFormatter::createInstance(locale_data->locale(), icu_list_format_type(type), icu_list_format_width(style), status));
+    auto formatter = adopt_own(*icu::ListFormatter::createInstance(locale_data.locale(), icu_list_format_type(type), icu_list_format_width(style), status));
     verify_icu_success(status);
 
     return adopt_own(*new ListFormatImpl(move(formatter)));
