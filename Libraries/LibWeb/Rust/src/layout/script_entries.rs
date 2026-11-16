@@ -761,8 +761,7 @@ pub enum FfiAnchorSizedProperty {
 
 /// Writes the size `property` of the absolutely positioned box `slot` resolved to in the committed layout to `out`,
 /// when its anchor-size() functions resolved against an anchor box.
-#[unsafe(no_mangle)]
-pub extern "C" fn layout_script_anchor_resolved_size(
+pub fn layout_script_anchor_resolved_size(
     host: &DocumentHost,
     slot: NodeSlotId,
     property: FfiAnchorSizedProperty,
