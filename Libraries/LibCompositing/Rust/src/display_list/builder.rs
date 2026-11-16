@@ -103,8 +103,45 @@ impl PendingInlineClip {
         }
     }
 
-    fn rect_confining_the_command(&self) -> Option<FloatRect> {
-        (self.space.is_none() && self.mode == ClipMode::Intersect).then_some(self.clip_rect_or_path_device_bounds)
+    fn confines_the_command(&self) -> bool {
+        self.space.is_none() && self.mode == ClipMode::Intersect
+    }
+
+    fn recorded_clip_rect(&self, clip_rect_narrowed_to_the_command_bounding_rect: FloatRect) -> FloatRect {
+        if self.narrows_clip_rect_to_the_command_bounding_rect {
+            clip_rect_narrowed_to_the_command_bounding_rect
+        } else {
+            self.clip_rect_or_path_device_bounds
+        }
+    }
+}
+
+struct RecordBounds {
+    clip_rect_narrowed_to_the_command_bounding_rect: FloatRect,
+    bounding_rect: Option<IntRect>,
+}
+
+fn record_bounds<C: DisplayListCommand>(
+    command: &C,
+    inline_clips: &[PendingInlineClip],
+    inline_transform: Option<AffineTransform>,
+) -> RecordBounds {
+    let command_bounding_rect = command.bounding_rect();
+    let confining_clips = || inline_clips.iter().filter(|clip| clip.confines_the_command());
+    let clip_rect_narrowed_to_the_command_bounding_rect = record_bounding_rect(
+        command_bounding_rect,
+        inline_transform,
+        confining_clips().map(|clip| clip.clip_rect_or_path_device_bounds),
+    )
+    .unwrap_or_default()
+    .to_float();
+    RecordBounds {
+        clip_rect_narrowed_to_the_command_bounding_rect,
+        bounding_rect: record_bounding_rect(
+            command_bounding_rect,
+            inline_transform,
+            confining_clips().map(|clip| clip.recorded_clip_rect(clip_rect_narrowed_to_the_command_bounding_rect)),
+        ),
     }
 }
 
@@ -276,7 +313,14 @@ impl DisplayListBuilder {
         });
     }
 
-    fn note_command(&mut self, header: &DisplayListCommandHeader, context: ContextRef, offset: usize, size: usize) {
+    fn note_command(
+        &mut self,
+        command_type: DisplayListCommandType,
+        bounding_rect: Option<IntRect>,
+        context: ContextRef,
+        offset: usize,
+        size: usize,
+    ) {
         // Every run so far belongs to a chunk that has ended.
         if self
             .chunks
@@ -289,7 +333,7 @@ impl DisplayListBuilder {
                 ..Default::default()
             });
         }
-        note_command(&mut self.runs, header, context, offset, size);
+        note_command(&mut self.runs, command_type, bounding_rect, context, offset, size);
     }
 
     pub fn byte_size(&self) -> usize {
@@ -327,7 +371,8 @@ impl DisplayListBuilder {
         let payload_size = padded_record_size - HEADER_SIZE;
         let entries_offset = payload_size - entries_size;
         debug_assert_eq!(entries_offset % COMMAND_ALIGNMENT, 0);
-        let header = Self::header_for(command, inline_clips, inline_transform, payload_size);
+        let header = Self::header_for::<C>(inline_clips, inline_transform, payload_size);
+        let bounds = record_bounds(command, inline_clips, inline_transform);
         let start = self.bytes.len();
         self.bytes.resize(start + padded_record_size, 0);
         header.write_ffi_bytes(&mut self.bytes[start..start + HEADER_SIZE]);
@@ -341,10 +386,16 @@ impl DisplayListBuilder {
             &path_spans,
             payload_start,
             entries_offset,
-            &header,
+            bounds.clip_rect_narrowed_to_the_command_bounding_rect,
         );
         if self.open_group_depth == 0 {
-            self.note_command(&header, context, start, padded_record_size);
+            self.note_command(
+                C::COMMAND_TYPE,
+                bounds.bounding_rect,
+                context,
+                start,
+                padded_record_size,
+            );
         } else {
             self.note_group_context(context);
         }
@@ -441,13 +492,27 @@ impl DisplayListBuilder {
             (HEADER_SIZE + unpadded_payload_size + entries_size).next_multiple_of(COMMAND_ALIGNMENT);
         let payload_size = padded_record_size - HEADER_SIZE;
         let entries_offset = payload_size - entries_size;
-        let header = Self::header_for(command, &inline_clips, None, payload_size);
+        let header = Self::header_for::<C>(&inline_clips, None, payload_size);
+        let bounds = record_bounds(command, &inline_clips, None);
         self.bytes.resize(group.record_start + padded_record_size, 0);
         header.write_ffi_bytes(&mut self.bytes[group.record_start..group.record_start + HEADER_SIZE]);
         command.write_ffi_bytes(&mut self.bytes[payload_start..payload_start + std::mem::size_of::<C>()]);
-        self.write_tail_entries(&inline_clips, None, &path_spans, payload_start, entries_offset, &header);
+        self.write_tail_entries(
+            &inline_clips,
+            None,
+            &path_spans,
+            payload_start,
+            entries_offset,
+            bounds.clip_rect_narrowed_to_the_command_bounding_rect,
+        );
         if self.open_group_depth == 0 {
-            self.note_command(&header, context, group.record_start, padded_record_size);
+            self.note_command(
+                C::COMMAND_TYPE,
+                bounds.bounding_rect,
+                context,
+                group.record_start,
+                padded_record_size,
+            );
             self.open_group_context = None;
         }
     }
@@ -489,27 +554,16 @@ impl DisplayListBuilder {
     }
 
     fn header_for<C: DisplayListCommand>(
-        command: &C,
         inline_clips: &[PendingInlineClip],
         inline_transform: Option<AffineTransform>,
         payload_size: usize,
     ) -> DisplayListCommandHeader {
         const { assert!(std::mem::align_of::<C>() <= COMMAND_ALIGNMENT) };
-        let inline_clip_count = u8::try_from(inline_clips.len()).expect("too many inline clips on one command");
-        let bounding_rect = record_bounding_rect(
-            command.bounding_rect(),
-            inline_transform,
-            inline_clips
-                .iter()
-                .filter_map(PendingInlineClip::rect_confining_the_command),
-        );
         DisplayListCommandHeader {
             command_type: C::COMMAND_TYPE,
-            has_bounding_rect: bounding_rect.is_some(),
-            inline_clip_count,
+            inline_clip_count: u8::try_from(inline_clips.len()).expect("too many inline clips on one command"),
             has_inline_transform: inline_transform.is_some(),
             payload_size: u32::try_from(payload_size).expect("display list payload exceeds u32"),
-            bounding_rect: bounding_rect.unwrap_or_default(),
         }
     }
 
@@ -520,7 +574,7 @@ impl DisplayListBuilder {
         path_spans: &[DisplayListDataSpan],
         payload_start: usize,
         entries_offset: usize,
-        header: &DisplayListCommandHeader,
+        clip_rect_narrowed_to_the_command_bounding_rect: FloatRect,
     ) {
         let mut entries_offset = entries_offset;
         if let Some(transform) = inline_transform {
@@ -538,11 +592,8 @@ impl DisplayListBuilder {
                 self.bytes[path_start..path_start + path_bytes.len()].copy_from_slice(path_bytes);
             }
             let entry = DisplayListInlineClip {
-                clip_rect_or_path_device_bounds: if clip.narrows_clip_rect_to_the_command_bounding_rect {
-                    header.bounding_rect.to_float()
-                } else {
-                    clip.clip_rect_or_path_device_bounds
-                },
+                clip_rect_or_path_device_bounds: clip
+                    .recorded_clip_rect(clip_rect_narrowed_to_the_command_bounding_rect),
                 corner_radii: clip.corner_radii,
                 path_data: path_spans[index],
                 path_winding_rule: clip.path_winding_rule,
@@ -564,7 +615,7 @@ pub fn append_record<C: DisplayListCommand>(bytes: &mut Vec<u8>, command: &C, in
     debug_assert_eq!(bytes.len() % COMMAND_ALIGNMENT, 0);
     let padded_record_size =
         (HEADER_SIZE + std::mem::size_of::<C>() + inline_data.len()).next_multiple_of(COMMAND_ALIGNMENT);
-    let header = DisplayListBuilder::header_for(command, &[], None, padded_record_size - HEADER_SIZE);
+    let header = DisplayListBuilder::header_for::<C>(&[], None, padded_record_size - HEADER_SIZE);
     let start = bytes.len();
     bytes.resize(start + padded_record_size, 0);
     header.write_ffi_bytes(&mut bytes[start..start + HEADER_SIZE]);
@@ -576,7 +627,8 @@ pub fn append_record<C: DisplayListCommand>(bytes: &mut Vec<u8>, command: &C, in
 
 pub(crate) fn note_command(
     runs: &mut Vec<DisplayListCommandRun>,
-    header: &DisplayListCommandHeader,
+    command_type: DisplayListCommandType,
+    bounding_rect: Option<IntRect>,
     context: ContextRef,
     offset: usize,
     record_size: usize,
@@ -593,11 +645,11 @@ pub(crate) fn note_command(
     let run = runs.last_mut().expect("a run was pushed above");
     debug_assert_eq!(run.offset + run.size, offset);
     run.size += record_size;
-    if header.command_type.is_compositor_metadata() {
+    if command_type.is_compositor_metadata() {
         run.has_compositor_metadata = true;
     } else {
-        debug_assert!(header.has_bounding_rect, "a draw command must report its bounding rect");
-        run.ink_bounds = run.ink_bounds.united(header.bounding_rect);
+        debug_assert!(bounding_rect.is_some(), "a draw command must report its bounding rect");
+        run.ink_bounds = run.ink_bounds.united(bounding_rect.unwrap_or_default());
     }
 }
 
@@ -671,19 +723,9 @@ pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
             cursor.u8_at(std::mem::offset_of!(DisplayListCommandHeader, command_type)),
         )
         .expect("invalid display list command type"),
-        has_bounding_rect: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, has_bounding_rect)),
         inline_clip_count: cursor.u8_at(std::mem::offset_of!(DisplayListCommandHeader, inline_clip_count)),
         has_inline_transform: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, has_inline_transform)),
         payload_size: cursor.u32_at(std::mem::offset_of!(DisplayListCommandHeader, payload_size)),
-        bounding_rect: {
-            let base = std::mem::offset_of!(DisplayListCommandHeader, bounding_rect);
-            libgfx_rust::IntRect {
-                x: cursor.i32_at(base),
-                y: cursor.i32_at(base + 4),
-                width: cursor.i32_at(base + 8),
-                height: cursor.i32_at(base + 12),
-            }
-        },
     }
 }
 
@@ -700,9 +742,6 @@ impl HeaderReader<'_> {
     }
     fn u32_at(&self, offset: usize) -> u32 {
         u32::from_ne_bytes(self.bytes[offset..offset + 4].try_into().unwrap())
-    }
-    fn i32_at(&self, offset: usize) -> i32 {
-        i32::from_ne_bytes(self.bytes[offset..offset + 4].try_into().unwrap())
     }
 }
 
@@ -841,8 +880,17 @@ mod tests {
             .collect()
     }
 
+    fn bounding_rect_of_record_at(builder: &DisplayListBuilder, record_offset: usize) -> Option<IntRect> {
+        let header = read_header(&builder.bytes()[record_offset..]);
+        let payload_start = record_offset + HEADER_SIZE;
+        bounding_rect_computed_from_payload(
+            &header,
+            &builder.bytes()[payload_start..payload_start + header.payload_size as usize],
+        )
+    }
+
     #[test]
-    fn a_confining_clip_narrows_the_header_and_appends_a_tail_entry() {
+    fn a_confining_clip_narrows_the_bounding_rect_and_appends_a_tail_entry() {
         let mut builder = DisplayListBuilder::new();
         let root = context(0, None);
         builder.append_with_inline_clips(
@@ -856,8 +904,10 @@ mod tests {
         builder.append(&fill_rect(50, 50, 10, 10), &[], root);
         let header = read_header(builder.bytes());
         assert_eq!(header.inline_clip_count, 1);
-        assert!(header.has_bounding_rect);
-        assert_eq!(header.bounding_rect, IntRect::new(10, 10, 20, 20));
+        assert_eq!(
+            bounding_rect_of_record_at(&builder, 0),
+            Some(IntRect::new(10, 10, 20, 20))
+        );
         let entries = inline_clip_entries(&builder, 0);
         assert_eq!(entries[0].kind, InlineClipKind::Rect);
         assert_eq!(entries[0].mode, ClipMode::Intersect);
@@ -885,7 +935,10 @@ mod tests {
         );
         let header = read_header(builder.bytes());
         assert_eq!(header.inline_clip_count, 2);
-        assert_eq!(header.bounding_rect, IntRect::new(5, 5, 95, 95));
+        assert_eq!(
+            bounding_rect_of_record_at(&builder, 0),
+            Some(IntRect::new(5, 5, 95, 95))
+        );
         let entries = inline_clip_entries(&builder, 0);
         assert_eq!(
             entries[0].clip_rect_or_path_device_bounds,

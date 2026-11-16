@@ -17,21 +17,17 @@ use libgfx_rust::*;
 #[repr(C, align(8))]
 pub struct DisplayListCommandHeader {
     pub command_type: DisplayListCommandType,
-    pub has_bounding_rect: bool,
     pub inline_clip_count: u8,
     pub has_inline_transform: bool,
     pub payload_size: u32,
-    pub bounding_rect: IntRect,
 }
 ffi_bytes_fields!(DisplayListCommandHeader {
     command_type,
-    has_bounding_rect,
     inline_clip_count,
     has_inline_transform,
-    payload_size,
-    bounding_rect
+    payload_size
 });
-const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 24);
+const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 8);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
