@@ -14,7 +14,6 @@ dictionary TextDecodeOptions {
 interface TextDecoder {
     constructor(optional DOMString label = "utf-8", optional TextDecoderOptions options = {});
 
-    // FIXME: BufferSource is really a AllowSharedBufferSource
-    USVString decode(optional BufferSource input, optional TextDecodeOptions options = {});
+    USVString decode(optional AllowSharedBufferSource input, optional TextDecodeOptions options = {});
 };
 TextDecoder includes TextDecoderCommon;
