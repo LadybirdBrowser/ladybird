@@ -51,7 +51,6 @@ struct Options {
     };
 
     void set_is_question(bool value) { raw = (raw & ~QRMask) | (value ? 0 : QRMask); }
-    void set_is_authoritative_answer(bool value) { raw = (raw & ~AuthoritativeAnswerMask) | (value ? AuthoritativeAnswerMask : 0); }
     void set_is_truncated(bool value) { raw = (raw & ~TruncatedMask) | (value ? TruncatedMask : 0); }
     void set_recursion_desired(bool value) { raw = (raw & ~RecursionDesiredMask) | (value ? RecursionDesiredMask : 0); }
     void set_recursion_available(bool value) { raw = (raw & ~RecursionAvailableMask) | (value ? RecursionAvailableMask : 0); }
@@ -686,7 +685,6 @@ struct OPT {
     constexpr u8 version() const { return (extended_rcode_and_flags & MaskVersion) >> 20; }
     constexpr bool dnssec_ok() const { return extended_rcode_and_flags & MaskDO; }
 
-    void set_extended_rcode(u8 value) { extended_rcode_and_flags = (extended_rcode_and_flags & ~MaskExtendedRCode) | (value << 24); }
     void set_version(u8 value) { extended_rcode_and_flags = (extended_rcode_and_flags & ~MaskVersion) | (value << 20); }
     void set_dnssec_ok(bool value) { extended_rcode_and_flags = (extended_rcode_and_flags & ~MaskDO) | (value ? MaskDO : 0); }
 
