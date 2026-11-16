@@ -820,7 +820,7 @@ pub fn get_import_meta(
 }
 
 pub fn get_import(vm: &Vm, pc: u32, instruction: &op::GetImport, values: &mut op::GetImportValues) -> SlowPathControl {
-    let ScriptOrModule::Module(module) = running_execution_context(vm).script_or_module.get() else {
+    let ScriptOrModule::Module(module) = running_execution_context(vm).script_or_module() else {
         unreachable!("GetImport only runs in the code of a module");
     };
     let module = module

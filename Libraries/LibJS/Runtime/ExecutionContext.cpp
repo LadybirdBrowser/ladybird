@@ -47,6 +47,17 @@ SourceCode const* ExecutionContext::source_code() const
     return reinterpret_cast<SourceCode const*>(js_source_code_of_execution_context(execution_context_to_abi(*this)));
 }
 
+ScriptOrModule ExecutionContext::script_or_module() const
+{
+    return bit_cast<ScriptOrModule>(js_execution_context_script_or_module(execution_context_to_abi(*this)));
+}
+
+void ExecutionContext::set_script_or_module(ScriptOrModule script_or_module)
+{
+    VERIFY(!function);
+    script_or_module_without_function = script_or_module;
+}
+
 Utf16FlyString ExecutionContext::function_name() const
 {
     return owned_utf16_string_from_abi(js_execution_context_function_name(execution_context_to_abi(*this)));

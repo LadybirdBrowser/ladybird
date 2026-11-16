@@ -1271,9 +1271,7 @@ pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMo
     eval_context.realm.set(Some(eval_realm));
 
     // 25. Set evalContext's ScriptOrModule to runningContext's ScriptOrModule.
-    eval_context
-        .script_or_module
-        .set(running_context.script_or_module.get());
+    eval_context.set_script_or_module(running_context.script_or_module());
 
     // 26. Set evalContext's VariableEnvironment to varEnv.
     eval_context.variable_environment.set(Some(variable_environment));

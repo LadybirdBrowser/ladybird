@@ -1087,10 +1087,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         let mut constants = self.spare_fields.take();
         constants.clear();
         constants.extend(self.emit_stub_call_site_fields(native_frame, temp, false));
-        constants.extend([
-            (offsets.execution_context_script_or_module, 8, 0),
-            (offsets.execution_context_executable, 8, 0),
-        ]);
+        constants.extend([(offsets.execution_context_executable, 8, 0)]);
         self.emit_constant_fields_with_vector(native_frame, temp, &mut constants, Some(M::ARGUMENT_FPRS[0]), &[])?;
         self.spare_fields = constants;
         self.masm.load_effective_address(

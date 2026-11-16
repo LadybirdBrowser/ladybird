@@ -657,7 +657,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 4,
                 u64::from(header.argument_count),
             ),
-            (offsets.execution_context_script_or_module, 8, fields.script_or_module),
             (offsets.execution_context_lexical_environment, 8, fields.environment),
             (offsets.execution_context_variable_environment, 8, fields.environment),
             (
@@ -1483,7 +1482,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         constants.clear();
         constants.extend(self.new_frame_constants(false));
         constants.extend([
-            (offsets.execution_context_script_or_module, 8, 0),
             (offsets.execution_context_executable, 8, 0),
             (offsets.execution_context_slot_count, 4, u64::from(argument_count)),
             (offsets.execution_context_argument_count, 4, u64::from(argument_count)),
@@ -1607,7 +1605,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 .store64(&field(offsets.execution_context_caller_frame), self.pinned.frame);
             constants.extend([
                 (offsets.execution_context_function, 8, header.function.function.0),
-                (offsets.execution_context_script_or_module, 8, 0),
                 // NB: Frames get their id when the debugger first needs it.
                 (offsets.execution_context_frame_id, 8, 0),
             ]);
@@ -1619,7 +1616,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             );
             constants.extend([
                 (offsets.execution_context_function, 8, header.function.function.0),
-                (offsets.execution_context_script_or_module, 8, fields.script_or_module),
                 (offsets.execution_context_lexical_environment, 8, fields.environment),
                 (offsets.execution_context_variable_environment, 8, fields.environment),
                 (
@@ -1671,14 +1667,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.masm
             .store64(&field(offsets.execution_context_function), function_register);
         let function_field = |offset: u32| Address::new(function_register, offset as i32);
-        let shared_data_field = function_field(self.runtime.dynamic_calls.ecmascript_function_shared_data);
-        self.emit_load_compressed_cell(temp, &shared_data_field);
-        self.masm.load64(
-            temp,
-            &Address::new(temp, offsets.shared_function_script_or_module as i32),
-        );
-        self.masm
-            .store64(&field(offsets.execution_context_script_or_module), temp);
         // NB: ECMAScript functions always have an environment.
         self.emit_load_compressed_cell(temp, &function_field(offsets.ecmascript_function_environment));
         self.masm

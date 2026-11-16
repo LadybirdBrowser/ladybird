@@ -260,9 +260,7 @@ impl SyntheticModule {
         module_context_ref.realm.set(Some(realm));
 
         // 4. Set the ScriptOrModule of moduleContext to module.
-        module_context_ref
-            .script_or_module
-            .set(ScriptOrModule::Module(self.as_gc()));
+        module_context_ref.set_script_or_module(ScriptOrModule::Module(self.as_gc()));
 
         // 5. Set the VariableEnvironment of moduleContext to module.[[Environment]].
         let environment = self.environment().map(Gc::upcast);

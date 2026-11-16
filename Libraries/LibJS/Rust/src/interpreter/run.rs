@@ -298,9 +298,7 @@ impl Vm {
         script_context_ref.realm.set(Some(script_record.realm()));
 
         // 5. Set the ScriptOrModule of scriptContext to scriptRecord.
-        script_context_ref
-            .script_or_module
-            .set(ScriptOrModule::Script(script_record));
+        script_context_ref.set_script_or_module(ScriptOrModule::Script(script_record));
 
         // 6. Set the VariableEnvironment of scriptContext to globalEnv.
         script_context_ref
@@ -449,7 +447,7 @@ impl Vm {
             .function
             .set(Some(callee_function.as_function_object_gc()));
         callee_context.realm.set(callee_function.realm());
-        callee_context.script_or_module.set(callee_function.script_or_module());
+        // NB: The context gets its ScriptOrModule from its function.
         callee_context
             .new_target
             .set(new_target.map_or(Value::UNDEFINED, Value::from_object));
@@ -499,7 +497,7 @@ impl Vm {
         callee_context.realm.set(Some(callee_function.realm()));
 
         // 7. Set the ScriptOrModule of calleeContext to null.
-        callee_context.script_or_module.set(ScriptOrModule::Empty);
+        // NB: The ScriptOrModule of a context with a native function is null.
 
         // 8. Perform any necessary implementation-defined initialization of calleeContext.
         // NB: Like NativeFunction's [[Call]], which runs these builtins otherwise.

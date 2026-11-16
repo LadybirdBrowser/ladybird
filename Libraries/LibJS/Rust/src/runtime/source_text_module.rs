@@ -554,8 +554,7 @@ impl SourceTextModule {
 
         // 12. Set the ScriptOrModule of moduleContext to module.
         self.execution_context
-            .script_or_module
-            .set(ScriptOrModule::Module(self.as_gc()));
+            .set_script_or_module(ScriptOrModule::Module(self.as_gc()));
 
         // 13. Set the VariableEnvironment of moduleContext to module.[[Environment]].
         self.execution_context
@@ -914,9 +913,7 @@ impl SourceTextModule {
         module_context_ref.realm.set(Some(self.realm()));
 
         // 4. Set the ScriptOrModule of moduleContext to module.
-        module_context_ref
-            .script_or_module
-            .set(ScriptOrModule::Module(self.as_gc()));
+        module_context_ref.set_script_or_module(ScriptOrModule::Module(self.as_gc()));
 
         // 5. Assert: module has been linked and declarations in its module environment have been instantiated.
         assert!(!matches!(

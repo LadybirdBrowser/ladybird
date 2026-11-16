@@ -683,9 +683,10 @@ ScriptOrModule VM::get_active_script_or_module() const
     // 2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null.
     ScriptOrModule script_or_module = Empty {};
     for_each_execution_context_top_to_bottom([&](ExecutionContext const& execution_context) {
-        if (execution_context.script_or_module.has<Empty>())
+        auto execution_context_script_or_module = execution_context.script_or_module();
+        if (execution_context_script_or_module.has<Empty>())
             return true;
-        script_or_module = execution_context.script_or_module;
+        script_or_module = execution_context_script_or_module;
         return false;
     });
 

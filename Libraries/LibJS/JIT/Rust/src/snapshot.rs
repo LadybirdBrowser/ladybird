@@ -665,10 +665,10 @@ pub struct EnvironmentTemplateSnapshot {
 }
 
 /// The words of an ECMAScript function's `[[ScriptOrModule]]`,
-/// `[[Environment]]` and private environment, which its frames start with
-/// (see `RuntimeOffsets::ecmascript_function_script_or_module` and the
-/// fields after it). They stay the same for the function's lifetime, and
-/// what they point to lives as long as the function.
+/// `[[Environment]]` and private environment. Its frames start with the
+/// last two, and code inlined into a frame runs with the frame function's
+/// `[[ScriptOrModule]]`. They stay the same for the function's lifetime,
+/// and what they point to lives as long as the function.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct FunctionFrameFields {
     pub script_or_module: u64,
@@ -1648,8 +1648,6 @@ pub struct RuntimeOffsets {
     pub execution_context_function: u32,
     /// `ExecutionContext::realm` (cell pointer).
     pub execution_context_realm: u32,
-    /// `ExecutionContext::script_or_module` (8 bytes).
-    pub execution_context_script_or_module: u32,
     /// `ExecutionContext::variable_environment` (cell pointer).
     pub execution_context_variable_environment: u32,
     /// `ExecutionContext::frame_id` (u64).
@@ -1691,8 +1689,6 @@ pub struct RuntimeOffsets {
     /// `EcmascriptFunctionObjectWithRareData::private_environment` (cell
     /// pointer), of functions with the flag for it.
     pub ecmascript_function_private_environment: u32,
-    /// `SharedFunctionInstanceData::script_or_module` (8 bytes, as in `ExecutionContext`).
-    pub shared_function_script_or_module: u32,
     /// `Object::class_bits` (u8).
     pub object_class_bits: u32,
     /// The bit of `Object::class_bits` of an ECMAScript function that has

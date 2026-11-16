@@ -145,7 +145,6 @@ fn runtime_offsets() -> RuntimeOffsets {
         accessor_setter: offset(offset_of!(Accessor, setter)),
         execution_context_function: offset(offset_of!(ExecutionContext, function)),
         execution_context_realm: offset(offset_of!(ExecutionContext, realm)),
-        execution_context_script_or_module: offset(offset_of!(ExecutionContext, script_or_module)),
         execution_context_variable_environment: offset(offset_of!(ExecutionContext, variable_environment)),
         execution_context_frame_id: offset(offset_of!(ExecutionContext, frame_id)),
         execution_context_skip_when_determining_incumbent_counter: offset(offset_of!(
@@ -181,7 +180,6 @@ fn runtime_offsets() -> RuntimeOffsets {
             EcmascriptFunctionObjectWithRareData,
             private_environment
         )),
-        shared_function_script_or_module: offset(offset_of!(SharedFunctionInstanceData, script_or_module)),
         object_class_bits: offset(offset_of!(Object, class_bits)),
         ecmascript_function_flag_has_rare_data: ecmascript_function_flags::HAS_RARE_DATA.into(),
         vm_execution_generation: offset(offset_of!(VmHead, execution_generation)),

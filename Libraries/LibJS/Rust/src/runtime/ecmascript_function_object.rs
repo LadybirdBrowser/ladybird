@@ -843,7 +843,7 @@ impl EcmascriptFunctionObject {
         callee_context.realm.set(self.realm());
 
         // 6. Set the ScriptOrModule of calleeContext to F.[[ScriptOrModule]].
-        callee_context.script_or_module.set(self.script_or_module());
+        // NB: The context gets its ScriptOrModule from its function.
 
         // NB: Frames of functions whose environment has no this binding answer for new.target themselves.
         callee_context

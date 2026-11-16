@@ -77,7 +77,9 @@ impl ScriptOrModuleSlot {
 pub struct ExecutionContext {
     pub function: Cell<Option<Gc<FunctionObject>>>,
     pub realm: Cell<Option<Gc<Realm>>>,
-    pub script_or_module: ScriptOrModuleSlot,
+    /// The [[ScriptOrModule]] of a frame without a function, which native code makes. A frame with a function gets
+    /// it from the function, and this holds an old value: read it through `ExecutionContext::script_or_module()`.
+    pub script_or_module_without_function: ScriptOrModuleSlot,
     pub lexical_environment: Cell<Option<Gc<Environment>>>,
     pub variable_environment: Cell<Option<Gc<Environment>>>,
     pub private_environment: Cell<Option<Gc<PrivateEnvironment>>>,
