@@ -400,20 +400,7 @@ ErrorOr<ByteBuffer> RSA::decrypt(ReadonlyBytes in)
 
 ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind)
 {
-    switch (hash_kind) {
-    case Hash::HashKind::None:
-        return nullptr;
-    case Hash::HashKind::SHA1:
-        return EVP_sha1();
-    case Hash::HashKind::SHA256:
-        return EVP_sha256();
-    case Hash::HashKind::SHA384:
-        return EVP_sha384();
-    case Hash::HashKind::SHA512:
-        return EVP_sha512();
-    default:
-        return Error::from_string_literal("Unsupported hash kind");
-    }
+    return OPENSSL_TRY_PTR(EVP_get_digestbyname(TRY(Hash::openssl_digest_name(hash_kind))));
 }
 
 ErrorOr<bool> RSA_EMSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
