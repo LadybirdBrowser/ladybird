@@ -285,32 +285,21 @@ bool crypto_rsa_export_jwk_integer(KeyHandle const* key, u8 component, void* sta
 
 bool crypto_rsa_oaep_cipher(bool encrypt, ::Crypto::Hash::HashKind hash_kind, KeyHandle const* key, ReadonlyBytes label, ReadonlyBytes input, void* state, ReceiveEncodedBytes receive)
 {
-    auto result = [&]() {
-        if (encrypt) {
-            ::Crypto::PK::RSA_OAEP_EME rsa { hash_kind, key->get<::Crypto::PK::RSAPublicKey>() };
-            rsa.set_label(label);
-            return rsa.encrypt(input);
-        }
-        ::Crypto::PK::RSA_OAEP_EME rsa { hash_kind, key->get<::Crypto::PK::RSAPrivateKey>() };
-        rsa.set_label(label);
-        return rsa.decrypt(input);
-    }();
+    auto result = encrypt
+        ? ::Crypto::PK::rsa_oaep_encrypt(key->get<::Crypto::PK::RSAPublicKey>(), hash_kind, label, input)
+        : ::Crypto::PK::rsa_oaep_decrypt(key->get<::Crypto::PK::RSAPrivateKey>(), hash_kind, label, input);
     return receive_byte_result(result, state, receive);
 }
 
 bool crypto_rsa_pss_sign(::Crypto::Hash::HashKind hash_kind, KeyHandle const* key, u32 salt_length, ReadonlyBytes message, void* state, ReceiveEncodedBytes receive)
 {
-    ::Crypto::PK::RSA_PSS_EMSA rsa { hash_kind, key->get<::Crypto::PK::RSAPrivateKey>() };
-    rsa.set_salt_length(salt_length);
-    auto result = rsa.sign(message);
+    auto result = ::Crypto::PK::rsa_pss_sign(key->get<::Crypto::PK::RSAPrivateKey>(), hash_kind, salt_length, message);
     return receive_byte_result(result, state, receive);
 }
 
 bool crypto_rsa_pss_verify(::Crypto::Hash::HashKind hash_kind, KeyHandle const* key, u32 salt_length, ReadonlyBytes message, ReadonlyBytes signature, bool* verified)
 {
-    ::Crypto::PK::RSA_PSS_EMSA rsa { hash_kind, key->get<::Crypto::PK::RSAPublicKey>() };
-    rsa.set_salt_length(salt_length);
-    auto result = rsa.verify(message, signature);
+    auto result = ::Crypto::PK::rsa_pss_verify(key->get<::Crypto::PK::RSAPublicKey>(), hash_kind, salt_length, message, signature);
     if (result.is_error())
         return false;
     *verified = result.value();
@@ -319,15 +308,13 @@ bool crypto_rsa_pss_verify(::Crypto::Hash::HashKind hash_kind, KeyHandle const* 
 
 bool crypto_rsa_pkcs1_sign(::Crypto::Hash::HashKind hash_kind, KeyHandle const* key, ReadonlyBytes message, void* state, ReceiveEncodedBytes receive)
 {
-    ::Crypto::PK::RSA_PKCS1_EMSA rsa { hash_kind, key->get<::Crypto::PK::RSAPrivateKey>() };
-    auto result = rsa.sign(message);
+    auto result = ::Crypto::PK::rsa_pkcs1_sign(key->get<::Crypto::PK::RSAPrivateKey>(), hash_kind, message);
     return receive_byte_result(result, state, receive);
 }
 
 bool crypto_rsa_pkcs1_verify(::Crypto::Hash::HashKind hash_kind, KeyHandle const* key, ReadonlyBytes message, ReadonlyBytes signature, bool* verified)
 {
-    ::Crypto::PK::RSA_PKCS1_EMSA rsa { hash_kind, key->get<::Crypto::PK::RSAPublicKey>() };
-    auto result = rsa.verify(message, signature);
+    auto result = ::Crypto::PK::rsa_pkcs1_verify(key->get<::Crypto::PK::RSAPublicKey>(), hash_kind, message, signature);
     if (result.is_error())
         return false;
     *verified = result.value();
