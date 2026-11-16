@@ -28,9 +28,13 @@ pub enum ReplacedContentInput {
     None,
     /// A `<textarea>`'s `cols` and `rows`: its natural size is that many `ch` by that many `lh`.
     TextArea { cols: u32, rows: u32 },
-    /// An `<input>`'s `size`, and whether its type makes it a text entry widget, whose default
-    /// preferred size is that many `ch` by one line.
-    Input { size: u32, is_text_entry: bool },
+    /// An `<input>`'s preferred character count and whether its type makes it a text entry widget.
+    /// Number inputs with a range-derived or explicit count reserve space for their stepper too.
+    Input {
+        size: u32,
+        is_text_entry: bool,
+        include_number_stepper: bool,
+    },
     /// A `<canvas>`'s `width` and `height`, its natural size in CSS pixels.
     Canvas { width: u32, height: u32 },
     /// The natural size of what an element has loaded, such as a video's or an image's.
@@ -69,6 +73,7 @@ impl ReplacedContentInput {
             kind if kind == Kind::Input as u8 || kind == Kind::TextEntryInput as u8 => Self::Input {
                 size: values[0],
                 is_text_entry: kind == Kind::TextEntryInput as u8,
+                include_number_stepper: values[1] != 0,
             },
             kind if kind == Kind::Canvas as u8 => Self::Canvas {
                 width: values[0],

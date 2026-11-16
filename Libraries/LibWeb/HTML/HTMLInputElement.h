@@ -166,6 +166,7 @@ public:
     WebIDL::ExceptionOr<void> set_min_length(WebIDL::Long);
 
     WebIDL::UnsignedLong size() const;
+    Optional<u32> number_input_size_in_characters() const;
     WebIDL::ExceptionOr<void> set_size(WebIDL::UnsignedLong value);
 
     WebIDL::UnsignedLong height() const;

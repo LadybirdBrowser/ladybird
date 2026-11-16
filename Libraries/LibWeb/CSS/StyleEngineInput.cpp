@@ -1930,7 +1930,8 @@ static void publish_element_replaced_content_input(DOM::Element& element, StyleE
         default:
             break;
         }
-        set_replaced_content_input(style_engine, node, kind, 0, input->size());
+        auto number_size = input->number_input_size_in_characters();
+        set_replaced_content_input(style_engine, node, kind, 0, number_size.value_or(input->size()), number_size.has_value());
         return;
     }
     if (auto const* video = as_if<HTML::HTMLVideoElement>(element)) {
@@ -3547,7 +3548,7 @@ void record_element_attribute_changed(DOM::Element& element, Utf16FlyString cons
 
     // What the replaced content of a form control or a canvas is sized from.
     if ((is<HTML::HTMLTextAreaElement>(element) && (name == HTML::AttributeNames::cols || name == HTML::AttributeNames::rows))
-        || (is<HTML::HTMLInputElement>(element) && (name == HTML::AttributeNames::size || name == HTML::AttributeNames::type))
+        || (is<HTML::HTMLInputElement>(element) && first_is_one_of(name, HTML::AttributeNames::size, HTML::AttributeNames::type, HTML::AttributeNames::min, HTML::AttributeNames::max, HTML::AttributeNames::step))
         || (is<HTML::HTMLCanvasElement>(element) && (name == HTML::AttributeNames::width || name == HTML::AttributeNames::height)))
         record_element_replaced_content_input(element);
     // A table's border attribute moves its cells' border hints.
