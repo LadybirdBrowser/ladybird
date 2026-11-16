@@ -4984,7 +4984,8 @@ impl<'pass> GridFormattingContext<'pass> {
             .axis_tracks(axis)
             .iter()
             .fold(CssPixels::default(), |sum, track| sum + track.base_size);
-        let minimum = self.resolved_gap(axis, AvailableSize::definite(container));
+        // NB: The tracks can add up to a saturated size, which is not a definite available size.
+        let minimum = self.resolved_gap(axis, AvailableSize::definite(clamp_to_max_dimension_value(container)));
         *axis.select(
             &mut self.resolved_column_gutter_size,
             &mut self.resolved_row_gutter_size,
@@ -5044,6 +5045,8 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn rerun_rows_with_container_block_size(&mut self, block_size: CssPixels) {
+        // NB: The rows of the first run can add up to a saturated size, which is not a definite available size.
+        let block_size = clamp_to_max_dimension_value(block_size);
         self.available_space.as_mut().unwrap().block_size = AvailableSize::definite(block_size);
         self.initialize_gaps_for_axis(Axis::Row, AvailableSize::definite(block_size));
         self.resolve_item_metrics(Axis::Row);
