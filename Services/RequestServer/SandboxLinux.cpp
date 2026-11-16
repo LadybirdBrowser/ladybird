@@ -9,14 +9,12 @@
 #include <AK/String.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/Environment.h>
-#include <LibCore/File.h>
 #include <LibCore/System.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
 #include <RequestServer/Sandbox.h>
 #include <curl/curl.h>
-#include <dlfcn.h>
 #include <openssl/conf.h>
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
@@ -111,61 +109,16 @@ static ErrorOr<void> add_certificate_store_paths(Vector<Sandbox::PathRule>& path
     return {};
 }
 
-static Vector<ByteString> nss_host_modules_from_nsswitch(StringView nsswitch_contents)
-{
-    Vector<ByteString> modules;
-    for (auto line : nsswitch_contents.lines()) {
-        auto trimmed = line.trim_whitespace();
-        if (!trimmed.starts_with("hosts:"sv))
-            continue;
-        for (auto token : trimmed.substring_view("hosts:"sv.length()).split_view_if(is_ascii_space)) {
-            // Action specifiers such as [NOTFOUND=return] and trailing comments are not modules.
-            if (token.starts_with('['))
-                continue;
-            if (token.starts_with('#'))
-                break;
-            modules.append(token);
-        }
-        break;
-    }
-    return modules;
-}
-
-// glibc dlopens the NSS modules named on the hosts line of /etc/nsswitch.conf the first time getaddrinfo()
-// runs, and LibDNS still resolves through getaddrinfo() unless a DNS server is configured. Load them now so
-// the resolver keeps working once the sandbox denies the library directories and executable file mappings.
-static void preload_nss_host_modules()
-{
-    auto file = Core::File::open("/etc/nsswitch.conf"sv, Core::File::OpenMode::Read);
-    if (file.is_error())
-        return;
-    auto contents = file.value()->read_until_eof();
-    if (contents.is_error())
-        return;
-
-    for (auto const& module : nss_host_modules_from_nsswitch(contents.value())) {
-        auto library_name = ByteString::formatted("libnss_{}.so.2", module);
-        (void)dlopen(library_name.characters(), RTLD_LAZY | RTLD_GLOBAL | RTLD_NODELETE);
-    }
-}
-
 ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, Optional<StringView> disk_cache_directory)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());
 
-    preload_nss_host_modules();
-
     Vector<Sandbox::PathRule> paths;
 
     TRY(add_certificate_store_paths(paths));
-    TRY(Sandbox::add_path_if_exists(paths, "/etc/host.conf"sv, Sandbox::PathRule::Access::ReadOnly));
-    TRY(Sandbox::add_path_if_exists(paths, "/etc/hosts"sv, Sandbox::PathRule::Access::ReadOnly));
-    TRY(Sandbox::add_path_if_exists(paths, "/etc/nsswitch.conf"sv, Sandbox::PathRule::Access::ReadOnly));
-    TRY(Sandbox::add_path_if_exists(paths, "/etc/resolv.conf"sv, Sandbox::PathRule::Access::ReadOnly));
-    TRY(Sandbox::add_path_if_exists(paths, "/run/systemd/resolve"sv, Sandbox::PathRule::Access::ReadOnly));
-    // nss-resolve checks this sysctl to decide whether to ask for AAAA records.
-    TRY(Sandbox::add_path_if_exists(paths, "/proc/sys/net/ipv6/conf/all/disable_ipv6"sv, Sandbox::PathRule::Access::ReadOnly));
+    // The process that launched RequestServer resolves names with the system resolver for it, so none of the files that
+    // the system resolver reads, like /etc/resolv.conf, are needed here.
 
     for (auto const& certificate : certificates)
         TRY(Sandbox::add_path_if_exists(paths, certificate, Sandbox::PathRule::Access::ReadOnly));

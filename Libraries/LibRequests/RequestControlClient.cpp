@@ -5,7 +5,9 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibCore/Socket.h>
 #include <LibRequests/RequestControlClient.h>
+#include <LibThreading/ThreadPool.h>
 
 namespace Requests {
 
@@ -63,6 +65,31 @@ void RequestControlClient::retrieve_http_cookie(int client_id, u64 request_id, R
         cookie = on_retrieve_http_cookie(client_id, url, partition_context, same_site_context);
 
     async_retrieved_http_cookie(client_id, request_id, request_type, cookie_request_id, cookie);
+}
+
+void RequestControlClient::resolve_host_with_system_resolver(u64 resolution_id, ByteString host, bool ipv6)
+{
+    // getaddrinfo() blocks, for as long as the lookup takes, so it runs on a worker, and the answer goes back to
+    // RequestServer from this thread.
+    Threading::ThreadPool::the().submit([weak_this = make_weak_ptr<RequestControlClient>(), resolution_id, host = move(host), ipv6, event_loop = Core::EventLoop::current_weak()] mutable {
+        auto family = ipv6 ? Core::Socket::AddressFamily::IPv6Only : Core::Socket::AddressFamily::IPv4Only;
+        auto addresses_or_error = Core::Socket::resolve_host(host, Core::Socket::SocketType::Stream, family);
+
+        Optional<Vector<ByteString>> addresses;
+        if (!addresses_or_error.is_error()) {
+            addresses = Vector<ByteString> {};
+            for (auto const& address : addresses_or_error.value())
+                address.visit([&](auto const& address) { addresses->append(ByteString::formatted("{}", address)); });
+        }
+
+        auto origin_event_loop = event_loop->take();
+        if (!origin_event_loop.is_alive())
+            return;
+        origin_event_loop->deferred_invoke([weak_this = move(weak_this), resolution_id, addresses = move(addresses)] mutable {
+            if (auto self = weak_this.strong_ref())
+                self->async_resolved_host_with_system_resolver(resolution_id, move(addresses));
+        });
+    });
 }
 
 void RequestControlClient::store_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id, URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context, HTTP::Cookie::SameSiteContext same_site_context, Vector<HTTP::Cookie::ParsedCookie> cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy)
