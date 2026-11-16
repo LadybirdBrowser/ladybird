@@ -117,7 +117,6 @@ public:
 
     void schedule_resume_check();
     void set_post_parse_action(Function<void()> action) { m_post_parse_action = move(action); }
-    void invoke_post_parse_action_for_testing() { invoke_post_parse_action(); }
 
 private:
     static GC::Ptr<DOM::DocumentFragment> try_parse_html_fragment_fast(DOM::Element&, Utf16View);

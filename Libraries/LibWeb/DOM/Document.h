@@ -949,7 +949,6 @@ public:
     void set_text_directive_user_activation(bool value) { m_text_directive_user_activation = value; }
     bool browsing_context_group_has_multiple_contexts() const;
     bool browsing_context_group_has_remote_contexts() const { return m_browsing_context_group_has_remote_contexts; }
-    void set_browsing_context_group_has_remote_contexts(bool value) { m_browsing_context_group_has_remote_contexts = value; }
 
     // AD-HOC: Whether this document is still loading after a navigation that bypassed the HTTP cache: a reload that
     //         bypasses it, or a child navigable's navigation while its container document loaded that way. Until it
@@ -961,7 +960,6 @@ public:
     void set_current_script(Badge<HTML::HTMLOrSVGScriptElement>, GC::Ptr<Element> script) { m_current_script = move(script); }
     static constexpr size_t current_script_offset() { return offsetof(Document, m_current_script); }
 
-    u32 ignore_destructive_writes_counter() const { return m_ignore_destructive_writes_counter; }
     void increment_ignore_destructive_writes_counter() { m_ignore_destructive_writes_counter++; }
     void decrement_ignore_destructive_writes_counter() { m_ignore_destructive_writes_counter--; }
 
@@ -1338,7 +1336,6 @@ public:
     bool accessibility_caches_bypassed() const { return m_accessibility_caches_bypassed; }
     // For tests: each node whose kept data differs from what computing it again gives.
     Vector<String> cached_accessibility_record_mismatches();
-    size_t cached_accessible_text_count() const { return m_cached_accessible_text.size(); }
     // For tests: each cached name or description that differs from what computing it again gives.
     Vector<String> cached_accessible_text_mismatches();
 
