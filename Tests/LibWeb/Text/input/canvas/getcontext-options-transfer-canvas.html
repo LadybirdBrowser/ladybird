@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function printGetContextResult(description, canvas, contextType, transfer) {
+        let transferred = false;
+        const options = {
+            get alpha() {
+                transfer();
+                transferred = true;
+                return true;
+            },
+        };
+        try {
+            println(`${description}: ${canvas.getContext(contextType, options)}, transferred: ${transferred}`);
+        } catch (error) {
+            println(`${description}: ${error.name}, transferred: ${transferred}`);
+        }
+    }
+
+    test(() => {
+        for (const contextType of ["2d", "bitmaprenderer", "webgl", "webgl2"]) {
+            const canvas = document.createElement("canvas");
+            printGetContextResult(`getContext("${contextType}") with options that transfer control`, canvas, contextType, () => canvas.transferControlToOffscreen());
+        }
+
+        for (const contextType of ["2d", "webgl", "webgl2"]) {
+            const offscreenCanvas = new OffscreenCanvas(4, 4);
+            printGetContextResult(`OffscreenCanvas getContext("${contextType}") with options that transfer it`, offscreenCanvas, contextType, () => structuredClone(offscreenCanvas, { transfer: [offscreenCanvas] }));
+        }
+
+        for (const canvas of [document.createElement("canvas"), new OffscreenCanvas(4, 4)]) {
+            let contextFromGetter = null;
+            const options = {
+                get alpha() {
+                    contextFromGetter = canvas.getContext("2d");
+                    return true;
+                },
+            };
+            canvas.getContext("webgl", options);
+            println(`${canvas.constructor.name} 2d context created by a webgl options getter is kept: ${contextFromGetter !== null && canvas.getContext("2d") === contextFromGetter}`);
+        }
+    });
+</script>

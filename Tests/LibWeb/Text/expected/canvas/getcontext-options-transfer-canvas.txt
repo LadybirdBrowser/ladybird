@@ -1,0 +1,9 @@
+getContext("2d") with options that transfer control: InvalidStateError, transferred: true
+getContext("bitmaprenderer") with options that transfer control: InvalidStateError, transferred: true
+getContext("webgl") with options that transfer control: InvalidStateError, transferred: true
+getContext("webgl2") with options that transfer control: InvalidStateError, transferred: true
+OffscreenCanvas getContext("2d") with options that transfer it: InvalidStateError, transferred: true
+OffscreenCanvas getContext("webgl") with options that transfer it: InvalidStateError, transferred: true
+OffscreenCanvas getContext("webgl2") with options that transfer it: InvalidStateError, transferred: true
+HTMLCanvasElement 2d context created by a webgl options getter is kept: true
+OffscreenCanvas 2d context created by a webgl options getter is kept: true

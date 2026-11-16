@@ -35,6 +35,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
+#include <LibWeb/WebGL/WebGLContextAttributes.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
@@ -361,8 +362,18 @@ OffscreenCanvas::HasOrCreatedContext OffscreenCanvas::create_2d_context(CanvasRe
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<OffscreenCanvasRenderingContext2D>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
+    VERIFY(!is_detached());
     m_context = OffscreenCanvasRenderingContext2D::create(*this, context_attributes);
     return HasOrCreatedContext::Yes;
+}
+
+JS::ThrowCompletionOr<void> OffscreenCanvas::throw_if_detached() const
+{
+    if (!is_detached())
+        return {};
+
+    auto& realm = relevant_global_object().shape().realm();
+    return throw_completion(realm, WebIDL::InvalidStateError::create(realm, "OffscreenCanvas is detached"_utf16));
 }
 
 template<typename ContextType>
@@ -371,11 +382,18 @@ JS::ThrowCompletionOr<OffscreenCanvas::HasOrCreatedContext> OffscreenCanvas::cre
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
+    auto context_attributes = TRY(WebGL::convert_value_to_context_attributes_dictionary(vm(), options));
+    TRY(throw_if_detached());
+    // AD-HOC: Converting the options can run script that creates a context.
+    if (!m_context.has<Empty>())
+        return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
+
     auto& realm = relevant_global_object().shape().realm();
-    auto maybe_context = TRY(ContextType::create(realm, WebGL::CanvasOwner { GC::Ref { *this } }, options));
+    auto maybe_context = ContextType::create(realm, WebGL::CanvasOwner { GC::Ref { *this } }, context_attributes);
     if (!maybe_context)
         return HasOrCreatedContext::No;
 
+    VERIFY(!is_detached());
     m_context = GC::Ref<ContextType>(*maybe_context);
     return HasOrCreatedContext::Yes;
 }
@@ -450,7 +468,7 @@ GC::Ref<WebIDL::Promise> convert_to_blob(JS::Realm& realm, HTML::OffscreenCanvas
     return result_promise;
 }
 
-JS::ThrowCompletionOr<HTML::OffscreenRenderingContext> get_context(JS::Realm& realm, HTML::OffscreenCanvas& offscreen_canvas, OffscreenRenderingContextId context_id, JS::Value options)
+JS::ThrowCompletionOr<HTML::OffscreenRenderingContext> get_context(HTML::OffscreenCanvas& offscreen_canvas, OffscreenRenderingContextId context_id, JS::Value options)
 {
     // 1. If options is not an object, then set options to null.
     if (!options.is_object())
@@ -463,14 +481,13 @@ JS::ThrowCompletionOr<HTML::OffscreenRenderingContext> get_context(JS::Realm& re
     // matches this OffscreenCanvas object's context mode and whose row header
     // matches contextId:
     // NOTE: See the spec for the full table.
-    if (offscreen_canvas.is_detached()) {
-        return WebIDL::throw_dom_exception_if_needed(realm.vm(), realm, [] -> WebIDL::ExceptionOr<HTML::OffscreenRenderingContext> {
-            return WebIDL::InvalidStateError::create("OffscreenCanvas is detached"_utf16);
-        });
-    }
+    TRY(offscreen_canvas.throw_if_detached());
 
+    // AD-HOC: Converting the options can run script that detaches this OffscreenCanvas, so we check whether it is
+    //         detached again after each conversion.
     if (context_id == OffscreenRenderingContextId::_2d) {
         auto context_attributes = TRY(convert_to_idl_value_for_canvas_rendering_context2d_settings(offscreen_canvas.vm(), options));
+        TRY(offscreen_canvas.throw_if_detached());
         if (offscreen_canvas.create_2d_context(context_attributes) == HTML::OffscreenCanvas::HasOrCreatedContext::Yes)
             return offscreen_canvas.context().get<GC::Ref<HTML::OffscreenCanvasRenderingContext2D>>();
 
