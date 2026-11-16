@@ -8,7 +8,6 @@
 
 #include <AK/Error.h>
 #include <AK/Format.h>
-#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibCrypto/Hash/Hash.h>
 #include <LibCrypto/OpenSSLForward.h>
 
@@ -152,9 +151,6 @@ public:
 };
 
 #undef OPENSSL_WRAPPER_CLASS
-
-ErrorOr<OpenSSL_BN> unsigned_big_integer_to_openssl_bignum(UnsignedBigInteger const& integer);
-ErrorOr<UnsignedBigInteger> openssl_bignum_to_unsigned_big_integer(OpenSSL_BN const& bn);
 
 ErrorOr<ByteBuffer> get_byte_buffer_param_from_key(EVP_PKEY* key, char const* key_name);
 

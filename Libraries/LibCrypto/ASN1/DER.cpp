@@ -59,31 +59,27 @@ ErrorOr<void> Encoder::write_bytes(ReadonlyBytes bytes)
     return {};
 }
 
-ErrorOr<void> Encoder::write_arbitrary_sized_integer(UnsignedBigInteger const& value, Optional<Class> class_override, Optional<Kind> kind_override)
+ErrorOr<void> Encoder::write_integer(u64 value, Optional<Class> class_override, Optional<Kind> kind_override)
 {
     auto class_ = class_override.value_or(Class::Universal);
     auto type = Type::Primitive;
     auto kind = kind_override.value_or(Kind::Integer);
     TRY(write_tag(class_, type, kind));
 
-    auto max_byte_size = max(1ull, value.byte_length()); // At minimum, we need one byte to encode 0.
-    ByteBuffer buffer;
-    auto output = TRY(buffer.get_bytes_for_writing(max_byte_size));
-    auto result = value.export_data(output);
-    // DER does not allow empty integers, encode a zero if the exported size is zero.
-    if (result.is_empty()) {
-        output[0] = 0;
-        result = output.slice(0, 1);
-    }
+    // NB: The contents are the fewest big-endian bytes that hold the value, at least one, after a zero byte if the top
+    //     bit is set, which keeps the integer positive.
+    u8 bytes[sizeof(u64) + 1] {};
+    for (size_t i = 0; i < sizeof(u64); ++i)
+        bytes[sizeof(bytes) - 1 - i] = static_cast<u8>(value >> (8 * i));
+    size_t start = 1;
+    while (start < sizeof(bytes) - 1 && bytes[start] == 0)
+        ++start;
+    if ((bytes[start] & 0x80) != 0)
+        --start;
 
-    // If the MSB is set, we need to add a leading zero to indicate a positive number.
-    if ((output[0] & 0x80) != 0) {
-        TRY(write_length(result.size() + 1));
-        TRY(write_byte(0));
-    } else {
-        TRY(write_length(result.size()));
-    }
-    return write_bytes(result);
+    ReadonlyBytes contents { bytes + start, sizeof(bytes) - start };
+    TRY(write_length(contents.size()));
+    return write_bytes(contents);
 }
 
 ErrorOr<void> Encoder::write_octet_string(ReadonlyBytes bytes, Optional<Class> class_override, Optional<Kind> kind_override)

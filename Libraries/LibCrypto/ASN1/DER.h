@@ -7,10 +7,10 @@
 #pragma once
 
 #include <AK/Array.h>
+#include <AK/ByteBuffer.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibCrypto/ASN1/ASN1.h>
-#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
 namespace Crypto::ASN1 {
 
@@ -51,8 +51,8 @@ public:
     template<typename ValueType>
     ErrorOr<void> write(ValueType const& value, Optional<Class> class_override = {}, Optional<Kind> kind_override = {})
     {
-        if constexpr (IsSame<ValueType, UnsignedBigInteger> || (IsIntegral<ValueType> && IsUnsigned<ValueType> && !IsSame<ValueType, bool>)) {
-            return write_arbitrary_sized_integer(value, class_override, kind_override);
+        if constexpr (IsIntegral<ValueType> && IsUnsigned<ValueType> && !IsSame<ValueType, bool>) {
+            return write_integer(value, class_override, kind_override);
         } else if constexpr (IsOneOf<ValueType, ReadonlyBytes, ByteBuffer>) {
             return write_octet_string(value, class_override, kind_override);
         } else if constexpr (IsSame<ValueType, nullptr_t>) {
@@ -98,7 +98,7 @@ private:
     ErrorOr<void> write_bytes(ReadonlyBytes);
     ErrorOr<void> write_byte(u8);
 
-    ErrorOr<void> write_arbitrary_sized_integer(UnsignedBigInteger const&, Optional<Class>, Optional<Kind>);
+    ErrorOr<void> write_integer(u64, Optional<Class>, Optional<Kind>);
     ErrorOr<void> write_octet_string(ReadonlyBytes, Optional<Class>, Optional<Kind>);
     ErrorOr<void> write_null(Optional<Class>, Optional<Kind>);
     ErrorOr<void> write_object_identifier(Span<u32 const>, Optional<Class>, Optional<Kind>);
