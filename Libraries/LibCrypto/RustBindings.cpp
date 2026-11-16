@@ -8,7 +8,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Base64.h>
 #include <AK/Memory.h>
 #include <AK/Random.h>
 #include <LibCrypto/ASN1/ASN1.h>
@@ -48,16 +47,6 @@ using OctetStringStorage = Asn1Storage<StringView>;
 
 extern "C" {
 using ReceiveEncodedBytes = void (*)(void*, ReadonlyBytes);
-int crypto_encode_base64url(ReadonlyBytes, ReceiveEncodedBytes, void*);
-
-enum class Base64DecodeResult : u8 {
-    Success,
-    OutOfMemory,
-    InvalidBase64,
-    NonAscii,
-};
-Base64DecodeResult crypto_decode_base64url(FlatPtr, void*, ReceiveEncodedBytes, FlatPtr*);
-
 enum class Asn1Structure : u8 {
     SubjectPublicKeyInfo,
     PrivateKeyInfo,
@@ -72,29 +61,6 @@ static bool receive_byte_result(ErrorOr<ByteBuffer> const& result, void* state, 
         return false;
     receive(state, result.value());
     return true;
-}
-
-int crypto_encode_base64url(ReadonlyBytes bytes, ReceiveEncodedBytes receive, void* state)
-{
-    auto encoded = encode_base64url(bytes, AK::OmitPadding::Yes);
-    if (encoded.is_error())
-        return encoded.error().code();
-    receive(state, encoded.value().bytes_as_string_view().bytes());
-    return 0;
-}
-
-Base64DecodeResult crypto_decode_base64url(FlatPtr raw, void* state, ReceiveEncodedBytes receive, FlatPtr* error_message)
-{
-    auto base64_url_string = Utf16String::from_raw(raw);
-    auto base64_bytes_or_error = decode_base64url(base64_url_string.to_byte_string(), AK::LastChunkHandling::Loose);
-    if (base64_bytes_or_error.is_error()) {
-        if (base64_bytes_or_error.error().code() == ENOMEM)
-            return Base64DecodeResult::OutOfMemory;
-        *error_message = Utf16String::formatted("{}", base64_bytes_or_error.release_error()).into_raw();
-        return Base64DecodeResult::InvalidBase64;
-    }
-    receive(state, base64_bytes_or_error.value());
-    return Base64DecodeResult::Success;
 }
 
 FlatPtr crypto_decode_asn1_structure(ReadonlyBytes data, Asn1Structure structure, void* out, bool* all_consumed)

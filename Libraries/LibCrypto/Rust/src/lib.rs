@@ -154,52 +154,6 @@ pub fn generate_random_uuid() -> Utf16String {
     Utf16String::from_ascii(&bytes)
 }
 
-#[derive(Debug)]
-pub enum Base64DecodeError {
-    OutOfMemory,
-    InvalidBase64(Utf16String),
-    NonAscii,
-}
-
-pub fn encode_base64url(bytes: &[u8]) -> Result<Utf16String, i32> {
-    // SAFETY: The input is borrowed and the receiver is invoked synchronously.
-    let (status, encoded) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_encode_base64url(Span::new(bytes), receive, state)
-    });
-    if status != 0 {
-        return Err(status);
-    }
-    Ok(Utf16String::from_ascii(&encoded))
-}
-
-pub fn decode_base64url(input: &Utf16String) -> Result<Vec<u8>, Base64DecodeError> {
-    use ak::Utf16StringUnits;
-    let is_ascii = match input.as_units() {
-        Utf16StringUnits::Ascii(_) => true,
-        Utf16StringUnits::Latin1(units) => units.is_ascii(),
-        Utf16StringUnits::Utf16(units) => units.iter().all(|&unit| unit <= 0x7f),
-    };
-    if !is_ascii {
-        return Err(Base64DecodeError::NonAscii);
-    }
-    let mut message = 0;
-    // SAFETY: The string and output slots are live during the call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_decode_base64url(input.raw_identity(), state, receive, &mut message)
-    });
-    match status {
-        ffi::Base64Status::Success => Ok(bytes),
-        ffi::Base64Status::OutOfMemory => Err(Base64DecodeError::OutOfMemory),
-        ffi::Base64Status::InvalidBase64 => {
-            // SAFETY: The decoder transfers an owned diagnostic string for this status.
-            Err(Base64DecodeError::InvalidBase64(unsafe {
-                Utf16String::from_raw_owned(message)
-            }))
-        }
-        ffi::Base64Status::NonAscii => Err(Base64DecodeError::NonAscii),
-    }
-}
-
 pub fn sha_digest(kind: ShaHashKind, data: &[u8]) -> Result<Vec<u8>, BackendError> {
     // SAFETY: Inputs and output are borrowed for the synchronous native call.
     let (status, bytes) =
