@@ -13,7 +13,6 @@ set(SOURCES
     Cipher/AES.cpp
     Cipher/ChaCha.cpp
     Curves/EdwardsCurve.cpp
-    Curves/SECPxxxr1.cpp
     Hash/Argon2.cpp
     Hash/Hash.cpp
     Hash/SHAKE.cpp

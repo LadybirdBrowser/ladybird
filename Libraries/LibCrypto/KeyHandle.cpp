@@ -21,6 +21,13 @@ struct CryptoKeyHandleFields {
     bool has_ec_public_key { false };
 };
 
+// NB: libcrypto_rust passes these values across the FFI.
+enum class KeyDecodeResult : u8 {
+    Decoded,
+    InvalidComponents,
+    OutOfMemory,
+};
+
 extern "C" {
 void crypto_key_destroy_handle(KeyHandle*);
 KeyHandle* crypto_key_create_byte_handle(ReadonlyBytes);
@@ -28,7 +35,7 @@ KeyHandle* crypto_key_create_okp_handle(bool, ReadonlyBytes);
 void crypto_key_okp_handle_bytes(KeyHandle const*, ReadonlyBytes*);
 void crypto_key_byte_handle_bytes(KeyHandle const*, ReadonlyBytes*);
 void crypto_key_encode_handle(KeyHandle const*, void*, void (*)(void*, CryptoKeyHandleFields const*));
-bool crypto_key_decode_handle(CryptoKeyHandleFields const*, KeyHandle**);
+KeyDecodeResult crypto_key_decode_handle(CryptoKeyHandleFields const*, KeyHandle**);
 }
 
 void crypto_key_destroy_handle(KeyHandle* handle)
@@ -38,7 +45,6 @@ void crypto_key_destroy_handle(KeyHandle* handle)
         [](OKPPublicKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
         [](OKPPrivateKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
         [](::Crypto::PK::RSAPrivateKey& data) { data.clear_sensitive_data(); },
-        [](::Crypto::PK::ECPrivateKey& data) { data.clear_sensitive_data(); },
         [](::Crypto::PK::MLDSAPrivateKey& data) { data.clear_sensitive_data(); },
         [](::Crypto::PK::MLKEMPrivateKey& data) { data.clear_sensitive_data(); },
         [](auto&) { });
@@ -184,7 +190,7 @@ static ErrorOr<KeyHandle> handle_from_fields(CryptoKeyHandleFields const& fields
     case HandleTag::RSAPrivateKey:
         return ::Crypto::PK::RSAPrivateKey { big_integer(0), big_integer(1), big_integer(2), big_integer(3), big_integer(4), big_integer(5), big_integer(6), big_integer(7) };
     case HandleTag::ECPublicKey:
-        return ::Crypto::PK::ECPublicKey { big_integer(0), big_integer(1), buffer(0).size() };
+        return TRY(::Crypto::PK::ECPublicKey::from_coordinates(buffer(0), buffer(1)));
     case HandleTag::ECPrivateKey: {
         Optional<::Crypto::ASN1::ObjectIdentifier> parameters;
         if (fields.has_ec_parameters) {
@@ -194,8 +200,8 @@ static ErrorOr<KeyHandle> handle_from_fields(CryptoKeyHandleFields const& fields
         }
         Optional<::Crypto::PK::ECPublicKey> public_key;
         if (fields.has_ec_public_key)
-            public_key = ::Crypto::PK::ECPublicKey { big_integer(1), big_integer(2), buffer(1).size() };
-        return ::Crypto::PK::ECPrivateKey { big_integer(0), buffer(0).size(), move(parameters), move(public_key) };
+            public_key = TRY(::Crypto::PK::ECPublicKey::from_coordinates(buffer(1), buffer(2)));
+        return TRY(::Crypto::PK::ECPrivateKey::from_scalar(buffer(0), move(parameters), move(public_key)));
     }
     case HandleTag::MLDSAPublicKey:
         return ::Crypto::PK::MLDSAPublicKey { TRY(copy(0)) };
@@ -213,13 +219,17 @@ static ErrorOr<KeyHandle> handle_from_fields(CryptoKeyHandleFields const& fields
     VERIFY_NOT_REACHED();
 }
 
-bool crypto_key_decode_handle(CryptoKeyHandleFields const* fields, KeyHandle** out_handle)
+KeyDecodeResult crypto_key_decode_handle(CryptoKeyHandleFields const* fields, KeyHandle** out_handle)
 {
     auto handle = handle_from_fields(*fields);
-    if (handle.is_error())
-        return false;
+    if (handle.is_error()) {
+        // NB: An allocation fails with ENOMEM. Any other error is a component that does not make a valid key.
+        if (handle.error().is_errno() && handle.error().code() == ENOMEM)
+            return KeyDecodeResult::OutOfMemory;
+        return KeyDecodeResult::InvalidComponents;
+    }
     *out_handle = new KeyHandle(handle.release_value());
-    return true;
+    return KeyDecodeResult::Decoded;
 }
 
 }

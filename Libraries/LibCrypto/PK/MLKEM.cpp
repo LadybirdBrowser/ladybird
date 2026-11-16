@@ -8,7 +8,6 @@
 #include <LibCrypto/PK/MLKEM.h>
 
 #include <LibCrypto/ASN1/DER.h>
-#include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/ModuleLatticePrivateKey.h>
 

@@ -50,6 +50,15 @@ impl<'a> KeyComponents<'a> {
     }
 }
 
+/// The result of decoding a key handle, Crypto's KeyDecodeResult.
+#[repr(u8)]
+#[allow(dead_code, reason = "LibCrypto constructs the variants")]
+enum RawKeyDecodeResult {
+    Decoded,
+    InvalidComponents,
+    OutOfMemory,
+}
+
 #[repr(C)]
 struct RawKeyComponents<'a> {
     tag: u8,
@@ -71,7 +80,7 @@ unsafe extern "C" {
         state: *mut c_void,
         steps: unsafe extern "C" fn(*mut c_void, *const RawKeyComponents<'_>),
     );
-    fn crypto_key_decode_handle(fields: &RawKeyComponents<'_>, key: &mut *mut c_void) -> bool;
+    fn crypto_key_decode_handle(fields: &RawKeyComponents<'_>, key: &mut *mut c_void) -> RawKeyDecodeResult;
 }
 
 impl KeyHandle {
@@ -171,8 +180,10 @@ impl KeyHandle {
         };
         let mut key = core::ptr::null_mut();
         // SAFETY: The validated fields and output slot are live for the call.
-        if !unsafe { crypto_key_decode_handle(&fields, &mut key) } {
-            return Err(KeyDecodeError::OutOfMemory);
+        match unsafe { crypto_key_decode_handle(&fields, &mut key) } {
+            RawKeyDecodeResult::Decoded => {}
+            RawKeyDecodeResult::InvalidComponents => return Err(KeyDecodeError::InvalidComponents),
+            RawKeyDecodeResult::OutOfMemory => return Err(KeyDecodeError::OutOfMemory),
         }
         // SAFETY: Success transfers ownership of the native key.
         Ok(unsafe { Self::from_raw(key) }.expect("LibCrypto returns the decoded key"))
