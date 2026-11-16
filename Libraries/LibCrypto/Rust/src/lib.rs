@@ -12,6 +12,7 @@
 use core::ffi::c_void;
 
 use ak::{Span, SpanMut, Utf16String};
+use subtle::ConstantTimeEq;
 
 mod ffi;
 mod key;
@@ -250,8 +251,7 @@ pub fn hmac_sign(kind: ShaHashKind, key: &[u8], message: &[u8]) -> Vec<u8> {
 }
 
 pub fn timing_safe_compare(left: &[u8], right: &[u8]) -> bool {
-    // SAFETY: The input is borrowed for the call.
-    unsafe { ffi::crypto_timing_safe_compare(Span::new(left), Span::new(right)) }
+    left.ct_eq(right).into()
 }
 
 pub fn kmac_default_key_length(kind: KmacKind) -> u32 {

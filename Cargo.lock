@@ -1871,6 +1871,7 @@ name = "libcrypto_rust"
 version = "0.1.0"
 dependencies = [
  "ak",
+ "subtle",
 ]
 
 [[package]]
