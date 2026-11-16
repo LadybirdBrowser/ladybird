@@ -7,8 +7,8 @@
 use crate::painting::record::trace::Observer;
 
 use super::{PaintPhase, PaintRecorder};
-use crate::css::style::fast_hash::FastSet;
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
@@ -16,9 +16,9 @@ use crate::painting::node_painting;
 use crate::painting::paint_order_plan::PaintScope;
 use crate::painting::paint_read::{GeometryRead, PaintSource};
 use crate::painting::record::RecordingInputs;
-use crate::painting::record::assemble::{Assembler, frame_is_unchanged};
+use crate::painting::record::assemble::{Assembler, AssemblyHost, frame_is_unchanged};
 use crate::painting::record::frame_inputs::FrameInputs;
-use crate::painting::record::order_tree::{PaintOrderTreeAccess, ProducerKind};
+use crate::painting::record::order_tree::{ProducerKind, RecordedChunk};
 use crate::painting::record::paint::background_resolution::root_background_canvas_rect;
 use crate::painting::record::resources::RecordingResourceManifest;
 use crate::painting::record::scratch::RecordingScratch;
@@ -30,7 +30,6 @@ use std::sync::Arc;
 pub(crate) fn record_display_list(
     source: &PaintSource<'_>,
     scratch: &mut RecordingScratch,
-    tree: PaintOrderTreeAccess<'_>,
     viewport: NodeSlotId,
     inputs: &RecordingInputs,
     source_recording: Option<Arc<RecordingOutput>>,
@@ -39,7 +38,7 @@ pub(crate) fn record_display_list(
     scratch.begin_recording(source.frame().paintable_row_capacity());
     macro_rules! record {
         ($observer:ty) => {
-            record_display_list_impl::<$observer>(source, scratch, tree, viewport, inputs, source_recording)
+            record_display_list_impl::<$observer>(source, scratch, viewport, inputs, source_recording)
         };
     }
     let result = if trace {
@@ -51,10 +50,16 @@ pub(crate) fn record_display_list(
     result
 }
 
+/// The tape of a display list of `chunks`, each as its recording or the publication of that recording left it.
+fn tape_of(chunks: &[Arc<RecordedChunk>]) -> Arc<RecordedDisplayList> {
+    Arc::new(RecordedDisplayList::of_chunks(
+        chunks.iter().map(|chunk| &**chunk.latest()),
+    ))
+}
+
 fn record_display_list_impl<O: Observer>(
     source: &PaintSource<'_>,
     scratch: &mut RecordingScratch,
-    tree: PaintOrderTreeAccess<'_>,
     viewport: NodeSlotId,
     inputs: &RecordingInputs,
     source_recording: Option<Arc<RecordingOutput>>,
@@ -67,7 +72,7 @@ fn record_display_list_impl<O: Observer>(
         inputs.uncaptured.root_background_source.root_layout_node,
         inputs.css_viewport_rect,
     );
-    // The published recording is copied from while every input its producers read is unchanged and
+    // The published recording is reused from while every input its producers read is unchanged and
     // no push asked for everything; otherwise this frame records from scratch.
     let source_is_usable = source_recording
         .as_ref()
@@ -89,10 +94,10 @@ fn record_display_list_impl<O: Observer>(
         viewport,
         ink_bounds_audit: super::ink_bounds::InkBoundsAudit::new(),
         source_recording,
+        run_draws_vector_image_placeholders: false,
         live_producer: false,
         producer_reads_window_focus: std::cell::Cell::new(false),
         line_root_positions: None,
-        moved_expansion: FastSet::default(),
         blocking_wheel_event_region_count: 0,
         records_per_box_wheel_hit_test_targets: frame_inputs.records_per_box_wheel_hit_test_targets(),
         observer: O::default(),
@@ -103,70 +108,86 @@ fn record_display_list_impl<O: Observer>(
         .observer
         .observe(|log| log.damage = Some(source.frame().damage().summary()));
     let root_group_color = recorder.record_canvas();
-    let prologue_bytes = u32::try_from(recorder.recorder.byte_size()).expect("display list exceeds u32");
+    let prologue = recorder.take_run_chunk();
+    let prologue_id = prologue.as_ref().map(|chunk| chunk.recorded().id);
     let has_inspector_overlays = inputs.inspector_highlight.is_some()
         || inputs.grid_overlays.is_some()
         || !inputs.flex_overlays.is_empty()
         || inputs.caret_debug_rect.is_some();
     let root_scope = PaintScope::stacking_context(viewport);
-    // Nothing was pushed and nothing records every frame: the published tape is this frame,
-    // which lets the compositor skip its update as well.
+    // The scopes the published recording walked, where it can be reused from.
+    let published_root = recorder
+        .source_recording
+        .as_ref()
+        .and_then(|frame| frame.recorded_root.clone());
+    // Nothing was pushed and nothing records every frame: the published chunks are this frame's, which lets the
+    // compositor skip its update as well.
     let unchanged_frame = recorder
         .source_recording
         .as_ref()
-        .filter(|frame| {
-            frame_is_unchanged(tree.read(), !source.frame().damage().is_empty(), window_focus_changed)
+        .zip(published_root.as_ref())
+        .filter(|(frame, root)| {
+            frame_is_unchanged(root, !source.frame().damage().is_empty(), window_focus_changed)
                 && !has_inspector_overlays
-                && frame.prologue_bytes == prologue_bytes
-                && recorder.recorder.bytes() == &frame.display_list.bytes[..prologue_bytes as usize]
+                && frame.prologue_id == prologue_id
         })
-        .map(|frame| frame.display_list.clone());
-    let display_list = match unchanged_frame {
-        Some(display_list) => {
+        .map(|(frame, root)| {
+            (
+                Arc::clone(&frame.chunks),
+                Arc::clone(&frame.display_list),
+                Arc::clone(root),
+            )
+        });
+    let reuses_from_published_recording = published_root.is_some() && unchanged_frame.is_none();
+    let (chunks, display_list, recorded_root) = match unchanged_frame {
+        Some((chunks, display_list, root)) => {
             recorder
                 .observer
                 .observe(|log| log.leaf(Operation::Scope(root_scope), Action::Copy, false));
-            recorder.blocking_wheel_event_region_count = tree.read().root_entry().output().blocking_wheel_event_regions;
-            display_list
+            (chunks, display_list, Some(root))
         }
         None if inputs.records_without_visual_contexts => {
             recorder.trace_paint(Operation::Named(None, "svg-image-document"), |recorder| {
                 recorder.record_svg_image_document(viewport);
             });
-            Arc::new(recorder.recorder.into_builder().finish())
+            let chunks: Arc<[Arc<RecordedChunk>]> = prologue.into_iter().chain(recorder.take_run_chunk()).collect();
+            let display_list = tape_of(&chunks);
+            (chunks, display_list, None)
         }
         None => {
-            let source_prologue_bytes = recorder.source_recording.as_ref().map(|frame| frame.prologue_bytes);
-            let mut marks = std::mem::take(&mut recorder.scratch.scope_marks);
-            Assembler::new(
-                &mut recorder,
-                tree,
-                &mut marks,
-                source_prologue_bytes,
-                window_focus_changed,
-            )
-            .assemble_root(root_scope);
-            recorder.scratch.scope_marks = marks;
+            let recorded_root =
+                Assembler::new(&mut recorder, window_focus_changed).assemble_root(root_scope, published_root.as_ref());
+            let mut chunks: Vec<Arc<RecordedChunk>> = prologue.into_iter().collect();
+            recorded_root.for_each_chunk(&mut |chunk| chunks.push(Arc::clone(chunk)));
             if has_inspector_overlays {
                 recorder.trace_paint(
                     Operation::Named(None, "inspector-overlays"),
                     crate::painting::record::paint::inspector_overlay::record_inspector_overlays,
                 );
+                chunks.extend(recorder.take_run_chunk());
             }
-            Arc::new(recorder.recorder.into_builder().finish())
+            let chunks: Arc<[Arc<RecordedChunk>]> = chunks.into();
+            let display_list = tape_of(&chunks);
+            (chunks, display_list, Some(recorded_root))
         }
     };
     recorder.ink_bounds_audit.report();
+    let has_blocking_wheel_event_listeners = match &recorded_root {
+        Some(root) => root.facts.blocking_wheel_event_regions > 0,
+        None => recorder.blocking_wheel_event_region_count > 0,
+    };
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
         visual_context_tree: paint_state.visual_context_tree.clone(),
         frame_inputs,
         root_background_canvas_rect,
-        prologue_bytes,
+        prologue_id,
         root_group_color,
         hit_test_items_stamp: source.hit_test_items_stamp(),
+        chunks,
         display_list,
-        has_blocking_wheel_event_listeners: recorder.blocking_wheel_event_region_count > 0,
+        recorded_root,
+        has_blocking_wheel_event_listeners,
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
         is_identical_to_published_recording: false,
         window_is_focused: inputs.window_is_focused,
@@ -177,10 +198,100 @@ fn record_display_list_impl<O: Observer>(
         surface_clear_color: None,
         async_scrolling_metadata: None,
     };
-    RecordingResult {
-        output,
-        resources: recorder.resources,
+    let resources = recorder.resources;
+    if reuses_from_published_recording && reused_output_is_verified() {
+        let from_scratch =
+            record_display_list_impl::<super::trace::NoTrace>(source, scratch, viewport, inputs, None).output;
+        require_same_recording(&output, &from_scratch);
     }
+    RecordingResult { output, resources }
+}
+
+fn reused_output_is_verified() -> bool {
+    static VERIFIED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *VERIFIED.get_or_init(|| cfg!(debug_assertions) || std::env::var_os("LIBWEB_VERIFY_PAINT_REUSE").is_some())
+}
+
+/// Requires a recording that reused clean output of the published one to be the recording the same frame gives when
+/// everything is recorded: a difference is output that was reused though what it shows changed.
+fn require_same_recording(assembled: &RecordingOutput, from_scratch: &RecordingOutput) {
+    use crate::painting::display_list::builder::for_each_command;
+    use crate::painting::display_list::chunks::{chunk_id, chunks_of};
+    use crate::painting::display_list::commands::{DisplayListCommandType, PaintVectorImage};
+    // A command that paints an SVG image is recorded with a placeholder for the image's records, which publication
+    // replaces with the id of the records the host rendered. A reused command names those records already.
+    let without_vector_image_ids = |bytes: &[u8]| {
+        let mut bytes = bytes.to_vec();
+        let id_field = std::mem::offset_of!(PaintVectorImage, vector_image_id);
+        let mut id_offsets = Vec::new();
+        crate::painting::display_list::nested_records::for_each_command_including_nested(
+            &bytes,
+            &mut |command_type, payload_offset, _| {
+                if command_type == DisplayListCommandType::PaintVectorImage {
+                    id_offsets.push(payload_offset + id_field);
+                }
+            },
+        );
+        for offset in id_offsets {
+            bytes[offset..offset + std::mem::size_of::<u64>()].fill(0);
+        }
+        bytes
+    };
+    let (assembled_list, scratch_list) = (&assembled.display_list, &from_scratch.display_list);
+    let assembled_bytes = without_vector_image_ids(&assembled_list.bytes);
+    let scratch_bytes = without_vector_image_ids(&scratch_list.bytes);
+    if assembled_bytes != scratch_bytes {
+        let first_differing_byte = assembled_bytes
+            .iter()
+            .zip(&scratch_bytes)
+            .position(|(copied, recorded)| copied != recorded)
+            .unwrap_or(assembled_bytes.len().min(scratch_bytes.len()));
+        let command_at = |bytes: &[u8]| {
+            let mut found = None;
+            for_each_command(bytes, |header, offset, _| {
+                if offset <= first_differing_byte {
+                    found = Some((offset, header.command_type.name(), header.bounding_rect));
+                }
+            });
+            found
+        };
+        panic!(
+            "A recording reused output that recording from scratch replaces: {} bytes against {}, differing from byte {first_differing_byte}, in {:?} where recording from scratch has {:?}",
+            assembled_list.bytes.len(),
+            scratch_list.bytes.len(),
+            command_at(&assembled_list.bytes),
+            command_at(&scratch_list.bytes)
+        );
+    }
+    assert!(
+        assembled_list.command_runs == scratch_list.command_runs,
+        "A recording reused command runs that recording from scratch replaces"
+    );
+    let chunk_ends = |list: &RecordedDisplayList| -> Vec<(u32, u32)> {
+        list.chunks
+            .iter()
+            .map(|chunk| (chunk.byte_end, chunk.run_end))
+            .collect()
+    };
+    assert!(
+        chunk_ends(assembled_list) == chunk_ends(scratch_list),
+        "A recording cut its tape into other chunks than recording from scratch does"
+    );
+    for (chunk, bytes, runs) in chunks_of(
+        &assembled_list.bytes,
+        &assembled_list.command_runs,
+        &assembled_list.chunks,
+    ) {
+        let chunk_start = chunk.byte_end - bytes.len() as u32;
+        assert!(
+            chunk.id == chunk_id(bytes, runs, chunk_start),
+            "A recording reused a chunk under a name that is not the name of what it holds"
+        );
+    }
+    assert!(
+        assembled.has_blocking_wheel_event_listeners == from_scratch.has_blocking_wheel_event_listeners,
+        "A recording reused wheel regions that recording from scratch replaces"
+    );
 }
 
 impl<O: Observer> PaintRecorder<'_, O> {

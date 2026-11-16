@@ -1741,7 +1741,7 @@ bool Internals::recorded_display_list_blocks_wheel_event_at(double x, double y)
     return Layout::RustFFI::render_state_recorded_blocks_wheel_event_at(document.layout_node_arena().host(), position);
 }
 
-void Internals::record_display_list_for_testing(bool paint_overlay, bool cold)
+void Internals::record_display_list_for_testing(bool paint_overlay, bool cold, bool finest_runs)
 {
     auto& document = window().associated_document();
     Layout::ForcedReadScope read { document };
@@ -1751,7 +1751,7 @@ void Internals::record_display_list_for_testing(bool paint_overlay, bool cold)
     // A recording against a visual context tree built fresh copies nothing from the published one.
     if (cold)
         document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
-    (void)document.record_display_list(read, HTML::PaintConfig { .paint_overlay = paint_overlay }, Painting::PaintCommandCacheMode::ReadWrite);
+    (void)document.record_display_list(read, HTML::PaintConfig { .paint_overlay = paint_overlay, .records_in_finest_runs = finest_runs }, Painting::PaintCommandCacheMode::ReadWrite);
 }
 
 void Internals::set_autoplay_policy(Utf16String const& policy)

@@ -67,6 +67,10 @@ impl PaintDamage {
         self.0 & other.0 == other.0
     }
 
+    pub(crate) const fn without(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
+
     pub(crate) const fn intersects(self, other: Self) -> bool {
         self.0 & other.0 != 0
     }
@@ -181,6 +185,7 @@ impl FrameDamage {
             .map_or(PaintDamage::NONE, |index| self.rows[index].1)
     }
 
+    #[cfg(test)]
     pub(crate) fn rows(&self) -> impl Iterator<Item = NodeSlotId> + '_ {
         self.rows.iter().map(|(row, _)| *row)
     }

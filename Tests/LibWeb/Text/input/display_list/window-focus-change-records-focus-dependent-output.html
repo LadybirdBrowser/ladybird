@@ -33,13 +33,13 @@ const focusChangeTrace = ringOutline => `
         BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
           BlockContainer<BODY>#body/foreground COPY
           BlockContainer<DIV>#ring/descendants(foreground) ASSEMBLE
-            BlockContainer<DIV>#ring/foreground COPY
+            BlockContainer<DIV>#ring/foreground RECORD (empty)
             BlockContainer<DIV>#ring/outline ${ringOutline}
-            BlockContainer<DIV>#ring/overlay COPY
+            BlockContainer<DIV>#ring/overlay SKIP
           BlockContainer<DIV>#selected/descendants(foreground) ASSEMBLE
             BlockContainer<DIV>#selected/foreground RECORD
-            BlockContainer<DIV>#selected/outline COPY
-            BlockContainer<DIV>#selected/overlay COPY
+            BlockContainer<DIV>#selected/outline SKIP
+            BlockContainer<DIV>#selected/overlay SKIP
           BlockContainer<DIV>#plain/descendants(foreground) COPY
           BlockContainer<BODY>#body/outline COPY
           BlockContainer<BODY>#body/overlay COPY

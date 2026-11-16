@@ -40,14 +40,14 @@ displayListTest({
                   @viewport/foreground COPY
                   BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
                   BlockContainer<HTML>#html ASSEMBLE
-                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/preamble RECORD (empty)
                     BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
-                    BlockContainer<HTML>#html/background COPY
-                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<HTML>#html/background RECORD (empty)
+                    BlockContainer<HTML>#html/border SKIP
                     BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
                       BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
-                      BlockContainer<BODY>#body/background COPY
-                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
                       BlockContainer<DIV>#a/descendants(background-and-borders) COPY
                       BlockContainer<DIV>#b/descendants(background-and-borders) ASSEMBLE
                     BlockContainer<HTML>#html/foreground COPY
@@ -55,7 +55,7 @@ displayListTest({
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer<DIV>#a/descendants(foreground) COPY
                       BlockContainer<DIV>#b/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/outline SKIP
                       BlockContainer<BODY>#body/overlay SKIP
                     BlockContainer<DIV>#a COPY
                     BlockContainer<DIV>#b ASSEMBLE

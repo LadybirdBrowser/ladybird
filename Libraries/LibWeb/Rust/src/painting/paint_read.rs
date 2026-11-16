@@ -592,10 +592,6 @@ impl<'a> PaintSource<'a> {
     pub(crate) fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage {
         self.frame().damage().of_row(row)
     }
-
-    pub(crate) fn damaged_paint_rows(&self) -> impl Iterator<Item = NodeSlotId> + 'a {
-        self.frame().damage().rows()
-    }
 }
 
 impl GeometryRead for PaintSource<'_> {

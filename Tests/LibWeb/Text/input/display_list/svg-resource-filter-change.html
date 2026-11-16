@@ -114,11 +114,11 @@ displayListTest({
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#filtered ASSEMBLE
                       BlockContainer<DIV>#filtered/preamble RECORD
-                      BlockContainer<DIV>#filtered/scroll-metadata COPY
-                      BlockContainer<DIV>#filtered/background COPY
-                      BlockContainer<DIV>#filtered/border COPY
-                      BlockContainer<DIV>#filtered/foreground COPY
-                      BlockContainer<DIV>#filtered/outline COPY
+                      BlockContainer<DIV>#filtered/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#filtered/background SKIP
+                      BlockContainer<DIV>#filtered/border SKIP
+                      BlockContainer<DIV>#filtered/foreground RECORD (empty)
+                      BlockContainer<DIV>#filtered/outline SKIP
                     BlockContainer<HTML>#html/outline COPY
                   @viewport/outline COPY
             `

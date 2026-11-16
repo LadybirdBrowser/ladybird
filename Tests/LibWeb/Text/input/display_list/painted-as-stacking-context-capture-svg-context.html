@@ -69,15 +69,15 @@ displayListTest({
                       BlockContainer<DIV>#root/outline COPY
                       BlockContainer<DIV>#root/overlay COPY
                     SVGSVGBox<svg>#svg ASSEMBLE
-                      SVGSVGBox<svg>#svg/preamble COPY
-                      SVGSVGBox<svg>#svg/scroll-metadata COPY
-                      SVGSVGBox<svg>#svg/background COPY
-                      SVGSVGBox<svg>#svg/border COPY
+                      SVGSVGBox<svg>#svg/preamble RECORD (empty)
+                      SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
+                      SVGSVGBox<svg>#svg/background SKIP
+                      SVGSVGBox<svg>#svg/border SKIP
                       SVGSVGBox<svg>#svg/svg RECORD
                         SVGSVGBox<svg>#svg/foreground RECORD (empty)
                         SVGGeometryBox<rect>#rect/svg RECORD
                           SVGGeometryBox<rect>#rect/foreground RECORD
-                      SVGSVGBox<svg>#svg/outline COPY
+                      SVGSVGBox<svg>#svg/outline SKIP
                     BlockContainer<HTML>#html/outline COPY
                   @viewport/outline COPY
             `

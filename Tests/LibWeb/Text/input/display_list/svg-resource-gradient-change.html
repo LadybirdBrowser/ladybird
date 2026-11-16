@@ -56,9 +56,9 @@ displayListTest({
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground COPY
                       SVGSVGBox<svg>#svg/descendants(foreground) ASSEMBLE
-                        SVGSVGBox<svg>#svg/scroll-metadata COPY
-                        SVGSVGBox<svg>#svg/background COPY
-                        SVGSVGBox<svg>#svg/border COPY
+                        SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
+                        SVGSVGBox<svg>#svg/background SKIP
+                        SVGSVGBox<svg>#svg/border SKIP
                         SVGSVGBox<svg>#svg/svg RECORD
                           SVGSVGBox<svg>#svg/foreground RECORD (empty)
                           SVGGeometryBox<rect>#rect/svg RECORD

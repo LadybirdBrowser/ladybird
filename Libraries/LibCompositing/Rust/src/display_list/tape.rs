@@ -83,9 +83,10 @@ ffi_bytes_fields!(DisplayListInlineTransform { transform, padding });
 pub const INLINE_TRANSFORM_ENTRY_SIZE: usize = std::mem::size_of::<DisplayListInlineTransform>();
 const _: () = assert!(INLINE_TRANSFORM_ENTRY_SIZE == 32);
 
-// A maximal sequence of consecutive commands sharing one visual context, summarized as the tape is
-// built so that replay can enter a context, cull, and depth-sort per run. The run owns the visual
-// context of its commands, including records nested inside groups. Runs cover the whole tape.
+// A sequence of consecutive commands sharing one visual context, summarized as the tape is built so
+// that replay can enter a context, cull, and depth-sort per run. The run owns the visual context of
+// its commands, including records nested inside groups. Runs cover the whole tape, and a run ends
+// where its context does or where the chunk of the tape that holds it does.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct DisplayListCommandRun {

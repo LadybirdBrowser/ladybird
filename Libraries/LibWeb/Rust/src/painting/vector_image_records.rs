@@ -10,6 +10,7 @@
 use crate::painting::display_list::builder::{
     HEADER_SIZE, RecordedDisplayList, for_each_command, read_command, read_header,
 };
+use crate::painting::display_list::chunks::DisplayListChunk;
 use crate::painting::display_list::commands::{
     DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun, DisplayListCommandType, DisplayListDataSpan,
     DisplayListGradientColorStops, DisplayListGradientPaintStyle, DisplayListInlineClip, DisplayListPaintStyle,
@@ -314,7 +315,22 @@ pub(crate) fn display_list_holding_vector_image_records(
     debug_assert!(
         display_list.command_runs.is_empty() || read_header(&bytes).payload_size as usize + HEADER_SIZE <= bytes.len()
     );
-    RecordedDisplayList { bytes, command_runs }
+    let chunks = display_list
+        .chunks
+        .iter()
+        .map(|chunk| DisplayListChunk {
+            byte_end: chunk.run_end.checked_sub(1).map_or(0, |last_run| {
+                let run = &command_runs[last_run as usize];
+                run.offset + run.size
+            }),
+            ..*chunk
+        })
+        .collect();
+    RecordedDisplayList {
+        bytes,
+        command_runs,
+        chunks,
+    }
 }
 
 #[cfg(test)]

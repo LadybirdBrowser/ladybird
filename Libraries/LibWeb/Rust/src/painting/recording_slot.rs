@@ -474,23 +474,21 @@ pub(crate) fn record_frame(
 ) -> (PendingRecording, Option<PendingRecordingTrace>) {
     let RecorderState {
         published_recording,
-        paint_order_tree,
+        published_recording_count,
         scratch,
         absolute_rects,
         published_inputs,
     } = recorder;
     let source = PaintSource::new(&frame, absolute_rects);
-    let (mut recording, publishes_recording) = paint_order_tree.with_access(inputs.publishes_recording, |tree| {
-        crate::painting::record::traversal::record_display_list(
-            &source,
-            scratch,
-            tree,
-            viewport,
-            &inputs,
-            published_recording.clone(),
-            trace_recordings,
-        )
-    });
+    let publishes_recording = published_recording_count.note_recording(inputs.publishes_recording);
+    let mut recording = crate::painting::record::traversal::record_display_list(
+        &source,
+        scratch,
+        viewport,
+        &inputs,
+        published_recording.clone(),
+        trace_recordings,
+    );
     let output = &mut recording.output;
     output.surface_clear_color = inputs.surface_clear_color;
     output.async_scrolling_metadata = inputs.async_scrolling_metadata.clone().map(|mut metadata| {

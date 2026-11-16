@@ -60,8 +60,11 @@ const workStages = [
         name: "displayList",
         begin: testInternals => testInternals.beginDisplayListTrace(),
         take: testInternals => testInternals.takeDisplayListTrace(),
+        // A recording keeps what it recorded in runs about a screen row of the document tall, and records a run again
+        // as a whole. Test pages are much smaller than one run, so the recordings here are cut as finely as they go,
+        // which shows which boxes a change reaches.
         settle: (testInternals, step) =>
-            testInternals.recordDisplayListForTesting(step.paintOverlay ?? false, step.cold ?? false),
+            testInternals.recordDisplayListForTesting(step.paintOverlay ?? false, step.cold ?? false, true),
         expected: (step, trace) => `recording (overlay=${step.paintOverlay ?? false})\n${normalizeTrace(trace)}`,
     },
 ];

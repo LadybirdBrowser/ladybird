@@ -92,7 +92,7 @@ displayListTest({
                     BlockContainer<DIV>#row-0.box COPY
                     BlockContainer<DIV>#outer.box COPY
                     BlockContainer<DIV>#row-2.box ASSEMBLE
-                      BlockContainer<DIV>#row-2.box/scroll-metadata COPY
+                      BlockContainer<DIV>#row-2.box/scroll-metadata RECORD
                       BlockContainer<DIV>#row-2.box/background SKIP
                       BlockContainer<DIV>#row-2.box/border RECORD
                       BlockContainer<DIV>#row-2.box/foreground RECORD
@@ -161,8 +161,8 @@ displayListTest({
                         BlockContainer<DIV>#inner/border SKIP
                         BlockContainer<DIV>#inner-content.tall/descendants(background-and-borders) ASSEMBLE
                           BlockContainer<DIV>#inner-content.tall/scroll-metadata RECORD
-                          BlockContainer<DIV>#inner-content.tall/background COPY
-                          BlockContainer<DIV>#inner-content.tall/border COPY
+                          BlockContainer<DIV>#inner-content.tall/background SKIP
+                          BlockContainer<DIV>#inner-content.tall/border SKIP
                       BlockContainer<DIV>#filler.tall/descendants(background-and-borders) ASSEMBLE
                         BlockContainer<DIV>#filler.tall/scroll-metadata RECORD
                         BlockContainer<DIV>#filler.tall/background SKIP

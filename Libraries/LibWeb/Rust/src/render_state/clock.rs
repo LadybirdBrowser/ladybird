@@ -1693,8 +1693,8 @@ impl ClockRecorder {
     /// Paint thread. Only the host renders an SVG image: the frame draws those the recording published last drew, as the
     /// host rendered them for it, and leaves the frame to the host where it draws another.
     fn record(mut self, frame: SampledFrame<RecordedFrame>, presenting: &mut Presenting) -> Self {
-        debug_assert!(self.recorder.paint_order_tree.is_reader());
-        if !self.recorder.paint_order_tree.reads_current_tree() {
+        debug_assert!(self.recorder.published_recording_count.is_of_a_fork());
+        if !self.recorder.published_recording_count.is_current() {
             self.leave_frame_to_host();
             return self;
         }

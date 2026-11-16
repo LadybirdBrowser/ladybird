@@ -65,6 +65,10 @@ pub(crate) struct RecordingInputs {
     pub force_dark_enabled: bool,
     pub force_dark_settings: ForceDarkSettings,
     pub should_paint_overlay: bool,
+    /// Cuts the plans a recording walks as finely as they go: every child scope with a bound is walked on its own,
+    /// and a run holds only what starts in one pixel row. Tests ask for it to see which boxes a change records
+    /// again on pages too small to span the rows a recording is otherwise cut along.
+    pub records_in_finest_runs: bool,
     pub canvas_fill_rect: Option<IntRect>,
     pub opaque_canvas: bool,
     pub bitmap_rect: IntRect,
