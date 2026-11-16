@@ -1113,7 +1113,9 @@ pub unsafe extern "C" fn libjs_jit_prepare_construct(
     };
     match push_construct_frame(vm_ref, &site, function, new_target, &storage.values()) {
         Ok(pushed) => {
-            frame_of(pushed.callee_frame).returns_to_native_caller.set(true);
+            let callee_frame = frame_of(pushed.callee_frame);
+            callee_frame.returns_to_native_caller.set(true);
+            callee_frame.runs_jit_code.set(true);
             PreparedConstruct {
                 callee_frame: pushed.callee_frame.as_ptr() as u64,
                 value: pushed.this_argument.map_or(Value::EMPTY, Value::from_object).0,
