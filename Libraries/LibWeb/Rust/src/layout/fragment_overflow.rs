@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::cow_map::CowMap;
 use crate::css::css_enums::{overflow, positioning, writing_mode};
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
@@ -21,6 +22,7 @@ use crate::painting::scrollable_overflow::physical_overflow_directions_of_style;
 use crate::painting::visual_context::node_values;
 use crate::painting::{node_painting, scroll_snap, style_queries};
 use libgfx_rust::AffineTransform;
+use smallvec::SmallVec;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct FragmentScrollableOverflow {
@@ -630,6 +632,60 @@ pub(crate) fn scrollable_overflow_of<'link>(
     }
 }
 
+/// The boxes whose committed links a box other than their containing block holds, by the containing block they were
+/// committed with, which a containing block reads its own from without walking every other one's.
+#[derive(Clone, Default)]
+pub(crate) struct LinksHeldApartFromTheirContainingBlocks {
+    containing_block_of: CowMap<NodeSlotId, NodeSlotId>,
+    by_containing_block: CowMap<NodeSlotId, SmallVec<[NodeSlotId; 4]>>,
+}
+
+impl LinksHeldApartFromTheirContainingBlocks {
+    fn insert(&mut self, node: NodeSlotId, containing_block: NodeSlotId) {
+        match self.containing_block_of.insert(node, containing_block) {
+            Some(previous) if previous == containing_block => return,
+            Some(previous) => self.remove_from(previous, node),
+            None => {}
+        }
+        self.by_containing_block
+            .get_or_insert_with(containing_block, SmallVec::new)
+            .push(node);
+    }
+
+    fn remove(&mut self, node: NodeSlotId) {
+        if let Some(containing_block) = self.containing_block_of.remove(&node) {
+            self.remove_from(containing_block, node);
+        }
+    }
+
+    fn remove_from(&mut self, containing_block: NodeSlotId, node: NodeSlotId) {
+        let Some(nodes) = self.by_containing_block.get_mut(&containing_block) else {
+            return;
+        };
+        if let Some(position) = nodes.iter().position(|held| *held == node) {
+            nodes.swap_remove(position);
+        }
+        if nodes.is_empty() {
+            self.by_containing_block.remove(&containing_block);
+        }
+    }
+
+    fn held_apart_from(&self, containing_block: NodeSlotId) -> &[NodeSlotId] {
+        self.by_containing_block
+            .get(&containing_block)
+            .map_or(&[], |nodes| nodes.as_slice())
+    }
+
+    fn is_empty(&self) -> bool {
+        self.containing_block_of.is_empty()
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.containing_block_of.clear();
+        self.by_containing_block.clear();
+    }
+}
+
 impl LayoutNodeArena {
     pub(crate) fn request_fragment_overflow_recalculation(&mut self, node: NodeSlotId) {
         if !node.is_invalid() {
@@ -644,10 +700,11 @@ impl LayoutNodeArena {
         is_held_apart: bool,
     ) {
         if is_held_apart {
-            self.links_held_apart_from_their_containing_blocks.insert(node);
+            self.links_held_apart_from_their_containing_blocks
+                .insert(node, containing_block);
             self.request_fragment_overflow_recalculation(containing_block);
         } else if !self.links_held_apart_from_their_containing_blocks.is_empty() {
-            self.links_held_apart_from_their_containing_blocks.remove(&node);
+            self.links_held_apart_from_their_containing_blocks.remove(node);
         }
     }
 
@@ -707,7 +764,12 @@ impl LayoutNodeArena {
         let candidates = contained_links(&link.fragment)
             .map(|contained_link| contained_link.fragment.node)
             .chain(links_held_beside)
-            .chain(self.links_held_apart_from_their_containing_blocks.iter().copied());
+            .chain(
+                self.links_held_apart_from_their_containing_blocks
+                    .held_apart_from(node)
+                    .iter()
+                    .copied(),
+            );
         for candidate in candidates {
             if met.insert(candidate)
                 && self.slot_is_live(candidate)

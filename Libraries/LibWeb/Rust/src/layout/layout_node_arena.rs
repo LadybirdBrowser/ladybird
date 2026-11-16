@@ -1231,7 +1231,8 @@ pub(crate) struct LayoutNodeArena {
     committed_link_holders: ForkVec<CommittedLinkHolder>,
     /// The boxes whose committed links a full commit met at the top of its pass, which no fragment holds.
     pass_level_committed_links: Vec<NodeSlotId>,
-    pub(crate) links_held_apart_from_their_containing_blocks: CowSet<NodeSlotId>,
+    pub(crate) links_held_apart_from_their_containing_blocks:
+        super::fragment_overflow::LinksHeldApartFromTheirContainingBlocks,
     /// Whether a node left the document since a layout round last left layout up to date. Its boxes leave the rows at
     /// once, while the committed layout of the boxes around them names them until that round lays those out again.
     boxes_removed_ahead_of_layout: bool,
