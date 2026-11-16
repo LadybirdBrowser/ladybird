@@ -84,11 +84,6 @@ bool CSSStyleValue::is_unit_value() const
     return kind_of(*this) == StyleValueKind::Unit;
 }
 
-bool CSSStyleValue::is_unparsed_value() const
-{
-    return kind_of(*this) == StyleValueKind::Unparsed;
-}
-
 GC::Ref<CSSNumericValue> CSSNumericValue::create_sum(GC::Ref<CSSNumericValue> first, GC::Ref<CSSNumericValue> second)
 {
     return GC::Ref { *static_cast<CSSNumericValue*>(web_css_numeric_value_create_sum(vm_abi(), first.ptr(), second.ptr())) };

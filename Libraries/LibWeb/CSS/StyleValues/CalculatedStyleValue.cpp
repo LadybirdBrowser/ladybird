@@ -267,17 +267,6 @@ Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionConte
     return {};
 }
 
-Optional<i32> CalculatedStyleValue::resolve_integer(CalculationResolutionContext const& context) const
-{
-    auto calculation_context = this->calculation_context();
-    auto result = resolve_value(context);
-
-    if (result.has_value() && result->type.has_value() && result->type->matches_number(calculation_context.percentages_resolve_as))
-        return round_to_nearest_integer(result->value);
-
-    return {};
-}
-
 bool CalculatedStyleValue::contains_percentage() const
 {
     // The Rust mirror answers.

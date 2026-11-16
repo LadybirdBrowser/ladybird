@@ -130,8 +130,6 @@ public:
     template<typename T>
     using ParseErrorOr = ErrorOr<T, ParseError>;
 
-    static ParseErrorOr<void> collect_arbitrary_substitution_function_presence(Utf16View, SubstitutionFunctionsPresence&);
-
 private:
     RustStyleSheetParse parse_stylesheet(Utf16View);
     enum class ParseContextMode {
@@ -195,7 +193,6 @@ RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams co
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, Utf16View);
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, Utf16View, CSS::Parser::PseudoElementParsingMode = CSS::Parser::PseudoElementParsingMode::Selector);
 Optional<CSS::RustRule> parse_css_rule(CSS::Parser::ParsingParams const&, Utf16View, bool nested = false);
-Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const&, Utf16View);
 WEB_API ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string);
 bool is_valid_animation_name_custom_ident(Utf16View);
 

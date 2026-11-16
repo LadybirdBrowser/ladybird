@@ -94,8 +94,6 @@ private:
 
 SelectorList selector_list_from_rust(SelectorFFI::RustParsedSelectorList const*);
 SelectorList matching_selectors_for_rule(RustRule const&);
-Optional<SelectorList> scope_start_selectors_for_rule(RustRule const&);
-Optional<SelectorList> scope_end_selectors_for_rule(RustRule const&);
 Utf16String serialize_a_group_of_selectors(SelectorList const&, StyleSheetState const* = nullptr);
 u8 pseudo_element_to_ffi(Optional<PseudoElement>);
 Optional<PseudoElement> pseudo_element_from_ffi(u8);

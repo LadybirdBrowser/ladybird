@@ -4815,8 +4815,3 @@ pub(crate) fn style_value_dependency_flags(value: &StyleValueData) -> u8 {
 pub(crate) fn retained_value_depends_on_current_color(value: &RetainedStyleValueData) -> bool {
     style_value_dependency_flags(value.data()) & 1 != 0
 }
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_depends_on_current_color(data: &StyleValueData) -> bool {
-    value_depends_on_current_color(data)
-}

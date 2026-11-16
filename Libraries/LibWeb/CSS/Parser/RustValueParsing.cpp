@@ -68,20 +68,6 @@ Parser::ParseContextStorage Parser::make_parse_context(ParseContextMode mode, Op
     return ParseContextStorage { *this, mode, direct_property_context };
 }
 
-Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_presence(Utf16View source, SubstitutionFunctionsPresence& presence)
-{
-    u8 rust_presence = 0;
-    if (!ValueParserFFI::rust_collect_arbitrary_substitution_function_presence_from_source(ffi_utf16_view(source), &rust_presence))
-        return Parser::ParseError::SyntaxError;
-    presence.attr |= rust_presence & (1 << 0);
-    presence.dashed_function |= rust_presence & (1 << 1);
-    presence.env |= rust_presence & (1 << 2);
-    presence.if_ |= rust_presence & (1 << 3);
-    presence.inherit |= rust_presence & (1 << 4);
-    presence.var |= rust_presence & (1 << 5);
-    return {};
-}
-
 Optional<RustSyntaxHandle> parse_as_syntax(Utf16View source, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
     auto syntax = ValueParserFFI::rust_parse_syntax(ffi_utf16_view(source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);

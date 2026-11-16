@@ -109,22 +109,6 @@ SelectorList matching_selectors_for_rule(RustRule const& rule)
     return take_selector_list(static_cast<SelectorFFI::RustParsedSelectorList*>(bound));
 }
 
-Optional<SelectorList> scope_start_selectors_for_rule(RustRule const& rule)
-{
-    auto* bound = Parser::ValueParserFFI::rust_rule_scope_start_selectors(rule.handle());
-    if (!bound)
-        return {};
-    return take_selector_list(static_cast<SelectorFFI::RustParsedSelectorList*>(bound));
-}
-
-Optional<SelectorList> scope_end_selectors_for_rule(RustRule const& rule)
-{
-    auto* bound = Parser::ValueParserFFI::rust_rule_scope_end_selectors(rule.handle());
-    if (!bound)
-        return {};
-    return take_selector_list(static_cast<SelectorFFI::RustParsedSelectorList*>(bound));
-}
-
 static Vector<SelectorFFI::StringView> namespace_prefixes_mapping_to_default(StyleSheetState const& style_sheet, Vector<Vector<u16>>& storage)
 {
     Vector<SelectorFFI::StringView> prefixes;

@@ -23,7 +23,7 @@ use crate::css::ffi_support::FfiUtf16View;
 use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::arbitrary_substitution::{
     SubstitutionFunctionsPresence, collect_arbitrary_substitution_function_presence,
-    contains_arbitrary_substitution_function, declaration_value_is_valid, substitution_function_presence_bits,
+    contains_arbitrary_substitution_function, declaration_value_is_valid,
 };
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
@@ -6483,28 +6483,6 @@ pub unsafe extern "C" fn rust_parse_css_value(
     };
     *out_status = status;
     value
-}
-
-/// Returns a substitution-function presence bitmap for CSS source.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_collect_arbitrary_substitution_function_presence_from_source(
-    source: FfiUtf16View,
-    out_presence: Option<&mut u8>,
-) -> bool {
-    let Some(out_presence) = out_presence else {
-        return false;
-    };
-    let Some(source) = source.units() else {
-        return false;
-    };
-    let Ok(values) = component_values_from_source(source) else {
-        return false;
-    };
-    let Some(presence) = substitution_function_presence_bits(&values) else {
-        return false;
-    };
-    *out_presence = presence;
-    true
 }
 
 type VisitMarginComponent = unsafe extern "C" fn(*mut c_void, u8, f64, *const u16, usize);

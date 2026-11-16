@@ -61,8 +61,6 @@ public:
 
     bool resolves_to_number() const { return resolved_type().matches_number(calculation_context().percentages_resolve_as); }
     Optional<double> resolve_number(CalculationResolutionContext const&) const;
-    Optional<i32> resolve_integer(CalculationResolutionContext const&) const;
-
     bool contains_percentage() const;
 
 private:

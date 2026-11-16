@@ -91,14 +91,6 @@ ColorResolutionStyle ColorResolutionStyle::for_layout_node(Layout::NodeWithStyle
     };
 }
 
-ColorResolutionStyle ColorResolutionStyle::for_computed_values(ComputedValues const& computed_values)
-{
-    return {
-        .inherited_ui_values = computed_values.style_group_payload(StyleGroupIndex::InheritedUIValues),
-        .inherited_text_values = computed_values.style_group_payload(StyleGroupIndex::InheritedTextValues),
-    };
-}
-
 StyleValue::StyleValue(Type type, StyleValueFFI::StyleValueData const* value)
     : m_value(value)
     , m_type(type)
@@ -347,17 +339,6 @@ bool StyleValue::equals(StyleValue const& other) const
     default:
         return StyleValueFFI::rust_style_value_equals(m_value.data(), other.m_value.data());
     }
-}
-
-bool StyleValue::is_color_function() const
-{
-    return type() == Type::Color && m_value->tag == StyleValueFFI::StyleValueData::Tag::ColorFunction;
-}
-
-bool StyleValue::depends_on_current_color() const
-{
-    // The recursion over nested colors lives in the Rust style value graph.
-    return StyleValueFFI::rust_style_value_depends_on_current_color(m_value.operator->());
 }
 
 bool StyleValue::has_color() const

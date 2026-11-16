@@ -41,10 +41,4 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
     return create_internal(move(token_source), substitution_presence, source_text_mode, contains_attr_tainted_values, nullptr);
 }
 
-ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create_attr_tainted_with_parsed_value(Utf16String token_source, Parser::SubstitutionFunctionsPresence substitution_presence, SourceTextMode source_text_mode, NonnullRefPtr<StyleValue const> parsed_value)
-{
-    VERIFY(!parsed_value->is_unresolved());
-    return create_internal(move(token_source), substitution_presence, source_text_mode, true, move(parsed_value));
-}
-
 }

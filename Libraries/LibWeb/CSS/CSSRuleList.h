@@ -57,7 +57,6 @@ public:
     Iterator begin() const { return { *this, 0 }; }
     Iterator end() const { return { *this, length() }; }
 
-    static WebIDL::ExceptionOr<void> validate_rule_removal(RustRuleList const&, u32 index);
     void remove_a_css_rule_without_validation(Badge<StyleSheetState>, u32 index);
     enum class Nested {
         No,
