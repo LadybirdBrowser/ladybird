@@ -1,0 +1,11 @@
+Ladybird skips the lines that hold only a block-level box when it
+spans an inline containing block over the inline’s first and last
+lines, and falls back to a zero-width piece at the line’s start where
+the inline has no other lines. Blink does the same since its
+inline_containing_block_utils change to skip opaque items (2026-09,
+with the WPT test abspos-in-block-in-inline-in-relpos-inline-002).
+Gecko’s AbsoluteContainingBlock walks the inline’s continuations and
+skips the block siblings of an IB split, and WebKit’s
+PositionedLayoutConstraints reads the inline’s own line boxes through
+InlineIterator::lineLeftmostInlineBoxFor(), so neither lets the block
+widen the inline’s containing block.
