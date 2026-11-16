@@ -279,9 +279,8 @@ ByteString RequestServerManager::sites_directory() const
 // itself would tell it which other sites the user has visited.
 ByteString RequestServerManager::cache_path_for_site(Utf16String const& site) const
 {
-    Crypto::Authentication::HMAC hmac(Crypto::Hash::HashKind::SHA256, m_site_cache_key);
     auto site_bytes = site.to_byte_string();
-    auto digest = hmac.process(site_bytes.view());
+    auto digest = MUST(Crypto::Authentication::hmac(Crypto::Hash::HashKind::SHA256, m_site_cache_key, site_bytes.bytes()));
     return LexicalPath::join(sites_directory(), encode_hex(digest.bytes())).string();
 }
 
