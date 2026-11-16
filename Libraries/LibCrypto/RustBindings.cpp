@@ -783,14 +783,16 @@ bool crypto_okp_export_der(OkpCurve curve, bool is_public, ReadonlyBytes key, vo
 }
 
 extern "C" {
-void crypto_hmac_sign(::Crypto::Hash::HashKind, ReadonlyBytes, ReadonlyBytes, void*, ReceiveEncodedBytes);
+bool crypto_hmac_sign(::Crypto::Hash::HashKind, ReadonlyBytes, ReadonlyBytes, void*, ReceiveEncodedBytes);
 }
 
-void crypto_hmac_sign(::Crypto::Hash::HashKind hash_kind, ReadonlyBytes key, ReadonlyBytes message, void* state, ReceiveEncodedBytes receive)
+bool crypto_hmac_sign(::Crypto::Hash::HashKind hash_kind, ReadonlyBytes key, ReadonlyBytes message, void* state, ReceiveEncodedBytes receive)
 {
-    ::Crypto::Authentication::HMAC hmac(hash_kind, key);
-    auto mac = hmac.process(message);
-    receive(state, mac);
+    auto mac = ::Crypto::Authentication::hmac(hash_kind, key, message);
+    if (mac.is_error())
+        return false;
+    receive(state, mac.value().bytes());
+    return true;
 }
 
 extern "C" {

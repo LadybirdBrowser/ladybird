@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCrypto/Authentication/HMAC.h>
 #include <LibCrypto/Hash/Hash.h>
 #include <LibTest/TestCase.h>
 #include <cstring>
