@@ -1245,6 +1245,11 @@ Utf16String Internals::devtools_log_table(GC::Root<JS::Object> const& table_data
     return Utf16String::from_utf8(arguments.serialized());
 }
 
+void Internals::set_long_stack_traces_enabled(bool enabled)
+{
+    vm().set_keeps_long_stack_traces(enabled);
+}
+
 // The names of the own properties of a logged object, if it's still kept.
 Utf16String Internals::devtools_logged_properties(u64 object_id)
 {
