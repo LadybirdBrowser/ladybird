@@ -504,13 +504,28 @@ impl<'a> StyleValues<'a> {
             .unwrap_or_else(|| unresolvable_anchor_size_or(self.unresolved_height(), auto_computed_size()))
     }
 
+    /// Whether the box is a table row, row group or cell, whose 'min-height' and 'max-height' are ignored.
+    // NB: "In CSS 2.1, the effect of 'min-height' and 'max-height' on tables, inline tables, table cells, table rows,
+    //     and row groups is undefined." https://www.w3.org/TR/CSS22/visudet.html#min-max-heights
+    // INTEROP: Other engines ignore them on table cells, rows and row groups.
+    fn ignores_min_and_max_height(self) -> bool {
+        let display = self.display();
+        display.is_table_cell() || display.is_table_row() || display.is_table_row_group_kind()
+    }
+
     pub(crate) fn min_height(self) -> &'a ComputedSize {
+        if self.ignores_min_and_max_height() {
+            return auto_computed_size();
+        }
         self.anchor_resolved_values
             .and_then(|resolved| resolved.min_height.as_ref())
             .unwrap_or_else(|| unresolvable_anchor_size_or(self.unresolved_min_height(), auto_computed_size()))
     }
 
     pub(crate) fn max_height(self) -> &'a ComputedSize {
+        if self.ignores_min_and_max_height() {
+            return none_computed_size();
+        }
         self.anchor_resolved_values
             .and_then(|resolved| resolved.max_height.as_ref())
             .unwrap_or_else(|| unresolvable_anchor_size_or(self.unresolved_max_height(), none_computed_size()))
