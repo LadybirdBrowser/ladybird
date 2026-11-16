@@ -552,40 +552,6 @@ Color Color::from_linear_srgb(float red, float green, float blue, float alpha)
     return color_from_linear_srgb({ red, green, blue, alpha });
 }
 
-Color Color::from_linear_display_p3(float r, float g, float b, float alpha)
-{
-    auto xyz = linear_display_p3_to_xyz65({ r, g, b, alpha });
-    return from_xyz65(xyz[0], xyz[1], xyz[2], xyz.alpha());
-}
-
-// https://www.w3.org/TR/css-color-4/#predefined-a98-rgb
-Color Color::from_a98rgb(float r, float g, float b, float alpha)
-{
-    auto xyz = a98rgb_to_xyz65({ r, g, b, alpha });
-    return from_xyz65(xyz[0], xyz[1], xyz[2], xyz.alpha());
-}
-
-// https://www.w3.org/TR/css-color-4/#predefined-a98-rgb
-Color Color::from_display_p3(float r, float g, float b, float alpha)
-{
-    auto linear = display_p3_to_linear_display_p3({ r, g, b, alpha });
-    return from_linear_display_p3(linear[0], linear[1], linear[2], linear.alpha());
-}
-
-// https://www.w3.org/TR/css-color-4/#predefined-prophoto-rgb
-Color Color::from_pro_photo_rgb(float r, float g, float b, float alpha)
-{
-    auto xyz = pro_photo_rgb_to_xyz50({ r, g, b, alpha });
-    return from_xyz50(xyz[0], xyz[1], xyz[2], xyz.alpha());
-}
-
-// https://www.w3.org/TR/css-color-4/#predefined-rec2020
-Color Color::from_rec2020(float r, float g, float b, float alpha)
-{
-    auto xyz = rec2020_to_xyz65({ r, g, b, alpha });
-    return from_xyz65(xyz[0], xyz[1], xyz[2], xyz.alpha());
-}
-
 Color Color::from_xyz50(float x, float y, float z, float alpha)
 {
     auto linear = xyz50_to_linear_srgb({ x, y, z, alpha });
