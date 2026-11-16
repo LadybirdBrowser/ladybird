@@ -7318,22 +7318,22 @@ void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, La
     // What the recording made goes to a document this navigable still presents, which still has the boxes it recorded.
     if (has_been_destroyed() || !has_compositor_context() || active_document().ptr() != document.ptr() || !document->has_committed_viewport_box())
         return;
-    // A frame presented without a recording keeps the hit-test list.
-    auto hit_test_list_adoption = Painting::HitTestListAdoption::Kept;
+    // A frame presented without a recording keeps the hit-test items on screen.
+    auto hit_test_items_adoption = Painting::HitTestItemsAdoption::Kept;
     if (landing != Layout::RustFFI::FfiRecordingLanding::PresentedUnrecorded) {
         // What the recording made stands as the compositor's frame. One that landed after the host wrote the document's
-        // rows leaves no hit-test list, as the boxes it names may be gone.
-        auto const hit_test_list_stands = landing == Layout::RustFFI::FfiRecordingLanding::LandedBehindRows ? Painting::HitTestListStands::No : Painting::HitTestListStands::Yes;
+        // rows leaves no hit-test items standing, as the boxes it shows may be gone.
+        auto const hit_test_items_stand = landing == Layout::RustFFI::FfiRecordingLanding::LandedBehindRows ? Painting::HitTestItemsStand::No : Painting::HitTestItemsStand::Yes;
         Painting::take_recording_trace_if_pending(read, *document);
-        hit_test_list_adoption = document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording);
+        hit_test_items_adoption = document->adopt_published_recording(hit_test_items_stand, *in_flight.recording);
     }
     // A frame that kept its hit-test items, and sent no visual context tree, placed them as the frame before it did,
     // unless it sent other scroll offsets. The hover waits for a scroll of the user's to stop instead (see
     // schedule_hover_update_after_async_scroll).
     auto const frame_placement = [&] {
-        if (hit_test_list_adoption == Painting::HitTestListAdoption::TookNew)
+        if (hit_test_items_adoption == Painting::HitTestItemsAdoption::TookNew)
             return Web::EventHandler::FramePlacement::Changed;
-        if (hit_test_list_adoption != Painting::HitTestListAdoption::Kept)
+        if (hit_test_items_adoption != Painting::HitTestItemsAdoption::Kept)
             return Web::EventHandler::FramePlacement::Unchanged;
         if (in_flight.sends_visual_context_tree)
             return Web::EventHandler::FramePlacement::Changed;

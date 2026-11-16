@@ -147,7 +147,7 @@ static void apply_document_style_invalidation_after_style_change(DOM::Document& 
     if (invalidation.invalidates_hit_test_display_list())
         document.set_needs_to_record_display_list();
     else
-        document.set_needs_to_record_display_list_keeping_hit_test_display_list();
+        document.set_needs_to_record_display_list_keeping_hit_test_items_on_screen();
 }
 
 // One element's computed style answers for another only while the inputs it was keyed on still mean what they meant. A

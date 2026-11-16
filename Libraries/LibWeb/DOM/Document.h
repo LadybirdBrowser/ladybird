@@ -1659,12 +1659,11 @@ public:
     // Commits the navigable's next frame, a recording of the document, to the render owner, which presents it with
     // `presentation` beside the event loop.
     Painting::DisplayListRecording commit_display_list_recording(Layout::BegunRead const& read, HTML::PaintConfig, Compositor::FlightPresentation&& presentation);
-    void finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const&, Painting::HitTestListStands = Painting::HitTestListStands::Yes);
-    // Takes in the hit-test list `recording` made, read in `hit_test_list_read`, where that still stands for the
-    // document's boxes. Where none does, nothing is read.
-    Painting::HitTestListAdoption adopt_published_recording(Optional<Layout::BegunRead const&> hit_test_list_read, Painting::DisplayListRecording const&);
-    // Indicates whether a query of the hit test list would require a synchronous update to it.
-    [[nodiscard]] bool hit_test_display_list_is_current(Layout::BegunRead const& read);
+    void finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const&, Painting::HitTestItemsStand = Painting::HitTestItemsStand::Yes);
+    // Takes note of the hit-test items of the frame `recording` made, where they still stand for the document's boxes.
+    Painting::HitTestItemsAdoption adopt_published_recording(Painting::HitTestItemsStand, Painting::DisplayListRecording const&);
+    // Whether the frame the document adopted last still places what can be hit as the document's rows do.
+    [[nodiscard]] bool hit_test_items_on_screen_are_current(Layout::BegunRead const& read);
     // Where a visual animation sample time is given, the hit test reads the compositor's animations at that time, as a
     // frame of the compositor's shows them.
     Optional<Painting::HitTestQuery> prepare_hit_test_query(Layout::BegunRead const& read, Optional<i64> visual_animation_sample_time_nanoseconds = {});
@@ -1680,7 +1679,7 @@ public:
     RenderingStats& ensure_rendering_stats() const;
 
     void set_needs_to_record_display_list();
-    void set_needs_to_record_display_list_keeping_hit_test_display_list();
+    void set_needs_to_record_display_list_keeping_hit_test_items_on_screen();
 
     Unicode::Segmenter& grapheme_segmenter() const;
     Unicode::Segmenter& line_segmenter() const;
@@ -2480,9 +2479,15 @@ private:
     HashTable<GC::Ref<Element>> m_list_owners_pending_item_renumber;
     HashTable<GC::Ref<Element>> m_list_owners_with_stale_item_counters;
     bool m_stale_list_item_counter_rendered { false };
-    RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
-    // The previous recording's list, retained so cached per-paintable item ranges can be spliced into
-    // the next recording. Rotated only by cache-read-write recordings; survives display list invalidation.
+    // The hit-test items of the frame the document adopted last: their generation as the frame landed, and the
+    // structural epoch of the visual context tree the frame was recorded against. None once something that can be hit
+    // changed, or where the boxes of the frame may be gone.
+    struct HitTestItemsOnScreen {
+        u64 generation { 0 };
+        u64 visual_context_tree_structural_epoch { 0 };
+    };
+    Optional<HitTestItemsOnScreen> m_hit_test_items_on_screen;
+    [[nodiscard]] bool hit_test_items_on_screen_are_as_adopted() const;
     Optional<CSSPixelRect> m_caret_hit_test_debug_rect;
 
     mutable StyleUpdateStatistics m_style_update_statistics;

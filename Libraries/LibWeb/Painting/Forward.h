@@ -12,9 +12,8 @@
 namespace Web::Painting {
 
 class DocumentPaintState;
-class HitTestDisplayList;
 class HitTestQuery;
-enum class HitTestListAdoption : u8;
+enum class HitTestItemsAdoption : u8;
 struct CaretPosition;
 struct DisplayListRecording;
 struct HitTestResult;

@@ -44,7 +44,6 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Selection/CaretNavigation.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWebCommon/Infra/Strings.h>
