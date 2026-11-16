@@ -1,0 +1,40 @@
+<!doctype html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#row-layout">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-tables/height-distribution/../../reference/ref-filled-green-100px-square.xht">
+<link rel="bookmark" href="https://crbug.com/982312" />
+<meta name="assert" content="intrinsic height of a table cell descendant is honored when the descendant and cell both have unresolvable percentage heights and when the descendant has overflow:auto" />
+
+<title>table cell percent height descendant with overflow:auto</title>
+
+<!-- other_msft.html -->
+
+<style>
+.list-div {
+  overflow-y: auto;
+  height: 100%;
+}
+.list-div-child {
+  width: 100px;
+  height: 100px;
+  background: green;
+}
+#redSquare {
+  height: 100px;
+  width: 100px;
+  background-color: red;
+  position: absolute;
+  z-index: -1;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+</p>
+<div id="redSquare"></div>
+<div style="display:table">
+  <div style="display:table-cell; height:100%">
+    <div class="list-div">
+      <div class="list-div-child"></div>
+    </div>
+  </div>
+</div>

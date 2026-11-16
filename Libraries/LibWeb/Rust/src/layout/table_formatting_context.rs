@@ -621,6 +621,7 @@ struct CellLayoutState {
     /// What placing the cell takes of the box its layout handed back.
     placed: Option<formatting_context::PlacedChild>,
     content_baselines: DerivedBaselines,
+    contents_depend_on_percentage_block_size: bool,
     /// Whether the cell's run laid out the absolutely positioned boxes the cell contains against its final size.
     run_laid_out_abspos_contained_by_cell: bool,
     /// How far the table moves the contents of the cell along the block axis to align them in the rows it spans.
@@ -1753,6 +1754,16 @@ impl<'pass> TableFormattingContext<'pass> {
 
     fn table_block_size_is_auto(&self) -> bool {
         self.style(self.run.box_).height().is_auto()
+    }
+
+    /// https://drafts.csswg.org/css-tables-3/#table-cell-content-relayout
+    /// For compat reasons, it is further clarified that a cell is considered to have its height specified explicitly if
+    /// the computed height of the cell is a length, or if the computed height of its table-root ancestor is a length or
+    /// percentage, regardless of whether that percentage does behave as auto or not.
+    fn cell_contents_resolve_percentages_against_rows(&self, cell_box: Node) -> bool {
+        // AD-HOC: Treat every non-auto table height as specified, for compatibility with intrinsic-height tables.
+        let height = self.style(cell_box).height();
+        !self.table_block_size_is_auto() || (height.is_length() && !height.contains_percentage())
     }
 
     fn use_fixed_mode_layout(&self) -> bool {
@@ -2938,6 +2949,9 @@ impl<'pass> TableFormattingContext<'pass> {
         let layout = &mut self.cell_layouts[cell_index];
         layout.box_cells = laid_out.cells();
         layout.content_baselines = laid_out.baselines();
+        layout.contents_depend_on_percentage_block_size = laid_out
+            .result()
+            .is_some_and(|result| result.contents_depend_on_percentage_block_size);
         layout.run_laid_out_abspos_contained_by_cell = laid_out.laid_out_abspos_contained_by_root();
         layout.placed = Some(laid_out.placed_child());
         layout.fragment_arrival = laid_out.into_fragment_arrival(run);
@@ -3445,6 +3459,68 @@ impl<'pass> TableFormattingContext<'pass> {
         self.table_block_size = self.table_block_size.max(total);
     }
 
+    /// https://drafts.csswg.org/css-tables-3/#table-cell-content-relayout
+    /// Once table-height distribution has concluded, and the sum of row heights plus spacing/border is equal to the table
+    /// height, the content of table-cells which contained descendants whose percentage heights were ignored or treated as
+    /// 0px by the first-pass row layout rules (see above) must undergo a second layout pass, as defined below.
+    fn relayout_cell_contents(&mut self, run: &FormattingContextRun<'pass>) {
+        let collapsed = self.style(self.run.box_).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let mut rows_to_refresh = None;
+        for cell_index in 0..self.cells.len() {
+            let cell = self.cells[cell_index];
+            if self.rows[cell.row_index].is_collapsed
+                || !self.cell_layouts[cell_index].contents_depend_on_percentage_block_size
+                || !self.cell_contents_resolve_percentages_against_rows(cell.box_)
+            {
+                continue;
+            }
+            let laid_out = self.cell_layouts[cell_index].box_cells;
+            let free_space = self.compute_row_content_block_size(cell) - laid_out.border_box_block_size(collapsed);
+            // AD-HOC: The second pass only runs if the cell grew, so cyclic percentage heights keep their intrinsic size
+            //         when row sizing doesn't add space.
+            // https://github.com/w3c/csswg-drafts/issues/6380
+            if free_space <= CssPixels::default() {
+                continue;
+            }
+            let stretched_content_block_size = laid_out.content_block_size + free_space;
+            let layout = &mut self.cell_layouts[cell_index];
+            layout.box_cells.set_content_block_size(stretched_content_block_size);
+            layout.box_cells.has_definite_block_size = true;
+            layout.pre_layout_content_block_size = stretched_content_block_size;
+            layout.inside_layout_input = layout
+                .box_cells
+                .available_inner_space_or_constraints_from(self.available_space);
+            self.layout_inside_cell(
+                run,
+                cell_index,
+                RootSizingDirectives {
+                    content_block_size_after_run: geometry::ContentBlockSizeAfterRun::Automatic,
+                    ..RootSizingDirectives::default()
+                },
+            );
+            self.cells[cell_index].baseline = self.cell_baseline(cell_index);
+            rows_to_refresh.get_or_insert_with(|| vec![false; self.rows.len()])[cell.row_index] = true;
+        }
+        let Some(rows_to_refresh) = rows_to_refresh else {
+            return;
+        };
+        // NB: A percentage max-height can lower a cell's baseline. Rebuild the affected rows' baselines before aligning
+        //     any cell, without redistributing the row heights when percentage-sized contents overflow them.
+        for (row, refresh) in self.rows.iter_mut().zip(&rows_to_refresh) {
+            if *refresh {
+                row.baseline = None;
+                row.max_cell_descent = CssPixels::default();
+                row.smallest_cell_block_end_offset = None;
+            }
+        }
+        for cell_index in 0..self.cells.len() {
+            let cell = self.cells[cell_index];
+            if rows_to_refresh[cell.row_index] {
+                self.note_cell_in_row_baseline(cell_index, &self.style(cell.box_));
+            }
+        }
+    }
+
     /// Stretches each cell to the rows it spans and aligns its contents in them: the table moves the contents as it
     /// places the cell, or, where the cell's run laid out the absolutely positioned boxes the cell contains, lays the
     /// cell out again at its stretched size with its contents moved, for those boxes to be laid out against it.
@@ -3768,6 +3844,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.compute_table_block_size(run);
         self.distribute_block_size_to_rows();
         self.position_row_boxes();
+        self.relayout_cell_contents(run);
         self.stretch_cells_to_their_rows(run);
         self.position_cell_boxes();
         self.position_column_boxes();

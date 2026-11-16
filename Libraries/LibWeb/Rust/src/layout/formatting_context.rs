@@ -1088,6 +1088,8 @@ pub(crate) struct ChildLayoutResult {
     /// children once they are placed, unless one of them is not an item.
     pub in_flow_children_margin_box_block_extent: Option<CssPixels>,
     pub depends_on_percentage_block_size: bool,
+    /// Whether descendants other than absolutely positioned boxes depend on this box's percentage block-size basis.
+    pub contents_depend_on_percentage_block_size: bool,
     /// For an absolutely positioned box, the used insets its run gave it.
     pub out_of_flow_root_used_insets: Option<run_state::UsedInsets>,
     /// For a box that establishes an orthogonal flow, its baselines along the horizontal axis of its parent's frame,
@@ -2701,6 +2703,10 @@ fn lay_out_run_root_and_contents<'pass>(
             }
         });
     result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
+    result.contents_depend_on_percentage_block_size = run
+        .state
+        .percentage_block_size_dependency_of(run.box_)
+        .has_descendant_that_depends_on_percentage_block_size;
     // NB: A run that builds no fragments could never lay out the absolutely positioned boxes it registers. Those whose
     //     containing block is the root are laid out against its final sizes and box sides, in the frame its contents
     //     are laid out in, so that the root's fragment holds them. The columns of a fragmentainer run leave them to the

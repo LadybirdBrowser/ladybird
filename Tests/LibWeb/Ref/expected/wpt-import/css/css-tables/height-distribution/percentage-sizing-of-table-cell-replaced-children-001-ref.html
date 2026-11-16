@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Reftest Reference: Percentage sizing of table cell children with margin, border, padding and scrollbar</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<style>
+.table {
+  display: block;
+  border: solid 5px black;
+  width: 150px;
+  height: 100px;
+}
+
+.td {
+  background: cyan;
+  overflow: scroll;
+  padding: 5px 15px 10px 20px;
+  border: solid magenta;
+  border-width: 12px 9px 6px 3px;
+  height: 100px;
+  box-sizing: border-box;
+}
+
+img {
+  display: block;
+  background: yellow;
+  width: 100%;
+  height: 100%;
+}
+</style>
+<link rel="stylesheet" type="text/css" href="support/scrollbars.css">
+
+<p>The test passes if you see scrollbars but there's no overflow, so you cannot actually scroll.</p>
+
+<div class="table">
+  <div class="td">
+    <img />
+  </div>
+</div>

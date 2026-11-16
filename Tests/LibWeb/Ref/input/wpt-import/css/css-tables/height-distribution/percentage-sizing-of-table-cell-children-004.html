@@ -1,0 +1,37 @@
+<!doctype html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#row-layout">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-tables/height-distribution/../../reference/ref-filled-green-100px-square.xht">
+<link rel="bookmark" href="https://crbug.com/982312" />
+<meta name="assert" content="%height child of a table cell with a fixed height is positioned correctly when the min-height is greater than the cell's fixed height and when the descendant has overflow:auto." />
+
+<title>table cell percent height descendant with overflow:auto</title>
+
+<!-- msft_fixed_height.html -->
+
+<style>
+.list-div {
+  overflow-y: auto;
+  height: 100%;
+  width: 100px;
+  min-height: 100px;
+  background: green;
+}
+#redSquare {
+  height: 100px;
+  width: 100px;
+  background-color: red;
+  position: absolute;
+  z-index: -1;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+</p>
+<div id="redSquare"></div>
+<div style="display:table">
+  <div style="display:table-cell; height:50px">
+    <div class="list-div">
+    </div>
+  </div>
+</div>

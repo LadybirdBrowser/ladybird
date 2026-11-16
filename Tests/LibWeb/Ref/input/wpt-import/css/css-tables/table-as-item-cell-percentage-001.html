@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#computing-the-table-height">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1917028">
+<link rel="match" href="../../../../expected/wpt-import/css/css-tables/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="This test verifies that the table's content height matches its final cross-size, and the table cells do not re-resolve their percentage heights based on the table's content height.">
+<style>
+.flex {
+  display: flex;
+}
+table {
+  border-spacing: 0;
+  width: 100px;
+  background: green;
+}
+tr {
+  height: 50px;
+}
+td {
+  height: 100%;
+}
+</style>
+
+<p>Test passes if there is a filled green square.</p>
+<div class="flex">
+  <table>
+    <thead><tr><td></td></tr></thead>
+    <tbody><tr><td></td></tr></tbody>
+  </table>
+</div>
