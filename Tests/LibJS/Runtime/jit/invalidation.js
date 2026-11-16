@@ -8,6 +8,8 @@
 const iterations = 200;
 
 let neverAssignedBefore = 1;
+let neverAssignedBeforeConstruct = 1;
+let neverAssignedBeforeSuperCall = 1;
 
 describe("Invalidation of JIT code", () => {
     test("global bindings assigned for the first time while the code runs", () => {
@@ -22,6 +24,45 @@ describe("Invalidation of JIT code", () => {
         }
         expect(sum).toBe(iterations / 2 + 2 * (iterations / 2));
         for (let i = 0; i < iterations; ++i) expect(read()).toBe(2);
+    });
+
+    test("global bindings assigned for the first time while a constructor runs", () => {
+        const state = { action: index => index };
+        function call(index) {
+            debugger;
+            return state.action(index);
+        }
+        class Base {
+            field = 1;
+            constructor(index) {
+                this.before = index + neverAssignedBeforeConstruct + neverAssignedBeforeSuperCall;
+                this.value = call(index);
+                this.after = index + neverAssignedBeforeConstruct + neverAssignedBeforeSuperCall;
+            }
+        }
+        class Derived extends Base {}
+        const construct = (C, index) => new C(index);
+        for (const f of [call, Base, Derived, construct]) jit.prepare(f);
+        for (let i = 0; i < 20; ++i) {
+            expect(construct(Base, i).value).toBe(i);
+            expect(construct(Derived, i).value).toBe(i);
+        }
+        const assignments = [
+            [Base, () => ++neverAssignedBeforeConstruct],
+            [Derived, () => ++neverAssignedBeforeSuperCall],
+        ];
+        for (const [C, assign] of assignments) {
+            for (const f of [call, Base, Derived, construct]) jit.compile(f);
+            state.action = () => {
+                assign();
+                return 0;
+            };
+            const object = construct(C, 5);
+            expect(object).toBeInstanceOf(C);
+            expect(object.field).toBe(1);
+            expect(object.value).toBe(0);
+            expect(object.after).toBe(object.before + 1);
+        }
     });
 
     test("prototype chains that change between calls", () => {
