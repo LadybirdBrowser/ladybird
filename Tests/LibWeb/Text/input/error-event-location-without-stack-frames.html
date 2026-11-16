@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    removeTestErrorHandler();
+
+    function runUncaught(source) {
+        let reported;
+        window.onerror = (message, filename, lineno, colno) => {
+            reported = { message, filename: filename.split("/").pop(), lineno, colno };
+            return true;
+        };
+        const script = document.createElement("script");
+        script.textContent = source;
+        document.body.appendChild(script);
+        window.onerror = null;
+        script.remove();
+        return reported;
+    }
+
+    test(() => {
+        const savedStackTraceLimit = Error.stackTraceLimit;
+        try {
+            for (const limit of [10, 0, "not a number"]) {
+                Error.stackTraceLimit = limit;
+                const thrown = runUncaught(`\n  throw new Error("limit " + Error.stackTraceLimit);`);
+                const made = runUncaught(`\n\n  var error = new Error("made"); throw error;`);
+                println(`${JSON.stringify(limit)}: thrown ${JSON.stringify(thrown)}`);
+                println(`${JSON.stringify(limit)}: made ${JSON.stringify(made)}`);
+            }
+        } finally {
+            Error.stackTraceLimit = savedStackTraceLimit;
+        }
+    });
+</script>
