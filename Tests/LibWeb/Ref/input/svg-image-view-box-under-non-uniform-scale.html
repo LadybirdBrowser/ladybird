@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-image-view-box-under-non-uniform-scale-ref.html">
+<style>
+body { margin: 0; }
+img, div { position: absolute; top: 8px; width: 24px; height: 24px; transform: scale(2, 4); transform-origin: top left; }
+img { left: 8px; }
+div { left: 64px; background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='none' stroke='blue' stroke-width='1'/></svg>") no-repeat; }
+</style>
+<img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='none' stroke='blue' stroke-width='1'/></svg>">
+<div></div>
