@@ -5,7 +5,6 @@
  */
 
 #include <AK/Vector.h>
-#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibJS/EmbeddingABIConversions.h>
 #include <LibJS/Runtime/BigInt.h>
 
@@ -13,28 +12,44 @@ namespace JS {
 
 using namespace EmbeddingABI;
 
-// Magnitudes cross the ABI as 32-bit words, least significant first, which is the order of the words of
-// Crypto::UnsignedBigInteger.
-GC::Ref<BigInt> BigInt::create(VM& vm, Crypto::SignedBigInteger big_integer)
+GC::Ref<BigInt> BigInt::create(VM& vm, bool is_negative, ReadonlySpan<u32> magnitude_words)
 {
-    auto magnitude_words = big_integer.unsigned_value().words();
-    auto* bigint = js_bigint_create_from_magnitude(vm_to_abi(vm), big_integer.is_negative(), magnitude_words.data(), magnitude_words.size());
+    auto* bigint = js_bigint_create_from_magnitude(vm_to_abi(vm), is_negative, magnitude_words.data(), magnitude_words.size());
     VERIFY(bigint);
     return cell_ref_from_abi<BigInt>(bigint);
 }
 
-Crypto::SignedBigInteger BigInt::big_integer() const
+GC::Ref<BigInt> BigInt::create_from_i64(VM& vm, i64 value)
 {
-    auto* bigint = bigint_to_abi(*this);
-    Vector<u32> magnitude_words;
-    magnitude_words.resize(js_bigint_magnitude_word_count(bigint));
-    js_bigint_copy_magnitude_words(bigint, magnitude_words.data(), magnitude_words.size());
-    return Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { magnitude_words }, js_bigint_is_negative(bigint) };
+    // NB: The magnitude of i64's minimum is 2^63, which fits in a u64.
+    auto magnitude = value < 0 ? static_cast<u64>(0) - static_cast<u64>(value) : static_cast<u64>(value);
+    u32 const words[] = { static_cast<u32>(magnitude), static_cast<u32>(magnitude >> 32) };
+    return create(vm, value < 0, words);
+}
+
+GC::Ref<BigInt> BigInt::create_from_u64(VM& vm, u64 value)
+{
+    u32 const words[] = { static_cast<u32>(value), static_cast<u32>(value >> 32) };
+    return create(vm, false, words);
 }
 
 GC::Ptr<BigInt> BigInt::create_from_string(VM& vm, Utf16View const& string)
 {
     return cell_from_abi<BigInt>(js_bigint_create_from_string(vm_to_abi(vm), utf16_view_to_abi(string)));
+}
+
+bool BigInt::is_negative() const
+{
+    return js_bigint_is_negative(bigint_to_abi(*this));
+}
+
+Vector<u32> BigInt::magnitude_words() const
+{
+    auto* bigint = bigint_to_abi(*this);
+    Vector<u32> magnitude_words;
+    magnitude_words.resize(js_bigint_magnitude_word_count(bigint));
+    js_bigint_copy_magnitude_words(bigint, magnitude_words.data(), magnitude_words.size());
+    return magnitude_words;
 }
 
 String BigInt::to_string() const
