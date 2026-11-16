@@ -1,0 +1,19 @@
+Ladybird skips a source element whose non-empty type attribute
+canPlayType() answers with the empty string, before setting currentSrc
+or fetching it. Blink’s HTMLMediaElement::SelectNextSourceChild(),
+WebKit’s HTMLMediaElement::selectNextSourceChild() and Gecko’s
+HTMLMediaElement::LoadFromSourceChildren() each skip such a source too,
+and also treat an empty type attribute as no type at all.
+
+Chrome 157.0.8103.78 and Firefox 151.0 agree with Ladybird now on eight
+cases: a source with an unsupported type, a supported type, an empty
+type, an unparseable type, application/octet-stream, an unsupported
+codec, an HLS source followed by an MP4 one, and an unsupported source
+followed by one with no type. (Playwright’s WebKit 26.5 build plays no
+media, so it selects no source in any of them.)
+
+Blink and WebKit also take the type of a source with no type attribute
+from its src, when that’s a data: URL, and skip the source if they
+can’t play that type. Gecko doesn’t, and neither does the spec, so
+Ladybird doesn’t either: Firefox 151.0 and Ladybird select a data:
+URL with an unplayable type, and Chrome 157.0.8103.78 skips it.
