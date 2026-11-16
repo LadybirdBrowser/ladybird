@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const root = document.createElement("div");
+        root.innerHTML = "<x></x><x></x>";
+        const result = document.evaluate(".//x", root, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+        println(`first: ${result.iterateNext() === root.firstChild}`);
+
+        // A change to another tree leaves the iterator alone.
+        document.body.appendChild(document.createElement("p")).remove();
+        println(`invalid after a change elsewhere: ${result.invalidIteratorState}`);
+
+        // A change to the tree the nodes were selected in invalidates it.
+        root.appendChild(document.createElement("x"));
+        println(`invalid after a change to its tree: ${result.invalidIteratorState}`);
+        try {
+            result.iterateNext();
+            println("FAIL: did not throw");
+        } catch (e) {
+            println(e.name);
+        }
+
+        // So does a change to the data of a text node in it.
+        const text = root.firstChild.appendChild(document.createTextNode("a"));
+        const other = document.evaluate(".//x", root, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+        println(`invalid before a change to its text: ${other.invalidIteratorState}`);
+        text.data = "b";
+        println(`invalid after a change to its text: ${other.invalidIteratorState}`);
+
+        // And a change to a shadow tree made while its host was in the document.
+        const host = document.createElement("div");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = "<div><x></x><x></x></div>";
+        const inShadowTree = document.evaluate(".//x", shadowRoot.firstChild, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+        println(`invalid in a detached shadow tree: ${inShadowTree.invalidIteratorState}`);
+        document.body.appendChild(host);
+        shadowRoot.firstChild.firstChild.remove();
+        host.remove();
+        println(`invalid after a change while connected: ${inShadowTree.invalidIteratorState}`);
+    });
+</script>

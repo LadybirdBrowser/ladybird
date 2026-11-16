@@ -1,0 +1,8 @@
+first: true
+invalid after a change elsewhere: false
+invalid after a change to its tree: true
+InvalidStateError
+invalid before a change to its text: false
+invalid after a change to its text: true
+invalid in a detached shadow tree: false
+invalid after a change while connected: true

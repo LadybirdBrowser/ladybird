@@ -76,7 +76,6 @@
 #include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/XPath/EvaluateResult.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>

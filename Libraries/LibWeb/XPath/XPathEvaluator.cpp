@@ -34,7 +34,7 @@ WebIDL::ExceptionOr<GC::Ref<XPathExpression>> XPathEvaluator::create_expression(
 
 WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathEvaluator::evaluate(Utf16String const& expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPathResult> result)
 {
-    return XPath::throw_evaluation_error_if_needed(XPath::evaluate(expression, context_node, resolver, type, result));
+    return XPath::evaluate(expression, context_node, resolver, type, result);
 }
 
 GC::Ref<DOM::Node> XPathEvaluator::create_ns_resolver(GC::Ref<DOM::Node> node_resolver)

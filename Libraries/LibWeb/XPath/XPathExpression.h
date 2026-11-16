@@ -8,29 +8,28 @@
 
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/XPath/EvaluateResult.h>
 #include <LibWeb/XPath/XPathNSResolver.h>
 #include <LibWeb/XPath/XPathResult.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::XPath {
 
+class Expression;
+
 class XPathExpression final : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(XPathExpression, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(XPathExpression);
 
 public:
-    [[nodiscard]] static GC::Ref<XPathExpression> create(Utf16String const& expression, GC::Ptr<XPathNSResolver> resolver);
+    [[nodiscard]] static GC::Ref<XPathExpression> create(NonnullOwnPtr<Expression>);
 
-    explicit XPathExpression(Utf16String const& expression, GC::Ptr<XPathNSResolver> resolver);
+    explicit XPathExpression(NonnullOwnPtr<Expression>);
     virtual ~XPathExpression() override;
-    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(DOM::Node const& context_node, WebIDL::UnsignedShort type = 0, GC::Ptr<XPathResult> result = nullptr);
 
 private:
-    Utf16String m_expression;
-    GC::Ptr<XPathNSResolver> m_resolver;
+    NonnullOwnPtr<Expression> m_expression;
 };
 
 }

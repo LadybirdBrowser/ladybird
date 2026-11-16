@@ -97,21 +97,23 @@ static ErrorOr<void, Error> locate_nodes_using_xpath(NodeList const& context_nod
         //    DOMException, return error with error code invalid selector; otherwise, if this throws any other exception
         //    return error with error code unknown error.
         auto evaluate_result = XPath::evaluate(Utf16String::from_utf8(selector), context_node, nullptr, XPath::XPathResult::ORDERED_NODE_SNAPSHOT_TYPE, nullptr);
-        if (evaluate_result.has<XPath::EvaluationError>()) {
-            if (evaluate_result.get<XPath::EvaluationError>() == XPath::EvaluationError::InvalidExpression)
+        if (evaluate_result.is_exception()) {
+            auto exception = evaluate_result.exception();
+            if (auto* dom_exception = exception.get_pointer<GC::Ref<WebIDL::DOMException>>(); dom_exception && (*dom_exception)->name() == "SyntaxError"sv)
                 return invalid_selector("The selector is not a valid XPath expression"sv);
             return Error::from_code(ErrorCode::UnknownError, "Unable to evaluate the XPath expression"sv);
         }
-        auto result = evaluate_result.get<GC::Ref<XPath::XPathResult>>();
+        auto result = evaluate_result.release_value();
 
         // 2. Let index be 0.
         // 3. Let length be the result of getting the snapshotLength property from evaluate result.
-        auto length = result->snapshot_length();
+        auto nodes = result->nodes();
+        auto length = nodes.size();
 
         // 4. Repeat, while index is less than length:
-        for (u32 index = 0; index < length; ++index) {
+        for (size_t index = 0; index < length; ++index) {
             // 1. Let node be the result of calling snapshotItem with evaluate result as this and index as the argument.
-            auto node = result->snapshot_item(static_cast<int>(index));
+            auto node = nodes[index];
             if (!node)
                 continue;
 

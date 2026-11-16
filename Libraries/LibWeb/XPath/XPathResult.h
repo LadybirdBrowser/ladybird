@@ -10,6 +10,7 @@
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::XPath {
@@ -37,31 +38,41 @@ public:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::UnsignedShort result_type() const { return m_result_type; }
-    WebIDL::Double number_value() const { return m_number_value; }
-    Utf16String string_value() { return m_string_value; }
-    WebIDL::Boolean boolean_value() const { return m_boolean_value; }
-    GC::Ptr<DOM::Node> single_node_value() { return m_node_set.is_empty() ? nullptr : m_node_set.first(); }
-    WebIDL::Boolean invalid_iterator_state() const { return m_invalid_iterator_state; }
-    WebIDL::UnsignedLong snapshot_length() const { return m_node_set.size(); }
+    WebIDL::ExceptionOr<WebIDL::Double> number_value() const;
+    WebIDL::ExceptionOr<Utf16String> string_value() const;
+    WebIDL::ExceptionOr<WebIDL::Boolean> boolean_value() const;
+    WebIDL::ExceptionOr<GC::Ptr<DOM::Node>> single_node_value() const;
+    WebIDL::Boolean invalid_iterator_state() const;
+    WebIDL::ExceptionOr<WebIDL::UnsignedLong> snapshot_length() const;
 
-    GC::Ptr<DOM::Node> iterate_next();
-    GC::Ptr<DOM::Node> snapshot_item(int index);
+    WebIDL::ExceptionOr<GC::Ptr<DOM::Node>> iterate_next();
+    WebIDL::ExceptionOr<GC::Ptr<DOM::Node>> snapshot_item(WebIDL::UnsignedLong index) const;
+
+    // The nodes of a result that has nodes, in document order.
+    ReadonlySpan<GC::Ptr<DOM::Node>> nodes() const { return m_node_set; }
 
     void set_number(WebIDL::Double number_value);
     void set_string(Utf16String string_value);
     void set_boolean(bool boolean_value);
-    void set_node_set(Vector<GC::Ptr<DOM::Node>>&& node_set, unsigned short type);
+    // `root` is the root of the tree the nodes were selected in: changing that tree invalidates an iterator over them.
+    void set_node_set(ReadonlySpan<GC::Ref<DOM::Node>> node_set, unsigned short type, DOM::Node& root);
 
 private:
+    void forget_node_set();
+
+    bool is_iterator() const { return m_result_type == UNORDERED_NODE_ITERATOR_TYPE || m_result_type == ORDERED_NODE_ITERATOR_TYPE; }
+    bool is_snapshot() const { return m_result_type == UNORDERED_NODE_SNAPSHOT_TYPE || m_result_type == ORDERED_NODE_SNAPSHOT_TYPE; }
+
     WebIDL::UnsignedShort m_result_type { 0 };
     WebIDL::Double m_number_value { 0 };
     Utf16String m_string_value;
     WebIDL::Boolean m_boolean_value { false };
-    WebIDL::Boolean m_invalid_iterator_state { false };
-    WebIDL::UnsignedLong m_snapshot_length { 0 };
 
     Vector<GC::Ptr<DOM::Node>> m_node_set;
-    Vector<GC::Ptr<DOM::Node>>::Iterator m_node_set_iter;
+    size_t m_next_node { 0 };
+    GC::Ptr<DOM::Node> m_root;
+    u64 m_dom_tree_version { 0 };
+    u64 m_character_data_version { 0 };
 };
 
 }

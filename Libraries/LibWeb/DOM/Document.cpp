@@ -11791,7 +11791,7 @@ WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> Document::create_expression
 
 WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> Document::evaluate(Utf16String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPath::XPathResult> result)
 {
-    return XPath::throw_evaluation_error_if_needed(XPath::evaluate(expression, context_node, resolver, type, result));
+    return XPath::evaluate(expression, context_node, resolver, type, result);
 }
 
 GC::Ref<DOM::Node> Document::create_ns_resolver(GC::Ref<DOM::Node> node_resolver)
