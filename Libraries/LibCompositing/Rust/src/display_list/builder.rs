@@ -103,15 +103,40 @@ impl PendingInlineClip {
         }
     }
 
-    fn header_bounding_rect_restriction(&self) -> Option<IntRect> {
-        if self.space.is_some() {
-            return None;
-        }
-        match self.mode {
-            ClipMode::Intersect => Some(enclosing_int_rect(self.clip_rect_or_path_device_bounds)),
-            ClipMode::Difference => None,
-        }
+    fn rect_confining_the_command(&self) -> Option<FloatRect> {
+        (self.space.is_none() && self.mode == ClipMode::Intersect).then_some(self.clip_rect_or_path_device_bounds)
     }
+}
+
+fn rect_of_inline_clip_confining_its_command(clip: &DisplayListInlineClip) -> Option<FloatRect> {
+    (!clip.has_own_space && clip.mode == ClipMode::Intersect).then_some(clip.clip_rect_or_path_device_bounds)
+}
+
+fn record_bounding_rect(
+    command_bounding_rect: Option<IntRect>,
+    inline_transform: Option<AffineTransform>,
+    rects_of_inline_clips_confining_the_command: impl IntoIterator<Item = FloatRect>,
+) -> Option<IntRect> {
+    let mut bounding_rect = command_bounding_rect;
+    if let (Some(transform), Some(rect)) = (inline_transform, bounding_rect) {
+        bounding_rect = Some(enclosing_int_rect(transform.map_rect(rect.to_float())));
+    }
+    for clip_rect in rects_of_inline_clips_confining_the_command {
+        let restriction = enclosing_int_rect(clip_rect);
+        bounding_rect = Some(match bounding_rect {
+            Some(rect) => rect.intersected(restriction),
+            None => restriction,
+        });
+    }
+    bounding_rect
+}
+
+pub fn bounding_rect_computed_from_payload(header: &DisplayListCommandHeader, payload: &[u8]) -> Option<IntRect> {
+    record_bounding_rect(
+        command_bounding_rect_computed_from_payload(header.command_type, payload),
+        inline_transform_of(header, payload),
+        inline_clips_of(header, payload).filter_map(|clip| rect_of_inline_clip_confining_its_command(&clip)),
+    )
 }
 
 // A finished tape together with the run table summarizing it and the chunks it is cut into.
@@ -471,18 +496,13 @@ impl DisplayListBuilder {
     ) -> DisplayListCommandHeader {
         const { assert!(std::mem::align_of::<C>() <= COMMAND_ALIGNMENT) };
         let inline_clip_count = u8::try_from(inline_clips.len()).expect("too many inline clips on one command");
-        let mut bounding_rect = command.bounding_rect();
-        if let (Some(transform), Some(rect)) = (inline_transform, bounding_rect) {
-            bounding_rect = Some(enclosing_int_rect(transform.map_rect(rect.to_float())));
-        }
-        for clip in inline_clips {
-            if let Some(restriction) = clip.header_bounding_rect_restriction() {
-                bounding_rect = Some(match bounding_rect {
-                    Some(rect) => rect.intersected(restriction),
-                    None => restriction,
-                });
-            }
-        }
+        let bounding_rect = record_bounding_rect(
+            command.bounding_rect(),
+            inline_transform,
+            inline_clips
+                .iter()
+                .filter_map(PendingInlineClip::rect_confining_the_command),
+        );
         DisplayListCommandHeader {
             command_type: C::COMMAND_TYPE,
             has_bounding_rect: bounding_rect.is_some(),

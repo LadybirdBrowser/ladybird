@@ -5,7 +5,8 @@
  */
 
 use crate::display_list::builder::{
-    for_each_command, has_inline_clip_in_its_own_space, inline_clips_of, inline_transform_of, read_command,
+    bounding_rect_computed_from_payload, for_each_command, has_inline_clip_in_its_own_space, inline_clips_of,
+    inline_transform_of, read_command,
 };
 use crate::display_list::commands::{
     ClipMode, ClipNodeIndex, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun,
@@ -557,10 +558,11 @@ pub fn replay_records<'t, Painter: ReplayPainter + ?Sized>(
         if header.command_type.is_compositor_metadata() {
             return;
         }
-        if replays_nested_records_where_it_plays(header.command_type, payload)
-            && (header.bounding_rect.is_empty() || painter.would_be_fully_clipped_by_painter(header.bounding_rect))
-        {
-            return;
+        if replays_nested_records_where_it_plays(header.command_type, payload) {
+            let bounding_rect = bounding_rect_computed_from_payload(header, payload).unwrap_or_default();
+            if bounding_rect.is_empty() || painter.would_be_fully_clipped_by_painter(bounding_rect) {
+                return;
+            }
         }
         // The matrix of the command's space, while an inline clip in a space of its own has the canvas in another.
         let mut command_space_matrix = None;
@@ -571,7 +573,9 @@ pub fn replay_records<'t, Painter: ReplayPainter + ?Sized>(
             if let Some(OwnSpaceClipExtent::Within(rect)) = own_space_clip_extent(
                 header,
                 payload,
-                header.bounding_rect.to_float(),
+                bounding_rect_computed_from_payload(header, payload)
+                    .unwrap_or_default()
+                    .to_float(),
                 command_to_root,
                 clip_space_matrix,
             ) && (rect.is_empty() || painter.would_be_fully_clipped_by_painter(enclosing_int_rect(rect)))

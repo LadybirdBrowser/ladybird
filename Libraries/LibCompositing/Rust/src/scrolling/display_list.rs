@@ -7,7 +7,7 @@
 //! Everything about a list that travels alongside its tape when it is sent to the Compositor.
 
 use super::ContextRef;
-use crate::display_list::builder::read_command;
+use crate::display_list::builder::{bounding_rect_computed_from_payload, read_command};
 use crate::display_list::commands::{DisplayListCommandType, PaintCaret};
 use crate::display_list::storage::DisplayListStorage;
 use crate::display_list::summary::{for_each_compositor_metadata, for_each_indexed_record};
@@ -96,7 +96,11 @@ impl DisplayList {
             &self.storage.summary().carets,
             |context, header, payload| {
                 let command = read_command::<PaintCaret>(payload);
-                visit(context, header.bounding_rect, &command);
+                visit(
+                    context,
+                    bounding_rect_computed_from_payload(header, payload).unwrap_or_default(),
+                    &command,
+                );
             },
         );
     }
