@@ -1073,9 +1073,16 @@ public:
             return;
         }
 
-        // FIXME: 6. ⌛ If candidate has a type attribute whose value, when parsed as a MIME type (including any codecs described
-        //           by the codecs parameter, for types that define that parameter), represents a type that the user agent knows
-        //           it cannot render, then end the synchronous section, and jump down to the failed with elements step below.
+        // 6. ⌛ If candidate has a type attribute whose value, when parsed as a MIME type (including any codecs described by
+        //    the codecs parameter, for types that define that parameter), represents a type that the user agent knows it
+        //    cannot render, then end the synchronous section, and jump down to the failed with elements step below.
+        // NB: An empty type attribute names no type, so unlike an unparseable one, it doesn't rule the source out.
+        if (auto type = m_candidate->get_attribute(HTML::AttributeNames::type); type.has_value() && !type->is_empty()) {
+            if (m_media_element->can_play_type(*type) == Bindings::CanPlayTypeResult::Empty) {
+                failed_with_elements();
+                return;
+            }
+        }
 
         // 7. ⌛ Set the currentSrc attribute to the result of applying the URL serializer to urlRecord.
         m_media_element->m_current_src = utf16_string_from_url_ascii(url_record->serialize());
