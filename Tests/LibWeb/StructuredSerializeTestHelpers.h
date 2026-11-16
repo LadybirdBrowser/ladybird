@@ -713,10 +713,7 @@ inline GC::Ref<Web::Crypto::CryptoKey> build_live_crypto_key(StringView type, St
 // Fabricate RsaKeyAlgorithm directly to pin the encode-only tag-1 branch.
 inline GC::Ref<Web::Crypto::CryptoKey> build_live_crypto_key_with_rsa_key_algorithm(StringView type, StringView usage, StringView name, u32 modulus_length, ReadonlyBytes public_exponent, ReadonlyBytes modulus)
 {
-    auto exponent = ::Crypto::UnsignedBigInteger::import_data(public_exponent);
-    auto modulus_value = ::Crypto::UnsignedBigInteger::import_data(modulus);
-
-    auto key = Web::Crypto::CryptoKey::create(::Crypto::PK::RSAPublicKey { modulus_value, exponent });
+    auto key = Web::Crypto::CryptoKey::create(MUST(::Crypto::PK::RSAPublicKey::from_components(modulus, public_exponent)));
     key->set_type(type == "public"sv ? Web::Crypto::KeyType::Public : (type == "private"sv ? Web::Crypto::KeyType::Private : Web::Crypto::KeyType::Secret));
     key->set_extractable(false);
     key->set_usages({ usage == "verify"sv ? Web::Bindings::KeyUsage::Verify : Web::Bindings::KeyUsage::Sign });
