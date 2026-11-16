@@ -10,8 +10,8 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <LibCrypto/Curves/EdwardsCurve.h>
-#include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/Hash/Hash.h>
+#include <LibCrypto/PK/EC.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibDNS/Validator.h>
 
@@ -139,24 +139,9 @@ static ErrorOr<bool> verify_signature(Records::DNSKEY const& key, ReadonlyBytes 
         size_t scalar_size = is_p256 ? 32 : 48;
         if (key.public_key.size() != scalar_size * 2 || signature.size() != scalar_size * 2)
             return false;
-        Crypto::Curves::SECPxxxr1Point point {
-            Crypto::UnsignedBigInteger::import_data(key.public_key.bytes().slice(0, scalar_size)),
-            Crypto::UnsignedBigInteger::import_data(key.public_key.bytes().slice(scalar_size, scalar_size)),
-            scalar_size,
-        };
-        Crypto::Curves::SECPxxxr1Signature ecdsa_signature {
-            Crypto::UnsignedBigInteger::import_data(signature.slice(0, scalar_size)),
-            Crypto::UnsignedBigInteger::import_data(signature.slice(scalar_size, scalar_size)),
-            scalar_size,
-        };
-        if (is_p256) {
-            auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, signed_data);
-            Crypto::Curves::SECP256r1 curve;
-            return curve.verify(digest.bytes(), point, ecdsa_signature);
-        }
-        auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA384, signed_data);
-        Crypto::Curves::SECP384r1 curve;
-        return curve.verify(digest.bytes(), point, ecdsa_signature);
+        auto public_key = TRY(Crypto::PK::ECPublicKey::from_coordinates(key.public_key.bytes().slice(0, scalar_size), key.public_key.bytes().slice(scalar_size, scalar_size)));
+        auto digest = Crypto::Hash::digest(is_p256 ? Crypto::Hash::HashKind::SHA256 : Crypto::Hash::HashKind::SHA384, signed_data);
+        return Crypto::PK::ecdsa_verify(public_key, digest.bytes(), signature.slice(0, scalar_size), signature.slice(scalar_size, scalar_size));
     }
     case Algorithm::ED25519: {
         Crypto::Curves::Ed25519 ed25519;

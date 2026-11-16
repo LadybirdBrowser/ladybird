@@ -7,7 +7,7 @@
 #include <AK/Memory.h>
 #include <LibCrypto/PK/MLDSA.h>
 
-#include <LibCrypto/Curves/SECPxxxr1.h>
+#include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/ModuleLatticePrivateKey.h>
 

@@ -6,21 +6,23 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibCrypto/Curves/EdwardsCurve.h>
-#include <LibCrypto/Curves/SECPxxxr1.h>
+#include <LibCrypto/PK/EC.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(test_secp256r1_rejects_wrong_signature_width)
 {
-    Crypto::Curves::SECP256r1 curve;
     Array<u8, 32> hash {};
-    Crypto::UnsignedBigInteger const private_key { 1 };
+    Array<u8, 32> d {};
+    d[31] = 1;
 
-    auto public_key = TRY_OR_FAIL(curve.generate_public_key(private_key));
-    auto signature = TRY_OR_FAIL(curve.sign(hash, private_key));
-    EXPECT(TRY_OR_FAIL(curve.verify(hash, public_key, signature)));
+    auto private_key = TRY_OR_FAIL(Crypto::PK::ECPrivateKey::from_scalar(d, {}, {}));
+    auto public_key = TRY_OR_FAIL(private_key.derive_public_key());
+    auto signature = TRY_OR_FAIL(Crypto::PK::ecdsa_sign(private_key, hash));
+    EXPECT(TRY_OR_FAIL(Crypto::PK::ecdsa_verify(public_key, hash, signature.r, signature.s)));
 
-    ++signature.size;
-    EXPECT(!TRY_OR_FAIL(curve.verify(hash, public_key, signature)));
+    auto wide_r = TRY_OR_FAIL(ByteBuffer::create_zeroed(1));
+    TRY_OR_FAIL(wide_r.try_append(signature.r));
+    EXPECT(!TRY_OR_FAIL(Crypto::PK::ecdsa_verify(public_key, hash, wide_r, signature.s)));
 }
 
 TEST_CASE(test_x25519)
@@ -211,38 +213,44 @@ TEST_CASE(test_secp256r1)
     };
     // clang-format on
 
-    auto alice_private_key = Crypto::UnsignedBigInteger::import_data(alice_private_key_data);
-    auto alice_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ alice_public_key_data, 65 }));
-    auto bob_private_key = Crypto::UnsignedBigInteger::import_data(bob_private_key_data);
-    auto bob_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ bob_public_key_data, 65 }));
-    auto shared_secret = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ shared_secret_data, 65 }));
-    auto private_key = Crypto::UnsignedBigInteger::import_data(private_key_data);
-    auto expected_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ expected_public_key_data, 65 }));
+    auto alice_private_key = TRY_OR_FAIL(Crypto::PK::ECPrivateKey::from_scalar(alice_private_key_data, {}, {}));
+    auto alice_public_key = TRY_OR_FAIL(Crypto::PK::ECPublicKey::from_octets(alice_public_key_data));
+    auto bob_private_key = TRY_OR_FAIL(Crypto::PK::ECPrivateKey::from_scalar(bob_private_key_data, {}, {}));
+    auto bob_public_key = TRY_OR_FAIL(Crypto::PK::ECPublicKey::from_octets(bob_public_key_data));
+    auto private_key = TRY_OR_FAIL(Crypto::PK::ECPrivateKey::from_scalar(private_key_data, {}, {}));
 
-    Crypto::Curves::SECP256r1 curve;
+    auto expect_public_key = [](Crypto::PK::ECPrivateKey const& private_key, ReadonlyBytes expected) {
+        auto public_key = TRY_OR_FAIL(TRY_OR_FAIL(private_key.derive_public_key()).to_uncompressed());
+        EXPECT_EQ(public_key.bytes(), expected);
+    };
+    expect_public_key(alice_private_key, alice_public_key_data);
+    expect_public_key(bob_private_key, bob_public_key_data);
+    expect_public_key(private_key, expected_public_key_data);
 
-    auto generated_alice_public = MUST(curve.generate_public_key(alice_private_key));
-    EXPECT_EQ(alice_public_key.x, generated_alice_public.x);
-    EXPECT_EQ(alice_public_key.y, generated_alice_public.y);
+    // ECDH gives the x-coordinate of the shared point.
+    auto shared_secret_x = ReadonlyBytes { shared_secret_data }.slice(1, 32);
+    auto shared_alice = TRY_OR_FAIL(Crypto::PK::ecdh_derive(alice_private_key, bob_public_key));
+    EXPECT_EQ(shared_alice.bytes(), shared_secret_x);
+    auto shared_bob = TRY_OR_FAIL(Crypto::PK::ecdh_derive(bob_private_key, alice_public_key));
+    EXPECT_EQ(shared_bob.bytes(), shared_secret_x);
+}
 
-    auto generated_bob_public = MUST(curve.generate_public_key(bob_private_key));
-    EXPECT_EQ(bob_public_key.x, generated_bob_public.x);
-    EXPECT_EQ(bob_public_key.y, generated_bob_public.y);
+TEST_CASE(test_secp256r1_rejects_out_of_range_private_keys)
+{
+    Array<u8, 32> zero {};
+    EXPECT(Crypto::PK::ECPrivateKey::from_scalar(zero, {}, {}).is_error());
 
-    auto shared_alice = MUST(curve.compute_coordinate(alice_private_key, bob_public_key));
-    EXPECT_EQ(shared_alice.x, shared_secret.x);
-    EXPECT_EQ(shared_alice.y, shared_secret.y);
+    // n, the order of P-256's base point.
+    u8 const order[32] {
+        0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17, 0x9e, 0x84, 0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51
+    };
+    EXPECT(Crypto::PK::ECPrivateKey::from_scalar(order, {}, {}).is_error());
 
-    auto shared_bob = MUST(curve.compute_coordinate(bob_private_key, alice_public_key));
-    EXPECT_EQ(shared_bob.x, shared_secret.x);
-    EXPECT_EQ(shared_bob.y, shared_secret.y);
-
-    EXPECT_EQ(shared_alice.x, shared_bob.x);
-    EXPECT_EQ(shared_alice.y, shared_bob.y);
-
-    auto generated_public = MUST(curve.generate_public_key(private_key));
-    EXPECT_EQ(expected_public_key.x, generated_public.x);
-    EXPECT_EQ(expected_public_key.y, generated_public.y);
+    // A scalar that is not as wide as P-256's coordinates.
+    Array<u8, 31> narrow {};
+    narrow[30] = 1;
+    EXPECT(Crypto::PK::ECPrivateKey::from_scalar(narrow, {}, {}).is_error());
 }
 
 // Test vectors from WebCryptoAPI WPT ec_importKey.https.any.js
@@ -262,11 +270,10 @@ TEST_CASE(test_ec_compressed_point_p256)
         0x01, 0x85, 0x43, 0xBB, 0xA0, 0x0C, 0x92, 0x50, 0xDF, 0x92, 0x57, 0xC2, 0xAC, 0xAE, 0x5D, 0xD1,
     };
 
-    auto uncompressed = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ raw_data, sizeof(raw_data) }));
-    auto compressed = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_compressed({ compressed_data, sizeof(compressed_data) }));
+    auto uncompressed = TRY_OR_FAIL(Crypto::PK::ECPublicKey::from_octets(raw_data));
+    auto compressed = TRY_OR_FAIL(Crypto::PK::ECPublicKey::from_octets(compressed_data));
 
-    EXPECT_EQ(uncompressed.x, compressed.x);
-    EXPECT_EQ(uncompressed.y, compressed.y);
+    EXPECT_EQ(TRY_OR_FAIL(compressed.to_uncompressed()), TRY_OR_FAIL(uncompressed.to_uncompressed()));
 }
 
 TEST_CASE(test_ec_compressed_point_p384)
@@ -288,11 +295,10 @@ TEST_CASE(test_ec_compressed_point_p384)
         0x5F, 0xBD, 0xEB, 0xD1, 0xD0, 0x8D, 0xD6, 0x9E, 0x2D, 0x7D, 0xC1, 0xDC, 0x21, 0x8C, 0xB4, 0x35,
     };
 
-    auto uncompressed = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ raw_data, sizeof(raw_data) }));
-    auto compressed = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_compressed({ compressed_data, sizeof(compressed_data) }));
+    auto uncompressed = TRY_OR_FAIL(Crypto::PK::ECPublicKey::from_octets(raw_data));
+    auto compressed = TRY_OR_FAIL(Crypto::PK::ECPublicKey::from_octets(compressed_data));
 
-    EXPECT_EQ(uncompressed.x, compressed.x);
-    EXPECT_EQ(uncompressed.y, compressed.y);
+    EXPECT_EQ(TRY_OR_FAIL(compressed.to_uncompressed()), TRY_OR_FAIL(uncompressed.to_uncompressed()));
 }
 
 TEST_CASE(test_ec_compressed_point_p521)
@@ -320,9 +326,8 @@ TEST_CASE(test_ec_compressed_point_p521)
         0x75, 0x3F,
     };
 
-    auto uncompressed = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ raw_data, sizeof(raw_data) }));
-    auto compressed = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_compressed({ compressed_data, sizeof(compressed_data) }));
+    auto uncompressed = TRY_OR_FAIL(Crypto::PK::ECPublicKey::from_octets(raw_data));
+    auto compressed = TRY_OR_FAIL(Crypto::PK::ECPublicKey::from_octets(compressed_data));
 
-    EXPECT_EQ(uncompressed.x, compressed.x);
-    EXPECT_EQ(uncompressed.y, compressed.y);
+    EXPECT_EQ(TRY_OR_FAIL(compressed.to_uncompressed()), TRY_OR_FAIL(uncompressed.to_uncompressed()));
 }
