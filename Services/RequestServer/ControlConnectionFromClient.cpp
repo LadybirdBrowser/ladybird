@@ -27,6 +27,10 @@ ControlConnectionFromClient::ControlConnectionFromClient(NonnullOwnPtr<IPC::Tran
 {
     VERIFY(s_control_connection == nullptr);
     s_control_connection = this;
+#if defined(AK_OS_LINUX)
+    // The Linux sandbox denies RequestServer the files that the system resolver reads, like /etc/resolv.conf.
+    Resolver::resolve_system_names_remotely();
+#endif
 
     if (m_disk_cache.has_value()) {
         // Coalesce the size changes of a burst of cache writes into one report.
@@ -69,6 +73,11 @@ void ControlConnectionFromClient::die()
 
     if (s_control_connection == this)
         s_control_connection = nullptr;
+
+    // No answer comes for a lookup that's still waiting on the process that launched RequestServer.
+    auto pending_system_resolutions = move(m_pending_system_resolutions);
+    for (auto& [resolution_id, on_resolved] : pending_system_resolutions)
+        on_resolved(Error::from_string_literal("The system resolver's process is gone"));
 
     if (m_connections.is_empty())
         Core::EventLoop::current().quit(0);
@@ -253,6 +262,40 @@ void ControlConnectionFromClient::remove_cache_entries_accessed_before(UnixDateT
 {
     if (m_disk_cache.has_value())
         m_disk_cache->remove_entries_accessed_before(before);
+}
+
+void ControlConnectionFromClient::resolve_host_with_system_resolver(ByteString const& host, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> on_resolved)
+{
+    VERIFY(family != Core::Socket::AddressFamily::Unspecified);
+
+    auto resolution_id = m_next_system_resolution_id++;
+    m_pending_system_resolutions.set(resolution_id, move(on_resolved));
+    async_resolve_host_with_system_resolver(resolution_id, host, family == Core::Socket::AddressFamily::IPv6Only);
+}
+
+void ControlConnectionFromClient::resolved_host_with_system_resolver(u64 resolution_id, Optional<Vector<ByteString>> addresses)
+{
+    auto on_resolved = m_pending_system_resolutions.take(resolution_id);
+    if (!on_resolved.has_value()) {
+        did_misbehave("Unexpected system resolver answer");
+        return;
+    }
+
+    if (!addresses.has_value()) {
+        (*on_resolved)(Error::from_string_literal("The system resolver could not resolve the name"));
+        return;
+    }
+
+    Vector<Variant<IPv4Address, IPv6Address>> parsed_addresses;
+    for (auto const& address : *addresses) {
+        if (auto ipv4_address = IPv4Address::from_string(address); ipv4_address.has_value())
+            parsed_addresses.append(*ipv4_address);
+        else if (auto ipv6_address = IPv6Address::from_string(address); ipv6_address.has_value())
+            parsed_addresses.append(*ipv6_address);
+        else
+            dbgln("RequestServer: Ignoring an address the system resolver returned that does not parse: {}", address);
+    }
+    (*on_resolved)(move(parsed_addresses));
 }
 
 void ControlConnectionFromClient::retrieved_http_cookie(int client_id, u64 request_id, RequestType request_type, u64 cookie_request_id, String cookie)

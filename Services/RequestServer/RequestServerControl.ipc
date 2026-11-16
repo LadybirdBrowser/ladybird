@@ -39,4 +39,6 @@ endpoint RequestServerControl
 
     retrieved_http_cookie(int client_id, u64 request_id, ::RequestServer::RequestType request_type, u64 cookie_request_id, String cookie) =|
     stored_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id) =|
+    // The addresses that the system resolver found for a name, or nothing if the lookup failed.
+    resolved_host_with_system_resolver(u64 resolution_id, Optional<Vector<ByteString>> addresses) =|
 }
