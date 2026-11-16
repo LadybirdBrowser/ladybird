@@ -1522,9 +1522,14 @@ impl PlanTree {
             let (preceding_name, preceding_position) = unpacked_pre_order_position(self.pre_order_position(preceding));
             if preceding_name == name { preceding_position } else { 0 }
         };
-        let between = floor + (position - floor) / 2;
-        assert!(between > floor, "a build puts few rows between the same two rows");
-        packed_pre_order_position(name as u32, between)
+        // NB: A row a build moved keeps its position, so the rows around the new one can be out of order already, or so
+        //     close together that no position is left between them. Then the arena labels the rows in tree order, and
+        //     any position will do.
+        if position <= floor + 1 {
+            self.pre_order_positions_out_of_order = true;
+            return packed_pre_order_position(name as u32, position.max(1));
+        }
+        packed_pre_order_position(name as u32, floor + (position - floor) / 2)
     }
 
     /// The row after the subtree of `node` in pre-order, or none where the subtree is the last the walk made: that of a
