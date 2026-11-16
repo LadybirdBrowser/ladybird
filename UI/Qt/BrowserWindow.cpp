@@ -1474,6 +1474,16 @@ void BrowserWindow::update_menu_bar_window_control_icons()
     m_menu_bar_close_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowClose, Theme::chrome_palette(*this)));
 }
 
+void BrowserWindow::window_control_buttons_changed()
+{
+    // A menu bar measures its corner widgets only when they are set, shown or hidden.
+    if (m_menu_bar_window_controls) {
+        for (auto corner : { Qt::TopLeftCorner, Qt::TopRightCorner })
+            menuBar()->setCornerWidget(menuBar()->cornerWidget(corner), corner);
+    }
+    m_tabs_container->window_control_buttons_changed();
+}
+
 void BrowserWindow::update_window_decoration_state()
 {
     clear_resize_cursor();
