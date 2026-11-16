@@ -3098,9 +3098,21 @@ u16 Node::compare_document_position(GC::Ptr<Node> other)
 
         // 2. If attr1 and node1 are non-null, and node2 is node1, then:
         if (attr1 && node1 && node2 == node1) {
-            // FIXME: 1. For each attr of node2’s attribute list:
-            //     1. If attr equals attr1, then return the result of adding DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC and DOCUMENT_POSITION_PRECEDING.
-            //     2. If attr equals attr2, then return the result of adding DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC and DOCUMENT_POSITION_FOLLOWING.
+            // 1. For each attr of node2’s attribute list:
+            auto const& element = as<Element>(*node2);
+            for (size_t i = 0; i < element.attribute_list_size(); ++i) {
+                auto const* attr = element.attributes()->item(i).ptr();
+
+                // 1. If attr equals attr1, then return the result of adding DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC
+                //    and DOCUMENT_POSITION_PRECEDING.
+                if (attr == attr1)
+                    return DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC | DOCUMENT_POSITION_PRECEDING;
+
+                // 2. If attr equals attr2, then return the result of adding DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC
+                //    and DOCUMENT_POSITION_FOLLOWING.
+                if (attr == attr2)
+                    return DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC | DOCUMENT_POSITION_FOLLOWING;
+            }
         }
     }
 
