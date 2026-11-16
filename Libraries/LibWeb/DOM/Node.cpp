@@ -23,7 +23,6 @@
 #include <LibWeb/Bindings/Sanitizer.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CountersSet.h>
-#include <LibWeb/CSS/GeneratedContent.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
