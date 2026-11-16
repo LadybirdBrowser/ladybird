@@ -11,7 +11,9 @@
 #![allow(non_camel_case_types)]
 
 use crate::css_pixels::{CssPixelPoint, CssPixels};
+use crate::display_list::chunks::ChunkId;
 use crate::display_list::commands::{CompositorContextId, UniqueNodeId};
+use crate::display_list::storage::PackedChunkSize;
 use crate::visual_context::VisualContextTree;
 use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder, File};
 use std::sync::Arc;
@@ -155,22 +157,24 @@ impl Decode for Core_AnonymousBuffer {
     }
 }
 
-/// `Compositing::DisplayList`: a display list on its way to the compositor, with its tape and run table packed in shared
-/// memory, which the compositor copies out of it, and what travels beside them.
+/// `Compositing::DisplayList`: a display list on its way to the compositor. It names its chunks in paint order, and
+/// carries the records and runs of those the compositor does not keep packed in shared memory, which the compositor
+/// copies out of it, with what travels beside them.
 #[derive(Debug)]
 pub struct SharedDisplayList {
-    pub packed_tape: Core_AnonymousBuffer,
-    pub tape_size: u64,
-    pub run_count: u64,
+    pub chunks_in_paint_order: Vec<ChunkId>,
+    pub packed_chunks: Core_AnonymousBuffer,
+    /// The size of each chunk packed, in the order they are packed.
+    pub packed_chunk_sizes: Vec<PackedChunkSize>,
     pub properties: Compositing_DisplayListProperties,
     pub async_scrolling_metadata: Option<Compositing_AsyncScrollingMetadata>,
 }
 
 impl Encode for SharedDisplayList {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.packed_tape)?;
-        encoder.encode(&self.tape_size)?;
-        encoder.encode(&self.run_count)?;
+        encoder.encode(&self.chunks_in_paint_order)?;
+        encoder.encode(&self.packed_chunks)?;
+        encoder.encode(&self.packed_chunk_sizes)?;
         encoder.encode(&self.properties)?;
         encoder.encode(&self.async_scrolling_metadata)
     }
@@ -179,11 +183,44 @@ impl Encode for SharedDisplayList {
 impl Decode for SharedDisplayList {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(Self {
-            packed_tape: decoder.decode()?,
-            tape_size: decoder.decode()?,
-            run_count: decoder.decode()?,
+            chunks_in_paint_order: decoder.decode()?,
+            packed_chunks: decoder.decode()?,
+            packed_chunk_sizes: decoder.decode()?,
             properties: decoder.decode()?,
             async_scrolling_metadata: decoder.decode()?,
+        })
+    }
+}
+
+impl Encode for ChunkId {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(&self.0[0])?;
+        encoder.encode(&self.0[1])
+    }
+}
+
+impl Decode for ChunkId {
+    const MIN_ENCODED_SIZE: usize = 2 * size_of::<u64>();
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self([decoder.decode()?, decoder.decode()?]))
+    }
+}
+
+impl Encode for PackedChunkSize {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(&self.record_bytes)?;
+        encoder.encode(&self.run_count)
+    }
+}
+
+impl Decode for PackedChunkSize {
+    const MIN_ENCODED_SIZE: usize = 2 * size_of::<u64>();
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self {
+            record_bytes: decoder.decode()?,
+            run_count: decoder.decode()?,
         })
     }
 }

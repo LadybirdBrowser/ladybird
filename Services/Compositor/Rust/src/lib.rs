@@ -19,6 +19,7 @@ pub mod async_scroll_update_outbox;
 pub mod context_scene;
 pub mod context_state;
 pub mod core;
+pub mod display_list_chunk_stores;
 pub mod elastic_overscroll_controller;
 pub mod ffi;
 pub mod frame_inputs;

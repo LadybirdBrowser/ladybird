@@ -43,6 +43,49 @@ impl Chunk {
     }
 }
 
+/// How many of the latest display lists of a context both ends of a connection keep the chunks of.
+pub const DISPLAY_LISTS_WHOSE_CHUNKS_ARE_KEPT: usize = 4;
+
+/// The chunks both ends of a connection keep for one context: those its latest display lists name. A sender sends a
+/// display list's chunks that are not kept, and both ends take in each list they send or receive in the same order,
+/// so both always keep the same chunks without telling each other.
+#[derive(Debug, Default)]
+pub struct KeptChunks {
+    latest_lists: std::collections::VecDeque<Box<[ChunkId]>>,
+    lists_naming: std::collections::HashMap<ChunkId, u32>,
+}
+
+impl KeptChunks {
+    pub fn keeps(&self, id: ChunkId) -> bool {
+        self.lists_naming.contains_key(&id)
+    }
+
+    /// Takes in the display list the context presents next, which names `chunks`, and answers the chunks that no list
+    /// still kept names.
+    pub fn take_in(&mut self, chunks: &[ChunkId]) -> Vec<ChunkId> {
+        let mut named_once: Vec<ChunkId> = chunks.to_vec();
+        named_once.sort_unstable_by_key(|id| id.0);
+        named_once.dedup();
+        for id in &named_once {
+            *self.lists_naming.entry(*id).or_default() += 1;
+        }
+        self.latest_lists.push_back(named_once.into_boxed_slice());
+        let mut dropped = Vec::new();
+        while self.latest_lists.len() > DISPLAY_LISTS_WHOSE_CHUNKS_ARE_KEPT {
+            let oldest = self.latest_lists.pop_front().expect("more lists than are kept");
+            for id in oldest {
+                let count = self.lists_naming.get_mut(&id).expect("a kept list names a kept chunk");
+                *count -= 1;
+                if *count == 0 {
+                    self.lists_naming.remove(&id);
+                    dropped.push(id);
+                }
+            }
+        }
+        dropped
+    }
+}
+
 /// Where a chunk of a tape ends. Chunks cover a tape, each starting where the one before it ends, and hold whole
 /// runs: a run never continues into the next chunk, even where that one begins in the same visual context.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -130,6 +173,24 @@ mod tests {
             builder.end_chunk();
         }
         builder.finish()
+    }
+
+    #[test]
+    fn a_chunk_is_kept_while_one_of_the_latest_lists_names_it() {
+        let id = |value: u64| ChunkId([value, value]);
+        let mut kept = KeptChunks::default();
+        assert!(kept.take_in(&[id(1), id(2), id(1)]).is_empty());
+        assert!(kept.keeps(id(1)) && kept.keeps(id(2)));
+        for _ in 1..DISPLAY_LISTS_WHOSE_CHUNKS_ARE_KEPT {
+            assert!(kept.take_in(&[id(2), id(3)]).is_empty());
+        }
+        // The list that named the first chunk twice leaves, and the one it named alone goes with it.
+        assert_eq!(kept.take_in(&[id(3)]), vec![id(1)]);
+        assert!(!kept.keeps(id(1)) && kept.keeps(id(2)) && kept.keeps(id(3)));
+        for _ in 1..DISPLAY_LISTS_WHOSE_CHUNKS_ARE_KEPT {
+            kept.take_in(&[id(3)]);
+        }
+        assert!(!kept.keeps(id(2)));
     }
 
     #[test]

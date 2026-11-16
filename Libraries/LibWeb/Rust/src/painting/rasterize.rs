@@ -9,9 +9,9 @@
 
 use crate::paint_stage::CompositorPoster;
 use crate::painting::display_list::builder::RecordedDisplayList;
-use crate::painting::display_list::commands::{DisplayListResourceId, ImageFrameResourceId};
+use crate::painting::display_list::chunks::{Chunk, chunks_of};
+use crate::painting::display_list::commands::{DisplayListCommandRun, DisplayListResourceId, ImageFrameResourceId};
 use crate::painting::display_list::ids::allocate_display_list_id;
-use crate::painting::display_list::storage::DisplayListStorage;
 use crate::painting::display_list_resources::DisplayListResources;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::vector_image_cache::{FfiVectorImageKey, VectorImageKey};
@@ -147,17 +147,32 @@ fn post_rasterization(
     if !unsafe { poster.stage_rasterization(token, &fonts, &image_frames, target_bitmap) } {
         return false;
     }
-    let storage = DisplayListStorage::recorded(Arc::new(display_list), tree.clone());
+    // The list goes whole, as chunks named by what the compositor replays.
+    let chunks: Vec<Chunk> = chunks_of(&display_list.bytes, &display_list.command_runs, &display_list.chunks)
+        .map(|(chunk, records, runs)| {
+            let chunk_start = chunk.byte_end - records.len() as u32;
+            let runs = runs
+                .iter()
+                .map(|run| DisplayListCommandRun {
+                    offset: run.offset - chunk_start,
+                    ..*run
+                })
+                .collect();
+            Chunk::named(records.to_vec(), runs)
+        })
+        .collect();
+    let chunks: Vec<&Chunk> = chunks.iter().collect();
     let properties = Compositing_DisplayListProperties {
         id: allocate_display_list_id(),
         compatible_visual_context_tree_structural_epoch: tree.structural_epoch,
         surface_clear_color: None,
         root_group_color,
     };
-    let Some(display_list) = poster.share_display_list(&storage, properties, None) else {
+    let chunks_in_paint_order = chunks.iter().map(|chunk| chunk.id).collect();
+    let Some(display_list) = poster.share_display_list(chunks_in_paint_order, &chunks, properties, None) else {
         eprintln!(
             "WebContent: Could not place a {} byte display list to rasterize in shared memory",
-            storage.bytes().len()
+            display_list.bytes.len()
         );
         return false;
     };

@@ -9,7 +9,9 @@
 //! submission, and the display ticks. None of these calls comes back into the core before it returns.
 
 use libcompositing_rust::display_list::commands::CompositorContextId;
-use libcompositing_rust::display_list::storage::{DisplayListStorage, receive_packed_from_shared_memory};
+use libcompositing_rust::display_list::storage::{
+    PackedChunkSize, ReceivedChunk, receive_packed_chunks_from_shared_memory,
+};
 use libcompositing_rust::host::FfiRasterPainter;
 use libcompositing_rust::ipc_types::Core_AnonymousBuffer;
 use libcompositing_rust::time::MonotonicTime;
@@ -17,7 +19,6 @@ use libgfx_rust::{Color, FloatRect, IntRect, IntSize, ScalingMode};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 /// How a surface is drawn into another.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -814,19 +815,16 @@ impl RasterHost {
         unsafe { (self.0.set_maximum_display_refresh_rate)(self.host(), refresh_rate) };
     }
 
-    /// Copies the tape and run table out of the shared memory they were sent in, and checks the copy.
-    pub fn receive_display_list_storage(
+    /// Copies the chunks packed in the shared memory they were sent in, whose sizes `sizes` lists, out, checks each copy
+    /// and names it by what it holds.
+    pub fn receive_display_list_chunks(
         &self,
         buffer: Core_AnonymousBuffer,
-        tape_size: u64,
-        run_count: u64,
-    ) -> Result<Arc<DisplayListStorage>, &'static str> {
-        let (Ok(tape_size), Ok(run_count)) = (usize::try_from(tape_size), usize::try_from(run_count)) else {
-            return Err("Display list sizes do not fit on this platform");
-        };
+        sizes: &[PackedChunkSize],
+    ) -> Result<Vec<ReceivedChunk>, &'static str> {
         let Some((size, file)) = buffer.shared_memory else {
             // SAFETY: Nothing is read from an empty buffer.
-            return unsafe { receive_packed_from_shared_memory(std::ptr::null(), 0, tape_size, run_count) };
+            return unsafe { receive_packed_chunks_from_shared_memory(std::ptr::null(), 0, sizes) };
         };
         #[cfg(unix)]
         let descriptor = std::os::fd::IntoRawFd::into_raw_fd(file.0);
@@ -840,11 +838,17 @@ impl RasterHost {
         if mapping.is_null() {
             return Err("Display list buffer is smaller than it claims");
         }
-        // SAFETY: The mapping holds `data_size` readable bytes at `data` until it is dropped below.
-        let storage = unsafe { receive_packed_from_shared_memory(data, data_size, tape_size, run_count) };
+        // The mapping may hold more than the chunks, which fill the size the buffer was sent with.
+        let chunks = match usize::try_from(size) {
+            Ok(size) if size <= data_size => {
+                // SAFETY: The mapping holds `data_size` readable bytes at `data` until it is dropped below.
+                unsafe { receive_packed_chunks_from_shared_memory(data, size, sizes) }
+            }
+            _ => Err("Display list buffer is smaller than it claims"),
+        };
         // SAFETY: The mapping came from the host, which drops it once.
         unsafe { (self.0.unmap_shared_memory)(mapping) };
-        storage
+        chunks
     }
 
     pub fn take_registered_image_frames(&self, context_id: CompositorContextId, image_frame_ids: &[u64]) -> bool {

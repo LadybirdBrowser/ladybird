@@ -12,12 +12,13 @@
 //! their presentations were presented. The navigable reads what the presenter presented on the main thread.
 
 use crate::paint_stage::Presenting;
+use crate::painting::display_list::chunks::{Chunk, ChunkId, KeptChunks};
 use crate::painting::display_list::commands::CompositorContextId;
-use crate::painting::display_list::storage::DisplayListStorage;
 use crate::painting::display_list_resources::DisplayListResources;
 use crate::painting::paint_passes::ClockTickVisualContexts;
 use crate::painting::record::RecordingOutput;
-use crate::painting::vector_image_records::display_list_holding_vector_image_records;
+use crate::painting::record::order_tree::RecordedChunk;
+use crate::painting::vector_image_records::{VectorImageRecords, chunk_holding_vector_image_records};
 use crate::painting::visual_context::VisualContextTree;
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, PresentFrame, UpdateDisplayList, UpdateScrollState, UpdateVisualContextTree,
@@ -31,6 +32,7 @@ use libgfx_rust::IntRect;
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libipc_rust::wire::{Decode, Decoder};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 /// What presented a navigable's last frame: the recording of a frame a rendering update committed, or a tick of the
@@ -598,18 +600,64 @@ fn post_resources_ahead(
 impl Presenting<'_> {
     /// Hands `frame` to the compositor, or drops it while the compositor cannot be reached.
     fn post_frame(&mut self, frame: CompositorFrame) {
-        let Some(poster) = self.poster() else {
+        let Some((poster, sent_display_list_chunks)) = self.poster_and_sent_display_list_chunks() else {
             return;
         };
-        if !post_frame_through(poster, frame) {
+        if !post_frame_through(poster, sent_display_list_chunks, frame) {
             self.lose_compositor();
         }
     }
 }
 
-/// Posts the messages of `frame` through `poster`, in order. Answers whether the compositor could still be reached: a
-/// display list that cannot be placed in shared memory is skipped, and the rest of the frame still goes over.
-fn post_frame_through(poster: &crate::paint_stage::CompositorPoster, frame: CompositorFrame) -> bool {
+/// What the compositor keeps of the display lists sent for one context, which a display list sends the chunks it lacks
+/// of, and the chunks that draw SVG images as they were sent, with the records of the images in them.
+#[derive(Default)]
+pub(crate) struct SentDisplayListChunks {
+    kept: KeptChunks,
+    holding_vector_image_records: HashMap<ChunkId, Arc<Chunk>>,
+}
+
+impl SentDisplayListChunks {
+    /// `chunk` as the compositor replays it, with the records of `vector_images`, the SVG images it draws, in it.
+    fn as_sent(&mut self, chunk: &RecordedChunk, vector_images: &HashMap<u64, Arc<VectorImageRecords>>) -> Arc<Chunk> {
+        let latest = chunk.latest();
+        if !chunk.draws_vector_image_placeholders() {
+            return Arc::clone(latest);
+        }
+        // A chunk's name says which SVG images it draws, whose records never change.
+        Arc::clone(
+            self.holding_vector_image_records
+                .entry(latest.id)
+                .or_insert_with(|| Arc::new(chunk_holding_vector_image_records(latest, vector_images))),
+        )
+    }
+
+    /// The chunks of `chunks_as_sent` the compositor does not keep, once each.
+    fn new_chunks<'a>(&self, chunks_as_sent: &'a [Arc<Chunk>]) -> Vec<&'a Chunk> {
+        let mut named = std::collections::HashSet::new();
+        chunks_as_sent
+            .iter()
+            .filter(|chunk| !self.kept.keeps(chunk.id) && named.insert(chunk.id))
+            .map(|chunk| &**chunk)
+            .collect()
+    }
+
+    /// Takes in a display list sent that names `chunks_in_paint_order`.
+    fn take_in(&mut self, chunks_in_paint_order: &[ChunkId]) {
+        self.kept.take_in(chunks_in_paint_order);
+        let kept = &self.kept;
+        self.holding_vector_image_records.retain(|_, sent| kept.keeps(sent.id));
+    }
+}
+
+/// Posts the messages of `frame` through `poster`, in order, where `sent_display_list_chunks` says what the compositor
+/// keeps of the display lists sent before. Answers whether the compositor could still be reached: a display list that
+/// cannot be placed in shared memory is skipped, and the rest of the frame still goes over.
+fn post_frame_through(
+    poster: &crate::paint_stage::CompositorPoster,
+    sent_display_list_chunks: &mut HashMap<CompositorContextId, SentDisplayListChunks>,
+    frame: CompositorFrame,
+) -> bool {
     let CompositorFrame {
         context_id,
         display_list_update,
@@ -622,23 +670,23 @@ fn post_frame_through(poster: &crate::paint_stage::CompositorPoster, frame: Comp
         if !post_resources_ahead(poster, context_id, &update.resources) {
             return false;
         }
-        // The compositor replays a tape with the records of the SVG images it draws in it.
-        let display_list = match update.output.resources.vector_images.is_empty() {
-            true => update.output.display_list.clone(),
-            false => Arc::new(display_list_holding_vector_image_records(
-                &update.output.display_list,
-                &update.output.resources.vector_images,
-            )),
-        };
-        let storage = DisplayListStorage::recorded(
-            display_list,
-            update
-                .output
-                .visual_context_tree
-                .clone()
-                .unwrap_or_else(|| Arc::new(VisualContextTree::create_identity())),
-        );
-        match poster.share_display_list(&storage, update.properties, Some(update.async_scrolling_metadata)) {
+        // The compositor replays chunks with the records of the SVG images they draw in them.
+        let sent = sent_display_list_chunks.entry(context_id).or_default();
+        let vector_images = &update.output.resources.vector_images;
+        let chunks_as_sent: Vec<Arc<Chunk>> = update
+            .output
+            .chunks
+            .iter()
+            .map(|chunk| sent.as_sent(chunk, vector_images))
+            .collect();
+        let chunks_in_paint_order: Vec<ChunkId> = chunks_as_sent.iter().map(|chunk| chunk.id).collect();
+        let new_chunks = sent.new_chunks(&chunks_as_sent);
+        match poster.share_display_list(
+            chunks_in_paint_order.clone(),
+            &new_chunks,
+            update.properties,
+            Some(update.async_scrolling_metadata),
+        ) {
             Some(display_list) => {
                 let message = UpdateDisplayList {
                     context_id,
@@ -649,11 +697,12 @@ fn post_frame_through(poster: &crate::paint_stage::CompositorPoster, frame: Comp
                 if !poster.post(message) {
                     return false;
                 }
+                sent.take_in(&chunks_in_paint_order);
             }
             None => {
                 eprintln!(
-                    "WebContent: Could not place a {} byte display list in shared memory",
-                    storage.bytes().len()
+                    "WebContent: Could not place {} new display list chunks in shared memory",
+                    new_chunks.len()
                 );
             }
         }
