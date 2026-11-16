@@ -126,7 +126,7 @@ fn runtime_offsets() -> RuntimeOffsets {
     RuntimeOffsets {
         execution_context_program_counter: offset(offset_of!(ExecutionContext, program_counter)),
         execution_context_lexical_environment: offset(offset_of!(ExecutionContext, lexical_environment)),
-        execution_context_private_environment: offset(offset_of!(ExecutionContext, private_environment)),
+        execution_context_private_environment: offset(offset_of!(ExecutionContext, private_environment_in_frame)),
         execution_context_frame_initialized: offset(offset_of!(ExecutionContext, frame_initialized)),
         execution_context_executable: offset(offset_of!(ExecutionContext, executable)),
         executable_idle_collection_count: offset(offset_of!(ExecutableHead, idle_collection_count)),

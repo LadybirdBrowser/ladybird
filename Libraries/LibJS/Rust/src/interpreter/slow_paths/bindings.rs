@@ -1588,10 +1588,8 @@ pub fn create_private_environment(
     _values: &mut op::CreatePrivateEnvironmentValues,
 ) -> SlowPathControl {
     let running_execution_context = running_execution_context(vm);
-    let outer_private_environment = running_execution_context.private_environment.get();
-    running_execution_context
-        .private_environment
-        .set(Some(new_private_environment(vm, outer_private_environment)));
+    let outer_private_environment = running_execution_context.private_environment();
+    running_execution_context.set_private_environment(Some(new_private_environment(vm, outer_private_environment)));
     SlowPathControl::continue_at(pc + op::CreatePrivateEnvironment::LENGTH)
 }
 

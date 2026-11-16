@@ -461,9 +461,6 @@ impl Vm {
         let environment = callee_function.inline_call_environment(self, new_target);
         callee_context.lexical_environment.set(environment);
         callee_context.variable_environment.set(environment);
-        callee_context
-            .private_environment
-            .set(callee_function.private_environment());
 
         Some(self.enter_inline_frame(callee_context, callee_executable))
     }
@@ -517,9 +514,6 @@ impl Vm {
         callee_context
             .variable_environment
             .set(caller_context.variable_environment.get());
-        callee_context
-            .private_environment
-            .set(caller_context.private_environment.get());
 
         Some(self.enter_inline_frame(callee_context, callee_executable))
     }

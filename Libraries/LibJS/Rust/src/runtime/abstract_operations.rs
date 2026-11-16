@@ -1209,7 +1209,7 @@ pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMo
             .expect("the running execution context has a VariableEnvironment");
 
         // c. Let privateEnv be runningContext's PrivateEnvironment.
-        private_environment = running_context.private_environment.get();
+        private_environment = running_context.private_environment();
     }
     // 19. Else,
     else {
@@ -1280,7 +1280,7 @@ pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMo
     eval_context.lexical_environment.set(Some(lexical_environment));
 
     // 28. Set evalContext's PrivateEnvironment to privateEnv.
-    eval_context.private_environment.set(private_environment);
+    eval_context.set_private_environment(private_environment);
 
     // 29. Push evalContext onto the execution context stack; evalContext is now the running execution context.
     // NB: A push that fails leaves the context allocated, until the frame that called eval frees the interpreter stack

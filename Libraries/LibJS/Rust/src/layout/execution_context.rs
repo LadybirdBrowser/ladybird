@@ -84,7 +84,10 @@ pub struct ExecutionContext {
     pub script_or_module_without_function: ScriptOrModuleSlot,
     pub lexical_environment: Cell<Option<Gc<Environment>>>,
     pub variable_environment: Cell<Option<Gc<Environment>>>,
-    pub private_environment: Cell<Option<Gc<PrivateEnvironment>>>,
+    /// The [[PrivateEnvironment]] of a frame without a function, or of a frame whose code makes private environments
+    /// (which starts with `EnterWithPrivateEnvironment`). Other frames get it from their function, and this holds an
+    /// old value: read it through `ExecutionContext::private_environment()`.
+    pub private_environment_in_frame: Cell<Option<Gc<PrivateEnvironment>>>,
     /// Tells frames apart for the debugger. Frames that JIT code creates have none (0) until the debugger asks (see
     /// Vm::frame_id_of()).
     pub frame_id: Cell<u64>,

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::bytecode::instruction::OpCode;
 use core::cell::{Cell, OnceCell, RefCell};
 use core::ptr::NonNull;
 use std::collections::HashMap;
@@ -2005,6 +2006,12 @@ impl Executable {
 
     pub fn bytecode(&self) -> &[u8] {
         &self.code.bytecode
+    }
+
+    /// Whether the code makes private environments, which its frames keep (see
+    /// `ExecutionContext::keeps_private_environment()`).
+    pub fn makes_private_environments(&self) -> bool {
+        self.bytecode().first() == Some(&(OpCode::EnterWithPrivateEnvironment as u8))
     }
 
     pub fn constants(&self) -> &[Value] {

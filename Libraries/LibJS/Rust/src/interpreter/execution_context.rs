@@ -8,11 +8,13 @@ use core::cell::{Cell, RefCell};
 use core::ptr::NonNull;
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 
+use crate::bytecode::executable::Executable;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::layout::cell::Gc;
+use crate::layout::environment::PrivateEnvironment;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule, ScriptOrModuleSlot};
 use crate::layout::value::Value;
-use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
+use crate::runtime::ecmascript_function_object::{EcmascriptFunctionObject, as_ecmascript_function_object};
 use crate::runtime::realm::Realm;
 use libjs_abi::register::RESERVED_REGISTER_COUNT;
 
@@ -58,6 +60,36 @@ impl ExecutionContext {
         self.realm_without_function.set(realm);
     }
 
+    /// Whether the context keeps its own [[PrivateEnvironment]]: one without a function, or one whose code makes
+    /// private environments.
+    pub fn keeps_private_environment(&self) -> bool {
+        self.function.get().is_none()
+            || self
+                .executable
+                .get()
+                .is_some_and(|executable| Executable::from_head(executable).makes_private_environments())
+    }
+
+    /// The [[PrivateEnvironment]] of the context. One that does not keep its own has its function's.
+    pub fn private_environment(&self) -> Option<Gc<PrivateEnvironment>> {
+        if self.keeps_private_environment() {
+            return self.private_environment_in_frame.get();
+        }
+        self.function
+            .get()
+            .and_then(|function| function.downcast::<EcmascriptFunctionObject>())
+            .and_then(|function| function.private_environment())
+    }
+
+    /// Sets the [[PrivateEnvironment]] of a context that keeps its own.
+    pub fn set_private_environment(&self, private_environment: Option<Gc<PrivateEnvironment>>) {
+        debug_assert!(
+            self.keeps_private_environment(),
+            "a context of code that makes no private environment has its function's"
+        );
+        self.private_environment_in_frame.set(private_environment);
+    }
+
     /// Sets the [[ScriptOrModule]] of a context without a function.
     pub fn set_script_or_module(&self, script_or_module: ScriptOrModule) {
         debug_assert!(
@@ -88,7 +120,7 @@ impl ExecutionContext {
                 script_or_module_without_function: ScriptOrModuleSlot::new(ScriptOrModule::Empty),
                 lexical_environment: Cell::new(None),
                 variable_environment: Cell::new(None),
-                private_environment: Cell::new(None),
+                private_environment_in_frame: Cell::new(None),
                 frame_id: Cell::new(frame_id),
                 program_counter: Cell::new(0),
                 skip_when_determining_incumbent_counter: Cell::new(0),
@@ -153,7 +185,8 @@ impl ExecutionContext {
             .set(self.script_or_module_without_function.get());
         copy.lexical_environment.set(self.lexical_environment.get());
         copy.variable_environment.set(self.variable_environment.get());
-        copy.private_environment.set(self.private_environment.get());
+        copy.private_environment_in_frame
+            .set(self.private_environment_in_frame.get());
         copy.program_counter.set(self.program_counter.get());
         copy.frame_id.set(self.frame_id.get());
         copy.yield_continuation.set(self.yield_continuation.get());
@@ -191,7 +224,8 @@ impl ExecutionContext {
             .set(self.script_or_module_without_function.get());
         copy.lexical_environment.set(self.lexical_environment.get());
         copy.variable_environment.set(self.variable_environment.get());
-        copy.private_environment.set(self.private_environment.get());
+        copy.private_environment_in_frame
+            .set(self.private_environment_in_frame.get());
         copy.program_counter.set(self.program_counter.get());
         copy.frame_id.set(self.frame_id.get());
         copy.caller_is_construct.set(self.caller_is_construct.get());
@@ -216,11 +250,14 @@ unsafe impl Trace for ExecutionContext {
         self.function.trace(visitor);
         self.variable_environment.trace(visitor);
         self.lexical_environment.trace(visitor);
-        self.private_environment.trace(visitor);
         self.this_value.trace(visitor);
         self.new_target.trace(visitor);
         self.executable.trace(visitor);
         // NB: The field of a frame with a function holds an old value, as script_or_module() says.
+        // NB: Until it is initialized, a frame of code that makes private environments holds an old value.
+        if self.function.get().is_none() || (self.frame_initialized.get() && self.keeps_private_environment()) {
+            self.private_environment_in_frame.trace(visitor);
+        }
         if self.function.get().is_none() {
             self.realm_without_function.trace(visitor);
             match self.script_or_module_without_function.get() {

@@ -380,6 +380,7 @@ impl Generator<'_> {
     /// The private names of a class come next, whose environment is current until the class is done.
     fn enter_class_private_environment(&mut self) {
         self.put(op::CreatePrivateEnvironment {});
+        self.makes_private_environments = true;
         let outer_handler = self.handler();
         // NB: An exception that leaves the function takes the private environment with its execution context.
         let handler = outer_handler.map(|_| Handler {

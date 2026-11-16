@@ -28,7 +28,12 @@ fn profiling_dispatch_table() -> *const c_void {
 /// (function entry and loop back edges), enter JIT code (calls), or return to a caller that may run with other
 /// handlers (see `InterpreterTier::WarmingUp`).
 pub fn warming_up_dispatch_table() -> Box<DispatchTable> {
-    mixed_dispatch_table(|name| matches!(name, "Enter" | "Call" | "Return" | "End") || name.contains("Loop"))
+    mixed_dispatch_table(|name| {
+        matches!(
+            name,
+            "Enter" | "EnterWithPrivateEnvironment" | "Call" | "Return" | "End"
+        ) || name.contains("Loop")
+    })
 }
 
 /// The plain handlers, with the profiling build's handlers for the instructions that enter JIT code (calls) or return

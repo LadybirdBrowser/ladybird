@@ -14,6 +14,7 @@
 CSYM(js_interpreter_dispatch_table):
 asm_dispatch_table:
     .quad asm_handler_Enter
+    .quad asm_handler_EnterWithPrivateEnvironment
     .quad asm_handler_Mov
     .quad asm_handler_MovWide
     .quad asm_handler_WideNameIndices
@@ -244,7 +245,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -537,6 +537,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_Enter_hot_end
     .quad asm_handler_Enter_cold
     .quad asm_handler_Enter_cold_end
+    .quad asm_handler_EnterWithPrivateEnvironment
+    .quad asm_handler_EnterWithPrivateEnvironment_hot_end
+    .quad asm_handler_EnterWithPrivateEnvironment_cold
+    .quad asm_handler_EnterWithPrivateEnvironment_cold_end
     .quad asm_handler_Mov
     .quad asm_handler_Mov_hot_end
     .quad asm_handler_Mov_cold
@@ -1553,10 +1557,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
     .quad asm_handler_fallback_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
 
 .text
 
@@ -1697,6 +1697,65 @@ asm_handler_Enter:
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_Enter_hot_end:
+
+.p2align 4
+asm_handler_EnterWithPrivateEnvironment:
+    ldr x0, [x28]
+    cbz x0, .Lasm_EnterWithPrivateEnvironment.ssa_block_2
+    str xzr, [x28, #48]
+    ldrb w9, [x0, #15]
+    mov w10, #8
+    tst x9, x10
+    b.eq .Lasm_EnterWithPrivateEnvironment.ssa_block_2
+    ldr w0, [x0, #76]
+    add x9, x24, w0, uxtw #3
+    cmp w0, #0
+    csel x0, x9, xzr, ne
+    str x0, [x28, #48]
+.Lasm_EnterWithPrivateEnvironment.ssa_block_2:
+    ldr x0, [x28, #88]
+    cbz x0, .Lasm_EnterWithPrivateEnvironment.assert_predicate_failure_12
+    ldrb w9, [x0, #109]
+    cbz w9, .Lasm_EnterWithPrivateEnvironment.ssa_block_6
+    strb wzr, [x0, #109]
+.Lasm_EnterWithPrivateEnvironment.ssa_block_6:
+    ldr w2, [x0, #12]
+    movz x3, #0x7ffb, lsl #48
+    mov w1, #5
+.Lasm_EnterWithPrivateEnvironment.ssa_block_9:
+    add x4, x1, #1
+    cmp x4, x2
+    b.hs .Lasm_EnterWithPrivateEnvironment.ssa_block_8
+    add x10, x27, x1, lsl #3
+    stp x3, x3, [x10]
+    add x1, x1, #2
+    b .Lasm_EnterWithPrivateEnvironment.ssa_block_9
+.Lasm_EnterWithPrivateEnvironment.ssa_block_8:
+    cmp x1, x2
+    b.hs .Lasm_EnterWithPrivateEnvironment.ssa_block_11
+    str x3, [x27, x1, lsl #3]
+.Lasm_EnterWithPrivateEnvironment.ssa_block_11:
+    ldr w3, [x0, #16]
+    ldr x1, [x0, #32]
+    subs x3, x3, x2
+    mov x0, #0
+.Lasm_EnterWithPrivateEnvironment.ssa_block_14:
+    cmp x0, x3
+    b.hs .Lasm_EnterWithPrivateEnvironment.ssa_block_13
+    cbz x1, .Lasm_EnterWithPrivateEnvironment.assert_predicate_failure_42
+    ldr x4, [x1, x0, lsl #3]
+    str x4, [x27, x2, lsl #3]
+    add x0, x0, #1
+    add x2, x2, #1
+    b .Lasm_EnterWithPrivateEnvironment.ssa_block_14
+.Lasm_EnterWithPrivateEnvironment.ssa_block_13:
+    mov w9, #1
+    strb w9, [x28, #79]
+    ldrb w9, [x21, #1]
+    add x21, x21, #1
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_EnterWithPrivateEnvironment_hot_end:
 
 .p2align 4
 asm_handler_Mov:
@@ -5423,7 +5482,7 @@ asm_handler_GetById:
     ldr x2, [x2, x4, lsl #3]
     cbz x2, .Lasm_GetById.ssa_block_1
     and x2, x2, #0xfffffffffffffffc
-    cbz x2, .Lasm_GetById.assert_predicate_failure_344
+    cbz x2, .Lasm_GetById.assert_predicate_failure_340
     ldr x9, [x2, #24]
     cmp x9, x0
     b.ne .Lasm_GetById.ssa_block_15
@@ -6254,10 +6313,10 @@ asm_handler_Call:
     b.ls .Lasm_Call.ssa_block_23
     mov x3, x4
 .Lasm_Call.ssa_block_23:
-    cbz x2, .Lasm_Call.assert_predicate_failure_272
+    cbz x2, .Lasm_Call.assert_predicate_failure_268
     ldp w0, w4, [x2, #12]
     cmp x4, x0
-    b.lo .Lasm_Call.assert_predicate_failure_278
+    b.lo .Lasm_Call.assert_predicate_failure_274
     movn w0, #0
     subs x0, x0, x4
     cmp x0, x3
@@ -6272,7 +6331,7 @@ asm_handler_Call:
     add x5, x5, #136
     adds x5, x5, x0
     cmp x5, x0
-    b.lo .Lasm_Call.assert_predicate_failure_292
+    b.lo .Lasm_Call.assert_predicate_failure_288
     cmp x5, x8
     b.hi .Lasm_Call.ssa_block_1
     mov x8, x20
@@ -6281,23 +6340,12 @@ asm_handler_Call:
     ldrb w5, [x21, #6]
     str w5, [x0, #104]
     str x1, [x0]
-    ldr w5, [x1, #72]
-    add x9, x24, w5, uxtw #3
-    cmp w5, #0
-    csel x5, x9, xzr, ne
-    cbz x5, .Lasm_Call.assert_predicate_failure_313
-    stp x5, x5, [x0, #32]
-    str xzr, [x0, #48]
-    ldrb w9, [x1, #15]
-    mov w10, #8
-    tst x9, x10
-    b.eq .Lasm_Call.ssa_block_27
-    ldr w1, [x1, #76]
+    ldr w1, [x1, #72]
     add x9, x24, w1, uxtw #3
     cmp w1, #0
     csel x1, x9, xzr, ne
-    str x1, [x0, #48]
-.Lasm_Call.ssa_block_27:
+    cbz x1, .Lasm_Call.assert_predicate_failure_309
+    stp x1, x1, [x0, #32]
     stp x6, x2, [x0, #80]
     movz x1, #0x7ffb, lsl #48
     stp x1, x1, [x0, #136]
@@ -6333,33 +6381,33 @@ asm_handler_Call:
     stp w1, w5, [x0, #108]
     ldrb w2, [x21, #6]
     cmp x3, x2
-    b.lo .Lasm_Call.assert_predicate_failure_394
+    b.lo .Lasm_Call.assert_predicate_failure_382
     add x6, x21, #7
     add x5, x0, #136
     add x7, x28, #136
     mov x1, #0
-.Lasm_Call.ssa_block_30:
+.Lasm_Call.ssa_block_28:
     cmp x1, x2
-    b.hs .Lasm_Call.ssa_block_29
+    b.hs .Lasm_Call.ssa_block_27
     ldrb w8, [x6, x1]
     ldr x8, [x7, x8, lsl #3]
     str x8, [x5, x4, lsl #3]
     add x1, x1, #1
     add x4, x4, #1
-    b .Lasm_Call.ssa_block_30
-.Lasm_Call.ssa_block_29:
+    b .Lasm_Call.ssa_block_28
+.Lasm_Call.ssa_block_27:
     movz x1, #0x7ffe, lsl #48
     adds x3, x3, x4
     subs x3, x3, x2
-.Lasm_Call.ssa_block_33:
+.Lasm_Call.ssa_block_31:
     cmp x4, x3
-    b.hs .Lasm_Call.ssa_block_32
+    b.hs .Lasm_Call.ssa_block_30
     str x1, [x5, x4, lsl #3]
     add x4, x4, #1
-    b .Lasm_Call.ssa_block_33
-.Lasm_Call.ssa_block_32:
+    b .Lasm_Call.ssa_block_31
+.Lasm_Call.ssa_block_30:
     ldr x1, [x0, #88]
-    cbz x1, .Lasm_Call.assert_predicate_failure_417
+    cbz x1, .Lasm_Call.assert_predicate_failure_405
     ldr x26, [x1, #40]
     cbz x26, .Lasm_Call.assert_failure_7
     mov x1, x20
@@ -6499,8 +6547,6 @@ asm_handler_Call:
     cbz x1, .Lasm_Call.assert_predicate_failure_127
     cbz x3, .Lasm_Call.assert_predicate_failure_129
     stp x1, x3, [x0, #32]
-    ldr x1, [x28, #48]
-    str x1, [x0, #48]
     ldrb w1, [x21, #5]
     ldr x1, [x27, x1, lsl #3]
     mov w3, #0
@@ -6557,7 +6603,7 @@ asm_handler_Call:
     adds x4, x4, x0
     ldr w0, [x4, #8]
     cmp x0, #1
-    b.hs .Lasm_Call.assert_predicate_failure_218
+    b.hs .Lasm_Call.assert_predicate_failure_214
     ldr x2, [x4]
     cbz x2, .Lasm_Call.assert_failure_27
     mov x9, x2
@@ -6565,10 +6611,10 @@ asm_handler_Call:
     blr x9
     and x1, x1, #0xff
     cmp x1, #2
-    b.hs .Lasm_Call.assert_predicate_failure_225
+    b.hs .Lasm_Call.assert_predicate_failure_221
     cbnz x1, .Lasm_Call.ssa_block_6
     ldr x1, [x28, #96]
-    cbz x1, .Lasm_Call.assert_predicate_failure_231
+    cbz x1, .Lasm_Call.assert_predicate_failure_227
     mov x2, x20
     str x1, [x2]
     str x28, [x2, #16]
@@ -8592,6 +8638,8 @@ asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end:
 asm_cold_handler_paths:
 asm_handler_Enter_cold:
 asm_handler_Enter_cold_end:
+asm_handler_EnterWithPrivateEnvironment_cold:
+asm_handler_EnterWithPrivateEnvironment_cold_end:
 asm_handler_Mov_cold:
 asm_handler_Mov_cold_end:
 asm_handler_MovWide_cold:
@@ -14531,8 +14579,6 @@ asm_handler_GetById_cold:
     cbz x1, .Lasm_GetById.assert_predicate_failure_206
     cbz x4, .Lasm_GetById.assert_predicate_failure_208
     stp x1, x4, [x0, #32]
-    ldr x1, [x28, #48]
-    str x1, [x0, #48]
     and x3, x3, #0x7ffffffff
     movz x1, #0xfff9, lsl #48
     orr x3, x3, x1
@@ -14568,10 +14614,10 @@ asm_handler_GetById_cold:
     blr x9
     and x1, x1, #0xff
     cmp x1, #2
-    b.hs .Lasm_GetById.assert_predicate_failure_274
+    b.hs .Lasm_GetById.assert_predicate_failure_270
     cbnz x1, .Lasm_GetById.ssa_block_6
     ldr x1, [x28, #96]
-    cbz x1, .Lasm_GetById.assert_predicate_failure_283
+    cbz x1, .Lasm_GetById.assert_predicate_failure_279
     mov x2, x20
     str x1, [x2]
     str x28, [x2, #16]
@@ -21271,6 +21317,10 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_Enter.assert_predicate_failure_29:
     brk #0
+.Lasm_EnterWithPrivateEnvironment.assert_predicate_failure_12:
+    brk #0
+.Lasm_EnterWithPrivateEnvironment.assert_predicate_failure_42:
+    brk #0
 .Lasm_JumpIf.assert_predicate_failure_7:
     brk #0
 .Lasm_JumpTrue.assert_predicate_failure_6:
@@ -21441,7 +21491,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_GetById.assert_failure_1:
     brk #0
-.Lasm_GetById.assert_predicate_failure_344:
+.Lasm_GetById.assert_predicate_failure_340:
     brk #0
 .Lasm_GetById.assert_failure_2:
     brk #0
@@ -21471,9 +21521,9 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_GetById.assert_failure_10:
     brk #0
-.Lasm_GetById.assert_predicate_failure_274:
+.Lasm_GetById.assert_predicate_failure_270:
     brk #0
-.Lasm_GetById.assert_predicate_failure_283:
+.Lasm_GetById.assert_predicate_failure_279:
     brk #0
 .Lasm_GetById.assert_predicate_failure_26:
     brk #0
@@ -21587,23 +21637,23 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_Call.assert_failure_3:
     brk #0
-.Lasm_Call.assert_predicate_failure_272:
+.Lasm_Call.assert_predicate_failure_268:
     brk #0
-.Lasm_Call.assert_predicate_failure_278:
+.Lasm_Call.assert_predicate_failure_274:
     brk #0
 .Lasm_Call.assert_failure_4:
     brk #0
 .Lasm_Call.assert_failure_5:
     brk #0
-.Lasm_Call.assert_predicate_failure_292:
+.Lasm_Call.assert_predicate_failure_288:
     brk #0
-.Lasm_Call.assert_predicate_failure_313:
+.Lasm_Call.assert_predicate_failure_309:
     brk #0
 .Lasm_Call.assert_failure_6:
     brk #0
-.Lasm_Call.assert_predicate_failure_394:
+.Lasm_Call.assert_predicate_failure_382:
     brk #0
-.Lasm_Call.assert_predicate_failure_417:
+.Lasm_Call.assert_predicate_failure_405:
     brk #0
 .Lasm_Call.assert_failure_7:
     brk #0
@@ -21633,13 +21683,13 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_Call.assert_failure_26:
     brk #0
-.Lasm_Call.assert_predicate_failure_218:
+.Lasm_Call.assert_predicate_failure_214:
     brk #0
 .Lasm_Call.assert_failure_27:
     brk #0
-.Lasm_Call.assert_predicate_failure_225:
+.Lasm_Call.assert_predicate_failure_221:
     brk #0
-.Lasm_Call.assert_predicate_failure_231:
+.Lasm_Call.assert_predicate_failure_227:
     brk #0
 .Lasm_Call.assert_predicate_failure_91:
     brk #0

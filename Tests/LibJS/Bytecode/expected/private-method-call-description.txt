@@ -6,7 +6,7 @@ $1d8ca011 private-method-call-description.js:1:1
     [1] = String("call")
 
 block0:
-  [   0] Enter
+  [   0] EnterWithPrivateEnvironment
   [   1] GetLexicalEnvironment dst:reg4
   [   3] Mov dst:reg5, src:Undefined
   [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false

@@ -1278,7 +1278,7 @@ inline fn count_loop_iteration() {
 
 # Bytecode handlers are kept in native layout order.
 
-handler Enter() {
+inline fn enter_frame() {
     consume_tier_up_budget(TIER_UP_FUNCTION_ENTRY_COST, pc, 0);
     let executable = exec_ctx.executable;
     assert(executable != 0);
@@ -1309,6 +1309,25 @@ handler Enter() {
         write_index = write_index + 1;
     }
     exec_ctx.frame_initialized = true;
+}
+
+handler Enter() {
+    enter_frame();
+    dispatch_next;
+}
+
+# NB: Code that makes private environments starts with this, and its frames keep the running private environment
+#     from here on. Others read it from their function.
+handler EnterWithPrivateEnvironment() {
+    let function = exec_ctx.function;
+    if function != 0 {
+        let ecmascript_function: ECMAScriptFunctionObject = alias(function);
+        exec_ctx.private_environment = null;
+        if function.class_bits has ECMASCRIPT_FUNCTION_FLAG_HAS_RARE_DATA {
+            exec_ctx.private_environment = ecmascript_function.private_environment;
+        }
+    }
+    enter_frame();
     dispatch_next;
 }
 
@@ -3328,7 +3347,6 @@ handler GetById(
         assert(variable_environment != 0);
         native_frame.lexical_environment = lexical_environment;
         native_frame.variable_environment = variable_environment;
-        native_frame.private_environment = exec_ctx.private_environment;
         let receiver: Value = alias(box_object(receiver_object));
         native_frame.this_value = receiver;
         native_frame.executable = null;
@@ -4046,11 +4064,6 @@ inline fn enter_ecmascript_function_call(
     assert(lexical_environment != 0);
     frame.lexical_environment = lexical_environment;
     frame.variable_environment = lexical_environment;
-    frame.private_environment = null;
-    let class_bits = function.class_bits;
-    if class_bits has ECMASCRIPT_FUNCTION_FLAG_HAS_RARE_DATA {
-        frame.private_environment = ecmascript_function.private_environment;
-    }
     frame.this_value = receiver;
     frame.executable = executable_pointer;
     let empty_tag: Value = Value<Empty>;
@@ -4150,8 +4163,6 @@ inline fn call_raw_native_function(
     assert(variable_environment != 0);
     native_frame.lexical_environment = lexical_environment;
     native_frame.variable_environment = variable_environment;
-    let private_environment = exec_ctx.private_environment;
-    native_frame.private_environment = private_environment;
     let receiver = load(this_value);
     native_frame.this_value = receiver;
     # Raw native frames deliberately have no executable.

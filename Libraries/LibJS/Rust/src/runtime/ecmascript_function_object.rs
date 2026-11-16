@@ -875,7 +875,8 @@ impl EcmascriptFunctionObject {
         }
 
         // 10. Set the PrivateEnvironment of calleeContext to F.[[PrivateEnvironment]].
-        callee_context.private_environment.set(self.private_environment());
+        // NB: ExecutionContext::private_environment() reads it from F, and the code sets it in frames that keep their
+        //     own.
 
         // 11. If callerContext is not already suspended, suspend callerContext.
         // 12. Push calleeContext onto the execution context stack; calleeContext is now the running execution context.

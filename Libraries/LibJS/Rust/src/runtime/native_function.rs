@@ -330,12 +330,6 @@ impl NativeFunction {
                 .set(caller_context.variable_environment.get());
         }
 
-        // Note: Keeping the private environment is probably only needed because of async methods in classes
-        //       calling async_block_start which goes through a NativeFunction here.
-        callee_context
-            .private_environment
-            .set(caller_context.private_environment.get());
-
         // </8.> --------------------------------------------------------------------------
 
         // 9. Push calleeContext onto the execution context stack; calleeContext is now the running execution context.
