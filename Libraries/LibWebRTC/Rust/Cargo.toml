@@ -15,6 +15,7 @@ required-features = ["test-tools"]
 webrtc = "0.17.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
 anyhow = "1"
+async-trait = "0.1"
 env_logger = "0.11"
 log = "0.4"
 cpal = { version = "0.15", optional = true }

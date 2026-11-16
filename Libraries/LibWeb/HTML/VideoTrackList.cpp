@@ -43,6 +43,17 @@ void VideoTrackList::add_track(GC::Ref<VideoTrack> video_track)
         m_media_element->update_representation();
 }
 
+void VideoTrackList::remove_track(VideoTrack& video_track)
+{
+    if (!m_video_tracks.remove_first_matching([&](auto const& existing) { return existing.ptr() == &video_track; }))
+        return;
+    // NB: The track leaves the list before it is unselected, so that the list fires removetrack for it, not change.
+    video_track.remove_video_track_list({}, *this);
+    video_track.set_selected(false);
+    if (m_media_element)
+        m_media_element->update_representation();
+}
+
 void VideoTrackList::remove_all_tracks()
 {
     for (auto& video_track : m_video_tracks) {

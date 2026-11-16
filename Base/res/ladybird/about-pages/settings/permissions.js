@@ -22,6 +22,7 @@ const SITE_SETTINGS = {
             label: option.textContent,
         })),
     },
+    camera: { title: "Camera", policies: PERMISSION_POLICIES },
     geolocation: { title: "Location", policies: PERMISSION_POLICIES },
     microphone: { title: "Microphone", policies: PERMISSION_POLICIES },
     notifications: { title: "Notifications", policies: PERMISSION_POLICIES },

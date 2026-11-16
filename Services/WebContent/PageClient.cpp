@@ -15,6 +15,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibAudio/OutputSession.h>
 #include <LibAudio/RecordStream.h>
+#include <LibCamera/CaptureStream.h>
 #include <LibCore/Process.h>
 #include <LibCore/Timer.h>
 #include <LibDevTools/IndexedDBSerialization.h>
@@ -1506,9 +1507,9 @@ void PageClient::page_did_request_geolocation_position(u64 request_id, Web::HTML
     client().async_did_request_geolocation_position(m_id, request_id, requesting_document_id);
 }
 
-void PageClient::page_did_request_permission(u64 request_id, Web::HTML::CrossProcessId requesting_document_id, Utf16String const& name)
+void PageClient::page_did_request_permission(u64 request_id, Web::HTML::CrossProcessId requesting_document_id, Utf16String const& name, bool names_device)
 {
-    client().async_did_request_permission(m_id, request_id, requesting_document_id, name);
+    client().async_did_request_permission(m_id, request_id, requesting_document_id, name, names_device);
 }
 
 void PageClient::page_did_request_show_notification(u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData const& data, RefPtr<Gfx::Bitmap const> icon)
@@ -2207,6 +2208,13 @@ bool PageClient::page_did_request_tab_is_capturing_audio_for_testing()
     return false;
 }
 
+bool PageClient::page_did_request_tab_is_capturing_video_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_tab_is_capturing_video_for_testing(m_id);
+    return false;
+}
+
 void PageClient::page_did_report_audio_capture_for_testing(Web::PageId labelled_page_id, bool capturing)
 {
     if (auto* test_connection = client().test_connection())
@@ -2465,6 +2473,12 @@ NonnullOwnPtr<MediaClient::RemotePlaybackManager> PageClient::create_media_playb
 void PageClient::rebind_media_playback_manager(MediaClient::RemotePlaybackManager& playback_manager)
 {
     playback_manager.set_audio_group(audio_playback_group(m_id));
+}
+
+// The UI process takes the label of a camera stream for the ID of the page it captures for.
+NonnullRefPtr<Camera::CaptureStream::CreatePromise> PageClient::create_camera_capture_stream(StringView device_id, Camera::StreamRequest request, Camera::CaptureStream::FrameCallback callback)
+{
+    return Camera::CaptureStream::create(device_id, m_id.value(), request, move(callback));
 }
 
 NonnullRefPtr<Audio::RecordStream::CreatePromise> PageClient::create_audio_record_stream(StringView device_id, Audio::RecordStream::RecordCallback callback)

@@ -6,236 +6,288 @@
 
 #include <AK/Atomic.h>
 #include <AK/Mutex.h>
+#include <LibCore/EventLoop.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
-#include <LibMedia/Sinks/AudioOutputFactory.h>
+#include <LibMediaClient/RemotePlaybackManager.h>
 #include <LibMediaCodecs/AudioBlock.h>
 #include <LibWeb/HTML/MediaStreamPlayback.h>
 
 namespace Web::HTML {
 
-static constexpr u32 TARGET_LATENCY_MS = 100;
+// Every audio track is handed to the playback in this format, whatever its source produces.
+static constexpr u32 PLAYBACK_SAMPLE_RATE = 48'000;
+static constexpr u8 PLAYBACK_CHANNEL_COUNT = 2;
 
-// Live audio that the output can't keep up with is dropped rather than played late.
-static constexpr u32 MAXIMUM_QUEUED_MILLISECONDS = 200;
+// Audio that the main thread can't hand over in time is dropped rather than played late.
+static constexpr size_t MAXIMUM_PENDING_AUDIO_DELIVERIES = 16;
 
-// Fed on whichever thread produces the track's audio, drained on the audio output's thread.
-struct MediaStreamPlayback::TrackInput final : public AtomicRefCounted<TrackInput> {
+// Fed on whichever thread produces the track's audio, which is handed to the playback on the main thread.
+struct MediaStreamPlayback::AudioInput final : public AtomicRefCounted<AudioInput> {
     Mutex mutex;
     OwnPtr<Media::FFmpeg::FFmpegAudioConverter> converter;
-    Audio::SampleSpecification converter_output_specification;
     i64 frames_received { 0 };
-    // Interleaved, in the output's sample specification.
-    Vector<float> samples;
+    Atomic<size_t> pending_deliveries { 0 };
+    RefPtr<Core::WeakEventLoopReference> main_event_loop;
+
+    // Only touched on the main thread.
+    Function<void(ReadonlySpan<float> interleaved_samples)> on_samples;
 };
 
-struct MediaStreamPlayback::Mixer final : public AtomicRefCounted<Mixer> {
-    Mutex mutex;
-    Vector<NonnullRefPtr<TrackInput>> inputs;
-    Audio::SampleSpecification output_specification;
-    Atomic<bool> playing { false };
-};
-
-static void receive_frames(MediaStreamPlayback::Mixer& mixer, MediaStreamPlayback::TrackInput& input, float const* samples, size_t frame_count, u8 channel_count, u32 sample_rate)
+static void receive_audio(NonnullRefPtr<MediaStreamPlayback::AudioInput> const& input, float const* samples, size_t frame_count, u8 channel_count, u32 sample_rate)
 {
-    if (!mixer.playing.load(AK::MemoryOrder::memory_order_relaxed) || frame_count == 0 || channel_count == 0 || sample_rate == 0)
+    if (frame_count == 0 || channel_count == 0 || sample_rate == 0)
         return;
 
-    Audio::SampleSpecification output_specification;
+    Vector<float> converted_samples;
     {
-        MutexLocker locker(mixer.mutex);
-        output_specification = mixer.output_specification;
+        MutexLocker locker(input->mutex);
+        if (!input->converter) {
+            auto converter_or_error = Media::FFmpeg::FFmpegAudioConverter::try_create();
+            if (converter_or_error.is_error())
+                return;
+            auto converter = converter_or_error.release_value();
+            if (converter->set_output_sample_specification(Audio::SampleSpecification(PLAYBACK_SAMPLE_RATE, Audio::ChannelMap::stereo())).is_error())
+                return;
+            input->converter = move(converter);
+        }
+
+        // FIXME: Downmix sources with more than two channels instead of keeping the first two.
+        auto used_channel_count = min<size_t>(channel_count, 2);
+        auto channel_map = used_channel_count == 1 ? Audio::ChannelMap::mono() : Audio::ChannelMap::stereo();
+        Media::AudioBlock block;
+        block.initialize(Audio::SampleSpecification(sample_rate, channel_map), input->frames_received, frame_count);
+        input->frames_received += static_cast<i64>(frame_count);
+        for (size_t channel = 0; channel < used_channel_count; ++channel) {
+            auto destination = block.channel_data(channel);
+            for (size_t frame = 0; frame < frame_count; ++frame)
+                destination[frame] = samples[(frame * channel_count) + channel];
+        }
+        if (input->converter->push_block(block).is_error())
+            return;
+
+        while (true) {
+            Media::AudioBlock converted;
+            if (input->converter->retrieve_block(converted).is_error() || converted.is_empty())
+                break;
+            auto offset = converted_samples.size();
+            converted_samples.resize(offset + converted.sample_count());
+            converted.copy_to_interleaved(converted_samples.span().slice(offset));
+        }
     }
-    if (!output_specification.is_valid())
+    if (converted_samples.is_empty())
         return;
 
-    MutexLocker locker(input.mutex);
-    if (!input.converter || input.converter_output_specification != output_specification) {
-        auto converter_or_error = Media::FFmpeg::FFmpegAudioConverter::try_create();
-        if (converter_or_error.is_error())
-            return;
-        auto converter = converter_or_error.release_value();
-        if (converter->set_output_sample_specification(output_specification).is_error())
-            return;
-        input.converter = move(converter);
-        input.converter_output_specification = output_specification;
-        input.samples.clear();
-    }
-
-    // FIXME: Downmix sources with more than two channels instead of keeping the first two.
-    auto used_channel_count = min<size_t>(channel_count, 2);
-    auto channel_map = used_channel_count == 1 ? Audio::ChannelMap::mono() : Audio::ChannelMap::stereo();
-    Media::AudioBlock block;
-    block.initialize(Audio::SampleSpecification(sample_rate, channel_map), input.frames_received, frame_count);
-    input.frames_received += static_cast<i64>(frame_count);
-    for (size_t channel = 0; channel < used_channel_count; ++channel) {
-        auto destination = block.channel_data(channel);
-        for (size_t frame = 0; frame < frame_count; ++frame)
-            destination[frame] = samples[(frame * channel_count) + channel];
-    }
-    if (input.converter->push_block(block).is_error())
+    auto main_event_loop = input->main_event_loop->take();
+    if (!main_event_loop || input->pending_deliveries.load() >= MAXIMUM_PENDING_AUDIO_DELIVERIES)
         return;
-
-    while (true) {
-        Media::AudioBlock converted;
-        if (input.converter->retrieve_block(converted).is_error() || converted.is_empty())
-            break;
-        auto offset = input.samples.size();
-        input.samples.resize(offset + converted.sample_count());
-        converted.copy_to_interleaved(input.samples.span().slice(offset));
-    }
-
-    auto maximum_samples = static_cast<size_t>(output_specification.sample_rate()) * output_specification.channel_count() * MAXIMUM_QUEUED_MILLISECONDS / 1000;
-    if (input.samples.size() > maximum_samples)
-        input.samples.remove(0, input.samples.size() - maximum_samples);
+    input->pending_deliveries.fetch_add(1);
+    main_event_loop->deferred_invoke([input, converted_samples = move(converted_samples)] {
+        input->pending_deliveries.fetch_sub(1);
+        if (input->on_samples)
+            input->on_samples(converted_samples);
+    });
 }
 
-NonnullOwnPtr<MediaStreamPlayback> MediaStreamPlayback::create(NonnullRefPtr<Media::AudioOutputFactory> audio_output_factory)
+NonnullOwnPtr<MediaStreamPlayback> MediaStreamPlayback::create(MediaClient::RemotePlaybackManager& playback_manager, MediaCapture::MediaStream& stream, ActivityOf activity_of)
 {
-    return adopt_own(*new MediaStreamPlayback(move(audio_output_factory)));
+    auto playback = adopt_own(*new MediaStreamPlayback(playback_manager, stream, activity_of));
+    stream.add_observer(*playback);
+    playback->m_playback_manager.on_live_source_key_frame_needed = [playback = playback.ptr()](u64 live_source_id) {
+        auto* subscription = playback->find_subscription_for_live_source(live_source_id);
+        if (!subscription)
+            return;
+        if (auto track = subscription->track.ptr())
+            track->request_video_key_frame();
+    };
+    playback->update_subscriptions();
+    playback->m_is_active = playback->stream_has_active_tracks();
+    return playback;
 }
 
-MediaStreamPlayback::MediaStreamPlayback(NonnullRefPtr<Media::AudioOutputFactory> audio_output_factory)
-    : m_mixer(adopt_ref(*new Mixer))
-    , m_audio_output_factory(move(audio_output_factory))
+MediaStreamPlayback::MediaStreamPlayback(MediaClient::RemotePlaybackManager& playback_manager, MediaCapture::MediaStream& stream, ActivityOf activity_of)
+    : m_playback_manager(playback_manager)
+    , m_stream(stream)
+    , m_activity_of(activity_of)
 {
+}
+
+bool MediaStreamPlayback::stream_has_active_tracks() const
+{
+    auto stream = m_stream.ptr();
+    if (!stream)
+        return false;
+    if (m_activity_of == ActivityOf::AnyTrack)
+        return stream->active();
+    // A MediaStream object is said to be audible when it has at least one MediaStreamTrack whose [[Kind]] is "audio"
+    // that has not ended.
+    return any_of(stream->get_audio_tracks(), [](auto const& track) { return track->track_ready_state() != Bindings::MediaStreamTrackState::Ended; });
 }
 
 MediaStreamPlayback::~MediaStreamPlayback()
 {
-    m_mixer->playing.store(false);
-    // This can run while the garbage collector is sweeping, when the tracks may already be gone, so the sinks
-    // are only switched off here. Callers stop playback properly through set_tracks({}) beforehand.
-    for (auto& subscription : m_subscriptions)
-        subscription.sink->deactivate();
+    // This can run while the garbage collector is sweeping, when the stream and its tracks may already be gone, so the
+    // sinks are only switched off here. Owners stop() beforehand to let go of them properly.
+    m_playback_manager.on_live_source_key_frame_needed = nullptr;
+    for (auto& subscription : m_subscriptions) {
+        if (subscription.audio_sink)
+            subscription.audio_sink->deactivate();
+        if (subscription.audio_input)
+            subscription.audio_input->on_samples = nullptr;
+        if (subscription.video_sink)
+            subscription.video_sink->on_frame = nullptr;
+    }
 }
 
-void MediaStreamPlayback::set_tracks(ReadonlySpan<GC::Ref<MediaCapture::MediaStreamTrack>> tracks)
+void MediaStreamPlayback::stop()
 {
+    m_playback_manager.on_live_source_key_frame_needed = nullptr;
+    if (auto stream = m_stream.ptr())
+        stream->remove_observer(*this);
+    m_stream = nullptr;
+    for (auto& subscription : m_subscriptions)
+        unsubscribe(subscription);
+    m_subscriptions.clear();
+}
+
+void MediaStreamPlayback::media_stream_tracks_changed()
+{
+    update_subscriptions();
+    update_active_state();
+}
+
+void MediaStreamPlayback::update_active_state()
+{
+    auto is_active = stream_has_active_tracks();
+    if (is_active == m_is_active)
+        return;
+    m_is_active = is_active;
+    if (on_active_change)
+        on_active_change(is_active);
+}
+
+MediaStreamPlayback::Subscription* MediaStreamPlayback::find_subscription_for_live_source(u64 live_source_id)
+{
+    for (auto& subscription : m_subscriptions) {
+        if (subscription.live_source_id == live_source_id)
+            return &subscription;
+    }
+    return nullptr;
+}
+
+void MediaStreamPlayback::update_subscriptions()
+{
+    auto stream = m_stream.ptr();
+    if (!stream)
+        return;
+    auto tracks = stream->get_tracks();
+
     for (size_t index = m_subscriptions.size(); index-- > 0;) {
         auto track = m_subscriptions[index].track.ptr();
         auto still_present = track && any_of(tracks, [&](auto const& candidate) { return candidate.ptr() == track.ptr(); });
-        if (!still_present)
-            remove_input(index);
+        if (still_present)
+            continue;
+        auto live_source_id = m_subscriptions[index].live_source_id;
+        unsubscribe(m_subscriptions[index]);
+        m_subscriptions.remove(index);
+        // NB: A playback track is identified by the live source that plays it.
+        if (live_source_id.has_value() && on_track_removed)
+            on_track_removed(*live_source_id);
     }
 
     for (auto const& track : tracks) {
-        if (!track->is_audio())
-            continue;
         if (any_of(m_subscriptions, [&](auto const& subscription) { return subscription.track.ptr().ptr() == track.ptr(); }))
             continue;
-
-        auto input = adopt_ref(*new TrackInput);
-        auto sink = adopt_ref(*new MediaCapture::AudioFrameSink);
-        sink->on_frames = [mixer = m_mixer, input](float const* samples, size_t frame_count, u8 channel_count, u32 sample_rate) {
-            receive_frames(*mixer, *input, samples, frame_count, channel_count, sample_rate);
-        };
-        {
-            MutexLocker locker(m_mixer->mutex);
-            m_mixer->inputs.append(input);
-        }
-        m_subscriptions.append({ track, sink, input });
-        track->add_audio_sink(sink);
+        subscribe(track);
     }
 }
 
-void MediaStreamPlayback::remove_input(size_t index)
+void MediaStreamPlayback::announce_live_source(MediaClient::RemotePlaybackManager::LiveSource const& live_source, Utf16String media_stream_track_id)
 {
-    auto subscription = m_subscriptions.take(index);
-    if (auto track = subscription.track.ptr())
-        track->remove_audio_sink(*subscription.sink);
-    else
-        subscription.sink->deactivate();
-
-    MutexLocker locker(m_mixer->mutex);
-    m_mixer->inputs.remove_first_matching([&](auto const& input) { return input.ptr() == subscription.input.ptr(); });
-}
-
-void MediaStreamPlayback::play()
-{
-    if (m_playing)
-        return;
-    m_playing = true;
-    m_playing_since = MonotonicTime::now();
-    m_mixer->playing.store(true);
-
-    if (m_output) {
-        (void)m_output->resume();
-        return;
-    }
-    if (m_creating_output)
-        return;
-    m_creating_output = true;
-
-    auto data_callback = [mixer = m_mixer](Span<float> buffer, MonotonicTime) -> ReadonlySpan<float> {
-        buffer.fill(0.0f);
-        MutexLocker mixer_locker(mixer->mutex);
-        for (auto& input : mixer->inputs) {
-            MutexLocker input_locker(input->mutex);
-            auto sample_count = min(input->samples.size(), buffer.size());
-            for (size_t index = 0; index < sample_count; ++index)
-                buffer[index] += input->samples[index];
-            input->samples.remove(0, sample_count);
-        }
-        // A short read is padded with silence, so the output keeps asking for more instead of treating the
-        // stream as finished.
-        return buffer;
-    };
-
-    auto promise = m_audio_output_factory->open_output(Audio::OutputState::Suspended, TARGET_LATENCY_MS, move(data_callback));
-    promise->when_resolved([weak_self = make_weak_ptr()](auto& stream) {
+    live_source.track->when_resolved([weak_self = make_weak_ptr<MediaStreamPlayback>(), live_source_id = live_source.id, media_stream_track_id = move(media_stream_track_id)](Media::Track const& track) {
         if (!weak_self)
             return;
-        auto& self = *weak_self;
-        self.m_creating_output = false;
-        self.m_output = stream;
-        {
-            MutexLocker locker(self.m_mixer->mutex);
-            self.m_mixer->output_specification = stream->sample_specification();
-        }
-        (void)stream->set_volume(self.m_volume);
-        if (self.m_playing)
-            (void)stream->resume();
+        // The track may have left the stream in the meantime, which ended its source.
+        if (!weak_self->find_subscription_for_live_source(live_source_id))
+            return;
+        if (weak_self->on_track_added)
+            weak_self->on_track_added(track, media_stream_track_id);
     });
-    promise->when_rejected([weak_self = make_weak_ptr()](auto& error) {
-        dbgln("MediaStreamPlayback: Unable to open an audio output: {}", error);
+    live_source.track->when_rejected([](Media::DecoderError const& error) {
+        dbgln("MediaStreamPlayback: Unable to play a track: {}", error.description());
+    });
+}
+
+void MediaStreamPlayback::subscribe(MediaCapture::MediaStreamTrack& track)
+{
+    Subscription subscription;
+    subscription.track = track;
+    // An ended track stays in its stream, which is inactive once all of its tracks have ended.
+    subscription.ended_callback_id = track.add_ended_callback([weak_self = make_weak_ptr<MediaStreamPlayback>()] {
         if (weak_self)
-            weak_self->m_creating_output = false;
+            weak_self->update_active_state();
     });
-}
 
-void MediaStreamPlayback::pause()
-{
-    if (!m_playing)
+    if (track.is_audio()) {
+        auto live_source = m_playback_manager.add_live_audio_source(PLAYBACK_SAMPLE_RATE, PLAYBACK_CHANNEL_COUNT, track.label());
+        subscription.live_source_id = live_source.id;
+
+        auto input = adopt_ref(*new AudioInput);
+        input->main_event_loop = Core::EventLoop::current_weak();
+        input->on_samples = [this, live_source_id = live_source.id](ReadonlySpan<float> interleaved_samples) {
+            m_playback_manager.add_to_live_audio_source(live_source_id, ReadonlyBytes { interleaved_samples.data(), interleaved_samples.size() * sizeof(float) });
+        };
+        auto sink = adopt_ref(*new MediaCapture::AudioFrameSink);
+        sink->on_frames = [input](float const* samples, size_t frame_count, u8 channel_count, u32 sample_rate) {
+            receive_audio(input, samples, frame_count, channel_count, sample_rate);
+        };
+        subscription.audio_input = input;
+        subscription.audio_sink = sink;
+        m_subscriptions.append(move(subscription));
+        track.add_audio_sink(sink);
+        announce_live_source(live_source, track.id());
         return;
-    m_playing = false;
-    if (m_playing_since.has_value())
-        m_time_played += MonotonicTime::now() - m_playing_since.release_value();
-    m_mixer->playing.store(false);
-
-    if (m_output)
-        (void)m_output->discard_buffer_and_suspend();
-
-    // A paused live stream skips what arrived in the meantime rather than resuming from where it stopped.
-    MutexLocker locker(m_mixer->mutex);
-    for (auto& input : m_mixer->inputs) {
-        MutexLocker input_locker(input->mutex);
-        input->samples.clear();
     }
+
+    // A video track joins the playback with its first frame, so that a track that has nothing to show doesn't keep
+    // the rest of the stream from playing.
+    auto sink = adopt_ref(*new MediaCapture::VideoFrameSink);
+    sink->on_frame = [this, track = GC::Weak { track }](MediaCapture::EncodedVideoFrame const& frame) {
+        auto index = m_subscriptions.find_first_index_if([&](auto const& subscription) { return subscription.track.ptr().ptr() == track.ptr().ptr(); });
+        if (!index.has_value())
+            return;
+        auto& subscription = m_subscriptions[*index];
+        if (!subscription.live_source_id.has_value()) {
+            auto live_source = m_playback_manager.add_live_video_source(track ? track->label() : Utf16String {});
+            subscription.live_source_id = live_source.id;
+            announce_live_source(live_source, track ? track->id() : Utf16String {});
+        }
+        m_playback_manager.add_to_live_video_source(*subscription.live_source_id, frame.codec_id, frame.is_key_frame, frame.timestamp, frame.data);
+    };
+    subscription.video_sink = sink;
+    m_subscriptions.append(move(subscription));
+    track.add_video_sink(sink);
 }
 
-void MediaStreamPlayback::set_volume(double volume)
+void MediaStreamPlayback::unsubscribe(Subscription& subscription)
 {
-    m_volume = volume;
-    if (m_output)
-        (void)m_output->set_volume(volume);
-}
-
-double MediaStreamPlayback::current_time() const
-{
-    auto time = m_time_played;
-    if (m_playing_since.has_value())
-        time += MonotonicTime::now() - *m_playing_since;
-    return time.to_seconds_f64();
+    auto track = subscription.track.ptr();
+    if (track && subscription.ended_callback_id.has_value())
+        track->remove_ended_callback(*subscription.ended_callback_id);
+    if (subscription.audio_sink) {
+        if (track)
+            track->remove_audio_sink(*subscription.audio_sink);
+        else
+            subscription.audio_sink->deactivate();
+    }
+    if (subscription.audio_input)
+        subscription.audio_input->on_samples = nullptr;
+    if (subscription.video_sink) {
+        subscription.video_sink->on_frame = nullptr;
+        if (track)
+            track->remove_video_sink(*subscription.video_sink);
+    }
+    if (subscription.live_source_id.has_value())
+        m_playback_manager.end_live_source(*subscription.live_source_id);
 }
 
 }

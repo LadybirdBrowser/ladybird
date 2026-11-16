@@ -32,13 +32,17 @@ use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::policy::ice_transport_policy::RTCIceTransportPolicy;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
+use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::stats::{ICECandidateStats, StatsReport, StatsReportType};
 use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
 
 use crate::peer::{LocalNetwork, build_api};
+use crate::video::VideoCodec;
+use crate::video_sender::NegotiatedVideoTrack;
 
 use crate::ipc::{
-    ServerMessage as Message, Transport, client as Client, server as Server, to_optional_string, to_string,
+    ServerMessage as Message, TransceiverState, Transport, client as Client, server as Server, to_optional_string,
+    to_string,
 };
 
 type SharedWriter = Arc<Transport>;
@@ -46,7 +50,7 @@ type SharedWriter = Arc<Transport>;
 // A page controls everything below, so these bound what one renderer can make its helper hold.
 const MAX_PEER_CONNECTIONS: usize = 256;
 const MAX_TRANSCEIVERS: usize = 1024;
-const MAX_AUDIO_SENDERS: usize = 1024;
+const MAX_SENDERS: usize = 1024;
 const MAX_DATA_CHANNELS: usize = 1024;
 const MAX_ICE_SERVER_URLS: usize = 32;
 // Data a channel may have waiting to go out. A page that sends more than this is closed rather than buffered.
@@ -54,6 +58,11 @@ const MAX_DATA_CHANNEL_BUFFERED_AMOUNT: usize = 16 * 1024 * 1024;
 // Messages waiting for the renderer to read them. Past this, incoming media is dropped and data channels are closed,
 // so a peer can't grow the helper's memory while the renderer is stalled.
 const MAX_PENDING_OUTGOING_MESSAGES: usize = 2048;
+// A video frame is a whole encoded picture, and one that waits behind about a second of audio and video is too late to
+// show, so video gives way well before the other messages do.
+const MAX_PENDING_MESSAGES_FOR_VIDEO: usize = 64;
+// Limit key frame requests to bound encoding and bandwidth costs.
+const MIN_KEY_FRAME_REQUEST_INTERVAL: std::time::Duration = std::time::Duration::from_millis(250);
 // Messages from the renderer waiting to be handled. Past this, the renderer's sends wait instead.
 const INCOMING_QUEUE_CAPACITY: usize = 256;
 // Requests waiting behind a connection's host lookups. Past this, they're dropped.
@@ -69,12 +78,18 @@ pub enum NetworkAccess {
     Denied,
 }
 
-struct AudioSender {
+/// A track of the renderer's that is being sent. The renderer encodes (and possibly encrypts, as Discord's DAVE
+/// transform does) each frame, so the bytes it hands over go onto the wire as they are.
+struct Sender {
     pc_id: u64,
     sender: Arc<webrtc::rtp_transceiver::rtp_sender::RTCRtpSender>,
-    // The host encodes (and possibly encrypts, as Discord's DAVE transform does) each frame, so its bytes go straight
-    // onto the wire.
-    track: Arc<TrackLocalStaticSample>,
+    track: SenderTrack,
+}
+
+#[derive(Clone)]
+enum SenderTrack {
+    Audio(Arc<TrackLocalStaticSample>),
+    Video(Arc<NegotiatedVideoTrack>),
 }
 
 #[derive(Default)]
@@ -84,7 +99,10 @@ struct Registry {
     pc_ids: HashSet<u64>,
     pcs: HashMap<u64, Arc<RTCPeerConnection>>,
     data_channels: HashMap<u64, Arc<RTCDataChannel>>,
-    audio_senders: HashMap<u64, AudioSender>,
+    senders: HashMap<u64, Sender>,
+    // The track that each video transceiver sends through, whether or not the renderer has given it anything to
+    // send, with the connection it belongs to.
+    video_tracks: HashMap<u64, (u64, Arc<NegotiatedVideoTrack>)>,
     channel_owners: HashMap<u64, u64>,
     transceivers: HashMap<u64, (u64, Arc<webrtc::rtp_transceiver::RTCRtpTransceiver>)>,
 }
@@ -135,6 +153,9 @@ struct State {
     registry: AsyncMutex<Registry>,
     writer: SharedWriter,
     next_remote_channel_id: AtomicU64,
+    // Transceivers that a remote description made are given ids past the u32 range too, which the renderer then
+    // knows them by.
+    next_remote_transceiver_id: AtomicU64,
     host_lookups: HostLookups,
 }
 
@@ -147,6 +168,7 @@ impl State {
             // Remote-opened channel ids start past the u32 range so they don't collide with
             // host-allocated ids on either side. The host uses the lower range.
             next_remote_channel_id: AtomicU64::new(1u64 << 32),
+            next_remote_transceiver_id: AtomicU64::new(1u64 << 32),
             host_lookups: HostLookups::default(),
         }
     }
@@ -281,7 +303,8 @@ pub async fn run(transport: Transport, network_access: NetworkAccess) -> Result<
     let teardown = async {
         let peers = {
             let mut registry = state.registry.lock().await;
-            registry.audio_senders.clear();
+            registry.senders.clear();
+            registry.video_tracks.clear();
             registry.data_channels.clear();
             registry.channel_owners.clear();
             registry.transceivers.clear();
@@ -588,7 +611,8 @@ async fn dispatch(state: &Arc<State>, message: Message) -> Result<()> {
         Message::ClosePeerConnection(req) => {
             let pc = {
                 let mut registry = state.registry.lock().await;
-                registry.audio_senders.retain(|_, sender| sender.pc_id != req.pc_id);
+                registry.senders.retain(|_, sender| sender.pc_id != req.pc_id);
+                registry.video_tracks.retain(|_, (pc_id, _)| *pc_id != req.pc_id);
                 registry.transceivers.retain(|_, (owner, _)| *owner != req.pc_id);
                 let channels: Vec<_> = registry
                     .channel_owners
@@ -730,6 +754,7 @@ async fn dispatch(state: &Arc<State>, message: Message) -> Result<()> {
                     ok,
                     error_kind: error_kind.into(),
                     error_message: error_message.into(),
+                    transceivers: transceiver_states(state, req.pc_id).await,
                 },
             )?;
         }
@@ -744,6 +769,7 @@ async fn dispatch(state: &Arc<State>, message: Message) -> Result<()> {
                     ok,
                     error_kind: error_kind.into(),
                     error_message: error_message.into(),
+                    transceivers: transceiver_states(state, req.pc_id).await,
                 },
             )?;
         }
@@ -817,19 +843,27 @@ async fn dispatch(state: &Arc<State>, message: Message) -> Result<()> {
                         RTCRtpTransceiverDirection::Sendrecv
                     }
                 };
-                // Audio needs a placeholder encoding so a microphone can be attached
-                // later. Video has no send pipeline; leave its sender empty. A dummy
-                // VP8 track would otherwise be bound even for receive-only video,
-                // rejecting an answer that selects another codec (e.g. H.264).
+                // A sender has to be created with what it sends through, even if it never sends: webrtc-rs can't
+                // give one to a sender that was created without. For audio that is a placeholder Opus track. Video
+                // has a track that takes its codec from the session, since one made for a codec would keep the
+                // connection from accepting an answer that leaves the codec out.
                 let init = webrtc::rtp_transceiver::RTCRtpTransceiverInit {
-                    direction: if kind == RTPCodecType::Audio {
-                        RTCRtpTransceiverDirection::Sendrecv
-                    } else {
-                        RTCRtpTransceiverDirection::Recvonly
-                    },
+                    direction: RTCRtpTransceiverDirection::Sendrecv,
                     send_encodings: Vec::new(),
                 };
-                let transceiver = pc.add_transceiver_from_kind(kind, Some(init)).await?;
+                let transceiver = if kind == RTPCodecType::Video {
+                    let track = new_video_track(state, req.pc_id, req.transceiver_id);
+                    let transceiver = pc.add_transceiver_from_track(track.clone(), Some(init)).await?;
+                    state
+                        .registry
+                        .lock()
+                        .await
+                        .video_tracks
+                        .insert(req.transceiver_id, (req.pc_id, track));
+                    transceiver
+                } else {
+                    pc.add_transceiver_from_kind(kind, Some(init)).await?
+                };
                 transceiver.set_direction(direction).await;
                 state
                     .registry
@@ -875,131 +909,63 @@ async fn dispatch(state: &Arc<State>, message: Message) -> Result<()> {
                 transceiver.stop().await?;
             }
         }
-        Message::AddAudioTrack(req) => {
-            {
-                let registry = state.registry.lock().await;
-                if registry.audio_senders.contains_key(&req.sender_id) {
-                    return Ok(());
-                }
-                if registry.audio_senders.len() >= MAX_AUDIO_SENDERS {
-                    return Err(anyhow!("Too many audio senders"));
-                }
+        Message::RequestKeyFrame(req) => {
+            // FIXME: A receiver's id is its track's SSRC for now.
+            if let (Some(pc), Ok(media_ssrc)) = (find_pc(state, req.pc_id).await, u32::try_from(req.receiver_id)) {
+                send_picture_loss_indication(&pc, media_ssrc).await;
             }
-            if let Some(pc) = find_pc(state, req.pc_id).await {
-                use webrtc::api::media_engine::MIME_TYPE_OPUS;
-                use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
-                let track = Arc::new(TrackLocalStaticSample::new(
-                    RTCRtpCodecCapability {
-                        mime_type: MIME_TYPE_OPUS.to_owned(),
-                        clock_rate: 48000,
-                        channels: 2,
-                        sdp_fmtp_line: String::new(),
-                        rtcp_feedback: vec![],
+        }
+        Message::AddAudioTrack(req) => {
+            use webrtc::api::media_engine::MIME_TYPE_OPUS;
+            let capability = RTCRtpCodecCapability {
+                mime_type: MIME_TYPE_OPUS.to_owned(),
+                clock_rate: 48000,
+                channels: 2,
+                sdp_fmtp_line: String::new(),
+                rtcp_feedback: vec![],
+            };
+            if let Some(ssrc) = add_audio_track(state, req.pc_id, req.sender_id, capability).await? {
+                send(
+                    &state.writer,
+                    &Client::OnAudioTrackAdded {
+                        pc_id: req.pc_id,
+                        sender_id: req.sender_id,
+                        ssrc,
                     },
-                    format!("audio-{}", req.sender_id),
-                    format!("ladybird-stream-{}", req.pc_id),
-                ));
-                let existing = state.registry.lock().await.transceivers.get(&req.sender_id).cloned();
-                let added = if let Some((owner, transceiver)) = existing {
-                    if owner != req.pc_id {
-                        return Err(anyhow!("Sender belongs to another peer"));
-                    }
-                    let sender = transceiver.sender().await;
-                    sender.replace_track(Some(track.clone())).await.map(|()| sender)
-                } else {
-                    pc.add_track(track.clone()).await
-                };
-                match added {
-                    Ok(rtp_sender) => {
-                        for transceiver in pc.get_transceivers().await {
-                            if Arc::ptr_eq(&transceiver.sender().await, &rtp_sender) {
-                                state
-                                    .registry
-                                    .lock()
-                                    .await
-                                    .transceivers
-                                    .insert(req.sender_id, (req.pc_id, transceiver));
-                                break;
-                            }
-                        }
-                        let params = rtp_sender.get_parameters().await;
-                        let ssrc = params.encodings.first().map(|e| e.ssrc).unwrap_or(0);
-                        // Negotiation can miss senders added after the initial offer/answer because their
-                        // negotiated flag is not set in time. Bind now to initialize the packetizer;
-                        // otherwise write_sample silently does nothing. Already-started senders are bound.
-                        match rtp_sender.send(&params).await {
-                            Ok(()) | Err(webrtc::Error::ErrRTPSenderSendAlreadyCalled) => {}
-                            Err(e) => log::warn!("rtp_sender.send (forcing bind): {e}"),
-                        }
-                        // Reading RTCP drives feedback/statistics interceptors and prevents
-                        // feedback from accumulating behind an unread sender stream.
-                        let feedback_sender = rtp_sender.clone();
-                        tokio::spawn(async move { while feedback_sender.read_rtcp().await.is_ok() {} });
-                        state.registry.lock().await.audio_senders.insert(
-                            req.sender_id,
-                            AudioSender {
-                                pc_id: req.pc_id,
-                                sender: rtp_sender,
-                                track,
-                            },
-                        );
-                        log::info!(
-                            "AddAudioTrack pc_id={} sender_id={} ssrc={}",
-                            req.pc_id,
-                            req.sender_id,
-                            ssrc
-                        );
-                        send(
-                            &state.writer,
-                            &Client::OnAudioTrackAdded {
-                                pc_id: req.pc_id,
-                                sender_id: req.sender_id,
-                                ssrc,
-                            },
-                        )?;
-                    }
-                    Err(e) => log::warn!("pc.add_track: {e}"),
-                }
+                )?;
+            }
+        }
+        Message::AddVideoTrack(req) => {
+            let codecs = req
+                .codecs
+                .into_iter()
+                .filter_map(|codec| VideoCodec::from_name(&to_string(codec)))
+                .collect();
+            if let Some(ssrc) = add_video_track(state, req.pc_id, req.sender_id, codecs).await? {
+                send(
+                    &state.writer,
+                    &Client::OnVideoTrackAdded {
+                        pc_id: req.pc_id,
+                        sender_id: req.sender_id,
+                        ssrc,
+                    },
+                )?;
             }
         }
         Message::AudioTrackEncodedFrame(req) => {
-            let track = state
-                .registry
-                .lock()
-                .await
-                .audio_senders
-                .get(&req.sender_id)
-                .map(|sender| sender.track.clone());
-            if let Some(track) = track {
-                use std::time::Duration;
-                use webrtc::media::Sample;
-                let sample = Sample {
-                    data: req.payload.into(),
-                    duration: Duration::from_micros(req.duration_micros as u64),
-                    ..Default::default()
-                };
-                let len = sample.data.len();
-                match track.write_sample(&sample).await {
-                    Ok(()) => log::trace!(
-                        "audio_track_encoded_frame sender_id={} duration_us={} len={len}",
-                        req.sender_id,
-                        req.duration_micros
-                    ),
-                    Err(e) => log::debug!("audio_track_encoded_frame write_sample failed: {e}"),
-                }
-            } else {
-                log::debug!(
-                    "audio_track_encoded_frame: no AudioSender for sender_id={}",
-                    req.sender_id
-                );
-            }
+            write_encoded_frame(state, req.sender_id, req.duration_micros, req.payload).await;
+        }
+        Message::VideoTrackEncodedFrame(req) => {
+            write_encoded_frame(state, req.sender_id, req.duration_micros, req.payload).await;
         }
         Message::RemoveTrack(req) => {
             let removed = {
                 let mut registry = state.registry.lock().await;
-                registry.audio_senders.remove(&req.sender_id)
+                registry.senders.remove(&req.sender_id)
             };
+            // NB: A video sender keeps the track it sends through, which it couldn't be given again.
             if let Some(sender) = removed
+                && matches!(sender.track, SenderTrack::Audio(_))
                 && let Some(pc) = find_pc(state, req.pc_id).await
             {
                 pc.remove_track(&sender.sender).await?;
@@ -1109,6 +1075,284 @@ fn serialize_candidate_stats(mut candidate: ICECandidateStats, expose_address: b
         members.insert("address".to_owned(), address);
     }
     Ok(entry)
+}
+
+/// Gives a peer connection a track for the renderer to write encoded audio to, on the transceiver that the renderer
+/// knows the sender by if there is one already, and returns the SSRC the track is sent under. Returns nothing if the
+/// sender already has its track, or the connection is gone.
+async fn add_audio_track(
+    state: &Arc<State>,
+    pc_id: u64,
+    sender_id: u64,
+    capability: RTCRtpCodecCapability,
+) -> Result<Option<u32>> {
+    if !has_room_for_sender(state, sender_id).await? {
+        return Ok(None);
+    }
+    let Some(pc) = find_pc(state, pc_id).await else {
+        return Ok(None);
+    };
+    let track = Arc::new(TrackLocalStaticSample::new(
+        capability,
+        format!("audio-{sender_id}"),
+        format!("ladybird-stream-{pc_id}"),
+    ));
+    let existing = state.registry.lock().await.transceivers.get(&sender_id).cloned();
+    let added = if let Some((owner, transceiver)) = existing {
+        if owner != pc_id {
+            return Err(anyhow!("Sender belongs to another peer"));
+        }
+        let sender = transceiver.sender().await;
+        sender.replace_track(Some(track.clone())).await.map(|()| sender)
+    } else {
+        pc.add_track(track.clone()).await
+    };
+    let rtp_sender = match added {
+        Ok(rtp_sender) => rtp_sender,
+        Err(error) => {
+            log::warn!("pc.add_track: {error}");
+            return Ok(None);
+        }
+    };
+    remember_transceiver_of(state, &pc, pc_id, sender_id, &rtp_sender).await;
+    let ssrc = start_sender(&rtp_sender).await;
+    // Reading RTCP drives feedback/statistics interceptors and prevents feedback from accumulating behind an unread
+    // sender stream.
+    let feedback_sender = rtp_sender.clone();
+    tokio::spawn(async move { while feedback_sender.read_rtcp().await.is_ok() {} });
+    state.registry.lock().await.senders.insert(
+        sender_id,
+        Sender {
+            pc_id,
+            sender: rtp_sender,
+            track: SenderTrack::Audio(track),
+        },
+    );
+    log::info!("add_audio_track pc_id={pc_id} sender_id={sender_id} ssrc={ssrc}");
+    Ok(Some(ssrc))
+}
+
+/// The same for video. The sender's transceiver has had the track since it was created, if the renderer created it.
+async fn add_video_track(
+    state: &Arc<State>,
+    pc_id: u64,
+    sender_id: u64,
+    sendable_codecs: Vec<VideoCodec>,
+) -> Result<Option<u32>> {
+    if !has_room_for_sender(state, sender_id).await? {
+        return Ok(None);
+    }
+    let Some(pc) = find_pc(state, pc_id).await else {
+        return Ok(None);
+    };
+    let existing = {
+        let registry = state.registry.lock().await;
+        match (
+            registry.video_tracks.get(&sender_id),
+            registry.transceivers.get(&sender_id),
+        ) {
+            (Some((owner, _)), _) | (_, Some((owner, _))) if *owner != pc_id => {
+                return Err(anyhow!("Sender belongs to another peer"));
+            }
+            (Some((_, track)), Some((_, transceiver))) => Some((track.clone(), transceiver.clone())),
+            _ => None,
+        }
+    };
+    let (track, rtp_sender) = if let Some((track, transceiver)) = existing {
+        track.set_sendable_codecs(sendable_codecs);
+        (track, transceiver.sender().await)
+    } else {
+        // A video sender's track and transceiver are kept after the sender is removed, so they are bounded by
+        // themselves rather than by the senders that are left.
+        {
+            let registry = state.registry.lock().await;
+            if registry.transceivers.len() >= MAX_TRANSCEIVERS || registry.video_tracks.len() >= MAX_TRANSCEIVERS {
+                return Err(anyhow!("Too many transceivers"));
+            }
+        }
+        let track = new_video_track(state, pc_id, sender_id);
+        track.set_sendable_codecs(sendable_codecs);
+        let rtp_sender = match pc.add_track(track.clone()).await {
+            Ok(rtp_sender) => rtp_sender,
+            Err(error) => {
+                log::warn!("pc.add_track: {error}");
+                return Ok(None);
+            }
+        };
+        remember_transceiver_of(state, &pc, pc_id, sender_id, &rtp_sender).await;
+        state
+            .registry
+            .lock()
+            .await
+            .video_tracks
+            .insert(sender_id, (pc_id, track.clone()));
+        (track, rtp_sender)
+    };
+    let ssrc = start_sender(&rtp_sender).await;
+    // The track may have been bound before the renderer said what it can encode.
+    rebind_video_track(&rtp_sender, &track).await;
+    // Reading RTCP drives feedback/statistics interceptors and prevents feedback from accumulating behind an unread
+    // sender stream. It is also how the receiving end asks for a key frame.
+    if track.start_reading_feedback() {
+        let feedback_sender = rtp_sender.clone();
+        let writer = state.writer.clone();
+        tokio::spawn(async move {
+            let mut last_request: Option<std::time::Instant> = None;
+            while let Ok((packets, _)) = feedback_sender.read_rtcp().await {
+                if !packets.iter().any(|packet| asks_for_key_frame(packet.as_ref())) {
+                    continue;
+                }
+                let now = std::time::Instant::now();
+                if last_request.is_some_and(|last| now.duration_since(last) < MIN_KEY_FRAME_REQUEST_INTERVAL) {
+                    continue;
+                }
+                last_request = Some(now);
+                let _ = send(&writer, &Client::OnKeyFrameRequested { pc_id, sender_id });
+            }
+        });
+    }
+    state.registry.lock().await.senders.insert(
+        sender_id,
+        Sender {
+            pc_id,
+            sender: rtp_sender,
+            track: SenderTrack::Video(track),
+        },
+    );
+    log::info!("add_video_track pc_id={pc_id} sender_id={sender_id} ssrc={ssrc}");
+    Ok(Some(ssrc))
+}
+
+async fn has_room_for_sender(state: &Arc<State>, sender_id: u64) -> Result<bool> {
+    let registry = state.registry.lock().await;
+    if registry.senders.contains_key(&sender_id) {
+        return Ok(false);
+    }
+    if registry.senders.len() >= MAX_SENDERS {
+        return Err(anyhow!("Too many senders"));
+    }
+    Ok(true)
+}
+
+/// Makes the track a video sender sends through, which tells the renderer what to encode in.
+fn new_video_track(state: &Arc<State>, pc_id: u64, sender_id: u64) -> Arc<NegotiatedVideoTrack> {
+    let writer = state.writer.clone();
+    Arc::new(NegotiatedVideoTrack::new(
+        format!("video-{sender_id}"),
+        format!("ladybird-stream-{pc_id}"),
+        Box::new(move |codec| {
+            log::info!("pc_id={pc_id} sender_id={sender_id}: sending {codec:?}");
+            let (codec, payload_type) = codec.map_or(("", 0), |(codec, payload_type)| (codec.name(), payload_type));
+            let _ = send(
+                &writer,
+                &Client::OnVideoSenderCodec {
+                    pc_id,
+                    sender_id,
+                    codec: codec.into(),
+                    payload_type,
+                },
+            );
+        }),
+    ))
+}
+
+/// Records the sender's transceiver under the sender ID known to the renderer.
+async fn remember_transceiver_of(
+    state: &Arc<State>,
+    pc: &RTCPeerConnection,
+    pc_id: u64,
+    sender_id: u64,
+    rtp_sender: &Arc<webrtc::rtp_transceiver::rtp_sender::RTCRtpSender>,
+) {
+    for transceiver in pc.get_transceivers().await {
+        if Arc::ptr_eq(&transceiver.sender().await, rtp_sender) {
+            state
+                .registry
+                .lock()
+                .await
+                .transceivers
+                .insert(sender_id, (pc_id, transceiver));
+            break;
+        }
+    }
+}
+
+/// Binds a sender's track to the session, if it isn't yet, and returns the SSRC it sends under.
+async fn start_sender(rtp_sender: &webrtc::rtp_transceiver::rtp_sender::RTCRtpSender) -> u32 {
+    let params = rtp_sender.get_parameters().await;
+    let ssrc = params.encodings.first().map(|e| e.ssrc).unwrap_or(0);
+    // Negotiation can miss senders added after the initial offer/answer because their negotiated flag is not set in
+    // time. Bind now to initialize the packetizer; otherwise write_sample silently does nothing. Already-started
+    // senders are bound.
+    match rtp_sender.send(&params).await {
+        Ok(()) | Err(webrtc::Error::ErrRTPSenderSendAlreadyCalled) => {}
+        Err(e) => log::warn!("rtp_sender.send (forcing bind): {e}"),
+    }
+    ssrc
+}
+
+/// Binds a video sender's track again if the codec it was bound in is no longer the one it should send in, as after
+/// a description that changes the codecs of the session, or once the renderer has said which codecs it can encode.
+async fn rebind_video_track(
+    rtp_sender: &webrtc::rtp_transceiver::rtp_sender::RTCRtpSender,
+    track: &Arc<NegotiatedVideoTrack>,
+) {
+    let negotiated = rtp_sender.get_parameters().await.rtp_parameters.codecs;
+    if !track.is_bound_to_another_codec_than(&negotiated).await {
+        return;
+    }
+    if let Err(error) = rtp_sender.replace_track(Some(track.clone())).await {
+        log::warn!("binding a video sender to the session's codec failed: {error}");
+    }
+}
+
+async fn rebind_video_tracks(state: &Arc<State>, pc_id: u64) {
+    let tracks: Vec<_> = {
+        let registry = state.registry.lock().await;
+        registry
+            .video_tracks
+            .iter()
+            .filter(|(_, (owner, _))| *owner == pc_id)
+            .filter_map(|(id, (_, track))| Some((registry.transceivers.get(id)?.1.clone(), track.clone())))
+            .collect()
+    };
+    for (transceiver, track) in tracks {
+        rebind_video_track(&*transceiver.sender().await, &track).await;
+    }
+}
+
+fn asks_for_key_frame(packet: &(dyn webrtc::rtcp::packet::Packet + Send + Sync)) -> bool {
+    use webrtc::rtcp::payload_feedbacks::full_intra_request::FullIntraRequest;
+    use webrtc::rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication;
+    let packet = packet.as_any();
+    packet.is::<PictureLossIndication>() || packet.is::<FullIntraRequest>()
+}
+
+async fn write_encoded_frame(state: &Arc<State>, sender_id: u64, duration_micros: u32, payload: Vec<u8>) {
+    use webrtc::media::Sample;
+    let track = state
+        .registry
+        .lock()
+        .await
+        .senders
+        .get(&sender_id)
+        .map(|sender| sender.track.clone());
+    let Some(track) = track else {
+        log::debug!("encoded frame for sender_id={sender_id}, which has no track");
+        return;
+    };
+    let sample = Sample {
+        data: payload.into(),
+        duration: Duration::from_micros(u64::from(duration_micros)),
+        ..Default::default()
+    };
+    let result = match track {
+        SenderTrack::Audio(track) => track.write_sample(&sample).await,
+        SenderTrack::Video(track) => track.write_sample(&sample).await,
+    };
+    if let Err(error) = result {
+        log::debug!("write_sample failed for sender_id={sender_id}: {error}");
+    }
 }
 
 async fn find_pc(state: &Arc<State>, pc_id: u64) -> Option<Arc<RTCPeerConnection>> {
@@ -1287,10 +1531,53 @@ async fn apply_description(
                     Err(e) => log::warn!("trickle ICE candidate from SDP failed: {e}"),
                 }
             }
+            rebind_video_tracks(state, pc_id).await;
             (true, String::new(), String::new())
         }
         Err(e) => (false, "OperationError".to_string(), format!("{e}")),
     }
+}
+
+/// Where each of the renderer's transceivers on a peer connection stands in the descriptions applied so far.
+async fn transceiver_states(state: &Arc<State>, pc_id: u64) -> Vec<TransceiverState> {
+    use webrtc::rtp_transceiver::rtp_transceiver_direction::RTCRtpTransceiverDirection;
+    // A transceiver that a remote description made is given an id the first time a description is answered with, so
+    // that the renderer hears where it stands before it hears of its track. NB: The renderer's own are known by now, as
+    // its requests are handled in the order it made them.
+    if let Some(pc) = find_pc(state, pc_id).await {
+        let transceivers = pc.get_transceivers().await;
+        let mut registry = state.registry.lock().await;
+        for transceiver in transceivers {
+            let is_known = registry
+                .transceivers
+                .values()
+                .any(|(owner, registered)| *owner == pc_id && Arc::ptr_eq(registered, &transceiver));
+            if !is_known && registry.transceivers.len() < MAX_TRANSCEIVERS {
+                let id = state.next_remote_transceiver_id.fetch_add(1, Ordering::Relaxed);
+                registry.transceivers.insert(id, (pc_id, transceiver));
+            }
+        }
+    }
+    let transceivers: Vec<_> = state
+        .registry
+        .lock()
+        .await
+        .transceivers
+        .iter()
+        .filter(|(_, (owner, _))| *owner == pc_id)
+        .map(|(id, (_, transceiver))| (*id, transceiver.clone()))
+        .collect();
+    transceivers
+        .into_iter()
+        .map(|(transceiver_id, transceiver)| TransceiverState {
+            transceiver_id,
+            mid: transceiver.mid().map(|mid| mid.as_str().into()),
+            current_direction: match transceiver.current_direction() {
+                RTCRtpTransceiverDirection::Unspecified => None,
+                direction => Some(direction.to_string().as_str().into()),
+            },
+        })
+        .collect()
 }
 
 fn log_sdp_summary(pc_id: u64, sdp_type: &str, sdp: &str) {
@@ -1481,23 +1768,31 @@ fn wire_pc_events(state: &Arc<State>, pc_id: u64, pc: &Arc<RTCPeerConnection>) {
 
     let writer = state.writer.clone();
     let weak_state = Arc::downgrade(state);
+    let weak_pc = Arc::downgrade(pc);
     pc.on_track(Box::new(move |track, receiver, transceiver| {
         let writer = writer.clone();
         let weak_state = weak_state.clone();
+        let weak_pc = weak_pc.clone();
         Box::pin(async move {
             // FIXME: hand out monotonic ids and forward audio data through LibMedia plumbing
             //        rather than using ssrc-derived ids.
             let receiver_id = u64::from(track.ssrc());
-            // The host's id for this transceiver, or 0 if the host never created it.
+            // The host's id for this transceiver. One that a remote description made is given an id of its own here,
+            // so that the host can tell it apart in the descriptions applied later. 0 if there was no room for it.
             let mut transceiver_id = 0;
             if let Some(state) = weak_state.upgrade() {
-                let registry = state.registry.lock().await;
+                let mut registry = state.registry.lock().await;
                 if let Some((id, _)) = registry
                     .transceivers
                     .iter()
                     .find(|(_, (owner, registered))| *owner == pc_id && Arc::ptr_eq(registered, &transceiver))
                 {
                     transceiver_id = *id;
+                } else if registry.transceivers.len() < MAX_TRANSCEIVERS {
+                    transceiver_id = state.next_remote_transceiver_id.fetch_add(1, Ordering::Relaxed);
+                    registry
+                        .transceivers
+                        .insert(transceiver_id, (pc_id, transceiver.clone()));
                 }
             }
             tokio::spawn(async move {
@@ -1526,6 +1821,14 @@ fn wire_pc_events(state: &Arc<State>, pc_id: u64, pc: &Arc<RTCPeerConnection>) {
                     stream_ids: stream_ids.iter().map(|id| id.as_str().into()).collect(),
                 },
             );
+            if kind == "video" {
+                let writer = writer.clone();
+                let weak_pc = weak_pc.clone();
+                tokio::spawn(async move {
+                    forward_video_track(pc_id, receiver_id, track, weak_pc, writer).await;
+                });
+                return;
+            }
             if kind == "audio" {
                 let writer = writer.clone();
                 tokio::spawn(async move {
@@ -1629,6 +1932,107 @@ fn wire_pc_events(state: &Arc<State>, pc_id: u64, pc: &Arc<RTCPeerConnection>) {
             registry.data_channels.insert(channel_id, dc);
         })
     }));
+}
+
+/// Asks the sender of a received video track for a key frame.
+async fn send_picture_loss_indication(pc: &RTCPeerConnection, media_ssrc: u32) {
+    use webrtc::rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication;
+    let packet = PictureLossIndication {
+        sender_ssrc: 0,
+        media_ssrc,
+    };
+    if let Err(error) = pc.write_rtcp(&[Box::new(packet)]).await {
+        log::debug!("sending a picture loss indication for ssrc={media_ssrc} failed: {error}");
+    }
+}
+
+/// Reads a remote video track until it ends, sending the renderer every frame that it can decode.
+async fn forward_video_track(
+    pc_id: u64,
+    receiver_id: u64,
+    track: Arc<webrtc::track::track_remote::TrackRemote>,
+    weak_pc: std::sync::Weak<RTCPeerConnection>,
+    writer: SharedWriter,
+) {
+    use crate::video::{FrameAssembler, VideoCodec};
+
+    // Avoid overwhelming the sender with key frame requests during packet loss.
+    const MINIMUM_KEY_FRAME_REQUEST_INTERVAL: Duration = Duration::from_millis(500);
+
+    let mut assembler: Option<(u8, FrameAssembler)> = None;
+    let mut unsupported_payload_type = None;
+    let mut last_key_frame_request: Option<tokio::time::Instant> = None;
+    loop {
+        let packet = match track.read_rtp().await {
+            Ok((packet, _)) => packet,
+            Err(error) => {
+                log::debug!("read_rtp ended pc_id={pc_id} track_ssrc={}: {error}", track.ssrc());
+                let _ = send(&writer, &Client::OnTrackEnded { pc_id, receiver_id });
+                return;
+            }
+        };
+        if packet.payload.is_empty() {
+            continue;
+        }
+
+        let ssrc = packet.header.ssrc;
+        let payload_type = packet.header.payload_type;
+        if assembler
+            .as_ref()
+            .is_none_or(|(assembled_type, _)| *assembled_type != payload_type)
+        {
+            if unsupported_payload_type == Some(payload_type) {
+                continue;
+            }
+            let mime_type = track.codec().capability.mime_type;
+            let Some(codec) = VideoCodec::from_mime_type(&mime_type) else {
+                log::warn!("pc_id={pc_id} track_ssrc={ssrc}: no way to receive {mime_type} (pt={payload_type})");
+                unsupported_payload_type = Some(payload_type);
+                assembler = None;
+                continue;
+            };
+            log::info!("pc_id={pc_id} track_ssrc={ssrc}: receiving {mime_type} (pt={payload_type})");
+            assembler = Some((payload_type, FrameAssembler::new(codec)));
+        }
+        let Some((_, assembler)) = assembler.as_mut() else {
+            continue;
+        };
+
+        for frame in assembler.push(packet) {
+            // Late video is useless, so it's dropped while the renderer catches up, which leaves the frames that
+            // follow without what they depend on.
+            if assembler.is_waiting_for_key_frame() && !frame.is_key_frame {
+                continue;
+            }
+            if writer.pending_message_count() > MAX_PENDING_MESSAGES_FOR_VIDEO {
+                assembler.wait_for_key_frame();
+                continue;
+            }
+            let _ = send(
+                &writer,
+                &Client::OnEncodedVideoFrame {
+                    pc_id,
+                    receiver_id,
+                    ssrc,
+                    rtp_timestamp: frame.rtp_timestamp,
+                    payload_type,
+                    codec: assembler.codec().name().into(),
+                    is_key_frame: frame.is_key_frame,
+                    payload: frame.data.to_vec(),
+                },
+            );
+        }
+
+        if assembler.is_waiting_for_key_frame()
+            && last_key_frame_request.is_none_or(|last| last.elapsed() >= MINIMUM_KEY_FRAME_REQUEST_INTERVAL)
+        {
+            let Some(pc) = weak_pc.upgrade() else {
+                return;
+            };
+            last_key_frame_request = Some(tokio::time::Instant::now());
+            send_picture_loss_indication(&pc, ssrc).await;
+        }
+    }
 }
 
 fn send<M: EndpointMessage>(writer: &SharedWriter, msg: &M) -> Result<()> {
@@ -2067,10 +2471,10 @@ mod tests {
         {
             let registry = state.registry.lock().await;
             assert!(!registry.pcs.contains_key(&1));
-            assert!(!registry.audio_senders.contains_key(&1));
+            assert!(!registry.senders.contains_key(&1));
             assert!(!registry.data_channels.contains_key(&1));
             assert!(registry.pcs.contains_key(&2));
-            assert!(registry.audio_senders.contains_key(&2));
+            assert!(registry.senders.contains_key(&2));
             assert!(registry.data_channels.contains_key(&2));
         }
         command(&state, Server::ClosePeerConnection { pc_id: 2 }).await;
@@ -2080,5 +2484,126 @@ mod tests {
             1,
             "peer callbacks must not retain the service"
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn received_video_reaches_the_renderer_as_whole_frames() {
+        use crate::ipc::ClientMessage;
+        use webrtc::api::media_engine::MIME_TYPE_VP8;
+        use webrtc::media::Sample;
+        use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
+        use webrtc::track::track_local::TrackLocal;
+
+        // Larger than a packet, so that frames have to be put back together.
+        fn frame(is_key_frame: bool, index: u8) -> Vec<u8> {
+            let mut frame = vec![index; 3000];
+            frame[0] = if is_key_frame { 0x10 } else { 0x11 };
+            frame
+        }
+
+        let (state, renderer) = new_state(NetworkAccess::Allowed);
+        command(
+            &state,
+            Server::CreatePeerConnection {
+                pc_id: 1,
+                configuration: CONFIG.to_owned().into(),
+            },
+        )
+        .await;
+        command(
+            &state,
+            Server::AddTransceiver {
+                pc_id: 1,
+                transceiver_id: 1,
+                kind: "video".to_owned().into(),
+                direction: "recvonly".to_owned().into(),
+            },
+        )
+        .await;
+        let local = find_pc(&state, 1).await.unwrap();
+
+        let remote = crate::peer::build_default_api()
+            .unwrap()
+            .new_peer_connection(RTCConfiguration::default())
+            .await
+            .unwrap();
+        let track = Arc::new(TrackLocalStaticSample::new(
+            RTCRtpCodecCapability {
+                mime_type: MIME_TYPE_VP8.to_owned(),
+                clock_rate: 90000,
+                ..Default::default()
+            },
+            "video".to_owned(),
+            "stream".to_owned(),
+        ));
+        remote
+            .add_track(Arc::clone(&track) as Arc<dyn TrackLocal + Send + Sync>)
+            .await
+            .unwrap();
+
+        // Each side's candidates travel in its description.
+        let offer = local.create_offer(None).await.unwrap();
+        let mut gathered = local.gathering_complete_promise().await;
+        local.set_local_description(offer).await.unwrap();
+        let _ = gathered.recv().await;
+        remote
+            .set_remote_description(local.local_description().await.unwrap())
+            .await
+            .unwrap();
+        let answer = remote.create_answer(None).await.unwrap();
+        let mut gathered = remote.gathering_complete_promise().await;
+        remote.set_local_description(answer).await.unwrap();
+        let _ = gathered.recv().await;
+        local
+            .set_remote_description(remote.local_description().await.unwrap())
+            .await
+            .unwrap();
+
+        let sender = tokio::spawn(async move {
+            let mut index: u8 = 0;
+            loop {
+                let sample = Sample {
+                    data: frame(index.is_multiple_of(5), index).into(),
+                    duration: Duration::from_millis(33),
+                    ..Default::default()
+                };
+                let _ = track.write_sample(&sample).await;
+                index = index.wrapping_add(1);
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        });
+
+        let frames = tokio::time::timeout(
+            Duration::from_secs(30),
+            tokio::task::spawn_blocking(move || {
+                let mut frames = Vec::new();
+                while frames.len() < 6 {
+                    if let Ok(ClientMessage::OnEncodedVideoFrame(frame)) = receive(&renderer) {
+                        frames.push(frame);
+                    }
+                }
+                frames
+            }),
+        )
+        .await
+        .expect("no video frames reached the renderer")
+        .unwrap();
+        sender.abort();
+        local.close().await.unwrap();
+        remote.close().await.unwrap();
+
+        assert!(frames[0].is_key_frame, "the first frame must be decodable on its own");
+        for (index, received) in frames.iter().enumerate() {
+            assert_eq!(crate::ipc::to_string(received.codec.clone()), "VP8");
+            assert_eq!(received.pc_id, 1);
+            // The frames carry the index they were sent with, which says whether they were key frames.
+            let sent_index = received.payload[1];
+            assert_eq!(received.payload, frame(sent_index.is_multiple_of(5), sent_index));
+            assert_eq!(received.is_key_frame, sent_index.is_multiple_of(5));
+            if index > 0 {
+                assert_eq!(sent_index, frames[index - 1].payload[1].wrapping_add(1));
+                assert!(received.rtp_timestamp.wrapping_sub(frames[index - 1].rtp_timestamp) > 0);
+            }
+        }
     }
 }

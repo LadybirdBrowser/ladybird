@@ -42,6 +42,7 @@ private:
     virtual Messages::WebContentTestClient::DidRequestTabIsHeardPlayingAudioForTestingResponse did_request_tab_is_heard_playing_audio_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestTabIsUsingMicrophoneForTestingResponse did_request_tab_is_using_microphone_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestTabIsCapturingAudioForTestingResponse did_request_tab_is_capturing_audio_for_testing(Web::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestTabIsCapturingVideoForTestingResponse did_request_tab_is_capturing_video_for_testing(Web::PageId page_id) override;
     virtual void report_audio_capture_for_testing(Web::PageId page_id, Web::PageId labelled_page_id, bool capturing) override;
     virtual void retire_picture_in_picture_window_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestTabAudibilityTransitionsForTestingResponse did_request_tab_audibility_transitions_for_testing(Web::PageId page_id) override;

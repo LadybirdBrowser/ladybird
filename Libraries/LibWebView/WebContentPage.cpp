@@ -713,7 +713,7 @@ void WebContentPage::close()
     m_had_user_edits = false;
     m_history_recorded_url_for_current_load.clear();
     if (m_client) {
-        m_client->update_audio_capture_permission();
+        m_client->update_capture_permissions();
         if (auto* bidi = WebDriverBiDi::the())
             bidi->push_session_state_for_client(*m_client);
         m_client->forget_audio_playback(m_id);
@@ -1787,6 +1787,8 @@ void WebContentPage::did_request_date_picker(Utf16String input_type, Utf16String
 
 static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16String const& name)
 {
+    if (name == "camera"_utf16)
+        return Web::Permissions::PermissionName::Camera;
     if (name == "geolocation"_utf16)
         return Web::Permissions::PermissionName::Geolocation;
     if (name == "microphone"_utf16)
@@ -1800,6 +1802,8 @@ static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16Stri
 static Optional<Web::PermissionsPolicy::PolicyControlledFeature> policy_controlled_feature_for(Web::Permissions::PermissionName name)
 {
     switch (name) {
+    case Web::Permissions::PermissionName::Camera:
+        return Web::PermissionsPolicy::PolicyControlledFeature::Camera;
     case Web::Permissions::PermissionName::Geolocation:
         return Web::PermissionsPolicy::PolicyControlledFeature::Geolocation;
     case Web::Permissions::PermissionName::Microphone:
@@ -1901,7 +1905,7 @@ RefPtr<CanonicalDocument> WebContentPage::hosted_document_with_id(Web::HTML::Cro
     return found;
 }
 
-void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProcessId document_id, Utf16String name)
+void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProcessId document_id, Utf16String name, bool names_device)
 {
     auto permission_name = permission_name_from(name);
     if (!permission_name.has_value()) {
@@ -1980,6 +1984,9 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
     // When the system hasn't yet let the browser use the feature either, the prompt says the system will ask next.
     auto show_os_hint = [&] {
         switch (*permission_name) {
+        case Web::Permissions::PermissionName::Camera:
+            // FIXME: Ask the system for the camera where it keeps one from the browser (macOS).
+            return false;
         case Web::Permissions::PermissionName::Geolocation:
             return Application::the().geolocation_authorization() == Core::GeolocationAuthorization::NotDetermined;
         case Web::Permissions::PermissionName::Notifications:
@@ -1990,6 +1997,13 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
         VERIFY_NOT_REACHED();
     }();
     PermissionPromptRequest request { *permission_name, *top_level_origin, is_file, show_os_hint };
+    // A page that names no camera gets the one the user chooses, where there are several to choose from.
+    if (*permission_name == Web::Permissions::PermissionName::Camera && !names_device) {
+        if (auto cameras = client().camera_devices(); cameras.size() > 1) {
+            for (auto const& camera : cameras)
+                request.devices.append({ camera.dom_device_id, String::from_utf8_with_replacement_character(camera.label), camera.is_default });
+        }
+    }
 
     view().request_permission_prompt(move(request), [page = NonnullRefPtr(*this), request_id, document_id, permission_name = *permission_name, top_level_origin = *top_level_origin, is_file, generation_when_asked](Web::Permissions::PromptOutcome outcome) {
         if (!page->is_open())
@@ -2007,6 +2021,10 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
                 if (auto result = page->client().grant_audio_capture_to_file(page->view().url()); result.is_error())
                     warnln("Unable to grant audio capture: {}", result.error());
             }
+            if (state == Web::Permissions::EffectiveState::Granted && permission_name == Web::Permissions::PermissionName::Camera) {
+                if (auto result = page->client().grant_camera_capture_to_file(page->view().url()); result.is_error())
+                    warnln("Unable to grant camera capture: {}", result.error());
+            }
         } else {
             auto& manager = *page->view().session().permission_manager;
 
@@ -2023,6 +2041,8 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
         auto is_microphone = permission_name == Web::Permissions::PermissionName::Microphone;
         if (is_microphone)
             page->client().update_audio_capture_permission();
+        if (permission_name == Web::Permissions::PermissionName::Camera)
+            page->client().update_camera_capture_permission();
 
         if (!is_microphone || state != Web::Permissions::EffectiveState::Granted) {
             page->async_permission_request_completed(request_id, state);
@@ -2057,6 +2077,8 @@ Web::Permissions::PermissionSnapshot WebContentPage::set_permission_for_testing(
             manager.set_decision(*permission_name, *top_level_origin, {});
         if (*permission_name == Web::Permissions::PermissionName::Microphone)
             client().update_audio_capture_permission();
+        if (*permission_name == Web::Permissions::PermissionName::Camera)
+            client().update_camera_capture_permission();
         client().add_permission_origin(*top_level_origin);
     }
     return manager.snapshot_for(client().permission_origins());
@@ -2670,6 +2692,17 @@ void WebContentPage::did_change_media_session_state(Optional<Web::MediaSession::
     if (!view.has_value())
         return;
     Application::the().media_session_coordinator().update({ view->view_id(), m_id, view->is_private() == IsPrivate::Yes }, move(state), view->title().to_utf8());
+}
+
+void WebContentPage::set_capturing_video(bool capturing)
+{
+    if (m_capturing_video == capturing)
+        return;
+    m_capturing_video = capturing;
+    if (m_traversable) {
+        if (auto view = m_traversable->view(); view.has_value())
+            view->update_camera_capture({});
+    }
 }
 
 void WebContentPage::did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)
@@ -4096,6 +4129,12 @@ Messages::WebContentTestClient::DidRequestTabIsCapturingAudioForTestingResponse 
 {
     auto view = traversable().view();
     return view.has_value() && view->is_capturing_audio();
+}
+
+Messages::WebContentTestClient::DidRequestTabIsCapturingVideoForTestingResponse WebContentPage::did_request_tab_is_capturing_video_for_testing()
+{
+    auto view = traversable().view();
+    return view.has_value() && view->is_capturing_video();
 }
 
 void WebContentPage::report_audio_capture_for_testing(Web::PageId labelled_page_id, bool capturing)

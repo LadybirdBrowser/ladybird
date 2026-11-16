@@ -10,6 +10,7 @@
 #include <AK/SourceLocation.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibAudio/RecordStream.h>
+#include <LibCamera/CaptureStream.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
 #include <LibGfx/Bitmap.h>
@@ -1779,11 +1780,11 @@ void Page::unregister_emulated_position_data_observer(u64 observer_id)
     m_emulated_position_data_observers.remove(observer_id);
 }
 
-void Page::request_permission(HTML::CrossProcessId requesting_document_id, Utf16String const& name, PermissionPromptCallback callback)
+void Page::request_permission(HTML::CrossProcessId requesting_document_id, Utf16String const& name, bool names_device, PermissionPromptCallback callback)
 {
     auto request_id = m_next_permission_request_id++;
     m_pending_permission_requests.set(request_id, callback);
-    client().page_did_request_permission(request_id, requesting_document_id, name);
+    client().page_did_request_permission(request_id, requesting_document_id, name, names_device);
 }
 
 void Page::permission_request_completed(u64 request_id, Web::Permissions::EffectiveState state)
@@ -3026,6 +3027,11 @@ void Page::when_translation_settled(GC::Ref<GC::Function<void()>> callback)
 {
     m_translation_settled_callbacks.append(callback);
     notify_translation_progress();
+}
+
+NonnullRefPtr<Camera::CaptureStream::CreatePromise> PageClient::create_camera_capture_stream(StringView, Camera::StreamRequest, Camera::CaptureStream::FrameCallback)
+{
+    return Camera::CaptureStream::CreatePromise::rejected(Error::from_errno(EIO));
 }
 
 NonnullRefPtr<Audio::RecordStream::CreatePromise> PageClient::create_audio_record_stream(StringView, Audio::RecordStream::RecordCallback)

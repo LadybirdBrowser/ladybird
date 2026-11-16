@@ -174,6 +174,7 @@ endpoint HubServer
 
     view_set_site_permission(u64 view_id, URL::Origin origin, Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) =|
     view_did_show_permission_prompt(u64 view_id, WebView::PermissionPromptRequest request) =|
+    view_did_choose_permission_prompt_device(u64 view_id, WebView::PermissionPromptRequest request, ByteString device_id) =|
     view_load_navigation(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation) =|
     view_open_navigation_in_new_tab(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) =|
     view_open_navigation_in_new_window(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) =|

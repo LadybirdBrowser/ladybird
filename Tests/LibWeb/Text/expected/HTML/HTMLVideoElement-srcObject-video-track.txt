@@ -1,0 +1,17 @@
+track: video, live
+duration: Infinity
+seekable ranges: 0
+video tracks: 1, selected: true
+video track has the stream track's id: true
+found by the stream track's id: true
+size: 64x36
+frames were presented
+currentTime advanced: true
+ended: false
+seeking: false
+seeking after fastSeek(): false
+currentTime stayed in the present: true
+playbackRate: 1, defaultPlaybackRate: 1
+ratechange events: 0
+frames were presented after pausing
+most frames were shown: true

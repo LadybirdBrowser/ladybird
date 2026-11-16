@@ -33,7 +33,7 @@ public:
     static WEB_API void did_report_content_security_policy_violation(WorkerAgentOwnerToken, u64 policy_index, String effective_directive, URL::URL resource);
     static WEB_API void did_close_worker(WorkerAgentOwnerToken);
     static WEB_API void did_worker_agent_die(WorkerAgentOwnerToken);
-    static WEB_API void did_write_rtc_transform_encoded_audio_frame(WorkerAgentOwnerToken, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number);
+    static WEB_API void did_write_rtc_transform_encoded_frame(WorkerAgentOwnerToken, u64 transform_id, WebRTC::EncodedFrame);
 
     void terminate();
 
@@ -44,9 +44,9 @@ protected:
 public:
     void rtc_transform_init(u64 transform_id, SerializedTransferRecord options_record);
     void rtc_transform_teardown(u64 transform_id);
-    void rtc_transform_encoded_audio_frame(u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number);
+    void rtc_transform_encoded_frame(u64 transform_id, WebRTC::EncodedFrame);
 
-    using TransformFrameWrittenCallback = AK::Function<void(ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)>;
+    using TransformFrameWrittenCallback = AK::Function<void(WebRTC::EncodedFrame)>;
     void register_transform_frame_callback(u64 transform_id, TransformFrameWrittenCallback callback);
 
 private:

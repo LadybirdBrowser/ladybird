@@ -24,7 +24,7 @@ Every record has these fields:
 | --- | --- |
 | `type` | `sample` or `event` |
 | `time_ns` | Integer nanoseconds from `CLOCK_MONOTONIC`, shared across processes on a host |
-| `process` | `ladybird`, `ladybird-driver`, `ladybird-render`, `ladybird-net`, `ladybird-gpu`, `ladybird-image`, `ladybird-audio`, `ladybird-media`, or `ladybird-video` |
+| `process` | `ladybird`, `ladybird-driver`, `ladybird-render`, `ladybird-net`, `ladybird-gpu`, `ladybird-image`, `ladybird-audio`, `ladybird-camera`, `ladybird-media`, or `ladybird-video` |
 | `pid` | Integer operating system process ID |
 
 For example:

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Video drawn to a canvas on one end of a connection is what a video element shows on the other end, both as it is
+// encoded and with script transforms scrambling the frames on their way out and putting them right on their way in,
+// as end-to-end encryption does.
+asyncTest(async done => {
+    internals.setAutoplayPolicy("allow-audio-and-video");
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 36;
+    const context = canvas.getContext("2d");
+    const fill = color => {
+        context.fillStyle = color;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+    };
+
+    const probe = document.createElement("canvas");
+    probe.width = 64;
+    probe.height = 36;
+    const probeContext = probe.getContext("2d", { willReadFrequently: true });
+    const colorShownBy = video => {
+        probeContext.drawImage(video, 0, 0, probe.width, probe.height);
+        const [red, green, blue] = probeContext.getImageData(32, 18, 1, 1).data;
+        if (red > 180 && green < 80 && blue < 80)
+            return "red";
+        if (red < 80 && green < 80 && blue > 180)
+            return "blue";
+        return `rgb(${red}, ${green}, ${blue})`;
+    };
+    const shows = (video, color) => new Promise((resolve, reject) => {
+        const deadline = performance.now() + 15000;
+        const check = () => {
+            if (video.videoWidth > 0 && colorShownBy(video) === color)
+                resolve();
+            else if (performance.now() > deadline)
+                reject(new Error(`the video never showed ${color}, but ${video.videoWidth > 0 ? colorShownBy(video) : "nothing"}`));
+            else
+                setTimeout(check, 20);
+        };
+        check();
+    });
+
+    const within = (promise, what) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(what)), 15000))]);
+
+    // Leaves alone the first bytes of each frame, which say what kind of frame it is, and flips the rest.
+    const workerSource = `
+        const counts = { sent: 0, received: 0 };
+        const firstTypes = {};
+        onrtctransform = async event => {
+            const { side } = event.transformer.options;
+            const reader = event.transformer.readable.getReader();
+            const writer = event.transformer.writable.getWriter();
+            for (;;) {
+                const { value, done } = await reader.read();
+                if (done)
+                    return;
+                firstTypes[side] ??= value.type;
+                const data = new Uint8Array(value.data);
+                for (let i = 10; i < data.length; ++i)
+                    data[i] ^= 0x5a;
+                value.data = data.buffer;
+                await writer.write(value);
+                if (++counts[side] === 3)
+                    postMessage({ side, firstType: firstTypes[side], isVideoFrame: value instanceof RTCEncodedVideoFrame });
+            }
+        };
+    `;
+
+    const connections = [];
+    const workers = [];
+    const videos = [];
+    // Sends the canvas from one connection to another, and resolves to an element playing what arrives.
+    const connect = async transforms => {
+        const a = new RTCPeerConnection();
+        const b = new RTCPeerConnection();
+        connections.push(a, b);
+        a.onicecandidate = event => event.candidate && b.addIceCandidate(event.candidate).catch(() => {});
+        b.onicecandidate = event => event.candidate && a.addIceCandidate(event.candidate).catch(() => {});
+
+        const stream = canvas.captureStream();
+        const received = new Promise(resolve => b.ontrack = event => {
+            if (transforms)
+                event.receiver.transform = new RTCRtpScriptTransform(transforms.worker, { side: "received" });
+            resolve(event);
+        });
+        const sender = a.addTrack(stream.getVideoTracks()[0], stream);
+        if (transforms)
+            sender.transform = new RTCRtpScriptTransform(transforms.worker, { side: "sent" });
+        await a.setLocalDescription(await a.createOffer());
+        await b.setRemoteDescription(a.localDescription);
+        await b.setLocalDescription(await b.createAnswer());
+        await a.setRemoteDescription(b.localDescription);
+
+        const event = await within(received, "no track event");
+        println(`received a ${event.track.kind} track, sent as ${a.getTransceivers()[0].currentDirection}`);
+        const video = document.createElement("video");
+        document.body.append(video);
+        videos.push(video);
+        video.srcObject = new MediaStream([event.track]);
+        await within(video.play(), "the video didn't start playing");
+        return video;
+    };
+
+    try {
+        // Use numeric host candidates so this loopback test does not depend on mDNS multicast.
+        await internals.setPermission("microphone", "granted");
+        fill("rgb(255, 0, 0)");
+        const video = await connect(null);
+        await shows(video, "red");
+        println(`size: ${video.videoWidth}x${video.videoHeight}`);
+        println("the other end shows the canvas");
+        fill("rgb(0, 0, 255)");
+        await shows(video, "blue");
+        println("the other end shows what was drawn since");
+
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        workers.push(worker);
+        const reports = { sent: null, received: null };
+        const bothReported = new Promise(resolve => worker.onmessage = event => {
+            reports[event.data.side] = event.data;
+            if (reports.sent && reports.received)
+                resolve();
+        });
+        fill("rgb(255, 0, 0)");
+        const transformedVideo = await connect({ worker });
+        await shows(transformedVideo, "red");
+        println("with transforms, the other end shows the canvas");
+        // The canvas has to keep changing for frames to keep coming.
+        const redraw = setInterval(() => fill("rgb(0, 0, 255)"), 50);
+        await within(bothReported, "the transforms didn't see three frames each");
+        clearInterval(redraw);
+        // Frames reach a receiver's transform from a key frame on. A sender's transform may miss the first frames,
+        // which are made before there is anywhere to send them.
+        println(`sent: RTCEncodedVideoFrame: ${reports.sent.isVideoFrame}`);
+        println(`received: RTCEncodedVideoFrame: ${reports.received.isVideoFrame}, first frame: ${reports.received.firstType}`);
+        await shows(transformedVideo, "blue");
+        println("with transforms, the other end shows what was drawn since");
+    } catch (error) {
+        println(`FAIL: ${error.name}: ${error.message}`);
+    } finally {
+        for (const video of videos)
+            video.srcObject = null;
+        for (const worker of workers)
+            worker.terminate();
+        for (const connection of connections)
+            connection.close();
+        done();
+    }
+});
+</script>

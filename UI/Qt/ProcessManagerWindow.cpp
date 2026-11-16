@@ -325,6 +325,7 @@ static CanUnloadState can_unload_state(WebView::ProcessTabSnapshot const& tab)
         Description { DiscardBlockers::PlayingAudio, QT_TRANSLATE_NOOP("QObject", "It's playing sound") },
         Description { DiscardBlockers::RecentlyPlayedAudio, QT_TRANSLATE_NOOP("QObject", "It played sound in the last minute") },
         Description { DiscardBlockers::CapturingAudio, QT_TRANSLATE_NOOP("QObject", "It's using the microphone") },
+        Description { DiscardBlockers::CapturingVideo, QT_TRANSLATE_NOOP("QObject", "It's using the camera") },
         Description { DiscardBlockers::UsingLocation, QT_TRANSLATE_NOOP("QObject", "It's using your location") },
         Description { DiscardBlockers::OwnsAView, QT_TRANSLATE_NOOP("QObject", "It has a Picture-in-Picture window") },
         Description { DiscardBlockers::DevToolsConnected, QT_TRANSLATE_NOOP("QObject", "DevTools are open for it") },

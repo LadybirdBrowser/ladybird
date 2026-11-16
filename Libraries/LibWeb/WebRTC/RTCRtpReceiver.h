@@ -7,8 +7,15 @@
 #pragma once
 
 #include <LibWeb/Bindings/MediaStreamTrack.h>
+#include <LibWeb/Bindings/RTCRtpSender.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+
+namespace Web::MediaCapture {
+
+class EncodedVideoSource;
+
+}
 
 namespace Web::WebRTC {
 
@@ -22,6 +29,8 @@ public:
     static GC::Ref<RTCRtpReceiver> create(Bindings::MediaStreamTrackKind);
     virtual ~RTCRtpReceiver() override;
 
+    static Optional<Bindings::RTCRtpCapabilities> get_capabilities(Utf16View kind);
+
     GC::Ref<MediaCapture::MediaStreamTrack> track() const;
 
     RTCRtpReceiverTransform transform() const;
@@ -31,6 +40,11 @@ public:
     Vector<GC::Ref<MediaCapture::MediaStream>> const& associated_remote_streams() const { return m_associated_remote_streams; }
     void set_associated_remote_streams(Vector<GC::Ref<MediaCapture::MediaStream>>&&);
 
+    // What the receiver receives video from, which its track and that track's clones share. It goes on giving the
+    // clones frames once the receiver's own track is stopped.
+    MediaCapture::EncodedVideoSource* encoded_video_source() const { return m_encoded_video_source.ptr(); }
+    void set_encoded_video_source(NonnullRefPtr<MediaCapture::EncodedVideoSource>);
+
 private:
     explicit RTCRtpReceiver(GC::Ref<MediaCapture::MediaStreamTrack>);
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -39,6 +53,7 @@ private:
     GC::Ref<MediaCapture::MediaStreamTrack> m_track;
     GC::Ptr<Bindings::Wrappable> m_transform;
     Vector<GC::Ref<MediaCapture::MediaStream>> m_associated_remote_streams;
+    RefPtr<MediaCapture::EncodedVideoSource> m_encoded_video_source;
 };
 
 }

@@ -3,7 +3,7 @@
 
 [Exposed=Window]
 interface RTCRtpTransceiver {
-    [FIXME] readonly attribute DOMString? mid;
+    readonly attribute DOMString? mid;
     [SameObject] readonly attribute RTCRtpSender sender;
     [SameObject] readonly attribute RTCRtpReceiver receiver;
     attribute RTCRtpTransceiverDirection direction;

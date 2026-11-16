@@ -77,6 +77,7 @@ public:
     // Asks the Browser to spawn this process's MediaServer if it has none, and to connect a client to it.
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_media_server_transport();
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_audio_server_transport();
+    ErrorOr<NonnullOwnPtr<IPC::Transport>> request_camera_server_transport();
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_webrtc_client_transport();
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_image_decoder_transport();
 

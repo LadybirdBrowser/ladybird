@@ -39,6 +39,15 @@ void AudioTrackList::add_track(GC::Ref<AudioTrack> audio_track)
     audio_track->add_audio_track_list({}, *this);
 }
 
+void AudioTrackList::remove_track(AudioTrack& audio_track)
+{
+    if (!m_audio_tracks.remove_first_matching([&](auto const& existing) { return existing.ptr() == &audio_track; }))
+        return;
+    // NB: The track leaves the list before it is disabled, so that the list fires removetrack for it, not change.
+    audio_track.remove_audio_track_list({}, *this);
+    audio_track.set_enabled(false);
+}
+
 void AudioTrackList::remove_all_tracks()
 {
     for (auto& audio_track : m_audio_tracks) {

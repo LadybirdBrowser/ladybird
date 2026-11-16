@@ -1,0 +1,11 @@
+enabled: red
+disabled: black, at 64x36
+enabled again: red
+disabled while the canvas is idle: black
+enabled again while the canvas is idle: red
+disabled clone: black, while the original shows red
+received: red
+sender disabled: black
+sender enabled again: red
+receiver disabled: black, at 64x36
+receiver enabled again: red

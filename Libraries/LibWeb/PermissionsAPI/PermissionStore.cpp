@@ -99,6 +99,7 @@ bool PermissionStore::store_snapshot(Web::Permissions::PermissionSnapshot const&
 
     if (!m_defaults_revision.has_value() || snapshot.revision > *m_defaults_revision) {
         m_defaults_revision = snapshot.revision;
+        m_camera_default = snapshot.camera_default;
         m_geolocation_default = snapshot.geolocation_default;
         m_microphone_default = snapshot.microphone_default;
         m_notifications_default = snapshot.notifications_default;
@@ -152,6 +153,8 @@ Web::Permissions::EffectiveState PermissionStore::state_for(Web::Permissions::Pe
     // NB: The caller holds the lock.
     auto default_state = [&] {
         switch (name) {
+        case Web::Permissions::PermissionName::Camera:
+            return m_camera_default;
         case Web::Permissions::PermissionName::Geolocation:
             return m_geolocation_default;
         case Web::Permissions::PermissionName::Microphone:

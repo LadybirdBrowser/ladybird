@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video" muted></video>
+<script>
+    function within(milliseconds, promise, what) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error(`timed out waiting for ${what}`)), milliseconds)),
+        ]);
+    }
+
+    asyncTest(async done => {
+        try {
+            println(`capturing before: ${internals.tabIsCapturingVideo()}`);
+
+            // Before permission is granted, only camera existence is exposed.
+            let cameras = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "videoinput");
+            println(`cameras before: ${cameras.length}, id "${cameras[0].deviceId}", label "${cameras[0].label}"`);
+
+            const stream = await within(10000, navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, frameRate: 15 } }), "getUserMedia");
+            const [track] = stream.getTracks();
+            println(`tracks: ${stream.getTracks().length}, kind ${track.kind}, state ${track.readyState}, label "${track.label}"`);
+            const settings = track.getSettings();
+            println(`settings: ${settings.width}x${settings.height} at ${settings.frameRate}, device "${settings.deviceId}"`);
+            println(`permission: ${(await navigator.permissions.query({ name: "camera" })).state}`);
+
+            cameras = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "videoinput");
+            println(`cameras after: ${cameras.length}, id "${cameras[0].deviceId}", label "${cameras[0].label}"`);
+            println(`the tab shows it: ${await within(5000, waitForCondition(() => internals.tabIsCapturingVideo()), "the tab to show the camera")}`);
+
+            const video = document.getElementById("video");
+            video.srcObject = stream;
+            video.play();
+            await within(10000, waitForCondition(() => video.videoWidth > 0), "the video to have a size");
+            println(`video: ${video.videoWidth}x${video.videoHeight}`);
+            await within(10000, waitForCondition(() => video.currentTime > 0.2), "the video to play");
+            println("the video plays");
+
+            // A clone is of the same camera, which stays open for it once the original stops.
+            const clone = track.clone();
+            println(`streams with a clone: ${internals.cameraCaptureStreamCount()}`);
+            track.stop();
+            println(`streams once the original stops: ${internals.cameraCaptureStreamCount()}, capturing: ${internals.tabIsCapturingVideo()}`);
+            clone.stop();
+            println(`streams once the clone stops: ${internals.cameraCaptureStreamCount()}`);
+            println(`the tab stops showing it: ${await within(5000, waitForCondition(() => !internals.tabIsCapturingVideo()), "the tab to stop showing the camera")}`);
+
+            // The second camera only supplies blue 640x480 frames at 30 fps; capture must adapt them to the request.
+            const secondCamera = cameras.find(camera => camera.label === "Second synthetic camera");
+            const second = await within(10000, navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: secondCamera.deviceId }, width: 320, height: 180, frameRate: 15 } }), "getUserMedia for the second camera");
+            const [secondTrack] = second.getTracks();
+            const secondSettings = secondTrack.getSettings();
+            println(`second camera: label "${secondTrack.label}", ${secondSettings.width}x${secondSettings.height} at ${secondSettings.frameRate}, device "${secondSettings.deviceId}"`);
+            video.srcObject = second;
+            video.play();
+            await within(10000, waitForCondition(() => video.videoWidth === 320), "the video to have the second camera's size");
+            println(`second video: ${video.videoWidth}x${video.videoHeight}`);
+            const canvas = document.createElement("canvas");
+            canvas.width = 320;
+            canvas.height = 180;
+            const context = canvas.getContext("2d");
+            const isBlue = () => {
+                context.drawImage(video, 0, 0);
+                const [red, green, blue] = context.getImageData(160, 90, 1, 1).data;
+                return blue > red + 60 && blue > green + 60;
+            };
+            println(`the second camera's picture is blue: ${await within(10000, waitForCondition(isBlue), "a blue picture")}`);
+            secondTrack.stop();
+
+            const first = await within(10000, navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cameras[0].deviceId }, width: 320, height: 180 } }), "getUserMedia for the first camera");
+            video.srcObject = first;
+            video.play();
+            await within(10000, waitForCondition(() => video.currentTime > 0.2), "the first camera to play again");
+            println(`the first camera's picture is blue: ${isBlue()}`);
+            first.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+
+            try {
+                await within(10000, navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: "no-such-camera" } } }), "getUserMedia for a camera there is not");
+                println("FAIL: got a camera there is not");
+            } catch (error) {
+                println(`a camera there is not: ${error.name}`);
+            }
+
+            const exact = await within(10000, navigator.mediaDevices.getUserMedia({ video: { width: { exact: 320 }, height: { min: 100, max: 300 } } }), "getUserMedia with required constraints");
+            const exactSettings = exact.getVideoTracks()[0].getSettings();
+            println(`required constraints that are met: ${exactSettings.width}x${exactSettings.height}`);
+            exact.getTracks().forEach(track => track.stop());
+            for (const [name, constraints] of [["width", { width: { exact: 8192 } }], ["frameRate", { frameRate: { min: 1000 } }]]) {
+                try {
+                    await within(10000, navigator.mediaDevices.getUserMedia({ video: constraints }), `getUserMedia with an unmet ${name}`);
+                    println(`FAIL: an unmet ${name} constraint was met`);
+                } catch (error) {
+                    println(`an unmet ${name} constraint: ${error.name}`);
+                }
+            }
+            for (let attempt = 0; attempt < 100 && internals.cameraCaptureStreamCount() !== 0; ++attempt)
+                await new Promise(resolve => setTimeout(resolve, 20));
+            println(`no camera stream is left after them: ${internals.cameraCaptureStreamCount() === 0}`);
+
+            const both = await within(10000, navigator.mediaDevices.getUserMedia({ audio: true, video: true }), "getUserMedia for both");
+            println(`both: ${both.getAudioTracks().length} audio, ${both.getVideoTracks().length} video, ${both.getVideoTracks()[0].getSettings().width}x${both.getVideoTracks()[0].getSettings().height}`);
+            both.getTracks().forEach(track => track.stop());
+
+            // Without the permission there is no camera, and the microphone asked for along with it is let go of.
+            await internals.setPermission("camera", "denied");
+            try {
+                await within(10000, navigator.mediaDevices.getUserMedia({ audio: true, video: true }), "getUserMedia without the permission");
+                println("FAIL: got a camera without the permission");
+            } catch (error) {
+                println(`without the permission: ${error.name}`);
+            }
+            println(`no camera stream is left: ${internals.cameraCaptureStreamCount() === 0}`);
+            await internals.setPermission("camera", "prompt");
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        }
+        done();
+    });
+</script>

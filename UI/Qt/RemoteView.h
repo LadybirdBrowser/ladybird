@@ -77,6 +77,7 @@ public:
     void set_site_permission(URL::Origin const& origin, Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) { HubConnection::the().async_view_set_site_permission(view_id(), origin, name, decision); }
     void reset_site_permissions(URL::Origin const& origin) { HubConnection::the().async_view_reset_site_permissions(view_id(), origin); }
     void did_show_permission_prompt(WebView::PermissionPromptRequest const& request) { HubConnection::the().async_view_did_show_permission_prompt(view_id(), request); }
+    void did_choose_permission_prompt_device(WebView::PermissionPromptRequest const& request, ByteString const& device_id) { HubConnection::the().async_view_did_choose_permission_prompt_device(view_id(), request, device_id); }
     u64 view_id() const { return m_view_id; }
     pid_t web_content_pid() const { return m_state.web_content_pid; }
     URL::URL url() const { return m_state.url; }
@@ -208,6 +209,8 @@ public:
             return m_state.uses_location_indicator_visible;
         case WebView::TabIndicator::UsingMicrophone:
             return m_state.uses_microphone_indicator_visible;
+        case WebView::TabIndicator::UsingCamera:
+            return m_state.uses_camera_indicator_visible;
         }
         VERIFY_NOT_REACHED();
     }

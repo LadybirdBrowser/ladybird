@@ -132,7 +132,7 @@ if (APPLE)
 endif()
 
 if (LINUX)
-    list(APPEND TEST_SOURCES TestAudioDaemonSocket.cpp)
+    list(APPEND TEST_SOURCES TestAudioDaemonSocket.cpp TestCameraDaemonSocket.cpp)
 endif()
 
 if ((APPLE AND NOT IOS) OR LINUX)

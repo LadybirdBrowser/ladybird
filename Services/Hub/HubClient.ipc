@@ -51,12 +51,20 @@ struct WebView::ContentBlockingSnapshot {
 }
 
 [ExistingCpp]
+struct WebView::PermissionPromptDevice {
+    ByteString id;
+    String label;
+    bool is_default;
+}
+
+[ExistingCpp]
 struct WebView::PermissionPromptRequest {
     Web::Permissions::PermissionName name;
     URL::Origin top_level_origin;
     bool is_file;
     bool show_os_hint;
     WebView::PermissionPromptKind kind;
+    Vector<WebView::PermissionPromptDevice> devices;
 }
 
 [ExistingCpp]
@@ -236,6 +244,7 @@ struct Hub::ViewState {
     bool plays_audio_indicator_visible;
     bool uses_location_indicator_visible;
     bool uses_microphone_indicator_visible;
+    bool uses_camera_indicator_visible;
     Gfx::Color page_background_color;
     Optional<URL::Origin> permission_origin;
     Vector<WebView::SitePermissionRow> site_permission_rows;

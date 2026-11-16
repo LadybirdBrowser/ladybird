@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// A transceiver that a remote offer makes, on an end that has none of its own, has the mid and current direction that
+// the negotiation gave it by the time its track arrives.
+asyncTest(async done => {
+    internals.setAutoplayPolicy("allow-audio-and-video");
+    // Use numeric host candidates so this loopback test does not depend on mDNS multicast.
+    await internals.setPermission("microphone", "granted");
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 36;
+    const context = canvas.getContext("2d");
+    const drawing = setInterval(() => {
+        context.fillStyle = "red";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+    }, 30);
+    const within = (promise, what) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(what)), 15000))]);
+
+    const a = new RTCPeerConnection();
+    const b = new RTCPeerConnection();
+    try {
+        a.onicecandidate = event => event.candidate && b.addIceCandidate(event.candidate).catch(() => {});
+        b.onicecandidate = event => event.candidate && a.addIceCandidate(event.candidate).catch(() => {});
+        const received = new Promise(resolve => b.ontrack = event => resolve(event));
+        a.addTrack(canvas.captureStream().getVideoTracks()[0]);
+        await a.setLocalDescription(await a.createOffer());
+        await b.setRemoteDescription(a.localDescription);
+        await b.setLocalDescription(await b.createAnswer());
+        await a.setRemoteDescription(b.localDescription);
+        const event = await within(received, "no track event");
+        const transceiver = event.transceiver;
+        println(`the track event's transceiver is the answerer's: ${b.getTransceivers().includes(transceiver)}`);
+        println(`mid: ${transceiver.mid === a.getTransceivers()[0].mid && transceiver.mid !== null}, current direction: ${transceiver.currentDirection}`);
+    } catch (error) {
+        println(`FAIL: ${error.message}`);
+    } finally {
+        clearInterval(drawing);
+        a.close();
+        b.close();
+    }
+    done();
+});
+</script>

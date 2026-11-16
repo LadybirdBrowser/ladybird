@@ -135,8 +135,8 @@ ALLOWED_REALM_MENTIONS = {
     "WebGL": (4, 8, "WebGL contexts are created in the realm of their canvas, and their events in it"),
     "WebLocks": (2, 4, "the C++ glue creates a Rust LockManager and schedules Rust steps in selected realms"),
     "WebRTC": (
-        13,
-        22,
+        15,
+        26,
         "peer connections, data channels and senders resolve promises and fire events in their relevant realm, encoded "
         "frames are constructed and deserialized in the worker's realm, and the stats report's maplike glue",
     ),

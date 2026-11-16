@@ -572,6 +572,14 @@ ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_audio_serve
     return response->take_handle()->create_transport();
 }
 
+ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_camera_server_transport()
+{
+    auto response = send_sync_but_allow_failure<Messages::WebContentClient::RequestCameraServerConnection>();
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("The Browser did not connect a camera server");
+    return response->take_handle()->create_transport();
+}
+
 ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_webrtc_client_transport()
 {
     auto response = send_sync_but_allow_failure<Messages::WebContentClient::RequestWebrtcClientConnection>();

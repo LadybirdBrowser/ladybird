@@ -28,7 +28,13 @@ PermissionState permission_state(Web::Permissions::PermissionName, Optional<HTML
 
 // Asks the user when the state is "prompt"; the callback runs once a state other than "prompt" is known.
 using PermissionDecisionCallback = GC::Ref<GC::Function<void(PermissionState)>>;
-void request_permission_with_user_prompt(Web::Permissions::PermissionName, HTML::EnvironmentSettingsObject&, PermissionDecisionCallback);
+// Whether the requester has said which device it wants, where the feature has devices: the user is offered a choice of
+// them otherwise.
+enum class DeviceIsNamed : u8 {
+    No,
+    Yes,
+};
+void request_permission_with_user_prompt(Web::Permissions::PermissionName, HTML::EnvironmentSettingsObject&, PermissionDecisionCallback, DeviceIsNamed = DeviceIsNamed::No);
 
 class Permissions : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(Permissions, permissions)

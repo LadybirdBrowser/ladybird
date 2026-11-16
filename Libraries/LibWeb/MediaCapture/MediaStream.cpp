@@ -123,6 +123,7 @@ void MediaStream::add_track(GC::Ref<MediaStreamTrack> track)
     // AD-HOC: The spec links this step to "add a track", which fires an addtrack event, but addtrack is not fired
     //         when script modifies the tracks of a MediaStream.
     m_tracks.append(track);
+    notify_observers();
 }
 
 // https://w3c.github.io/mediacapture-main/#dfn-add-a-track
@@ -134,10 +135,31 @@ void MediaStream::add_a_track(GC::Ref<MediaStreamTrack> track)
 
     // 2. Add track to stream's track set.
     m_tracks.append(track);
+    notify_observers();
 
     // 3. Fire a track event named addtrack with track at stream.
     auto event = create_media_stream_track_event(HTML::relevant_realm(HTML::current_global_object()), HTML::EventNames::addtrack, {}, track);
     dispatch_event(event);
+}
+
+void MediaStream::add_observer(Observer& observer)
+{
+    m_observers.append(observer.make_weak_ptr());
+}
+
+void MediaStream::remove_observer(Observer& observer)
+{
+    m_observers.remove_all_matching([&](auto const& existing) { return !existing || existing.ptr() == &observer; });
+}
+
+void MediaStream::notify_observers()
+{
+    // An observer may stop observing while it is told.
+    auto observers = m_observers;
+    for (auto& observer : observers) {
+        if (observer)
+            observer->media_stream_tracks_changed();
+    }
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastream-removetrack
@@ -148,9 +170,11 @@ void MediaStream::remove_track(GC::Ref<MediaStreamTrack> track)
     // 3. Remove track from stream's track set.
     // AD-HOC: The spec links this step to "remove a track", which fires a removetrack event, but removetrack is not
     //         fired when script modifies the tracks of a MediaStream.
-    m_tracks.remove_first_matching([&](auto const& existing_track) {
+    auto removed = m_tracks.remove_first_matching([&](auto const& existing_track) {
         return existing_track.ptr() == track.ptr();
     });
+    if (removed)
+        notify_observers();
 }
 
 // https://w3c.github.io/mediacapture-main/#dfn-remove-a-track
@@ -163,6 +187,7 @@ void MediaStream::remove_a_track(GC::Ref<MediaStreamTrack> track)
     });
     if (!removed)
         return;
+    notify_observers();
 
     // 3. Fire a track event named removetrack with track at stream.
     auto event = create_media_stream_track_event(HTML::relevant_realm(HTML::current_global_object()), HTML::EventNames::removetrack, {}, track);

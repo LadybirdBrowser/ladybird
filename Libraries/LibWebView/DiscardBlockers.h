@@ -34,6 +34,7 @@ enum class DiscardBlockers : u32 {
     ChangedTitleWhileHidden = 1 << 16,
     ChangedFaviconWhileHidden = 1 << 17,
     MayShowNotifications = 1 << 18,
+    CapturingVideo = 1 << 19,
 };
 
 AK_ENUM_BITWISE_OPERATORS(DiscardBlockers);

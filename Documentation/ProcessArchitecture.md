@@ -14,9 +14,9 @@ Ladybird uses a multi-process architecture to improve stability and security in 
  Compositor  WebContent         RequestServer    ImageDecoder
              (renderer)         (per site)       (per site)
                  |
-     +-----------+-----------+
-     |           |           |
- WebRTCClient  MediaServer  AudioServer
+     +-----------+-----------+------------+
+     |           |           |            |
+ WebRTCClient  MediaServer  AudioServer  CameraServer
                  |
          VideoDecoderServer
 ```
@@ -33,6 +33,7 @@ Ladybird uses a multi-process architecture to improve stability and security in 
 | **ImageDecoder** | `ladybird-image` | One per browsing session and site, or one for a single process | When a renderer first has an image to decode |
 | **MediaServer** | `ladybird-media` | One per renderer | When the renderer first needs one |
 | **AudioServer** | `ladybird-audio` | One per renderer | When the renderer first needs one |
+| **CameraServer** | `ladybird-camera` | One per renderer | When a page of the renderer first looks for a camera |
 | **VideoDecoderServer** | `ladybird-video` | One per MediaServer | When its **MediaServer** asks for one |
 | **WebRTCClient** | `ladybird-webrtc` | One per **WebContent** process | When the renderer first needs one |
 
@@ -87,6 +88,10 @@ A decoder sees the images of every process it serves, so a malicious image that 
 ### Processes: MediaServer, AudioServer and VideoDecoderServer
 
 **MediaServer** plays the media of a renderer. Its video decoders run in a **VideoDecoderServer**, which **Hub** launches on its request. **AudioServer** talks to the audio devices of the system, for both a renderer's **MediaServer** and its WebAudio output.
+
+### Process: CameraServer
+
+**CameraServer** opens the cameras of the system for a renderer, which reads their pictures out of memory the two share. The renderer learns what the cameras are called only once **Hub** says its tab holds the camera permission, and **Hub** rules on every stream before a camera is opened for it. On Linux the cameras are those of PipeWire, whose socket the sandbox lets the process reach through **Hub** alone. A headless instance has one synthetic camera instead.
 
 ### Process: WebRTCClient
 

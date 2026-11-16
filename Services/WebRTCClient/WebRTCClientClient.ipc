@@ -1,3 +1,10 @@
+// Where one of the renderer's transceivers stands once a session description has been applied.
+struct WebRTCClient::TransceiverState {
+    u64 transceiver_id;
+    Optional<String> mid;
+    Optional<String> current_direction;
+}
+
 endpoint WebRTCClientClient
 {
     on_stats(u64 pc_id, u64 request_id, String reports, String error) =|
@@ -15,12 +22,24 @@ endpoint WebRTCClientClient
 
     on_encoded_audio_frame(u64 pc_id, u64 receiver_id, u32 ssrc, u32 rtp_timestamp, u16 sequence_number, u8 payload_type, ByteBuffer payload) =|
 
+    // A whole frame of a received video track, in the codec's bitstream format. Frames that couldn't be decoded, for
+    // want of the frames they depend on, are left out.
+    on_encoded_video_frame(u64 pc_id, u64 receiver_id, u32 ssrc, u32 rtp_timestamp, u8 payload_type, String codec, bool is_key_frame, ByteBuffer payload) =|
+
     on_audio_track_added(u64 pc_id, u64 sender_id, u32 ssrc) =|
+    on_video_track_added(u64 pc_id, u64 sender_id, u32 ssrc) =|
+
+    // The codec a sender's video has to be encoded in from now on, and the payload type it goes out under. The codec
+    // is empty when the session has no codec for the sender that the renderer can encode, and then nothing is sent.
+    on_video_sender_codec(u64 pc_id, u64 sender_id, String codec, u8 payload_type) =|
+
+    // The end receiving a sender's video can't go on decoding it without a key frame.
+    on_key_frame_requested(u64 pc_id, u64 sender_id) =|
 
     on_create_offer_result(u64 pc_id, u64 request_id, bool ok, String sdp_type, String sdp, String error_kind, String error_message) =|
     on_create_answer_result(u64 pc_id, u64 request_id, bool ok, String sdp_type, String sdp, String error_kind, String error_message) =|
-    on_set_local_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message) =|
-    on_set_remote_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message) =|
+    on_set_local_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message, Vector<WebRTCClient::TransceiverState> transceivers) =|
+    on_set_remote_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message, Vector<WebRTCClient::TransceiverState> transceivers) =|
     on_add_ice_candidate_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message) =|
 
     on_data_channel(u64 pc_id, u64 channel_id, String label, bool ordered, Optional<u16> max_packet_life_time, Optional<u16> max_retransmits, String protocol, bool negotiated, Optional<u16> id) =|

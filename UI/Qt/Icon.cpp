@@ -269,6 +269,8 @@ static constexpr auto FORWARD_ICON_PATH = "M5.5 2.5l5 5-5 5"sv;
 static constexpr auto RELOAD_ICON_PATH = "M13.41 9a5.5 5.5 0 0 1-5.41 4.5a5.5 5.5 0 1 1 3.89-9.39L13.5 5.5M13.5 2v3.5H10"sv;
 static constexpr auto SITE_SETTINGS_ICON_PATH = "M1.5 4.5h7M12.5 4.5h1M1.5 11.5h1M6.5 11.5h7M12.5 4.5a2 2 0 1 1-4 0a2 2 0 1 1 4 0M6.5 11.5a2 2 0 1 1-4 0a2 2 0 1 1 4 0"sv;
 static constexpr auto MICROPHONE_ICON_PATH = "M7.5 1.5a2 2 0 0 1 2 2v4a2 2 0 0 1-4 0v-4a2 2 0 0 1 2-2zM2.5 7.5a5 5 0 0 0 10 0M7.5 12.5v2M5.5 14.5h4"sv;
+// A video camera: its body, and the hood of its lens to the right.
+static constexpr auto CAMERA_ICON_PATH = "M2.5 4.5h7a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1zM10.5 7l4-2.5v7l-4-2.5"sv;
 static constexpr auto LOCATION_ICON_PATH = "M7.5 14.5C4.5 11.3 2.5 8.8 2.5 6.5a5 5 0 0 1 10 0c0 2.3-2 4.8-5 8zM9.5 6.5a2 2 0 1 1-4 0a2 2 0 1 1 4 0"sv;
 static constexpr auto NOTIFICATIONS_ICON_PATH = "M7.5 1.5a4 4 0 0 1 4 4v3l2 3h-13l2-3v-3a4 4 0 0 1 4-4zM5.5 14.5h4"sv;
 // A head over shoulders.
@@ -378,6 +380,8 @@ static StringView chrome_icon_path(ChromeIcon icon)
         return SITE_SETTINGS_ICON_PATH;
     case ChromeIcon::Microphone:
         return MICROPHONE_ICON_PATH;
+    case ChromeIcon::Camera:
+        return CAMERA_ICON_PATH;
     case ChromeIcon::Location:
         return LOCATION_ICON_PATH;
     case ChromeIcon::Notifications:

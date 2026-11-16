@@ -6,6 +6,7 @@
 
 #include <AK/LexicalPath.h>
 #include <LibAudio/ClientConnection.h>
+#include <LibCamera/ClientConnection.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/Environment.h>
@@ -326,6 +327,10 @@ NEVER_INLINE static ErrorOr<ProcessState> initialize_process(Main::Arguments arg
     // WebAudio's output plays through the AudioServer; this process never reaches a device itself.
     Audio::ClientConnection::set_transport_factory([webcontent_client] {
         return webcontent_client->request_audio_server_transport();
+    });
+    // Likewise for cameras, which the CameraServer opens.
+    Camera::ClientConnection::set_transport_factory([webcontent_client] {
+        return webcontent_client->request_camera_server_transport();
     });
     // The sandbox keeps this process from spawning the WebRTC helper, so the Browser launches one for it.
     Web::WebRTC::WebRTCAgent::set_transport_factory([webcontent_client] {

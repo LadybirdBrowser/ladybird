@@ -9,6 +9,7 @@
 #include <UI/Qt/PermissionPromptPopover.h>
 
 #include <QApplication>
+#include <QComboBox>
 #include <QElapsedTimer>
 #include <QKeyEvent>
 #include <QLabel>
@@ -84,6 +85,64 @@ TEST_CASE(buttons_map_to_outcomes)
         wait_until([&] { return !popover.isVisible(); });
         EXPECT(!popover.isVisible());
     }
+}
+
+static WebView::PermissionPromptRequest camera_request_with_two_cameras()
+{
+    auto request = request_for("https://talk.example.org/"sv, PermissionName::Camera);
+    request.devices.append({ "one", "The first camera"_string, false });
+    request.devices.append({ "two", "The second camera"_string, true });
+    return request;
+}
+
+TEST_CASE(a_prompt_without_devices_has_no_picker)
+{
+    PermissionPromptPopover popover(nullptr, request_for("https://talk.example.org/"sv, PermissionName::Camera));
+    EXPECT(!popover.findChild<QComboBox*>());
+}
+
+TEST_CASE(allowing_says_which_device_was_picked)
+{
+    {
+        PermissionPromptPopover popover(nullptr, camera_request_with_two_cameras());
+        Recorder recorder;
+        recorder.attach(popover);
+        Vector<ByteString> chosen;
+        popover.on_device_chosen = [&](ByteString const& device_id) {
+            // The choice is known before the answer is.
+            EXPECT(recorder.outcomes.is_empty());
+            chosen.append(device_id);
+        };
+        popover.show();
+        auto& picker = child<QComboBox>(popover, "LadybirdPermissionPromptDevicePicker");
+        EXPECT_EQ(picker.count(), 2);
+        EXPECT_EQ(picker.currentIndex(), 1);
+        child<QPushButton>(popover, "LadybirdPermissionPromptAllowOnce").click();
+        EXPECT(recorder.outcomes == Vector { PromptOutcome::AllowOnce });
+        EXPECT(chosen == Vector { ByteString { "two" } });
+    }
+    {
+        PermissionPromptPopover popover(nullptr, camera_request_with_two_cameras());
+        Vector<ByteString> chosen;
+        popover.on_device_chosen = [&](ByteString const& device_id) { chosen.append(device_id); };
+        popover.show();
+        child<QComboBox>(popover, "LadybirdPermissionPromptDevicePicker").setCurrentIndex(0);
+        child<QPushButton>(popover, "LadybirdPermissionPromptAllowAlways").click();
+        EXPECT(chosen == Vector { ByteString { "one" } });
+    }
+}
+
+TEST_CASE(refusing_picks_no_device)
+{
+    PermissionPromptPopover popover(nullptr, camera_request_with_two_cameras());
+    Recorder recorder;
+    recorder.attach(popover);
+    Vector<ByteString> chosen;
+    popover.on_device_chosen = [&](ByteString const& device_id) { chosen.append(device_id); };
+    popover.show();
+    child<QPushButton>(popover, "LadybirdPermissionPromptBlock").click();
+    EXPECT(recorder.outcomes == Vector { PromptOutcome::Block });
+    EXPECT(chosen.is_empty());
 }
 
 TEST_CASE(escape_and_clicking_away_dismiss)

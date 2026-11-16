@@ -10,6 +10,7 @@
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Theme.h>
 
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QHideEvent>
 #include <QKeyEvent>
@@ -39,6 +40,8 @@ static QString requester_text(WebView::PermissionPromptRequest const& request)
 static QString feature_text(Web::Permissions::PermissionName name)
 {
     switch (name) {
+    case Web::Permissions::PermissionName::Camera:
+        return QStringLiteral("use your camera");
     case Web::Permissions::PermissionName::Geolocation:
         return QStringLiteral("know your location");
     case Web::Permissions::PermissionName::Microphone:
@@ -59,6 +62,8 @@ static bool offers_one_time_grant(Web::Permissions::PermissionName name)
 static ChromeIcon feature_icon(Web::Permissions::PermissionName name)
 {
     switch (name) {
+    case Web::Permissions::PermissionName::Camera:
+        return ChromeIcon::Camera;
     case Web::Permissions::PermissionName::Geolocation:
         return ChromeIcon::Location;
     case Web::Permissions::PermissionName::Microphone:
@@ -113,6 +118,22 @@ PermissionPromptPopover::PermissionPromptPopover(QWidget* parent, WebView::Permi
         body->setObjectName("LadybirdPermissionPromptBody");
         body->setWordWrap(true);
         layout->addWidget(body);
+    }
+
+    // Where the site leaves the choice of device to the user, the allowing answers are for the one picked here.
+    if (!is_notice && request.devices.size() > 1) {
+        m_device_picker = new QComboBox(&card());
+        m_device_picker->setObjectName("LadybirdPermissionPromptDevicePicker");
+        m_device_picker->setAccessibleName("Device");
+        m_device_picker->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+        for (auto const& device : request.devices) {
+            auto label = device.label.is_empty() ? QStringLiteral("Unnamed device") : qstring_from_ak_string(device.label);
+            m_device_picker->addItem(label);
+            if (device.is_default)
+                m_device_picker->setCurrentIndex(m_device_picker->count() - 1);
+        }
+        layout->addSpacing(8);
+        layout->addWidget(m_device_picker);
     }
 
     layout->addSpacing(8);
@@ -218,6 +239,11 @@ void PermissionPromptPopover::finish(Web::Permissions::PromptOutcome outcome)
         return;
     m_finished = true;
     hide();
+    auto allowed = outcome == Web::Permissions::PromptOutcome::AllowAlways || outcome == Web::Permissions::PromptOutcome::AllowOnce;
+    if (allowed && m_device_picker && on_device_chosen) {
+        if (auto index = m_device_picker->currentIndex(); index >= 0 && static_cast<size_t>(index) < m_request.devices.size())
+            on_device_chosen(m_request.devices[index].id);
+    }
     if (on_outcome)
         on_outcome(outcome);
 }

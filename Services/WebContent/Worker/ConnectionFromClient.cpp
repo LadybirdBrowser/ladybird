@@ -36,6 +36,7 @@
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/Platform/RemoteImageCodecPlugin.h>
 #include <LibWeb/WebRTC/RTCEncodedAudioFrame.h>
+#include <LibWeb/WebRTC/RTCEncodedVideoFrame.h>
 #include <LibWeb/WebRTC/RTCRtpScriptTransformer.h>
 #include <LibWeb/WebRTC/RTCTransformEvent.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
@@ -416,8 +417,27 @@ void ConnectionFromClient::run_transform_init(u64 transform_id, Web::HTML::Seria
     m_transformers.set(transform_id, GC::make_root(transformer));
 
     auto write_encoded_data = GC::create_function(realm.heap(), GC::captures(NonnullRefPtr { *m_dedicated_worker_thread_link }, transform_id), [](auto& link, auto& transform_id, JS::Value chunk) {
-        auto* frame = chunk.is_object() ? Web::Bindings::impl_from<Web::WebRTC::RTCEncodedAudioFrame>(&chunk.as_object()) : nullptr;
-        if (!frame) {
+        Optional<Web::WebRTC::EncodedFrame> written;
+        if (auto* frame = chunk.is_object() ? Web::Bindings::impl_from<Web::WebRTC::RTCEncodedAudioFrame>(&chunk.as_object()) : nullptr) {
+            auto data = frame->data();
+            auto metadata = frame->get_metadata();
+            written = Web::WebRTC::EncodedFrame {
+                .payload = data->copy_to_byte_buffer(0, data->byte_length()).release_value_but_fixme_should_propagate_errors(),
+                .ssrc = metadata.synchronization_source.value_or(0),
+                .payload_type = metadata.payload_type.value_or(0),
+                .rtp_timestamp = metadata.rtp_timestamp.value_or(0),
+                .sequence_number = static_cast<u16>(metadata.sequence_number.value_or(0)),
+                .video = {},
+            };
+        } else if (auto* frame = chunk.is_object() ? Web::Bindings::impl_from<Web::WebRTC::RTCEncodedVideoFrame>(&chunk.as_object()) : nullptr) {
+            auto encoded_frame = frame->to_encoded_frame();
+            if (encoded_frame.is_error()) {
+                dbgln("worker: Unable to copy the data of a written video frame for id={}: {}", transform_id, encoded_frame.error());
+                return;
+            }
+            written = encoded_frame.release_value();
+        }
+        if (!written.has_value()) {
             dbgln_if(WEBRTC_DEBUG, "worker: write algorithm got non-frame value (chunk_is_object={}, class={}) for id={}",
                 chunk.is_object(),
                 chunk.is_object() ? chunk.as_object().class_name() : "n/a"sv,
@@ -425,15 +445,8 @@ void ConnectionFromClient::run_transform_init(u64 transform_id, Web::HTML::Seria
             return;
         }
         dbgln_if(WEBRTC_DEBUG, "worker: write algorithm received frame id={}", transform_id);
-        auto data = frame->data();
-        auto bytes = data->copy_to_byte_buffer(0, data->byte_length()).release_value_but_fixme_should_propagate_errors();
-        auto metadata = frame->get_metadata();
-        u32 ssrc = metadata.synchronization_source.value_or(0);
-        u8 payload_type = metadata.payload_type.value_or(0);
-        u32 rtp_timestamp = metadata.rtp_timestamp.value_or(0);
-        u16 sequence_number = static_cast<u16>(metadata.sequence_number.value_or(0));
-        link->post_to_owner([owner_token = link->owner_token(), transform_id, payload = move(bytes), ssrc, payload_type, rtp_timestamp, sequence_number]() mutable {
-            Web::HTML::WorkerAgentParent::did_write_rtc_transform_encoded_audio_frame(owner_token, transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
+        link->post_to_owner([owner_token = link->owner_token(), transform_id, frame = written.release_value()]() mutable {
+            Web::HTML::WorkerAgentParent::did_write_rtc_transform_encoded_frame(owner_token, transform_id, move(frame));
         });
     });
     transformer->set_write_encoded_data_algorithm(write_encoded_data);
@@ -450,25 +463,30 @@ void ConnectionFromClient::run_transform_init(u64 transform_id, Web::HTML::Seria
         }));
 }
 
-void ConnectionFromClient::rtc_transform_encoded_audio_frame(u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+void ConnectionFromClient::rtc_transform_encoded_frame(u64 transform_id, Web::WebRTC::EncodedFrame encoded_frame)
 {
     auto entry = m_transformers.get(transform_id);
     if (!entry.has_value()) {
-        dbgln_if(WEBRTC_DEBUG, "worker: rtc_transform_encoded_audio_frame for unknown id={} (have {} transformers)", transform_id, m_transformers.size());
+        dbgln_if(WEBRTC_DEBUG, "worker: rtc_transform_encoded_frame for unknown id={} (have {} transformers)", transform_id, m_transformers.size());
         return;
     }
     auto transformer = *entry;
-    dbgln_if(WEBRTC_DEBUG, "worker: rtc_transform_encoded_audio_frame id={} ssrc={} seq={} len={}", transform_id, ssrc, sequence_number, payload.size());
+    dbgln_if(WEBRTC_DEBUG, "worker: rtc_transform_encoded_frame id={} ssrc={} seq={} len={}", transform_id, encoded_frame.ssrc, encoded_frame.sequence_number, encoded_frame.payload.size());
 
     if (!m_worker_host || !m_worker_host->global_scope())
         return;
     auto& realm = Web::HTML::relevant_realm(*m_worker_host->global_scope());
     Web::HTML::TemporaryExecutionContext context(realm, Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
-    auto frame = Web::WebRTC::RTCEncodedAudioFrame::create_from_packet(realm, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
-    auto wrapped_frame = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, frame);
+    auto& world = Web::Bindings::host_defined_wrapper_world(realm);
+    JS::Value wrapped_frame;
+    if (encoded_frame.video.has_value()) {
+        wrapped_frame = Web::Bindings::wrap(world, realm, Web::WebRTC::RTCEncodedVideoFrame::create_from_encoded_frame(realm, move(encoded_frame)));
+    } else {
+        wrapped_frame = Web::Bindings::wrap(world, realm, Web::WebRTC::RTCEncodedAudioFrame::create_from_packet(realm, move(encoded_frame.payload), encoded_frame.ssrc, encoded_frame.payload_type, encoded_frame.rtp_timestamp, encoded_frame.sequence_number));
+    }
     if (auto result = transformer->enqueue_encoded_frame(wrapped_frame); result.is_exception())
-        dbgln_if(WEBRTC_DEBUG, "rtc_transform_encoded_audio_frame: enqueue failed for transform_id={}", transform_id);
+        dbgln_if(WEBRTC_DEBUG, "rtc_transform_encoded_frame: enqueue failed for transform_id={}", transform_id);
 }
 
 }

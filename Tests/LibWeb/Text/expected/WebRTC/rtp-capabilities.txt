@@ -1,0 +1,7 @@
+send audio: audio/opus/48000/2; 3 header extensions
+receive audio: audio/opus/48000/2, audio/PCMU/8000, audio/PCMA/8000; 3 header extensions
+send video: video/VP8/90000; 3 header extensions
+receive video: video/VP8/90000, video/VP9/90000, video/H264/90000; 3 header extensions
+send text: null
+receive text: null
+H.264 parameters: level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f

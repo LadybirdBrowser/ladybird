@@ -36,12 +36,16 @@ public:
     Function<void(u64 pc_id, u64 receiver_id, u64 transceiver_id, String kind, Vector<String> stream_ids)> on_track_event;
     Function<void(u64 pc_id, u64 receiver_id)> on_track_ended_event;
     Function<void(u64 pc_id, u64 receiver_id, u32 ssrc, u32 rtp_timestamp, u16 sequence_number, u8 payload_type, ByteBuffer payload)> on_encoded_audio_frame_event;
+    Function<void(u64 pc_id, u64 receiver_id, u32 ssrc, u32 rtp_timestamp, u8 payload_type, String codec, bool is_key_frame, ByteBuffer payload)> on_encoded_video_frame_event;
     Function<void(u64 pc_id, u64 sender_id, u32 ssrc)> on_audio_track_added_event;
+    Function<void(u64 pc_id, u64 sender_id, u32 ssrc)> on_video_track_added_event;
+    Function<void(u64 pc_id, u64 sender_id, String codec, u8 payload_type)> on_video_sender_codec_event;
+    Function<void(u64 pc_id, u64 sender_id)> on_key_frame_requested_event;
 
     Function<void(u64 pc_id, u64 request_id, bool ok, String sdp_type, String sdp, String error_kind, String error_message)> on_create_offer_completion;
     Function<void(u64 pc_id, u64 request_id, bool ok, String sdp_type, String sdp, String error_kind, String error_message)> on_create_answer_completion;
-    Function<void(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message)> on_set_local_description_completion;
-    Function<void(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message)> on_set_remote_description_completion;
+    Function<void(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message, Vector<TransceiverState> transceivers)> on_set_local_description_completion;
+    Function<void(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message, Vector<TransceiverState> transceivers)> on_set_remote_description_completion;
     Function<void(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message)> on_add_ice_candidate_completion;
 
     Function<void(u64 pc_id, u64 channel_id, String label, bool ordered, Optional<u16> max_packet_life_time, Optional<u16> max_retransmits, String protocol, bool negotiated, Optional<u16> id)> on_data_channel_event;
@@ -68,12 +72,16 @@ private:
     virtual void on_track(u64 pc_id, u64 receiver_id, u64 transceiver_id, String kind, Vector<String> stream_ids) override;
     virtual void on_track_ended(u64 pc_id, u64 receiver_id) override;
     virtual void on_encoded_audio_frame(u64 pc_id, u64 receiver_id, u32 ssrc, u32 rtp_timestamp, u16 sequence_number, u8 payload_type, ByteBuffer payload) override;
+    virtual void on_encoded_video_frame(u64 pc_id, u64 receiver_id, u32 ssrc, u32 rtp_timestamp, u8 payload_type, String codec, bool is_key_frame, ByteBuffer payload) override;
     virtual void on_audio_track_added(u64 pc_id, u64 sender_id, u32 ssrc) override;
+    virtual void on_video_track_added(u64 pc_id, u64 sender_id, u32 ssrc) override;
+    virtual void on_video_sender_codec(u64 pc_id, u64 sender_id, String codec, u8 payload_type) override;
+    virtual void on_key_frame_requested(u64 pc_id, u64 sender_id) override;
 
     virtual void on_create_offer_result(u64 pc_id, u64 request_id, bool ok, String sdp_type, String sdp, String error_kind, String error_message) override;
     virtual void on_create_answer_result(u64 pc_id, u64 request_id, bool ok, String sdp_type, String sdp, String error_kind, String error_message) override;
-    virtual void on_set_local_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message) override;
-    virtual void on_set_remote_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message) override;
+    virtual void on_set_local_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message, Vector<TransceiverState> transceivers) override;
+    virtual void on_set_remote_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message, Vector<TransceiverState> transceivers) override;
     virtual void on_add_ice_candidate_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message) override;
 
     virtual void on_data_channel(u64 pc_id, u64 channel_id, String label, bool ordered, Optional<u16> max_packet_life_time, Optional<u16> max_retransmits, String protocol, bool negotiated, Optional<u16> id) override;

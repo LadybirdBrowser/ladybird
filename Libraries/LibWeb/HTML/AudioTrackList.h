@@ -22,6 +22,7 @@ public:
     static GC::Ref<AudioTrackList> create();
 
     void add_track(GC::Ref<AudioTrack>);
+    void remove_track(AudioTrack&);
     void remove_all_tracks();
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotracklist-length

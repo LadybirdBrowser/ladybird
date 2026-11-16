@@ -322,11 +322,11 @@ void WorkerAgentParent::rtc_transform_teardown(u64 transform_id)
     m_dedicated_worker_thread_link->rtc_transform_teardown(transform_id);
 }
 
-void WorkerAgentParent::rtc_transform_encoded_audio_frame(u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+void WorkerAgentParent::rtc_transform_encoded_frame(u64 transform_id, WebRTC::EncodedFrame frame)
 {
     if (!m_dedicated_worker_thread_link)
         return;
-    m_dedicated_worker_thread_link->rtc_transform_encoded_audio_frame(transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
+    m_dedicated_worker_thread_link->rtc_transform_encoded_frame(transform_id, move(frame));
 }
 
 void WorkerAgentParent::register_transform_frame_callback(u64 transform_id, TransformFrameWrittenCallback callback)
@@ -334,13 +334,13 @@ void WorkerAgentParent::register_transform_frame_callback(u64 transform_id, Tran
     m_transform_frame_callbacks.set(transform_id, move(callback));
 }
 
-void WorkerAgentParent::did_write_rtc_transform_encoded_audio_frame(WorkerAgentOwnerToken owner_token, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+void WorkerAgentParent::did_write_rtc_transform_encoded_frame(WorkerAgentOwnerToken owner_token, u64 transform_id, WebRTC::EncodedFrame frame)
 {
     auto parent = worker_agent_parents().find(owner_token);
     if (parent == worker_agent_parents().end())
         return;
     if (auto it = parent->value->m_transform_frame_callbacks.find(transform_id); it != parent->value->m_transform_frame_callbacks.end())
-        it->value(move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
+        it->value(move(frame));
 }
 
 }

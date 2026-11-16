@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// A track that leaves the element's MediaStream leaves its audioTracks or videoTracks, and the element goes on to show
+// another of the stream's video tracks if the one it showed left.
+asyncTest(async done => {
+    internals.setAutoplayPolicy("allow-audio-and-video");
+
+    const canvasTrack = color => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 36;
+        const context = canvas.getContext("2d");
+        const draw = () => {
+            context.fillStyle = color;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+        };
+        draw();
+        const timer = setInterval(draw, 30);
+        return { track: canvas.captureStream().getVideoTracks()[0], stop: () => clearInterval(timer) };
+    };
+
+    const probe = document.createElement("canvas");
+    probe.width = 64;
+    probe.height = 36;
+    const probeContext = probe.getContext("2d", { willReadFrequently: true });
+    const colorShownBy = video => {
+        probeContext.drawImage(video, 0, 0, probe.width, probe.height);
+        const [red, green, blue] = probeContext.getImageData(32, 18, 1, 1).data;
+        if (red > 180 && green < 80 && blue < 80)
+            return "red";
+        if (red < 80 && green < 80 && blue > 180)
+            return "blue";
+        return `rgb(${red}, ${green}, ${blue})`;
+    };
+    const shows = (video, color) => new Promise((resolve, reject) => {
+        const deadline = performance.now() + 10000;
+        const check = () => {
+            if (video.videoWidth > 0 && colorShownBy(video) === color)
+                resolve();
+            else if (performance.now() > deadline)
+                reject(new Error(`the video never showed ${color}, but ${video.videoWidth > 0 ? colorShownBy(video) : "nothing"}`));
+            else
+                setTimeout(check, 20);
+        };
+        check();
+    });
+    const nextEvent = (target, name) => new Promise((resolve, reject) => {
+        target.addEventListener(name, resolve, { once: true });
+        setTimeout(() => reject(new Error(`no ${name} event`)), 10000);
+    });
+
+    const red = canvasTrack("red");
+    const blue = canvasTrack("blue");
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    const destination = context.createMediaStreamDestination();
+    oscillator.connect(destination);
+    oscillator.start();
+    const audio = destination.stream.getAudioTracks()[0];
+    // NB: The order of a stream's tracks is undefined, so the first to be shown is either of the two.
+    let shown;
+    let other;
+    const name = track => track.id === shown?.track.id ? "shown" : track.id === other?.track.id ? "other" : track.id === audio.id ? "audio" : track.id;
+    const videoTracksOf = video => [...video.videoTracks].map(track => name(track) + (track.selected ? " (selected)" : "")).join(", ");
+
+    try {
+        const video = document.createElement("video");
+        document.body.append(video);
+        const stream = new MediaStream([red.track, blue.track, audio]);
+        let videoTracksAdded = 0;
+        let audioTrackAdded = nextEvent(video.audioTracks, "addtrack");
+        video.videoTracks.addEventListener("addtrack", () => ++videoTracksAdded);
+        video.srcObject = stream;
+        await video.play();
+        await audioTrackAdded;
+        while (videoTracksAdded < 2)
+            await new Promise(resolve => setTimeout(resolve, 10));
+        const selected = video.videoTracks[video.videoTracks.selectedIndex];
+        [shown, other] = selected.id === red.track.id ? [red, blue] : [blue, red];
+        await shows(video, shown === red ? "red" : "blue");
+        println(`video tracks: ${videoTracksOf(video)}; audio tracks: ${video.audioTracks.length}`);
+
+        let removed = nextEvent(video.videoTracks, "removetrack");
+        stream.removeTrack(shown.track);
+        println(`removetrack for: ${name((await removed).track)}`);
+        await shows(video, other === red ? "red" : "blue");
+        println(`after the shown track left: ${videoTracksOf(video)}, and it is what the video shows`);
+
+        // Re-adding a track must not change the selected track.
+        const added = nextEvent(video.videoTracks, "addtrack");
+        stream.addTrack(shown.track);
+        println(`addtrack for: ${name((await added).track)}`);
+        println(`after it came back: ${videoTracksOf(video)}`);
+
+        removed = nextEvent(video.audioTracks, "removetrack");
+        stream.removeTrack(audio);
+        println(`audio removetrack for: ${name((await removed).track)}, audio tracks left: ${video.audioTracks.length}`);
+    } catch (error) {
+        println(`FAIL: ${error.message}`);
+    } finally {
+        red.stop();
+        blue.stop();
+        oscillator.stop();
+    }
+    done();
+});
+</script>

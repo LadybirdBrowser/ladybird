@@ -149,7 +149,11 @@ void WebRTCAgent::wire_event_handlers()
     ROUTE_PC_EVENT(on_track_event, on_remote_track_added);
     ROUTE_PC_EVENT(on_track_ended_event, on_remote_track_ended);
     ROUTE_PC_EVENT(on_encoded_audio_frame_event, on_encoded_audio_frame_received);
-    ROUTE_PC_EVENT(on_audio_track_added_event, on_audio_track_ssrc_assigned);
+    ROUTE_PC_EVENT(on_encoded_video_frame_event, on_encoded_video_frame_received);
+    ROUTE_PC_EVENT(on_audio_track_added_event, on_sender_track_ready);
+    ROUTE_PC_EVENT(on_video_track_added_event, on_sender_track_ready);
+    ROUTE_PC_EVENT(on_video_sender_codec_event, on_video_sender_codec);
+    ROUTE_PC_EVENT(on_key_frame_requested_event, on_key_frame_requested);
     ROUTE_PC_EVENT(on_create_offer_completion, on_create_offer_result_received);
     ROUTE_PC_EVENT(on_create_answer_completion, on_create_answer_result_received);
     ROUTE_PC_EVENT(on_set_local_description_completion, on_set_local_description_result_received);

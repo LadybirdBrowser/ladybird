@@ -12,5 +12,8 @@ pub mod media;
 pub mod peer;
 pub mod service;
 pub mod signal;
+pub mod video;
+pub mod video_sender;
 
+pub(crate) use ipc::ipc_types;
 pub use webrtc;

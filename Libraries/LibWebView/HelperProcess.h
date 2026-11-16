@@ -86,6 +86,12 @@ WEBVIEW_API ErrorOr<void> ensure_audio_server_is_running(RefPtr<AudioServerContr
 // Connects a new client to a running AudioServer as a member of the given tab's mix, or fails without launching
 // another, so that whoever launched the server can tell its replacement what it needs to know first.
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(AudioServerControlClient& controller, u64 audio_tab_id);
+// Launches the CameraServer for a renderer if it has none, keeping its controller connection in the given slot. The
+// server is listed with the renderer's process, which the owner child ID names.
+WEBVIEW_API ErrorOr<void> ensure_camera_server_is_running(RefPtr<CameraServerControlClient>& controller, u64 owner_child_id, IsPrivate);
+// Connects a new client to a running CameraServer as a member of the given tab, or fails without launching another, so
+// that whoever launched the server can tell its replacement what it needs to know first.
+WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_camera_server_client(CameraServerControlClient& controller, u64 tab_id);
 // Launches the MediaServer for a renderer if it has none, keeping its controller connection in the given slot, and
 // connects a new client to it. The server gets its AudioServer connection through connect_audio_server, and its
 // VideoDecoderServer from the Browser, which launches one for it on request. Both servers it launches are listed with

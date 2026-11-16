@@ -1,0 +1,25 @@
+capturing before: false
+cameras before: 1, id "", label ""
+tracks: 1, kind video, state live, label "Synthetic camera"
+settings: 320x240 at 15, device "synthetic:camera"
+permission: granted
+cameras after: 2, id "synthetic:camera", label "Synthetic camera"
+the tab shows it: true
+video: 320x240
+the video plays
+streams with a clone: 1
+streams once the original stops: 1, capturing: true
+streams once the clone stops: 0
+the tab stops showing it: true
+second camera: label "Second synthetic camera", 320x180 at 15, device "synthetic:second-camera"
+second video: 320x180
+the second camera's picture is blue: true
+the first camera's picture is blue: false
+a camera there is not: NotFoundError
+required constraints that are met: 320x300
+an unmet width constraint: OverconstrainedError
+an unmet frameRate constraint: OverconstrainedError
+no camera stream is left after them: true
+both: 1 audio, 1 video, 640x480
+without the permission: NotAllowedError
+no camera stream is left: true

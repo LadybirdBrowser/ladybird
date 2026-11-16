@@ -21,6 +21,7 @@ enum class ProcessType : u8 {
     ImageDecoder,
     MediaServer,
     AudioServer,
+    CameraServer,
     VideoDecoderServer,
     WebRTCClient,
 };

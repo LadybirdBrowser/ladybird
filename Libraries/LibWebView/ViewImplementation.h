@@ -107,6 +107,13 @@ enum class PermissionPromptKind : u8 {
     SystemDeniedNotice,
 };
 
+// A device the user may choose for what a site asks to use, e.g. one of several cameras.
+struct PermissionPromptDevice {
+    ByteString id;
+    String label;
+    bool is_default { false };
+};
+
 // What the UI shows the user when a site asks for a permission. The origin is the top-level one the decision is kept
 // for; a file: page has none worth showing, so the prompt names it as a file instead.
 struct PermissionPromptRequest {
@@ -115,6 +122,8 @@ struct PermissionPromptRequest {
     bool is_file { false };
     bool show_os_hint { false };
     PermissionPromptKind kind { PermissionPromptKind::Question };
+    // The devices the user is offered a choice of, where there is more than one and the site has not named its own.
+    Vector<PermissionPromptDevice> devices {};
 
     bool is_same_request_as(PermissionPromptRequest const& other) const
     {
@@ -175,6 +184,8 @@ public:
     void show_microphone_denied_notice();
     // The UI calls this each time a prompt comes up on screen.
     void did_show_permission_prompt(PermissionPromptRequest const&);
+    // The user allowed the request with this one of the devices its prompt offered. Said ahead of the answer.
+    void did_choose_permission_prompt_device(PermissionPromptRequest const&, ByteString const& device_id);
 
     // The system answers with answer when it's asked, which it is while authorization is NotDetermined. A held answer
     // waits for release_system_microphone_answer_for_testing().
@@ -598,6 +609,9 @@ public:
     // The tab captures while the AudioServer holds a capture stream for any page of it.
     void update_microphone_capture(Badge<WebContentPage>) { update_microphone_capture(); }
     bool is_capturing_audio() const { return m_tab_indicators.is_active(TabIndicator::UsingMicrophone); }
+    // The tab captures video while the CameraServer holds a capture stream for any page of it.
+    void update_camera_capture(Badge<WebContentPage>) { update_camera_capture(); }
+    bool is_capturing_video() const { return m_tab_indicators.is_active(TabIndicator::UsingCamera); }
 
     bool tab_indicator_visible(TabIndicator indicator) const { return m_tab_indicators.is_visible(indicator); }
     Vector<bool> const& playing_audio_indicator_transitions() const { return m_playing_audio_indicator_transitions; }
@@ -966,6 +980,7 @@ protected:
     void reset_page_media_state();
     void update_audibility();
     void update_microphone_capture();
+    void update_camera_capture();
 
     // A navigation to make again on reload: one the user stopped before its document was activated, or one a crash cut
     // short. It's made again from the source it was first made from, when it has one (a javascript: URL has none).

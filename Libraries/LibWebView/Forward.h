@@ -16,6 +16,7 @@ namespace WebView {
 class Application;
 class ApplyHistoryStep;
 class AudioServerControlClient;
+class CameraServerControlClient;
 class Autocomplete;
 class AutocompleteService;
 class BlobURLStore;

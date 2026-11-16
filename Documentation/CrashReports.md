@@ -2,7 +2,7 @@
 
 On macOS and Linux, Ladybird saves local text reports when the browser or a
 helper process crashes: WebContent, RequestServer, ImageDecoder, Compositor,
-MediaServer, AudioServer and VideoDecoderServer. A worker runs on a thread of a
+MediaServer, AudioServer, CameraServer and VideoDecoderServer. A worker runs on a thread of a
 WebContent process, so its crash is a WebContent crash and is reported as one.
 Reports are stored in
 `~/Library/Application Support/Ladybird/CrashReports/` on macOS and

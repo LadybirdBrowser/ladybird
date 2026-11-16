@@ -86,10 +86,34 @@ void Client::on_encoded_audio_frame(u64 pc_id, u64 receiver_id, u32 ssrc, u32 rt
         on_encoded_audio_frame_event(pc_id, receiver_id, ssrc, rtp_timestamp, sequence_number, payload_type, move(payload));
 }
 
+void Client::on_encoded_video_frame(u64 pc_id, u64 receiver_id, u32 ssrc, u32 rtp_timestamp, u8 payload_type, String codec, bool is_key_frame, ByteBuffer payload)
+{
+    if (on_encoded_video_frame_event)
+        on_encoded_video_frame_event(pc_id, receiver_id, ssrc, rtp_timestamp, payload_type, move(codec), is_key_frame, move(payload));
+}
+
 void Client::on_audio_track_added(u64 pc_id, u64 sender_id, u32 ssrc)
 {
     if (on_audio_track_added_event)
         on_audio_track_added_event(pc_id, sender_id, ssrc);
+}
+
+void Client::on_video_track_added(u64 pc_id, u64 sender_id, u32 ssrc)
+{
+    if (on_video_track_added_event)
+        on_video_track_added_event(pc_id, sender_id, ssrc);
+}
+
+void Client::on_video_sender_codec(u64 pc_id, u64 sender_id, String codec, u8 payload_type)
+{
+    if (on_video_sender_codec_event)
+        on_video_sender_codec_event(pc_id, sender_id, move(codec), payload_type);
+}
+
+void Client::on_key_frame_requested(u64 pc_id, u64 sender_id)
+{
+    if (on_key_frame_requested_event)
+        on_key_frame_requested_event(pc_id, sender_id);
 }
 
 void Client::on_create_offer_result(u64 pc_id, u64 request_id, bool ok, String sdp_type, String sdp, String error_kind, String error_message)
@@ -104,16 +128,16 @@ void Client::on_create_answer_result(u64 pc_id, u64 request_id, bool ok, String 
         on_create_answer_completion(pc_id, request_id, ok, move(sdp_type), move(sdp), move(error_kind), move(error_message));
 }
 
-void Client::on_set_local_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message)
+void Client::on_set_local_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message, Vector<TransceiverState> transceivers)
 {
     if (on_set_local_description_completion)
-        on_set_local_description_completion(pc_id, request_id, ok, move(error_kind), move(error_message));
+        on_set_local_description_completion(pc_id, request_id, ok, move(error_kind), move(error_message), move(transceivers));
 }
 
-void Client::on_set_remote_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message)
+void Client::on_set_remote_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message, Vector<TransceiverState> transceivers)
 {
     if (on_set_remote_description_completion)
-        on_set_remote_description_completion(pc_id, request_id, ok, move(error_kind), move(error_message));
+        on_set_remote_description_completion(pc_id, request_id, ok, move(error_kind), move(error_message), move(transceivers));
 }
 
 void Client::on_add_ice_candidate_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message)

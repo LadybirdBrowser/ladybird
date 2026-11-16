@@ -66,7 +66,7 @@ bool CrashReportStore::is_saved_report_name(StringView name)
         return all_of(suffix.substring_view(prefix.length(), 6), is_ascii_alphanumeric);
     };
     for (auto type : { ProcessType::Browser, ProcessType::WebContent,
-             ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::MediaServer, ProcessType::AudioServer, ProcessType::VideoDecoderServer, ProcessType::Compositor, ProcessType::WebRTCClient }) {
+             ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::MediaServer, ProcessType::AudioServer, ProcessType::CameraServer, ProcessType::VideoDecoderServer, ProcessType::Compositor, ProcessType::WebRTCClient }) {
         if (has_process_name(process_name_from_type(type)))
             return true;
     }

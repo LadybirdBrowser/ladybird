@@ -12,6 +12,7 @@ set(SOURCES
     AutocompleteService.cpp
     BlobURLStore.cpp
     BrowsingSession.cpp
+    CameraServerControlClient.cpp
     CanonicalBrowsingContext.cpp
     CanonicalBrowsingContextGroup.cpp
     CanonicalDocument.cpp
@@ -123,7 +124,7 @@ if (APPLE)
     )
     set_source_files_properties(MediaSessionPlatformBackendMacOS.mm NotificationBackendMacOS.mm PlatformAuthenticatorBackendMacOS.mm QuarantineMacOS.mm StringConversionsMacOS.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 elseif (LINUX)
-    list(APPEND SOURCES AudioDaemonSocket.cpp CrashReportPOSIX.cpp)
+    list(APPEND SOURCES AudioDaemonSocket.cpp CameraDaemonSocket.cpp CrashReportPOSIX.cpp)
 endif()
 
 if (NOT WIN32)
@@ -145,6 +146,8 @@ set(GENERATED_SOURCES
     ${GENERATED_SOURCES}
     ../../Services/AudioServer/AudioServerControlClientEndpoint.h
     ../../Services/AudioServer/AudioServerControlEndpoint.h
+    ../../Services/CameraServer/CameraServerControlClientEndpoint.h
+    ../../Services/CameraServer/CameraServerControlEndpoint.h
     ../../Services/ImageDecoder/ImageDecoderControlClientEndpoint.h
     ../../Services/ImageDecoder/ImageDecoderControlEndpoint.h
     ../../Services/RequestServer/RequestClientEndpoint.h
@@ -189,7 +192,7 @@ if (LADYBIRD_ENABLE_UPDATE_CHECK)
 endif()
 
 target_link_libraries(LibWebView PUBLIC LibCompositing LibPlatformFeatures LibSandbox LibWebCommon)
-target_link_libraries(LibWebView PRIVATE LibCore LibCrypto LibDatabase LibDevTools LibFileSystem LibGfx LibHTTP LibImageDecoderClient LibIPC LibRequests LibMedia LibMediaClient LibUnicode LibURL LibTextCodec LibThreading)
+target_link_libraries(LibWebView PRIVATE LibCamera LibCore LibCrypto LibDatabase LibDevTools LibFileSystem LibGfx LibHTTP LibImageDecoderClient LibIPC LibRequests LibMedia LibMediaClient LibUnicode LibURL LibTextCodec LibThreading)
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libwebview_rust FEATURES allocator FFI_HEADER RustFFI.h)
 # The crate calls OpenSSL through libcrypto_rust, which leaves linking it to its users.

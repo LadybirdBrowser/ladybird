@@ -95,21 +95,21 @@ void RTCRtpScriptTransform::detach()
         agent->rtc_transform_teardown(m_transform_id);
 }
 
-void RTCRtpScriptTransform::enqueue_encoded_audio_frame(ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+void RTCRtpScriptTransform::enqueue_encoded_frame(EncodedFrame frame)
 {
     auto agent = m_worker ? m_worker->agent() : nullptr;
     if (!agent || m_detached)
         return;
-    dbgln_if(WEBRTC_DEBUG, "RTCRtpScriptTransform::enqueue_encoded_audio_frame id={} ssrc={} seq={} len={}", m_transform_id, ssrc, sequence_number, payload.size());
+    dbgln_if(WEBRTC_DEBUG, "RTCRtpScriptTransform::enqueue_encoded_frame id={} ssrc={} seq={} len={}", m_transform_id, frame.ssrc, frame.sequence_number, frame.payload.size());
     if (!m_callback_registered) {
-        agent->register_transform_frame_callback(m_transform_id, [self = GC::Weak { *this }](ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number) {
+        agent->register_transform_frame_callback(m_transform_id, [self = GC::Weak { *this }](EncodedFrame frame) {
             if (!self || !self->m_on_frame_written)
                 return;
-            self->m_on_frame_written(move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
+            self->m_on_frame_written(move(frame));
         });
         m_callback_registered = true;
     }
-    agent->rtc_transform_encoded_audio_frame(m_transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
+    agent->rtc_transform_encoded_frame(m_transform_id, move(frame));
 }
 
 }

@@ -12,6 +12,8 @@ namespace Web::Permissions {
 
 Optional<PermissionName> permission_name_from_string(StringView name)
 {
+    if (name == "camera"sv)
+        return PermissionName::Camera;
     if (name == "geolocation"sv)
         return PermissionName::Geolocation;
     if (name == "microphone"sv)
@@ -24,6 +26,8 @@ Optional<PermissionName> permission_name_from_string(StringView name)
 StringView to_string(PermissionName name)
 {
     switch (name) {
+    case PermissionName::Camera:
+        return "camera"sv;
     case PermissionName::Geolocation:
         return "geolocation"sv;
     case PermissionName::Microphone:
@@ -60,6 +64,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::Permissions::PermissionSnapshot
     TRY(encoder.encode(snapshot.revision));
     TRY(encoder.encode(snapshot.origins));
     TRY(encoder.encode(snapshot.entries));
+    TRY(encoder.encode(snapshot.camera_default));
     TRY(encoder.encode(snapshot.geolocation_default));
     TRY(encoder.encode(snapshot.microphone_default));
     TRY(encoder.encode(snapshot.notifications_default));
@@ -72,8 +77,9 @@ ErrorOr<Web::Permissions::PermissionSnapshot> IPC::decode(Decoder& decoder)
     auto revision = TRY(decoder.decode<u64>());
     auto origins = TRY(decoder.decode<Vector<URL::Origin>>());
     auto entries = TRY(decoder.decode<Vector<Web::Permissions::PermissionSnapshotEntry>>());
+    auto camera_default = TRY(decoder.decode<Web::Permissions::EffectiveState>());
     auto geolocation_default = TRY(decoder.decode<Web::Permissions::EffectiveState>());
     auto microphone_default = TRY(decoder.decode<Web::Permissions::EffectiveState>());
     auto notifications_default = TRY(decoder.decode<Web::Permissions::EffectiveState>());
-    return Web::Permissions::PermissionSnapshot { revision, move(origins), move(entries), geolocation_default, microphone_default, notifications_default };
+    return Web::Permissions::PermissionSnapshot { revision, move(origins), move(entries), camera_default, geolocation_default, microphone_default, notifications_default };
 }

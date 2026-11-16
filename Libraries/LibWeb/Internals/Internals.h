@@ -19,6 +19,8 @@
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
 #include <LibWeb/Internals/InternalsBase.h>
 #include <LibWeb/Painting/Forward.h>
+#include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>
 #include <LibWebCommon/WebIDL/Types.h>
@@ -297,6 +299,7 @@ public:
     void release_system_microphone_answer();
     Utf16String microphone_state();
     bool audio_capture_is_pending();
+    WebIDL::ExceptionOr<GC::Ref<MediaCapture::MediaStreamTrack>> create_encoded_video_track(WebIDL::BufferSourceVariant const& media);
     void release_held_permission_prompt(WebIDL::UnsignedLong waiters);
     GC::Ref<WebIDL::Promise> advance_permission_clock(WebIDL::UnsignedLongLong milliseconds);
     Vector<String> permission_cache_origins();
@@ -381,6 +384,8 @@ public:
     bool tab_is_heard_playing_audio();
     bool tab_is_using_microphone();
     bool tab_is_capturing_audio();
+    bool tab_is_capturing_video();
+    unsigned long camera_capture_stream_count();
     void report_audio_capture_of_unknown_page(bool capturing);
     WebIDL::UnsignedLongLong picture_in_picture_window_page_id();
     void report_audio_capture_of_page(WebIDL::UnsignedLongLong page_id, bool capturing);

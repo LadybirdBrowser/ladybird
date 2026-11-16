@@ -439,7 +439,8 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::Settings& settings, Nonnull
 
     m_location_in_use_chip = new InUseChip(this, ChromeIcon::Location, "Using your location", "This page is using your location");
     m_microphone_in_use_chip = new InUseChip(this, ChromeIcon::Microphone, "Using your microphone", "This page is using your microphone");
-    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip }) {
+    m_camera_in_use_chip = new InUseChip(this, ChromeIcon::Camera, "Using your camera", "This page is using your camera");
+    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip, m_camera_in_use_chip }) {
         chip->on_size_change = [this] {
             update_text_margins();
             update_trailing_item_positions();
@@ -451,7 +452,7 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::Settings& settings, Nonnull
     }
     update_in_use_chip_icons();
 
-    for (auto* button : { m_leading_icon_button, m_trailing_action_button, m_translate_button, m_zoom_indicator_button, static_cast<QToolButton*>(m_location_in_use_chip), static_cast<QToolButton*>(m_microphone_in_use_chip) })
+    for (auto* button : { m_leading_icon_button, m_trailing_action_button, m_translate_button, m_zoom_indicator_button, static_cast<QToolButton*>(m_location_in_use_chip), static_cast<QToolButton*>(m_microphone_in_use_chip), static_cast<QToolButton*>(m_camera_in_use_chip) })
         button->installEventFilter(this);
 
     update_text_margins();
@@ -1146,7 +1147,7 @@ QSize LocationEdit::minimumSizeHint() const
 int LocationEdit::in_use_chips_width_beyond_icons() const
 {
     auto width = 0;
-    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip }) {
+    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip, m_camera_in_use_chip }) {
         if (chip)
             width += chip->width_beyond_icon();
     }
@@ -1159,10 +1160,10 @@ void LocationEdit::fit_in_use_chips()
 {
     auto margins = textMargins();
     auto width_for_words = NativeTextEditingLineEdit::minimumSizeHint().width() - margins.left() - margins.right() + m_text_leading_margin + trailing_text_margin();
-    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip })
+    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip, m_camera_in_use_chip })
         width_for_words += chip->width_missing_for_words();
 
-    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip })
+    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip, m_camera_in_use_chip })
         chip->set_words_fit(width() >= width_for_words);
 }
 
@@ -1207,7 +1208,7 @@ void LocationEdit::update_trailing_item_positions()
     auto chip_x = items_x;
     if (!m_zoom_indicator_button->isHidden())
         chip_x -= LOCATION_ZOOM_CHIP_GAP + zoom_button_size.width();
-    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip }) {
+    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip, m_camera_in_use_chip }) {
         auto chip_size = chip->size();
         chip->move(chip_x - LOCATION_ZOOM_CHIP_GAP - chip_size.width(), (height() - chip_size.height()) / 2);
         chip->raise();
@@ -1224,7 +1225,7 @@ void LocationEdit::search_engine_settings_changed()
 
 void LocationEdit::update_text_margins()
 {
-    if (m_location_in_use_chip && m_microphone_in_use_chip)
+    if (m_location_in_use_chip && m_microphone_in_use_chip && m_camera_in_use_chip)
         fit_in_use_chips();
     setTextMargins(m_text_leading_margin, 0, trailing_text_margin(), 0);
 }
@@ -1239,7 +1240,7 @@ int LocationEdit::trailing_text_margin() const
         margin += m_translate_button->width();
     if (m_zoom_indicator_button && !m_zoom_indicator_button->isHidden())
         margin += m_zoom_indicator_button->width() + LOCATION_ZOOM_CHIP_GAP;
-    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip }) {
+    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip, m_camera_in_use_chip }) {
         if (chip && !chip->isHidden())
             margin += chip->width() + LOCATION_ZOOM_CHIP_GAP;
     }
@@ -1463,9 +1464,14 @@ void LocationEdit::set_microphone_in_use(bool in_use)
     m_microphone_in_use_chip->set_in_use(in_use);
 }
 
+void LocationEdit::set_camera_in_use(bool in_use)
+{
+    m_camera_in_use_chip->set_in_use(in_use);
+}
+
 void LocationEdit::update_in_use_chip_icons()
 {
-    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip }) {
+    for (auto* chip : { m_location_in_use_chip, m_microphone_in_use_chip, m_camera_in_use_chip }) {
         if (chip)
             chip->update_icon(Theme::chrome_palette(*this));
     }

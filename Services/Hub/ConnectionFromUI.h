@@ -101,6 +101,7 @@ private:
     virtual Messages::HubServer::ViewPageDescriptionResponse view_page_description(u64 view_id) override;
     virtual void view_set_site_permission(u64 view_id, URL::Origin origin, Web::Permissions::PermissionName name, Optional<WebView::PermissionDecision> decision) override;
     virtual void view_did_show_permission_prompt(u64 view_id, WebView::PermissionPromptRequest request) override;
+    virtual void view_did_choose_permission_prompt_device(u64 view_id, WebView::PermissionPromptRequest request, ByteString device_id) override;
     virtual void view_load_navigation(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation) override;
     virtual void view_open_navigation_in_new_tab(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) override;
     virtual void view_open_navigation_in_new_window(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) override;
