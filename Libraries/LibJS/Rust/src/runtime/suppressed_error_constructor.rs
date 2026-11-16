@@ -88,7 +88,7 @@ impl SuppressedErrorConstructor {
             realm,
             new_target,
             Intrinsics::suppressed_error_prototype,
-            |_, prototype| SuppressedError::new_in_constructor(vm, realm, prototype),
+            |_, prototype| SuppressedError::new_in_constructor(vm, realm, prototype, new_target),
         )?;
 
         // 3. If message is not undefined, then

@@ -118,9 +118,23 @@ impl ErrorData {
     }
 
     /// Error data captured by an Error constructor, whose own frame is the innermost one. A stack string shows the
-    /// code that called the constructor, never the constructor itself, so that frame is left out.
-    pub fn new_in_constructor(vm: &Vm) -> Self {
-        Self::capture(vm, SkippedFrames::Count(1), stack_trace_limit(vm))
+    /// code that made the error, never the constructors that made it: the frames up to and including the innermost
+    /// frame of `new_target`, which are those of the constructors of the subclasses an error class extends, are left
+    /// out. When `new_target` has no frame on the stack, as with Reflect.construct(), only the frame of the
+    /// constructor itself is.
+    pub fn new_in_constructor(vm: &Vm, new_target: Gc<FunctionObject>) -> Self {
+        let mut frames_up_to_new_target = 0;
+        let mut found_new_target = false;
+        vm.for_each_stack_frame_top_to_bottom(|frame| {
+            frames_up_to_new_target += 1;
+            if frame.function == Some(new_target) {
+                found_new_target = true;
+                return ControlFlow::Break(());
+            }
+            ControlFlow::Continue(())
+        });
+        let skipped_frames = if found_new_target { frames_up_to_new_target } else { 1 };
+        Self::capture(vm, SkippedFrames::Count(skipped_frames), stack_trace_limit(vm))
     }
 
     /// Error data with every frame of the call stack, whatever Error.stackTraceLimit is, for a trace of the running code
