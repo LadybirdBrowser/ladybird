@@ -7,7 +7,6 @@ set(SOURCES
     ASN1/DER.cpp
     Authentication/HMAC.cpp
     Authentication/KMAC.cpp
-    BigInt/UnsignedBigInteger.cpp
     Cipher/AES.cpp
     Cipher/ChaCha.cpp
     Curves/EdwardsCurve.cpp
@@ -27,5 +26,4 @@ set(SOURCES
 
 ladybird_lib(LibCrypto crypto)
 
-target_link_libraries(LibCrypto PRIVATE PkgConfig::libtommath)
 target_link_libraries(LibCrypto PUBLIC OpenSSL::Crypto)

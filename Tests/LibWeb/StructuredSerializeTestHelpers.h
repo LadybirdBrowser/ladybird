@@ -449,7 +449,7 @@ inline Web::HTML::StorageSerializationRecord crypto_key_secret_record(ReadonlyBy
     return serializable_storage_record("CryptoKey"sv, 1, body);
 }
 
-// UnsignedBigInteger stores big-endian octets in ByteBuffer form.
+// A big integer is stored as its big-endian octets.
 inline void append_storage_big_integer(Vector<u8>& bytes, ReadonlyBytes big_endian_octets)
 {
     append_storage_bytes(bytes, big_endian_octets);
