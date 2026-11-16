@@ -42,6 +42,7 @@ fn offsets() -> RuntimeOffsets {
         executable_idle_collection_count: 0,
         execution_context_slots: (8 * FRAME_HEADER_WORDS) as u32,
         vm_running_execution_context: 0,
+        vm_current_realm: 8 * VM_CURRENT_REALM_WORD as u32,
         vm_jit_native_stack_limit: 8,
         private_environment_outer: 0,
         object_shape: 0,
@@ -54,7 +55,6 @@ fn offsets() -> RuntimeOffsets {
         accessor_getter: 8,
         accessor_setter: 16,
         execution_context_function: 64,
-        execution_context_realm: 72,
         execution_context_variable_environment: 96,
         execution_context_frame_id: 104,
         execution_context_skip_when_determining_incumbent_counter: 4,
@@ -83,6 +83,7 @@ fn offsets() -> RuntimeOffsets {
 
 /// Words of the fake VM.
 const VM_EXECUTION_GENERATION_WORD: usize = 6;
+const VM_CURRENT_REALM_WORD: usize = 7;
 const VM_WORDS: usize = 9;
 #[cfg(target_arch = "x86_64")]
 /// The word of the fake VM with its native function table.
@@ -661,6 +662,8 @@ fn runtime() -> RuntimeInfo {
             primitive_string_length: 16,
             ..RuntimeLayout::default()
         },
+        // NB: The functions of the tests run in the realm of the compiled code.
+        realm: CellId(crate::builder::tests::inlining::REALM),
         ..RuntimeInfo::default()
     }
 }
@@ -3593,7 +3596,7 @@ mod direct_calls {
     use crate::snapshot::DirectCallTarget;
     use crate::snapshot::InlinedFunctionSnapshot;
 
-    const REALM: u64 = 0x5eed_0000;
+    const REALM: u64 = crate::builder::tests::inlining::REALM;
     const GLOBAL_THIS: u64 = 0x6000;
     /// The fake function object: environment, private environment and two
     /// words of script or module.
@@ -3855,7 +3858,6 @@ mod direct_calls {
             let half = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u32;
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
-            assert_eq!(word(72), REALM);
             assert_eq!(
                 (word(8), word(96), word(16)),
                 (FUNCTION_WORDS[0], FUNCTION_WORDS[0], FUNCTION_WORDS[1])
@@ -4236,6 +4238,7 @@ mod direct_calls {
             let stack = callee.callee.interpreter_stack.as_mut_ptr() as u64;
             machine.vm[3] = stack;
             machine.vm[4] = stack + 8 * callee.callee.interpreter_stack.len() as u64;
+            machine.vm[VM_CURRENT_REALM_WORD] = callee.realm;
             callee.callee.executable[EXECUTABLE_TEST_STATE_WORD] =
                 std::ptr::from_ref::<RefCell<TestState>>(&machine.state) as u64;
             machine.state.borrow_mut().direct.callee_result = Some((value::int32(99), RETURNED));
@@ -4258,7 +4261,6 @@ mod direct_calls {
             let half = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u32;
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
-            assert_eq!(word(72), callee.realm);
             assert_eq!(
                 (word(8), word(96), word(16)),
                 (
@@ -4399,6 +4401,7 @@ mod direct_calls {
                 let stack = callee.callee.interpreter_stack.as_mut_ptr() as u64;
                 machine.vm[3] = stack;
                 machine.vm[4] = stack + 8 * callee.callee.interpreter_stack.len() as u64;
+                machine.vm[VM_CURRENT_REALM_WORD] = callee.realm;
                 callee.callee.executable[EXECUTABLE_TEST_STATE_WORD] =
                     std::ptr::from_ref::<RefCell<TestState>>(&machine.state) as u64;
                 {
@@ -4522,6 +4525,7 @@ mod direct_calls {
                 let stack = callee.callee.interpreter_stack.as_mut_ptr() as u64;
                 machine.vm[3] = stack;
                 machine.vm[4] = stack + 8 * callee.callee.interpreter_stack.len() as u64;
+                machine.vm[VM_CURRENT_REALM_WORD] = callee.realm;
                 callee.callee.executable[EXECUTABLE_TEST_STATE_WORD] =
                     std::ptr::from_ref::<RefCell<TestState>>(&machine.state) as u64;
                 {
@@ -4696,7 +4700,9 @@ mod direct_calls {
                 let stack = callee.callee.interpreter_stack.as_mut_ptr() as u64;
                 machine.vm[3] = stack;
                 machine.vm[4] = stack + 8 * callee.callee.interpreter_stack.len() as u64;
+                machine.vm[VM_CURRENT_REALM_WORD] = callee.realm;
                 machine.vm[VM_NATIVE_FUNCTION_TABLE_WORD] = table.as_ptr() as u64;
+                machine.vm[VM_CURRENT_REALM_WORD] = realm;
                 let result = machine.run(&snapshot, &compiled);
                 // this + 10, plus a1 (7) when called directly with this = 1.
                 assert_eq!(result, returned(value::int32(if through_call { 17 } else { 18 })));
@@ -4704,7 +4710,6 @@ mod direct_calls {
                 assert_eq!(state.generic_calls, 0);
                 let frame = &state.direct.callee_frames[0];
                 assert_eq!(frame[64 / 8], native.as_ptr() as u64, "function");
-                assert_eq!(frame[72 / 8], realm);
                 assert_eq!(frame[32 / 8], 0, "no executable");
                 assert_eq!(machine.vm[0], machine.frame.as_ptr() as u64);
                 assert_eq!(machine.vm[3], stack);

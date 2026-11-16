@@ -195,12 +195,9 @@ impl NativeJavaScriptBackedFunction {
         // NB: The abstract operations a builtin file calls are functions of the realm that is current while its
         //     executable is compiled, and ArraySpeciesCreate depends on its realm. The builtin may first be called from
         //     another realm, so it is compiled in its own.
-        let running_execution_context = vm.running_execution_context_if_any();
-        let caller_realm = running_execution_context.and_then(|context| context.realm.replace(Some(self.realm())));
+        let caller_realm = vm.head.current_realm.replace(Some(self.realm()));
         let rust_executable = SharedFunctionInstanceData::compile_function(vm, shared_data, true);
-        if let Some(context) = running_execution_context {
-            context.realm.set(caller_realm);
-        }
+        vm.head.current_realm.set(caller_realm);
         let rust_executable = rust_executable?;
         shared_data.set_executable(Some(rust_executable));
         rust_executable.set_name(shared_data.name());

@@ -29,10 +29,7 @@ pub(crate) struct RootExecutionContext<'vm> {
 
 impl RootExecutionContext<'_> {
     pub(crate) fn realm(&self) -> Gc<Realm> {
-        self.context
-            .realm
-            .get()
-            .expect("the root execution context has a realm")
+        self.context.realm().expect("the root execution context has a realm")
     }
 }
 

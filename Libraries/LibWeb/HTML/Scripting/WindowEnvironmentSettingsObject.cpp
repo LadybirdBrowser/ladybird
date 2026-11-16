@@ -39,7 +39,7 @@ void WindowEnvironmentSettingsObject::visit_edges(JS::Cell::Visitor& visitor)
 void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation_url, NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ptr<Environment> reserved_environment, URL::URL top_level_creation_url, URL::Origin top_level_origin, Optional<u64> agent_cluster_id, CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode, Optional<EnvironmentId> environment_id)
 {
     // 1. Let realm be the value of execution context's Realm component.
-    auto realm = execution_context->realm;
+    auto realm = execution_context->realm();
     VERIFY(realm);
 
     // 2. Let window be realm's global object.

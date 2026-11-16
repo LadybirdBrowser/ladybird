@@ -191,6 +191,13 @@ pub struct VmOptions {
 /// An execution context stack that VM::save_execution_context_stack() set aside, with the TypeErrorRealmScope that
 /// was active on it.
 struct SavedExecutionContextStack {
+    #[cfg_attr(
+        ladybird_gc_lints,
+        expect(
+            gc_container_in_untraced_type,
+            reason = "a traced context below each entry holds its previous realm"
+        )
+    )]
     storage: Vec<ExecutionContextStackEntry>,
     length: usize,
     running_execution_context: *mut ExecutionContext,
@@ -724,6 +731,13 @@ impl Vm {
         let native_function_table = unsafe {
             Box::<[NativeFunctionTableEntry]>::new_zeroed_slice(NATIVE_FUNCTION_TABLE_CAPACITY).assume_init()
         };
+        #[cfg_attr(
+            ladybird_gc_lints,
+            expect(
+                gc_container_on_stack,
+                reason = "a traced context below each entry holds its previous realm"
+            )
+        )]
         let mut execution_context_stack_storage = Vec::new();
         let vm = Vm {
             head: VmHead {
@@ -745,6 +759,7 @@ impl Vm {
                 type_error_realm_override_depth: Cell::new(0),
                 keyed_property_lookup_cache_entries: Cell::new(core::ptr::null()),
                 dispatch_tables: [const { Cell::new(core::ptr::null()) }; DISPATCH_TABLE_COUNT],
+                current_realm: Cell::new(None),
             },
             jit_native_stack_limit: AtomicUsize::new(0),
             interrupt_requested: AtomicBool::new(false),
@@ -949,7 +964,13 @@ impl Vm {
 
     /// The Realm of the running execution context.
     pub fn current_realm(&self) -> Option<Gc<Realm>> {
-        self.running_execution_context_if_any()?.realm.get()
+        self.head.current_realm.get()
+    }
+
+    /// Whether `function` runs in the current realm. Only calls of such functions may enter their frame inline (see
+    /// `VmHead::current_realm`).
+    pub fn is_in_current_realm(&self, function: Gc<FunctionObject>) -> bool {
+        function.function_realm() == self.current_realm()
     }
 
     /// Whether so little of the native stack is left that running more JavaScript could overflow it.
@@ -1040,9 +1061,38 @@ impl Vm {
         Err(Throw::new(self.interrupt_exception()))
     }
 
+    /// Makes `context` (which may be null) the running execution context, and its realm the current realm.
+    pub fn set_running_execution_context(&self, context: *mut ExecutionContext) {
+        self.head.running_execution_context.set(context);
+        // SAFETY: The running context is live.
+        let realm = NonNull::new(context).and_then(|context| unsafe { context.as_ref() }.realm());
+        self.head.current_realm.set(realm);
+    }
+
+    /// Makes `frame`, a frame entered inline for a call or left for its caller, the running execution context. Such
+    /// frames run in the current realm, as the interpreter and JIT code leave calls into another realm to the runtime.
+    pub(crate) fn set_running_frame_in_current_realm(&self, frame: *mut ExecutionContext) {
+        self.head.running_execution_context.set(frame);
+        debug_assert!(
+            // SAFETY: The running context is live.
+            NonNull::new(frame).is_none_or(|frame| unsafe { frame.as_ref() }.realm() == self.head.current_realm.get()),
+            "a frame entered or left inline runs in the current realm"
+        );
+    }
+
     pub fn push_execution_context(&self, context: NonNull<ExecutionContext>) {
         // SAFETY: The caller passes a live context.
+        let realm = unsafe { context.as_ref() }.realm();
+        self.push_execution_context_in_realm(context, realm);
+    }
+
+    /// push_execution_context() of a context whose [[Realm]], `realm`, the caller has at hand, which saves asking the
+    /// context for it.
+    #[inline]
+    pub fn push_execution_context_in_realm(&self, context: NonNull<ExecutionContext>, realm: Option<Gc<Realm>>) {
+        // SAFETY: The caller passes a live context.
         let context_ref = unsafe { context.as_ref() };
+        debug_assert!(realm == context_ref.realm(), "a context is pushed with its own realm");
         context_ref.caller_frame.set(core::ptr::null_mut());
         context_ref.caller_return_pc.set(0);
         context_ref.caller_dst_raw.set(0);
@@ -1058,8 +1108,10 @@ impl Vm {
         entry
             .previous_running_execution_context
             .set(self.head.running_execution_context.get());
+        entry.previous_realm.set(self.head.current_realm.get());
         self.head.execution_context_stack_length.set(length + 1);
         self.head.running_execution_context.set(context.as_ptr());
+        self.head.current_realm.set(realm);
     }
 
     pub fn pop_execution_context(&self) -> NonNull<ExecutionContext> {
@@ -1072,9 +1124,12 @@ impl Vm {
         // SAFETY: The entry below the length is on the stack.
         let entry = unsafe { &*self.head.execution_context_stack_entries.get().add(length) };
         self.head.execution_context_stack_length.set(length);
+        // NB: The realm of a context does not change while it runs, so the realm that was current when the entry was
+        //     pushed is that of the context it makes running again.
         self.head
             .running_execution_context
             .set(entry.previous_running_execution_context.get());
+        self.head.current_realm.set(entry.previous_realm.get());
         NonNull::new(entry.execution_context.get()).expect("every entry on the stack has its context")
     }
 
@@ -1085,6 +1140,7 @@ impl Vm {
         storage.resize_with(capacity, || ExecutionContextStackEntry {
             execution_context: Cell::new(core::ptr::null_mut()),
             previous_running_execution_context: Cell::new(core::ptr::null_mut()),
+            previous_realm: Cell::new(None),
         });
         self.head.execution_context_stack_entries.set(storage.as_mut_ptr());
         self.head.execution_context_stack_capacity.set(capacity);
@@ -1108,6 +1164,13 @@ impl Vm {
     }
 
     /// Hands the head the storage of an execution context stack with `length` entries on it.
+    #[cfg_attr(
+        ladybird_gc_lints,
+        expect(
+            gc_container_on_stack,
+            reason = "a traced context below each entry holds its previous realm"
+        )
+    )]
     fn install_execution_context_stack(&self, mut storage: Vec<ExecutionContextStackEntry>, length: usize) {
         assert!(length <= storage.len());
         self.head.execution_context_stack_entries.set(storage.as_mut_ptr());
@@ -1195,14 +1258,22 @@ impl Vm {
     /// is active on it, and leaves an empty stack with nothing running. The garbage collector keeps tracing the saved
     /// stack until restore_execution_context_stack() brings it back.
     pub fn save_execution_context_stack(&self) {
+        #[cfg_attr(
+            ladybird_gc_lints,
+            expect(
+                gc_container_on_stack,
+                reason = "a traced context below each entry holds its previous realm"
+            )
+        )]
         let saved_stack = SavedExecutionContextStack {
             storage: core::mem::take(&mut *self.execution_context_stack_storage.borrow_mut()),
             length: self.head.execution_context_stack_length.get(),
-            running_execution_context: self.head.running_execution_context.replace(core::ptr::null_mut()),
+            running_execution_context: self.head.running_execution_context.get(),
             type_error_realm_override: self.head.type_error_realm_override.take(),
             type_error_realm_override_depth: self.head.type_error_realm_override_depth.replace(0),
         };
         self.saved_execution_context_stacks.borrow_mut().push(saved_stack);
+        self.set_running_execution_context(core::ptr::null_mut());
         self.install_execution_context_stack(Vec::new(), 0);
     }
 
@@ -1210,7 +1281,7 @@ impl Vm {
     /// storage.
     pub fn clear_execution_context_stack(&self) {
         self.head.execution_context_stack_length.set(0);
-        self.head.running_execution_context.set(core::ptr::null_mut());
+        self.set_running_execution_context(core::ptr::null_mut());
         self.head.type_error_realm_override.set(None);
         self.head.type_error_realm_override_depth.set(0);
     }
@@ -1218,15 +1289,20 @@ impl Vm {
     /// VM::restore_execution_context_stack(): replaces the execution context stack with the one the matching
     /// save_execution_context_stack() set aside.
     pub fn restore_execution_context_stack(&self) {
+        #[cfg_attr(
+            ladybird_gc_lints,
+            expect(
+                gc_container_on_stack,
+                reason = "a traced context below each entry holds its previous realm"
+            )
+        )]
         let saved_stack = self
             .saved_execution_context_stacks
             .borrow_mut()
             .pop()
             .expect("a saved execution context stack to restore");
         self.install_execution_context_stack(saved_stack.storage, saved_stack.length);
-        self.head
-            .running_execution_context
-            .set(saved_stack.running_execution_context);
+        self.set_running_execution_context(saved_stack.running_execution_context);
         self.head
             .type_error_realm_override
             .set(saved_stack.type_error_realm_override);
@@ -2176,6 +2252,7 @@ impl Vm {
     }
 
     /// Pushes `context`, unless so little of the native stack is left that the next call could overflow it.
+    #[inline]
     pub fn push_execution_context_checking_stack_space(
         &self,
         context: NonNull<ExecutionContext>,
@@ -2185,6 +2262,22 @@ impl Vm {
             return self.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
         }
         self.push_execution_context(context);
+        Ok(())
+    }
+
+    /// push_execution_context_checking_stack_space() of a suspended context that resumes, such as that of a generator.
+    #[inline]
+    pub fn push_resumed_execution_context_checking_stack_space(
+        &self,
+        context: NonNull<ExecutionContext>,
+    ) -> ThrowCompletionOr<()> {
+        // Ensure we got some stack space left, so the next function call doesn't kill us.
+        if self.did_reach_stack_space_limit() {
+            return self.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
+        }
+        // SAFETY: The caller passes a live context.
+        let realm = unsafe { context.as_ref() }.realm_of_resumed_frame();
+        self.push_execution_context_in_realm(context, realm);
         Ok(())
     }
 

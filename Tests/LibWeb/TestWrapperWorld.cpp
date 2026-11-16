@@ -276,7 +276,7 @@ GC::Ref<JS::Realm> create_test_principal_realm(JS::VM& vm)
             return global_this.as_nonnull();
         });
 
-    auto realm = execution_context->realm;
+    auto realm = execution_context->realm();
     URL::Origin::OpaqueData::Nonce nonce {};
     auto origin = URL::Origin { URL::Origin::OpaqueData { nonce, URL::Origin::OpaqueData::Type::Standard } };
     Web::HTML::WindowEnvironmentSettingsObject::setup(
@@ -326,7 +326,7 @@ struct TestRealm {
         realm().vm().pop_execution_context();
     }
 
-    JS::Realm& realm() { return *execution_context->realm; }
+    JS::Realm& realm() { return *execution_context->realm(); }
 
     GC::Root<JS::Realm> principal_realm;
     NonnullOwnPtr<JS::ExecutionContext> execution_context;
@@ -473,7 +473,7 @@ TEST_CASE(global_wrapper_uses_requested_realm)
     TestRealm allocation_realm { *vm };
     auto wrappable = allocation_realm.realm().create<TestWrappable>(allocation_realm.realm());
     auto extension_execution_context = MUST(JS::Realm::initialize_host_defined_realm(*vm, nullptr, nullptr));
-    auto& extension_realm = *extension_execution_context->realm;
+    auto& extension_realm = *extension_execution_context->realm();
 
     auto wrapper = Web::Bindings::create_global_object_wrapper(extension_realm, wrappable);
 
@@ -539,7 +539,7 @@ TEST_CASE(global_wrapper_cache_uses_realm_wrapper_world)
             return Web::Bindings::create_global_object_wrapper(realm, wrappable);
         },
         nullptr));
-    auto& extension_realm = *extension_execution_context->realm;
+    auto& extension_realm = *extension_execution_context->realm();
     install_test_host_defined(extension_realm, Web::Bindings::WrapperWorld::Type::Extension, *main_world.principal_realm);
     Web::Bindings::cache_global_object_wrapper(extension_realm);
 
@@ -806,7 +806,7 @@ TEST_CASE(custom_element_prototype_helper_denies_realm_without_host_defined)
     auto original_prototype = main_wrapper->shape().prototype();
 
     auto bare_execution_context = MUST(JS::Realm::initialize_host_defined_realm(*vm, nullptr, nullptr));
-    auto& bare_realm = *bare_execution_context->realm;
+    auto& bare_realm = *bare_execution_context->realm();
     auto bare_prototype = JS::Object::create(bare_realm, nullptr);
 
     auto result = Web::Bindings::set_prototype_of_cached_main_world_wrapper(*wrappable, *bare_prototype);
@@ -1046,7 +1046,7 @@ TEST_CASE(relevant_global_main_world_wrapper_ignores_preferred_realm)
     auto window = GC::Ref { *traversable->active_document()->window() };
 
     auto preferred_execution_context = MUST(JS::Realm::initialize_host_defined_realm(vm, nullptr, nullptr));
-    auto& preferred_realm = *preferred_execution_context->realm;
+    auto& preferred_realm = *preferred_execution_context->realm();
     install_test_host_defined(preferred_realm, static_cast<Web::HTML::Agent&>(*vm.agent()).main_world(), window->principal_realm());
 
     auto bar_prop = GC::Ref { const_cast<Web::HTML::BarProp&>(*window->locationbar()) };
@@ -1077,7 +1077,7 @@ TEST_CASE(wasm_instance_exports_belong_to_the_realm_of_the_instance)
     auto& window_realm = traversable->active_document()->window()->principal_realm();
 
     auto extension_execution_context = MUST(JS::Realm::initialize_host_defined_realm(vm, nullptr, nullptr));
-    auto& extension_realm = *extension_execution_context->realm;
+    auto& extension_realm = *extension_execution_context->realm();
     install_test_host_defined(extension_realm, Web::Bindings::WrapperWorld::Type::Extension, window_realm);
 
     // An Instance made in the window realm, whose exports object belongs to that realm.

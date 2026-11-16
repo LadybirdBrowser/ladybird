@@ -1,0 +1,76 @@
+<!doctype html>
+<script src="include.js"></script>
+<iframe></iframe>
+<script>
+    var where = "parent";
+    test(() => {
+        const other = document.querySelector("iframe").contentWindow;
+        other.eval(`
+            var where = "frame";
+            function whereAmI() { return where; }
+            function makeArray() { return []; }
+            function callBack(f) { return f(); }
+            function thrower() { throw new TypeError("thrown in the frame"); }
+            function sloppyThis() { return this; }
+            var getterObject = { get value() { return where; } };
+        `);
+        function parentWhere() {
+            return where;
+        }
+        function callIt(f) {
+            return f();
+        }
+        function nodeNameOf(node) {
+            return node.nodeName;
+        }
+        function valueOf(object) {
+            return object.value;
+        }
+
+        const seen = new Set();
+        for (let i = 0; i < 50; ++i) {
+            seen.add(`${callIt(other.whereAmI)} ${where} ${callIt(parentWhere)} ${callIt(other.whereAmI)}`);
+        }
+        println(`calls into the frame and back: ${[...seen].join(", ")}`);
+
+        let arraysOfTheFrame = 0;
+        for (let i = 0; i < 50; ++i) {
+            const array = callIt(other.makeArray);
+            if (array instanceof other.Array && !(array instanceof Array)) ++arraysOfTheFrame;
+        }
+        println(`arrays the frame makes are of its realm: ${arraysOfTheFrame}`);
+
+        seen.clear();
+        for (let i = 0; i < 50; ++i) seen.add(other.callBack(parentWhere));
+        println(`callbacks from the frame: ${[...seen].join(", ")}`);
+
+        let errorsOfTheFrame = 0;
+        for (let i = 0; i < 50; ++i) {
+            try {
+                callIt(other.thrower);
+            } catch (error) {
+                if (error instanceof other.TypeError && where === "parent") ++errorsOfTheFrame;
+            }
+        }
+        println(`errors thrown in the frame: ${errorsOfTheFrame}`);
+
+        let framesAsThis = 0;
+        for (let i = 0; i < 50; ++i) {
+            if (callIt(other.sloppyThis) === other) ++framesAsThis;
+        }
+        println(`sloppy this of a frame function is the frame: ${framesAsThis}`);
+
+        let objectsOfTheFrame = 0;
+        for (let i = 0; i < 50; ++i) {
+            if (Object.getPrototypeOf(callIt(other.Object)) === other.Object.prototype) ++objectsOfTheFrame;
+            if (Object.getPrototypeOf(callIt(Object)) === Object.prototype) ++objectsOfTheFrame;
+        }
+        println(`objects the Object functions make: ${objectsOfTheFrame}`);
+
+        seen.clear();
+        for (let i = 0; i < 50; ++i) {
+            seen.add(`${valueOf(other.getterObject)} ${nodeNameOf(other.document.documentElement)} ${nodeNameOf(document.body)} ${where}`);
+        }
+        println(`getters of both realms: ${[...seen].join(", ")}`);
+    });
+</script>

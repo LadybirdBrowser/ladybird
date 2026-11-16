@@ -23,11 +23,14 @@ pub struct InterpreterStack {
 }
 
 /// An entry of the execution context stack: a context pushed onto it, and the context that was running when it was
-/// pushed.
+/// pushed, with the current realm of then, which the pop of the entry makes current again. That realm is the realm
+/// of the previous running context (the running context's realm is always the current realm), so the collector keeps
+/// it alive by tracing that context.
 #[repr(C)]
 pub struct ExecutionContextStackEntry {
     pub execution_context: Cell<*mut ExecutionContext>,
     pub previous_running_execution_context: Cell<*mut ExecutionContext>,
+    pub previous_realm: Cell<Option<Gc<Realm>>>,
 }
 
 /// How many dispatch tables the VM has, a power of two (see `VmHead::dispatch_tables`).
@@ -69,6 +72,10 @@ pub struct VmHead {
     /// The dispatch tables the interpreter runs frames with, by the dispatch table index of their executable (see
     /// `ExecutableHead::dispatch_table_index`). Indices without a table of their own have the plain one.
     pub dispatch_tables: [Cell<*const c_void>; DISPATCH_TABLE_COUNT],
+    /// The current Realm Record, the [[Realm]] of the running execution context (see
+    /// `Vm::set_running_execution_context()`). A frame that the interpreter or JIT code enters for a call runs in the
+    /// realm of its caller: they leave a call into another realm to the runtime.
+    pub current_realm: Cell<Option<Gc<Realm>>>,
 }
 
 /// The storage an embedder reserves to construct a Vm in place, and its alignment. build.rs cannot see the Vm, only its

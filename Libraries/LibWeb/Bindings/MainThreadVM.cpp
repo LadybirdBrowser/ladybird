@@ -534,7 +534,7 @@ void initialize_agent(HTML::AgentType type)
         if (script) {
             script_execution_context = JS::ExecutionContext::create(0, ReadonlySpan<JS::Value> {}, 0);
             script_execution_context->function = nullptr;
-            script_execution_context->realm = &script->settings_object().realm();
+            script_execution_context->set_realm(&script->settings_object().realm());
             if (is<HTML::ClassicScript>(script)) {
                 script_execution_context->set_script_or_module(GC::Ref<JS::Script>(*as<HTML::ClassicScript>(script)->script_record()));
             } else if (is<HTML::ModuleScript>(script)) {
@@ -808,7 +808,7 @@ void initialize_agent(HTML::AgentType type)
             auto* stack_mark = stack.top();
             auto* module_execution_context = stack.allocate(0, ReadonlySpan<JS::Value> {}, 0);
             VERIFY(module_execution_context);
-            module_execution_context->realm = realm;
+            module_execution_context->set_realm(realm);
             if (module)
                 module_execution_context->set_script_or_module(GC::Ref { *module });
             vm.push_execution_context(*module_execution_context);
@@ -929,7 +929,7 @@ NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM& vm, HT
     VERIFY(popped_execution_context == realm_execution_context.ptr());
 
     // 4. Let realm be realm execution context's Realm component.
-    auto& realm = *realm_execution_context->realm;
+    auto& realm = *realm_execution_context->realm();
 
     // 5. If agent's agent cluster's cross-origin isolation mode is "none":
     if (agent_cluster_cross_origin_isolation_mode == HTML::CrossOriginIsolationMode::None) {
@@ -985,7 +985,7 @@ GC::Ref<JS::Realm> create_a_simple_javascript_realm()
             return global_this.as_nonnull();
         });
 
-    auto& realm = *execution_context->realm;
+    auto& realm = *execution_context->realm();
     auto intrinsics = realm.create<Intrinsics>(realm);
     auto wrapper_world = GC::Heap::the().allocate<WrapperWorld>(WrapperWorld::Type::Internal);
     realm.set_host_defined(realm.heap().allocate<HostDefined>(intrinsics, *wrapper_world, *principal_realm));
@@ -1075,7 +1075,7 @@ GC::Ref<JS::Realm> create_a_principal_javascript_realm()
             return global_this.as_nonnull();
         });
 
-    auto realm = execution_context->realm;
+    auto realm = execution_context->realm();
     HTML::WindowEnvironmentSettingsObject::setup(
         *page,
         URL::about_blank(),

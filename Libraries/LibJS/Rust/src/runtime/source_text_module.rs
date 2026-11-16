@@ -550,7 +550,7 @@ impl SourceTextModule {
         // NOTE: This must be true because we use a reference.
 
         // 11. Set the Realm of moduleContext to module.[[Realm]].
-        self.execution_context.realm.set(Some(realm));
+        self.execution_context.set_realm(Some(realm));
 
         // 12. Set the ScriptOrModule of moduleContext to module.
         self.execution_context
@@ -910,7 +910,7 @@ impl SourceTextModule {
         // 2. Set the Function of moduleContext to null.
 
         // 3. Set the Realm of moduleContext to module.[[Realm]].
-        module_context_ref.realm.set(Some(self.realm()));
+        module_context_ref.set_realm(Some(self.realm()));
 
         // 4. Set the ScriptOrModule of moduleContext to module.
         module_context_ref.set_script_or_module(ScriptOrModule::Module(self.as_gc()));

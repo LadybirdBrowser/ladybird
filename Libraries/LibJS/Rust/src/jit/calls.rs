@@ -163,6 +163,9 @@ fn call_builtin_from_jit(
     this_value: Value,
     arguments: &[Value],
 ) -> Option<SlowPathControl> {
+    if !vm.is_in_current_realm(builtin.as_function_object_gc()) {
+        return None;
+    }
     let executable = builtin.inline_call_executable(vm)?;
     record_callback(vm, frame_of(site.frame), site.pc, builtin, arguments);
     if vm.did_reach_stack_space_limit() {
@@ -184,8 +187,11 @@ fn call_builtin_from_jit(
 }
 
 /// Whether constructs from JIT code with `function` as the constructor run its bytecode in an inline frame.
-fn constructs_in_inline_frame(function: Gc<EcmascriptFunctionObject>) -> bool {
-    function.kind() == FunctionKind::Normal && function.has_constructor() && function.bytecode_executable().is_some()
+fn constructs_in_inline_frame(vm: &Vm, function: Gc<EcmascriptFunctionObject>) -> bool {
+    function.kind() == FunctionKind::Normal
+        && function.has_constructor()
+        && vm.is_in_current_realm(function.as_function_object_gc())
+        && function.bytecode_executable().is_some()
 }
 
 /// The frame of a construct from JIT code, pushed by push_construct_frame() and running next.
@@ -402,7 +408,7 @@ fn call_from_jit(
         return None;
     }
     if let Some(function) = value_as_ecmascript_function_object(callee) {
-        if function.can_inline_call() {
+        if function.can_inline_call() && vm.is_in_current_realm(function.as_function_object_gc()) {
             return Some(call_ecmascript_function_from_jit(
                 vm, site, function, this_value, arguments,
             ));
@@ -684,7 +690,7 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
             let arguments = storage.values();
             let callee = load(call.callee);
             if let Some(function) = value_as_ecmascript_function_object(callee)
-                && constructs_in_inline_frame(function)
+                && constructs_in_inline_frame(vm, function)
             {
                 return construct_ecmascript_function_from_jit(
                     vm,
@@ -818,7 +824,7 @@ fn super_call_from_jit(
     arguments: &[Value],
 ) -> Option<SlowPathControl> {
     if let Some(function) = value_as_ecmascript_function_object(super_constructor)
-        && constructs_in_inline_frame(function)
+        && constructs_in_inline_frame(vm, function)
     {
         let new_target = vm.get_new_target();
         assert!(new_target.is_object());
@@ -1060,7 +1066,7 @@ pub unsafe extern "C" fn libjs_jit_prepare_construct(
     let opcode = executable.bytecode()[pc as usize];
     let site = construct_site(frame_pointer, pc);
     let takes_frame = |function: Gc<EcmascriptFunctionObject>| {
-        constructs_in_inline_frame(function)
+        constructs_in_inline_frame(vm_ref, function)
             && (function.constructor_kind() == ConstructorKind::Base
                 || !function.shared_data().function_environment_has_this_binding())
     };
@@ -1161,7 +1167,7 @@ pub unsafe extern "C" fn libjs_jit_construct_this(
         this_value: 0,
         new_target: 0,
     };
-    if !constructs_in_inline_frame(function) || vm.did_reach_stack_space_limit() {
+    if !constructs_in_inline_frame(vm, function) || vm.did_reach_stack_space_limit() {
         return declined;
     }
     let shared_data = function.shared_data();
@@ -1549,7 +1555,7 @@ pub fn get_by_id_from_jit(
         .as_accessor()
         .getter()
         .and_then(as_ecmascript_function_object)
-        .filter(|function| function.can_inline_call())?;
+        .filter(|function| function.can_inline_call() && vm.is_in_current_realm(function.as_function_object_gc()))?;
     let frame = vm.running_execution_context().expect("a frame is running");
     let site = JitCallSite {
         frame,

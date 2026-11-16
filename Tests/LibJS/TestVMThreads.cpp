@@ -85,7 +85,7 @@ static void run_script_in_a_new_vm()
 
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
     auto source_text = Utf16String::from_utf8_without_validation(TEST_SCRIPT.bytes());
-    auto script = JS::Script::parse(source_text.utf16_view(), *root_execution_context->realm);
+    auto script = JS::Script::parse(source_text.utf16_view(), *root_execution_context->realm());
     VERIFY(!script.is_error());
     auto result = vm->run(script.value());
     VERIFY(!result.is_error());
@@ -208,7 +208,7 @@ TEST_CASE(block_addresses_stay_with_their_type_across_vms)
         auto vm = JS::VM::create();
         vm->heap().set_incremental_sweep_enabled(false);
         auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-        run_script(*vm, *root_execution_context->realm, FIRST_SCRIPT);
+        run_script(*vm, *root_execution_context->realm(), FIRST_SCRIPT);
         first_blocks = contents_of_blocks(vm->heap());
     });
 
@@ -216,7 +216,7 @@ TEST_CASE(block_addresses_stay_with_their_type_across_vms)
         auto vm = JS::VM::create();
         vm->heap().set_incremental_sweep_enabled(false);
         auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-        run_script(*vm, *root_execution_context->realm, SECOND_SCRIPT);
+        run_script(*vm, *root_execution_context->realm(), SECOND_SCRIPT);
 
         size_t reused_blocks = 0;
         for (auto const& [address, contents] : contents_of_blocks(vm->heap())) {
@@ -240,7 +240,7 @@ TEST_CASE(a_host_class_keeps_its_blocks_across_vms)
         GC::DeferGC defer_gc { vm.heap() };
         HashTable<FlatPtr> blocks;
         while (blocks.size() < 16) {
-            auto object = JS::HostObject::create(*root_execution_context->realm, host_class, nullptr);
+            auto object = JS::HostObject::create(*root_execution_context->realm(), host_class, nullptr);
             blocks.set(bit_cast<FlatPtr>(GC::HeapBlock::from_cell(GC::as_cell(object.ptr()))));
         }
         return blocks;
@@ -340,7 +340,7 @@ static void run_script_until_it_is_interrupted(InterruptedScript& interrupted)
     vm->heap().set_incremental_sweep_enabled(false);
 
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-    auto& realm = *root_execution_context->realm;
+    auto& realm = *root_execution_context->realm();
     auto job_ran = JS::NativeFunction::create(realm, GC::create_function(vm->heap(), GC::captures(interrupted.job_ran), [](NonnullRefPtr<JobRanFlag>& job_ran, JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
         job_ran->value = true;
         return JS::js_undefined(); }), 0, JS::PropertyKey { "jobRan"_utf16_fly_string });
@@ -444,7 +444,7 @@ TEST_CASE(an_interrupted_vm_runs_nothing_anymore)
         auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
         auto run = [&](StringView source) {
             auto source_text = Utf16String::from_utf8_without_validation(source.bytes());
-            auto script = JS::Script::parse(source_text.utf16_view(), *root_execution_context->realm);
+            auto script = JS::Script::parse(source_text.utf16_view(), *root_execution_context->realm());
             VERIFY(!script.is_error());
             return vm->run(script.value());
         };
@@ -453,7 +453,7 @@ TEST_CASE(an_interrupted_vm_runs_nothing_anymore)
         vm->request_interrupt();
         EXPECT(run("globalThis.count = 2;"sv).is_error());
 
-        auto count = MUST(root_execution_context->realm->global_object().get(JS::PropertyKey { "count"_utf16_fly_string }));
+        auto count = MUST(root_execution_context->realm()->global_object().get(JS::PropertyKey { "count"_utf16_fly_string }));
         EXPECT_EQ(count.as_i32(), 1);
     });
 }
@@ -564,7 +564,7 @@ private:
         auto vm = JS::VM::create();
         vm->heap().set_incremental_sweep_enabled(false);
         auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-        auto& realm = *root_execution_context->realm;
+        auto& realm = *root_execution_context->realm();
 
         auto source_text = "new SharedArrayBuffer(4096)"_utf16;
         auto script = JS::Script::parse(source_text.utf16_view(), realm);
@@ -583,7 +583,7 @@ private:
         auto vm = JS::VM::create();
         vm->heap().set_incremental_sweep_enabled(false);
         auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-        auto& realm = *root_execution_context->realm;
+        auto& realm = *root_execution_context->realm();
 
         auto buffer = JS::ArrayBuffer::create_from_shared_store(realm, m_shared_store_id.load());
         VERIFY(buffer);
@@ -690,7 +690,7 @@ TEST_CASE(logging_an_exception_only_reads_its_message_with_a_running_context)
     run_on_vm_threads(1, [] {
         auto vm = JS::VM::create();
         auto context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-        auto exception = JS::HostObject::create(*context->realm, host_class, nullptr);
+        auto exception = JS::HostObject::create(*context->realm(), host_class, nullptr);
         message_reads = 0;
         JS::set_log_all_js_exceptions(true);
         (void)JS::throw_completion(exception);
@@ -708,7 +708,7 @@ TEST_CASE(dictionary_elements_distinguish_holes_from_undefined)
     run_on_vm_threads(1, [] {
         auto vm = JS::VM::create();
         auto context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-        auto object = JS::Object::create(*context->realm, nullptr);
+        auto object = JS::Object::create(*context->realm(), nullptr);
         object->define_direct_property(0u, JS::js_undefined(), 0);
         object->indexed_append(JS::js_special_empty_value());
         object->indexed_append(JS::js_undefined());
@@ -724,7 +724,7 @@ TEST_CASE(taking_the_first_dictionary_element_shifts_the_remaining_indices)
     run_on_vm_threads(1, [] {
         auto vm = JS::VM::create();
         auto context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-        auto object = JS::Object::create(*context->realm, nullptr);
+        auto object = JS::Object::create(*context->realm(), nullptr);
         object->define_direct_property(0u, JS::js_undefined(), 0);
         object->define_direct_property(2u, JS::js_undefined(), 0);
 

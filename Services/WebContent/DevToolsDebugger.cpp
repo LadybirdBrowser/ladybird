@@ -391,7 +391,7 @@ void DevToolsDebugger::emit_logpoint(PageClient& page, JS::Debugger::PauseInfo c
                         append_error(argument.throw_completion().value().to_utf16_string_without_side_effects().to_utf8());
                         break;
                     }
-                    arguments.unchecked_append(DevToolsConsoleClient::serialize_value(*context.realm, argument.release_value()));
+                    arguments.unchecked_append(DevToolsConsoleClient::serialize_value(*context.realm(), argument.release_value()));
                 }
             }
         }

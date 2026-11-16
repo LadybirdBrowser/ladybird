@@ -24,7 +24,7 @@ GC_DEFINE_ALLOCATOR(WorkerEnvironmentSettingsObject);
 GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(GC::Ref<Page> page, NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& outside_settings, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time, URL::Origin origin, EnvironmentId id)
 {
     // 1. Let realm be the value of execution context's Realm component.
-    auto realm = execution_context->realm;
+    auto realm = execution_context->realm();
     VERIFY(realm);
 
     // 2. Let worker global scope be realm's global object.

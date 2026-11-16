@@ -326,7 +326,7 @@ pub fn generate() -> LayoutHeader {
     w.section("ExecutionContext, whose value slots follow it directly");
     every_field_offset!(w, "EXECUTION_CONTEXT", ExecutionContext {
         function,
-        realm,
+        realm_without_function,
         script_or_module_without_function,
         lexical_environment,
         variable_environment,
@@ -370,11 +370,13 @@ pub fn generate() -> LayoutHeader {
     offset!(w, "VM_EXECUTION_CONTEXT_STACK_CAPACITY", VmHead, execution_context_stack_capacity);
     offset!(w, "VM_TYPE_ERROR_REALM_OVERRIDE", VmHead, type_error_realm_override);
     offset!(w, "VM_TYPE_ERROR_REALM_OVERRIDE_DEPTH", VmHead, type_error_realm_override_depth);
+    offset!(w, "VM_CURRENT_REALM", VmHead, current_realm);
 
     w.section("ExecutionContextStackEntry, the entries of the VM's execution context stack");
     every_field_offset!(w, "EXECUTION_CONTEXT_STACK_ENTRY", ExecutionContextStackEntry {
         execution_context,
         previous_running_execution_context,
+        previous_realm,
     });
     size!(w, "EXECUTION_CONTEXT_STACK_ENTRY", ExecutionContextStackEntry);
 

@@ -1,0 +1,7 @@
+calls into the frame and back: frame parent parent frame
+arrays the frame makes are of its realm: 50
+callbacks from the frame: parent
+errors thrown in the frame: 50
+sloppy this of a frame function is the frame: 50
+objects the Object functions make: 100
+getters of both realms: frame HTML BODY parent

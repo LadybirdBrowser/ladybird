@@ -208,7 +208,7 @@ impl Realm {
         new_context.function.set(None);
 
         // 9. Set the Realm of newContext to realm.
-        new_context.realm.set(Some(realm));
+        new_context.set_realm(Some(realm));
 
         // 10. Set the ScriptOrModule of newContext to null.
         new_context.set_script_or_module(ScriptOrModule::Empty);
