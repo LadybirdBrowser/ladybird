@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<head>
+    <link rel="help" href="https://drafts.csswg.org/css-align-3/#synthesize-baseline">
+    <link rel="help" href="https://drafts.csswg.org/css-writing-modes-4/#logical-to-physical">
+    <link rel="author" href="mailto:simonwuelker@arcor.de" title="Simon Wülker">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/check-layout-th.js"></script>
+    <style>
+        .box {
+            display: flex;
+            outline: 1px solid;
+            position: relative;
+        }
+
+        .row {
+            width: 20px;
+            height: 50px;
+            flex-direction: row;
+
+            .big {
+                width: 10px;
+                height: 30px;
+                margin-top: 2px;
+                margin-bottom: 5px;
+            }
+        }
+
+        .column {
+            flex-direction: column;
+            width: 50px;
+            height: 20px;
+
+            .big {
+                width: 30px;
+                height: 10px;
+                margin-left: 2px;
+                margin-right: 5px;
+            }
+        }
+
+        .reverse {
+            flex-wrap: wrap-reverse;
+        }
+
+        .box span {
+            outline: 1px solid;
+            align-self: baseline;
+        }
+
+        .rtl {
+            direction: rtl;
+        }
+
+        .small {
+            width: 10px;
+            height: 10px;
+            background-color: blue;
+        }
+
+        .big {
+            background-color: blueviolet;
+        }
+
+        th, td {
+            border: 1px solid black;
+            padding: 5px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        div {
+            margin-inline: auto;
+        }
+    </style>
+</head>
+<body onload="checkLayout('.box > span')">
+    <table>
+        <thead>
+            <tr>
+                <th></th>
+                <th><pre>flex-direction: row</pre></th>
+                <th><pre>flex-direction: row-reverse</pre></th>
+                <th><pre>flex-direction: column</pre></th>
+                <th><pre>flex-direction: column-reverse</pre></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <th><pre>direction=ltr</pre></th>
+                <td>
+                    <div class="box row">
+                        <span class="small" data-offset-x="0" data-offset-y="22"></span>
+                        <span class="big" data-offset-x="10" data-offset-y="2"></span>
+                    </div>
+                </td>
+                <td>
+                    <div class="box row reverse">
+                        <span class="small" data-offset-x="0" data-offset-y="35"></span>
+                        <span class="big" data-offset-x="10" data-offset-y="15"></span>
+                    </div>
+                </td>
+                <td>
+                    <div class="box column">
+                        <span class="small" data-offset-x="2" data-offset-y="0"></span>
+                        <span class="big" data-offset-x="2" data-offset-y="10"></span>
+                    </div>
+                </td>
+                <td>
+                    <div class="box column reverse">
+                        <span class="small" data-offset-x="15" data-offset-y="0"></span>
+                        <span class="big" data-offset-x="15" data-offset-y="10"></span>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <th>
+                    <pre>direction=rtl</pre>
+                </th>
+                <td>
+                    <div class="box rtl row">
+                        <span class="small" data-offset-x="10" data-offset-y="22"></span>
+                        <span class="big" data-offset-x="0" data-offset-y="2"></span>
+                    </div>
+                </td>
+                <td>
+                    <div class="box rtl row reverse">
+                        <span class="small" data-offset-x="10" data-offset-y="35"></span>
+                        <span class="big" data-offset-x="0" data-offset-y="15"></span>
+                    </div>
+                </td>
+                <td>
+                    <div class="box rtl column">
+                        <span class="small" data-offset-x="15" data-offset-y="0"></span>
+                        <span class="big" data-offset-x="15" data-offset-y="10"></span>
+                    </div>
+                </td>
+                <td>
+                    <div class="box rtl column reverse">
+                        <span class="small" data-offset-x="2" data-offset-y="0"></span>
+                        <span class="big" data-offset-x="2" data-offset-y="10"></span>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>

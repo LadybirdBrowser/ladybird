@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Flexbox: first baseline of a wrap-reverse container whose flex lines hold different numbers of items</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-baselines">
+<meta name="assert" content="A flex container's first baseline set comes from one flex line: the visually-first one, which flex-wrap: wrap-reverse makes the last line in item order. When the lines hold different numbers of items, using the other line's item count selects a range that straddles both lines and the baseline lands on the wrong one.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#line { font: 20px/1 monospace; }
+#probe { display: inline-block; width: 0; height: 0; vertical-align: baseline; }
+#flexbox {
+    display: inline-flex;
+    flex-wrap: wrap-reverse;
+    align-items: flex-start;
+    width: 150px;
+    row-gap: 10px;
+}
+#flexbox > div { width: 50px; height: 20px; }
+#flexbox > .tall { height: 60px; }
+</style>
+<div id="line"><span id="probe"></span><div id="flexbox">
+  <div id="firstInOrder"></div><div></div><div></div><div class="tall"></div><div class="tall"></div>
+</div></div>
+<script>
+test(() => {
+    var baselineY = document.getElementById("probe").getBoundingClientRect().top;
+    var otherLineTop = document.getElementById("firstInOrder").getBoundingClientRect().top;
+    assert_less_than(baselineY, otherLineTop,
+        "first baseline should come from the visually-first flex line, not the line below it");
+}, "A wrap-reverse flex container takes its first baseline from the visually-first flex line");
+</script>
