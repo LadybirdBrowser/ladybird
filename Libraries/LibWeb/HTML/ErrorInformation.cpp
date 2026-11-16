@@ -61,6 +61,7 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
     auto throw_site = vm.take_throw_site_of(exception);
 
     // NB: If we got an Error object, then try and extract the information from the location the object was made.
+    bool has_location = false;
     if (auto object = exception.as_if<JS::Object>(); object && object->error_data()) {
         for (auto const& frame : object->error_data()->traceback()) {
             auto source_range = frame.source_range();
@@ -68,12 +69,17 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
                 attributes.filename = source_range.filename();
                 attributes.lineno = source_range.start.line;
                 attributes.colno = source_range.start.column;
+                has_location = true;
                 break;
             }
         }
     }
-    // NB: Otherwise, if a throw statement threw it, take the location from there.
-    else if (throw_site.has_value()) {
+    if (has_location)
+        return attributes;
+
+    // NB: Otherwise, if a throw statement threw it, take the location from there. That includes an Error whose stack
+    //     has no frames, as with Error.stackTraceLimit set to 0.
+    if (throw_site.has_value()) {
         attributes.filename = throw_site->filename();
         attributes.lineno = throw_site->start.line;
         attributes.colno = throw_site->start.column;

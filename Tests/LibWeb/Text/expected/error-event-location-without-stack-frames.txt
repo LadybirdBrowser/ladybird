@@ -1,0 +1,6 @@
+10: thrown {"message":"Error: limit 10","filename":"error-event-location-without-stack-frames.html","lineno":2,"colno":9}
+10: made {"message":"Error: made","filename":"error-event-location-without-stack-frames.html","lineno":3,"colno":15}
+0: thrown {"message":"Error: limit 0","filename":"error-event-location-without-stack-frames.html","lineno":2,"colno":3}
+0: made {"message":"Error: made","filename":"error-event-location-without-stack-frames.html","lineno":3,"colno":34}
+"not a number": thrown {"message":"Error: limit not a number","filename":"error-event-location-without-stack-frames.html","lineno":2,"colno":3}
+"not a number": made {"message":"Error: made","filename":"error-event-location-without-stack-frames.html","lineno":3,"colno":34}
