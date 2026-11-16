@@ -74,7 +74,6 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
-#include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
@@ -1528,7 +1527,7 @@ bool EventHandler::update_hover_where_the_pointer_rests(HTML::HoverUpdatePoint h
         if (document->layout_is_known_stale())
             return true;
     }
-    if (hover_update_point == HTML::HoverUpdatePoint::BetweenTasks && !document->hit_test_display_list_is_current(read)) {
+    if (hover_update_point == HTML::HoverUpdatePoint::BetweenTasks && !document->hit_test_items_on_screen_are_current(read)) {
         return true;
     }
     m_hover_may_be_stale = false;

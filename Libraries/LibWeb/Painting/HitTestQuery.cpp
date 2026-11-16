@@ -11,43 +11,19 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
-#include <LibWeb/Painting/HitTestDisplayList.h>
+#include <LibWeb/Painting/HitTestQuery.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 
 namespace Web::Painting {
 
-NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording(Layout::BegunRead const& read, u64 visual_context_tree_structural_epoch, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry)
-{
-    (void)read;
-    return adopt_ref(*new HitTestDisplayList(visual_context_tree_structural_epoch, arena, chrome_widget_registry, Layout::RustFFI::layout_hit_test_list_generation(arena.host())));
-}
-
-NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_before_any_recording(Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry)
-{
-    return adopt_ref(*new HitTestDisplayList(0, arena, chrome_widget_registry, 0));
-}
-
-HitTestDisplayList::HitTestDisplayList(u64 visual_context_tree_structural_epoch, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry, u64 rust_generation)
-    : m_visual_context_tree_structural_epoch(visual_context_tree_structural_epoch)
-    , m_arena(arena)
-    , m_chrome_widget_registry(chrome_widget_registry)
-    , m_rust_generation(rust_generation)
-{
-}
-
-bool HitTestDisplayList::is_current() const
-{
-    return m_rust_generation != 0 && Layout::RustFFI::layout_hit_test_list_generation(m_arena->host()) == m_rust_generation;
-}
-
-static Layout::RustFFI::FfiHitTestQuery ffi_query(HitTestQuery const& query)
+Layout::RustFFI::FfiHitTestQuery HitTestQuery::ffi_query() const
 {
     return {
-        .device_pixels_per_css_pixel = query.device_pixels_per_css_pixel(),
-        .chrome_metrics = query.chrome_metrics(),
-        .has_visual_animation_sample_time = query.visual_animation_sample_time_nanoseconds().has_value(),
-        .visual_animation_sample_time_ns = query.visual_animation_sample_time_nanoseconds().value_or(0),
+        .device_pixels_per_css_pixel = m_device_pixels_per_css_pixel,
+        .chrome_metrics = m_chrome_metrics,
+        .has_visual_animation_sample_time = m_visual_animation_sample_time_nanoseconds.has_value(),
+        .visual_animation_sample_time_ns = m_visual_animation_sample_time_nanoseconds.value_or(0),
     };
 }
 
@@ -65,7 +41,7 @@ static DOM::NodeIdentity image_map_area_for_point(Layout::Node const& layout_nod
     return DOM::NodeIdentity::of_style_node(CSS::StyleNodeID { area });
 }
 
-HitTestResult HitTestDisplayList::hit_test_result_for(Layout::BegunRead const& read, Layout::RustFFI::FfiPointHit const& hit) const
+HitTestResult HitTestQuery::hit_test_result_for(Layout::BegunRead const& read, Layout::RustFFI::FfiPointHit const& hit) const
 {
     CSSPixelPoint local_point = hit.local;
     auto const* paintable_layout_node = layout_node_for_committed_slot(read, *m_arena, hit.paintable);
@@ -121,7 +97,7 @@ HitTestResult HitTestDisplayList::hit_test_result_for(Layout::BegunRead const& r
     return result;
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_from(Layout::RustFFI::FfiCaretAt const& caret_at) const
+Optional<CaretPosition> HitTestQuery::caret_position_from(Layout::RustFFI::FfiCaretAt const& caret_at) const
 {
     auto const& resolved = caret_at.caret;
     if (!resolved.has_position)
@@ -176,27 +152,27 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from(Layout::RustFFI:
     };
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, GC::Ptr<DOM::Node const> constraint_scope) const
+Optional<CaretPosition> HitTestQuery::caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint point, GC::Ptr<DOM::Node const> constraint_scope) const
 {
     auto const* scope_layout_node = constraint_scope ? constraint_scope->unsafe_layout_node(read) : nullptr;
     auto scope = scope_layout_node ? Layout::Node::slot_id(scope_layout_node) : Compositing::RustFFI::NodeSlotId { Compositing::RustFFI::INVALID_NODE_SLOT_INDEX };
     Layout::RustFFI::FfiCaretAt caret_at;
-    Layout::RustFFI::layout_hit_test_caret_position_from_point(m_arena->host(), &read, ffi_query(query), point, scope, &caret_at);
+    Layout::RustFFI::layout_hit_test_caret_position_from_point(m_arena->host(), &read, ffi_query(), point, scope, &caret_at);
     return caret_position_from(caret_at);
 }
 
-Optional<HitTestResult> HitTestDisplayList::hit_test(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const
+Optional<HitTestResult> HitTestQuery::hit_test(Layout::BegunRead const& read, CSSPixelPoint point) const
 {
     Layout::RustFFI::FfiPointHit hit;
-    if (!Layout::RustFFI::layout_hit_test_topmost_hit(m_arena->host(), &read, ffi_query(query), point, &hit))
+    if (!Layout::RustFFI::layout_hit_test_topmost_hit(m_arena->host(), &read, ffi_query(), point, &hit))
         return {};
     return hit_test_result_for(read, hit);
 }
 
-TraversalDecision HitTestDisplayList::hit_test_all(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, Function<TraversalDecision(HitTestResult)> const& callback) const
+TraversalDecision HitTestQuery::hit_test_all(Layout::BegunRead const& read, CSSPixelPoint point, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     Vector<Layout::RustFFI::FfiPointHit> hits;
-    Layout::RustFFI::layout_hit_test_all_hits(m_arena->host(), &read, ffi_query(query), point, &hits, [](void* sink, Layout::RustFFI::FfiPointHit const* hit) {
+    Layout::RustFFI::layout_hit_test_all_hits(m_arena->host(), &read, ffi_query(), point, &hits, [](void* sink, Layout::RustFFI::FfiPointHit const* hit) {
         static_cast<Vector<Layout::RustFFI::FfiPointHit>*>(sink)->append(*hit);
     });
     for (auto const& hit : hits) {

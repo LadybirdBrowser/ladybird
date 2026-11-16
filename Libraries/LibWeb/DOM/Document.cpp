@@ -245,7 +245,7 @@
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/CompositorAnimationEffectState.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
-#include <LibWeb/Painting/HitTestDisplayList.h>
+#include <LibWeb/Painting/HitTestQuery.h>
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
@@ -2042,7 +2042,7 @@ void Document::tear_down_layout_tree()
     auto* layout_root = layout_root_if_live(read);
     if (layout_root)
         layout_root->prepare_subtree_for_detach_from_layout_tree();
-    m_hit_test_display_list = nullptr;
+    m_hit_test_items_on_screen = {};
     m_chrome_widget_registry->clear();
     if (layout_root)
         layout_node_arena().free_subtree(read, Layout::Node::slot_id(layout_root));
@@ -11861,7 +11861,7 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
     case InvalidateDisplayList::No:
         break;
     case InvalidateDisplayList::PaintCommands:
-        set_needs_to_record_display_list_keeping_hit_test_display_list();
+        set_needs_to_record_display_list_keeping_hit_test_items_on_screen();
         break;
     case InvalidateDisplayList::PaintCommandsAndHitTestList:
         set_needs_to_record_display_list();
@@ -12043,11 +12043,11 @@ Vector<Compositing::RustFFI::NodeSlotId> Document::collect_scroll_snap_container
 
 void Document::set_needs_to_record_display_list()
 {
-    m_hit_test_display_list = nullptr;
-    set_needs_to_record_display_list_keeping_hit_test_display_list();
+    m_hit_test_items_on_screen = {};
+    set_needs_to_record_display_list_keeping_hit_test_items_on_screen();
 }
 
-void Document::set_needs_to_record_display_list_keeping_hit_test_display_list()
+void Document::set_needs_to_record_display_list_keeping_hit_test_items_on_screen()
 {
     if (auto navigable = this->navigable())
         navigable->set_needs_to_record_display_list();
@@ -12122,33 +12122,42 @@ Optional<Painting::DisplayListRecording> Document::start_recording(Layout::Begun
     return Painting::start_rust_display_list_recording(read, *this, visual_context_tree_structural_epoch, surface_clear_color, cache_mode, config, overlay_inputs, move(committed));
 }
 
-void Document::finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const& recording, Painting::HitTestListStands hit_test_list_stands)
+void Document::finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const& recording, Painting::HitTestItemsStand hit_test_items_stand)
 {
     Painting::publish_rust_display_list_recording(read, *this);
-    adopt_published_recording(hit_test_list_read(read, hit_test_list_stands), recording);
+    adopt_published_recording(hit_test_items_stand, recording);
 }
 
-Painting::HitTestListAdoption Document::adopt_published_recording(Optional<Layout::BegunRead const&> hit_test_list_read, Painting::DisplayListRecording const& recording)
+bool Document::hit_test_items_on_screen_are_as_adopted() const
 {
-    auto adoption = Painting::HitTestListAdoption::Kept;
-    if (!hit_test_list_read.has_value()) {
-        m_hit_test_display_list = nullptr;
-        adoption = Painting::HitTestListAdoption::Dropped;
-    } else if (!m_hit_test_display_list || !m_hit_test_display_list->is_current()) {
-        m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(*hit_test_list_read, recording.visual_context_tree_structural_epoch, layout_node_arena(), *m_chrome_widget_registry);
-        adoption = Painting::HitTestListAdoption::TookNew;
-    }
-    return adoption;
+    if (!m_hit_test_items_on_screen.has_value() || m_hit_test_items_on_screen->generation == 0)
+        return false;
+    return Layout::RustFFI::layout_hit_test_items_on_screen_generation(m_layout_node_arena->host()) == m_hit_test_items_on_screen->generation;
 }
 
-bool Document::hit_test_display_list_is_current(Layout::BegunRead const& read)
+Painting::HitTestItemsAdoption Document::adopt_published_recording(Painting::HitTestItemsStand hit_test_items_stand, Painting::DisplayListRecording const& recording)
+{
+    if (hit_test_items_stand == Painting::HitTestItemsStand::No) {
+        m_hit_test_items_on_screen = {};
+        return Painting::HitTestItemsAdoption::Dropped;
+    }
+    if (hit_test_items_on_screen_are_as_adopted())
+        return Painting::HitTestItemsAdoption::Kept;
+    m_hit_test_items_on_screen = HitTestItemsOnScreen {
+        .generation = Layout::RustFFI::layout_hit_test_items_on_screen_generation(layout_node_arena().host()),
+        .visual_context_tree_structural_epoch = recording.visual_context_tree_structural_epoch,
+    };
+    return Painting::HitTestItemsAdoption::TookNew;
+}
+
+bool Document::hit_test_items_on_screen_are_current(Layout::BegunRead const& read)
 {
     Painting::publish_image_map_area_facts_if_needed(read, *this);
     if (!has_committed_viewport_box())
         return false;
-    // Reading the epoch prepares the paint properties, which can drop the hit-test list.
+    // Reading the epoch prepares the paint properties, which can change what the rows say can be hit.
     auto structural_epoch = paint_state().visual_context_tree_structural_epoch(read);
-    return m_hit_test_display_list && m_hit_test_display_list->is_current() && m_hit_test_display_list->visual_context_tree_structural_epoch() == structural_epoch;
+    return hit_test_items_on_screen_are_as_adopted() && m_hit_test_items_on_screen->visual_context_tree_structural_epoch == structural_epoch;
 }
 
 void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
@@ -12170,11 +12179,10 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunR
 
     // A hit test reads the document's rows as they are now, so it waits for no recording and makes none.
     Layout::RustFFI::render_state_prepare_paint_properties_before_hit_test(layout_node_arena().host(), &read);
-    if (!m_hit_test_display_list)
-        m_hit_test_display_list = Painting::HitTestDisplayList::create_before_any_recording(layout_node_arena(), *m_chrome_widget_registry);
 
     return Painting::HitTestQuery {
-        *m_hit_test_display_list,
+        layout_node_arena(),
+        *m_chrome_widget_registry,
         page().client().device_pixels_per_css_pixel(),
         page().chrome_metrics(),
         visual_animation_sample_time_nanoseconds,
@@ -12198,7 +12206,7 @@ Optional<Painting::HitTestResult> Document::hit_test(Layout::BegunRead const& re
     // 2. If there is a box in the viewport that would be a target for hit testing at coordinates x,y, when applying
     //    the transforms that apply to the descendants of the viewport, return the associated element and terminate
     //    these steps.
-    auto result = query->list().hit_test(read, position, *query);
+    auto result = query->hit_test(read, position);
     if (result.has_value() && (result->chrome_widget || result->is_scrollbar || result->dom_node()))
         return result;
 
@@ -12214,7 +12222,7 @@ Optional<Painting::CaretPosition> Document::caret_position_from_point(Layout::Be
     auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return {};
-    return query->list().caret_position_from_point(read, position, *query, constraint_scope);
+    return query->caret_position_from_point(read, position, constraint_scope);
 }
 
 TraversalDecision Document::hit_test_all(Layout::BegunRead const& read, CSSPixelPoint position, Function<TraversalDecision(Painting::HitTestResult)> const& callback)
@@ -12222,7 +12230,7 @@ TraversalDecision Document::hit_test_all(Layout::BegunRead const& read, CSSPixel
     auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return TraversalDecision::Continue;
-    return query->list().hit_test_all(read, position, *query, callback);
+    return query->hit_test_all(read, position, callback);
 }
 
 Unicode::Segmenter& Document::grapheme_segmenter() const

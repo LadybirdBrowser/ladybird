@@ -998,7 +998,7 @@ fn tree_as_the_query_reads_it<'tree>(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_hit_test_list_generation(host: &crate::render_state::DocumentHost) -> u64 {
+pub extern "C" fn layout_hit_test_items_on_screen_generation(host: &crate::render_state::DocumentHost) -> u64 {
     host.recording().hit_test_items_generation()
 }
 

@@ -12,27 +12,19 @@
 
 namespace Web::Painting {
 
-// Whether the hit-test list a recording made still names the document's boxes: not where the recording landed after
-// the host wrote the document's rows.
-enum class HitTestListStands {
+// Whether the hit-test items of the frame a recording made still stand for the document's boxes: not where the
+// recording landed after the host wrote the document's rows.
+enum class HitTestItemsStand {
     No,
     Yes,
 };
 
-// What a document did with the hit-test list a recording made as it took the recording in.
-enum class HitTestListAdoption : u8 {
+// What a document did with the hit-test items of the frame a recording made as it took the recording in.
+enum class HitTestItemsAdoption : u8 {
     Dropped,
     Kept,
     TookNew,
 };
-
-// The read a recording's hit-test list is made in, `read`, where the list stands, and none otherwise.
-inline Optional<Layout::BegunRead const&> hit_test_list_read(Layout::BegunRead const& read, HitTestListStands stands)
-{
-    if (stands == HitTestListStands::No)
-        return {};
-    return read;
-}
 
 // A recording of a document's display list, started from the document as it was then: done in step with the host, or
 // in flight beside the event loop until the event loop takes it in. Rust keeps what it records.

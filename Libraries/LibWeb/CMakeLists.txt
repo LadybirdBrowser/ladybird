@@ -709,7 +709,7 @@ set(SOURCES
     Painting/PaintFacts.cpp
     Painting/ChromeWidget.cpp
     Painting/DocumentPaintState.cpp
-    Painting/HitTestDisplayList.cpp
+    Painting/HitTestQuery.cpp
     Painting/HitTestResult.cpp
     Painting/CompositorAnimationEffectState.cpp
     Painting/PaintingRustBridge.cpp
