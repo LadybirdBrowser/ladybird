@@ -1064,14 +1064,26 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 continue;
             }
             let alignment_style = self.alignment_style(style_source, style);
-            let adjusted_baseline = if alignment_style.vertical_align_is_keyword() {
-                fragment_baseline
-            } else {
+            // NB: The box reaches as far above the baseline of the line box as it is shifted up from it (see
+            //     block_offset_for_alignment).
+            let shifted_by_keyword = alignment_style.vertical_align_is_keyword()
+                && matches!(
+                    alignment_style.vertical_align_keyword(),
+                    vertical_align::SUPER | vertical_align::SUB
+                );
+            let adjusted_baseline = if !alignment_style.vertical_align_is_keyword() {
                 fragment_baseline + alignment_style.vertical_align_value().to_px(style.line_height())
+            } else if alignment_style.vertical_align_keyword() == vertical_align::SUPER {
+                fragment_baseline + self.containing_style().font_size() / 3
+            } else if alignment_style.vertical_align_keyword() == vertical_align::SUB {
+                fragment_baseline - self.containing_style().font_size() / 5
+            } else {
+                fragment_baseline
             };
-            // NB: A vertical-align length or percentage shifts the box relative to the baseline, which leaves the
-            //     strut on the baseline, whichever box ends up setting the baseline of the line box.
-            if !alignment_style.vertical_align_is_keyword() {
+            // NB: A vertical-align length or percentage, like 'sub' and 'super', shifts the box relative to the
+            //     baseline, which leaves the strut on the baseline, whichever box ends up setting the baseline of the
+            //     line box.
+            if !alignment_style.vertical_align_is_keyword() || shifted_by_keyword {
                 should_align_strut_to_line_box_baseline = true;
             }
             if adjusted_baseline > line_box_baseline {

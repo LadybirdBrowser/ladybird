@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; font: 16px/20px SerenitySans; }
+.c { width: 300px; margin-bottom: 10px; }
+.r { display: inline-block; background: gray; }
+</style>
+<div id="cases">
+<div class="c"><img style="width:10px;height:50px;vertical-align:super" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><img style="width:10px;height:10px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"></div>
+<div class="c"><img style="width:10px;height:10px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><img style="width:10px;height:50px;vertical-align:super" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"></div>
+<div class="c"><span class="r" style="width:10px;height:50px;vertical-align:super"></span><span class="r" style="width:10px;height:10px"></span></div>
+<div class="c"><span class="r" style="width:10px;height:10px"></span><span class="r" style="width:10px;height:50px;vertical-align:super"></span></div>
+<div class="c"><img style="width:10px;height:50px;vertical-align:10px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><img style="width:10px;height:10px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"></div>
+<div class="c"><img style="width:10px;height:50px;vertical-align:sub" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><img style="width:10px;height:10px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"></div>
+<div class="c">text <img style="width:10px;height:50px;vertical-align:super" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"> more</div>
+<div class="c"><img style="width:10px;height:10px;vertical-align:super" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><img style="width:10px;height:30px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"></div>
+<div class="c"><img style="width:10px;height:10px;vertical-align:sub" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><img style="width:10px;height:30px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"></div>
+</div>
+<script src="include.js"></script>
+<script>
+promiseTest(async () => {
+  await Promise.all([...document.images].map(i => i.decode()));
+  document.querySelectorAll(".c").forEach((c, i) => {
+    const parts = [c, ...c.children].map(e => { const r = e.getBoundingClientRect(); return `${Math.round(r.top - c.getBoundingClientRect().top)}+${Math.round(r.height)}`; });
+    println(`${i + 1}: ${parts.join(" ")}`);
+  });
+  document.getElementById("cases").remove();
+});
+</script>
