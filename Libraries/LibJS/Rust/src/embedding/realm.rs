@@ -119,7 +119,7 @@ pub unsafe extern "C" fn js_realm_initialize_host_defined_realm(
     );
     // SAFETY: The caller passes storage for a context without slots, which nothing else uses.
     let new_context = unsafe {
-        ExecutionContext::initialize_at(new_context, 0, 0, 0, 0);
+        ExecutionContext::initialize_at(new_context, 0, 0, 0);
         &*new_context
     };
     let call = |callback: unsafe extern "C" fn(*mut c_void, *mut JSRealm) -> *mut JSObject,

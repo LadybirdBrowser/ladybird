@@ -111,17 +111,10 @@ impl InterpreterStack {
         if (end as usize).saturating_sub(top as usize) < size {
             return None;
         }
-        let frame_id = self.take_next_frame_id();
         let context = top.cast::<ExecutionContext>();
         // SAFETY: The frame fits between top and the end, and nothing else uses that memory.
         unsafe {
-            ExecutionContext::initialize_at(
-                context,
-                registers_and_locals_count,
-                slot_count,
-                argument_count,
-                frame_id,
-            );
+            ExecutionContext::initialize_at(context, registers_and_locals_count, slot_count, argument_count);
             self.top.set(top.add(size));
             Some(NonNull::new_unchecked(context))
         }

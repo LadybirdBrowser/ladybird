@@ -410,7 +410,6 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.line("field VM.running_execution_context ExecutionContext VM_RUNNING_EXECUTION_CONTEXT nullable scalar");
     w.line("field VM.interpreter_stack_top u64 VM_INTERPRETER_STACK_TOP nonnull scalar interpreter_stack_bounds");
     w.line("field VM.interpreter_stack_limit u64 VM_INTERPRETER_STACK_LIMIT nonnull scalar interpreter_stack_bounds");
-    w.line("field VM.interpreter_stack_next_frame_id u64 VM_INTERPRETER_STACK_NEXT_FRAME_ID nonnull scalar");
     w.line("field VM.stack_base u64 VM_STACK_INFO_BASE nullable scalar");
     w.constant("VM_STACK_SPACE_LIMIT", configuration.vm_stack_space_limit);
 
