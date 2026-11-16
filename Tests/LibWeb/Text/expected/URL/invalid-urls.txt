@@ -1,3 +1,7 @@
 new URL('file://xn--/p', undefined)
 new URL('http://0xffffffff1', undefined)
 error creating URL: 'TypeError: Invalid URL'
+new URL('http://+127.0.0.1/', undefined)
+error creating URL: 'TypeError: Invalid URL'
+new URL('http://0x+7f.1/', undefined)
+error creating URL: 'TypeError: Invalid URL'

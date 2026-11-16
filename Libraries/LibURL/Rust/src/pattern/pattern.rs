@@ -215,7 +215,8 @@ impl Pattern {
         // 6. If processedInit["protocol"] is a special scheme and processedInit["port"] is a string which represents its
         //    corresponding default port in radix-10 using ASCII digits then set processedInit["port"] to the empty string.
         if is_special_scheme(processed_init.protocol.as_ref().unwrap().as_bytes())
-            && let Ok(maybe_port) = processed_init.port.as_ref().unwrap().parse::<u16>()
+            && let Some(maybe_port) =
+                ak::parse_ascii_digits::<u16>(processed_init.port.as_ref().unwrap().as_bytes(), 10)
             && Some(maybe_port) == default_port_for_scheme(processed_init.protocol.as_ref().unwrap())
         {
             processed_init.port = Some(String::new());

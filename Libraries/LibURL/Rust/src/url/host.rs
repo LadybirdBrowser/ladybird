@@ -249,7 +249,7 @@ fn parse_ipv4_number(mut input: &str) -> Option<ParsedIpv4Number> {
     // 7. If input contains a code point that is not a radix-R digit, then return failure.
     // 8. Let output be the mathematical integer value that is represented by input in radix-R notation, using ASCII hex
     //    digits for digits with values 0 through 15.
-    let number = u32::from_str_radix(input, radix).ok()?;
+    let number = ak::parse_ascii_digits::<u32>(input.as_bytes(), radix)?;
 
     // 9. Return (output, validationError).
     Some(ParsedIpv4Number {

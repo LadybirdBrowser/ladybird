@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            new URLPattern({ protocol: "http", port: "+80" });
+            println("constructed");
+        } catch (e) {
+            println(e.name);
+        }
+    });
+</script>
