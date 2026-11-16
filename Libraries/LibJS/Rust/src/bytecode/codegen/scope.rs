@@ -350,6 +350,11 @@ impl CodeScope {
     }
 
     #[inline(always)]
+    pub(super) fn is_program_without_globals(&self) -> bool {
+        self.program == Some(ProgramKind::WithoutGlobals)
+    }
+
+    #[inline(always)]
     pub(super) fn is_in_with(&self) -> bool {
         self.with_depth != 0
     }
