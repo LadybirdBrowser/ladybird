@@ -142,7 +142,7 @@ void crypto_key_encode_handle(KeyHandle const* handle, void* state, void (*steps
         },
         [&](::Crypto::PK::MLKEMPublicKey const& mlkem_key) {
             fields.handle_tag = to_underlying(HandleTag::MLKEMPublicKey);
-            add_exported(mlkem_key.public_key());
+            add(mlkem_key.public_key().bytes());
         },
         [&](::Crypto::PK::MLKEMPrivateKey const& mlkem_key) {
             fields.handle_tag = to_underlying(HandleTag::MLKEMPrivateKey);

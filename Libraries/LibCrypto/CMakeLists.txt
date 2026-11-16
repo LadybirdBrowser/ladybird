@@ -23,6 +23,7 @@ set(SOURCES
     PK/MLDSA.cpp
     PK/MLKEM.cpp
     PK/ModuleLatticePrivateKey.cpp
+    PK/PK.cpp
     PK/RSA.cpp
 )
 
