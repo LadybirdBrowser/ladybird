@@ -14,6 +14,7 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/ImmutableBytes.h>
+#include <LibHTTP/Cache/CacheKey.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Forward.h>
 #include <LibURL/URL.h>
@@ -67,24 +68,24 @@ public:
     bool is_empty() const { return m_complete_entries.is_empty() && m_pending_entries.is_empty(); }
 
     struct EntryUse {
-        u64 cache_key { 0 };
+        CacheKey cache_key;
         u64 vary_key { 0 };
         bool body_is_mapped { false };
         u64 last_use { 0 };
     };
     Vector<EntryUse> complete_entry_uses() const;
-    void evict_complete_entry(u64 cache_key, u64 vary_key);
+    void evict_complete_entry(CacheKey const& cache_key, u64 vary_key);
 
 private:
     explicit MemoryCache(NonnullRefPtr<MemoryCacheUsage>);
 
     void add_to_usage(Entry const&);
     void remove_from_usage(Entry const&);
-    Optional<Entry> take_pending_entry(u64 cache_key, Optional<u64> vary_key);
-    void remove_complete_entries(u64 cache_key, Function<bool(Entry const&)> const& predicate);
+    Optional<Entry> take_pending_entry(CacheKey const& cache_key, Optional<u64> vary_key);
+    void remove_complete_entries(CacheKey const& cache_key, Function<bool(Entry const&)> const& predicate);
 
-    HashMap<u64, Vector<Entry>, IdentityHashTraits<u64>> m_pending_entries;
-    HashMap<u64, Vector<Entry>, IdentityHashTraits<u64>> m_complete_entries;
+    HashMap<CacheKey, Vector<Entry>> m_pending_entries;
+    HashMap<CacheKey, Vector<Entry>> m_complete_entries;
     NonnullRefPtr<MemoryCacheUsage> m_usage;
 };
 
