@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! BigInt values. A magnitude crosses as 32-bit words, least significant first, which is the word order of
-//! Crypto::UnsignedBigInteger's words() and of its constructor from them. Every function runs on the thread that owns
-//! the VM.
+//! BigInt values. A magnitude crosses as 32-bit words, least significant first. Every function runs on the thread
+//! that owns the VM.
 
 use num_bigint::Sign;
 
