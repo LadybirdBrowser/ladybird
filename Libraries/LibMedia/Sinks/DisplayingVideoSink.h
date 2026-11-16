@@ -80,6 +80,7 @@ private:
     SeekStatus m_seek_status { SeekStatus::None };
 
     PipelineStateChangeHandler m_on_state_changed;
+    PipelineStatus m_latest_status { PipelineStatus::Pending };
     PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
     u32 m_seek_id { 0 };
 

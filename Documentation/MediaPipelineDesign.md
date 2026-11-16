@@ -34,9 +34,10 @@ being forced to accept data it may have no room for.
 
 `PipelineStatus` is the shared status language between nodes:
 
-- `Pending`: Data is not available yet, but may become available later.
+- `Pending`: Data is not available yet, but will become available without any new input.
 - `HaveData`: A peek exposes data.
-- `Blocked`: Data is not available yet, i.e. we have run out of buffered data from over the network.
+- `Blocked`: Data will remain unavailable until new input arrives.
+  `Blocked` holds nothing that could become output without that input.
 - `Suspended`: The upstream node has released its decoding resources and will not produce data until
   it receives a seek.
 - `EndOfStream`: We have reached the end of the input data.
@@ -51,12 +52,16 @@ that normally polls for upstream input seeing these should sleep until its wake 
 "waiting" statuses for helper APIs, because no more data is required to decide the seek has
 completed.
 
+A node that combines inputs reports `Blocked` when any input it requires is `Blocked`, since its
+output cannot progress until that input does. A processor reports `Blocked` only when its input is
+`Blocked` and none of the data it holds can be output.
+
 ## Wake Handlers
 
 Wake handlers do not carry state. A wake means the downstream node should `peek()` again.
 
-Nodes should dispatch a wake when the downstream node may be waiting, and the status has changed to
-one that resolves a seek: `HaveData`, `EndOfStream`, or `Error`.
+Nodes should dispatch a wake when the downstream node may be waiting, and the status has changed.
+This includes changes between `Pending` and `Blocked`, so that sinks can report both.
 
 Some nodes (i.e. AudioMixer) may also wake when moving away from a previously dispatched
 `EndOfStream`, so stale EOS state can be recovered after a seek or after new input becomes
@@ -87,6 +92,10 @@ When a downstream `consume()` removes an item from the queue, the producer wakes
 so it can refill the queue. When the queue is full and no downstream activity occurs for the idle
 timeout, the producer auto-suspends: it drops its decoder, its queue, and any frame pool buffers it
 can free, then wakes the consumer with a `Suspended` status.
+
+A producer reports `Blocked` while its queue is empty, its demuxer read is blocked, and its decoder
+has no decode in progress that could produce output. When the coded data that a blocked read needs
+becomes available, the producer stops reporting `Blocked` immediately.
 
 `peek()` and `consume()` defer the idle timeout, but they never resume a suspended producer. When a
 downstream node needs new data, it must explicitly `seek()` the suspended node to resume it, so that
