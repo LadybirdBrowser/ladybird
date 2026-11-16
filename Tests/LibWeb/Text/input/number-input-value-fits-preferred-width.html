@@ -1,0 +1,38 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url("../../Ref/data/fonts/Ahem.ttf"); }
+    input { font: 10px/20px Ahem; }
+</style>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        for (const appearance of ["auto", "none", "textfield"]) {
+            for (const zoom of [1, 2]) {
+                for (const bounded of [false, true]) {
+                    const input = document.createElement("input");
+                    input.type = "number";
+                    input.value = "255";
+                    input.style.appearance = appearance;
+                    input.style.zoom = zoom;
+                    if (bounded) {
+                        input.min = "0";
+                        input.max = "255";
+                    } else {
+                        input.size = 3;
+                    }
+                    document.body.append(input);
+                    const shadow = internals.getShadowRoot(input);
+                    const text = document.createTreeWalker(shadow, NodeFilter.SHOW_TEXT).nextNode();
+                    const range = document.createRange();
+                    range.selectNodeContents(text);
+                    const valueRect = range.getBoundingClientRect();
+                    const clipRect = text.parentElement.getBoundingClientRect();
+                    const fits = valueRect.left >= clipRect.left - 0.1 && valueRect.right <= clipRect.right + 0.1;
+                    println(`${fits ? "PASS" : "FAIL"}: ${appearance}, zoom ${zoom}, ${bounded ? "bounds" : "size"}`);
+                }
+            }
+        }
+        done();
+    });
+</script>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/C/#the-input-element-as-a-text-entry-widget">
+<link rel="help" href="https://github.com/whatwg/html/issues/10390">
+<title>Test `size` attribute behavior on number input</title>
+<link rel="match" href="../../../../../expected/wpt-import/html/rendering/widgets/input-number-text-size-ref.html">
+<input type=number><br>
+<input type=number min=0><br>
+<input type=number max=1><br>
+<input type=number size=10 min=0 max=1><br>
+<input type=number min=0 max=1 step=any><br>
+<input type=number min=0 max=1><br>
+<input type=number min=-1 max=1><br>
+<input type=number min=0 max=1 step=0.5><br>
+<input type=number min=-1 max=1 step=0.5><br>

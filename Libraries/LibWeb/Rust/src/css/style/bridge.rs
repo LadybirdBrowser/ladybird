@@ -880,7 +880,8 @@ pub enum FfiReplacedContentInputKind {
     TextArea = 1,
     /// An `<input>` whose type makes it no text entry widget: `first` is its `size`.
     Input = 2,
-    /// An `<input>` whose type makes it a text entry widget: `first` is its `size`.
+    /// A text entry `<input>`: `first` is its preferred character count. For a number input, a nonzero
+    /// `second` reserves its stepper beside an explicit or range-derived count.
     TextEntryInput = 3,
     /// A `<canvas>`: `first` is its `width`, and `second` its `height`.
     Canvas = 4,

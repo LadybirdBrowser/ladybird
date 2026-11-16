@@ -1890,6 +1890,8 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
         }
         update_shadow_tree();
     } else if (name == HTML::AttributeNames::min || name == HTML::AttributeNames::max || name == HTML::AttributeNames::step) {
+        if (type_state() == TypeAttributeState::Number && old_value != value)
+            set_needs_layout_update(DOM::SetNeedsLayoutReason::DefaultPreferredSizeAttributeChange);
         if (type_state() == TypeAttributeState::Range) {
             m_value = value_sanitization_algorithm(m_value);
             update_shadow_tree();
@@ -2882,6 +2884,61 @@ WebIDL::UnsignedLong HTMLInputElement::size() const
             return *size;
     }
     return 20;
+}
+
+Optional<u32> HTMLInputElement::number_input_size_in_characters() const
+{
+    if (type_state() != TypeAttributeState::Number)
+        return {};
+    if (auto explicit_size = get_attribute(AttributeNames::size); explicit_size.has_value()) {
+        auto parsed_size = parse_non_negative_integer(*explicit_size);
+        if (parsed_size.has_value() && *parsed_size > 0 && *parsed_size <= 2147483647)
+            return *parsed_size;
+    }
+
+    auto minimum = get_attribute(AttributeNames::min);
+    auto maximum = get_attribute(AttributeNames::max);
+    auto step = get_attribute(AttributeNames::step);
+    if (!minimum.has_value() || !maximum.has_value() || (step.has_value() && step->equals_ignoring_ascii_case(u"any"sv)))
+        return {};
+
+    // An invalid step, e.g. "garbage", falls back to the default step rather than reading as an exponent form.
+    auto uses_exponent = [](Utf16View text) {
+        return is_valid_floating_point_number(text) && (text.contains(u'e') || text.contains(u'E'));
+    };
+    if (uses_exponent(*minimum) || uses_exponent(*maximum) || (step.has_value() && uses_exponent(*step)))
+        return {};
+
+    u32 integer_columns = 1;
+    u32 fractional_columns = 0;
+    auto include_number = [&](Utf16View text) {
+        if (!is_valid_floating_point_number(text))
+            return false;
+        auto value = parse_floating_point_number(text);
+        if (!value.has_value() || !isfinite(*value))
+            return false;
+        // Zero takes one column, however it's written, e.g. -0 or 0.000.
+        if (*value == 0)
+            return true;
+
+        auto negative = text.starts_with(u'-');
+        if (negative)
+            text = text.substring_view(1);
+        auto point = text.find_code_unit_offset(u'.').value_or(text.length_in_code_units());
+        auto integer = text.substring_view(0, point).trim("0"sv, TrimMode::Left);
+        auto fraction = point < text.length_in_code_units() ? text.substring_view(point + 1) : Utf16View {};
+
+        auto integer_digits = AK::max<size_t>(1, integer.length_in_code_units());
+        integer_columns = AK::max(integer_columns, static_cast<u32>(integer_digits) + (negative ? 1u : 0u));
+        fractional_columns = AK::max(fractional_columns, static_cast<u32>(fraction.length_in_code_units()));
+        return true;
+    };
+
+    if (!include_number(*minimum) || !include_number(*maximum))
+        return {};
+    if (!step.has_value() || !include_number(*step))
+        include_number(u"1"sv);
+    return integer_columns + fractional_columns + (fractional_columns > 0 ? 1u : 0u);
 }
 
 WebIDL::ExceptionOr<void> HTMLInputElement::set_size(WebIDL::UnsignedLong value)

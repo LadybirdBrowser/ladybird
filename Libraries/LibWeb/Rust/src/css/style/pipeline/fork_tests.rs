@@ -38,6 +38,7 @@ fn styled_document(count: usize) -> StyleEngine {
                 inputs::ReplacedContentInput::Input {
                     size: 20,
                     is_text_entry: true,
+                    include_number_stepper: false,
                 },
             );
         }

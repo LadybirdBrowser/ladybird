@@ -1,0 +1,106 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url("../../Ref/data/fonts/Ahem.ttf"); }
+    body { width: 5000px; }
+    input { font: 10px/20px Ahem; }
+</style>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        const cases = [
+            ["rgb", {"min": "0", "max": "255"}, 3],
+            ["negative bound", {"min": "-999", "max": "0"}, 4],
+            ["fraction and sign", {"min": "-10", "max": "0.25", "step": "0.001"}, 7],
+            ["decimal trailing zero", {"min": "0", "max": "100.0"}, 5],
+            ["positive exponent", {"min": "0", "max": "1e2"}, null],
+            ["decimal exponent", {"min": "0", "max": "1.00e2"}, null],
+            ["fractional step", {"min": "0", "max": "1", "step": "0.001"}, 5],
+            ["exponent step", {"min": "0", "max": "1", "step": "1e-3"}, null],
+            ["step trailing zeros", {"min": "0", "max": "1", "step": "0.000100"}, 8],
+            ["negative step", {"min": "0", "max": "1", "step": "-0.01"}, 5],
+            ["zero step", {"min": "0", "max": "1", "step": "0"}, 1],
+            ["zero step with fraction digits", {"min": "0", "max": "1", "step": "-0.000000"}, 1],
+            ["invalid step", {"min": "0", "max": "1", "step": "bad"}, 1],
+            ["invalid step containing an e", {"min": "0", "max": "1", "step": "garbage"}, 1],
+            ["negative zero", {"min": "-0", "max": "0"}, 1],
+            ["long integer", {"min": "0", "max": "1234567890123456789012"}, 22],
+            ["long fractional prefix", {"min": "0", "max": "1", "step": "0.00000000000000000001234567890123456789"}, 40],
+            ["tiny exponent", {"min": "0", "max": "1", "step": "1e-400"}, null],
+            ["exponent underflow", {"min": "0", "max": "1", "step": "1e-1024"}, null],
+            ["exponent min", {"min": "-1e2", "max": "0"}, null],
+            ["uppercase exponent min", {"min": "-1E2", "max": "0"}, null],
+            ["uppercase exponent max", {"min": "0", "max": "1E2"}, null],
+            ["uppercase exponent step", {"min": "0", "max": "1", "step": "1E-3"}, null],
+            ["leading integer zeros", {"min": "0", "max": "000123"}, 3],
+            ["signed leading zeros", {"min": "-00012", "max": "0"}, 3],
+            ["zero fraction", {"min": "0", "max": "0.000"}, 1],
+            ["leading decimal point", {"min": "0", "max": ".25"}, 4],
+            ["default", {}, null],
+            ["only min", {"min": "0"}, null],
+            ["only max", {"max": "255"}, null],
+            ["invalid min", {"min": "bad", "max": "255"}, null],
+            ["invalid max", {"min": "0", "max": "bad"}, null],
+            ["overflow max", {"min": "0", "max": "1e400"}, null],
+            ["any step", {"min": "0", "max": "1", "step": "any"}, null],
+        ];
+        function input(attributes, appearance) {
+            const element = document.createElement("input");
+            element.type = "number";
+            element.style.appearance = appearance;
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            document.body.append(element);
+            return element;
+        }
+        function width(element) { return element.getBoundingClientRect().width; }
+        function check(name, actual, expected) {
+            println(`${Math.abs(actual - expected) < 0.1 ? "PASS" : "FAIL"}: ${name}`);
+        }
+        for (const appearance of ["auto", "none"]) {
+            const defaultWidth = width(input({}, appearance));
+            const singleWidth = width(input({ min: "0", max: "9" }, appearance));
+            println(`${singleWidth < defaultWidth ? "PASS" : "FAIL"}: ${appearance} bounded input is narrower`);
+            for (const [name, attributes, characters] of cases) {
+                const element = input(attributes, appearance);
+                check(`${appearance} ${name}`, width(element), characters === null ? defaultWidth : singleWidth + 10 * (characters - 1));
+                check(`${appearance} ${name} keeps size IDL`, element.size, 20);
+            }
+            for (const step of ["0.001", "1e-3"]) {
+                const explicit = input({ min: "-100", max: "1e3", step, size: "4" }, appearance);
+                check(`${appearance} size overrides range with step ${step}`, width(explicit), singleWidth + 30);
+            }
+            const element = input({}, appearance);
+            element.min = "0";
+            element.max = "255";
+            check(`${appearance} set bounds`, width(element), singleWidth + 20);
+            element.step = "0.01";
+            check(`${appearance} change step`, width(element), singleWidth + 50);
+            element.max = "9";
+            check(`${appearance} change max`, width(element), singleWidth + 30);
+            element.min = "-99";
+            check(`${appearance} change min`, width(element), singleWidth + 50);
+            element.removeAttribute("min");
+            check(`${appearance} remove min`, width(element), defaultWidth);
+            element.min = "0";
+            element.removeAttribute("max");
+            check(`${appearance} remove max`, width(element), defaultWidth);
+            element.max = "9";
+            element.removeAttribute("step");
+            check(`${appearance} remove step`, width(element), singleWidth);
+        }
+        for (const css of ["width: 120px", "field-sizing: content"]) {
+            const bounded = input({ min: "0", max: "255" }, "auto");
+            const unbounded = input({}, "auto");
+            bounded.style.cssText = unbounded.style.cssText = css;
+            bounded.value = unbounded.value = "255";
+            check(`${css} overrides range sizing`, width(bounded), width(unbounded));
+        }
+        for (const writingMode of ["vertical-rl", "vertical-lr"]) {
+            const one = input({ min: "0", max: "9" }, "auto");
+            const three = input({ min: "0", max: "255" }, "auto");
+            one.style.writingMode = three.style.writingMode = writingMode;
+            check(`${writingMode} sizes the inline axis`, three.getBoundingClientRect().height - one.getBoundingClientRect().height, 20);
+        }
+        done();
+    });
+</script>

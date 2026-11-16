@@ -1,0 +1,160 @@
+PASS: auto bounded input is narrower
+PASS: auto rgb
+PASS: auto rgb keeps size IDL
+PASS: auto negative bound
+PASS: auto negative bound keeps size IDL
+PASS: auto fraction and sign
+PASS: auto fraction and sign keeps size IDL
+PASS: auto decimal trailing zero
+PASS: auto decimal trailing zero keeps size IDL
+PASS: auto positive exponent
+PASS: auto positive exponent keeps size IDL
+PASS: auto decimal exponent
+PASS: auto decimal exponent keeps size IDL
+PASS: auto fractional step
+PASS: auto fractional step keeps size IDL
+PASS: auto exponent step
+PASS: auto exponent step keeps size IDL
+PASS: auto step trailing zeros
+PASS: auto step trailing zeros keeps size IDL
+PASS: auto negative step
+PASS: auto negative step keeps size IDL
+PASS: auto zero step
+PASS: auto zero step keeps size IDL
+PASS: auto zero step with fraction digits
+PASS: auto zero step with fraction digits keeps size IDL
+PASS: auto invalid step
+PASS: auto invalid step keeps size IDL
+PASS: auto invalid step containing an e
+PASS: auto invalid step containing an e keeps size IDL
+PASS: auto negative zero
+PASS: auto negative zero keeps size IDL
+PASS: auto long integer
+PASS: auto long integer keeps size IDL
+PASS: auto long fractional prefix
+PASS: auto long fractional prefix keeps size IDL
+PASS: auto tiny exponent
+PASS: auto tiny exponent keeps size IDL
+PASS: auto exponent underflow
+PASS: auto exponent underflow keeps size IDL
+PASS: auto exponent min
+PASS: auto exponent min keeps size IDL
+PASS: auto uppercase exponent min
+PASS: auto uppercase exponent min keeps size IDL
+PASS: auto uppercase exponent max
+PASS: auto uppercase exponent max keeps size IDL
+PASS: auto uppercase exponent step
+PASS: auto uppercase exponent step keeps size IDL
+PASS: auto leading integer zeros
+PASS: auto leading integer zeros keeps size IDL
+PASS: auto signed leading zeros
+PASS: auto signed leading zeros keeps size IDL
+PASS: auto zero fraction
+PASS: auto zero fraction keeps size IDL
+PASS: auto leading decimal point
+PASS: auto leading decimal point keeps size IDL
+PASS: auto default
+PASS: auto default keeps size IDL
+PASS: auto only min
+PASS: auto only min keeps size IDL
+PASS: auto only max
+PASS: auto only max keeps size IDL
+PASS: auto invalid min
+PASS: auto invalid min keeps size IDL
+PASS: auto invalid max
+PASS: auto invalid max keeps size IDL
+PASS: auto overflow max
+PASS: auto overflow max keeps size IDL
+PASS: auto any step
+PASS: auto any step keeps size IDL
+PASS: auto size overrides range with step 0.001
+PASS: auto size overrides range with step 1e-3
+PASS: auto set bounds
+PASS: auto change step
+PASS: auto change max
+PASS: auto change min
+PASS: auto remove min
+PASS: auto remove max
+PASS: auto remove step
+PASS: none bounded input is narrower
+PASS: none rgb
+PASS: none rgb keeps size IDL
+PASS: none negative bound
+PASS: none negative bound keeps size IDL
+PASS: none fraction and sign
+PASS: none fraction and sign keeps size IDL
+PASS: none decimal trailing zero
+PASS: none decimal trailing zero keeps size IDL
+PASS: none positive exponent
+PASS: none positive exponent keeps size IDL
+PASS: none decimal exponent
+PASS: none decimal exponent keeps size IDL
+PASS: none fractional step
+PASS: none fractional step keeps size IDL
+PASS: none exponent step
+PASS: none exponent step keeps size IDL
+PASS: none step trailing zeros
+PASS: none step trailing zeros keeps size IDL
+PASS: none negative step
+PASS: none negative step keeps size IDL
+PASS: none zero step
+PASS: none zero step keeps size IDL
+PASS: none zero step with fraction digits
+PASS: none zero step with fraction digits keeps size IDL
+PASS: none invalid step
+PASS: none invalid step keeps size IDL
+PASS: none invalid step containing an e
+PASS: none invalid step containing an e keeps size IDL
+PASS: none negative zero
+PASS: none negative zero keeps size IDL
+PASS: none long integer
+PASS: none long integer keeps size IDL
+PASS: none long fractional prefix
+PASS: none long fractional prefix keeps size IDL
+PASS: none tiny exponent
+PASS: none tiny exponent keeps size IDL
+PASS: none exponent underflow
+PASS: none exponent underflow keeps size IDL
+PASS: none exponent min
+PASS: none exponent min keeps size IDL
+PASS: none uppercase exponent min
+PASS: none uppercase exponent min keeps size IDL
+PASS: none uppercase exponent max
+PASS: none uppercase exponent max keeps size IDL
+PASS: none uppercase exponent step
+PASS: none uppercase exponent step keeps size IDL
+PASS: none leading integer zeros
+PASS: none leading integer zeros keeps size IDL
+PASS: none signed leading zeros
+PASS: none signed leading zeros keeps size IDL
+PASS: none zero fraction
+PASS: none zero fraction keeps size IDL
+PASS: none leading decimal point
+PASS: none leading decimal point keeps size IDL
+PASS: none default
+PASS: none default keeps size IDL
+PASS: none only min
+PASS: none only min keeps size IDL
+PASS: none only max
+PASS: none only max keeps size IDL
+PASS: none invalid min
+PASS: none invalid min keeps size IDL
+PASS: none invalid max
+PASS: none invalid max keeps size IDL
+PASS: none overflow max
+PASS: none overflow max keeps size IDL
+PASS: none any step
+PASS: none any step keeps size IDL
+PASS: none size overrides range with step 0.001
+PASS: none size overrides range with step 1e-3
+PASS: none set bounds
+PASS: none change step
+PASS: none change max
+PASS: none change min
+PASS: none remove min
+PASS: none remove max
+PASS: none remove step
+PASS: width: 120px overrides range sizing
+PASS: field-sizing: content overrides range sizing
+PASS: vertical-rl sizes the inline axis
+PASS: vertical-lr sizes the inline axis

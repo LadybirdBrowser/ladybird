@@ -203,9 +203,11 @@ fn replaced_content_facts(
     if let ReplacedContentInput::Input {
         size,
         is_text_entry: true,
+        include_number_stepper,
     } = input
     {
         facts.text_entry_content_is_ordinary_box = style.appearance_is_none || style.field_sizing_is_content;
+        facts.include_number_stepper = include_number_stepper && !style.field_sizing_is_content;
         if style.appearance_is_none && !style.field_sizing_is_content {
             let (width, height) = style.text_control_default_preferred_size(size);
             facts.default_preferred_width = Some(width);
@@ -222,6 +224,7 @@ pub(crate) struct ReplacedContentFacts {
     pub(crate) default_preferred_width: Option<CssPixels>,
     pub(crate) default_preferred_height: Option<CssPixels>,
     pub(crate) text_entry_content_is_ordinary_box: bool,
+    pub(crate) include_number_stepper: bool,
     /// The default object size of an SVG `<image>`, which applies once something has decoded. The SVG formatting
     /// context reads it as it is: it is no preferred size the sizing of an ordinary replaced box would take.
     pub(crate) svg_image_default_object_size: CssPixelSize,
@@ -969,9 +972,67 @@ impl<'pass> NodeFacts<'pass> {
         if self.data().kind.get() == NodeKind::SVGSVGBox {
             return self.svg_root_replaced_content();
         }
-        self.pass
+        let mut facts = self
+            .pass
             .replaced_content_facts(self.node)
-            .expect("replaced content facts were not synced to the arena before layout")
+            .expect("replaced content facts were not synced to the arena before layout");
+        if facts.include_number_stepper && !self.node_has_size_containment() {
+            let decoration = self.number_stepper_inline_size();
+            if self
+                .computed_values_view_if_styled()
+                .is_some_and(|style| style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB)
+            {
+                facts.auto_content_size.width = facts.auto_content_size.width.map(|width| width + decoration);
+                facts.default_preferred_width = facts.default_preferred_width.map(|width| width + decoration);
+            } else {
+                facts.auto_content_size.height = facts.auto_content_size.height.map(|height| height + decoration);
+                facts.default_preferred_height = facts.default_preferred_height.map(|height| height + decoration);
+            }
+        }
+        facts
+    }
+
+    fn number_stepper_inline_size(&self) -> CssPixels {
+        let zero = CssPixels::default();
+        let first_child = |node| {
+            if node == Node::INVALID {
+                Node::INVALID
+            } else {
+                self.pass.node_data(node).first_child.get()
+            }
+        };
+        let wrapper = first_child(self.node);
+        if wrapper == Node::INVALID {
+            return zero;
+        }
+        // The number input's shadow wrapper ends with the stepper container. Its buttons contain fixed-size SVG
+        // arrows; use their computed dimensions and padding so the decoration follows its own font and zoom.
+        let stepper = self.pass.node_data(wrapper).last_child.get();
+        let button = first_child(stepper);
+        let arrow = first_child(button);
+        if arrow == Node::INVALID || self.pass.node_data(arrow).kind.get() != NodeKind::SVGSVGBox {
+            return zero;
+        }
+        let (Some(arrow_style), Some(button_style), Some(input_style)) = (
+            self.pass.computed_values_view_if_styled(arrow),
+            self.pass.computed_values_view_if_styled(button),
+            self.computed_values_view_if_styled(),
+        ) else {
+            return zero;
+        };
+        if input_style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB {
+            arrow_style.width().to_px(zero)
+                + button_style.padding_left().to_px(zero)
+                + button_style.padding_right().to_px(zero)
+                + button_style.border_left_width()
+                + button_style.border_right_width()
+        } else {
+            arrow_style.height().to_px(zero)
+                + button_style.padding_top().to_px(zero)
+                + button_style.padding_bottom().to_px(zero)
+                + button_style.border_top_width()
+                + button_style.border_bottom_width()
+        }
     }
 
     /// An <svg> root's natural size resolves the lengths its element published against its style and the
@@ -1581,6 +1642,7 @@ mod node_facts_tests {
         let input = ReplacedContentInput::Input {
             size: 20,
             is_text_entry: true,
+            include_number_stepper: false,
         };
         let text_input = super::replaced_content_facts(NodeKind::TextInputBox, horizontal_style(), input);
         assert_eq!(auto_content_size(text_input), Some((160, 16)));
@@ -1598,6 +1660,7 @@ mod node_facts_tests {
         let checkbox_input = ReplacedContentInput::Input {
             size: 20,
             is_text_entry: false,
+            include_number_stepper: false,
         };
         let checkbox = super::replaced_content_facts(NodeKind::BlockContainer, primitive_style, checkbox_input);
         assert!(checkbox.default_preferred_width.is_none());

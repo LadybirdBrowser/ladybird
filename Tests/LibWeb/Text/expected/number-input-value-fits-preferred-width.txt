@@ -1,0 +1,12 @@
+PASS: auto, zoom 1, size
+PASS: auto, zoom 1, bounds
+PASS: auto, zoom 2, size
+PASS: auto, zoom 2, bounds
+PASS: none, zoom 1, size
+PASS: none, zoom 1, bounds
+PASS: none, zoom 2, size
+PASS: none, zoom 2, bounds
+PASS: textfield, zoom 1, size
+PASS: textfield, zoom 1, bounds
+PASS: textfield, zoom 2, size
+PASS: textfield, zoom 2, bounds
