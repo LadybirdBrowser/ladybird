@@ -108,7 +108,7 @@ add_lagom_library_install_rules(LibJSHeaders ALIAS_NAME JSHeaders)
 add_library(LibJSObjects OBJECT ${SOURCES})
 ladybird_library_setup(LibJSObjects)
 target_link_libraries(LibJSObjects PUBLIC LibJSHeaders)
-target_link_libraries(LibJSObjects PRIVATE LibCore LibCrypto LibGC LibSyntax LibTextCodec)
+target_link_libraries(LibJSObjects PRIVATE LibCore LibGC LibSyntax LibTextCodec)
 target_compile_definitions(LibJSObjects PRIVATE LibJS_EXPORTS)
 set_target_properties(LibJSObjects PROPERTIES DEFINE_SYMBOL LibJS_EXPORTS)
 ladybird_generate_export_header(LibJSObjects js BASE_NAME LibJS)
@@ -126,7 +126,7 @@ if (LIBJS_FOLDED_INTO_LIBWEB)
     add_library(LibJSStandalone INTERFACE)
     target_link_libraries(LibJSStandalone INTERFACE
         $<TARGET_OBJECTS:LibJSObjects>
-        LibJSHeaders libjs_rust AK LibCore LibCrypto LibGC LibSyntax LibTextCodec
+        LibJSHeaders libjs_rust AK LibCore LibGC LibSyntax LibTextCodec
     )
     if ((LINUX OR BSD) AND BUILD_SHARED_LIBS)
         # The tool's copy of the runtime, with its Rust standard library, stays out of its dynamic symbol table, as the
@@ -140,7 +140,7 @@ else()
     ladybird_lib(LibJS js)
     set_target_properties(LibJS PROPERTIES LINKER_LANGUAGE CXX WINDOWS_EXPORT_ALL_SYMBOLS OFF)
     target_link_libraries(LibJS PUBLIC LibJSHeaders)
-    target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibGC LibSyntax LibTextCodec)
+    target_link_libraries(LibJS PRIVATE LibCore LibGC LibSyntax LibTextCodec)
 
     if (NOT BUILD_SHARED_LIBS OR WIN32)
         target_link_libraries(LibJS PRIVATE libjs_rust)
