@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+table { border-spacing: 0; width: 200px; }
+td { padding: 0; vertical-align: top; }
+.c { margin-bottom: 10px; }
+</style>
+<div id="cases">
+<div class="c"><table class="m"><tr class="m"><td style="box-sizing: border-box; min-height: 100px; padding: 20px"></td></tr><tr class="m" style="height: 10px"><td></td></tr></table></div>
+<div class="c"><table class="m"><tr class="m"><td style="box-sizing: border-box; min-height: 100px; padding: 20px; border: 5px solid"></td></tr><tr class="m" style="height: 10px"><td></td></tr></table></div>
+<div class="c"><table class="m"><tr class="m"><td style="min-height: 100px; padding: 20px"></td></tr><tr class="m" style="height: 10px"><td></td></tr></table></div>
+<div class="c"><table class="m"><tr class="m"><td style="box-sizing: border-box; min-height: 30px; padding: 20px"></td></tr><tr class="m" style="height: 10px"><td></td></tr></table></div>
+<div class="c"><table class="m" style="table-layout: fixed"><tr class="m"><td style="box-sizing: border-box; min-height: 100px; padding: 20px"></td></tr></table></div>
+<div class="c"><table class="m"><tr class="m"><td style="min-height: 100px; padding: 20px"></td></tr></table></div>
+<div class="c"><table class="m"><tr class="m"><td style="min-height: 100px"><div style="height: 10px"></div></td><td><div style="height: 10px"></div></td></tr></table></div>
+<div class="c"><table class="m"><tr class="m"><td style="max-height: 10px"><div style="height: 50px"></div></td></tr></table></div>
+<div class="c"><table class="m"><tr class="m" style="min-height: 100px"><td><div style="height: 10px"></div></td></tr></table></div>
+<div class="c"><div style="display: table; min-height: 100px; width: 200px" class="m"><div style="display: table-cell"><div style="height: 10px"></div></div></div></div>
+<div class="c"><table class="m"><tr class="m"><td style="height: 30px; min-height: 100px"><div style="height: 10px"></div></td></tr></table></div>
+</div>
+<script src="include.js"></script>
+<script>
+test(() => {
+  document.querySelectorAll(".c").forEach((c, i) => {
+    const o = c.getBoundingClientRect().top;
+    println(`${i + 1}: ` + [...c.querySelectorAll(".m")].map(e => { const r = e.getBoundingClientRect(); return `${Math.round(r.top - o)}+${Math.round(r.height)}`; }).join(" "));
+  });
+  document.getElementById("cases").remove();
+});
+</script>

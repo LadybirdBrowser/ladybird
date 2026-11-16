@@ -3045,9 +3045,7 @@ impl<'pass> TableFormattingContext<'pass> {
             );
             let cell_box = self.cell_layouts[cell_index].box_cells;
             if self.needs_row_measurement {
-                let min_size = style.min_height().to_px(participant_block_basis);
-                let offsets = cell_box.border_box_top(collapsed) + cell_box.border_box_bottom(collapsed);
-                let measured = cell_box.border_box_block_size(collapsed).max(min_size + offsets);
+                let measured = cell_box.border_box_block_size(collapsed);
                 self.cells[cell_index].outer_min_block_size = measured;
                 self.cells[cell_index].outer_max_block_size = measured;
             }
