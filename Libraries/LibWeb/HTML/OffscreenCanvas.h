@@ -51,6 +51,7 @@ public:
     void transfer_receiving_steps(TransferredFields const&);
 
     bool is_detached() const { return m_detached; }
+    JS::ThrowCompletionOr<void> throw_if_detached() const;
 
     WebIDL::UnsignedLongLong width() const { return m_width; }
     WebIDL::UnsignedLongLong height() const { return m_height; }

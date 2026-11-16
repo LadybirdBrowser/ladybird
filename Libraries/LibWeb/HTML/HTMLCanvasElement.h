@@ -107,6 +107,7 @@ private:
     template<typename ContextType>
     JS::ThrowCompletionOr<HasOrCreatedContext> create_webgl_context(JS::Value options);
     HasOrCreatedContext create_bitmap_renderer_context(bool alpha);
+    JS::ThrowCompletionOr<void> throw_if_control_transferred_to_offscreen() const;
     void reset_context_to_default_state();
     void notify_context_about_canvas_size_change();
     void did_commit_placeholder_frame(Gfx::IntSize, bool origin_clean);
