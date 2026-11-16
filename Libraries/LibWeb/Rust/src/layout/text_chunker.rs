@@ -187,6 +187,7 @@ mod line_break_class {
     pub(super) const GLUE: u8 = 15;
     pub(super) const WORD_JOINER: u8 = 16;
     pub(super) const ZERO_WIDTH_JOINER: u8 = 17;
+    pub(super) const OTHER: u8 = 18;
 }
 
 fn line_break_class(code_point: u32) -> u8 {
@@ -1060,11 +1061,12 @@ impl<'text> LineBreaker<'text> {
                 // Breaking is forbidden within “words”: implicit soft wrap opportunities between typographic letter
                 // units (or other typographic character units belonging to the NU, AL, AI, or ID Unicode line breaking
                 // classes [UAX14]) are suppressed, [...]
-                let keeps_together = |code_point| {
-                    matches!(
-                        line_break_class(code_point),
-                        ALPHABETIC | NUMERIC | AMBIGUOUS | IDEOGRAPHIC | CONDITIONAL_JAPANESE_STARTER | HANGUL_JAMO
-                    )
+                // NB: A letter in a class of its own, such as the iteration mark U+3005 (class NS), is a typographic
+                //     letter unit too.
+                let keeps_together = |code_point| match line_break_class(code_point) {
+                    ALPHABETIC | NUMERIC | AMBIGUOUS | IDEOGRAPHIC | CONDITIONAL_JAPANESE_STARTER | HANGUL_JAMO => true,
+                    OTHER => super::tree_builder::ladybird_layout_code_point_category_facts(code_point).is_letter,
+                    _ => false,
                 };
                 if let Some(previous_code_point) = get_previous_code_point()
                     && keeps_together(previous_code_point)

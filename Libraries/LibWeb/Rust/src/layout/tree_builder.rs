@@ -1087,7 +1087,7 @@ pub struct FfiCodePointCategoryFacts {
 }
 
 unsafe extern "C" {
-    safe fn ladybird_layout_code_point_category_facts(code_point: u32) -> FfiCodePointCategoryFacts;
+    pub(crate) safe fn ladybird_layout_code_point_category_facts(code_point: u32) -> FfiCodePointCategoryFacts;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
