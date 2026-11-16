@@ -116,8 +116,6 @@ public:
     [[nodiscard]] CompareResult compare_to_double(double) const;
 
 private:
-    friend class SignedBigInteger;
-
     mp_int m_mp;
     mutable Optional<u32> m_hash {};
 };
