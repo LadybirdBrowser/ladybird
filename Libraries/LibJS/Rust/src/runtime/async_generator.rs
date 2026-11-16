@@ -217,7 +217,7 @@ impl AsyncGenerator {
 
                 // b. Suspend prevContext.
                 // c. Push asyncContext onto the execution context stack; asyncContext is now the running execution context.
-                vm.push_execution_context_checking_stack_space(generator.async_generator_context())?;
+                vm.push_resumed_execution_context_checking_stack_space(generator.async_generator_context())?;
 
                 // d. Resume the suspended evaluation of asyncContext using NormalCompletion(value) as the result of the operation that
                 //    suspended it.
@@ -247,7 +247,7 @@ impl AsyncGenerator {
 
                 // b. Suspend prevContext.
                 // c. Push asyncContext onto the execution context stack; asyncContext is now the running execution context.
-                vm.push_execution_context_checking_stack_space(generator.async_generator_context())?;
+                vm.push_resumed_execution_context_checking_stack_space(generator.async_generator_context())?;
 
                 // d. Resume the suspended evaluation of asyncContext using ThrowCompletion(reason) as the result of the operation that
                 //    suspended it.
@@ -361,7 +361,7 @@ impl AsyncGenerator {
                 // 7. Let previousContext be the second to top element of the execution context stack.
                 // 8. Let previousRealm be previousContext's Realm.
                 // SAFETY: The contexts on the execution context stack are live.
-                let previous_realm = unsafe { previous_context.as_ref() }.realm.get();
+                let previous_realm = unsafe { previous_context.as_ref() }.realm();
 
                 // 9. Perform AsyncGeneratorCompleteStep(generator, completion, false, previousRealm).
                 self.complete_step(vm, yield_completion, false, previous_realm);
@@ -441,7 +441,7 @@ impl AsyncGenerator {
         self.async_generator_state.set(AsyncGeneratorState::Executing);
 
         // 6. Push genContext onto the execution context stack; genContext is now the running execution context.
-        vm.push_execution_context_checking_stack_space(generator_context)?;
+        vm.push_resumed_execution_context_checking_stack_space(generator_context)?;
 
         // 7. Resume the suspended evaluation of genContext using completion as the result of the operation that suspended
         //    it. Let result be the Completion Record returned by the resumed computation.

@@ -167,7 +167,7 @@ int main(int, char**)
 
     auto vm = JS::VM::create();
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-    auto& realm = *root_execution_context->realm;
+    auto& realm = *root_execution_context->realm();
     auto& global_object = realm.global_object();
     global_object.define_direct_property("global"_utf16_fly_string, &global_object, JS::Attribute::Enumerable);
     global_object.define_native_function(realm, "fuzzilli"_utf16_fly_string, fuzzilli, 2, JS::default_attributes);

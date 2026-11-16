@@ -435,6 +435,10 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         let first = entries[0];
         let accessor = first.accessor_function?;
         let mut target = accessor.native?;
+        // NB: Calls into another realm are the runtime's (see `RuntimeOffsets::vm_current_realm`).
+        if target.realm != self.runtime.realm {
+            return None;
+        }
         let location = first.accessor_location(part)?;
         let same_accessor = entries.iter().all(|entry| {
             entry.holds_accessor

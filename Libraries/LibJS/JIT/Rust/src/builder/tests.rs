@@ -39,6 +39,8 @@ pub(crate) fn add_program(snapshot: &mut Snapshot, program: &Program, layout: Fr
 pub(crate) fn snapshot_for(program: &Program, layout: FrameLayout) -> Snapshot {
     let mut snapshot = Snapshot::new();
     add_program(&mut snapshot, program, layout);
+    // NB: The functions of the tests run in the realm of the compiled code.
+    snapshot.runtime.realm = CellId(inlining::REALM);
     snapshot
 }
 
@@ -1141,7 +1143,7 @@ pub(crate) mod property_access {
         let entry = |shape: u64, validated: bool| {
             let target = NativeCallTarget {
                 function: CellId(0x9000),
-                realm: CellId(0xa000),
+                realm: CellId(inlining::REALM),
                 entry: core::num::NonZeroU64::new(0xb000),
                 direct_getter: validated.then_some(DirectGetterFields {
                     wrapper_implementation: 8,

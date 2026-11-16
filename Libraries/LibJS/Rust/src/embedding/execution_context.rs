@@ -8,9 +8,9 @@
 //!
 //! A JSExecutionContext is the runtime's ExecutionContext. LibJS/Embedding/Layout.h gives the offset and size of each
 //! of its fields as JS_LAYOUT_EXECUTION_CONTEXT_*, and its value slots, the arguments last, follow it directly. An
-//! embedder reads and writes the fields there, among them the realm, the this value and the
-//! skip-when-determining-incumbent counter. It reads the ScriptOrModule with js_execution_context_script_or_module(),
-//! because that of a context with a function comes from the function. It also finds the running context at
+//! embedder reads and writes the fields there, among them the this value and the skip-when-determining-incumbent
+//! counter. It reads the realm and the ScriptOrModule with js_execution_context_realm() and
+//! js_execution_context_script_or_module(), because those of a context with a function come from the function. It also finds the running context at
 //! JS_LAYOUT_VM_RUNNING_EXECUTION_CONTEXT_OFFSET in the VM, and with it the current realm and the arguments and this
 //! value of the running code, without a call.
 //!
@@ -20,7 +20,9 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use crate::bytecode::executable::Executable;
-use crate::embedding::abi_types::{JSOwnedUtf16String, owned_utf16_string_into_abi, vm_from_abi};
+use crate::embedding::abi_types::{
+    JSOwnedUtf16String, JSRealm, optional_cell_into_abi, owned_utf16_string_into_abi, vm_from_abi,
+};
 use crate::gc::capi::GCVisitor;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::execution_context::OwnedExecutionContext;
@@ -217,6 +219,20 @@ pub unsafe extern "C" fn js_execution_context_restore_stack(vm: *mut JSVM) {
     // SAFETY: The caller passes a live VM.
     let vm = unsafe { vm_from_abi(vm) };
     vm.restore_execution_context_stack();
+}
+
+/// ExecutionContext::realm(): the [[Realm]] of `execution_context`, or null. That of a context with a function is the
+/// function's, and the field holds it only for a context without one.
+///
+/// # Safety
+///
+/// `execution_context` must be a live execution context. Must be called on the thread that runs the VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_execution_context_realm(execution_context: *const JSExecutionContext) -> *mut JSRealm {
+    assert!(!execution_context.is_null(), "the embedder passes an execution context");
+    // SAFETY: The caller passes a live execution context.
+    let execution_context = unsafe { &*execution_context.cast::<ExecutionContext>() };
+    optional_cell_into_abi::<JSRealm>(execution_context.realm())
 }
 
 /// ExecutionContext::script_or_module(): the [[ScriptOrModule]] of `execution_context`. That of a context with a

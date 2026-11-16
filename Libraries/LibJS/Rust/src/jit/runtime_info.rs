@@ -132,6 +132,7 @@ fn runtime_offsets() -> RuntimeOffsets {
         executable_idle_collection_count: offset(offset_of!(ExecutableHead, idle_collection_count)),
         execution_context_slots: offset(size_of::<ExecutionContext>()),
         vm_running_execution_context: offset(offset_of!(VmHead, running_execution_context)),
+        vm_current_realm: offset(offset_of!(VmHead, current_realm)),
         vm_jit_native_stack_limit: offset(offset_of!(Vm, jit_native_stack_limit)),
         private_environment_outer: offset(offset_of!(PrivateEnvironment, outer)),
         object_flags: offset(offset_of!(Object, flags)),
@@ -144,7 +145,6 @@ fn runtime_offsets() -> RuntimeOffsets {
         accessor_getter: offset(offset_of!(Accessor, getter)),
         accessor_setter: offset(offset_of!(Accessor, setter)),
         execution_context_function: offset(offset_of!(ExecutionContext, function)),
-        execution_context_realm: offset(offset_of!(ExecutionContext, realm)),
         execution_context_variable_environment: offset(offset_of!(ExecutionContext, variable_environment)),
         execution_context_frame_id: offset(offset_of!(ExecutionContext, frame_id)),
         execution_context_skip_when_determining_incumbent_counter: offset(offset_of!(

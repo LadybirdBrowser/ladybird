@@ -9,9 +9,11 @@ use core::ptr::NonNull;
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 
 use crate::gc::visitor::{Trace, Visitor};
+use crate::layout::cell::Gc;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule, ScriptOrModuleSlot};
 use crate::layout::value::Value;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
+use crate::runtime::realm::Realm;
 use libjs_abi::register::RESERVED_REGISTER_COUNT;
 
 impl ExecutionContext {
@@ -23,6 +25,37 @@ impl ExecutionContext {
                 .map_or(ScriptOrModule::Empty, |function| function.script_or_module()),
             None => self.script_or_module_without_function.get(),
         }
+    }
+
+    /// The [[Realm]] of the context. That of a frame with a function is the function's.
+    pub fn realm(&self) -> Option<Gc<Realm>> {
+        match self.function.get() {
+            Some(function) => function.function_realm(),
+            None => self.realm_without_function.get(),
+        }
+    }
+
+    /// realm(), with the realm of a frame of an ECMAScript function read here: it is that of the function's shape (see
+    /// ECMASCRIPT_FUNCTION_OBJECT_METHODS), which saves the call through the function's method table. For the paths
+    /// that resume suspended frames, which ask on every resume.
+    #[inline]
+    pub fn realm_of_resumed_frame(&self) -> Option<Gc<Realm>> {
+        if let Some(function) = self.function.get()
+            && function.is_ecmascript_function_object()
+        {
+            return Some(function.shape().realm());
+        }
+        self.realm()
+    }
+
+    /// Sets the [[Realm]] of a context without a function. The context must not be running yet: the VM reads the
+    /// realm of a context when it starts running (see `Vm::set_running_execution_context()`).
+    pub fn set_realm(&self, realm: Option<Gc<Realm>>) {
+        debug_assert!(
+            self.function.get().is_none(),
+            "a context with a function runs in the function's realm"
+        );
+        self.realm_without_function.set(realm);
     }
 
     /// Sets the [[ScriptOrModule]] of a context without a function.
@@ -51,7 +84,7 @@ impl ExecutionContext {
         unsafe {
             context.write(ExecutionContext {
                 function: Cell::new(None),
-                realm: Cell::new(None),
+                realm_without_function: Cell::new(None),
                 script_or_module_without_function: ScriptOrModuleSlot::new(ScriptOrModule::Empty),
                 lexical_environment: Cell::new(None),
                 variable_environment: Cell::new(None),
@@ -115,7 +148,7 @@ impl ExecutionContext {
         // NB: We pass the entire non-argument count as registers_and_locals_count with 0 constants.
         let copy = OwnedExecutionContext::create(slot_count - argument_count, 0, argument_count);
         copy.function.set(self.function.get());
-        copy.realm.set(self.realm.get());
+        copy.realm_without_function.set(self.realm_without_function.get());
         copy.script_or_module_without_function
             .set(self.script_or_module_without_function.get());
         copy.lexical_environment.set(self.lexical_environment.get());
@@ -153,7 +186,7 @@ impl ExecutionContext {
         let argument_count = self.argument_count.get();
         let copy = OwnedExecutionContext::create(slot_count - argument_count, 0, argument_count);
         copy.function.set(self.function.get());
-        copy.realm.set(self.realm.get());
+        copy.realm_without_function.set(self.realm_without_function.get());
         copy.script_or_module_without_function
             .set(self.script_or_module_without_function.get());
         copy.lexical_environment.set(self.lexical_environment.get());
@@ -181,7 +214,6 @@ impl ExecutionContext {
 unsafe impl Trace for ExecutionContext {
     fn trace(&self, visitor: &mut Visitor) {
         self.function.trace(visitor);
-        self.realm.trace(visitor);
         self.variable_environment.trace(visitor);
         self.lexical_environment.trace(visitor);
         self.private_environment.trace(visitor);
@@ -190,6 +222,7 @@ unsafe impl Trace for ExecutionContext {
         self.executable.trace(visitor);
         // NB: The field of a frame with a function holds an old value, as script_or_module() says.
         if self.function.get().is_none() {
+            self.realm_without_function.trace(visitor);
             match self.script_or_module_without_function.get() {
                 ScriptOrModule::Empty => {}
                 ScriptOrModule::Script(script) => script.trace(visitor),

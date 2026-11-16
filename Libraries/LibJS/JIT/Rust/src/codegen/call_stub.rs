@@ -409,6 +409,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.masm.move64(temp, callee_value);
         self.branch_on_tag(Condition::NotEqual, temp, value::OBJECT_TAG, scratch, slow);
         self.emit_unbox_cell(function_register, temp);
+        // A callee of another realm is called by the runtime, which changes
+        // the current realm.
+        self.emit_load_compressed_cell(temp, &Address::new(function_register, offsets.object_shape as i32));
+        self.emit_load_compressed_cell(temp, &Address::new(temp, layout.shape_realm as i32));
+        self.masm
+            .branch64_memory(Condition::NotEqual, &vm_field(offsets.vm_current_realm), temp, slow);
         self.masm
             .load16(temp, &Address::new(function_register, offsets.object_flags as i32));
 
@@ -644,9 +650,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 .store64(&field(offsets.execution_context_variable_environment), scratch);
             self.masm.bind(prepared_environment);
         }
-        self.emit_load_compressed_cell(scratch, &Address::new(function_register, offsets.object_shape as i32));
-        self.emit_load_compressed_cell(scratch, &Address::new(scratch, layout.shape_realm as i32));
-        self.masm.store64(&field(offsets.execution_context_realm), scratch);
         self.masm
             .store64(&field(offsets.execution_context_executable), executable_register);
         self.masm.store32(&field(offsets.execution_context_slot_count), temp);
@@ -1078,9 +1081,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.masm.store64(&field(offsets.execution_context_caller_frame), frame);
         self.masm
             .store64(&field(offsets.execution_context_function), function_register);
-        self.emit_load_compressed_cell(temp, &Address::new(function_register, offsets.object_shape as i32));
-        self.emit_load_compressed_cell(temp, &Address::new(temp, layout.shape_realm as i32));
-        self.masm.store64(&field(offsets.execution_context_realm), temp);
         self.masm.store32(&field(offsets.execution_context_slot_count), count);
         self.masm
             .store32(&field(offsets.execution_context_argument_count), count);

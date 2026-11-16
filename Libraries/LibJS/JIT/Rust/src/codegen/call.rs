@@ -649,7 +649,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         let fields = target.function_fields;
         constants.extend([
             (offsets.execution_context_function, 8, function.function.0),
-            (offsets.execution_context_realm, 8, function.realm.0),
             (offsets.execution_context_executable, 8, header.executable.0),
             (offsets.execution_context_slot_count, 4, u64::from(header.slot_count)),
             (
@@ -1502,7 +1501,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             ),
         ]);
         constants.push((offsets.execution_context_function, 8, target.function.0));
-        constants.push((offsets.execution_context_realm, 8, target.realm.0));
         self.emit_constant_fields(native_frame, temp, &mut constants)?;
         self.spare_fields = constants;
         if site.is_some() {
@@ -1647,7 +1645,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             constants,
         );
         constants.extend([
-            (offsets.execution_context_realm, 8, header.function.realm.0),
             (offsets.execution_context_executable, 8, header.executable.0),
             (offsets.execution_context_slot_count, 4, u64::from(header.slot_count)),
             (

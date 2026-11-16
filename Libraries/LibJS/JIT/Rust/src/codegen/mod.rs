@@ -2235,14 +2235,19 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
     /// `LoadFrameField`: a field of the running execution context.
     fn emit_load_frame_field(&mut self, node_id: NodeId, field: FrameField) {
         let offsets = self.runtime.offsets;
+        let output = self.output(node_id);
         let offset = match field {
             FrameField::LexicalEnvironment => offsets.execution_context_lexical_environment,
             FrameField::VariableEnvironment => offsets.execution_context_variable_environment,
             FrameField::PrivateEnvironment => offsets.execution_context_private_environment,
-            FrameField::Realm => offsets.execution_context_realm,
+            // NB: The running frame runs in the current realm.
+            FrameField::Realm => {
+                self.masm
+                    .load64(output, &Address::new(self.pinned.vm, offsets.vm_current_realm as i32));
+                return;
+            }
             FrameField::Executable => offsets.execution_context_executable,
         };
-        let output = self.output(node_id);
         self.masm.load64(output, &self.frame_field(offset));
     }
 

@@ -332,7 +332,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.section("ExecutionContext layout");
     assert_eq!(align_of::<ExecutionContext>(), value_size);
     field!(w, "EXECUTION_CONTEXT_FUNCTION", "ExecutionContext.function", "Object", ExecutionContext, function, 8, "nullable", "cell", "function_and_realm");
-    field!(w, "EXECUTION_CONTEXT_REALM", "ExecutionContext.realm", "Realm", ExecutionContext, realm, 8, "nullable", "cell", "function_and_realm");
+    field!(w, "EXECUTION_CONTEXT_REALM_WITHOUT_FUNCTION", "ExecutionContext.realm_without_function", "Realm", ExecutionContext, realm_without_function, 8, "nullable", "cell", "function_and_realm");
     field!(w, "EXECUTION_CONTEXT_SCRIPT_OR_MODULE_WITHOUT_FUNCTION", "ExecutionContext.script_or_module_without_function", "u64", ExecutionContext, script_or_module_without_function, 8, "nullable", "scalar");
     field!(w, "EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT", "ExecutionContext.lexical_environment", "Environment", ExecutionContext, lexical_environment, 8, "nullable", "cell", "environments");
     field!(w, "EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT", "ExecutionContext.variable_environment", "Environment", ExecutionContext, variable_environment, 8, "nullable", "cell", "environments");
@@ -401,6 +401,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.line("field VM.native_function_table Sequence<NativeFunctionTableEntry> VM_NATIVE_FUNCTION_TABLE_DATA nonnull scalar");
     offset!(w, "VM_DISPATCH_TABLES", VmHead, dispatch_tables);
     w.line("field VM.dispatch_tables Sequence<u64> VM_DISPATCH_TABLES embedded scalar");
+    field!(w, "VM_CURRENT_REALM", "VM.current_realm", "Realm", VmHead, current_realm, 8, "nullable", "cell");
     w.constant("DISPATCH_TABLE_INDEX_MASK", DISPATCH_TABLE_INDEX_MASK);
     offset!(w, "VM_INTERPRETER_STACK_TOP", VmHead, interpreter_stack.top);
     offset!(w, "VM_INTERPRETER_STACK_LIMIT", VmHead, interpreter_stack.limit);

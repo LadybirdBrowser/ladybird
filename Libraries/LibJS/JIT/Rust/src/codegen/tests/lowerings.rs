@@ -2024,7 +2024,8 @@ fn property_iterator_next_reads_key_snapshots() {
 // Rare data has its binding flags at word 5. Environment shapes have their
 // flag count at word 5 and their flags at word 7. Realms have the global
 // object at word 3 and the global declarative environment at word 4. The
-// frame has the variable environment at word 12 and the realm at word 9.
+// frame has the variable environment at word 12, and the fake VM has the
+// current realm at word 7.
 
 const BINDING_MUTABLE: u8 = 2;
 
@@ -2391,7 +2392,7 @@ impl FakeGlobals {
         });
         let (result, machine) = run_program(&program, arguments, |machine| {
             machine.frame[4] = self.executable.as_ptr() as u64;
-            machine.frame[9] = self.realm.as_ptr() as u64;
+            machine.vm[VM_CURRENT_REALM_WORD] = self.realm.as_ptr() as u64;
         });
         (result, machine.vm[VM_SLOW_PUTS_WORD])
     }
@@ -3273,7 +3274,7 @@ fn get_by_id_reads_direct_getter_wrappers_inline_from(compressed_field: bool) {
     fake.object[10] = implementation.as_ptr() as u64;
     let target = NativeCallTarget {
         function: CellId(function.as_ptr() as u64),
-        realm: CellId(0x7000),
+        realm: CellId(crate::builder::tests::inlining::REALM),
         entry: core::num::NonZeroU64::new(fake_native_getter as *const () as u64),
         direct_getter: Some(DirectGetterFields {
             wrapper_implementation: 80,
@@ -3373,7 +3374,7 @@ fn put_by_id_calls_native_setters_of_prototypes() {
     let fake = FakeCachedObject::new(&[value::int32(10)]);
     let target = NativeCallTarget {
         function: CellId(function.as_ptr() as u64),
-        realm: CellId(0x7000),
+        realm: CellId(crate::builder::tests::inlining::REALM),
         entry: core::num::NonZeroU64::new(fake_native_setter as *const () as u64),
         direct_getter: None,
     };

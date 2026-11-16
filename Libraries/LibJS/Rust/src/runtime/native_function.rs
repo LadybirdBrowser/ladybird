@@ -290,7 +290,7 @@ impl NativeFunction {
 
         // 5. Let calleeRealm be F.[[Realm]].
         // 6. Set the Realm of calleeContext to calleeRealm.
-        callee_context.realm.set(Some(function.realm()));
+        // NB: The context gets its realm from its function.
 
         // 7. Set the ScriptOrModule of calleeContext to null.
         // Note: This is already the default value.
@@ -342,7 +342,8 @@ impl NativeFunction {
         if vm.did_reach_stack_space_limit() && !function.methods().ignores_stack_space_limit {
             return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
         }
-        vm.push_execution_context(NonNull::from(callee_context));
+        // NB: The realm of the context is F.[[Realm]] (see step 6).
+        vm.push_execution_context_in_realm(NonNull::from(callee_context), Some(function.realm()));
 
         // 10. Let result be the Completion Record that is the result of evaluating F in a manner that conforms to the specification of F. thisArgument is the this value, argumentsList provides the named parameters, and the NewTarget value is undefined.
         let result = function.call(vm);
@@ -376,7 +377,7 @@ impl NativeFunction {
 
         // 5. Let calleeRealm be F.[[Realm]].
         // 6. Set the Realm of calleeContext to calleeRealm.
-        callee_context.realm.set(Some(function.realm()));
+        // NB: The context gets its realm from its function.
 
         // 7. Set the ScriptOrModule of calleeContext to null.
         // Note: This is already the default value.
@@ -416,7 +417,11 @@ impl NativeFunction {
         // </8.> --------------------------------------------------------------------------
 
         // 9. Push calleeContext onto the execution context stack; calleeContext is now the running execution context.
-        vm.push_execution_context_checking_stack_space(NonNull::from(callee_context))?;
+        if vm.did_reach_stack_space_limit() {
+            return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
+        }
+        // NB: The realm of the context is F.[[Realm]] (see step 6).
+        vm.push_execution_context_in_realm(NonNull::from(callee_context), Some(function.realm()));
 
         // 10. Let result be the Completion Record that is the result of evaluating F in a manner that conforms to the specification of F. The this value is uninitialized, argumentsList provides the named parameters, and newTarget provides the NewTarget value.
         let result = function.construct(vm, new_target);

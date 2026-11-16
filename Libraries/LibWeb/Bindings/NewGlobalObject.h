@@ -21,7 +21,7 @@ template<typename T>
 JS::ThrowCompletionOr<T> run_in_a_new_global_object(JS::VM& vm, Function<JS::ThrowCompletionOr<T>(JS::Realm&)> const& steps)
 {
     auto execution_context = MUST(JS::Realm::initialize_host_defined_realm(vm, nullptr, nullptr));
-    auto result = steps(*execution_context->realm);
+    auto result = steps(*execution_context->realm());
     auto* popped_execution_context = vm.pop_execution_context();
     VERIFY(popped_execution_context == execution_context.ptr());
 

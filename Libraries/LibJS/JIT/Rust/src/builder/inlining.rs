@@ -673,7 +673,11 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             unreachable!("calls are generic instructions");
         };
         let slots_offset = u64::from(self.runtime.offsets.execution_context_slots);
-        if let Some(native) = feedback.native_call.filter(|native| native.entry.is_some()) {
+        // NB: Calls into another realm are the runtime's (see `RuntimeOffsets::vm_current_realm`).
+        if let Some(native) = feedback
+            .native_call
+            .filter(|native| native.entry.is_some() && native.realm == self.runtime.realm)
+        {
             // NB: Native calls take the callee, the `this` value and the
             //     arguments as inputs like direct calls do.
             let mut inputs = ZoneVec::with_capacity_in(arguments.len() + 2, self.work);
@@ -748,7 +752,12 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         instruction: &Instruction,
         bits: u64,
     ) -> Result<Option<Flow>, CompileFailure> {
-        let Some(target) = self.direct_call_functions.get(&bits).copied() else {
+        let Some(target) = self
+            .direct_call_functions
+            .get(&bits)
+            .copied()
+            .filter(|target| target.function.realm == self.runtime.realm)
+        else {
             return Ok(None);
         };
         let index = u32::try_from(self.graph.direct_call_targets.len()).expect("target count fits in u32");
@@ -777,6 +786,10 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         let Handling::Generic(info) = handling(OpCode::Call) else {
             unreachable!("calls are generic instructions");
         };
+        // NB: Calls into another realm are the runtime's (see `RuntimeOffsets::vm_current_realm`).
+        if target.function.realm != self.runtime.realm {
+            return Ok(None);
+        }
         // NB: Direct calls take the callee, the `this` value if the callee
         //     reads it, and the arguments as inputs (see
         //     `codegen::DIRECT_CALL_MAX_INPUTS`), and store them straight
@@ -2194,7 +2207,11 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     ) -> Option<InlinableCallee<'a>> {
         let snapshot = self.snapshot;
         let callee_executable = snapshot.executables.get(index as usize)?;
-        callee_executable.function?;
+        // NB: Calls into another realm are the runtime's, which changes the current realm (see
+        //     `RuntimeOffsets::vm_current_realm`).
+        if callee_executable.function?.realm != self.runtime.realm {
+            return None;
+        }
         let may_inline = if checks_callee {
             self.may_inline_calls_of_below(callee_executable, inlined_above)
         } else {
@@ -2345,8 +2362,6 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         };
 
         self.embed(function.function);
-        // NB: Materialized frames store the realm.
-        self.embed(function.realm);
         if let Some(closure) = closure
             && check_closure
         {

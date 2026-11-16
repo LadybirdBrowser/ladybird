@@ -257,7 +257,7 @@ impl SyntheticModule {
         let module_context_ref = unsafe { module_context.as_ref() };
 
         // 3. Set the Realm of moduleContext to module.[[Realm]].
-        module_context_ref.realm.set(Some(realm));
+        module_context_ref.set_realm(Some(realm));
 
         // 4. Set the ScriptOrModule of moduleContext to module.
         module_context_ref.set_script_or_module(ScriptOrModule::Module(self.as_gc()));

@@ -468,11 +468,7 @@ fn compile(
     //     happens before the snapshot captures which valid sets the realm holds.
     let realm = match function {
         Some(function) => function.realm().expect("an ECMAScript function has a realm"),
-        None => vm
-            .running_execution_context_ref()
-            .realm
-            .get()
-            .expect("the frame of top-level code has a realm"),
+        None => vm.current_realm().expect("the frame of top-level code has a realm"),
     };
     realm_watchpoints::array_iterators_have_no_return(vm, realm);
     realm_watchpoints::array_iterators_have_builtin_next(vm, realm);

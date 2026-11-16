@@ -160,12 +160,12 @@ ModuleMap& EnvironmentSettingsObject::module_map()
 JS::Realm& EnvironmentSettingsObject::realm()
 {
     // An environment settings object's realm execution context's Realm component is the environment settings object's Realm.
-    return *realm_execution_context().realm;
+    return *realm_execution_context().realm();
 }
 
 JS::Realm const& EnvironmentSettingsObject::realm() const
 {
-    return *realm_execution_context().realm;
+    return *realm_execution_context().realm();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-global
@@ -440,7 +440,7 @@ EnvironmentSettingsObject& incumbent_settings_object()
     }
 
     // 3. Return context's Realm component's settings object.
-    return principal_realm_settings_object(*context->realm);
+    return principal_realm_settings_object(*context->realm());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-global
@@ -658,13 +658,13 @@ JS::Realm& entry_realm()
     // With this in hand, we define the entry execution context to be the most recently pushed item in the JavaScript execution context stack that is a realm execution context.
     // The entry realm is the entry execution context's Realm component.
     auto entry_execution_context = vm.last_execution_context_matching([](JS::ExecutionContext* context) {
-        if (!context->realm)
+        if (!context->realm())
             return false;
-        return &principal_realm_settings_object(*context->realm).realm_execution_context() == context;
+        return &principal_realm_settings_object(*context->realm()).realm_execution_context() == context;
     });
 
     VERIFY(entry_execution_context.has_value());
-    return *entry_execution_context.value()->realm;
+    return *entry_execution_context.value()->realm();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#entry-settings-object

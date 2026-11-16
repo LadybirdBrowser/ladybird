@@ -375,6 +375,7 @@ pub fn call(
         );
     }
     if let Some(builtin) = value_as_native_javascript_backed_function(values.callee)
+        && vm.is_in_current_realm(builtin.as_function_object_gc())
         && let Some(executable) = builtin.inline_call_executable(vm)
     {
         record_callback(vm, vm.running_execution_context_ref(), pc, builtin, arguments);
@@ -607,6 +608,7 @@ pub fn call_construct(
     if let Some(function) = value_as_ecmascript_function_object(callee)
         && (function.can_inline_call() || function.is_class_constructor())
         && callee.is_constructor()
+        && vm.is_in_current_realm(function.as_function_object_gc())
         && function.constructor_kind() == ConstructorKind::Base
         && !function.has_class_data()
         // NB: Taken before anything allocates: a collection could flush the code of the function otherwise, which this
@@ -763,6 +765,7 @@ fn super_call_with_arguments(
     if let Some(function) = value_as_ecmascript_function_object(super_constructor)
         && function.kind() == FunctionKind::Normal
         && super_constructor.is_constructor()
+        && vm.is_in_current_realm(function.as_function_object_gc())
         && match function.constructor_kind() {
             ConstructorKind::Base => !function.has_class_data(),
             // NB: The frame of such a derived constructor returns its this value for undefined (see
@@ -1008,7 +1011,7 @@ pub fn try_inline_call(vm: &Vm, pc: u32, instruction: &op::Call, values: &op::Ca
         return false;
     };
 
-    if !callee_function.can_inline_call() {
+    if !callee_function.can_inline_call() || !vm.is_in_current_realm(callee_function.as_function_object_gc()) {
         return false;
     }
 

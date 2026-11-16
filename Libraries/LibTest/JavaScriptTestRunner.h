@@ -206,7 +206,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
     auto root_execution_context = MUST(JS::Realm::initialize_host_defined_realm(*g_vm, nullptr, nullptr));
     auto& global_execution_context = *root_execution_context;
     // Nothing else keeps the realm alive while its execution context is off the stack.
-    auto realm = GC::make_root(*global_execution_context.realm);
+    auto realm = GC::make_root(*global_execution_context.realm());
     define_test_runner_globals(*realm, needs_timings());
     g_vm->pop_execution_context();
 

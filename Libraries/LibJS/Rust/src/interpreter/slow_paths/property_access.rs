@@ -1471,7 +1471,7 @@ pub fn try_inline_get_by_id_accessor(vm: &Vm, pc: u32, instruction: &op::GetById
         return false;
     };
 
-    if !getter_function.can_inline_call() {
+    if !getter_function.can_inline_call() || !vm.is_in_current_realm(getter_function.as_function_object_gc()) {
         return false;
     }
 

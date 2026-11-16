@@ -3291,6 +3291,11 @@ handler GetById(
             goto invoke_accessor_slow();
         }
 
+        # NB: A getter of another realm is the runtime's, which changes the
+        #     current realm.
+        let getter_realm = function.shape.realm;
+        let getter_realm_vm = current_vm();
+        guard getter_realm == getter_realm_vm.current_realm else invoke_accessor_slow;
         let raw_native_function: RawNativeFunction = alias(function);
         let native_function_index = raw_native_function.native_function_index;
         let native_table_vm = current_vm();
@@ -3316,9 +3321,7 @@ handler GetById(
         native_frame.slot_count = native_function_type;
         native_frame.argument_count = native_function_type;
         native_frame.passed_argument_count = 0;
-        let realm = function.shape.realm;
         native_frame.function = function;
-        native_frame.realm = realm;
         let lexical_environment = exec_ctx.lexical_environment;
         let variable_environment = exec_ctx.variable_environment;
         assert(lexical_environment != 0);
@@ -3876,7 +3879,8 @@ handler GetGlobal(
         call_slow_path(get_global);
     };
 
-    let realm = exec_ctx.realm;
+    let realm_vm = current_vm();
+    let realm = realm_vm.current_realm;
     let global_object = realm.global_object;
     let environment = realm.global_declarative_environment;
     let global_cache = load_global_variable_cache(cache);
@@ -3913,7 +3917,8 @@ handler ResolveGlobalBinding(
     };
 
     # A binding the cache of the SetGlobal or GetGlobal of the identifier still finds exists.
-    let realm = exec_ctx.realm;
+    let realm_vm = current_vm();
+    let realm = realm_vm.current_realm;
     let global_object = realm.global_object;
     let environment = realm.global_declarative_environment;
     let global_cache = load_global_variable_cache(cache);
@@ -3941,7 +3946,8 @@ handler SetGlobal(
         call_slow_path(set_global);
     };
 
-    let realm = exec_ctx.realm;
+    let realm_vm = current_vm();
+    let realm = realm_vm.current_realm;
     let global_object = realm.global_object;
     let environment = realm.global_declarative_environment;
     let global_cache = load_global_variable_cache(cache);
@@ -3996,7 +4002,9 @@ inline fn enter_ecmascript_function_call(
         receiver = load(this_value);
         if metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT {
             if receiver is Value<Nullish> {
-                receiver = alias(box_object(function.shape.realm.global_environment.global_this_value));
+                # NB: The callee runs in the current realm.
+                let this_vm = current_vm();
+                receiver = alias(box_object(this_vm.current_realm.global_environment.global_this_value));
             } else {
                 guard receiver is Value<Object> else resolve;
             }
@@ -4033,9 +4041,7 @@ inline fn enter_ecmascript_function_call(
     frame.slot_count = frame_slot_count;
     frame.argument_count = formal_count;
     frame.passed_argument_count = call_argument_count(argument_count);
-    let realm = function.shape.realm;
     frame.function = function;
-    frame.realm = realm;
     let lexical_environment = ecmascript_function.environment;
     assert(lexical_environment != 0);
     frame.lexical_environment = lexical_environment;
@@ -4137,9 +4143,7 @@ inline fn call_raw_native_function(
     native_frame.slot_count = actual_argument_count;
     native_frame.argument_count = actual_argument_count;
     native_frame.passed_argument_count = actual_argument_count;
-    let realm = function.shape.realm;
     native_frame.function = function;
-    native_frame.realm = realm;
     let lexical_environment = exec_ctx.lexical_environment;
     let variable_environment = exec_ctx.variable_environment;
     assert(lexical_environment != 0);
@@ -4311,6 +4315,11 @@ handler Call(
     let metadata = shared_data.asm_call_metadata;
     guard metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL else slow;
     guard metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION else invoke_interp_inline;
+    # NB: A call into another realm is the runtime's, which changes the
+    #     current realm. A site's call cache is never linked to such a callee.
+    let callee_realm = function.shape.realm;
+    let realm_vm = current_vm();
+    guard callee_realm == realm_vm.current_realm else slow;
     link_call_cache(call_feedback, callee, alias(executable_pointer), call_site_flags);
     let argument_operand_indices = &arguments;
     enter_ecmascript_function_call(function, executable_pointer, metadata, dst, this_value, argument_count, argument_operand_indices, slow) else invoke_interp_inline;
@@ -4335,6 +4344,9 @@ handler Call(
         let raw_native_function: RawNativeFunction = alias(function);
         let native_function_index = raw_native_function.native_function_index;
         let native_target: u64 = (alias(native_function_index) << CALL_CACHE_TARGET_INDEX_SHIFT) | CALL_CACHE_TARGET_NATIVE_FUNCTION;
+        let native_realm = function.shape.realm;
+        let native_realm_vm = current_vm();
+        guard native_realm == native_realm_vm.current_realm else slow;
         link_call_cache(call_feedback, callee, native_target, call_site_flags);
         let argument_operand_indices = &arguments;
         call_raw_native_function(function, native_function_index, call_feedback, dst, this_value, argument_count, argument_operand_indices) else slow;
@@ -4431,7 +4443,8 @@ handler IteratorClose(
     # In fast array mode, the iterator register holds a number. A watchpoint set of the realm tells if array
     # iterators have a return method.
     if extract_tag(load(iterator_object)) == INT32_TAG {
-        let return_watchpoint_set = exec_ctx.realm.array_iterator_return_watchpoint_set;
+        let watchpoint_vm = current_vm();
+        let return_watchpoint_set = watchpoint_vm.current_realm.array_iterator_return_watchpoint_set;
         guard return_watchpoint_set != 0 else slow;
         guard return_watchpoint_set.valid else slow;
         dispatch_next;

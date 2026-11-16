@@ -325,8 +325,7 @@ impl TestRunner {
         };
         let root_execution_context = Realm::initialize_host_defined_realm(vm, Some(&create_global_object), None).must();
         let realm = root_execution_context
-            .realm
-            .get()
+            .realm()
             .expect("InitializeHostDefinedRealm sets the realm of its context");
         let global_execution_context = root_execution_context.as_non_null();
         vm.pop_execution_context();

@@ -139,7 +139,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
             return browsing_context->window_proxy()->object();
         });
 
-    auto& realm = *realm_execution_context->realm;
+    auto& realm = *realm_execution_context->realm();
 
     // 11. Let topLevelCreationURL be the return value of running these steps:
     auto top_level_creation_url = [&] {

@@ -301,7 +301,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto vm = JS::VM::create();
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-    auto& realm = *root_execution_context->realm;
+    auto& realm = *root_execution_context->realm();
     IGNORE_USE_IN_ESCAPING_LAMBDA Wasm::Runtime::Store store { vm->heap() };
     // NB: The entities the utility allocates live until it exits.
     Vector<GC::Root<GC::ForeignCell>> roots;

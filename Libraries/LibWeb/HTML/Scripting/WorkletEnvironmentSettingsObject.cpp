@@ -26,7 +26,7 @@ GC::Ref<WorkletEnvironmentSettingsObject> WorkletEnvironmentSettingsObject::setu
     auto inherited_policy_container = outside_settings.policy_container()->clone();
 
     // 3. Let realm be the value of realmExecutionContext's Realm component.
-    auto realm = execution_context->realm;
+    auto realm = execution_context->realm();
     VERIFY(realm);
 
     // 4. Let workletGlobalScope be realm's global object.

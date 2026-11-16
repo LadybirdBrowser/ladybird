@@ -47,6 +47,18 @@ SourceCode const* ExecutionContext::source_code() const
     return reinterpret_cast<SourceCode const*>(js_source_code_of_execution_context(execution_context_to_abi(*this)));
 }
 
+GC::Ptr<Realm> ExecutionContext::realm() const
+{
+    return cell_from_abi<Realm>(js_execution_context_realm(execution_context_to_abi(*this)));
+}
+
+void ExecutionContext::set_realm(GC::Ptr<Realm> realm)
+{
+    // NB: The VM reads the realm of a context when it starts running.
+    VERIFY(!function);
+    realm_without_function = realm;
+}
+
 ScriptOrModule ExecutionContext::script_or_module() const
 {
     return bit_cast<ScriptOrModule>(js_execution_context_script_or_module(execution_context_to_abi(*this)));

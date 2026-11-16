@@ -434,7 +434,7 @@ public:
             },
             nullptr);
 
-        m_global_scope = Web::Bindings::impl_from<Web::HTML::WorkerGlobalScope>(execution_context->realm->global_object());
+        m_global_scope = Web::Bindings::impl_from<Web::HTML::WorkerGlobalScope>(execution_context->realm()->global_object());
         m_global_scope->set_url(url);
         m_global_scope->owner_set().append(outside.global.get<Web::HTML::SerializedWorkerGlobalScope>());
 

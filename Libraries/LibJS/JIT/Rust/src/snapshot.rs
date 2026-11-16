@@ -1617,6 +1617,10 @@ pub struct RuntimeOffsets {
     pub execution_context_slots: u32,
     /// `VmHead::running_execution_context`.
     pub vm_running_execution_context: u32,
+    /// `VmHead::current_realm` (cell pointer), the realm of the running
+    /// frame. JIT code calls functions of another realm through the
+    /// runtime, which changes it, and compiles no call of them inline.
+    pub vm_current_realm: u32,
     /// `Vm::jit_native_stack_limit` (u64): JIT code exits at entry if the
     /// stack pointer is below it, and its calls take their slow paths,
     /// which run the callee in the interpreter.
@@ -1646,8 +1650,6 @@ pub struct RuntimeOffsets {
     pub accessor_setter: u32,
     /// `ExecutionContext::function` (cell pointer).
     pub execution_context_function: u32,
-    /// `ExecutionContext::realm` (cell pointer).
-    pub execution_context_realm: u32,
     /// `ExecutionContext::variable_environment` (cell pointer).
     pub execution_context_variable_environment: u32,
     /// `ExecutionContext::frame_id` (u64).

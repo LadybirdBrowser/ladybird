@@ -114,7 +114,9 @@ struct JS_API ExecutionContext {
     GC_VISITS_THROUGH_FOREIGN_IMPLEMENTATION void visit_edges(GC::Cell::Visitor&);
 
     GC::Ptr<FunctionObject> function; // [[Function]]
-    GC::Ptr<Realm> realm;             // [[Realm]]
+    // The [[Realm]] of a context without a function. A context with a function runs in the function's realm, and
+    // this holds an old value: use realm() and set_realm().
+    GC::Ptr<Realm> realm_without_function;
     // The [[ScriptOrModule]] of a context without a function. That of a context with a function comes from the
     // function, and this holds an old value: use script_or_module() and set_script_or_module().
     ScriptOrModule script_or_module_without_function;
@@ -197,6 +199,10 @@ struct JS_API ExecutionContext {
     // code is the runtime's own, whose address identifies it.
     SourceCode const* source_code() const;
 
+    // [[Realm]]
+    GC::Ptr<Realm> realm() const;
+    void set_realm(GC::Ptr<Realm>);
+
     // [[ScriptOrModule]]
     ScriptOrModule script_or_module() const;
     void set_script_or_module(ScriptOrModule);
@@ -210,7 +216,7 @@ static_assert(sizeof(Optional<Value>) == sizeof(Value));
     static_assert(__builtin_offsetof(ExecutionContext, field) == JS_LAYOUT_EXECUTION_CONTEXT_##layout_name##_OFFSET); \
     static_assert(sizeof(ExecutionContext::field) == JS_LAYOUT_EXECUTION_CONTEXT_##layout_name##_SIZE);
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(function, FUNCTION)
-JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(realm, REALM)
+JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(realm_without_function, REALM_WITHOUT_FUNCTION)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(script_or_module_without_function, SCRIPT_OR_MODULE_WITHOUT_FUNCTION)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(lexical_environment, LEXICAL_ENVIRONMENT)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(variable_environment, VARIABLE_ENVIRONMENT)

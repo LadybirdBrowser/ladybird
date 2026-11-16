@@ -163,7 +163,7 @@ public:
     VM& vm() { return *this; }
     VM const& vm() const { return *this; }
 
-    [[nodiscard]] Realm& realm() { return *running_execution_context().realm; }
+    [[nodiscard]] Realm& realm() { return *current_realm(); }
     [[nodiscard]] Object& global_object() { return realm().global_object(); }
 
     ThrowCompletionOr<Value> run(Script&, GC::Ptr<Environment> lexical_environment_override = nullptr);
@@ -227,8 +227,10 @@ public:
         auto& entry = execution_context_stack_entries()[length];
         entry.execution_context = &execution_context;
         entry.previous_running_execution_context = running_execution_context_or_null();
+        entry.previous_realm = engine_head_field<Realm*>(JS_LAYOUT_VM_CURRENT_REALM_OFFSET);
         set_engine_head_field<size_t>(JS_LAYOUT_VM_EXECUTION_CONTEXT_STACK_LENGTH_OFFSET, length + 1);
         set_engine_head_field<ExecutionContext*>(JS_LAYOUT_VM_RUNNING_EXECUTION_CONTEXT_OFFSET, &execution_context);
+        set_engine_head_field<Realm*>(JS_LAYOUT_VM_CURRENT_REALM_OFFSET, execution_context.realm().ptr());
     }
 
     ExecutionContext* pop_execution_context()
@@ -238,6 +240,7 @@ public:
         auto const& entry = execution_context_stack_entries()[length - 1];
         set_engine_head_field<size_t>(JS_LAYOUT_VM_EXECUTION_CONTEXT_STACK_LENGTH_OFFSET, length - 1);
         set_engine_head_field<ExecutionContext*>(JS_LAYOUT_VM_RUNNING_EXECUTION_CONTEXT_OFFSET, entry.previous_running_execution_context);
+        set_engine_head_field<Realm*>(JS_LAYOUT_VM_CURRENT_REALM_OFFSET, entry.previous_realm.ptr());
         return entry.execution_context;
     }
 
@@ -346,8 +349,16 @@ public:
 
     // https://tc39.es/ecma262/#current-realm
     // The value of the Realm component of the running execution context is also called the current Realm Record.
-    Realm const* current_realm() const { return running_execution_context().realm.ptr(); }
-    Realm* current_realm() { return running_execution_context().realm.ptr(); }
+    Realm const* current_realm() const
+    {
+        VERIFY(running_execution_context_or_null());
+        return engine_head_field<Realm*>(JS_LAYOUT_VM_CURRENT_REALM_OFFSET);
+    }
+    Realm* current_realm()
+    {
+        VERIFY(running_execution_context_or_null());
+        return engine_head_field<Realm*>(JS_LAYOUT_VM_CURRENT_REALM_OFFSET);
+    }
 
     // https://tc39.es/ecma262/#active-function-object
     // The value of the Function component of the running execution context is also called the active function object.
@@ -525,14 +536,16 @@ private:
     }
 
     // An entry of the runtime's execution context stack: a context pushed onto it, and the context that was running
-    // when it was pushed.
+    // when it was pushed, with the current realm of then, which the pop of the entry makes current again.
     struct ExecutionContextStackEntry {
         ExecutionContext* execution_context;
         ExecutionContext* previous_running_execution_context;
+        GC::RawPtr<Realm> previous_realm;
     };
     static_assert(sizeof(ExecutionContextStackEntry) == JS_LAYOUT_EXECUTION_CONTEXT_STACK_ENTRY_SIZE);
     static_assert(__builtin_offsetof(ExecutionContextStackEntry, execution_context) == JS_LAYOUT_EXECUTION_CONTEXT_STACK_ENTRY_EXECUTION_CONTEXT_OFFSET);
     static_assert(__builtin_offsetof(ExecutionContextStackEntry, previous_running_execution_context) == JS_LAYOUT_EXECUTION_CONTEXT_STACK_ENTRY_PREVIOUS_RUNNING_EXECUTION_CONTEXT_OFFSET);
+    static_assert(__builtin_offsetof(ExecutionContextStackEntry, previous_realm) == JS_LAYOUT_EXECUTION_CONTEXT_STACK_ENTRY_PREVIOUS_REALM_OFFSET);
 
     ExecutionContextStackEntry* execution_context_stack_entries() const
     {

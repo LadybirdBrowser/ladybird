@@ -466,7 +466,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         auto realm_execution_context = HTML::create_window_realm(window, *browsing_context, agent_cluster_cross_origin_isolation_mode);
 
         // 6. Set window to the global object of realmExecutionContext's Realm component.
-        window = HTML::window_from_global_object(realm_execution_context->realm->global_object());
+        window = HTML::window_from_global_object(realm_execution_context->realm()->global_object());
         VERIFY(window);
 
         // 7. Let topLevelCreationURL be creationURL.

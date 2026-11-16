@@ -1268,7 +1268,7 @@ pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMo
     // NOTE: This was done in the construction of eval_context.
 
     // 24. Set evalContext's Realm to evalRealm.
-    eval_context.realm.set(Some(eval_realm));
+    eval_context.set_realm(Some(eval_realm));
 
     // 25. Set evalContext's ScriptOrModule to runningContext's ScriptOrModule.
     eval_context.set_script_or_module(running_context.script_or_module());

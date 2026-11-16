@@ -43,7 +43,7 @@ TEST_CASE(http_redirect_fetch_releases_intermediate_response_transfer_lease)
 {
     auto vm = JS::VM::create();
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
-    auto& realm = *root_execution_context->realm;
+    auto& realm = *root_execution_context->realm();
 
     auto request_url = URL::Parser::basic_parse("https://example.test/start"sv);
     VERIFY(request_url.has_value());
