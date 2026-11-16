@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    .line {
+        font: 10px/30px Ahem;
+    }
+    .tall {
+        font: 40px/40px Ahem;
+    }
+    .raised {
+        vertical-align: 4px;
+    }
+</style>
+<!-- A box raised by a vertical-align length leaves the strut on the baseline even when a taller box sets the baseline
+     of the line box. The strut reaches 12px below the baseline, so both line boxes are 44px tall, whichever box comes
+     first. -->
+<div class="line"><span class="tall">A</span><span class="raised">B</span></div>
+<div class="line"><span class="raised">B</span><span class="tall">A</span></div>
