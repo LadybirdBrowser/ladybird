@@ -164,18 +164,6 @@ public:
         m_public_key = pubkey;
     }
 
-    RSA(ByteBuffer const& publicKeyPEM, ByteBuffer const& privateKeyPEM)
-    {
-        import_public_key(publicKeyPEM);
-        import_private_key(privateKeyPEM);
-    }
-
-    RSA(StringView privKeyPEM)
-    {
-        import_private_key(privKeyPEM.bytes());
-        m_public_key = RSAPublicKey(m_private_key.modulus(), m_private_key.public_exponent());
-    }
-
     virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes in) override;
     virtual ErrorOr<ByteBuffer> decrypt(ReadonlyBytes in) override;
 
@@ -186,9 +174,6 @@ public:
     {
         return "RSA";
     }
-
-    void import_public_key(ReadonlyBytes, bool pem = true);
-    void import_private_key(ReadonlyBytes, bool pem = true);
 
     PrivateKeyType const& private_key() const { return m_private_key; }
     PublicKeyType const& public_key() const { return m_public_key; }
