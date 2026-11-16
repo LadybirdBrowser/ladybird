@@ -1150,6 +1150,15 @@
     "-libweb-left",
     "-libweb-right"
   ],
+  "text-align-last": [
+    "auto",
+    "start",
+    "end",
+    "left",
+    "right",
+    "center",
+    "justify"
+  ],
   "text-anchor": [
     "start",
     "middle",

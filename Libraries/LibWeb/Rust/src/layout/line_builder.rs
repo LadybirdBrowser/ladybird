@@ -493,7 +493,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let line_index = self.ensure_last_line_index();
         let fragment_index = self.line(line_index).fragments.len();
         let fragment_facts = self.fragment_facts(node);
-        let text_align_is_justify = self.style(fragment_facts.style_source).text_align() == text_align::JUSTIFY;
+        let text_align_is_justify = may_justify_lines(self.containing_style());
         self.line_mut(line_index).add_fragment(
             node,
             0,
@@ -701,7 +701,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             };
         }
         let facts = self.fragment_facts(node);
-        let text_align_is_justify = self.style(facts.style_source).text_align() == text_align::JUSTIFY;
+        let text_align_is_justify = may_justify_lines(self.containing_style());
         self.line_mut(line_index).add_fragment(
             node,
             offset_in_node,
@@ -1216,22 +1216,28 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let start_inline_offset = self
             .context()
             .leftmost_inline_offset_at(self.current_block_offset, fitted_height);
+        let uses_last_line_alignment = !has_immediate_continuation || self.line(line_index).has_forced_break;
+        self.line_mut(line_index).uses_last_line_alignment = Some(uses_last_line_alignment);
+        let text_align = line_text_align(containing_style, uses_last_line_alignment);
+        // NB: A line's direction is its block's, unless unicode-bidi: plaintext gave the line the direction of its own
+        //     first strong character, and start and end are that direction's edges.
+        let line_direction = self.line(line_index).direction;
         let aligned_inline_offset = |inline_length| {
             let excess = self.available_inline_size_for_current_line.to_px_or_zero() - inline_length;
             if excess < CssPixels::default() {
-                return if containing_style.direction() == direction::RTL {
+                return if line_direction == direction::RTL {
                     start_inline_offset + excess
                 } else {
                     start_inline_offset
                 };
             }
             start_inline_offset
-                + match containing_style.text_align() {
+                + match text_align {
                     text_align::CENTER | text_align::_LIBWEB_CENTER | text_align::_LIBWEB_INHERIT_OR_CENTER => {
                         excess / 2
                     }
-                    text_align::START if containing_style.direction() == direction::RTL => excess,
-                    text_align::END if containing_style.direction() == direction::LTR => excess,
+                    text_align::START if line_direction == direction::RTL => excess,
+                    text_align::END if line_direction == direction::LTR => excess,
                     text_align::RIGHT | text_align::_LIBWEB_RIGHT => excess,
                     text_align::MATCH_PARENT => unreachable!("match-parent must be resolved"),
                     _ => CssPixels::default(),
@@ -1734,6 +1740,37 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
 }
 
 // https://drafts.csswg.org/css2/#propdef-vertical-align
+// https://drafts.csswg.org/css-text-3/#text-align-last-property
+// This property describes how the last line of a block or a line right before a forced line break is aligned.
+/// The text-align a line takes: the block's text-align-last for its last line or a line before a forced break, and its
+/// text-align for any other.
+pub(crate) fn line_text_align(style: StyleValues, uses_last_line_alignment: bool) -> u8 {
+    if !uses_last_line_alignment {
+        return style.text_align();
+    }
+    match style.text_align_last() {
+        // If auto is specified, content on the affected line is aligned per text-align-all unless text-align-all is set
+        // to justify, in which case it is start-aligned.
+        text_align_last::AUTO => match style.text_align() {
+            text_align::JUSTIFY => text_align::START,
+            text_align => text_align,
+        },
+        // All other values are interpreted as described for text-align.
+        text_align_last::START => text_align::START,
+        text_align_last::END => text_align::END,
+        text_align_last::LEFT => text_align::LEFT,
+        text_align_last::RIGHT => text_align::RIGHT,
+        text_align_last::CENTER => text_align::CENTER,
+        text_align_last::JUSTIFY => text_align::JUSTIFY,
+        _ => unreachable!("text-align-last computes to one of its keywords"),
+    }
+}
+
+/// Whether any line of a block with this style may be justified, which keeps its whitespace in fragments of its own.
+pub(crate) fn may_justify_lines(style: StyleValues) -> bool {
+    style.text_align() == text_align::JUSTIFY || style.text_align_last() == text_align_last::JUSTIFY
+}
+
 fn line_relative_alignment(style: StyleValues) -> Option<u8> {
     let keyword = style
         .vertical_align_is_keyword()

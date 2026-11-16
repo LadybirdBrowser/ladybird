@@ -1,0 +1,17 @@
+right, last start: right left
+justify, last auto: full left
+justify, last justify: full full
+center, last right, br: right center right
+justify, last center, pre-line: full center center
+left, last right, block child: left right right right
+rtl, last start: left right
+match-parent under rtl start: left right
+single line, last justify: full
+rtl justify, last end: full left
+text-justify none, last justify: left left
+center, last auto: center center
+last justify, inline child: full
+last justify, two br: full full full
+last justify, nowrap span with last start: full
+justify, nowrap span with left: full left
+rtl last justify, inline-blocks: full

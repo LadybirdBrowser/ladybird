@@ -358,9 +358,8 @@ pub(crate) fn apply_to_fragments(
     text_justify: u8,
     atomic_items_are_right_to_left: bool,
     line: &mut line_box::LineBoxData,
-    is_last_line: bool,
 ) {
-    if text_justify == text_justify::NONE || is_last_line || line.has_forced_break {
+    if text_justify == text_justify::NONE {
         return;
     }
     assert!(matches!(
@@ -369,6 +368,12 @@ pub(crate) fn apply_to_fragments(
     ));
 
     let excess_inline_space = line.original_available_inline_size.to_px_or_zero() - line.inline_length;
+    // https://drafts.csswg.org/css-text-3/#text-align-property
+    // If (after justification, if any) the inline contents of a line box are too long to fit within it, then the
+    // contents are start-aligned: any content that doesn't fit overflows the line box's end edge.
+    if excess_inline_space < CssPixels::default() {
+        return;
+    }
     let mut excess_inline_space_including_whitespace = excess_inline_space;
     let mut whitespace_count = 0usize;
     for fragment in &line.fragments {
@@ -1644,6 +1649,7 @@ impl<'context> InlineFormattingContext<'context> {
                 inline_box_baselines: Vec::new(),
                 text_overflow_elision: None,
                 block_level_box: None,
+                uses_last_line_alignment: None,
             };
             fragment_start = fragment_end;
             let line_item_start = item_index;
@@ -2975,24 +2981,31 @@ impl<'context> InlineFormattingContext<'context> {
                 }
             }
         }
+        if !self.parent.has_line_clamp() {
+            line_builder.update_last_line(false);
+        }
         let containing_style = self.style(self.containing_block);
-        if containing_style.text_align() == text_align::JUSTIFY {
+        if line_builder::may_justify_lines(containing_style) {
             let line_count = self.line_data().line_boxes.len();
             for index in 0..line_count {
-                let is_last_line = index + 1 == line_count
-                    && self.line_data().line_boxes[index]
-                        .inline_length_before_block_ellipsis
-                        .is_none();
+                let uses_last_line_alignment = {
+                    let line_data = self.line_data();
+                    let line = &line_data.line_boxes[index];
+                    line.uses_last_line_alignment.unwrap_or_else(|| {
+                        let is_last_line =
+                            index + 1 == line_count && line.inline_length_before_block_ellipsis.is_none();
+                        is_last_line || line.has_forced_break
+                    })
+                };
+                if line_builder::line_text_align(containing_style, uses_last_line_alignment) != text_align::JUSTIFY {
+                    continue;
+                }
                 apply_to_fragments(
                     containing_style.text_justify(),
                     self.atomic_items_are_right_to_left,
                     &mut self.line_data_mut().line_boxes[index],
-                    is_last_line,
                 );
             }
-        }
-        if !self.parent.has_line_clamp() {
-            line_builder.update_last_line(false);
         }
 
         if self.parent.keeps_column_box_layouts()

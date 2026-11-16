@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .t { width: 330px; font: 16px monospace; margin: 4px 0; }
+</style>
+<div id="cases">
+    <div class="t" data-name="right, last start" style="text-align: right; text-align-last: start">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq</div>
+    <div class="t" data-name="justify, last auto" style="text-align: justify">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq</div>
+    <div class="t" data-name="justify, last justify" style="text-align: justify; text-align-last: justify">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq</div>
+    <div class="t" data-name="center, last right, br" style="text-align: center; text-align-last: right">aaa bbb<br>ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp</div>
+    <div class="t" data-name="justify, last center, pre-line" style="white-space: pre-line; text-align: justify; text-align-last: center">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn
+ooo ppp qqq</div>
+    <div class="t" data-name="left, last right, block child" style="text-align: left; text-align-last: right">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo<div>child</div>ppp qqq</div>
+    <div class="t" data-name="rtl, last start" dir="rtl" style="text-align: left; text-align-last: start">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq</div>
+    <div dir="rtl" style="text-align-last: start"><div class="t" dir="ltr" data-name="match-parent under rtl start" style="text-align-last: match-parent">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq</div></div>
+    <div class="t" data-name="single line, last justify" style="text-align-last: justify">aaa bbb ccc</div>
+    <div class="t" data-name="rtl justify, last end" dir="rtl" style="text-align: justify; text-align-last: end">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq</div>
+    <div class="t" data-name="text-justify none, last justify" style="text-justify: none; text-align-last: justify">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq</div>
+    <div class="t" data-name="center, last auto" style="text-align: center">aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq</div>
+    <div class="t" data-name="last justify, inline child" style="text-align-last: justify">aaa <b>bbb ccc</b> ddd</div>
+    <div class="t" data-name="last justify, two br" style="text-align-last: justify">aaa bbb<br>ccc ddd<br>eee fff</div>
+    <div class="t" data-name="last justify, nowrap span with last start" style="text-align-last: justify"><span style="text-align-last: start; white-space: nowrap">aaa bbb ccc</span></div>
+    <div class="t" data-name="justify, nowrap span with left" style="text-align: justify"><span style="text-align: left; white-space: nowrap">aaa bbb ccc</span> <span style="text-align: left">ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq</span></div>
+    <div class="t" data-name="rtl last justify, inline-blocks" dir="rtl" style="text-align-last: justify"><span class="w" style="display: inline-block; width: 20px; height: 10px"></span> <span class="w" style="display: inline-block; width: 20px; height: 10px"></span></div>
+</div>
+<script>
+    // How each line of each block is aligned: left, right, center, or full (justified, or filling the line).
+    function wrapWords(node) {
+        for (const child of [...node.childNodes]) {
+            if (child.nodeType === Node.TEXT_NODE) {
+                const parts = child.data.split(/(\s+)/);
+                const fragment = document.createDocumentFragment();
+                for (const part of parts) {
+                    if (!part) continue;
+                    if (/^\s+$/.test(part)) { fragment.append(part); continue; }
+                    const span = document.createElement("span");
+                    span.className = "w";
+                    span.textContent = part;
+                    fragment.append(span);
+                }
+                child.replaceWith(fragment);
+            } else if (child.nodeType === Node.ELEMENT_NODE) {
+                wrapWords(child);
+            }
+        }
+    }
+    for (const t of document.querySelectorAll(".t")) wrapWords(t);
+    function classify(t) {
+        const box = t.getBoundingClientRect();
+        const lines = new Map();
+        for (const w of t.querySelectorAll(".w")) {
+            const r = w.getBoundingClientRect();
+            const key = Math.round(r.top);
+            const line = lines.get(key) || { left: Infinity, right: -Infinity, words: 0 };
+            line.left = Math.min(line.left, r.left); line.right = Math.max(line.right, r.right); line.words++;
+            lines.set(key, line);
+        }
+        return [...lines.values()].map(l => {
+            const gl = Math.round(l.left - box.left), gr = Math.round(box.right - l.right);
+            let kind;
+            if (gl <= 1 && gr <= 1) kind = l.words > 1 ? "full" : "fills";
+            else if (gl <= 1) kind = "left";
+            else if (gr <= 1) kind = "right";
+            else if (Math.abs(gl - gr) <= 1) kind = "center";
+            else kind = `?(${gl},${gr})`;
+            return kind;
+        }).join(" ");
+    }
+    test(() => {
+        for (const t of document.querySelectorAll(".t"))
+            println(`${t.dataset.name}: ${classify(t)}`);
+        document.getElementById("cases").remove();
+    });
+</script>
