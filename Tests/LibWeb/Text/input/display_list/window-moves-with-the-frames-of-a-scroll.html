@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    body > div { height: 500px; }
+    body > div:nth-child(odd) { background: #cde; }
+</style>
+<body>
+<script>
+// A frame that scrolls the page further than the window of the published recording reaches records a display list
+// for a window placed where the page is now, without anything else asking for one. Each step scrolls, lets the
+// frames of the scroll go by, and then changes one block and records: a block the frames recorded is copied, and
+// one they left out would be recorded here.
+for (let i = 0; i < 12; ++i) {
+    const block = document.createElement("div");
+    block.id = "b" + i;
+    block.textContent = "block " + i;
+    document.body.appendChild(block);
+}
+const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    await document.fonts.ready;
+    __outputElement.style.display = "none";
+    await frame();
+    const output = [];
+    const actionOf = (trace, id) => {
+        const scope = `#${id}/descendants(background-and-borders) `;
+        const line = trace.split("\n").find(line => line.includes(scope));
+        return line ? line.slice(line.indexOf(scope) + scope.length).trim() : "-";
+    };
+    const afterFramesOf = async (label, scrollTop, changedBlock) => {
+        window.scrollTo(0, scrollTop);
+        await frame();
+        changedBlock.style.background = "red";
+        internals.beginDisplayListTrace();
+        // The frames of the page paint overlays, and a recording copies from one made with the same inputs.
+        internals.recordDisplayListForTesting(true, false);
+        const trace = internals.takeDisplayListTrace();
+        output.push(`${label}: ${Array.from({ length: 12 }, (_, i) => actionOf(trace, "b" + i)).join(" ")}`);
+    };
+
+    await afterFramesOf("scrolled by 300, inside the slack, and b0 changed", 300, b0);
+    await afterFramesOf("scrolled to 3000, and b6 changed", 3000, b6);
+    await afterFramesOf("scrolled back to the top, and b2 changed", 0, b2);
+
+    __outputElement.style.display = "";
+    for (const line of output) println(line);
+});
+</script>

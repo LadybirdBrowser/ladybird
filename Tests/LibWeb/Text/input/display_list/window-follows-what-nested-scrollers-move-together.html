@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .scroller { height: 600px; overflow: scroll; }
+    .gap { height: 500px; }
+    .tail { height: 3000px; }
+    #b-gap { height: 1100px; }
+    #target { height: 100px; background: green; }
+</style>
+<body><div class="gap"></div><div id="a" class="scroller"><div class="gap"></div><div id="b" class="scroller"><div id="b-gap"></div><div id="target"></div><div class="tail"></div></div><div class="tail"></div></div><div class="tail"></div>
+<script>
+// The target lies 300 pixels past the bottom of the window when it is placed, in a scroller in a scroller in the page.
+// Scrolling each of them by one viewport moves none of them further than a scroller alone may move before the window
+// is placed again, but together they bring the target into view: the frames of the scroll record it. The inner
+// scroller changes before each recording here, so that the recording walks what it holds: a target the frames recorded
+// is reused, and one they left out would be recorded here, or left out again where the window stayed.
+const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    __outputElement.style.display = "none";
+    const output = [];
+    const actionOfTarget = trace => {
+        const scope = "#target/descendants(background-and-borders) ";
+        const line = trace.split("\n").find(line => line.includes(scope));
+        return line ? line.slice(line.indexOf(scope) + scope.length).trim() : "-";
+    };
+    const record = (label, cold = false) => {
+        b.style.backgroundColor = b.style.backgroundColor === "pink" ? "white" : "pink";
+        internals.beginDisplayListTrace();
+        internals.recordDisplayListForTesting(true, cold);
+        output.push(`${label}: ${actionOfTarget(internals.takeDisplayListTrace())}`);
+    };
+
+    record("at the top", true);
+    window.scrollTo(0, 600);
+    a.scrollTop = 600;
+    b.scrollTop = 600;
+    await frame();
+    const rect = target.getBoundingClientRect();
+    output.push(`the target shows from ${rect.top} to ${rect.bottom}`);
+    record("after the frames of the scroll");
+
+    __outputElement.style.display = "";
+    for (const line of output) println(line);
+});
+</script>

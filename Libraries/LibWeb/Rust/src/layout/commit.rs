@@ -932,7 +932,13 @@ impl<'tree> Commit<'_, 'tree> {
             if std::sync::Arc::ptr_eq(&previous, line_data) || *previous == **line_data {
                 return (false, false);
             }
-            (true, !previous.has_same_item_order(line_data))
+            let fragments_became_or_stopped_being_producers =
+                crate::painting::paint_order_plan::text_fragments_of_content_are_producers(&previous)
+                    != crate::painting::paint_order_plan::text_fragments_of_content_are_producers(line_data);
+            (
+                true,
+                !previous.has_same_item_order(line_data) || fragments_became_or_stopped_being_producers,
+            )
         });
         self.arena_mut().committed_side_data_mut(slot).inline_content = Some(line_data.clone());
         if item_order_changed {

@@ -1,0 +1,12 @@
+at the top:
+  items: RECORD RECORD RECORD RECORD OUTSIDE OUTSIDE OUTSIDE OUTSIDE OUTSIDE OUTSIDE
+  boxes: pulled=RECORD pushed=OUTSIDE stuck=RECORD pinned=RECORD
+the scroller scrolled to 3000:
+  items: COPY OUTSIDE OUTSIDE COPY RECORD RECORD RECORD RECORD RECORD RECORD
+  boxes: pulled=COPY pushed=OUTSIDE stuck=COPY pinned=COPY
+the page scrolled to the bottom:
+  items: - - - - - - - - - -
+  boxes: pulled=OUTSIDE pushed=OUTSIDE stuck=COPY pinned=COPY
+back at the top:
+  items: RECORD RECORD RECORD RECORD OUTSIDE OUTSIDE OUTSIDE OUTSIDE OUTSIDE OUTSIDE
+  boxes: pulled=RECORD pushed=OUTSIDE stuck=COPY pinned=COPY

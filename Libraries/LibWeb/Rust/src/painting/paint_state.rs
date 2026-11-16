@@ -33,6 +33,12 @@ pub struct PaintState {
     pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
     pub(crate) root_background_source: Option<crate::painting::host::RootBackgroundSource>,
     pub(crate) last_recording: Option<Arc<crate::painting::record::RecordingOutput>>,
+    /// The window of the document that the recording published last holds, with the visual context tree the recording
+    /// was made against, or none where that holds all of it.
+    pub(crate) window_of_published_recording: Option<(
+        Arc<crate::painting::record::window::RecordedWindow>,
+        Arc<crate::painting::visual_context::VisualContextTree>,
+    )>,
     /// The selection, shared with the frames published while it holds.
     pub(crate) selection: Option<Arc<SelectionRange>>,
     /// The `::selection` styles, shared with the frames published while they hold, so a write

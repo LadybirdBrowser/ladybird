@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    body > div { height: 500px; }
+    body > div:nth-child(odd) { background: #cde; }
+    #mover { width: 100px; height: 100px; background: green; transform: translateY(0px); }
+    #cut-off { height: 300px; overflow: hidden; }
+    #cut-off-mover { width: 100px; height: 100px; background: blue; transform: translateY(0px); }
+</style>
+<body>
+<script>
+// A transform changes without the box it moves or the boxes around it being recorded again, and what those boxes
+// hold is not bounded again either. So a box that holds a transformed box is never left out, however far from the
+// viewport it is: the transform may bring what it moves into view at any time. A box that cuts off what it holds
+// keeps the transformed box inside it, and is left out like any other.
+for (let i = 0; i < 12; ++i) {
+    const block = document.createElement("div");
+    block.id = "b" + i;
+    block.textContent = "block " + i;
+    document.body.appendChild(block);
+}
+b8.innerHTML = '<div id="mover"></div>';
+b10.innerHTML = '<div id="cut-off"><div id="cut-off-mover"></div></div>';
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    await document.fonts.ready;
+    __outputElement.style.display = "none";
+    const output = [];
+    const actionOf = (trace, id) => {
+        const scope = `#${id}/descendants(background-and-borders) `;
+        const line = trace.split("\n").find(line => line.includes(scope));
+        return line ? line.slice(line.indexOf(scope) + scope.length).trim() : "-";
+    };
+    const record = (label, cold = false) => {
+        internals.beginDisplayListTrace();
+        internals.recordDisplayListForTesting(false, cold);
+        const trace = internals.takeDisplayListTrace();
+        const actions = Array.from({ length: 12 }, (_, i) => actionOf(trace, "b" + i));
+        const summary = actions.every(action => action === "-") ? trace.trim().split("\n").at(-1).trim() : actions.join(" ");
+        output.push(`${label}: ${summary}`);
+    };
+
+    record("at the top", true);
+    // The transform brings the box from 4000 pixels down the page into the viewport. The block it is in was
+    // recorded, so the recording reuses it.
+    mover.style.transform = "translateY(-3900px)";
+    record("the transform moved its box into view");
+    output.push(`the box in view: ${document.elementFromPoint(50, 150).id}`);
+
+    __outputElement.style.display = "";
+    for (const line of output) println(line);
+});
+</script>

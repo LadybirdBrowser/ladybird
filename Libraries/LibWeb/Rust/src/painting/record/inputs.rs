@@ -69,6 +69,9 @@ pub(crate) struct RecordingInputs {
     /// and a run holds only what starts in one pixel row. Tests ask for it to see which boxes a change records
     /// again on pages too small to span the rows a recording is otherwise cut along.
     pub records_in_finest_runs: bool,
+    /// Records everything the document paints, wherever it is, and not just what shows in a window around the
+    /// viewport: what a screenshot of more than the viewport and a dump of the display list read.
+    pub records_whole_document: bool,
     pub canvas_fill_rect: Option<IntRect>,
     pub opaque_canvas: bool,
     pub bitmap_rect: IntRect,

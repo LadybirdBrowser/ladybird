@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    pre { margin: 0; font: 16px/20px monospace; }
+</style>
+<body><pre id="text"></pre>
+<script>
+// The lines of one text block are cut into runs along the grid like any other items, and each run of lines is bounded
+// by what its lines draw: a recording of a window leaves out the lines far from it, however tall the block is. The run
+// that holds the block's own background is not bounded, so it is recorded wherever the window is.
+text.textContent = Array.from({ length: 400 }, (_, i) => `line ${i}`).join("\n");
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    await document.fonts.ready;
+    __outputElement.style.display = "none";
+    const output = [];
+    const count = (trace, action) => trace.split("\n").filter(line => line.trim().endsWith(`#text/text-fragment ${action}`)).length;
+    const record = (label, cold = false) => {
+        internals.beginDisplayListTrace();
+        internals.recordDisplayListForTesting(true, cold);
+        const trace = internals.takeDisplayListTrace();
+        output.push(`${label}: recorded ${count(trace, "RECORD")}, reused ${count(trace, "COPY")}, left out ${count(trace, "OUTSIDE")}`);
+    };
+
+    record("at the top", true);
+    window.scrollTo(0, 7000);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    text.style.color = "blue";
+    record("scrolled near the bottom, and the text changed");
+
+    __outputElement.style.display = "";
+    for (const line of output) println(line);
+});
+</script>

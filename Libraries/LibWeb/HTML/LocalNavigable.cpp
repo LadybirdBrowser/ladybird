@@ -7442,6 +7442,7 @@ void LocalNavigable::render_screenshot_of_painted_subtree(NonnullRefPtr<Gfx::Bit
             navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::ProcessScreenshot);
     }
 
+    paint_config.records_whole_document = true;
     if (!commit_frame(paint_config)) {
         callback(Compositor::ScreenshotResult::Failed);
         return;

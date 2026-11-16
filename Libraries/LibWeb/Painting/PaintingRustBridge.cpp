@@ -537,6 +537,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     inputs.force_dark_background_threshold = config.force_dark_background_threshold;
     inputs.should_paint_overlay = config.paint_overlay;
     inputs.records_in_finest_runs = config.records_in_finest_runs;
+    inputs.records_whole_document = config.records_whole_document;
     inputs.has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport;
     inputs.wheel_event_listener_state_generation = document.page().wheel_event_listener_state_generation();
     inputs.chrome_metrics = document.page().chrome_metrics();

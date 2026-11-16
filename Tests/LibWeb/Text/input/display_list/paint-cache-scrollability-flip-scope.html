@@ -215,7 +215,13 @@ displayListTest({
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
-                      Box<DIV>#row.row/descendants(background-and-borders) COPY
+                      Box<DIV>#row.row/descendants(background-and-borders) ASSEMBLE
+                        Box<DIV>#row.row/scroll-metadata COPY
+                        Box<DIV>#row.row/background COPY
+                        Box<DIV>#row.row/border COPY
+                        BlockContainer<DIV>#row-0.box/descendants(background-and-borders) COPY
+                        BlockContainer<DIV>#outer.box/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#row-2.box/descendants(background-and-borders) COPY
                       Box<DIV>#second-row.row/descendants(background-and-borders) REPLAN
                         Box<DIV>#second-row.row/scroll-metadata COPY
                         Box<DIV>#second-row.row/background COPY
@@ -227,7 +233,13 @@ displayListTest({
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground COPY
-                      Box<DIV>#row.row/descendants(foreground) COPY
+                      Box<DIV>#row.row/descendants(foreground) ASSEMBLE
+                        Box<DIV>#row.row/foreground COPY
+                        BlockContainer<DIV>#row-0.box/descendants(foreground) COPY
+                        BlockContainer<DIV>#outer.box/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#row-2.box/descendants(foreground) COPY
+                        Box<DIV>#row.row/outline COPY
+                        Box<DIV>#row.row/overlay COPY
                       Box<DIV>#second-row.row/descendants(foreground) REPLAN
                         Box<DIV>#second-row.row/foreground COPY
                         BlockContainer<DIV>#second-row-0.box/descendants(foreground) COPY
@@ -239,7 +251,31 @@ displayListTest({
                       BlockContainer<BODY>#body/outline COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#row-0.box COPY
-                    BlockContainer<DIV>#outer.box COPY
+                    BlockContainer<DIV>#outer.box ASSEMBLE
+                      BlockContainer<DIV>#outer.box/scroll-metadata COPY
+                      BlockContainer<DIV>#outer.box/background COPY
+                      BlockContainer<DIV>#outer.box/border COPY
+                      BlockContainer<DIV>#inner/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#inner/scroll-metadata COPY
+                        BlockContainer<DIV>#inner/background COPY
+                        BlockContainer<DIV>#inner/border COPY
+                        BlockContainer<DIV>#inner-content.tall/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#filler.tall/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#inner/descendants(floats) ASSEMBLE
+                        BlockContainer<DIV>#inner-content.tall/descendants(floats) COPY
+                      BlockContainer<DIV>#filler.tall/descendants(floats) COPY
+                      BlockContainer<DIV>#inner/descendants(inline-background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#inner-content.tall/descendants(inline-background-and-borders) COPY
+                      BlockContainer<DIV>#filler.tall/descendants(inline-background-and-borders) COPY
+                      BlockContainer<DIV>#outer.box/foreground COPY
+                      BlockContainer<DIV>#inner/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#inner/foreground COPY
+                        BlockContainer<DIV>#inner-content.tall/descendants(foreground) COPY
+                        BlockContainer<DIV>#inner/outline COPY
+                        BlockContainer<DIV>#inner/overlay COPY
+                      BlockContainer<DIV>#filler.tall/descendants(foreground) COPY
+                      BlockContainer<DIV>#outer.box/outline COPY
+                      BlockContainer<DIV>#outer.box/overlay COPY
                     BlockContainer<DIV>#row-2.box COPY
                     BlockContainer<DIV>#second-row-0.box COPY
                     BlockContainer<DIV>#second-row-1.box COPY

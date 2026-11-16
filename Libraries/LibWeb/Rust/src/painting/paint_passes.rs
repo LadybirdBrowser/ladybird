@@ -594,12 +594,33 @@ pub(crate) fn refresh_scroll_state(
                 device_viewport_size,
             },
         );
-        if !state.needs_to_refresh_scroll_state {
-            return (None, outcome);
-        }
-        let snapshot = scroll_state_snapshot(&arena.paintable_rows(), state, device_pixels_per_css_pixel);
-        state.needs_to_refresh_scroll_state = false;
-        (Some(snapshot), outcome)
+        let snapshot = state.needs_to_refresh_scroll_state.then(|| {
+            let snapshot = scroll_state_snapshot(&arena.paintable_rows(), state, device_pixels_per_css_pixel);
+            state.needs_to_refresh_scroll_state = false;
+            snapshot
+        });
+        // The published recording holds a window of the document, which no longer covers what the viewport shows with
+        // the scrollers and the transforms where they are now: the next recording places it again.
+        let window_no_longer_covers = arena
+            .paint_state()
+            .window_of_published_recording
+            .as_ref()
+            .zip(state.tree.as_deref())
+            .is_some_and(|((window, tree_of_recording), tree)| {
+                !crate::painting::record::window::still_covers(
+                    window,
+                    tree_of_recording,
+                    tree,
+                    device_viewport_size,
+                    device_pixels_per_css_pixel,
+                    state.scroll_state.own_offsets(),
+                )
+            });
+        let outcome = CompositorScrollRefreshOutcome {
+            requires_display_list_recording: outcome.requires_display_list_recording || window_no_longer_covers,
+            ..outcome
+        };
+        (snapshot, outcome)
     })
 }
 

@@ -12,13 +12,41 @@
 <script>
 // will-change: transform gives the box its transform node before any transform value, so the
 // first value, a later value and the return to none all patch that node: nothing records again.
+// The box may have moved across the edge of the window the published recording was made for, so
+// a recording made after the value changed walks down to it, and copies everything.
 const valueUpdate = `
     update DIRTY-PATH
       div#box transform UPDATED
 `;
-const quiet = `
+const walkedAndCopied = `
     @canvas RECORD (empty)
-    @viewport COPY
+    @viewport ASSEMBLE
+      @viewport/preamble COPY
+      @viewport/scroll-metadata COPY
+      @viewport/background COPY
+      @viewport/border COPY
+      BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+      @viewport/foreground COPY
+      BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+      BlockContainer<HTML>#html ASSEMBLE
+        BlockContainer<HTML>#html/preamble COPY
+        BlockContainer<HTML>#html/scroll-metadata COPY
+        BlockContainer<HTML>#html/background COPY
+        BlockContainer<HTML>#html/border COPY
+        BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+          BlockContainer<BODY>#body/scroll-metadata COPY
+          BlockContainer<BODY>#body/background COPY
+          BlockContainer<BODY>#body/border COPY
+          BlockContainer<DIV>#box/descendants(background-and-borders) COPY
+        BlockContainer<HTML>#html/foreground COPY
+        BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+          BlockContainer<BODY>#body/foreground COPY
+          BlockContainer<DIV>#box/descendants(foreground) COPY
+          BlockContainer<BODY>#body/outline COPY
+          BlockContainer<BODY>#body/overlay COPY
+        BlockContainer<DIV>#box COPY
+        BlockContainer<HTML>#html/outline COPY
+      @viewport/outline COPY
 `;
 displayListTest({
     setup: async () => { removeBodyWhitespace(); },
@@ -26,17 +54,17 @@ displayListTest({
         {
             name: "transform none to translateX(10px)",
             mutate: () => { box.style.transform = "translateX(10px)"; },
-            expect: { visualContexts: valueUpdate, displayList: quiet },
+            expect: { visualContexts: valueUpdate, displayList: walkedAndCopied },
         },
         {
             name: "transform translateX(10px) to translateX(20px)",
             mutate: () => { box.style.transform = "translateX(20px)"; },
-            expect: { visualContexts: valueUpdate, displayList: quiet },
+            expect: { visualContexts: valueUpdate, displayList: walkedAndCopied },
         },
         {
             name: "transform translateX(20px) to none",
             mutate: () => { box.style.transform = ""; },
-            expect: { visualContexts: valueUpdate, displayList: quiet },
+            expect: { visualContexts: valueUpdate, displayList: walkedAndCopied },
         },
     ],
 });

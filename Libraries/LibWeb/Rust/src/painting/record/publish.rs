@@ -351,6 +351,7 @@ pub(crate) fn take_in_recording(arena: &mut LayoutNodeArena, output: Arc<Recordi
     let paint_state = arena.paint_state_mut();
     if publishes_recording {
         paint_state.visual_context.quarantined_slots_are_releasable = true;
+        paint_state.window_of_published_recording = output.window.clone().zip(output.visual_context_tree.clone());
     }
     paint_state.last_recording = Some(output);
 }

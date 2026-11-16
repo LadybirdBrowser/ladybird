@@ -1,0 +1,3 @@
+at the top: OUTSIDE
+after the frames of the transform: COPY
+the box in view: far
