@@ -1,0 +1,7 @@
+inner window Error.stackTraceLimit: 10
+inner limit 2, inner error: 2
+inner limit 2, outer error: 10
+inner limit "x", inner error: undefined
+chrome: 10 3 0, DOMException 3
+gecko: 10 3 0, DOMException 3
+webkit: 10 3 0, DOMException 3

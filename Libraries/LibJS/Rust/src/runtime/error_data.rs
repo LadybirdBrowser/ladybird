@@ -5,6 +5,7 @@
  */
 
 use core::cell::Cell;
+use core::ops::ControlFlow;
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
@@ -60,29 +61,55 @@ impl StackFrameSyntax {
     }
 }
 
+/// The initial value of Error.stackTraceLimit.
+pub const DEFAULT_STACK_TRACE_LIMIT: i32 = 10;
+
+/// How many frames a new error keeps: the value of Error.stackTraceLimit on the %Error% of the current realm, cut to an
+/// integer, with negative numbers and NaN as 0 and Infinity as every frame. None, for no stack at all, when the property
+/// is not a number, which includes an accessor (whose getter is never called) and a deleted property. The other engines
+/// limit their stacks too, and pages read and set this property to see the frames they expect.
+pub fn stack_trace_limit(vm: &Vm) -> Option<usize> {
+    let Some(realm) = vm.current_realm() else {
+        return Some(DEFAULT_STACK_TRACE_LIMIT as usize);
+    };
+    let error_constructor = realm.intrinsics().error_constructor(vm);
+    let value = error_constructor.storage_get(vm, &vm.names.stackTraceLimit)?.value;
+    if value.is_int32() {
+        return Some(usize::try_from(value.as_i32()).unwrap_or(0));
+    }
+    if !value.is_number() {
+        return None;
+    }
+    // NB: The cast saturates, and takes NaN to 0.
+    Some(value.as_f64() as usize)
+}
+
 /// [[ErrorData]]: the call stack an error was created on.
 #[derive(Trace)]
 pub struct ErrorData {
     #[gc(untraced)]
     traceback: Vec<TracebackFrame>,
+    /// How many of the frames, from the innermost, the stack string shows, or None for an error that captured no stack,
+    /// whose stack is undefined.
+    shown_frame_count: Option<usize>,
     cached_string: Cell<Option<Gc<PrimitiveString>>>,
 }
 
 impl ErrorData {
     pub fn new(vm: &Vm) -> Self {
-        Self {
-            traceback: Self::populate_stack(vm, 0),
-            cached_string: Cell::new(None),
-        }
+        Self::capture(vm, 0, stack_trace_limit(vm))
     }
 
     /// Error data captured by an Error constructor, whose own frame is the innermost one. A stack string shows the
     /// code that called the constructor, never the constructor itself, so that frame is left out.
     pub fn new_in_constructor(vm: &Vm) -> Self {
-        Self {
-            traceback: Self::populate_stack(vm, 1),
-            cached_string: Cell::new(None),
-        }
+        Self::capture(vm, 1, stack_trace_limit(vm))
+    }
+
+    /// Error data with every frame of the call stack, whatever Error.stackTraceLimit is, for a trace of the running code
+    /// that is not the stack of an error.
+    pub fn with_whole_stack(vm: &Vm) -> Self {
+        Self::capture(vm, 0, Some(usize::MAX))
     }
 
     /// Error data for an exception whose source location came from another agent.
@@ -92,6 +119,29 @@ impl ErrorData {
                 function_name: Utf16String::default(),
                 cached_source_range: Some(source_range),
             }],
+            shown_frame_count: Some(0),
+            cached_string: Cell::new(None),
+        }
+    }
+
+    fn capture(vm: &Vm, skipped_innermost_frames: usize, limit: Option<usize>) -> Self {
+        let Some(limit) = limit else {
+            return Self {
+                traceback: Vec::new(),
+                shown_frame_count: None,
+                cached_string: Cell::new(None),
+            };
+        };
+        let (traceback, reached_limit) = Self::populate_stack(vm, skipped_innermost_frames, limit);
+        // NB: A stack string leaves out the outermost execution context, the last frame when the walk got to it.
+        let shown_frame_count = if reached_limit {
+            traceback.len()
+        } else {
+            traceback.len().saturating_sub(1)
+        };
+        Self {
+            traceback,
+            shown_frame_count: Some(shown_frame_count),
             cached_string: Cell::new(None),
         }
     }
@@ -109,23 +159,40 @@ impl ErrorData {
         self.traceback_storage_size() + function_names_size
     }
 
-    fn populate_stack(vm: &Vm, skipped_innermost_frames: usize) -> Vec<TracebackFrame> {
-        let stack_trace = vm.stack_trace();
-        let mut traceback = Vec::with_capacity(stack_trace.len().saturating_sub(skipped_innermost_frames));
-        for element in stack_trace.values().iter().skip(skipped_innermost_frames) {
+    /// The frames from the running one down, after the innermost `skipped_innermost_frames`, until there are `limit`
+    /// of them, and whether the walk stopped there with frames left below. The walk never goes further, so capture
+    /// costs the same at any depth.
+    fn populate_stack(vm: &Vm, mut skipped_innermost_frames: usize, limit: usize) -> (Vec<TracebackFrame>, bool) {
+        let mut traceback = Vec::new();
+        let mut reached_limit = false;
+        vm.for_each_stack_frame_top_to_bottom(|frame| {
+            if skipped_innermost_frames > 0 {
+                skipped_innermost_frames -= 1;
+                return ControlFlow::Continue(());
+            }
+            if traceback.len() == limit {
+                reached_limit = true;
+                return ControlFlow::Break(());
+            }
             traceback.push(TracebackFrame {
-                function_name: element
+                function_name: frame
                     .function
                     .map(|function| function.name_for_call_stack())
                     .unwrap_or_default(),
-                cached_source_range: element.source_range.clone(),
+                cached_source_range: frame.source_range(),
             });
-        }
-        traceback
+            ControlFlow::Continue(())
+        });
+        (traceback, reached_limit)
     }
 
     pub fn traceback(&self) -> &[TracebackFrame] {
         &self.traceback
+    }
+
+    /// Whether the error captured a stack; its stack is undefined if not.
+    pub fn has_stack(&self) -> bool {
+        self.shown_frame_count.is_some()
     }
 
     pub fn set_cached_string(&self, string: Gc<PrimitiveString>) {
@@ -141,7 +208,8 @@ impl ErrorData {
     }
 
     pub fn stack_string_with_syntax(&self, compact: CompactTraceback, syntax: StackFrameSyntax) -> Utf16String {
-        if self.traceback.is_empty() {
+        let used_frames = self.shown_frame_count.unwrap_or(0);
+        if used_frames == 0 {
             return Utf16String::default();
         }
 
@@ -194,10 +262,8 @@ impl ErrorData {
             a.function_name == b.function_name
         };
 
-        // Note: We don't want to capture the global execution context, so we omit the last frame
         // Note: The error's name and message get prepended by Error.prototype.stack
         let mut repetitions: usize = 0;
-        let used_frames = self.traceback.len() - 1;
         for i in 0..used_frames {
             let frame = &self.traceback[i];
             if compact == CompactTraceback::Yes && i + 1 < used_frames {
@@ -252,6 +318,11 @@ impl ErrorDataCell {
     /// ErrorDataCell::capture(vm): error data with the call stack of the running execution context.
     pub fn capture(vm: &Vm) -> Gc<ErrorDataCell> {
         Self::create(vm, ErrorData::new(vm))
+    }
+
+    /// Error data with every frame of the call stack, as ErrorData::with_whole_stack() has.
+    pub fn capture_whole_stack(vm: &Vm) -> Gc<ErrorDataCell> {
+        Self::create(vm, ErrorData::with_whole_stack(vm))
     }
 
     /// Error data for an exception whose source location came from another agent.

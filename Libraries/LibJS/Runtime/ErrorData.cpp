@@ -56,4 +56,11 @@ GC::Ref<ErrorDataCell> ErrorDataCell::capture(VM& vm)
     return cell_ref_from_abi<ErrorDataCell>(cell);
 }
 
+GC::Ref<ErrorDataCell> ErrorDataCell::capture_whole_stack(VM& vm)
+{
+    auto* cell = js_error_data_cell_capture_whole_stack(vm_to_abi(vm));
+    VERIFY(cell);
+    return cell_ref_from_abi<ErrorDataCell>(cell);
+}
+
 }
