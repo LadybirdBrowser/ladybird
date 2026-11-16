@@ -1,0 +1,15 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const publicExponent = new Uint8Array([1, 0, 1]);
+        for (const modulusLength of [16392, 65536]) {
+            try {
+                await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength, publicExponent, hash: "SHA-256" }, false, ["sign"]);
+                println(`${modulusLength}: ok`);
+            } catch (error) {
+                println(`${modulusLength}: ${error.name}`);
+            }
+        }
+    });
+</script>
