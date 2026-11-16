@@ -1,0 +1,10 @@
+off: default limit, stack lines 11
+off: limit 3, stack lines 4
+off: limit 0, made then thrown {"lineno":3,"colno":3}
+off: not a number, stack undefined
+off: not a number, made then thrown {"lineno":3,"colno":3}
+on: default limit, stack lines 11
+on: limit 3, stack lines 4
+on: limit 0, made then thrown {"lineno":3,"colno":3}
+on: not a number, stack undefined
+on: not a number, made then thrown {"lineno":3,"colno":3}
