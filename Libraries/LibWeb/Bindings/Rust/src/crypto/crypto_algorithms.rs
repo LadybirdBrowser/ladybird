@@ -12412,8 +12412,11 @@ const ML_DSA_44_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 17];
 const ML_DSA_65_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 18];
 const ML_DSA_87_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 19];
 
-fn mldsa_read_public_key(vm: &Vm, bytes: &[u8]) -> Ref<CryptoKey> {
-    CryptoKey::create(vm, libcrypto_rust::mldsa_read_public_key(bytes))
+fn mldsa_read_public_key(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Ref<CryptoKey>> {
+    let Some(key) = libcrypto_rust::mldsa_read_public_key(bytes) else {
+        return Err(dom_error("DataError", b"Invalid key"));
+    };
+    Ok(CryptoKey::create(vm, key))
 }
 
 fn generate_mldsa_key_pair_from_seed(name: &Utf16String, seed: &Bytes) -> Result<KeyPair, Utf16String> {
@@ -12733,7 +12736,7 @@ impl AlgorithmMethods for MlDsa {
             let public_key = spki.raw_key();
 
             // 8. Let key be a new CryptoKey that represents publicKey.
-            key = mldsa_read_public_key(cx.vm(), public_key);
+            key = mldsa_read_public_key(cx.vm(), public_key)?;
 
             // 9. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -12808,7 +12811,7 @@ impl AlgorithmMethods for MlDsa {
             //    represents an ML-DSA key in the both format and the both format is not supported, throw a
             //    NotSupportedError.
             // NB: A key in the expandedKey format has no seed.
-            if libcrypto_rust::mldsa_seed_bytes(&ml_dsa_private_key).is_empty() {
+            if !libcrypto_rust::ml_private_key_has_seed(&ml_dsa_private_key) {
                 return Err(dom_error(
                     "NotSupportedError",
                     b"ML-DSA private keys in the expandedKey format are not supported",
@@ -12848,7 +12851,7 @@ impl AlgorithmMethods for MlDsa {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("raw key data contains bytes")
             };
-            key = mldsa_read_public_key(cx.vm(), key_data.as_slice());
+            key = mldsa_read_public_key(cx.vm(), key_data.as_slice())?;
 
             // 5. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -13004,7 +13007,7 @@ impl AlgorithmMethods for MlDsa {
 
                 // 2. Let key be a new CryptoKey object that represents the ML-DSA public key
                 //    identified by interpreting the pub attribute of jwk as a base64url encoded public key.
-                key = mldsa_read_public_key(cx.vm(), public_key.as_slice());
+                key = mldsa_read_public_key(cx.vm(), public_key.as_slice())?;
 
                 // 3. Set the [[type]] internal slot of key to "public".
                 key.set_type(KeyType::Public);
@@ -13156,8 +13159,8 @@ impl AlgorithmMethods for MlDsa {
             // 2. Let data be a byte sequence containing the ξ seed variable of the key represented by the [[handle]] internal slot of key.
             // Note: The ξ value is the seed from which the key was generated or imported, as used by
             //       ML-DSA.KeyGen_internal in Section 6.1 of [FIPS-204].
-            let bytes = libcrypto_rust::mldsa_seed_bytes(handle);
-            let data = Bytes::new(copy_bytes(vm, bytes)?);
+            let seed = libcrypto_rust::mldsa_seed_bytes(handle).map_err(|_| out_of_memory(vm))?;
+            let data = Bytes::new(seed);
 
             // 3. Let result be data.
             ExportKeyResult::Bytes(data)
@@ -13182,8 +13185,8 @@ impl AlgorithmMethods for MlDsa {
             // 6. -> If the [[type]] internal slot of key is "private":
             //       Set the priv attribute of jwk to the base64url encoded seed represented by the [[handle]] internal slot of key.
             if key.key_type() == KeyType::Private {
-                let seed = libcrypto_rust::mldsa_seed_bytes(handle);
-                jwk.r#priv = Some(base64_url_bytes_encode(seed));
+                let seed = libcrypto_rust::mldsa_seed_bytes(handle).map_err(|_| out_of_memory(vm))?;
+                jwk.r#priv = Some(base64_url_bytes_encode(&seed));
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -13219,8 +13222,11 @@ const ML_KEM_512_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 4, 1];
 const ML_KEM_768_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 4, 2];
 const ML_KEM_1024_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 4, 3];
 
-fn mlkem_read_public_key(vm: &Vm, bytes: &[u8]) -> Ref<CryptoKey> {
-    CryptoKey::create(vm, libcrypto_rust::mlkem_read_public_key(bytes))
+fn mlkem_read_public_key(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Ref<CryptoKey>> {
+    let Some(key) = libcrypto_rust::mlkem_read_public_key(bytes) else {
+        return Err(dom_error("DataError", b"Invalid key"));
+    };
+    Ok(CryptoKey::create(vm, key))
 }
 
 fn mlkem_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool, oid: &[u32]) -> WebIdlResult<Bytes> {
@@ -13404,7 +13410,7 @@ impl AlgorithmMethods for MlKem {
             let public_key = spki.raw_key();
 
             // 8. Let key be a new CryptoKey that represents publicKey.
-            key = mlkem_read_public_key(cx.vm(), public_key);
+            key = mlkem_read_public_key(cx.vm(), public_key)?;
 
             // 9. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -13479,7 +13485,7 @@ impl AlgorithmMethods for MlKem {
             //    represents an ML-KEM key in the both format and the both format is not supported, throw a
             //    NotSupportedError.
             // NB: A key in the expandedKey format has no seed.
-            if libcrypto_rust::mlkem_seed_bytes(&ml_kem_private_key).is_empty() {
+            if !libcrypto_rust::ml_private_key_has_seed(&ml_kem_private_key) {
                 return Err(dom_error(
                     "NotSupportedError",
                     b"ML-KEM private keys in the expandedKey format are not supported",
@@ -13521,7 +13527,7 @@ impl AlgorithmMethods for MlKem {
             };
 
             // 3. Let key be a new CryptoKey that represents the ML-KEM public key data in data.
-            key = mlkem_read_public_key(cx.vm(), data.as_slice());
+            key = mlkem_read_public_key(cx.vm(), data.as_slice())?;
 
             // 4. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -13766,8 +13772,8 @@ impl AlgorithmMethods for MlKem {
             //    key represented by the [[handle]] internal slot of key.
             // Note: The d and z values are the seed from which the key was generated or imported, as used by
             //       ML-KEM.KeyGen_internal in Section 6.1 of [FIPS-203].
-            let seed = libcrypto_rust::mlkem_seed_bytes(handle);
-            let data = Bytes::new(copy_bytes(vm, seed)?);
+            let seed = libcrypto_rust::mlkem_seed_bytes(handle).map_err(|_| out_of_memory(vm))?;
+            let data = Bytes::new(seed);
 
             // 3. Let result be data.
             ExportKeyResult::Bytes(data)
@@ -13818,7 +13824,7 @@ impl AlgorithmMethods for MlKem {
         // Note: The result of this check may be cached or precomputed for the CryptoKey object if desirable for
         //       performance.
         // 3. If the encapsulation key check failed, throw an OperationError.
-        // NOTE: Presumably done by OpenSSL for us
+        // NB: LibCrypto does this check when it builds the key, and encapsulation fails for a key that failed it.
 
         // 4. Let sharedKey and ciphertext be the outputs that result from performing the ML-KEM.Encaps function
         //    described in Section 7.2 of [FIPS-203] with the parameter set indicated by the name member of algorithm,
@@ -13874,7 +13880,7 @@ impl AlgorithmMethods for MlKem {
         // Note: The result of the decapsulation key type check and the hash check may be cached or precomputed for the
         //       CryptoKey object if desirable for performance.
         // 3. If the decapsulation input check failed, throw an OperationError.
-        // NOTE: Presumably done by OpenSSL for us
+        // NB: LibCrypto does this check when it builds the key, and encapsulation fails for a key that failed it.
 
         // 4. Let sharedKey be the output that results from performing the ML-KEM.Decaps function described in Section
         //    7.3 of [FIPS-203] with the parameter set indicated by the name member of algorithm, using the key

@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = { name: "ML-KEM-512" };
+        const { publicKey } = await crypto.subtle.generateKey(algorithm, true, ["encapsulateBits", "decapsulateBits"]);
+        const valid = new Uint8Array(await crypto.subtle.exportKey("raw-public", publicKey));
+
+        const keys = [
+            ["a valid key", valid],
+            ["800 bytes of 0xff", new Uint8Array(800).fill(0xff)],
+            ["799 bytes", valid.slice(0, 799)],
+        ];
+        for (const [name, data] of keys) {
+            let key;
+            try {
+                key = await crypto.subtle.importKey("raw-public", data, algorithm, true, ["encapsulateBits"]);
+            } catch (error) {
+                println(`${name}: import ${error.name}`);
+                continue;
+            }
+            try {
+                await crypto.subtle.encapsulateBits(algorithm, key);
+                println(`${name}: imported, encapsulated`);
+            } catch (error) {
+                println(`${name}: imported, encapsulate ${error.name}`);
+            }
+        }
+    });
+</script>

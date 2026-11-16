@@ -9,6 +9,7 @@
  */
 
 #include <AK/AnyOf.h>
+#include <AK/Array.h>
 #include <AK/Memory.h>
 #include <AK/Random.h>
 #include <LibCrypto/ASN1/ASN1.h>
@@ -29,6 +30,7 @@
 #include <LibCrypto/PK/EC.h>
 #include <LibCrypto/PK/MLDSA.h>
 #include <LibCrypto/PK/MLKEM.h>
+#include <LibCrypto/PK/PK.h>
 #include <LibCrypto/PK/RSA.h>
 
 namespace Crypto {
@@ -135,8 +137,6 @@ void crypto_asn1_delete_key_info(Asn1Structure structure, void* key_info)
     }
     VERIFY(structure == Asn1Structure::PrivateKeyInfo);
     auto* storage = static_cast<PrivateKeyStorage*>(key_info);
-    storage->value.mldsa.clear_sensitive_data();
-    storage->value.mlkem.clear_sensitive_data();
     secure_zero(storage->value.raw_key.data(), storage->value.raw_key.size());
     delete storage;
 }
@@ -767,7 +767,7 @@ void crypto_asn1_key_info_identifier(Asn1Structure, void const*, ReadonlySpan<u3
 KeyHandle* crypto_mldsa_key_info_read_private_key(void const*);
 KeyHandle* crypto_mldsa_read_public_key(ReadonlyBytes);
 void crypto_mldsa_public_bytes(KeyHandle const*, ReadonlyBytes*);
-void crypto_mldsa_seed_bytes(KeyHandle const*, ReadonlyBytes*);
+bool crypto_mldsa_seed_bytes(KeyHandle const*, void*, ReceiveEncodedBytes);
 bool crypto_mldsa_export_der(KeyHandle const*, bool, ReadonlySpan<u32>, void*, ReceiveEncodedBytes);
 }
 
@@ -792,7 +792,7 @@ bool crypto_mldsa_verify(::Crypto::PK::MLDSASize size, KeyHandle const* key, Rea
 
 FlatPtr crypto_mldsa_generate_key_pair(::Crypto::PK::MLDSASize size, ReadonlyBytes seed, KeyHandle** out_public_key, KeyHandle** out_private_key)
 {
-    auto key_pair = ::Crypto::PK::MLDSA::generate_key_pair(size, MUST(ByteBuffer::copy(seed)));
+    auto key_pair = ::Crypto::PK::MLDSA::generate_key_pair(size, seed);
     if (key_pair.is_error())
         return Utf16String::formatted("{}", key_pair.error()).into_raw();
     *out_public_key = new KeyHandle(move(key_pair.value().public_key));
@@ -812,7 +812,10 @@ KeyHandle* crypto_mldsa_key_info_read_private_key(void const* key_info)
 
 KeyHandle* crypto_mldsa_read_public_key(ReadonlyBytes bytes)
 {
-    return new KeyHandle(::Crypto::PK::MLDSAPublicKey { MUST(ByteBuffer::copy(bytes)) });
+    auto public_key = ::Crypto::PK::MLDSAPublicKey::from_bytes(bytes);
+    if (public_key.is_error())
+        return nullptr;
+    return new KeyHandle(public_key.release_value());
 }
 
 void crypto_mldsa_public_bytes(KeyHandle const* key, ReadonlyBytes* bytes)
@@ -823,9 +826,15 @@ void crypto_mldsa_public_bytes(KeyHandle const* key, ReadonlyBytes* bytes)
         [](auto const&) -> ReadonlyBytes { VERIFY_NOT_REACHED(); });
 }
 
-void crypto_mldsa_seed_bytes(KeyHandle const* key, ReadonlyBytes* bytes)
+bool crypto_mldsa_seed_bytes(KeyHandle const* key, void* state, ReceiveEncodedBytes receive)
 {
-    *bytes = key->get<::Crypto::PK::MLDSAPrivateKey>().seed();
+    Array<u8, ::Crypto::PK::MLDSAPrivateKey::seed_size> buffer;
+    ScopeGuard const clear_buffer = [&] { secure_zero(buffer.data(), buffer.size()); };
+    auto seed = key->get<::Crypto::PK::MLDSAPrivateKey>().seed(buffer);
+    if (seed.is_error())
+        return false;
+    receive(state, seed.value());
+    return true;
 }
 
 bool crypto_mldsa_export_der(KeyHandle const* key, bool is_public, ReadonlySpan<u32> oid, void* state, ReceiveEncodedBytes receive)
@@ -845,7 +854,7 @@ FlatPtr crypto_mlkem_generate_key_pair(::Crypto::PK::MLKEMSize, ReadonlyBytes, K
 KeyHandle* crypto_mlkem_key_info_read_private_key(void const*);
 KeyHandle* crypto_mlkem_read_public_key(ReadonlyBytes);
 void crypto_mlkem_public_bytes(KeyHandle const*, void*, ReceiveEncodedBytes);
-void crypto_mlkem_seed_bytes(KeyHandle const*, ReadonlyBytes*);
+bool crypto_mlkem_seed_bytes(KeyHandle const*, void*, ReceiveEncodedBytes);
 bool crypto_mlkem_export_der(KeyHandle const*, bool, ReadonlySpan<u32>, void*, ReceiveEncodedBytes);
 FlatPtr crypto_mlkem_encapsulate(::Crypto::PK::MLKEMSize, KeyHandle const*, void*, void*, ReceiveEncodedBytes);
 FlatPtr crypto_mlkem_decapsulate(::Crypto::PK::MLKEMSize, KeyHandle const*, ReadonlyBytes, void*, ReceiveEncodedBytes);
@@ -857,7 +866,7 @@ static_assert(to_underlying(::Crypto::PK::MLKEMSize::MLKEM1024) == 2);
 
 FlatPtr crypto_mlkem_generate_key_pair(::Crypto::PK::MLKEMSize size, ReadonlyBytes seed, KeyHandle** out_public_key, KeyHandle** out_private_key)
 {
-    auto key_pair = ::Crypto::PK::MLKEM::generate_key_pair(size, MUST(ByteBuffer::copy(seed)));
+    auto key_pair = ::Crypto::PK::MLKEM::generate_key_pair(size, seed);
     if (key_pair.is_error())
         return Utf16String::formatted("{}", key_pair.error()).into_raw();
     *out_public_key = new KeyHandle(move(key_pair.value().public_key));
@@ -872,7 +881,10 @@ KeyHandle* crypto_mlkem_key_info_read_private_key(void const* key_info)
 
 KeyHandle* crypto_mlkem_read_public_key(ReadonlyBytes bytes)
 {
-    return new KeyHandle(::Crypto::PK::MLKEMPublicKey { MUST(ByteBuffer::copy(bytes)) });
+    auto public_key = ::Crypto::PK::MLKEMPublicKey::from_bytes(bytes);
+    if (public_key.is_error())
+        return nullptr;
+    return new KeyHandle(public_key.release_value());
 }
 
 void crypto_mlkem_public_bytes(KeyHandle const* key, void* state, ReceiveEncodedBytes receive)
@@ -880,9 +892,25 @@ void crypto_mlkem_public_bytes(KeyHandle const* key, void* state, ReceiveEncoded
     receive(state, key->get<::Crypto::PK::MLKEMPublicKey>().public_key());
 }
 
-void crypto_mlkem_seed_bytes(KeyHandle const* key, ReadonlyBytes* bytes)
+bool crypto_mlkem_seed_bytes(KeyHandle const* key, void* state, ReceiveEncodedBytes receive)
 {
-    *bytes = key->get<::Crypto::PK::MLKEMPrivateKey>().seed();
+    Array<u8, ::Crypto::PK::MLKEMPrivateKey::seed_size> buffer;
+    ScopeGuard const clear_buffer = [&] { secure_zero(buffer.data(), buffer.size()); };
+    auto seed = key->get<::Crypto::PK::MLKEMPrivateKey>().seed(buffer);
+    if (seed.is_error())
+        return false;
+    receive(state, seed.value());
+    return true;
+}
+
+extern "C" bool crypto_ml_private_key_has_seed(KeyHandle const*);
+
+bool crypto_ml_private_key_has_seed(KeyHandle const* key)
+{
+    return key->visit(
+        [](::Crypto::PK::MLDSAPrivateKey const& private_key) { return private_key.has_seed(); },
+        [](::Crypto::PK::MLKEMPrivateKey const& private_key) { return private_key.has_seed(); },
+        [](auto const&) -> bool { VERIFY_NOT_REACHED(); });
 }
 
 bool crypto_mlkem_export_der(KeyHandle const* key, bool is_public, ReadonlySpan<u32> oid, void* state, ReceiveEncodedBytes receive)
@@ -904,15 +932,17 @@ FlatPtr crypto_mlkem_encapsulate(::Crypto::PK::MLKEMSize size, KeyHandle const* 
         return Utf16String::formatted("{}", result.error()).into_raw();
     receive(shared_key, result.value().shared_key);
     receive(ciphertext, result.value().ciphertext);
+    secure_zero(result.value().shared_key.data(), result.value().shared_key.size());
     return 0;
 }
 
 FlatPtr crypto_mlkem_decapsulate(::Crypto::PK::MLKEMSize size, KeyHandle const* key, ReadonlyBytes ciphertext, void* state, ReceiveEncodedBytes receive)
 {
-    auto result = ::Crypto::PK::MLKEM::decapsulate(size, key->get<::Crypto::PK::MLKEMPrivateKey>(), MUST(ByteBuffer::copy(ciphertext)));
+    auto result = ::Crypto::PK::MLKEM::decapsulate(size, key->get<::Crypto::PK::MLKEMPrivateKey>(), ciphertext);
     if (result.is_error())
         return Utf16String::formatted("{}", result.error()).into_raw();
     receive(state, result.value());
+    secure_zero(result.value().data(), result.value().size());
     return 0;
 }
 
@@ -1055,10 +1085,10 @@ KeyHandle* crypto_public_key_for_private_key(KeyHandle const* key, FlatPtr raw_n
             return TRY(private_key.derive_public_key());
         },
         [](::Crypto::PK::MLDSAPrivateKey const& private_key) -> ErrorOr<KeyHandle> {
-            return ::Crypto::PK::MLDSAPublicKey { private_key.public_key() };
+            return TRY(::Crypto::PK::MLDSAPublicKey::from_bytes(private_key.public_key()));
         },
         [](::Crypto::PK::MLKEMPrivateKey const& private_key) -> ErrorOr<KeyHandle> {
-            return ::Crypto::PK::MLKEMPublicKey { private_key.public_key() };
+            return TRY(::Crypto::PK::MLKEMPublicKey::from_bytes(private_key.public_key()));
         },
         [&](OKPPrivateKey const& private_key) -> ErrorOr<KeyHandle> {
             auto name = Utf16String::from_raw(raw_name);

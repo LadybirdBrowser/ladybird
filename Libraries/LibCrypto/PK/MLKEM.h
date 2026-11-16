@@ -8,6 +8,8 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
+#include <AK/Optional.h>
+#include <LibCrypto/OpenSSL.h>
 
 namespace Crypto::PK {
 
@@ -19,48 +21,66 @@ enum class MLKEMSize {
 
 class MLKEMPublicKey {
 public:
-    explicit MLKEMPublicKey(ByteBuffer m_public_key)
-        : m_public_key(move(m_public_key))
-    {
-    }
-
     MLKEMPublicKey() = default;
 
+    // NB: Any bytes make a key. Web Crypto only runs the encapsulation key check of FIPS 203, section 7.2, when the key
+    //     is used, so its result is kept for then.
+    static ErrorOr<MLKEMPublicKey> from_bytes(ReadonlyBytes);
+
+    // The parameter set that the key passes the encapsulation key check for, if any.
+    Optional<MLKEMSize> size() const { return m_size; }
     ByteBuffer const& public_key() const { return m_public_key; }
 
+    // NB: A key that fails the encapsulation key check has none.
+    EVP_PKEY* openssl_key() const { return m_key.ptr(); }
+
 private:
+    OpenSSL_SharedPKEY m_key;
     ByteBuffer m_public_key;
+    Optional<MLKEMSize> m_size;
 };
 
 class MLKEMPrivateKey {
 public:
-    MLKEMPrivateKey(ByteBuffer seed, ByteBuffer public_key, ByteBuffer private_key)
-        : m_seed(move(seed))
-        , m_public_key(move(public_key))
-        , m_private_key(move(private_key))
-    {
-    }
-
     MLKEMPrivateKey() = default;
 
-    void clear_sensitive_data();
+    // An empty seed generates a new key.
+    static ErrorOr<MLKEMPrivateKey> generate(MLKEMSize, ReadonlyBytes seed);
 
-    ByteBuffer const& seed() const { return m_seed; }
+    // A key that was given in the expandedKey form, which Web Crypto rejects once it has parsed it. It has no seed,
+    // public key or OpenSSL key, since OpenSSL would refuse an expanded key that is not valid.
+    static MLKEMPrivateKey in_expanded_key_form(MLKEMSize);
+
+    MLKEMSize size() const { return m_size; }
+    static constexpr size_t seed_size = 64;
+
+    bool has_seed() const { return m_key.ptr(); }
+    // NB: OpenSSL keeps the seed, so that no copy of it is left behind when a key is moved or replaced. It is written
+    //     into the caller's buffer, which the caller clears.
+    ErrorOr<ReadonlyBytes> seed(Bytes buffer) const;
     ByteBuffer const& public_key() const { return m_public_key; }
-    ByteBuffer const& private_key() const { return m_private_key; }
+    ErrorOr<ByteBuffer> expanded_key() const;
 
     ErrorOr<ByteBuffer> export_as_der() const;
 
+    EVP_PKEY* openssl_key() const { return m_key.ptr(); }
+
 private:
-    ByteBuffer m_seed;
+    MLKEMPrivateKey(OpenSSL_SharedPKEY key, ByteBuffer public_key, MLKEMSize size)
+        : m_key(move(key))
+        , m_public_key(move(public_key))
+        , m_size(size)
+    {
+    }
+
+    OpenSSL_SharedPKEY m_key;
     ByteBuffer m_public_key;
-    ByteBuffer m_private_key;
+    MLKEMSize m_size { MLKEMSize::MLKEM512 };
 };
 
-template<typename PubKey, typename PrivKey>
 struct MLKEMKeyPair {
-    PubKey public_key;
-    PrivKey private_key;
+    MLKEMPublicKey public_key;
+    MLKEMPrivateKey private_key;
 };
 
 struct MLKEMEncapsulation {
@@ -69,17 +89,14 @@ struct MLKEMEncapsulation {
 };
 
 class MLKEM {
-    using PublicKeyType = MLKEMPublicKey;
-    using PrivateKeyType = MLKEMPrivateKey;
-
 public:
-    using KeyPairType = MLKEMKeyPair<PublicKeyType, PrivateKeyType>;
+    using KeyPairType = MLKEMKeyPair;
 
     static ErrorOr<KeyPairType> parse_mlkem_key(MLKEMSize, ReadonlyBytes der);
+    static ErrorOr<KeyPairType> generate_key_pair(MLKEMSize, ReadonlyBytes seed = {});
 
-    static ErrorOr<MLKEMEncapsulation> encapsulate(MLKEMSize size, MLKEMPublicKey const& key);
-    static ErrorOr<ByteBuffer> decapsulate(MLKEMSize size, MLKEMPrivateKey const& key, ByteBuffer ciphertext);
-    static ErrorOr<KeyPairType> generate_key_pair(MLKEMSize size, ByteBuffer seed = {});
+    static ErrorOr<MLKEMEncapsulation> encapsulate(MLKEMSize, MLKEMPublicKey const&);
+    static ErrorOr<ByteBuffer> decapsulate(MLKEMSize, MLKEMPrivateKey const&, ReadonlyBytes ciphertext);
 };
 
-};
+}

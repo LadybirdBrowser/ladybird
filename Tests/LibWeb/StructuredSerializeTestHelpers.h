@@ -17,6 +17,8 @@
 #include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibCrypto/PK/MLDSA.h>
+#include <LibCrypto/PK/MLKEM.h>
 #include <LibGC/Root.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
@@ -671,6 +673,30 @@ inline Vector<CryptoAlgorithmGolden> crypto_algorithm_goldens()
     return goldens;
 }
 
+// ML-DSA and ML-KEM key handles must hold real keys, so these come from fixed seeds.
+inline ::Crypto::PK::MLDSA::KeyPairType mldsa_44_key_pair()
+{
+    Array<u8, 32> seed;
+    for (size_t i = 0; i < seed.size(); ++i)
+        seed[i] = i;
+    return MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA44, seed));
+}
+
+inline ::Crypto::PK::MLKEM::KeyPairType mlkem_512_key_pair()
+{
+    Array<u8, 64> seed;
+    for (size_t i = 0; i < seed.size(); ++i)
+        seed[i] = i;
+    return MUST(::Crypto::PK::MLKEM::generate_key_pair(::Crypto::PK::MLKEMSize::MLKEM512, seed));
+}
+
+template<typename PrivateKey>
+inline ByteBuffer seed_of(PrivateKey const& key)
+{
+    Array<u8, PrivateKey::seed_size> buffer;
+    return MUST(ByteBuffer::copy(MUST(key.seed(buffer))));
+}
+
 inline Vector<CryptoHandleGolden> crypto_handle_goldens()
 {
     using Web::Crypto::HandleTag;
@@ -680,9 +706,12 @@ inline Vector<CryptoHandleGolden> crypto_handle_goldens()
     auto x = p256_base_point_x();
     auto y = p256_base_point_y();
     auto d = ec_coordinate(0x33);
-    auto seed = "seedseedseedseed"sv.bytes();
-    auto pub = "publicpublicpubl"sv.bytes();
-    auto priv = "privprivprivpriv"sv.bytes();
+    auto mldsa = mldsa_44_key_pair();
+    auto mldsa_expanded_key = MUST(mldsa.private_key.expanded_key());
+    auto mlkem = mlkem_512_key_pair();
+    auto mlkem_expanded_key = MUST(mlkem.private_key.expanded_key());
+    auto mldsa_seed = seed_of(mldsa.private_key);
+    auto mlkem_seed = seed_of(mlkem.private_key);
     auto okp = "okpokpokpokpokpo"sv.bytes();
     Array<ReadonlyBytes, 8> rsa_components { modulus, exponent, exponent, modulus, modulus, exponent, exponent, modulus };
 
@@ -694,10 +723,10 @@ inline Vector<CryptoHandleGolden> crypto_handle_goldens()
         alg_rsa_hashed_key_algorithm("RSASSA-PKCS1-v1_5"sv, 2048, exponent, "SHA-256"sv), handle_rsa_private_key(rsa_components) });
     goldens.append({ HandleTag::ECPublicKey, "public"sv, "verify"sv, alg_ec_key_algorithm("ECDSA"sv, "P-256"sv), handle_ec_public_key(x, y) });
     goldens.append({ HandleTag::ECPrivateKey, "private"sv, "sign"sv, alg_ec_key_algorithm("ECDSA"sv, "P-256"sv), handle_ec_private_key(d, {}, {}) });
-    goldens.append({ HandleTag::MLDSAPublicKey, "public"sv, "verify"sv, alg_key_algorithm("ML-DSA-44"sv), handle_single_buffer(5, pub) });
-    goldens.append({ HandleTag::MLDSAPrivateKey, "private"sv, "sign"sv, alg_key_algorithm("ML-DSA-44"sv), handle_triple_buffer(6, seed, pub, priv) });
-    goldens.append({ HandleTag::MLKEMPublicKey, "public"sv, "encapsulateKey"sv, alg_key_algorithm("ML-KEM-512"sv), handle_single_buffer(7, pub) });
-    goldens.append({ HandleTag::MLKEMPrivateKey, "private"sv, "decapsulateKey"sv, alg_key_algorithm("ML-KEM-512"sv), handle_triple_buffer(8, seed, pub, priv) });
+    goldens.append({ HandleTag::MLDSAPublicKey, "public"sv, "verify"sv, alg_key_algorithm("ML-DSA-44"sv), handle_single_buffer(5, mldsa.public_key.public_key()) });
+    goldens.append({ HandleTag::MLDSAPrivateKey, "private"sv, "sign"sv, alg_key_algorithm("ML-DSA-44"sv), handle_triple_buffer(6, mldsa_seed, mldsa.private_key.public_key(), mldsa_expanded_key) });
+    goldens.append({ HandleTag::MLKEMPublicKey, "public"sv, "encapsulateKey"sv, alg_key_algorithm("ML-KEM-512"sv), handle_single_buffer(7, mlkem.public_key.public_key()) });
+    goldens.append({ HandleTag::MLKEMPrivateKey, "private"sv, "decapsulateKey"sv, alg_key_algorithm("ML-KEM-512"sv), handle_triple_buffer(8, mlkem_seed, mlkem.private_key.public_key(), mlkem_expanded_key) });
     goldens.append({ HandleTag::OKPPublicKey, "public"sv, "verify"sv, alg_key_algorithm("Ed25519"sv), handle_single_buffer(9, okp) });
     goldens.append({ HandleTag::OKPPrivateKey, "private"sv, "sign"sv, alg_key_algorithm("Ed25519"sv), handle_single_buffer(10, okp) });
     return goldens;
