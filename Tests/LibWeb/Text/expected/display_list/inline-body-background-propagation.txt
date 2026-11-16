@@ -1,1 +1,1 @@
-background rects: 2
+background rects: 1

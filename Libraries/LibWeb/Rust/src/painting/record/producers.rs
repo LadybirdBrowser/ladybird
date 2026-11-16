@@ -21,6 +21,7 @@ use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paint_order_plan::{PaintOrderItem, PaintProducer, PaintScope, PaintScopePlan};
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintSource};
 use crate::painting::record::change_ticks::RowChanges;
+use crate::painting::record::paint::background_resolution::root_paint_covers_canvas;
 use crate::painting::record::svg_resources::MaskLayerSet;
 use crate::painting::{node_painting, paintable_geometry};
 use libgfx_rust::Color;
@@ -81,11 +82,18 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 );
                 root_group_color = canvas_color;
             }
-            this.recorder.fill_rect(
-                inputs.bitmap_rect,
-                inputs.uncaptured.background_color,
-                ForceDarkRole::Background,
-            );
+            // The root element paints its background over the canvas as well, wherever its own paint covers the canvas.
+            // So there, fill with it only when it's opaque, since painting it twice changes nothing: A translucent one
+            // would otherwise be applied twice.
+            if inputs.uncaptured.background_color.alpha() == 255
+                || !root_paint_covers_canvas(this.source, inputs.uncaptured.root_background_source.root_layout_node)
+            {
+                this.recorder.fill_rect(
+                    inputs.bitmap_rect,
+                    inputs.uncaptured.background_color,
+                    ForceDarkRole::Background,
+                );
+            }
             root_group_color = root_group_color.blend(
                 this.recorder
                     .resolve_color(inputs.uncaptured.background_color, ForceDarkRole::Background),
