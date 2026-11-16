@@ -1,0 +1,9 @@
+ideographs: kept on one line
+U+3005 ideographic iteration mark: kept on one line
+U+309D hiragana iteration mark: kept on one line
+U+309E hiragana voiced iteration mark: kept on one line
+U+30FD katakana iteration mark: kept on one line
+U+30FE katakana voiced iteration mark: kept on one line
+U+303B vertical ideographic iteration mark: kept on one line
+U+30FB katakana middle dot: broken
+U+3002 ideographic full stop: broken

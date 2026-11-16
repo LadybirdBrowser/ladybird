@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    div {
+        font: 20px sans-serif;
+        width: 0;
+        word-break: keep-all;
+    }
+</style>
+<!-- Under keep-all, a run of letters breaks nowhere, the iteration marks included; punctuation still breaks. -->
+<div data-name="ideographs">&#x65B9;&#x65B9;&#x65B9;&#x65B9;</div>
+<div data-name="U+3005 ideographic iteration mark">&#x65B9;&#x3005;&#x65B9;&#x3005;</div>
+<div data-name="U+309D hiragana iteration mark">&#x3053;&#x309D;&#x308D;&#x309D;</div>
+<div data-name="U+309E hiragana voiced iteration mark">&#x307F;&#x309E;&#x304B;&#x309E;</div>
+<div data-name="U+30FD katakana iteration mark">&#x30B3;&#x30FD;&#x30ED;&#x30FD;</div>
+<div data-name="U+30FE katakana voiced iteration mark">&#x30DF;&#x30FE;&#x30AB;&#x30FE;</div>
+<div data-name="U+303B vertical ideographic iteration mark">&#x65B9;&#x303B;&#x65B9;&#x303B;</div>
+<div data-name="U+30FB katakana middle dot">&#x65B9;&#x30FB;&#x65B9;&#x30FB;</div>
+<div data-name="U+3002 ideographic full stop">&#x65B9;&#x3002;&#x65B9;&#x3002;</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const range = document.createRange();
+        for (const div of document.querySelectorAll("div")) {
+            range.selectNodeContents(div);
+            const lines = new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size;
+            println(`${div.dataset.name}: ${lines === 1 ? "kept on one line" : "broken"}`);
+        }
+        });
+</script>
