@@ -289,7 +289,7 @@ endpoint HubClient
     app_update_tabs_display() =|
     app_did_clear_history_since(UnixDateTime since) =|
     app_quit_for_signal() =|
-    app_did_enable_devtools() =|
+    app_did_enable_devtools(u16 port) =|
     app_did_disable_devtools() =|
     app_open_urls_in_new_tabs(Vector<URL::URL> urls) =|
     app_activate_or_open_tab_with_url(URL::URL url) =|

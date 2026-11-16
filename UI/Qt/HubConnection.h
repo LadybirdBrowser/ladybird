@@ -133,7 +133,7 @@ private:
     virtual void app_update_tabs_display() override;
     virtual void app_did_clear_history_since(UnixDateTime since) override;
     virtual void app_quit_for_signal() override;
-    virtual void app_did_enable_devtools() override;
+    virtual void app_did_enable_devtools(u16 port) override;
     virtual void app_did_disable_devtools() override;
     virtual void app_open_urls_in_new_tabs(Vector<URL::URL> urls) override;
     virtual void app_activate_or_open_tab_with_url(URL::URL url) override;
