@@ -9,7 +9,6 @@ set(FUZZER_TARGETS
     MatroskaReader
     PNGLoader
     RegexECMA262
-    RSAKeyParsing
     TextDecoder
     URL
     WasmParser
@@ -30,7 +29,6 @@ set(FUZZER_DEPENDENCIES_Js LibJSStandalone LibGC)
 set(FUZZER_DEPENDENCIES_MatroskaReader LibMedia)
 set(FUZZER_DEPENDENCIES_PNGLoader LibGfx LibImageDecoders)
 set(FUZZER_DEPENDENCIES_RegexECMA262 LibRegex)
-set(FUZZER_DEPENDENCIES_RSAKeyParsing LibCrypto)
 set(FUZZER_DEPENDENCIES_TextDecoder LibTextCodec)
 set(FUZZER_DEPENDENCIES_URL LibURL)
 set(FUZZER_DEPENDENCIES_WasmParser LibWasm)

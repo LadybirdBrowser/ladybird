@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const bytes = hex => Uint8Array.from(hex.match(/../g), byte => parseInt(byte, 16));
+        const tryImport = async (name, data, algorithm) => {
+            try {
+                await crypto.subtle.importKey("pkcs8", data, algorithm, true, ["sign"]);
+                println(`${name}: imported`);
+            } catch (error) {
+                println(`${name}: ${error.name}`);
+            }
+        };
+
+        // An Ed25519 PrivateKeyInfo, and the same key as a version 1 OneAsymmetricKey without its public key.
+        for (const version of [0, 1]) {
+            const pkcs8 = bytes(`302e02010${version}300506032b657004220420` + "11".repeat(32));
+            await tryImport(`PrivateKeyInfo version ${version}`, pkcs8, { name: "Ed25519" });
+        }
+
+        // An RSA key whose RSAPrivateKey version, after a two-byte length, is at offset 32.
+        const algorithm = { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" };
+        const { privateKey } = await crypto.subtle.generateKey(
+            { ...algorithm, modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]) },
+            true,
+            ["sign"]
+        );
+        const pkcs8 = new Uint8Array(await crypto.subtle.exportKey("pkcs8", privateKey));
+        for (const version of [0, 1, 2]) {
+            const copy = pkcs8.slice();
+            copy[32] = version;
+            await tryImport(`RSAPrivateKey version ${version}`, copy, algorithm);
+        }
+    });
+</script>

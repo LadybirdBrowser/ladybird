@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // A 1024-bit RSA private key in PKCS#8 with three primes, whose RSAPrivateKey has otherPrimeInfos.
+    const key =
+        "MIIClwIBADANBgkqhkiG9w0BAQEFAASCAoEwggJ9AgEBAoGBAJ7IzvkMlxCpXJLgCtoPPp0Wr3xovN6jZ4pxXO+24SO2sg31" +
+        "fr41bdWT+mllETeO9N+iDF2LSP0q34uewWeKz78/3L8lGHitNtB64KIBXBwDPtbXd31kDBRSHis2iQ7DJrdHd4KOL45J2gRD" +
+        "yDLc5cA6Z764Aqz4pgS09GL1jK+PAgMBAAECgYA5uoJdU7F8kkag86meXBqEnGHS1nWMcFZNpCeI07GI/XxAzPd2ihBTrUhB" +
+        "YOfabTBdBwFnWbPPLdKGfHin00IVvz3YlYMKdLxUjHPr10Df8bhGpZmy9VfddjgHZwqq3xiCTrx5bkwmatSdOHo8mSO8ESXb" +
+        "tvioU7eJt3qBQXrmyQIrMnNfNtixHCIEQjvoyLR6ksfPK9fBM+VUhFSxb3jIOfAVd1oPq6xES+imXwIrHNroS1MkyYJgWjEf" +
+        "iTDiNrWS87JfsCROjlnJYp33XiCWOyJtKQtkauuOuwIrHwwG/U6u97wrWMNbhyAiCnAyGy4EdLZdo64nH4150sXfv/pJiIFT" +
+        "6k77CwIrAf2wzZG9FhJi55ZAIM04rqG0tA/4vkSjDvtvA9j2eo4xD39+nLhmg2IhhQIrLg+PMIvV6vDiXmF3wrOc8GtmAnSf" +
+        "P9k+VxjWbBpd4VHT3tiEqbiG3WrApjCBijCBhwIrG+w5Tb7OmtdoWhs04vv6y7zgbYa+e4JdjDs13lKx9BtvRT6iG99kZ0Jv" +
+        "4wIrGM90u1fnTD5KQoYaH/W1ioJxB+DKMAROCuQxoTHpXPVjkStt70Y3eGjX8QIrCNRJ4hr3whJpRJQjq+HxwV+ifniM5wXb" +
+        "4D68RYGyEVG67CD0NcHk2TTxCg==";
+
+    promiseTest(async () => {
+        const bytes = Uint8Array.from(atob(key), character => character.charCodeAt(0));
+        try {
+            await crypto.subtle.importKey("pkcs8", bytes, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, [
+                "sign",
+            ]);
+            println("imported");
+        } catch (error) {
+            println(error.name);
+        }
+    });
+</script>
