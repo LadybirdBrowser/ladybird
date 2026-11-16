@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<title>flexbox | flex-flow: column-reverse wrap-reverse; order | rtl</title>
+<link rel="author" href="http://opera.com" title="Opera Software">
+<link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#flex-flow-property">
+<link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#valdef-flex-direction-column-reverse">
+<link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#valdef-flex-wrap-wrap-reverse">
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/flexbox_rtl-order-ref.html">
+<style>
+div {
+	background: blue;
+	margin: 1em 0;
+	border: 1px solid black;
+	width: 20em;
+	height: 8em;
+	direction: rtl;
+
+	display: flex;
+	flex-flow: column-reverse wrap-reverse;
+}
+span {
+	background: white;
+	margin: 1em;
+	width: 8em;
+	height: 1.5em;
+	display: inline-block;
+}
+.one {
+	background: pink;
+	order: 4;
+}
+.two {
+	background: yellow;
+	order: 3;
+}
+.three {
+	background: black;
+	color: white;
+	order: 2;
+}
+.four {
+	background: fuchsia;
+	color: white;
+	order: 1;
+}
+</style>
+
+<div>
+	<span class="one">one</span>
+	<span class="two">two</span>
+	<span class="three">three</span>
+	<span class="four">four</span>
+</div>

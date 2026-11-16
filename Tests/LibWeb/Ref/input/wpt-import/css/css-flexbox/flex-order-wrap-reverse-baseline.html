@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CSS Test: flex first baseline with wrap-reverse and order property</title>
+  <link rel="author" title="WebKit" href="https://webkit.org">
+  <link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#order-property">
+  <link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#valdef-flex-wrap-wrap-reverse">
+  <link rel="help" href="https://www.w3.org/TR/css-align-3/#baseline-values">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/flex-order-wrap-reverse-baseline-ref.html">
+  <meta name="assert" content="With wrap-reverse, the first baseline should come from the visually first line (logically last), iterating order values in reverse.">
+  <style>
+    .outer {
+        display: flex;
+        align-items: baseline;
+        height: 150px;
+        border: 1px solid black;
+    }
+    .flex {
+        display: flex;
+        flex-wrap: wrap-reverse;
+        width: 60px;
+    }
+    .flex > div {
+        width: 60px;
+        align-self: baseline;
+    }
+    .a { order: 1; font-size: 10px; background: lightblue; }
+    .b { order: 2; font-size: 30px; background: lightgreen; }
+  </style>
+</head>
+<body>
+  <p>Test passes if "Ref" is aligned to the baseline of "B" (the large green text).</p>
+  <div class="outer">
+      <div class="flex">
+          <div class="a">A</div>
+          <div class="b">B</div>
+      </div>
+      <div>Ref</div>
+  </div>
+</body>
+</html>
