@@ -129,7 +129,7 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
         return Optional<CacheEntryReader&> {};
     }
 
-    auto cache_entry = CacheEntryReader::create(*this, m_index, cache_key, index_entry->vary_key, index_entry->response_headers, index_entry->data_size);
+    auto cache_entry = CacheEntryReader::create(*this, m_index, cache_key, index_entry->vary_key, serialized_url, index_entry->response_headers, index_entry->data_size);
     if (cache_entry.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to open cache entry for\033[0m {}: {}", url, cache_entry.error());
 
@@ -220,7 +220,7 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     return Optional<CacheEntryReader&> { *cache_entry_pointer };
 }
 
-bool DiskCache::check_if_cache_has_open_entry(CacheRequest& request, u64 cache_key, URL::URL const& url, CheckReaderEntries check_reader_entries)
+bool DiskCache::check_if_cache_has_open_entry(CacheRequest& request, CacheDigest const& cache_key, URL::URL const& url, CheckReaderEntries check_reader_entries)
 {
     // FIXME: We purposefully do not use the vary key here, as we do not yet have it when creating a CacheEntryWriter
     //        (we can only compute it once we receive the response headers). We could come up with a more sophisticated
@@ -276,14 +276,14 @@ Optional<MonotonicTime> DiskCache::last_activity_time_of_open_entries(Utf16Strin
 
 void DiskCache::remove_entries_exceeding_cache_limit()
 {
-    m_index.remove_entries_exceeding_cache_limit([&](auto cache_key, auto vary_key) {
+    m_index.remove_entries_exceeding_cache_limit([&](auto const& cache_key, auto const& vary_key) {
         delete_entry(cache_key, vary_key);
     });
 }
 
-void DiskCache::remove_variants_exceeding_limit(Badge<CacheEntryWriter>, u64 cache_key, u64 vary_key_to_keep)
+void DiskCache::remove_variants_exceeding_limit(Badge<CacheEntryWriter>, CacheDigest const& cache_key, CacheDigest const& vary_key_to_keep)
 {
-    m_index.remove_variants_exceeding_limit(cache_key, vary_key_to_keep, [&](auto cache_key, auto vary_key) {
+    m_index.remove_variants_exceeding_limit(cache_key, vary_key_to_keep, [&](auto const& cache_key, auto const& vary_key) {
         delete_entry(cache_key, vary_key);
     });
 }
@@ -308,14 +308,14 @@ void DiskCache::remove_entries_accessed_since(UnixDateTime since)
         }
     }
 
-    m_index.remove_entries_accessed_since(since, [&](auto cache_key, auto vary_key) {
+    m_index.remove_entries_accessed_since(since, [&](auto const& cache_key, auto const& vary_key) {
         delete_entry(cache_key, vary_key);
     });
 }
 
 void DiskCache::remove_entries_accessed_before(UnixDateTime before)
 {
-    m_index.remove_entries_accessed_before(before, [&](auto cache_key, auto vary_key) {
+    m_index.remove_entries_accessed_before(before, [&](auto const& cache_key, auto const& vary_key) {
         delete_entry(cache_key, vary_key);
     });
 }
@@ -336,7 +336,7 @@ void DiskCache::invalidate(Utf16String const& partition, URL::URL const& url)
                 open_entry->mark_for_deletion({});
         }
 
-        m_index.remove_entries_for_cache_key(cache_key, [&](auto cache_key, auto vary_key) {
+        m_index.remove_entries_for_cache_key(cache_key, [&](auto const& cache_key, auto const& vary_key) {
             delete_entry(cache_key, vary_key);
         });
     }
@@ -392,7 +392,7 @@ void DiskCache::close_entry(CacheEntry const& cache_entry)
     }
 }
 
-void DiskCache::delete_entry(u64 cache_key, u64 vary_key)
+void DiskCache::delete_entry(CacheDigest const& cache_key, CacheDigest const& vary_key)
 {
     if (auto open_entries = m_open_cache_entries.get(cache_key); open_entries.has_value()) {
         for (auto const& [open_entry, _] : *open_entries)
@@ -402,7 +402,7 @@ void DiskCache::delete_entry(u64 cache_key, u64 vary_key)
     remove_entry_files(cache_key, vary_key);
 }
 
-void DiskCache::remove_entry_files(u64 cache_key, u64 vary_key)
+void DiskCache::remove_entry_files(CacheDigest const& cache_key, CacheDigest const& vary_key)
 {
     auto cache_path = path_for_cache_entry(m_cache_directory, cache_key, vary_key);
     (void)FileSystem::remove(cache_path.string(), FileSystem::RecursionMode::Disallowed);

@@ -241,7 +241,7 @@ void MemoryCache::abandon_entry(URL::URL const& url, StringView method, HeaderLi
         remove_complete_entries(cache_key, [&](auto const& entry) { return entry_matches_request(request_headers, entry); });
 }
 
-Optional<MemoryCache::Entry> MemoryCache::take_pending_entry(CacheKey const& cache_key, Optional<u64> vary_key)
+Optional<MemoryCache::Entry> MemoryCache::take_pending_entry(CacheKey const& cache_key, Optional<CacheDigest> const& vary_key)
 {
     auto cache_entries = m_pending_entries.get(cache_key);
     if (!cache_entries.has_value())
@@ -304,7 +304,7 @@ Vector<MemoryCache::EntryUse> MemoryCache::complete_entry_uses() const
     return uses;
 }
 
-void MemoryCache::evict_complete_entry(CacheKey const& cache_key, u64 vary_key)
+void MemoryCache::evict_complete_entry(CacheKey const& cache_key, CacheDigest const& vary_key)
 {
     dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[33;1mEvicted cache entry\033[0m {}", cache_key.url);
     remove_complete_entries(cache_key, [&](auto const& entry) { return entry.vary_key == vary_key; });
