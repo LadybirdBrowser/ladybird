@@ -535,6 +535,11 @@ static bool cluster_takes_letter_spacing(Utf16View const& string, u32 cluster_st
     return cluster_start >= string.length_in_code_units() || !is_cursive_script(string.code_point_at(cluster_start));
 }
 
+static bool is_hangul_filler(u32 code_point)
+{
+    return code_point == 0x115F || code_point == 0x1160 || code_point == 0x3164 || code_point == 0xFFA0;
+}
+
 // https://drafts.csswg.org/css-text-3/#white-space-phase-2
 // 4. If there remains any sequence of white space, other space separators, and/or preserved tabs at the end of a line
 //    (after bidi reordering [CSS-WRITING-MODES-4]):
@@ -627,11 +632,19 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
         auto starting_offset = glyph_info[index].cluster;
         if (starting_offset >= string.length_in_code_units())
             return true;
+        auto has_hangul_filler = false;
         for (auto code_point : string.substring_view(starting_offset, cluster_length_in_code_units(index))) {
+            if (is_hangul_filler(code_point)) {
+                has_hangul_filler = true;
+                continue;
+            }
             if (!Unicode::code_point_has_default_ignorable_code_point_property(code_point))
                 return true;
         }
-        return false;
+        // AD-HOC: The Hangul fillers have the Default_Ignorable_Code_Point property, but fonts give them a spacing
+        //         glyph, and a filler that stands alone takes that glyph's advance. A filler no font has a glyph for
+        //         stays invisible, rather than showing the missing-glyph box.
+        return has_hangul_filler && glyph_info[index].codepoint != 0;
     };
 
     // NB: HarfBuzz positions glyphs in font space, where y grows upward, so its y offsets and advances are negated
