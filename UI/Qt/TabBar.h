@@ -344,6 +344,7 @@ public:
     void set_tab_bar_visible(bool visible);
     void set_new_tab_action(QAction* action);
     void set_window_controls_visible(bool);
+    void window_control_buttons_changed();
     void update_window_button_icons();
     void set_vertical_tabs_enabled(bool);
     void set_everything_in_sidebar(bool);

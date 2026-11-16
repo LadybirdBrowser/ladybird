@@ -203,6 +203,7 @@ public:
 
     LadybirdButton& ladybird_button() const { return m_tabs_container->ladybird_button(); }
     static bool has_chrome_in_titlebar();
+    void window_control_buttons_changed();
 
     void show_window_context_menu(QPoint global_position);
 
