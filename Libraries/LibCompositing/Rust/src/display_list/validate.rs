@@ -783,12 +783,6 @@ pub fn validate_tape(tape: &[u8], run_bytes: &[u8]) -> Result<Vec<DisplayListCom
         if size > tape.len() - next_offset {
             return Err("Display list command runs exceed the tape");
         }
-        if runs
-            .last()
-            .is_some_and(|previous: &DisplayListCommandRun| previous.context == run.context)
-        {
-            return Err("Adjacent display list command runs share a visual context");
-        }
         let mut summary = RunSummary::default();
         validate_records(
             &tape[next_offset..next_offset + size],

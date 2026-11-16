@@ -41,8 +41,8 @@ displayListTest({
                       BlockContainer<BODY>#body/border COPY
                       BlockContainer<DIV>#scroller/descendants(background-and-borders) ASSEMBLE
                         BlockContainer<DIV>#scroller/scroll-metadata RECORD
-                        BlockContainer<DIV>#scroller/background COPY
-                        BlockContainer<DIV>#scroller/border COPY
+                        BlockContainer<DIV>#scroller/background SKIP
+                        BlockContainer<DIV>#scroller/border SKIP
                         BlockContainer<DIV>#row0.row/descendants(background-and-borders) COPY
                         BlockContainer<DIV>#row1.row/descendants(background-and-borders) ASSEMBLE
                           BlockContainer<DIV>#row1.row/scroll-metadata RECORD
@@ -66,7 +66,7 @@ displayListTest({
                           BlockContainer<DIV>#row2.row/foreground RECORD (empty)
                           BlockContainer<DIV>#row2.row/outline SKIP
                           BlockContainer<DIV>#row2.row/overlay SKIP
-                        BlockContainer<DIV>#scroller/outline COPY
+                        BlockContainer<DIV>#scroller/outline SKIP
                         BlockContainer<DIV>#scroller/overlay RECORD
                       BlockContainer<BODY>#body/outline COPY
                       BlockContainer<BODY>#body/overlay COPY
@@ -103,7 +103,7 @@ displayListTest({
                         BlockContainer<DIV>#scroller/border COPY
                         BlockContainer<DIV>#row0.row/descendants(background-and-borders) COPY
                         BlockContainer<DIV>#row1.row/descendants(background-and-borders) ASSEMBLE
-                          BlockContainer<DIV>#row1.row/scroll-metadata COPY
+                          BlockContainer<DIV>#row1.row/scroll-metadata RECORD
                           BlockContainer<DIV>#row1.row/background RECORD
                           BlockContainer<DIV>#row1.row/border SKIP
                         BlockContainer<DIV>#row2.row/descendants(background-and-borders) COPY

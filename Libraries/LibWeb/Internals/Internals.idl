@@ -222,7 +222,7 @@ interface Internals {
     // position.
     boolean recordedDisplayListBlocksWheelEventAt(double x, double y);
     [ImplementedAs=recorded_async_scrolling_state_object] object recordedAsyncScrollingState();
-    undefined recordDisplayListForTesting(optional boolean paintOverlay = false, optional boolean cold = false);
+    undefined recordDisplayListForTesting(optional boolean paintOverlay = false, optional boolean cold = false, optional boolean finestRuns = false);
     undefined setAutoplayPolicy(DOMString policy);
 
     DOMString getComputedRole(Element element);

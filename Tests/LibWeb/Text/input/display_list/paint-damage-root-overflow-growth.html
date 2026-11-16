@@ -32,18 +32,18 @@ displayListTest({
                   @viewport/foreground RECORD (empty)
                   BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
                   BlockContainer<HTML>#html ASSEMBLE
-                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/preamble RECORD (empty)
                     BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
                     BlockContainer<HTML>#html/background RECORD
-                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<HTML>#html/border SKIP
                     BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
                       BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
-                      BlockContainer<BODY>#body/background COPY
-                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
                       BlockContainer<DIV>#text/descendants(background-and-borders) ASSEMBLE
                         BlockContainer<DIV>#text/scroll-metadata RECORD (empty)
-                        BlockContainer<DIV>#text/background COPY
-                        BlockContainer<DIV>#text/border COPY
+                        BlockContainer<DIV>#text/background SKIP
+                        BlockContainer<DIV>#text/border SKIP
                       BlockContainer<DIV>#far/descendants(background-and-borders) ASSEMBLE
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE

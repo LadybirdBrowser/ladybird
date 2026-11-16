@@ -5,6 +5,7 @@
  */
 
 use crate::layout::LayoutNodeArena;
+use crate::painting::display_list::chunks::Chunk;
 use crate::painting::display_list::commands::{DisplayListCommandType, DisplayListResourceId, PaintVectorImage};
 use crate::painting::display_list_resources::{DisplayListResources, summary_of};
 use crate::painting::host::FfiRecordingPublishCallbacks;
@@ -56,29 +57,51 @@ pub(crate) fn render_vector_images(
         .collect()
 }
 
-/// Patches the placeholders of SVG images in `output` with the ids of `vector_images`, one for each image.
+/// Patches the placeholders of SVG images in `output` with the ids of `vector_images`, one for each image: finishes
+/// every chunk of the recording that draws one, and the display list's tape with it.
 fn patch_vector_image_placeholders(output: &mut RecordingOutput, vector_images: &[Arc<VectorImageRecords>]) {
-    let display_list = std::sync::Arc::make_mut(&mut output.display_list);
     let id_field_offset = std::mem::offset_of!(PaintVectorImage, vector_image_id);
-    let mut patch_offsets = Vec::new();
-    crate::painting::display_list::nested_records::for_each_command_including_nested(
-        &display_list.bytes,
-        &mut |command_type, payload_offset, payload| {
-            if command_type != DisplayListCommandType::PaintVectorImage {
-                return;
-            }
-            let id = crate::painting::display_list::builder::read_command::<PaintVectorImage>(payload).vector_image_id;
-            if is_vector_image_placeholder(id) {
-                patch_offsets.push((
-                    payload_offset + id_field_offset,
-                    vector_images[vector_image_placeholder_index(id)].id(),
-                ));
-            }
-        },
+    let chunks = Arc::clone(&output.chunks);
+    let display_list = Arc::make_mut(&mut output.display_list);
+    debug_assert_eq!(
+        chunks.len(),
+        display_list.chunks.len(),
+        "a tape holds one chunk for each of the list's"
     );
-    for (offset, resolved_id) in patch_offsets {
-        display_list.bytes[offset..offset + std::mem::size_of::<u64>()]
-            .copy_from_slice(&DisplayListResourceId(resolved_id).0.to_ne_bytes());
+    let mut chunk_start = 0;
+    for (index, chunk) in chunks.iter().enumerate() {
+        let chunk_end = display_list.chunks[index].byte_end as usize;
+        let records = chunk_start..chunk_end;
+        chunk_start = chunk_end;
+        if !chunk.draws_vector_image_placeholders() || chunk.finished().is_some() {
+            continue;
+        }
+        let mut patch_offsets = Vec::new();
+        crate::painting::display_list::nested_records::for_each_command_including_nested(
+            &display_list.bytes[records.clone()],
+            &mut |command_type, payload_offset, payload| {
+                if command_type != DisplayListCommandType::PaintVectorImage {
+                    return;
+                }
+                let id =
+                    crate::painting::display_list::builder::read_command::<PaintVectorImage>(payload).vector_image_id;
+                if is_vector_image_placeholder(id) {
+                    patch_offsets.push((
+                        records.start + payload_offset + id_field_offset,
+                        vector_images[vector_image_placeholder_index(id)].id(),
+                    ));
+                }
+            },
+        );
+        for &(offset, resolved_id) in &patch_offsets {
+            display_list.bytes[offset..offset + std::mem::size_of::<u64>()]
+                .copy_from_slice(&DisplayListResourceId(resolved_id).0.to_ne_bytes());
+        }
+        let finished = chunk.finish(Chunk::named(
+            display_list.bytes[records].to_vec(),
+            chunk.recorded().runs.clone(),
+        ));
+        display_list.chunks[index].id = finished.id;
     }
 }
 
@@ -307,7 +330,7 @@ impl HitTestItemsOnScreen {
 }
 
 /// Takes the output of a recording that presented itself in: what hit testing reads of the frame on screen, and for a
-/// recording that publishes, the source the next recording copies from. Resource callbacks and verification have
+/// recording that publishes, the source the next recording reuses from. Resource callbacks and verification have
 /// finished, so the new recording may become the source.
 pub(crate) fn take_in_presented_output(
     recorder: &mut RecorderState,

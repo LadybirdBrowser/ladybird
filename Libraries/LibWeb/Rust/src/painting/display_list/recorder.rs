@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::builder::{
-    CommandRange, DisplayListBuilder, HEADER_SIZE, OpenGroup, PendingInlineClip, RecordedDisplayList,
-};
+use super::builder::{DisplayListBuilder, HEADER_SIZE, OpenGroup, PendingInlineClip};
+use super::chunks::Chunk;
 use super::commands::*;
 use crate::painting::display_list::ffi_bytes::FfiBytes;
 use crate::painting::force_dark::{ForceDarkResolver, ForceDarkRole, ForceDarkSettings};
@@ -477,16 +476,10 @@ impl DisplayListRecorder {
         );
     }
 
-    /// Copies the commands in `bytes` of `source` as they were recorded. The caller must establish
-    /// that their visual-context indices are still valid for the current visual context tree.
-    pub fn append_cached_commands(&mut self, source: &RecordedDisplayList, bytes: std::ops::Range<u32>) {
-        self.builder.append_command_range(
-            source,
-            CommandRange {
-                offset: bytes.start,
-                size: bytes.end - bytes.start,
-            },
-        );
+    /// Takes everything recorded so far out as one chunk, named by what it holds. What is recorded next starts a run
+    /// of its own.
+    pub fn take_chunk(&mut self) -> Chunk {
+        self.builder.take_chunk()
     }
 
     pub fn fill_rect(&mut self, rect: IntRect, color: Color, force_dark_role: ForceDarkRole) {

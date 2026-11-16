@@ -26,10 +26,6 @@ pub(crate) enum StackingContextPaintPhase {
     Foreground = 3,
 }
 
-impl StackingContextPaintPhase {
-    pub(crate) const COUNT: usize = Self::Foreground as usize + 1;
-}
-
 const _: () = assert!(
     StackingContextPaintPhase::Floats as usize == StackingContextPaintPhase::BackgroundAndBorders as usize + 1
         && StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced as usize
@@ -95,7 +91,7 @@ pub(crate) enum PaintProducer {
     ScopePreamble,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum PaintOrderItem {
     Producer(PaintProducer),
     Scope(PaintScope),

@@ -8,64 +8,45 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::record::RecordingOutput;
 use crate::painting::record::inputs::RecordingInputs;
-use crate::painting::record::order_tree::{PaintOrderTree, PaintOrderTreeAccess};
 use crate::painting::record::scratch::RecordingScratch;
 use std::cell::RefCell;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
+/// Counts the recordings of a document's host that published. A fork of the recorder state copies from the
+/// recording that was published when it forked, and tells by the count when the host has published another since.
 #[derive(Default)]
-struct VersionedPaintOrderTree {
-    tree: PaintOrderTree,
-    rewrites: u64,
+pub(crate) struct PublishedRecordingCount {
+    shared: Arc<AtomicU64>,
+    as_of_fork: Option<u64>,
 }
 
-/// A hold on a document's one paint-order tree, which only the recordings of its host rewrite. A fork of the recorder
-/// state reads the tree as the recording it forked from left it, up to the next recording that rewrites it.
-#[derive(Default)]
-pub(crate) struct PaintOrderTreeHandle {
-    shared: Arc<Mutex<VersionedPaintOrderTree>>,
-    reads_as_of: Option<u64>,
-}
-
-impl PaintOrderTreeHandle {
-    fn lock(&self) -> MutexGuard<'_, VersionedPaintOrderTree> {
-        self.shared.lock().unwrap_or_else(PoisonError::into_inner)
-    }
-
-    fn reader(&self) -> Self {
+impl PublishedRecordingCount {
+    fn fork(&self) -> Self {
         Self {
             shared: Arc::clone(&self.shared),
-            reads_as_of: Some(self.lock().rewrites),
+            as_of_fork: Some(self.shared.load(Ordering::Acquire)),
         }
     }
 
-    pub(crate) fn is_reader(&self) -> bool {
-        self.reads_as_of.is_some()
+    pub(crate) fn is_of_a_fork(&self) -> bool {
+        self.as_of_fork.is_some()
     }
 
-    /// Whether the tree is as this hold first found it, or this hold is the host's, which always reads it as it is.
-    pub(crate) fn reads_current_tree(&self) -> bool {
-        self.reads_as_of.is_none_or(|rewrites| rewrites == self.lock().rewrites)
+    /// Whether the host published no recording since this fork was made. The host's own count is always current.
+    pub(crate) fn is_current(&self) -> bool {
+        self.as_of_fork
+            .is_none_or(|count| count == self.shared.load(Ordering::Acquire))
     }
 
-    /// Runs `recording` on the tree, which it rewrites where `publishes_recording` and this hold is the host's, and
-    /// otherwise only reads. Answers what it answered, and whether it rewrote the tree.
-    pub(crate) fn with_access<R>(
-        &self,
-        publishes_recording: bool,
-        recording: impl FnOnce(PaintOrderTreeAccess<'_>) -> R,
-    ) -> (R, bool) {
-        let mut held = self.lock();
-        let held = &mut *held;
-        let rewrites = publishes_recording && !self.is_reader();
-        let access = match rewrites {
-            true => {
-                held.rewrites += 1;
-                PaintOrderTreeAccess::Rewrites(&mut held.tree)
-            }
-            false => PaintOrderTreeAccess::Reads(&held.tree),
-        };
-        (recording(access), rewrites)
+    /// Answers whether a recording that asks to publish does: only the host's recordings publish. Counts it where
+    /// it does.
+    pub(crate) fn note_recording(&self, asks_to_publish: bool) -> bool {
+        let publishes = asks_to_publish && !self.is_of_a_fork();
+        if publishes {
+            self.shared.fetch_add(1, Ordering::AcqRel);
+        }
+        publishes
     }
 }
 
@@ -74,11 +55,9 @@ impl PaintOrderTreeHandle {
 /// is in it, so it moves with the recording rather than being shared with what it reads.
 #[derive(Default)]
 pub(crate) struct RecorderState {
-    /// The last recording that published, which the next one copies clean output from.
+    /// The last recording that published, which the next one reuses clean output from.
     pub(crate) published_recording: Option<Arc<RecordingOutput>>,
-    /// The paint-order tree describing the published recording; a recording that publishes
-    /// appends to it and publication or discarding decides what stays.
-    pub(crate) paint_order_tree: PaintOrderTreeHandle,
+    pub(crate) published_recording_count: PublishedRecordingCount,
     /// The recording's workspace, whose tables one recording leaves for the next to reuse.
     pub(crate) scratch: RecordingScratch,
     /// The absolute rects the recordings computed, which stay valid while the document's geometry
@@ -90,11 +69,11 @@ pub(crate) struct RecorderState {
 
 impl RecorderState {
     /// A fork of the recorder state, for a fork of the document's render state to record with: it copies clean output
-    /// from the same recording, reads the same paint-order tree, and keeps no scratch or memo of its own.
+    /// from the same recording, and keeps no scratch or memo of its own.
     pub(crate) fn fork(&self) -> Self {
         Self {
             published_recording: self.published_recording.clone(),
-            paint_order_tree: self.paint_order_tree.reader(),
+            published_recording_count: self.published_recording_count.fork(),
             scratch: Default::default(),
             absolute_rects: Default::default(),
             published_inputs: self.published_inputs.clone(),
@@ -129,63 +108,34 @@ const _: () = {
 };
 
 impl RecorderState {
-    /// A recording that publishes assembles its frame in the retained paint-order tree, which no
-    /// longer describes the published recording once that recording is dropped: the next recording
-    /// copies nothing from it and records from scratch into a tree of its own.
+    /// Forgets the published recording: the next recording copies nothing and records from scratch.
     pub(crate) fn forget_published_recording(&mut self) {
         self.published_recording = None;
-        self.paint_order_tree = Default::default();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::painting::paint_order_plan::PaintScope;
-    use crate::painting::record::order_tree::{ChildEntry, OutputSize, ScopeId};
-
-    fn publish_a_tree(handle: &PaintOrderTreeHandle) -> bool {
-        let (_, rewrote) = handle.with_access(true, |mut access| {
-            if let Some(tree) = access.rewrites() {
-                let scope = PaintScope::stacking_context(NodeSlotId::new(1, 1));
-                let root = tree.allocate_scope(scope, ScopeId::NONE);
-                tree.finish_recording(root, ChildEntry::scope(root, OutputSize::default()));
-            }
-        });
-        rewrote
-    }
-
-    fn scope_count(handle: &PaintOrderTreeHandle) -> usize {
-        handle.with_access(false, |access| access.read().scope_count()).0
-    }
 
     #[test]
-    fn a_fork_reads_the_tree_of_its_frame_until_the_host_rewrites_it() {
-        let mut host = RecorderState::default();
-        assert!(publish_a_tree(&host.paint_order_tree));
+    fn a_fork_copies_from_its_recording_until_the_host_publishes_another() {
+        let host = RecorderState::default();
+        assert!(host.published_recording_count.note_recording(true));
         let fork = host.fork();
-        assert!(fork.paint_order_tree.is_reader());
-        assert!(!host.paint_order_tree.is_reader());
-        assert_eq!(scope_count(&fork.paint_order_tree), 1);
+        assert!(fork.published_recording_count.is_of_a_fork());
+        assert!(!host.published_recording_count.is_of_a_fork());
 
-        // A recording of the host that publishes nothing leaves the tree as the fork read it.
-        scope_count(&host.paint_order_tree);
-        assert!(fork.paint_order_tree.reads_current_tree());
+        // A recording of the host that publishes nothing leaves the fork's recording the published one.
+        assert!(!host.published_recording_count.note_recording(false));
+        assert!(fork.published_recording_count.is_current());
 
-        // The fork never rewrites the tree, whatever its recording publishes.
-        assert!(!publish_a_tree(&fork.paint_order_tree));
-        assert!(fork.paint_order_tree.reads_current_tree());
+        // The fork never publishes, whatever its recording asks.
+        assert!(!fork.published_recording_count.note_recording(true));
+        assert!(fork.published_recording_count.is_current());
 
-        assert!(publish_a_tree(&host.paint_order_tree));
-        assert!(!fork.paint_order_tree.reads_current_tree());
-        assert!(host.paint_order_tree.reads_current_tree());
-
-        // Forgetting the published recording starts a tree of the host's own, and leaves the one the fork holds.
-        let fork = host.fork();
-        let scopes_the_fork_reads = scope_count(&fork.paint_order_tree);
-        host.forget_published_recording();
-        assert_eq!(scope_count(&host.paint_order_tree), 0);
-        assert_eq!(scope_count(&fork.paint_order_tree), scopes_the_fork_reads);
-        assert!(fork.paint_order_tree.reads_current_tree());
+        assert!(host.published_recording_count.note_recording(true));
+        assert!(!fork.published_recording_count.is_current());
+        assert!(host.published_recording_count.is_current());
     }
 }

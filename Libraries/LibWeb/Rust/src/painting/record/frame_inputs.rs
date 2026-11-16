@@ -21,6 +21,7 @@ pub(crate) struct FrameInputs {
     pub(crate) force_dark_settings: ForceDarkSettings,
     pub(crate) should_show_line_box_borders: bool,
     pub(crate) should_paint_overlay: bool,
+    records_in_finest_runs: bool,
     pub(crate) uncaptured: UncapturedContentInputs,
     // Whether any box but the viewport could take or keep a wheel event decides if the scroll metadata
     // inside subtree captures carries per-box wheel hit-test targets.
@@ -48,6 +49,7 @@ impl FrameInputs {
             force_dark_settings: inputs.force_dark_settings,
             should_show_line_box_borders: inputs.should_show_line_box_borders,
             should_paint_overlay: inputs.should_paint_overlay,
+            records_in_finest_runs: inputs.records_in_finest_runs,
             uncaptured: inputs.uncaptured,
             has_non_viewport_wheel_scroll_target_candidate: paint_state.has_non_viewport_wheel_scroll_target_candidate,
             selection_colors: SelectionColors {

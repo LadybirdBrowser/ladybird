@@ -22,7 +22,7 @@ displayListTest({
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble RECORD (empty)
-                  @viewport/scroll-metadata COPY
+                  @viewport/scroll-metadata RECORD (empty)
                   @viewport/background SKIP
                   @viewport/border SKIP
                   BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
@@ -43,7 +43,7 @@ displayListTest({
                         BlockContainer<DIV>#outer/border COPY
                         BlockContainer<DIV>#before.section/descendants(background-and-borders) COPY
                         BlockContainer<DIV>#target.section/descendants(background-and-borders) ASSEMBLE
-                          BlockContainer<DIV>#target.section/scroll-metadata COPY
+                          BlockContainer<DIV>#target.section/scroll-metadata RECORD (empty)
                           BlockContainer<DIV>#target.section/background SKIP
                           BlockContainer<DIV>#target.section/border SKIP
                         BlockContainer<DIV>#after.section/descendants(background-and-borders) COPY
@@ -74,7 +74,7 @@ displayListTest({
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble RECORD (empty)
-                  @viewport/scroll-metadata COPY
+                  @viewport/scroll-metadata RECORD (empty)
                   @viewport/background SKIP
                   @viewport/border SKIP
                   BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
@@ -95,7 +95,7 @@ displayListTest({
                         BlockContainer<DIV>#outer/border COPY
                         BlockContainer<DIV>#before.section/descendants(background-and-borders) COPY
                         BlockContainer<DIV>#target.section/descendants(background-and-borders) ASSEMBLE
-                          BlockContainer<DIV>#target.section/scroll-metadata COPY
+                          BlockContainer<DIV>#target.section/scroll-metadata RECORD (empty)
                           BlockContainer<DIV>#target.section/background SKIP
                           BlockContainer<DIV>#target.section/border SKIP
                         BlockContainer<DIV>#after.section/descendants(background-and-borders) COPY

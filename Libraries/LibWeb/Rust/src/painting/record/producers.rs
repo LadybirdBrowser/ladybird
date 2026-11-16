@@ -5,24 +5,31 @@
  */
 
 //! The producers of a frame: each records one kind of output for one row under the contexts it
-//! needs, starting and ending at a closed group boundary with no ambient state, so its bytes can
-//! be copied verbatim by a later frame. The recorder implements the assembly host with them.
+//! needs, starting and ending at a closed group boundary with no ambient state, so the run of
+//! producers a chunk holds can be drawn by a later frame as it is. The recorder implements the
+//! assembly host with them.
 
-use super::assemble::{AssemblyEvent, AssemblyHost, OutputPosition, ProducerOutcome, ScopeAction, ScopePlan};
-use super::order_tree::ProducerKind;
+use super::assemble::{AssemblyEvent, AssemblyHost, ItemCut, ProducerOutcome, ScopeAction, ScopePlan};
+use super::order_tree::{ProducerKind, RecordedChunk, RowPlacement};
 use super::trace::{Action, Observer, Operation};
 use super::{PaintPhase, PaintRecorder};
-use crate::css::css_pixels::CssPixelRect;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::paint_order_plan::{PaintScope, PaintScopePlan};
-use crate::painting::paint_read::{GeometryRead, PaintRead};
+use crate::painting::paint_order_plan::{PaintOrderItem, PaintProducer, PaintScope, PaintScopePlan};
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::svg_resources::MaskLayerSet;
+use crate::painting::{node_painting, paintable_geometry};
 use libgfx_rust::Color;
 use smallvec::SmallVec;
-use std::ops::Range;
+use std::sync::Arc;
+
+/// The height in CSS pixels of a row of the grid the plans of walked scopes are cut along. A child scope taller
+/// than a row is walked on its own, and a run ends where the next item starts in another row, so a run records about
+/// a row of the document.
+const GRID_ROW_HEIGHT_IN_CSS_PIXELS: i64 = 512;
 
 fn draw_phase(kind: ProducerKind) -> Option<PaintPhase> {
     match kind {
@@ -171,7 +178,8 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         }
         self.live_producer = false;
         self.producer_reads_window_focus.set(false);
-        let start = self.output_position();
+        let start = self.recorder.byte_size();
+        let blocking_wheel_event_regions_before = self.blocking_wheel_event_region_count;
         self.observer
             .observe(|log| log.begin(Operation::Producer(owner, kind), Action::Record));
         match kind {
@@ -199,12 +207,12 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
                 }
             }
         }
-        let end = self.output_position();
+        let end = self.recorder.byte_size();
         if self.ink_bounds_audit.enabled {
-            self.verify_producer_ink(owner, kind, start.bytes as usize..end.bytes as usize);
-            self.verify_producer_against_open_scopes(owner, kind, start.bytes as usize..end.bytes as usize);
+            self.verify_producer_ink(owner, kind, start..end);
+            self.verify_producer_against_open_scopes(owner, kind, start..end);
         }
-        self.observer.observe(|log| log.end(end.bytes == start.bytes));
+        self.observer.observe(|log| log.end(end == start));
         debug_assert!(
             self.recorder.is_producer_boundary(),
             "a producer ends at a closed group boundary without ambient state"
@@ -212,64 +220,107 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         ProducerOutcome {
             live: self.live_producer,
             reads_window_focus: self.producer_reads_window_focus.get(),
+            blocking_wheel_event_regions: self.blocking_wheel_event_region_count - blocking_wheel_event_regions_before,
         }
     }
 
-    fn output_position(&self) -> OutputPosition {
-        OutputPosition {
-            bytes: u32::try_from(self.recorder.byte_size()).expect("display list exceeds u32"),
-            blocking_wheel_event_regions: self.blocking_wheel_event_region_count,
-        }
+    fn take_run_chunk(&mut self) -> Option<Arc<RecordedChunk>> {
+        let chunk = self.recorder.take_chunk();
+        let draws_vector_image_placeholders = std::mem::take(&mut self.run_draws_vector_image_placeholders);
+        (!chunk.records.is_empty()).then(|| RecordedChunk::new(chunk, draws_vector_image_placeholders))
     }
 
-    fn copy_published(&mut self, bytes: Range<u32>, blocking_wheel_event_regions: u32) {
-        let frame = self
-            .source_recording
-            .as_ref()
-            .expect("clean output is copied from a published recording");
-        self.recorder.append_cached_commands(&frame.display_list, bytes);
-        self.blocking_wheel_event_region_count += blocking_wheel_event_regions;
+    fn damage_of_row(&mut self, row: NodeSlotId) -> PaintDamage {
+        // Nothing is recorded for what a box can be hit by: hit testing walks the rows.
+        self.source.paint_damage_of_row(row).without(PaintDamage::ALL_HIT)
     }
 
-    fn damaged_rows(&mut self) -> Vec<NodeSlotId> {
-        let mut rows: Vec<NodeSlotId> = self.source.damaged_paint_rows().collect();
-        // A moved row moves its whole layout subtree, whose rows were not pushed themselves. A
-        // moved row inside that subtree is listed already and expands its own subtree, so the
-        // walk stops there, and a row expanded from another moved ancestor stops it as well.
-        let mut expanded = Vec::new();
-        for row in &rows {
-            if !self.source.paint_damage_of_row(*row).contains(PaintDamage::MOVED) {
-                continue;
+    fn placement_of_row(&mut self, row: NodeSlotId) -> RowPlacement {
+        use crate::painting::paintable_data::PaintableFlag;
+        use std::hash::Hasher;
+        // A fragmented inline is placed by the pieces its line root holds, and the offset of its own fragment is
+        // the one layout left there last.
+        let placed_with = if node_painting::is_fragmented_inline(self.source, row) {
+            self.source.inline_pieces_root(row).unwrap_or(row)
+        } else {
+            row
+        };
+        let mut later_fragments = 0;
+        if self
+            .source
+            .paintable_data(placed_with)
+            .has_flag(PaintableFlag::HasLaterBoxFragments)
+        {
+            let mut digest = crate::fast_hash::fast_hasher();
+            for fragment in paintable_geometry::absolute_border_box_rects_of_fragments(self.source, placed_with)
+                .iter()
+                .skip(1)
+            {
+                for coordinate in [fragment.x, fragment.y, fragment.width, fragment.height] {
+                    digest.write_i32(coordinate.raw_value());
+                }
             }
-            let root = *row;
-            self.source
-                .for_each_node_in_layout_subtree_in_pre_order_with_pruning(root, |node| {
-                    if node == root {
-                        return true;
-                    }
-                    if self.source.paint_damage_of_row(node).contains(PaintDamage::MOVED) {
-                        return false;
-                    }
-                    if !self.source.paintable_row_is_populated(node) {
-                        return true;
-                    }
-                    let newly_expanded = self.moved_expansion.insert(node);
-                    if newly_expanded {
-                        expanded.push(node);
-                    }
-                    newly_expanded
-                });
+            later_fragments = digest.finish();
         }
-        rows.extend(expanded);
-        rows
+        RowPlacement {
+            origin: paintable_geometry::absolute_rect(self.source, placed_with).location(),
+            later_fragments,
+        }
     }
 
-    fn effective_damage(&mut self, row: NodeSlotId) -> PaintDamage {
-        let mut damage = self.source.paint_damage_of_row(row);
-        if self.moved_expansion.contains(&row) {
-            damage |= PaintDamage::ALL_PRODUCERS | PaintDamage::MOVED;
+    fn cut_at(&mut self, scope: PaintScope, item: PaintOrderItem) -> ItemCut {
+        let rows = self.source;
+        let grid_row_height = CssPixels::from_integer(if self.inputs.records_in_finest_runs {
+            1
+        } else {
+            GRID_ROW_HEIGHT_IN_CSS_PIXELS
+        });
+        let grid_row_at = |block_start: CssPixels| {
+            Some(i64::from(block_start.raw_value()).div_euclid(i64::from(grid_row_height.raw_value())) as i32)
+        };
+        let line_root = || {
+            if node_painting::has_lines(rows, scope.owner) {
+                scope.owner
+            } else {
+                rows.paintable_data(scope.owner).containing_block
+            }
+        };
+        match item {
+            PaintOrderItem::Scope(child) => {
+                // The pieces of an inline box are spread over its line root's lines: it stays with what is next
+                // to it in the plan.
+                if node_painting::is_fragmented_inline(rows, child.owner) {
+                    return ItemCut::InRun { grid_row: None };
+                }
+                if crate::painting::style_queries::is_scroll_container(rows, child.owner) {
+                    return ItemCut::Walked;
+                }
+                match rows.absolute_ink_overflow_rect(child.owner) {
+                    Some(ink) if ink.height <= grid_row_height => ItemCut::InRun {
+                        grid_row: grid_row_at(ink.y),
+                    },
+                    _ => ItemCut::Walked,
+                }
+            }
+            PaintOrderItem::Producer(PaintProducer::TextFragment(index)) => {
+                let side = rows.committed_side_data(line_root());
+                let fragment = &side.fragments()[index as usize];
+                ItemCut::InRun {
+                    grid_row: grid_row_at(crate::painting::text_fragment::absolute_rect(rows, fragment).y),
+                }
+            }
+            PaintOrderItem::Producer(PaintProducer::InlinePiece(index)) => {
+                let root = line_root();
+                let positions = self.line_root_positions(root);
+                let side = rows.committed_side_data(root);
+                let piece = &side.inline_box_pieces()[index as usize];
+                let line = positions.of_line(side.lines(), piece.line_index as usize);
+                ItemCut::InRun {
+                    grid_row: grid_row_at(piece.border_box_rect.y + line.y),
+                }
+            }
+            PaintOrderItem::Producer(_) => ItemCut::InRun { grid_row: None },
         }
-        damage
     }
 
     // SVG content is recorded by its root.

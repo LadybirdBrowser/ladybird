@@ -297,17 +297,15 @@ fn paint_vector_border_image_slice<O: Observer>(
         1.max((source_rect.width * rendered_scale.width).round() as i32),
         1.max((source_rect.height * rendered_scale.height).round() as i32),
     );
-    let display_list_id = recorder
-        .resources
-        .vector_image_placeholder(VectorImageRenderRequest::new(
-            image.source,
-            geometry.css_width,
-            geometry.css_height,
-            geometry.raster_scale,
-            image.content_identity,
-            recorder.vector_image_color_scheme(image.source.owner()),
-            recorder.vector_image_force_dark(),
-        ));
+    let display_list_id = recorder.vector_image_placeholder(VectorImageRenderRequest::new(
+        image.source,
+        geometry.css_width,
+        geometry.css_height,
+        geometry.raster_scale,
+        image.content_identity,
+        recorder.vector_image_color_scheme(image.source.owner()),
+        recorder.vector_image_force_dark(),
+    ));
     let group = recorder.recorder.begin_repeated_tile();
     // The tile holds the whole image, offset so that the slice fills it, and clips away the rest.
     recorder.recorder.paint_vector_image_records(
