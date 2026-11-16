@@ -522,11 +522,7 @@ impl AlgorithmMethods for CShakeParams {
         // NB: Step 5 throws an OperationError for the parameters that our cSHAKE does not support.
         let normalized_algorithm = self;
 
-        let result = libcrypto_rust::cshake_validate_parameters(
-            normalized_algorithm.output_length,
-            normalized_algorithm.customization.as_ref().map(Bytes::as_slice),
-            normalized_algorithm.function_name.as_ref().map(Bytes::as_slice),
-        );
+        let result = libcrypto_rust::cshake_validate_parameters(normalized_algorithm.output_length);
         if let Err(detail) = result {
             return Err(Exception::Dom(
                 "OperationError",
