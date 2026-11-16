@@ -205,8 +205,6 @@ public:
     void add_frame_notification_interest();
     void remove_frame_notification_interest();
 
-    WebView::AccessibilityTreeManager const* accessibility_tree_manager() const { return m_accessibility_manager.ptr(); }
-
 #if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
     QAccessibleInterface* accessibility_interface_for_node(i64 node_id);
 #endif
