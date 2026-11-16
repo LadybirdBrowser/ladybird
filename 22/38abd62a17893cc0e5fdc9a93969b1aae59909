@@ -1,0 +1,9 @@
+When a font’s hhea ascender and descender are both 0, Ladybird takes
+its ascent and descent from the OS/2 typo metrics, or from the OS/2 win
+metrics where the typo metrics are 0 as well. That is the fallback in
+FreeType’s sfnt_load_face(), whose face metrics Blink reads through
+Skia’s SkFontHost_FreeType and Gecko through gfxFT2FontBase::
+InitMetrics(). Chrome on macOS gives the test the same span height.
+
+Unlike FreeType, Ladybird doesn’t carry the OS/2 line gap along: Its
+normal line height leaves out the line gap for every font.
