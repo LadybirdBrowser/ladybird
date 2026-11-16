@@ -215,6 +215,16 @@ test("a function in the parameters checks the dead zone of what is around for a 
     }).toThrowWithMessage(ReferenceError, "Binding late is not initialized");
 });
 
+test("an eval in the parameters declares different variables on each call", () => {
+    let source = "var p = 1, q = 2";
+    function f(a = eval(source)) {
+        return [typeof p, typeof q, typeof r];
+    }
+    expect(f()).toEqual(["number", "number", "undefined"]);
+    source = "var r = 3";
+    expect(f()).toEqual(["undefined", "undefined", "number"]);
+});
+
 test("a function in the parameters sees the parameter, not a var in a catch clause of the same name", () => {
     function f(a = () => x, x) {
         try {
