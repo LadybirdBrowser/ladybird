@@ -8,6 +8,7 @@
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
+#include <LibWeb/Fetch/Engine/EngineEvent.h>
 #include <LibWeb/Fetch/Engine/FetchExecutor.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -53,8 +54,8 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_report_timing_steps);
-    if (m_awaited_network_completion.has_value())
-        visitor.visit(m_awaited_network_completion->steps);
+    if (m_awaited_end_of_body.has_value())
+        visitor.visit(m_awaited_end_of_body->steps);
     visitor.visit(m_next_manual_redirect_steps);
     visitor.visit(m_algorithms);
     visitor.visit(m_task_destination);
@@ -161,17 +162,22 @@ void FetchController::process_next_manual_redirect() const
     m_next_manual_redirect_steps->function()();
 }
 
-void FetchController::when_network_completes_body(Engine::FetchByteChannel const& body, GC::Ref<GC::Function<void()>> steps)
+void FetchController::when_body_ends(Engine::DeliveryId delivery_id, Response& response, GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> steps)
 {
-    m_awaited_network_completion = AwaitedNetworkCompletion { body, steps };
+    m_awaited_end_of_body = AwaitedEndOfBody { delivery_id, response.make_weak_ptr<Response>(), steps };
 }
 
-void FetchController::did_complete_network_body(Engine::FetchByteChannel const& body)
+void FetchController::did_end_body(Engine::Event::EndOfBody const& end_of_body)
 {
-    if (!m_awaited_network_completion.has_value() || m_awaited_network_completion->body.ptr() != &body)
+    if (!m_awaited_end_of_body.has_value() || m_awaited_end_of_body->delivery_id != end_of_body.delivery_id)
         return;
-    auto steps = m_awaited_network_completion.release_value().steps;
-    steps->function()();
+    auto awaited = m_awaited_end_of_body.release_value();
+
+    if (auto response = awaited.response.strong_ref())
+        response->set_body_sizes(end_of_body.final_sizes.encoded_body_size, end_of_body.final_sizes.decoded_body_size);
+
+    if (awaited.steps)
+        awaited.steps->function()(end_of_body.end_time);
 }
 
 // https://fetch.spec.whatwg.org/#extract-full-timing-info
@@ -283,7 +289,7 @@ void FetchController::stop_request()
 {
     end_rendering_pending_operation(this);
     VERIFY(!m_control_block->is_ongoing());
-    m_awaited_network_completion.clear();
+    m_awaited_end_of_body.clear();
 
     if (!m_started_fetch.has_value())
         return;

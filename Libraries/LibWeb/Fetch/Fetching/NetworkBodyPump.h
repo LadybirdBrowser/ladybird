@@ -35,7 +35,8 @@ public:
     [[nodiscard]] NonnullRefPtr<Engine::FetchByteChannel> const& channel() const { return m_channel; }
     [[nodiscard]] NonnullRefPtr<Engine::FetchBodyDeliveryGate> const& delivery_gate() const { return m_delivery_gate; }
 
-    // The pump records the body's sizes in the response once the body completes.
+    // The pump records the body's sizes in the response once the body completes, unless the response was handed over
+    // while its body still arrived. The fetch's agent then records them when the pump reports the body's end.
     void set_response(NonnullRefPtr<Fetch::Infrastructure::Response>);
 
     void handle_network_data(Requests::ResponseData);
@@ -54,7 +55,6 @@ private:
     // Drops a pending memory-cache entry that matches the response's request, for a body that will not finish arriving.
     void abandon_cache_entry(HTTP::MemoryCache::StoredResponse);
     void finalize_cache_entry();
-    void update_response_body_info();
 
     RefPtr<Infrastructure::FetchParams const> m_fetch_params;
     // The controller of m_fetch_params, which the pump keeps alive with them.

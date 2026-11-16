@@ -89,6 +89,14 @@ bool Response::is_network_error() const
     return true;
 }
 
+void Response::set_body_sizes(u64 encoded_size, u64 decoded_size)
+{
+    auto body_info = this->body_info();
+    body_info.encoded_size = encoded_size;
+    body_info.decoded_size = decoded_size;
+    set_body_info(move(body_info));
+}
+
 void Response::release_request_transfer_lease() const
 {
     if (m_network_transport.has_value())

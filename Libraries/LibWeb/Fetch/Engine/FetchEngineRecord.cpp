@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/Format.h>
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 
 namespace Web::Fetch::Engine {
+
+static Atomic<u64> s_next_delivery_id { 1 };
 
 FetchEngineRecord::FetchEngineRecord(FetchEngineRecords& records, FetchId fetch_id, NonnullOwnPtr<EngineEventSink> event_sink, NonnullRefPtr<NetworkActivityObservers const> network_activity_observers)
     : m_records(records)
@@ -49,6 +52,14 @@ void FetchEngineRecord::add_network_transport(NetworkTransportHandle& handle, Fe
 {
     if (auto* records = m_records.ptr())
         records->add_network_transport(handle, delivery_gate);
+}
+
+Optional<DeliveryId> FetchEngineRecord::deliver_body(FetchByteChannel& channel)
+{
+    DeliveryId delivery_id { s_next_delivery_id.fetch_add(1) };
+    if (!channel.set_delivery_id_unless_closed(delivery_id))
+        return {};
+    return delivery_id;
 }
 
 void FetchEngineRecords::Agent::misbehaved(StringView reason)

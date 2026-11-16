@@ -11,12 +11,15 @@
 #include <LibCore/Timer.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTest/TestCase.h>
+#include <LibWeb/Fetch/Engine/EngineEvent.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -25,14 +28,17 @@
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 
+using Web::Fetch::Engine::DeliveryId;
 using Web::Fetch::Engine::FetchBodyDeliveryGate;
 using Web::Fetch::Engine::FetchByteChannel;
 using Web::Fetch::Engine::FetchByteChannelConsumerSink;
 using Web::Fetch::Engine::FetchByteChannelProducerSink;
+using Web::Fetch::Engine::Event::EndOfBody;
 using Web::Fetch::Infrastructure::Body;
 using Web::Fetch::Infrastructure::FetchAlgorithms;
 using Web::Fetch::Infrastructure::FetchParams;
 using Web::Fetch::Infrastructure::MAX_SNIFF_BYTES;
+using Web::Fetch::Infrastructure::Response;
 
 namespace {
 
@@ -484,7 +490,16 @@ TEST_CASE(stopping_a_whole_body_transport_cancels_its_channel_and_wakes_its_read
     EXPECT_EQ(reader->wake_count, 1u);
 }
 
-TEST_CASE(network_completion_runs_only_the_steps_awaited_for_its_body)
+static EndOfBody end_of_body(DeliveryId delivery_id, u64 encoded_body_size, u64 decoded_body_size, double end_time)
+{
+    return {
+        .delivery_id = delivery_id,
+        .final_sizes = { .encoded_body_size = encoded_body_size, .decoded_body_size = decoded_body_size },
+        .end_time = end_time,
+    };
+}
+
+TEST_CASE(the_end_of_a_body_runs_only_the_steps_awaited_for_its_delivery)
 {
     Core::EventLoop event_loop;
     install_font_plugin();
@@ -492,24 +507,59 @@ TEST_CASE(network_completion_runs_only_the_steps_awaited_for_its_body)
     auto& heap = harness.realm->heap();
     auto& controller_registry = static_cast<Web::HTML::Agent&>(*harness.realm->vm().agent()).fetch_controller_registry;
     auto controller = Web::Fetch::Infrastructure::FetchController::create(controller_registry);
-    auto earlier = FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink));
-    auto later = FetchByteChannel::create({ .low = 16, .high = 64 }, adopt_ref(*new IgnoringProducerSink));
+    auto earlier = Response::create();
+    auto later = Response::create();
 
-    // A later body's steps replace an earlier body's, and run once.
+    // A later delivery's steps replace an earlier delivery's, and run once, given the body's end time.
     auto earlier_runs = make_ref_counted<SharedValue<size_t>>();
-    auto later_runs = make_ref_counted<SharedValue<size_t>>();
-    controller->when_network_completes_body(*earlier, GC::create_function(heap, GC::captures(earlier_runs), [](auto& earlier_runs) { ++earlier_runs->value; }));
-    controller->when_network_completes_body(*later, GC::create_function(heap, GC::captures(later_runs), [](auto& later_runs) { ++later_runs->value; }));
-    controller->did_complete_network_body(*earlier);
+    auto later_end_times = make_ref_counted<SharedValue<Vector<double>>>();
+    controller->when_body_ends(DeliveryId(1), earlier, GC::create_function(heap, GC::captures(earlier_runs), [](auto& earlier_runs, double) { ++earlier_runs->value; }));
+    controller->when_body_ends(DeliveryId(2), later, GC::create_function(heap, GC::captures(later_end_times), [](auto& later_end_times, double end_time) { later_end_times->value.append(end_time); }));
+    controller->did_end_body(end_of_body(DeliveryId(1), 10, 20, 30));
     EXPECT_EQ(earlier_runs->value, 0u);
-    EXPECT_EQ(later_runs->value, 0u);
-    controller->did_complete_network_body(*later);
-    controller->did_complete_network_body(*later);
-    EXPECT_EQ(later_runs->value, 1u);
+    EXPECT(later_end_times->value.is_empty());
+    EXPECT_EQ(earlier->body_info().encoded_size, 0u);
+    controller->did_end_body(end_of_body(DeliveryId(2), 40, 50, 60));
+    controller->did_end_body(end_of_body(DeliveryId(2), 70, 80, 90));
+    EXPECT_EQ(later_end_times->value, (Vector<double> { 60 }));
+    EXPECT_EQ(later->body_info().encoded_size, 40u);
+    EXPECT_EQ(later->body_info().decoded_size, 50u);
 
-    // A stopped fetch runs no awaited steps.
-    controller->when_network_completes_body(*earlier, GC::create_function(heap, GC::captures(earlier_runs), [](auto& earlier_runs) { ++earlier_runs->value; }));
+    // A stopped fetch runs no awaited steps and records no sizes.
+    controller->when_body_ends(DeliveryId(3), earlier, GC::create_function(heap, GC::captures(earlier_runs), [](auto& earlier_runs, double) { ++earlier_runs->value; }));
     controller->stop_fetch();
-    controller->did_complete_network_body(*earlier);
+    controller->did_end_body(end_of_body(DeliveryId(3), 10, 20, 30));
     EXPECT_EQ(earlier_runs->value, 0u);
+    EXPECT_EQ(earlier->body_info().encoded_size, 0u);
+}
+
+TEST_CASE(the_end_of_a_body_without_steps_records_its_sizes)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    BodyStreamHarness harness;
+    auto& controller_registry = static_cast<Web::HTML::Agent&>(*harness.realm->vm().agent()).fetch_controller_registry;
+    auto controller = Web::Fetch::Infrastructure::FetchController::create(controller_registry);
+    auto response = Response::create();
+
+    controller->when_body_ends(DeliveryId(1), response, nullptr);
+    controller->did_end_body(end_of_body(DeliveryId(1), 10, 20, 30));
+    EXPECT_EQ(response->body_info().encoded_size, 10u);
+    EXPECT_EQ(response->body_info().decoded_size, 20u);
+}
+
+TEST_CASE(an_awaited_end_of_body_does_not_keep_its_response)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    BodyStreamHarness harness;
+    auto& controller_registry = static_cast<Web::HTML::Agent&>(*harness.realm->vm().agent()).fetch_controller_registry;
+    auto controller = Web::Fetch::Infrastructure::FetchController::create(controller_registry);
+    RefPtr<Response> response = Response::create();
+    auto weak_response = response->make_weak_ptr<Response>();
+
+    controller->when_body_ends(DeliveryId(1), *response, nullptr);
+    response = nullptr;
+    EXPECT(!weak_response.strong_ref());
+    controller->did_end_body(end_of_body(DeliveryId(1), 10, 20, 30));
 }

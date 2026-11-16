@@ -210,6 +210,22 @@ Optional<Core::ImmutableBytes> FetchByteChannel::whole_body() const
     return m_whole_body;
 }
 
+bool FetchByteChannel::set_delivery_id_unless_closed(DeliveryId delivery_id)
+{
+    MutexLocker locker { m_mutex };
+    VERIFY(!m_delivery_id.has_value());
+    if (m_state.has<Closed>())
+        return false;
+    m_delivery_id = delivery_id;
+    return true;
+}
+
+Optional<DeliveryId> FetchByteChannel::delivery_id() const
+{
+    MutexLocker locker { m_mutex };
+    return m_delivery_id;
+}
+
 FetchByteChannel::TerminateResult FetchByteChannel::cancel()
 {
     PendingNotifications notifications;
