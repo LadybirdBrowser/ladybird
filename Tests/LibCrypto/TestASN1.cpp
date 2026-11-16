@@ -22,8 +22,8 @@ static void expect_encoding(ByteBuffer const& encoded, Vector<u8> const& expecte
 
 TEST_CASE(test_encoder_integers)
 {
-    expect_encoding(encode([](auto& encoder) { return encoder.write(Crypto::UnsignedBigInteger { 0 }); }), { 0x02, 0x01, 0x00 });
-    expect_encoding(encode([](auto& encoder) { return encoder.write(Crypto::UnsignedBigInteger { 1 }); }), { 0x02, 0x01, 0x01 });
+    expect_encoding(encode([](auto& encoder) { return encoder.write(0u); }), { 0x02, 0x01, 0x00 });
+    expect_encoding(encode([](auto& encoder) { return encoder.write(1u); }), { 0x02, 0x01, 0x01 });
     expect_encoding(encode([](auto& encoder) { return encoder.write(0x1234u); }), { 0x02, 0x02, 0x12, 0x34 });
 
     // A leading zero keeps an integer whose top bit is set positive.

@@ -6,6 +6,7 @@
  */
 
 #include <AK/Base64.h>
+#include <AK/Hex.h>
 #include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/Hash/Hash.h>
 #include <LibCrypto/PK/KeyInfo.h>
@@ -14,9 +15,10 @@
 #include <LibTest/TestCase.h>
 #include <cstring>
 
-static Crypto::UnsignedBigInteger to_integer(ByteBuffer const& bytes)
+// An RSA component in hex, as the big-endian bytes that RSAPrivateKey::component() gives.
+static ByteBuffer integer(StringView hex)
 {
-    return Crypto::UnsignedBigInteger::import_data(bytes);
+    return MUST(decode_hex(hex));
 }
 
 static ByteBuffer operator""_b(char const* string, size_t length)
@@ -64,10 +66,10 @@ TEST_CASE(test_RSA_ASN1_PKCS1_DER_parse)
     auto private_key_info = TRY_OR_FAIL(Crypto::PK::wrap_in_private_key_info(der, Crypto::ASN1::rsa_encryption_oid, nullptr));
     size_t consumed = 0;
     auto private_key = TRY_OR_FAIL(Crypto::PK::parse_private_key_info(private_key_info, consumed)).rsa;
-    if (to_integer(TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PublicExponent))) != 65537) {
+    if (TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PublicExponent)) != integer("010001"sv)) {
         FAIL("Invalid public exponent");
     }
-    if (to_integer(TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PrivateExponent))) != "4234603516465654167360850580101327813936403862038934287300450163438938741499875303761385527882335478349599685406941909381269804396099893549838642251053393"_bigint) {
+    if (TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PrivateExponent)) != integer("50da4f926b441c310dc6ca100545ef5c361e5dd78f4a2201261a548e834e62847947dcf9a17d9ca5ccb2910e7c142daf28a83ec7c37ac5ccc6eea3bde6dc3951"sv)) {
         FAIL("Invalid private exponent");
     }
 }
@@ -96,11 +98,11 @@ TEST_CASE(test_RSA_ASN1_PKCS8_DER_parse)
 
     size_t consumed = 0;
     auto private_key = TRY_OR_FAIL(Crypto::PK::parse_private_key_info(der, consumed)).rsa;
-    if (to_integer(TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PublicExponent))) != 65537) {
+    if (TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PublicExponent)) != integer("010001"sv)) {
         FAIL("Invalid public exponent");
     }
 
-    if (to_integer(TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PrivateExponent))) != "16848664331299797559656678180469464902267415922431923391961407795209879741791261105581093539484181644099608161661780611501562625272630894063592208758992911105496755004417051031019663332258403844985328863382168329621318366311519850803972480500782200178279692319955495383119697563295214236936264406600739633470565823022975212999060908747002623721589308539473108154612454595201561671949550531384574873324370774408913092560971930541734744950937900805812300970883306404011323308000168926094053141613790857814489531436452649384151085451448183385611208320292948291211969430321231180227006521681776197974694030147965578466993"_bigint) {
+    if (TRY_OR_FAIL(private_key.component(Crypto::PK::RSAPrivateKey::Component::PrivateExponent)) != integer("857795de66b7dd19fdec6a036161f9fa1f332371cb3e4bbf677db191c02f915390a6cd0f5f13b5a20a9cc49be8697caca264efab25ca8ed595bf281d710106c9b5995d0a7d57a70251d2e10ca3a66753079633f7b551da742e0df505a47342d86411bf92cccd02163c57dac4ac58a5134e7ef39be4692ce1b4e6776b631406113026c780fc35962280f5d60a938341d37d35118d397b8673f118ea60792498e3c3ec39e315b1ea70552354a2b9137bc35a3c4d5d46e24ae74208ded62c43b278764d77e97a912015c59b82029d06dc36b99dd5e0212b5ccb88588bf7cbdd74106cda718df86c8e50f7b5d1cdaf734d60302ac5cc69b323b5342a42216dd956b1"sv)) {
         FAIL("Invalid private exponent");
     }
 }
