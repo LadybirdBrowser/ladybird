@@ -170,11 +170,6 @@ struct JS_API ExecutionContext {
         return reinterpret_cast<Value const*>(reinterpret_cast<uintptr_t>(this) + sizeof(ExecutionContext));
     }
 
-    Span<Value> registers_and_constants_and_locals_and_arguments_span()
-    {
-        return { registers_and_constants_and_locals_and_arguments(), registers_and_constants_and_locals_and_arguments_count };
-    }
-
     Value* arguments_data()
     {
         return registers_and_constants_and_locals_and_arguments() + (registers_and_constants_and_locals_and_arguments_count - argument_count);

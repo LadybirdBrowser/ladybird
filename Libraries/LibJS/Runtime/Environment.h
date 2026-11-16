@@ -23,14 +23,6 @@ namespace JS {
 // `static bool T::is_environment_kind_of(Environment const&)`.
 class JS_API Environment : public EngineCell {
 public:
-    enum class InitializeBindingHint {
-        Normal,
-        SyncDispose,
-        AsyncDispose,
-    };
-
-    ThrowCompletionOr<void> create_immutable_binding(VM&, Utf16FlyString const& name, bool strict);
-    ThrowCompletionOr<void> initialize_binding(VM&, Utf16FlyString const& name, Value, InitializeBindingHint);
     ThrowCompletionOr<void> set_mutable_binding(VM&, Utf16FlyString const& name, Value, bool strict);
     ThrowCompletionOr<Value> get_binding_value(VM&, Utf16FlyString const& name, bool strict);
     ThrowCompletionOr<bool> delete_binding(VM&, Utf16FlyString const& name);

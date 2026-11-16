@@ -162,11 +162,6 @@ inline u64 pack_token_data(TokenType type, TokenCategory category)
     return (static_cast<u64>(category) << 8) | static_cast<u64>(type);
 }
 
-inline TokenType token_type_from_packed(u64 data)
-{
-    return static_cast<TokenType>(data & 0xFF);
-}
-
 inline TokenCategory token_category_from_packed(u64 data)
 {
     return static_cast<TokenCategory>((data >> 8) & 0xFF);

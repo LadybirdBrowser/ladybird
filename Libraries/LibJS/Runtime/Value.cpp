@@ -331,14 +331,6 @@ ThrowCompletionOr<u32> Value::to_u32(VM& vm) const
     return result;
 }
 
-// 7.1.9 ToUint16 ( argument ), https://tc39.es/ecma262/#sec-touint16
-ThrowCompletionOr<u16> Value::to_u16(VM& vm) const
-{
-    u16 result = 0;
-    TRY(completion_from_abi<void>(js_value_to_u16(vm_to_abi(vm), value_to_abi(*this), &result)));
-    return result;
-}
-
 // 7.1.11 ToUint8 ( argument ), https://tc39.es/ecma262/#sec-touint8
 ThrowCompletionOr<u8> Value::to_u8(VM& vm) const
 {

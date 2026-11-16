@@ -211,8 +211,6 @@ public:
     };
     Utf16String const& error_message(ErrorMessage) const;
 
-    bool did_reach_stack_space_limit() const;
-
     // Pushes onto the runtime's execution context stack in place, as the runtime itself does, unless the stack's
     // storage is full, which only the runtime can grow.
     void push_execution_context(ExecutionContext& execution_context)

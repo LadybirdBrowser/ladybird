@@ -6,10 +6,8 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/HashTable.h>
 #include <AK/NumericLimits.h>
-#include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 
@@ -20,20 +18,6 @@ inline size_t saturating_add_external_memory_size(size_t lhs, size_t rhs)
     if (rhs > NumericLimits<size_t>::max() - lhs)
         return NumericLimits<size_t>::max();
     return lhs + rhs;
-}
-
-inline size_t string_external_memory_size(String const& string)
-{
-    if (string.is_short_string())
-        return 0;
-    return string.byte_count();
-}
-
-inline size_t byte_string_external_memory_size(ByteString const& string)
-{
-    if (string.is_empty())
-        return 0;
-    return AK::allocation_size_for_stringimpl(string.length());
 }
 
 inline size_t utf16_string_external_memory_size(Utf16String const& string)

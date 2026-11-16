@@ -64,7 +64,6 @@ set(SOURCES
     Runtime/JSONObject.cpp
     Runtime/Map.cpp
     Runtime/MapIterator.cpp
-    Runtime/ModuleEnvironment.cpp
     Runtime/NativeFunction.cpp
     Runtime/NumberObject.cpp
     Runtime/Object.cpp

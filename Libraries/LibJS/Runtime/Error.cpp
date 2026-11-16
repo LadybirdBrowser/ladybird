@@ -61,12 +61,6 @@ Utf16String Error::stack_string(CompactTraceback compact) const
     return own_error_data().stack_string(compact);
 }
 
-// 20.5.8.1 InstallErrorCause ( O, options ), https://tc39.es/ecma262/#sec-installerrorcause
-ThrowCompletionOr<void> Error::install_error_cause(Value options)
-{
-    return completion_from_abi<void>(js_error_install_error_cause(vm_to_abi(vm()), error_to_abi(*this), value_to_abi(options)));
-}
-
 void Error::set_message(Utf16String message)
 {
     js_error_set_owned_message(vm_to_abi(vm()), error_to_abi(*this), owned_utf16_string_to_abi(move(message)));

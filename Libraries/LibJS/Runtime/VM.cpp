@@ -520,11 +520,6 @@ Utf16String const& VM::error_message(ErrorMessage type) const
     return message;
 }
 
-bool VM::did_reach_stack_space_limit() const
-{
-    return js_vm_did_reach_stack_space_limit(vm_abi(*this));
-}
-
 void VM::push_execution_context_growing_the_stack(ExecutionContext& execution_context)
 {
     js_execution_context_push(vm_abi(*this), execution_context_to_abi(execution_context));

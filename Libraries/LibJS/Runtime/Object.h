@@ -78,7 +78,6 @@ public:
     ThrowCompletionOr<void> set(PropertyKey const&, Value, ShouldThrowExceptions);
     ThrowCompletionOr<bool> create_data_property(PropertyKey const&, Value, Optional<u32>* new_property_offset = nullptr, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr);
     ThrowCompletionOr<bool> create_data_property_or_throw(PropertyKey const&, Value);
-    void create_non_enumerable_data_property_or_throw(PropertyKey const&, Value);
     ThrowCompletionOr<void> define_property_or_throw(PropertyKey const&, PropertyDescriptor&);
     ThrowCompletionOr<bool> has_property(PropertyKey const&) const;
     ThrowCompletionOr<bool> has_own_property(PropertyKey const&) const;
@@ -156,7 +155,6 @@ public:
     void define_native_accessor(Realm&, PropertyKey const&, GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>> getter, GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>> setter, PropertyAttributes attributes);
 
     [[nodiscard]] bool is_function() const { return has_engine_object_flag(JS_LAYOUT_OBJECT_FLAG_IS_FUNCTION); }
-    bool is_date() const;
     bool is_weak_map() const;
     bool is_weak_set() const;
     bool is_generator() const;
