@@ -237,8 +237,6 @@ public:
     virtual ErrorOr<bool> verify(ReadonlyBytes message, ReadonlyBytes signature) = 0;
     virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes message) = 0;
 
-    virtual ByteString class_name() const = 0;
-
 protected:
     virtual ~PKSystem() = default;
 

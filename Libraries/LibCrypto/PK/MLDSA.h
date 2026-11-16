@@ -90,7 +90,6 @@ public:
     ErrorOr<ByteBuffer> encrypt(ReadonlyBytes) override { return Error::from_string_literal("Operation not supported"); }
     ErrorOr<ByteBuffer> decrypt(ReadonlyBytes) override { return Error::from_string_literal("Operation not supported"); }
     ErrorOr<bool> verify(ReadonlyBytes, ReadonlyBytes) override;
-    ByteString class_name() const override { return "ML-DSA"; }
 
 private:
     MLDSASize m_size;

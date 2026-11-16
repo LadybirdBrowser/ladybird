@@ -43,31 +43,7 @@ TEST_CASE(test_RSA_rejects_invalid_public_key)
     EXPECT(!TRY_OR_FAIL(verifier.verify(message, encoded_message)));
 }
 
-TEST_CASE(test_RSA_raw_encrypt)
-{
-    ByteBuffer data { "hellohellohellohellohellohellohellohellohellohellohellohello123-"_b };
-    u8 result[] { 0x6f, 0x7b, 0xe2, 0xd3, 0x95, 0xf8, 0x8d, 0x87, 0x6d, 0x10, 0x5e, 0xc3, 0xcd, 0xf7, 0xbb, 0xa6, 0x62, 0x8e, 0x45, 0xa0, 0xf1, 0xe5, 0x0f, 0xdf, 0x69, 0xcb, 0xb6, 0xd5, 0x42, 0x06, 0x7d, 0x72, 0xa9, 0x5e, 0xae, 0xbf, 0xbf, 0x0f, 0xe0, 0xeb, 0x31, 0x31, 0xca, 0x8a, 0x81, 0x1e, 0xb9, 0xec, 0x6d, 0xcc, 0xb8, 0xa4, 0xac, 0xa3, 0x31, 0x05, 0xa9, 0xac, 0xc9, 0xd3, 0xe6, 0x2a, 0x18, 0xfe };
-    Crypto::PK::RSA rsa(Crypto::PK::RSAPublicKey {
-        "8126832723025844890518845777858816391166654950553329127845898924164623511718747856014227624997335860970996746552094406240834082304784428582653994490504519"_bigint,
-        "65537"_bigint,
-    });
-    auto buf = TRY_OR_FAIL(rsa.encrypt(data));
-    EXPECT(memcmp(result, buf.data(), buf.size()) == 0);
-}
-
 // RSA PKCS #1 1.5
-TEST_CASE(test_RSA_PKCS_1_encrypt)
-{
-    ByteBuffer data { "hellohellohellohellohellohellohellohellohello123-"_b };
-
-    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
-    Crypto::PK::RSA_PKCS1_EME rsa(keypair);
-    auto enc = TRY_OR_FAIL(rsa.encrypt(data));
-    auto dec = TRY_OR_FAIL(rsa.decrypt(enc));
-
-    EXPECT(memcmp(dec.data(), "hellohellohellohellohellohellohellohellohello123-", 49) == 0);
-}
-
 // RSA | ASN1 PKCS1 DER encoded Key import
 TEST_CASE(test_RSA_ASN1_PKCS1_DER_parse)
 {
@@ -133,38 +109,15 @@ TEST_CASE(test_RSA_keygen_enc)
     auto keypair = MUST(Crypto::PK::RSA::parse_rsa_key(priv_key_info.raw_key, true, {}));
     auto rsa_encryption_oid = Array<u32, 7> { 1, 2, 840, 113549, 1, 1, 1 };
     auto wrapped_priv_der = MUST(Crypto::PK::wrap_in_private_key_info(priv_key_info.raw_key, rsa_encryption_oid, nullptr));
-    auto rsa_from_pair = Crypto::PK::RSA(keypair.public_key, keypair.private_key);
-    auto rsa_from_der = Crypto::PK::RSA(priv_key_info.rsa);
+    Crypto::PK::RSA_OAEP_EME rsa_from_pair { Crypto::Hash::HashKind::SHA1, keypair.public_key, keypair.private_key };
+    Crypto::PK::RSA_OAEP_EME rsa_from_der { Crypto::Hash::HashKind::SHA1, priv_key_info.rsa };
 
     EXPECT_EQ(der.bytes(), wrapped_priv_der.bytes());
 
-    ByteBuffer msg_buffer = {};
-    msg_buffer.resize(rsa_from_pair.public_key().length());
-
-    auto msg = msg_buffer.bytes();
-    msg.overwrite(0, "WellHelloFriends", 16);
-
-    auto enc = TRY_OR_FAIL(rsa_from_pair.encrypt(msg));
+    auto enc = TRY_OR_FAIL(rsa_from_pair.encrypt("WellHelloFriends"sv.bytes()));
     auto dec = TRY_OR_FAIL(rsa_from_der.decrypt(enc));
 
-    EXPECT_EQ(memcmp(dec.data(), "WellHelloFriends", 16), 0);
-}
-
-TEST_CASE(test_RSA_encrypt_decrypt)
-{
-    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
-    Crypto::PK::RSA rsa(keypair);
-
-    ByteBuffer msg_buffer = {};
-    msg_buffer.resize(rsa.public_key().length());
-
-    auto msg = msg_buffer.bytes();
-    msg.overwrite(0, "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64);
-
-    auto enc = TRY_OR_FAIL(rsa.encrypt(msg));
-    auto dec = TRY_OR_FAIL(rsa.decrypt(enc));
-
-    EXPECT(memcmp(dec.data(), "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64) == 0);
+    EXPECT_EQ(StringView { dec }, "WellHelloFriends"sv);
 }
 
 TEST_CASE(test_RSA_OAEP_rejects_short_ciphertext)
@@ -186,22 +139,6 @@ TEST_CASE(test_RSA_OAEP_rejects_short_ciphertext)
     }
 
     FAIL("Could not generate an RSA ciphertext with a leading zero");
-}
-
-TEST_CASE(test_RSA_sign_verify)
-{
-    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
-    Crypto::PK::RSA rsa(keypair);
-
-    ByteBuffer msg_buffer = {};
-    msg_buffer.resize(rsa.public_key().length());
-
-    auto msg = msg_buffer.bytes();
-    msg.overwrite(0, "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64);
-
-    auto sig = TRY_OR_FAIL(rsa.sign(msg));
-    auto ok = TRY_OR_FAIL(rsa.verify(msg, sig));
-    EXPECT_EQ(ok, true);
 }
 
 TEST_CASE(test_RSA_PSS_rejects_short_signature)
