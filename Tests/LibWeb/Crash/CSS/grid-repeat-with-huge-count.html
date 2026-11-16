@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- A repeat() with a huge count, or a long line name list repeated many times, must not expand into that many tracks,
+     line name lists or line names. -->
+<style>
+    .grid {
+        display: grid;
+        grid-template-rows: repeat(2147483647, auto);
+        grid-template-columns: repeat(2147483647, 10px);
+    }
+    .subgrid {
+        display: grid;
+        grid-column: span 2;
+        grid-template-columns: subgrid repeat(2147483647, [a]);
+    }
+</style>
+<div class="grid"><div>a</div><div>b</div></div>
+<div class="grid"><div class="subgrid"><div>c</div></div></div>
+<div id="names"><div>d</div></div>
+<div id="subgrid-names-parent"><div id="subgrid-names"><div>e</div></div></div>
+<script>
+    const names = Array.from({ length: 50000 }, (_, i) => `n${i}`).join(" ");
+    document.getElementById("names").style.cssText = `display: grid; grid-template-columns: repeat(10000, [${names}] 1px)`;
+    document.getElementById("subgrid-names-parent").style.cssText = "display: grid; grid-template-columns: repeat(10000, 1px)";
+    document.getElementById("subgrid-names").style.cssText = `display: grid; grid-column: span 10000; grid-template-columns: subgrid repeat(10000, [${names}])`;
+    document.body.offsetWidth;
+</script>
