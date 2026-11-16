@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="first"></div>
+<div id="second"></div>
+<div id="both"></div>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    function finishedOpacityAnimation(target, opacity) {
+        const animation = target.animate({ opacity: [0, opacity] }, { duration: 1000, fill: "forwards" });
+        animation.finish();
+        animation.removed = false;
+        animation.onremove = () => { animation.removed = true; };
+        return animation;
+    }
+
+    asyncTest(async done => {
+        // An animation is replaced only by animations of the same target that animate the same properties.
+        const ofFirst = finishedOpacityAnimation(first, 0.5);
+        const ofSecond = finishedOpacityAnimation(second, 0.25);
+        const earlierOfBoth = finishedOpacityAnimation(both, 0.5);
+        const laterOfBoth = finishedOpacityAnimation(both, 0.25);
+        await animationFrame();
+        await animationFrame();
+        for (const [name, animation, target] of [
+            ["first", ofFirst, first],
+            ["second", ofSecond, second],
+            ["earlier of both", earlierOfBoth, both],
+            ["later of both", laterOfBoth, both],
+        ]) {
+            println(`${name}: ${animation.replaceState}, remove event: ${animation.removed}, opacity: ${getComputedStyle(target).opacity}`);
+        }
+        done();
+    });
+</script>
