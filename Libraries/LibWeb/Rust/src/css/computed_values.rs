@@ -6411,7 +6411,6 @@ impl ContentValues {
     }
 
     fn generated_content_facts(&self) -> u8 {
-        use crate::css::css_enums::keyword;
         use crate::layout::counters::LIST_ITEM_COUNTER_NAME;
 
         let mut facts = 0;
@@ -6420,11 +6419,8 @@ impl ContentValues {
                 continue;
             };
             let CounterDefinitionsPayload { counter_definitions } = &**counter_definitions_payload;
-            let definitions = counter_definitions.as_slice();
-            if !definitions.is_empty() {
-                facts |= GENERATED_CONTENT_DEFINES_COUNTERS;
-            }
-            if definitions
+            if counter_definitions
+                .as_slice()
                 .iter()
                 .any(|definition| definition.name().units() == LIST_ITEM_COUNTER_NAME)
             {
@@ -6443,16 +6439,6 @@ impl ContentValues {
                 _ => &[],
             }
         }
-        for item in items(content) {
-            if let StyleValueData::Keyword { keyword } = item.data()
-                && matches!(
-                    *keyword,
-                    keyword::OPEN_QUOTE | keyword::CLOSE_QUOTE | keyword::NO_OPEN_QUOTE | keyword::NO_CLOSE_QUOTE
-                )
-            {
-                facts |= GENERATED_CONTENT_HAS_QUOTES;
-            }
-        }
         if items(content).iter().chain(items(alt_text)).any(|item| {
             matches!(item.data(), StyleValueData::Counter(counter) if counter.counter_name.units() == LIST_ITEM_COUNTER_NAME)
         }) {
@@ -6463,13 +6449,10 @@ impl ContentValues {
 }
 
 /// What a content group's generated content involves, which the DOM asks to know which changes
-/// can renumber or requote it: counter-increment, counter-reset or counter-set define a counter,
-/// one of them defines list-item, the content or its alternative text shows list-item, and the
-/// content has a quote.
-pub const GENERATED_CONTENT_DEFINES_COUNTERS: u8 = 1 << 0;
-pub const GENERATED_CONTENT_DEFINES_LIST_ITEM_COUNTER: u8 = 1 << 1;
-pub const GENERATED_CONTENT_SHOWS_LIST_ITEM_COUNTER: u8 = 1 << 2;
-pub const GENERATED_CONTENT_HAS_QUOTES: u8 = 1 << 3;
+/// can renumber it: counter-increment, counter-reset or counter-set defines list-item, and the
+/// content or its alternative text shows list-item.
+pub const GENERATED_CONTENT_DEFINES_LIST_ITEM_COUNTER: u8 = 1 << 0;
+pub const GENERATED_CONTENT_SHOWS_LIST_ITEM_COUNTER: u8 = 1 << 1;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_content_group_generated_content_facts(content: &ContentValues) -> u8 {
