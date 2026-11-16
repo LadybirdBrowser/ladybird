@@ -4,7 +4,6 @@ set(SOURCES
     KeyHandle.cpp
     OpenSSL.cpp
     RustBindings.cpp
-    ASN1/ASN1.cpp
     ASN1/DER.cpp
     Authentication/HMAC.cpp
     Authentication/KMAC.cpp
