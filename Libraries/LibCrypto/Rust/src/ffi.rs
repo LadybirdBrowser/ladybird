@@ -379,7 +379,7 @@ unsafe extern "C" {
         oid: &mut Span<'_, u32>,
     ) -> ();
     pub(super) fn crypto_mldsa_key_info_read_private_key(key_info: *const c_void) -> *mut c_void;
-    pub(super) fn crypto_mldsa_read_public_key(bytes: Span<'_, u8>) -> *mut c_void;
+    pub(super) fn crypto_mldsa_read_public_key(size: MlDsaSize, bytes: Span<'_, u8>) -> *mut c_void;
     pub(super) fn crypto_mldsa_public_bytes(key: *const c_void, bytes: &mut Span<'_, u8>) -> ();
     pub(super) fn crypto_mldsa_seed_bytes(key: *const c_void, state: *mut c_void, receive: ReceiveBytes) -> bool;
     pub(super) fn crypto_mldsa_export_der(
