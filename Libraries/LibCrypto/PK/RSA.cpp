@@ -361,12 +361,6 @@ ErrorOr<bool> RSAPrivateKey::is_valid() const
     return false;
 }
 
-ErrorOr<void> RSA::configure(OpenSSL_PKEY_CTX& ctx)
-{
-    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_NO_PADDING));
-    return {};
-}
-
 ErrorOr<ByteBuffer> RSA::encrypt(ReadonlyBytes in)
 {
     auto key = TRY(public_key_to_openssl_pkey(m_public_key));
@@ -402,44 +396,6 @@ ErrorOr<ByteBuffer> RSA::decrypt(ReadonlyBytes in)
     auto out = TRY(ByteBuffer::create_uninitialized(out_size));
     OPENSSL_TRY(EVP_PKEY_decrypt(ctx.ptr(), out.data(), &out_size, in.data(), in.size()));
     return out.slice(0, out_size);
-}
-
-ErrorOr<ByteBuffer> RSA::sign(ReadonlyBytes message)
-{
-    auto key = TRY(private_key_to_openssl_pkey(m_private_key));
-
-    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
-
-    OPENSSL_TRY(EVP_PKEY_sign_init(ctx.ptr()));
-    TRY(configure(ctx));
-
-    size_t signature_size = 0;
-    OPENSSL_TRY(EVP_PKEY_sign(ctx.ptr(), nullptr, &signature_size, message.data(), message.size()));
-
-    auto signature = TRY(ByteBuffer::create_uninitialized(signature_size));
-    OPENSSL_TRY(EVP_PKEY_sign(ctx.ptr(), signature.data(), &signature_size, message.data(), message.size()));
-    return signature.slice(0, signature_size);
-}
-
-ErrorOr<bool> RSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
-{
-    if (!TRY(m_public_key.is_valid()))
-        return false;
-
-    auto key = TRY(public_key_to_openssl_pkey(m_public_key));
-
-    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
-
-    OPENSSL_TRY(EVP_PKEY_verify_init(ctx.ptr()));
-    TRY(configure(ctx));
-
-    auto ret = EVP_PKEY_verify(ctx.ptr(), signature.data(), signature.size(), message.data(), message.size());
-    if (ret == 1)
-        return true;
-    if (ret == 0)
-        return false;
-    OPENSSL_TRY(ret);
-    VERIFY_NOT_REACHED();
 }
 
 ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind)
@@ -510,12 +466,6 @@ ErrorOr<ByteBuffer> RSA_EMSA::sign(ReadonlyBytes message)
     auto signature = TRY(ByteBuffer::create_uninitialized(signature_size));
     OPENSSL_TRY(EVP_DigestSign(ctx.ptr(), signature.data(), &signature_size, message.data(), message.size()));
     return signature.slice(0, signature_size);
-}
-
-ErrorOr<void> RSA_PKCS1_EME::configure(OpenSSL_PKEY_CTX& ctx)
-{
-    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_PKCS1_PADDING));
-    return {};
 }
 
 ErrorOr<void> RSA_PKCS1_EMSA::configure(OpenSSL_PKEY_CTX& ctx)
