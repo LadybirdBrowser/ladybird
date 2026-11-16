@@ -8,7 +8,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/Checked.h>
-#include <AK/FlyString.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringData.h>
@@ -453,11 +452,6 @@ String StringBuilder::to_string_without_validation()
     if (m_buffer.is_inline())
         return String::from_utf8_without_validation(string_view().bytes());
     return String::from_string_builder_without_validation({}, *this);
-}
-
-ErrorOr<FlyString> StringBuilder::to_fly_string() const
-{
-    return FlyString::from_utf8(string_view());
 }
 
 u8* StringBuilder::data()
