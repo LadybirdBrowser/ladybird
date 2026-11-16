@@ -361,7 +361,40 @@ impl ContextState {
     pub fn frame_inputs(&mut self, now: MonotonicTime) -> Option<FrameInputs> {
         self.update_scrollbar_visibility(now);
         self.scene.display_list().as_ref()?;
+        self.ask_render_clock_for_display_list_where_scrolled_past_its_window();
         Some(self.frame_inputs_as_presented_now(now))
+    }
+
+    fn ask_render_clock_for_display_list_where_scrolled_past_its_window(&mut self) {
+        if !self.has_async_scrolling_state {
+            return;
+        }
+        let (Some(display_list), Some(visual_context_tree)) =
+            (self.scene.display_list(), self.scene.visual_context_tree())
+        else {
+            return;
+        };
+        let Some(window) = display_list.window() else {
+            return;
+        };
+        let asks = self
+            .display_list_coverage_watch
+            .asks_for_display_list_where_scrolled(&ShownOfDisplayList {
+                display_list_id: display_list.id(),
+                window,
+                visual_context_tree: visual_context_tree.as_arc(),
+                scroll_state_snapshot: &self.scroll_state_snapshot,
+                viewport_size: self.viewport_size,
+            });
+        if asks {
+            self.host.post_to_render_clock_of_web_content(
+                self.web_content_client_id,
+                render_clock_client::messages::DisplayListCoverageRunsOut {
+                    context_id: self.context_id,
+                    scroll_offsets: self.scroll_offsets(),
+                },
+            );
+        }
     }
 
     pub fn frame_inputs_for_screenshot(&mut self, now: MonotonicTime) -> ScreenshotInputs {

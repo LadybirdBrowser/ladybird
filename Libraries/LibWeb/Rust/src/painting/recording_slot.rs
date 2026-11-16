@@ -23,7 +23,7 @@ use crate::painting::ffi::FfiFlightBlocker;
 use crate::painting::paint_read::PaintSource;
 use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
 use crate::painting::presentation::Presentation;
-use crate::painting::published_frame::PublishedFrame;
+use crate::painting::published_frame::{HeldFrame, PublishedFrame};
 use crate::painting::record::change_ticks::RowPaintChange;
 use crate::painting::record::publish::HitTestItemsOnScreen;
 use crate::painting::record::recorder_state::RecorderState;
@@ -47,6 +47,7 @@ pub(crate) struct RecordingJob {
     viewport: NodeSlotId,
     trace_recordings: bool,
     presentation: Option<Presentation>,
+    held_frame: Option<HeldFrame>,
 }
 
 /// What a recording answers: the recorder state it was handed, what it made of what it recorded at
@@ -57,6 +58,7 @@ pub(crate) struct RecordingAnswer {
     rows_version: RowsVersion,
     trace: Option<PendingRecordingTrace>,
     presentation: Option<Presentation>,
+    held_frame: Option<HeldFrame>,
 }
 
 /// What a recording made of what it recorded: nothing, where the document's viewport had no box to
@@ -112,15 +114,16 @@ impl VectorImageFrame {
             output,
             publishes_recording,
         };
-        let answer = RecordingAnswer {
+        let mut answer = RecordingAnswer {
             recorder,
             recorded,
             rows_version,
             trace: None,
             presentation: Some(presentation),
+            held_frame: None,
         };
         if let Some(lane) = lane {
-            lane.deliver(&answer);
+            lane.deliver(&mut answer);
         }
         answer
     }
@@ -148,6 +151,7 @@ impl RecordingAnswer {
             rows_version: RowsVersion::default(),
             trace: None,
             presentation,
+            held_frame: None,
         }
     }
 
@@ -163,6 +167,7 @@ impl RecordingAnswer {
             rows_version,
             trace,
             presentation,
+            held_frame,
         } = self;
         // A recording handed a presentation presented its frame, unless it renders SVG images.
         let (recorded, presentation) = match (recorded, presentation) {
@@ -177,13 +182,21 @@ impl RecordingAnswer {
             ),
             unchanged => unchanged,
         };
+        // The lane of a frame that waits for its SVG images records nothing where the compositor scrolled to.
+        let held_frame = held_frame.filter(|_| !matches!(recorded, Recorded::NeedsVectorImages(_)));
         Self {
             recorder,
             recorded,
             rows_version,
             trace,
             presentation,
+            held_frame,
         }
+    }
+
+    /// Takes the frame this answers, held for its clock lane, if the recording was handed one.
+    pub(crate) fn take_held_frame(&mut self) -> Option<HeldFrame> {
+        self.held_frame.take()
     }
 
     /// Hands `lane` the pieces of the clock lane of the committed frame this answers, once it presented: at once, or
@@ -227,6 +240,7 @@ impl RecordingAnswer {
             rows_version: RowsVersion::default(),
             trace: None,
             presentation: Some(presentation),
+            held_frame: None,
         }
     }
 }
@@ -247,6 +261,7 @@ impl RecordingJob {
             viewport,
             trace_recordings: frozen.trace_recordings,
             presentation,
+            held_frame: frozen.held,
         }
     }
 
@@ -275,6 +290,7 @@ impl RecordingJob {
             viewport,
             trace_recordings,
             mut presentation,
+            held_frame,
         } = self;
         let (pending, trace) = record_frame(frame, &mut recorder, viewport, trace_recordings, inputs);
         // A recording that renders an SVG image the recording published last did not draw leaves its frame for the host
@@ -305,6 +321,7 @@ impl RecordingJob {
             rows_version,
             trace,
             presentation,
+            held_frame,
         }
     }
 }
@@ -589,6 +606,8 @@ pub(crate) struct FrozenFrame {
     pub(crate) root_background_source: crate::painting::host::RootBackgroundSource,
     pub(crate) trace_recordings: bool,
     pub(crate) rows_version: crate::layout::RowsVersion,
+    /// The frame again, for the clock lane of a committed frame to keep.
+    pub(crate) held: Option<HeldFrame>,
 }
 
 /// Freezes the frame of the document whose arena `arena` is for a recording of its viewport, or none where the
@@ -632,6 +651,7 @@ pub(crate) fn freeze_recording_frame(arena: &mut LayoutNodeArena, inputs: FrameI
             .root_background_source
             .expect("a recording follows paint preparation"),
         trace_recordings: paint_state.trace_recordings,
+        held: None,
     })
 }
 
@@ -962,6 +982,7 @@ mod tests {
             rows_version: RowsVersion::default(),
             trace: None,
             presentation: None,
+            held_frame: None,
         }
     }
 
@@ -987,6 +1008,7 @@ mod tests {
             viewport: NodeSlotId::INVALID,
             trace_recordings: false,
             presentation: None,
+            held_frame: None,
         };
         assert!(recorder_of(&mut slot).unwrap().published_recording.is_none());
         let RecordingJob { recorder, .. } = job;

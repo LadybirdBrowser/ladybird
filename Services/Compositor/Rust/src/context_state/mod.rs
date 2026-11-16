@@ -14,6 +14,7 @@ mod wheel;
 
 use crate::async_scroll_update_outbox::{AsyncScrollUpdateOutbox, UserScrollGestureState};
 use crate::context_scene::ContextScene;
+use crate::display_list_coverage_watch::{DisplayListCoverageWatch, ShownOfDisplayList};
 use crate::elastic_overscroll_controller::ElasticOverscrollController;
 use crate::frame_inputs::FrameInputs;
 use crate::host::{ContextTimer, Host, PendingFrame, PresentationId, WebContentClientId};
@@ -304,6 +305,7 @@ pub struct ContextState {
     device_pixel_ratio: f64,
     overlays: ContextOverlays,
     scroll_state_snapshot: ScrollStateSnapshot,
+    display_list_coverage_watch: DisplayListCoverageWatch,
 
     async_scroll_tree: AsyncScrollTree,
     scrollbar_controller: ScrollbarController,
@@ -404,6 +406,7 @@ impl ContextState {
             device_pixel_ratio: 1.0,
             overlays: Default::default(),
             scroll_state_snapshot: Default::default(),
+            display_list_coverage_watch: Default::default(),
             async_scroll_tree: Default::default(),
             scrollbar_controller: ScrollbarController::new(scrollbars_always_shown),
             scroll_snap_controller: Default::default(),

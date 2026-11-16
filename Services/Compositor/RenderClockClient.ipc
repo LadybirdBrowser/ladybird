@@ -15,4 +15,7 @@ endpoint RenderClockClient
     // The pointer left the context, beside the mouse event with the input event id `input_event_id`.
     [RustReceiver, RustSender] pointer_left(Web::CompositorContextId context_id, u64 input_event_id) =|
     [RustReceiver, RustSender] pointer_rests_on_moving_content(Web::CompositorContextId context_id) =|
+
+    // The compositor scrolled the context's scroll nodes to `scroll_offsets`, past what the display list it shows holds.
+    [RustReceiver, RustSender] display_list_coverage_runs_out(Web::CompositorContextId context_id, Vector<Web::CompositorScrollOffset> scroll_offsets) =|
 }

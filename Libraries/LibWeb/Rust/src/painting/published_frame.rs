@@ -14,7 +14,7 @@
 
 use crate::cow_column::ColumnSnapshot;
 use crate::css::css_pixels::CssPixelPoint;
-use crate::css::style::StyleRecordLease;
+use crate::css::style::{HoverFrameLease, StyleRecordLease};
 use crate::layout::LayoutNodeArena;
 use crate::layout::PublishedTextSlot;
 use crate::layout::SLOTS_PER_CHUNK;
@@ -38,6 +38,7 @@ use std::sync::Arc;
 
 /// The document's text rows and its replaced, layer image and SVG paint resource tables, as they
 /// were when published.
+#[derive(Clone)]
 pub(crate) struct PublishedPaintFacts {
     pub(crate) text: ColumnSnapshot<PublishedTextSlot, SLOTS_PER_CHUNK>,
     pub(crate) replaced: Arc<ReplacedPaintFactsTable>,
@@ -48,6 +49,7 @@ pub(crate) struct PublishedPaintFacts {
 
 /// One published generation of a document's layout tree shape and paintable rows, and of the
 /// columns read beside them.
+#[derive(Clone)]
 pub(crate) struct PublishedRows {
     /// The epoch of the geometry the rows were published with, which the absolute rects a
     /// recording computes from them are stamped with.
@@ -239,6 +241,24 @@ impl PublishedPaintState {
         &self.scroll_own_offsets
     }
 
+    fn with_scroll_own_offsets(&self, scroll_own_offsets: Arc<Vec<CssPixelPoint>>) -> Self {
+        Self {
+            visual_context_tree: self.visual_context_tree.clone(),
+            unscrolled_world_transforms: std::sync::OnceLock::new(),
+            scroll_own_offsets,
+            has_non_viewport_wheel_scroll_target_candidate: self.has_non_viewport_wheel_scroll_target_candidate,
+            selection: self.selection.clone(),
+            selection_pseudo_styles: self.selection_pseudo_styles.clone(),
+            search_text: self.search_text.clone(),
+            search_text_pseudo_styles: self.search_text_pseudo_styles.clone(),
+            search_text_current_pseudo_styles: self.search_text_current_pseudo_styles.clone(),
+            spelling_errors: self.spelling_errors.clone(),
+            spelling_error_pseudo_styles: self.spelling_error_pseudo_styles.clone(),
+            custom_highlights: self.custom_highlights.clone(),
+            custom_highlight_pseudo_styles: self.custom_highlight_pseudo_styles.clone(),
+        }
+    }
+
     pub(crate) fn scroll_own_offset(&self, slot: usize) -> CssPixelPoint {
         let offset = self.scroll_own_offsets.get(slot).copied();
         debug_assert!(offset.is_some(), "the tree's scroll node has a scroll state");
@@ -255,7 +275,61 @@ pub(crate) struct PublishedFrame {
     paint_generation: PaintGeneration,
     everything_changed_at: PaintGeneration,
     paint_state: PublishedPaintState,
-    _style_records: StyleRecordLease,
+    _style_records: FrameStyleRecords,
+}
+
+enum FrameStyleRecords {
+    Every(#[expect(dead_code, reason = "held for the payloads it keeps")] StyleRecordLease),
+    NamedByItsRows(#[expect(dead_code, reason = "held for the payloads it keeps")] Arc<HoverFrameLease>),
+}
+
+/// A committed frame that a clock lane keeps until the next one, to record it again where the compositor scrolled to
+/// while the host is busy. It shares the frame's rows and paint state, and holds only the style records its rows name,
+/// so that the engine goes on reclaiming the others.
+pub(crate) struct HeldFrame {
+    rows: PublishedRows,
+    paint_generation: PaintGeneration,
+    everything_changed_at: PaintGeneration,
+    paint_state: PublishedPaintState,
+    style_records: Arc<HoverFrameLease>,
+    viewport: NodeSlotId,
+}
+
+impl HeldFrame {
+    /// The row the frame's paint order starts at.
+    pub(crate) fn viewport(&self) -> NodeSlotId {
+        self.viewport
+    }
+
+    /// The frame with its scroll containers where `scrolled` says the compositor scrolled them to, by the identity of
+    /// their nodes, and the others where the frame had them.
+    pub(crate) fn frame_where_scrolled(&self, scrolled: &[(i64, CssPixelPoint)]) -> PublishedFrame {
+        let mut scroll_own_offsets = self.paint_state.scroll_own_offsets.as_ref().clone();
+        if let Some(tree) = self.paint_state.visual_context_tree.as_deref() {
+            for node in &tree.spatial_nodes {
+                let crate::painting::visual_context::SpatialData::Scroll(scroll) = &node.data else {
+                    continue;
+                };
+                if !self.rows.paintable_row_is_populated(scroll.owner_paintable) {
+                    continue;
+                }
+                let identity = self.rows.paintable_data(scroll.owner_paintable).node_identity;
+                let Some(&(_, position)) = scrolled.iter().find(|(scroller, _)| *scroller == identity) else {
+                    continue;
+                };
+                if let Some(own_offset) = scroll_own_offsets.get_mut(scroll.state_slot) {
+                    *own_offset = CssPixelPoint::new(-position.x, -position.y);
+                }
+            }
+        }
+        PublishedFrame {
+            rows: self.rows.clone(),
+            paint_generation: self.paint_generation,
+            everything_changed_at: self.everything_changed_at,
+            paint_state: self.paint_state.with_scroll_own_offsets(Arc::new(scroll_own_offsets)),
+            _style_records: FrameStyleRecords::NamedByItsRows(Arc::clone(&self.style_records)),
+        }
+    }
 }
 
 // A frame is read on whichever thread paints it while the document writes its live columns: it
@@ -277,7 +351,7 @@ impl LayoutNodeArena {
             paint_generation: self.take_paint_generation(),
             everything_changed_at: self.everything_changed_at(),
             paint_state: PublishedPaintState::new(self.paint_state()),
-            _style_records: self.with_style_store(|engine| engine.lease_style_records()),
+            _style_records: FrameStyleRecords::Every(self.with_style_store(|engine| engine.lease_style_records())),
         }
     }
 }
@@ -286,6 +360,26 @@ impl PublishedFrame {
     /// What the frame's recording reads of the document's paint state.
     pub(crate) fn paint_state(&self) -> &PublishedPaintState {
         &self.paint_state
+    }
+
+    /// The frame for a clock lane to keep, of which the row of `viewport` starts the paint order, under `style_records`,
+    /// a lease on the records its rows name.
+    pub(crate) fn held(&self, viewport: NodeSlotId, style_records: Arc<HoverFrameLease>) -> HeldFrame {
+        HeldFrame {
+            rows: self.rows.clone(),
+            paint_generation: self.paint_generation,
+            everything_changed_at: self.everything_changed_at,
+            paint_state: self
+                .paint_state
+                .with_scroll_own_offsets(Arc::clone(&self.paint_state.scroll_own_offsets)),
+            style_records,
+            viewport,
+        }
+    }
+
+    /// The column of the nodes the frame's rows name the style records of.
+    pub(crate) fn paint_nodes(&self) -> &ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
+        self.rows.paint_nodes()
     }
 
     /// The generation the frame was published as of.

@@ -15,6 +15,7 @@
 
 use crate::display_list::commands::SpatialNodeIndex;
 use crate::host::FfiVisualAnimationTargetKind;
+use crate::ipc_types::Compositing_DisplayListWindow;
 use crate::visual_context::{ScrollData, SpatialData, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, WorldTransforms};
 use libgfx_rust::{AffineTransform, FloatPoint, FloatRect, FloatSize, IntSize};
 use std::sync::Arc;
@@ -71,6 +72,37 @@ impl RecordedWindow {
     /// How far the window reaches past the viewport on each side, in device pixels.
     pub fn margin(&self) -> FloatSize {
         Self::margin_of(self.device_viewport_size, self.device_pixels_per_css_pixel)
+    }
+
+    pub fn to_ipc(&self) -> Compositing_DisplayListWindow {
+        Compositing_DisplayListWindow {
+            rect: self.rect,
+            device_viewport_size: self.device_viewport_size,
+            device_pixels_per_css_pixel: self.device_pixels_per_css_pixel,
+            scroll_offsets: self.scroll_offsets.to_vec(),
+        }
+    }
+
+    /// The window a display list says it was recorded for, or none where no recording could have placed it.
+    pub fn from_ipc(window: &Compositing_DisplayListWindow) -> Option<Self> {
+        let rect = window.rect;
+        let is_finite = |point: &FloatPoint| point.x.is_finite() && point.y.is_finite();
+        let could_be_placed = [rect.x, rect.y, rect.width, rect.height]
+            .iter()
+            .all(|value| value.is_finite())
+            && rect.width >= 0.0
+            && rect.height >= 0.0
+            && window.device_viewport_size.width > 0
+            && window.device_viewport_size.height > 0
+            && window.device_pixels_per_css_pixel.is_finite()
+            && window.device_pixels_per_css_pixel > 0.0
+            && window.scroll_offsets.iter().all(is_finite);
+        could_be_placed.then(|| Self {
+            rect,
+            device_viewport_size: window.device_viewport_size,
+            device_pixels_per_css_pixel: window.device_pixels_per_css_pixel,
+            scroll_offsets: window.scroll_offsets.as_slice().into(),
+        })
     }
 
     pub fn placed_offset_of(&self, scroll_node: SpatialNodeIndex) -> FloatPoint {
@@ -453,5 +485,24 @@ mod tests {
         assert_eq!(spaces.to_root(moved, rect), Some(FloatRect::new(0.0, 50.0, 10.0, 10.0)));
         // A scroller below a node that moves on its own leaves nothing out, so scrolling it never runs out.
         assert!(covers(&window, &tree, &[(0.0, 0.0), (0.0, -100_000.0)]));
+    }
+
+    #[test]
+    fn a_window_from_another_process_is_one_a_recording_could_place() {
+        let window = RecordedWindow::placed_at(VIEWPORT, 2.0, offsets(&empty_tree(), &[]));
+        assert_eq!(RecordedWindow::from_ipc(&window.to_ipc()), Some(window.clone()));
+        let with = |change: fn(&mut Compositing_DisplayListWindow)| {
+            let mut sent = window.to_ipc();
+            change(&mut sent);
+            RecordedWindow::from_ipc(&sent)
+        };
+        assert_eq!(with(|sent| sent.rect.height = f32::INFINITY), None);
+        assert_eq!(with(|sent| sent.rect.width = -1.0), None);
+        assert_eq!(with(|sent| sent.device_viewport_size.width = 0), None);
+        assert_eq!(with(|sent| sent.device_pixels_per_css_pixel = f64::NAN), None);
+        assert_eq!(
+            with(|sent| sent.scroll_offsets = vec![FloatPoint { x: 0.0, y: f32::NAN }]),
+            None
+        );
     }
 }

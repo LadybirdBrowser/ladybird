@@ -167,6 +167,7 @@ fn post_rasterization(
         compatible_visual_context_tree_structural_epoch: tree.structural_epoch,
         surface_clear_color: None,
         root_group_color,
+        window: None,
     };
     let chunks_in_paint_order = chunks.iter().map(|chunk| chunk.id).collect();
     let Some(display_list) = poster.share_display_list(chunks_in_paint_order, &chunks, properties, None) else {

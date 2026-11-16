@@ -30,7 +30,7 @@ use super::owner::DocumentId;
 use super::{DocumentHost, RenderState};
 use crate::animations::snapshot::ScrollProgress;
 use crate::animations::timeline::ScrollTimelineSnapshot;
-use crate::css::css_pixels::CssPixelRect;
+use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::ffi_support::OwnedArc;
 use crate::css::style::animations::AnimationTimelineSamples;
 use crate::css::style::engine_sample::{DependentRestyle, NeedsHost, TickShownRecords};
@@ -44,6 +44,7 @@ use crate::paint_stage::Presenting;
 use crate::painting::paint_passes::{ClockTickVisualContexts, VisualContextsNeedHost, prepare_for_clock_tick};
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::presentation::Presentation;
+use crate::painting::published_frame::{HeldFrame, PublishedFrame};
 use crate::painting::record::change_ticks::RowPaintChange;
 use crate::painting::record::inputs::UnframedRecordingInputs;
 use crate::painting::record::publish::{published_vector_image_records, renders_vector_images, take_in_recording};
@@ -333,6 +334,8 @@ pub(crate) struct ClockRecorder {
     /// The structural epoch of the visual context tree of the frame on screen: the frame a tick presented last, or else
     /// the lane's own. None once the lane left a frame to the host.
     pub(super) structural_epoch_on_screen: Option<u64>,
+    /// The lane's frame, which it records again where the compositor scrolled to, until a tick presents another.
+    pub(super) held_frame: Option<HeldFrame>,
 }
 
 /// What the recording of a tick's frame presented.
@@ -507,11 +510,14 @@ impl CommittedFrame {
         let frame = match content {
             CommittedContent::Recording { frame_inputs, inputs } => {
                 let viewport = frame_inputs.viewport;
-                let Some(frozen) = freeze_recording_frame(state.arena_mut(), frame_inputs) else {
+                let Some(mut frozen) = freeze_recording_frame(state.arena_mut(), frame_inputs) else {
                     relay.land(RecordingAnswer::nothing_recorded(recorder, Some(presentation)));
                     return;
                 };
                 let inputs = inputs.for_frame(frozen.tree_inputs, frozen.root_background_source);
+                if !inputs.records_whole_document && !inputs.records_without_visual_contexts {
+                    frozen.held = held_for_lane(state, &frozen.frame, viewport);
+                }
                 SampledFrame::new(
                     &turn,
                     CommittedSample::Recorded(RecordedFrame {
@@ -546,6 +552,21 @@ impl CommittedFrame {
     }
 }
 
+/// The frame the lane of a committed frame keeps, to record it again where the compositor scrolled to while the host is
+/// busy, or none where a lease on the style records its rows name would not keep all it reads.
+fn held_for_lane(state: &mut RenderState, frame: &PublishedFrame, viewport: NodeSlotId) -> Option<HeldFrame> {
+    if frame.paint_state().visual_context_tree.is_none()
+        || state.engine_ref().has_animation_overlay_records()
+        || state.arena_mut().names_uninstalled_style_records()
+    {
+        return None;
+    }
+    let style_records = state
+        .engine_mut()
+        .lease_hover_frame_style_records(frame.paint_nodes().clone());
+    Some(frame.held(viewport, style_records))
+}
+
 /// What the lane of a document's presented frame does, as the host reads it.
 #[repr(u8)]
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
@@ -572,6 +593,9 @@ pub struct ClockTicks {
     latest: AtomicI64,
     /// Where the compositor had scrolled to at the latest tick handed, until the tick that runs next takes it.
     scroll_offsets: Mutex<Option<Vec<FfiScrollOffset>>>,
+    /// Where the compositor scrolled to past what the display list it shows holds, until the lane records its frame
+    /// there.
+    scrolled_past_display_list: Mutex<Option<Vec<FfiScrollOffset>>>,
     /// Whether a tick is queued.
     queued: AtomicBool,
     /// What the lanes do, as the render owner published it last.
@@ -633,6 +657,7 @@ impl ClockTicks {
             document,
             latest: AtomicI64::new(i64::MIN),
             scroll_offsets: Mutex::default(),
+            scrolled_past_display_list: Mutex::default(),
             queued: AtomicBool::new(false),
             published: Mutex::default(),
             animations_held: AtomicBool::new(true),
@@ -678,6 +703,49 @@ impl ClockTicks {
         let ticks = Arc::clone(self);
         super::post_to_render_side(move || lane::tick(&ticks));
         true
+    }
+
+    /// Hands the lane where the compositor scrolled to past what the display list it shows holds, for the lane to record
+    /// its frame there beside a task. Beside an idle event loop the host's rendering update records it.
+    pub(super) fn display_list_coverage_runs_out(self: &Arc<Self>, scroll_offsets: Vec<FfiScrollOffset>) {
+        if self.animations_held.load(Ordering::Relaxed) {
+            return;
+        }
+        let already_asked = self
+            .scrolled_past_display_list
+            .lock()
+            .expect("scrolled past display list")
+            .replace(scroll_offsets)
+            .is_some();
+        if already_asked {
+            return;
+        }
+        let ticks = Arc::clone(self);
+        super::post_to_render_side(move || lane::record_where_scrolled(&ticks));
+    }
+
+    /// Where the compositor scrolled to past what the display list it shows holds, by the identity of each scroll
+    /// container's node, if it said so since this was asked last.
+    pub(super) fn take_scrolled_past_display_list(&self) -> Option<Vec<(i64, CssPixelPoint)>> {
+        let scroll_offsets = self
+            .scrolled_past_display_list
+            .lock()
+            .expect("scrolled past display list")
+            .take()?;
+        Some(
+            scroll_offsets
+                .iter()
+                .map(|offset| {
+                    (
+                        offset.scroller,
+                        CssPixelPoint::new(
+                            CssPixels::nearest_value_for(offset.x),
+                            CssPixels::nearest_value_for(offset.y),
+                        ),
+                    )
+                })
+                .collect(),
+        )
     }
 
     /// Hands the lane where the pointer went, which the next tick hovers, and answers what the lane wants next.
@@ -1253,6 +1321,25 @@ impl Lane {
         }
     }
 
+    /// Has the Paint thread record the lane's held frame where `scrolled` says the compositor scrolled to, and present
+    /// it, while no tick presented a frame of the lane.
+    pub(super) fn record_where_scrolled(&mut self, scrolled: Vec<(i64, CssPixelPoint)>) {
+        if self.presented_a_tick {
+            return;
+        }
+        let clock_recorder = self.recording.0.take(WaitsForTickRecording(()));
+        if clock_recorder.held_frame.is_none() {
+            self.recording = TickRecording(Riding::landed(clock_recorder));
+            return;
+        }
+        let turn = SamplingTurn(());
+        let scrolled = SampledFrame::new(&turn, scrolled);
+        self.recording = TickRecording(crate::paint_stage::ride_presenting(
+            scrolled,
+            move |scrolled, presenting| clock_recorder.record_where_scrolled(scrolled, presenting),
+        ));
+    }
+
     /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds` and where the compositor has scrolled
     /// to, where `samples_animations`, shows the samples, lays out what they moved and presents the frame. A tick that
     /// needs the host parks the lane, and so does the tick that shows the ends of the
@@ -1695,6 +1782,7 @@ impl ClockRecorder {
     /// host rendered them for it, and leaves the frame to the host where it draws another.
     fn record(mut self, frame: SampledFrame<RecordedFrame>, presenting: &mut Presenting) -> Self {
         debug_assert!(self.recorder.published_recording_count.is_of_a_fork());
+        self.held_frame = None;
         if !self.recorder.published_recording_count.is_current() {
             self.leave_frame_to_host();
             return self;
@@ -1730,6 +1818,48 @@ impl ClockRecorder {
             None => present(&mut self.presentation, pending, &self.recorder, presenting),
         };
         self.structural_epoch_on_screen = Some(output.recorded_structural_epoch);
+        self.presented = TickPresented::Frame {
+            output,
+            publishes: false,
+        };
+        self
+    }
+
+    /// Records the lane's held frame again with its scroll containers where `scrolled` says the compositor scrolled them
+    /// to, by the identity of their nodes, and presents it, on the Paint thread. The recording places its window there
+    /// and copies what the lane's last recording holds of it. Nothing is presented where the host published since, or
+    /// where the frame draws an SVG image the host did not render for the lane's last recording.
+    fn record_where_scrolled(
+        mut self,
+        scrolled: SampledFrame<Vec<(i64, CssPixelPoint)>>,
+        presenting: &mut Presenting,
+    ) -> Self {
+        if !self.recorder.published_recording_count.is_current() {
+            return self;
+        }
+        let (Some(held), Some(inputs)) = (self.held_frame.as_ref(), self.recorder.published_inputs.clone()) else {
+            return self;
+        };
+        let SampledFrame(scrolled) = scrolled;
+        let viewport = held.viewport();
+        let frame = held.frame_where_scrolled(&scrolled);
+        let (pending, _) = record_frame(frame, &mut self.recorder, viewport, false, inputs);
+        let output = if renders_vector_images(&pending) {
+            let Some(vector_images) = published_vector_image_records(&pending, &self.recorder) else {
+                return self;
+            };
+            present_with_vector_images(
+                &mut self.presentation,
+                pending,
+                &self.recorder,
+                presenting,
+                &vector_images,
+            )
+        } else {
+            present(&mut self.presentation, pending, &self.recorder, presenting)
+        };
+        self.structural_epoch_on_screen = Some(output.recorded_structural_epoch);
+        self.recorder.published_recording = Some(Arc::clone(&output));
         self.presented = TickPresented::Frame {
             output,
             publishes: false,
