@@ -28,6 +28,7 @@ set(CPACK_PACKAGE_DESCRIPTION
     "Ladybird is a truly independent web browser, using a novel engine based on web standards.")
 set(CPACK_PROJECT_CONFIG_FILE "${CMAKE_CURRENT_LIST_DIR}/cpack_project_config.cmake")
 set(CPACK_LADYBIRD_PACKAGE_INSTALL_PREFIX "${LADYBIRD_PACKAGE_INSTALL_PREFIX}")
+set(CPACK_LADYBIRD_RESOURCE_DIRECTORY "${CMAKE_INSTALL_DATADIR}/Lagom")
 
 # The Linux packages are the browser itself and its debug symbols, named like the debug packages of Debian and Fedora.
 set(CPACK_DEB_COMPONENT_INSTALL ON)
