@@ -10,7 +10,7 @@
 #include <AK/Random.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
-#include <LibCrypto/Hash/HashManager.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibWebSocket/Impl/AcceptedSocket.h>
 #include <LibWebSocket/WebSocket.h>
 
@@ -378,11 +378,9 @@ void WebSocket::read_client_handshake()
             }
             if (m_state != InternalState::WaitingForClientHandshake)
                 return;
-            Crypto::Hash::Manager hash;
-            hash.initialize(Crypto::Hash::HashKind::SHA1);
-            hash.update(ByteString::formatted("{}258EAFA5-E914-47DA-95CA-C5AB0DC85B11", *key));
-            auto digest = hash.digest();
-            auto accept = MUST(encode_base64({ digest.immutable_data(), digest.data_length() }));
+            auto accept_input = ByteString::formatted("{}258EAFA5-E914-47DA-95CA-C5AB0DC85B11", *key);
+            auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA1, accept_input.bytes());
+            auto accept = MUST(encode_base64(digest.bytes()));
             auto response = ByteString::formatted("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {}\r\n\r\n", accept);
             if (!m_impl->send(response.bytes())) {
                 fail_connection(to_underlying(CloseStatusCode::AbnormalClosure), Error::ConnectionUpgradeFailed, {});

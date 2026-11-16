@@ -16,7 +16,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Timer.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
@@ -52,7 +52,7 @@ static Optional<JsonObject> parse_json_object(StringView text)
 
 static ByteString sha256_hex(ReadonlyBytes bytes)
 {
-    return encode_hex(Crypto::Hash::SHA256::hash(bytes).bytes());
+    return encode_hex(Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, bytes).bytes());
 }
 
 void ReportSubmission::Contents::add(StringView key, StringView type, JsonValue value)
@@ -149,7 +149,7 @@ static ByteString build_multipart_body(StringView manifest, ReadonlySpan<ReportS
 
 static Optional<u64> solve_challenge(ByteString const& token, u64 expected_work, Atomic<bool> const& cancelled)
 {
-    auto seed = Crypto::Hash::SHA256::hash(token.bytes());
+    auto seed = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, token.bytes());
     Array<u8, 40> candidate {};
     seed.bytes().copy_to(candidate.span().slice(0, 32));
     auto threshold = NumericLimits<u64>::max() / expected_work;
@@ -159,7 +159,7 @@ static Optional<u64> solve_challenge(ByteString const& token, u64 expected_work,
             return {};
         for (size_t i = 0; i < 8; ++i)
             candidate[32 + i] = static_cast<u8>(nonce >> (i * 8));
-        auto digest = Crypto::Hash::SHA256::hash(candidate.span());
+        auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, candidate.span());
         u64 prefix = 0;
         for (size_t i = 0; i < 8; ++i)
             prefix = prefix << 8 | digest.bytes()[i];

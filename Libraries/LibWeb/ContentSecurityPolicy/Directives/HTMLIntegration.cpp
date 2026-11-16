@@ -6,7 +6,7 @@
  */
 
 #include <AK/Base64.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/HTMLIntegration.h>
@@ -278,17 +278,17 @@ static MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DO
                     // 1. Let actual be the result of base64 encoding the result of applying algorithm to source.
                     auto apply_algorithm_to_source = [&] {
                         if (*algorithm == "SHA-256"sv) {
-                            auto result = ::Crypto::Hash::SHA256::hash(converted_source_bytes);
+                            auto result = ::Crypto::Hash::digest(::Crypto::Hash::HashKind::SHA256, converted_source_bytes);
                             return MUST(encode_base64(result.bytes()));
                         }
 
                         if (*algorithm == "SHA-384"sv) {
-                            auto result = ::Crypto::Hash::SHA384::hash(converted_source_bytes);
+                            auto result = ::Crypto::Hash::digest(::Crypto::Hash::HashKind::SHA384, converted_source_bytes);
                             return MUST(encode_base64(result.bytes()));
                         }
 
                         if (*algorithm == "SHA-512"sv) {
-                            auto result = ::Crypto::Hash::SHA512::hash(converted_source_bytes);
+                            auto result = ::Crypto::Hash::digest(::Crypto::Hash::HashKind::SHA512, converted_source_bytes);
                             return MUST(encode_base64(result.bytes()));
                         }
 

@@ -13,8 +13,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/UDPServer.h>
 #include <LibCrypto/Curves/EdwardsCurve.h>
-#include <LibCrypto/Hash/SHA1.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibDNS/Resolver.h>
 #include <LibTest/TestCase.h>
 
@@ -62,7 +61,7 @@ static ByteBuffer nsec3_hash(DomainName const& name)
 {
     ByteBuffer input;
     MUST(name.canonicalized().to_raw(input));
-    return MUST(ByteBuffer::copy(Crypto::Hash::SHA1::hash(input).bytes()));
+    return MUST(ByteBuffer::copy(Crypto::Hash::digest(Crypto::Hash::HashKind::SHA1, input).bytes()));
 }
 
 static int compare_buffers(ByteBuffer const& a, ByteBuffer const& b)
@@ -123,7 +122,7 @@ struct Zone {
         ByteBuffer input;
         MUST(apex.canonicalized().to_raw(input));
         MUST(dnskey.to_raw(input));
-        return Records::DS { dnskey.calculated_key_tag, DNSSEC::Algorithm::ED25519, DNSSEC::DigestType::SHA256, MUST(ByteBuffer::copy(Crypto::Hash::SHA256::hash(input).bytes())) };
+        return Records::DS { dnskey.calculated_key_tag, DNSSEC::Algorithm::ED25519, DNSSEC::DigestType::SHA256, MUST(ByteBuffer::copy(Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, input).bytes())) };
     }
 
     void add(DomainName const& owner, ResourceType type, Record record, u32 ttl)

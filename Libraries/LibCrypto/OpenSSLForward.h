@@ -27,10 +27,6 @@ void X509_free(X509*);
 
 EVP_MD_CTX* EVP_MD_CTX_new();
 void EVP_MD_CTX_free(EVP_MD_CTX*);
-int EVP_DigestUpdate(EVP_MD_CTX*, void const*, size_t);
-int EVP_DigestInit_ex(EVP_MD_CTX*, const EVP_MD*, ENGINE*);
-int EVP_DigestFinal_ex(EVP_MD_CTX*, unsigned char*, unsigned int*);
-int EVP_MD_CTX_copy_ex(EVP_MD_CTX*, EVP_MD_CTX const*);
 
 void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX*);
 void EVP_PKEY_CTX_free(EVP_PKEY_CTX*);

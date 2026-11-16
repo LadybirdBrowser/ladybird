@@ -18,7 +18,7 @@
 #include <AK/Vector.h>
 #include <LibCore/Socket.h>
 #include <LibCore/TCPServer.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibWebView/Application.h>
 
 namespace ReportServerTest {
@@ -144,7 +144,7 @@ private:
 
 inline ByteString sha256_hex(StringView text)
 {
-    return encode_hex(Crypto::Hash::SHA256::hash(text.bytes()).bytes());
+    return encode_hex(Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, text.bytes()).bytes());
 }
 
 // The content of the multipart part with the given name.

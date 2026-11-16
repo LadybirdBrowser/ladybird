@@ -9,7 +9,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/Random.h>
 #include <LibCore/Directory.h>
-#include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibWebView/Profile.h>
 
@@ -87,7 +87,7 @@ bool Profile::is_valid_name(StringView name)
 
 ByteString Profile::routing_identifier(StringView canonical_profile_root)
 {
-    auto digest = Crypto::Hash::SHA256::hash(canonical_profile_root);
+    auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA256, canonical_profile_root.bytes());
     return encode_hex(digest.bytes().slice(0, 16));
 }
 
