@@ -656,11 +656,11 @@ pub fn ec_public_key_scalar_size(key: &KeyHandle) -> usize {
     unsafe { ffi::crypto_ec_public_key_scalar_size(key.as_raw()) }
 }
 
-pub fn ec_key_from_coordinates(x: &[u8], y: &[u8], coord_size: usize, d: Option<&[u8]>) -> KeyHandle {
+pub fn ec_key_from_coordinates(x: &[u8], y: &[u8], d: Option<&[u8]>) -> Option<KeyHandle> {
     // SAFETY: The input is borrowed for the call.
-    let raw = unsafe { ffi::crypto_ec_key_from_coordinates(Span::new(x), Span::new(y), coord_size, d.into()) };
+    let raw = unsafe { ffi::crypto_ec_key_from_coordinates(Span::new(x), Span::new(y), d.into()) };
     // SAFETY: The native operation transfers ownership of the key.
-    unsafe { KeyHandle::from_raw(raw) }.expect("LibCrypto returns a key")
+    unsafe { KeyHandle::from_raw(raw) }
 }
 
 pub fn ec_parse_raw_public_key(bytes: &[u8]) -> Option<KeyHandle> {
@@ -696,13 +696,12 @@ pub fn ec_export_uncompressed(key: &KeyHandle) -> Result<Vec<u8>, BackendError> 
     Ok(bytes)
 }
 
-pub fn ec_export_public_coordinates(curve: EcCurve, key: &KeyHandle) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+pub fn ec_export_public_coordinates(key: &KeyHandle) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
     let mut first = Vec::new();
     let mut second = Vec::new();
     // SAFETY: Inputs and both output slots are borrowed for the call.
     let status = unsafe {
         ffi::crypto_ec_export_public_coordinates(
-            curve,
             key.as_raw(),
             core::ptr::from_mut(&mut first).cast(),
             core::ptr::from_mut(&mut second).cast(),
@@ -943,14 +942,9 @@ pub fn mlkem_decapsulate(size: MlKemSize, key: &KeyHandle, ciphertext: &[u8]) ->
     Ok(bytes)
 }
 
-pub fn public_key_for_private_key(
-    key: &KeyHandle,
-    name: &Utf16String,
-    named_curve: Option<&Utf16String>,
-) -> Option<KeyHandle> {
-    let named_curve = named_curve.map_or(0, Utf16String::raw_identity);
+pub fn public_key_for_private_key(key: &KeyHandle, name: &Utf16String) -> Option<KeyHandle> {
     // SAFETY: The inputs are borrowed for the call.
-    let raw = unsafe { ffi::crypto_public_key_for_private_key(key.as_raw(), name.raw_identity(), named_curve) };
+    let raw = unsafe { ffi::crypto_public_key_for_private_key(key.as_raw(), name.raw_identity()) };
     // SAFETY: A non-null result transfers ownership of the key.
     unsafe { KeyHandle::from_raw(raw) }
 }
@@ -978,22 +972,7 @@ pub fn rsa_key_from_components(is_private: bool, components: &[&[u8]]) -> Option
     unsafe { KeyHandle::from_raw(raw) }
 }
 
-#[derive(Debug)]
-pub enum EcError {
-    Operation(Utf16String),
-    CoordinateEncoding,
-}
-
-fn ec_result(status: u8, error: usize) -> Result<(), EcError> {
-    match status {
-        0 => Ok(()),
-        1 => result_from_error(error).map_err(EcError::Operation),
-        _ => Err(EcError::CoordinateEncoding),
-    }
-}
-
-pub fn ec_sign(curve: EcCurve, key: &KeyHandle, digest: &[u8]) -> Result<(Vec<u8>, Vec<u8>), EcError> {
-    let mut error = 0;
+pub fn ec_sign(curve: EcCurve, key: &KeyHandle, digest: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Utf16String> {
     let mut r = Vec::new();
     let mut s = Vec::new();
     // SAFETY: Inputs and both output slots are live for the synchronous call.
@@ -1002,22 +981,20 @@ pub fn ec_sign(curve: EcCurve, key: &KeyHandle, digest: &[u8]) -> Result<(Vec<u8
             curve,
             key.as_raw(),
             Span::new(digest),
-            &mut error,
             core::ptr::from_mut(&mut r).cast(),
             core::ptr::from_mut(&mut s).cast(),
             receive_bytes,
         )
     };
-    ec_result(status, error)?;
+    result_from_error(status)?;
     Ok((r, s))
 }
 
-pub fn ec_compute_coordinate(curve: EcCurve, key: &KeyHandle, public_key: &KeyHandle) -> Result<Vec<u8>, EcError> {
-    let mut error = 0;
-    // SAFETY: The key handles and output slots are live for the synchronous call.
+pub fn ec_compute_coordinate(curve: EcCurve, key: &KeyHandle, public_key: &KeyHandle) -> Result<Vec<u8>, Utf16String> {
+    // SAFETY: The key handles and output slot are live for the synchronous call.
     let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_ec_compute_coordinate(curve, key.as_raw(), public_key.as_raw(), &mut error, state, receive)
+        ffi::crypto_ec_compute_coordinate(curve, key.as_raw(), public_key.as_raw(), state, receive)
     });
-    ec_result(status, error)?;
+    result_from_error(status)?;
     Ok(bytes)
 }

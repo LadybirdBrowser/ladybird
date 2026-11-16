@@ -14,8 +14,8 @@ use std::rc::Rc;
 
 use ak::{Utf16String, Utf16StringUnits};
 use libcrypto_rust::{
-    Argon2Inputs, Argon2Type, Asn1Structure, Asn1Value, BackendError, CShakeKind, EcCurve, EcError, KeyHandle, KeyInfo,
-    KeyPair, KmacKind, MlDsaSize, MlKemSize, OkpCurve, RsaJwkInteger, ShaHashKind,
+    Argon2Inputs, Argon2Type, Asn1Structure, Asn1Value, BackendError, CShakeKind, EcCurve, KeyHandle, KeyInfo, KeyPair,
+    KmacKind, MlDsaSize, MlKemSize, OkpCurve, RsaJwkInteger, ShaHashKind,
 };
 use libjs_rust::api::{
     ErrorKind, ErrorType, Gc, Object, PropertyKey, Realm, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
@@ -7841,11 +7841,11 @@ const SECP256R1_OID: [u32; 7] = [1, 2, 840, 10045, 3, 1, 7];
 const SECP384R1_OID: [u32; 5] = [1, 3, 132, 0, 34];
 const SECP521R1_OID: [u32; 5] = [1, 3, 132, 0, 35];
 
-fn ec_key_from_coordinates(vm: &Vm, x: &Bytes, y: &Bytes, coord_size: usize, d: Option<&Bytes>) -> Ref<CryptoKey> {
-    CryptoKey::create(
-        vm,
-        libcrypto_rust::ec_key_from_coordinates(x.as_slice(), y.as_slice(), coord_size, d.map(Bytes::as_slice)),
-    )
+fn ec_key_from_coordinates(vm: &Vm, x: &Bytes, y: &Bytes, d: Option<&Bytes>) -> WebIdlResult<Ref<CryptoKey>> {
+    let Some(key) = libcrypto_rust::ec_key_from_coordinates(x.as_slice(), y.as_slice(), d.map(Bytes::as_slice)) else {
+        return Err(dom_error("DataError", b"Invalid key"));
+    };
+    Ok(CryptoKey::create(vm, key))
 }
 
 fn ec_parse_raw_public_key(vm: &Vm, curve: EcCurve, key_bytes: &Bytes) -> WebIdlResult<Ref<CryptoKey>> {
@@ -7874,8 +7874,8 @@ fn ec_export_uncompressed(key: Ref<CryptoKey>) -> Result<Bytes, BackendError> {
     libcrypto_rust::ec_export_uncompressed(key.handle()).map(Bytes::new)
 }
 
-fn ec_export_public_coordinates(curve: EcCurve, key: Ref<CryptoKey>) -> Result<(Bytes, Bytes), BackendError> {
-    let (x, y) = libcrypto_rust::ec_export_public_coordinates(curve, key.handle())?;
+fn ec_export_public_coordinates(key: Ref<CryptoKey>) -> Result<(Bytes, Bytes), BackendError> {
+    let (x, y) = libcrypto_rust::ec_export_public_coordinates(key.handle())?;
     Ok((Bytes::new(x), Bytes::new(y)))
 }
 
@@ -8082,16 +8082,10 @@ impl AlgorithmMethods for Ecdsa {
             //    using params as the EC domain parameters, and with d as the private key.
             // 2. Let r and s be the pair of integers resulting from performing the ECDSA signing process.
             let signature = libcrypto_rust::ec_sign(curve, d, m.as_slice());
-            if let Err(EcError::Operation(message)) = signature {
-                return Err(Exception::Dom("OperationError", message));
-            }
-            if matches!(signature, Err(EcError::CoordinateEncoding)) {
-                return cx
-                    .vm()
-                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                    .map_err(Into::into);
-            }
-            let (r_bytes, s_bytes) = signature.expect("LibCrypto returns the signature");
+            let (r_bytes, s_bytes) = match signature {
+                Ok(signature) => signature,
+                Err(message) => return Err(Exception::Dom("OperationError", message)),
+            };
 
             // 3. Let result be an empty byte sequence.
             let mut result_bytes = Vec::new();
@@ -8612,7 +8606,7 @@ impl AlgorithmMethods for Ecdsa {
 
                     // 2. Let key be a new CryptoKey object that represents the Elliptic Curve private key identified
                     //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
-                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, Some(&d_bytes));
+                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, Some(&d_bytes))?;
 
                     // 3. Set the [[type]] internal slot of Key to "private".
                     key.set_type(KeyType::Private);
@@ -8621,7 +8615,7 @@ impl AlgorithmMethods for Ecdsa {
                     // 1. If jwk does not meet the requirements of Section 6.2.1 of JSON Web Algorithms [JWA], then throw a DataError.
                     // 2. Let key be a new CryptoKey object that represents the Elliptic Curve public key identified by interpreting
                     //    jwk according to Section 6.2.1 of JSON Web Algorithms [JWA].
-                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, None);
+                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, None)?;
 
                     // 3. Set the [[type]] internal slot of Key to "public".
                     key.set_type(KeyType::Public);
@@ -8852,7 +8846,7 @@ impl AlgorithmMethods for Ecdsa {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = ec_curve_from_name(named_curve) {
+            if ec_curve_from_name(named_curve).is_some() {
                 // 1. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
                 if *named_curve == Utf16String::from_ascii(b"P-256") {
                     // Set the crv attribute of jwk to "P-256"
@@ -8873,7 +8867,7 @@ impl AlgorithmMethods for Ecdsa {
                 // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
                 // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
                 // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
-                let (x_bytes, y_bytes) = ec_export_public_coordinates(curve, key)
+                let (x_bytes, y_bytes) = ec_export_public_coordinates(key)
                     .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?;
                 jwk.x = Some(base64_url_bytes_encode(x_bytes.as_slice()));
                 jwk.y = Some(base64_url_bytes_encode(y_bytes.as_slice()));
@@ -9179,24 +9173,17 @@ impl AlgorithmMethods for Ecdh {
             //    by the [[handle]] internal slot of publicKey as the EC public key.
             // 2. Let secret be a byte sequence containing the result of applying the field element to octet string
             //    conversion defined in Section 6.2 of [RFC6090] to the output of the ECDH primitive.
-            // NOTE: Remove the prefix from the uncompressed point
             let secret_data = libcrypto_rust::ec_compute_coordinate(curve, key.handle(), public_key.handle());
-            if let Err(EcError::Operation(detail)) = secret_data {
-                return Err(Exception::Dom(
-                    "OperationError",
-                    libjs_rust::api::utf16_formatted("Failed to compute secret: {}", &[&detail]),
-                ));
-            }
-            if matches!(secret_data, Err(EcError::CoordinateEncoding)) {
-                return Err(dom_error("OperationError", b"Failed to convert secret"));
-            }
-            let secret_data = secret_data.expect("LibCrypto returns the uncompressed point");
-            assert_eq!(secret_data[0], 0x04);
-
-            // NOTE: Use the x-coordinate as shared secret. RFC6090 section 4.2:
-            //   In the ECDH key exchange protocol, after the element g^(j*k) has been
-            //   computed, the x-coordinate of that value can be used as the shared secret.
-            secret = copy_bytes(cx.vm(), &secret_data[1..=secret_data.len() / 2])?;
+            let secret_data = match secret_data {
+                Ok(secret_data) => secret_data,
+                Err(detail) => {
+                    return Err(Exception::Dom(
+                        "OperationError",
+                        libjs_rust::api::utf16_formatted("Failed to compute secret: {}", &[&detail]),
+                    ));
+                }
+            };
+            secret = copy_bytes(cx.vm(), &secret_data)?;
         } else {
             // If the namedCurve property of the [[algorithm]] internal slot of key is a value specified
             // in an applicable specification that specifies the use of that value with ECDH:
@@ -9587,7 +9574,7 @@ impl AlgorithmMethods for Ecdh {
 
                     // 2. Let key be a new CryptoKey object that represents the Elliptic Curve private key identified
                     //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
-                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, Some(&d_bytes));
+                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, Some(&d_bytes))?;
 
                     // 3. Set the [[type]] internal slot of Key to "private".
                     key.set_type(KeyType::Private);
@@ -9596,7 +9583,7 @@ impl AlgorithmMethods for Ecdh {
                     // 1. If jwk does not meet the requirements of Section 6.2.1 of JSON Web Algorithms [JWA], then throw a DataError.
                     // 2. Let key be a new CryptoKey object that represents the Elliptic Curve public key identified by interpreting
                     //    jwk according to Section 6.2.1 of JSON Web Algorithms [JWA].
-                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, None);
+                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, None)?;
 
                     // 3. Set the [[type]] internal slot of Key to "public".
                     key.set_type(KeyType::Public);
@@ -9821,7 +9808,7 @@ impl AlgorithmMethods for Ecdh {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = ec_curve_from_name(named_curve) {
+            if ec_curve_from_name(named_curve).is_some() {
                 // 1. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
                 if *named_curve == Utf16String::from_ascii(b"P-256") {
                     // Set the crv attribute of jwk to "P-256"
@@ -9842,7 +9829,7 @@ impl AlgorithmMethods for Ecdh {
                 // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
                 // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
                 // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
-                let (x_bytes, y_bytes) = ec_export_public_coordinates(curve, key)
+                let (x_bytes, y_bytes) = ec_export_public_coordinates(key)
                     .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?;
                 jwk.x = Some(base64_url_bytes_encode(x_bytes.as_slice()));
                 jwk.y = Some(base64_url_bytes_encode(y_bytes.as_slice()));
@@ -13926,12 +13913,5 @@ impl AlgorithmMethods for MlKem {
 
 pub(crate) fn public_key_for_private_key(vm: &Vm, key: Ref<CryptoKey>) -> Option<Ref<CryptoKey>> {
     let name = key.algorithm_name();
-    let algorithm = key.internal_algorithm();
-    let named_curve = if let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm {
-        Some(named_curve)
-    } else {
-        None
-    };
-    libcrypto_rust::public_key_for_private_key(key.handle(), &name, named_curve)
-        .map(|handle| CryptoKey::create(vm, handle))
+    libcrypto_rust::public_key_for_private_key(key.handle(), &name).map(|handle| CryptoKey::create(vm, handle))
 }

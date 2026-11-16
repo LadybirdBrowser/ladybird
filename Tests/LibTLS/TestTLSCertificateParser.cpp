@@ -5,6 +5,7 @@
  */
 
 #include <AK/Base64.h>
+#include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibTest/TestCase.h>
 

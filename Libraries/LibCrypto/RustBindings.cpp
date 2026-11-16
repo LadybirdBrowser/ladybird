@@ -19,13 +19,13 @@
 #include <LibCrypto/Cipher/AES.h>
 #include <LibCrypto/Cipher/ChaCha.h>
 #include <LibCrypto/Curves/EdwardsCurve.h>
-#include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/Hash/Argon2.h>
 #include <LibCrypto/Hash/HKDF.h>
 #include <LibCrypto/Hash/Hash.h>
 #include <LibCrypto/Hash/PBKDF2.h>
 #include <LibCrypto/Hash/SHAKE.h>
 #include <LibCrypto/KeyHandle.h>
+#include <LibCrypto/PK/EC.h>
 #include <LibCrypto/PK/MLDSA.h>
 #include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/RSA.h>
@@ -135,7 +135,6 @@ void crypto_asn1_delete_key_info(Asn1Structure structure, void* key_info)
     VERIFY(structure == Asn1Structure::PrivateKeyInfo);
     auto* storage = static_cast<PrivateKeyStorage*>(key_info);
     storage->value.rsa.clear_sensitive_data();
-    storage->value.ec.clear_sensitive_data();
     storage->value.mldsa.clear_sensitive_data();
     storage->value.mlkem.clear_sensitive_data();
     secure_zero(storage->value.raw_key.data(), storage->value.raw_key.size());
@@ -418,15 +417,15 @@ enum class EcCurve : u8 {
     P521,
 };
 
-static ::Crypto::Curves::SECPxxxr1 ec_curve(EcCurve curve)
+static size_t ec_scalar_size(EcCurve curve)
 {
     switch (curve) {
     case EcCurve::P256:
-        return ::Crypto::Curves::SECP256r1 {};
+        return 32;
     case EcCurve::P384:
-        return ::Crypto::Curves::SECP384r1 {};
+        return 48;
     case EcCurve::P521:
-        return ::Crypto::Curves::SECP521r1 {};
+        return 66;
     }
     VERIFY_NOT_REACHED();
 }
@@ -446,65 +445,54 @@ static ReadonlySpan<u32> ec_curve_oid(EcCurve curve)
 
 extern "C" {
 bool crypto_ec_generate_key_pair(EcCurve, KeyHandle**, KeyHandle**);
-u8 crypto_ec_sign(EcCurve, KeyHandle const*, ReadonlyBytes, FlatPtr*, void*, void*, ReceiveEncodedBytes);
+FlatPtr crypto_ec_sign(EcCurve, KeyHandle const*, ReadonlyBytes, void*, void*, ReceiveEncodedBytes);
 FlatPtr crypto_ec_verify(EcCurve, KeyHandle const*, ReadonlyBytes, ReadonlyBytes, ReadonlyBytes, bool*);
 size_t crypto_ec_public_key_scalar_size(KeyHandle const*);
-u8 crypto_ec_compute_coordinate(EcCurve, KeyHandle const*, KeyHandle const*, FlatPtr*, void*, ReceiveEncodedBytes);
+FlatPtr crypto_ec_compute_coordinate(EcCurve, KeyHandle const*, KeyHandle const*, void*, ReceiveEncodedBytes);
 bool crypto_ec_key_info_has_public_key_oid(Asn1Structure, void const*);
 bool crypto_ec_key_info_parameters(Asn1Structure, void const*, ReadonlySpan<u32>*);
 bool crypto_ec_private_key_info_parameters_match(void const*);
 KeyHandle* crypto_ec_key_info_read_key(Asn1Structure, void const*);
-KeyHandle* crypto_ec_key_from_coordinates(ReadonlyBytes, ReadonlyBytes, size_t, OptionalBytes);
+KeyHandle* crypto_ec_key_from_coordinates(ReadonlyBytes, ReadonlyBytes, OptionalBytes);
 KeyHandle* crypto_ec_parse_raw_public_key(ReadonlyBytes);
 bool crypto_ec_key_is_valid(EcCurve, KeyHandle const*, bool*);
 bool crypto_ec_export_der(EcCurve, KeyHandle const*, bool, void*, ReceiveEncodedBytes);
 bool crypto_ec_export_uncompressed(KeyHandle const*, void*, ReceiveEncodedBytes);
-bool crypto_ec_export_public_coordinates(EcCurve, KeyHandle const*, void*, void*, ReceiveEncodedBytes);
+bool crypto_ec_export_public_coordinates(KeyHandle const*, void*, void*, ReceiveEncodedBytes);
 bool crypto_ec_export_private_scalar(KeyHandle const*, void*, ReceiveEncodedBytes);
 }
 
-bool crypto_ec_generate_key_pair(EcCurve curve_id, KeyHandle** out_public_key, KeyHandle** out_private_key)
+bool crypto_ec_generate_key_pair(EcCurve curve, KeyHandle** out_public_key, KeyHandle** out_private_key)
 {
-    auto curve = ec_curve(curve_id);
-    auto maybe_private_key_data = curve.generate_private_key();
-    if (maybe_private_key_data.is_error())
+    auto private_key = ::Crypto::PK::ECPrivateKey::generate(ec_scalar_size(curve));
+    if (private_key.is_error())
         return false;
-    auto private_key_data = maybe_private_key_data.release_value();
-    auto maybe_public_key_data = curve.generate_public_key(private_key_data);
-    if (maybe_public_key_data.is_error())
-        return false;
-    auto public_key_data = maybe_public_key_data.release_value();
-    auto public_key = ::Crypto::PK::ECPublicKey { public_key_data };
-    auto private_key = ::Crypto::PK::ECPrivateKey { move(private_key_data), public_key_data.size, {}, public_key };
-    *out_public_key = new KeyHandle(move(public_key));
-    *out_private_key = new KeyHandle(move(private_key));
+    *out_public_key = new KeyHandle(*private_key.value().public_key());
+    *out_private_key = new KeyHandle(private_key.release_value());
     return true;
 }
 
-u8 crypto_ec_sign(EcCurve curve_id, KeyHandle const* key, ReadonlyBytes digest, FlatPtr* error, void* r, void* s, ReceiveEncodedBytes receive)
+FlatPtr crypto_ec_sign(EcCurve curve, KeyHandle const* key, ReadonlyBytes digest, void* r, void* s, ReceiveEncodedBytes receive)
 {
-    auto signature = ec_curve(curve_id).sign(digest, key->get<::Crypto::PK::ECPrivateKey>().d());
-    if (signature.is_error()) {
-        *error = Utf16String::from_utf8(signature.error().string_literal()).into_raw();
-        return 1;
-    }
-    auto r_bytes = signature.value().r_bytes();
-    if (r_bytes.is_error())
-        return 2;
-    receive(r, r_bytes.value());
-    auto s_bytes = signature.value().s_bytes();
-    if (s_bytes.is_error())
-        return 2;
-    receive(s, s_bytes.value());
+    auto const& private_key = key->get<::Crypto::PK::ECPrivateKey>();
+    if (private_key.scalar_size() != ec_scalar_size(curve))
+        return Utf16String::from_utf8("The key is on a different curve"sv).into_raw();
+    auto signature = ::Crypto::PK::ecdsa_sign(private_key, digest);
+    if (signature.is_error())
+        return Utf16String::formatted("{}", signature.error()).into_raw();
+    receive(r, signature.value().r);
+    receive(s, signature.value().s);
     return 0;
 }
 
-FlatPtr crypto_ec_verify(EcCurve curve_id, KeyHandle const* key, ReadonlyBytes digest, ReadonlyBytes r_bytes, ReadonlyBytes s_bytes, bool* verified)
+FlatPtr crypto_ec_verify(EcCurve curve, KeyHandle const* key, ReadonlyBytes digest, ReadonlyBytes r, ReadonlyBytes s, bool* verified)
 {
     auto const& public_key = key->get<::Crypto::PK::ECPublicKey>();
-    auto r = ::Crypto::UnsignedBigInteger::import_data(r_bytes);
-    auto s = ::Crypto::UnsignedBigInteger::import_data(s_bytes);
-    auto result = ec_curve(curve_id).verify(digest, public_key.to_secpxxxr1_point(), { move(r), move(s), public_key.scalar_size() });
+    if (public_key.scalar_size() != ec_scalar_size(curve)) {
+        *verified = false;
+        return 0;
+    }
+    auto result = ::Crypto::PK::ecdsa_verify(public_key, digest, r, s);
     if (result.is_error())
         return Utf16String::from_utf8(result.error().string_literal()).into_raw();
     *verified = result.value();
@@ -516,19 +504,16 @@ size_t crypto_ec_public_key_scalar_size(KeyHandle const* key)
     return key->get<::Crypto::PK::ECPublicKey>().scalar_size();
 }
 
-u8 crypto_ec_compute_coordinate(EcCurve curve_id, KeyHandle const* key, KeyHandle const* public_key, FlatPtr* error, void* state, ReceiveEncodedBytes receive)
+FlatPtr crypto_ec_compute_coordinate(EcCurve curve, KeyHandle const* key, KeyHandle const* public_key, void* state, ReceiveEncodedBytes receive)
 {
-    auto const& private_key_data = key->get<::Crypto::PK::ECPrivateKey>();
-    auto const& public_key_data = public_key->get<::Crypto::PK::ECPublicKey>();
-    auto secret = ec_curve(curve_id).compute_coordinate(private_key_data.d(), public_key_data.to_secpxxxr1_point());
-    if (secret.is_error()) {
-        *error = Utf16String::formatted("{}", secret.error()).into_raw();
-        return 1;
-    }
-    auto secret_data = secret.value().to_uncompressed();
-    if (secret_data.is_error())
-        return 2;
-    receive(state, secret_data.value());
+    auto const& private_key = key->get<::Crypto::PK::ECPrivateKey>();
+    if (private_key.scalar_size() != ec_scalar_size(curve))
+        return Utf16String::from_utf8("The key is on a different curve"sv).into_raw();
+    auto secret = ::Crypto::PK::ecdh_derive(private_key, public_key->get<::Crypto::PK::ECPublicKey>());
+    if (secret.is_error())
+        return Utf16String::formatted("{}", secret.error()).into_raw();
+    receive(state, secret.value());
+    secure_zero(secret.value().data(), secret.value().size());
     return 0;
 }
 
@@ -569,38 +554,35 @@ KeyHandle* crypto_ec_key_info_read_key(Asn1Structure structure, void const* key_
     return new KeyHandle(static_cast<PrivateKeyStorage const*>(key_info)->value.ec);
 }
 
-KeyHandle* crypto_ec_key_from_coordinates(ReadonlyBytes x, ReadonlyBytes y, size_t coord_size, OptionalBytes d)
+KeyHandle* crypto_ec_key_from_coordinates(ReadonlyBytes x, ReadonlyBytes y, OptionalBytes d)
 {
-    auto public_key = ::Crypto::PK::ECPublicKey { ::Crypto::UnsignedBigInteger::import_data(x), ::Crypto::UnsignedBigInteger::import_data(y), coord_size };
+    auto public_key = ::Crypto::PK::ECPublicKey::from_coordinates(x, y);
+    if (public_key.is_error())
+        return nullptr;
     if (!d.has_value)
-        return new KeyHandle(move(public_key));
-    return new KeyHandle(::Crypto::PK::ECPrivateKey { ::Crypto::UnsignedBigInteger::import_data(d.bytes), coord_size, {}, move(public_key) });
+        return new KeyHandle(public_key.release_value());
+    auto private_key = ::Crypto::PK::ECPrivateKey::from_scalar(d.bytes, {}, public_key.release_value());
+    if (private_key.is_error())
+        return nullptr;
+    return new KeyHandle(private_key.release_value());
 }
 
 KeyHandle* crypto_ec_parse_raw_public_key(ReadonlyBytes data)
 {
-    auto result = ::Crypto::PK::EC::parse_ec_key(data, false, {});
-    if (result.is_error())
+    auto public_key = ::Crypto::PK::ECPublicKey::from_octets(data);
+    if (public_key.is_error())
         return nullptr;
-    return new KeyHandle(move(result.value().public_key));
+    return new KeyHandle(public_key.release_value());
 }
 
-bool crypto_ec_key_is_valid(EcCurve curve_id, KeyHandle const* key, bool* valid)
+// NB: Every EC key is a valid key for its own curve, since building it checks that.
+bool crypto_ec_key_is_valid(EcCurve curve, KeyHandle const* key, bool* valid)
 {
-    auto curve = ec_curve(curve_id);
-    auto result = key->visit(
-        [&](::Crypto::PK::ECPublicKey const& public_key) {
-            return curve.is_valid_point(public_key.to_secpxxxr1_point());
-        },
-        [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<bool> {
-            if (!private_key.public_key().has_value())
-                return true;
-            return curve.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
-        },
-        [](auto const&) -> ErrorOr<bool> { VERIFY_NOT_REACHED(); });
-    if (result.is_error())
-        return false;
-    *valid = result.value();
+    auto scalar_size = key->visit(
+        [](::Crypto::PK::ECPublicKey const& public_key) { return public_key.scalar_size(); },
+        [](::Crypto::PK::ECPrivateKey const& private_key) { return private_key.scalar_size(); },
+        [](auto const&) -> size_t { VERIFY_NOT_REACHED(); });
+    *valid = scalar_size == ec_scalar_size(curve);
     return true;
 }
 
@@ -625,32 +607,30 @@ bool crypto_ec_export_uncompressed(KeyHandle const* key, void* state, ReceiveEnc
     return receive_byte_result(result, state, receive);
 }
 
-bool crypto_ec_export_public_coordinates(EcCurve curve_id, KeyHandle const* key, void* x, void* y, ReceiveEncodedBytes receive)
+bool crypto_ec_export_public_coordinates(KeyHandle const* key, void* x, void* y, ReceiveEncodedBytes receive)
 {
-    auto result = key->visit(
-        [&](::Crypto::PK::ECPublicKey const& public_key) -> ErrorOr<void> {
-            auto x_bytes = TRY(public_key.x_bytes());
-            receive(x, x_bytes);
-            auto y_bytes = TRY(public_key.y_bytes());
-            receive(y, y_bytes);
-            return {};
-        },
-        [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<void> {
-            auto public_key = TRY(ec_curve(curve_id).generate_public_key(private_key.d()));
-            auto x_bytes = TRY(public_key.x_bytes());
-            auto y_bytes = TRY(public_key.y_bytes());
-            receive(x, x_bytes);
-            receive(y, y_bytes);
-            return {};
-        },
-        [](auto const&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); });
+    auto result = [&]() -> ErrorOr<void> {
+        auto public_key = TRY(key->visit(
+            [](::Crypto::PK::ECPublicKey const& public_key) -> ErrorOr<::Crypto::PK::ECPublicKey> { return public_key; },
+            [](::Crypto::PK::ECPrivateKey const& private_key) { return private_key.derive_public_key(); },
+            [](auto const&) -> ErrorOr<::Crypto::PK::ECPublicKey> { VERIFY_NOT_REACHED(); }));
+        auto x_bytes = TRY(public_key.x_bytes());
+        auto y_bytes = TRY(public_key.y_bytes());
+        receive(x, x_bytes);
+        receive(y, y_bytes);
+        return {};
+    }();
     return !result.is_error();
 }
 
 bool crypto_ec_export_private_scalar(KeyHandle const* key, void* state, ReceiveEncodedBytes receive)
 {
     auto result = key->get<::Crypto::PK::ECPrivateKey>().d_bytes();
-    return receive_byte_result(result, state, receive);
+    if (result.is_error())
+        return false;
+    receive(state, result.value());
+    secure_zero(result.value().data(), result.value().size());
+    return true;
 }
 
 enum class OkpCurve : u8 {
@@ -1074,30 +1054,18 @@ bool crypto_kmac_sign(::Crypto::Authentication::KMACKind kind, ReadonlyBytes key
     return receive_byte_result(result, state, receive);
 }
 
-extern "C" KeyHandle* crypto_public_key_for_private_key(KeyHandle const*, FlatPtr name, FlatPtr named_curve);
+extern "C" KeyHandle* crypto_public_key_for_private_key(KeyHandle const*, FlatPtr name);
 
-KeyHandle* crypto_public_key_for_private_key(KeyHandle const* key, FlatPtr raw_name, FlatPtr raw_named_curve)
+KeyHandle* crypto_public_key_for_private_key(KeyHandle const* key, FlatPtr raw_name)
 {
     auto result = key->visit(
         [](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<KeyHandle> {
             return ::Crypto::PK::RSAPublicKey { private_key.modulus(), private_key.public_exponent() };
         },
-        [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<KeyHandle> {
+        [](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<KeyHandle> {
             if (private_key.public_key().has_value())
                 return *private_key.public_key();
-
-            VERIFY(raw_named_curve);
-            auto named_curve = Utf16String::from_raw(raw_named_curve);
-            auto point = TRY([&] -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> {
-                if (named_curve == "P-256"_utf16)
-                    return ::Crypto::Curves::SECP256r1 {}.generate_public_key(private_key.d());
-                if (named_curve == "P-384"_utf16)
-                    return ::Crypto::Curves::SECP384r1 {}.generate_public_key(private_key.d());
-                if (named_curve == "P-521"_utf16)
-                    return ::Crypto::Curves::SECP521r1 {}.generate_public_key(private_key.d());
-                return Error::from_string_literal("Unsupported named curve");
-            }());
-            return ::Crypto::PK::ECPublicKey { move(point) };
+            return TRY(private_key.derive_public_key());
         },
         [](::Crypto::PK::MLDSAPrivateKey const& private_key) -> ErrorOr<KeyHandle> {
             return ::Crypto::PK::MLDSAPublicKey { private_key.public_key() };

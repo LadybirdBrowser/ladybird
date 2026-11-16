@@ -7,6 +7,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibCrypto/ASN1/ASN1.h>
+#include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/PK/EC.h>
