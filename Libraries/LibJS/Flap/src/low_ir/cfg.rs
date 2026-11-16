@@ -313,7 +313,181 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
                 }
             }
         }
+        let hot = self.place_loop_exits_after_loops(hot);
         Ok(BlockLayout { hot, cold })
+    }
+
+    /// Moves the code where each loop of `blocks` continues to directly after
+    /// the loop's back edge, so that no block of other code sits between a
+    /// loop and its exit. Blocks move in whole fallthrough chains, and a chain
+    /// that is part of another loop stays where it is.
+    fn place_loop_exits_after_loops(&self, blocks: Vec<BlockId>) -> Vec<BlockId> {
+        let mut chains: Vec<Vec<BlockId>> = Vec::new();
+        let mut current = Vec::new();
+        for block_id in blocks {
+            current.push(block_id);
+            if self.blocks[block_id.0]
+                .instructions
+                .last()
+                .unwrap()
+                .opcode
+                .description()
+                .terminal
+            {
+                chains.push(core::mem::take(&mut current));
+            }
+        }
+        if !current.is_empty() {
+            chains.push(current);
+        }
+        // NB: A move can undo an earlier one, so the number of moves is bounded.
+        for _ in 0..chains.len() {
+            let mut position = HashMap::default();
+            let mut chain_of_block = HashMap::default();
+            for (index, block_id) in chains
+                .iter()
+                .enumerate()
+                .flat_map(|(index, chain)| chain.iter().map(move |block_id| (index, block_id)))
+            {
+                position.insert(*block_id, position.len());
+                chain_of_block.insert(*block_id, index);
+            }
+            // A loop is a back edge: an edge to a block at the same or an earlier position, the loop's header.
+            let loops = chains
+                .iter()
+                .flatten()
+                .flat_map(|source| {
+                    self.blocks[source.0]
+                        .successors
+                        .iter()
+                        .filter(|edge| {
+                            position
+                                .get(&edge.target)
+                                .is_some_and(|target| target <= &position[source])
+                        })
+                        .map(|edge| (edge.target, chain_of_block[source]))
+                })
+                .collect::<Vec<_>>();
+            let in_another_loop = |chain: usize, header_chain: usize, latch: usize| {
+                loops.iter().any(|&(other_header, other_latch)| {
+                    let other_header = chain_of_block[&other_header];
+                    other_header != header_chain
+                        && other_header > latch
+                        && (other_header..=other_latch).contains(&chain)
+                })
+            };
+            // How many edges enter a block from an earlier position, which a back edge does not.
+            let forward_predecessor_count = |target: BlockId| {
+                chains
+                    .iter()
+                    .flatten()
+                    .filter(|source| {
+                        self.blocks[source.0]
+                            .successors
+                            .iter()
+                            .any(|edge| edge.target == target)
+                            && position[*source] < position[&target]
+                    })
+                    .count()
+            };
+            // NB: A loop with several latches continues after its last one.
+            let mut last_latch_of_header = HashMap::default();
+            for &(header, latch) in &loops {
+                let last_latch = last_latch_of_header.entry(header).or_insert(latch);
+                *last_latch = (*last_latch).max(latch);
+            }
+            let mut last_latches = loops
+                .iter()
+                .filter(|&&(header, latch)| last_latch_of_header[&header] == latch);
+            let movable = last_latches.find_map(|&(header, latch)| {
+                let header_chain = chain_of_block[&header];
+                let exit = self.blocks[header.0]
+                    .successors
+                    .iter()
+                    .map(|edge| edge.target)
+                    .find(|target| chain_of_block.get(target).is_some_and(|&chain| chain > latch))?;
+                // NB: Only chains that start with their entry move, so that no implicit successor changes.
+                let mut trace = vec![chain_of_block[&exit]];
+                let mut entry = exit;
+                loop {
+                    let chain = *trace.last().unwrap();
+                    let falls_through = !self.blocks[chains[chain].last().unwrap().0]
+                        .instructions
+                        .last()
+                        .unwrap()
+                        .opcode
+                        .description()
+                        .terminal;
+                    if chains[chain][0] != entry || falls_through {
+                        trace.pop();
+                        break;
+                    }
+                    // A loop that the trace enters at its header moves as a whole, and ends the trace.
+                    let entered_loop_end = loops
+                        .iter()
+                        .filter(|&&(other_header, _)| other_header == entry)
+                        .map(|&(_, other_latch)| other_latch)
+                        .max();
+                    if let Some(end) = entered_loop_end {
+                        // NB: The chains of the loop move only if no other loop crosses its bounds or holds it
+                        //     without holding the latch, and if the last one does not fall through.
+                        let closed = loops.iter().all(|&(other_header, other_latch)| {
+                            let other_header = chain_of_block[&other_header];
+                            let crosses = (chain..=end).contains(&other_header) != (chain..=end).contains(&other_latch);
+                            let holds = (latch + 1..chain).contains(&other_header) && other_latch > end;
+                            !crosses && !holds
+                        }) && self.blocks[chains[end].last().unwrap().0]
+                            .instructions
+                            .last()
+                            .unwrap()
+                            .opcode
+                            .description()
+                            .terminal;
+                        if closed {
+                            trace.extend(chain + 1..=end);
+                        } else {
+                            trace.pop();
+                        }
+                        break;
+                    }
+                    if in_another_loop(chain, header_chain, latch) {
+                        trace.pop();
+                        break;
+                    }
+                    let last = chains[chain].last().unwrap();
+                    let [edge] = self.blocks[last.0].successors.as_slice() else {
+                        break;
+                    };
+                    let Some(&next) = chain_of_block.get(&edge.target) else {
+                        break;
+                    };
+                    if next <= latch || trace.contains(&next) || forward_predecessor_count(edge.target) != 1 {
+                        break;
+                    }
+                    entry = edge.target;
+                    trace.push(next);
+                }
+                let already_placed = trace
+                    .iter()
+                    .enumerate()
+                    .all(|(offset, &chain)| chain == latch + 1 + offset);
+                (!trace.is_empty() && !already_placed).then_some((latch, trace))
+            });
+            let Some((latch, trace)) = movable else {
+                break;
+            };
+            let mut moved = Vec::new();
+            for &chain in trace.iter().rev() {
+                moved.push(core::mem::take(&mut chains[chain]));
+            }
+            moved.reverse();
+            chains.retain(|chain| !chain.is_empty());
+            // NB: The trace only has chains after the latch, so the latch keeps its index.
+            for (offset, chain) in moved.into_iter().enumerate() {
+                chains.insert(latch + 1 + offset, chain);
+            }
+        }
+        chains.into_iter().flatten().collect()
     }
 
     /// Tidy the graph after an edit: thread branches through jump-only blocks,
@@ -1082,6 +1256,80 @@ mod tests {
 
         assert_eq!(layout.hot, vec![BlockId(0), BlockId(3)]);
         assert_eq!(layout.cold, vec![BlockId(1), BlockId(2)]);
+    }
+
+    #[test]
+    fn places_the_exit_of_a_loop_with_two_latches_after_the_last_latch() {
+        let graph = ControlFlowGraph::from_instructions(vec![
+            instruction(Operation::Label, vec![label(".header")]),
+            instruction(
+                Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero),
+                vec![Operand::VirtualRegister("value".into()), label(".exit")],
+            ),
+            instruction(
+                Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero),
+                vec![Operand::VirtualRegister("other".into()), label(".second_latch")],
+            ),
+            instruction(
+                Operation::Control(ControlOperation::JumpLabel),
+                vec![label(".first_latch")],
+            ),
+            instruction(Operation::Label, vec![label(".first_latch")]),
+            instruction(Operation::Control(ControlOperation::JumpLabel), vec![label(".header")]),
+            instruction(Operation::Label, vec![label(".second_latch")]),
+            instruction(Operation::Control(ControlOperation::JumpLabel), vec![label(".header")]),
+            instruction(Operation::Label, vec![label(".exit")]),
+            instruction(Operation::Control(ControlOperation::Exit), vec![]),
+        ])
+        .unwrap();
+        let layout = graph.layout_hot_and_cold().unwrap();
+
+        assert_eq!(
+            layout.hot,
+            (0..graph.blocks.len()).map(BlockId).collect::<Vec<_>>(),
+            "the exit stays after the second latch"
+        );
+    }
+
+    #[test]
+    fn keeps_a_loop_exit_that_is_a_nested_loop_inside_its_enclosing_loop() {
+        let graph = ControlFlowGraph::from_instructions(vec![
+            instruction(Operation::Label, vec![label(".header")]),
+            instruction(
+                Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero),
+                vec![Operand::VirtualRegister("value".into()), label(".inner_header")],
+            ),
+            instruction(Operation::Label, vec![label(".latch")]),
+            instruction(Operation::Control(ControlOperation::JumpLabel), vec![label(".header")]),
+            instruction(Operation::Label, vec![label(".outer_header")]),
+            instruction(
+                Operation::Control(ControlOperation::JumpLabel),
+                vec![label(".inner_header")],
+            ),
+            instruction(Operation::Label, vec![label(".inner_header")]),
+            instruction(
+                Operation::branch_zero(IntegerWidth::U64, ZeroCondition::Zero),
+                vec![Operand::VirtualRegister("other".into()), label(".outer_latch")],
+            ),
+            instruction(Operation::Label, vec![label(".inner_latch")]),
+            instruction(
+                Operation::Control(ControlOperation::JumpLabel),
+                vec![label(".inner_header")],
+            ),
+            instruction(Operation::Label, vec![label(".outer_latch")]),
+            instruction(
+                Operation::Control(ControlOperation::JumpLabel),
+                vec![label(".outer_header")],
+            ),
+        ])
+        .unwrap();
+        let layout = graph.layout_hot_and_cold().unwrap();
+
+        assert_eq!(
+            layout.hot,
+            (0..graph.blocks.len()).map(BlockId).collect::<Vec<_>>(),
+            "the inner loop stays inside the outer loop"
+        );
     }
 
     #[test]
