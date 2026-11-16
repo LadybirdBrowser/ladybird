@@ -1679,9 +1679,7 @@ QFrame#LadybirdSiteSettingsPopover QLabel {{
 }}
 
 QLabel#LadybirdSiteSettingsFavicon {{
-    background: #ffffff;
-    border: 1px solid #d0d0d6;
-    border-radius: 6px;
+    border: 0;
 }}
 
 QLabel#LadybirdSiteSettingsHost {{
