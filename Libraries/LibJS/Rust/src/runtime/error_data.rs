@@ -13,6 +13,7 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{ExternalMemorySize, GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
+use crate::runtime::function_object::FunctionObject;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::source_range::SourceRange;
 use crate::utf16::{Utf16View, utf16_string_external_memory_size};
@@ -84,6 +85,16 @@ pub fn stack_trace_limit(vm: &Vm) -> Option<usize> {
     Some(value.as_f64() as usize)
 }
 
+/// Which of the innermost frames a stack leaves out.
+#[derive(Clone, Copy)]
+pub enum SkippedFrames {
+    /// That many frames.
+    Count(usize),
+    /// Every frame up to the innermost frame of the function, and that frame too: all of them if the function has no
+    /// frame on the stack.
+    UpToFrameOf(Gc<FunctionObject>),
+}
+
 /// [[ErrorData]]: the call stack an error was created on.
 #[derive(Trace)]
 pub struct ErrorData {
@@ -97,19 +108,25 @@ pub struct ErrorData {
 
 impl ErrorData {
     pub fn new(vm: &Vm) -> Self {
-        Self::capture(vm, 0, stack_trace_limit(vm))
+        Self::capture(vm, SkippedFrames::Count(0), stack_trace_limit(vm))
+    }
+
+    /// Error data with the frames below those that `skipped_frames` leaves out, as Error.captureStackTrace() captures
+    /// it.
+    pub fn new_skipping(vm: &Vm, skipped_frames: SkippedFrames) -> Self {
+        Self::capture(vm, skipped_frames, stack_trace_limit(vm))
     }
 
     /// Error data captured by an Error constructor, whose own frame is the innermost one. A stack string shows the
     /// code that called the constructor, never the constructor itself, so that frame is left out.
     pub fn new_in_constructor(vm: &Vm) -> Self {
-        Self::capture(vm, 1, stack_trace_limit(vm))
+        Self::capture(vm, SkippedFrames::Count(1), stack_trace_limit(vm))
     }
 
     /// Error data with every frame of the call stack, whatever Error.stackTraceLimit is, for a trace of the running code
     /// that is not the stack of an error.
     pub fn with_whole_stack(vm: &Vm) -> Self {
-        Self::capture(vm, 0, Some(usize::MAX))
+        Self::capture(vm, SkippedFrames::Count(0), Some(usize::MAX))
     }
 
     /// Error data for an exception whose source location came from another agent.
@@ -124,7 +141,7 @@ impl ErrorData {
         }
     }
 
-    fn capture(vm: &Vm, skipped_innermost_frames: usize, limit: Option<usize>) -> Self {
+    fn capture(vm: &Vm, skipped_frames: SkippedFrames, limit: Option<usize>) -> Self {
         let Some(limit) = limit else {
             return Self {
                 traceback: Vec::new(),
@@ -132,7 +149,7 @@ impl ErrorData {
                 cached_string: Cell::new(None),
             };
         };
-        let (traceback, reached_limit) = Self::populate_stack(vm, skipped_innermost_frames, limit);
+        let (traceback, reached_limit) = Self::populate_stack(vm, skipped_frames, limit);
         // NB: A stack string leaves out the outermost execution context, the last frame when the walk got to it.
         let shown_frame_count = if reached_limit {
             traceback.len()
@@ -159,16 +176,25 @@ impl ErrorData {
         self.traceback_storage_size() + function_names_size
     }
 
-    /// The frames from the running one down, after the innermost `skipped_innermost_frames`, until there are `limit`
-    /// of them, and whether the walk stopped there with frames left below. The walk never goes further, so capture
-    /// costs the same at any depth.
-    fn populate_stack(vm: &Vm, mut skipped_innermost_frames: usize, limit: usize) -> (Vec<TracebackFrame>, bool) {
+    /// The frames from the running one down, after those `skipped_frames` leaves out, until there are `limit` of
+    /// them, and whether the walk stopped there with frames left below. The walk never goes further, so capture costs
+    /// the same at any depth, except for the walk to the frame of a function that has none.
+    fn populate_stack(vm: &Vm, mut skipped_frames: SkippedFrames, limit: usize) -> (Vec<TracebackFrame>, bool) {
         let mut traceback = Vec::new();
         let mut reached_limit = false;
         vm.for_each_stack_frame_top_to_bottom(|frame| {
-            if skipped_innermost_frames > 0 {
-                skipped_innermost_frames -= 1;
-                return ControlFlow::Continue(());
+            match skipped_frames {
+                SkippedFrames::Count(0) => {}
+                SkippedFrames::Count(count) => {
+                    skipped_frames = SkippedFrames::Count(count - 1);
+                    return ControlFlow::Continue(());
+                }
+                SkippedFrames::UpToFrameOf(function) => {
+                    if frame.function == Some(function) {
+                        skipped_frames = SkippedFrames::Count(0);
+                    }
+                    return ControlFlow::Continue(());
+                }
             }
             if traceback.len() == limit {
                 reached_limit = true;
