@@ -88,6 +88,7 @@ set(TEST_SOURCES
     TestStorageJar.cpp
     TestTabIndicators.cpp
     TestTabPerformanceStats.cpp
+    TestUpdateCheck.cpp
     TestWebDriverBiDiNetwork.cpp
     TestWebViewURL.cpp
     TestWebWorkerClient.cpp
