@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        border-spacing: 0;
+    }
+    td {
+        padding: 0;
+        vertical-align: top;
+    }
+    .case {
+        margin-bottom: 10px;
+        width: 600px;
+        display: flow-root;
+    }
+    .b {
+        background: lightblue;
+    }
+    input, select, textarea, button {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        border: 2px solid black;
+        font-size: 0;
+        appearance: none;
+    }
+</style>
+<div id="cases">
+<!-- 1: flex row inside a cell, with a table that grows -->
+<div class="case"><table class="m"><tr><td class="m"><div class="m" style="display: flex; width: 300px"><table class="m" style="flex: 1"><tr><td class="m"><div style="width: 50px; height: 20px"></div></td></tr></table><div style="width: 100px; height: 10px"></div></div></td><td class="m"><div style="width: 40px; height: 40px"></div></td></tr></table></div>
+
+<!-- 2: flex row inside an auto-width cell, with a shrinkable table -->
+<div class="case"><table class="m"><tr><td class="m"><div class="m" style="display: flex"><table class="m"><tr><td class="m"><div style="width: 120px; height: 20px"></div></td></tr></table><div class="m" style="flex: 1; min-width: 30px; height: 10px"></div></div></td></tr></table></div>
+
+<!-- 3: flex column with a definite height inside a cell, with a growing table -->
+<div class="case"><table class="m"><tr><td class="m"><div class="m" style="display: flex; flex-direction: column; height: 120px; width: 200px"><table class="m" style="flex: 1"><tr><td class="m"><div style="width: 50px; height: 20px"></div></td></tr></table><div style="width: 10px; height: 30px"></div></div></td></tr></table></div>
+
+<!-- 4: grid with fr tracks inside a cell, with a table in one track -->
+<div class="case"><table class="m" style="width: 400px"><tr><td class="m"><div class="m" style="display: grid; grid-template-columns: 1fr 2fr"><table class="m"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table><table class="m" style="width: 100%"><tr><td class="m"><div style="width: 30px; height: 30px"></div></td></tr></table></div></td></tr></table></div>
+
+<!-- 5: grid with auto tracks inside an auto-width cell -->
+<div class="case"><table class="m"><tr><td class="m"><div class="m" style="display: grid; grid-template-columns: auto auto; gap: 5px"><table class="m"><tr><td class="m"><div style="width: 70px; height: 20px"></div></td></tr></table><table class="m"><tr><td class="m"><div style="width: 40px; height: 25px"></div></td></tr></table></div></td><td class="m"><div style="width: 20px; height: 10px"></div></td></tr></table></div>
+
+<!-- 6: float containing a table inside a cell -->
+<div class="case"><table class="m" style="width: 300px"><tr><td class="m"><div class="m" style="float: left"><table class="m"><tr><td class="m"><div style="width: 80px; height: 30px"></div></td></tr></table></div><div class="m" style="height: 10px"></div></td></tr></table></div>
+
+<!-- 7: table beside a float inside a cell -->
+<div class="case"><table class="m" style="width: 300px"><tr><td class="m"><div style="float: left; width: 100px; height: 40px"></div><table class="m" style="width: 100%"><tr><td class="m"><div style="width: 30px; height: 20px"></div></td></tr></table></td></tr></table></div>
+
+<!-- 8: abspos box with a table inside a relatively positioned cell -->
+<div class="case"><table class="m" style="width: 300px"><tr><td class="m" style="position: relative; height: 100px"><div class="m" style="position: absolute; top: 10px; right: 10px"><table class="m"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table></div></td></tr></table></div>
+
+<!-- 9: abspos table with insets inside a relatively positioned cell -->
+<div class="case"><table class="m" style="width: 300px"><tr><td class="m" style="position: relative; height: 100px"><div style="width: 10px; height: 10px"></div><table class="m" style="position: absolute; left: 20px; right: 20px; bottom: 0"><tr><td class="m"><div style="width: 30px; height: 20px"></div></td></tr></table></td></tr></table></div>
+
+<!-- 10: inline-block with a table inside a cell -->
+<div class="case"><table class="m"><tr><td class="m" style="line-height: 0"><div class="m" style="display: inline-block"><table class="m"><tr><td class="m"><div style="width: 90px; height: 20px"></div></td><td class="m"><div style="width: 30px; height: 40px"></div></td></tr></table></div><div style="width: 10px; height: 10px"></div></td></tr></table></div>
+
+<!-- 11: percentage-height block with a 100% height table inside a fixed-height cell -->
+<div class="case"><table class="m" style="height: 200px"><tr><td class="m" style="height: 200px"><div class="m" style="height: 50%"><table class="m" style="height: 100%"><tr><td class="m"><div style="width: 40px; height: 20px"></div></td></tr></table></div></td></tr></table></div>
+
+<!-- 12: overflow: auto block with a wide table inside a fixed-width cell -->
+<div class="case"><table class="m" style="width: 200px; table-layout: fixed"><tr><td class="m"><div class="m" style="overflow: auto"><table class="m"><tr><td class="m"><div style="width: 400px; height: 20px"></div></td></tr></table></div></td></tr></table></div>
+
+<!-- 13: aspect-ratio block with a table inside a cell -->
+<div class="case"><table class="m"><tr><td class="m"><div class="m" style="width: 160px; aspect-ratio: 2"><table class="m" style="width: 100%; height: 100%"><tr><td class="m"><div style="width: 20px; height: 20px"></div></td></tr></table></div></td></tr></table></div>
+
+<!-- 14: fieldset with a table inside a cell -->
+<div class="case"><table class="m"><tr><td class="m"><fieldset class="m" style="margin: 0; padding: 5px; border: 2px solid"><table class="m" style="width: 100%"><tr><td class="m"><div style="width: 100px; height: 20px"></div></td></tr></table></fieldset></td><td class="m"><div style="width: 50px; height: 10px"></div></td></tr></table></div>
+
+<!-- 15: button with a table inside a cell -->
+<div class="case"><table class="m"><tr><td class="m"><button class="m" style="padding: 0; border: 0; display: block"><table class="m"><tr><td class="m"><div style="width: 70px; height: 20px"></div></td></tr></table></button></td></tr></table></div>
+
+<!-- 16: multicol with a table inside a cell -->
+<div class="case"><table class="m" style="width: 400px"><tr><td class="m"><div class="m" style="columns: 2; column-gap: 0"><table class="m" style="width: 100%"><tr><td class="m"><div style="width: 50px; height: 20px"></div></td></tr></table></div></td></tr></table></div>
+
+<!-- 17: details with a table inside a cell -->
+<div class="case"><table class="m"><tr><td class="m"><details class="m" open><summary style="display: block; height: 10px"></summary><table class="m"><tr><td class="m"><div style="width: 80px; height: 20px"></div></td></tr></table></details></td></tr></table></div>
+
+<!-- 18: display: contents wrapper around a table inside a cell -->
+<div class="case"><table class="m"><tr><td class="m"><div style="display: contents"><table class="m"><tr><td class="m"><div style="width: 60px; height: 20px"></div></td></tr></table></div></td><td class="m"><div style="width: 30px; height: 30px"></div></td></tr></table></div>
+
+<!-- 19: flex inside a cell inside a flex inside a cell -->
+<div class="case"><table class="m"><tr><td class="m"><div class="m" style="display: flex; gap: 4px"><table class="m"><tr><td class="m"><div class="m" style="display: flex"><div style="width: 30px; height: 20px"></div><div style="width: 40px; height: 10px"></div></div></td></tr></table><div style="width: 20px; height: 20px"></div></div></td></tr></table></div>
+
+<!-- 20: grid inside a cell inside a grid inside a cell, with stretched row -->
+<div class="case"><table class="m"><tr><td class="m"><div class="m" style="display: grid; grid-template-columns: 100px 100px"><table class="m" style="height: 100%"><tr><td class="m"><div style="width: 30px; height: 20px"></div></td></tr></table><div class="m" style="height: 60px"></div></div></td></tr></table></div>
+
+<!-- 21: vertical writing-mode block with a table inside a cell -->
+<div class="case"><table class="m"><tr><td class="m"><div class="m" style="writing-mode: vertical-rl"><table class="m"><tr><td class="m"><div style="width: 30px; height: 60px"></div></td></tr></table></div></td></tr></table></div>
+
+<!-- 22: table inside a flex item, with a flex container in a cell -->
+<div class="case"><div class="m" style="display: flex; width: 400px"><table class="m" style="flex: 1"><tr><td class="m"><div class="m" style="display: flex; justify-content: space-between"><div style="width: 30px; height: 20px"></div><div style="width: 30px; height: 30px"></div></div></td></tr></table><div style="width: 100px; height: 10px"></div></div></div>
+
+<!-- 23: table inside a grid area, with a grid in a cell -->
+<div class="case"><div class="m" style="display: grid; grid-template-columns: 1fr 100px; width: 400px"><table class="m" style="width: 100%"><tr><td class="m"><div class="m" style="display: grid; grid-template-columns: repeat(3, 1fr)"><div style="width: 10px; height: 20px"></div><div style="width: 10px; height: 20px"></div><div style="width: 10px; height: 30px"></div></div></td></tr></table><div style="width: 10px; height: 10px"></div></div></div>
+
+<!-- 24: table inside a stretched grid area, with a 100% height block in a cell -->
+<div class="case"><div class="m" style="display: grid; grid-template-columns: 200px 100px"><table class="m" style="height: 100%"><tr><td class="m"><div class="m" style="height: 100%; width: 50px"></div></td></tr></table><div class="m" style="height: 80px"></div></div></div>
+
+<!-- 25: table inside a float, with a float in a cell -->
+<div class="case"><div style="width: 400px"><div class="m" style="float: right"><table class="m"><tr><td class="m"><div class="m" style="float: left; width: 30px; height: 30px"></div><div style="width: 60px; height: 10px"></div></td></tr></table></div><div style="width: 10px; height: 10px"></div></div></div>
+
+<!-- 26: table inside an abspos box, with an abspos box in a relative cell -->
+<div class="case"><div style="position: relative; width: 400px; height: 120px"><div class="m" style="position: absolute; left: 50px; top: 10px"><table class="m"><tr><td class="m" style="position: relative"><div style="width: 80px; height: 40px"></div><div class="m" style="position: absolute; right: 0; bottom: 0; width: 20px; height: 10px"></div></td></tr></table></div></div></div>
+
+<!-- 27: table inside an inline-block, with an inline-block in a cell -->
+<div class="case"><div style="line-height: 0"><div class="m" style="display: inline-block"><table class="m"><tr><td class="m"><div class="m" style="display: inline-block; width: 40px; height: 20px"></div><div class="m" style="display: inline-block; width: 50px; height: 30px"></div></td></tr></table></div></div></div>
+
+<!-- 28: table inside a flex column with a definite height, with a percentage-height block in a cell -->
+<div class="case"><div class="m" style="display: flex; flex-direction: column; height: 200px; width: 300px"><table class="m" style="flex: 1"><tr><td class="m"><div class="m" style="height: 50%; width: 20px"></div></td></tr></table></div></div>
+
+<!-- 29: table inside a multicol, with a flex row in a cell -->
+<div class="case"><div class="m" style="columns: 2; column-gap: 20px; width: 420px"><table class="m" style="width: 100%"><tr><td class="m"><div class="m" style="display: flex"><div style="width: 30px; height: 20px"></div><div class="m" style="flex: 1; height: 20px"></div></div></td></tr></table></div></div>
+
+<!-- 30: table inside an aspect-ratio box, with an aspect-ratio box in a cell -->
+<div class="case"><div class="m" style="width: 200px; aspect-ratio: 2"><table class="m" style="width: 100%; height: 100%"><tr><td class="m"><div class="m" style="width: 50%; aspect-ratio: 1"></div></td></tr></table></div></div>
+
+<!-- 31: table inside a shrink-to-fit abspos box, with a percentage-width table in a cell -->
+<div class="case"><div style="position: relative; height: 80px"><div class="m" style="position: absolute"><table class="m"><tr><td class="m"><div style="width: 100px; height: 20px"></div></td><td class="m"><table class="m" style="width: 100%"><tr><td class="m"><div style="width: 20px; height: 20px"></div></td></tr></table></td></tr></table></div></div></div>
+
+<!-- 32: table inside an overflow: auto box, with an overflow: auto box in a cell -->
+<div class="case"><div class="m" style="overflow: auto; width: 200px"><table class="m" style="width: 100%"><tr><td class="m"><div class="m" style="overflow: auto; width: 100px"><div style="width: 300px; height: 20px"></div></div></td></tr></table></div></div>
+
+<!-- 33: table inside a flex item with min-width: 0, with a wide image in a cell -->
+<div class="case"><div class="m" style="display: flex; width: 200px"><div class="m" style="min-width: 0; flex: 1"><table class="m" style="width: 100%"><tr><td class="m"><div style="width: 300px; height: 10px"></div></td></tr></table></div></div></div>
+
+<!-- 34: table inside a grid item with min-width: 0 and a fixed layout table -->
+<div class="case"><div class="m" style="display: grid; grid-template-columns: minmax(0, 1fr) 50px; width: 300px"><table class="m" style="width: 100%; table-layout: fixed"><tr><td class="m"><div style="width: 400px; height: 10px"></div></td></tr></table><div style="width: 10px; height: 10px"></div></div></div>
+
+<!-- 35: form controls in cells of a table inside a flex item -->
+<div class="case"><div class="m" style="display: flex; width: 400px"><table class="m" style="flex: 1"><tr><td class="m"><input class="m" style="width: 100%; height: 20px"></td><td class="m"><select class="m" style="width: 80px; height: 20px"></select></td></tr><tr><td class="m" colspan="2"><textarea class="m" style="width: 100%; height: 40px; resize: none"></textarea></td></tr></table></div></div>
+
+<!-- 36: flex, table, grid, table, flex -->
+<div class="case"><div class="m" style="display: flex; width: 500px"><table class="m" style="flex: 1"><tr><td class="m"><div class="m" style="display: grid; grid-template-columns: 1fr 1fr"><table class="m" style="width: 100%"><tr><td class="m"><div class="m" style="display: flex"><div style="width: 20px; height: 20px"></div><div class="m" style="flex: 1; height: 10px"></div></div></td></tr></table><div style="width: 10px; height: 30px"></div></div></td></tr></table></div></div>
+
+<!-- 37: table, flex, table, float, table -->
+<div class="case"><table class="m"><tr><td class="m"><div class="m" style="display: flex"><table class="m"><tr><td class="m"><div class="m" style="float: left"><table class="m"><tr><td class="m"><div style="width: 40px; height: 20px"></div></td></tr></table></div><div style="width: 70px; height: 10px"></div></td></tr></table><div style="width: 10px; height: 40px"></div></div></td></tr></table></div>
+
+<!-- 38: table, inline-block, table, abspos, table -->
+<div class="case"><table class="m"><tr><td class="m" style="line-height: 0"><div class="m" style="display: inline-block; position: relative"><table class="m"><tr><td class="m"><div style="width: 100px; height: 50px"></div><div class="m" style="position: absolute; left: 10px; top: 10px"><table class="m"><tr><td class="m"><div style="width: 30px; height: 15px"></div></td></tr></table></div></td></tr></table></div></td></tr></table></div>
+
+<!-- 39: grid, table with percentage width, flex column, table with percentage height -->
+<div class="case"><div class="m" style="display: grid; grid-template-columns: 300px; grid-template-rows: 150px"><table class="m" style="width: 50%; height: 100%"><tr><td class="m"><div class="m" style="display: flex; flex-direction: column; height: 100%"><table class="m" style="flex: 1"><tr><td class="m"><div style="width: 20px; height: 20px"></div></td></tr></table></div></td></tr></table></div></div>
+
+<!-- 40: nested percentage-width tables inside flex inside a table -->
+<div class="case"><table class="m" style="width: 400px"><tr><td class="m"><div class="m" style="display: flex"><table class="m" style="width: 50%"><tr><td class="m"><table class="m" style="width: 50%"><tr><td class="m"><div style="width: 10px; height: 10px"></div></td></tr></table></td></tr></table><div style="width: 50px; height: 10px"></div></div></td></tr></table></div>
+
+</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const cases = document.querySelectorAll(".case");
+        cases.forEach((c, index) => {
+            const origin = c.getBoundingClientRect();
+            const parts = [];
+            for (const element of c.querySelectorAll(".m")) {
+                const rect = element.getBoundingClientRect();
+                parts.push(`${Math.round(rect.left - origin.left)},${Math.round(rect.top - origin.top)} ${Math.round(rect.width)}x${Math.round(rect.height)}`);
+            }
+            println(`${index + 1}: ${parts.join(" | ")}`);
+        });
+        document.getElementById("cases").remove();
+    });
+</script>
