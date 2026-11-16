@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 ak = { path = "../../../AK/Rust" }
+subtle = "2.6"
 
 [lints]
 workspace = true
