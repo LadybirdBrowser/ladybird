@@ -740,7 +740,9 @@ impl FontValues {
         if is_normal && let Some(font) = self.first_available_font() {
             let facts = font.facts();
             return crate::css::css_pixels::CssPixels::from_integer(
-                i64::from(facts.ascent.round() as i32) + i64::from(facts.descent.round() as i32),
+                i64::from(facts.ascent.round_ties_even() as i32)
+                    + i64::from(facts.descent.round_ties_even() as i32)
+                    + i64::from(facts.line_gap.round_ties_even() as i32),
             );
         }
         self.resolved_line_height_used

@@ -797,6 +797,7 @@ static StyleEngineFFI::FfiResolvedFont resolve_font_for_style_engine(void const*
         .font_cascade_list = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(font_list.ptr()),
         .ascent = metrics.ascent,
         .descent = metrics.descent,
+        .line_gap = metrics.line_gap,
         .x_height = metrics.x_height,
         .zero_advance = metrics.advance_of_ascii_zero,
         .font_size_adjust_from_font = font_size_adjust_from_font,

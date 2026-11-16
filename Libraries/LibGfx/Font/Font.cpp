@@ -70,6 +70,7 @@ FontPixelMetrics Font::compute_pixel_metrics() const
     FontPixelMetrics metrics;
     metrics.ascent = font_units_to_pixels(vertical_metrics.ascender + hb_ot_metrics_get_variation(m_harfbuzz_font, HB_OT_METRICS_TAG_HORIZONTAL_ASCENDER));
     metrics.descent = -font_units_to_pixels(vertical_metrics.descender + hb_ot_metrics_get_variation(m_harfbuzz_font, HB_OT_METRICS_TAG_HORIZONTAL_DESCENDER));
+    metrics.line_gap = max(0.0f, font_units_to_pixels(vertical_metrics.line_gap + hb_ot_metrics_get_variation(m_harfbuzz_font, HB_OT_METRICS_TAG_HORIZONTAL_LINE_GAP)));
 
     // https://drafts.csswg.org/css-values-4/#ex
     // In the cases where it is impossible or impractical to determine the x-height, a value of 0.5em must be assumed.
@@ -276,6 +277,7 @@ extern "C" void ladybird_gfx_font_snapshot(void const* font, Gfx::FFI::FfiFontSn
         .id = typed_font.id(),
         .ascent = metrics.ascent,
         .descent = metrics.descent,
+        .line_gap = metrics.line_gap,
         .x_height = metrics.x_height,
         .zero_advance = metrics.advance_of_ascii_zero,
         .pixel_size = typed_font.pixel_size(),

@@ -32,6 +32,7 @@ unsafe extern "C" fn resolve_font(
         font_cascade_list: FfiHostHandle::from_pointer(std::ptr::dangling()),
         ascent: 12.0,
         descent: 4.0,
+        line_gap: 0.0,
         x_height: 8.0,
         zero_advance: 8.0,
         font_size_adjust_from_font: 0.0,

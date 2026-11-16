@@ -1533,7 +1533,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 || self.facts(snapshot.layout_node).is_text_node()
                 || self.facts(snapshot.layout_node).is_fragmented_inline();
             if is_text_node {
-                let font_box_size = normal_line_height(style);
+                let font_box_size = content_area_block_size(style);
                 let font_baseline = Self::baseline_for_style(style, font_box_size);
                 let fragment_mut = &mut self.line_mut(line_index).fragments[fragment_index];
                 fragment_mut.record.block_offset += fragment_mut.baseline - font_baseline;
@@ -1761,7 +1761,8 @@ impl TextLayoutBounds {
         // When its computed line-height is normal, the layout bounds of an inline box encloses all its glyphs, going
         // from the highest A to the deepest D. (Note that glyphs in a single box can come from different fonts and
         // thus might not all have the same A and D.)
-        // NB: The bounds above already enclose the glyphs of the first available font.
+        // NB: The bounds above already enclose the glyphs of the first available font. Each other font brings in the
+        //     leading of its own normal line height, which includes its line gap.
         if let Some(font) = font
             && style.line_height_is_normal()
             && style
@@ -1769,8 +1770,13 @@ impl TextLayoutBounds {
                 .first_available_font()
                 .is_none_or(|first_available| font.as_raw() != first_available.as_raw())
         {
-            bounds.ascent = bounds.ascent.max(font_metric_in_whole_pixels(font.facts().ascent));
-            bounds.descent = bounds.descent.max(font_metric_in_whole_pixels(font.facts().descent));
+            let facts = font.facts();
+            let normal_line_height = font_metric_in_whole_pixels(facts.ascent)
+                + font_metric_in_whole_pixels(facts.descent)
+                + font_metric_in_whole_pixels(facts.line_gap);
+            let font_bounds = Self::with_leading(facts.ascent, facts.descent, normal_line_height);
+            bounds.ascent = bounds.ascent.max(font_bounds.ascent);
+            bounds.descent = bounds.descent.max(font_bounds.descent);
         }
         bounds
     }
@@ -1784,6 +1790,8 @@ pub(crate) fn font_metric_in_whole_pixels(metric: f32) -> CssPixels {
     CssPixels::from_integer(metric.round_ties_even() as i64)
 }
 
-pub(crate) fn normal_line_height(style: StyleValues) -> CssPixels {
+/// The block size of the content area of an inline box: its font's ascent plus descent. Unlike a normal line-height,
+/// it leaves out the font's line gap.
+pub(crate) fn content_area_block_size(style: StyleValues) -> CssPixels {
     font_metric_in_whole_pixels(style.font_ascent()) + font_metric_in_whole_pixels(style.font_descent())
 }

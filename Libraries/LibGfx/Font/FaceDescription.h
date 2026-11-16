@@ -28,6 +28,7 @@ struct FaceStyle {
 struct FaceVerticalMetrics {
     i32 ascender { 0 };
     i32 descender { 0 };
+    i32 line_gap { 0 };
     // The sxHeight of the OS/2 table, or 0 if the table does not give it.
     i32 x_height { 0 };
 };

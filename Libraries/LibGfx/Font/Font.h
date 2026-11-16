@@ -35,6 +35,9 @@ struct FontPixelMetrics {
 
     // Number of pixels the font descends below the baseline.
     float descent { 0 };
+
+    // Number of pixels the font recommends as extra spacing between lines.
+    float line_gap { 0 };
 };
 
 // https://learn.microsoft.com/en-us/typography/opentype/spec/os2#uswidthclass
