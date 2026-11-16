@@ -4350,19 +4350,28 @@ impl<'pass> FlexFormattingContext<'pass> {
         if self.facts(self.run.box_).has_preferred_aspect_ratio() {
             self.in_flow_items_margin_box_block_extent = self.margin_box_block_extent_of_placed_in_flow_items();
         }
+        // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
+        // If any of the flex items on the flex container's startmost/endmost flex line participate in baseline
+        // alignment, the flex container's first/last main-axis baseline set is generated from the shared alignment
+        // baseline of those flex items.
+        // NB: The lines are in cross-start to cross-end order, and wrap-reverse puts cross-start at the container's
+        //     block-end. So the startmost line is then the last one.
+        let (startmost_line, endmost_line) = match self.flex_lines.len().checked_sub(1) {
+            Some(last_line) if self.used_flex_wrap() == flex_wrap::WRAP_REVERSE => (Some(last_line), Some(0)),
+            Some(last_line) => (Some(0), Some(last_line)),
+            None => (None, None),
+        };
         self.derived_baselines_of_root_box = DerivedBaselines {
-            inline_alignment: self.flex_lines.len().checked_sub(1).and_then(|line_index| {
+            inline_alignment: endmost_line.and_then(|line_index| {
                 self.baseline_of_line_for_purpose(
                     line_index,
                     formatting_context::BaselineSet::Last,
                     formatting_context::BaselinePurpose::InlineAlignment,
                 )
             }),
-            first: self.baseline_of_line(0, formatting_context::BaselineSet::First),
-            last: self
-                .flex_lines
-                .len()
-                .checked_sub(1)
+            first: startmost_line
+                .and_then(|line_index| self.baseline_of_line(line_index, formatting_context::BaselineSet::First)),
+            last: endmost_line
                 .and_then(|line_index| self.baseline_of_line(line_index, formatting_context::BaselineSet::Last)),
         };
     }

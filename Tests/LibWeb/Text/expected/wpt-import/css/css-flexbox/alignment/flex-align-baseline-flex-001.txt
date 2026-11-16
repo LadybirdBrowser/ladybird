@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 48 tests
 
-32 Pass
-16 Fail
+36 Pass
+12 Fail
 Pass	.target > * 1
 Pass	.target > * 2
 Fail	.target > * 3
@@ -36,19 +36,19 @@ Pass	.target > * 29
 Pass	.target > * 30
 Fail	.target > * 31
 Pass	.target > * 32
-Fail	.target > * 33
+Pass	.target > * 33
 Pass	.target > * 34
 Fail	.target > * 35
 Pass	.target > * 36
-Fail	.target > * 37
+Pass	.target > * 37
 Pass	.target > * 38
 Fail	.target > * 39
 Pass	.target > * 40
-Fail	.target > * 41
+Pass	.target > * 41
 Pass	.target > * 42
 Fail	.target > * 43
 Pass	.target > * 44
-Fail	.target > * 45
+Pass	.target > * 45
 Pass	.target > * 46
 Fail	.target > * 47
 Pass	.target > * 48

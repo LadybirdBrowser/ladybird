@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+<head>
+  <title>CSS Test: Testing the baseline of a horizontal multi-line (wrap-reverse) flex container with baseline-aligned items on first line</title>
+  <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+  <link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#flex-baselines">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/flexbox-baseline-multi-line-horiz-004-ref.html">
+  <meta charset="utf-8">
+  <style>
+    .flexContainer {
+      display: inline-flex;
+      flex-wrap: wrap-reverse;
+      width: 40px;
+      height: 100px;
+      background: lightgray;
+
+      /* Use "align-content", to test that packing space is considered when
+         getting container's baseline from its first FlexLine:*/
+      align-content: center;
+    }
+    .flexContainer > * {
+      width: 20px;
+    }
+
+    .smallFont {
+      font-size: 8px;
+      line-height: 8px;
+    }
+    .medFont {
+      font-size: 12px;
+      line-height: 12px;
+    }
+    .bigFont {
+      font-size: 16px;
+      line-height: 16px;
+    }
+  </style>
+</head>
+<body>
+  a
+  <!-- Flex container with second item in first line baseline-aligned
+       (should set the container's baseline) -->
+  <div class="flexContainer">
+    <div class="medFont">b</div>
+    <div class="bigFont" style="align-self: baseline">c</div>
+    <div class="medFont">d</div>
+    <div class="smallFont">e</div>
+  </div>
+
+  <!-- Flex container with both items in first line baseline-aligned
+       (should set the container's baseline) -->
+  <div class="flexContainer">
+    <div class="smallFont" style="align-self: baseline">f</div>
+    <div class="medFont" style="align-self: baseline">g</div>
+    <div class="bigFont">h</div>
+    <div class="smallFont">i</div>
+  </div>
+
+  <!-- Flex container with all items baseline-aligned, and with some padding
+       (only those on first line should set the container's baseline) -->
+  <div class="flexContainer" style="align-items: baseline">
+    <div class="bigFont">j</div>
+    <div class="smallFont" style="padding-bottom: 20px">k</div>
+    <div class="smallFont">l</div>
+    <div class="medFont">m</div>
+  </div>
+  n
+</body>
+</html>
