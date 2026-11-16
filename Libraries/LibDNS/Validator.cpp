@@ -121,10 +121,7 @@ static ErrorOr<bool> verify_signature(Records::DNSKEY const& key, ReadonlyBytes 
             : key.algorithm == Algorithm::RSASHA512            ? Crypto::Hash::HashKind::SHA512
                                                                : Crypto::Hash::HashKind::SHA1;
         auto components = TRY(key.rsa_public_key_components());
-        Crypto::PK::RSAPublicKey public_key {
-            Crypto::UnsignedBigInteger::import_data(components.modulus),
-            Crypto::UnsignedBigInteger::import_data(components.exponent),
-        };
+        auto public_key = TRY(Crypto::PK::RSAPublicKey::from_components(components.modulus, components.exponent));
         if (!TRY(public_key.is_valid()))
             return false;
         return Crypto::PK::rsa_pkcs1_verify(public_key, hash_kind, signed_data, signature);

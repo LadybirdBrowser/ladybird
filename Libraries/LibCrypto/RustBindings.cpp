@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Memory.h>
 #include <AK/Random.h>
 #include <LibCrypto/ASN1/ASN1.h>
@@ -134,7 +135,6 @@ void crypto_asn1_delete_key_info(Asn1Structure structure, void* key_info)
     }
     VERIFY(structure == Asn1Structure::PrivateKeyInfo);
     auto* storage = static_cast<PrivateKeyStorage*>(key_info);
-    storage->value.rsa.clear_sensitive_data();
     storage->value.mldsa.clear_sensitive_data();
     storage->value.mlkem.clear_sensitive_data();
     secure_zero(storage->value.raw_key.data(), storage->value.raw_key.size());
@@ -184,7 +184,7 @@ bool crypto_rsa_validate_modulus_length(u32 modulus_length)
 
 bool crypto_rsa_generate_key_pair(u32 modulus_length, ReadonlyBytes public_exponent, KeyHandle** out_public_key, KeyHandle** out_private_key)
 {
-    auto key_pair = ::Crypto::PK::RSA::generate_key_pair(modulus_length, ::Crypto::UnsignedBigInteger::import_data(public_exponent));
+    auto key_pair = ::Crypto::PK::RSA::generate_key_pair(modulus_length, public_exponent);
     if (key_pair.is_error())
         return false;
     *out_public_key = new KeyHandle(move(key_pair.value().public_key));
@@ -208,12 +208,12 @@ bool crypto_rsa_read_key_metadata(KeyHandle const* key, u32* modulus_length, voi
 {
     auto result = key->visit(
         [&](::Crypto::PK::RSAPublicKey const& public_key) {
-            *modulus_length = public_key.modulus().byte_length() * 8;
-            return export_rsa_exponent(public_key.public_exponent());
+            *modulus_length = public_key.modulus_bits();
+            return public_key.public_exponent();
         },
         [&](::Crypto::PK::RSAPrivateKey const& private_key) {
-            *modulus_length = private_key.modulus().byte_length() * 8;
-            return export_rsa_exponent(private_key.public_exponent());
+            *modulus_length = private_key.modulus_bits();
+            return private_key.component(::Crypto::PK::RSAPrivateKey::Component::PublicExponent);
         },
         [](auto const&) -> ErrorOr<ByteBuffer> { VERIFY_NOT_REACHED(); });
     return receive_byte_result(result, state, receive);
@@ -221,21 +221,20 @@ bool crypto_rsa_read_key_metadata(KeyHandle const* key, u32* modulus_length, voi
 
 KeyHandle* crypto_rsa_key_from_jwk_components(bool is_private, ReadonlySpan<ReadonlyBytes> components)
 {
-    auto n = ::Crypto::UnsignedBigInteger::import_data(components[0]);
-    auto e = ::Crypto::UnsignedBigInteger::import_data(components[1]);
-    if (!is_private)
-        return new KeyHandle(::Crypto::PK::RSAPublicKey(move(n), move(e)));
+    auto key = [&]() -> ErrorOr<KeyHandle> {
+        if (!is_private)
+            return TRY(::Crypto::PK::RSAPublicKey::from_components(components[0], components[1]));
 
-    auto d = ::Crypto::UnsignedBigInteger::import_data(components[2]);
-    if (components.size() == 3)
-        return new KeyHandle(::Crypto::PK::RSAPrivateKey(move(n), move(d), move(e)));
-
-    auto p = ::Crypto::UnsignedBigInteger::import_data(components[3]);
-    auto q = ::Crypto::UnsignedBigInteger::import_data(components[4]);
-    auto dp = ::Crypto::UnsignedBigInteger::import_data(components[5]);
-    auto dq = ::Crypto::UnsignedBigInteger::import_data(components[6]);
-    auto qi = ::Crypto::UnsignedBigInteger::import_data(components[7]);
-    return new KeyHandle(::Crypto::PK::RSAPrivateKey(move(n), move(d), move(e), move(p), move(q), move(dp), move(dq), move(qi)));
+        // NB: A JWK of a key without CRT components may carry them empty.
+        auto has_crt_components = components.size() == 8 && any_of(components.slice(3), [](auto const& component) { return !component.is_empty(); });
+        Optional<::Crypto::PK::RSACRTComponents> crt_components;
+        if (has_crt_components)
+            crt_components = ::Crypto::PK::RSACRTComponents { components[3], components[4], components[5], components[6], components[7] };
+        return TRY(::Crypto::PK::RSAPrivateKey::from_components(components[0], components[1], components[2], crt_components));
+    }();
+    if (key.is_error())
+        return nullptr;
+    return new KeyHandle(key.release_value());
 }
 
 bool crypto_rsa_export_der(KeyHandle const* key, bool is_public, void* state, ReceiveEncodedBytes receive)
@@ -254,37 +253,20 @@ bool crypto_rsa_export_der(KeyHandle const* key, bool is_public, void* state, Re
 
 bool crypto_rsa_export_jwk_integer(KeyHandle const* key, u8 component, void* state, ReceiveEncodedBytes receive)
 {
-    auto const& integer = key->visit(
-        [&](::Crypto::PK::RSAPublicKey const& public_key) -> ::Crypto::UnsignedBigInteger const& {
+    auto integer = key->visit(
+        [&](::Crypto::PK::RSAPublicKey const& public_key) {
             VERIFY(component < 2);
             return component == 0 ? public_key.modulus() : public_key.public_exponent();
         },
-        [&](::Crypto::PK::RSAPrivateKey const& private_key) -> ::Crypto::UnsignedBigInteger const& {
-            switch (component) {
-            case 0:
-                return private_key.modulus();
-            case 1:
-                return private_key.public_exponent();
-            case 2:
-                return private_key.private_exponent();
-            case 3:
-                return private_key.prime1();
-            case 4:
-                return private_key.prime2();
-            case 5:
-                return private_key.exponent1();
-            case 6:
-                return private_key.exponent2();
-            case 7:
-                return private_key.coefficient();
-            }
-            VERIFY_NOT_REACHED();
+        [&](::Crypto::PK::RSAPrivateKey const& private_key) {
+            VERIFY(component <= to_underlying(::Crypto::PK::RSAPrivateKey::Component::Coefficient));
+            return private_key.component(static_cast<::Crypto::PK::RSAPrivateKey::Component>(component));
         },
-        [](auto const&) -> ::Crypto::UnsignedBigInteger const& { VERIFY_NOT_REACHED(); });
-    auto bytes = ByteBuffer::create_uninitialized(integer.byte_length());
-    if (bytes.is_error())
+        [](auto const&) -> ErrorOr<ByteBuffer> { VERIFY_NOT_REACHED(); });
+    if (integer.is_error())
         return false;
-    receive(state, integer.export_data(bytes.value().span()));
+    receive(state, integer.value());
+    secure_zero(integer.value().data(), integer.value().size());
     return true;
 }
 
@@ -293,7 +275,12 @@ bool crypto_rsa_oaep_cipher(bool encrypt, ::Crypto::Hash::HashKind hash_kind, Ke
     auto result = encrypt
         ? ::Crypto::PK::rsa_oaep_encrypt(key->get<::Crypto::PK::RSAPublicKey>(), hash_kind, label, input)
         : ::Crypto::PK::rsa_oaep_decrypt(key->get<::Crypto::PK::RSAPrivateKey>(), hash_kind, label, input);
-    return receive_byte_result(result, state, receive);
+    if (result.is_error())
+        return false;
+    receive(state, result.value());
+    if (!encrypt)
+        secure_zero(result.value().data(), result.value().size());
+    return true;
 }
 
 bool crypto_rsa_pss_sign(::Crypto::Hash::HashKind hash_kind, KeyHandle const* key, u32 salt_length, ReadonlyBytes message, void* state, ReceiveEncodedBytes receive)
@@ -1060,7 +1047,7 @@ KeyHandle* crypto_public_key_for_private_key(KeyHandle const* key, FlatPtr raw_n
 {
     auto result = key->visit(
         [](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<KeyHandle> {
-            return ::Crypto::PK::RSAPublicKey { private_key.modulus(), private_key.public_exponent() };
+            return TRY(private_key.public_key());
         },
         [](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<KeyHandle> {
             if (private_key.public_key().has_value())

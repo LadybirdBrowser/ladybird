@@ -1,0 +1,78 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // An RSA private key in PKCS#8, and copies of it with some of its prime factors and CRT values set to zero.
+    const keys = [
+        [
+            "original",
+            "MIICdQIBADANBgkqhkiG9w0BAQEFAASCAl8wggJbAgEAAoGBAJ79swBPqi8fciAvU2rRaQ7swg7esyxbGQgFK+yet2zrbRp/" +
+                "QB2E6JsHnQ0BbYm9nTOTR/r/Gi50ZifrW6tw1o8aOqTWfGMEFmv6uw5u1Q4SI6sR6zXM7iyJZ/BSAFmkQMtbpkm05tyXC/yp" +
+                "yv2du0YAJUuH50x+KyxV13+S3UJZAgMBAAECgYANB6ey39SHtiEJSDei6nSct4ST6WZvvSuI/7uA0eUgdQ7k/AbKJIlXo0EY" +
+                "vsQ2ZKbMgkaE6IFBy2JP5TcHDuFWifM0VJYqTRGslXIpl6ruW7dRS1XxIhw+v7iGvGgyR0LVBasx1bdlxq5Jzvtli6YWvwXw" +
+                "MmFTObY+xwB2XetGgQJBAMqc4eX1EjoQkaBQl+iEEWqDvNypdHFO4luVprNxE2IH9tbHjldT03sfSis3ePICFvJAhY+PEmQd" +
+                "XZp6zmt2ECkCQQDI4lXxgYGJoX2L/3T1unb5z9TqUZrX6QgegiTHXNyRMefMf23GFs0lEqlguqwiR5VJcLPXxAM9TWoysyLD" +
+                "5iaxAkBobjIU55sMaIvWuJODmcasQthuV70XxdPv5pN0e7zE01wL2fFo22DuXfNJkR76hc8z78OnedO93FDplZCdXM35AkB4" +
+                "WurE/COBMykGFLKdeu9HcpaNIQFVtL9xj+W7ME7SCwVnBz3cvdKBELI8SvtQunSeAJEvh7etJdGnuJ3uotixAkAopWP0mUTj" +
+                "FmkZ0VqVJeETSakt91hM+XXi8WpA0s5xvvgC8cphYzsoyLTVVIghMp9xEmsrNvgG42hyeqCMSNNQ",
+        ],
+        [
+            "qi zero",
+            "MIICNgIBADANBgkqhkiG9w0BAQEFAASCAiAwggIcAgEAAoGBAJ79swBPqi8fciAvU2rRaQ7swg7esyxbGQgFK+yet2zrbRp/" +
+                "QB2E6JsHnQ0BbYm9nTOTR/r/Gi50ZifrW6tw1o8aOqTWfGMEFmv6uw5u1Q4SI6sR6zXM7iyJZ/BSAFmkQMtbpkm05tyXC/yp" +
+                "yv2du0YAJUuH50x+KyxV13+S3UJZAgMBAAECgYANB6ey39SHtiEJSDei6nSct4ST6WZvvSuI/7uA0eUgdQ7k/AbKJIlXo0EY" +
+                "vsQ2ZKbMgkaE6IFBy2JP5TcHDuFWifM0VJYqTRGslXIpl6ruW7dRS1XxIhw+v7iGvGgyR0LVBasx1bdlxq5Jzvtli6YWvwXw" +
+                "MmFTObY+xwB2XetGgQJBAMqc4eX1EjoQkaBQl+iEEWqDvNypdHFO4luVprNxE2IH9tbHjldT03sfSis3ePICFvJAhY+PEmQd" +
+                "XZp6zmt2ECkCQQDI4lXxgYGJoX2L/3T1unb5z9TqUZrX6QgegiTHXNyRMefMf23GFs0lEqlguqwiR5VJcLPXxAM9TWoysyLD" +
+                "5iaxAkBobjIU55sMaIvWuJODmcasQthuV70XxdPv5pN0e7zE01wL2fFo22DuXfNJkR76hc8z78OnedO93FDplZCdXM35AkB4" +
+                "WurE/COBMykGFLKdeu9HcpaNIQFVtL9xj+W7ME7SCwVnBz3cvdKBELI8SvtQunSeAJEvh7etJdGnuJ3uotixAgEA",
+        ],
+        [
+            "dp zero",
+            "MIICNgIBADANBgkqhkiG9w0BAQEFAASCAiAwggIcAgEAAoGBAJ79swBPqi8fciAvU2rRaQ7swg7esyxbGQgFK+yet2zrbRp/" +
+                "QB2E6JsHnQ0BbYm9nTOTR/r/Gi50ZifrW6tw1o8aOqTWfGMEFmv6uw5u1Q4SI6sR6zXM7iyJZ/BSAFmkQMtbpkm05tyXC/yp" +
+                "yv2du0YAJUuH50x+KyxV13+S3UJZAgMBAAECgYANB6ey39SHtiEJSDei6nSct4ST6WZvvSuI/7uA0eUgdQ7k/AbKJIlXo0EY" +
+                "vsQ2ZKbMgkaE6IFBy2JP5TcHDuFWifM0VJYqTRGslXIpl6ruW7dRS1XxIhw+v7iGvGgyR0LVBasx1bdlxq5Jzvtli6YWvwXw" +
+                "MmFTObY+xwB2XetGgQJBAMqc4eX1EjoQkaBQl+iEEWqDvNypdHFO4luVprNxE2IH9tbHjldT03sfSis3ePICFvJAhY+PEmQd" +
+                "XZp6zmt2ECkCQQDI4lXxgYGJoX2L/3T1unb5z9TqUZrX6QgegiTHXNyRMefMf23GFs0lEqlguqwiR5VJcLPXxAM9TWoysyLD" +
+                "5iaxAgEAAkB4WurE/COBMykGFLKdeu9HcpaNIQFVtL9xj+W7ME7SCwVnBz3cvdKBELI8SvtQunSeAJEvh7etJdGnuJ3uotix" +
+                "AkAopWP0mUTjFmkZ0VqVJeETSakt91hM+XXi8WpA0s5xvvgC8cphYzsoyLTVVIghMp9xEmsrNvgG42hyeqCMSNNQ",
+        ],
+        [
+            "p and q zero",
+            "MIIB9QIBADANBgkqhkiG9w0BAQEFAASCAd8wggHbAgEAAoGBAJ79swBPqi8fciAvU2rRaQ7swg7esyxbGQgFK+yet2zrbRp/" +
+                "QB2E6JsHnQ0BbYm9nTOTR/r/Gi50ZifrW6tw1o8aOqTWfGMEFmv6uw5u1Q4SI6sR6zXM7iyJZ/BSAFmkQMtbpkm05tyXC/yp" +
+                "yv2du0YAJUuH50x+KyxV13+S3UJZAgMBAAECgYANB6ey39SHtiEJSDei6nSct4ST6WZvvSuI/7uA0eUgdQ7k/AbKJIlXo0EY" +
+                "vsQ2ZKbMgkaE6IFBy2JP5TcHDuFWifM0VJYqTRGslXIpl6ruW7dRS1XxIhw+v7iGvGgyR0LVBasx1bdlxq5Jzvtli6YWvwXw" +
+                "MmFTObY+xwB2XetGgQIBAAIBAAJAaG4yFOebDGiL1riTg5nGrELYble9F8XT7+aTdHu8xNNcC9nxaNtg7l3zSZEe+oXPM+/D" +
+                "p3nTvdxQ6ZWQnVzN+QJAeFrqxPwjgTMpBhSynXrvR3KWjSEBVbS/cY/luzBO0gsFZwc93L3SgRCyPEr7ULp0ngCRL4e3rSXR" +
+                "p7id7qLYsQJAKKVj9JlE4xZpGdFalSXhE0mpLfdYTPl14vFqQNLOcb74AvHKYWM7KMi01VSIITKfcRJrKzb4BuNocnqgjEjT" +
+                "UA==",
+        ],
+        [
+            "all five CRT zero",
+            "MIIBOAIBADANBgkqhkiG9w0BAQEFAASCASIwggEeAgEAAoGBAJ79swBPqi8fciAvU2rRaQ7swg7esyxbGQgFK+yet2zrbRp/" +
+                "QB2E6JsHnQ0BbYm9nTOTR/r/Gi50ZifrW6tw1o8aOqTWfGMEFmv6uw5u1Q4SI6sR6zXM7iyJZ/BSAFmkQMtbpkm05tyXC/yp" +
+                "yv2du0YAJUuH50x+KyxV13+S3UJZAgMBAAECgYANB6ey39SHtiEJSDei6nSct4ST6WZvvSuI/7uA0eUgdQ7k/AbKJIlXo0EY" +
+                "vsQ2ZKbMgkaE6IFBy2JP5TcHDuFWifM0VJYqTRGslXIpl6ruW7dRS1XxIhw+v7iGvGgyR0LVBasx1bdlxq5Jzvtli6YWvwXw" +
+                "MmFTObY+xwB2XetGgQIBAAIBAAIBAAIBAAIBAA==",
+        ],
+    ];
+
+    promiseTest(async () => {
+        const bytes = base64 => Uint8Array.from(atob(base64), character => character.charCodeAt(0));
+        for (const [name, key] of keys) {
+            try {
+                await crypto.subtle.importKey(
+                    "pkcs8",
+                    bytes(key),
+                    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+                    true,
+                    ["sign"]
+                );
+                println(`${name}: imported`);
+            } catch (error) {
+                println(`${name}: ${error.name}`);
+            }
+        }
+    });
+</script>
