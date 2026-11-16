@@ -3034,7 +3034,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         marker_line: OutsideMarkerLine,
     ) -> (CssPixels, CssPixels) {
         let style = self.style(list_item);
-        let strut_ascent = line_builder::LineBuilder::baseline_for_style(style, style.line_height());
+        let strut_ascent = line_builder::LineBuilder::baseline_for_style(style, style.line_height(), style);
         let baseline = strut_ascent.max(marker_line.ascent);
         (
             baseline,

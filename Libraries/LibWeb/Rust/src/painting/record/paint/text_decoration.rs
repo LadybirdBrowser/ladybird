@@ -111,17 +111,36 @@ fn anchor_for_decorating_box(
     if decorating_node == text_parent {
         return (fragment.baseline, true);
     }
+    // Line and inline-box anchors use the line's alignment baseline. Decoration drawing, like glyph drawing, takes
+    // offsets from an alphabetic baseline.
+    let alphabetic_offset = arena
+        .node_style_if_live(block)
+        .zip(arena.node_style_if_live(decorating_node))
+        .map_or(CssPixels::default(), |(context, style)| {
+            use crate::css::css_enums::{text_orientation, writing_mode};
+            let ascent = CssPixels::from_integer(style.font_ascent().round_ties_even() as i64);
+            let descent = CssPixels::from_integer(style.font_descent().round_ties_even() as i64);
+            match context.writing_mode() {
+                writing_mode::VERTICAL_RL | writing_mode::VERTICAL_LR
+                    if context.text_orientation() != text_orientation::SIDEWAYS =>
+                {
+                    (ascent - descent) / 2
+                }
+                writing_mode::VERTICAL_LR => ascent - descent,
+                _ => CssPixels::default(),
+            }
+        });
     let side = arena.committed_side_data(block);
     for piece in side.inline_box_pieces() {
         if piece.node == decorating_node && piece.line_index == fragment.line_index {
             return (
-                piece.baseline - (fragment.offset().1 + fragment.relpos_delta.y),
+                piece.baseline + alphabetic_offset - (fragment.offset().1 + fragment.relpos_delta.y),
                 fragment.accumulated_vertical_shift == piece.accumulated_vertical_shift,
             );
         }
     }
     let line = &side.lines()[fragment.line_index as usize];
-    let line_baseline = line.block_start + line.baseline;
+    let line_baseline = line.block_start + line.baseline + alphabetic_offset;
     (
         line_baseline - (fragment.offset().1 + fragment.relpos_delta.y),
         fragment.accumulated_vertical_shift == CssPixels::from_raw(0),

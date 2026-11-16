@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	.wrapper 1
+Pass	.wrapper 2
+Pass	.wrapper 3
+Pass	.wrapper 4
+Pass	.wrapper 5
+Pass	.wrapper 6
+Pass	.wrapper 7

@@ -880,8 +880,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         inline_size_to_break_at.pixels_greater_than(current_inline_size + next_item_inline_size)
     }
 
-    pub(super) fn baseline_for_style(style: StyleValues, line_height: CssPixels) -> CssPixels {
-        TextLayoutBounds::with_leading(style.font_ascent(), style.font_descent(), line_height).ascent
+    pub(super) fn baseline_for_style(
+        style: StyleValues,
+        line_height: CssPixels,
+        context_style: StyleValues,
+    ) -> CssPixels {
+        TextLayoutBounds::with_leading(style.font_ascent(), style.font_descent(), line_height)
+            .in_context(context_style)
+            .ascent
     }
 
     // The style of the box that an inline-level box is aligned against, which is its parent inline box, or the block
@@ -919,17 +925,29 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         metrics: VerticalAlignMetrics,
         line_box_baseline: CssPixels,
     ) -> CssPixels {
-        let alphabetic =
+        let baseline_aligned =
             self.current_block_offset + line_box_baseline - metrics.baseline + metrics.effective_box_block_start_offset;
+        // https://drafts.csswg.org/css-writing-modes-4/#line-directions
+        // Positive length and percentage values shift the baseline towards the line-over edge.
+        // NB: In vertical-lr, line-over points toward block-end.
+        let line_is_flipped = self.containing_style().writing_mode() == writing_mode::VERTICAL_LR;
+        let towards_line_under = |offset: CssPixels| if line_is_flipped { -offset } else { offset };
         if !style.vertical_align_is_keyword() {
-            return alphabetic - style.vertical_align_value().to_px(metrics.line_height);
+            return baseline_aligned - towards_line_under(style.vertical_align_value().to_px(metrics.line_height));
         }
         // FIXME: middle, sub and super are defined against the parent inline box's font metrics too, but we use the
         //        block container's instead.
-        match style.vertical_align_keyword() {
-            vertical_align::BASELINE => alphabetic,
+        let keyword = match (style.vertical_align_keyword(), line_is_flipped) {
+            (vertical_align::TEXT_TOP, true) => vertical_align::TEXT_BOTTOM,
+            (vertical_align::TEXT_BOTTOM, true) => vertical_align::TEXT_TOP,
+            (keyword, _) => keyword,
+        };
+        match keyword {
+            vertical_align::BASELINE => baseline_aligned,
             vertical_align::MIDDLE => {
-                let x_height = CssPixels::nearest_value_for_f32(self.containing_style().font_x_height());
+                let x_height = towards_line_under(CssPixels::nearest_value_for_f32(
+                    self.containing_style().font_x_height(),
+                ));
                 self.current_block_offset
                     + line_box_baseline
                     + (metrics.effective_box_block_start_offset
@@ -946,22 +964,39 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                         - metrics.block_size)
                         / 2
             }
-            vertical_align::SUB => alphabetic + self.containing_style().font_size() / 5,
-            vertical_align::SUPER => alphabetic - self.containing_style().font_size() / 3,
+            vertical_align::SUB => baseline_aligned + towards_line_under(self.containing_style().font_size() / 5),
+            vertical_align::SUPER => baseline_aligned - towards_line_under(self.containing_style().font_size() / 3),
             // A top- or bottom-aligned box is the root of an aligned subtree, laid out on the baseline here and
             // shifted into place once the final line box size is known. These arms therefore only see boxes that
             // form no aligned subtree: the containing block itself, whose alignment does not apply to the line box
             // it establishes.
-            vertical_align::TOP | vertical_align::BOTTOM => alphabetic,
+            vertical_align::TOP | vertical_align::BOTTOM => baseline_aligned,
             vertical_align::TEXT_TOP => {
                 self.current_block_offset + line_box_baseline
-                    - CssPixels::nearest_value_for_f32(parent_style.font_ascent())
+                    - if self.context().pass.frame.is_transposed() {
+                        Self::baseline_for_style(
+                            parent_style,
+                            content_area_block_size(parent_style),
+                            self.containing_style(),
+                        )
+                    } else {
+                        CssPixels::nearest_value_for_f32(parent_style.font_ascent())
+                    }
                     + metrics.effective_box_block_start_offset
             }
             vertical_align::TEXT_BOTTOM => {
                 self.current_block_offset
                     + line_box_baseline
-                    + CssPixels::nearest_value_for_f32(parent_style.font_descent())
+                    + if self.context().pass.frame.is_transposed() {
+                        content_area_block_size(parent_style)
+                            - Self::baseline_for_style(
+                                parent_style,
+                                content_area_block_size(parent_style),
+                                self.containing_style(),
+                            )
+                    } else {
+                        CssPixels::nearest_value_for_f32(parent_style.font_descent())
+                    }
                     - metrics.block_size
                     - metrics.effective_box_block_end_offset
             }
@@ -1009,13 +1044,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     ) -> TextLayoutBounds {
         let fragment = &self.line(line_index).fragments[fragment_index];
         TextLayoutBounds::new(style, fragment.glyphs.as_ref().map(|glyphs| &glyphs.font))
+            .in_context(self.containing_style())
     }
 
     fn inline_box_alignment_metrics(&self, node: Node) -> VerticalAlignMetrics {
         let style = self.style(node);
         let sides = self.context().sides_of_entered_inline_box(node);
         VerticalAlignMetrics {
-            baseline: Self::baseline_for_style(style, style.line_height()),
+            baseline: Self::baseline_for_style(style, style.line_height(), self.containing_style()),
             block_size: style.line_height(),
             effective_box_block_start_offset: sides.border_box_top(false),
             effective_box_block_end_offset: sides.border_box_bottom(false),
@@ -1028,7 +1064,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     fn line_box_baseline(&self, line_index: usize, has_line_relative_aligned_subtree: bool) -> (CssPixels, bool) {
         let containing_style = self.containing_style();
         let mut should_align_strut_to_line_box_baseline = false;
-        let mut line_box_baseline = Self::baseline_for_style(containing_style, containing_style.line_height());
+        let mut line_box_baseline =
+            Self::baseline_for_style(containing_style, containing_style.line_height(), containing_style);
         let fragment_count = self.line(line_index).fragments.len();
         for fragment_index in 0..fragment_count {
             if self.line(line_index).fragments[fragment_index].is_fully_truncated {
@@ -1064,10 +1101,32 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 continue;
             }
             let alignment_style = self.alignment_style(style_source, style);
-            let adjusted_baseline = if alignment_style.vertical_align_is_keyword() {
+            let adjusted_baseline = if self.context().pass.frame.is_transposed()
+                && let Some(box_cells) = box_cells
+            {
+                let metrics = VerticalAlignMetrics {
+                    baseline: fragment_baseline,
+                    block_size: self.line(line_index).fragments[fragment_index].physical_vertical_extent(),
+                    effective_box_block_start_offset: box_cells.margin_top + box_cells.border_box_top(false),
+                    effective_box_block_end_offset: box_cells.margin_bottom + box_cells.border_box_bottom(false),
+                    line_height: style.line_height(),
+                };
+                let offset = self.block_offset_for_alignment(
+                    alignment_style,
+                    self.parent_style(style_source),
+                    metrics,
+                    CssPixels::default(),
+                );
+                self.current_block_offset + metrics.effective_box_block_start_offset - offset
+            } else if alignment_style.vertical_align_is_keyword() {
                 fragment_baseline
             } else {
-                fragment_baseline + alignment_style.vertical_align_value().to_px(style.line_height())
+                let shift = alignment_style.vertical_align_value().to_px(style.line_height());
+                if containing_style.writing_mode() == writing_mode::VERTICAL_LR {
+                    fragment_baseline - shift
+                } else {
+                    fragment_baseline + shift
+                }
             };
             // NB: A vertical-align length or percentage shifts the box relative to the baseline, which leaves the
             //     strut on the baseline, whichever box ends up setting the baseline of the line box.
@@ -1081,6 +1140,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     // it, exactly as if each line box starts with a zero-width inline box with the element's font and
                     // line height properties.
                     should_align_strut_to_line_box_baseline |= has_line_relative_aligned_subtree
+                        || (self.context().pass.frame.is_transposed()
+                            && alignment_style.vertical_align_keyword() == vertical_align::MIDDLE)
                         || ((style.display().is_inline_block()
                             || (style.display().is_inline_outside()
                                 && (style.display().is_flex_inside() || style.display().is_grid_inside())))
@@ -1106,7 +1167,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 {
                     break;
                 }
-                let ascent = TextLayoutBounds::new(ancestor_style, None).ascent;
+                let ascent = TextLayoutBounds::new(ancestor_style, None)
+                    .in_context(containing_style)
+                    .ascent;
                 if ascent > line_box_baseline {
                     should_align_strut_to_line_box_baseline = true;
                     line_box_baseline = ascent;
@@ -1253,12 +1316,13 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let current_block_offset = self.current_block_offset;
 
         let refitted = self.float_fit_height() > CssPixels::default();
-        should_advance_to_line_box_block_end |= refitted;
-        let normal_subtree_shift = if has_line_relative_aligned_subtree || refitted {
-            self.current_block_offset - earliest
-        } else {
-            CssPixels::default()
-        };
+        should_advance_to_line_box_block_end |= refitted || uses_central_baseline(containing_style);
+        let normal_subtree_shift =
+            if has_line_relative_aligned_subtree || refitted || uses_central_baseline(containing_style) {
+                self.current_block_offset - earliest
+            } else {
+                CssPixels::default()
+            };
         for subtree in &mut aligned_subtrees {
             subtree.shift = if subtree.alignment == vertical_align::TOP {
                 self.current_block_offset - subtree.block_start
@@ -1267,7 +1331,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             };
         }
 
-        if has_line_relative_aligned_subtree || refitted {
+        if has_line_relative_aligned_subtree || refitted || uses_central_baseline(containing_style) {
             for fragment_index in 0..fragment_count {
                 let style_source = self.line(line_index).fragments[fragment_index].style_source;
                 let shift = self.subtree_shift_for_box(style_source, &aligned_subtrees, normal_subtree_shift);
@@ -1346,7 +1410,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         block_offset: CssPixels,
     ) -> LineAlignment {
         let containing_style = self.containing_style();
-        let strut_baseline = Self::baseline_for_style(containing_style, containing_style.line_height());
+        let strut_baseline =
+            Self::baseline_for_style(containing_style, containing_style.line_height(), containing_style);
         let fragment_count = self.line(line_index).fragments.len();
         let has_line_relative_aligned_subtree = self
             .line(line_index)
@@ -1552,16 +1617,21 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 || self.facts(snapshot.layout_node).is_fragmented_inline();
             if is_text_node {
                 let font_box_size = content_area_block_size(style);
-                let font_baseline = Self::baseline_for_style(style, font_box_size);
+                let font_baseline = Self::baseline_for_style(style, font_box_size, containing_style);
                 let fragment_mut = &mut self.line_mut(line_index).fragments[fragment_index];
                 fragment_mut.record.block_offset += fragment_mut.baseline - font_baseline;
-                fragment_mut.baseline = font_baseline;
+                // NB: Glyph drawing uses the alphabetic baseline even when layout aligns central baselines.
+                fragment_mut.baseline =
+                    TextLayoutBounds::with_leading(style.font_ascent(), style.font_descent(), font_box_size).ascent;
                 fragment_mut.block_length = font_box_size;
             }
 
             let text_fragment_baseline = {
                 let fragment = &self.line(line_index).fragments[fragment_index];
-                (is_text_node && !fragment.is_fully_truncated).then(|| fragment.block_offset + fragment.baseline)
+                (is_text_node && !fragment.is_fully_truncated).then(|| {
+                    fragment.block_offset
+                        + Self::baseline_for_style(style, content_area_block_size(style), containing_style)
+                })
             };
             if let Some(fragment_baseline) = text_fragment_baseline {
                 // Aligned-subtree fragments are placed at their baseline position here and moved by the
@@ -1605,7 +1675,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     // inline boxes, this is their 'line-height'.
                     // NB: An inline box without direct text contributes its layout bounds around its own baseline,
                     //     independently of the size and vertical alignment of its descendants.
-                    let bounds = TextLayoutBounds::new(self.style(alignment.box_), None);
+                    let bounds = TextLayoutBounds::new(self.style(alignment.box_), None).in_context(containing_style);
                     let (box_start, box_end) = (
                         inline_box_baseline - bounds.ascent,
                         inline_box_baseline + bounds.descent,
@@ -1799,9 +1869,35 @@ impl TextLayoutBounds {
         bounds
     }
 
+    // https://drafts.csswg.org/css-inline-3/#dominant-baseline-property
+    // Equivalent to central in vertical writing modes when text-orientation is mixed or upright.
+    fn in_context(self, style: StyleValues) -> Self {
+        if uses_central_baseline(style) {
+            let ascent = self.block_size() / 2;
+            Self {
+                ascent,
+                descent: self.block_size() - ascent,
+            }
+        } else if style.writing_mode() == writing_mode::VERTICAL_LR {
+            Self {
+                ascent: self.descent,
+                descent: self.ascent,
+            }
+        } else {
+            self
+        }
+    }
+
     pub(crate) fn block_size(self) -> CssPixels {
         self.ascent + self.descent
     }
+}
+
+pub(super) fn uses_central_baseline(style: StyleValues) -> bool {
+    matches!(
+        style.writing_mode(),
+        writing_mode::VERTICAL_RL | writing_mode::VERTICAL_LR
+    ) && style.text_orientation() != crate::css::css_enums::text_orientation::SIDEWAYS
 }
 
 pub(crate) fn font_metric_in_whole_pixels(metric: f32) -> CssPixels {

@@ -1,0 +1,23 @@
+<!doctype html>
+<link rel="match" href="../expected/flex-column-baseline-vertical-decorations-ref.html" />
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 20px;
+    }
+    .case {
+        display: inline-block;
+        width: 80px;
+        height: 80px;
+        font: 20px/1 Ahem;
+    }
+    .underlined {
+        text-decoration: underline;
+        text-decoration-skip-ink: none;
+    }
+</style>
+<div class="case underlined" style="writing-mode: vertical-rl"><span>XXX</span></div>
+<div class="case underlined" style="writing-mode: vertical-lr"><span>XXX</span></div>

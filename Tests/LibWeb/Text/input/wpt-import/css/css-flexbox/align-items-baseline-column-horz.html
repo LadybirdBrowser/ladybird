@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-export">
+<link rel="stylesheet" href="../../fonts/ahem.css" />
+<style>
+#target {
+  display: flex;
+  flex-direction: column;
+  align-items: baseline;
+  inline-size: 200px;
+  border: solid 3px;
+}
+#target > div {
+  margin: 5px 7px 9px 11px;
+}
+#target > :nth-child(1) {
+  background: lime;
+  font: 30px/1 Ahem;
+  writing-mode: vertical-rl;
+}
+#target > :nth-child(2) {
+  background: hotpink;
+  font: 20px/1 Ahem;
+  writing-mode: vertical-rl;
+}
+#target > :nth-child(3) {
+  background: cyan;
+  font: 16px/1 Ahem;
+  width: 40px;
+  height: 40px;
+}
+#target > :nth-child(4) {
+  background: lime;
+  font: 30px/1 Ahem;
+  writing-mode: vertical-lr;
+}
+#target > :nth-child(5) {
+  background: hotpink;
+  font: 20px/1 Ahem;
+  writing-mode: vertical-lr;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('#target > div')">
+<div id="target">
+  <div data-offset-x="144">line1<br>line2</div>
+  <div data-offset-x="159">line1<br>line2</div>
+  <div data-offset-x="37"></div>
+  <div data-offset-x="22">line1<br>line2</div>
+  <div data-offset-x="27">line1<br>line2</div>
+</div>
+</body>

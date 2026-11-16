@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-export">
+<link rel="stylesheet" href="../../fonts/ahem.css" />
+<style>
+#target {
+  display: flex;
+  align-items: baseline;
+  inline-size: min-content;
+  block-size: 100px;
+  border: solid 3px;
+}
+#target > div {
+  margin: 5px 7px 9px 11px;
+}
+#target > :nth-child(1) {
+  background: lime;
+  font: 30px/1 Ahem;
+}
+#target > :nth-child(2) {
+  background: hotpink;
+  font: 20px/1 Ahem;
+}
+#target > :nth-child(3) {
+  background: cyan;
+  writing-mode: vertical-rl;
+  font: 16px/1 Ahem;
+  width: 40px;
+  height: 40px;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="document.fonts.ready.then(() => checkLayout('#target > div'))">
+<div id="target">
+  <div data-offset-y="32">line1<br>line2</div>
+  <div data-offset-y="40">line1<br>line2</div>
+  <div data-offset-y="16"></div>
+</div>
+</body>

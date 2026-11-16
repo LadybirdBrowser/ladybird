@@ -1,0 +1,52 @@
+empty: 0,0,30,20; 0,20,30,50
+empty reverse: 0,280,30,20; 0,230,30,50
+empty rtl: 170,0,30,20; 170,20,30,50
+empty last: 170,0,30,20; 170,20,30,50
+widths: 0,0,30,20; 0,20,70,50
+widths reverse: 0,280,30,20; 0,230,70,50
+widths rtl: 130,0,30,20; 130,20,70,50
+widths last: 130,0,30,20; 130,20,70,50
+edges: 23,3,46,36; 23,61,106,86
+edges reverse: 23,255,46,36; 23,147,106,86
+edges rtl: 77,3,46,36; 77,61,106,86
+edges last: 77,3,46,36; 77,61,106,86
+vertical-rl: 140,0,60,90; 155,90,40,90
+vertical-rl reverse: 140,210,60,90; 155,120,40,90
+vertical-rl rtl: 140,0,60,90; 155,90,40,90
+vertical-rl last: 0,0,60,90; 5,90,40,90
+vertical-lr: 0,0,60,90; 5,90,40,90
+vertical-lr reverse: 0,210,60,90; 5,120,40,90
+vertical-lr rtl: 0,0,60,90; 5,90,40,90
+vertical-lr last: 140,0,60,90; 155,90,40,90
+mixed: 140,0,60,90; 155,90,40,90; 15,180,40,40; 0,220,60,90; 5,310,40,90
+mixed reverse: 140,210,60,90; 155,120,40,90; 15,80,40,40; 0,-10,60,90; 5,-100,40,90
+mixed rtl: 115,0,60,90; 130,90,40,90; 160,180,40,40; 0,220,60,90; 5,310,40,90
+mixed last: 0,0,60,90; 5,90,40,90; 160,180,40,40; 115,220,60,90; 130,310,40,90
+wrap: 0,0,30,70; 0,70,70,70; 70,0,30,70; 70,70,70,70; 140,0,30,70; 140,70,70,70
+wrap reverse: 130,0,30,70; 130,70,70,70; 60,0,30,70; 60,70,70,70; -10,0,30,70; -10,70,70,70
+mixed wrap: 0,0,60,90; 15,90,40,90; 75,0,40,40; 60,40,60,90; 120,0,40,90
+auto margins: 170,0,30,20; 0,20,30,50
+opposite preferences: 140,0,60,90; 155,90,40,90
+negative margins: -10,0,30,20; -10,20,30,50
+empty vertical-rl: 140,0,60,20; 140,20,40,50
+empty vertical-lr: 0,0,60,20; 0,20,40,50
+overflow last: -50,0,30,20; -50,20,70,50
+wrap opposing padding: 0,0,160,50; 100,50,160,50; 260,0,160,50; 360,50,160,50
+child rtl: 0,0,30,20; 0,20,30,50
+vertical-rl block baseline: 100,0,100,90; 95,90,100,90
+vertical-rl block last baseline: 10,0,100,90; 0,90,100,90
+vertical-rl inline baseline: 100,0,100,90; 95,90,100,90
+vertical-rl inline last baseline: 10,0,100,90; 0,90,100,90
+vertical-rl flex baseline: 100,0,100,90; 95,90,100,90
+vertical-rl flex last baseline: 10,0,100,90; 0,90,100,90
+vertical-rl grid baseline: 100,0,100,90; 95,90,100,90
+vertical-rl grid last baseline: 10,0,100,90; 0,90,100,90
+vertical-lr block baseline: 0,0,100,90; 5,90,100,90
+vertical-lr block last baseline: 90,0,100,90; 100,90,100,90
+vertical-lr inline baseline: 0,0,100,90; 5,90,100,90
+vertical-lr inline last baseline: 90,0,100,90; 100,90,100,90
+vertical-lr flex baseline: 0,0,100,90; 5,90,100,90
+vertical-lr flex last baseline: 90,0,100,90; 100,90,100,90
+vertical-lr grid baseline: 0,0,100,90; 5,90,100,90
+vertical-lr grid last baseline: 90,0,100,90; 100,90,100,90
+exported baseline: 16,0
