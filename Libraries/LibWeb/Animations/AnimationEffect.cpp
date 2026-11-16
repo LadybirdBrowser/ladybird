@@ -164,45 +164,14 @@ Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
     computed_timing.duration = duration;
     computed_timing.direction = m_playback_direction;
     computed_timing.easing = m_timing_function.to_utf16_string();
-    computed_timing.active_duration = active_duration().as_css_numberish();
-    computed_timing.current_iteration = current_iteration();
-    computed_timing.end_time = end_time().as_css_numberish();
-    computed_timing.local_time = NullableCSSNumberish::from_optional_css_numberish_time(local_time());
-    computed_timing.progress = transformed_progress();
+    auto local_time = this->local_time();
+    auto timing = resolve_timing_at(local_time, m_fill_mode, WithTransformedProgress::Yes);
+    computed_timing.active_duration = timing.active_duration.as_css_numberish();
+    computed_timing.current_iteration = from_ffi(timing.current_iteration);
+    computed_timing.end_time = timing.end_time.as_css_numberish();
+    computed_timing.local_time = NullableCSSNumberish::from_optional_css_numberish_time(local_time);
+    computed_timing.progress = from_ffi(timing.transformed_progress);
     return computed_timing;
-}
-
-// https://drafts.csswg.org/web-animations-2/#intrinsic-iteration-duration
-TimeValue AnimationEffect::intrinsic_iteration_duration() const
-{
-    // The intrinsic iteration duration is calculated from the first matching condition from below:
-
-    // FIXME: If the animation effect is a group effect,
-    if (false) {
-        // Follow the procedure in § 2.10.3 The intrinsic iteration duration of a group effect
-        TODO();
-    }
-
-    // FIXME: If the animation effect is a sequence effect,
-    else if (false) {
-        // Follow the procedure in § 2.10.4.2 The intrinsic iteration duration of a sequence effect
-        TODO();
-    }
-
-    // If timeline duration is unresolved or iteration count is zero,
-    else if (!timeline_duration().has_value() || m_iteration_count == 0.0) {
-        // Return 0
-        return TimeValue::create_zero(associated_timeline());
-    }
-
-    // Otherwise
-    else {
-        // Return(100% - start delay - end delay) / iteration count
-        // Note : Presently start and end delays are zero until such time as percentage based delays are supported.
-        // AD-HOC: An effect fills its animation's attachment range rather than the whole timeline, which is what the
-        //         timeline duration is here. This matches WebKit.
-        return (timeline_duration().value() - m_start_delay - m_end_delay) / m_iteration_count;
-    }
 }
 
 GC::Ptr<AnimationTimeline> AnimationEffect::associated_timeline() const
@@ -228,82 +197,37 @@ Optional<TimeValue> AnimationEffect::timeline_duration() const
     return timeline->duration();
 }
 
-// https://drafts.csswg.org/web-animations-2/#time-based-animation-to-a-proportional-animation
-void AnimationEffect::convert_a_time_based_animation_to_a_proportional_animation()
-{
-    // AD-HOC: We use the specified interation duration instead of the iteration duration here, see
-    //         https://github.com/w3c/csswg-drafts/pull/13170
-    // If the iteration duration is auto, then perform the following steps.
-    if (m_specified_iteration_duration.has<Utf16String>()) {
-        // Set start delay and end delay to 0, as it is not possible to mix time and proportions.
-        // Note: Future versions may allow these properties to be assigned percentages, at which point the delays are
-        //       only to be ignored if their values are expressed as times and not as percentages.
-        m_start_delay = TimeValue::create_zero(associated_timeline());
-        m_end_delay = TimeValue::create_zero(associated_timeline());
-
-        // AD-HOC: The spec doesn't say what to set iteration duration to in this case so we set it to the intrinsic
-        //         iteration duration, see: https://github.com/w3c/csswg-drafts/issues/13220
-        m_iteration_duration = intrinsic_iteration_duration();
-        return;
-    }
-
-    // Otherwise:
-
-    // NB: The caller asserts that timeline duration is resolved
-    auto const& timeline_duration = this->timeline_duration().value();
-
-    // 1. Let total time be equal to end time
-    // AD-HOC: Using end time here only works if we haven't already converted to a proportional animation, we instead
-    //         recompute the specified equivalent of "end time", see https://github.com/w3c/csswg-drafts/issues/13230
-    auto total_time = max(m_specified_start_delay + (m_specified_iteration_duration.get<double>() * m_iteration_count) + m_specified_end_delay, 0);
-
-    // AD-HOC: Avoid a division by zero below, see https://github.com/w3c/csswg-drafts/issues/11276
-    if (total_time == 0) {
-        m_start_delay = TimeValue::create_zero(associated_timeline());
-        m_iteration_duration = TimeValue::create_zero(associated_timeline());
-        m_end_delay = TimeValue::create_zero(associated_timeline());
-        return;
-    }
-
-    // 2. Set start delay to be the result of evaluating specified start delay / total time * timeline duration.
-    m_start_delay = timeline_duration * (m_specified_start_delay / total_time);
-
-    // 3. Set iteration duration to be the result of evaluating specified iteration duration / total time * timeline duration.
-    m_iteration_duration = timeline_duration * (m_specified_iteration_duration.get<double>() / total_time);
-
-    // 4. Set end delay to be the result of evaluating specified end delay / total time * timeline duration.
-    m_end_delay = timeline_duration * (m_specified_end_delay / total_time);
-}
+static_assert(sizeof(TimeValue) == 16 && offsetof(TimeValue, type) == 0 && offsetof(TimeValue, value) == 8);
+static_assert(to_underlying(TimeValue::Type::Milliseconds) == 0 && to_underlying(TimeValue::Type::Percentage) == 1);
+static_assert(to_underlying(FillMode::None) == to_underlying(RustFFI::FillMode::None));
+static_assert(to_underlying(FillMode::Forwards) == to_underlying(RustFFI::FillMode::Forwards));
+static_assert(to_underlying(FillMode::Backwards) == to_underlying(RustFFI::FillMode::Backwards));
+static_assert(to_underlying(FillMode::Both) == to_underlying(RustFFI::FillMode::Both));
+static_assert(to_underlying(FillMode::Auto) == to_underlying(RustFFI::FillMode::Auto));
+static_assert(to_underlying(PlaybackDirection::Normal) == to_underlying(RustFFI::PlaybackDirection::Normal));
+static_assert(to_underlying(PlaybackDirection::Reverse) == to_underlying(RustFFI::PlaybackDirection::Reverse));
+static_assert(to_underlying(PlaybackDirection::Alternate) == to_underlying(RustFFI::PlaybackDirection::Alternate));
+static_assert(to_underlying(PlaybackDirection::AlternateReverse) == to_underlying(RustFFI::PlaybackDirection::AlternateReverse));
 
 // https://drafts.csswg.org/web-animations-2/#normalize-specified-timing
 void AnimationEffect::normalize_specified_timing()
 {
-    // If timeline duration is resolved:
-    if (timeline_duration().has_value()) {
-        // Follow the procedure to convert a time-based animation to a proportional animation
-        convert_a_time_based_animation_to_a_proportional_animation();
-    }
-    // Otherwise:
-    else {
-        // 1. Set start delay = specified start delay
-        m_start_delay = TimeValue { TimeValue::Type::Milliseconds, m_specified_start_delay };
-
-        // 2. Set end delay = specified end delay
-        m_end_delay = TimeValue { TimeValue::Type::Milliseconds, m_specified_end_delay };
-
-        // 3. If iteration duration is auto:
-        // AD-HOC: We use the specified interation duration instead of the iteration duration here, see
-        //         https://github.com/w3c/csswg-drafts/pull/13170
-        if (m_specified_iteration_duration.has<Utf16String>()) {
-            // Set iteration duration = intrinsic iteration duration
-            m_iteration_duration = intrinsic_iteration_duration();
-        }
-        // Otherwise:
-        else {
-            // Set iteration duration = specified iteration duration
-            m_iteration_duration = TimeValue { TimeValue::Type::Milliseconds, m_specified_iteration_duration.get<double>() };
-        }
-    }
+    RustFFI::SpecifiedEffectTiming specified {
+        .start_delay = m_specified_start_delay,
+        .end_delay = m_specified_end_delay,
+        .iteration_duration = m_specified_iteration_duration.visit(
+            [](double duration) { return RustFFI::SpecifiedIterationDuration { .is_auto = false, .milliseconds = duration }; },
+            [](Utf16String const&) { return RustFFI::SpecifiedIterationDuration { .is_auto = true, .milliseconds = 0 }; }),
+        .iteration_start = m_iteration_start,
+        .iteration_count = m_iteration_count,
+        .fill_mode = static_cast<RustFFI::FillMode>(to_underlying(m_fill_mode)),
+        .playback_direction = static_cast<RustFFI::PlaybackDirection>(to_underlying(m_playback_direction)),
+    };
+    auto time_unit = TimeValue::create_zero(associated_timeline()).type;
+    auto timing = RustFFI::animations_normalize_specified_timing(&specified, to_ffi(timeline_duration()), time_unit);
+    m_start_delay = timing.start_delay;
+    m_end_delay = timing.end_delay;
+    m_iteration_duration = timing.iteration_duration;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animationeffect-updatetiming
@@ -416,24 +340,6 @@ void AnimationEffect::update_style_if_needed() const
         m_associated_animation->update_style_if_needed();
 }
 
-// https://www.w3.org/TR/web-animations-1/#animation-direction
-AnimationDirection AnimationEffect::animation_direction() const
-{
-    // "backwards" if the effect is associated with an animation and the associated animation’s playback rate is less
-    // than zero; in all other cases, the animation direction is "forwards".
-    if (m_associated_animation && m_associated_animation->playback_rate() < 0.0)
-        return AnimationDirection::Backwards;
-    return AnimationDirection::Forwards;
-}
-
-// https://www.w3.org/TR/web-animations-1/#end-time
-TimeValue AnimationEffect::end_time() const
-{
-    // 1. The end time of an animation effect is the result of evaluating
-    //    max(start delay + active duration + end delay, 0).
-    return max(m_start_delay + active_duration() + m_end_delay, TimeValue::create_zero(associated_timeline()));
-}
-
 // https://www.w3.org/TR/web-animations-1/#local-time
 Optional<TimeValue> AnimationEffect::local_time() const
 {
@@ -454,321 +360,116 @@ Optional<TimeValue> AnimationEffect::local_time() const
     return {};
 }
 
+RustFFI::AnimationEffectTiming AnimationEffect::effect_timing(Bindings::FillMode fill_mode) const
+{
+    return {
+        .start_delay = m_start_delay,
+        .end_delay = m_end_delay,
+        .iteration_duration = m_iteration_duration,
+        .iteration_start = m_iteration_start,
+        .iteration_count = m_iteration_count,
+        .fill_mode = static_cast<RustFFI::FillMode>(to_underlying(fill_mode)),
+        .playback_direction = static_cast<RustFFI::PlaybackDirection>(to_underlying(m_playback_direction)),
+    };
+}
+
+RustFFI::EffectTimingSnapshot AnimationEffect::timing_snapshot() const
+{
+    VERIFY(m_associated_animation);
+    auto timeline = m_associated_animation->timeline();
+    return {
+        .effect = effect_timing(m_fill_mode),
+        .playback = m_associated_animation->playback(),
+        .timeline = timeline ? timeline->sample() : RustFFI::TimelineSample {},
+        .has_timeline = timeline != nullptr,
+        .clock = timeline ? timeline->clock() : RustFFI::TimelineClock { .source = RustFFI::TimelineClockSource::Unticked, .origin_time = 0, .scroll_timeline = 0 },
+    };
+}
+
+AnimationEffect::ResolvedTiming AnimationEffect::resolve_timing_at(Optional<TimeValue> const& local_time, Bindings::FillMode fill_mode, WithTransformedProgress with_transformed_progress, EndpointInclusiveActiveInterval endpoint_inclusive) const
+{
+    auto timing = effect_timing(fill_mode);
+    Optional<RustFFI::AnimationPlayback> playback;
+    Optional<RustFFI::TimelineSample> timeline_sample;
+    if (m_associated_animation) {
+        playback = m_associated_animation->playback();
+        if (auto timeline = m_associated_animation->timeline())
+            timeline_sample = timeline->sample();
+    }
+    Optional<CSS::EasingFunction::Descriptor> timing_function;
+    if (with_transformed_progress == WithTransformedProgress::Yes)
+        timing_function = m_timing_function.descriptor();
+    return RustFFI::animations_resolve_effect_timing(
+        &timing,
+        to_ffi(local_time),
+        playback.has_value() ? &*playback : nullptr,
+        timeline_sample.has_value() ? &*timeline_sample : nullptr,
+        timing_function.has_value() ? &*timing_function : nullptr,
+        endpoint_inclusive == EndpointInclusiveActiveInterval::Yes);
+}
+
+// What follows from the effect's timing alone, without a local time.
+AnimationEffect::ResolvedTiming AnimationEffect::resolve_timing_alone() const
+{
+    auto timing = effect_timing(m_fill_mode);
+    return RustFFI::animations_resolve_effect_timing(&timing, to_ffi({}), nullptr, nullptr, nullptr, false);
+}
+
+AnimationEffect::ResolvedTiming AnimationEffect::resolve_timing() const
+{
+    return resolve_timing_at(local_time(), m_fill_mode);
+}
+
+// https://www.w3.org/TR/web-animations-1/#end-time
+TimeValue AnimationEffect::end_time() const
+{
+    return resolve_timing_alone().end_time;
+}
+
 // https://www.w3.org/TR/web-animations-1/#active-duration
 TimeValue AnimationEffect::active_duration() const
 {
-    // The active duration is calculated as follows:
-    //     active duration = iteration duration × iteration count
-    // If either the iteration duration or iteration count are zero, the active duration is zero. This clarification is
-    // needed since the result of infinity multiplied by zero is undefined according to IEEE 754-2008.
-    if (m_iteration_duration.value == 0 || m_iteration_count == 0.0)
-        return TimeValue::create_zero(associated_timeline());
-
-    return m_iteration_duration * m_iteration_count;
-}
-
-Optional<TimeValue> AnimationEffect::active_time() const
-{
-    return active_time_using_fill(m_fill_mode);
-}
-
-Optional<TimeValue> AnimationEffect::active_time_using_fill(Bindings::FillMode fill_mode) const
-{
-    auto local_time = this->local_time();
-    return active_time_for_phase(phase(local_time), local_time, fill_mode);
-}
-
-// https://www.w3.org/TR/web-animations-1/#calculating-the-active-time
-Optional<TimeValue> AnimationEffect::active_time_for_phase(Phase phase, Optional<TimeValue> const& local_time, Bindings::FillMode fill_mode) const
-{
-    // The active time is based on the local time and start delay. However, it is only defined when the animation effect
-    // should produce an output and hence depends on its fill mode and phase as follows,
-
-    switch (phase) {
-    // -> If the animation effect is in the before phase,
-    case Phase::Before:
-        // The result depends on the first matching condition from the following,
-
-        // -> If the fill mode is backwards or both,
-        if (fill_mode == Bindings::FillMode::Backwards || fill_mode == Bindings::FillMode::Both) {
-            // Return the result of evaluating max(local time - start delay, 0).
-            return max(local_time.value() - m_start_delay, TimeValue::create_zero(associated_timeline()));
-        }
-
-        // -> Otherwise,
-        //    Return an unresolved time value.
-        return {};
-
-    // -> If the animation effect is in the active phase,
-    case Phase::Active:
-        // Return the result of evaluating local time - start delay.
-        return local_time.value() - m_start_delay;
-
-    // -> If the animation effect is in the after phase,
-    case Phase::After:
-        // The result depends on the first matching condition from the following,
-
-        // -> If the fill mode is forwards or both,
-        if (fill_mode == Bindings::FillMode::Forwards || fill_mode == Bindings::FillMode::Both) {
-            // Return the result of evaluating max(min(local time - start delay, active duration), 0).
-            return max(min(local_time.value() - m_start_delay, active_duration()), TimeValue::create_zero(associated_timeline()));
-        }
-
-        // -> Otherwise,
-        //    Return an unresolved time value.
-        return {};
-
-    // -> Otherwise (the local time is unresolved),
-    //    Return an unresolved time value.
-    case Phase::Idle:
-        return {};
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
-// https://www.w3.org/TR/web-animations-1/#in-play
-bool AnimationEffect::is_in_play(Phase phase) const
-{
-    // An animation effect is in play if all of the following conditions are met:
-    // - the animation effect is in the active phase, and
-    // - the animation effect is associated with an animation that is not finished.
-    return phase == Phase::Active && m_associated_animation && !m_associated_animation->is_finished();
-}
-
-// https://www.w3.org/TR/web-animations-1/#current
-bool AnimationEffect::is_current() const
-{
-    auto phase = this->phase();
-
-    // An animation effect is current if any of the following conditions are true:
-
-    // - the animation effect is in play, or
-    if (is_in_play(phase))
-        return true;
-
-    if (auto animation = m_associated_animation) {
-        auto playback_rate = animation->playback_rate();
-
-        // - the animation effect is associated with an animation with a playback rate > 0 and the animation effect is
-        //   in the before phase, or
-        if (playback_rate > 0.0 && phase == Phase::Before)
-            return true;
-
-        // - the animation effect is associated with an animation with a playback rate < 0 and the animation effect is
-        //   in the after phase, or
-        if (playback_rate < 0.0 && phase == Phase::After)
-            return true;
-
-        // - the animation effect is associated with an animation not in the idle play state with a non-null associated
-        //   timeline that is not monotonically increasing.
-        if (animation->play_state() != Bindings::AnimationPlayState::Idle && animation->timeline() && !animation->timeline()->is_monotonically_increasing())
-            return true;
-    }
-
-    return false;
-}
-
-// https://www.w3.org/TR/web-animations-1/#in-effect
-bool AnimationEffect::is_in_effect() const
-{
-    // An animation effect is in effect if its active time, as calculated according to the procedure in
-    // §4.8.3.1 Calculating the active time, is not unresolved.
-    return active_time().has_value();
+    return resolve_timing_alone().active_duration;
 }
 
 // https://www.w3.org/TR/web-animations-1/#before-active-boundary-time
 TimeValue AnimationEffect::before_active_boundary_time() const
 {
-    // max(min(start delay, end time), 0)
-    return max(min(m_start_delay, end_time()), TimeValue::create_zero(associated_timeline()));
+    return resolve_timing_alone().before_active_boundary_time;
 }
 
 // https://www.w3.org/TR/web-animations-1/#active-after-boundary-time
 TimeValue AnimationEffect::after_active_boundary_time() const
 {
-    // max(min(start delay + active duration, end time), 0)
-    return max(min(m_start_delay + active_duration(), end_time()), TimeValue::create_zero(associated_timeline()));
+    return resolve_timing_alone().after_active_boundary_time;
 }
 
-// https://drafts.csswg.org/web-animations-2/#at-timeline-boundary
-bool AnimationEffect::is_at_timeline_boundary() const
+// https://www.w3.org/TR/web-animations-1/#calculating-the-active-time
+Optional<TimeValue> AnimationEffect::active_time() const
 {
-    auto timeline = associated_timeline();
-    if (!timeline)
-        return false;
-    auto timeline_time = timeline->current_time();
-    if (!timeline_time.has_value())
-        return false;
-    auto matches = [&](Optional<TimeValue> const& time) {
-        return time.has_value() && fabs(timeline_time->value - time->value) < progress_timeline_tolerance;
-    };
+    return from_ffi(resolve_timing().active_time);
+}
 
-    // Determined based on the first matching condition:
-    // If the minimum timeline time matches the timeline current time: Return true
-    // If the maximum timeline time matches the timeline current time: Return true
-    // Otherwise: Return false
-    return matches(timeline->minimum_timeline_time()) || matches(timeline->maximum_timeline_time());
+Optional<TimeValue> AnimationEffect::active_time_using_fill(Bindings::FillMode fill_mode) const
+{
+    return from_ffi(resolve_timing_at(local_time(), fill_mode).active_time);
+}
+
+// https://www.w3.org/TR/web-animations-1/#current
+bool AnimationEffect::is_current() const
+{
+    return resolve_timing().is_current;
+}
+
+// https://www.w3.org/TR/web-animations-1/#in-effect
+bool AnimationEffect::is_in_effect() const
+{
+    return resolve_timing().is_in_effect;
 }
 
 AnimationEffect::Phase AnimationEffect::phase() const
 {
-    return phase(local_time());
-}
-
-AnimationEffect::Phase AnimationEffect::phase(Optional<TimeValue> const& local_time, EndpointInclusiveActiveInterval endpoint_inclusive) const
-{
-    // This is a convenience method that returns the phase of the animation effect, to avoid having to call all of the
-    // phase functions separately.
-    if (!local_time.has_value())
-        return Phase::Idle;
-
-    // https://drafts.csswg.org/web-animations-1/#animation-effect-phases-and-states
-    // Furthermore, an endpoint-inclusive active interval flag may be specified when determining the phase. If not
-    // specified, it is assumed to be false.
-    auto at_timeline_boundary = this->is_at_timeline_boundary();
-
-    auto before_active_boundary_time = this->before_active_boundary_time();
-    // https://drafts.csswg.org/web-animations-2/#animation-effect-phases-and-states
-    // An animation effect is in the before phase if the animation effect’s local time is not unresolved and either of
-    // the following conditions are met:
-    // 1. the local time is less than the before-active boundary time, or
-    // 2. the animation direction is "backwards" and the local time is equal to the before-active boundary time and
-    //    not at timeline boundary.
-    if (local_time.value() < before_active_boundary_time || (animation_direction() == AnimationDirection::Backwards && local_time.value() == before_active_boundary_time && !at_timeline_boundary && endpoint_inclusive == EndpointInclusiveActiveInterval::No))
-        return Phase::Before;
-
-    auto after_active_boundary_time = this->after_active_boundary_time();
-    // An animation effect is in the after phase if the animation effect’s local time is not unresolved and either of
-    // the following conditions are met:
-    // 1. the local time is greater than the active-after boundary time, or
-    // 2. the animation direction is "forwards" and the local time is equal to the active-after boundary time and not
-    //    at timeline boundary.
-    if (local_time.value() > after_active_boundary_time || (animation_direction() == AnimationDirection::Forwards && local_time.value() == after_active_boundary_time && !at_timeline_boundary && endpoint_inclusive == EndpointInclusiveActiveInterval::No))
-        return Phase::After;
-
-    // https://www.w3.org/TR/web-animations-1/#animation-effect-active-phase
-    // An animation effect is in the active phase if the animation effect’s local time is not unresolved and it is not
-    // in either the before phase nor the after phase.
-    return Phase::Active;
-}
-
-AnimationEffect::ResolvedTiming AnimationEffect::resolve_timing(EndpointInclusiveActiveInterval endpoint_inclusive) const
-{
-    auto local_time = this->local_time();
-    auto phase = this->phase(local_time, endpoint_inclusive);
-    auto active_time = active_time_for_phase(phase, local_time, m_fill_mode);
-    return {
-        .phase = phase,
-        .local_time = local_time,
-        .active_time = active_time,
-        .overall_progress = overall_progress_for_phase(phase, active_time),
-    };
-}
-
-// https://www.w3.org/TR/web-animations-1/#overall-progress
-Optional<double> AnimationEffect::overall_progress_for_phase(Phase phase, Optional<TimeValue> const& active_time) const
-{
-    // 1. If the active time is unresolved, return unresolved.
-    if (!active_time.has_value())
-        return {};
-
-    // 2. Calculate an initial value for overall progress based on the first matching condition from below,
-    double overall_progress;
-
-    // -> If the iteration duration is zero,
-    if (m_iteration_duration.value == 0) {
-        // If the animation effect is in the before phase, let overall progress be zero, otherwise, let it be equal to
-        // the iteration count.
-        if (phase == Phase::Before)
-            overall_progress = 0.0;
-        else
-            overall_progress = m_iteration_count;
-    }
-    // Otherwise,
-    else {
-        // Let overall progress be the result of calculating active time / iteration duration.
-        overall_progress = active_time.value() / m_iteration_duration;
-    }
-
-    // 3. Return the result of calculating overall progress + iteration start.
-    return overall_progress + m_iteration_start;
-}
-
-// https://www.w3.org/TR/web-animations-1/#directed-progress
-Optional<double> AnimationEffect::directed_progress(ResolvedTiming const& timing) const
-{
-    // 1. If the simple iteration progress is unresolved, return unresolved.
-    auto simple_iteration_progress = this->simple_iteration_progress(timing);
-    if (!simple_iteration_progress.has_value())
-        return {};
-
-    // 2. Calculate the current direction using the first matching condition from the following list:
-    auto current_direction = this->current_direction(timing);
-
-    // 3. If the current direction is forwards then return the simple iteration progress.
-    if (current_direction == AnimationDirection::Forwards)
-        return simple_iteration_progress;
-
-    //    Otherwise, return 1.0 - simple iteration progress.
-    return 1.0 - simple_iteration_progress.value();
-}
-
-// https://www.w3.org/TR/web-animations-1/#directed-progress
-AnimationDirection AnimationEffect::current_direction(ResolvedTiming const& timing) const
-{
-    // 2. Calculate the current direction using the first matching condition from the following list:
-    // -> If playback direction is normal,
-    if (m_playback_direction == Bindings::PlaybackDirection::Normal) {
-        // Let the current direction be forwards.
-        return AnimationDirection::Forwards;
-    }
-
-    // -> If playback direction is reverse,
-    if (m_playback_direction == Bindings::PlaybackDirection::Reverse) {
-        // Let the current direction be reverse.
-        return AnimationDirection::Backwards;
-    }
-    // -> Otherwise,
-    //    1. Let d be the current iteration.
-    double d = current_iteration(timing).value();
-
-    //    2. If playback direction is alternate-reverse increment d by 1.
-    if (m_playback_direction == Bindings::PlaybackDirection::AlternateReverse)
-        d += 1.0;
-
-    //    3. If d % 2 == 0, let the current direction be forwards, otherwise let the current direction be reverse. If d
-    //       is infinity, let the current direction be forwards.
-    if (isinf(d))
-        return AnimationDirection::Forwards;
-    if (fmod(d, 2.0) == 0.0)
-        return AnimationDirection::Forwards;
-    return AnimationDirection::Backwards;
-}
-
-// https://www.w3.org/TR/web-animations-1/#simple-iteration-progress
-Optional<double> AnimationEffect::simple_iteration_progress(ResolvedTiming const& timing) const
-{
-    // 1. If the overall progress is unresolved, return unresolved.
-    if (!timing.overall_progress.has_value())
-        return {};
-
-    // 2. If overall progress is infinity, let the simple iteration progress be iteration start % 1.0, otherwise, let
-    //    the simple iteration progress be overall progress % 1.0.
-    double simple_iteration_progress = isinf(timing.overall_progress.value()) ? fmod(m_iteration_start, 1.0) : fmod(timing.overall_progress.value(), 1.0);
-
-    // 3. If all of the following conditions are true,
-    //    - the simple iteration progress calculated above is zero, and
-    //    - the animation effect is in the active phase or the after phase, and
-    //    - the active time is equal to the active duration, and
-    //    - the iteration count is not equal to zero.
-    if (simple_iteration_progress == 0.0 && (timing.phase == Phase::Active || timing.phase == Phase::After) && timing.active_time.has_value() && timing.active_time.value() == active_duration() && m_iteration_count != 0.0) {
-        // let the simple iteration progress be 1.0.
-        simple_iteration_progress = 1.0;
-    }
-
-    // 4. Return simple iteration progress.
-    return simple_iteration_progress;
+    return resolve_timing().phase;
 }
 
 Optional<double> AnimationEffect::current_iteration() const
@@ -779,48 +480,13 @@ Optional<double> AnimationEffect::current_iteration() const
 // https://www.w3.org/TR/web-animations-1/#current-iteration
 Optional<double> AnimationEffect::current_iteration(ResolvedTiming const& timing) const
 {
-    // 1. If the active time is unresolved, return unresolved.
-    if (!timing.active_time.has_value())
-        return {};
-
-    // 2. If the animation effect is in the after phase and the iteration count is infinity, return infinity.
-    if (timing.phase == Phase::After && isinf(m_iteration_count))
-        return m_iteration_count;
-
-    // 3. If the simple iteration progress is 1.0, return floor(overall progress) - 1.
-    auto simple_iteration_progress = this->simple_iteration_progress(timing);
-    if (simple_iteration_progress.has_value() && simple_iteration_progress.value() == 1.0)
-        return floor(timing.overall_progress.value()) - 1.0;
-
-    // 4. Otherwise, return floor(overall progress).
-    return floor(timing.overall_progress.value());
+    return from_ffi(timing.current_iteration);
 }
 
 // https://www.w3.org/TR/web-animations-1/#transformed-progress
 Optional<double> AnimationEffect::transformed_progress(EndpointInclusiveActiveInterval endpoint_inclusive) const
 {
-    auto timing = resolve_timing(endpoint_inclusive);
-
-    // 1. If the directed progress is unresolved, return unresolved.
-    auto directed_progress = this->directed_progress(timing);
-    if (!directed_progress.has_value())
-        return {};
-
-    // 2. Calculate the value of the before flag as follows:
-
-    //    1. Determine the current direction using the procedure defined in §4.9.1 Calculating the directed progress.
-    auto current_direction = this->current_direction(timing);
-
-    //    2. If the current direction is forwards, let going forwards be true, otherwise it is false.
-    auto going_forwards = current_direction == AnimationDirection::Forwards;
-
-    //    3. The before flag is set if the animation effect is in the before phase and going forwards is true; or if the animation effect
-    //       is in the after phase and going forwards is false.
-    auto before_flag = (timing.phase == Phase::Before && going_forwards) || (timing.phase == Phase::After && !going_forwards);
-
-    // 3. Return the result of evaluating the animation effect’s timing function passing directed progress as the input progress value and
-    //    before flag as the before flag.
-    return m_timing_function.evaluate_at(directed_progress.value(), before_flag);
+    return from_ffi(resolve_timing_at(local_time(), m_fill_mode, WithTransformedProgress::Yes, endpoint_inclusive).transformed_progress);
 }
 
 Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(Utf16View value)

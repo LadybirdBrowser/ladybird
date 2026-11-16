@@ -28,9 +28,10 @@
 
 use super::owner::DocumentId;
 use super::{DocumentHost, RenderState};
+use crate::animations::snapshot::{ScrollProgress, ScrollTimelineId};
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::ffi_support::OwnedArc;
-use crate::css::style::animations::{AnimationTimelineSamples, ScrollProgress};
+use crate::css::style::animations::AnimationTimelineSamples;
 use crate::css::style::engine_sample::{DependentRestyle, NeedsHost, TickShownRecords};
 use crate::css::style::tree::StyleNodeID;
 use crate::css::transition::HoverTransitions;
@@ -269,7 +270,7 @@ impl ClockPlan {
             .iter()
             .zip(positions)
             .map(|(timeline, &position)| ScrollProgress {
-                timeline: timeline.timeline,
+                timeline: ScrollTimelineId(timeline.timeline),
                 progress: timeline.progress_at(position),
             })
             .collect()

@@ -21,8 +21,12 @@
 
 use super::bridge::{FfiAppliedAnimationDefinition, FfiAppliedAnimationValues};
 use super::tree::{StyleNodeID, TreeScopeID};
+use crate::animations::snapshot::{CompactEffectTiming, ScrollProgress};
+use crate::animations::timing::{
+    self, AnimationEffectTiming, AnimationPlayState, AnimationPlayback, OptionalTimeValue, ResolvedEffectTiming,
+    TimeValue, TimelineSample,
+};
 use crate::css::css_string::CssString;
-use crate::css::style_compute::FfiEffectTiming;
 use std::collections::HashMap;
 
 /// Which of an element's animation lists a row belongs to, in the host's own numbering: zero for
@@ -372,20 +376,6 @@ impl AnimationKeyframes {
     }
 }
 
-/// `Bindings::FillMode`, in IDL order.
-mod fill_mode {
-    pub(super) const FORWARDS: u8 = 1;
-    pub(super) const BACKWARDS: u8 = 2;
-    pub(super) const BOTH: u8 = 3;
-}
-
-/// `Bindings::PlaybackDirection`, in IDL order.
-mod playback_direction {
-    pub(super) const NORMAL: u8 = 0;
-    pub(super) const REVERSE: u8 = 1;
-    pub(super) const ALTERNATE_REVERSE: u8 = 3;
-}
-
 /// The times the engine samples effects' timelines at: those the host sampled them at, or those a clock
 /// tick at a timestamp moves the document timelines to, with the scroll timelines at the scroll progress
 /// the tick samples them at.
@@ -393,13 +383,6 @@ mod playback_direction {
 pub(crate) struct AnimationTimelineSamples<'a> {
     timestamp: Option<f64>,
     scroll_progress: &'a [ScrollProgress],
-}
-
-/// The progress, in percent, of a scroll timeline, which is its time, by the identity the host gave the timeline.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct ScrollProgress {
-    pub(crate) timeline: u64,
-    pub(crate) progress: f64,
 }
 
 impl<'a> AnimationTimelineSamples<'a> {
@@ -416,46 +399,14 @@ impl<'a> AnimationTimelineSamples<'a> {
 
     /// The time `timing`'s timeline is sampled at, which may be unresolved, or `None` where these samples
     /// do not move it.
-    fn timeline_time(self, timing: &FfiEffectTiming) -> Option<Option<f64>> {
+    #[inline]
+    fn timeline_time(self, timing: &CompactEffectTiming) -> Option<Option<TimeValue>> {
         match self.timestamp {
-            None => Some(timing.has_timeline_time.then_some(timing.timeline_time)),
-            Some(_) if timing.has_timeline_scroller => self
-                .scroll_progress
-                .binary_search_by_key(&timing.scroll_timeline, |scroll| scroll.timeline)
-                .ok()
-                .map(|index| Some(self.scroll_progress[index].progress)),
-            Some(timestamp) => timing
-                .has_timeline_origin_time
-                .then_some(Some(timestamp - timing.timeline_origin_time)),
+            None => Some(timing.timeline_time()),
+            Some(timestamp) => timing.clock().time_at_tick(timestamp, self.scroll_progress).map(Some),
         }
     }
 }
-
-/// `AnimationEffect::Phase`.
-#[derive(Clone, Copy, PartialEq)]
-enum Phase {
-    Before,
-    Active,
-    After,
-    Idle,
-}
-
-/// `AK::max` and `AK::min`, which keep the first value where neither is less.
-fn largest(a: f64, b: f64) -> f64 {
-    if a < b { b } else { a }
-}
-
-fn smallest(a: f64, b: f64) -> f64 {
-    if b < a { b } else { a }
-}
-
-/// Whether two progress-based timeline times, in percent, are the same but for floating point error.
-fn is_within_progress_tolerance(a: f64, b: f64) -> bool {
-    (a - b).abs() < PROGRESS_TOLERANCE
-}
-
-/// Must match `Animations::progress_timeline_tolerance` in the host.
-const PROGRESS_TOLERANCE: f64 = 1e-6;
 
 /// The timing the host sampled each of an element's effects with, by the effect's identity.
 pub(crate) type SampledEffectTimings = Box<[(u64, EffectTiming)]>;
@@ -463,173 +414,149 @@ pub(crate) type SampledEffectTimings = Box<[(u64, EffectTiming)]>;
 /// One animation effect's timing and easing, as the host last sampled the effect.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct EffectTiming {
-    pub(crate) timing: FfiEffectTiming,
+    pub(crate) timing: CompactEffectTiming,
     pub(crate) easing: crate::css::easing::Easing,
+}
+
+/// What the timing calculations read of an effect at one moment: its timing, the playback state of its animation, its
+/// local time, and its timeline then.
+#[derive(Clone, Copy)]
+struct SampledEffect {
+    effect: AnimationEffectTiming,
+    playback: AnimationPlayback,
+    local_time: Option<TimeValue>,
+    timeline: Option<TimelineSample>,
 }
 
 impl EffectTiming {
     /// The key the effect samples its keyframes at as the host samples it: the one its timing gives at
-    /// the time the host sampled its timeline, or `host_key` where the engine cannot decide the timing,
-    /// or none for an unresolved progress, which samples nothing.
+    /// the time the host sampled its timeline, or none for an unresolved progress, which samples nothing.
     #[must_use]
-    pub(crate) fn key(&self, host_key: Option<f64>) -> Option<f64> {
-        self.key_at(AnimationTimelineSamples::default()).unwrap_or(host_key)
+    pub(crate) fn key(&self) -> Option<f64> {
+        self.key_at(AnimationTimelineSamples::default())
+            .expect("the host's samples move every timeline")
     }
 
-    /// The local time of the effect with its timeline at `samples`, or none where it is unresolved or the engine cannot
-    /// decide the timing.
-    /// https://www.w3.org/TR/web-animations-1/#local-time
+    /// The key the effect samples its keyframes at as the host samples it, with the endpoint-inclusive active interval
+    /// flag set, as committing the computed styles of its animation samples it.
+    #[must_use]
+    pub(crate) fn endpoint_inclusive_key(&self) -> Option<f64> {
+        self.key_with(
+            AnimationTimelineSamples::default(),
+            timing::EndpointInclusiveActiveInterval::Yes,
+        )
+        .expect("the host's samples move every timeline")
+    }
+
+    /// The local time of the effect with its timeline at `samples`, in the unit of its timeline's times, or none
+    /// where it is unresolved or the samples do not move its timeline.
     #[must_use]
     pub(crate) fn local_time_at(&self, samples: AnimationTimelineSamples) -> Option<f64> {
-        let timing = &self.timing;
-        if !timing.decidable {
-            return None;
-        }
-        match (timing.has_hold_time, samples.timeline_time(timing)?) {
-            (true, _) => Some(timing.hold_time),
-            (false, Some(timeline_time)) if timing.has_start_time => {
-                Some((timeline_time - timing.start_time) * timing.playback_rate)
-            }
-            (false, _) => None,
-        }
+        let timeline_time = samples.timeline_time(&self.timing)?;
+        timing::current_time_at(&self.timing.playback(), timeline_time).map(|time| time.value)
     }
 
-    fn active_time_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<(Phase, Option<f64>, f64)> {
-        let timing = &self.timing;
-        if !timing.decidable {
-            return None;
-        }
-        let timeline_time = samples.timeline_time(timing)?;
+    /// Whether the effect's animation is paused as the host sampled it.
+    #[must_use]
+    pub(crate) fn is_paused(&self) -> bool {
+        let playback = self.timing.playback();
+        let current_time = timing::current_time_at(&playback, self.timing.timeline_time());
+        timing::play_state_at(&playback, current_time, timing::end_time(&self.timing.effect()))
+            == AnimationPlayState::Paused
+    }
 
-        // https://www.w3.org/TR/web-animations-1/#active-duration
-        let active_duration = match timing.iteration_duration == 0.0 || timing.iteration_count == 0.0 {
-            true => 0.0,
-            false => timing.iteration_duration * timing.iteration_count,
-        };
-        // https://www.w3.org/TR/web-animations-1/#end-time
-        let end_time = largest(timing.start_delay + active_duration + timing.end_delay, 0.0);
+    /// Holds the effect's animation at `local_time`, in milliseconds.
+    pub(crate) fn hold_at(&mut self, local_time: f64) {
+        self.timing.set_hold_time(Some(TimeValue::milliseconds(local_time)));
+    }
+
+    /// Whether the effect's animation has neither a start time nor a hold time, so that it runs nothing.
+    #[must_use]
+    pub(crate) fn has_no_time(&self) -> bool {
+        let playback = self.timing.playback();
+        playback.start_time.get().is_none() && playback.hold_time.get().is_none()
+    }
+
+    /// What the timing calculations read of the effect with its timeline at `samples`, or none where the samples do
+    /// not move its timeline.
+    fn sample_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<SampledEffect> {
+        let timing = &self.timing;
+        let timeline_time = samples.timeline_time(timing)?;
+        let effect = timing.effect();
+        let playback = timing.playback();
 
         // https://www.w3.org/TR/web-animations-1/#animation-current-time
-        let unconstrained_time = timeline_time
-            .filter(|_| timing.has_start_time)
-            .map(|timeline_time| (timeline_time - timing.start_time) * timing.playback_rate);
+        let unconstrained_time = timing::current_time_at(
+            &AnimationPlayback {
+                hold_time: OptionalTimeValue::UNRESOLVED,
+                ..playback
+            },
+            timeline_time,
+        );
         // https://www.w3.org/TR/web-animations-1/#update-an-animations-finished-state
         // Only a finished animation holds a time with its start time resolved. A tick moves its timeline without the
-        // host updating its finished state, which lets go of that hold once the timeline goes back before the end.
+        // host updating its finished state, which lets go of that hold once the timeline goes back before the end, or,
+        // for an animation that plays in reverse, after the start.
         let finish_released = samples.timestamp.is_some()
-            && timing.playback_rate > 0.0
-            && unconstrained_time.is_some_and(|time| time < end_time);
-        let local_time = match timing.has_hold_time && !finish_released {
-            true => Some(timing.hold_time),
-            false => unconstrained_time,
-        };
-
-        // https://drafts.csswg.org/web-animations-2/#at-timeline-boundary
-        let at_timeline_boundary = timing.has_timeline_boundaries
-            && timeline_time.is_some_and(|time| {
-                is_within_progress_tolerance(time, timing.minimum_timeline_time)
-                    || is_within_progress_tolerance(time, timing.maximum_timeline_time)
-            });
-
-        // https://drafts.csswg.org/web-animations-2/#animation-effect-phases-and-states
-        let backwards = timing.playback_rate < 0.0;
-        let phase = match local_time {
-            None => Phase::Idle,
-            Some(local_time) => {
-                let before_active_boundary_time = largest(smallest(timing.start_delay, end_time), 0.0);
-                let after_active_boundary_time = largest(smallest(timing.start_delay + active_duration, end_time), 0.0);
-                if local_time < before_active_boundary_time
-                    || (backwards && local_time == before_active_boundary_time && !at_timeline_boundary)
-                {
-                    Phase::Before
-                } else if local_time > after_active_boundary_time
-                    || (!backwards && local_time == after_active_boundary_time && !at_timeline_boundary)
-                {
-                    Phase::After
+            && unconstrained_time.is_some_and(|time| {
+                if playback.playback_rate > 0.0 {
+                    time < timing::end_time(&effect)
                 } else {
-                    Phase::Active
+                    playback.playback_rate < 0.0 && time.value > 0.0
                 }
-            }
+            });
+        let local_time = match playback.hold_time.get() {
+            Some(hold_time) if !finish_released => Some(hold_time),
+            _ => unconstrained_time,
         };
+        let timeline = timing.timeline().map(|timeline| TimelineSample {
+            current_time: timeline_time.into(),
+            ..timeline
+        });
+        Some(SampledEffect {
+            effect,
+            playback,
+            local_time,
+            timeline,
+        })
+    }
 
-        // https://www.w3.org/TR/web-animations-1/#calculating-the-active-time
-        let fills = |mode| timing.fill_mode == mode || timing.fill_mode == fill_mode::BOTH;
-        let active_time = match (phase, local_time) {
-            (Phase::Before, Some(local_time)) if fills(fill_mode::BACKWARDS) => {
-                Some(largest(local_time - timing.start_delay, 0.0))
-            }
-            (Phase::Active, Some(local_time)) => Some(local_time - timing.start_delay),
-            (Phase::After, Some(local_time)) if fills(fill_mode::FORWARDS) => {
-                Some(largest(smallest(local_time - timing.start_delay, active_duration), 0.0))
-            }
-            _ => None,
-        };
-        Some((phase, active_time, active_duration))
+    /// The effect's timing, and its phase, active time and overall progress with its timeline at `samples`, or none
+    /// where the samples do not move its timeline.
+    fn resolve_at(
+        &self,
+        samples: AnimationTimelineSamples<'_>,
+        endpoint_inclusive: timing::EndpointInclusiveActiveInterval,
+    ) -> Option<(AnimationEffectTiming, ResolvedEffectTiming)> {
+        let sampled = self.sample_at(samples)?;
+        let resolved = timing::resolve_timing_with(
+            &sampled.effect,
+            sampled.local_time,
+            Some(&sampled.playback),
+            sampled.timeline.as_ref(),
+            sampled.effect.fill_mode,
+            endpoint_inclusive,
+        );
+        Some((sampled.effect, resolved))
     }
 
     /// The key the effect's keyframes are sampled at with its timeline at `samples`, which is
     /// `AnimationEffect::transformed_progress()` scaled the way the host scales it. The outer `None` is
-    /// a timing the engine cannot decide; the inner one is an unresolved progress, which samples nothing.
-    ///
-    /// A mirror of `Animation::current_time_at()`, `AnimationEffect::resolve_timing()` and
-    /// `transformed_progress()` with everything under it.
+    /// a timeline the samples do not move; the inner one is an unresolved progress, which samples nothing.
     #[must_use]
     pub(crate) fn key_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<Option<f64>> {
-        let (phase, active_time, active_duration) = self.active_time_at(samples)?;
-        let Some(active_time) = active_time else {
+        self.key_with(samples, timing::EndpointInclusiveActiveInterval::No)
+    }
+
+    fn key_with(
+        &self,
+        samples: AnimationTimelineSamples<'_>,
+        endpoint_inclusive: timing::EndpointInclusiveActiveInterval,
+    ) -> Option<Option<f64>> {
+        let (effect, resolved) = self.resolve_at(samples, endpoint_inclusive)?;
+        let Some(output_progress) = timing::transformed_progress(&effect, &resolved, &self.easing) else {
             return Some(None);
         };
-        let timing = &self.timing;
-
-        // https://www.w3.org/TR/web-animations-1/#overall-progress
-        let overall_progress = match timing.iteration_duration == 0.0 {
-            true if phase == Phase::Before => 0.0,
-            true => timing.iteration_count,
-            false => active_time / timing.iteration_duration,
-        } + timing.iteration_start;
-
-        // https://www.w3.org/TR/web-animations-1/#simple-iteration-progress
-        let mut simple_iteration_progress = match overall_progress.is_infinite() {
-            true => timing.iteration_start % 1.0,
-            false => overall_progress % 1.0,
-        };
-        if simple_iteration_progress == 0.0
-            && matches!(phase, Phase::Active | Phase::After)
-            && active_time == active_duration
-            && timing.iteration_count != 0.0
-        {
-            simple_iteration_progress = 1.0;
-        }
-
-        // https://www.w3.org/TR/web-animations-1/#current-iteration
-        let current_iteration = if phase == Phase::After && timing.iteration_count.is_infinite() {
-            timing.iteration_count
-        } else if simple_iteration_progress == 1.0 {
-            overall_progress.floor() - 1.0
-        } else {
-            overall_progress.floor()
-        };
-
-        // https://www.w3.org/TR/web-animations-1/#directed-progress
-        let going_forwards = match timing.playback_direction {
-            playback_direction::NORMAL => true,
-            playback_direction::REVERSE => false,
-            direction => {
-                let iteration = match direction == playback_direction::ALTERNATE_REVERSE {
-                    true => current_iteration + 1.0,
-                    false => current_iteration,
-                };
-                iteration.is_infinite() || iteration % 2.0 == 0.0
-            }
-        };
-        let directed_progress = match going_forwards {
-            true => simple_iteration_progress,
-            false => 1.0 - simple_iteration_progress,
-        };
-
-        // https://www.w3.org/TR/web-animations-1/#transformed-progress
-        let before_flag = (phase == Phase::Before && going_forwards) || (phase == Phase::After && !going_forwards);
-        let output_progress = self.easing.evaluate_at(directed_progress, before_flag);
 
         // `KeyframeEffect::AnimationKeyFrameKeyScaleFactor`, and the host's clamp to what a key can hold.
         let key = output_progress * 100.0 * 1000.0;
@@ -640,26 +567,19 @@ impl EffectTiming {
     /// For every property targeted by at least one animation effect that is current or in effect, and which is associated
     /// with an animation whose replace state is not removed, the user agent must act as if the will-change property on
     /// the effect target includes the property.
+    ///
+    /// NB: A timeline the samples do not move stands where the host sampled it.
     pub(crate) fn implies_will_change(&self, samples: AnimationTimelineSamples<'_>) -> bool {
-        let timing = &self.timing;
-
-        if timing.is_removed {
-            return false;
-        }
-
-        if let Some((phase, active_time, _)) = self.active_time_at(samples) {
-            return active_time.is_some()
-                || (timing.has_timeline_scroller && (timing.has_start_time || timing.has_hold_time))
-                || match phase {
-                    Phase::Before => timing.playback_rate > 0.0,
-                    Phase::After => timing.playback_rate < 0.0,
-                    _ => false,
-                };
-        }
-
-        // Use the associated animation's relevance as computed by C++ when Rust cannot resolve the effect's timing
-        // or sample its timeline.
-        timing.is_relevant
+        let sampled = self
+            .sample_at(samples)
+            .or_else(|| self.sample_at(AnimationTimelineSamples::default()))
+            .expect("the host's samples move every timeline");
+        timing::is_relevant(
+            &sampled.playback,
+            sampled.timeline.as_ref(),
+            Some(&sampled.effect),
+            sampled.local_time,
+        )
     }
 }
 
@@ -720,20 +640,83 @@ mod tests {
             .collect()
     }
 
-    /// A one-second linear animation that started at zero, sampled with its timeline at `time`.
+    use crate::animations::snapshot::{EffectTimingSnapshot, ScrollTimelineId, TimelineClock, TimelineClockSource};
+    use crate::animations::timing::{AnimationEffectTiming, AnimationReplaceState, FillMode, PlaybackDirection};
+
+    impl EffectTiming {
+        /// Changes the timing as the host would publish it.
+        fn change(&mut self, change: impl FnOnce(&mut EffectTimingSnapshot)) {
+            let mut snapshot = self.timing.snapshot();
+            change(&mut snapshot);
+            self.timing = CompactEffectTiming::from(&snapshot);
+        }
+    }
+
+    fn ms(time: f64) -> OptionalTimeValue {
+        Some(TimeValue::milliseconds(time)).into()
+    }
+
+    fn percent(time: f64) -> OptionalTimeValue {
+        Some(TimeValue::percentage(time)).into()
+    }
+
+    /// A one-second linear animation on a document timeline that started at zero, sampled with its timeline at
+    /// `time`.
     fn timing_at(time: f64) -> EffectTiming {
         EffectTiming {
-            timing: FfiEffectTiming {
-                decidable: true,
-                has_timeline_origin_time: true,
-                has_timeline_time: true,
-                has_start_time: true,
-                timeline_time: time,
-                playback_rate: 1.0,
-                iteration_duration: 1000.0,
-                iteration_count: 1.0,
-                ..FfiEffectTiming::default()
-            },
+            timing: CompactEffectTiming::from(&EffectTimingSnapshot {
+                effect: AnimationEffectTiming {
+                    iteration_duration: TimeValue::milliseconds(1000.0),
+                    fill_mode: FillMode::None,
+                    ..AnimationEffectTiming::default()
+                },
+                playback: AnimationPlayback {
+                    start_time: ms(0.0),
+                    ..AnimationPlayback::default()
+                },
+                timeline: TimelineSample {
+                    current_time: ms(time),
+                    is_monotonically_increasing: true,
+                    ..TimelineSample::default()
+                },
+                has_timeline: true,
+                clock: TimelineClock {
+                    source: TimelineClockSource::Document,
+                    ..TimelineClock::default()
+                },
+            }),
+            easing: crate::css::easing::Easing::default(),
+        }
+    }
+
+    /// A linear animation over the whole of a scroll timeline, sampled with its timeline at `progress`.
+    fn scroll_timing_at(progress: f64) -> EffectTiming {
+        EffectTiming {
+            timing: CompactEffectTiming::from(&EffectTimingSnapshot {
+                effect: AnimationEffectTiming {
+                    start_delay: TimeValue::percentage(0.0),
+                    end_delay: TimeValue::percentage(0.0),
+                    iteration_duration: TimeValue::percentage(100.0),
+                    fill_mode: FillMode::None,
+                    ..AnimationEffectTiming::default()
+                },
+                playback: AnimationPlayback {
+                    start_time: percent(0.0),
+                    ..AnimationPlayback::default()
+                },
+                timeline: TimelineSample {
+                    current_time: percent(progress),
+                    minimum_timeline_time: percent(0.0),
+                    maximum_timeline_time: percent(100.0),
+                    is_monotonically_increasing: false,
+                },
+                has_timeline: true,
+                clock: TimelineClock {
+                    source: TimelineClockSource::Scroll,
+                    origin_time: 0.0,
+                    scroll_timeline: ScrollTimelineId(7),
+                },
+            }),
             easing: crate::css::easing::Easing::default(),
         }
     }
@@ -744,18 +727,17 @@ mod tests {
 
     #[test]
     fn an_animation_implies_will_change_during_its_delay_and_while_filling_forwards() {
-        for fill in [0, fill_mode::BACKWARDS, fill_mode::FORWARDS, fill_mode::BOTH] {
+        for fill in [FillMode::None, FillMode::Backwards, FillMode::Forwards, FillMode::Both] {
             let mut animation = timing_at(0.0);
-            animation.timing.is_relevant = true;
-            animation.timing.start_delay = 1000.0;
-            animation.timing.fill_mode = fill;
+            animation.change(|timing| timing.effect.start_delay = TimeValue::milliseconds(1000.0));
+            animation.change(|timing| timing.effect.fill_mode = fill);
             for time in [0.0, 1000.0, 1500.0] {
                 assert!(animation.implies_will_change(AnimationTimelineSamples::at_tick(time, &[])));
             }
             for time in [2000.0, 3000.0] {
                 assert_eq!(
                     animation.implies_will_change(AnimationTimelineSamples::at_tick(time, &[])),
-                    matches!(fill, fill_mode::FORWARDS | fill_mode::BOTH),
+                    matches!(fill, FillMode::Forwards | FillMode::Both),
                 );
             }
         }
@@ -764,17 +746,38 @@ mod tests {
     #[test]
     fn reverse_playback_implies_will_change_when_current_or_filling_backwards() {
         let mut animation = timing_at(0.0);
-        animation.timing.start_time = 5000.0;
-        animation.timing.start_delay = 1000.0;
-        animation.timing.playback_rate = -1.0;
+        animation.change(|timing| timing.playback.start_time = ms(5000.0));
+        animation.change(|timing| timing.effect.start_delay = TimeValue::milliseconds(1000.0));
+        animation.change(|timing| timing.playback.playback_rate = -1.0);
         assert!(animation.implies_will_change(AnimationTimelineSamples::at_tick(2500.0, &[])));
         assert!(animation.implies_will_change(AnimationTimelineSamples::at_tick(3500.0, &[])));
         assert!(!animation.implies_will_change(AnimationTimelineSamples::at_tick(4500.0, &[])));
-        animation.timing.fill_mode = fill_mode::BACKWARDS;
+        animation.change(|timing| timing.effect.fill_mode = FillMode::Backwards);
         assert!(animation.implies_will_change(AnimationTimelineSamples::at_tick(4500.0, &[])));
-        animation.timing.is_removed = true;
+        animation.change(|timing| timing.playback.replace_state = AnimationReplaceState::Removed);
         assert!(!animation.implies_will_change(AnimationTimelineSamples::at_tick(2500.0, &[])));
         assert!(!animation.implies_will_change(AnimationTimelineSamples::at_tick(4500.0, &[])));
+    }
+
+    #[test]
+    fn an_animation_on_a_scroll_timeline_implies_will_change_after_its_end() {
+        // An animation on a timeline that is not monotonically increasing is current whenever it is not idle, which
+        // holds for one past its end without a fill.
+        let mut animation = scroll_timing_at(80.0);
+        animation.change(|timing| timing.effect.iteration_duration = TimeValue::percentage(50.0));
+        assert_eq!(key(&animation), Some(None));
+        assert!(animation.implies_will_change(AnimationTimelineSamples::default()));
+        let mut idle = animation.clone();
+        idle.change(|timing| timing.playback = AnimationPlayback::default());
+        assert!(!idle.implies_will_change(AnimationTimelineSamples::default()));
+    }
+
+    #[test]
+    fn a_timeline_a_tick_does_not_move_implies_will_change_where_the_host_sampled_it() {
+        let mut animation = timing_at(500.0);
+        animation.change(|timing| timing.clock.source = TimelineClockSource::Unticked);
+        assert!(animation.implies_will_change(AnimationTimelineSamples::at_tick(5000.0, &[])));
+        assert_eq!(animation.key_at(AnimationTimelineSamples::at_tick(5000.0, &[])), None);
     }
 
     #[test]
@@ -788,30 +791,29 @@ mod tests {
     #[test]
     fn a_key_fills_and_holds() {
         let mut timing = timing_at(1500.0);
-        timing.timing.fill_mode = fill_mode::BOTH;
+        timing.change(|timing| timing.effect.fill_mode = FillMode::Both);
         assert_eq!(key(&timing), Some(Some(100_000.0)));
-        timing.timing.timeline_time = -500.0;
+        timing.change(|timing| timing.timeline.current_time = ms(-500.0));
         assert_eq!(key(&timing), Some(Some(0.0)));
-        timing.timing.has_hold_time = true;
-        timing.timing.hold_time = 500.0;
+        timing.change(|timing| timing.playback.hold_time = ms(500.0));
         assert_eq!(key(&timing), Some(Some(50_000.0)), "a hold time wins over the timeline");
     }
 
     #[test]
     fn a_key_runs_each_iteration_in_its_direction() {
         let mut timing = timing_at(1250.0);
-        timing.timing.iteration_count = f64::INFINITY;
+        timing.change(|timing| timing.effect.iteration_count = f64::INFINITY);
         assert_eq!(key(&timing), Some(Some(25_000.0)));
-        timing.timing.playback_direction = 2;
+        timing.change(|timing| timing.effect.playback_direction = PlaybackDirection::Alternate);
         assert_eq!(
             key(&timing),
             Some(Some(75_000.0)),
             "an alternate second iteration runs backwards"
         );
-        timing.timing.playback_direction = playback_direction::REVERSE;
+        timing.change(|timing| timing.effect.playback_direction = PlaybackDirection::Reverse);
         assert_eq!(key(&timing), Some(Some(75_000.0)));
-        timing.timing.playback_direction = playback_direction::NORMAL;
-        timing.timing.playback_rate = 2.0;
+        timing.change(|timing| timing.effect.playback_direction = PlaybackDirection::Normal);
+        timing.change(|timing| timing.playback.playback_rate = 2.0);
         assert_eq!(key(&timing), Some(Some(50_000.0)));
     }
 
@@ -826,38 +828,19 @@ mod tests {
     }
 
     #[test]
-    fn an_undecidable_timing_leaves_the_key_to_the_host() {
-        let mut timing = timing_at(500.0);
-        timing.timing.decidable = false;
-        assert_eq!(key(&timing), None);
-        let unresolved = EffectTiming {
-            timing: FfiEffectTiming {
-                has_timeline_time: false,
-                ..timing_at(500.0).timing
-            },
-            ..timing_at(500.0)
-        };
+    fn a_key_is_where_the_host_sampled_the_timeline() {
+        assert_eq!(timing_at(500.0).key(), Some(50_000.0));
+        let mut unresolved = timing_at(500.0);
+        unresolved.change(|timing| timing.timeline.current_time = OptionalTimeValue::UNRESOLVED);
         assert_eq!(key(&unresolved), Some(None), "an inactive timeline samples nothing");
     }
 
     #[test]
     fn a_tick_samples_a_scroll_timeline_where_its_scroller_is_scrolled_to() {
-        let on_scroll_timeline = EffectTiming {
-            timing: FfiEffectTiming {
-                has_timeline_origin_time: false,
-                has_timeline_scroller: true,
-                scroll_timeline: 7,
-                has_timeline_boundaries: false,
-                minimum_timeline_time: 0.0,
-                maximum_timeline_time: 0.0,
-                iteration_duration: 100.0,
-                ..timing_at(25.0).timing
-            },
-            ..timing_at(25.0)
-        };
+        let on_scroll_timeline = scroll_timing_at(25.0);
         let scrolled = |timeline| {
             [ScrollProgress {
-                timeline,
+                timeline: ScrollTimelineId(timeline),
                 progress: 60.0,
             }]
         };
@@ -875,33 +858,42 @@ mod tests {
             None,
             "a tick that has no progress for its timeline does not move it"
         );
-        let finished = EffectTiming {
-            timing: FfiEffectTiming {
-                has_hold_time: true,
-                hold_time: 100.0,
-                fill_mode: fill_mode::BOTH,
-                ..on_scroll_timeline.timing
-            },
-            ..on_scroll_timeline
-        };
+        let mut finished = on_scroll_timeline.clone();
+        finished.change(|timing| timing.playback.hold_time = percent(100.0));
+        finished.change(|timing| timing.effect.fill_mode = FillMode::Both);
         assert_eq!(
             finished.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(7))),
             Some(Some(60_000.0)),
             "a finished animation runs again as a tick scrolls back before its end"
         );
-        let paused = EffectTiming {
-            timing: FfiEffectTiming {
-                has_start_time: false,
-                hold_time: 40.0,
-                ..finished.timing
-            },
-            ..finished
-        };
+        let mut finished_in_reverse = on_scroll_timeline.clone();
+        finished_in_reverse.change(|timing| timing.playback.start_time = percent(100.0));
+        finished_in_reverse.change(|timing| timing.playback.playback_rate = -1.0);
+        finished_in_reverse.change(|timing| timing.playback.hold_time = percent(0.0));
+        finished_in_reverse.change(|timing| timing.effect.fill_mode = FillMode::Both);
+        assert_eq!(
+            finished_in_reverse.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(7))),
+            Some(Some(40_000.0)),
+            "an animation finished in reverse runs again as a tick scrolls back after its start"
+        );
+        let mut paused = finished.clone();
+        paused.change(|timing| timing.playback.start_time = OptionalTimeValue::UNRESOLVED);
+        paused.change(|timing| timing.playback.hold_time = percent(40.0));
+        assert!(paused.is_paused());
         assert_eq!(
             paused.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(7))),
             Some(Some(40_000.0)),
             "a paused animation holds"
         );
+    }
+
+    #[test]
+    fn an_attachment_range_shortens_a_scroll_timeline_animation() {
+        // An animation attached to the range from 20% to 70% of its timeline.
+        let mut timing = scroll_timing_at(45.0);
+        timing.change(|timing| timing.effect.iteration_duration = TimeValue::percentage(50.0));
+        timing.change(|timing| timing.playback.start_time = percent(20.0));
+        assert_eq!(key(&timing), Some(Some(50_000.0)));
     }
 
     #[test]

@@ -8,6 +8,7 @@
 
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/PromiseCapability.h>
+#include <LibWeb/Animations/RustFFI.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Animations/TimelineRange.h>
 #include <LibWeb/Bindings/Animation.h>
@@ -128,6 +129,9 @@ public:
     GC::Ref<WebIDL::Promise> finished_for_bindings();
     GC::Ref<WebIDL::Promise> finished() const { return current_finished_promise(); }
     bool is_finished() const { return m_is_finished; }
+
+    // The playback state the timing model reads of the animation.
+    RustFFI::AnimationPlayback playback() const;
 
     bool is_idle() const { return play_state() == AnimationPlayState::Idle; }
 

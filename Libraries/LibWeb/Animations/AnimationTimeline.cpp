@@ -6,8 +6,10 @@
 
 #include <LibGC/RootVector.h>
 #include <LibWeb/Animations/Animation.h>
+#include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
+#include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -29,6 +31,30 @@ AnimationTimeline::CurrentTimeOverrideScope::~CurrentTimeOverrideScope()
 {
     m_timeline->m_current_time_override_for_style_sampling = move(m_previous_current_time_override);
     m_timeline->m_has_current_time_override_for_style_sampling = m_had_previous_current_time_override;
+}
+
+RustFFI::TimelineSample AnimationTimeline::sample() const
+{
+    return {
+        .current_time = to_ffi(current_time()),
+        .minimum_timeline_time = to_ffi(minimum_timeline_time()),
+        .maximum_timeline_time = to_ffi(maximum_timeline_time()),
+        .is_monotonically_increasing = is_monotonically_increasing(),
+    };
+}
+
+RustFFI::TimelineClock AnimationTimeline::clock()
+{
+    // A document timeline's time is a timestamp less its origin time, which is what lets a clock tick sample it.
+    if (can_convert_a_timeline_time_to_an_origin_relative_time()) {
+        if (auto origin_time = convert_a_timeline_time_to_an_origin_relative_time(TimeValue { TimeValue::Type::Milliseconds, 0 }); origin_time.has_value())
+            return { .source = RustFFI::TimelineClockSource::Document, .origin_time = *origin_time, .scroll_timeline = 0 };
+    }
+    // A scroll timeline's time is the progress of the scroller it follows, which is what lets a clock tick sample it
+    // where the compositor has scrolled to.
+    if (auto const* scroll_timeline = as_if<ScrollTimeline>(*this); scroll_timeline && scroll_timeline->followed_scroller().has_value())
+        return { .source = RustFFI::TimelineClockSource::Scroll, .origin_time = 0, .scroll_timeline = scroll_timeline->clock_identity() };
+    return { .source = RustFFI::TimelineClockSource::Unticked, .origin_time = 0, .scroll_timeline = 0 };
 }
 
 // https://drafts.csswg.org/web-animations-1/#dom-animationtimeline-currenttime

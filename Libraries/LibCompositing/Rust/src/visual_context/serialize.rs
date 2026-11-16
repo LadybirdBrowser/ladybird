@@ -14,13 +14,11 @@ use super::{
     CompositorScrollNodeKind, CompositorScrollNodeRecord, CompositorScrollTable, CompositorSnapAreaRecord,
     CompositorSnapContainerRecord,
 };
+use crate::animation_timing::{AnimationEffectTiming, FillMode, PlaybackDirection, TimeValue, TimeValueType};
 use crate::css_pixels::{CssPixels, FfiCssPixelPoint, FfiCssPixelRect};
 use crate::easing::{Easing, FfiEasingKind, FfiLinearEasingPoint};
 use crate::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
-use crate::host::{
-    FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection, FfiVisualAnimationTargetKind,
-    FfiVisualAnimationTransformOperationKind,
-};
+use crate::host::{FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOperationKind};
 use crate::node_slot_id::NodeSlotId;
 use crate::visual_animation::{
     MAXIMUM_TRANSFORM_OPERATION_VALUE_COUNT, VisualAnimation, VisualAnimationKeyframe,
@@ -112,11 +110,13 @@ impl_codec_of_enum_going_as_u8!(CompositorScrollNodeKind, |value| match value {
 impl_codec_of_enum_going_as_u8!(FfiEasingKind, FfiEasingKind::from_u8);
 impl_codec_of_enum_going_as_u8!(FfiFilterFunctionKind, FfiFilterFunctionKind::from_u8);
 impl_codec_of_enum_going_as_u8!(FfiVisualAnimationTargetKind, FfiVisualAnimationTargetKind::from_u8);
-impl_codec_of_enum_going_as_u8!(
-    FfiVisualAnimationPlaybackDirection,
-    FfiVisualAnimationPlaybackDirection::from_u8
-);
-impl_codec_of_enum_going_as_u8!(FfiVisualAnimationFillMode, FfiVisualAnimationFillMode::from_u8);
+impl_codec_of_enum_going_as_u8!(PlaybackDirection, |value| PlaybackDirection::try_from(value).ok());
+impl_codec_of_enum_going_as_u8!(FillMode, |value| FillMode::try_from(value).ok());
+impl_codec_of_enum_going_as_u8!(TimeValueType, |value| match value {
+    value if value == TimeValueType::Milliseconds as u8 => Some(TimeValueType::Milliseconds),
+    value if value == TimeValueType::Percentage as u8 => Some(TimeValueType::Percentage),
+    _ => None,
+});
 impl_codec_of_enum_going_as_u8!(
     FfiVisualAnimationTransformOperationKind,
     FfiVisualAnimationTransformOperationKind::from_u8
@@ -712,6 +712,52 @@ impl Decode for VisualAnimationKeyframe {
     }
 }
 
+impl Encode for TimeValue {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(&self.r#type)?;
+        encoder.encode(&self.value)
+    }
+}
+
+impl Decode for TimeValue {
+    const MIN_ENCODED_SIZE: usize = TimeValueType::MIN_ENCODED_SIZE + size_of::<f64>();
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self::new(decoder.decode()?, decoder.decode()?))
+    }
+}
+
+impl Encode for AnimationEffectTiming {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(&self.start_delay)?;
+        encoder.encode(&self.end_delay)?;
+        encoder.encode(&self.iteration_duration)?;
+        encoder.encode(&self.iteration_start)?;
+        encoder.encode(&self.iteration_count)?;
+        encoder.encode(&self.fill_mode)?;
+        encoder.encode(&self.playback_direction)
+    }
+}
+
+impl Decode for AnimationEffectTiming {
+    const MIN_ENCODED_SIZE: usize = 3 * TimeValue::MIN_ENCODED_SIZE
+        + 2 * size_of::<f64>()
+        + FillMode::MIN_ENCODED_SIZE
+        + PlaybackDirection::MIN_ENCODED_SIZE;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self {
+            start_delay: decoder.decode()?,
+            end_delay: decoder.decode()?,
+            iteration_duration: decoder.decode()?,
+            iteration_start: decoder.decode()?,
+            iteration_count: decoder.decode()?,
+            fill_mode: decoder.decode()?,
+            playback_direction: decoder.decode()?,
+        })
+    }
+}
+
 impl Encode for VisualAnimation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         encoder.encode(&self.target_kind)?;
@@ -719,12 +765,7 @@ impl Encode for VisualAnimation {
         encoder.encode(&self.monotonic_time_at_anchor_ns)?;
         encoder.encode(&self.local_time_at_anchor_ms)?;
         encoder.encode(&self.playback_rate)?;
-        encoder.encode(&self.start_delay_ms)?;
-        encoder.encode(&self.iteration_duration_ms)?;
-        encoder.encode(&self.iteration_count)?;
-        encoder.encode(&self.iteration_start)?;
-        encoder.encode(&self.playback_direction)?;
-        encoder.encode(&self.fill_mode)?;
+        encoder.encode(&self.timing)?;
         encoder.encode(&self.easing)?;
         encoder.encode(&self.keyframes)
     }
@@ -740,12 +781,7 @@ impl Decode for VisualAnimation {
             monotonic_time_at_anchor_ns: decoder.decode()?,
             local_time_at_anchor_ms: decoder.decode()?,
             playback_rate: decoder.decode()?,
-            start_delay_ms: decoder.decode()?,
-            iteration_duration_ms: decoder.decode()?,
-            iteration_count: decoder.decode()?,
-            iteration_start: decoder.decode()?,
-            playback_direction: decoder.decode()?,
-            fill_mode: decoder.decode()?,
+            timing: decoder.decode()?,
             easing: decoder.decode()?,
             keyframes: decoder.decode()?,
         })
@@ -1289,12 +1325,15 @@ mod tests {
                 monotonic_time_at_anchor_ns: 1_000_000,
                 local_time_at_anchor_ms: 2.5,
                 playback_rate: 1.5,
-                start_delay_ms: 3.0,
-                iteration_duration_ms: 400.0,
-                iteration_count: f64::INFINITY,
-                iteration_start: 0.25,
-                playback_direction: FfiVisualAnimationPlaybackDirection::Alternate,
-                fill_mode: FfiVisualAnimationFillMode::Backwards,
+                timing: AnimationEffectTiming {
+                    start_delay: TimeValue::milliseconds(3.0),
+                    iteration_duration: TimeValue::milliseconds(400.0),
+                    iteration_count: f64::INFINITY,
+                    iteration_start: 0.25,
+                    playback_direction: PlaybackDirection::Alternate,
+                    fill_mode: FillMode::Backwards,
+                    ..VisualAnimation::default().timing
+                },
                 easing: Easing::CubicBezier {
                     x1: 0.1,
                     y1: 0.2,
@@ -1317,8 +1356,11 @@ mod tests {
             VisualAnimation {
                 target_kind: FfiVisualAnimationTargetKind::BackgroundColor,
                 node_indices: vec![background_color_animation.0],
-                iteration_duration_ms: 100.0,
-                iteration_count: 2.0,
+                timing: AnimationEffectTiming {
+                    iteration_duration: TimeValue::milliseconds(100.0),
+                    iteration_count: 2.0,
+                    ..VisualAnimation::default().timing
+                },
                 keyframes: vec![
                     animation_keyframe(
                         0.0,
@@ -1336,7 +1378,10 @@ mod tests {
             VisualAnimation {
                 target_kind: FfiVisualAnimationTargetKind::Filter,
                 node_indices: vec![root_effect.0],
-                iteration_duration_ms: 100.0,
+                timing: AnimationEffectTiming {
+                    iteration_duration: TimeValue::milliseconds(100.0),
+                    ..VisualAnimation::default().timing
+                },
                 keyframes: vec![
                     animation_keyframe(0.0, Easing::default(), VisualAnimationValue::Filter(Vec::new())),
                     animation_keyframe(
@@ -1367,7 +1412,10 @@ mod tests {
             VisualAnimation {
                 target_kind: FfiVisualAnimationTargetKind::Transform,
                 node_indices: vec![VISUAL_VIEWPORT_NODE_INDEX.0],
-                iteration_duration_ms: 100.0,
+                timing: AnimationEffectTiming {
+                    iteration_duration: TimeValue::milliseconds(100.0),
+                    ..VisualAnimation::default().timing
+                },
                 keyframes: vec![
                     animation_keyframe(0.0, Easing::default(), translate_and_rotate(0.0, 0.0, 0.0)),
                     animation_keyframe(1.0, Easing::default(), translate_and_rotate(1.0, 2.0, 3.0)),
@@ -1791,7 +1839,10 @@ mod tests {
             ..valid.clone()
         });
         rejected(VisualAnimation {
-            iteration_duration_ms: 0.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(0.0),
+                ..valid.timing
+            },
             ..valid.clone()
         });
         rejected(VisualAnimation {

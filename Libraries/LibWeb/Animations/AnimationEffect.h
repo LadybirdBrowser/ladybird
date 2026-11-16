@@ -12,6 +12,7 @@
 #include <AK/Variant.h>
 #include <LibGC/RootHashMap.h>
 #include <LibGC/RootVector.h>
+#include <LibWeb/Animations/RustFFI.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -28,14 +29,28 @@ using ComputedEffectTiming = Bindings::ComputedEffectTiming;
 using OptionalEffectTiming = Bindings::OptionalEffectTiming;
 using EffectTimingDuration = Variant<double, Utf16String>;
 
-enum class AnimationDirection {
-    Forwards,
-    Backwards,
-};
-
 Bindings::FillMode css_fill_mode_to_bindings_fill_mode(CSS::AnimationFillMode mode);
 Bindings::PlaybackDirection css_animation_direction_to_bindings_playback_direction(CSS::AnimationDirection direction);
 Bindings::OptionalEffectTiming to_optional_effect_timing(Bindings::EffectTiming const&);
+
+inline RustFFI::OptionalTimeValue to_ffi(Optional<TimeValue> const& time)
+{
+    return { .value = time.value_or(TimeValue { TimeValue::Type::Milliseconds, 0 }), .has_value = time.has_value() };
+}
+
+inline Optional<TimeValue> from_ffi(RustFFI::OptionalTimeValue const& time)
+{
+    if (!time.has_value)
+        return {};
+    return time.value;
+}
+
+inline Optional<double> from_ffi(RustFFI::OptionalNumber const& number)
+{
+    if (!number.has_value)
+        return {};
+    return number.value;
+}
 
 // This object lives for the duration of an animation update, and is used to store per-element data about animated CSS properties.
 struct AnimationUpdateContext {
@@ -105,8 +120,6 @@ public:
     GC::Ptr<Animation> associated_animation() const { return m_associated_animation; }
     void set_associated_animation(GC::Ptr<Animation> value);
 
-    AnimationDirection animation_direction() const;
-
     TimeValue end_time() const;
     Optional<TimeValue> local_time() const;
     TimeValue active_duration() const;
@@ -115,32 +128,27 @@ public:
 
     bool is_current() const;
     bool is_in_effect() const;
-    bool has_local_time_override_for_observation() const { return m_has_local_time_override_for_observation; }
 
     TimeValue before_active_boundary_time() const;
     TimeValue after_active_boundary_time() const;
 
     // Keep this enum up to date with CSSTransition::Phase.
-    enum class Phase {
-        Before,
-        Active,
-        After,
-        Idle,
-    };
+    using Phase = RustFFI::AnimationEffectPhase;
     Phase phase() const;
 
     // Everything a progress calculation needs, resolved together from one local time.
-    struct ResolvedTiming {
-        Phase phase;
-        Optional<TimeValue> local_time;
-        Optional<TimeValue> active_time;
-        Optional<double> overall_progress;
-    };
-    enum class EndpointInclusiveActiveInterval {
+    using ResolvedTiming = RustFFI::FfiResolvedEffectTiming;
+    enum class EndpointInclusiveActiveInterval : bool {
         No,
         Yes,
     };
-    ResolvedTiming resolve_timing(EndpointInclusiveActiveInterval = EndpointInclusiveActiveInterval::No) const;
+    ResolvedTiming resolve_timing() const;
+
+    // The normalized timing the timing model reads of the effect, with `fill_mode` as its fill mode.
+    RustFFI::AnimationEffectTiming effect_timing(Bindings::FillMode fill_mode) const;
+
+    // The timing the style engine samples the effect with, wherever it runs. The effect has an associated animation.
+    RustFFI::EffectTimingSnapshot timing_snapshot() const;
 
     Phase previous_phase() const { return m_previous_phase; }
     void set_previous_phase(Phase value) { m_previous_phase = value; }
@@ -170,20 +178,15 @@ protected:
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
-    bool is_in_play(Phase) const;
-
-    TimeValue intrinsic_iteration_duration() const;
-    void convert_a_time_based_animation_to_a_proportional_animation();
     GC::Ptr<AnimationTimeline> associated_timeline() const;
     Optional<TimeValue> timeline_duration() const;
 
-    Phase phase(Optional<TimeValue> const& local_time, EndpointInclusiveActiveInterval = EndpointInclusiveActiveInterval::No) const;
-    bool is_at_timeline_boundary() const;
-    Optional<TimeValue> active_time_for_phase(Phase, Optional<TimeValue> const& local_time, Bindings::FillMode) const;
-    Optional<double> overall_progress_for_phase(Phase, Optional<TimeValue> const& active_time) const;
-    Optional<double> simple_iteration_progress(ResolvedTiming const&) const;
-    Optional<double> directed_progress(ResolvedTiming const&) const;
-    AnimationDirection current_direction(ResolvedTiming const&) const;
+    enum class WithTransformedProgress : bool {
+        No,
+        Yes,
+    };
+    ResolvedTiming resolve_timing_at(Optional<TimeValue> const& local_time, Bindings::FillMode, WithTransformedProgress = WithTransformedProgress::No, EndpointInclusiveActiveInterval = EndpointInclusiveActiveInterval::No) const;
+    ResolvedTiming resolve_timing_alone() const;
 
     // https://drafts.csswg.org/web-animations-2/#specified-start-delay
     double m_specified_start_delay { 0.0 };

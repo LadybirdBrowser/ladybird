@@ -36,22 +36,6 @@ pub enum FfiVisualAnimationTargetKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-pub enum FfiVisualAnimationPlaybackDirection {
-    Normal,
-    Reverse,
-    Alternate,
-    AlternateReverse,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiVisualAnimationFillMode {
-    None,
-    Backwards,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
 pub enum FfiVisualAnimationTransformOperationKind {
     Translate,
     Translate3d,

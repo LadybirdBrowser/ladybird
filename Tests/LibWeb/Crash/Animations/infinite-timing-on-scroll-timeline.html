@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #content {
+        height: 300px;
+    }
+</style>
+<div id="scroller"><div id="target"></div><div id="content"></div></div>
+<script>
+    // Proportional timing on a progress-based timeline from an infinite iteration count or iteration duration.
+    (async () => {
+        scroller.scrollTop = 100;
+        const timeline = new ScrollTimeline({ source: scroller });
+        for (const timing of [
+            { duration: 0, iterations: Infinity },
+            { duration: Infinity, iterations: 1 },
+            { duration: Infinity, iterations: 0, delay: 100 },
+            { duration: 1000, iterations: Infinity },
+        ]) {
+            const animation = target.animate({ opacity: [0, 1] }, { ...timing, timeline });
+            await animation.ready;
+            animation.effect.getComputedTiming();
+            getComputedStyle(target).opacity;
+            animation.cancel();
+        }
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
+</html>

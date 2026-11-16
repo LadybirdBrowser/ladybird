@@ -35,6 +35,10 @@ public:
 
     NullableCSSNumberish current_time_for_bindings();
     Optional<TimeValue> current_time() const;
+    // What the timing model reads of the timeline now.
+    RustFFI::TimelineSample sample() const;
+    // What moves the timeline as a clock tick samples it.
+    RustFFI::TimelineClock clock();
     Optional<TimeValue> current_time_for_observation();
     // Whether script observed the timeline in the current task at a time ahead of its current time.
     bool was_observed_ahead_in_current_task() const;

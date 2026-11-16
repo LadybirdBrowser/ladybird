@@ -183,7 +183,7 @@ impl VisualContextTree {
             all_running_animations_are_bounded: true,
         };
         for animation in self.visual_animations.iter() {
-            if animation.iteration_count.is_finite() {
+            if animation.is_finite() {
                 if animation.has_finished_at(sample_time_ns) {
                     extents.has_finished_animation = true;
                     continue;
@@ -226,6 +226,7 @@ fn only_rotates_in_the_plane(keyframe: &crate::visual_animation::VisualAnimation
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::animation_timing::{AnimationEffectTiming, TimeValue};
     use crate::easing::Easing;
     use crate::visual_animation::{VisualAnimationKeyframe, VisualAnimationTransformOperation};
     use crate::visual_context::{
@@ -287,14 +288,20 @@ mod tests {
             VisualAnimation {
                 target_kind: FfiVisualAnimationTargetKind::Transform,
                 node_indices: vec![spatial.0],
-                iteration_duration_ms: 1000.0,
+                timing: AnimationEffectTiming {
+                    iteration_duration: TimeValue::milliseconds(1000.0),
+                    ..VisualAnimation::default().timing
+                },
                 keyframes: vec![keyframe(0.0, translate_x(0.0)), keyframe(1.0, translate_x(20.0))],
                 ..VisualAnimation::default()
             },
             VisualAnimation {
                 target_kind: FfiVisualAnimationTargetKind::Opacity,
                 node_indices: vec![effect.0],
-                iteration_duration_ms: 1000.0,
+                timing: AnimationEffectTiming {
+                    iteration_duration: TimeValue::milliseconds(1000.0),
+                    ..VisualAnimation::default().timing
+                },
                 keyframes: vec![
                     keyframe(0.0, VisualAnimationValue::Opacity(0.0)),
                     keyframe(1.0, VisualAnimationValue::Opacity(1.0)),
@@ -334,8 +341,11 @@ mod tests {
         tree.set_visual_animations(vec![VisualAnimation {
             target_kind: FfiVisualAnimationTargetKind::Transform,
             node_indices: vec![spatial.0],
-            start_delay_ms: 1000.0,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                start_delay: TimeValue::milliseconds(1000.0),
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![keyframe(0.0, translate_x(0.0)), keyframe(1.0, translate_x(20.0))],
             ..VisualAnimation::default()
         }]);
@@ -363,8 +373,11 @@ mod tests {
         tree.set_visual_animations(vec![VisualAnimation {
             target_kind: FfiVisualAnimationTargetKind::Transform,
             node_indices: vec![spatial.0],
-            iteration_duration_ms: 10000.0,
-            iteration_count: 1.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(10000.0),
+                iteration_count: 1.0,
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![keyframe(0.0, translate_x(0.0)), keyframe(1.0, translate_x(-1500.0))],
             ..VisualAnimation::default()
         }]);
@@ -398,7 +411,10 @@ mod tests {
             node_indices: vec![spatial.0],
             monotonic_time_at_anchor_ns: 10,
             local_time_at_anchor_ms: 20.0,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![keyframe(0.0, translate_x(0.0)), keyframe(1.0, translate_x(20.0))],
             ..VisualAnimation::default()
         };
@@ -447,15 +463,21 @@ mod tests {
         let rotation = VisualAnimation {
             target_kind: FfiVisualAnimationTargetKind::Transform,
             node_indices: vec![rotated.0],
-            iteration_duration_ms: 1000.0,
-            iteration_count: 1.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                iteration_count: 1.0,
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![keyframe(0.0, rotate(0.0)), keyframe(1.0, rotate(1.0))],
             ..VisualAnimation::default()
         };
         let opacity = VisualAnimation {
             target_kind: FfiVisualAnimationTargetKind::Opacity,
             node_indices: vec![effect.0],
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 keyframe(0.0, VisualAnimationValue::Opacity(0.0)),
                 keyframe(1.0, VisualAnimationValue::Opacity(1.0)),
