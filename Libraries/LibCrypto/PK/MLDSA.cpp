@@ -134,23 +134,22 @@ static ErrorOr<OpenSSL_PKEY> private_key_to_openssl_pkey(MLDSASize size, MLDSAPr
     return key;
 }
 
-ErrorOr<ByteBuffer> MLDSA::sign(ReadonlyBytes message)
+ErrorOr<ByteBuffer> mldsa_sign(MLDSASize size, MLDSAPrivateKey const& private_key, ReadonlyBytes context, ReadonlyBytes message)
 {
     OSSL_PARAM params[2] = {
         OSSL_PARAM_END,
         OSSL_PARAM_END
     };
 
-    if (!m_context.is_empty()) {
-        params[0] = OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING, m_context.data(), m_context.size());
+    if (!context.is_empty()) {
+        params[0] = OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING, const_cast<u8*>(context.data()), context.size());
     }
 
-    auto key = TRY(private_key_to_openssl_pkey(m_size, m_private_key));
-    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, mldsa_size_to_openssl_name(m_size), nullptr)));
+    auto key = TRY(private_key_to_openssl_pkey(size, private_key));
 
     EVP_PKEY_CTX* sign_ctx = OPENSSL_TRY_PTR(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr));
     ScopeGuard const free_sign_ctx = [&] { EVP_PKEY_CTX_free(sign_ctx); };
-    auto* sign_algorithm = OPENSSL_TRY_PTR(EVP_SIGNATURE_fetch(nullptr, mldsa_size_to_openssl_name(m_size), nullptr));
+    auto* sign_algorithm = OPENSSL_TRY_PTR(EVP_SIGNATURE_fetch(nullptr, mldsa_size_to_openssl_name(size), nullptr));
     ScopeGuard const free_sign_algorithm = [&] { EVP_SIGNATURE_free(sign_algorithm); };
 
     size_t sign_size;
@@ -184,20 +183,20 @@ static ErrorOr<OpenSSL_PKEY> public_key_to_openssl_pkey(MLDSASize size, MLDSAPub
     return key;
 }
 
-ErrorOr<bool> MLDSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
+ErrorOr<bool> mldsa_verify(MLDSASize size, MLDSAPublicKey const& public_key, ReadonlyBytes context, ReadonlyBytes message, ReadonlyBytes signature)
 {
     OSSL_PARAM params[2] = {
         OSSL_PARAM_END,
         OSSL_PARAM_END
     };
 
-    if (!m_context.is_empty()) {
-        params[0] = OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING, m_context.data(), m_context.size());
+    if (!context.is_empty()) {
+        params[0] = OSSL_PARAM_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING, const_cast<u8*>(context.data()), context.size());
     }
 
-    auto key = TRY(public_key_to_openssl_pkey(m_size, m_public_key));
+    auto key = TRY(public_key_to_openssl_pkey(size, public_key));
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new(key.ptr(), nullptr)));
-    auto* sign_algorithm = OPENSSL_TRY_PTR(EVP_SIGNATURE_fetch(nullptr, mldsa_size_to_openssl_name(m_size), nullptr));
+    auto* sign_algorithm = OPENSSL_TRY_PTR(EVP_SIGNATURE_fetch(nullptr, mldsa_size_to_openssl_name(size), nullptr));
     ScopeGuard const free_sign_algorithm = [&] { EVP_SIGNATURE_free(sign_algorithm); };
 
     OPENSSL_TRY(EVP_PKEY_verify_message_init(ctx.ptr(), sign_algorithm, params));

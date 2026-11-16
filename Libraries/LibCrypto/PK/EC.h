@@ -104,9 +104,9 @@ struct ECKeyPair {
     PrivKey private_key;
 };
 
-class EC : public PKSystem<ECPrivateKey, ECPublicKey> {
+class EC {
 public:
-    using KeyPairType = ECKeyPair<PublicKeyType, PrivateKeyType>;
+    using KeyPairType = ECKeyPair<ECPublicKey, ECPrivateKey>;
 
     static ErrorOr<KeyPairType> parse_ec_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope);
 };

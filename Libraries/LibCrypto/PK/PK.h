@@ -217,31 +217,4 @@ requires requires(ExportableKey k) {
     return encoder.finish();
 }
 
-template<typename PrivKeyT, typename PubKeyT>
-class PKSystem {
-public:
-    using PublicKeyType = PubKeyT;
-    using PrivateKeyType = PrivKeyT;
-
-    PKSystem(PublicKeyType const& pubkey, PrivateKeyType const& privkey)
-        : m_public_key(pubkey)
-        , m_private_key(privkey)
-    {
-    }
-
-    PKSystem() = default;
-
-    virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes in) = 0;
-    virtual ErrorOr<ByteBuffer> decrypt(ReadonlyBytes in) = 0;
-
-    virtual ErrorOr<bool> verify(ReadonlyBytes message, ReadonlyBytes signature) = 0;
-    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes message) = 0;
-
-protected:
-    virtual ~PKSystem() = default;
-
-    PublicKeyType m_public_key;
-    PrivateKeyType m_private_key;
-};
-
 }

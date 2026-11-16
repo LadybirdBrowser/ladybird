@@ -16,17 +16,17 @@ TEST_CASE(TEST_SIGN_AND_VERIFY)
 
     auto [_, private_key] = TRY_OR_FAIL(Crypto::PK::MLDSA::generate_key_pair(Crypto::PK::MLDSA65));
 
-    Crypto::PK::MLDSA lattice { Crypto::PK::MLDSA65, private_key, {} };
-    Crypto::PK::MLDSA lattice_with_context { Crypto::PK::MLDSA65, private_key, TRY_OR_FAIL(ByteBuffer::copy(message_bytes)) };
+    Crypto::PK::MLDSAPublicKey public_key { private_key.public_key() };
+    auto size = Crypto::PK::MLDSA65;
 
-    auto const signed_message = TRY_OR_FAIL(lattice.sign(message));
+    auto const signed_message = TRY_OR_FAIL(Crypto::PK::mldsa_sign(size, private_key, {}, message));
     EXPECT(signed_message.size() == 3309);
-    EXPECT(TRY_OR_FAIL(lattice.verify(message, signed_message)));
+    EXPECT(TRY_OR_FAIL(Crypto::PK::mldsa_verify(size, public_key, {}, message, signed_message)));
 
-    auto const signed_message_with_context = TRY_OR_FAIL(lattice_with_context.sign(message));
+    auto const signed_message_with_context = TRY_OR_FAIL(Crypto::PK::mldsa_sign(size, private_key, message, message));
     EXPECT(signed_message_with_context.size() == 3309);
     EXPECT_NE(signed_message, signed_message_with_context);
-    EXPECT(TRY_OR_FAIL(lattice_with_context.verify(message, signed_message_with_context)));
+    EXPECT(TRY_OR_FAIL(Crypto::PK::mldsa_verify(size, public_key, message, message, signed_message_with_context)));
 }
 
 static Crypto::PK::MLDSA::KeyPairType generate_key_pair_from_seed(u8 first_seed_byte)
