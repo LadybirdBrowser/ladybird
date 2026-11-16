@@ -1,0 +1,20 @@
+Ladybird rolls back a logical property and its physical counterpart
+together, using the element’s resolved writing mode and direction.
+This restores logical UA margins under all: revert and keeps nested
+revert-layer declarations in the same cascade search. The selected
+source value retains its original shorthand interpretation before
+being applied to the property that initiated the rollback.
+
+Blink resolves logical surrogates before adding declarations to the
+cascade map, through StyleCascade::ResolveSurrogate. Its ResolveRevert
+and ResolveRevertLayer therefore search the combined property stack.
+WebKit’s Builder::applyRollbackCascadeProperty asks the lower cascade
+for lastPropertyResolvingLogicalPropertyPair, using the style’s
+writing mode to select the last declaration of either paired property.
+Gecko’s apply_properties maps logical IDs with to_physical before
+apply_one_longhand records and checks the reverted cascade priorities.
+
+The regression matches Chrome for UA paragraph and heading margins,
+physical body margins, logical list padding, mixed declarations and
+layer rollbacks across horizontal and vertical writing modes. It also
+checks variable substitution and changes to inherited or own flow.
