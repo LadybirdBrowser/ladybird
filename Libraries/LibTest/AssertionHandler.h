@@ -28,6 +28,5 @@ namespace Test {
 
 libtest_jmp_buf& assertion_jump_buffer();
 void set_assertion_jump_validity(bool);
-bool assertion_jump_validity();
 
 }
