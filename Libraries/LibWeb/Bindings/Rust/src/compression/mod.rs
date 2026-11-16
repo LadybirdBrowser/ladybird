@@ -12,7 +12,7 @@ pub(crate) mod decompression_stream;
 use ak::Utf16String;
 use libjs_rust::api::Value;
 
-use crate::bindings::conversions::{BufferSource, BufferSourceRules, buffer_source_if};
+use crate::bindings::conversions::{BufferSource, BufferSourceRules, BufferSourceTypes, buffer_source_if};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 /// The chunk as a BufferSource, or the TypeError that compressing or decompressing a chunk throws when it is not a
@@ -22,8 +22,13 @@ fn buffer_source_of_chunk(cx: &CallContext, chunk: Value) -> WebIdlResult<Buffer
         allow_shared: false,
         allow_resizable: false,
     };
+    let types = BufferSourceTypes {
+        array_buffer_type: Some(&rules),
+        shared_array_buffer_type: None,
+        array_buffer_view_type: Some(&rules),
+    };
     let buffer_source = if chunk.is_object() {
-        buffer_source_if(cx.vm(), chunk.as_object(), &rules)?
+        buffer_source_if(cx.vm(), chunk.as_object(), types)?
     } else {
         None
     };

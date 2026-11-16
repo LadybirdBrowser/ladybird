@@ -569,6 +569,13 @@ pub(crate) struct BufferSourceRules {
     pub(crate) allow_resizable: bool,
 }
 
+/// The buffer source types included in a union and their conversion rules.
+pub(crate) struct BufferSourceTypes<'a> {
+    pub(crate) array_buffer_type: Option<&'a BufferSourceRules>,
+    pub(crate) shared_array_buffer_type: Option<&'a BufferSourceRules>,
+    pub(crate) array_buffer_view_type: Option<&'a BufferSourceRules>,
+}
+
 // https://webidl.spec.whatwg.org/#js-ArrayBuffer
 pub(crate) fn to_array_buffer(vm: &Vm, value: Value, rules: &BufferSourceRules) -> ThrowCompletionOr<Gc<ArrayBuffer>> {
     // 1. If V is not an Object, or V does not have an [[ArrayBufferData]] internal slot, then throw a TypeError.
@@ -884,8 +891,13 @@ impl ArrayBufferView {
 /// A JS value converted to a BufferSource, with the steps of the conversion to a union type that apply to the buffer
 /// source types, https://webidl.spec.whatwg.org/#js-union
 pub(crate) fn to_buffer_source(vm: &Vm, value: Value, rules: &BufferSourceRules) -> ThrowCompletionOr<BufferSource> {
+    let types = BufferSourceTypes {
+        array_buffer_type: Some(rules),
+        shared_array_buffer_type: rules.allow_shared.then_some(rules),
+        array_buffer_view_type: Some(rules),
+    };
     if value.is_object()
-        && let Some(buffer_source) = buffer_source_if(vm, value.as_object(), rules)?
+        && let Some(buffer_source) = buffer_source_if(vm, value.as_object(), types)?
     {
         return Ok(buffer_source);
     }
@@ -899,12 +911,13 @@ pub(crate) fn to_buffer_source(vm: &Vm, value: Value, rules: &BufferSourceRules)
 pub(crate) fn buffer_source_if(
     vm: &Vm,
     object: Gc<Object>,
-    rules: &BufferSourceRules,
+    types: BufferSourceTypes<'_>,
 ) -> ThrowCompletionOr<Option<BufferSource>> {
     // 6. If V is an Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is false, then:
     //     1. If types includes ArrayBuffer, then return the result of converting V to ArrayBuffer.
     if let Some(buffer) = object.downcast::<ArrayBuffer>()
         && !buffer.is_shared_array_buffer()
+        && let Some(rules) = types.array_buffer_type
     {
         check_buffer_of_buffer_source(vm, &buffer, "ArrayBuffer", rules)?;
         return Ok(Some(BufferSource::ArrayBuffer(buffer)));
@@ -912,9 +925,9 @@ pub(crate) fn buffer_source_if(
 
     // 7. If V is an Object, V, has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is true, then:
     //     1. If types includes SharedArrayBuffer, then return the result of converting V to SharedArrayBuffer.
-    if rules.allow_shared
-        && let Some(buffer) = object.downcast::<ArrayBuffer>()
+    if let Some(buffer) = object.downcast::<ArrayBuffer>()
         && buffer.is_shared_array_buffer()
+        && let Some(rules) = types.shared_array_buffer_type
     {
         let buffer = to_shared_array_buffer(vm, Value::from_object(object), rules)?;
         return Ok(Some(BufferSource::ArrayBuffer(buffer)));
@@ -922,7 +935,9 @@ pub(crate) fn buffer_source_if(
 
     // 8. If V is an Object and V has a [[DataView]] internal slot, then:
     //     1. If types includes DataView, then return the result of converting V to DataView.
-    if let Some(view) = object.downcast::<DataView>() {
+    if let Some(view) = object.downcast::<DataView>()
+        && let Some(rules) = types.array_buffer_view_type
+    {
         check_buffer_of_buffer_source(vm, &view.viewed_array_buffer(), "DataView", rules)?;
         return Ok(Some(BufferSource::DataView(view)));
     }
@@ -930,7 +945,9 @@ pub(crate) fn buffer_source_if(
     // 9. If V is an Object and V has a [[TypedArrayName]] internal slot, then:
     //     1. If types includes a typed array type whose name is the value of V's [[TypedArrayName]] internal slot,
     //        then return the result of converting V to that type.
-    if let Some(typed_array) = object.downcast::<TypedArrayBase>() {
+    if let Some(typed_array) = object.downcast::<TypedArrayBase>()
+        && let Some(rules) = types.array_buffer_view_type
+    {
         let type_name = format!("{:?}", typed_array.kind());
         check_buffer_of_buffer_source(vm, &typed_array.viewed_array_buffer(), &type_name, rules)?;
         return Ok(Some(BufferSource::TypedArray(typed_array)));
