@@ -58,6 +58,7 @@
 #include <UI/Qt/ExternalURLHandler.h>
 #include <UI/Qt/HistoryPage.h>
 #include <UI/Qt/Menu.h>
+#include <UI/Qt/PageCard.h>
 #include <UI/Qt/PictureInPictureWindow.h>
 #include <UI/Qt/PlainText.h>
 #include <UI/Qt/ProcessManagerWindow.h>
@@ -1551,6 +1552,7 @@ BrowserWindow* Application::restore_previous_session(WindowConfiguration const& 
     return frontmost_window;
 }
 
+// After Ladybird quit unexpectedly, a card over the top of the page offers to restore the tabs that were open.
 void Application::offer_to_restore_unexpectedly_closed_tabs(BrowserWindow& window)
 {
     auto& store = session_store(WebView::IsPrivate::No);
@@ -1568,7 +1570,7 @@ void Application::offer_to_restore_unexpectedly_closed_tabs(BrowserWindow& windo
     if (unit_ids.is_empty() || !window.current_tab())
         return;
 
-    window.current_tab()->show_restore_session_card(tab_count, [window = QPointer<BrowserWindow>(&window), unit_ids = AK::move(unit_ids)] {
+    auto restore_tabs = [window = QPointer<BrowserWindow>(&window), unit_ids = AK::move(unit_ids)] {
         // A window that still shows only the new tab page it opened with is taken over by the tabs restored first.
         QPointer<Tab> new_tab_page;
         if (window && window->tab_count() == 1) {
@@ -1585,7 +1587,12 @@ void Application::offer_to_restore_unexpectedly_closed_tabs(BrowserWindow& windo
 
         if (new_tab_page && window->tab_count() > 1)
             window->close_tab_without_keeping_it(window->tab_index(new_tab_page));
-    });
+    };
+    auto question = tab_count == 1 ? QStringLiteral("Restore the tab you had open?") : qformatted("Restore the {} tabs you had open?", tab_count);
+    Vector<PageCard::Button> buttons;
+    buttons.append({ "Not now", PageCard::ButtonRole::Secondary, {} });
+    buttons.append({ "Restore tabs", PageCard::ButtonRole::Primary, AK::move(restore_tabs) });
+    window.show_page_card(BrowserWindow::PageCardSlot::RestoreSession, "Ladybird quit unexpectedly", question, AK::move(buttons));
 }
 
 void Application::open_startup_tabs(BrowserWindow& window, Vector<URL::URL> const& urls)
