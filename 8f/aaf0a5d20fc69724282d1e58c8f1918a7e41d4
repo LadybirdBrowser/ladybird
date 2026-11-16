@@ -1,0 +1,6 @@
+Ladybird now finds word boundaries by the default locale’s rules where
+an element’s lang value isn’t ASCII, or isn’t a language tag ICU can
+parse. Run in Chrome 157 and Firefox 151, a text fragment into a
+paragraph whose lang is en_US, and one into a paragraph with a non-ASCII
+lang value, both scrolled to the match, as they now do in Ladybird. That
+comparison comes from running the engines; their code wasn’t traced.
