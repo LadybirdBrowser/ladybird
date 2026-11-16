@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/File.h>
 #include <LibDatabase/Database.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <UI/Qt/SessionStore.h>
+
+#include <QTemporaryDir>
 
 using namespace Ladybird;
 using namespace WebView;
@@ -91,12 +94,12 @@ static void rewind_sessions_schema_to_version_4(Database::Database& database)
 }
 
 // What the frontend does at Quit: Every window closes in quitting mode, and the run then ends normally.
-static void quit_cleanly(SessionStore& store, Vector<SessionWindowId> const& windows)
+static void quit_cleanly(SessionStore& store, Vector<SessionWindowId> const& windows, SessionStore::AfterExit after_exit = SessionStore::AfterExit::KeepEverything)
 {
     store.application_quitting();
     for (auto window : windows)
         MUST(store.window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }));
-    store.mark_clean_exit();
+    store.mark_clean_exit(after_exit);
 }
 
 TEST_CASE(fresh_database_migrates_to_the_latest_schema)
@@ -1602,7 +1605,7 @@ TEST_CASE(a_restart_restores_every_window_once)
         auto second_window = TRY_OR_FAIL(store->window_opened());
         (void)open_tab(*store, first_window, "https://a.example/"sv);
         (void)open_tab(*store, second_window, "https://b.example/"sv);
-        store->mark_clean_exit(SessionStore::RestartAfterExit::Yes);
+        store->mark_clean_exit(SessionStore::AfterExit::Restart);
     }
     {
         auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
@@ -1623,7 +1626,7 @@ TEST_CASE(only_the_run_right_after_a_restart_follows_it)
         auto store = TRY_OR_FAIL(SessionStore::create(*database));
         auto window = TRY_OR_FAIL(store->window_opened());
         (void)open_tab(*store, window, "https://a.example/"sv);
-        store->mark_clean_exit(SessionStore::RestartAfterExit::Yes);
+        store->mark_clean_exit(SessionStore::AfterExit::Restart);
     }
     {
         auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
@@ -1632,6 +1635,204 @@ TEST_CASE(only_the_run_right_after_a_restart_follows_it)
 
     auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
     EXPECT(!store->follows_restart());
+}
+
+TEST_CASE(an_exit_that_keeps_pinned_tabs_forgets_everything_else)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        auto pinned = open_tab(*store, window, "https://a.example/"sv);
+        (void)open_tab(*store, window, "https://b.example/"sv);
+        auto closed = open_tab(*store, window, "https://c.example/"sv);
+        TRY_OR_FAIL(store->tab_pinned_changed(pinned, true));
+        TRY_OR_FAIL(store->tab_closed({ .tab_id = closed, .closed_at = UnixDateTime::now() }));
+        quit_cleanly(*store, { window }, SessionStore::AfterExit::KeepPinnedTabs);
+    }
+
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionTabs;"_string), 1);
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionTabs WHERE active_url LIKE '%b.example%' OR active_url LIKE '%c.example%';"_string), 0);
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs[0].url.serialize(), "https://a.example/"sv);
+    EXPECT(!store->has_closed_units());
+}
+
+TEST_CASE(a_pin_that_failed_to_write_keeps_its_tab_after_an_exit_that_keeps_pinned_tabs)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        auto pinned = open_tab(*store, window, "https://pinned.example/"sv);
+        (void)open_tab(*store, window, "https://other.example/"sv);
+        store->flush_dirty_state();
+
+        TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedFailure BEFORE UPDATE OF pinned ON SessionTabs BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+        EXPECT(store->tab_pinned_changed(pinned, true).is_error());
+        store->application_quitting();
+        (void)store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() });
+        store->flush_dirty_state();
+        store->mark_clean_exit(SessionStore::AfterExit::KeepPinnedTabs);
+        TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedFailure;"sv));
+    }
+
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionTabs WHERE active_url LIKE '%pinned.example%';"_string), 1);
+}
+
+TEST_CASE(a_pinned_tab_whose_close_failed_to_write_stays_closed_after_an_exit_that_keeps_pinned_tabs)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        auto kept = open_tab(*store, window, "https://kept.example/"sv);
+        auto closed = open_tab(*store, window, "https://closed.example/"sv);
+        TRY_OR_FAIL(store->tab_pinned_changed(kept, true));
+        TRY_OR_FAIL(store->tab_pinned_changed(closed, true));
+        store->flush_dirty_state();
+
+        TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedFailure BEFORE INSERT ON Sessions BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+        EXPECT(store->tab_closed({ .tab_id = closed, .closed_at = UnixDateTime::now() }).is_error());
+        store->application_quitting();
+        (void)store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() });
+        store->flush_dirty_state();
+        store->mark_clean_exit(SessionStore::AfterExit::KeepPinnedTabs);
+        TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedFailure;"sv));
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs[0].url.serialize(), "https://kept.example/"sv);
+}
+
+TEST_CASE(a_close_that_failed_to_write_stays_forgotten_after_an_exit_that_keeps_pinned_tabs)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        auto pinned = open_tab(*store, window, "https://kept.example/"sv);
+        auto closed = open_tab(*store, window, "https://forgotten.example/"sv);
+        store->update_tab_state({ .tab_id = closed, .history = make_snapshot({ "https://forgotten.example/"sv }), .url = parse_url("https://forgotten.example/"sv) });
+        TRY_OR_FAIL(store->tab_pinned_changed(pinned, true));
+        store->flush_dirty_state();
+
+        TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedFailure BEFORE INSERT ON Sessions BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+        EXPECT(store->tab_closed({ .tab_id = closed, .closed_at = UnixDateTime::now() }).is_error());
+        store->application_quitting();
+        (void)store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() });
+        store->flush_dirty_state();
+        store->mark_clean_exit(SessionStore::AfterExit::KeepPinnedTabs);
+        TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedFailure;"sv));
+    }
+
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionTabs WHERE active_url LIKE '%forgotten.example%';"_string), 0);
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionEntries WHERE url LIKE '%forgotten.example%';"_string), 0);
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionTabs WHERE active_url LIKE '%kept.example%';"_string), 1);
+}
+
+TEST_CASE(the_last_window_whose_close_failed_to_write_comes_back_as_it_was_after_an_exit_that_keeps_pinned_tabs)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        auto pinned = open_tab(*store, window, "https://before.example/"sv);
+        TRY_OR_FAIL(store->tab_pinned_changed(pinned, true));
+        store->flush_dirty_state();
+        store->update_tab_state({ .tab_id = pinned, .history = make_snapshot({ "https://before.example/"sv, "https://after.example/"sv }), .url = parse_url("https://after.example/"sv) });
+
+        TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedSessionFailure BEFORE UPDATE ON Sessions BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+        TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedTabFailure BEFORE UPDATE ON SessionTabs BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+        EXPECT(store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }).is_error());
+        store->flush_dirty_state();
+        TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedSessionFailure;"sv));
+        TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedTabFailure;"sv));
+        store->mark_clean_exit(SessionStore::AfterExit::KeepPinnedTabs);
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs[0].url.serialize(), "https://after.example/"sv);
+}
+
+TEST_CASE(a_deletion_that_failed_to_write_removes_the_last_window_at_an_exit_that_keeps_pinned_tabs)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        auto pinned = open_tab(*store, window, "https://deleted.example/"sv);
+        TRY_OR_FAIL(store->tab_pinned_changed(pinned, true));
+        store->flush_dirty_state();
+
+        TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedUpdateFailure BEFORE UPDATE ON Sessions BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+        TRY_OR_FAIL(database->execute_raw("CREATE TRIGGER InjectedDeleteFailure BEFORE DELETE ON Sessions BEGIN SELECT RAISE(ABORT, 'injected'); END;"sv));
+        EXPECT(store->window_closing({ .window_id = window, .active_tab_index = 0, .closed_at = UnixDateTime::now() }).is_error());
+        EXPECT(store->remove_entries_accessed_since(UnixDateTime::epoch()).is_error());
+        store->flush_dirty_state();
+        TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedUpdateFailure;"sv));
+        TRY_OR_FAIL(database->execute_raw("DROP TRIGGER InjectedDeleteFailure;"sv));
+        store->mark_clean_exit(SessionStore::AfterExit::KeepPinnedTabs);
+    }
+
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionTabs WHERE active_url LIKE '%deleted.example%';"_string), 0);
+}
+
+TEST_CASE(an_exit_that_keeps_pinned_tabs_leaves_nothing_else_in_the_files)
+{
+    QTemporaryDir directory;
+    VERIFY(directory.isValid());
+    auto path = ByteString { directory.path().toUtf8().constData() };
+    {
+        auto database = TRY_OR_FAIL(Database::Database::create(path, "Sessions"sv, { .foreign_keys = Database::Database::ForeignKeys::Yes }));
+        TRY_OR_FAIL(SessionStore::migrate_schema(*database));
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        auto pinned = open_tab(*store, window, "https://kept.example/"sv);
+        (void)open_tab(*store, window, "https://forgotten.example/"sv);
+        TRY_OR_FAIL(store->tab_pinned_changed(pinned, true));
+        quit_cleanly(*store, { window }, SessionStore::AfterExit::KeepPinnedTabs);
+    }
+
+    for (auto suffix : { ""sv, "-wal"sv }) {
+        auto file = Core::File::open(ByteString::formatted("{}/Sessions.db{}", path, suffix), Core::File::OpenMode::Read);
+        if (suffix == "-wal"sv && file.is_error() && file.error().code() == ENOENT)
+            continue;
+        auto contents = TRY_OR_FAIL(TRY_OR_FAIL(move(file))->read_until_eof());
+        EXPECT(StringView { contents.bytes() }.contains("kept.example"sv) == suffix.is_empty());
+        EXPECT(!StringView { contents.bytes() }.contains("forgotten.example"sv));
+    }
+}
+
+TEST_CASE(an_exit_that_keeps_pinned_tabs_keeps_those_of_the_last_window_closed)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto window = TRY_OR_FAIL(store->window_opened());
+        auto pinned = open_tab(*store, window, "https://a.example/"sv);
+        (void)open_tab(*store, window, "https://b.example/"sv);
+        TRY_OR_FAIL(store->tab_pinned_changed(pinned, true));
+        TRY_OR_FAIL(store->window_closing({ .window_id = window, .active_tab_index = 1, .closed_at = UnixDateTime::now() }));
+        store->mark_clean_exit(SessionStore::AfterExit::KeepPinnedTabs);
+    }
+
+    auto store = TRY_OR_FAIL(SessionStore::create(*database, SessionLaunchPolicy::PinnedOnly));
+    auto plan = store->take_launch_plan();
+    EXPECT_EQ(plan.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs.size(), 1uz);
+    EXPECT_EQ(plan[0].tabs[0].url.serialize(), "https://a.example/"sv);
+    EXPECT(!store->has_closed_units());
 }
 
 TEST_CASE(pinned_only_restores_the_last_windows_pins)
