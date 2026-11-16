@@ -1,5 +1,4 @@
 set(FUZZER_TARGETS
-    ASN1
     Base64Roundtrip
     BMPLoader
     GIFLoader
@@ -20,7 +19,6 @@ if (TARGET LibWeb)
     list(APPEND FUZZER_TARGETS CSSParser)
 endif()
 
-set(FUZZER_DEPENDENCIES_ASN1 LibCrypto LibTLS)
 set(FUZZER_DEPENDENCIES_BMPLoader LibGfx LibImageDecoders)
 set(FUZZER_DEPENDENCIES_CSSParser LibWeb)
 set(FUZZER_DEPENDENCIES_GIFLoader LibGfx LibImageDecoders)

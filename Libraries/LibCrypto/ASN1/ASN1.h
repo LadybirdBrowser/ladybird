@@ -64,12 +64,4 @@ enum class Type : u8 {
     Constructed = 0x20,
 };
 
-struct Tag {
-    Kind kind;
-    Class class_;
-    Type type;
-};
-
-StringView kind_name(Kind);
-
 }
