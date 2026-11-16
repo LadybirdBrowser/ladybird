@@ -5548,16 +5548,6 @@ fn validate_rsa_key_generation_parameters(normalized_algorithm: &RsaKeyGenParams
     Ok(())
 }
 
-fn export_public_exponent(vm: &Vm, exponent: &Bytes) -> WebIdlResult<Vec<u8>> {
-    let result = libcrypto_rust::rsa_export_public_exponent(exponent.as_slice()).map(Bytes::new);
-    if result.is_err() {
-        return vm
-            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-            .map_err(Into::into);
-    }
-    Ok(Rc::unwrap_or_clone(result.expect("LibCrypto returns the exponent").0))
-}
-
 fn rsa_key_metadata(vm: &Vm, key: Ref<CryptoKey>) -> WebIdlResult<(u32, Vec<u8>)> {
     libcrypto_rust::rsa_read_key_metadata(key.handle()).map_err(|_| out_of_memory(vm))
 }
@@ -5798,7 +5788,8 @@ impl AlgorithmMethods for RsaOaep {
             return Err(dom_error("OperationError", b"Failed generating RSA key pair"));
         };
 
-        let public_exponent = export_public_exponent(cx.vm(), &normalized_algorithm.key_gen.public_exponent)?;
+        let public_exponent =
+            libcrypto_rust::rsa_export_public_exponent(normalized_algorithm.key_gen.public_exponent.as_slice());
         let hash_name = normalized_algorithm.hash.name.clone();
 
         // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
@@ -6397,7 +6388,8 @@ impl AlgorithmMethods for RsaPss {
             return Err(dom_error("OperationError", b"Failed to generate RSA key pair"));
         };
 
-        let public_exponent = export_public_exponent(cx.vm(), &normalized_algorithm.key_gen.public_exponent)?;
+        let public_exponent =
+            libcrypto_rust::rsa_export_public_exponent(normalized_algorithm.key_gen.public_exponent.as_slice());
         let hash_name = normalized_algorithm.hash.name.clone();
 
         // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
@@ -7103,7 +7095,8 @@ impl AlgorithmMethods for RsassaPkcs1 {
             return Err(dom_error("OperationError", b"Failed to generate RSA key pair"));
         };
 
-        let public_exponent = export_public_exponent(cx.vm(), &normalized_algorithm.key_gen.public_exponent)?;
+        let public_exponent =
+            libcrypto_rust::rsa_export_public_exponent(normalized_algorithm.key_gen.public_exponent.as_slice());
         let hash_name = normalized_algorithm.hash.name.clone();
 
         // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.

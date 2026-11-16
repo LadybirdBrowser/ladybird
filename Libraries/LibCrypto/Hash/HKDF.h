@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
+#include <AK/Optional.h>
 #include <LibCrypto/Hash/Hash.h>
 
 namespace Crypto::Hash {

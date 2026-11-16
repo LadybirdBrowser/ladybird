@@ -12,6 +12,8 @@
 #include <AK/Array.h>
 #include <AK/Memory.h>
 #include <AK/Random.h>
+#include <AK/ScopeGuard.h>
+#include <AK/Utf16String.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/ASN1/DER.h>
@@ -100,10 +102,8 @@ void crypto_asn1_delete_key_info(Asn1Structure, void*);
 bool crypto_rsa_key_info_has_encryption_oid(Asn1Structure, void const*);
 KeyHandle* crypto_rsa_key_info_read_key(Asn1Structure, void const*);
 bool crypto_rsa_key_is_valid(KeyHandle const*, bool*);
-bool crypto_rsa_validate_public_exponent(ReadonlyBytes, u32);
 bool crypto_rsa_validate_modulus_length(u32);
 bool crypto_rsa_generate_key_pair(u32, ReadonlyBytes, KeyHandle**, KeyHandle**);
-bool crypto_rsa_export_public_exponent(ReadonlyBytes, void*, ReceiveEncodedBytes);
 bool crypto_rsa_read_key_metadata(KeyHandle const*, u32*, void*, ReceiveEncodedBytes);
 KeyHandle* crypto_rsa_key_from_jwk_components(bool, ReadonlySpan<ReadonlyBytes>);
 bool crypto_rsa_export_der(KeyHandle const*, bool, void*, ReceiveEncodedBytes);
@@ -169,14 +169,6 @@ bool crypto_rsa_key_is_valid(KeyHandle const* key, bool* valid)
     return true;
 }
 
-bool crypto_rsa_validate_public_exponent(ReadonlyBytes bytes, u32 modulus_length)
-{
-    auto public_exponent = ::Crypto::UnsignedBigInteger::import_data(bytes);
-    return public_exponent >= ::Crypto::UnsignedBigInteger { 3 }
-    && public_exponent.is_odd()
-        && public_exponent.plus(1).one_based_index_of_highest_set_bit() <= modulus_length;
-}
-
 bool crypto_rsa_validate_modulus_length(u32 modulus_length)
 {
     return !::Crypto::PK::RSA::validate_key_generation_parameters(modulus_length).is_error();
@@ -190,18 +182,6 @@ bool crypto_rsa_generate_key_pair(u32 modulus_length, ReadonlyBytes public_expon
     *out_public_key = new KeyHandle(move(key_pair.value().public_key));
     *out_private_key = new KeyHandle(move(key_pair.value().private_key));
     return true;
-}
-
-static ErrorOr<ByteBuffer> export_rsa_exponent(::Crypto::UnsignedBigInteger const& exponent)
-{
-    auto bytes = TRY(ByteBuffer::create_uninitialized(exponent.byte_length()));
-    return ByteBuffer::copy(exponent.export_data(bytes.span()));
-}
-
-bool crypto_rsa_export_public_exponent(ReadonlyBytes public_exponent, void* state, ReceiveEncodedBytes receive)
-{
-    auto bytes = export_rsa_exponent(::Crypto::UnsignedBigInteger::import_data(public_exponent));
-    return receive_byte_result(bytes, state, receive);
 }
 
 bool crypto_rsa_read_key_metadata(KeyHandle const* key, u32* modulus_length, void* state, ReceiveEncodedBytes receive)

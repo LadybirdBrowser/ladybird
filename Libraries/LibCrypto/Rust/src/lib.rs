@@ -485,9 +485,26 @@ pub fn rsa_key_is_valid(key: &KeyHandle) -> Result<bool, BackendError> {
     Ok(value)
 }
 
+/// Whether the big-endian `exponent` is at least 3, is odd, and is less than 2^modulus_length - 1.
 pub fn rsa_validate_public_exponent(exponent: &[u8], modulus_length: u32) -> bool {
-    // SAFETY: The input is borrowed for the call.
-    unsafe { ffi::crypto_rsa_validate_public_exponent(Span::new(exponent), modulus_length) }
+    let exponent = strip_leading_zeros(exponent);
+    let (Some(&first), Some(&last)) = (exponent.first(), exponent.last()) else {
+        return false;
+    };
+    if (exponent.len() == 1 && first < 3) || last & 1 == 0 {
+        return false;
+    }
+
+    // NB: exponent + 1 has one bit more than exponent exactly when every bit of exponent is set.
+    let bit_length = (exponent.len() as u64 - 1) * 8 + u64::from(8 - first.leading_zeros());
+    let all_bits_set = (first & first.wrapping_add(1)) == 0 && exponent[1..].iter().all(|&byte| byte == 0xff);
+    let incremented_bit_length = bit_length + u64::from(all_bits_set);
+    incremented_bit_length <= u64::from(modulus_length)
+}
+
+fn strip_leading_zeros(bytes: &[u8]) -> &[u8] {
+    let leading_zeros = bytes.iter().take_while(|&&byte| byte == 0).count();
+    &bytes[leading_zeros..]
 }
 
 pub fn rsa_validate_modulus_length(modulus_length: u32) -> bool {
@@ -507,13 +524,9 @@ pub fn rsa_generate_key_pair(modulus_length: u32, exponent: &[u8]) -> Result<Key
     Ok(unsafe { KeyPair::from_raw(public_key, private_key) })
 }
 
-pub fn rsa_export_public_exponent(exponent: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_rsa_export_public_exponent(Span::new(exponent), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
+/// The big-endian `exponent` with no leading zero bytes.
+pub fn rsa_export_public_exponent(exponent: &[u8]) -> Vec<u8> {
+    strip_leading_zeros(exponent).to_vec()
 }
 
 pub fn rsa_export_der(key: &KeyHandle, is_public: bool) -> Result<Vec<u8>, BackendError> {
