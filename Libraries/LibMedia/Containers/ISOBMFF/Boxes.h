@@ -48,11 +48,6 @@ struct FileType {
     FourCC major_brand;
     u32 minor_version { 0 };
     Vector<FourCC> compatible_brands;
-
-    bool is_compatible_with(FourCC brand) const
-    {
-        return major_brand == brand || compatible_brands.contains_slow(brand);
-    }
 };
 
 enum class HandlerType : u8 {

@@ -428,7 +428,6 @@ public:
     void set_timestamp(AK::Duration timestamp) { m_timestamp = timestamp; }
     OrderedHashMap<u64, CueTrackPosition>& track_positions() { return m_track_positions; }
     OrderedHashMap<u64, CueTrackPosition> const& track_positions() const { return m_track_positions; }
-    Optional<CueTrackPosition const&> position_for_track(u64 track_number) const { return m_track_positions.get(track_number); }
 
 private:
     AK::Duration m_timestamp = AK::Duration::min();
