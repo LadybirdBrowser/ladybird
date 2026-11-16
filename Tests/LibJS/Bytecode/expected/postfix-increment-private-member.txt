@@ -6,7 +6,7 @@ $1d8ca011 postfix-increment-private-member.js:1:1
     [1] = String("nextId")
 
 block0:
-  [   0] EnterWithPrivateEnvironment
+  [   0] EnterWithOwnEnvironments
   [   1] GetLexicalEnvironment dst:reg4
   [   3] Mov dst:reg5, src:Undefined
   [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false

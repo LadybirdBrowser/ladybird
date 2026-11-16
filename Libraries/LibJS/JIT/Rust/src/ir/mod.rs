@@ -90,15 +90,17 @@ pub enum FrameField {
     PrivateEnvironment,
     Realm,
     Executable,
+    Function,
 }
 
 impl FrameField {
-    pub const ALL: [FrameField; 5] = [
+    pub const ALL: [FrameField; 6] = [
         FrameField::LexicalEnvironment,
         FrameField::VariableEnvironment,
         FrameField::PrivateEnvironment,
         FrameField::Realm,
         FrameField::Executable,
+        FrameField::Function,
     ];
 
     /// Whether instructions of the frame's function can change the field:
@@ -549,6 +551,9 @@ define_ops! {
         SetLexicalEnvironment,
         /// The `LeavePrivateEnvironment` bytecode.
         LeavePrivateEnvironment,
+        /// What `EnterWithOwnEnvironments` does besides `InitializeFrame`: a frame of a function keeps the function's
+        /// private environment and its lexical environment as its variable environment.
+        KeepOwnEnvironments,
         /// The `IsCallable` bytecode: a boolean value telling whether input 0 is a function object.
         IsCallable,
         /// Truthiness of the tagged input 0 as a `Repr::Bool`, computed by the

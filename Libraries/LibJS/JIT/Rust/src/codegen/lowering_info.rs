@@ -270,6 +270,8 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
         // The index of the appended binding.
         Op::AppendEnvironmentBinding => plain.with_temps(1),
         Op::BoxCell | Op::SetLexicalEnvironment | Op::LeavePrivateEnvironment | Op::IsCallable => plain,
+        // The function, besides the scratch register.
+        Op::KeepOwnEnvironments => plain.with_temps(1),
         Op::ToBoolean => LoweringInfo {
             inputs: InputConstraints::all(InputConstraint::Fixed(FixedRegister::Argument(0)), 1),
             output: OutputConstraint::Return,

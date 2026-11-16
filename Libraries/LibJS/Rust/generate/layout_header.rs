@@ -329,7 +329,7 @@ pub fn generate() -> LayoutHeader {
         realm_without_function,
         script_or_module_without_function,
         lexical_environment,
-        variable_environment,
+        variable_environment_in_frame,
         private_environment_in_frame,
         frame_id,
         program_counter,

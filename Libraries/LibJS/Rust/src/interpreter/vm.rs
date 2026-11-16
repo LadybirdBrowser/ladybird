@@ -2371,7 +2371,7 @@ impl Vm {
     }
 
     pub fn variable_environment(&self) -> Option<Gc<Environment>> {
-        self.running_execution_context_ref().variable_environment.get()
+        self.running_execution_context_ref().variable_environment()
     }
 
     /// The Realm of the running execution context, which C++ VM::realm() dereferences.

@@ -558,8 +558,7 @@ impl SourceTextModule {
 
         // 13. Set the VariableEnvironment of moduleContext to module.[[Environment]].
         self.execution_context
-            .variable_environment
-            .set(Some(environment.upcast()));
+            .set_variable_environment(Some(environment.upcast()));
 
         // 14. Set the LexicalEnvironment of moduleContext to module.[[Environment]].
         self.execution_context
@@ -923,7 +922,7 @@ impl SourceTextModule {
         let environment = self.environment().expect("a linked module has an environment");
 
         // 6. Set the VariableEnvironment of moduleContext to module.[[Environment]].
-        module_context_ref.variable_environment.set(Some(environment.upcast()));
+        module_context_ref.set_variable_environment(Some(environment.upcast()));
 
         // 7. Set the LexicalEnvironment of moduleContext to module.[[Environment]].
         module_context_ref.lexical_environment.set(Some(environment.upcast()));

@@ -11,10 +11,11 @@ use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 use crate::bytecode::executable::Executable;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::layout::cell::Gc;
-use crate::layout::environment::PrivateEnvironment;
+use crate::layout::environment::{Environment, PrivateEnvironment};
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule, ScriptOrModuleSlot};
 use crate::layout::value::Value;
 use crate::runtime::ecmascript_function_object::{EcmascriptFunctionObject, as_ecmascript_function_object};
+use crate::runtime::native_function::NativeFunction;
 use crate::runtime::realm::Realm;
 use libjs_abi::register::RESERVED_REGISTER_COUNT;
 
@@ -60,14 +61,67 @@ impl ExecutionContext {
         self.realm_without_function.set(realm);
     }
 
+    /// Whether the context's code starts with `EnterWithOwnEnvironments`.
+    fn runs_code_that_keeps_own_environments(&self) -> bool {
+        self.executable
+            .get()
+            .is_some_and(|executable| Executable::from_head(executable).keeps_own_environments())
+    }
+
     /// Whether the context keeps its own [[PrivateEnvironment]]: one without a function, or one whose code makes
     /// private environments.
     pub fn keeps_private_environment(&self) -> bool {
-        self.function.get().is_none()
-            || self
-                .executable
-                .get()
-                .is_some_and(|executable| Executable::from_head(executable).makes_private_environments())
+        self.function.get().is_none() || self.runs_code_that_keeps_own_environments()
+    }
+
+    /// Whether the context keeps its own [[VariableEnvironment]]: one without a function, one of a function that needs
+    /// a function environment, or one whose code makes variable environments. That of another ECMAScript function is
+    /// the function's [[Environment]], and a native function has none.
+    pub fn keeps_variable_environment(&self) -> bool {
+        let Some(function) = self.function.get() else {
+            return true;
+        };
+        if let Some(function) = function.downcast::<EcmascriptFunctionObject>() {
+            return function.function_environment_needed() || self.runs_code_that_keeps_own_environments();
+        }
+        function
+            .downcast::<NativeFunction>()
+            .is_some_and(|function| function.function_environment_needed())
+    }
+
+    /// The [[VariableEnvironment]] of the context.
+    pub fn variable_environment(&self) -> Option<Gc<Environment>> {
+        if self.keeps_variable_environment() {
+            return self.variable_environment_in_frame.get();
+        }
+        self.function
+            .get()
+            .and_then(|function| function.downcast::<EcmascriptFunctionObject>())
+            .and_then(|function| function.environment())
+    }
+
+    /// Sets the [[VariableEnvironment]] of a context that keeps its own.
+    pub fn set_variable_environment(&self, variable_environment: Option<Gc<Environment>>) {
+        debug_assert!(
+            self.keeps_variable_environment(),
+            "a context of a function without a function environment has its function's"
+        );
+        self.variable_environment_in_frame.set(variable_environment);
+    }
+
+    /// Whether the variable environment field holds the context's [[VariableEnvironment]], which the code of a
+    /// context that keeps its own sets when it starts.
+    fn holds_variable_environment(&self) -> bool {
+        let Some(function) = self.function.get() else {
+            return true;
+        };
+        match function.downcast::<EcmascriptFunctionObject>() {
+            Some(function) => {
+                function.function_environment_needed()
+                    || (self.frame_initialized.get() && self.runs_code_that_keeps_own_environments())
+            }
+            None => self.keeps_variable_environment(),
+        }
     }
 
     /// The [[PrivateEnvironment]] of the context. One that does not keep its own has its function's.
@@ -118,7 +172,7 @@ impl ExecutionContext {
                 realm_without_function: Cell::new(None),
                 script_or_module_without_function: ScriptOrModuleSlot::new(ScriptOrModule::Empty),
                 lexical_environment: Cell::new(None),
-                variable_environment: Cell::new(None),
+                variable_environment_in_frame: Cell::new(None),
                 private_environment_in_frame: Cell::new(None),
                 frame_id: Cell::new(0),
                 program_counter: Cell::new(0),
@@ -182,7 +236,8 @@ impl ExecutionContext {
         copy.script_or_module_without_function
             .set(self.script_or_module_without_function.get());
         copy.lexical_environment.set(self.lexical_environment.get());
-        copy.variable_environment.set(self.variable_environment.get());
+        copy.variable_environment_in_frame
+            .set(self.variable_environment_in_frame.get());
         copy.private_environment_in_frame
             .set(self.private_environment_in_frame.get());
         copy.program_counter.set(self.program_counter.get());
@@ -221,7 +276,8 @@ impl ExecutionContext {
         copy.script_or_module_without_function
             .set(self.script_or_module_without_function.get());
         copy.lexical_environment.set(self.lexical_environment.get());
-        copy.variable_environment.set(self.variable_environment.get());
+        copy.variable_environment_in_frame
+            .set(self.variable_environment_in_frame.get());
         copy.private_environment_in_frame
             .set(self.private_environment_in_frame.get());
         copy.program_counter.set(self.program_counter.get());
@@ -246,7 +302,9 @@ impl ExecutionContext {
 unsafe impl Trace for ExecutionContext {
     fn trace(&self, visitor: &mut Visitor) {
         self.function.trace(visitor);
-        self.variable_environment.trace(visitor);
+        if self.holds_variable_environment() {
+            self.variable_environment_in_frame.trace(visitor);
+        }
         self.lexical_environment.trace(visitor);
         self.this_value.trace(visitor);
         self.new_target.trace(visitor);

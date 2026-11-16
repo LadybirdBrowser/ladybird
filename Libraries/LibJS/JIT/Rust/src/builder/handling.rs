@@ -117,6 +117,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         O::GetLexicalEnvironment
         | O::SetLexicalEnvironment
         | O::LeavePrivateEnvironment
+        | O::EnterWithOwnEnvironments
         | O::IsCallable
         | O::GetArgumentCount => Handling::Native,
 
@@ -124,9 +125,6 @@ pub fn handling(opcode: OpCode) -> Handling {
         //     (see `build_catch_entries()`). Handlers of inlined callees run
         //     in the interpreter to their end (see `can_inline()`).
         O::Catch => Handling::Unsupported("starts an exception handler, which the interpreter runs"),
-        // NB: Code with class bodies that have private names runs rarely, and only its frames keep a private
-        //     environment, which the others read from their function.
-        O::EnterWithPrivateEnvironment => Handling::Unsupported("makes private environments"),
 
         // Calls.
         O::Call

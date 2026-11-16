@@ -1065,13 +1065,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.masm.store64(&vm_field(offsets.vm_interpreter_stack_top), temp);
 
         // Fill in the frame like the interpreter's call fast path.
-        for offset in [
-            offsets.execution_context_lexical_environment,
-            offsets.execution_context_variable_environment,
-        ] {
-            self.masm.load64(temp, &frame_field(offset));
-            self.masm.store64(&field(offset), temp);
-        }
+        self.masm
+            .load64(temp, &frame_field(offsets.execution_context_lexical_environment));
+        self.masm
+            .store64(&field(offsets.execution_context_lexical_environment), temp);
         let this_local = self.stub_local(local::THIS);
         self.masm.load64(temp, &this_local);
         self.masm.store64(&field(offsets.execution_context_this_value), temp);

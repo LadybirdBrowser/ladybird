@@ -83,10 +83,13 @@ pub struct ExecutionContext {
     /// it from the function, and this holds an old value: read it through `ExecutionContext::script_or_module()`.
     pub script_or_module_without_function: ScriptOrModuleSlot,
     pub lexical_environment: Cell<Option<Gc<Environment>>>,
-    pub variable_environment: Cell<Option<Gc<Environment>>>,
-    /// The [[PrivateEnvironment]] of a frame without a function, or of a frame whose code makes private environments
-    /// (which starts with `EnterWithPrivateEnvironment`). Other frames get it from their function, and this holds an
-    /// old value: read it through `ExecutionContext::private_environment()`.
+    /// The [[VariableEnvironment]] of a frame that keeps its own (see `ExecutionContext::keeps_variable_environment()`).
+    /// Other frames get it from their function, and this holds an old value: read it through
+    /// `ExecutionContext::variable_environment()`.
+    pub variable_environment_in_frame: Cell<Option<Gc<Environment>>>,
+    /// The [[PrivateEnvironment]] of a frame without a function, or of a frame whose code starts with
+    /// `EnterWithOwnEnvironments`. Other frames get it from their function, and this holds an old value: read it
+    /// through `ExecutionContext::private_environment()`.
     pub private_environment_in_frame: Cell<Option<Gc<PrivateEnvironment>>>,
     /// Tells frames apart for the debugger and the JIT. Frames have none (0) until something asks (see
     /// Vm::frame_id_of()).

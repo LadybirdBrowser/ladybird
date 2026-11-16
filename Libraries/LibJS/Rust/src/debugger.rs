@@ -289,6 +289,13 @@ impl Debugger {
         // NB: The copy must hold the objects that a frame of an inlined call has markers for.
         crate::jit::translate::resolve_deferred_arguments(vm, execution_context);
         let context = execution_context.copy();
+        // NB: The copy runs as a context without a function, which keeps its own environments: the evaluated code
+        //     declares its variables in the local environment, and the variable environment of a frame of a function
+        //     without a function environment would be the function's [[Environment]].
+        context.function.set(None);
+        context.set_realm(execution_context.realm());
+        context.set_script_or_module(execution_context.script_or_module());
+        context.set_private_environment(execution_context.private_environment());
         let local_environment = new_declarative_environment(
             vm,
             context
@@ -314,7 +321,7 @@ impl Debugger {
             }
         }
         context.lexical_environment.set(Some(local_environment.upcast()));
-        context.variable_environment.set(Some(local_environment.upcast()));
+        context.set_variable_environment(Some(local_environment.upcast()));
         vm.push_execution_context_checking_stack_space(context.as_non_null())?;
         let _pop_context = ScopeGuard::new(|| {
             vm.pop_execution_context();

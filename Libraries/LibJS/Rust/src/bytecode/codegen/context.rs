@@ -109,8 +109,8 @@ pub struct Generator<'t> {
     pub(super) builtin_abstract_operations_enabled: bool,
     pub(super) eager_compile_direct_iifes: bool,
     pub(super) contains_direct_call_to_eval_in_non_strict_mode: bool,
-    /// Whether the code makes private environments, so that it starts with `EnterWithPrivateEnvironment`.
-    pub(super) makes_private_environments: bool,
+    /// Whether the code makes private or variable environments, so that it starts with `EnterWithOwnEnvironments`.
+    pub(super) keeps_own_environments: bool,
     pub(super) enclosing_environment_scope: Option<Arc<EnclosingEnvironmentScope>>,
     pub(super) variable_environment_coordinate_scope_index: Option<usize>,
     pub(super) enclosing_code: Arc<EnclosingCode>,
@@ -193,7 +193,7 @@ impl<'t> Generator<'t> {
             builtin_abstract_operations_enabled: false,
             eager_compile_direct_iifes: false,
             contains_direct_call_to_eval_in_non_strict_mode: false,
-            makes_private_environments: false,
+            keeps_own_environments: false,
             enclosing_environment_scope: None,
             variable_environment_coordinate_scope_index: None,
             enclosing_code,

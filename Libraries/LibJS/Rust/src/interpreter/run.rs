@@ -308,9 +308,7 @@ impl Vm {
         script_context_ref.set_script_or_module(ScriptOrModule::Script(script_record));
 
         // 6. Set the VariableEnvironment of scriptContext to globalEnv.
-        script_context_ref
-            .variable_environment
-            .set(Some(global_environment.upcast()));
+        script_context_ref.set_variable_environment(Some(global_environment.upcast()));
 
         // 7. Set the LexicalEnvironment of scriptContext to globalEnv.
         script_context_ref
@@ -460,7 +458,9 @@ impl Vm {
             .set(new_target.map_or(Value::UNDEFINED, Value::from_object));
         let environment = callee_function.inline_call_environment(self, new_target);
         callee_context.lexical_environment.set(environment);
-        callee_context.variable_environment.set(environment);
+        // NB: Only the frame of a function that needs a function environment keeps the field, but a store costs less
+        //     than asking.
+        callee_context.variable_environment_in_frame.set(environment);
 
         Some(self.enter_inline_frame(callee_context, callee_executable))
     }
@@ -511,9 +511,6 @@ impl Vm {
         callee_context
             .lexical_environment
             .set(caller_context.lexical_environment.get());
-        callee_context
-            .variable_environment
-            .set(caller_context.variable_environment.get());
 
         Some(self.enter_inline_frame(callee_context, callee_executable))
     }

@@ -163,7 +163,7 @@ fn running_execution_context_environment(vm: &Vm, mode: EnvironmentMode) -> Gc<E
         .expect("bindings are created in an execution context");
     match mode {
         EnvironmentMode::Lexical => context.lexical_environment.get(),
-        EnvironmentMode::Var => context.variable_environment.get(),
+        EnvironmentMode::Var => context.variable_environment(),
     }
     .expect("the running execution context has its environments")
 }
@@ -1226,8 +1226,7 @@ pub fn set_variable_binding_of_block_function(
     let name = get_identifier(vm, &instruction.identifier);
     let context = running_execution_context(vm);
     let variable_environment = context
-        .variable_environment
-        .get()
+        .variable_environment()
         .expect("program code has a VariableEnvironment");
     let mut environment = context
         .lexical_environment
@@ -1452,7 +1451,7 @@ pub fn verify_environment_coordinate(
     let context = running_execution_context(vm);
     let mut environment = match environment_mode_of(instruction.mode) {
         EnvironmentMode::Lexical => context.lexical_environment.get(),
-        EnvironmentMode::Var => context.variable_environment.get(),
+        EnvironmentMode::Var => context.variable_environment(),
     };
 
     let mut hop = 0;
@@ -1620,9 +1619,7 @@ pub fn create_variable_environment_slow_path(
         shape_cache,
         instruction.capacity,
     );
-    running_execution_context
-        .variable_environment
-        .set(Some(var_environment.upcast()));
+    running_execution_context.set_variable_environment(Some(var_environment.upcast()));
     running_execution_context
         .lexical_environment
         .set(Some(var_environment.upcast()));

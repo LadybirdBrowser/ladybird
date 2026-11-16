@@ -2008,10 +2008,10 @@ impl Executable {
         &self.code.bytecode
     }
 
-    /// Whether the code makes private environments, which its frames keep (see
-    /// `ExecutionContext::keeps_private_environment()`).
-    pub fn makes_private_environments(&self) -> bool {
-        self.bytecode().first() == Some(&(OpCode::EnterWithPrivateEnvironment as u8))
+    /// Whether the code makes private or variable environments, so that its frames keep their own (see
+    /// `ExecutionContext::keeps_private_environment()` and `ExecutionContext::keeps_variable_environment()`).
+    pub fn keeps_own_environments(&self) -> bool {
+        self.bytecode().first() == Some(&(OpCode::EnterWithOwnEnvironments as u8))
     }
 
     pub fn constants(&self) -> &[Value] {

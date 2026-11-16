@@ -366,6 +366,7 @@ fn replaces_environments(opcode: OpCode) -> bool {
             | OpCode::CreateVariableEnvironment
             | OpCode::CreatePrivateEnvironment
             | OpCode::LeavePrivateEnvironment
+            | OpCode::EnterWithOwnEnvironments
             | OpCode::EnterObjectEnvironment
             | OpCode::NewClass
             | OpCode::CallDirectEval
@@ -1538,10 +1539,13 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// that matters, for the others.
     fn try_build_natively(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
         match *instruction {
-            Instruction::Enter => {
-                // NB: Inlined frames are set up by the caller.
+            Instruction::Enter | Instruction::EnterWithOwnEnvironments => {
+                // NB: Inlined frames are set up by the caller, and their code never keeps its own environments.
                 if !self.function.is_virtual() {
                     self.emit(Op::InitializeFrame, &[], None);
+                    if matches!(instruction, Instruction::EnterWithOwnEnvironments) {
+                        self.emit(Op::KeepOwnEnvironments, &[], None);
+                    }
                 }
                 let empty = self.constant(value::EMPTY);
                 for slot in RESERVED_REGISTER_COUNT as usize..self.function.layout.registers_and_locals_count as usize {

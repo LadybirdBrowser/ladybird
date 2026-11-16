@@ -509,10 +509,7 @@ pub(super) fn create_arguments_object(vm: &Vm, frame: &ExecutionContext, mapped:
         function,
         ecmascript_function.mapped_argument_names(),
         passed_arguments,
-        frame
-            .variable_environment
-            .get()
-            .expect("a function runs in an environment"),
+        frame.variable_environment().expect("a function runs in an environment"),
     ))
 }
 

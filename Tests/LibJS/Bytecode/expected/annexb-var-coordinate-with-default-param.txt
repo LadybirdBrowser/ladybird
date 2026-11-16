@@ -22,7 +22,7 @@ f$62596dad annexb-var-coordinate-with-default-param.js:3:12
     [2] = Int32(2)
 
 block0:
-  [   0] Enter
+  [   0] EnterWithOwnEnvironments
   [   1] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [   8] GetLexicalEnvironment dst:reg4
   [   a] JumpUndefined condition:arg0, true_target:block1, false_target:block2

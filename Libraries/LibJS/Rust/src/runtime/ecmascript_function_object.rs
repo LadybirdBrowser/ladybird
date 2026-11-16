@@ -866,12 +866,11 @@ impl EcmascriptFunctionObject {
             callee_context.lexical_environment.set(Some(local_environment.upcast()));
 
             // 9. Set the VariableEnvironment of calleeContext to localEnv.
-            callee_context
-                .variable_environment
-                .set(Some(local_environment.upcast()));
+            callee_context.set_variable_environment(Some(local_environment.upcast()));
         } else {
+            // NB: ExecutionContext::variable_environment() reads it from the function, and the code sets it in frames
+            //     that keep their own.
             callee_context.lexical_environment.set(self.environment());
-            callee_context.variable_environment.set(self.environment());
         }
 
         // 10. Set the PrivateEnvironment of calleeContext to F.[[PrivateEnvironment]].

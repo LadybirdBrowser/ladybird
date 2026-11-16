@@ -3855,7 +3855,7 @@ mod direct_calls {
             let half = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u32;
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
-            assert_eq!((word(8), word(96)), (FUNCTION_WORDS[0], FUNCTION_WORDS[0]));
+            assert_eq!(word(8), FUNCTION_WORDS[0], "lexical environment");
             assert_eq!(word(104), 0, "no frame id yet");
             assert_eq!(half(0), 0, "program counter");
             assert_eq!((byte(118), byte(24)), (0, 0), "not a construct call, not initialized");
@@ -4254,10 +4254,7 @@ mod direct_calls {
             let half = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u32;
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
-            assert_eq!(
-                (word(8), word(96)),
-                (environment(FUNCTION_WORDS[0]), environment(FUNCTION_WORDS[0]))
-            );
+            assert_eq!(word(8), environment(FUNCTION_WORDS[0]), "lexical environment");
             assert_eq!(word(104), 0, "no frame id yet");
             assert_eq!(word(120), value::EMPTY, "no this value");
             assert_eq!(word(32), callee.callee.executable.as_ptr() as u64);
