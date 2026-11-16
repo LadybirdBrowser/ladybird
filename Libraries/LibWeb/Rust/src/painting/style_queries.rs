@@ -234,7 +234,11 @@ pub(crate) fn document_element_box_under(arena: &impl PaintRead, parent: NodeSlo
 
 pub(crate) fn node_is_root_element(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     let flags = arena.node_flags_if_live(node);
-    flags & NodeFlag::Anonymous as u32 == 0 && flags & NodeFlag::IsHtmlHtmlElement as u32 != 0
+    // NB: Only the document element is the root: An html element anywhere else, e.g. in a shadow tree, is an
+    //     ordinary element.
+    flags & NodeFlag::Anonymous as u32 == 0
+        && flags & NodeFlag::IsHtmlHtmlElement as u32 != 0
+        && flags & NodeFlag::IsDocumentElement as u32 != 0
 }
 
 fn style_establishes_fixed_positioning_containing_block(
