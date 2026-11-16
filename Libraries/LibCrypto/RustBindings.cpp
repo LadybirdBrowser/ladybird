@@ -1013,12 +1013,12 @@ FlatPtr crypto_argon2_derive_key(::Crypto::Hash::Argon2Type kind, Argon2Inputs c
 static_assert(to_underlying(::Crypto::Hash::SHAKEKind::CSHAKE128) == 0);
 static_assert(to_underlying(::Crypto::Hash::SHAKEKind::CSHAKE256) == 1);
 
-extern "C" FlatPtr crypto_cshake_validate_parameters(u32, OptionalBytes, OptionalBytes);
+extern "C" FlatPtr crypto_cshake_validate_parameters(u32);
 extern "C" FlatPtr crypto_cshake_digest(::Crypto::Hash::SHAKEKind, ReadonlyBytes, u32, OptionalBytes, OptionalBytes, void*, ReceiveEncodedBytes);
 
-FlatPtr crypto_cshake_validate_parameters(u32 output_length, OptionalBytes customization, OptionalBytes function_name)
+FlatPtr crypto_cshake_validate_parameters(u32 output_length)
 {
-    auto result = ::Crypto::Hash::SHAKE::validate_parameters(output_length, customization.to_optional(), function_name.to_optional());
+    auto result = ::Crypto::Hash::SHAKE::validate_parameters(output_length);
     if (result.is_error())
         return Utf16String::formatted("{}", result.error()).into_raw();
     return 0;

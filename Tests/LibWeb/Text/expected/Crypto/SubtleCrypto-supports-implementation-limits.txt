@@ -1,6 +1,6 @@
 cSHAKE128: supports true, digest ok
-cSHAKE128 with customization: supports false, digest OperationError
-cSHAKE256 with function name: supports false, digest OperationError
+cSHAKE128 with customization: supports true, digest ok
+cSHAKE256 with function name: supports true, digest ok
 cSHAKE128 with partial byte output length: supports false, digest OperationError
 HMAC SHA-256: supports true, generateKey ok
 HMAC SHA3-256: supports false, generateKey NotSupportedError
