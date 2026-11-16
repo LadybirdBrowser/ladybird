@@ -141,7 +141,6 @@ public:
     void did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, CacheState cache_state, ByteString http_version);
     void did_transfer(Badge<RequestClient>);
 
-    RefPtr<Core::Notifier>& write_notifier(Badge<RequestClient>) { return m_write_notifier; }
     void set_request_fd(Badge<RequestClient>, int fd);
     void set_request_body_file(Badge<RequestClient>, int fd, u64 offset, u64 size);
     void set_request_cached_body_file(Badge<RequestClient>, int fd, u64 offset, u64 size);
@@ -161,7 +160,6 @@ private:
     u64 m_request_id { 0 };
     u64 m_transport_epoch { 0 };
     Optional<RequestTransferLeaseKey> m_transfer_lease;
-    RefPtr<Core::Notifier> m_write_notifier;
     int m_fd { -1 };
     bool m_fd_is_owned_by_read_stream { false };
 
