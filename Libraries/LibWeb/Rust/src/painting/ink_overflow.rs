@@ -177,6 +177,11 @@ pub(crate) fn own_ink_overflow(
         let side = source.committed_side_data(root);
         let positions = paintable_geometry::LineRootPositions::new(source, root);
         let mut include_piece = |piece: &crate::painting::paintable_data::InlineBoxPieceRecord| {
+            // NB: A line root keeps the pieces of its last layout until it is laid out again, and a box removed
+            //     since then has given up its row.
+            if !source.paintable_row_is_populated(piece.node) {
+                return;
+            }
             let piece_owner = if fragment_ownership::is_self_painting_inline(source, piece.node) {
                 piece.node
             } else {
