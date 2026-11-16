@@ -1,0 +1,7 @@
+Ladybird’s ServiceWorkerContainer.controller returns null, since
+nothing tracks a service worker client’s active service worker yet.
+Each engine returns null for a client that no service worker controls:
+Blink’s ServiceWorkerContainer::controller() returns its controller_
+member, WebKit’s returns the context’s activeServiceWorker(), and
+Gecko’s GetController() returns its mControllerWorker, each of which
+is null until a service worker takes control of the client.
