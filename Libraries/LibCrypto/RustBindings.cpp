@@ -765,7 +765,7 @@ bool crypto_mldsa_verify(::Crypto::PK::MLDSASize, KeyHandle const*, ReadonlyByte
 FlatPtr crypto_mldsa_generate_key_pair(::Crypto::PK::MLDSASize, ReadonlyBytes, KeyHandle**, KeyHandle**);
 void crypto_asn1_key_info_identifier(Asn1Structure, void const*, ReadonlySpan<u32>*);
 KeyHandle* crypto_mldsa_key_info_read_private_key(void const*);
-KeyHandle* crypto_mldsa_read_public_key(ReadonlyBytes);
+KeyHandle* crypto_mldsa_read_public_key(::Crypto::PK::MLDSASize, ReadonlyBytes);
 void crypto_mldsa_public_bytes(KeyHandle const*, ReadonlyBytes*);
 bool crypto_mldsa_seed_bytes(KeyHandle const*, void*, ReceiveEncodedBytes);
 bool crypto_mldsa_export_der(KeyHandle const*, bool, ReadonlySpan<u32>, void*, ReceiveEncodedBytes);
@@ -810,10 +810,10 @@ KeyHandle* crypto_mldsa_key_info_read_private_key(void const* key_info)
     return new KeyHandle(static_cast<PrivateKeyStorage const*>(key_info)->value.mldsa);
 }
 
-KeyHandle* crypto_mldsa_read_public_key(ReadonlyBytes bytes)
+KeyHandle* crypto_mldsa_read_public_key(::Crypto::PK::MLDSASize size, ReadonlyBytes bytes)
 {
     auto public_key = ::Crypto::PK::MLDSAPublicKey::from_bytes(bytes);
-    if (public_key.is_error())
+    if (public_key.is_error() || public_key.value().size() != size)
         return nullptr;
     return new KeyHandle(public_key.release_value());
 }

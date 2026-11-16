@@ -1,0 +1,16 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const key = await crypto.subtle.generateKey({ name: "ML-DSA-44" }, true, ["sign", "verify"]);
+        const raw = await crypto.subtle.exportKey("raw-public", key.publicKey);
+
+        for (const name of ["ML-DSA-65", "ML-DSA-44"]) {
+            const result = await crypto.subtle.importKey("raw-public", raw, { name }, true, ["verify"]).then(
+                () => "imported",
+                error => error.name
+            );
+            println(`ML-DSA-44 public key imported as ${name}: ${result}`);
+        }
+    });
+</script>
