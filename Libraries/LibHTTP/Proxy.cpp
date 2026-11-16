@@ -73,6 +73,10 @@ Optional<Proxy> Proxy::parse(StringView string)
         proxy.host = string.to_byte_string().to_lowercase();
     }
 
+    // libcurl decodes a percent-encoded host, e.g. %6cocalhost, before it looks the host up. An IPv6 address keeps its
+    // zone, e.g. %25eth0, as written.
+    if (!proxy.host.contains(':'))
+        proxy.host = URL::percent_decode(proxy.host).to_lowercase();
     if (proxy.host.is_empty())
         return {};
 

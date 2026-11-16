@@ -187,6 +187,9 @@ public:
 
     struct LookupOptions {
         bool validate_dnssec_locally { false };
+        // Asks the system resolver for AAAA records even when no global IPv6 route exists, as a host on the local
+        // network may still be reachable over IPv6.
+        bool query_aaaa_without_global_ipv6 { false };
 
         static LookupOptions default_() { return {}; }
     };
@@ -447,7 +450,7 @@ public:
         //     platforms (mDNSResponder never suppresses multicast queries). Like Chromium's host cache, which keys a
         //     lookup without AAAA apart from one with it, a cached result without AAAA only serves while IPv6 stays
         //     unreachable.
-        auto skips_aaaa = uses_system_resolver && !is_link_local_name
+        auto skips_aaaa = uses_system_resolver && !is_link_local_name && !options.query_aaaa_without_global_ipv6
             && desired_types.contains_slow(Messages::ResourceType::A)
             && desired_types.contains_slow(Messages::ResourceType::AAAA)
             && !is_ipv6_globally_reachable();
