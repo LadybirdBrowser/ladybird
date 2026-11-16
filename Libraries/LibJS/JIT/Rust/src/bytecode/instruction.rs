@@ -193,7 +193,10 @@ impl OpCode {
     /// entering the frame, moves between slots (which SSA values rename),
     /// and jumps.
     pub fn is_free_when_inlined(self) -> bool {
-        matches!(self, OpCode::Enter | OpCode::Mov | OpCode::Jump)
+        matches!(
+            self,
+            OpCode::Enter | OpCode::EnterCoercingThis | OpCode::Mov | OpCode::Jump
+        )
     }
 }
 

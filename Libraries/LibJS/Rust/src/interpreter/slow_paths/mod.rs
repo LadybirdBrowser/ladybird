@@ -166,6 +166,14 @@ impl RuntimeFunctions for Runtime {
         crate::jit::tier_up::tier_up_check(vm_from_helper_argument(vm), encoded_pc) as u64
     }
 
+    fn helper_coerce_this(vm: u64) -> u64 {
+        let vm = vm_from_helper_argument(vm);
+        let frame = vm.running_execution_context().expect("a frame is running");
+        // SAFETY: The running execution context is live.
+        crate::interpreter::execution_context::coerce_this(vm, unsafe { frame.as_ref() });
+        0
+    }
+
     fn helper_enter_jit_code(vm: u64) -> u64 {
         crate::jit::entry_exit::helper_enter_jit_code(vm_from_helper_argument(vm)) as u64
     }

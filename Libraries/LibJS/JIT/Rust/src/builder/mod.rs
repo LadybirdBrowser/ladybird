@@ -1539,7 +1539,9 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// that matters, for the others.
     fn try_build_natively(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
         match *instruction {
-            Instruction::Enter | Instruction::EnterWithOwnEnvironments => {
+            // NB: The caller or the interpreter's entry into the code binds the this value (see coerce_this() in the
+            //     runtime).
+            Instruction::Enter | Instruction::EnterCoercingThis | Instruction::EnterWithOwnEnvironments => {
                 // NB: Inlined frames are set up by the caller, and their code never keeps its own environments.
                 if !self.function.is_virtual() {
                     self.emit(Op::InitializeFrame, &[], None);

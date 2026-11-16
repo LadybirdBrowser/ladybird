@@ -22,7 +22,7 @@ with_eval$4e15e4cf eval-prevents-locals.js:6:9
     [1] = String("")
 
 block0:
-  [   0] Enter
+  [   0] EnterCoercingThis
   [   1] CreateArguments is_immutable:false, creates_parameter_bindings:false
   [   6] GetLexicalEnvironment dst:reg4
   [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
@@ -54,7 +54,7 @@ outer_eval$137882c6 eval-prevents-locals.js:14:9
     [1] = Undefined
 
 block0:
-  [   0] Enter
+  [   0] EnterCoercingThis
   [   1] CreateArguments is_immutable:false, creates_parameter_bindings:false
   [   6] GetLexicalEnvironment dst:reg4
   [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false

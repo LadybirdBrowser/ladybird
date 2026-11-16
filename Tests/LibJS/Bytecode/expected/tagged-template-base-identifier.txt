@@ -25,5 +25,5 @@ f$bdc39382 tagged-template-base-identifier.js:3:9
   Blocks:    1
 
 block0:
-  [   0] Enter
+  [   0] EnterCoercingThis
   [   1] Return value:this

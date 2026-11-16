@@ -31,7 +31,7 @@ pub fn warming_up_dispatch_table() -> Box<DispatchTable> {
     mixed_dispatch_table(|name| {
         matches!(
             name,
-            "Enter" | "EnterWithOwnEnvironments" | "Call" | "Return" | "End"
+            "Enter" | "EnterCoercingThis" | "EnterWithOwnEnvironments" | "Call" | "Return" | "End"
         ) || name.contains("Loop")
     })
 }
