@@ -1,4 +1,5 @@
 add_subdirectory(AudioServer)
+add_subdirectory(CameraServer)
 add_subdirectory(Compositor)
 add_subdirectory(Hub)
 add_subdirectory(ImageDecoder)

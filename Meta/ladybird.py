@@ -462,6 +462,7 @@ def test_main(build_dir: Path, preset: str, jobs: Optional[str], pattern: Option
 # The executables of these targets have other names, which share a prefix so that tools like pgrep find all of them.
 HELPER_EXECUTABLE_NAMES = {
     "AudioServer": "ladybird-audio",
+    "CameraServer": "ladybird-camera",
     "Compositor": "ladybird-gpu",
     "Hub": "ladybird-hub",
     "ImageDecoder": "ladybird-image",

@@ -107,6 +107,7 @@ endif()
 
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(AudioServer)
+    add_subdirectory(CameraServer)
     add_subdirectory(Compositor)
     add_subdirectory(LibAudio)
     add_subdirectory(LibCompositing)

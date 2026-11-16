@@ -1,0 +1,16 @@
+#include <LibCamera/DeviceInfo.h>
+
+endpoint CameraServerControlClient
+{
+    // The cameras by name, for the Browser to offer the user a choice of them; said once they are known and again on
+    // every change.
+    devices_changed(Vector<Camera::DeviceInfo> devices) =|
+
+    // A client of the tab asks to capture from the camera; the Browser rules on every request with capture_decided. The
+    // label is the page the client says it captures for.
+    capture_requested(u64 tab_id, u64 request_id, ByteString device_id, u64 page_label) =|
+
+    // A capture stream of the tab with this label may capture, or the last such stream is gone. Nothing about what the
+    // camera delivers counts.
+    capture_activity_changed(u64 tab_id, u64 page_label, bool capturing) =|
+}

@@ -29,6 +29,7 @@ public:
     void allow_socket_pairs();
     void broker_unix_socket_connections();
     void allow_pulseaudio_client_file_operations();
+    void refuse_writable_file_opens();
     void allow_network();
     void allow_datagram_network();
     void allow_binding_sockets();

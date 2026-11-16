@@ -1,0 +1,19 @@
+#include <LibCamera/CaptureFailure.h>
+#include <LibCamera/DeviceInfo.h>
+#include <LibCore/AnonymousBuffer.h>
+
+endpoint CameraClient {
+    devices_changed(Vector<Camera::DeviceInfo> devices) =|
+
+    // The camera is open and gives pictures of this size, each of which arrives in one of these buffers as I420: the
+    // luma plane, then the two chroma planes, with no padding.
+    capture_stream_created(u64 stream_id, u32 width, u32 height, u32 frame_rate, Vector<Core::AnonymousBuffer> buffers) =|
+    capture_stream_creation_failed(u64 stream_id, Camera::CaptureFailure failure) =|
+    // The tab's permission to capture is gone, and the stream with it.
+    capture_stream_closed(u64 stream_id) =|
+    // The camera is gone, or stopped giving pictures for good.
+    capture_stream_ended(u64 stream_id) =|
+
+    // The buffer holds a picture until the client releases it.
+    frame_captured(u64 stream_id, u32 buffer_index, i64 timestamp_in_microseconds) =|
+}
