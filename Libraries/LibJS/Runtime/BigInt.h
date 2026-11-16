@@ -10,7 +10,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Utf16String.h>
-#include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <AK/Vector.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Export.h>
@@ -22,13 +22,17 @@ namespace JS {
 
 class JS_API BigInt final : public EngineCell {
 public:
-    [[nodiscard]] static GC::Ref<BigInt> create(VM&, Crypto::SignedBigInteger);
+    // The magnitude is in 32-bit words, least significant first.
+    [[nodiscard]] static GC::Ref<BigInt> create(VM&, bool is_negative, ReadonlySpan<u32> magnitude_words);
+    [[nodiscard]] static GC::Ref<BigInt> create_from_i64(VM&, i64);
+    [[nodiscard]] static GC::Ref<BigInt> create_from_u64(VM&, u64);
 
     // https://tc39.es/ecma262/#sec-stringtobigint
     [[nodiscard]] static GC::Ptr<BigInt> create_from_string(VM&, Utf16View const&);
 
-    // The integer lives in the Rust runtime's cell, so this returns a copy rather than a reference to it.
-    Crypto::SignedBigInteger big_integer() const;
+    bool is_negative() const;
+    // The magnitude in 32-bit words, least significant first, without leading zero words.
+    Vector<u32> magnitude_words() const;
 
     // The decimal digits, after a "-" if it is negative, which is ToString(bigint).
     String to_string() const;

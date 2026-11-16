@@ -6,8 +6,6 @@
 
 #include <AK/Array.h>
 #include <AK/Atomic.h>
-#include <LibCrypto/BigInt/SignedBigInteger.h>
-#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/ArrayBufferABIConversions.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -298,9 +296,9 @@ Value ArrayBuffer::get_value_of_element_type(ElementType element_type, size_t by
     case ElementType::Int32:
         return Value(value_of_raw_bytes<i32>(raw_value));
     case ElementType::BigUint64:
-        return BigInt::create(vm(), Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { value_of_raw_bytes<u64>(raw_value) } });
+        return BigInt::create_from_u64(vm(), value_of_raw_bytes<u64>(raw_value));
     case ElementType::BigInt64:
-        return BigInt::create(vm(), Crypto::SignedBigInteger { value_of_raw_bytes<i64>(raw_value) });
+        return BigInt::create_from_i64(vm(), value_of_raw_bytes<i64>(raw_value));
     case ElementType::Float16:
         return Value(static_cast<double>(value_of_raw_bytes<f16>(raw_value)));
     case ElementType::Float32:

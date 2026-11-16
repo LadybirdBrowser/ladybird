@@ -21,7 +21,6 @@
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/MappedFile.h>
-#include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
@@ -422,8 +421,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         js_arguments.append(JS::Value(argument.to_f64()));
                         break;
                     case ValueKind::V128: {
-                        u64 halves[2] = { argument.low, argument.high };
-                        js_arguments.append(JS::BigInt::create(vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger::import_data({ reinterpret_cast<u8 const*>(halves), sizeof(halves) }) }));
+                        // NB: The vector is the unsigned 128-bit integer with the low half first.
+                        u32 const words[] = { static_cast<u32>(argument.low), static_cast<u32>(argument.low >> 32), static_cast<u32>(argument.high), static_cast<u32>(argument.high >> 32) };
+                        js_arguments.append(JS::BigInt::create(vm, false, words));
                         break;
                     }
                     case ValueKind::Reference:
@@ -508,9 +508,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     case ValueKind::F64:
                         return WasmValue::from_f64(TRY(value.to_double(vm)));
                     case ValueKind::V128: {
+                        // NB: The vector is the BigInt modulo 2^128, as BigInt.asUintN(128, value) gives it.
                         auto bigint = TRY(value.to_bigint(vm));
+                        auto words = bigint->magnitude_words();
                         u64 halves[2] = {};
-                        (void)bigint->big_integer().unsigned_value().export_data({ reinterpret_cast<u8*>(halves), sizeof(halves) });
+                        for (size_t i = 0; i < min(words.size(), 4uz); ++i)
+                            halves[i / 2] |= static_cast<u64>(words[i]) << (32 * (i % 2));
+                        if (bigint->is_negative()) {
+                            halves[0] = ~halves[0];
+                            halves[1] = ~halves[1];
+                            if (++halves[0] == 0)
+                                ++halves[1];
+                        }
                         return WasmValue::from_v128(halves[0], halves[1]);
                     }
                     case ValueKind::Reference:

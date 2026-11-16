@@ -481,11 +481,11 @@ static JS::ThrowCompletionOr<JS::Value> to_js_value(JS::VM& vm, Wasm::Runtime::V
     case ValueKind::I32:
         return JS::Value(static_cast<double>(value.to_i32()));
     case ValueKind::I64:
-        return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { value.to_i64() }));
+        return JS::Value(JS::BigInt::create_from_i64(vm, value.to_i64()));
     case ValueKind::F32:
         return JS::Value(static_cast<double>(value.f32_bits()));
     case ValueKind::F64:
-        return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { value.f64_bits() } }));
+        return JS::Value(JS::BigInt::create_from_u64(vm, value.f64_bits()));
     case ValueKind::V128: {
         auto buffer = TRY(JS::ArrayBuffer::create(*vm.current_realm(), 16));
         u64 halves[2] = { value.low, value.high };
@@ -525,14 +525,15 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
         case ValueKind::I32:
             return JS::Value(static_cast<double>(global.to_i32()));
         case ValueKind::I64:
-            return JS::BigInt::create(vm, Crypto::SignedBigInteger { global.to_i64() });
+            return JS::BigInt::create_from_i64(vm, global.to_i64());
         case ValueKind::F32:
             return JS::Value(static_cast<double>(global.to_f32()));
         case ValueKind::F64:
             return JS::Value(global.to_f64());
         case ValueKind::V128: {
-            u64 halves[2] = { global.low, global.high };
-            return JS::BigInt::create(vm, Crypto::SignedBigInteger::import_data({ reinterpret_cast<u8 const*>(halves), sizeof(halves) }));
+            // NB: The vector is the unsigned 128-bit integer with the low half first.
+            u32 const words[] = { static_cast<u32>(global.low), static_cast<u32>(global.low >> 32), static_cast<u32>(global.high), static_cast<u32>(global.high >> 32) };
+            return JS::BigInt::create(vm, false, words);
         }
         case ValueKind::Reference:
             return reference_to_js_value(global, type);
