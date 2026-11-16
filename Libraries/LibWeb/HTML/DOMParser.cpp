@@ -63,7 +63,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(JS::Re
 
         // 1. Create an XML parser parse, associated with document, and with XML scripting support disabled.
         auto const utf8_complaint_string = compliant_string.to_utf8_but_should_be_ported_to_utf16();
-        XML::Parser parser(utf8_complaint_string, { .resolve_named_html_entity = resolve_named_html_entity });
+        XML::Parser parser(utf8_complaint_string, { .preserve_comments = true, .resolve_named_html_entity = resolve_named_html_entity });
         XMLDocumentBuilder builder { *document, XMLScriptingSupport::Disabled };
         // 2. Parse compliantString using parser.
         auto result = parser.parse_with_listener(builder);

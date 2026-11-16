@@ -127,7 +127,7 @@ bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optiona
         return false;
     }
     auto source = source_or_error.release_value();
-    XML::Parser parser(source, { .resolve_named_html_entity = resolve_named_html_entity });
+    XML::Parser parser(source, { .preserve_comments = true, .resolve_named_html_entity = resolve_named_html_entity });
     XMLDocumentBuilder builder { document, scripting_support };
     auto result = parser.parse_with_listener(builder);
     return !result.is_error() && !builder.has_error();

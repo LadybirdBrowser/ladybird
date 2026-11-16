@@ -79,7 +79,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> XMLFragmentParser::parse_xml
     GC::Ptr<DOM::Document> document = DOM::Document::create(context_document.page(), context_document.relevant_global_event_target());
     document->set_document_type(DOM::Document::Type::XML);
 
-    XML::Parser parser(feed.string_view(), { .resolve_named_html_entity = resolve_named_html_entity });
+    XML::Parser parser(feed.string_view(), { .preserve_comments = true, .resolve_named_html_entity = resolve_named_html_entity });
     XMLDocumentBuilder builder { *document, XMLScriptingSupport::Disabled };
     auto result = parser.parse_with_listener(builder);
 
