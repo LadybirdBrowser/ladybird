@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // A source whose type can't be played is skipped without being fetched, so it never becomes the current
+    // source, and selection moves on to the next one. An empty type rules nothing out.
+    const cases = [
+        ["unsupported type", [["a.bin", "video/x-unsupported"]]],
+        ["supported type", [["a.mp4", "video/mp4"]]],
+        ["empty type", [["a.mp4", ""]]],
+        ["unparseable type", [["a.mp4", "not a mime type"]]],
+        ["application/octet-stream", [["a.bin", "application/octet-stream"]]],
+        ["unsupported codec", [["a.mp4", 'video/mp4; codecs="nope.1"']]],
+        ["unsupported type, then a supported one", [["a.m3u8", "application/x-mpegURL"], ["b.mp4", "video/mp4"]]],
+        ["unsupported type, then no type", [["a.bin", "video/x-unsupported"], ["b.mp4", null]]],
+    ];
+    const videos = cases.map(([name, sources]) => {
+        const video = document.createElement("video");
+        for (const [file, type] of sources) {
+            const source = document.createElement("source");
+            source.src = `file:///nonexistent-media-file-${file}`;
+            if (type !== null)
+                source.type = type;
+            video.append(source);
+        }
+        document.body.append(video);
+        return [name, video];
+    });
+
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            for (const [name, video] of videos) {
+                const current = video.currentSrc ? video.currentSrc.replace("file:///nonexistent-media-file-", "") : "(none)";
+                println(`${name}: currentSrc=${current}`);
+            }
+            done();
+        });
+    });
+</script>

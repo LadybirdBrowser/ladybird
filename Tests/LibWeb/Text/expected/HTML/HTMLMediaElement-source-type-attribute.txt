@@ -1,0 +1,8 @@
+unsupported type: currentSrc=(none)
+supported type: currentSrc=a.mp4
+empty type: currentSrc=a.mp4
+unparseable type: currentSrc=(none)
+application/octet-stream: currentSrc=(none)
+unsupported codec: currentSrc=(none)
+unsupported type, then a supported one: currentSrc=b.mp4
+unsupported type, then no type: currentSrc=b.mp4
