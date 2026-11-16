@@ -6,3 +6,6 @@ typedef (Int8Array or Int16Array or Int32Array or
 
 // https://webidl.spec.whatwg.org/#BufferSource
 typedef (ArrayBufferView or ArrayBuffer) BufferSource;
+
+// https://webidl.spec.whatwg.org/#AllowSharedBufferSource
+typedef (ArrayBuffer or SharedArrayBuffer or [AllowShared] ArrayBufferView) AllowSharedBufferSource;
