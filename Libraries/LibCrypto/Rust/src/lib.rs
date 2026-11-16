@@ -28,7 +28,7 @@ pub struct BackendError;
 
 #[repr(i32)]
 pub enum ShaHashKind {
-    Sha1 = 4,
+    Sha1 = 2,
     Sha256,
     Sha384,
     Sha512,

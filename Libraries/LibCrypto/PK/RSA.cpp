@@ -447,10 +447,6 @@ ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind)
     switch (hash_kind) {
     case Hash::HashKind::None:
         return nullptr;
-    case Hash::HashKind::BLAKE2b:
-        return EVP_blake2b512();
-    case Hash::HashKind::MD5:
-        return EVP_md5();
     case Hash::HashKind::SHA1:
         return EVP_sha1();
     case Hash::HashKind::SHA256:
