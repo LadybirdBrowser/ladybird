@@ -2899,12 +2899,17 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut available_inline_size_within_containing_block = available_space.inline_size.to_px_or_zero();
         if self.box_should_avoid_floats_because_it_establishes_fc(node) {
             // NB: The floats the box avoids are the ones beside its border box, as the check that moves it below them
-            //     measures them. And a box placed from the right has the floats on the right measured across the whole
-            //     line, not just over its own inline size from the left.
+            //     measures them. And a box placed from the right, or centered or right-aligned by a legacy alignment
+            //     value of its containing block, has the floats measured across the whole line, not just over its own
+            //     inline size from the left.
+            let legacy_alignment_uses_whole_line = matches!(
+                self.style(self.containing_block(node)).text_align(),
+                text_align::_LIBWEB_CENTER | text_align::_LIBWEB_RIGHT
+            );
             let border_box_rect = CssPixelRect {
                 x: content_position_in_root.x,
                 y: content_position_in_root.y - metrics.border_box_top(false),
-                width: if self.box_avoiding_floats_is_placed_from_right(node) {
+                width: if self.box_avoiding_floats_is_placed_from_right(node) || legacy_alignment_uses_whole_line {
                     available_inline_size_within_containing_block
                 } else {
                     content_inline_size
