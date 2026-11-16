@@ -54,7 +54,6 @@ public:
 
     void start_timer(AK::Duration interval);
     void stop_timer();
-    bool has_timer() const { return m_timer_id; }
 
     u64 timer_generation() const { return m_timer_generation; }
 
