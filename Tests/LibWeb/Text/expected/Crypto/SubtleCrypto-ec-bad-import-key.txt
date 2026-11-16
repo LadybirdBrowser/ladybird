@@ -1,30 +1,30 @@
 ECDSA P-256 PUB  - jwk   OK: DataError: Invalid key
-ECDSA P-256 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo" ]: [ "SubjectPublicKeyInfo" ]: Invalid EC public key
+ECDSA P-256 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: Invalid or unsupported public key
 ECDSA P-256 PRIV - jwk   OK: DataError: Invalid key
-ECDSA P-256 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey" ]: EC public key does not match the private key
-ECDSA P-256 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey", "publicKey" ]: Invalid EC public key
+ECDSA P-256 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid ECPrivateKey
+ECDSA P-256 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid or unsupported private key
 ECDSA P-384 PUB  - jwk   OK: DataError: Invalid key
-ECDSA P-384 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo" ]: [ "SubjectPublicKeyInfo" ]: Invalid EC public key
+ECDSA P-384 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: Invalid or unsupported public key
 ECDSA P-384 PRIV - jwk   OK: DataError: Invalid key
-ECDSA P-384 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey" ]: EC public key does not match the private key
-ECDSA P-384 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey", "publicKey" ]: Invalid EC public key
+ECDSA P-384 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid ECPrivateKey
+ECDSA P-384 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid or unsupported private key
 ECDSA P-521 PUB  - jwk   OK: DataError: Invalid key
-ECDSA P-521 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo" ]: [ "SubjectPublicKeyInfo" ]: Invalid EC public key
+ECDSA P-521 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: Invalid or unsupported public key
 ECDSA P-521 PRIV - jwk   OK: DataError: Invalid key
-ECDSA P-521 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey" ]: EC public key does not match the private key
-ECDSA P-521 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey", "publicKey" ]: Invalid EC public key
+ECDSA P-521 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid ECPrivateKey
+ECDSA P-521 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid or unsupported private key
 ECDH  P-256 PUB  - jwk   OK: DataError: Invalid key
-ECDH  P-256 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo" ]: [ "SubjectPublicKeyInfo" ]: Invalid EC public key
+ECDH  P-256 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: Invalid or unsupported public key
 ECDH  P-256 PRIV - jwk   OK: DataError: Invalid key
-ECDH  P-256 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey" ]: EC public key does not match the private key
-ECDH  P-256 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey", "publicKey" ]: Invalid EC public key
+ECDH  P-256 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid ECPrivateKey
+ECDH  P-256 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid or unsupported private key
 ECDH  P-384 PUB  - jwk   OK: DataError: Invalid key
-ECDH  P-384 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo" ]: [ "SubjectPublicKeyInfo" ]: Invalid EC public key
+ECDH  P-384 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: Invalid or unsupported public key
 ECDH  P-384 PRIV - jwk   OK: DataError: Invalid key
-ECDH  P-384 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey" ]: EC public key does not match the private key
-ECDH  P-384 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey", "publicKey" ]: Invalid EC public key
+ECDH  P-384 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid ECPrivateKey
+ECDH  P-384 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid or unsupported private key
 ECDH  P-521 PUB  - jwk   OK: DataError: Invalid key
-ECDH  P-521 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo" ]: [ "SubjectPublicKeyInfo" ]: Invalid EC public key
+ECDH  P-521 PUB  - spki  OK: DataError: Error parsing subjectPublicKeyInfo: Invalid or unsupported public key
 ECDH  P-521 PRIV - jwk   OK: DataError: Invalid key
-ECDH  P-521 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey" ]: EC public key does not match the private key
-ECDH  P-521 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: [ "PrivateKeyInfo" ]: [ "PrivateKeyInfo", "ECPrivateKey", "publicKey" ]: Invalid EC public key
+ECDH  P-521 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid ECPrivateKey
+ECDH  P-521 PRIV - pkcs8 OK: DataError: Error parsing privateKeyInfo: Invalid or unsupported private key

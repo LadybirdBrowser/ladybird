@@ -1,3 +1,5 @@
 a valid key: imported, encapsulated
 800 bytes of 0xff: imported, encapsulate OperationError
 799 bytes: imported, encapsulate OperationError
+a valid key in SPKI: imported, encapsulated
+800 bytes of 0xff in SPKI: imported, encapsulate OperationError

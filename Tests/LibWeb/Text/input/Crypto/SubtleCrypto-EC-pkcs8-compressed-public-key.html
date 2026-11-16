@@ -1,0 +1,38 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // A P-256 private key in PKCS#8 with d = 1, whose ECPrivateKey has its public key, the base point, in compressed form.
+    const x = "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296";
+    const pkcs8 = prefix =>
+        "306702010030130607" +
+        "2a8648ce3d020106082a8648ce3d030107044d304b020101" +
+        "0420" +
+        "00".repeat(31) +
+        "01" +
+        "a1240322" +
+        "00" +
+        prefix +
+        x;
+
+    promiseTest(async () => {
+        const bytes = hex => Uint8Array.from(hex.match(/../g), byte => parseInt(byte, 16));
+        for (const [name, prefix] of [
+            ["compressed", "03"],
+            ["compressed with the wrong parity", "02"],
+        ]) {
+            try {
+                const key = await crypto.subtle.importKey(
+                    "pkcs8",
+                    bytes(pkcs8(prefix)),
+                    { name: "ECDSA", namedCurve: "P-256" },
+                    true,
+                    ["sign"]
+                );
+                const jwk = await crypto.subtle.exportKey("jwk", key);
+                println(`${name}: imported, y ${jwk.y}`);
+            } catch (error) {
+                println(`${name}: ${error.name}`);
+            }
+        }
+    });
+</script>

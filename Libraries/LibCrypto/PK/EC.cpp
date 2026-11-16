@@ -9,7 +9,6 @@
 #include <AK/ScopeGuard.h>
 #include <AK/StringView.h>
 #include <LibCrypto/ASN1/DER.h>
-#include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/EC.h>
 
@@ -167,6 +166,66 @@ ErrorOr<ECPrivateKey> ECPrivateKey::from_scalar(ReadonlyBytes d_bytes, Optional<
     return ECPrivateKey { move(key), d_bytes.size(), move(parameters), move(public_key) };
 }
 
+// https://www.rfc-editor.org/rfc/rfc5915#section-3
+static ErrorOr<ByteBuffer> encode_private_key(ReadonlyBytes d, Optional<ASN1::ObjectIdentifier> const& parameters, Optional<ReadonlyBytes> public_point)
+{
+    ASN1::Encoder encoder;
+    TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+        TRY(encoder.write(1u)); // version
+        TRY(encoder.write<ReadonlyBytes>(d));
+
+        if (parameters.has_value()) {
+            TRY(encoder.write_constructed(ASN1::Class::Context, static_cast<ASN1::Kind>(0), [&]() -> ErrorOr<void> {
+                TRY(encoder.write<ASN1::ObjectIdentifier>(*parameters, {}, ASN1::Kind::ObjectIdentifier));
+                return {};
+            }));
+        }
+
+        if (public_point.has_value()) {
+            TRY(encoder.write_constructed(ASN1::Class::Context, static_cast<ASN1::Kind>(1), [&]() -> ErrorOr<void> {
+                TRY(encoder.write(ASN1::BitStringView(*public_point, 0)));
+                return {};
+            }));
+        }
+
+        return {};
+    }));
+
+    return encoder.finish();
+}
+
+ErrorOr<ECPrivateKey> ECPrivateKey::from_private_key_info(EVP_PKEY* key, ASN1::ObjectIdentifier const& curve, ReadonlyBytes encoded)
+{
+    auto scalar_size = (EVP_PKEY_get_bits(key) + 7) / 8;
+    auto d = TRY(integer_parameter(key, OSSL_PKEY_PARAM_PRIV_KEY, scalar_size));
+    ScopeGuard const clear_d = [&] { secure_zero(d.data(), d.size()); };
+    auto public_key = TRY(TRY(from_scalar(d, {}, {})).derive_public_key());
+
+    auto uncompressed = TRY(public_key.to_uncompressed());
+    auto compressed = TRY(ByteBuffer::copy(uncompressed.bytes().trim(1 + scalar_size)));
+    compressed[0] = 0x02 | (uncompressed.bytes().last() & 1);
+
+    // NB: OpenSSL accepts BER, and a privateKey of any width. The parameters and the public key are optional, and the
+    //     public key may be compressed, so the encoding must be the DER encoding of the key in one of those forms.
+    for (auto with_parameters : { false, true }) {
+        for (auto public_point : { Optional<ReadonlyBytes> {}, Optional<ReadonlyBytes> { uncompressed }, Optional<ReadonlyBytes> { compressed } }) {
+            Optional<ASN1::ObjectIdentifier> parameters;
+            if (with_parameters)
+                parameters = curve;
+            auto candidate_encoding = TRY(encode_private_key(d, parameters, public_point));
+            ScopeGuard const clear_candidate_encoding = [&] { secure_zero(candidate_encoding.data(), candidate_encoding.size()); };
+            if (candidate_encoding != encoded)
+                continue;
+
+            Optional<ECPublicKey> maybe_public_key;
+            if (public_point.has_value())
+                maybe_public_key = public_key;
+            return from_scalar(d, move(parameters), move(maybe_public_key));
+        }
+    }
+    return Error::from_string_literal("Invalid ECPrivateKey");
+}
+
 ErrorOr<ByteBuffer> ECPrivateKey::d_bytes() const
 {
     return integer_parameter(m_key.ptr(), OSSL_PKEY_PARAM_PRIV_KEY, m_scalar_size);
@@ -181,115 +240,12 @@ ErrorOr<ECPublicKey> ECPrivateKey::derive_public_key() const
 
 ErrorOr<ByteBuffer> ECPrivateKey::export_as_der() const
 {
-    ASN1::Encoder encoder;
-    TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
-        TRY(encoder.write(1u)); // version
-
-        auto d = TRY(d_bytes());
-        ScopeGuard const clear_d = [&] { secure_zero(d.data(), d.size()); };
-        TRY(encoder.write<ReadonlyBytes>(d));
-
-        if (m_parameters.has_value()) {
-            TRY(encoder.write_constructed(ASN1::Class::Context, static_cast<ASN1::Kind>(0), [&]() -> ErrorOr<void> {
-                TRY(encoder.write<ASN1::ObjectIdentifier>(*m_parameters, {}, ASN1::Kind::ObjectIdentifier));
-                return {};
-            }));
-        }
-
-        if (m_public_key.has_value()) {
-            TRY(encoder.write_constructed(ASN1::Class::Context, static_cast<ASN1::Kind>(1), [&]() -> ErrorOr<void> {
-                auto public_key_bytes = TRY(m_public_key->to_uncompressed());
-                TRY(encoder.write(ASN1::BitStringView(public_key_bytes, 0)));
-
-                return {};
-            }));
-        }
-
-        return {};
-    }));
-
-    return encoder.finish();
-}
-
-// https://www.rfc-editor.org/rfc/rfc5915#section-3
-ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope)
-{
-    KeyPairType keypair;
-
-    if (!is_private) {
-        // NB: A raw public key is the SEC 1 point itself.
-        auto maybe_key = ECPublicKey::from_octets(der);
-        if (maybe_key.is_error()) {
-            ERROR_WITH_SCOPE(maybe_key.release_error());
-        }
-
-        keypair.public_key = maybe_key.release_value();
-        return keypair;
-    }
-
-    ASN1::Decoder decoder(der);
-
-    // ECPrivateKey ::= SEQUENCE {
-    //      version         INTEGER { ecPrivkeyVer1(1) }(ecPrivkeyVer1),
-    //      privateKey      OCTET STRING,
-    //      parameters  [0] ECParameters {{ NamedCurve }} OPTIONAL,
-    //      publicKey   [1] BIT STRING OPTIONAL
-    // }
-
-    ENTER_TYPED_SCOPE(Sequence, "ECPrivateKey");
-
-    PUSH_SCOPE("version");
-    READ_OBJECT(Integer, Crypto::UnsignedBigInteger, version);
-    POP_SCOPE();
-
-    if (version != 1) {
-        ERROR_WITH_SCOPE("Invalid version");
-    }
-
-    PUSH_SCOPE("privateKey");
-    READ_OBJECT(OctetString, StringView, private_key_bytes);
-    POP_SCOPE();
-
-    Optional<ASN1::ObjectIdentifier> parameters;
-    if (!decoder.eof()) {
-        auto tag = TRY(decoder.peek());
-        if (static_cast<u8>(tag.kind) == 0) {
-            REWRITE_TAG(Sequence);
-            ENTER_TYPED_SCOPE(Sequence, "parameters");
-            parameters = TRY(Crypto::Certificate::parse_ec_parameters(decoder, {}));
-            EXIT_SCOPE();
-        }
-    }
-
-    Optional<ECPublicKey> public_key;
-    if (!decoder.eof()) {
-        auto tag = TRY(decoder.peek());
-        if (static_cast<u8>(tag.kind) == 1) {
-            REWRITE_TAG(Sequence);
-            ENTER_TYPED_SCOPE(Sequence, "publicKey");
-            READ_OBJECT(BitString, Crypto::ASN1::BitStringView, public_key_bits);
-
-            auto public_key_bytes = TRY(public_key_bits.raw_bytes());
-            auto maybe_public_key = ECPublicKey::from_octets(public_key_bytes);
-            if (maybe_public_key.is_error()) {
-                ERROR_WITH_SCOPE(maybe_public_key.release_error());
-            }
-
-            keypair.public_key = maybe_public_key.release_value();
-            public_key = keypair.public_key;
-
-            EXIT_SCOPE();
-        }
-    }
-
-    auto private_key = ECPrivateKey::from_scalar(private_key_bytes.bytes(), move(parameters), move(public_key));
-    if (private_key.is_error()) {
-        ERROR_WITH_SCOPE(private_key.release_error());
-    }
-    keypair.private_key = private_key.release_value();
-
-    EXIT_SCOPE();
-    return keypair;
+    auto d = TRY(d_bytes());
+    ScopeGuard const clear_d = [&] { secure_zero(d.data(), d.size()); };
+    Optional<ByteBuffer> public_point;
+    if (m_public_key.has_value())
+        public_point = TRY(m_public_key->to_uncompressed());
+    return encode_private_key(d, m_parameters, public_point.map([](auto const& point) { return point.bytes(); }));
 }
 
 ErrorOr<ECDSASignature> ecdsa_sign(ECPrivateKey const& private_key, ReadonlyBytes digest)
