@@ -111,7 +111,6 @@
         "simd"
       ]
     },
-    "libxml2",
     "llvm-libc",
     {
       "name": "mman",
@@ -367,10 +366,6 @@
     {
       "name": "libwebp",
       "version": "1.6.0#3"
-    },
-    {
-      "name": "libxml2",
-      "version": "2.15.4#0"
     },
     {
       "name": "llvm-libc",

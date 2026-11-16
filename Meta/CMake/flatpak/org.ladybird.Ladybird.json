@@ -250,54 +250,6 @@
       ]
     },
     {
-      "name": "libxml2",
-      "buildsystem": "cmake-ninja",
-      "sources": [
-        {
-          "type": "git",
-          "url": "https://github.com/GNOME/libxml2.git",
-          "tag": "v2.15.4"
-        }
-      ],
-      "config-opts": [
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
-        "-DLIBXML2_WITH_TESTS=OFF",
-        "-DLIBXML2_WITH_PROGRAMS=OFF",
-        "-DLIBXML2_WITH_HTML=ON",
-        "-DLIBXML2_WITH_C14N=ON",
-        "-DLIBXML2_WITH_CATALOG=ON",
-        "-DLIBXML2_WITH_DEBUG=OFF",
-        "-DLIBXML2_WITH_ISO8859X=ON",
-        "-DLIBXML2_WITH_MODULES=ON",
-        "-DLIBXML2_WITH_OUTPUT=ON",
-        "-DLIBXML2_WITH_PATTERN=ON",
-        "-DLIBXML2_WITH_PUSH=ON",
-        "-DLIBXML2_WITH_PYTHON=OFF",
-        "-DLIBXML2_WITH_READER=ON",
-        "-DLIBXML2_WITH_REGEXPS=ON",
-        "-DLIBXML2_WITH_SAX1=ON",
-        "-DLIBXML2_WITH_SCHEMAS=ON",
-        "-DLIBXML2_WITH_SCHEMATRON=ON",
-        "-DLIBXML2_WITH_THREADS=ON",
-        "-DLIBXML2_WITH_THREAD_ALLOC=OFF",
-        "-DLIBXML2_WITH_TREE=ON",
-        "-DLIBXML2_WITH_VALID=ON",
-        "-DLIBXML2_WITH_WRITER=ON",
-        "-DLIBXML2_WITH_XINCLUDE=ON",
-        "-DLIBXML2_WITH_XPATH=ON",
-        "-DLIBXML2_WITH_XPTR=ON",
-        "-DLIBXML2_WITH_ICONV=ON",
-        "-DLIBXML2_WITH_ICU=ON",
-        "-DLIBXML2_WITH_LZMA=ON",
-        "-DLIBXML2_WITH_ZLIB=ON"
-      ],
-      "cleanup": [
-        "/bin"
-      ]
-    },
-    {
       "name": "vulkan-memory-allocator",
       "buildsystem": "cmake-ninja",
       "sources": [

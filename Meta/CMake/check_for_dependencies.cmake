@@ -69,7 +69,6 @@ endif()
 
 find_package(CURL REQUIRED)
 find_package(ICU 78.3 EXACT REQUIRED COMPONENTS data i18n uc)
-find_package(LibXml2 REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(simdjson CONFIG REQUIRED)
