@@ -1,0 +1,6 @@
+Ladybird computes a declaration that is invalid at computed-value
+time as a declaration of unset, never as the user-agent value. Blink’s
+StyleCascade returns a CSSUnsetValue when a substituted value doesn’t
+parse, and WebKit’s Style::Builder applies the unset value type when
+the current property is invalid at computed-value time. Firefox, too,
+computes such a declaration as unset rather than as the UA value.
