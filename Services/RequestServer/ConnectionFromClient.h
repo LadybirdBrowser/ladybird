@@ -112,6 +112,7 @@ private:
     size_t websocket_count() const;
     size_t total_websocket_count() const;
     void connect_websocket(u64 websocket_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> request_headers);
+    void look_up_websocket_host(u64 websocket_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, Optional<HTTP::Proxy>);
     void open_websocket(u64 websocket_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, Optional<HTTP::Proxy>, RefPtr<DNS::LookupResult const>);
 
     IsPrivate m_is_private { IsPrivate::No };
@@ -148,6 +149,7 @@ private:
 
     HashMap<u64, NonnullOwnPtr<Request>> m_active_requests;
     HashMap<u64, NonnullOwnPtr<Request>> m_active_revalidation_requests;
+    void look_up_aia_host(ByteString const& url, ByteString const& fetch_url, ByteString const& host, u16 port, Optional<HTTP::Proxy>);
     void start_aia_fetch(ByteString const& url, ByteString const& fetch_url, Optional<HTTP::Proxy>, Optional<ByteString> resolve_entry);
     void abandon_aia_lookup(ByteString const& url);
 

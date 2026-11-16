@@ -1086,6 +1086,23 @@ TEST_CASE(test_system_resolver_skips_ipv6_addresses_when_ipv6_is_unreachable)
     EXPECT(!system_resolver.ipv6_answered());
 }
 
+TEST_CASE(test_system_resolver_resolves_ipv6_addresses_on_request_when_ipv6_is_unreachable)
+{
+    TestLoop loop;
+    SystemResolverWithHeldBackIPv4 system_resolver;
+    DNS::Resolver resolver {
+        [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> { return OptionalNone {}; },
+        system_resolver.system_resolver(false),
+    };
+
+    auto promise = resolver.lookup("proxy.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .query_aaaa_without_global_ipv6 = true });
+    loop.spin_until([&] { return system_resolver.ipv6_answered(); });
+    system_resolver.let_ipv4_answer();
+    auto result = TRY_OR_FAIL(promise->await());
+    EXPECT(system_resolver.ipv6_answered());
+    EXPECT(has_address_of_family(*result, true));
+}
+
 TEST_CASE(test_system_resolver_resolves_ipv6_addresses_of_local_names_when_ipv6_is_unreachable)
 {
     TestLoop loop;

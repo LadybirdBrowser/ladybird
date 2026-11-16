@@ -52,6 +52,22 @@ TEST_CASE(parse_proxy)
     EXPECT(!HTTP::Proxy::parse("http://2001:db8::1:8080"sv).has_value());
 }
 
+TEST_CASE(parse_proxy_with_ipv6_zone)
+{
+    auto proxy = HTTP::Proxy::parse("http://[fe80::1%25eth0]:3128"sv);
+    EXPECT(proxy.has_value());
+    EXPECT_EQ(proxy->host, "fe80::1%25eth0"sv);
+    EXPECT_EQ(proxy->to_curl_url(), "http://[fe80::1%25eth0]:3128"sv);
+}
+
+TEST_CASE(parse_proxy_with_percent_encoded_host)
+{
+    auto proxy = HTTP::Proxy::parse("http://%6cocal%2EHost:3128"sv);
+    EXPECT(proxy.has_value());
+    EXPECT_EQ(proxy->host, "local.host"sv);
+    EXPECT_EQ(proxy->to_curl_url(), "http://local.host:3128"sv);
+}
+
 TEST_CASE(proxy_hostname_resolution)
 {
     EXPECT(HTTP::Proxy::parse("http://proxy"sv)->resolves_hostnames());
