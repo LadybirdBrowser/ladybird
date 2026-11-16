@@ -15,6 +15,7 @@
 #include <AK/Time.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <AK/Weakable.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibURL/URL.h>
@@ -29,7 +30,9 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#concept-response
-class WEB_API Response : public RefCounted<Response> {
+class WEB_API Response
+    : public RefCounted<Response>
+    , public Weakable<Response> {
 public:
     GC_HOLDS_NO_CELL_EDGES;
 
@@ -114,6 +117,7 @@ public:
 
     [[nodiscard]] virtual BodyInfo const& body_info() const { return m_body_info; }
     virtual void set_body_info(BodyInfo body_info) { m_body_info = move(body_info); }
+    void set_body_sizes(u64 encoded_size, u64 decoded_size);
 
     [[nodiscard]] virtual RedirectTaint redirect_taint() const { return m_redirect_taint; }
     virtual void set_redirect_taint(RedirectTaint redirect_taint) { m_redirect_taint = redirect_taint; }

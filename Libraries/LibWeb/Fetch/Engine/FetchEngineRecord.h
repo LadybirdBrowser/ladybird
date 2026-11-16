@@ -59,6 +59,10 @@ public:
 
     void add_network_transport(NetworkTransportHandle&, FetchBodyDeliveryGate&);
 
+    // Marks the channel as the body of a response handed over to the agent that started the fetch, and returns the id
+    // of that delivery. A Closed channel, whose body has arrived whole, is not marked and gets none.
+    Optional<DeliveryId> deliver_body(FetchByteChannel&);
+
 private:
     friend class FetchEngineRecords;
 

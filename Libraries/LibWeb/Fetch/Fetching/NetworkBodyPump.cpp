@@ -7,12 +7,15 @@
  */
 
 #include <LibHTTP/Cache/MemoryCache.h>
+#include <LibWeb/Fetch/Engine/EngineEvent.h>
+#include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/WebDriver/BiDi/Network.h>
 
 namespace Web::Fetch::Fetching {
@@ -48,15 +51,7 @@ void NetworkBodyPump::set_response(NonnullRefPtr<Infrastructure::Response> respo
 {
     m_response = move(response);
     if (m_network_complete)
-        update_response_body_info();
-}
-
-void NetworkBodyPump::update_response_body_info()
-{
-    auto body_info = m_response->body_info();
-    body_info.encoded_size = m_encoded_body_size;
-    body_info.decoded_size = m_decoded_body_size;
-    m_response->set_body_info(move(body_info));
+        m_response->set_body_sizes(m_encoded_body_size, m_decoded_body_size);
 }
 
 void NetworkBodyPump::visit_edges(Visitor& visitor)
@@ -140,12 +135,21 @@ void NetworkBodyPump::handle_network_complete(Optional<i64> request_server_encod
         m_encoded_body_size = static_cast<u64>(max<i64>(*request_server_encoded_body_size, 0));
     else
         m_encoded_body_size = m_decoded_body_size;
-    if (m_response)
-        update_response_body_info();
+    auto delivery_id = m_channel->delivery_id();
+    if (m_response && !delivery_id.has_value())
+        m_response->set_body_sizes(m_encoded_body_size, m_decoded_body_size);
     finalize_cache_entry();
+    if (delivery_id.has_value()) {
+        Engine::Event::EndOfBody end_of_body {
+            .delivery_id = *delivery_id,
+            .final_sizes = { .encoded_body_size = m_encoded_body_size, .decoded_body_size = m_decoded_body_size },
+            .end_time = HighResolutionTime::unsafe_shared_current_time(),
+        };
+        auto* engine_record = m_fetch_params->engine_record();
+        VERIFY(engine_record);
+        engine_record->event_sink().handle_event(move(end_of_body));
+    }
     m_channel->close();
-    if (m_fetch_controller)
-        m_fetch_controller->did_complete_network_body(*m_channel);
 }
 
 void NetworkBodyPump::handle_network_error(StringView error_message)

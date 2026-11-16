@@ -41,6 +41,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/NavigationParams.h>
@@ -61,6 +62,7 @@ using Web::Fetch::Engine::FetchByteChannel;
 using Web::Fetch::Engine::NetworkTransportHandle;
 using Web::Fetch::Engine::WholeBodyTransport;
 using Web::Fetch::Engine::Command::TransportControl;
+using Web::Fetch::Engine::Event::EndOfBody;
 using Web::Fetch::Engine::Event::NetworkActivity;
 using Web::Fetch::Engine::Event::ReadRequestBodyStream;
 using Web::Fetch::Engine::Event::RequestBodyEndOfBody;
@@ -72,6 +74,7 @@ using Web::Fetch::Infrastructure::FetchAlgorithms;
 using Web::Fetch::Infrastructure::FetchController;
 using Web::Fetch::Infrastructure::FetchParams;
 using Web::Fetch::Infrastructure::Request;
+using Web::Fetch::Infrastructure::Response;
 using Web::Fetch::Infrastructure::ResponseView;
 
 namespace {
@@ -684,26 +687,96 @@ struct ResourceLoaderWithoutRequestServer {
     }
 };
 
-// A RequestServer client of the agent's resource loader, whose RequestServer end of the connection the test holds.
-struct ResourceLoaderWithStandInRequestServer {
-    explicit ResourceLoaderWithStandInRequestServer(GC::Heap& heap)
+// What a RequestServer the test stands in for has been asked to start.
+struct StartedRequests : RefCounted<StartedRequests> {
+    GC_HOLDS_NO_CELL_EDGES;
+
+    IPC::Transport* request_server { nullptr };
+    Vector<u64> ids;
+    Vector<ByteString> methods;
+};
+
+// A RequestServer client of the agent's resource loader, whose RequestServer end of the connection the test holds and
+// answers for.
+class StandInRequestServer {
+public:
+    explicit StandInRequestServer(FetchHarness const& harness)
+        : m_harness(harness)
     {
-        Web::ResourceLoader::initialize(heap);
+        Web::ResourceLoader::initialize(harness.realm->heap());
         auto pair = MUST(IPC::Transport::create_paired());
-        client = make_ref_counted<Requests::RequestClient>(move(pair.local), 1);
-        Web::ResourceLoader::the().set_client({}, *client);
-        request_server = MUST(pair.remote_handle.create_transport());
+        m_client = make_ref_counted<Requests::RequestClient>(move(pair.local), 1);
+        Web::ResourceLoader::the().set_client({}, *m_client);
+        m_request_server = MUST(pair.remote_handle.create_transport());
+        m_started->request_server = m_request_server.ptr();
     }
 
-    ~ResourceLoaderWithStandInRequestServer()
+    ~StandInRequestServer()
     {
         // The client can hear of its RequestServer's death after the resource loader is gone.
-        client->on_request_server_died = nullptr;
+        m_client->on_request_server_died = nullptr;
         Web::ResourceLoader::shut_down();
     }
 
-    RefPtr<Requests::RequestClient> client;
-    OwnPtr<IPC::Transport> request_server;
+    // Runs the agent's tasks until another request with the method has started, and returns its id.
+    u64 wait_for_request(StringView method)
+    {
+        // The RequestServer end is not part of the event loop, so keep the loop from sleeping until it has news.
+        auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(10), [] { });
+        wake_timer->start();
+
+        auto expected = ByteString { method };
+        m_harness.run_tasks_until(GC::create_function(m_harness.realm->heap(), GC::captures(m_started, m_taken_count, expected), [](auto& started, auto& taken_count, auto& expected) {
+            (void)started->request_server->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
+                auto message = MUST(RequestServerEndpoint::decode_message(raw_message.bytes.bytes(), raw_message.attachments));
+                if (message->message_id() != Messages::RequestServer::StartRequest::static_message_id())
+                    return;
+                auto const& start = static_cast<Messages::RequestServer::StartRequest&>(*message);
+                started->ids.append(start.request_id());
+                started->methods.append(start.method());
+            });
+            for (size_t index = taken_count; index < started->methods.size(); ++index) {
+                if (started->methods[index] == expected)
+                    return true;
+            }
+            return false;
+        }));
+        for (size_t index = m_taken_count; index < m_started->methods.size(); ++index) {
+            if (m_started->methods[index] == method) {
+                m_taken_count = index + 1;
+                return m_started->ids[index];
+            }
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    void send(IPC::MessageBuffer message)
+    {
+        MUST(message.transfer_message(*m_request_server));
+    }
+
+    void send_headers(u64 request_id, u32 status_code, Vector<HTTP::Header> headers = {})
+    {
+        send(MUST(Messages::RequestClient::HeadersBecameAvailable::static_encode(request_id, URL::about_blank(), move(headers), status_code, Optional<String> {}, Requests::CacheState::NotCached, ByteString {})));
+    }
+
+    void send_finished(u64 request_id, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error = {})
+    {
+        send(MUST(Messages::RequestClient::RequestFinished::static_encode(request_id, 0, timing_info, network_error)));
+    }
+
+    void send_transferred(u64 request_id)
+    {
+        send(MUST(Messages::RequestClient::RequestTransferred::static_encode(request_id)));
+    }
+
+private:
+    FetchHarness const& m_harness;
+    RefPtr<Requests::RequestClient> m_client;
+    OwnPtr<IPC::Transport> m_request_server;
+    NonnullRefPtr<StartedRequests> m_started { make_ref_counted<StartedRequests>() };
+    // The started requests a wait has already returned or passed over.
+    size_t m_taken_count { 0 };
 };
 
 }
@@ -789,7 +862,7 @@ class AdoptedNavigationBody {
 public:
     explicit AdoptedNavigationBody(FetchHarness const& harness)
         : m_harness(harness)
-        , m_resource_loader(harness.realm->heap())
+        , m_request_server(harness)
     {
         auto& agent = Web::HTML::surrounding_agent();
         Web::Fetch::Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
@@ -813,11 +886,11 @@ public:
     // Sends the message as RequestServer, and runs the agent's tasks until the body's request has received it.
     void receive(IPC::MessageBuffer message)
     {
-        MUST(message.transfer_message(*m_resource_loader.request_server));
+        m_request_server.send(move(message));
         auto marker = ByteString::formatted("received {}", ++m_received_count);
         auto request_id = handle().request_id().value();
         auto marker_message = MUST(Messages::RequestClient::HeadersBecameAvailable::static_encode(request_id, URL::about_blank(), Vector<HTTP::Header> {}, Optional<u32> {}, Optional<String> {}, Requests::CacheState::NotCached, marker));
-        MUST(marker_message.transfer_message(*m_resource_loader.request_server));
+        m_request_server.send(move(marker_message));
 
         auto weak_handle = handle().make_weak_ptr<NetworkTransportHandle>();
         m_harness.run_tasks_until(GC::create_function(m_harness.realm->heap(), GC::captures(weak_handle, marker), [](auto& weak_handle, auto& marker) {
@@ -853,7 +926,7 @@ public:
 
 private:
     FetchHarness const& m_harness;
-    ResourceLoaderWithStandInRequestServer m_resource_loader;
+    StandInRequestServer m_request_server;
     NonnullRefPtr<PostedCommands> m_posted_commands { make_ref_counted<PostedCommands>() };
     RefPtr<Web::Fetch::Engine::FetchExecutor> m_engine_executor;
     GC::Root<Web::Fetch::Infrastructure::Body> m_body;
@@ -973,6 +1046,181 @@ TEST_CASE(the_holders_of_an_adopted_navigation_body_post_its_controls_to_the_age
     auto release_up_to = adopted.describe(TransportControl::ReleaseNavigationHoldUpTo { .byte_count = 512 });
     auto stop = adopted.describe(TransportControl::StopTransport {});
     EXPECT_EQ(adopted.commands->steps, (Vector<ByteString> { "navigation body adopted", release, release_up_to, stop }));
+}
+
+static Requests::RequestTimingInfo finished_timing_info(i64 microseconds)
+{
+    return {
+        .domain_lookup_start_microseconds = microseconds,
+        .domain_lookup_end_microseconds = microseconds + 1000,
+        .connect_start_microseconds = microseconds + 2000,
+        .connect_end_microseconds = microseconds + 3000,
+        .request_start_microseconds = microseconds + 4000,
+        .response_start_microseconds = microseconds + 5000,
+        .encoded_body_size = 1234,
+    };
+}
+
+static FetchAlgorithms::Input recording_responses(GC::Heap& heap, NonnullRefPtr<AlgorithmCalls> const& record)
+{
+    FetchAlgorithms::Input input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard };
+    input.process_response = GC::create_function(heap, GC::captures(record), [](auto& record, GC::Ref<ResponseView> response) {
+        record->responses.append(GC::make_root(response));
+    });
+    return input;
+}
+
+static void run_until_responses(FetchHarness const& harness, NonnullRefPtr<AlgorithmCalls> const& record, size_t count)
+{
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(record, count), [](auto& record, auto& count) { return record->responses.size() == count; }));
+    VERIFY(record->responses.size() == count);
+}
+
+static void run_until_encoded_size(FetchHarness const& harness, NonnullRefPtr<Response const> const& response, u64 encoded_size)
+{
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(response, encoded_size), [](auto& response, auto& encoded_size) { return response->body_info().encoded_size == encoded_size; }));
+}
+
+namespace {
+
+// A fetch whose response has been handed over while its body still arrives from the stand-in RequestServer.
+struct DeliveredBody {
+    GC::Root<FetchController> controller;
+    NonnullRefPtr<Response const> response;
+    Web::Fetch::Engine::DeliveryId delivery_id;
+    u64 request_id { 0 };
+};
+
+}
+
+static DeliveredBody deliver_a_body(FetchHarness const& harness, StandInRequestServer& request_server, StringView url, Optional<Request::InitiatorType> initiator_type = {})
+{
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for(url);
+    request->set_initiator_type(initiator_type);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    auto request_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(request_id, 200);
+    run_until_responses(harness, record, 1);
+    auto response = record->responses[0]->record()->unsafe_response();
+    auto delivery_id = response->network_transport()->body_channel->delivery_id();
+    VERIFY(delivery_id.has_value());
+    return { move(controller), move(response), *delivery_id, request_id };
+}
+
+// Reports the end of the delivered body, as the engine would once the body had arrived whole.
+static void report_end_of_body(DeliveredBody const& delivered)
+{
+    EndOfBody end_of_body {
+        .delivery_id = delivered.delivery_id,
+        .final_sizes = { .encoded_body_size = 1, .decoded_body_size = 1 },
+        .end_time = 1,
+    };
+    FetchEventSink event_sink { *delivered.controller };
+    event_sink.handle_event(move(end_of_body));
+}
+
+// A request whose response main fetch reads whole, to check its integrity, before handing it over.
+static NonnullRefPtr<Request> create_request_checked_for_integrity(FetchHarness const& harness, StringView url)
+{
+    auto request = harness.create_request_for(url);
+    request->set_mode(Request::Mode::CORS);
+    // The digest of an empty body.
+    request->set_integrity_metadata("sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="_utf16);
+    return request;
+}
+
+TEST_CASE(a_body_that_ends_before_its_response_is_handed_over_gets_its_sizes_from_its_pump)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    StandInRequestServer request_server { harness };
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = create_request_checked_for_integrity(harness, "http://127.0.0.1:8000/ended-before-handover"sv);
+    (void)harness.fetch(request, recording_responses(harness.realm->heap(), record));
+    auto request_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
+    request_server.send_finished(request_id, finished_timing_info(1000));
+    run_until_responses(harness, record, 1);
+
+    auto response = record->responses[0]->record()->unsafe_response();
+    EXPECT_EQ(response->body_info().encoded_size, 1234u);
+    EXPECT(!response->network_transport()->body_channel->delivery_id().has_value());
+}
+
+TEST_CASE(a_body_that_ends_after_its_response_is_handed_over_gets_its_sizes_from_its_end)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    StandInRequestServer request_server { harness };
+
+    auto delivered = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/ended-after-handover"sv);
+    EXPECT_EQ(delivered.response->body_info().encoded_size, 0u);
+
+    request_server.send_finished(delivered.request_id, finished_timing_info(1000));
+    run_until_encoded_size(harness, delivered.response, 1234);
+    EXPECT_EQ(delivered.response->body_info().encoded_size, 1234u);
+}
+
+TEST_CASE(a_body_that_ends_after_its_response_is_handed_over_reports_the_end_time_of_its_end)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    StandInRequestServer request_server { harness };
+
+    auto delivered = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/reported"sv, Request::InitiatorType::Fetch);
+    report_end_of_body(delivered);
+
+    auto fetch_params = delivered.controller->original_fetch_params();
+    VERIFY(fetch_params);
+    EXPECT_EQ(fetch_params->timing_info()->end_time(), 1);
+}
+
+TEST_CASE(a_stopped_fetch_no_longer_awaits_the_end_of_its_body)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    StandInRequestServer request_server { harness };
+
+    auto delivered = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/stopped"sv);
+    delivered.controller->stop_fetch();
+    report_end_of_body(delivered);
+    EXPECT_EQ(delivered.response->body_info().encoded_size, 0u);
+}
+
+TEST_CASE(a_body_that_fails_or_moves_away_reports_no_end)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    StandInRequestServer request_server { harness };
+
+    auto failed = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/failed"sv);
+    auto transferred = deliver_a_body(harness, request_server, "http://127.0.0.1:8000/transferred"sv);
+    request_server.send_finished(failed.request_id, finished_timing_info(1000), Requests::NetworkError::IncompleteContent);
+    request_server.send_transferred(transferred.request_id);
+    auto failed_channel = failed.response->network_transport()->body_channel;
+    auto transferred_channel = transferred.response->network_transport()->body_channel;
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(failed_channel, transferred_channel), [](auto& failed_channel, auto& transferred_channel) {
+        return failed_channel->peek_up_to(0).state.template has<FetchByteChannel::Errored>()
+            && transferred_channel->peek_up_to(0).state.template has<FetchByteChannel::Transferred>();
+    }));
+
+    EXPECT(failed_channel->peek_up_to(0).state.has<FetchByteChannel::Errored>());
+    EXPECT(transferred_channel->peek_up_to(0).state.has<FetchByteChannel::Transferred>());
+    EXPECT_EQ(failed.response->body_info().encoded_size, 0u);
+    EXPECT_EQ(transferred.response->body_info().encoded_size, 0u);
+
+    // Each fetch still awaits the end of its body.
+    report_end_of_body(failed);
+    report_end_of_body(transferred);
+    EXPECT_EQ(failed.response->body_info().encoded_size, 1u);
+    EXPECT_EQ(transferred.response->body_info().encoded_size, 1u);
 }
 
 namespace {

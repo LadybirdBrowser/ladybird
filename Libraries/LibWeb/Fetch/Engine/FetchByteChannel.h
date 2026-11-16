@@ -96,6 +96,11 @@ public:
     void keep_whole_body(Core::ImmutableBytes);
     [[nodiscard]] Optional<Core::ImmutableBytes> whole_body() const;
 
+    // The delivery of the handed-over response these bytes are the body of. Set once, unless the channel is Closed, and
+    // returns whether it was set.
+    [[nodiscard]] bool set_delivery_id_unless_closed(DeliveryId);
+    [[nodiscard]] Optional<DeliveryId> delivery_id() const;
+
     // Consumer side.
     // The consumer attaches its sink once, before any arm_waiter() call.
     void attach_consumer(NonnullRefPtr<FetchByteChannelConsumerSink>);
@@ -183,6 +188,7 @@ private:
     State m_state { Open {} };
     bool m_transport_ended { false };
     Optional<Core::ImmutableBytes> m_whole_body;
+    Optional<DeliveryId> m_delivery_id;
     Vector<ArmedWaiter, 2> m_armed_waiters;
     Vector<KeptPrefix, 1> m_kept_prefixes;
     u64 m_next_ticket { 1 };

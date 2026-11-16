@@ -1104,17 +1104,15 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     if (fetch_params.request()->is_navigation_request())
         fetch_params.control_block().set_full_timing_info(fetch_params.timing_info());
 
-    // AD-HOC: We extract steps 1-2 of processResponseEndOfBody into a separate lambda so we can also call it from
-    //         the error path. The fetch spec only runs processResponseEndOfBody on successful body read (via the
-    //         transform stream's flush algorithm). However, processResponseConsumeBody is called for both success
-    //         and failure, and specs like HTML's preload algorithm expect to be able to call reportTiming from
-    //         within processResponseConsumeBody. So we ensure report_timing_steps is set on error too, which allows
-    //         reportTiming to work without asserting, and still produces useful timing data for failed fetches.
+    // AD-HOC: We extract step 2 of processResponseEndOfBody into a separate lambda, given unsafeEndTime, so that the
+    //         error path and network completion can also run it. The fetch spec only runs processResponseEndOfBody on
+    //         successful body read (via the transform stream's flush algorithm). However, processResponseConsumeBody
+    //         is called for both success and failure, and specs like HTML's preload algorithm expect to be able to
+    //         call reportTiming from within processResponseConsumeBody. So we ensure report_timing_steps is set on
+    //         error too, which allows reportTiming to work without asserting, and still produces useful timing data
+    //         for failed fetches.
     auto timing_reported = RefCountedFlag::create(false);
-    auto setup_report_timing_steps = GC::create_function(GC::Heap::the(), GC::captures(response_view->record(), NonnullRefPtr { fetch_params }, controller, timing_info, timing_reported), [](auto& response, auto& fetch_params, auto& controller, auto& timing_info, auto& timing_reported) {
-        // 1. Let unsafeEndTime be the unsafe shared current time.
-        auto unsafe_end_time = HighResolutionTime::unsafe_shared_current_time();
-
+    auto setup_report_timing_steps = GC::create_function(GC::Heap::the(), GC::captures(response_view->record(), NonnullRefPtr { fetch_params }, controller, timing_info, timing_reported), [](auto& response, auto& fetch_params, auto& controller, auto& timing_info, auto& timing_reported, HighResolutionTime::DOMHighResTimeStamp unsafe_end_time) {
         // 2. Set fetchParams’s controller’s report timing steps to the following steps given a global object global:
         controller->set_report_timing_steps(GC::create_function(GC::Heap::the(), GC::captures(response, fetch_params, timing_info, unsafe_end_time, timing_reported), [](auto& response, auto& fetch_params, auto& timing_info, auto& unsafe_end_time, auto& timing_reported, JS::Object& global) {
             // NB: Network completion and consuming the response body can both request a timing report.
@@ -1197,8 +1195,11 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     // 4. Let processResponseEndOfBody be the following steps:
     auto process_response_end_of_body = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params }, controller, response_view, setup_report_timing_steps, report_timing_if_appropriate), [](auto& fetch_params, auto& controller, auto& response_view, auto& setup_report_timing_steps, auto& report_timing_if_appropriate) {
-        // 1-2. (See setup_report_timing_steps above)
-        setup_report_timing_steps->function()();
+        // 1. Let unsafeEndTime be the unsafe shared current time.
+        auto unsafe_end_time = HighResolutionTime::unsafe_shared_current_time();
+
+        // 2. (See setup_report_timing_steps above)
+        setup_report_timing_steps->function()(unsafe_end_time);
         if (WebDriver::BiDi::network_events_enabled() && !response_view->is_network_error())
             WebDriver::BiDi::network_response_completed(fetch_params, *response_view->record()->unsafe_response());
 
@@ -1234,20 +1235,31 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     // AD-HOC: Report a body's timing once the network has delivered it. Fetch reports it from the flush of the
     //         transform the body is piped through, which backpressure on an unread body can hold back.
-    if (internal_body.has_value() && (fetch_params.request()->initiator_type().has_value() || (WebDriver::BiDi::network_events_enabled() && !fetch_params.request()->is_navigation_request()))) {
-        auto network_completion_steps = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params }, response_view, setup_report_timing_steps, report_timing_if_appropriate), [](auto& fetch_params, auto& response_view, auto& setup_report_timing_steps, auto& report_timing_if_appropriate) {
-            setup_report_timing_steps->function()();
-            report_timing_if_appropriate->function()();
-            if (WebDriver::BiDi::network_events_enabled())
-                WebDriver::BiDi::network_response_completed(*fetch_params, *response_view->record()->unsafe_response());
-        });
+    if (internal_body.has_value()) {
+        GC::Ptr<GC::Function<void(HighResolutionTime::DOMHighResTimeStamp)>> network_completion_steps;
+        if (fetch_params.request()->initiator_type().has_value() || (WebDriver::BiDi::network_events_enabled() && !fetch_params.request()->is_navigation_request())) {
+            network_completion_steps = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params }, response_view, setup_report_timing_steps, report_timing_if_appropriate), [](auto& fetch_params, auto& response_view, auto& setup_report_timing_steps, auto& report_timing_if_appropriate, HighResolutionTime::DOMHighResTimeStamp unsafe_end_time) {
+                setup_report_timing_steps->function()(unsafe_end_time);
+                report_timing_if_appropriate->function()();
+                if (WebDriver::BiDi::network_events_enabled())
+                    WebDriver::BiDi::network_response_completed(*fetch_params, *response_view->record()->unsafe_response());
+            });
+        }
+        auto run_network_completion_steps_now = [&] {
+            if (network_completion_steps)
+                network_completion_steps->function()(HighResolutionTime::unsafe_shared_current_time());
+        };
         internal_body->bytes().visit(
-            [&](Core::ImmutableBytes const&) { network_completion_steps->function()(); },
+            [&](Core::ImmutableBytes const&) { run_network_completion_steps_now(); },
             [&](NonnullRefPtr<Engine::FetchByteChannel> const& channel) {
-                if (channel->peek_up_to(0).state.has<Engine::FetchByteChannel::Closed>())
-                    network_completion_steps->function()();
-                else
-                    controller->when_network_completes_body(*channel, network_completion_steps);
+                auto* engine_record = fetch_params.engine_record();
+                VERIFY(engine_record);
+                auto delivery_id = engine_record->deliver_body(*channel);
+                if (!delivery_id.has_value()) {
+                    run_network_completion_steps_now();
+                    return;
+                }
+                controller->when_body_ends(*delivery_id, internal_response, network_completion_steps);
             },
             [](Infrastructure::ResponseBody::ReadThroughStream) { });
     }
@@ -1390,7 +1402,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         //    failure.
         auto process_body_error = GC::create_function(GC::Heap::the(), GC::captures(algorithms, response_view, fetch_params.controller(), setup_report_timing_steps), [](auto& algorithms, auto& response_view, auto& controller, auto& setup_report_timing_steps, JS::Value) {
             // AD-HOC: See comment on setup_report_timing_steps above.
-            setup_report_timing_steps->function()();
+            setup_report_timing_steps->function()(HighResolutionTime::unsafe_shared_current_time());
             // NB: A failed read does not always close or error the body's stream, which would otherwise end this.
             end_rendering_pending_operation(controller.ptr());
             algorithms->process_response_consume_body()->function()(response_view, Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag {});

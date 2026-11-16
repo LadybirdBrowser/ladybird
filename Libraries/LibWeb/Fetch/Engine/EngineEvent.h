@@ -22,7 +22,7 @@ struct ResponseDelivery {
     FetchTimingSeed timing_seed;
 };
 
-// Sent once per delivery after its last byte, whether or not the transport has completed.
+// Sent only for a body still arriving at its response's handover, once the network completes it.
 struct EndOfBody {
     struct FinalSizes {
         u64 encoded_body_size { 0 };
