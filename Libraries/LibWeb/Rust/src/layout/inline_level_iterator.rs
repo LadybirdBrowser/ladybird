@@ -745,6 +745,9 @@ impl Item {
         let run = self.glyph_run(prepared)?;
         let start = self.offset_in_node;
         let end = start + self.length_in_node;
+        let boundary = segmenter
+            .next_boundary(start, false)
+            .filter(|boundary| *boundary < end)?;
         if run.text_type != line_box_fragment::GLYPH_TEXT_TYPE_RTL
             && let Some(first_glyph) = run.glyphs.first()
         {
@@ -754,18 +757,15 @@ impl Item {
                     continue;
                 }
                 let offset = start + code_units;
-                if offset >= end {
+                if offset > boundary {
                     break;
                 }
-                if segmenter.next_boundary(offset, true) == Some(offset) {
+                if offset == boundary {
                     return Some(CssPixels::nearest_value_for_f32(placed.x));
                 }
                 code_units += placed.glyph.length_in_code_units();
             }
         }
-        let boundary = segmenter
-            .next_boundary(start, false)
-            .filter(|boundary| *boundary < end)?;
         let width = libgfx_rust::text_layout::shaped_text_width(
             run.font,
             &text[start..boundary],

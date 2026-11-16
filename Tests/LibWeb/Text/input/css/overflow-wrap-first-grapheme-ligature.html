@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Lato; src: url("../../../Assets/Lato-Bold.ttf"); }
+    @font-face { font-family: PlusLigatures; src: url("../../../Assets/PlusLigatures.ttf"); }
+    @font-face { font-family: Programming; src: url("../../../Assets/FiraCode-Latin.woff2"); }
+    .case { font-size: 40px; line-height: 50px; width: 200px; display: flow-root; }
+    .reference { position: absolute; width: max-content; }
+    .float { float: inline-start; height: 150px; }
+</style>
+<script>
+    promiseTest(async () => {
+        await Promise.all(["Lato", "PlusLigatures", "Programming"].map(font => document.fonts.load(`40px ${font}`)));
+        const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+        const cases = [
+            ["Lato", "ffix"],
+            ["Lato", "fix"],
+            ["Lato", "ffi"],
+            ["Lato", "a\u0301x"],
+            ["Lato", "f\u0301fix"],
+            ["PlusLigatures", "+++x"],
+            ["Programming", "-->x"],
+        ];
+        for (const [property, value] of [
+            ["overflow-wrap", "anywhere"],
+            ["overflow-wrap", "break-word"],
+            ["word-break", "break-word"],
+        ]) {
+            for (const direction of ["ltr", "rtl"]) {
+                for (const [font, text] of cases) {
+                    const first = segmenter.segment(text)[Symbol.iterator]().next().value.segment;
+                    const reference = document.createElement("div");
+                    reference.className = "case reference";
+                    reference.style.fontFamily = font;
+                    reference.textContent = first;
+                    document.body.append(reference);
+                    const available = reference.getBoundingClientRect().width + 0.5;
+                    reference.textContent = "z";
+                    const leadingWidth = reference.getBoundingClientRect().width;
+                    for (const obstacleClass of ["interrupted-float", "after-break"]) {
+                        const box = document.createElement("div");
+                        box.className = "case";
+                        box.style.fontFamily = font;
+                        box.style.direction = direction;
+                        box.style.setProperty(property, value);
+                        const obstacle = document.createElement("span");
+                        obstacle.className = "float";
+                        const interrupted = obstacleClass === "interrupted-float";
+                        obstacle.style.width = `${200 - available - (interrupted ? leadingWidth : 0)}px`;
+                        const textNode = document.createTextNode(text);
+                        if (interrupted) {
+                            box.append("z", obstacle, textNode);
+                        } else {
+                            box.append(obstacle, document.createElement("br"), textNode);
+                        }
+                        document.body.append(box);
+                        const range = document.createRange();
+                        range.setStart(textNode, 0);
+                        range.setEnd(textNode, first.length);
+                        const line = Math.round((range.getBoundingClientRect().top - box.getBoundingClientRect().top) / 50);
+                        const floatLine = Math.round((obstacle.getBoundingClientRect().top - box.getBoundingClientRect().top) / 50);
+                        println(
+                            `${property}: ${value}, ${direction} ${font} ${JSON.stringify(text)} ${obstacleClass}: float line ${floatLine}, text line ${line}`
+                        );
+                    }
+                }
+            }
+        }
+    });
+</script>
