@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
 
 using Web::Crypto::HandleTag;
@@ -598,6 +599,19 @@ TEST_CASE(crypto_key_algorithm_variants_decode_from_frozen_bytes)
             expect_utf16_equals(algorithm.named_curve(), "P-256"_utf16);
         }
     }
+}
+
+TEST_CASE(crypto_key_with_an_invalid_ec_point_is_a_data_clone_error)
+{
+    Array<u8, 32> zero {};
+    auto record = crypto_key_full_record("public"sv, "verify"sv, alg_ec_key_algorithm("ECDSA"sv, "P-256"sv), handle_ec_public_key(zero, zero));
+    auto& realm = principal_test_realm();
+    auto result = Web::WebIDL::throw_dom_exception_if_needed(realm.vm(), realm, [&] {
+        return principal_storage_deserialize(record);
+    });
+    EXPECT(result.is_error());
+    if (result.is_error())
+        EXPECT_EQ(unwrap_wrappable<Web::WebIDL::DOMException>(result.error_value()).name(), "DataCloneError"_utf16);
 }
 
 TEST_CASE(crypto_key_handle_variants_decode_from_frozen_bytes)

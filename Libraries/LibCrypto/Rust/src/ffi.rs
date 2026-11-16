@@ -42,8 +42,7 @@ unsafe extern "C" {
         out: *mut c_void,
         all_consumed: &mut bool,
     ) -> usize;
-    pub(super) fn crypto_public_key_for_private_key(key: *const c_void, name: usize, named_curve: usize)
-    -> *mut c_void;
+    pub(super) fn crypto_public_key_for_private_key(key: *const c_void, name: usize) -> *mut c_void;
     pub(super) fn crypto_sha_digest(
         kind: ShaHashKind,
         data: Span<'_, u8>,
@@ -253,11 +252,10 @@ unsafe extern "C" {
         curve: EcCurve,
         key: *const c_void,
         digest: Span<'_, u8>,
-        error: &mut usize,
         r: *mut c_void,
         s: *mut c_void,
         receive: ReceiveBytes,
-    ) -> u8;
+    ) -> usize;
     pub(super) fn crypto_ec_verify(
         curve: EcCurve,
         key: *const c_void,
@@ -271,10 +269,9 @@ unsafe extern "C" {
         curve: EcCurve,
         key: *const c_void,
         public_key: *const c_void,
-        error: &mut usize,
         state: *mut c_void,
         receive: ReceiveBytes,
-    ) -> u8;
+    ) -> usize;
     pub(super) fn crypto_ec_key_info_has_public_key_oid(structure: Asn1Structure, key_info: *const c_void) -> bool;
     pub(super) fn crypto_ec_key_info_parameters(
         structure: Asn1Structure,
@@ -283,12 +280,8 @@ unsafe extern "C" {
     ) -> bool;
     pub(super) fn crypto_ec_private_key_info_parameters_match(key_info: *const c_void) -> bool;
     pub(super) fn crypto_ec_key_info_read_key(structure: Asn1Structure, key_info: *const c_void) -> *mut c_void;
-    pub(super) fn crypto_ec_key_from_coordinates(
-        x: Span<'_, u8>,
-        y: Span<'_, u8>,
-        coord_size: usize,
-        d: OptionalBytes<'_>,
-    ) -> *mut c_void;
+    pub(super) fn crypto_ec_key_from_coordinates(x: Span<'_, u8>, y: Span<'_, u8>, d: OptionalBytes<'_>)
+    -> *mut c_void;
     pub(super) fn crypto_ec_parse_raw_public_key(bytes: Span<'_, u8>) -> *mut c_void;
     pub(super) fn crypto_ec_key_is_valid(curve: EcCurve, key: *const c_void, valid: &mut bool) -> bool;
     pub(super) fn crypto_ec_export_der(
@@ -300,7 +293,6 @@ unsafe extern "C" {
     ) -> bool;
     pub(super) fn crypto_ec_export_uncompressed(key: *const c_void, state: *mut c_void, receive: ReceiveBytes) -> bool;
     pub(super) fn crypto_ec_export_public_coordinates(
-        curve: EcCurve,
         key: *const c_void,
         x: *mut c_void,
         y: *mut c_void,
