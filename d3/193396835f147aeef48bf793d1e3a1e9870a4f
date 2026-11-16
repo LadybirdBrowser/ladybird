@@ -1,0 +1,17 @@
+Ladybird preserves the author’s line-height on selects without
+native appearance, including inherited and animated line-height.
+The computed appearance controls the native line-height reset, and
+changes to appearance rebuild the affected font metrics.
+
+Blink’s LayoutTheme::AdjustStyle() returns before native adjustments
+when the effective appearance is none. Its AdjustMenuListStyle()
+resets line-height for a native menu list. Chrome gives the reduced
+page’s unthemed selects a 26px line-height and a 68px border-box height,
+matching the neighboring inputs. Its native select retains normal.
+
+WebKit’s RenderTheme::adjustStyle() returns when the style has no used
+appearance. Its RenderThemeMac::adjustMenuListButtonStyle() resets
+line-height within the native menu-list styling path. In Gecko, the
+StyleAdjuster::adjust_for_appearance() method resets line-height only
+for an HTML select whose effective appearance is Menulist. All three
+leave the author’s value intact for a select with “appearance: none”.
