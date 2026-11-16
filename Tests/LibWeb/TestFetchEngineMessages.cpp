@@ -128,14 +128,14 @@ TEST_CASE(events_round_trip_their_payloads)
     events.append(Event::BodyChannelReadable { .delivery_id = DeliveryId(4), .ticket = WakeTicket(7) });
     events.append(Event::DeliveryEnd { .delivery_id = DeliveryId(5), .outcome = Event::DeliveryEnd::Revoked {} });
     events.append(Event::RequestTransmissionStarted { .transmission_id = TransmissionId(6), .generation = TransmissionGeneration(1) });
+    Web::Fetch::Infrastructure::ConnectionTimingInfo connection_timing_info;
+    connection_timing_info.connection_start_time = 3;
+    connection_timing_info.alpn_negotiated_protocol = "h2";
     events.append(Event::RequestTransmissionEnded {
-        .transmission_id = TransmissionId(7),
-        .generation = TransmissionGeneration(2),
-        .request_end = {
-            .request_id = RequestId(70),
-            .transport_epoch = TransportEpoch(3),
-            .transport_complete_at = MonotonicTime::now(),
-            .outcome = RequestEnd::CommittedAttemptFailed { .attempt_id = AttemptId(4), .error = Requests::NetworkError::IncompleteContent, .encoded_body_size = 512 },
+        .network_phases = {
+            .final_connection_timing_info = move(connection_timing_info),
+            .final_network_request_start_time = 4,
+            .final_network_response_start_time = 5,
         },
     });
     events.append(Event::RequestBodyProgress { .length = 8 });
@@ -178,6 +178,7 @@ TEST_CASE(events_round_trip_their_payloads)
     });
 
     Vector<u64> seen_ids;
+    bool seen_network_phases = false;
     Vector<StringView> seen_request_body_events;
     Vector<u64> seen_network_request_ids;
     for (auto const& event : events) {
@@ -206,11 +207,12 @@ TEST_CASE(events_round_trip_their_payloads)
             },
             [&](Event::RequestTransmissionStarted const& started) { seen_ids.append(started.transmission_id.value()); },
             [&](Event::RequestTransmissionEnded const& ended) {
-                EXPECT_EQ(ended.request_end.request_id, RequestId(70));
-                auto const& failed = ended.request_end.outcome.get<RequestEnd::CommittedAttemptFailed>();
-                EXPECT_EQ(failed.error, Requests::NetworkError::IncompleteContent);
-                EXPECT_EQ(failed.encoded_body_size, 512u);
-                seen_ids.append(ended.transmission_id.value());
+                auto const& phases = ended.network_phases;
+                EXPECT_EQ(phases.final_connection_timing_info.connection_start_time, 3);
+                EXPECT_EQ(phases.final_connection_timing_info.alpn_negotiated_protocol, "h2"sv);
+                EXPECT_EQ(phases.final_network_request_start_time, 4);
+                EXPECT_EQ(phases.final_network_response_start_time, 5);
+                seen_network_phases = true;
             },
             [&](Event::RequestBodyProgress const& progress) {
                 EXPECT_EQ(progress.length, 8u);
@@ -255,7 +257,8 @@ TEST_CASE(events_round_trip_their_payloads)
                 seen_network_request_ids.append(network_activity.request_id.value());
             });
     }
-    EXPECT_EQ(seen_ids, (Vector<u64> { 1, 2, 3, 4, 5, 6, 7 }));
+    EXPECT_EQ(seen_ids, (Vector<u64> { 1, 2, 3, 4, 5, 6 }));
+    EXPECT(seen_network_phases);
     EXPECT_EQ(seen_request_body_events, (Vector<StringView> { "progress"sv, "end of body"sv, "read stream"sv, "sent from source"sv }));
     EXPECT_EQ(seen_network_request_ids, (Vector<u64> { 8, 9, 10, 11 }));
 }

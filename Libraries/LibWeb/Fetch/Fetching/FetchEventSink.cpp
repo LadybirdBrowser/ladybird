@@ -162,6 +162,9 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
         [&](Engine::Event::NetworkActivity const& network_activity) {
             controller->page()->did_receive_network_activity(network_activity);
         },
+        [&](Engine::Event::RequestTransmissionEnded const& ended) {
+            controller->control_block().settle_network_phases(ended.network_phases);
+        },
         [&](Engine::Event::EndOfBody const& end_of_body) {
             controller->did_end_body(end_of_body);
         },
@@ -169,8 +172,7 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
         [](Engine::Event::ConsumeBodyResult const&) { VERIFY_NOT_REACHED(); },
         [](Engine::Event::BodyChannelReadable const&) { VERIFY_NOT_REACHED(); },
         [](Engine::Event::DeliveryEnd const&) { VERIFY_NOT_REACHED(); },
-        [](Engine::Event::RequestTransmissionStarted const&) { VERIFY_NOT_REACHED(); },
-        [](Engine::Event::RequestTransmissionEnded const&) { VERIFY_NOT_REACHED(); });
+        [](Engine::Event::RequestTransmissionStarted const&) { VERIFY_NOT_REACHED(); });
 }
 
 }

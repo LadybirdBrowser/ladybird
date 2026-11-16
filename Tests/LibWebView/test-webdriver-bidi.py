@@ -185,6 +185,18 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
             # The connection closes with the body unfinished, which fails the body.
             self.close_connection = True
             return
+        if self.path == "/network-events/whole-body":
+            body = b"BiDi whole body\n"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
         if self.path.startswith("/network-interception/"):
             # NB: Preserve duplicate fields for assertions even if the transport combines their length values.
             # A stale length on the redirected GET is an assertion failure, not a reason for the fixture to wait.
@@ -1473,6 +1485,44 @@ def check_network_body_error_after_late_subscription(bidi, context, server):
             bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
 
 
+def check_network_end_time_after_late_subscription(bidi, context, server):
+    url = f"http://127.0.0.1:{server.server_port}/network-events/whole-body"
+    # The page leaves the body unread, and the fetch reports its timing once the network has delivered it.
+    bidi.evaluate(
+        context,
+        "window.endTimeAbort = new AbortController(); "
+        f"fetch({json.dumps(url)}, {{signal: endTimeAbort.signal}}).then(response => {{ window.endTimeResponse = response; }}); 0",
+    )
+    subscription = None
+    try:
+        entry_response_end_expression = (
+            f"performance.getEntriesByName({json.dumps(url)}).map(entry => entry.responseEnd).concat([0])[0]"
+        )
+        deadline = time.monotonic() + 30
+        while (entry_response_end := bidi.evaluate(context, entry_response_end_expression)["result"]["value"]) == 0:
+            assert time.monotonic() < deadline, "The fetch did not report its timing"
+            time.sleep(0.01)
+
+        # Network events are subscribed only after the timing report, and the abort then reports the request.
+        subscription = bidi.command(
+            "session.subscribe", {"events": ["network.beforeRequestSent", "network.fetchError"]}
+        )["subscription"]
+        bidi.evaluate(context, "0")
+        bidi.evaluate(context, "endTimeAbort.abort(); 0")
+        events = [
+            next_network_event(bidi, url, ["network.beforeRequestSent"]),
+            next_network_event(bidi, url, ["network.fetchError"]),
+        ]
+        response_ends = [event["params"]["request"]["timings"]["responseEnd"] for event in events]
+        assert all(response_end > 0 for response_end in response_ends), response_ends
+        assert response_ends[0] == response_ends[1], response_ends
+        assert abs(response_ends[0] - entry_response_end) < 1, (response_ends, entry_response_end)
+        drop_network_events(bidi, url)
+    finally:
+        if sys.exc_info()[0] is None and subscription is not None:
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
 def check_network_continue_after_gc(bidi, context, server):
     subscription = bidi.command(
         "session.subscribe",
@@ -1846,6 +1896,8 @@ def check_network_interception(bidi, context, server, case="all"):
         check_network_stopped_fetch_reports_error(bidi, context, server)
     if case in ["all", "late-events-body-error"]:
         check_network_body_error_after_late_subscription(bidi, context, server)
+    if case in ["all", "late-events-end-time"]:
+        check_network_end_time_after_late_subscription(bidi, context, server)
     if case in ["all", "continue-after-gc"]:
         check_network_continue_after_gc(bidi, context, server)
     if case in ["all", "preflight-body"]:
@@ -3126,6 +3178,7 @@ if __name__ == "__main__":
             "events-off-stop",
             "events-on-stop",
             "late-events-body-error",
+            "late-events-end-time",
             "continue-after-gc",
             "preflight-body",
             "adopted-navigation-continue",

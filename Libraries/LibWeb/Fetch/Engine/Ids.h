@@ -17,7 +17,6 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, DeliveryId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, ContinuationId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, TransmissionId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, TransmissionGeneration);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, AttemptId);
 
 // Identifies one wait for a body's bytes, and travels with the wake that ends it.
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, WakeTicket);
