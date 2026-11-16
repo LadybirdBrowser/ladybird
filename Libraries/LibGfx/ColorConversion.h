@@ -12,8 +12,6 @@
 
 namespace Gfx {
 
-class Color;
-
 class ColorComponents {
 public:
     constexpr ColorComponents() = default;
@@ -219,42 +217,8 @@ constexpr ColorComponents linear_srgb_to_oklab(ColorComponents const& rgb)
     };
 }
 
-ColorComponents linear_display_p3_to_xyz65(ColorComponents const&);
-ColorComponents display_p3_to_linear_display_p3(ColorComponents const&);
-ColorComponents a98rgb_to_xyz65(ColorComponents const&);
-ColorComponents pro_photo_rgb_to_xyz50(ColorComponents const&);
-ColorComponents rec2020_to_xyz65(ColorComponents const&);
 ColorComponents xyz50_to_linear_srgb(ColorComponents const&);
 ColorComponents xyz65_to_linear_srgb(ColorComponents const&);
 ColorComponents lab_to_xyz50(ColorComponents const&);
-
-ColorComponents color_to_srgb(Color);
-Color srgb_to_color(ColorComponents const&);
-
-ColorComponents linear_srgb_to_xyz65(ColorComponents const&);
-
-ColorComponents xyz65_to_xyz50(ColorComponents const&);
-ColorComponents xyz50_to_xyz65(ColorComponents const&);
-
-ColorComponents xyz65_to_oklab(ColorComponents const&);
-ColorComponents oklab_to_xyz65(ColorComponents const&);
-
-ColorComponents xyz50_to_lab(ColorComponents const&);
-
-ColorComponents srgb_to_hsl(ColorComponents const&);
-
-ColorComponents srgb_to_hwb(ColorComponents const&);
-ColorComponents hwb_to_srgb(ColorComponents const&);
-
-ColorComponents xyz65_to_linear_display_p3(ColorComponents const&);
-
-ColorComponents linear_a98_rgb_to_a98_rgb(ColorComponents const&);
-ColorComponents xyz65_to_linear_a98_rgb(ColorComponents const&);
-
-ColorComponents linear_prophoto_rgb_to_prophoto_rgb(ColorComponents const&);
-ColorComponents xyz50_to_linear_prophoto_rgb(ColorComponents const&);
-
-ColorComponents linear_rec2020_to_rec2020(ColorComponents const&);
-ColorComponents xyz65_to_linear_rec2020(ColorComponents const&);
 
 }
