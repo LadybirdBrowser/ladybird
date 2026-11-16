@@ -46,7 +46,6 @@ namespace Ladybird {
 class BookmarkPopover;
 class BrowserWindow;
 enum class ChromeIcon;
-class RestoreSessionCard;
 class JavaScriptDialog;
 class MessagePopover;
 
@@ -115,7 +114,6 @@ public:
     void open_file();
 
     void show_find_in_page();
-    void show_restore_session_card(size_t tab_count, Function<void()> on_restore);
     void find_previous();
     void find_next();
 
@@ -226,7 +224,6 @@ private:
     QPointer<LocationEdit> m_location_edit;
     WebContentView* m_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };
-    QPointer<RestoreSessionCard> m_restore_session_card;
     Optional<WakeLock::DisplaySleepInhibitor> m_screen_display_sleep_inhibitor;
     BrowserWindow* m_window { nullptr };
     QString m_title;

@@ -1151,7 +1151,50 @@ void BrowserWindow::set_current_tab(Tab* tab)
             session().active_tab_changed(*session_tab_id);
     }
 
+    reposition_page_cards();
     Application::the().report_active_view();
+}
+
+void BrowserWindow::show_page_card(PageCardSlot slot, QString const& title, QString const& text, Vector<PageCard::Button> buttons)
+{
+    auto& card = m_page_cards[to_underlying(slot)];
+    if (card)
+        card->deleteLater();
+    card = new PageCard(*m_tabs_container, title, text, AK::move(buttons));
+    QObject::connect(card, &QObject::destroyed, this, [this] {
+        QTimer::singleShot(0, this, [this] { reposition_page_cards(); });
+    });
+    if (m_page_cards_view)
+        m_page_cards_view->add_floating_surface(*card);
+    card->show();
+    // The shadow of a card follows where the card moves while it is shown, so the card only moves once it is.
+    reposition_page_cards();
+}
+
+// The cards stack from the top of the page down, in the order of their slots.
+void BrowserWindow::reposition_page_cards()
+{
+    static constexpr int CARD_SPACING = 10;
+
+    // The cards float over the page of the current tab alone.
+    auto* view = m_current_tab ? &m_current_tab->view() : nullptr;
+    if (m_page_cards_view != view) {
+        for (auto& card : m_page_cards) {
+            if (card && m_page_cards_view)
+                m_page_cards_view->remove_floating_surface(*card);
+            if (card && view)
+                view->add_floating_surface(*card);
+        }
+        m_page_cards_view = view;
+    }
+
+    int top_offset = 0;
+    for (auto& card : m_page_cards) {
+        if (!card || !view)
+            continue;
+        card->reposition(*view, top_offset);
+        top_offset += card->height() + CARD_SPACING;
+    }
 }
 
 void BrowserWindow::activate_tab(int index)

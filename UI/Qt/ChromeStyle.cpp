@@ -2115,33 +2115,33 @@ QPushButton:pressed {{
         style_sheet_color(primary), style_sheet_color(primary.darker(110)), style_sheet_color(primary.darker(122)));
 }
 
-QString restore_session_card_style_sheet()
+QString page_card_style_sheet()
 {
     auto const& panel = Theme::panel();
     auto primary = Theme::primary();
     return qformatted(R"(
-QFrame#LadybirdRestoreSessionCard {{
+QFrame#LadybirdPageCard {{
     color: {0};
     background: {1};
     border: 0;
     border-radius: 12px;
 }}
 
-QFrame#LadybirdRestoreSessionCard QLabel {{
+QFrame#LadybirdPageCard QLabel {{
     background: transparent;
     font-size: 13px;
 }}
 
-QLabel#LadybirdRestoreSessionTitle {{
+QLabel#LadybirdPageCardTitle {{
     color: {0};
     font-weight: 600;
 }}
 
-QLabel#LadybirdRestoreSessionQuestion {{
+QLabel#LadybirdPageCardText {{
     color: {2};
 }}
 
-QFrame#LadybirdRestoreSessionCard QPushButton {{
+QFrame#LadybirdPageCard QPushButton {{
     border: 0;
     border-radius: 7px;
     min-height: 28px;
@@ -2149,26 +2149,26 @@ QFrame#LadybirdRestoreSessionCard QPushButton {{
     font-size: 13px;
 }}
 
-QPushButton#LadybirdRestoreSessionNotNow {{
+QPushButton#LadybirdPageCardSecondaryButton {{
     color: {0};
     background: {3};
 }}
 
-QPushButton#LadybirdRestoreSessionNotNow:pressed {{
+QPushButton#LadybirdPageCardSecondaryButton:pressed {{
     background: {4};
 }}
 
-QPushButton#LadybirdRestoreSessionRestore {{
+QPushButton#LadybirdPageCardPrimaryButton {{
     color: #ffffff;
     background: {5};
     font-weight: 500;
 }}
 
-QPushButton#LadybirdRestoreSessionRestore:hover {{
+QPushButton#LadybirdPageCardPrimaryButton:hover {{
     background: {6};
 }}
 
-QPushButton#LadybirdRestoreSessionRestore:pressed {{
+QPushButton#LadybirdPageCardPrimaryButton:pressed {{
     background: {7};
 }}
 )",

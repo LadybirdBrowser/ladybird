@@ -46,6 +46,7 @@ add_library(ladybird_impl STATIC
     Menu.cpp
     NativeTextEditingLineEdit.cpp
     NativeWindowContainer.cpp
+    PageCard.cpp
     PerformanceMonitorWidget.cpp
     PermissionPromptPopover.cpp
     PictureInPictureWindow.cpp
@@ -55,7 +56,6 @@ add_library(ladybird_impl STATIC
     RemoteDownloads.cpp
     RemoteView.cpp
     ReportReview.cpp
-    RestoreSessionCard.cpp
     SandboxOffBar.cpp
     ScreenshotSelectionOverlay.cpp
     ScreenshotViewer.cpp
