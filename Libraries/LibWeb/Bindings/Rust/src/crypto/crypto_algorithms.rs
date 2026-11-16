@@ -5542,7 +5542,7 @@ fn validate_rsa_key_generation_parameters(normalized_algorithm: &RsaKeyGenParams
     if !libcrypto_rust::rsa_validate_modulus_length(modulus_length) {
         return Err(dom_error(
             "OperationError",
-            b"RSA modulus length must be at least 512 bits",
+            b"RSA modulus length must be between 512 and 16384 bits",
         ));
     }
     Ok(())
