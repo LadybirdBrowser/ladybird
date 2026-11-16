@@ -509,11 +509,6 @@ void PermissionManager::set_clock_for_testing(Function<UnixDateTime()> clock)
     m_clock = move(clock);
 }
 
-void PermissionManager::set_timeouts_for_testing(PermissionTimeouts timeouts)
-{
-    m_timeouts = timeouts;
-}
-
 void PermissionManager::did_change()
 {
     ++m_revision;
