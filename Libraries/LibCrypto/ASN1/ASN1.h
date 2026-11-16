@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/StringView.h>
-#include <AK/Time.h>
 #include <AK/Types.h>
 
 namespace Crypto::ASN1 {
@@ -72,8 +71,5 @@ struct Tag {
 };
 
 StringView kind_name(Kind);
-
-Optional<UnixDateTime> parse_utc_time(StringView);
-Optional<UnixDateTime> parse_generalized_time(StringView);
 
 }
