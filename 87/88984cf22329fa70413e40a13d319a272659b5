@@ -1,0 +1,7 @@
+Ladybird resolves calc(64px / (300px / 1s)) to 0.213333s, as the other
+engines do. Each of them evaluates the calculation tree recursively when
+it computes the value, rather than relying on simplification to reduce
+it: Gecko in GenericCalcNode::resolve_internal(), Blink in
+CSSMathExpressionOperation::ComputeValueInCanonicalUnit(), and WebKit in
+the evaluate() overloads of CSSCalcTree+Evaluation.cpp. All three keep
+the specified value unsimplified, as Ladybird does.
