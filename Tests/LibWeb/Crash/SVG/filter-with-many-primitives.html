@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<!-- Thousands of chained filter primitives must not overflow the stack of whatever process paints the filter. -->
+<div style="filter: url(#filter)">test</div>
+<svg width="100" height="100">
+    <filter id="filter">
+        <feMorphology operator="dilate" radius="1" />
+    </filter>
+</svg>
+<script>
+    filter.innerHTML = filter.innerHTML.repeat(10000);
+</script>
