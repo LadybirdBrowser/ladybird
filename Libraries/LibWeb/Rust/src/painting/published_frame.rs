@@ -174,9 +174,6 @@ pub(crate) struct PublishedPaintState {
     pub(crate) spelling_error_pseudo_styles: Arc<SelectionPseudoStyles>,
     pub(crate) custom_highlights: Arc<CustomHighlights>,
     pub(crate) custom_highlight_pseudo_styles: Arc<CustomHighlightPseudoStyles>,
-    pub(crate) hit_test_list_generation: u64,
-    /// How many items the document's hit-test list held, which the recording's list reserves.
-    pub(crate) hit_test_item_capacity_hint: usize,
 }
 
 impl PublishedPaintState {
@@ -200,7 +197,7 @@ impl PublishedPaintState {
         }
     }
 
-    pub(crate) fn new(paint_state: &PaintState, hit_test_item_capacity_hint: usize) -> Self {
+    pub(crate) fn new(paint_state: &PaintState) -> Self {
         let visual_context = &paint_state.visual_context;
         Self {
             visual_context_tree: visual_context.tree.clone(),
@@ -218,8 +215,6 @@ impl PublishedPaintState {
             spelling_error_pseudo_styles: paint_state.spelling_error_pseudo_styles.clone(),
             custom_highlights: paint_state.custom_highlights.clone(),
             custom_highlight_pseudo_styles: paint_state.custom_highlight_pseudo_styles.clone(),
-            hit_test_list_generation: paint_state.hit_test_list_generation,
-            hit_test_item_capacity_hint,
         }
     }
 
@@ -257,15 +252,14 @@ const _: () = {
 };
 
 impl LayoutNodeArena {
-    /// What the next recording reads of the document, as it is now. The host says how many items
-    /// the recording's hit-test list may hold.
-    pub(crate) fn freeze_frame(&mut self, hit_test_item_capacity_hint: usize) -> PublishedFrame {
+    /// What the next recording reads of the document, as it is now.
+    pub(crate) fn freeze_frame(&mut self) -> PublishedFrame {
         self.settle_ink_overflow();
         let rows = self.publish_rows();
         PublishedFrame {
             rows,
             damage: self.paint_damage_for_frame(),
-            paint_state: PublishedPaintState::new(self.paint_state(), hit_test_item_capacity_hint),
+            paint_state: PublishedPaintState::new(self.paint_state()),
             _style_records: self.with_style_store(|engine| engine.lease_style_records()),
         }
     }
@@ -377,7 +371,7 @@ mod tests {
         arena.set_node_flag(slots[3], NodeFlag::Anonymous, true);
         arena.write_shape(slots[4]).set_generated_for(1);
 
-        let frame = arena.freeze_frame(0);
+        let frame = arena.freeze_frame();
         let absolute_rects = RefCell::new(AbsoluteRectMemo::default());
         let source = PaintSource::new(&frame, &absolute_rects);
         for &node in &slots {

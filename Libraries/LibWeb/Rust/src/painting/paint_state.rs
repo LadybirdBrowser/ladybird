@@ -32,7 +32,6 @@ pub struct PaintState {
     pub(crate) trace_recordings: bool,
     pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
     pub(crate) root_background_source: Option<crate::painting::host::RootBackgroundSource>,
-    pub(crate) hit_test_list_generation: u64,
     pub(crate) last_recording: Option<Arc<crate::painting::record::RecordingOutput>>,
     /// The selection, shared with the frames published while it holds.
     pub(crate) selection: Option<Arc<SelectionRange>>,

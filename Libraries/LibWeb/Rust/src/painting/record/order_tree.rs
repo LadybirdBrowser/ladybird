@@ -69,8 +69,8 @@ impl std::fmt::Debug for ScopeId {
     }
 }
 
-/// One unit of recorded output owned by a row. The order of the draw and hit-test phases
-/// mirrors `PaintPhase`, and every kind has the damage bit that makes it record again.
+/// One unit of recorded output owned by a row. The order of the draw phases mirrors `PaintPhase`,
+/// and every kind has the damage bit that makes it record again.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub(crate) enum ProducerKind {
@@ -80,9 +80,6 @@ pub(crate) enum ProducerKind {
     DrawForeground,
     DrawOutline,
     DrawOverlay,
-    HitBackground,
-    HitForeground,
-    HitOverlay,
     ScrollMetadata,
     ScopePreamble,
     Svg,
@@ -91,16 +88,13 @@ pub(crate) enum ProducerKind {
 }
 
 impl ProducerKind {
-    const ALL: [Self; 12] = [
+    const ALL: [Self; 9] = [
         Self::DrawBackground,
         Self::DrawBorder,
         Self::DrawTableCollapsedBorder,
         Self::DrawForeground,
         Self::DrawOutline,
         Self::DrawOverlay,
-        Self::HitBackground,
-        Self::HitForeground,
-        Self::HitOverlay,
         Self::ScrollMetadata,
         Self::ScopePreamble,
         Self::Svg,
@@ -114,9 +108,6 @@ impl ProducerKind {
             Self::DrawForeground => PaintDamage::DRAW_FOREGROUND,
             Self::DrawOutline => PaintDamage::DRAW_OUTLINE,
             Self::DrawOverlay => PaintDamage::DRAW_OVERLAY,
-            Self::HitBackground => PaintDamage::HIT_BACKGROUND,
-            Self::HitForeground => PaintDamage::HIT_FOREGROUND,
-            Self::HitOverlay => PaintDamage::HIT_OVERLAY,
             Self::ScrollMetadata => PaintDamage::SCROLL_METADATA,
             Self::ScopePreamble => PaintDamage::SCOPE_PREAMBLE,
             Self::Svg => PaintDamage::SVG,
@@ -150,7 +141,6 @@ impl ProducerKind {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct OutputSize {
     pub bytes: u32,
-    pub hits: u32,
     pub blocking_wheel_event_regions: u32,
     // Recorded again every frame: scroll-offset-dependent content and resources without
     // retained output. A scope is live when any child is.
@@ -163,7 +153,6 @@ pub(crate) struct OutputSize {
 impl OutputSize {
     pub(crate) fn add(&mut self, other: OutputSize) {
         self.bytes += other.bytes;
-        self.hits += other.hits;
         self.blocking_wheel_event_regions += other.blocking_wheel_event_regions;
         self.live |= other.live;
         self.reads_window_focus |= other.reads_window_focus;
@@ -181,11 +170,10 @@ pub(crate) enum ChildKey {
 pub(crate) struct ChildEntry {
     key: u32,
     bytes: u32,
-    hits: u32,
     meta: u32,
 }
 
-const _: () = assert!(std::mem::size_of::<ChildEntry>() == 16);
+const _: () = assert!(std::mem::size_of::<ChildEntry>() == 12);
 
 const SCOPE_KEY_BIT: u32 = 1 << 31;
 const META_LIVE: u32 = 1;
@@ -213,7 +201,6 @@ impl ChildEntry {
         Self {
             key,
             bytes: output.bytes,
-            hits: output.hits,
             meta,
         }
     }
@@ -229,7 +216,6 @@ impl ChildEntry {
     pub(crate) fn output(&self) -> OutputSize {
         OutputSize {
             bytes: self.bytes,
-            hits: self.hits,
             blocking_wheel_event_regions: self.meta >> META_BLOCKING_REGIONS_SHIFT,
             live: self.meta & META_LIVE != 0,
             reads_window_focus: self.reads_window_focus(),
@@ -635,10 +621,9 @@ mod tests {
         NodeSlotId::new(index, 1)
     }
 
-    fn output(bytes: u32, hits: u32) -> OutputSize {
+    fn output(bytes: u32) -> OutputSize {
         OutputSize {
             bytes,
-            hits,
             ..OutputSize::default()
         }
     }
@@ -664,19 +649,19 @@ mod tests {
         let mut foreground_output = OutputSize::default();
         for index in 0..leaf_count {
             let leaf = tree.allocate_scope(foreground_scope(row(1 + index)), foreground);
-            let leaf_output = output(16, 1);
+            let leaf_output = output(16);
             tree.set_children(leaf, &[ChildEntry::producer(ProducerKind::DrawForeground, leaf_output)]);
             foreground_children.push(ChildEntry::scope(leaf, leaf_output));
             foreground_output.add(leaf_output);
             leaves.push(leaf);
         }
         tree.set_children(foreground, &foreground_children);
-        let mut root_output = output(32, 0);
+        let mut root_output = output(32);
         root_output.add(foreground_output);
         tree.set_children(
             root,
             &[
-                ChildEntry::producer(ProducerKind::DrawBackground, output(32, 0)),
+                ChildEntry::producer(ProducerKind::DrawBackground, output(32)),
                 ChildEntry::scope(foreground, foreground_output),
             ],
         );
@@ -690,7 +675,7 @@ mod tests {
         let (root, foreground, leaves) = record_first_frame(&mut tree, 3);
 
         assert_eq!(tree.root(), root);
-        assert_eq!(tree.root_entry().output(), output(32 + 3 * 16, 3));
+        assert_eq!(tree.root_entry().output(), output(32 + 3 * 16));
         assert_eq!(tree.published_scope(foreground_scope(row(0)), root), Some(foreground));
         assert_eq!(
             tree.published_scope(foreground_scope(row(2)), foreground),
@@ -728,22 +713,19 @@ mod tests {
         let (root, foreground, leaves) = record_first_frame(&mut tree, 2);
 
         let added = tree.allocate_scope(foreground_scope(row(9)), foreground);
-        tree.set_children(
-            added,
-            &[ChildEntry::producer(ProducerKind::DrawForeground, output(8, 0))],
-        );
+        tree.set_children(added, &[ChildEntry::producer(ProducerKind::DrawForeground, output(8))]);
         let children = [
-            ChildEntry::scope(leaves[1], output(16, 1)),
-            ChildEntry::scope(added, output(8, 0)),
+            ChildEntry::scope(leaves[1], output(16)),
+            ChildEntry::scope(added, output(8)),
         ];
         tree.set_children(foreground, &children);
         tree.detach_scope(leaves[0]);
         assert_eq!(tree.published_scope(foreground_scope(row(1)), foreground), None);
         assert_eq!(tree.scope_count(), 4);
-        tree.finish_recording(root, ChildEntry::scope(root, output(32 + 16 + 8, 1)));
+        tree.finish_recording(root, ChildEntry::scope(root, output(32 + 16 + 8)));
 
         assert_eq!(tree.children(foreground), &children);
-        assert_eq!(tree.root_entry().output(), output(56, 1));
+        assert_eq!(tree.root_entry().output(), output(56));
         assert_eq!(tree.published_scope(foreground_scope(row(9)), foreground), Some(added));
 
         // The retired slot is reused with a new generation, so the old id can never match.
@@ -783,14 +765,11 @@ mod tests {
                 }
             }
             let added = tree.allocate_scope(foreground_scope(row(100 + round)), foreground);
-            tree.set_children(
-                added,
-                &[ChildEntry::producer(ProducerKind::DrawForeground, output(8, 0))],
-            );
-            let entry = ChildEntry::scope(added, output(8, 0));
+            tree.set_children(added, &[ChildEntry::producer(ProducerKind::DrawForeground, output(8))]);
+            let entry = ChildEntry::scope(added, output(8));
             assert_eq!(entry.key(), ChildKey::Scope(added));
             tree.set_children(foreground, &[entry]);
-            tree.finish_recording(root, ChildEntry::scope(root, output(40, 0)));
+            tree.finish_recording(root, ChildEntry::scope(root, output(40)));
             assert_eq!(
                 tree.published_scope(foreground_scope(row(100 + round)), foreground),
                 Some(added)
@@ -805,14 +784,14 @@ mod tests {
         let (root, foreground, leaves) = record_first_frame(&mut tree, 2);
         let capacity = tree.child_entry_capacity();
 
-        let grown = output(24, 1);
+        let grown = output(24);
         tree.set_children(leaves[0], &[ChildEntry::producer(ProducerKind::DrawForeground, grown)]);
         let children = [
             ChildEntry::scope(leaves[0], grown),
-            ChildEntry::scope(leaves[1], output(16, 1)),
+            ChildEntry::scope(leaves[1], output(16)),
         ];
         tree.set_children(foreground, &children);
-        tree.finish_recording(root, ChildEntry::scope(root, output(32 + 24 + 16, 2)));
+        tree.finish_recording(root, ChildEntry::scope(root, output(32 + 24 + 16)));
 
         assert_eq!(tree.children(foreground), &children);
         assert_eq!(tree.child_entry_capacity(), capacity);
@@ -825,13 +804,13 @@ mod tests {
         let mut peak = 0;
         for round in 0..4000u32 {
             let leaf = leaves[(round % 8) as usize];
-            let leaf_output = output(16 + round % 3, 1);
+            let leaf_output = output(16 + round % 3);
             // Every other round the leaf gains or loses a producer, so its list changes length.
             let leaf_children: Vec<ChildEntry> = if round % 2 == 0 {
                 vec![ChildEntry::producer(ProducerKind::DrawForeground, leaf_output)]
             } else {
                 vec![
-                    ChildEntry::producer(ProducerKind::DrawBackground, output(0, 0)),
+                    ChildEntry::producer(ProducerKind::DrawBackground, output(0)),
                     ChildEntry::producer(ProducerKind::DrawForeground, leaf_output),
                 ]
             };
@@ -845,13 +824,13 @@ mod tests {
                 })
                 .collect();
             tree.set_children(foreground, &children);
-            let mut total = output(32, 0);
+            let mut total = output(32);
             for entry in &children {
                 total.add(entry.output());
             }
             tree.finish_recording(root, ChildEntry::scope(root, total));
             peak = peak.max(tree.child_entry_capacity());
-            assert_eq!(tree.root_entry().output().hits, 8);
+            assert_eq!(tree.root_entry().output(), total);
         }
         let live = 2 + 8 + 2 * 8;
         assert!(

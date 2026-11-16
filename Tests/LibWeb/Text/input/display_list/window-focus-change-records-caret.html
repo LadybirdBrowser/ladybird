@@ -17,35 +17,27 @@ const focusChangeTrace = `
     @canvas RECORD (empty)
     @viewport ASSEMBLE
       @viewport/preamble COPY
-      @viewport/background/hit-test COPY
       @viewport/scroll-metadata COPY
       @viewport/background COPY
       @viewport/border COPY
       BlockContainer<HTML>#html/descendants(background-and-borders) COPY
-      @viewport/foreground/hit-test COPY
       @viewport/foreground COPY
       BlockContainer<HTML>#html/descendants(foreground) COPY
       BlockContainer<HTML>#html ASSEMBLE
         BlockContainer<HTML>#html/preamble COPY
-        BlockContainer<HTML>#html/background/hit-test COPY
         BlockContainer<HTML>#html/scroll-metadata COPY
         BlockContainer<HTML>#html/background COPY
         BlockContainer<HTML>#html/border COPY
         BlockContainer<BODY>#body/descendants(background-and-borders) COPY
-        BlockContainer<HTML>#html/foreground/hit-test COPY
         BlockContainer<HTML>#html/foreground COPY
         BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-          BlockContainer<BODY>#body/foreground/hit-test COPY
           BlockContainer<BODY>#body/foreground COPY
           BlockContainer<DIV>#editor/descendants(foreground) ASSEMBLE
-            BlockContainer<DIV>#editor/foreground/hit-test COPY
             BlockContainer<DIV>#editor/foreground RECORD
             BlockContainer<DIV>#editor/outline COPY
-            BlockContainer<DIV>#editor/overlay/hit-test COPY
             BlockContainer<DIV>#editor/overlay COPY
           BlockContainer<DIV>#plain/descendants(foreground) COPY
           BlockContainer<BODY>#body/outline COPY
-          BlockContainer<BODY>#body/overlay/hit-test COPY
           BlockContainer<BODY>#body/overlay COPY
         BlockContainer<HTML>#html/outline COPY
       @viewport/outline COPY

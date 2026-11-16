@@ -17,12 +17,8 @@ promiseTest(async () => {
         const position = document.caretPositionFromPoint(125, 15);
         return position ? `${position.offsetNode.id} @${position.offset}` : "null";
     };
-    const check = (name, expectedHitTestWork) => {
-        internals.beginDisplayListTrace();
+    const check = name => {
         internals.recordDisplayListForTesting();
-        const trace = internals.takeDisplayListTrace();
-        if (expectedHitTestWork)
-            output.push(`${name}, editor hit test updated: ${trace.includes(`#editor/foreground/hit-test ${expectedHitTestWork}\n`)}`);
         output.push(`${name}, cached: ${caret()}`);
         // Repeat without a mutation so a whole capture can be replayed as well.
         internals.recordDisplayListForTesting();
@@ -39,10 +35,10 @@ promiseTest(async () => {
     child.contentEditable = "false";
     editor.appendChild(child);
     output.push(`child is non-editable: ${!child.isContentEditable}`);
-    check("after insertion", "RECORD (empty)");
+    check("after insertion");
 
     child.remove();
-    check("after removal", "RECORD");
+    check("after removal");
 
     __outputElement.style.display = "";
     for (const line of output) println(line);

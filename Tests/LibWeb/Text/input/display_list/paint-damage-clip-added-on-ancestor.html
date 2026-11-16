@@ -23,56 +23,43 @@ displayListTest({
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
                   BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
-                  @viewport/foreground/hit-test COPY
                   @viewport/foreground COPY
                   BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
                   BlockContainer<HTML>#html ASSEMBLE
                     BlockContainer<HTML>#html/preamble COPY
-                    BlockContainer<HTML>#html/background/hit-test COPY
                     BlockContainer<HTML>#html/scroll-metadata COPY
                     BlockContainer<HTML>#html/background COPY
                     BlockContainer<HTML>#html/border COPY
                     BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
-                      BlockContainer<BODY>#body/background/hit-test COPY
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
                       BlockContainer<DIV>#wrap/descendants(background-and-borders) ASSEMBLE
-                        BlockContainer<DIV>#wrap/background/hit-test RECORD
                         BlockContainer<DIV>#wrap/scroll-metadata RECORD (empty)
                         BlockContainer<DIV>#wrap/background SKIP
                         BlockContainer<DIV>#wrap/border SKIP
                         BlockContainer<DIV>#inner/descendants(background-and-borders) ASSEMBLE
-                          BlockContainer<DIV>#inner/background/hit-test RECORD
                           BlockContainer<DIV>#inner/scroll-metadata RECORD (empty)
                           BlockContainer<DIV>#inner/background SKIP
                           BlockContainer<DIV>#inner/border SKIP
                       BlockContainer<DIV>#other/descendants(background-and-borders) COPY
-                    BlockContainer<HTML>#html/foreground/hit-test COPY
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/foreground/hit-test COPY
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer<DIV>#wrap/descendants(foreground) ASSEMBLE
-                        BlockContainer<DIV>#wrap/foreground/hit-test RECORD (empty)
                         BlockContainer<DIV>#wrap/foreground RECORD (empty)
                         BlockContainer<DIV>#inner/descendants(foreground) ASSEMBLE
-                          BlockContainer<DIV>#inner/foreground/hit-test RECORD
                           BlockContainer<DIV>#inner/foreground RECORD
                           BlockContainer<DIV>#inner/outline SKIP
-                          BlockContainer<DIV>#inner/overlay/hit-test RECORD (empty)
                           BlockContainer<DIV>#inner/overlay SKIP
                         BlockContainer<DIV>#wrap/outline SKIP
-                        BlockContainer<DIV>#wrap/overlay/hit-test RECORD (empty)
                         BlockContainer<DIV>#wrap/overlay SKIP
                       BlockContainer<DIV>#other/descendants(foreground) COPY
                       BlockContainer<BODY>#body/outline COPY
-                      BlockContainer<BODY>#body/overlay/hit-test COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<HTML>#html/outline COPY
                   @viewport/outline COPY

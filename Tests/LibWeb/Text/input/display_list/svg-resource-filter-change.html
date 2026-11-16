@@ -33,22 +33,18 @@ displayListTest({
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
                   BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
-                  @viewport/foreground/hit-test COPY
                   @viewport/foreground COPY
                   BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
                   BlockContainer<HTML>#html ASSEMBLE
                     BlockContainer<HTML>#html/preamble COPY
-                    BlockContainer<HTML>#html/background/hit-test COPY
                     BlockContainer<HTML>#html/scroll-metadata COPY
                     BlockContainer<HTML>#html/background COPY
                     BlockContainer<HTML>#html/border COPY
                     BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
-                      BlockContainer<BODY>#body/background/hit-test COPY
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
@@ -59,24 +55,19 @@ displayListTest({
                       BlockContainer<DIV>#filtered/descendants(inline-background-and-borders) ASSEMBLE
                       BlockContainer<DIV>#other/descendants(inline-background-and-borders) COPY
                       BlockContainer(anonymous)/descendants(inline-background-and-borders) COPY
-                    BlockContainer<HTML>#html/foreground/hit-test COPY
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/foreground/hit-test COPY
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer<DIV>#filtered/descendants(foreground) ASSEMBLE
                       BlockContainer<DIV>#other/descendants(foreground) COPY
                       BlockContainer(anonymous)/descendants(foreground) COPY
                       BlockContainer<BODY>#body/outline COPY
-                      BlockContainer<BODY>#body/overlay/hit-test COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#filtered ASSEMBLE
                       BlockContainer<DIV>#filtered/preamble RECORD
-                      BlockContainer<DIV>#filtered/background/hit-test RECORD
                       BlockContainer<DIV>#filtered/scroll-metadata RECORD (empty)
                       BlockContainer<DIV>#filtered/background SKIP
                       BlockContainer<DIV>#filtered/border SKIP
-                      BlockContainer<DIV>#filtered/foreground/hit-test RECORD (empty)
                       BlockContainer<DIV>#filtered/foreground RECORD (empty)
                       BlockContainer<DIV>#filtered/outline SKIP
                     BlockContainer<HTML>#html/outline COPY
@@ -91,22 +82,18 @@ displayListTest({
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
                   BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
-                  @viewport/foreground/hit-test COPY
                   @viewport/foreground COPY
                   BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
                   BlockContainer<HTML>#html ASSEMBLE
                     BlockContainer<HTML>#html/preamble COPY
-                    BlockContainer<HTML>#html/background/hit-test COPY
                     BlockContainer<HTML>#html/scroll-metadata COPY
                     BlockContainer<HTML>#html/background COPY
                     BlockContainer<HTML>#html/border COPY
                     BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
-                      BlockContainer<BODY>#body/background/hit-test COPY
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
@@ -117,24 +104,19 @@ displayListTest({
                       BlockContainer<DIV>#filtered/descendants(inline-background-and-borders) ASSEMBLE
                       BlockContainer<DIV>#other/descendants(inline-background-and-borders) COPY
                       BlockContainer(anonymous)/descendants(inline-background-and-borders) COPY
-                    BlockContainer<HTML>#html/foreground/hit-test COPY
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/foreground/hit-test COPY
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer<DIV>#filtered/descendants(foreground) ASSEMBLE
                       BlockContainer<DIV>#other/descendants(foreground) COPY
                       BlockContainer(anonymous)/descendants(foreground) COPY
                       BlockContainer<BODY>#body/outline COPY
-                      BlockContainer<BODY>#body/overlay/hit-test COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#filtered ASSEMBLE
                       BlockContainer<DIV>#filtered/preamble RECORD
-                      BlockContainer<DIV>#filtered/background/hit-test COPY
                       BlockContainer<DIV>#filtered/scroll-metadata COPY
                       BlockContainer<DIV>#filtered/background COPY
                       BlockContainer<DIV>#filtered/border COPY
-                      BlockContainer<DIV>#filtered/foreground/hit-test COPY
                       BlockContainer<DIV>#filtered/foreground COPY
                       BlockContainer<DIV>#filtered/outline COPY
                     BlockContainer<HTML>#html/outline COPY

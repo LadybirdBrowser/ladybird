@@ -34,27 +34,22 @@ displayListTest({
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
                   BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
-                  @viewport/foreground/hit-test COPY
                   @viewport/foreground COPY
                   BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
                   BlockContainer<HTML>#html ASSEMBLE
                     BlockContainer<HTML>#html/preamble COPY
-                    BlockContainer<HTML>#html/background/hit-test COPY
                     BlockContainer<HTML>#html/scroll-metadata COPY
                     BlockContainer<HTML>#html/background COPY
                     BlockContainer<HTML>#html/border COPY
                     BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
-                      BlockContainer<BODY>#body/background/hit-test COPY
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
                       BlockContainer(anonymous)/descendants(background-and-borders) ASSEMBLE
-                        BlockContainer(anonymous)/background/hit-test COPY
                         BlockContainer(anonymous)/scroll-metadata COPY
                         BlockContainer(anonymous)/background COPY
                         BlockContainer(anonymous)/border COPY
@@ -64,20 +59,15 @@ displayListTest({
                       BlockContainer(anonymous)/descendants(inline-background-and-borders) ASSEMBLE
                         SVGSVGBox<svg>#svg/descendants(inline-background-and-borders) ASSEMBLE
                       BlockContainer<DIV>#other/descendants(inline-background-and-borders) COPY
-                    BlockContainer<HTML>#html/foreground/hit-test COPY
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/foreground/hit-test COPY
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer(anonymous)/descendants(foreground) ASSEMBLE
-                        BlockContainer(anonymous)/foreground/hit-test COPY
                         SVGSVGBox<svg>#svg ASSEMBLE
-                          SVGSVGBox<svg>#svg/background/hit-test RECORD
                           SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
                           SVGSVGBox<svg>#svg/background SKIP
                           SVGSVGBox<svg>#svg/border SKIP
                           SVGSVGBox<svg>#svg/svg RECORD
-                            SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
                             SVGSVGBox<svg>#svg/foreground RECORD (empty)
                             SVGGeometryBox<rect>#clipped/svg RECORD
                               SVGGeometryBox<rect>#clipped/svg-clip RECORD
@@ -87,16 +77,13 @@ displayListTest({
                                   SVGClipBox<clipPath>#c/foreground RECORD (empty)
                                   SVGGeometryBox<rect>#clip-rect/svg RECORD
                                     SVGGeometryBox<rect>#clip-rect/foreground RECORD
-                              SVGGeometryBox<rect>#clipped/foreground/hit-test RECORD
                               SVGGeometryBox<rect>#clipped/foreground RECORD
                         BlockContainer(anonymous)/foreground COPY
                         SVGSVGBox<svg>#svg/descendants(foreground) ASSEMBLE
                         BlockContainer(anonymous)/outline COPY
-                        BlockContainer(anonymous)/overlay/hit-test COPY
                         BlockContainer(anonymous)/overlay COPY
                       BlockContainer<DIV>#other/descendants(foreground) COPY
                       BlockContainer<BODY>#body/outline COPY
-                      BlockContainer<BODY>#body/overlay/hit-test COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<HTML>#html/outline COPY
                   @viewport/outline COPY

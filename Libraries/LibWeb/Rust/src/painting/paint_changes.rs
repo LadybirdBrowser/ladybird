@@ -124,7 +124,6 @@ pub(crate) enum PaintChange {
     /// The host published the recording `output` and takes it in as the document's last.
     TakeInRecording {
         output: Arc<super::record::RecordingOutput>,
-        hit_test_list_changed: bool,
         publishes_recording: bool,
     },
 }
@@ -244,10 +243,9 @@ impl PaintChange {
             }
             Self::TakeInRecording {
                 output,
-                hit_test_list_changed,
                 publishes_recording,
             } => {
-                super::record::publish::take_in_recording(arena, output, hit_test_list_changed, publishes_recording);
+                super::record::publish::take_in_recording(arena, output, publishes_recording);
             }
         }
     }

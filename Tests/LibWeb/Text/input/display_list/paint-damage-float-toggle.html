@@ -33,69 +33,53 @@ displayListTest({
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
                   BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
-                  @viewport/foreground/hit-test COPY
                   @viewport/foreground COPY
                   BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
                   BlockContainer<HTML>#html REPLAN
                     BlockContainer<HTML>#html/preamble RECORD (empty)
-                    BlockContainer<HTML>#html/background/hit-test RECORD
                     BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
                     BlockContainer<HTML>#html/background RECORD (empty)
                     BlockContainer<HTML>#html/border SKIP
                     BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
-                      BlockContainer<BODY>#body/background/hit-test RECORD
                       BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
                       BlockContainer<BODY>#body/background SKIP
                       BlockContainer<BODY>#body/border SKIP
                       BlockContainer<DIV>#box/descendants(background-and-borders) REPLAN
-                        BlockContainer<DIV>#box/background/hit-test RECORD
                         BlockContainer<DIV>#box/scroll-metadata RECORD (empty)
                         BlockContainer<DIV>#box/background SKIP
                         BlockContainer<DIV>#box/border SKIP
                         BlockContainer<DIV>#floater/descendants(background-and-borders) RECORD
                         BlockContainer<DIV>#text/descendants(background-and-borders) ASSEMBLE
-                          BlockContainer<DIV>#text/background/hit-test RECORD
                           BlockContainer<DIV>#text/scroll-metadata RECORD (empty)
                           BlockContainer<DIV>#text/background SKIP
                           BlockContainer<DIV>#text/border SKIP
                     BlockContainer<BODY>#body/descendants(floats) RECORD
                       BlockContainer<DIV>#box/descendants(floats) RECORD
                         BlockContainer<DIV>#floater/descendants(floats) RECORD
-                          BlockContainer<DIV>#floater/background/hit-test RECORD
                           BlockContainer<DIV>#floater/scroll-metadata RECORD (empty)
                           BlockContainer<DIV>#floater/background RECORD
                           BlockContainer<DIV>#floater/border SKIP
-                          BlockContainer<DIV>#floater/foreground/hit-test RECORD (empty)
                           BlockContainer<DIV>#floater/foreground RECORD (empty)
                           BlockContainer<DIV>#floater/outline SKIP
-                          BlockContainer<DIV>#floater/overlay/hit-test RECORD (empty)
                           BlockContainer<DIV>#floater/overlay SKIP
                         BlockContainer<DIV>#text/descendants(floats) RECORD
-                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
                     BlockContainer<HTML>#html/foreground RECORD (empty)
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
                       BlockContainer<BODY>#body/foreground RECORD (empty)
                       BlockContainer<DIV>#box/descendants(foreground) REPLAN
-                        BlockContainer<DIV>#box/foreground/hit-test RECORD (empty)
                         BlockContainer<DIV>#box/foreground RECORD (empty)
                         BlockContainer<DIV>#floater/descendants(foreground) RECORD
                         BlockContainer<DIV>#text/descendants(foreground) ASSEMBLE
-                          BlockContainer<DIV>#text/foreground/hit-test RECORD
                           BlockContainer<DIV>#text/foreground RECORD
                           BlockContainer<DIV>#text/outline SKIP
-                          BlockContainer<DIV>#text/overlay/hit-test RECORD (empty)
                           BlockContainer<DIV>#text/overlay SKIP
                         BlockContainer<DIV>#box/outline SKIP
-                        BlockContainer<DIV>#box/overlay/hit-test RECORD (empty)
                         BlockContainer<DIV>#box/overlay SKIP
                       BlockContainer<BODY>#body/outline SKIP
-                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
                       BlockContainer<BODY>#body/overlay SKIP
                     BlockContainer<HTML>#html/outline SKIP
                   @viewport/outline COPY
@@ -110,65 +94,49 @@ displayListTest({
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
                   BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
-                  @viewport/foreground/hit-test COPY
                   @viewport/foreground COPY
                   BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
                   BlockContainer<HTML>#html REPLAN
                     BlockContainer<HTML>#html/preamble RECORD (empty)
-                    BlockContainer<HTML>#html/background/hit-test RECORD
                     BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
                     BlockContainer<HTML>#html/background RECORD (empty)
                     BlockContainer<HTML>#html/border SKIP
                     BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
-                      BlockContainer<BODY>#body/background/hit-test RECORD
                       BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
                       BlockContainer<BODY>#body/background SKIP
                       BlockContainer<BODY>#body/border SKIP
                       BlockContainer<DIV>#box/descendants(background-and-borders) REPLAN
-                        BlockContainer<DIV>#box/background/hit-test RECORD
                         BlockContainer<DIV>#box/scroll-metadata RECORD (empty)
                         BlockContainer<DIV>#box/background SKIP
                         BlockContainer<DIV>#box/border SKIP
                         BlockContainer<DIV>#floater/descendants(background-and-borders) RECORD
-                          BlockContainer<DIV>#floater/background/hit-test RECORD
                           BlockContainer<DIV>#floater/scroll-metadata RECORD (empty)
                           BlockContainer<DIV>#floater/background RECORD
                           BlockContainer<DIV>#floater/border SKIP
                         BlockContainer<DIV>#text/descendants(background-and-borders) ASSEMBLE
-                          BlockContainer<DIV>#text/background/hit-test RECORD
                           BlockContainer<DIV>#text/scroll-metadata RECORD (empty)
                           BlockContainer<DIV>#text/background SKIP
                           BlockContainer<DIV>#text/border SKIP
-                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
                     BlockContainer<HTML>#html/foreground RECORD (empty)
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
                       BlockContainer<BODY>#body/foreground RECORD (empty)
                       BlockContainer<DIV>#box/descendants(foreground) REPLAN
-                        BlockContainer<DIV>#box/foreground/hit-test RECORD (empty)
                         BlockContainer<DIV>#box/foreground RECORD (empty)
                         BlockContainer<DIV>#floater/descendants(foreground) RECORD
-                          BlockContainer<DIV>#floater/foreground/hit-test RECORD (empty)
                           BlockContainer<DIV>#floater/foreground RECORD (empty)
                           BlockContainer<DIV>#floater/outline SKIP
-                          BlockContainer<DIV>#floater/overlay/hit-test RECORD (empty)
                           BlockContainer<DIV>#floater/overlay SKIP
                         BlockContainer<DIV>#text/descendants(foreground) ASSEMBLE
-                          BlockContainer<DIV>#text/foreground/hit-test RECORD
                           BlockContainer<DIV>#text/foreground RECORD
                           BlockContainer<DIV>#text/outline SKIP
-                          BlockContainer<DIV>#text/overlay/hit-test RECORD (empty)
                           BlockContainer<DIV>#text/overlay SKIP
                         BlockContainer<DIV>#box/outline SKIP
-                        BlockContainer<DIV>#box/overlay/hit-test RECORD (empty)
                         BlockContainer<DIV>#box/overlay SKIP
                       BlockContainer<BODY>#body/outline SKIP
-                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
                       BlockContainer<BODY>#body/overlay SKIP
                     BlockContainer<HTML>#html/outline SKIP
                   @viewport/outline COPY

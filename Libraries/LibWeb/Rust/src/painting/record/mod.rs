@@ -35,8 +35,6 @@ use crate::painting::display_list::builder::{PendingInlineClip, RecordedDisplayL
 use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
-use crate::painting::hit_test::HitTestItem;
-use crate::painting::hit_test::HitTestList;
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::record::frame_inputs::FrameInputs;
 use crate::painting::record::svg_resources::SvgResourceWalk;
@@ -57,7 +55,9 @@ pub struct RecordingOutput {
     // The bytes before the viewport's scope: the canvas, recorded outside the tree.
     pub(crate) prologue_bytes: u32,
     pub root_group_color: libgfx_rust::Color,
-    pub hit_test_list: HitTestList,
+    /// The rows' hit-test items stamp of the frame the recording recorded: hit testing walks its rows, which place
+    /// other items in a frame with another stamp or another visual context tree.
+    pub hit_test_items_stamp: u64,
     pub display_list: Arc<RecordedDisplayList>,
     pub has_blocking_wheel_event_listeners: bool,
     pub wheel_event_listener_state_generation: u64,
@@ -83,15 +83,9 @@ pub(crate) struct RecordingResult {
     pub(crate) resources: resources::RecordingResourceManifest,
 }
 
-/// The hit-test items of the published recording, which the next recording copies clean output from.
-pub struct PublishedHitTestItems {
-    pub items: Arc<Vec<HitTestItem>>,
-}
-
-// What a recording shares with hit testing and with later recordings.
+// What a recording shares with later recordings.
 const _: () = {
     const fn assert_send_and_sync<T: Send + Sync>() {}
-    assert_send_and_sync::<PublishedHitTestItems>();
     assert_send_and_sync::<paint::text::SelectionStyleAnswer>();
 };
 
@@ -124,7 +118,6 @@ pub struct PaintRecorder<'a, O: Observer> {
     ink_bounds_audit: ink_bounds::InkBoundsAudit,
     // The published recording whose clean output this recording copies, when its inputs match.
     pub(crate) source_recording: Option<Arc<RecordingOutput>>,
-    pub(crate) source_items: Option<Arc<PublishedHitTestItems>>,
     // Set while a producer records output that must record again every frame.
     live_producer: bool,
     // Set while a producer records output that depends on whether the window is focused.
@@ -134,7 +127,6 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) blocking_wheel_event_region_count: u32,
     pub(crate) records_per_box_wheel_hit_test_targets: bool,
     pub(crate) observer: O,
-    list: HitTestList,
     pub(crate) scratch: &'a mut scratch::RecordingScratch,
     pub(crate) resources: resources::RecordingResourceManifest,
     line_root_positions: Option<(NodeSlotId, crate::painting::paintable_geometry::LineRootPositions)>,

@@ -27,55 +27,44 @@ displayListTest({
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
                   BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
-                  @viewport/foreground/hit-test COPY
                   @viewport/foreground COPY
                   BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
                   BlockContainer<HTML>#html ASSEMBLE
                     BlockContainer<HTML>#html/preamble COPY
-                    BlockContainer<HTML>#html/background/hit-test COPY
                     BlockContainer<HTML>#html/scroll-metadata COPY
                     BlockContainer<HTML>#html/background COPY
                     BlockContainer<HTML>#html/border COPY
                     BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
-                      BlockContainer<BODY>#body/background/hit-test COPY
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
                       BlockContainer<DIV>#first/descendants(background-and-borders) ASSEMBLE
                       BlockContainer<DIV>#second/descendants(background-and-borders) COPY
-                    BlockContainer<HTML>#html/foreground/hit-test COPY
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/foreground/hit-test COPY
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer<DIV>#first/descendants(foreground) ASSEMBLE
                       BlockContainer<DIV>#second/descendants(foreground) COPY
                       BlockContainer<BODY>#body/outline COPY
-                      BlockContainer<BODY>#body/overlay/hit-test COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#first ASSEMBLE
-                      BlockContainer<DIV>#first/background/hit-test COPY
                       BlockContainer<DIV>#first/scroll-metadata COPY
                       BlockContainer<DIV>#first/background COPY
                       BlockContainer<DIV>#first/border COPY
                       BlockContainer(anonymous)/descendants(background-and-borders) COPY
                       BlockContainer<DIV>#item/descendants(background-and-borders) ASSEMBLE
-                        BlockContainer<DIV>#item/background/hit-test COPY
                         BlockContainer<DIV>#item/scroll-metadata COPY
                         BlockContainer<DIV>#item/background SKIP
                         BlockContainer<DIV>#item/border SKIP
                         BlockContainer(anonymous)/descendants(background-and-borders) ASSEMBLE
-                          BlockContainer(anonymous)/background/hit-test COPY
                           BlockContainer(anonymous)/scroll-metadata COPY
                           BlockContainer(anonymous)/background RECORD
                           BlockContainer(anonymous)/border SKIP
                         BlockContainer(anonymous)/descendants(background-and-borders) ASSEMBLE
-                          BlockContainer(anonymous)/background/hit-test COPY
                           BlockContainer(anonymous)/scroll-metadata COPY
                           BlockContainer(anonymous)/background SKIP
                           BlockContainer(anonymous)/border SKIP
@@ -90,30 +79,22 @@ displayListTest({
                         BlockContainer(anonymous)/descendants(inline-background-and-borders) ASSEMBLE
                         BlockContainer(anonymous)/descendants(inline-background-and-borders) ASSEMBLE
                       BlockContainer(anonymous)/descendants(inline-background-and-borders) COPY
-                      BlockContainer<DIV>#first/foreground/hit-test COPY
                       BlockContainer<DIV>#first/foreground COPY
                       BlockContainer(anonymous)/descendants(foreground) COPY
                       BlockContainer<DIV>#item/descendants(foreground) ASSEMBLE
-                        BlockContainer<DIV>#item/foreground/hit-test COPY
                         BlockContainer<DIV>#item/foreground RECORD (empty)
                         BlockContainer(anonymous)/descendants(foreground) ASSEMBLE
-                          BlockContainer(anonymous)/foreground/hit-test COPY
                           BlockContainer(anonymous)/foreground RECORD
                           BlockContainer(anonymous)/outline SKIP
-                          BlockContainer(anonymous)/overlay/hit-test COPY
                           BlockContainer(anonymous)/overlay SKIP
                         BlockContainer(anonymous)/descendants(foreground) ASSEMBLE
-                          BlockContainer(anonymous)/foreground/hit-test COPY
                           BlockContainer(anonymous)/foreground RECORD
                           BlockContainer(anonymous)/outline SKIP
-                          BlockContainer(anonymous)/overlay/hit-test COPY
                           BlockContainer(anonymous)/overlay SKIP
                         BlockContainer<DIV>#item/outline SKIP
-                        BlockContainer<DIV>#item/overlay/hit-test COPY
                         BlockContainer<DIV>#item/overlay SKIP
                       BlockContainer(anonymous)/descendants(foreground) COPY
                       BlockContainer<DIV>#first/outline COPY
-                      BlockContainer<DIV>#first/overlay/hit-test COPY
                       BlockContainer<DIV>#first/overlay COPY
                     BlockContainer<DIV>#second COPY
                     BlockContainer<HTML>#html/outline COPY

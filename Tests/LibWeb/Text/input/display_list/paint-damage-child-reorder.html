@@ -34,56 +34,44 @@ displayListTest({
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
                   @viewport/scroll-metadata COPY
                   @viewport/background COPY
                   @viewport/border COPY
                   BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
-                  @viewport/foreground/hit-test COPY
                   @viewport/foreground COPY
                   BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
                   BlockContainer<HTML>#html ASSEMBLE
                     BlockContainer<HTML>#html/preamble COPY
-                    BlockContainer<HTML>#html/background/hit-test COPY
                     BlockContainer<HTML>#html/scroll-metadata COPY
                     BlockContainer<HTML>#html/background COPY
                     BlockContainer<HTML>#html/border COPY
                     BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
-                      BlockContainer<BODY>#body/background/hit-test COPY
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
                       BlockContainer<DIV>#panel/descendants(background-and-borders) REPLAN
-                    BlockContainer<HTML>#html/foreground/hit-test COPY
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/foreground/hit-test COPY
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer<DIV>#panel/descendants(foreground) REPLAN
                       BlockContainer<BODY>#body/outline COPY
-                      BlockContainer<BODY>#body/overlay/hit-test COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#panel REPLAN
                       BlockContainer<DIV>#panel/preamble COPY
-                      BlockContainer<DIV>#panel/background/hit-test COPY
                       BlockContainer<DIV>#panel/scroll-metadata COPY
                       BlockContainer<DIV>#panel/background COPY
                       BlockContainer<DIV>#panel/border COPY
                       BlockContainer<DIV>#b.card/descendants(background-and-borders) RECORD
                       BlockContainer<DIV>#a.card/descendants(background-and-borders) COPY
-                      BlockContainer<DIV>#panel/foreground/hit-test COPY
                       BlockContainer<DIV>#panel/foreground COPY
                       BlockContainer<DIV>#b.card/descendants(foreground) RECORD
                       BlockContainer<DIV>#a.card/descendants(foreground) COPY
                       BlockContainer<DIV>#b.card RECORD
-                        BlockContainer<DIV>#b.card/background/hit-test RECORD
                         BlockContainer<DIV>#b.card/scroll-metadata RECORD (empty)
                         BlockContainer<DIV>#b.card/background RECORD
                         BlockContainer<DIV>#b.card/border SKIP
-                        BlockContainer<DIV>#b.card/foreground/hit-test RECORD (empty)
                         BlockContainer<DIV>#b.card/foreground RECORD (empty)
                         BlockContainer<DIV>#b.card/outline SKIP
-                        BlockContainer<DIV>#b.card/overlay/hit-test RECORD (empty)
                         BlockContainer<DIV>#b.card/overlay SKIP
                       BlockContainer<DIV>#a.card COPY
                       BlockContainer<DIV>#panel/outline COPY
