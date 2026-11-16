@@ -1855,6 +1855,47 @@ impl<'context> InlineFormattingContext<'context> {
         });
     }
 
+    /// Splits off the longest prefix of `item` that fits `available` for an overflow break. A prefix that still ends at
+    /// the item's soft hyphen ends the line in a hyphen as well, so it has to leave room for `hyphen` too.
+    #[allow(clippy::too_many_arguments)]
+    fn split_for_overflow_break_before_hyphen(
+        &self,
+        item: &mut inline_level_iterator::Item,
+        prepared: &prepared_inline_content::PreparedInlineContent,
+        text: &[u16],
+        letter_spacing: f32,
+        word_spacing: f32,
+        available: CssPixels,
+        hyphen: CssPixels,
+        line_is_empty: bool,
+    ) -> Option<inline_level_iterator::Item> {
+        let split = |item: &mut inline_level_iterator::Item, available| {
+            self.pass.with_grapheme_segmenter(item.node, |segmenter| {
+                item.split_for_overflow_break(
+                    prepared,
+                    text,
+                    segmenter,
+                    letter_spacing,
+                    word_spacing,
+                    available,
+                    line_is_empty,
+                )
+            })
+        };
+        if hyphen > CssPixels::default() {
+            let end = item.offset_in_node + item.length_in_node;
+            let mut remainder = item.clone();
+            if let Some(prefix) = split(&mut remainder, available)
+                && prefix.offset_in_node + prefix.length_in_node < end
+            {
+                *item = remainder;
+                return Some(prefix);
+            }
+            return split(item, available - hyphen);
+        }
+        split(item, available)
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn break_soft_wrapped_text_item<'builder>(
         &'builder self,
@@ -1867,7 +1908,15 @@ impl<'context> InlineFormattingContext<'context> {
         state_at_clamp_point: &mut Option<LineBuildingState<'builder, 'context>>,
     ) -> bool {
         let prepared = iterator.prepared_content();
-        let following_inline_size = iterator.inline_size_following_text(self, item);
+        let mut following_inline_size = iterator.inline_size_following_text(self, item);
+        // NB: Where nothing glued follows an item that ends in a soft hyphen, the line ends in that hyphen if the next
+        //     run doesn't fit after the item.
+        if following_inline_size == CssPixels::default()
+            && let Some(remaining) = line_builder.remaining_inline_size_for_soft_wrap()
+            && inline_level_iterator::inline_extent([&*item]) + iterator.next_line_content_inline_size(self) > remaining
+        {
+            following_inline_size = inline_level_iterator::hyphen_inline_size_after(self, prepared, item);
+        }
         if line_builder
             .remaining_inline_size_for_soft_wrap()
             .is_none_or(|remaining| inline_level_iterator::inline_extent([&*item]) + following_inline_size <= remaining)
@@ -1906,24 +1955,29 @@ impl<'context> InlineFormattingContext<'context> {
                 word_spacing,
                 remaining,
                 following_inline_size,
+                inline_level_iterator::soft_hyphen_hyphenates(style),
             );
-            if inline_level_iterator::inline_extent([&prefix]) > remaining {
+            let hyphen = if prefix.offset_in_node + prefix.length_in_node == end {
+                CssPixels::default()
+            } else {
+                inline_level_iterator::hyphen_inline_size_after(self, prepared, &prefix)
+            };
+            if inline_level_iterator::inline_extent([&prefix]) + hyphen > remaining {
                 if overflow_break_allowed {
                     let physical_remaining = line_builder
                         .remaining_inline_size_for_overflow_break()
                         .expect("splitting text requires a definite line width");
-                    if prefix.border_box_inline_size() > physical_remaining {
-                        let split = self.pass.with_grapheme_segmenter(item.node, |segmenter| {
-                            prefix.split_for_overflow_break(
-                                prepared,
-                                &text_content.text,
-                                segmenter,
-                                letter_spacing,
-                                word_spacing,
-                                physical_remaining,
-                                line_is_empty,
-                            )
-                        });
+                    if prefix.border_box_inline_size() + hyphen > physical_remaining {
+                        let split = self.split_for_overflow_break_before_hyphen(
+                            &mut prefix,
+                            prepared,
+                            &text_content.text,
+                            letter_spacing,
+                            word_spacing,
+                            physical_remaining,
+                            hyphen,
+                            line_is_empty,
+                        );
                         if let Some(split) = split {
                             prefix = split;
                         } else if !line_is_empty {
@@ -1994,7 +2048,18 @@ impl<'context> InlineFormattingContext<'context> {
             let Some(remaining_inline_size) = line_builder.remaining_inline_size_for_overflow_break() else {
                 return false;
             };
-            if item.border_box_inline_size() <= remaining_inline_size {
+            // NB: An item that ends in a soft hyphen ends the line in a hyphen if the run after it doesn't fit there too.
+            let hyphen = match inline_level_iterator::hyphen_inline_size_after(self, prepared, item) {
+                hyphen
+                    if hyphen > CssPixels::default()
+                        && item.border_box_inline_size() + iterator.next_line_content_inline_size(self)
+                            > remaining_inline_size =>
+                {
+                    hyphen
+                }
+                _ => CssPixels::default(),
+            };
+            if item.border_box_inline_size() + hyphen <= remaining_inline_size {
                 return false;
             }
             if !self.overflow_break_applies_to_style(style) {
@@ -2006,17 +2071,16 @@ impl<'context> InlineFormattingContext<'context> {
                 line_builder.break_line(line_builder::ForcedBreak::No, None, None);
                 continue;
             }
-            let split_item = self.pass.with_grapheme_segmenter(item.node, |grapheme_segmenter| {
-                item.split_for_overflow_break(
-                    prepared,
-                    &text_content.text,
-                    grapheme_segmenter,
-                    letter_spacing,
-                    word_spacing,
-                    remaining_inline_size,
-                    line_is_empty,
-                )
-            });
+            let split_item = self.split_for_overflow_break_before_hyphen(
+                item,
+                prepared,
+                &text_content.text,
+                letter_spacing,
+                word_spacing,
+                remaining_inline_size,
+                hyphen,
+                line_is_empty,
+            );
             let Some(mut prefix) = split_item else {
                 if line_is_empty {
                     return false;
@@ -4080,6 +4144,22 @@ impl ContentSizingLines {
                 } else {
                     CssPixels::default()
                 };
+                // NB: Min-content breaks at every soft wrap opportunity, so content that ends in a soft hyphen ends
+                //     its line in a hyphen wherever the content after it can start a line. And min-content breaks
+                //     before every atomic inline in a container that wraps, as append_atomic_inline() does.
+                let next_content = remaining_items.iter().find(|next| {
+                    !matches!(
+                        next.type_,
+                        inline_level_iterator::ItemType::InlineEdge
+                            | inline_level_iterator::ItemType::AbsolutelyPositionedElement
+                            | inline_level_iterator::ItemType::FloatingElement
+                    )
+                });
+                let breaks_after_item = next_content.is_some_and(|next| match next.type_ {
+                    inline_level_iterator::ItemType::Text => next.can_break_before,
+                    inline_level_iterator::ItemType::Element => self.container_wraps,
+                    _ => false,
+                });
                 if style.text_wrap_mode() == text_wrap_mode::WRAP {
                     let is_whitespace = item.is_collapsible_whitespace || item.is_ascii_whitespace(context);
                     let breaks_between_graphemes = !is_whitespace && breaks_between_graphemes(style);
@@ -4134,6 +4214,8 @@ impl ContentSizingLines {
                             &text.text,
                             style.letter_spacing().to_double() as f32,
                             style.word_spacing().to_double() as f32,
+                            inline_level_iterator::soft_hyphen_hyphenates(style),
+                            breaks_after_item,
                         );
                         let last_index = sizes.len() - 1;
                         for (index, size) in sizes.into_iter().enumerate() {
@@ -4160,8 +4242,13 @@ impl ContentSizingLines {
                 {
                     self.lines.finish();
                 }
+                let hyphen = if self.measures_min_content() && breaks_after_item {
+                    inline_level_iterator::hyphen_inline_size_after(context, prepared, item)
+                } else {
+                    CssPixels::default()
+                };
                 self.lines.append(
-                    border_box_inline_size,
+                    border_box_inline_size + hyphen,
                     item.ends_in_ascii_space(context),
                     trailing_whitespace_inline_size,
                 );

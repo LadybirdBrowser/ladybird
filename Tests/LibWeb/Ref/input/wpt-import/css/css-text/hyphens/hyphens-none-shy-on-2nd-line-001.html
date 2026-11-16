@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>CSS Text: `hyphens: none` disables soft hyphens on 2nd and later lines</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#valdef-hyphens-none">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/hyphens-none-shy-on-2nd-line-001-ref.html">
+<style>
+.target {
+  hyphens: none;
+  width: 10ch;
+}
+</style>
+<div class="target">
+  12345678
+  Deoxy&shy;ribo&shy;nucleic
+  Deoxy&shy;ribo&shy;nucleic
+  12345678
+</div>

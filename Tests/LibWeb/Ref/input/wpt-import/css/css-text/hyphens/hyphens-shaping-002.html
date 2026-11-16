@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 3 Test: hyphenation and text-shaping</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#word-break-shaping">
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#hyphens-property">
+<link rel="mismatch" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/hyphens-shaping-002-ref.html">
+<meta name="assert" content="Checks that some kind of hyphen does get inserted in Uyghur. (Complement fo hyphens-shaping-001.html)">
+<style>
+  @font-face {
+    font-family: 'csstest_noto';
+    src: url('../../../fonts/noto/NotoNaskhArabic-regular.woff2') format('woff2');
+  }
+  /* The main text is invisible,
+     but we want to give the UA a chance to use the right hyphen,
+     which may be font dependent.
+   */
+  div {
+    font-family: 'csstest_noto';
+    font-size: 4em;
+    hyphens: manual;
+    margin: auto;
+    width: 0;
+  }
+  #test { color: transparent; }
+  span { color: black; }
+</style>
+
+<p>Test passes if there is something below:
+
+<div dir=rtl lang=ug id=test>دامي<span>&shy;</span>دى</div>

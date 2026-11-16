@@ -3177,7 +3177,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "hyphenate-character": {
-    "__comment": "FIXME: Use this string when hyphenation is implemented.",
+    "__comment": "FIXME: Use this string, not just its auto hyphen, at a hyphenation opportunity.",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -3187,6 +3187,15 @@
     ],
     "valid-identifiers": [
       "auto"
+    ]
+  },
+  "hyphens": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "manual",
+    "requires-computation": "never",
+    "valid-types": [
+      "hyphens"
     ]
   },
   "image-rendering": {

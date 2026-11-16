@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Text: 'hyphens: manual' with no explicit hyphenation opportunity (basic)</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-text-3/#hyphenation">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/hyphens-manual-inline-010-ref.html">
+
+  <meta content="When 'hyphens' is set to 'manual' and applied to an inline element, then words can be hyphenated only if characters inside the words explicitly define hyphenation opportunities. In this test, the characters inside the word 'Deoxyribonucleic' do not explicitly define hyphenation opportunities, so it must not be hyphenated." name="assert">
+
+  <style>
+  div
+    {
+      border: black solid 2px;
+      font-family: monospace;
+      font-size: 32px;
+      margin-bottom: 0.25em;
+      width: 10ch;
+    }
+
+  span#test
+    {
+      hyphens: manual;
+    }
+
+  div#reference
+    {
+      hyphens: none;
+    }
+  </style>
+
+  <body lang="en">
+
+    <p>Test passes if the characters inside of each black-bordered rectangles are laid out identically. Only "ucleic" should be outside of the black-bordered rectangles.
+
+  <div>DNA <span id="test">means Deoxyribonucleic acid</span>.</div>
+
+  <div id="reference">DNA means Deoxyribonucleic acid.</div>

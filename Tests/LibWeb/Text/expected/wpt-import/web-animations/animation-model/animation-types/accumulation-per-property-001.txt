@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 362 tests
+Found 365 tests
 
-343 Pass
+346 Pass
 19 Fail
 Pass	Setup
 Pass	alignment-baseline (type: discrete) has testAccumulation function
@@ -366,3 +366,6 @@ Pass	grid-template: "". . a b" ". . a b"" onto "none"
 Pass	grid-template-areas (type: discrete) has testAccumulation function
 Pass	grid-template-areas: "none" onto "". . a b" ". . a b""
 Pass	grid-template-areas: "". . a b" ". . a b"" onto "none"
+Pass	hyphens (type: discrete) has testAccumulation function
+Pass	hyphens: "none" onto "manual"
+Pass	hyphens: "manual" onto "none"

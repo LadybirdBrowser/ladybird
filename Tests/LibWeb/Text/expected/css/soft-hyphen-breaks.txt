@@ -1,0 +1,23 @@
+min-content: content as wide as "hyphen" + a hyphen, box as wide as "hyphen" + a hyphen, 2 line(s)
+min-content-hyphens-none: content as wide as "hyphenation", box as wide as "hyphenation", 1 line(s)
+min-content-span-hyphens-none: content as wide as "hyphenation", box as wide as "hyphenation", 1 line(s)
+narrow: content as wide as "ab" + a hyphen, 3 line(s)
+narrow-hyphens-none: content as wide as "abcdef", 1 line(s)
+letter-spacing: content as wide as "ab" + a hyphen, box as wide as "ab" + a hyphen, 2 line(s)
+rtl: content as wide as "שלום" + a hyphen, box as wide as "שלום" + a hyphen, 2 line(s)
+between-items: content as wide as "ab" + a hyphen, box as wide as "ab" + a hyphen, 2 line(s)
+final-soft-hyphen: content as wide as "cdefgh", box as wide as "cdefgh", 2 line(s)
+before-word-joiner: content as wide as "abcd", box as wide as "abcd", 1 line(s)
+fits-after-break: 2 line(s)
+before-inline-box-edge: text as wide as "ab" + a hyphen, 2 line(s)
+overflow-wrap-anywhere: fits
+overflow-wrap-anywhere-short: first line as wide as "aaa"
+item-before-wide-run: fits, 3 line(s)
+before-out-of-flow: 1 line(s)
+out-of-flow-before-soft-hyphen: box after "ab"
+anywhere-before-inline-block: fits
+anywhere-before-out-of-flow: fits
+space-before-nowrap-out-of-flow: fits, 2 line(s)
+before-space: text as wide as "ab", 2 line(s)
+before-tiny-inline-block: text fits
+before-inline-block: text as wide as "ab"

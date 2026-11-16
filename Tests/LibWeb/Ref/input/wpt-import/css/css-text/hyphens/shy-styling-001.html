@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: soft hyphen styling</title>
+<link rel="author" title="Florian Rivoal" href="http://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#hyphens-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/shy-styling-001-ref.html">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/shy-styling-001-alt-ref.html">
+<meta name="assert" content="hypens inserted where there was a soft-hyphen take on the styles that would have applied to the soft hyphen">
+<style>
+div {
+  width: 0ch;
+  hyphens: manual;
+}
+span {
+  font-size: 3em;
+  color: red;
+  text-shadow: 3px 3px 3px black;
+}
+</style>
+
+<p>Test passes if the word “example” below is hyphenated, and the hyphen is large, red, and has a shadow
+
+<div>ex<span>&shy;</span>ample</div>

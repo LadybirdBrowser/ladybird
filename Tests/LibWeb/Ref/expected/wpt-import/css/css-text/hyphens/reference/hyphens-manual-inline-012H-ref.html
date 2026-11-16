@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Reference Test</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+
+  <style>
+  div
+    {
+      border: black solid 2px;
+      font-family: monospace;
+      font-size: 32px;
+      width: 8ch;
+    }
+  </style>
+
+  <div>DNA<br>means<br>Deoxy&#x2010;<br>ribonu&#x2010;<br>cleic<br>acid.</div>
+
+<!--
+
+  Hyphen-minus == &#x002D; == &#0045;
+
+  Hyphen == &#x2010; == &#8208;
+
+-->

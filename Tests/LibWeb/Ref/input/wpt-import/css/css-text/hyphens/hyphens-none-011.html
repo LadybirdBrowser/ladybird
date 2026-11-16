@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Text: 'hyphens: none' with explicit hyphenation opportunities</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-text-3/#hyphenation">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/hyphens-manual-010-ref.html">
+
+  <meta content="This test checks that, when 'hyphens' is set to 'none', then long words are not hyphenated, even if characters inside long words explicitly define hyphenation opportunities." name="assert">
+
+  <style>
+  div
+    {
+      border: black solid 2px;
+      font-family: monospace;
+      font-size: 32px;
+      margin-bottom: 0.25em;
+      width: 10ch;
+    }
+
+  div#test
+    {
+      hyphens: none;
+    }
+  </style>
+
+  <body>
+
+  <p>Test passes if the characters inside of each black-bordered rectangles are laid out identically. Only "ucleic" should be outside of the black-bordered rectangles.
+
+  <div id="test">Deoxy&shy;ribo&shy;nucleic acid</div>
+
+  <div id="reference">Deoxyribonucleic acid</div>
+
+  <!--
+
+  Extended form of abreviation DNA
+
+  -->

@@ -2,16 +2,15 @@ Harness status: OK
 
 Found 34 tests
 
-26 Pass
-8 Fail
-Fail	Can set 'hyphens' to CSS-wide keywords: initial
-Fail	Can set 'hyphens' to CSS-wide keywords: inherit
-Fail	Can set 'hyphens' to CSS-wide keywords: unset
-Fail	Can set 'hyphens' to CSS-wide keywords: revert
-Fail	Can set 'hyphens' to var() references:  var(--A)
-Fail	Can set 'hyphens' to the 'none' keyword: none
-Fail	Can set 'hyphens' to the 'manual' keyword: manual
-Fail	Can set 'hyphens' to the 'auto' keyword: auto
+34 Pass
+Pass	Can set 'hyphens' to CSS-wide keywords: initial
+Pass	Can set 'hyphens' to CSS-wide keywords: inherit
+Pass	Can set 'hyphens' to CSS-wide keywords: unset
+Pass	Can set 'hyphens' to CSS-wide keywords: revert
+Pass	Can set 'hyphens' to var() references:  var(--A)
+Pass	Can set 'hyphens' to the 'none' keyword: none
+Pass	Can set 'hyphens' to the 'manual' keyword: manual
+Pass	Can set 'hyphens' to the 'auto' keyword: auto
 Pass	Setting 'hyphens' to a length: 0px throws TypeError
 Pass	Setting 'hyphens' to a length: -3.14em throws TypeError
 Pass	Setting 'hyphens' to a length: 3.14cm throws TypeError

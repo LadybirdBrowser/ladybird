@@ -1081,6 +1081,11 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
+    pub(crate) fn hyphens(self) -> u8 {
+        self.bit(StyleBitField::Hyphens)
+    }
+
+    #[inline]
     fn bit(self, field: StyleBitField) -> u8 {
         self.0.0.style_bits().get(field)
     }

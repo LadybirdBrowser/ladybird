@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Text: 'hyphens: manual' with 4 explicit hyphenation opportunities (inline)</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-text-3/#hyphenation">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/hyphens-manual-inline-012M-ref.html">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/hyphens-manual-inline-012H-ref.html">
+
+  <!--
+  User agents may use U+2010 HYPHEN <https://codepoints.net/U+2010>
+  when the font has the glyph, or
+  may use U+002D HYPHEN-MINUS <https://codepoints.net/U+002d>
+  otherwise. Some fonts will display slightly different glyphs for
+  these code points. Therefore these 2 reference files.
+  The M-ref.html reference file means the hyphen-Minus character U+002D.
+  The H-ref.html reference file means the Hyphen character U+2010.
+  -->
+
+  <meta content="When 'hyphens' is set to 'manual' and applied to an inline element, then words can be hyphenated only if characters inside the words explicitly define hyphenation opportunities. In this test, the characters inside the word 'Deoxyribonucleic' explicitly define 4 hyphenation opportunities. Since 'Deoxy' has 5 characters and 'Deoxyribo' has 9 characters and since the content width of the block box can take 8 characters, then a soft hyphen will occur after 'Deoxy'. Since 'ribonu' has 6 characters and 'ribonucleic' has 11 characters and since the content width of the block box can take 8 characters, then a soft hyphen will occur after 'ribonu'." name="assert">
+
+  <style>
+  div
+    {
+      border: black solid 2px;
+      font-family: monospace;
+      font-size: 32px;
+      width: 8ch;
+    }
+
+  span
+    {
+      hyphens: manual;
+    }
+  </style>
+
+  <div>DNA <span>means Deo&shy;xy&shy;ribo&shy;nu&shy;cleic acid</span>.</div>
+
+  <!--
+        Expected result:
+        DNA
+        means
+        Deoxy-
+        ribonu-
+        cleic
+        acid.
+  -->

@@ -194,6 +194,18 @@ fn line_break_class(code_point: u32) -> u8 {
     unicode_layout_line_break_class(code_point)
 }
 
+pub(crate) const SOFT_HYPHEN: u16 = 0xad;
+
+/// Whether a line that breaks right after `text[..end]` breaks at a soft hyphen there, and so ends in a hyphen: The
+/// text has to end in a soft hyphen that no whitespace follows, since the line breaks at that whitespace instead.
+pub(crate) fn breaks_at_soft_hyphen(text: &[u16], end: usize) -> bool {
+    end > 0
+        && text[end - 1] == SOFT_HYPHEN
+        && text
+            .get(end)
+            .is_none_or(|&code_unit| !(code_unit < 0x80 && code_point_is_ascii_space(u32::from(code_unit))))
+}
+
 // LibUnicode's JoiningType, in declaration order.
 mod joining_type {
     pub(super) const NON_JOINING: u8 = 0;
@@ -398,6 +410,8 @@ pub(crate) struct TextChunkInputs<'text> {
     pub word_break: u8,
     pub line_break: u8,
     pub line_break_language: LineBreakLanguage,
+    /// Whether a soft hyphen (U+00AD) gives a soft wrap opportunity after it, which it does unless hyphens is none.
+    pub breaks_after_soft_hyphen: bool,
     pub font_variant_emoji: u8,
     pub should_wrap_lines: bool,
     pub should_respect_linebreaks: bool,
@@ -862,6 +876,7 @@ pub(crate) fn trailing_regional_indicator_count(text: &[u16]) -> usize {
 /// of two text nodes that follow each other on a line. `code_unit_before` is the last code unit of the text before
 /// `before`, if any. `regional_indicators_before` is the number of regional indicators that end `before`, including
 /// any in text before it.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn soft_wrap_opportunity_between(
     before: &[u16],
     after: &[u16],
@@ -870,10 +885,14 @@ pub(crate) fn soft_wrap_opportunity_between(
     word_break: u8,
     line_break: u8,
     line_break_language: LineBreakLanguage,
+    breaks_after_soft_hyphen: bool,
 ) -> bool {
     let (Some(&last), Some(&first)) = (before.last(), after.first()) else {
         return false;
     };
+    if last == SOFT_HYPHEN && !breaks_after_soft_hyphen {
+        return false;
+    }
     // NB: Whitespace gives its own soft wrap opportunities.
     if (last <= 0x7f && code_point_is_ascii_space(u32::from(last)))
         || (first <= 0x7f && code_point_is_ascii_space(u32::from(first)))
@@ -919,7 +938,14 @@ pub(crate) fn soft_wrap_opportunity_between(
     if GraphemeSegmenter::new(&text).next_boundary(boundary, true) != Some(boundary) {
         return false;
     }
-    LineBreaker::new(&text, word_break, line_break, line_break_language).is_at_line_break_opportunity(boundary)
+    LineBreaker::new(
+        &text,
+        word_break,
+        line_break,
+        line_break_language,
+        breaks_after_soft_hyphen,
+    )
+    .is_at_line_break_opportunity(boundary)
 }
 
 /// Whether there is a soft wrap opportunity between an atomic inline and the text after it.
@@ -1001,19 +1027,32 @@ struct LineBreaker<'text> {
     line_segmenter: LineSegmenter<'text>,
     word_break: u8,
     line_break: u8,
+    breaks_after_soft_hyphen: bool,
 }
 
 impl<'text> LineBreaker<'text> {
-    fn new(text: &'text [u16], word_break: u8, line_break: u8, line_break_language: LineBreakLanguage) -> Self {
+    fn new(
+        text: &'text [u16],
+        word_break: u8,
+        line_break: u8,
+        line_break_language: LineBreakLanguage,
+        breaks_after_soft_hyphen: bool,
+    ) -> Self {
         Self {
             text,
             line_segmenter: LineSegmenter::new(text, line_break, line_break_language),
             word_break,
             line_break,
+            breaks_after_soft_hyphen,
         }
     }
 
     fn is_at_line_break_opportunity(&self, index: usize) -> bool {
+        // https://drafts.csswg.org/css-text-3/#valdef-hyphens-none
+        // Words are not hyphenated, even if characters inside the word explicitly define hyphenation opportunities.
+        if !self.breaks_after_soft_hyphen && index > 0 && self.text.get(index - 1) == Some(&SOFT_HYPHEN) {
+            return false;
+        }
         let get_previous_code_point = || -> Option<u32> {
             if index == 0 {
                 return None;
@@ -1126,6 +1165,7 @@ impl<'text> TextChunker<'text> {
                 inputs.word_break,
                 inputs.line_break,
                 inputs.line_break_language,
+                inputs.breaks_after_soft_hyphen,
             ),
             font_variant_emoji: inputs.font_variant_emoji,
             should_collapse_whitespace: matches!(
@@ -1547,6 +1587,7 @@ pub(crate) fn text_chunks(
         } else {
             LineBreakLanguage::Other
         },
+        breaks_after_soft_hyphen: parent_style.hyphens() != hyphens::NONE,
         font_variant_emoji: parent_style.font_variant_emoji(),
         frozen_font_list: crate::css::style::pointer_key::PointerLookup::new(counted_frozen_font_list, ()),
         frozen_font_list_fill_generation: frozen_font_list.fill_generation(),
@@ -1565,6 +1606,7 @@ pub(crate) fn text_chunks(
             word_break: key.word_break,
             line_break: key.line_break,
             line_break_language: key.line_break_language,
+            breaks_after_soft_hyphen: key.breaks_after_soft_hyphen,
             font_variant_emoji: key.font_variant_emoji,
             should_wrap_lines,
             should_respect_linebreaks,

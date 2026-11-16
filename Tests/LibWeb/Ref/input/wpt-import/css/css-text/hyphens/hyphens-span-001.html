@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: manual hyphen and span</title>
+<link rel="author" title="Florian Rivoal" href="http://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#hyphens-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/hyphens/reference/hyphens-span-001-ref.html">
+<meta name="assert" content="the presence of an unstyled inline element has no effect on text in general and on manual hyhenation in particular">
+<style>
+div {
+  border: solid orange;
+  margin: 5px;
+  width: 6ch;
+  hyphens: manual;
+}
+</style>
+
+<p>Test passes if the text in all orange boxes below is identical (including the presence and position of a hyphen).
+
+<div>high&shy;way</div>
+<div><span>high</span>&shy;way</div>
+<div><span>high&shy;</span>way</div>
+<div>high<span>&shy;</span>way</div>
+<div>high<span>&shy;way</span></div>
+<div>high&shy;<span>way</span></div>
+<div><span>high</span>&shy;<span>way</span></div>
+<div><span>high&shy;wa</span>y</div>
+<div><span>hi</span>gh&shy;way</div>

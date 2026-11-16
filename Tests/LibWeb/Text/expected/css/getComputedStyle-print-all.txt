@@ -45,6 +45,7 @@ font-weight: 400
 font-width: 100%
 forced-color-adjust: auto
 hyphenate-character: auto
+hyphens: manual
 image-rendering: auto
 interpolate-size: numeric-only
 letter-spacing: normal

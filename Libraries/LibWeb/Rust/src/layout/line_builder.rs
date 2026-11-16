@@ -342,6 +342,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             line.has_forced_break = forced == ForcedBreak::Yes;
             line.forced_break = forced_break;
         }
+        if forced == ForcedBreak::No {
+            self.hyphenate_end_of_line(line_index);
+        }
         self.last_line_needs_update = true;
         self.update_last_line(forced == ForcedBreak::No || next_size.is_some());
         if forced == ForcedBreak::Yes || !self.line(line_index).fragments.is_empty() {
@@ -1191,6 +1194,83 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     /// Whether a line before the line at `line_index` holds content.
     pub(crate) fn has_line_box_before(&self, line_index: usize) -> bool {
         (0..line_index).any(|index| !self.line(index).is_empty())
+    }
+
+    // https://drafts.csswg.org/css-text-3/#hyphenation
+    // When a word is hyphenated, the UA must insert a hyphen [...] at the end of the line.
+    /// Shows a hyphen at the end of a line that breaks after a soft hyphen. The hyphen joins the soft hyphen's own
+    /// fragment, in its place, so that it takes the soft hyphen's style.
+    fn hyphenate_end_of_line(&mut self, line_index: usize) {
+        let (fragment_index, hyphen, font, text_type, is_upright, soft_hyphen_offset) = {
+            let line = self.line(line_index);
+            // NB: Only the empty edges of inline boxes that end after the soft hyphen can follow its fragment. An atomic
+            //     inline after it means the line broke after that instead.
+            let Some(fragment_index) = line.fragments.iter().rposition(|fragment| {
+                fragment.glyphs.is_some() || fragment.length_in_code_units != 0 || fragment.is_atomic_inline
+            }) else {
+                return;
+            };
+            let fragment = &line.fragments[fragment_index];
+            let Some(glyphs) = fragment.glyphs.as_ref() else {
+                return;
+            };
+            let text_content = self.context().pass.text_content(fragment.layout_node);
+            if !text_chunker::breaks_at_soft_hyphen(&text_content.text, fragment.start + fragment.length_in_code_units)
+            {
+                return;
+            }
+            let style = self.style(fragment.style_source);
+            if !inline_level_iterator::soft_hyphen_hyphenates(style) {
+                return;
+            }
+            // NB: The hyphen goes in the direction of the run that ends the fragment, which runs of either direction can
+            //     share.
+            let text_type = if fragment.current_insert_direction == direction::RTL {
+                GLYPH_TEXT_TYPE_RTL
+            } else {
+                GLYPH_TEXT_TYPE_LTR
+            };
+            let hyphen = inline_level_iterator::hyphen_glyph_run(
+                &glyphs.font,
+                text_type,
+                style.letter_spacing().to_double() as f32,
+                style.word_spacing().to_double() as f32,
+            );
+            (
+                fragment_index,
+                hyphen,
+                glyphs.font.clone(),
+                text_type,
+                glyphs.is_upright,
+                fragment.length_in_code_units - 1,
+            )
+        };
+        let inline_size = CssPixels::nearest_value_for_f32(hyphen.width);
+        let mut line = self.line_mut(line_index);
+        for fragment in &mut line.fragments[fragment_index + 1..] {
+            fragment.inline_offset += inline_size;
+        }
+        for marker in &mut line.static_position_markers {
+            if marker.fragments_before > fragment_index {
+                marker.inline_offset += inline_size;
+            }
+        }
+        let fragment = &mut line.fragments[fragment_index];
+        fragment.append_glyph_run(
+            &line_box_fragment::ItemGlyphRun {
+                glyphs: std::borrow::Cow::Borrowed(&hyphen.glyphs),
+                font: &font,
+                text_type,
+                width: hyphen.width,
+                is_upright,
+            },
+            inline_size,
+            soft_hyphen_offset,
+        );
+        if let Some(glyphs) = fragment.glyphs.as_mut() {
+            glyphs.width += hyphen.width;
+        }
+        line.inline_length += inline_size;
     }
 
     pub(crate) fn set_outside_marker_line(&mut self, marker_line: Option<block_formatting_context::OutsideMarkerLine>) {
