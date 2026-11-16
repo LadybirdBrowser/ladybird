@@ -90,6 +90,7 @@ groups! {
     AnchorValues => ANCHOR,
     BorderValues => BORDER,
     InheritedTextValues => INHERITED_TEXT,
+    TransformValues => TRANSFORM,
 }
 
 /// A style for layout's own use, which no record holds: a base style's groups, with those an edit
@@ -461,6 +462,10 @@ impl LayoutStyle {
         self.edit::<GridValues>(|target| {
             crate::css::computed_values::copy_grid_placements(source.group::<GridValues>(), target);
         });
+        // INTEROP: Like other engines, transform the table wrapper box, so the captions move with the table and
+        //          the transform origin is relative to the wrapper.
+        let transform = source.group::<TransformValues>();
+        self.edit::<TransformValues>(|target| *target = transform.clone());
         self.edit::<EffectsValues>(|target| {
             let source = source.group::<EffectsValues>();
             target.clip_is_rect = source.clip_is_rect;
