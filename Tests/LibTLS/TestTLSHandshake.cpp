@@ -10,8 +10,6 @@
 #include <LibCore/ConfigFile.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
-#include <LibCrypto/ASN1/ASN1.h>
-#include <LibCrypto/ASN1/PEM.h>
 #include <LibTLS/TLSv12.h>
 #include <LibTest/TestCase.h>
 
