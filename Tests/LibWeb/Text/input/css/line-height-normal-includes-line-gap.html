@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: LineGapFont;
+        src: url("../../../Assets/SerenitySans-with-line-gap.ttf");
+    }
+    div {
+        font: 100px LineGapFont;
+    }
+    #large-block {
+        font-size: 768px;
+    }
+</style>
+<!-- The font has an ascent of 819, a descent of 205 and a line gap of 94 font units, at 1024 units per em. -->
+<div id="block"><span id="text">x</span></div>
+<!-- At 768px, the line gap is exactly 70.5px, which rounds to even like the other metrics. -->
+<div id="large-block">x</div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("100px LineGapFont");
+        println(`line box height: ${block.getBoundingClientRect().height}`);
+        println(`inline box height: ${text.getBoundingClientRect().height}`);
+        println(`line box height at 768px: ${document.getElementById("large-block").getBoundingClientRect().height}`);
+    });
+</script>
