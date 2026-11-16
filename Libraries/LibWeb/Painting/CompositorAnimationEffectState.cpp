@@ -269,14 +269,7 @@ CompositorAnimationEffectState::BuildOutcome CompositorAnimationEffectState::bui
     request.timing.monotonic_time_at_anchor_ns = static_cast<i64>(timing_anchor.monotonic_time_ms * 1'000'000.0);
     request.timing.local_time_at_anchor_ms = timing_anchor.local_time_ms;
     request.timing.playback_rate = data.animation->playback_rate();
-    request.timing.start_delay_ms = effect.start_delay().value;
-    request.timing.iteration_duration_ms = effect.iteration_duration().value;
-    request.timing.iteration_count = effect.iteration_count();
-    request.timing.iteration_start = effect.iteration_start();
-    request.timing.playback_direction = static_cast<Compositing::RustFFI::FfiVisualAnimationPlaybackDirection>(to_underlying(effect.playback_direction()));
-    request.timing.fill_mode = first_is_one_of(effect.fill_mode(), Bindings::FillMode::Backwards, Bindings::FillMode::Both)
-        ? Compositing::RustFFI::FfiVisualAnimationFillMode::Backwards
-        : Compositing::RustFFI::FfiVisualAnimationFillMode::None;
+    request.timing.effect = effect.effect_timing(effect.fill_mode());
     request.timing.easing = effect.timing_function().descriptor_with_points_in(effect_easing_points);
 
     CompositorAnimationBuild lent { data, read };

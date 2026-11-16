@@ -401,8 +401,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiFilterFunctionKind",
         "FfiVisualContextTreeInputs",
         "FfiVisualAnimationTargetKind",
-        "FfiVisualAnimationPlaybackDirection",
-        "FfiVisualAnimationFillMode",
         "FfiVisualAnimationTransformOperationKind",
         "FfiCompositorAnimationPublishOutcome",
         "FfiVisualAnimationSummary",

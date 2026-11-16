@@ -14,7 +14,6 @@
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
-#include <LibWeb/CSS/StyleEngineEffectTiming.h>
 #include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -299,7 +298,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
         Optional<Layout::RustFFI::FfiHoverPlanInputs> hover;
         Vector<u32> effect_timing_nodes;
         Vector<u64> effect_timing_identities;
-        Vector<CSS::ComputedValuesFFI::FfiEffectTiming> effect_timings;
+        Vector<Animations::RustFFI::EffectTimingSnapshot> effect_timings;
         if (hover_lane_is_enabled() && document.is_fully_active() && !document.hidden() && document.window()) {
             // A hover decides over the transitions the host runs as they run, where the host runs them without
             // sampling them, which leaves the timing the engine holds of them behind.
@@ -310,14 +309,14 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                     if (!effect || !target || effect->pseudo_element_type().has_value() || !target->style_node_id()
                         || !effect->can_skip_per_frame_style_update())
                         continue;
-                    auto timing = CSS::style_engine_effect_timing(*effect, animation);
+                    auto timing = effect->timing_snapshot();
                     // The compositor runs a transition whose play is still pending from the time of the style change
-                    // event that started it.
+                    // event that started it, on the document timeline.
                     if (auto const* transition = as_if<CSS::CSSTransition>(animation); transition && animation.pending()
-                        && !animation.start_time().has_value() && effect->is_compositor_driven()) {
-                        timing.has_start_time = true;
-                        timing.start_time = transition->transition_start_time() - effect->start_delay().value;
-                        timing.has_hold_time = false;
+                        && !animation.start_time().has_value() && effect->is_compositor_driven()
+                        && timing.clock.source == Animations::RustFFI::TimelineClockSource::Document) {
+                        timing.playback.start_time = Animations::to_ffi(Animations::TimeValue { Animations::TimeValue::Type::Milliseconds, transition->transition_start_time() - effect->start_delay().value });
+                        timing.playback.hold_time = Animations::to_ffi({});
                     }
                     effect_timing_nodes.append(target->style_node_id().value());
                     effect_timing_identities.append(effect->animation_preparation_identity());

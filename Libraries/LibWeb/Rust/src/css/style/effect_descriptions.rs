@@ -20,11 +20,11 @@ use super::bridge::{
 };
 use super::tree::StyleNodeID;
 use super::weak_pool::WeakPool;
+use crate::animations::snapshot::{CompactEffectTiming, EffectTimingSnapshot};
 use crate::css::animation::{CustomPropertyInterval, FfiCompositeOperation};
 use crate::css::custom_properties::CustomPropertyRegistry;
 use crate::css::easing::{Easing, FfiEasingDescriptor, FfiEasingKind, FfiLinearEasingPoint};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
-use crate::css::style_compute::FfiEffectTiming;
 use crate::css::style_value::EasingPayload;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use std::collections::HashMap;
@@ -360,7 +360,7 @@ pub(crate) struct PublishedEffect {
     pub(crate) reversing: Option<TransitionReversing>,
 }
 
-const _: () = assert!(size_of::<PublishedEffect>() == 224);
+const _: () = assert!(size_of::<PublishedEffect>() == 216);
 
 /// What a transition that reverses the one an effect belongs to starts from.
 /// https://drafts.csswg.org/css-transitions/#reversing-adjusted-start-value
@@ -794,8 +794,7 @@ impl AnimationEffectDescriptions {
 
     /// Keeps `timing` and `easing`, what the host samples one of an element's described effects with, and
     /// answers the key the effect samples its keyframes at as the host samples it: the one its timing
-    /// gives at the time the host sampled its timeline, or `host_key` where the engine cannot decide the
-    /// timing, or none for an unresolved progress, which samples nothing. An effect the list does not
+    /// gives at the time the host sampled its timeline, or none for an unresolved progress, which samples nothing. An effect the list does not
     /// describe keeps nothing, and samples nothing either.
     ///
     /// # Safety
@@ -805,9 +804,8 @@ impl AnimationEffectDescriptions {
         node: StyleNodeID,
         slot: AnimationSlot,
         identity: u64,
-        timing: &FfiEffectTiming,
+        timing: &EffectTimingSnapshot,
         easing: &FfiEasingDescriptor,
-        host_key: Option<f64>,
     ) -> Option<f64> {
         let effect = self
             .rows
@@ -815,18 +813,19 @@ impl AnimationEffectDescriptions {
             .and_then(|lists| lists.iter_mut().find(|(list_slot, _)| *list_slot == slot))
             .and_then(|(_, effects)| effects.iter_mut().find(|effect| effect.identity == identity));
         let effect = effect?;
+        let timing = CompactEffectTiming::from(timing);
         // A timing that has not moved keeps the easing it holds, so a sample allocates nothing.
         let unchanged = effect
             .timing
             .as_ref()
-            .is_some_and(|kept| kept.timing == *timing && unsafe { easing_is(&kept.easing, easing) });
+            .is_some_and(|kept| kept.timing == timing && unsafe { easing_is(&kept.easing, easing) });
         if !unchanged {
             effect.timing = Some(EffectTiming {
-                timing: *timing,
+                timing,
                 easing: unsafe { Easing::from_descriptor(easing) },
             });
         }
-        effect.timing.as_ref().expect("the timing was kept above").key(host_key)
+        effect.timing.as_ref().expect("the timing was kept above").key()
     }
 
     /// Keeps `timing`, what the host sampled one of an element's described effects with where it sampled
@@ -844,7 +843,7 @@ impl AnimationEffectDescriptions {
 
     /// Has one of an element's described effects that the host sampled before take `timing`, keeping its easing: the
     /// timing the host runs it on since, where it runs it without sampling it.
-    pub(crate) fn refresh_timing(&mut self, node: StyleNodeID, identity: u64, timing: &FfiEffectTiming) {
+    pub(crate) fn refresh_timing(&mut self, node: StyleNodeID, identity: u64, timing: &EffectTimingSnapshot) {
         if let Some(kept) = self
             .rows
             .get_mut(&node)
@@ -852,7 +851,7 @@ impl AnimationEffectDescriptions {
             .and_then(|(_, effects)| effects.iter_mut().find(|effect| effect.identity == identity))
             .and_then(|effect| effect.timing.as_mut())
         {
-            kept.timing = *timing;
+            kept.timing = CompactEffectTiming::from(timing);
         }
     }
 

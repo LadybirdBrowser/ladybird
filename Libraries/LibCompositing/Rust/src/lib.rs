@@ -13,6 +13,7 @@ mod rust_demangle;
 #[path = "../../../RustPanic.rs"]
 mod rust_panic;
 
+pub mod animation_timing;
 pub mod css_pixels;
 pub mod display_list;
 pub mod easing;

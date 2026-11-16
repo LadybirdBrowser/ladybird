@@ -820,12 +820,7 @@ impl CompositorAnimationEffectState {
             monotonic_time_at_anchor_ns: timing.monotonic_time_at_anchor_ns,
             local_time_at_anchor_ms: timing.local_time_at_anchor_ms,
             playback_rate: timing.playback_rate,
-            start_delay_ms: timing.start_delay_ms,
-            iteration_duration_ms: timing.iteration_duration_ms,
-            iteration_count: timing.iteration_count,
-            iteration_start: timing.iteration_start,
-            playback_direction: timing.playback_direction,
-            fill_mode: timing.fill_mode,
+            timing: timing.effect,
             // SAFETY: The request's easing point ranges are live for the build.
             easing: unsafe { Easing::from_descriptor(&timing.easing) },
             keyframes,
@@ -897,12 +892,12 @@ impl CompositorAnimationEffectState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::animations::timing::{AnimationEffectTiming, FillMode, TimeValue};
     use crate::css::easing::{FfiEasingDescriptor, FfiEasingKind, FfiLinearEasingPoint};
     use crate::css::style_value::{ColorBase, CssString, RetainedStyleValueDataList};
     use crate::css::style_value::{ColorFunctionPayload, StyleValueBox};
     use crate::css::style_value_arc::StyleValueArc;
     use crate::css::table_group_builder::angle_unit_index;
-    use crate::painting::host::{FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection};
     use crate::painting::visual_context::publish_compositor_animations;
     use crate::painting::visual_context::{TransformData, TransformDataRole, VisualContextState, VisualContextTree};
     use FfiVisualAnimationTransformOperationKind as Kind;
@@ -1113,12 +1108,12 @@ mod tests {
             monotonic_time_at_anchor_ns: 1_000,
             local_time_at_anchor_ms: 0.0,
             playback_rate: 1.0,
-            start_delay_ms: 0.0,
-            iteration_duration_ms: 1000.0,
-            iteration_count: f64::INFINITY,
-            iteration_start: 0.0,
-            playback_direction: FfiVisualAnimationPlaybackDirection::Normal,
-            fill_mode: FfiVisualAnimationFillMode::None,
+            effect: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                iteration_count: f64::INFINITY,
+                fill_mode: FillMode::None,
+                ..AnimationEffectTiming::default()
+            },
             easing: linear_easing(),
         }
     }
@@ -1721,7 +1716,10 @@ mod tests {
         VisualAnimation {
             node_indices: vec![0],
             monotonic_time_at_anchor_ns: anchor_ns,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 VisualAnimationKeyframe {
                     offset: 0.0,
@@ -1753,7 +1751,7 @@ mod tests {
         assert_eq!(again[0].monotonic_time_at_anchor_ns, 100);
 
         let mut retimed = built_opacity_animation(300);
-        retimed.iteration_duration_ms = 500.0;
+        retimed.timing.iteration_duration = TimeValue::milliseconds(500.0);
         state.pending[target_kind_index(FfiVisualAnimationTargetKind::Opacity)] = Some(retimed);
         let changed = state.publish_pending(true);
         assert_eq!(changed[0].monotonic_time_at_anchor_ns, 300);

@@ -9,13 +9,14 @@
 //! description at a point in time, which both the compositor and the main thread's intersection
 //! observations run.
 
+use crate::animation_timing::{
+    self, AnimationDirection, AnimationEffectPhase, AnimationEffectTiming, AnimationPlayback, FillMode,
+    OptionalTimeValue, TimeValue, TimeValueType,
+};
 use crate::easing::Easing;
 use crate::filter_bytes::filter_functions_graph;
 use crate::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
-use crate::host::{
-    FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection, FfiVisualAnimationTargetKind,
-    FfiVisualAnimationTransformOperationKind,
-};
+use crate::host::{FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOperationKind};
 use ak::math;
 use libgfx_rust::filter::Filter;
 use libgfx_rust::{Color, ColorFilterType, FloatMatrix4x4, rotation_matrix, scale_matrix, translation_matrix};
@@ -29,28 +30,6 @@ impl FfiVisualAnimationTargetKind {
             1 => Some(Self::BackgroundColor),
             2 => Some(Self::Filter),
             3 => Some(Self::Transform),
-            _ => None,
-        }
-    }
-}
-
-impl FfiVisualAnimationPlaybackDirection {
-    pub fn from_u8(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(Self::Normal),
-            1 => Some(Self::Reverse),
-            2 => Some(Self::Alternate),
-            3 => Some(Self::AlternateReverse),
-            _ => None,
-        }
-    }
-}
-
-impl FfiVisualAnimationFillMode {
-    pub fn from_u8(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(Self::None),
-            1 => Some(Self::Backwards),
             _ => None,
         }
     }
@@ -375,12 +354,8 @@ pub struct VisualAnimation {
     pub monotonic_time_at_anchor_ns: i64,
     pub local_time_at_anchor_ms: f64,
     pub playback_rate: f64,
-    pub start_delay_ms: f64,
-    pub iteration_duration_ms: f64,
-    pub iteration_count: f64,
-    pub iteration_start: f64,
-    pub playback_direction: FfiVisualAnimationPlaybackDirection,
-    pub fill_mode: FfiVisualAnimationFillMode,
+    /// The effect's timing, every time in milliseconds.
+    pub timing: AnimationEffectTiming,
     pub easing: Easing,
     pub keyframes: Vec<VisualAnimationKeyframe>,
 }
@@ -393,12 +368,11 @@ impl Default for VisualAnimation {
             monotonic_time_at_anchor_ns: 0,
             local_time_at_anchor_ms: 0.0,
             playback_rate: 1.0,
-            start_delay_ms: 0.0,
-            iteration_duration_ms: 0.0,
-            iteration_count: f64::INFINITY,
-            iteration_start: 0.0,
-            playback_direction: FfiVisualAnimationPlaybackDirection::Normal,
-            fill_mode: FfiVisualAnimationFillMode::None,
+            timing: AnimationEffectTiming {
+                iteration_count: f64::INFINITY,
+                fill_mode: FillMode::None,
+                ..AnimationEffectTiming::default()
+            },
             easing: Easing::default(),
             keyframes: Vec::new(),
         }
@@ -424,29 +398,32 @@ impl VisualAnimation {
         self.local_time_ms_after(self.elapsed_since_anchor_ns(sample_time_ns))
     }
 
-    /// The local time the active phase of a finite animation ends at.
-    pub fn active_end_ms(&self) -> f64 {
-        self.start_delay_ms + self.iteration_duration_ms * self.iteration_count
+    /// Whether the animation runs a finite number of iterations, and so reaches an end.
+    #[inline]
+    pub fn is_finite(&self) -> bool {
+        self.timing.iteration_count.is_finite()
+    }
+
+    /// The phase of the effect at `local_time`, in milliseconds. The compositor runs an animation forwards only.
+    fn phase_at(&self, local_time: f64) -> AnimationEffectPhase {
+        animation_timing::phase(
+            &self.timing,
+            Some(TimeValue::milliseconds(local_time)),
+            AnimationDirection::Forwards,
+            false,
+            animation_timing::EndpointInclusiveActiveInterval::No,
+        )
     }
 
     /// Whether the animation is in its active phase, or its timing cannot be told.
     pub fn is_active_at(&self, sample_time_ns: i64) -> bool {
         let local_time = self.local_time_ms_at(sample_time_ns);
-        if !local_time.is_finite() {
-            return true;
-        }
-        if local_time < self.start_delay_ms {
-            return false;
-        }
-        if !self.iteration_count.is_finite() {
-            return true;
-        }
-        local_time < self.active_end_ms()
+        !local_time.is_finite() || self.phase_at(local_time) == AnimationEffectPhase::Active
     }
 
     /// Whether a finite animation has reached the end of its active phase.
     pub fn has_finished_at(&self, sample_time_ns: i64) -> bool {
-        self.iteration_count.is_finite() && self.local_time_ms_at(sample_time_ns) >= self.active_end_ms()
+        self.is_finite() && self.phase_at(self.local_time_ms_at(sample_time_ns)) == AnimationEffectPhase::After
     }
 
     pub fn is_valid(&self) -> bool {
@@ -459,31 +436,29 @@ impl VisualAnimation {
     pub fn has_same_animation_parameters(&self, other: &Self) -> bool {
         self.target_kind == other.target_kind
             && self.playback_rate == other.playback_rate
-            && self.start_delay_ms == other.start_delay_ms
-            && self.iteration_duration_ms == other.iteration_duration_ms
-            && self.iteration_count == other.iteration_count
-            && self.iteration_start == other.iteration_start
-            && self.playback_direction == other.playback_direction
-            && self.fill_mode == other.fill_mode
+            && self.timing == other.timing
             && self.easing == other.easing
             && self.keyframes == other.keyframes
     }
 
-    /// Whether the timing and keyframes describe an animation that can be sampled: positive
-    /// durations and rates, keyframes from offset 0 to offset 1 in increasing order, and values of
-    /// the target kind that interpolate with each other.
+    /// Whether the timing and keyframes describe an animation that can be sampled: times in
+    /// milliseconds, positive durations and rates, keyframes from offset 0 to offset 1 in increasing
+    /// order, and values of the target kind that interpolate with each other.
     pub fn has_valid_parameters(&self) -> bool {
+        let timing = &self.timing;
+        let in_milliseconds = |time: TimeValue| time.r#type == TimeValueType::Milliseconds && time.value.is_finite();
         if self.monotonic_time_at_anchor_ns < 0
             || !self.local_time_at_anchor_ms.is_finite()
             || !self.playback_rate.is_finite()
             || self.playback_rate <= 0.0
-            || !self.start_delay_ms.is_finite()
-            || !self.iteration_duration_ms.is_finite()
-            || self.iteration_duration_ms <= 0.0
-            || self.iteration_count.is_nan()
-            || self.iteration_count <= 0.0
-            || !self.iteration_start.is_finite()
-            || self.iteration_start < 0.0
+            || !in_milliseconds(timing.start_delay)
+            || !in_milliseconds(timing.end_delay)
+            || !in_milliseconds(timing.iteration_duration)
+            || timing.iteration_duration.value <= 0.0
+            || timing.iteration_count.is_nan()
+            || timing.iteration_count <= 0.0
+            || !timing.iteration_start.is_finite()
+            || timing.iteration_start < 0.0
             || !self.easing.is_valid()
             || self.keyframes.len() < 2
         {
@@ -552,53 +527,37 @@ impl VisualAnimation {
     /// The value at `elapsed_ns` after the anchor, or none while the animation is dormant, once
     /// its timing cannot be resolved, or when the interpolated value is not representable.
     pub fn sample(&self, elapsed_ns: i64) -> Option<VisualAnimationSample> {
-        if self.iteration_duration_ms <= 0.0 || self.playback_rate <= 0.0 || self.keyframes.len() < 2 {
+        if self.playback_rate <= 0.0 || self.keyframes.len() < 2 {
             return None;
         }
 
-        let mut local_time = self.local_time_ms_after(elapsed_ns);
+        let local_time = self.local_time_ms_after(elapsed_ns);
         if !local_time.is_finite() {
             return None;
         }
-        let is_in_before_phase = local_time < self.start_delay_ms;
-        if is_in_before_phase {
-            if self.fill_mode != FfiVisualAnimationFillMode::Backwards {
-                return None;
-            }
-            local_time = self.start_delay_ms;
-        }
-        let overall_progress = (local_time - self.start_delay_ms) / self.iteration_duration_ms + self.iteration_start;
-        if !overall_progress.is_finite() || overall_progress < 0.0 {
-            return None;
-        }
-
-        let active_progress = overall_progress - self.iteration_start;
-        let is_at_or_after_end = self.iteration_count.is_finite() && active_progress >= self.iteration_count;
-        let mut current_iteration = overall_progress.floor();
-        let mut simple_iteration_progress = overall_progress % 1.0;
-        if is_at_or_after_end {
-            let terminal_overall_progress = self.iteration_start + self.iteration_count;
-            simple_iteration_progress = terminal_overall_progress % 1.0;
-            if simple_iteration_progress == 0.0 {
-                simple_iteration_progress = 1.0;
-            }
-            current_iteration =
-                terminal_overall_progress.floor() - if simple_iteration_progress == 1.0 { 1.0 } else { 0.0 };
-        }
-        let going_forwards = match self.playback_direction {
-            FfiVisualAnimationPlaybackDirection::Normal => true,
-            FfiVisualAnimationPlaybackDirection::Reverse => false,
-            FfiVisualAnimationPlaybackDirection::Alternate => current_iteration % 2.0 == 0.0,
-            FfiVisualAnimationPlaybackDirection::AlternateReverse => (current_iteration + 1.0) % 2.0 == 0.0,
+        // The compositor runs the animation at its playback rate from where the main thread anchored it, which holds
+        // its local time.
+        let local_time = Some(TimeValue::milliseconds(local_time));
+        let playback = AnimationPlayback {
+            hold_time: OptionalTimeValue::from(local_time),
+            playback_rate: self.playback_rate,
+            ..AnimationPlayback::default()
         };
-
-        let directed_progress = if going_forwards {
-            simple_iteration_progress
-        } else {
-            1.0 - simple_iteration_progress
+        // NB: The compositor knows nothing of the value beneath the effect, which an effect that does not fill
+        //     forwards shows once it ends. The main thread takes the animation off the compositor at its end, and until
+        //     its next frame shows that value, the compositor holds the value at the end.
+        let presented_fill_mode = match self.timing.fill_mode {
+            FillMode::None | FillMode::Forwards | FillMode::Auto => FillMode::Forwards,
+            FillMode::Backwards | FillMode::Both => FillMode::Both,
         };
-        let before_flag = (is_in_before_phase && going_forwards) || (is_at_or_after_end && !going_forwards);
-        let transformed_progress = self.easing.evaluate_at(directed_progress, before_flag);
+        let resolved = animation_timing::resolve_timing_using_fill(
+            &self.timing,
+            local_time,
+            Some(&playback),
+            None,
+            presented_fill_mode,
+        );
+        let transformed_progress = animation_timing::transformed_progress(&self.timing, &resolved, &self.easing)?;
         if !transformed_progress.is_finite() {
             return None;
         }
@@ -657,6 +616,7 @@ impl VisualAnimation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::animation_timing::PlaybackDirection;
     use crate::easing::FfiLinearEasingPoint;
     use FfiVisualAnimationTransformOperationKind as TransformKind;
 
@@ -719,7 +679,10 @@ mod tests {
         let animation = VisualAnimation {
             node_indices: vec![0],
             local_time_at_anchor_ms: 250.0,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 opacity_keyframe(0.0, Easing::default(), 0.0),
                 opacity_keyframe(1.0, Easing::default(), 1.0),
@@ -743,7 +706,10 @@ mod tests {
         let mut animation = VisualAnimation {
             node_indices: vec![0],
             local_time_at_anchor_ms: 100.0,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 opacity_keyframe(0.0, overshooting_easing, 0.0),
                 opacity_keyframe(1.0, Easing::default(), 1.0),
@@ -761,8 +727,11 @@ mod tests {
         let animation = VisualAnimation {
             node_indices: vec![0],
             local_time_at_anchor_ms: 250.0,
-            iteration_duration_ms: 1000.0,
-            playback_direction: FfiVisualAnimationPlaybackDirection::AlternateReverse,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                playback_direction: PlaybackDirection::AlternateReverse,
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 opacity_keyframe(0.0, steps(4, 1), 0.0),
                 opacity_keyframe(1.0, Easing::default(), 1.0),
@@ -779,8 +748,11 @@ mod tests {
         let mut animation = VisualAnimation {
             node_indices: vec![0],
             local_time_at_anchor_ms: 900.0,
-            iteration_duration_ms: 1000.0,
-            iteration_count: 1.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                iteration_count: 1.0,
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 opacity_keyframe(0.0, Easing::default(), 0.0),
                 opacity_keyframe(1.0, Easing::default(), 1.0),
@@ -789,9 +761,9 @@ mod tests {
         };
 
         assert_approximately(opacity_of(animation.sample(milliseconds(200))), 1.0);
-        animation.playback_direction = FfiVisualAnimationPlaybackDirection::Reverse;
+        animation.timing.playback_direction = PlaybackDirection::Reverse;
         assert_approximately(opacity_of(animation.sample(milliseconds(200))), 0.0);
-        animation.iteration_start = 0.5;
+        animation.timing.iteration_start = 0.5;
         assert_approximately(opacity_of(animation.sample(milliseconds(200))), 0.5);
     }
 
@@ -800,7 +772,10 @@ mod tests {
         let animation = VisualAnimation {
             node_indices: vec![0],
             local_time_at_anchor_ms: 500.0,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 opacity_keyframe(0.0, Easing::default(), 0.0),
                 opacity_keyframe(0.5, steps(4, 0), 0.5),
@@ -818,7 +793,10 @@ mod tests {
             target_kind: FfiVisualAnimationTargetKind::Transform,
             node_indices: vec![0],
             local_time_at_anchor_ms: 500.0,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 keyframe(
                     0.0,
@@ -853,7 +831,10 @@ mod tests {
             target_kind: FfiVisualAnimationTargetKind::BackgroundColor,
             node_indices: vec![0],
             local_time_at_anchor_ms: 500.0,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 keyframe(
                     0.0,
@@ -880,7 +861,10 @@ mod tests {
             target_kind: FfiVisualAnimationTargetKind::BackgroundColor,
             node_indices: vec![0],
             local_time_at_anchor_ms: 750.0,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             easing: Easing::Linear(vec![
                 FfiLinearEasingPoint {
                     input: 0.0,
@@ -963,7 +947,10 @@ mod tests {
                 target_kind: FfiVisualAnimationTargetKind::Filter,
                 node_indices: vec![0],
                 local_time_at_anchor_ms: 750.0,
-                iteration_duration_ms: 1000.0,
+                timing: AnimationEffectTiming {
+                    iteration_duration: TimeValue::milliseconds(1000.0),
+                    ..VisualAnimation::default().timing
+                },
                 keyframes: vec![
                     VisualAnimationKeyframe {
                         offset: 0.0,
@@ -1003,7 +990,10 @@ mod tests {
             target_kind: FfiVisualAnimationTargetKind::Filter,
             node_indices: vec![0],
             local_time_at_anchor_ms: 500.0,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 keyframe(0.0, VisualAnimationValue::Filter(vec![opacity(1.0)])),
                 keyframe(1.0, VisualAnimationValue::Filter(vec![opacity(0.0)])),
@@ -1040,8 +1030,11 @@ mod tests {
         let mut animation = VisualAnimation {
             node_indices: vec![0],
             local_time_at_anchor_ms: 50.0,
-            start_delay_ms: 100.0,
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                start_delay: TimeValue::milliseconds(100.0),
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 opacity_keyframe(0.0, Easing::default(), 0.25),
                 opacity_keyframe(1.0, Easing::default(), 0.75),
@@ -1050,7 +1043,7 @@ mod tests {
         };
 
         assert!(animation.sample(0).is_none());
-        animation.fill_mode = FfiVisualAnimationFillMode::Backwards;
+        animation.timing.fill_mode = FillMode::Backwards;
         assert_approximately(opacity_of(animation.sample(0)), 0.25);
         assert_approximately(opacity_of(animation.sample(milliseconds(550))), 0.5);
     }
@@ -1061,9 +1054,12 @@ mod tests {
         let mut animation = VisualAnimation {
             node_indices: vec![0],
             local_time_at_anchor_ms: 50.0,
-            start_delay_ms: 100.0,
-            iteration_duration_ms: 1000.0,
-            fill_mode: FfiVisualAnimationFillMode::Backwards,
+            timing: AnimationEffectTiming {
+                start_delay: TimeValue::milliseconds(100.0),
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                fill_mode: FillMode::Backwards,
+                ..VisualAnimation::default().timing
+            },
             easing: jump_start.clone(),
             keyframes: vec![
                 opacity_keyframe(0.0, Easing::default(), 0.0),
@@ -1084,9 +1080,12 @@ mod tests {
         let animation = VisualAnimation {
             node_indices: vec![0],
             monotonic_time_at_anchor_ns: milliseconds(1000),
-            start_delay_ms: 100.0,
-            iteration_duration_ms: 1000.0,
-            iteration_count: 2.0,
+            timing: AnimationEffectTiming {
+                start_delay: TimeValue::milliseconds(100.0),
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                iteration_count: 2.0,
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 opacity_keyframe(0.0, Easing::default(), 0.0),
                 opacity_keyframe(1.0, Easing::default(), 1.0),
@@ -1104,7 +1103,10 @@ mod tests {
         assert!(animation.has_finished_at(milliseconds(3100)));
 
         let endless = VisualAnimation {
-            iteration_count: f64::INFINITY,
+            timing: AnimationEffectTiming {
+                iteration_count: f64::INFINITY,
+                ..animation.timing
+            },
             ..animation
         };
         assert!(endless.is_active_at(milliseconds(1_000_000)));
@@ -1115,7 +1117,10 @@ mod tests {
     fn parameter_validation_covers_timing_and_keyframes() {
         let valid = VisualAnimation {
             node_indices: vec![0],
-            iteration_duration_ms: 1000.0,
+            timing: AnimationEffectTiming {
+                iteration_duration: TimeValue::milliseconds(1000.0),
+                ..VisualAnimation::default().timing
+            },
             keyframes: vec![
                 opacity_keyframe(0.0, Easing::default(), 0.0),
                 opacity_keyframe(0.5, Easing::default(), 0.5),
@@ -1139,11 +1144,26 @@ mod tests {
                 ..valid.clone()
             },
             VisualAnimation {
-                iteration_count: f64::NAN,
+                timing: AnimationEffectTiming {
+                    iteration_count: f64::NAN,
+                    ..valid.timing
+                },
                 ..valid.clone()
             },
             VisualAnimation {
-                iteration_start: -1.0,
+                timing: AnimationEffectTiming {
+                    iteration_start: -1.0,
+                    ..valid.timing
+                },
+                ..valid.clone()
+            },
+            VisualAnimation {
+                timing: AnimationEffectTiming {
+                    start_delay: TimeValue::percentage(0.0),
+                    end_delay: TimeValue::percentage(0.0),
+                    iteration_duration: TimeValue::percentage(100.0),
+                    ..valid.timing
+                },
                 ..valid.clone()
             },
             VisualAnimation {

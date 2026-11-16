@@ -26,6 +26,7 @@ pub(crate) mod heap_size;
 mod url_test_stubs;
 pub(crate) use libcompositing_rust::fast_hash;
 
+pub(crate) mod animations;
 pub(crate) mod css;
 pub(crate) mod layout;
 pub(crate) mod paint_stage;

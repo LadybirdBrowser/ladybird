@@ -782,7 +782,7 @@ fn host_transitions_at(
                 return Some(Err("a transition the host has not sampled"));
             };
             // An idle transition, one with neither a start time nor a hold time, runs nothing.
-            if timing.timing.decidable && !timing.timing.has_start_time && !timing.timing.has_hold_time {
+            if timing.has_no_time() {
                 return None;
             }
             Some(host_transition_at(effect, timing, samples, at))
@@ -800,10 +800,10 @@ fn host_transition_at(
     samples: crate::css::style::animations::AnimationTimelineSamples<'_>,
     at: f64,
 ) -> Result<RunningTransitionAt, &'static str> {
-    if timing.timing.paused {
+    if timing.is_paused() {
         return Err("a paused transition");
     }
-    if timing.timing.playback_rate != 1.0 {
+    if timing.timing.playback().playback_rate != 1.0 {
         return Err("a transition that runs at another rate");
     }
     let reversing = effect
@@ -812,10 +812,10 @@ fn host_transition_at(
         .ok_or("a transition the host has not described")?;
     let key = timing
         .key_at(samples)
-        .ok_or("a transition whose timing the engine cannot decide")?;
+        .ok_or("a transition on a timeline a tick does not move")?;
     let local_time = timing
         .local_time_at(samples)
-        .ok_or("a transition whose timing the engine cannot decide")?;
+        .ok_or("a transition on a timeline a tick does not move")?;
     let (property_id, start_value, end_value) =
         transition_values(effect).ok_or("a transition the host has not described")?;
     Ok(RunningTransitionAt {
@@ -1021,8 +1021,9 @@ impl RowTransitions {
         let ended: smallvec::SmallVec<[u16; 4]> = running
             .iter()
             .filter(|transition| {
-                let timing = &transition.timing.timing;
-                transition.key.is_none() && transition.local_time >= timing.start_delay + timing.iteration_duration
+                let timing = transition.timing.timing.effect();
+                transition.key.is_none()
+                    && transition.local_time >= timing.start_delay.value + timing.iteration_duration.value
             })
             .map(|transition| transition.property_id)
             .collect();
@@ -1166,7 +1167,7 @@ impl FreshTransitionSample {
                     identity: effect.identity,
                     generation: 0,
                 },
-                current_key: effect.timing.as_ref()?.key(Some(0.0))?,
+                current_key: effect.timing.as_ref()?.key()?,
             });
         }
         if composed.is_empty() {
@@ -1224,22 +1225,18 @@ impl FreshTransitionSample {
                 (
                     effect.identity,
                     crate::css::style::animations::EffectTiming {
-                        timing: effect.timing,
+                        timing: crate::animations::snapshot::CompactEffectTiming::from(&effect.timing),
                         // SAFETY: The host's easings are live for as long as its effects are borrowed.
                         easing: unsafe { crate::css::easing::Easing::from_descriptor(&effect.easing) },
                     },
                 )
             })
             .collect();
-        let samples_alike = timings
-            .iter()
-            .zip(effects)
-            .zip(&self.keys)
-            .all(|(((_, timing), effect), key)| {
-                timing
-                    .key(effect.current_key.into())
-                    .is_some_and(|host_key| host_key.to_bits() == key.to_bits())
-            });
+        let samples_alike = timings.iter().zip(&self.keys).all(|((_, timing), key)| {
+            timing
+                .key()
+                .is_some_and(|sampled_key| sampled_key.to_bits() == key.to_bits())
+        });
         if !samples_alike {
             return None;
         }
@@ -1337,35 +1334,27 @@ fn started_transition_timing(
     action: &FfiTransitionAction,
     easing: crate::css::easing::Easing,
 ) -> crate::css::style::animations::EffectTiming {
+    use crate::animations::snapshot::{CompactEffectTiming, EffectTimingSnapshot};
+    use crate::animations::timing::{
+        AnimationEffectTiming, AnimationPlayback, FillMode, OptionalTimeValue, PlaybackDirection, TimeValue,
+    };
     crate::css::style::animations::EffectTiming {
-        timing: crate::css::style_compute::FfiEffectTiming {
-            is_relevant: true,
-            is_removed: false,
-            decidable: true,
-            has_timeline_time: false,
-            has_timeline_origin_time: false,
-            has_timeline_scroller: false,
-            scroll_timeline: 0,
-            has_timeline_boundaries: false,
-            minimum_timeline_time: 0.0,
-            maximum_timeline_time: 0.0,
-            has_start_time: false,
-            has_hold_time: true,
-            paused: false,
-            // `Bindings::FillMode::Backwards` and `Bindings::PlaybackDirection::Normal`.
-            fill_mode: 2,
-            playback_direction: 0,
-            timeline_time: 0.0,
-            timeline_origin_time: 0.0,
-            start_time: 0.0,
-            hold_time: 0.0,
-            playback_rate: 1.0,
-            start_delay: action.delay,
-            end_delay: 0.0,
-            iteration_duration: action.active_duration,
-            iteration_count: 1.0,
-            iteration_start: 0.0,
-        },
+        timing: CompactEffectTiming::from(&EffectTimingSnapshot {
+            effect: AnimationEffectTiming {
+                start_delay: TimeValue::milliseconds(action.delay),
+                end_delay: TimeValue::milliseconds(0.0),
+                iteration_duration: TimeValue::milliseconds(action.active_duration),
+                iteration_start: 0.0,
+                iteration_count: 1.0,
+                fill_mode: FillMode::Backwards,
+                playback_direction: PlaybackDirection::Normal,
+            },
+            playback: AnimationPlayback {
+                hold_time: OptionalTimeValue::from(Some(TimeValue::milliseconds(0.0))),
+                ..AnimationPlayback::default()
+            },
+            ..EffectTimingSnapshot::default()
+        }),
         easing,
     }
 }
@@ -1405,7 +1394,8 @@ fn hover_transition_effects(
                     running.filter(|transition| transition.key.is_some() || transition.host_identity.is_none())
                 {
                     let mut timing = transition.timing.clone();
-                    timing.timing.has_hold_time = true;
+                    let hold_time = timing.timing.playback().hold_time.value;
+                    timing.timing.set_hold_time(Some(hold_time));
                     effects.push(PublishedEffect::transition(
                         identity,
                         action.property_id,
@@ -1520,7 +1510,10 @@ impl HoverTransitions {
         }
         let duration = runs
             .iter()
-            .map(|run| run.timing.timing.start_delay + run.timing.timing.iteration_duration - run.local_time)
+            .map(|run| {
+                let timing = run.timing.timing.effect();
+                timing.start_delay.value + timing.iteration_duration.value - run.local_time
+            })
             .fold(0.0, f64::max);
         let properties = effects
             .iter()
@@ -1569,10 +1562,10 @@ impl HoverTransitions {
                     transition_values(effect).ok_or("a transition without values")?;
                 let local_time = run.local_time + elapsed;
                 let mut timing = run.timing.clone();
-                timing.timing.hold_time = local_time;
+                timing.hold_at(local_time);
                 let key = timing
                     .key_at(Default::default())
-                    .ok_or("a transition whose timing the engine cannot decide")?;
+                    .expect("the host's samples move every timeline");
                 Ok(RunningTransitionAt {
                     identity: effect.identity,
                     generation: 0,
@@ -1603,8 +1596,8 @@ impl HoverTransitions {
                 property_id,
                 host_identity: run.host_identity.unwrap_or(0),
                 start_time: run.started_at,
-                delay: run.timing.timing.start_delay,
-                duration: run.timing.timing.iteration_duration,
+                delay: run.timing.timing.effect().start_delay.value,
+                duration: run.timing.timing.effect().iteration_duration.value,
                 start_value,
                 end_value,
                 reversing_adjusted_start_value: run.reversing_adjusted_start_value.pointer(),
@@ -1672,8 +1665,11 @@ impl HoverTransitions {
         let mut composed = crate::css::style_compute::SampledEffects::new();
         for (effect, run) in self.effects.iter().zip(&self.runs) {
             let mut timing = run.timing.clone();
-            timing.timing.hold_time = run.local_time + elapsed;
-            let Some(current_key) = timing.key_at(Default::default()).ok_or(NeedsHost)? else {
+            timing.hold_at(run.local_time + elapsed);
+            let Some(current_key) = timing
+                .key_at(Default::default())
+                .expect("the host's samples move every timeline")
+            else {
                 continue;
             };
             composed.push(FfiSampledAnimationEffect {
@@ -1912,7 +1908,7 @@ mod tests {
                 timing_function: easing.pointer(),
             };
             let mut timing = started_transition_timing(&action, Default::default());
-            timing.timing.hold_time = local_time;
+            timing.hold_at(local_time);
             let running = if kind == Kind::None {
                 vec![RunningTransitionAt {
                     identity: 1,
@@ -1955,7 +1951,7 @@ mod tests {
             assert_eq!(runs[0].local_time, local_time);
             assert_eq!(runs[0].timing.key_at(Default::default()), Some(Some(key)));
             let mut sampled_timing = runs[0].timing.clone();
-            sampled_timing.timing.hold_time = local_time + 250.0;
+            sampled_timing.hold_at(local_time + 250.0);
             assert_eq!(sampled_timing.key_at(Default::default()), Some(Some(next_key)));
         }
     }

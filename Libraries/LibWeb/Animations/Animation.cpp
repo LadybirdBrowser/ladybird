@@ -655,30 +655,11 @@ Optional<TimeValue> Animation::current_time_for_observation() const
     return current_time_at(m_timeline ? m_timeline->current_time_for_observation() : Optional<TimeValue> {});
 }
 
+// https://www.w3.org/TR/web-animations-1/#animation-current-time
 Optional<TimeValue> Animation::current_time_at(Optional<TimeValue> timeline_time) const
 {
-    // The current time is calculated from the first matching condition from below:
-
-    // -> If the animation’s hold time is resolved,
-    if (m_hold_time.has_value()) {
-        // The current time is the animation’s hold time.
-        return m_hold_time.value();
-    }
-
-    // -> If any of the following are true:
-    //    - the animation has no associated timeline, or
-    //    - the associated timeline is inactive, or
-    //    - the animation’s start time is unresolved.
-    if (!m_timeline || !timeline_time.has_value() || !m_start_time.has_value()) {
-        // The current time is an unresolved time value.
-        return {};
-    }
-
-    // -> Otherwise,
-    //    current time = (timeline time - start time) × playback rate
-    //    Where timeline time is the current time value of the associated timeline. The playback rate value is defined
-    //    in §4.4.15 Speed control.
-    return (timeline_time.value() - m_start_time.value()) * playback_rate();
+    auto playback = this->playback();
+    return from_ffi(RustFFI::animations_current_time_at(&playback, to_ffi(m_timeline ? timeline_time : Optional<TimeValue> {})));
 }
 
 NullableCSSNumberish Animation::current_time_for_bindings() const
@@ -771,40 +752,17 @@ AnimationPlayState Animation::play_state() const
     return play_state_at(current_time());
 }
 
+static_assert(to_underlying(AnimationPlayState::Idle) == to_underlying(RustFFI::AnimationPlayState::Idle));
+static_assert(to_underlying(AnimationPlayState::Running) == to_underlying(RustFFI::AnimationPlayState::Running));
+static_assert(to_underlying(AnimationPlayState::Paused) == to_underlying(RustFFI::AnimationPlayState::Paused));
+static_assert(to_underlying(AnimationPlayState::Finished) == to_underlying(RustFFI::AnimationPlayState::Finished));
+
+// https://www.w3.org/TR/web-animations-1/#play-states
 AnimationPlayState Animation::play_state_at(Optional<TimeValue> current_time) const
 {
-    // The play state of animation, animation, at a given moment is the state corresponding to the first matching
-    // condition from the following:
-
-    // -> All of the following conditions are true:
-    //    - The current time of animation is unresolved, and
-    //    - the start time of animation is unresolved, and
-    //    - animation does not have either a pending play task or a pending pause task,
-    if (!current_time.has_value() && !m_start_time.has_value() && !pending()) {
-        // → idle
-        return AnimationPlayState::Idle;
-    }
-
-    // -> Either of the following conditions are true:
-    //    - animation has a pending pause task, or
-    //    - both the start time of animation is unresolved and it does not have a pending play task,
-    if (m_pending_pause_task == TaskState::Scheduled || (!m_start_time.has_value() && m_pending_play_task == TaskState::None)) {
-        // → paused
-        return AnimationPlayState::Paused;
-    }
-
-    // -> For animation, current time is resolved and either of the following conditions are true:
-    //    - animation’s effective playback rate > 0 and current time ≥ associated effect end; or
-    //    - animation’s effective playback rate < 0 and current time ≤ 0,
-    auto effective_playback_rate = this->effective_playback_rate();
-    if (current_time.has_value() && ((effective_playback_rate > 0.0 && current_time.value() >= associated_effect_end()) || (effective_playback_rate < 0.0 && current_time->value <= 0))) {
-        // → finished
-        return AnimationPlayState::Finished;
-    }
-
-    // -> Otherwise,
-    //    → running
-    return AnimationPlayState::Running;
+    auto playback = this->playback();
+    auto play_state = RustFFI::animations_play_state_at(&playback, to_ffi(current_time), associated_effect_end());
+    return static_cast<AnimationPlayState>(to_underlying(play_state));
 }
 
 AnimationPlayState Animation::play_state_for_bindings()
@@ -845,10 +803,21 @@ GC::Ref<WebIDL::Promise> Animation::finished_for_bindings()
 // https://www.w3.org/TR/web-animations-1/#animation-relevant
 bool Animation::is_relevant() const
 {
-    // An animation is relevant if:
-    // - Its associated effect is current or in effect, and
-    // - Its replace state is not removed.
-    return (m_effect && (m_effect->is_current() || m_effect->is_in_effect())) && replace_state() != AnimationReplaceState::Removed;
+    auto playback = this->playback();
+    Optional<RustFFI::TimelineSample> timeline_sample;
+    if (m_timeline)
+        timeline_sample = m_timeline->sample();
+    Optional<RustFFI::AnimationEffectTiming> effect_timing;
+    Optional<TimeValue> local_time;
+    if (m_effect) {
+        effect_timing = m_effect->effect_timing(m_effect->fill_mode());
+        local_time = m_effect->local_time();
+    }
+    return RustFFI::animations_is_relevant(
+        &playback,
+        timeline_sample.has_value() ? &*timeline_sample : nullptr,
+        effect_timing.has_value() ? &*effect_timing : nullptr,
+        to_ffi(local_time));
 }
 
 // https://www.w3.org/TR/web-animations-1/#replaceable-animation
@@ -1556,6 +1525,24 @@ TimeValue Animation::associated_effect_end() const
     // The associated effect end of an animation is equal to the end time of the animation’s associated effect. If the
     // animation has no associated effect, the associated effect end is zero.
     return m_effect ? m_effect->end_time() : TimeValue::create_zero(m_timeline);
+}
+
+static_assert(to_underlying(AnimationReplaceState::Active) == to_underlying(RustFFI::AnimationReplaceState::Active));
+static_assert(to_underlying(AnimationReplaceState::Removed) == to_underlying(RustFFI::AnimationReplaceState::Removed));
+static_assert(to_underlying(AnimationReplaceState::Persisted) == to_underlying(RustFFI::AnimationReplaceState::Persisted));
+
+RustFFI::AnimationPlayback Animation::playback() const
+{
+    return {
+        .start_time = to_ffi(m_start_time),
+        .hold_time = to_ffi(m_hold_time),
+        .playback_rate = m_playback_rate,
+        .pending_playback_rate = { .value = m_pending_playback_rate.value_or(0), .has_value = m_pending_playback_rate.has_value() },
+        .has_pending_play_task = m_pending_play_task == TaskState::Scheduled,
+        .has_pending_pause_task = m_pending_pause_task == TaskState::Scheduled,
+        .is_finished = m_is_finished,
+        .replace_state = static_cast<RustFFI::AnimationReplaceState>(to_underlying(m_replace_state)),
+    };
 }
 
 // https://www.w3.org/TR/web-animations-1/#effective-playback-rate

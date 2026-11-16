@@ -2430,8 +2430,6 @@ fn expose_compositing_types_as_cpp_types(config: &mut cbindgen::Config) {
         "FfiFilterFunctionKind",
         "FfiVisualContextTreeInputs",
         "FfiVisualAnimationTargetKind",
-        "FfiVisualAnimationPlaybackDirection",
-        "FfiVisualAnimationFillMode",
         "FfiVisualAnimationTransformOperationKind",
         "FfiCompositorAnimationPublishOutcome",
         "FfiVisualAnimationSummary",
@@ -2954,12 +2952,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     expose_css_pixel_types_as_web_types(&mut computed_values_config);
     // An effect the host samples carries its easing as the compositing crate describes one.
     expose_compositing_types_as_cpp_types(&mut computed_values_config);
-    computed_values_config.export.exclude.push("OptionalF64".to_string());
-    computed_values_config
-        .export
-        .rename
-        .insert("OptionalF64".to_string(), "Optional<double>".to_string());
-    computed_values_config.includes.push("AK/Optional.h".to_string());
     // The custom property registry and stores, a sample's animated custom properties and a shorthand expansion are
     // opaque to C++, which holds each by pointer.
     for name in [
@@ -3002,6 +2994,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         .push_str("\nnamespace Web::CSS::StyleValueFFI { struct CssString; }");
     // An animation sample and plan read the document's style engine, which the document host reaches.
     declare_document_host_of_layout_header(&mut computed_values_config);
+    // An effect the host samples carries its timing as the animations header describes it.
+    computed_values_config
+        .export
+        .exclude
+        .push("EffectTimingSnapshot".to_string());
+    computed_values_config.export.rename.insert(
+        "EffectTimingSnapshot".to_string(),
+        "Web::Animations::RustFFI::EffectTimingSnapshot".to_string(),
+    );
+    computed_values_config
+        .includes
+        .push("LibWeb/Animations/RustFFI.h".to_string());
 
     computed_values_config.export.rename.insert(
         "FfiAnimationEffectDescriptions".to_string(),
@@ -3102,6 +3106,44 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new("Layout/TreeBuilderRustFFI.h"),
     );
 
+    // The Web Animations timing model - namespace Web::Animations::RustFFI. A time value is laid out as the C++
+    // Animations::TimeValue, which C++ passes it as, and an easing descriptor is the compositing header's.
+    let mut animations_config = base_config.clone();
+    animations_config.namespaces = Some(vec!["Web".to_string(), "Animations".to_string(), "RustFFI".to_string()]);
+    for (rust_name, cpp_name) in [
+        ("TimeValue", "Web::Animations::TimeValue"),
+        ("TimeValueType", "Web::Animations::TimeValue::Type"),
+        ("FfiEasingDescriptor", "Compositing::RustFFI::FfiEasingDescriptor"),
+    ] {
+        animations_config.export.exclude.push(rust_name.to_string());
+        animations_config
+            .export
+            .rename
+            .insert(rust_name.to_string(), cpp_name.to_string());
+    }
+    animations_config
+        .includes
+        .extend(["LibCompositing/RustFFI.h", "LibWeb/Animations/TimeValue.h"].map(String::from));
+    // The timing the host publishes of an effect it samples, which no function here takes.
+    animations_config
+        .export
+        .include
+        .push("EffectTimingSnapshot".to_string());
+    let animation_timing_dir = manifest_dir.join("../../LibCompositing/Rust/src/animation_timing");
+    println!("cargo:rerun-if-changed={}", animation_timing_dir.display());
+    generate_ffi_header(
+        animations_config,
+        &[
+            animation_timing_dir.join("time_value.rs"),
+            animation_timing_dir.join("effect_timing.rs"),
+            animation_timing_dir.join("playback.rs"),
+            manifest_dir.join("src/animations/ffi.rs"),
+            manifest_dir.join("src/animations/snapshot.rs"),
+        ],
+        &out_dir,
+        Path::new("Animations/RustFFI.h"),
+    );
+
     // The lanes of the render clock - namespace Web::Compositor::RustFFI, layered on the layout header for the ticks
     // the lanes hand on.
     let mut render_clock_config = base_config.clone();
@@ -3160,6 +3202,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     layout_config
         .includes
         .push("LibIPC/ThreadSafeMessagePoster.h".to_string());
+    // A compositor animation carries its effect's timing as the animations header describes it.
+    layout_config.export.exclude.push("AnimationEffectTiming".to_string());
+    layout_config.export.rename.insert(
+        "AnimationEffectTiming".to_string(),
+        "Web::Animations::RustFFI::AnimationEffectTiming".to_string(),
+    );
+    layout_config.includes.push("LibWeb/Animations/RustFFI.h".to_string());
     // A compositor animation effect state is opaque to C++, which holds it by pointer, and so are the paint server an
     // SVG paint resource callback fills and a parsed SVG path.
     for name in [

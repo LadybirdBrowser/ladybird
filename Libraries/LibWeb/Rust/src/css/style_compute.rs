@@ -6433,79 +6433,15 @@ pub const SUBSTITUTION_MARK_IF: u8 = 1 << 2;
 pub const SUBSTITUTION_MARK_INHERIT: u8 = 1 << 3;
 pub const SUBSTITUTION_MARK_CUSTOM_FUNCTION: u8 = 1 << 4;
 
-/// One animation effect's timing as the host holds it when it samples the effect: what its
-/// animation contributes, the effect's own timing, and the time its timeline was sampled at. Every
-/// time is in milliseconds. The host describes an effect whose times are not, or whose local time is
-/// overridden for observation, as one the engine cannot decide.
-///
-/// Its easing travels beside it, as a descriptor the call borrows.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct FfiEffectTiming {
-    pub scroll_timeline: u64,
-    pub minimum_timeline_time: f64,
-    pub maximum_timeline_time: f64,
-    pub timeline_time: f64,
-    pub timeline_origin_time: f64,
-    pub start_time: f64,
-    pub hold_time: f64,
-    pub playback_rate: f64,
-    pub start_delay: f64,
-    pub end_delay: f64,
-    pub iteration_duration: f64,
-    pub iteration_count: f64,
-    pub iteration_start: f64,
-    pub decidable: bool,
-    pub is_relevant: bool,
-    pub is_removed: bool,
-    pub has_timeline_time: bool,
-    /// The effect's animation runs on a document timeline, whose time is a timestamp less this origin
-    /// time.
-    pub has_timeline_origin_time: bool,
-    /// The effect's animation runs on the scroll timeline `scroll_timeline` names, whose time is its progress, in
-    /// percent, where the scroller it follows is scrolled to.
-    pub has_timeline_scroller: bool,
-    /// The effect's animation runs on a progress-based timeline, whose minimum and maximum timeline times
-    /// `minimum_timeline_time` and `maximum_timeline_time` are.
-    pub has_timeline_boundaries: bool,
-    pub has_start_time: bool,
-    pub has_hold_time: bool,
-    /// The effect's animation is paused, which holds its time, as one whose play is pending does too.
-    pub paused: bool,
-    /// `Bindings::FillMode`, in IDL order.
-    pub fill_mode: u8,
-    /// `Bindings::PlaybackDirection`, in IDL order.
-    pub playback_direction: u8,
-}
-
-const _: () = assert!(size_of::<FfiEffectTiming>() == 120);
-
-/// ABI mirror of `AK::Optional<double>`.
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct OptionalF64 {
-    value: std::mem::MaybeUninit<f64>,
-    has_value: bool,
-}
-
-impl From<OptionalF64> for Option<f64> {
-    fn from(value: OptionalF64) -> Self {
-        // SAFETY: The host's Optional initializes its storage whenever it has a value.
-        value.has_value.then(|| unsafe { value.value.assume_init() })
-    }
-}
-
 /// One effect the host samples: which of the element's described effects it is, which version of
 /// it, and its timing, from which the engine computes how far along it is on the scale the host keys
-/// keyframes by. Where the engine cannot decide the timing, the host computes that key itself.
+/// keyframes by.
 #[repr(C)]
 pub struct FfiSampledAnimationEffect {
     pub identity: u64,
     pub generation: u64,
-    pub timing: FfiEffectTiming,
+    pub timing: crate::animations::snapshot::EffectTimingSnapshot,
     pub easing: crate::css::easing::FfiEasingDescriptor,
-    /// The host's key, for a timing the engine cannot decide.
-    pub current_key: OptionalF64,
 }
 
 /// The length-resolution contexts keyframe values compute in: a font's, a line height's, and every
@@ -7015,7 +6951,7 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     finish_sample_with_host(&sample, &mut callbacks, host, read, step)
 }
 
-/// Sample an isolated effect list at the endpoint-inclusive keys supplied by the host.
+/// Sample an isolated effect list at the endpoint-inclusive keys of the timing the host samples each effect with.
 ///
 /// # Safety
 /// The inputs and every value in the descriptions must remain live for the call.
@@ -7043,12 +6979,17 @@ pub unsafe extern "C" fn rust_sample_animation_effects_for_commit_styles(
             if description.keyframes().len() < 2 {
                 return None;
             }
+            let timing = crate::css::style::animations::EffectTiming {
+                timing: crate::animations::snapshot::CompactEffectTiming::from(&effect.timing),
+                // SAFETY: The host's easings are live for as long as its effects are borrowed.
+                easing: unsafe { crate::css::easing::Easing::from_descriptor(&effect.easing) },
+            };
             Some(anim::FfiSampledAnimationEffect {
                 effect: anim::FfiAnimationPreparationEffect {
                     identity: effect.identity,
                     generation: effect.generation,
                 },
-                current_key: Option::<f64>::from(effect.current_key)?,
+                current_key: timing.endpoint_inclusive_key()?,
             })
         })
         .collect();
@@ -7238,14 +7179,7 @@ fn host_sampled_effects(input: &AnimationSampleInput, engine: &mut crate::css::s
         .filter_map(|effect| {
             // SAFETY: The host's easings are live for as long as its effects are borrowed.
             let key = unsafe {
-                engine.time_element_animation_effect(
-                    node,
-                    slot,
-                    effect.identity,
-                    &effect.timing,
-                    &effect.easing,
-                    effect.current_key.into(),
-                )
+                engine.time_element_animation_effect(node, slot, effect.identity, &effect.timing, &effect.easing)
             };
             let description = engine
                 .element_animation_effects(node, slot)

@@ -1531,7 +1531,7 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         identity: u64,
-        timing: &crate::css::style_compute::FfiEffectTiming,
+        timing: &crate::animations::snapshot::EffectTimingSnapshot,
     ) {
         self.animation_effect_descriptions
             .refresh_timing(node, identity, timing);
@@ -1548,13 +1548,12 @@ impl RetainedState {
         node: StyleNodeID,
         slot: animations::AnimationSlot,
         identity: u64,
-        timing: &crate::css::style_compute::FfiEffectTiming,
+        timing: &crate::animations::snapshot::EffectTimingSnapshot,
         easing: &crate::css::easing::FfiEasingDescriptor,
-        host_key: Option<f64>,
     ) -> Option<f64> {
         unsafe {
             self.animation_effect_descriptions
-                .time_effect(node, slot, identity, timing, easing, host_key)
+                .time_effect(node, slot, identity, timing, easing)
         }
     }
 

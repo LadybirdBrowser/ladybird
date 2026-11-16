@@ -164,12 +164,8 @@ pub struct FfiCompositorAnimationTiming {
     pub monotonic_time_at_anchor_ns: i64,
     pub local_time_at_anchor_ms: f64,
     pub playback_rate: f64,
-    pub start_delay_ms: f64,
-    pub iteration_duration_ms: f64,
-    pub iteration_count: f64,
-    pub iteration_start: f64,
-    pub playback_direction: FfiVisualAnimationPlaybackDirection,
-    pub fill_mode: FfiVisualAnimationFillMode,
+    /// The effect's timing, every time in milliseconds.
+    pub effect: crate::animations::timing::AnimationEffectTiming,
     pub easing: FfiEasingDescriptor,
 }
 

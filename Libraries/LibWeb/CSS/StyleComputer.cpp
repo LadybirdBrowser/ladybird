@@ -51,7 +51,6 @@
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleEngineEffectTiming.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -544,62 +543,6 @@ void StyleComputer::finish_animation_refresh(Layout::BegunRead const& read, DOM:
         finalize_animated_box_type(read, computed_properties, abstract_element);
 }
 
-// The engine decides the timing only where every time is in one unit: a duration, or a percentage of a scroll
-// timeline's progress.
-ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations::KeyframeEffect const& effect, Animations::Animation const& animation)
-{
-    ComputedValuesFFI::FfiEffectTiming timing {};
-
-    timing.is_relevant = animation.is_relevant();
-    timing.is_removed = animation.replace_state() == Animations::AnimationReplaceState::Removed;
-
-    Optional<Animations::TimeValue::Type> unit;
-    bool one_unit = true;
-    auto duration = [&](Animations::TimeValue const& time) {
-        one_unit &= time.type == unit.value_or(time.type);
-        unit = time.type;
-        return time.value;
-    };
-    auto optional_duration = [&](Optional<Animations::TimeValue> const& time, bool& has_time, double& value) {
-        has_time = time.has_value();
-        if (time.has_value())
-            value = duration(*time);
-    };
-    if (auto timeline = animation.timeline()) {
-        optional_duration(timeline->current_time(), timing.has_timeline_time, timing.timeline_time);
-        // A document timeline's time is a timestamp less its origin time, which is what lets a clock tick sample it.
-        if (timeline->can_convert_a_timeline_time_to_an_origin_relative_time()) {
-            auto origin_time = timeline->convert_a_timeline_time_to_an_origin_relative_time(Animations::TimeValue { Animations::TimeValue::Type::Milliseconds, 0 });
-            timing.has_timeline_origin_time = origin_time.has_value();
-            timing.timeline_origin_time = origin_time.value_or(0);
-        }
-        // A scroll timeline's time is the progress of the scroller it follows, which is what lets a clock tick sample
-        // it where the compositor has scrolled to.
-        if (auto const* scroll_timeline = as_if<Animations::ScrollTimeline>(*timeline); scroll_timeline && scroll_timeline->followed_scroller().has_value()) {
-            timing.has_timeline_scroller = true;
-            timing.scroll_timeline = scroll_timeline->clock_identity();
-        }
-        if (auto minimum = timeline->minimum_timeline_time(), maximum = timeline->maximum_timeline_time(); minimum.has_value() && maximum.has_value()) {
-            timing.has_timeline_boundaries = true;
-            timing.minimum_timeline_time = minimum->value;
-            timing.maximum_timeline_time = maximum->value;
-        }
-    }
-    optional_duration(animation.start_time(), timing.has_start_time, timing.start_time);
-    optional_duration(animation.hold_time(), timing.has_hold_time, timing.hold_time);
-    timing.paused = animation.play_state() == Bindings::AnimationPlayState::Paused;
-    timing.playback_rate = animation.playback_rate();
-    timing.start_delay = duration(effect.start_delay());
-    timing.end_delay = duration(effect.end_delay());
-    timing.iteration_duration = duration(effect.iteration_duration());
-    timing.iteration_count = effect.iteration_count();
-    timing.iteration_start = effect.iteration_start();
-    timing.fill_mode = static_cast<u8>(to_underlying(effect.fill_mode()));
-    timing.playback_direction = static_cast<u8>(to_underlying(effect.playback_direction()));
-    timing.decidable = one_unit && !effect.has_local_time_override_for_observation();
-    return timing;
-}
-
 void StyleComputer::collect_animation_effects_into(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties) const
 {
     auto sample = begin_animation_sample(read, abstract_element, effects, computed_properties);
@@ -629,8 +572,7 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
         record_element_animation_effect_descriptions(abstract_element.element(), animation_slot, effects);
 
     // The effects and their timing are the host's; the key each samples at, and what their keyframes compute to, are
-    // the engine's. The host computes endpoint-inclusive keys for committing styles, and otherwise only for a timing
-    // the engine cannot decide.
+    // the engine's.
     auto& sampled_effects = sample->sampled_effects;
     auto& easing_points = sample->easing_points;
     sampled_effects.ensure_capacity(effects.size());
@@ -639,22 +581,12 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
         auto animation = effect->associated_animation();
         if (!animation)
             continue;
-        auto timing = style_engine_effect_timing(*effect, *animation);
-        Optional<double> current_key;
-        if (purpose == AnimationSamplePurpose::CommitStyles || !timing.decidable) {
-            auto endpoint_inclusive = purpose == AnimationSamplePurpose::CommitStyles
-                ? Animations::AnimationEffect::EndpointInclusiveActiveInterval::Yes
-                : Animations::AnimationEffect::EndpointInclusiveActiveInterval::No;
-            if (auto output_progress = effect->transformed_progress(endpoint_inclusive); output_progress.has_value())
-                current_key = clamp(*output_progress * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
-        }
         easing_points.unchecked_append({});
         sampled_effects.unchecked_append({
             .identity = effect->animation_preparation_identity(),
             .generation = effect->animation_preparation_generation(),
-            .timing = timing,
+            .timing = effect->timing_snapshot(),
             .easing = effect->timing_function().descriptor_with_points_in(easing_points.last()),
-            .current_key = current_key,
         });
     }
 

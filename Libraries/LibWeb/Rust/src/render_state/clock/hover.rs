@@ -14,11 +14,11 @@
 //! as it handles the move. The host hovers the move in its own state as it handles it, or as the lanes' report says.
 
 use super::{Lane, RenderState, TickRecording, WaitsForTickRecording};
+use crate::animations::snapshot::EffectTimingSnapshot;
 use crate::css::css_pixels::{CssPixelPoint, CssPixels};
 use crate::css::style::hover_lane::{HoverBoxRebuild, HoverInstall, hover_row_generated_for};
 use crate::css::style::style_job::SealedStyleInputs;
 use crate::css::style::tree::StyleNodeID;
-use crate::css::style_compute::FfiEffectTiming;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::tree_mutation::{HostCalls, OwedHostWork};
 use crate::painting::ffi::FfiChromeMetrics;
@@ -40,7 +40,7 @@ pub struct FfiHoverPlanInputs {
     /// What tells the document's page the link the hover is over.
     pub link_reporter: FfiHoverLinkReporter,
     /// The timings the host runs the effects of elements on without sampling them, as the compositor runs them: the
-    /// element's style node, the effect's identity, and the timing, an `FfiEffectTiming`, by effect.
+    /// element's style node, the effect's identity, and the timing, an `EffectTimingSnapshot`, by effect.
     pub effect_timing_nodes: *const u32,
     pub effect_timing_identities: *const u64,
     pub effect_timings: *const std::ffi::c_void,
@@ -232,7 +232,7 @@ pub(crate) struct HoverPlan {
     link_reporter: Option<HoverLinkReporter>,
     /// The timings the host runs effects on without sampling them, which the descriptions of their elements' effects
     /// hold from before: the step a hover decides over the transitions they run reads them.
-    effect_timings: Vec<(StyleNodeID, u64, FfiEffectTiming)>,
+    effect_timings: Vec<(StyleNodeID, u64, EffectTimingSnapshot)>,
     /// The drag selecting text the ticks show, until the button goes up.
     selection_drag: Option<super::selection::SelectionDrag>,
 }
@@ -256,7 +256,7 @@ impl HoverPlan {
                     ak::slice_from_raw_parts(inputs.effect_timing_nodes, inputs.effect_timing_count),
                     ak::slice_from_raw_parts(inputs.effect_timing_identities, inputs.effect_timing_count),
                     ak::slice_from_raw_parts(
-                        inputs.effect_timings.cast::<FfiEffectTiming>(),
+                        inputs.effect_timings.cast::<EffectTimingSnapshot>(),
                         inputs.effect_timing_count,
                     ),
                 )
