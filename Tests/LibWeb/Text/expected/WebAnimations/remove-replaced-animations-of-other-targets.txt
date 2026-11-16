@@ -1,4 +1,4 @@
-first: removed, remove event: true, opacity: 0.5
-second: removed, remove event: true, opacity: 0.25
+first: active, remove event: false, opacity: 0.5
+second: active, remove event: false, opacity: 0.25
 earlier of both: removed, remove event: true, opacity: 0.25
 later of both: active, remove event: false, opacity: 0.25
