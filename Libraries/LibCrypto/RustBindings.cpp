@@ -431,13 +431,13 @@ FlatPtr crypto_aes_ocb_cipher(bool encrypt, ReadonlyBytes key, ReadonlyBytes inp
     return 0;
 }
 
-static_assert(to_underlying(::Crypto::Hash::HashKind::SHA1) == 4);
-static_assert(to_underlying(::Crypto::Hash::HashKind::SHA256) == 5);
-static_assert(to_underlying(::Crypto::Hash::HashKind::SHA384) == 6);
-static_assert(to_underlying(::Crypto::Hash::HashKind::SHA512) == 7);
-static_assert(to_underlying(::Crypto::Hash::HashKind::SHA3_256) == 8);
-static_assert(to_underlying(::Crypto::Hash::HashKind::SHA3_384) == 9);
-static_assert(to_underlying(::Crypto::Hash::HashKind::SHA3_512) == 10);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA1) == 2);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA256) == 3);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA384) == 4);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA512) == 5);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA3_256) == 6);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA3_384) == 7);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA3_512) == 8);
 
 extern "C" bool crypto_sha_digest(::Crypto::Hash::HashKind, ReadonlyBytes, void*, ReceiveEncodedBytes);
 

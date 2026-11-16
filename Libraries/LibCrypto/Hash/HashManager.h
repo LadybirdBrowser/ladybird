@@ -9,9 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/Variant.h>
-#include <LibCrypto/Hash/BLAKE2b.h>
 #include <LibCrypto/Hash/HashFunction.h>
-#include <LibCrypto/Hash/MD5.h>
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibCrypto/Hash/SHA3.h>
@@ -21,8 +19,6 @@ namespace Crypto::Hash {
 enum class HashKind {
     Unknown,
     None,
-    BLAKE2b,
-    MD5,
     SHA1,
     SHA256,
     SHA384,
@@ -36,11 +32,6 @@ struct MultiHashDigestVariant {
     constexpr static size_t Size = 0;
 
     MultiHashDigestVariant(Empty digest)
-        : m_digest(move(digest))
-    {
-    }
-
-    MultiHashDigestVariant(MD5::DigestType digest)
         : m_digest(move(digest))
     {
     }
@@ -86,7 +77,7 @@ struct MultiHashDigestVariant {
             [&](auto const& value) { return value.bytes(); });
     }
 
-    using DigestVariant = Variant<Empty, MD5::DigestType, SHA1::DigestType, SHA256::DigestType, SHA384::DigestType, SHA512::DigestType>;
+    using DigestVariant = Variant<Empty, SHA1::DigestType, SHA256::DigestType, SHA384::DigestType, SHA512::DigestType>;
     DigestVariant m_digest {};
 };
 
@@ -143,12 +134,6 @@ public:
 
         m_kind = kind;
         switch (kind) {
-        case HashKind::BLAKE2b:
-            m_algorithm = BLAKE2b::create();
-            break;
-        case HashKind::MD5:
-            m_algorithm = MD5::create();
-            break;
         case HashKind::SHA1:
             m_algorithm = SHA1::create();
             break;
@@ -246,8 +231,6 @@ public:
 
 private:
     using AlgorithmVariant = Variant<Empty,
-        NonnullOwnPtr<BLAKE2b>,
-        NonnullOwnPtr<MD5>,
         NonnullOwnPtr<SHA1>,
         NonnullOwnPtr<SHA256>,
         NonnullOwnPtr<SHA384>,
