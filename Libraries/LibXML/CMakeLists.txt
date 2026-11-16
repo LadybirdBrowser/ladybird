@@ -1,6 +1,7 @@
 set(SOURCES
     Parser/Parser.cpp
     DOM/Node.cpp
+    XPath/Program.cpp
 )
 
 ladybird_lib(LibXML xml EXPLICIT_SYMBOL_EXPORT)
