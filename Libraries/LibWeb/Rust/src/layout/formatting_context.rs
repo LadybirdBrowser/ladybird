@@ -100,6 +100,9 @@ pub(super) enum SizeDimension {
 pub(crate) enum TableWrapperInlineSizeMode {
     ClampToAvailableInlineSize,
     UseTableUsedInlineSizeIfNotAuto,
+    /// The wrapper is as wide as the table box, even when that's wider than the available inline size, as for an
+    /// absolutely positioned table.
+    UseTableUsedInlineSize,
 }
 
 /// What a layout run lays out for.

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 26 tests
 
-25 Pass
-1 Fail
+26 Pass
 Pass	position: absolute on <a> element itself
 Pass	position: absolute on <maction> element itself
 Pass	position: absolute on <menclose> element itself
@@ -25,7 +24,7 @@ Pass	position: absolute on <mstyle> element itself
 Pass	position: absolute on <msub> element itself
 Pass	position: absolute on <msubsup> element itself
 Pass	position: absolute on <msup> element itself
-Fail	position: absolute on <mtable> element itself
+Pass	position: absolute on <mtable> element itself
 Pass	position: absolute on <mtext> element itself
 Pass	position: absolute on <munder> element itself
 Pass	position: absolute on <munderover> element itself

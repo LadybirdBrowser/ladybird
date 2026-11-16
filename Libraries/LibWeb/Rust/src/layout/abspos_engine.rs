@@ -2042,7 +2042,7 @@ impl AbsposEngine<'_> {
                     available_space,
                     constraints,
                     None,
-                    formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
+                    formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSize,
                 )
                 .0
         } else if !style.width().is_auto() {
@@ -2275,7 +2275,12 @@ impl AbsposEngine<'_> {
             )
         };
         let block_size = if self.facts(sized.node).is_table_wrapper() {
-            Some(sizing.compute_table_box_block_size_inside_wrapper(sized.sized_box(), available_space, constraints))
+            // NB: The wrapper holds the captions as well as the table box.
+            Some(
+                sizing
+                    .measure_table_box_block_size_inside_wrapper(sized.sized_box(), available_space, constraints)
+                    .wrapper_content_block_size,
+            )
         } else if !sizing.should_treat_block_size_as_auto(sized.sized_box(), available_space, constraints) {
             Some(inner_size(style.height()))
         } else if !self.sizes_to_fit_content(sized, equation, false) {
