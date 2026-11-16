@@ -32,6 +32,16 @@ Crypto::SignedBigInteger BigInt::big_integer() const
     return Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { magnitude_words }, js_bigint_is_negative(bigint) };
 }
 
+GC::Ptr<BigInt> BigInt::create_from_string(VM& vm, Utf16View const& string)
+{
+    return cell_from_abi<BigInt>(js_bigint_create_from_string(vm_to_abi(vm), utf16_view_to_abi(string)));
+}
+
+String BigInt::to_string() const
+{
+    return owned_utf16_string_from_abi(js_bigint_to_string(bigint_to_abi(*this), 10)).to_utf8();
+}
+
 // The decimal digits with the "n" of a BigInt literal.
 Utf16String BigInt::to_utf16_string() const
 {

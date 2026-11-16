@@ -11,11 +11,12 @@
 use num_bigint::Sign;
 
 use crate::embedding::abi_types::{
-    JSBigInt, JSOwnedUtf16String, cell_from_abi, cell_into_abi, owned_utf16_string_into_abi, vm_from_abi,
+    JSBigInt, JSOwnedUtf16String, JSUtf16View, cell_from_abi, cell_into_abi, owned_utf16_string_into_abi, vm_from_abi,
 };
 use crate::layout::host_class::JSVM;
 use crate::runtime::big_int::{BigInt, SignedBigInteger};
 use crate::runtime::big_int_algorithms;
+use crate::runtime::value_conversions;
 
 /// A BigInt of the magnitude in the `word_count` words at `words`, negated if `is_negative` is set. A zero magnitude
 /// makes 0n whatever the sign. Call on the VM's thread.
@@ -40,6 +41,22 @@ pub unsafe extern "C" fn js_bigint_create_from_magnitude(
     };
     let sign = if is_negative { Sign::Minus } else { Sign::Plus };
     cell_into_abi(BigInt::create(vm, SignedBigInteger::from_slice(sign, words)))
+}
+
+/// StringToBigInt(string): the BigInt of the StringIntegerLiteral that `string` is, or null if it is not one. Call on
+/// the VM's thread.
+///
+/// # Safety
+///
+/// `vm` must be the embedder's VM, and `string` a valid view.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_bigint_create_from_string(vm: *mut JSVM, string: JSUtf16View) -> *mut JSBigInt {
+    // SAFETY: The caller passes its VM and a valid view.
+    let (vm, string) = unsafe { (vm_from_abi(vm), string.as_view()) };
+    match string.with_utf16_code_units(value_conversions::string_to_bigint) {
+        Some(big_integer) => cell_into_abi(BigInt::create(vm, big_integer)),
+        None => core::ptr::null_mut(),
+    }
 }
 
 /// Whether `bigint` is less than 0n. Call on the VM's thread.
