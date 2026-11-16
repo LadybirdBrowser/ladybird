@@ -1,0 +1,14 @@
+Ladybird clamps each border-image source slice to its corresponding
+image dimension, and allows opposing slices to overlap. The corner
+regions retain their full source extent, while empty edge and center
+regions remain unpainted. Destination widths still shrink to fit the
+border-image area without changing the source regions they sample.
+
+Blink clamps source slices in ComputeEdgeSlice(), and constructs
+its source regions from those values in NinePieceImageGrid. WebKit
+clamps them independently in computeSlices(); paintNinePieceImage()
+applies scaleSlicesIfNeeded() only to the destination slices. Gecko
+clamps each mSlice in the nsCSSBorderImageRenderer constructor, and
+applies overlap reduction to mWidths. Ladybird matches this source-
+slice behavior in all three engines without changing its separate
+destination-width reduction.
