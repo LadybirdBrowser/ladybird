@@ -20,7 +20,7 @@ foo$59dd5e24 eval-same-function.js:6:9
     [1] = Int32(42)
 
 block0:
-  [   0] Enter
+  [   0] EnterCoercingThis
   [   1] CreateArguments is_immutable:false, creates_parameter_bindings:false
   [   6] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg5, this_value:reg6, `eval`
   [   f] CallDirectEval call_feedback:0, dst:reg5, callee:reg5, this_value:reg6, arguments:[String("var x = 1")]

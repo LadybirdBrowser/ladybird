@@ -10,13 +10,16 @@ use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 
 use crate::bytecode::executable::Executable;
 use crate::gc::visitor::{Trace, Visitor};
+use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::environment::{Environment, PrivateEnvironment};
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule, ScriptOrModuleSlot};
 use crate::layout::value::Value;
+use crate::runtime::completion::Must;
 use crate::runtime::ecmascript_function_object::{EcmascriptFunctionObject, as_ecmascript_function_object};
 use crate::runtime::native_function::NativeFunction;
 use crate::runtime::realm::Realm;
+use crate::runtime::shared_function_instance_data::ThisMode;
 use libjs_abi::register::RESERVED_REGISTER_COUNT;
 
 impl ExecutionContext {
@@ -484,4 +487,35 @@ impl Drop for OwnedExecutionContext {
             );
         }
     }
+}
+
+/// Binds the this value of `frame` like OrdinaryCallBindThis(), if it runs a sloppy function that uses it and has an
+/// unbound one: callers pass the this value as it is, and the function starts with `EnterCoercingThis` (or
+/// `EnterWithOwnEnvironments`). Frames that the runtime made have a bound one already.
+pub fn coerce_this(vm: &Vm, frame: &ExecutionContext) {
+    let register = frame.register(libjs_abi::register::THIS_VALUE);
+    let this_argument = register.get();
+    if this_argument.is_object() || this_argument.is_empty() {
+        return;
+    }
+    let Some(function) = frame
+        .function
+        .get()
+        .and_then(|function| function.downcast::<EcmascriptFunctionObject>())
+    else {
+        return;
+    };
+    let shared_data = function.shared_data();
+    if !shared_data.uses_this() || function.this_mode() != ThisMode::Global {
+        return;
+    }
+    // NB: A call into another realm goes through the runtime, so the function runs in the current realm.
+    let this_value = if this_argument.is_nullish() {
+        let realm = vm.current_realm().expect("a function runs in a realm");
+        Value::from_object(realm.global_environment().global_this_value())
+    } else {
+        Value::from_object(this_argument.to_object(vm).must())
+    };
+    register.set(this_value);
+    frame.this_value.set(this_value);
 }

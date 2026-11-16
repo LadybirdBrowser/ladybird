@@ -111,6 +111,9 @@ pub struct Generator<'t> {
     pub(super) contains_direct_call_to_eval_in_non_strict_mode: bool,
     /// Whether the code makes private or variable environments, so that it starts with `EnterWithOwnEnvironments`.
     pub(super) keeps_own_environments: bool,
+    /// Whether the code is a sloppy function that uses its this value, which its callers pass as it is, so that it
+    /// starts with `EnterCoercingThis`.
+    pub(super) coerces_this: bool,
     pub(super) enclosing_environment_scope: Option<Arc<EnclosingEnvironmentScope>>,
     pub(super) variable_environment_coordinate_scope_index: Option<usize>,
     pub(super) enclosing_code: Arc<EnclosingCode>,
@@ -194,6 +197,7 @@ impl<'t> Generator<'t> {
             eager_compile_direct_iifes: false,
             contains_direct_call_to_eval_in_non_strict_mode: false,
             keeps_own_environments: false,
+            coerces_this: false,
             enclosing_environment_scope: None,
             variable_environment_coordinate_scope_index: None,
             enclosing_code,

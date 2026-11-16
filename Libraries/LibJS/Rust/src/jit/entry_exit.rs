@@ -202,6 +202,8 @@ pub fn helper_enter_jit_code(vm: &Vm) -> i64 {
         return 0;
     }
     let frame = vm.running_execution_context().expect("a frame is running");
+    // NB: The interpreter's Call enters the code before the callee's Enter could bind its this value.
+    crate::interpreter::execution_context::coerce_this(vm, frame_of(frame));
     let result = enter_jit_code(vm, frame);
     match result.status {
         EntryStatus::Returned => {

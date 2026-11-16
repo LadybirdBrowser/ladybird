@@ -4224,11 +4224,19 @@ impl Generator<'_> {
     pub(super) fn finish_stream(&mut self, other_tables_size: usize) -> (AssembledBytecode, SliceBlockBuilder) {
         // NB: Only code that runs in frames without a function starts without Enter, and those frames keep their
         //     private environment anyway.
-        if self.keeps_own_environments
-            && let Some(enter) = self.context.stream.head.bytes.first_mut()
+        // NB: EnterWithOwnEnvironments binds the this value of sloppy functions too.
+        debug_assert!(
+            !self.coerces_this || self.context.stream.head.bytes.first() == Some(&(OpCode::Enter as u8)),
+            "code that binds its this value runs in frames of a function"
+        );
+        if let Some(enter) = self.context.stream.head.bytes.first_mut()
             && *enter == OpCode::Enter as u8
         {
-            *enter = OpCode::EnterWithOwnEnvironments as u8;
+            if self.keeps_own_environments {
+                *enter = OpCode::EnterWithOwnEnvironments as u8;
+            } else if self.coerces_this {
+                *enter = OpCode::EnterCoercingThis as u8;
+            }
         }
         // NB: Folding leaves constants that nothing uses, and they would take up slots in every frame.
         let mut constant_uses = vec![0u32; self.context.constants.values.len()];

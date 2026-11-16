@@ -35,7 +35,7 @@ get_from_this$e07cc571 this-base-identifier.js:5:5
   Blocks:    1
 
 block0:
-  [   0] Enter
+  [   0] EnterCoercingThis
   [   1] GetById dst:reg5, base:this, `foo`
   [   8] Return value:reg5
 
@@ -48,7 +48,7 @@ set_on_this$a36ddcd4 this-base-identifier.js:9:14
     [1] = Undefined
 
 block0:
-  [   0] Enter
+  [   0] EnterCoercingThis
   [   1] PutById base:this, `bar`, src:Int32(1), kind:Normal
   [   9] End value:Undefined
 
@@ -58,7 +58,7 @@ chained_this_access$6de850c2 this-base-identifier.js:13:5
   Blocks:    1
 
 block0:
-  [   0] Enter
+  [   0] EnterCoercingThis
   [   1] GetById dst:reg5, base:this, `a`
   [   8] GetById dst:reg5, base:reg5, `b`
   [   f] Return value:reg5

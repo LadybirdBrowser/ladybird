@@ -37,7 +37,7 @@ test$a3ba3753 super-method-call-order.js:5:9
   Blocks:    1
 
 block0:
-  [   0] Enter
+  [   0] EnterCoercingThis
   [   1] ResolveSuperBase dst:reg5
   [   3] GetByIdWithThis dst:reg6, base:reg5, `m`, this_value:this
   [   b] Call call_feedback:0, dst:reg5, callee:reg6, this_value:this
@@ -60,7 +60,7 @@ get x$4e8a88ee super-method-call-order.js:8:9
   Blocks:    1
 
 block0:
-  [   0] Enter
+  [   0] EnterCoercingThis
   [   1] ResolveSuperBase dst:reg5
   [   3] GetByIdWithThis dst:reg6, base:reg5, `m`, this_value:this
   [   b] Call call_feedback:0, dst:reg5, callee:reg6, this_value:this
@@ -72,7 +72,7 @@ test2$278e7f37 super-method-call-order.js:11:9
   Blocks:    1
 
 block0:
-  [   0] Enter
+  [   0] EnterCoercingThis
   [   1] ResolveSuperBase dst:reg5
   [   3] GetByIdWithThis dst:reg6, base:reg5, `m`, this_value:this
   [   b] Call call_feedback:0, dst:reg5, callee:reg6, this_value:this

@@ -436,6 +436,9 @@ impl Generator<'_> {
         // NB: The this value of a derived constructor is not initialized until it calls super(), which its frame keeps
         //     track of if it has no environment for it.
         self.this_value_needs_resolution = this_from_environment || flags & function_flag::DERIVED_CONSTRUCTOR != 0;
+        self.coerces_this = flags & (function_flag::STRICT | function_flag::ARROW) == 0
+            && flags & function_flag::INSIGHT_USES_THIS != 0
+            && !self.this_value_needs_resolution;
         self.enclosing_function_kind = FunctionKind::from_async_generator(
             flags & function_flag::ASYNC != 0,
             flags & function_flag::GENERATOR != 0,

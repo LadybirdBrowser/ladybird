@@ -90,6 +90,7 @@ pub fn handling(opcode: OpCode) -> Handling {
     match opcode {
         // Control flow, moves and frame setup.
         O::Enter
+        | O::EnterCoercingThis
         | O::Mov
         | O::MovWide
         | O::WideNameIndices

@@ -1316,9 +1316,45 @@ handler Enter() {
     dispatch_next;
 }
 
+# NB: Callers pass the this value as it is, and the runtime binds it for a sloppy function that uses it: to an object,
+#     or the global this value for null and undefined.
+inline fn coerce_this() {
+    let _: i32 = call_helper(asm_helper_coerce_this, current_vm());
+}
+
+# NB: Sloppy functions that use their this value start with this. Null and undefined become the global this value of
+#     the current realm, which is the function's, as a call into another realm goes through the runtime.
+handler EnterCoercingThis() {
+    let this_value = exec_ctx.this_value_register;
+    if this_value is not Value<Object> {
+        if this_value is Value<Nullish> {
+            let realm_vm = current_vm();
+            let global_this: Value = alias(box_object(realm_vm.current_realm.global_environment.global_this_value));
+            exec_ctx.this_value_register = global_this;
+            exec_ctx.this_value = global_this;
+        } else {
+            coerce_this();
+        }
+    }
+    enter_frame();
+    dispatch_next;
+}
+
 # NB: Code that makes private or variable environments starts with this, and its frames keep their running private
 #     and variable environments from here on. Others read them from their function.
 handler EnterWithOwnEnvironments() {
+    if exec_ctx.this_value_register is not Value<Object> {
+        let this_function = exec_ctx.function;
+        if this_function != 0 {
+            let this_ecmascript_function: ECMAScriptFunctionObject = alias(this_function);
+            let metadata = this_ecmascript_function.shared_data.asm_call_metadata;
+            if metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS {
+                if metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT {
+                    coerce_this();
+                }
+            }
+        }
+    }
     let function = exec_ctx.function;
     if function != 0 {
         let ecmascript_function: ECMAScriptFunctionObject = alias(function);
@@ -4007,22 +4043,13 @@ inline fn enter_ecmascript_function_call(
     this_value: in Operand,
     argument_count: u8,
     argument_operand_indices: Sequence<u8>,
-    slow: Label,
-    else resolve: Label
+    slow: Label
 ) {
     let ecmascript_function: ECMAScriptFunctionObject = alias(function);
     let mut receiver: Value = Value<Empty>;
+    # NB: A sloppy callee binds it itself (see EnterCoercingThis).
     if metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS {
         receiver = load(this_value);
-        if metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT {
-            if receiver is Value<Nullish> {
-                # NB: The callee runs in the current realm.
-                let this_vm = current_vm();
-                receiver = alias(box_object(this_vm.current_realm.global_environment.global_this_value));
-            } else {
-                guard receiver is Value<Object> else resolve;
-            }
-        }
     }
     # NB: This form keeps the extra arguments case on the fallthrough path.
     let passed_count = call_argument_count(argument_count);
@@ -4245,8 +4272,7 @@ inline fn call_through_call_cache(
     this_value: in Operand,
     argument_count: u8,
     arguments: Operand[],
-    slow: Label,
-    else resolve: Label
+    slow: Label
 ) @profiling {
     let call_cache = call_cache_of_site(call_feedback);
     let callee_value = load(callee);
@@ -4263,7 +4289,7 @@ inline fn call_through_call_cache(
         let mut executable: Executable;
         mov(executable, target);
         let argument_operand_indices = &arguments;
-        enter_ecmascript_function_call(function, executable, executable.call_metadata, dst, this_value, argument_count, argument_operand_indices, slow) else resolve;
+        enter_ecmascript_function_call(function, executable, executable.call_metadata, dst, this_value, argument_count, argument_operand_indices, slow);
     }
 }
 
@@ -4292,7 +4318,7 @@ handler Call(
         call_slow_path(asm_slow_path_call);
     };
 
-    call_through_call_cache(call_feedback, callee, dst, this_value, argument_count, arguments, slow) else invoke_interp_inline;
+    call_through_call_cache(call_feedback, callee, dst, this_value, argument_count, arguments, slow);
 
     guard let Value<Object>(function) = load(callee) else slow;
     let flags = function.flags;
@@ -4313,7 +4339,7 @@ handler Call(
     guard callee_realm == realm_vm.current_realm else slow;
     link_call_cache(call_feedback, callee, alias(executable_pointer), call_site_flags);
     let argument_operand_indices = &arguments;
-    enter_ecmascript_function_call(function, executable_pointer, metadata, dst, this_value, argument_count, argument_operand_indices, slow) else invoke_interp_inline;
+    enter_ecmascript_function_call(function, executable_pointer, metadata, dst, this_value, argument_count, argument_operand_indices, slow);
     let invoke_interp_inline = || {
         # Let the interpreter resolve the cases that cannot use the direct
         # frame construction above, then enter the resolved callee.
