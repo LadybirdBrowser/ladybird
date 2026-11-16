@@ -9,7 +9,7 @@
 #include <AK/Error.h>
 #include <AK/Format.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
-#include <LibCrypto/Hash/HashManager.h>
+#include <LibCrypto/Hash/Hash.h>
 #include <LibCrypto/OpenSSLForward.h>
 
 inline int openssl_print_errors(char const* str, size_t len, [[maybe_unused]] void* u)
@@ -134,8 +134,6 @@ public:
 
 ErrorOr<OpenSSL_BN> unsigned_big_integer_to_openssl_bignum(UnsignedBigInteger const& integer);
 ErrorOr<UnsignedBigInteger> openssl_bignum_to_unsigned_big_integer(OpenSSL_BN const& bn);
-
-ErrorOr<StringView> hash_kind_to_openssl_digest_name(Hash::HashKind hash);
 
 ErrorOr<ByteBuffer> get_byte_buffer_param_from_key(OpenSSL_PKEY& key, char const* key_name);
 

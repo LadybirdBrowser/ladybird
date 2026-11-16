@@ -39,16 +39,6 @@ public:
 
     void reset();
 
-    ByteString class_name() const
-    {
-        auto hash_name = MUST(hash_kind_to_openssl_digest_name(m_hash_kind));
-
-        StringBuilder builder;
-        builder.append("HMAC-"sv);
-        builder.append(hash_name);
-        return builder.to_byte_string();
-    }
-
 private:
     Hash::HashKind m_hash_kind;
     ReadonlyBytes m_key;
