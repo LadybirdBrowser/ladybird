@@ -1469,6 +1469,9 @@ impl Lane {
         frame_time_nanoseconds: i64,
     ) -> Result<Arc<VisualContextTree>, &'static str> {
         let structural_epoch_on_screen = self.structural_epoch_on_screen().ok_or("no frame on screen")?;
+        if state.arena.arena().has_boxes_removed_ahead_of_layout() {
+            return Err("boxes the host removed ahead of its layout");
+        }
         let visual_context = &state.arena.arena().paint_state().visual_context;
         let tree = visual_context.tree.clone().ok_or("no visual context tree")?;
         // A hit test of the host's may have built the tree anew since without presenting it.

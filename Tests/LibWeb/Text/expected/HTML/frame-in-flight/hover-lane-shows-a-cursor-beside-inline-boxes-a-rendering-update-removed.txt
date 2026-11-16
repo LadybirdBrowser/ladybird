@@ -1,0 +1,2 @@
+inline boxes left: 0
+cursor: IBeam
