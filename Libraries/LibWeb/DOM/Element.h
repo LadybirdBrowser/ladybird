@@ -107,7 +107,12 @@ namespace Web::DOM {
 
 using ScrollIntoViewTarget = Variant<Element*, Range*>;
 
-void scroll_a_target_into_view(Layout::BegunRead const&, ScrollIntoViewTarget, Bindings::ScrollBehavior, Bindings::ScrollLogicalPosition block, Bindings::ScrollLogicalPosition inline_, GC::Ptr<Element> container = nullptr, GC::Ptr<WebIDL::Promise> promise = nullptr);
+enum class ScrollIntoViewMode {
+    Always,
+    IfNeeded,
+};
+
+void scroll_a_target_into_view(Layout::BegunRead const&, ScrollIntoViewTarget, Bindings::ScrollBehavior, Bindings::ScrollLogicalPosition block, Bindings::ScrollLogicalPosition inline_, GC::Ptr<Element> container = nullptr, GC::Ptr<WebIDL::Promise> promise = nullptr, ScrollIntoViewMode = ScrollIntoViewMode::Always);
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#upgrade-reaction
 // An upgrade reaction, which will upgrade the custom element and contains a custom element definition; or
@@ -746,7 +751,7 @@ public:
 
     // https://w3c.github.io/csswg-drafts/cssom-view-1/#dom-element-scrollintoview
     void scroll_into_view(Variant<bool, ScrollIntoViewOptions> const&, GC::Ptr<WebIDL::Promise>);
-    void scroll_into_view(ScrollIntoViewOptions const&, GC::Ptr<WebIDL::Promise>);
+    void scroll_into_view(ScrollIntoViewOptions const&, GC::Ptr<WebIDL::Promise>, ScrollIntoViewMode = ScrollIntoViewMode::Always);
 
     // https://www.w3.org/TR/wai-aria-1.2/#ARIAMixin
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)      \

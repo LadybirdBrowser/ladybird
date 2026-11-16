@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>:focus applies before scrolling into view</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1775451">
+<link href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link href="https://mozilla.com" title="Mozilla">
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<style>
+body {
+  margin: 0;
+}
+.padding {
+  height: 200vh;
+  background-color: purple;
+}
+#focusable {
+  z-index: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+#focusable:focus {
+  z-index: 1;
+  left: auto;
+  top: auto;
+}
+</style>
+<div class="padding"></div>
+<div id="focusable" tabindex=0>I am focusable</div>
+<div class="padding"></div>
+<script>
+onload = function() {
+  async_test(function(t) {
+    let focusable = document.getElementById("focusable");
+    assert_equals(getComputedStyle(focusable).zIndex, "0", "focusable style is correct");
+
+    window.addEventListener("scroll", t.step_func_done(function(e) {
+      assert_equals(document.activeElement, focusable, "activeElement should be set");
+      assert_true(focusable.matches(":focus"), ":focus should match by the time we scroll");
+      assert_equals(getComputedStyle(focusable).zIndex, "1", "focusable style is correct");
+    }), { once: true });
+
+    focusable.focus();
+  });
+};
+</script>

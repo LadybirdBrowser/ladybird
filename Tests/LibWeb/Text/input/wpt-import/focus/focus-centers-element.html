@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset=utf-8>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>focus() centers element outside displayport</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<style>
+
+#container {
+  height: 25vh;
+  width: 100vw;
+  background: yellow;
+  overflow: auto;
+  white-space: nowrap;
+}
+
+.spacer {
+  width: 150vw;
+  height: 150vh;
+  background: green;
+}
+
+#target {
+  height: 5vh;
+  width: 5vw;
+  background: red;
+  margin: 0 auto;
+}
+
+#container > div {
+  display: inline-block;
+}
+
+</style>
+</head>
+<body>
+  <div id="container">
+    <div class="spacer"></div>
+    <!-- Center the target element -->
+    <div style="width: 5vw">
+      <div style="height: 70vh"></div>
+      <div tabindex=0 id="target"></div>
+      <div style="height: 70vh"></div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</body>
+<script>
+
+function promiseFrame() {
+  return new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
+
+promise_test(async (t) => {
+  let target = document.getElementById("target");
+
+  // Focus the element and record the scroll position
+  target.focus();
+  await promiseFrame();
+
+  let focusLeft = container.scrollLeft;
+  let focusTop = container.scrollTop;
+
+  container.scroll(0, 0);
+
+  // scrollIntoView the element and record the scroll position
+  target.scrollIntoView({block: "center", inline: "center"});
+  await promiseFrame();
+  let scrollLeft = container.scrollLeft;
+  let scrollTop = container.scrollTop;
+
+  // Ensure that both scroll positions are within +/- 1
+  assert_approx_equals(focusLeft, scrollLeft, 1.0,
+                       "focus() inline direction is within +/- 1 of a centered scrollIntoView()");
+  assert_approx_equals(focusTop, scrollTop, 1.0,
+                       "focus() block direction is within +/- 1 of a centered scrollIntoView()");
+}, "Element.focus() center in both directions");
+
+</script>
+</html>

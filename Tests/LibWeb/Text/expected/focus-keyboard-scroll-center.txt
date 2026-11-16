@@ -1,0 +1,14 @@
+visible: focused=true, x=unchanged, y=unchanged
+below: focused=true, x=unchanged, y=centered
+backward-below: focused=true, x=unchanged, y=centered
+right: focused=true, x=centered, y=unchanged
+below-right: focused=true, x=centered, y=centered
+covers-y: focused=true, x=unchanged, y=unchanged
+covers-x: focused=true, x=unchanged, y=unchanged
+covers-both: focused=true, x=unchanged, y=unchanged
+oversized-offscreen: focused=true, x=unchanged, y=centered
+nested-visible: focused=true, inner-x=unchanged, inner-y=unchanged, viewport-x=unchanged, viewport-y=unchanged
+nested-clipped: focused=true, inner-x=centered, inner-y=centered, viewport-x=unchanged, viewport-y=unchanged
+nested-offscreen: focused=true, inner-x=centered, inner-y=centered, viewport-x=unchanged, viewport-y=centered
+nested-covers-y: focused=true, inner-x=centered, inner-y=unchanged, viewport-x=unchanged, viewport-y=unchanged
+nested-covers-x: focused=true, inner-x=unchanged, inner-y=centered, viewport-x=unchanged, viewport-y=unchanged
