@@ -368,7 +368,7 @@ static u64 headers_size(HTTP::HeaderList const& headers)
 }
 
 // https://w3c.github.io/webdriver-bidi/#get-the-fetch-timings
-static JsonObject get_the_fetch_timings(FetchTimingInfo const& timings, Optional<double> time_origin, double epoch_origin)
+static JsonObject get_the_fetch_timings(FetchTimingInfo const& timings, HighResolutionTime::DOMHighResTimeStamp end_time, Optional<double> time_origin, double epoch_origin)
 {
     JsonObject result;
     result.set("timeOrigin"sv, epoch_origin);
@@ -389,20 +389,26 @@ static JsonObject get_the_fetch_timings(FetchTimingInfo const& timings, Optional
     result.set("tlsStart"sv, convert(connection.secure_connection_start_time));
     result.set("requestStart"sv, convert(timings.final_network_request_start_time()));
     result.set("responseStart"sv, convert(timings.final_network_response_start_time()));
-    result.set("responseEnd"sv, convert(timings.end_time()));
+    result.set("responseEnd"sv, convert(end_time));
     return result;
 }
 
-static JsonObject get_the_fetch_timings(Request const& request, FetchTimingInfo const& timings)
+static JsonObject get_the_fetch_timings(Request const& request, FetchTimingInfo const& timings, HighResolutionTime::DOMHighResTimeStamp end_time)
 {
     auto const& client = request.client_snapshot();
     if (!client)
-        return get_the_fetch_timings(timings, {}, 0);
-    return get_the_fetch_timings(timings, client->time_origin, client->time_origin - HighResolutionTime::estimated_monotonic_time_of_the_unix_epoch());
+        return get_the_fetch_timings(timings, end_time, {}, 0);
+    return get_the_fetch_timings(timings, end_time, client->time_origin, client->time_origin - HighResolutionTime::estimated_monotonic_time_of_the_unix_epoch());
+}
+
+// A fetch's events report the end time last set for it, which the agent that started it keeps.
+static HighResolutionTime::DOMHighResTimeStamp end_time_of(FetchParams const& fetch_params)
+{
+    return fetch_params.control_block().end_time();
 }
 
 // https://w3c.github.io/webdriver-bidi/#get-the-request-data
-static JsonObject get_the_request_data(NetworkRequest const& state, Request const& request, FetchTimingInfo const& timings)
+static JsonObject get_the_request_data(NetworkRequest const& state, Request const& request, FetchTimingInfo const& timings, HighResolutionTime::DOMHighResTimeStamp end_time)
 {
     JsonObject result;
     result.set("request"sv, state.id);
@@ -426,7 +432,7 @@ static JsonObject get_the_request_data(NetworkRequest const& state, Request cons
     result.set("bodySize"sv, move(body_size));
     result.set("destination"sv, request.destination().has_value() ? request_destination_to_string(*request.destination()) : ""sv);
     result.set("initiatorType"sv, request.initiator_type().has_value() ? JsonValue(initiator_type_to_string(*request.initiator_type()).to_utf16_string().to_utf8()) : JsonValue {});
-    result.set("timings"sv, get_the_fetch_timings(request, timings));
+    result.set("timings"sv, get_the_fetch_timings(request, timings, end_time));
     return result;
 }
 
@@ -527,7 +533,7 @@ static JsonObject get_the_response_data(Response const& response, FetchTimingInf
 }
 
 // https://w3c.github.io/webdriver-bidi/#process-a-network-event
-static JsonObject process_a_network_event(HTML::Navigable const& navigable, NetworkRequest const& state, Request const& request, FetchTimingInfo const& timing_info)
+static JsonObject process_a_network_event(HTML::Navigable const& navigable, NetworkRequest const& state, Request const& request, FetchTimingInfo const& timing_info, HighResolutionTime::DOMHighResTimeStamp end_time)
 {
     JsonObject params;
     params.set("context"sv, navigable_id(navigable));
@@ -542,8 +548,8 @@ static JsonObject process_a_network_event(HTML::Navigable const& navigable, Netw
     if (auto cached = state.request_data.get(request.redirect_count()); cached.has_value())
         request_data = *cached;
     else
-        request_data = get_the_request_data(state, request, timing_info);
-    request_data.set("timings"sv, get_the_fetch_timings(request, timing_info));
+        request_data = get_the_request_data(state, request, timing_info, end_time);
+    request_data.set("timings"sv, get_the_fetch_timings(request, timing_info, end_time));
     params.set("request"sv, move(request_data));
     params.set("timestamp"sv, UnixDateTime::now().milliseconds_since_epoch());
     return params;
@@ -652,7 +658,7 @@ static ErrorOr<JsonValue, Error> continue_network_request_impl(StringView method
             request->header_list()->set({ "Content-Length"sv, ByteString::number(*body.length()) });
         }
 
-        state->request_data.set(request->redirect_count(), get_the_request_data(*state, *request, *blocked->fetch_params->timing_info()));
+        state->request_data.set(request->redirect_count(), get_the_request_data(*state, *request, *blocked->fetch_params->timing_info(), end_time_of(*blocked->fetch_params)));
         if (params.has("url"sv) || params.has("method"sv) || params.has("headers"sv) || params.has("body"sv) || params.has("cookies"sv))
             action = NetworkContinuationAction::ContinueWithModifiedRequest;
     } else if (method == "network.failRequest"sv) {
@@ -744,9 +750,9 @@ void network_before_request_sent(FetchParams const& fetch_params)
     // 4. Let redirect count be request's redirect count.
     // 5. Add redirect count to before request sent map[request].
     state->before_request_sent.set(request->redirect_count());
-    state->request_data.set(request->redirect_count(), get_the_request_data(*state, *request, *fetch_params.timing_info()));
+    state->request_data.set(request->redirect_count(), get_the_request_data(*state, *request, *fetch_params.timing_info(), end_time_of(fetch_params)));
     if (is_event_enabled("network.beforeRequestSent"sv))
-        emit_event(*navigable, "network.beforeRequestSent"_string, process_a_network_event(*navigable, *state, *fetch_params.request(), *fetch_params.timing_info()));
+        emit_event(*navigable, "network.beforeRequestSent"_string, process_a_network_event(*navigable, *state, *fetch_params.request(), *fetch_params.timing_info(), end_time_of(fetch_params)));
 }
 
 // https://w3c.github.io/webdriver-bidi/#event-network-responseStarted
@@ -763,7 +769,7 @@ void network_response_started(FetchParams const& fetch_params, Response& respons
     state->response_started.set(request->redirect_count());
     // 5. Let sessions be the set of sessions for which an event is enabled given "network.responseStarted" and related navigables.
     if (is_event_enabled("network.responseStarted"sv)) {
-        auto params = process_a_network_event(*navigable, *state, *fetch_params.request(), *fetch_params.timing_info());
+        auto params = process_a_network_event(*navigable, *state, *fetch_params.request(), *fetch_params.timing_info(), end_time_of(fetch_params));
         params.set("response"sv, get_the_response_data(response, *fetch_params.timing_info()));
         emit_event(*navigable, "network.responseStarted"_string, move(params));
     }
@@ -778,13 +784,13 @@ void network_auth_required(FetchParams const& fetch_params, Response const& resp
     auto navigable = navigable_of(*state);
     if (!navigable)
         return;
-    auto params = process_a_network_event(*navigable, *state, *fetch_params.request(), *fetch_params.timing_info());
+    auto params = process_a_network_event(*navigable, *state, *fetch_params.request(), *fetch_params.timing_info(), end_time_of(fetch_params));
     params.set("response"sv, get_the_response_data(response, *fetch_params.timing_info()));
     emit_event(*navigable, "network.authRequired"_string, move(params));
 }
 
 // https://w3c.github.io/webdriver-bidi/#event-network-responseCompleted
-void network_response_completed(FetchParams const& fetch_params, Response const& response)
+void network_response_completed(FetchParams const& fetch_params, Response const& response, FetchTimingInfo const& timing_info)
 {
     auto request = fetch_params.request();
     auto state = network_request_of(fetch_params);
@@ -794,13 +800,14 @@ void network_response_completed(FetchParams const& fetch_params, Response const&
     if (!navigable)
         return;
     state->completed.set(request->redirect_count());
-    if (!fetch_params.timing_info()->end_time())
-        fetch_params.timing_info()->set_end_time(HighResolutionTime::unsafe_shared_current_time());
+    auto& control_block = fetch_params.control_block();
+    if (!control_block.end_time())
+        control_block.set_end_time(HighResolutionTime::unsafe_shared_current_time());
     // 5. Let sessions be the set of sessions for which an event is enabled given "network.responseCompleted" and related navigables.
     if (!is_event_enabled("network.responseCompleted"sv))
         return;
-    auto params = process_a_network_event(*navigable, *state, *fetch_params.request(), *fetch_params.timing_info());
-    params.set("response"sv, get_the_response_data(response, *fetch_params.timing_info()));
+    auto params = process_a_network_event(*navigable, *state, *fetch_params.request(), timing_info, end_time_of(fetch_params));
+    params.set("response"sv, get_the_response_data(response, timing_info));
     emit_event(*navigable, "network.responseCompleted"_string, move(params));
 }
 
@@ -822,7 +829,7 @@ void network_fetch_error(FetchParams const& fetch_params, StringView error_text)
         return;
     if (!is_event_enabled("network.fetchError"sv))
         return;
-    auto params = process_a_network_event(*navigable, *state, *fetch_params.request(), *fetch_params.timing_info());
+    auto params = process_a_network_event(*navigable, *state, *fetch_params.request(), *fetch_params.timing_info(), end_time_of(fetch_params));
     // 4.2. Set the errorText field of params to an implementation-defined string describing the error which caused the request to be aborted.
     params.set("errorText"sv, String::from_utf8_with_replacement_character(error_text));
     emit_event(*navigable, "network.fetchError"_string, move(params));
@@ -841,7 +848,7 @@ Optional<JsonObject> network_response_for_navigation(Request const& request, Fet
         return {};
     state->transferred.set(request.redirect_count());
     JsonObject result;
-    result.set("parameters"sv, process_a_network_event(*navigable, *state, request, timing_info));
+    result.set("parameters"sv, process_a_network_event(*navigable, *state, request, timing_info, timing_info.end_time()));
     result.set("response"sv, get_the_response_data(response, timing_info));
     result.set("postRedirectStartTime"sv, timing_info.post_redirect_start_time());
     auto const& client = request.client_snapshot();
@@ -868,7 +875,7 @@ void network_navigation_response_finished(HTML::Navigable const& navigable, Json
             auto old_timings = request->get_object("timings"sv);
             auto epoch_origin = old_timings->get("timeOrigin"sv)->get_double_with_precision_loss().value();
             auto origin = metadata.get("timeOrigin"sv);
-            request->set("timings"sv, get_the_fetch_timings(timings, origin->is_null() ? Optional<double> {} : origin->get_double_with_precision_loss(), epoch_origin));
+            request->set("timings"sv, get_the_fetch_timings(timings, timings.end_time(), origin->is_null() ? Optional<double> {} : origin->get_double_with_precision_loss(), epoch_origin));
         }
         params.set("response"sv, get_the_response_data(response, timings));
     }

@@ -110,7 +110,7 @@ void initialize_network_request_with_its_navigable(Fetch::Infrastructure::FetchP
 void network_before_request_sent(Fetch::Infrastructure::FetchParams const&);
 void network_response_started(Fetch::Infrastructure::FetchParams const&, Fetch::Infrastructure::Response&);
 void network_auth_required(Fetch::Infrastructure::FetchParams const&, Fetch::Infrastructure::Response const&);
-void network_response_completed(Fetch::Infrastructure::FetchParams const&, Fetch::Infrastructure::Response const&);
+void network_response_completed(Fetch::Infrastructure::FetchParams const&, Fetch::Infrastructure::Response const&, Fetch::Infrastructure::FetchTimingInfo const&);
 void network_fetch_error(Fetch::Infrastructure::FetchParams const&, StringView);
 
 Optional<JsonObject> network_response_for_navigation(Fetch::Infrastructure::Request const&, Fetch::Infrastructure::FetchTimingInfo const&,

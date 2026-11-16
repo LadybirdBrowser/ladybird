@@ -9,9 +9,11 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Badge.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <LibGC/Forward.h>
 #include <LibWeb/Fetch/Engine/BodyIntent.h>
+#include <LibWeb/Fetch/Engine/FetchTimingSeed.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -55,6 +57,37 @@ public:
     [[nodiscard]] RefPtr<FetchTimingInfo> full_timing_info() const { return m_full_timing_info; }
     void set_full_timing_info(NonnullRefPtr<FetchTimingInfo> full_timing_info) { m_full_timing_info = move(full_timing_info); }
 
+    // The agent's timing state, which only the thread of the agent that started the fetch reads and writes.
+
+    // The timing info the agent has of its latest response handover.
+    [[nodiscard]] RefPtr<FetchTimingInfo> agent_timing_info() const { return m_agent_timing_info; }
+    // Makes the agent's timing info from the fields a response handover gives it, the network phases settled last and
+    // the fetch's end time.
+    NonnullRefPtr<FetchTimingInfo> hand_over_timing(Engine::FetchTimingSeed const& seed)
+    {
+        auto timing_info = FetchTimingInfo::create(seed);
+        if (m_network_phases.has_value())
+            timing_info->set_network_phases(*m_network_phases);
+        timing_info->set_end_time(m_end_time);
+        m_agent_timing_info = timing_info;
+        return timing_info;
+    }
+    // Gives the network phases a load of the fetch settled to the agent's timing info, and to that of later handovers.
+    void settle_network_phases(Engine::FetchNetworkPhases network_phases)
+    {
+        if (m_agent_timing_info)
+            m_agent_timing_info->set_network_phases(network_phases);
+        m_network_phases = move(network_phases);
+    }
+    // The end time last set for the fetch, or 0, which the agent's timing info has, as do those of later handovers.
+    [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp end_time() const { return m_end_time; }
+    void set_end_time(HighResolutionTime::DOMHighResTimeStamp end_time)
+    {
+        if (m_agent_timing_info)
+            m_agent_timing_info->set_end_time(end_time);
+        m_end_time = end_time;
+    }
+
     [[nodiscard]] Engine::BodyIntent body_intent() const { return m_body_intent; }
     void set_body_intent(Badge<FetchController>, Engine::BodyIntent body_intent)
     {
@@ -85,6 +118,11 @@ private:
     // full timing info (default null)
     //    Null or a fetch timing info.
     RefPtr<FetchTimingInfo> m_full_timing_info;
+
+    // The agent's timing state, which only the thread of the agent that started the fetch reads and writes.
+    RefPtr<FetchTimingInfo> m_agent_timing_info;
+    Optional<Engine::FetchNetworkPhases> m_network_phases;
+    HighResolutionTime::DOMHighResTimeStamp m_end_time { 0 };
 
     Engine::BodyIntent m_body_intent { Engine::BodyIntent::DrainAndDiscard };
     bool m_response_arrived { false };

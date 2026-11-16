@@ -11,7 +11,6 @@
 #include <LibWeb/Fetch/Engine/FetchTimingSeed.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
 #include <LibWeb/Fetch/Engine/NetworkActivity.h>
-#include <LibWeb/Fetch/Engine/RequestEnd.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Fetch::Engine::Event {
@@ -66,10 +65,10 @@ struct RequestTransmissionStarted {
     TransmissionGeneration generation;
 };
 
+// A timing update: the network phases a load of the fetch's request settled as it finished. Only a load that completes
+// sends one.
 struct RequestTransmissionEnded {
-    TransmissionId transmission_id;
-    TransmissionGeneration generation;
-    RequestEnd request_end;
+    FetchNetworkPhases network_phases;
 };
 
 // The length of one more chunk of a request's body.
