@@ -11759,7 +11759,7 @@ Utf16String Document::dump_display_list(Painting::DisplayListDumpOptions const& 
     if (paint_state().has_visual_context_tree(read))
         schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
 
-    HTML::PaintConfig config { .records_whole_document = true, .notes_record_origins = options.owners || options.text };
+    HTML::PaintConfig config { .records_whole_document = true, .notes_record_origins = options.owners || options.text || options.jsonl };
     if (!record_display_list(read, config, Painting::PaintCommandCacheMode::ReadOnly))
         return "No display list"_utf16;
 

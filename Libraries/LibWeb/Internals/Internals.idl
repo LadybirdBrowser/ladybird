@@ -534,6 +534,7 @@ interface Internals {
 
 enum InternalsNavigatorCompatibilityMode { "chrome", "gecko", "webkit" };
 enum SpellingMenuItem { "none", "guess", "ignore", "learn" };
+enum DisplayListDumpFormat { "text", "jsonl" };
 enum ScrollGesturePhase { "none", "ongoing", "momentum", "ended" };
 enum MouseEventThroughUIProcessType { "mousedown", "mouseup", "mousemove", "mouseleave" };
 
@@ -549,6 +550,7 @@ dictionary DisplayListDumpOptions {
     boolean fonts = false;
     boolean recordIds = false;
     boolean rawNodeIndices = false;
+    DisplayListDumpFormat format = "text";
 };
 
 dictionary LayoutTraceOptions {
