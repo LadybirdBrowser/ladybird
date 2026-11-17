@@ -11,7 +11,9 @@
 #include <AK/String.h>
 #include <AK/Traits.h>
 #include <AK/Utf16String.h>
+#include <AK/Vector.h>
 #include <LibJS/ScriptCompilation.h>
+#include <LibJS/SourceCode.h>
 #include <LibWeb/Export.h>
 
 namespace Web::HTML {
@@ -30,6 +32,10 @@ struct CompiledScriptCacheKey {
 // The compiled scripts of this agent, which a script that loads again links into its own realm instead of being
 // parsed and compiled again. Entries are found after a fetch completed, by the decoded source text the fetch came up
 // with, so they answer nothing that the checks of a fetch decide, and can not stand in for different source text.
+//
+// The size limit is for the programs that only the cache keeps alive. A program that a live document runs stays in
+// memory with or without its entry, so it counts for nothing until no document runs it anymore, and an entry that the
+// limit evicts is the one that no document runs and that was used the longest time ago.
 class WEB_API CompiledScriptCache {
 public:
     struct Hit {
@@ -44,6 +50,10 @@ public:
     // From here on, the program keeps the functions that get compiled for it. Replaces what the key held before.
     void store(CompiledScriptCacheKey, Utf16String source_text, JS::CompiledProgram const&);
 
+    // The program of the key is linked into a record of the source code, which keeps the entry from counting against
+    // the limit for as long as anything holds the source code.
+    void note_linked(CompiledScriptCacheKey const&, JS::SourceCode const&);
+
     bool contains(CompiledScriptCacheKey const& key) const { return m_entries.contains(key); }
 
     void clear();
@@ -53,11 +63,15 @@ private:
         Utf16String source_text;
         JS::CompiledProgram program;
         u64 touch_serial { 0 };
+        // The source code of the records that the program was linked into.
+        Vector<JS::WeakSourceCode> linked_source_codes;
     };
 
     static void release(Entry&);
+    static bool is_linked(Entry&);
 
-    void evict_until_within_limit();
+    // An entry that is about to be linked, which no record holds the source code of yet, counts as linked.
+    void evict_until_within_limit(Optional<CompiledScriptCacheKey const&> about_to_be_linked = {});
 
     HashMap<CompiledScriptCacheKey, Entry> m_entries;
     u64 m_next_touch_serial { 0 };

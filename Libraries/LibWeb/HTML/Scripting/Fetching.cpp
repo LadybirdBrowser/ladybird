@@ -103,8 +103,11 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Utf16
     // The script runs in a task of the settings object's global, so never beside a rendering update in flight that holds
     // back the tasks of its document, and the microtasks it queues (e.g. promise reactions from react_to_promise during
     // module linking) are drained after it.
-    auto run_callback = [settings_object = GC::make_root(settings_object), on_compiled = GC::make_root(on_compiled), source_filename = move(source_filename)](OffThreadCompiledProgram result, Utf16String source_text) mutable {
+    auto run_callback = [settings_object = GC::make_root(settings_object), on_compiled = GC::make_root(on_compiled), source_filename = move(source_filename), cache_key](OffThreadCompiledProgram result, Utf16String source_text) mutable {
         auto source_code = JS::SourceCode::create(move(source_filename), move(source_text));
+        // NB: The record that the task creates holds the source code, and so does every function of it.
+        if (cache_key.has_value() && result.compiled)
+            CompiledScriptCache::the().note_linked(*cache_key, *source_code);
         queue_global_task(Task::Source::Networking, settings_object->global_object(), GC::create_function(GC::Heap::the(), GC::captures(on_compiled, move(source_code), move(result)), [](auto& on_compiled, auto& source_code, auto& result) {
             on_compiled->function()(move(result), move(source_code));
         }));
