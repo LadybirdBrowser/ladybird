@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video" src="../../../Assets/h264-invalid-utf8-handler-name.mp4"></video>
+<script>
+    asyncTest(done => {
+        // The handler name of the video track holds a byte that isn't valid UTF-8.
+        const video = document.getElementById("video");
+        video.addEventListener("loadedmetadata", () => {
+            println(`loaded metadata: ${video.videoWidth}x${video.videoHeight}`);
+            done();
+        });
+        video.addEventListener("error", () => {
+            println(`error: ${video.error.message}`);
+            done();
+        });
+    });
+</script>

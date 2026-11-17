@@ -39,10 +39,8 @@ DecoderErrorOr<String> Streamer::read_null_terminated_string(size_t maximum_size
             break;
         }
     }
-    auto string = String::from_utf8(StringView { bytes.data(), length });
-    if (string.is_error())
-        return DecoderError::format(DecoderErrorCategory::Invalid, "String is not valid UTF-8");
-    return string.release_value();
+    // Files in the wild hold names in legacy encodings, and a name is only metadata, so it must not fail the file.
+    return String::from_utf8_with_replacement_character(StringView { bytes.data(), length });
 }
 
 DecoderErrorOr<FixedArray<u8>> Streamer::read_bytes(size_t size)
