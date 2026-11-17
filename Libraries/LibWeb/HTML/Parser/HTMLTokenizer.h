@@ -135,6 +135,7 @@ public:
     bool is_insertion_point_defined() const;
     bool is_insertion_point_reached();
     void undefine_insertion_point();
+    void discard_insertion_points();
     void store_insertion_point();
     void restore_insertion_point();
     void store_old_insertion_point() { store_insertion_point(); }
