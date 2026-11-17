@@ -20,7 +20,7 @@ static auto const& s_builtin_search_engines = *new auto(to_array<SearchEngine>({
     { "Kagi"_string, "https://kagi.com/search?q=%s"_string, SearchSuggestions { "https://kagisuggest.com/api/autosuggest?q=%s"_string } },
     { "Mojeek"_string, "https://www.mojeek.com/search?q=%s"_string },
     { "Startpage"_string, "https://startpage.com/search?q=%s"_string, SearchSuggestions { "https://www.startpage.com/osuggestions?q=%s"_string } },
-    { "Yahoo"_string, "https://search.yahoo.com/search?p=%s"_string, SearchSuggestions { "https://search.yahoo.com/sugg/gossip/gossip-us-ura/?output=sd1&command=%s"_string, SearchSuggestionsFormat::Yahoo } },
+    { "Yahoo"_string, "https://search.yahoo.com/search?p=%s"_string, SearchSuggestions { "https://search.yahoo.com/sugg/gossip/gossip-us-ura/?output=fxjson&command=%s"_string } },
     { "Yandex"_string, "https://yandex.com/search/?text=%s"_string, SearchSuggestions { "https://suggest.yandex.com/suggest-ff.cgi?part=%s&uil=en&v=3"_string } },
 }));
 

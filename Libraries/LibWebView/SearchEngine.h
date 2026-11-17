@@ -15,14 +15,8 @@
 
 namespace WebView {
 
-enum class SearchSuggestionsFormat : u8 {
-    OpenSearch,
-    Yahoo,
-};
-
 struct SearchSuggestions {
     String query_url;
-    SearchSuggestionsFormat response_format { SearchSuggestionsFormat::OpenSearch };
 };
 
 struct SearchEngine {

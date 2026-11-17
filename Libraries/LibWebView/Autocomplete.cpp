@@ -652,34 +652,7 @@ static ErrorOr<Vector<String>> parse_opensearch_autocomplete(JsonValue const& js
     return results;
 }
 
-static ErrorOr<Vector<String>> parse_yahoo_autocomplete(JsonValue const& json)
-{
-    if (!json.is_object())
-        return Error::from_string_literal("Expected Yahoo autocomplete response to be a JSON array");
-
-    auto suggestions = json.as_object().get_array("r"sv);
-    if (!suggestions.has_value())
-        return Error::from_string_literal("Invalid Yahoo autocomplete response, expected \"r\" to be an object");
-
-    Vector<String> results;
-    results.ensure_capacity(suggestions->size());
-
-    TRY(suggestions->try_for_each([&](JsonValue const& suggestion) -> ErrorOr<void> {
-        if (!suggestion.is_object())
-            return Error::from_string_literal("Invalid Yahoo autocomplete response, expected value to be an object");
-
-        auto result = suggestion.as_object().get_string("k"sv);
-        if (!result.has_value())
-            return Error::from_string_literal("Invalid Yahoo autocomplete response, expected \"k\" to be a string");
-
-        results.unchecked_append(*result);
-        return {};
-    }));
-
-    return results;
-}
-
-ErrorOr<Vector<String>> Autocomplete::received_autocomplete_response(SearchSuggestions const& provider, Optional<ByteString const&> content_type, StringView response)
+ErrorOr<Vector<String>> Autocomplete::received_autocomplete_response(SearchSuggestions const&, Optional<ByteString const&> content_type, StringView response)
 {
     auto decoder = [&]() -> Optional<TextCodec::Decoder> {
         if (!content_type.has_value())
@@ -702,13 +675,7 @@ ErrorOr<Vector<String>> Autocomplete::received_autocomplete_response(SearchSugge
     auto decoded_response = TRY(TextCodec::decode_to_utf8(response.bytes(), *decoder));
     auto json = TRY(JsonValue::from_string(decoded_response));
 
-    switch (provider.response_format) {
-    case SearchSuggestionsFormat::OpenSearch:
-        return parse_opensearch_autocomplete(json);
-    case SearchSuggestionsFormat::Yahoo:
-        return parse_yahoo_autocomplete(json);
-    }
-    VERIFY_NOT_REACHED();
+    return parse_opensearch_autocomplete(json);
 }
 
 void Autocomplete::invoke_autocomplete_query_complete(AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind result_kind) const
