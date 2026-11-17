@@ -1,0 +1,6 @@
+uncached source: rejected: EncodingError
+cached source: rejected: EncodingError
+cached srcset: rejected: EncodingError
+source change then eager: rejected: EncodingError
+source removed: rejected: EncodingError
+invalid source: rejected: EncodingError
