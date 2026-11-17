@@ -1,0 +1,8 @@
+Ladybird now hangs an ideographic space at the end of a line under
+white-space normal, nowrap, and pre-line, and keeps the other space
+separators on the line. Run in Chrome 157, a trailing U+3000 neither
+made a full line wrap nor moved right-aligned or centered text, and
+Chrome kept an em space on the line, as Ladybird now does. Firefox 151
+hangs the ideographic space only where it overflows the line, and WebKit
+26.5 never hangs it. That comparison comes from running the engines;
+their code for it wasn’t traced.
