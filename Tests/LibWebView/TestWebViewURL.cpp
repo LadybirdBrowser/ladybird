@@ -489,7 +489,7 @@ TEST_CASE(search_query_percent_encoding)
     WebView::SearchEngine engine_with_suggestions {
         .name = "Test"_string,
         .query_url = "https://ecosia.org/search?q=%s"_string,
-        .suggestions = WebView::SearchSuggestions { "https://ac.ecosia.org/autocomplete?q=%s&type=list"_string },
+        .suggestions_url = "https://ac.ecosia.org/autocomplete?q=%s&type=list"_string,
     };
     auto suggestions_url = engine_with_suggestions.suggestions_url_for_query("a&b"sv);
     EXPECT(suggestions_url.has_value());

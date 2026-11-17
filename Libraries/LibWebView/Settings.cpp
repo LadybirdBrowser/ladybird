@@ -443,7 +443,7 @@ void Settings::load_from_json(JsonValue const& json_value)
 
         if (auto enabled = search_engine->get(SEARCH_SUGGESTIONS_ENABLED_KEY); enabled.has_value()) {
             m_search_engine_settings.suggestions = enabled->is_bool() && enabled->as_bool();
-        } else if (m_search_engine_settings.engine.has_value() && m_search_engine_settings.engine->suggestions.has_value()) {
+        } else if (m_search_engine_settings.engine.has_value() && m_search_engine_settings.engine->suggestions_url.has_value()) {
             // NB: Only migrate suggestions when the old provider matches the selected search engine, so typed text
             //     does not start going to a different provider without the user's consent.
             if (auto legacy_engine = json.get_object("autocompleteEngine"sv); legacy_engine.has_value()) {
@@ -853,8 +853,8 @@ JsonValue Settings::serialize_json() const
         JsonObject search_engine;
         search_engine.set(SEARCH_ENGINE_NAME_KEY, engine.name);
         search_engine.set(SEARCH_ENGINE_URL_KEY, engine.query_url);
-        if (engine.suggestions.has_value())
-            search_engine.set(SEARCH_SUGGESTIONS_URL_KEY, engine.suggestions->query_url);
+        if (engine.suggestions_url.has_value())
+            search_engine.set(SEARCH_SUGGESTIONS_URL_KEY, *engine.suggestions_url);
 
         custom_search_engines.must_append(move(search_engine));
     }
@@ -1319,28 +1319,42 @@ void Settings::set_search_engine_settings(SearchEngineSettings search_engine_set
 
 Optional<SearchEngine> Settings::parse_custom_search_engine(JsonValue const& search_engine)
 {
+
+    auto validate_url = [](StringView url) {
+        if (!url.contains("%s"sv))
+            return false;
+
+        auto parsed_url = URL::Parser::basic_parse(url);
+        if (!parsed_url.has_value())
+            return false;
+        if (!parsed_url->scheme().is_one_of("http"sv, "https"sv))
+            return false;
+
+        return true;
+    };
+
     if (!search_engine.is_object())
         return {};
 
     auto name = search_engine.as_object().get_string(SEARCH_ENGINE_NAME_KEY);
+    if (!name.has_value())
+        return {};
+
     auto url = search_engine.as_object().get_string(SEARCH_ENGINE_URL_KEY);
-    if (!name.has_value() || !url.has_value())
+    if (!url.has_value() || !validate_url(*url))
         return {};
 
-    auto parsed_url = URL::Parser::basic_parse(*url);
-    if (!parsed_url.has_value())
+    auto suggestions_url = search_engine.as_object().get_string(SEARCH_SUGGESTIONS_URL_KEY).map([&](auto value) { return value; });
+    if (suggestions_url.has_value() && suggestions_url->is_empty())
+        suggestions_url.clear();
+    if (suggestions_url.has_value() && !validate_url(*suggestions_url))
         return {};
 
-    Optional<SearchSuggestions> suggestions;
-    if (auto suggestions_url = search_engine.as_object().get_string(SEARCH_SUGGESTIONS_URL_KEY); suggestions_url.has_value() && !suggestions_url->is_empty()) {
-        auto parsed_suggestions_url = URL::Parser::basic_parse(*suggestions_url);
-        if (!parsed_suggestions_url.has_value() || !parsed_suggestions_url->scheme().is_one_of("http"sv, "https"sv)
-            || !suggestions_url->contains("%s"sv))
-            return {};
-        suggestions = SearchSuggestions { suggestions_url.release_value() };
-    }
-
-    return SearchEngine { .name = name.release_value(), .query_url = url.release_value(), .suggestions = move(suggestions) };
+    return SearchEngine {
+        .name = name.release_value(),
+        .query_url = url.release_value(),
+        .suggestions_url = move(suggestions_url),
+    };
 }
 
 void Settings::add_custom_search_engine(SearchEngine search_engine)
