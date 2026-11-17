@@ -1,0 +1,29 @@
+<!DOCTYPE quirks>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .flex { display: flex; }
+    .pct { height: 100%; }
+    .content { height: 100px; }
+</style>
+<!-- In quirks mode, a percentage height inside a box whose own percentage height can't be resolved behaves as auto, as
+     it does in standards mode: The percentage-height calculation quirk stops at that box. -->
+<div class="flex"><div class="pct"><div class="pct" id="in-flex-item"><div class="content"></div></div></div></div>
+<div class="flex" style="flex-direction: column"><div class="pct"><div class="pct" id="in-column-flex-item"><div class="content"></div></div></div></div>
+<div><div class="pct"><div class="pct" id="in-block"><div class="content"></div></div></div></div>
+<div class="flex" style="height: 50px"><div class="pct"><div class="pct" id="in-flex-item-with-definite-height"><div class="content"></div></div></div></div>
+<div style="height: 50%"><div class="pct" id="in-block-resolved-through-the-quirk"></div></div>
+<div class="flex"><div style="height: 40px"><div class="pct" id="in-flex-item-with-fixed-height"></div></div></div>
+<script>
+    function run(report) {
+        report(document.compatMode);
+        for (const element of document.querySelectorAll("[id]:not(#out)"))
+            report(`${element.id}: ${element.getBoundingClientRect().height}`);
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>
