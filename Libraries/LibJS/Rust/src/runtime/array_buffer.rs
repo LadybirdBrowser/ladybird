@@ -801,9 +801,12 @@ impl ArrayBuffer {
         };
 
         let prototype = prototype_for_shared_state(vm, realm, is_shared);
-        Ok(realm.create_object(vm, |_| {
+        let array_buffer = realm.create_object(vm, |_| {
             ArrayBuffer::new_with_buffer(vm, realm, buffer, is_shared, prototype)
-        }))
+        });
+        vm.heap()
+            .did_allocate_external_memory(array_buffer.external_memory_size());
+        Ok(array_buffer)
     }
 
     /// ArrayBuffer::create(Realm&, ByteBuffer, DataBlock::Shared)
