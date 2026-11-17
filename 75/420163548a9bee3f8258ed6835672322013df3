@@ -1,0 +1,17 @@
+When one cluster shapes to several glyphs, Ladybird adds letter-spacing
+after the cluster’s last glyph only. Blink does the same: ShapeResult::
+ApplySpacingOrExpansion() skips each glyph whose character_index is the
+same as the next glyph’s. Gecko adds spacing after a character only if
+CanAddSpacingAfter() finds that the next character starts both a cluster
+and a new ligature group, in nsTextFrame.cpp’s PropertyProvider::
+GetSpacingInternal(). And WebKit spaces each glyph alike, cluster or no.
+
+Run in Chrome 157, Firefox 151, and Playwright’s WebKit 26.5 on eleven
+samples (Thai, Devanagari, Bengali, Tamil, pointed Hebrew, Vietnamese
+stacked diacritics, Khmer, Hangul jamo, Latin, and emoji ZWJ sequences),
+Chrome and Firefox put the spacing once per grapheme cluster on every
+one, as Ladybird now does. WebKit put it 10 times into 7 Devanagari
+clusters and 9 times into 5 Bengali ones, much as Ladybird did. One case
+still differs: In a font where HarfBuzz gives the Thai SARA AM a cluster
+of its own (Ayuthaya), Chrome and Ladybird space before it, and Firefox,
+which counts grapheme clusters instead, doesn’t.
