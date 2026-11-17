@@ -19,7 +19,7 @@ use crate::css::style::style_job::{SealedStyleInputs, StyleJobAnswer};
 use crate::css::style::tree::StyleNodeID;
 use crate::css::transition::HoverTransitions;
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::row_reads::{RowIdentities, RowSnapshot, RowStyles};
+use crate::layout::row_reads::{MeasuredOverflow, RowIdentities, RowSnapshot, RowStyles};
 use crate::layout::tree_update_marks::{LayoutTreeUpdateMarkWrite, LayoutTreeUpdateMarks};
 use crate::layout::{FlownRound, HostTables, RowsVersion};
 use crate::painting::paint_read::PaintSource;
@@ -1294,7 +1294,7 @@ impl DocumentHost {
     /// The rows as of every change the host queued, which the render state publishes again first where the ones the
     /// host has may be stale, spending `wait`.
     pub(crate) fn fresh_rows(&self, wait: impl RenderWait) -> Rc<RowSnapshot> {
-        self.rows_as_of_writes(wait, false)
+        self.rows_as_of_writes(wait, MeasuredOverflow::None)
     }
 
     /// What each row is and the row each node is bound to, as of every change the host queued. The host reads them from
@@ -1302,7 +1302,7 @@ impl DocumentHost {
     /// render state publishes again first, spending `wait`.
     pub(crate) fn row_identities(&self, wait: impl RenderWait) -> RowIdentities {
         self.known_row_identities()
-            .unwrap_or_else(|| RowIdentities::of(self.rows_as_of_writes(wait, false)))
+            .unwrap_or_else(|| RowIdentities::of(self.rows_as_of_writes(wait, MeasuredOverflow::None)))
     }
 
     /// The style record each row has, and what each row is, as of every change the host queued, for a read of the row
@@ -1314,7 +1314,7 @@ impl DocumentHost {
             self.known_rows(RowWrite::Styles, |rows, version| {
                 rows.reads_styles_as(version) && !self.changes.may_write_style_of(id, rows)
             })
-            .unwrap_or_else(|| self.rows_as_of_writes(wait, false)),
+            .unwrap_or_else(|| self.rows_as_of_writes(wait, MeasuredOverflow::None)),
         )
     }
 
@@ -1334,20 +1334,26 @@ impl DocumentHost {
         Some(RowIdentities::of(rows))
     }
 
-    /// Like [`Self::fresh_rows`], with every row's scrollable overflow measured, as a read of overflow needs.
-    pub(crate) fn fresh_measured_rows(&self, wait: impl RenderWait) -> Rc<RowSnapshot> {
-        self.rows_as_of_writes(wait, true)
+    /// Like [`Self::fresh_rows`], with every row's scrollable overflow and ink overflow measured, as a hit test needs.
+    pub(crate) fn fresh_rows_measured_for_hit_testing(&self, wait: impl RenderWait) -> Rc<RowSnapshot> {
+        self.rows_as_of_writes(wait, MeasuredOverflow::ScrollableAndInk)
     }
 
     /// Answers `read` from the rows as of every write the host made, through the paint side's reads, spending `wait`
-    /// where the rows have to be published again, with every row's overflow settled where `settle_overflow`.
+    /// where the rows have to be published again, with every row's scrollable overflow settled where
+    /// `settle_overflow`.
     pub(crate) fn read_rows<R>(
         &self,
         wait: impl RenderWait,
         settle_overflow: bool,
         read: impl FnOnce(&PaintSource<'_>) -> R,
     ) -> R {
-        let rows = self.rows_as_of_writes(wait, settle_overflow);
+        let overflow_to_measure = if settle_overflow {
+            MeasuredOverflow::Scrollable
+        } else {
+            MeasuredOverflow::None
+        };
+        let rows = self.rows_as_of_writes(wait, overflow_to_measure);
         read(&PaintSource::over_rows(&rows.paintable, &self.absolute_rects))
     }
 
@@ -1378,7 +1384,7 @@ impl DocumentHost {
         wait: impl RenderWait,
         read: impl FnOnce(&PaintSource<'_>, &[NodeSlotId]) -> R,
     ) -> R {
-        let rows = self.rows_as_of_writes(wait, false);
+        let rows = self.rows_as_of_writes(wait, MeasuredOverflow::None);
         read(
             &PaintSource::over_rows(&rows.paintable, &self.absolute_rects),
             rows.text_awaiting_render(),
@@ -1388,19 +1394,19 @@ impl DocumentHost {
     /// The rows as of every write the host made: the ones the host has where it knows they still read as the arena,
     /// and otherwise those the render state answers, spending `wait`, which are the ones the host has where they still
     /// read as the arena once the owner has applied the host's writes.
-    fn rows_as_of_writes(&self, wait: impl RenderWait, settle_overflow: bool) -> Rc<RowSnapshot> {
+    fn rows_as_of_writes(&self, wait: impl RenderWait, overflow_to_measure: MeasuredOverflow) -> Rc<RowSnapshot> {
         let held = self
             .rows
             .borrow()
             .clone()
-            .filter(|rows| !settle_overflow || rows.overflow_is_settled());
+            .filter(|rows| rows.measured_overflow() >= overflow_to_measure);
         if let Some(rows) = held.as_ref().filter(|rows| self.knows_rows_read_as_arena(rows)) {
             return Rc::clone(rows);
         }
         let held_version = held.as_ref().map(|rows| rows.version());
         let published = self.ask(wait, |state| {
             let arena = state.arena_mut();
-            (held_version != Some(arena.rows_version())).then(|| arena.publish_row_snapshot(settle_overflow))
+            (held_version != Some(arena.rows_version())).then(|| arena.publish_row_snapshot(overflow_to_measure))
         });
         match published {
             Some(rows) => {

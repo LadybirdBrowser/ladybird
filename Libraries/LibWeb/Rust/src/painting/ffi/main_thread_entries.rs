@@ -1002,7 +1002,8 @@ pub extern "C" fn layout_paintable_event_dispatch_target(
 }
 
 /// Answers `query` about `point` through `answer`, from the rows as of every write the host made, with every row's
-/// overflow measured, in `read`. A hit test paints nothing, so it walks the overlays a frame paints.
+/// scrollable overflow and ink overflow measured, in `read`. A hit test paints nothing, so it walks the overlays a
+/// frame paints.
 fn with_point_query<R>(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
@@ -1014,7 +1015,7 @@ fn with_point_query<R>(
     let scroll_state = host.scroll_state();
     let callbacks =
         crate::painting::host::FfiHitTestQueryCallbacks::for_host_query(query, scroll_state.device_offsets());
-    let rows = host.fresh_measured_rows(read);
+    let rows = host.fresh_rows_measured_for_hit_testing(read);
     let Some(tree) = rows.visual_context_tree.as_deref() else {
         return default;
     };
