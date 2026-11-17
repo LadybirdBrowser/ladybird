@@ -138,16 +138,11 @@ public:
     {
         beginResetModel();
         m_suggestions = move(suggestions);
-        m_favicon_cache.clear();
+        m_favicons.clear_with_capacity();
 
-        for (size_t index = 0; index < m_suggestions.size(); ++index) {
-            auto const& suggestion = m_suggestions[index];
-            if (!suggestion.favicon_png.has_value())
-                continue;
-            auto icon = favicon_from_png(suggestion.favicon_png->bytes(), CELL_ICON_SIZE);
-            if (icon.isNull())
-                continue;
-            m_favicon_cache.append({ index, move(icon) });
+        for (auto const& suggestion : m_suggestions) {
+            auto favicon_png = suggestion.favicon_png.has_value() ? suggestion.favicon_png->bytes() : ReadonlyBytes {};
+            m_favicons.append(favicon_from_png(favicon_png, CELL_ICON_SIZE));
         }
 
         endResetModel();
@@ -181,11 +176,7 @@ public:
                 return qstring_from_ak_string(*suggestion.subtitle);
             return {};
         case FaviconRole:
-            for (auto const& entry : m_favicon_cache) {
-                if (entry.suggestion_index == suggestion_index)
-                    return entry.icon;
-            }
-            return {};
+            return m_favicons[suggestion_index];
         case SourceRole:
             return static_cast<int>(suggestion.source);
         case SuggestionIndexRole:
@@ -227,13 +218,8 @@ public:
     }
 
 private:
-    struct FaviconEntry {
-        size_t suggestion_index;
-        QIcon icon;
-    };
-
     Vector<WebView::AutocompleteSuggestion> m_suggestions;
-    Vector<FaviconEntry> m_favicon_cache;
+    Vector<QIcon> m_favicons;
 };
 
 class AutocompleteDelegate final : public QStyledItemDelegate {
