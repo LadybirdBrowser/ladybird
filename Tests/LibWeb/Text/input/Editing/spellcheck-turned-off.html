@@ -10,7 +10,7 @@
     promiseTest(async () => {
         // Checks run only on the user's behalf, so the user focuses each field with a click.
         const clickOn = (element, rect = element.getBoundingClientRect()) => internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        const ids = ["spell", "readonly", "disabled", "type", "editable", "later"];
+        const ids = ["spell", "readonly", "disabled", "editable", "later"];
         const node = id => {
             const element = document.getElementById(id);
             return element.localName === "div" ? element.firstChild : element;
@@ -28,7 +28,6 @@
         document.getElementById("spell").spellcheck = false;
         document.getElementById("readonly").readOnly = true;
         document.getElementById("disabled").disabled = true;
-        document.getElementById("type").type = "password";
         document.getElementById("editable").contentEditable = "false";
         // Script turning checking on starts no check, so a page can't test words against the user's dictionary at will.
         const later = document.getElementById("later");
@@ -36,5 +35,14 @@
         later.spellcheck = true;
         await internals.spellCheckSettled();
         show("after");
+
+        // An input shows its errors only while it has focus, so its checking turns off while it has focus.
+        const type = document.getElementById("type");
+        clickOn(type);
+        await internals.spellCheckSettled();
+        println(`type before: ${internals.spellingErrorRanges(type) || "(none)"}`);
+        type.type = "password";
+        await internals.spellCheckSettled();
+        println(`type after: ${internals.spellingErrorRanges(type) || "(none)"}`);
     });
 </script>

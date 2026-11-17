@@ -1,5 +1,5 @@
 area: 4-8
-text: 0-5
+text: (none)
 password: (none)
 readonly: (none)
 disabled: (none)
