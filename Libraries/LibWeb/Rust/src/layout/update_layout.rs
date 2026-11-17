@@ -40,7 +40,11 @@ fn run_layout_round_job(host: &DocumentHost, read: &BegunRead, job: LayoutRoundJ
         let mut answer = job.run(state.arena_handle_mut());
         answer.prepare_committed_layout_for_rendering(state.arena_mut());
         // The host reads what each box owed an image is from rows published with the answer.
-        let rows = (!answer.owed_images.is_empty()).then(|| state.arena_mut().publish_row_snapshot(false));
+        let rows = (!answer.owed_images.is_empty()).then(|| {
+            state
+                .arena_mut()
+                .publish_row_snapshot(crate::layout::row_reads::MeasuredOverflow::None)
+        });
         (answer, rows)
     });
     if let Some(rows) = rows {

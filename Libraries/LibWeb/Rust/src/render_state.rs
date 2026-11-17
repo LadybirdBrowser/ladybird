@@ -288,7 +288,10 @@ impl RenderState {
         if !shell_style_changes.is_empty() {
             self.owed.push(shell_style_changes);
         }
-        let rows = self.arena.arena_mut().publish_row_snapshot(false);
+        let rows = self
+            .arena
+            .arena_mut()
+            .publish_row_snapshot(crate::layout::row_reads::MeasuredOverflow::None);
         Some((round, rows))
     }
 }
