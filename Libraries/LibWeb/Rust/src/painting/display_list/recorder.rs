@@ -7,6 +7,7 @@
 use super::builder::{DisplayListBuilder, HEADER_SIZE, OpenGroup, PendingInlineClip};
 use super::chunks::Chunk;
 use super::commands::*;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::ffi_bytes::FfiBytes;
 use crate::painting::force_dark::{ForceDarkResolver, ForceDarkRole, ForceDarkSettings};
 use libgfx_rust::*;
@@ -259,8 +260,50 @@ pub struct IsolatedGroupEffects {
     pub mask_kind: MaskKind,
 }
 
+/// The box and the part of its painting that recorded a record. What is recorded outside the boxes, such as the canvas
+/// and the inspector's overlays, names no box.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RecordOrigin {
+    pub(crate) owner: NodeSlotId,
+    pub(crate) phase: &'static str,
+}
+
+/// What a recording notes beside its records for the display list dump, by the offsets the records start at, in
+/// increasing order.
+#[derive(Default)]
+pub(crate) struct RecordNotes {
+    pub(crate) origins: Vec<(u32, RecordOrigin)>,
+}
+
+impl RecordNotes {
+    pub(crate) fn append_shifted_by(&mut self, other: RecordNotes, shift: u32) {
+        self.origins.extend(
+            other
+                .origins
+                .into_iter()
+                .map(|(offset, origin)| (offset + shift, origin)),
+        );
+    }
+
+    pub(crate) fn origin_at(&self, record_offset: u32) -> Option<RecordOrigin> {
+        let index = self
+            .origins
+            .binary_search_by_key(&record_offset, |(offset, _)| *offset)
+            .ok()?;
+        Some(self.origins[index].1)
+    }
+}
+
+#[derive(Default)]
+struct RecordNoting {
+    open_origins: Vec<RecordOrigin>,
+    notes: RecordNotes,
+}
+
 pub struct DetachedRecords {
     outer_builder: DisplayListBuilder,
+    // The notes of the outer records. The detached records are copied wherever they are drawn, and note nothing.
+    outer_record_notes: Option<RecordNotes>,
     outer_ambient_inline_clips: Vec<PendingInlineClip>,
     outer_ambient_inline_transform: Option<AffineTransform>,
 }
@@ -282,9 +325,49 @@ pub struct DisplayListRecorder {
     context: ContextRef,
     ambient_inline_clips: Vec<PendingInlineClip>,
     ambient_inline_transform: Option<AffineTransform>,
+    // Present only while a recording for the display list dump notes where its records come from.
+    record_noting: Option<Box<RecordNoting>>,
 }
 
 impl DisplayListRecorder {
+    /// Notes, for each record from now on, the box and phase that recorded it.
+    pub(crate) fn note_record_origins(&mut self) {
+        self.record_noting = Some(Box::default());
+    }
+
+    pub(crate) fn notes_record_origins(&self) -> bool {
+        self.record_noting.is_some()
+    }
+
+    pub(crate) fn begin_record_origin(&mut self, owner: NodeSlotId, phase: &'static str) {
+        if let Some(noting) = &mut self.record_noting {
+            noting.open_origins.push(RecordOrigin { owner, phase });
+        }
+    }
+
+    pub(crate) fn end_record_origin(&mut self) {
+        if let Some(noting) = &mut self.record_noting {
+            noting.open_origins.pop();
+        }
+    }
+
+    /// The notes of the records recorded since the last chunk was taken, with offsets from where that chunk ended.
+    pub(crate) fn take_record_notes(&mut self) -> Option<RecordNotes> {
+        self.record_noting
+            .as_mut()
+            .map(|noting| std::mem::take(&mut noting.notes))
+    }
+
+    fn note_record_start(&mut self) {
+        let Some(noting) = &mut self.record_noting else {
+            return;
+        };
+        let offset = u32::try_from(self.builder.byte_size()).expect("display list exceeds u32");
+        if let Some(origin) = noting.open_origins.last() {
+            noting.notes.origins.push((offset, *origin));
+        }
+    }
+
     pub fn new(force_dark_settings: Option<ForceDarkSettings>) -> Self {
         Self {
             force_dark: force_dark_settings.map(ForceDarkResolver::new),
@@ -466,6 +549,7 @@ impl DisplayListRecorder {
     }
 
     fn append_command<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8]) {
+        self.note_record_start();
         self.builder.append_with_inline_state(
             command,
             inline_data,
@@ -887,6 +971,7 @@ impl DisplayListRecorder {
     pub fn begin_detached_records(&mut self) -> DetachedRecords {
         DetachedRecords {
             outer_builder: std::mem::take(&mut self.builder),
+            outer_record_notes: self.take_record_notes(),
             outer_ambient_inline_clips: std::mem::take(&mut self.ambient_inline_clips),
             outer_ambient_inline_transform: self.ambient_inline_transform.take(),
         }
@@ -896,6 +981,9 @@ impl DisplayListRecorder {
         debug_assert!(self.ambient_inline_clips.is_empty());
         self.ambient_inline_transform = detached.outer_ambient_inline_transform;
         self.ambient_inline_clips = detached.outer_ambient_inline_clips;
+        if let (Some(noting), Some(outer_record_notes)) = (&mut self.record_noting, detached.outer_record_notes) {
+            noting.notes = outer_record_notes;
+        }
         std::mem::replace(&mut self.builder, detached.outer_builder)
             .finish()
             .bytes
@@ -919,6 +1007,7 @@ impl DisplayListRecorder {
     }
 
     fn begin_group<C: DisplayListCommand>(&mut self) -> OpenRecorderGroup {
+        self.note_record_start();
         let suspended_ambient_inline_clips = std::mem::take(&mut self.ambient_inline_clips);
         OpenRecorderGroup {
             group: self.builder.begin_group::<C>(suspended_ambient_inline_clips.clone()),
@@ -1366,5 +1455,50 @@ impl DisplayListRecorder {
 
     pub fn compositor_blocking_wheel_event_region(&mut self, region: CompositorBlockingWheelEventRegion) {
         self.append_command(&region, &[]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn noted_origins_name_the_innermost_open_origin_and_skip_detached_records() {
+        let mut recorder = DisplayListRecorder::new(None);
+        recorder.note_record_origins();
+        let (outer, inner) = (NodeSlotId::new(1, 1), NodeSlotId::new(2, 1));
+        let rect = IntRect::new(0, 0, 10, 10);
+        recorder.begin_record_origin(outer, "background");
+        recorder.fill_rect(rect, Color::from_rgb(1, 2, 3), ForceDarkRole::Background);
+        let group = recorder.begin_isolated_group();
+        recorder.begin_record_origin(inner, "foreground");
+        recorder.fill_rect(rect, Color::from_rgb(4, 5, 6), ForceDarkRole::Background);
+        recorder.end_record_origin();
+        recorder.finish_isolated_group(
+            group,
+            rect.to_float(),
+            CompositingAndBlendingOperator::Normal,
+            MaskKind::Alpha,
+        );
+        let detached = recorder.begin_detached_records();
+        recorder.fill_rect(rect, Color::from_rgb(7, 8, 9), ForceDarkRole::Background);
+        let _ = recorder.finish_detached_records(detached);
+        recorder.end_record_origin();
+
+        let notes = recorder.take_record_notes().unwrap();
+        let origin = |owner, phase| RecordOrigin { owner, phase };
+        let mut record_offsets = Vec::new();
+        crate::painting::display_list::nested_records::for_each_command_including_nested(
+            recorder.bytes(),
+            &mut |_, payload_offset, _| record_offsets.push((payload_offset - HEADER_SIZE) as u32),
+        );
+        assert_eq!(
+            notes.origins,
+            [
+                (record_offsets[0], origin(outer, "background")),
+                (record_offsets[1], origin(outer, "background")),
+                (record_offsets[2], origin(inner, "foreground")),
+            ]
+        );
     }
 }

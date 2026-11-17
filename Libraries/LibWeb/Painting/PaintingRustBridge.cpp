@@ -258,6 +258,7 @@ Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document
     };
     Gfx::IntRect device_viewport_rect { {}, document.page().css_to_device_rect(document.viewport_rect()).size().to_type<int>() };
     Layout::RustFFI::FfiDisplayListDumpOptions ffi_options {
+        .owners = options.owners,
         .record_ids = options.record_ids,
         .raw_node_indices = options.raw_node_indices,
     };
@@ -542,6 +543,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     inputs.should_paint_overlay = config.paint_overlay;
     inputs.records_in_finest_runs = config.records_in_finest_runs;
     inputs.records_whole_document = config.records_whole_document;
+    inputs.notes_record_origins = config.notes_record_origins;
     inputs.has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport;
     inputs.wheel_event_listener_state_generation = document.page().wheel_event_listener_state_generation();
     inputs.chrome_metrics = document.page().chrome_metrics();

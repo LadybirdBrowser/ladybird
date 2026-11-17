@@ -9,5 +9,5 @@ AccumulatedVisualContext Tree:
 Layers: none (canvas under a transform that is not 2D affine)
 
 DisplayList:
-DrawCanvas@s2/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear
+DrawCanvas@s2/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
 

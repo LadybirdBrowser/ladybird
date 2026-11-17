@@ -2,9 +2,9 @@ Named in print order:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
         [s2] transform=[1,0,0,1,3,0] origin=(33,133) bounds=[8,108 50x50] (BlockContainer<DIV>)
     [c0 in s2] clip=[8,108 50x50] (BlockContainer<DIV>)
-FillRect@s2/c0/e0 rect=[8,108 50x50] color=rgb(0, 128, 0)
+FillRect@s2/c0/e0 rect=[8,108 50x50] color=rgb(0, 128, 0) owner=BlockContainer<DIV>.painted phase=background
 Named by index:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
         [s4] transform=[1,0,0,1,3,0] origin=(33,133) bounds=[8,108 50x50] (BlockContainer<DIV>)
     [c1 in s4] clip=[8,108 50x50] (BlockContainer<DIV>)
-FillRect@s4/c1/e0 rect=[8,108 50x50] color=rgb(0, 128, 0)
+FillRect@s4/c1/e0 rect=[8,108 50x50] color=rgb(0, 128, 0) owner=BlockContainer<DIV>.painted phase=background

@@ -11,5 +11,5 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/c0/e0 rect=[8,8 100x100] color=rgb(0, 128, 0)
+FillRect@s1/c0/e0 rect=[8,8 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#box phase=background
 

@@ -7,7 +7,7 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/e0 rect=[8,8 100x100] color=rgb(0, 128, 0)
+FillRect@s1/e0 rect=[8,8 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#box phase=background
 
 After mix-blend-mode change:
 AccumulatedVisualContext Tree:
@@ -19,5 +19,5 @@ AccumulatedVisualContext Tree:
       [e1 in s1] effects=[blend_mode=Multiply] (BlockContainer<DIV>#box)
 
 DisplayList:
-FillRect@s1/e1 rect=[8,8 100x100] color=rgb(0, 128, 0)
+FillRect@s1/e1 rect=[8,8 100x100] color=rgb(0, 128, 0) owner=BlockContainer<DIV>#box phase=background
 

@@ -9,6 +9,6 @@ AccumulatedVisualContext Tree:
 Layers: none (blend mode reads the root group)
 
 DisplayList:
-DrawCanvas@s1/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear
-FillRect@s1/e1 rect=[8,131 50x50] color=rgb(255, 165, 0)
+DrawCanvas@s1/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+FillRect@s1/e1 rect=[8,131 50x50] color=rgb(255, 165, 0) owner=BlockContainer<DIV> phase=background
 

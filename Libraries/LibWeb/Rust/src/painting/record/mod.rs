@@ -86,6 +86,8 @@ pub struct RecordingOutput {
     /// What the display list is stamped with for async scrolling, but for the keyboard scroll state, which each frame
     /// sets.
     pub async_scrolling_metadata: Option<libcompositing_rust::ipc_types::Compositing_AsyncScrollingMetadata>,
+    /// Where the records of the tape come from, by their offsets in it, for a recording that notes it.
+    pub(crate) record_notes: Option<Arc<crate::painting::display_list::recorder::RecordNotes>>,
 }
 
 pub(crate) struct RecordingResult {
@@ -146,6 +148,11 @@ pub struct PaintRecorder<'a, O: Observer> {
     // The spaces of the frame's tree against the window of the recording, for one that does not hold the whole
     // document.
     pub(crate) window_spaces: Option<window::WindowSpaces<'a>>,
+    // The notes of the records of each chunk taken, where the recording notes them.
+    pub(crate) record_notes_of_chunks: Vec<(
+        Arc<order_tree::RecordedChunk>,
+        crate::painting::display_list::recorder::RecordNotes,
+    )>,
 }
 
 #[derive(Clone, Copy, Default)]

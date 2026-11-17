@@ -102,7 +102,17 @@ impl<O: Observer> super::PaintRecorder<'_, O> {
     pub(crate) fn trace_paint(&mut self, operation: Operation, body: impl FnOnce(&mut Self)) {
         self.observer.observe(|log| log.begin(operation, Action::Record));
         let before = if O::ENABLED { self.recorder.byte_size() } else { 0 };
+        let outside_the_boxes = match operation {
+            Operation::Named(None, name) => Some(name),
+            _ => None,
+        };
+        if let Some(name) = outside_the_boxes {
+            self.recorder.begin_record_origin(NodeSlotId::INVALID, name);
+        }
         body(self);
+        if outside_the_boxes.is_some() {
+            self.recorder.end_record_origin();
+        }
         self.observer
             .observe(|log| log.end(self.recorder.byte_size() == before));
     }
@@ -168,7 +178,7 @@ impl CaptureLog {
     }
 }
 
-fn producer_name(kind: ProducerKind) -> &'static str {
+pub(crate) fn producer_name(kind: ProducerKind) -> &'static str {
     match kind {
         ProducerKind::DrawBackground => "background",
         ProducerKind::DrawBorder => "border",
@@ -181,6 +191,18 @@ fn producer_name(kind: ProducerKind) -> &'static str {
         ProducerKind::Svg => "svg",
         ProducerKind::InlinePiece(_) => "inline-piece",
         ProducerKind::TextFragment(_) => "text-fragment",
+    }
+}
+
+pub(crate) fn paint_phase_name(phase: super::PaintPhase) -> &'static str {
+    use super::PaintPhase::*;
+    match phase {
+        Background => "background",
+        Border => "border",
+        TableCollapsedBorder => "table-collapsed-border",
+        Foreground => "foreground",
+        Outline => "outline",
+        Overlay => "overlay",
     }
 }
 

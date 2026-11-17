@@ -94,6 +94,14 @@ pub(crate) fn paint_phase_mask<O: Observer>(
 }
 
 pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
+    recorder
+        .recorder
+        .begin_record_origin(paintable, crate::painting::record::trace::paint_phase_name(phase));
+    paint_box_phase(recorder, paintable, phase);
+    recorder.recorder.end_record_origin();
+}
+
+fn paint_box_phase<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
     let Some(kind) = recorder.source.node_kind_if_live(paintable) else {
         return;
     };

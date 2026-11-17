@@ -9,6 +9,6 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/c0/e0 rect=[0,0 200x200] color=rgb(255, 0, 0)
-FillRect@s0/c1/e0 rect=[220,0 200x200] color=rgb(0, 128, 0)
+FillRect@s1/c0/e0 rect=[0,0 200x200] color=rgb(255, 0, 0) owner=BlockContainer<DIV>.abspos phase=background
+FillRect@s0/c1/e0 rect=[220,0 200x200] color=rgb(0, 128, 0) owner=BlockContainer<DIV>.fixed phase=background
 

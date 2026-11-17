@@ -11,7 +11,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
-use crate::painting::display_list::recorder::DisplayListRecorder;
+use crate::painting::display_list::recorder::{DisplayListRecorder, RecordNotes};
 use crate::painting::node_painting;
 use crate::painting::paint_order_plan::PaintScope;
 use crate::painting::paint_read::{GeometryRead, PaintSource};
@@ -132,7 +132,11 @@ fn record_display_list_impl<O: Observer>(
         scratch,
         resources: RecordingResourceManifest::default(),
         window_spaces,
+        record_notes_of_chunks: Vec::new(),
     };
+    if inputs.notes_record_origins {
+        recorder.recorder.note_record_origins();
+    }
     let root_group_color = recorder.record_canvas();
     let prologue = recorder.take_run_chunk();
     let prologue_id = prologue.as_ref().map(|chunk| chunk.recorded().id);
@@ -205,6 +209,10 @@ fn record_display_list_impl<O: Observer>(
         Some(root) => root.facts.blocking_wheel_event_regions > 0,
         None => recorder.blocking_wheel_event_region_count > 0,
     };
+    let record_notes = recorder
+        .recorder
+        .notes_record_origins()
+        .then(|| Arc::new(record_notes_of_tape(&chunks, &mut recorder.record_notes_of_chunks)));
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
         recorded_as_of: source.frame().paint_generation(),
@@ -228,6 +236,7 @@ fn record_display_list_impl<O: Observer>(
         display_list_id: 0,
         surface_clear_color: None,
         async_scrolling_metadata: None,
+        record_notes,
     };
     let resources = recorder.resources;
     let mut record_from_scratch = |window: Option<Arc<RecordedWindow>>| {
@@ -253,6 +262,33 @@ fn record_display_list_impl<O: Observer>(
         );
     }
     RecordingResult { output, resources }
+}
+
+/// The notes of the chunks of a tape, by the offsets of their records in it. A chunk the recording copied has none.
+fn record_notes_of_tape(
+    chunks: &[Arc<RecordedChunk>],
+    record_notes_of_chunks: &mut Vec<(Arc<RecordedChunk>, RecordNotes)>,
+) -> RecordNotes {
+    let mut notes = RecordNotes::default();
+    let mut chunk_start = 0;
+    for chunk in chunks {
+        let chunk_size = chunk.latest().records.len();
+        if chunk_size == 0 {
+            continue;
+        }
+        if let Some(index) = record_notes_of_chunks
+            .iter()
+            .position(|(noted_chunk, _)| Arc::ptr_eq(noted_chunk, chunk))
+        {
+            let (_, chunk_notes) = record_notes_of_chunks.swap_remove(index);
+            notes.append_shifted_by(
+                chunk_notes,
+                u32::try_from(chunk_start).expect("display list exceeds u32"),
+            );
+        }
+        chunk_start += chunk_size;
+    }
+    notes
 }
 
 fn left_out_content_is_verified() -> bool {

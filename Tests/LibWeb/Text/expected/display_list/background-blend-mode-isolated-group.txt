@@ -6,7 +6,7 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-DrawIsolatedGroup@s1/e0 clip_rect=[8,8 100x50]
-  PaintLinearGradient@s1/e0 gradient_rect=[8,8 100x50] gradient_angle=180 color_stops=[rgb(0, 0, 255) 0, rgb(0, 0, 255) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[8,8 100x50]]
-  PaintLinearGradient@s1/e0 gradient_rect=[8,8 100x50] gradient_angle=180 color_stops=[rgb(255, 0, 0) 0, rgb(255, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} compositing_and_blending_operator=Multiply inline_clips=[clip=[8,8 100x50]]
+DrawIsolatedGroup@s1/e0 clip_rect=[8,8 100x50] owner=BlockContainer<DIV>#box phase=background
+  PaintLinearGradient@s1/e0 gradient_rect=[8,8 100x50] gradient_angle=180 color_stops=[rgb(0, 0, 255) 0, rgb(0, 0, 255) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[8,8 100x50]] owner=BlockContainer<DIV>#box phase=background
+  PaintLinearGradient@s1/e0 gradient_rect=[8,8 100x50] gradient_angle=180 color_stops=[rgb(255, 0, 0) 0, rgb(255, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} compositing_and_blending_operator=Multiply inline_clips=[clip=[8,8 100x50]] owner=BlockContainer<DIV>#box phase=background
 

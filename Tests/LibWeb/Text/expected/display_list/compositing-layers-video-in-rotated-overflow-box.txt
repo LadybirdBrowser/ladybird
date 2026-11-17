@@ -17,5 +17,5 @@ Layers:
   [L1] video rect=[85,80 230x190] replayed: clipped in a rotated or skewed space
 
 DisplayList:
-L1 DrawVideoFrame@s3/c0/e0 dst_rect=[100,100 320x180] video_sink_handle=video1 scaling_mode=BilinearMipmap inline_clips=[clip=[100,100 320x180]]
+L1 DrawVideoFrame@s3/c0/e0 dst_rect=[100,100 320x180] video_sink_handle=video1 scaling_mode=BilinearMipmap inline_clips=[clip=[100,100 320x180]] owner=VideoBox<VIDEO>#video phase=foreground
 

@@ -9,11 +9,11 @@ AccumulatedVisualContext Tree:
 Layers: none (composited context inside a group effect)
 
 DisplayList:
-CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x136]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x123]
-CompositorWheelHitTestTarget@s1/e1 target_scroll_node_index=s0 rect=[0,0 800x123]
-CompositorWheelHitTestTarget@s1/e1 target_scroll_node_index=s0 rect=[0,0 200x120]
-DrawCompositedContext@s1/e1 dst_rect=[0,0 200x120] child_context_id=context1 scaling_mode=NearestNeighbor spatial_node_index=s1 snap_origin_if_untransformed=true inline_clips=[clip=[0,0 200x120]]
-CompositorNestedContextWheelRegion@s1/e1 rect=[0,0 200x120] child_context_id=context1
+CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600] owner=Viewport<#document> phase=scroll-metadata
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x136] owner=BlockContainer<HTML> phase=scroll-metadata
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x123] owner=BlockContainer<BODY> phase=scroll-metadata
+CompositorWheelHitTestTarget@s1/e1 target_scroll_node_index=s0 rect=[0,0 800x123] owner=BlockContainer<DIV>#group phase=scroll-metadata
+CompositorWheelHitTestTarget@s1/e1 target_scroll_node_index=s0 rect=[0,0 200x120] owner=NavigableContainerViewport<IFRAME>#frame phase=scroll-metadata
+DrawCompositedContext@s1/e1 dst_rect=[0,0 200x120] child_context_id=context1 scaling_mode=NearestNeighbor spatial_node_index=s1 snap_origin_if_untransformed=true inline_clips=[clip=[0,0 200x120]] owner=NavigableContainerViewport<IFRAME>#frame phase=foreground
+CompositorNestedContextWheelRegion@s1/e1 rect=[0,0 200x120] child_context_id=context1 owner=NavigableContainerViewport<IFRAME>#frame phase=foreground
 

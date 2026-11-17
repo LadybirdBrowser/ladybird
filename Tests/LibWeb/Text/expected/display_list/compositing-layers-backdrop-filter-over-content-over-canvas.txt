@@ -9,7 +9,7 @@ AccumulatedVisualContext Tree:
 Layers: none (canvas under a backdrop filter that reads the root group)
 
 DisplayList:
-DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear
-FillRect@s1/e0 rect=[180,100 200x40] color=rgba(255, 255, 255, 0.5)
-BackdropFilterRegion@s1/e1 rect=[300,120 60x40]
+DrawCanvas@s1/e0 dst_rect=[20,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+FillRect@s1/e0 rect=[180,100 200x40] color=rgba(255, 255, 255, 0.5) owner=BlockContainer<DIV>#over-canvas phase=background
+BackdropFilterRegion@s1/e1 rect=[300,120 60x40] owner=BlockContainer<DIV>#frosted phase=background
 
