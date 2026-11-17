@@ -131,7 +131,7 @@ private:
 
         TRY(m_stream.seek(offset));
 
-        if (size_of_type(type) * count > m_stream.remaining())
+        if (static_cast<u64>(size_of_type(type)) * count > m_stream.remaining())
             return Error::from_string_literal("ExifReader: Tag size claims to be bigger that remaining bytes");
 
         auto const read_every_values = [this, count]<typename T>() -> ErrorOr<Vector<Value>> {
