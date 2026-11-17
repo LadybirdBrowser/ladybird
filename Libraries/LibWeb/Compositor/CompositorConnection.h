@@ -13,7 +13,6 @@
 #include <AK/Optional.h>
 #include <Compositor/CompositorWebContentClientEndpoint.h>
 #include <Compositor/CompositorWebContentServerEndpoint.h>
-#include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/WebGL/Types.h>
@@ -72,7 +71,8 @@ public:
     void release_video_frame_hold(Media::VideoSinkHandle, u64 generation);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
     Optional<Compositing::CanvasId> create_canvas_2d_context(Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace const&);
-    void update_canvas_2d_stream(Compositing::Canvas2DCommandStream&);
+    RefPtr<IPC::ThreadSafeMessagePoster> prepare_canvas_2d_stream_batch(ReadonlySpan<Gfx::Font const*>, ReadonlySpan<Gfx::DecodedImageFrame const*>);
+    void did_fail_to_post_canvas_2d_stream_batch();
     void destroy_canvas_context(Compositing::CanvasId);
     Gfx::ShareableBitmap get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType = Gfx::AlphaType::Premultiplied, Gfx::ColorSpace const& = {});
     Optional<Web::Compositor::PlaceholderCanvasLink> allocate_placeholder_canvas();

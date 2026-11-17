@@ -38,13 +38,13 @@ pub enum ColorSpace {
 }
 
 /// The context of a canvas in the Compositor, and the stream that the commands of every canvas of WebContent share.
-/// In the product that is a RemoteCanvas2DTransport of LibWeb.
+/// In the product that is the CompositorTransport of Libraries/LibWeb/Bindings/Rust/src/canvas_2d/host.rs.
 pub trait Transport {
-    /// A Gfx::Font, lent to the call that takes it.
+    /// A Gfx::Font.
     type Font: ?Sized;
     /// A Gfx::DecodedImageFrame.
     type ImageFrame;
-    /// A Compositing::VideoFrameHold, lent to the call that takes it.
+    /// A Compositing::VideoFrameHold.
     type VideoFrameHold: ?Sized;
 
     fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool, color_space: ColorSpace) -> bool;

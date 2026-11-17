@@ -66,7 +66,8 @@ private:
     virtual void describe_display_list_fonts(Web::CompositorContextId, Vector<Compositing::DisplayListFontDescription>) override;
     virtual Messages::CompositorWebContentServer::ReserveCanvasIdsResponse reserve_canvas_ids() override;
     virtual void create_canvas_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace) override;
-    virtual void update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment>, Vector<Compositing::DisplayListFontDescription>) override;
+    virtual void describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDescription>) override;
+    virtual void update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment>) override;
     virtual void destroy_canvas_context(Compositing::CanvasId) override;
     virtual Messages::CompositorWebContentServer::GetCanvasPixelsResponse get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType, Gfx::ColorSpace) override;
     virtual Messages::CompositorWebContentServer::AllocatePlaceholderCanvasResponse allocate_placeholder_canvas() override;

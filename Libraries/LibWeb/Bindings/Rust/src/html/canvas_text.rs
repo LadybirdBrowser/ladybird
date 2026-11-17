@@ -6,7 +6,6 @@
 
 //! https://html.spec.whatwg.org/multipage/canvas.html#canvastext
 
-use core::ptr::NonNull;
 use libjs_rust::api::Vm;
 
 use ak::Utf16String;
@@ -20,7 +19,6 @@ use crate::bindings::interface::Ref;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::canvas_2d::context::{CanvasKind, ContextState, RenderingContext2D, paint_of};
 use crate::canvas_2d::float;
-use crate::canvas_2d::host::LentFont;
 use crate::canvas_2d::text::{
     baseline_offset, em_square_ascent_and_descent, horizontal_alignment_offset, path_of_runs, replace_ascii_whitespace,
     shape_text, text_transform,
@@ -99,14 +97,10 @@ impl<K: CanvasKind> RenderingContext2D<K> {
 
         // NB: The glyphs are not filled as outlines, since the glyphs of a color font can have none. All runs are a
         //     single draw, so that the fallback fonts of the text share one shadow and one composite.
-        let lent_fonts: Vec<LentFont> = runs
-            .iter()
-            .map(|run| LentFont(NonNull::new(run.font.as_raw().cast_mut()).expect("a font has a font")))
-            .collect();
         let mut glyphs = Vec::new();
         let mut glyph_runs = Vec::with_capacity(runs.len());
         let mut text_width = 0.0;
-        for (run, lent_font) in runs.iter().zip(&lent_fonts) {
+        for run in &runs {
             text_width += run.width;
             if run.font.is_invisible() {
                 continue;
@@ -119,7 +113,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
                     .map(DisplayListGlyph::from),
             );
             if glyphs.len() > first_glyph {
-                glyph_runs.push((lent_font, glyphs.len() - first_glyph));
+                glyph_runs.push((&run.font, glyphs.len() - first_glyph));
             }
         }
         let first_font = font.cascade.first();

@@ -129,12 +129,15 @@ public:
 
     OwnPtr<CompositorContextHandle> create_context(Web::CompositorContextId);
 
-    Compositing::Canvas2DCommandStream& canvas_2d_stream() { return *m_canvas_2d_stream; }
+    struct Canvas2DTransport {
+        void* stream { nullptr };
+        CompositorConnection* connection { nullptr };
+    };
+    Optional<Canvas2DTransport> create_canvas_2d_transport();
     void flush_canvas_2d_stream();
     void discard_canvas_2d_stream();
 
     RefPtr<WebGL::RemoteWebGLTransport> create_webgl_transport();
-    RefPtr<HTML::RemoteCanvas2DTransport> create_canvas_2d_transport();
 
     Optional<PlaceholderCanvasLink> allocate_placeholder_canvas();
     void release_placeholder_canvas(Compositing::CanvasId);
@@ -196,10 +199,7 @@ private:
 
     HashMap<u64, AnimatedImageRegistration> m_animated_images;
 
-    // Drains the stream, but only when the message can actually be delivered.
-    void send_canvas_2d_stream(Compositing::Canvas2DCommandStream&);
-
-    NonnullRefPtr<Compositing::Canvas2DCommandStream> m_canvas_2d_stream;
+    void* m_canvas_2d_stream { nullptr };
 };
 
 }

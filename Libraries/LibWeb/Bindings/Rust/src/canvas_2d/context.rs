@@ -23,13 +23,13 @@ use libjs_rust::api::{DeferGc, ForeignCellSlot, Gc, GcRefCell, GcRefMut, Realm, 
 
 use super::canvas::{Canvas, FontMetricsSource, FontSelection, ResolvedFont, StyleValue, parse_color};
 use super::drawing_state::{CanvasColor, DrawingState, FillOrStrokeStyle};
-use super::host::CppTransport;
+use super::host::CompositorTransport;
 use crate::bindings::interface::Wrappable;
 use crate::html::canvas_rendering_context2d::CanvasDirection;
 use crate::html::canvas_rendering_context2d_settings::CanvasRenderingContext2DSettings;
 use crate::html::predefined_color_space::PredefinedColorSpace;
 
-pub(crate) type CanvasRecorder = Recorder<CppTransport>;
+pub(crate) type CanvasRecorder = Recorder<CompositorTransport>;
 
 /// What tells the two kinds of 2D context apart: the canvas that each draws for, an HTMLCanvasElement or an
 /// OffscreenCanvas. Everything else they share.

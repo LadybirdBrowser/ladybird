@@ -337,7 +337,7 @@ impl FfiBytes for DisplayListResourceId {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 #[repr(transparent)]
 pub struct CanvasId(pub u64);
 

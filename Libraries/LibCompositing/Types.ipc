@@ -5,6 +5,7 @@
 // NB: The IPC compiler cannot check that each struct here lists every field of its C++ type. A field left out
 //     here does not cross IPC.
 
+#include <LibCompositing/DisplayList/Canvas2DCommandStreamSegment.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/WebGL/Types.h>
 #include <LibGfx/Rect.h>
@@ -243,4 +244,11 @@ struct Compositing::CompositorLayersDescription {
     Vector<Compositing::CompositorTileHighlightDescription> tile_highlights;
     String summary_since_reset;
     u64 visual_context_tree_structural_epoch;
+}
+
+[ExistingCpp]
+struct Compositing::Canvas2DCommandStreamSegment {
+    Compositing::CanvasId canvas_id;
+    ByteBuffer tape;
+    bool present;
 }

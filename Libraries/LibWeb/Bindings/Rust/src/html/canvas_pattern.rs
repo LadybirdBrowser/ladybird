@@ -21,7 +21,6 @@ use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::canvas_2d::canvas::{CanvasImageSourceKind, capture_video_frame, video_transport};
-use crate::canvas_2d::host::LentVideoFrameHold;
 use crate::geometry::dictionaries::{DOMMatrix2DInit, validate_and_fixup_2d};
 
 /// The repetition that a value of the repetition argument of createPattern() names exactly, if it names one.
@@ -67,7 +66,7 @@ pub(crate) fn read_back_current_video_frame(video: CppInterface, color_space: Co
     )]
     let destination = FloatRect::new(0.0, 0.0, width as f32, height as f32);
     recorder.draw_video_frame(
-        &LentVideoFrameHold(captured_frame.hold()),
+        &captured_frame.hold,
         captured_frame.sink_handle,
         captured_frame.generation,
         destination,

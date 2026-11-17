@@ -657,7 +657,6 @@ class Canvas2DContextBase;
 class CanvasHost;
 class CanvasRenderingContext2D;
 class CheckUnloadingCanceledState;
-class RemoteCanvas2DTransport;
 class ClassicScript;
 class CloseEvent;
 class CloseWatcher;

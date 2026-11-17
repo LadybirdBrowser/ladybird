@@ -1,7 +1,6 @@
 include(libcompositing_generators)
 
 set(SOURCES
-    DisplayList/Canvas2DCommandStream.cpp
     DisplayList/Canvas2DTape.cpp
     DisplayList/DisplayListResourceEncoding.cpp
     DisplayList/DisplayListResources.cpp
