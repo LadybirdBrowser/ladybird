@@ -35,9 +35,6 @@ public:
     ByteString const& directory() const { return m_directory; }
     void set_directory(ByteString directory) { m_directory = move(directory); }
 
-    // Moves in every saved report of another store, which is how reports from before they belonged to a profile arrive.
-    ErrorOr<void> adopt_reports_from(ByteString const& directory);
-
     ErrorOr<SavedReport> saved_report(ByteString const& name) const;
 
     // The website a waiting report's crash happened on. It sits next to the report rather than in it, so that it stays
@@ -72,7 +69,6 @@ private:
     ErrorOr<void> remove_reports(Optional<UnixDateTime> earliest_time) const;
 
     ByteString m_directory;
-    Optional<ByteString> m_adopted_directory;
 };
 
 }
