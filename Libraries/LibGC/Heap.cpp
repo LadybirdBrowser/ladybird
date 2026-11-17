@@ -1474,6 +1474,23 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
             }
         });
     }
+
+    // TEMPORARY DIAGNOSTICS: Report every cell that only a 32-bit half of a stack or register word keeps alive.
+    static int s_reported_half_roots = 0;
+    for (auto const& [cell, origin] : roots) {
+        if (origin.compressed_half == 0 || s_reported_half_roots >= 400)
+            continue;
+        if (origin.type != HeapRoot::Type::StackPointer && origin.type != HeapRoot::Type::RegisterPointer)
+            continue;
+        ++s_reported_half_roots;
+        auto name = class_name_of(*cell);
+        fprintf(stderr, "GCDIAG half root class=%.*s raw=%#llx half=%d %s top-%llu stack_size=%llu heap_blocks=%zu\n",
+            static_cast<int>(name.length()), name.characters_without_null_termination(),
+            static_cast<unsigned long long>(origin.raw_value), origin.compressed_half,
+            origin.type == HeapRoot::Type::RegisterPointer ? "register" : "stack",
+            static_cast<unsigned long long>(origin.offset_from_stack_top),
+            static_cast<unsigned long long>(stack_top - stack_reference), m_live_heap_blocks.size());
+    }
 }
 
 class MarkingVisitor final : public Cell::Visitor {

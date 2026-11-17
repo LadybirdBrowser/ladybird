@@ -1226,6 +1226,21 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     TRY(expand_tests_with_static_variants(tests, s_skipped_tests));
 
+    if (auto const* order_file = getenv("TEST_WEB_ORDER_FILE")) {
+        auto file = TRY(Core::File::open(StringView { order_file, strlen(order_file) }, Core::File::OpenMode::Read));
+        auto contents = TRY(file->read_until_eof());
+        Vector<Test> ordered;
+        for (auto line : StringView { contents }.split_view('\n')) {
+            for (auto const& test : tests) {
+                if (test.relative_path == line) {
+                    ordered.append(test);
+                    break;
+                }
+            }
+        }
+        tests = move(ordered);
+    }
+
     if (app.shuffle)
         shuffle(tests);
 

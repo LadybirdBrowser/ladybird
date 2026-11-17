@@ -484,9 +484,9 @@ void Internals::gc_async(GC::Ref<WebIDL::Promise> promise)
     int diagnose = 0;
     {
         auto url = window().associated_document().url().serialize();
-        if (url.contains("svg-image-environments"sv))
+        if (url.contains("svg-image-environments"sv) || url.contains("svgdiag"sv) || url.contains("svg-images-share"sv))
             diagnose = 1;
-        else if (url.contains("zz-docdiag"sv))
+        else if (url.contains("zz-docdiag"sv) || url.contains("is-collectable"sv))
             diagnose = 30;
     }
     static u32 last_requester = 0;
