@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .root { display: flow-root; width: 300px; }
+    .inner { height: 100px; }
+</style>
+<div class="root" id="flow-root"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div></div>
+<div class="root" id="one-short"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 49px"></div></div></div>
+<div class="root" id="one-over"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 51px"></div></div></div>
+<div class="root" id="smaller-margins"><div style="margin-bottom: -20px"><div class="inner" style="margin-bottom: 20px"></div></div></div>
+<div class="root" id="negative-on-child"><div style="margin-bottom: 50px"><div class="inner" style="margin-bottom: -50px"></div></div></div>
+<div class="root" id="three-levels"><div style="margin-bottom: -50px"><div style="margin-bottom: 20px"><div class="inner" style="margin-bottom: 50px"></div></div></div></div>
+<div class="root" id="top-margins"><div style="margin-top: -50px"><div class="inner" style="margin-top: 50px"></div></div></div>
+<div class="root" id="then-empty"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div><div></div></div>
+<div class="root" id="then-empty-with-margins"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div><div style="margin: 10px 0"></div></div>
+<div class="root" id="between-siblings"><div class="inner" style="margin-bottom: 50px"></div><div style="margin-top: -50px"><div class="inner"></div></div></div>
+<div class="root" id="padding-bottom" style="padding-bottom: 1px"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div></div>
+<div class="root" id="flex-item" style="display: flex"><div style="flex: 1"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div></div></div>
+<div class="root" id="grid-item" style="display: grid"><div><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div></div></div>
+<div class="root" id="overflow-hidden" style="display: block; overflow: hidden"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div></div>
+<div class="root" id="inline-block" style="display: inline-block"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div></div>
+<div class="root" id="float" style="float: left"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div></div>
+<div class="root" id="abspos" style="position: absolute"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div></div>
+<div class="root" id="table-cell" style="display: table-cell"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 50px"></div></div></div>
+<div class="root" id="vertical" style="writing-mode: vertical-rl; height: 60px; width: auto"><div style="margin-left: -50px"><div class="inner" style="margin-left: 50px; height: auto; width: 100px"></div></div></div>
+<div class="root" id="negative-is-larger"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: 20px"></div></div></div>
+<div class="root" id="both-negative"><div style="margin-bottom: -50px"><div class="inner" style="margin-bottom: -20px"></div></div></div>
+<script>
+    test(() => {
+        // Margins that collapse come to their largest positive margin plus their most negative one. Where those add up
+        // to zero at the end of a box that margins don't collapse out of, the box ends at its last child's border edge.
+        for (const root of document.querySelectorAll(".root")) {
+            const rect = root.getBoundingClientRect();
+            println(`${root.id}: ${root.id == "vertical" ? rect.width : rect.height}`);
+        }
+    });
+</script>
