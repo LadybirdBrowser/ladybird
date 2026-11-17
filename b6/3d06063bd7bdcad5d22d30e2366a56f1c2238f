@@ -1,0 +1,28 @@
+Ladybird derives a number input’s preferred character count from its
+finite min/max bounds and authored step precision. It counts a leading
+minus sign, integer digits with leading zeros trimmed (at least one),
+and all fractional digits as written. A decimal point reserves a column
+when there are fractional digits. Exponent forms in any of these
+attributes retain the default width, without expanding the exponent.
+A valid explicit size takes priority over this calculation.
+
+Blink measures the columns in NumberInputType::GetSizeWithDecoration,
+using CalculateRenderSize. WebKit calls calculateRenderSize from
+NumberInputType::sizeShouldIncludeDecoration. Both derive their sizes
+from decimal bounds and step, including exponent forms. Gecko uses
+Decimal in HTMLInputElement::GetNumberInputCols, while GetCols gives
+an explicit size priority over the derived character count.
+
+Ladybird intentionally counts authored decimal text without Decimal
+normalization or its precision limits, and falls back to the default
+width for exponent forms. That keeps the common bounded-decimal case
+simple, but differs from the other engines for exponent forms. A zero
+takes one column however it’s written, as in all three engines.
+
+The styled spin buttons reserve their own inline size beside the text,
+as Blink and WebKit do through their decoration-sizing paths, and Gecko
+does in nsTextControlFrame::CalcFixedSize. Explicit CSS dimensions and
+field-sizing retain their normal sizing behavior. The explicit-size
+priority agrees with Gecko and the imported tentative WPT; Chrome
+ignores size on number inputs. Ladybird retains the authored precision
+of a negative step, while Gecko uses the normalized GetStep result.
