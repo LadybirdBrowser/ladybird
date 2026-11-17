@@ -2,7 +2,7 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-        [s2] transform=[1,0,0,1,5,5] origin=(160,160) (BlockContainer<DIV>#containing-block)
+        [s2] transform=[1,0,0,1,5,5] origin=(160,160) bounds=[10,10 300x300] (BlockContainer<DIV>#containing-block)
   effects:
     [e0 in s0] effects=[]
       [e1 in s2] effects=[opacity=0.5] (BlockContainer<DIV>#clipped)

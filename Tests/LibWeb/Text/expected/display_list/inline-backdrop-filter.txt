@@ -1,3 +1,3 @@
 backdrop region commands: 1
 backdrop filter effects: 1
-      [e1 in s1] effects=[backdrop-filter=[rect]] (InlineNode<SPAN>#wrap)
+      [e1 in s1] effects=[backdrop-filter=[region=[rect] filter=[Invert(1)]]] (InlineNode<SPAN>#wrap)

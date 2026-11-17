@@ -8,5 +8,5 @@ AccumulatedVisualContext Tree:
 Layers: none (canvas draws nothing visible)
 
 DisplayList:
-DrawCanvas@s1/e0 dst_rect=[-1000,20 200x120]
+DrawCanvas@s1/e0 dst_rect=[-1000,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear
 

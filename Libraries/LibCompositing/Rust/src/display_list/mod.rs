@@ -18,6 +18,7 @@ pub mod ffi_bytes;
 pub mod ids;
 pub mod layers;
 pub mod nested_records;
+pub mod record_fields;
 pub mod replay;
 pub mod storage;
 pub mod summary;

@@ -16,7 +16,7 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   effects:
     [e0 in s0] effects=[]
-      [e1 in s1] effects=[blend_mode=2] (BlockContainer<DIV>#box)
+      [e1 in s1] effects=[blend_mode=Multiply] (BlockContainer<DIV>#box)
 
 DisplayList:
 FillRect@s1/e1 rect=[8,8 100x100] color=rgb(0, 128, 0)

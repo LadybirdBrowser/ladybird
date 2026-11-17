@@ -3,7 +3,7 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-        [s2] transform=[1,0,0,1,0,0] origin=(58,58) (BlockContainer<DIV>#child)
+        [s2] transform3d=[1,0,0,0,0,1,0,0,0,0,1,10,0,0,0,1] origin=(58,58) bounds=[8,8 100x100] (BlockContainer<DIV>#child)
   effects:
     [e0 in s0] effects=[]
 
@@ -15,8 +15,8 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-        [s2] perspective (BlockContainer<DIV>#box)
-          [s3] transform=[1,0,0,1,0,0] origin=(58,58) (BlockContainer<DIV>#child)
+        [s2] perspective=[1,0,-0.58,0,0,1,-0.58,0,0,0,1,0,0,0,-0.01,1] (BlockContainer<DIV>#box)
+          [s3] transform3d=[1,0,0,0,0,1,0,0,0,0,1,10,0,0,0,1] origin=(58,58) flattens_inherited_transform=false bounds=[8,8 100x100] (BlockContainer<DIV>#child)
   effects:
     [e0 in s0] effects=[]
 

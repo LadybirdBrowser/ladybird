@@ -1,4 +1,4 @@
-box owns a transform node before the transition: transform=[1,0,0,1,0,0] origin=(18,18)
+box owns a transform node before the transition: transform=[1,0,0,1,0,0] origin=(18,18) bounds=[8,8 20x20]
 transition is still pending: true
 transition starts on the compositor:
   transform div#box

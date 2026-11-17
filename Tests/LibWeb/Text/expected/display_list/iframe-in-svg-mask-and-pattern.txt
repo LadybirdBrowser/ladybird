@@ -12,9 +12,9 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 DeclareMaskContent@s2/c0/e1 rect=[0,0 100x100] effect=e1
-FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100]
-FillPath@s2/c0/e0 path_bounding_rect=[100,0 100x100]
+FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0)
+FillPath@s2/c0/e0 path_bounding_rect=[100,0 100x100] path_data=[path: M100 0L200 0L200 100L100 100L100 0Z] paint_kind=PaintStyle color=rgba(0, 0, 0, 0) paint_style={paint_style_type=Pattern pattern_tile_rect=[0,0 50x50]}
   PatternTile:
 DeclareMaskContent@s2/c0/e2 rect=[200,0 100x100] effect=e2
-FillPath@s2/c0/e2 path_bounding_rect=[200,0 100x100]
+FillPath@s2/c0/e2 path_bounding_rect=[200,0 100x100] path_data=[path: M200 0L300 0L300 100L200 100L200 0Z] color=rgb(0, 128, 0)
 

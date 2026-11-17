@@ -6,18 +6,18 @@
 
 use super::builder::{HEADER_SIZE, for_each_command, inline_transform_of, read_command};
 use super::commands::*;
+use super::dump_format::{
+    DumpNames, DumpValue, dumped_record_field, path_description, push_clip_radii, push_fields, push_value,
+};
 use super::effect_clip_plan::EffectClipPlan;
 use super::layers::{LayerPlan, LayerPlanInputs, build_layer_plan};
 use super::nested_records::{NestedRecordsRole, for_each_nested_record_span, span_bytes};
+use super::record_fields::visit_command_fields;
 use super::storage::DisplayListStorage;
 use super::summary::{LiveContent, summarize};
-use crate::css::color_resolution::format_to_8bit_compatible;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::dump::{
-    format_float_like_ak, push_affine_transform, push_float_like_ak, push_float_point, push_float_rect,
-    push_float_size, push_int_point, push_int_rect, push_int_size,
-};
+use crate::painting::dump::{push_affine_transform, push_float_rect};
 use crate::painting::paint_read::PaintRead;
 use crate::painting::vector_image_records::display_list_holding_vector_image_records;
 use crate::painting::visual_context::VisualContextTree;
@@ -26,10 +26,7 @@ use crate::painting::visual_context::dump::SlotKind;
 use crate::stage::MainThread;
 use libcompositing_rust::visual_context::CompositorScrollTable;
 use libgfx_rust::path::Path;
-use libgfx_rust::{
-    Color, CompositingAndBlendingOperator, CornerRadii, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect, IntSize,
-    LineStyle, ScalingMode,
-};
+use libgfx_rust::{FloatPoint, FloatRect, IntRect};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt::Write;
@@ -214,11 +211,12 @@ pub unsafe extern "C" fn painting_dump(
             owners
         })
     };
-    let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |kind, index| {
+    let mut names = DumpNames::default();
+    let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, &mut names, |kind, index| {
         let owner = owners.owner(kind, index)?;
         Some(callbacks.debug_description(&main_thread, owner))
     });
-    dump_compositor_scroll_table(&mut output, visual_context_tree.compositor_scroll_table());
+    dump_compositor_scroll_table(&mut output, &mut names, visual_context_tree.compositor_scroll_table());
     let layer_plan = dump_layers_if_every_canvas_and_video_kept_updating(
         &mut output,
         tape,
@@ -228,11 +226,13 @@ pub unsafe extern "C" fn painting_dump(
         device_viewport_rect,
     );
     output.push_str("\nDisplayList:\n");
+    let mut records = RecordDump {
+        output: &mut output,
+        names: &mut names,
+    };
     match layer_plan {
-        Some(layer_plan) => {
-            dump_top_level_commands_with_their_layers(&main_thread, &mut output, &display_list, &layer_plan);
-        }
-        None => dump_commands(&main_thread, &mut output, &display_list, 0),
+        Some(layer_plan) => records.dump_top_level_commands_with_their_layers(&display_list, &layer_plan),
+        None => records.dump_commands(&display_list),
     }
     callbacks.append_text(&main_thread, &output);
 }
@@ -241,19 +241,65 @@ fn push_indent(output: &mut String, indent: usize) {
     output.extend(std::iter::repeat_n(' ', indent * 2));
 }
 
+fn css_pixel_point(point: crate::layout::used_values::FfiCssPixelPoint) -> FloatPoint {
+    FloatPoint {
+        x: point.x.to_float(),
+        y: point.y.to_float(),
+    }
+}
+
+fn css_pixel_rect(rect: crate::layout::used_values::FfiCssPixelRect) -> FloatRect {
+    FloatRect::new(
+        rect.x.to_float(),
+        rect.y.to_float(),
+        rect.width.to_float(),
+        rect.height.to_float(),
+    )
+}
+
+fn push_field(output: &mut String, names: &mut DumpNames, name: &str, value: DumpValue) {
+    write!(output, " {name}=").unwrap();
+    push_value(output, &value, names);
+}
+
 // Lists every row, unlike the tree section above it, which shows only the nodes that command runs reach.
-fn dump_compositor_scroll_table(output: &mut String, table: &CompositorScrollTable) {
+fn dump_compositor_scroll_table(output: &mut String, names: &mut DumpNames, table: &CompositorScrollTable) {
     if table.nodes.is_empty() {
         return;
     }
     output.push_str("\nScrollNodes:\n");
     for node in table.nodes.iter() {
         output.push_str("ScrollNode");
-        write_field(output, "scroll_node_index", node.scroll_node_index);
-        write_field(output, "parent_scroll_node_index", node.parent_scroll_node_index);
-        write_field(output, "scrollport_rect", node.scrollport_rect);
-        write_field(output, "min_scroll_offset", node.min_scroll_offset);
-        write_field(output, "max_scroll_offset", node.max_scroll_offset);
+        push_field(
+            output,
+            names,
+            "scroll_node_index",
+            DumpValue::SpatialNode(node.scroll_node_index),
+        );
+        push_field(
+            output,
+            names,
+            "parent_scroll_node_index",
+            DumpValue::SpatialNode(node.parent_scroll_node_index),
+        );
+        push_field(
+            output,
+            names,
+            "scrollport_rect",
+            DumpValue::IntRect(node.scrollport_rect),
+        );
+        push_field(
+            output,
+            names,
+            "min_scroll_offset",
+            DumpValue::FloatPoint(node.min_scroll_offset),
+        );
+        push_field(
+            output,
+            names,
+            "max_scroll_offset",
+            DumpValue::FloatPoint(node.max_scroll_offset),
+        );
         writeln!(output, " is_viewport={}", node.is_viewport).unwrap();
         let Ok(container_index) = table
             .snap_containers
@@ -264,9 +310,24 @@ fn dump_compositor_scroll_table(output: &mut String, table: &CompositorScrollTab
         let container = &table.snap_containers[container_index];
         push_indent(output, 1);
         output.push_str("SnapContainer");
-        write_field(output, "snapport", container.snapport);
-        write_field(output, "min_scroll_offset", container.min_scroll_offset);
-        write_field(output, "max_scroll_offset", container.max_scroll_offset);
+        push_field(
+            output,
+            names,
+            "snapport",
+            DumpValue::FloatRect(css_pixel_rect(container.snapport)),
+        );
+        push_field(
+            output,
+            names,
+            "min_scroll_offset",
+            DumpValue::FloatPoint(css_pixel_point(container.min_scroll_offset)),
+        );
+        push_field(
+            output,
+            names,
+            "max_scroll_offset",
+            DumpValue::FloatPoint(css_pixel_point(container.max_scroll_offset)),
+        );
         writeln!(
             output,
             " strictness={} snaps_x={} snaps_y={} horizontal_writing_mode={}",
@@ -278,7 +339,7 @@ fn dump_compositor_scroll_table(output: &mut String, table: &CompositorScrollTab
             push_indent(output, 2);
             output.push_str("SnapArea");
             write!(output, " pseudo_element_type={}", area.pseudo_element_type).unwrap();
-            write_field(output, "rect", area.rect);
+            push_field(output, names, "rect", DumpValue::FloatRect(css_pixel_rect(area.rect)));
             writeln!(
                 output,
                 " align_x={} align_y={} always_stop={}",
@@ -286,14 +347,6 @@ fn dump_compositor_scroll_table(output: &mut String, table: &CompositorScrollTab
             )
             .unwrap();
         }
-    }
-}
-
-fn dump_commands(main_thread: &MainThread, output: &mut String, display_list: &DisplayListStorage, base_indent: usize) {
-    let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
-    for run in command_runs {
-        let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
-        dump_command_bytes(main_thread, output, run_bytes, run.context, base_indent);
     }
 }
 
@@ -342,482 +395,105 @@ fn dump_layers_if_every_canvas_and_video_kept_updating(
     }
 }
 
-// Each top-level command starts with the layer it draws into. The records nested in it draw into the same layer.
-fn dump_top_level_commands_with_their_layers(
-    main_thread: &MainThread,
-    output: &mut String,
-    display_list: &DisplayListStorage,
-    layer_plan: &LayerPlan,
-) {
-    let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
-    for run in command_runs {
-        let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
-        for_each_command(run_bytes, |_, offset_in_run, payload| {
-            let layer_label = format!("L{} ", layer_plan.layer_of_record(run.offset + offset_in_run as u32));
-            let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
-            let record_dump_start = output.len();
-            dump_command_bytes(main_thread, output, record_bytes, run.context, 0);
-            let record_dump = output.split_off(record_dump_start);
-            for (line_index, line) in record_dump.split_inclusive('\n').enumerate() {
-                if line_index == 0 {
-                    output.push_str(&layer_label);
-                } else {
-                    output.extend(std::iter::repeat_n(' ', layer_label.len()));
+/// Where the DisplayList section is written, with the names it gives what the records name.
+struct RecordDump<'a> {
+    output: &'a mut String,
+    names: &'a mut DumpNames,
+}
+
+impl RecordDump<'_> {
+    fn dump_commands(&mut self, display_list: &DisplayListStorage) {
+        let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
+        for run in command_runs {
+            let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
+            self.dump_command_bytes(run_bytes, run.context, 0);
+        }
+    }
+
+    // Each top-level command starts with the layer it draws into. The records nested in it draw into the same layer.
+    fn dump_top_level_commands_with_their_layers(&mut self, display_list: &DisplayListStorage, layer_plan: &LayerPlan) {
+        let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
+        for run in command_runs {
+            let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
+            for_each_command(run_bytes, |_, offset_in_run, payload| {
+                let layer_label = format!("L{} ", layer_plan.layer_of_record(run.offset + offset_in_run as u32));
+                let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
+                let record_dump_start = self.output.len();
+                self.dump_command_bytes(record_bytes, run.context, 0);
+                let record_dump = self.output.split_off(record_dump_start);
+                for (line_index, line) in record_dump.split_inclusive('\n').enumerate() {
+                    if line_index == 0 {
+                        self.output.push_str(&layer_label);
+                    } else {
+                        self.output.extend(std::iter::repeat_n(' ', layer_label.len()));
+                    }
+                    self.output.push_str(line);
                 }
-                output.push_str(line);
+            });
+        }
+    }
+
+    fn dump_command_bytes(&mut self, command_bytes: &[u8], context: ContextRef, base_indent: usize) {
+        for_each_command(command_bytes, |header, _, payload| {
+            push_indent(self.output, base_indent);
+            write!(self.output, "{}@", header.command_type.name()).unwrap();
+            write_context(self.output, self.names, context);
+            let fields = command_fields(header.command_type, payload);
+            push_fields(self.output, &fields, self.names);
+            if header.inline_clip_count > 0 {
+                dump_inline_clips(self.output, self.names, header, payload);
             }
+            if let Some(transform) = inline_transform_of(header, payload) {
+                self.output.push_str(" inline_transform=");
+                push_affine_transform(self.output, transform);
+            }
+            self.output.push('\n');
+
+            self.dump_records_inside(header.command_type, payload, context, base_indent + 1);
+        });
+    }
+
+    fn dump_records_inside(
+        &mut self,
+        command_type: DisplayListCommandType,
+        payload: &[u8],
+        context: ContextRef,
+        indent: usize,
+    ) {
+        for_each_nested_record_span(command_type, payload, |role, span| {
+            let label = match role {
+                NestedRecordsRole::IsolatedGroupMask => Some("Mask:\n"),
+                NestedRecordsRole::PatternTile => Some("PatternTile:\n"),
+                NestedRecordsRole::IsolatedGroupContent
+                | NestedRecordsRole::RepeatedTile
+                | NestedRecordsRole::MaskContent
+                | NestedRecordsRole::VectorImage => None,
+            };
+            let mut nested_indent = indent;
+            if let Some(label) = label {
+                push_indent(self.output, indent);
+                self.output.push_str(label);
+                nested_indent += 1;
+            }
+            self.dump_command_bytes(span_bytes(payload, span), context, nested_indent);
         });
     }
 }
 
-fn dump_command_bytes(
-    main_thread: &MainThread,
-    output: &mut String,
-    command_bytes: &[u8],
-    context: ContextRef,
-    base_indent: usize,
-) {
-    for_each_command(command_bytes, |header, _, payload| {
-        push_indent(output, base_indent);
-        write!(output, "{}@", header.command_type.name()).unwrap();
-        write_context(output, context);
-        dump_command(output, header.command_type, payload);
-        if header.inline_clip_count > 0 {
-            dump_inline_clips(output, header, payload);
+fn command_fields(command_type: DisplayListCommandType, payload: &[u8]) -> Vec<(&'static str, DumpValue)> {
+    let mut fields = Vec::new();
+    visit_command_fields(command_type, payload, &mut |name, value, holds_neutral_value| {
+        if holds_neutral_value {
+            return;
         }
-        if let Some(transform) = inline_transform_of(header, payload) {
-            output.push_str(" inline_transform=");
-            push_affine_transform(output, transform);
+        if let Some(name_and_value) = dumped_record_field(name, value, payload) {
+            fields.push(name_and_value);
         }
-        output.push('\n');
-
-        dump_records_inside(
-            main_thread,
-            output,
-            header.command_type,
-            payload,
-            context,
-            base_indent + 1,
-        );
     });
+    fields
 }
 
-fn dump_records_inside(
-    main_thread: &MainThread,
-    output: &mut String,
-    command_type: DisplayListCommandType,
-    payload: &[u8],
-    context: ContextRef,
-    indent: usize,
-) {
-    for_each_nested_record_span(command_type, payload, |role, span| {
-        let label = match role {
-            NestedRecordsRole::IsolatedGroupMask => Some("Mask:\n"),
-            NestedRecordsRole::PatternTile => Some("PatternTile:\n"),
-            NestedRecordsRole::IsolatedGroupContent
-            | NestedRecordsRole::RepeatedTile
-            | NestedRecordsRole::MaskContent
-            | NestedRecordsRole::VectorImage => None,
-        };
-        let mut nested_indent = indent;
-        if let Some(label) = label {
-            push_indent(output, indent);
-            output.push_str(label);
-            nested_indent += 1;
-        }
-        dump_command_bytes(main_thread, output, span_bytes(payload, span), context, nested_indent);
-    });
-}
-
-trait DumpValue {
-    fn push_dump(self, output: &mut String);
-}
-
-macro_rules! dump_value_via {
-    ($($type:ty => $push:expr),+ $(,)?) => {
-        $(impl DumpValue for $type {
-            fn push_dump(self, output: &mut String) {
-                $push(output, self);
-            }
-        })+
-    };
-}
-
-impl DumpValue for crate::layout::used_values::FfiCssPixelPoint {
-    fn push_dump(self, output: &mut String) {
-        push_float_point(
-            output,
-            FloatPoint {
-                x: self.x.to_float(),
-                y: self.y.to_float(),
-            },
-        );
-    }
-}
-
-impl DumpValue for crate::layout::used_values::FfiCssPixelRect {
-    fn push_dump(self, output: &mut String) {
-        push_float_rect(
-            output,
-            FloatRect::new(
-                self.x.to_float(),
-                self.y.to_float(),
-                self.width.to_float(),
-                self.height.to_float(),
-            ),
-        );
-    }
-}
-
-dump_value_via! {
-    IntPoint => push_int_point,
-    FloatPoint => push_float_point,
-    IntSize => push_int_size,
-    FloatSize => push_float_size,
-    IntRect => push_int_rect,
-    FloatRect => push_float_rect,
-    f32 => push_float_like_ak,
-    Color => write_color,
-    SpatialNodeIndex => write_spatial_node_index,
-}
-
-fn write_spatial_node_index(output: &mut String, index: SpatialNodeIndex) {
-    write!(output, "s{}", index.0).unwrap();
-}
-
-fn write_field(output: &mut String, label: &str, value: impl DumpValue) {
-    output.push(' ');
-    output.push_str(label);
-    output.push('=');
-    value.push_dump(output);
-}
-
-fn dump_command(output: &mut String, command_type: DisplayListCommandType, payload: &[u8]) {
-    match command_type {
-        DisplayListCommandType::DrawGlyphRun => {
-            let command = read_command::<DrawGlyphRun>(payload);
-            if command.stroke_width > 0.0 {
-                write_field(output, "stroke_width", command.stroke_width);
-            }
-            write_field(output, "rect", command.rect);
-            write_field(output, "translation", command.translation);
-            write_field(output, "color", command.color);
-        }
-        DisplayListCommandType::FillRect => {
-            let command = read_command::<FillRect>(payload);
-            write_field(output, "rect", command.rect);
-            write_field(output, "color", command.color);
-            write_blend_mode(output, command.compositing_and_blending_operator);
-        }
-        DisplayListCommandType::PaintCaret => {
-            let command = read_command::<PaintCaret>(payload);
-            write_field(output, "rect", command.rect);
-            write_field(output, "color", command.color);
-            write!(output, " should_blink={}", command.should_blink).unwrap();
-        }
-        DisplayListCommandType::DrawScaledDecodedImageFrame => {
-            let command = read_command::<DrawScaledDecodedImageFrame>(payload);
-            write_field(output, "dst_rect", command.dst_rect);
-            if let Some(rect) = command.src_rect.get() {
-                write_field(output, "src_rect", rect);
-            }
-            write_blend_mode(output, command.compositing_and_blending_operator);
-            if let Some(color) = command.isolated_backdrop_color.get() {
-                write_field(output, "isolated_backdrop_color", color);
-            }
-        }
-        DisplayListCommandType::DrawRepeatedDecodedImageFrame => {
-            let command = read_command::<DrawRepeatedDecodedImageFrame>(payload);
-            write_field(output, "dst_rect", command.dst_rect);
-            write_field(output, "clip_rect", command.clip_rect);
-            write_blend_mode(output, command.compositing_and_blending_operator);
-            if let Some(color) = command.isolated_backdrop_color.get() {
-                write_field(output, "isolated_backdrop_color", color);
-            }
-        }
-        DisplayListCommandType::DrawRepeatedTile => {
-            let command = read_command::<DrawRepeatedTile>(payload);
-            write_field(output, "dst_rect", command.dst_rect);
-            write_field(output, "clip_rect", command.clip_rect);
-            write_field(output, "tile_size", command.tile_size);
-            write_field(output, "tile_step", command.tile_step);
-            write!(output, " scaling_mode={}", scaling_mode_name(command.scaling_mode)).unwrap();
-            write_blend_mode(output, command.compositing_and_blending_operator);
-        }
-        DisplayListCommandType::DrawTiledDecodedImageFrame => {
-            let command = read_command::<DrawTiledDecodedImageFrame>(payload);
-            write_field(output, "tile_rect", command.tile_rect);
-            write_field(output, "clip_rect", command.clip_rect);
-            write_field(output, "src_rect", command.src_rect);
-            write_field(output, "tile_step", command.tile_step);
-            if let Some(count) = command.tile_count_x.get() {
-                write!(output, " tile_count_x={count}").unwrap();
-            } else {
-                output.push_str(" tile_count_x=repeat");
-            }
-            if let Some(count) = command.tile_count_y.get() {
-                write!(output, " tile_count_y={count}").unwrap();
-            } else {
-                output.push_str(" tile_count_y=repeat");
-            }
-        }
-        DisplayListCommandType::DrawCompositedContext => {
-            let command = read_command::<DrawCompositedContext>(payload);
-            write_field(output, "dst_rect", command.dst_rect);
-        }
-        DisplayListCommandType::DrawCanvas => {
-            let command = read_command::<DrawCanvas>(payload);
-            write_field(output, "dst_rect", command.dst_rect);
-        }
-        DisplayListCommandType::DrawVideoFrame => {
-            let command = read_command::<DrawVideoFrame>(payload);
-            write_field(output, "dst_rect", command.dst_rect);
-        }
-        DisplayListCommandType::PaintLinearGradient => {
-            let command = read_command::<PaintLinearGradient>(payload);
-            write_field(output, "rect", command.gradient_rect);
-            write_blend_mode(output, command.compositing_and_blending_operator);
-        }
-        DisplayListCommandType::PaintRadialGradient => {
-            let command = read_command::<PaintRadialGradient>(payload);
-            write_field(output, "rect", command.rect);
-            write_field(output, "center", command.center);
-            write_field(output, "size", command.size);
-            write_blend_mode(output, command.compositing_and_blending_operator);
-        }
-        DisplayListCommandType::PaintConicGradient => {
-            let command = read_command::<PaintConicGradient>(payload);
-            write_field(output, "rect", command.rect);
-            write_field(output, "position", command.position);
-            write_field(output, "angle", command.start_angle);
-            write_blend_mode(output, command.compositing_and_blending_operator);
-        }
-        DisplayListCommandType::PaintOuterBoxShadow => {
-            let command = read_command::<PaintOuterBoxShadow>(payload);
-            write_field(output, "content_rect", command.device_content_rect);
-            write_field(output, "shadow_rect", command.shadow_rect);
-            write!(output, " blur_radius={}", command.blur_radius).unwrap();
-            write_field(output, "color", command.color);
-        }
-        DisplayListCommandType::PaintInnerBoxShadow => {
-            let command = read_command::<PaintInnerBoxShadow>(payload);
-            write_field(output, "content_rect", command.device_content_rect);
-            write_field(output, "outer_shadow_rect", command.outer_shadow_rect);
-            write_field(output, "inner_shadow_rect", command.inner_shadow_rect);
-            write!(output, " blur_radius={}", command.blur_radius).unwrap();
-            write_field(output, "color", command.color);
-        }
-        DisplayListCommandType::PaintPathBoxShadow => {
-            let command = read_command::<PaintPathBoxShadow>(payload);
-            write_field(output, "shape_path_bounding_rect", command.shape_path_bounding_rect);
-            write_field(output, "offset", command.offset);
-            write!(
-                output,
-                " blur_radius={} spread_distance={}",
-                command.blur_radius, command.spread_distance
-            )
-            .unwrap();
-            write!(output, " inner={}", command.inner).unwrap();
-            write_field(output, "color", command.color);
-        }
-        DisplayListCommandType::PaintTextShadow => {
-            let command = read_command::<PaintTextShadow>(payload);
-            write_field(output, "shadows_rect", command.shadows_bounding_rect);
-            write_field(output, "rect", command.rect);
-            write_field(output, "translation", command.translation);
-            let orientation = match command.orientation {
-                libgfx_rust::Orientation::Horizontal => "Horizontal",
-                libgfx_rust::Orientation::Vertical => "Vertical",
-            };
-            write!(output, " orientation={orientation}").unwrap();
-            output.push_str(" layers=[");
-            let (layer_chunks, _) =
-                span_bytes(payload, command.layers).as_chunks::<{ std::mem::size_of::<TextShadowLayer>() }>();
-            for (index, layer_bytes) in layer_chunks.iter().enumerate() {
-                if index > 0 {
-                    output.push_str(", ");
-                }
-                let layer = read_command::<TextShadowLayer>(layer_bytes);
-                output.push_str("offset=");
-                layer.offset.push_dump(output);
-                write!(output, " blur_radius={}", layer.blur_radius).unwrap();
-                write_field(output, "color", layer.color);
-            }
-            output.push(']');
-        }
-        DisplayListCommandType::FillRectWithRoundedCorners => {
-            let command = read_command::<FillRectWithRoundedCorners>(payload);
-            write_field(output, "rect", command.rect);
-            write_field(output, "color", command.color);
-        }
-        DisplayListCommandType::FillRoundedRectRing => {
-            let command = read_command::<FillRoundedRectRing>(payload);
-            write_field(output, "rect", command.rect);
-            write_corner_radii(output, command.corner_radii);
-            write!(
-                output,
-                " widths=[{},{},{},{}]",
-                command.top_width, command.right_width, command.bottom_width, command.left_width
-            )
-            .unwrap();
-            write_field(output, "color", command.color);
-        }
-        DisplayListCommandType::FillPath => {
-            let command = read_command::<FillPath>(payload);
-            write_field(output, "path_bounding_rect", command.path_bounding_rect);
-            write_blend_mode(output, command.compositing_and_blending_operator);
-        }
-        DisplayListCommandType::StrokePath => {
-            let command = read_command::<StrokePath>(payload);
-            write_field(output, "path_bounding_rect", command.path_bounding_rect);
-            write_field(output, "thickness", command.thickness);
-            if command.paint_kind == PathPaintKind::Color {
-                write_field(output, "color", command.color);
-            }
-            if !command.dash_array.is_empty() {
-                write!(
-                    output,
-                    " dash_array_size={} dash_offset={:.2}",
-                    command.dash_array.size as usize / std::mem::size_of::<f32>(),
-                    command.dash_offset
-                )
-                .unwrap();
-            }
-        }
-        DisplayListCommandType::DrawEllipse => {
-            let command = read_command::<DrawEllipse>(payload);
-            write_field(output, "rect", command.rect);
-            write_field(output, "color", command.color);
-            write!(output, " thickness={}", command.thickness).unwrap();
-        }
-        DisplayListCommandType::DrawLine => {
-            let command = read_command::<DrawLine>(payload);
-            write_field(output, "from", command.from);
-            write_field(output, "to", command.to);
-            write_field(output, "color", command.color);
-            write!(
-                output,
-                " thickness={} style={}",
-                command.thickness,
-                line_style_name(command.style)
-            )
-            .unwrap();
-            if command.style != LineStyle::Solid {
-                write_field(output, "alternate_color", command.alternate_color);
-            }
-        }
-        DisplayListCommandType::BackdropFilterRegion => {
-            let command = read_command::<BackdropFilterRegion>(payload);
-            write_field(output, "rect", command.rect);
-        }
-        DisplayListCommandType::DrawRect => {
-            let command = read_command::<DrawRect>(payload);
-            write_field(output, "rect", command.rect);
-            write_field(output, "color", command.color);
-            write!(output, " rough={}", command.rough).unwrap();
-        }
-        DisplayListCommandType::PaintVectorImage => {
-            let command = read_command::<PaintVectorImage>(payload);
-            write_field(output, "rect", command.rect);
-        }
-        DisplayListCommandType::DrawIsolatedGroup => {
-            let command = read_command::<DrawIsolatedGroup>(payload);
-            write_field(output, "clip_rect", command.clip_rect);
-            if command.opacity != 1.0 {
-                write!(output, " opacity={}", format_float_like_ak(command.opacity)).unwrap();
-            }
-            if !command.filter.is_empty() {
-                output.push_str(" has_filter=true");
-            }
-            write_blend_mode(output, command.compositing_and_blending_operator);
-            if !command.mask.is_empty() {
-                write!(
-                    output,
-                    " has_mask={}",
-                    if command.mask_kind == libgfx_rust::MaskKind::Luminance {
-                        "luminance"
-                    } else {
-                        "alpha"
-                    }
-                )
-                .unwrap();
-            }
-        }
-        DisplayListCommandType::DeclareMaskContent => {
-            let command = read_command::<DeclareMaskContent>(payload);
-            write_field(output, "rect", command.rect);
-            write!(output, " effect=e{}", command.effect.0).unwrap();
-        }
-        DisplayListCommandType::CompositorBlockingWheelEventRegion => {
-            let command = read_command::<CompositorBlockingWheelEventRegion>(payload);
-            write_field(output, "rect", command.rect);
-        }
-        DisplayListCommandType::CompositorWheelHitTestTarget => {
-            let command = read_command::<CompositorWheelHitTestTarget>(payload);
-            write_field(output, "target_scroll_node_index", command.target_scroll_node_index);
-            write_field(output, "rect", command.rect);
-        }
-        DisplayListCommandType::CompositorWheelHitTestTargetWithCornerRadii => {
-            let command = read_command::<CompositorWheelHitTestTargetWithCornerRadii>(payload);
-            write_field(output, "target_scroll_node_index", command.target_scroll_node_index);
-            write_field(output, "rect", command.rect);
-            write_corner_radii(output, command.corner_radii);
-        }
-        DisplayListCommandType::CompositorMainThreadWheelEventRegion => {
-            let command = read_command::<CompositorMainThreadWheelEventRegion>(payload);
-            write_field(output, "rect", command.rect);
-        }
-        DisplayListCommandType::CompositorNestedContextWheelRegion => {
-            let command = read_command::<CompositorNestedContextWheelRegion>(payload);
-            write_field(output, "rect", command.rect);
-            write_corner_radii(output, command.corner_radii);
-        }
-        DisplayListCommandType::CompositorScrollbar => {
-            let command = read_command::<CompositorScrollbar>(payload);
-            write_field(output, "scroll_node_index", command.scroll_node_index);
-            write_field(output, "gutter_rect", command.gutter_rect);
-            write_field(output, "thumb_rect", command.thumb_rect);
-            write_field(output, "track_rect", command.track_rect);
-            write_field(output, "expanded_gutter_rect", command.expanded_gutter_rect);
-            write_field(output, "expanded_thumb_rect", command.expanded_thumb_rect);
-            write!(
-                output,
-                " scroll_size={} expanded_scroll_size={}",
-                command.scroll_size, command.expanded_scroll_size
-            )
-            .unwrap();
-            write_field(output, "min_scroll_offset", command.min_scroll_offset);
-            write_field(output, "max_scroll_offset", command.max_scroll_offset);
-            write_field(output, "thumb_color", command.thumb_color);
-            write_field(output, "thumb_outline_color", command.thumb_outline_color);
-            write_field(output, "track_color", command.track_color);
-            write!(
-                output,
-                " vertical={} is_painted_by_compositor={}",
-                command.vertical, command.is_painted_by_compositor
-            )
-            .unwrap();
-        }
-        DisplayListCommandType::PaintScrollBar => {}
-        // The display list of a page holds none of the commands of the canvas 2D stream.
-        DisplayListCommandType::Canvas2DFillPath
-        | DisplayListCommandType::Canvas2DStrokePath
-        | DisplayListCommandType::Canvas2DDrawGlyphRuns
-        | DisplayListCommandType::Canvas2DClearRect
-        | DisplayListCommandType::Canvas2DDrawImageFrame
-        | DisplayListCommandType::Canvas2DDrawCanvas
-        | DisplayListCommandType::Canvas2DDrawVideoFrame
-        | DisplayListCommandType::Canvas2DSetTransform
-        | DisplayListCommandType::Canvas2DSave
-        | DisplayListCommandType::Canvas2DRestore
-        | DisplayListCommandType::Canvas2DClipPath
-        | DisplayListCommandType::Canvas2DReset
-        | DisplayListCommandType::Canvas2DClearCanvas
-        | DisplayListCommandType::Canvas2DPutImageFrame => {}
-    }
-}
-
-fn dump_inline_clips(output: &mut String, header: &DisplayListCommandHeader, payload: &[u8]) {
+fn dump_inline_clips(output: &mut String, names: &mut DumpNames, header: &DisplayListCommandHeader, payload: &[u8]) {
     output.push_str(" inline_clips=[");
     let count = header.inline_clip_count as usize;
     let entries_size = count * INLINE_CLIP_ENTRY_SIZE;
@@ -833,118 +509,38 @@ fn dump_inline_clips(output: &mut String, header: &DisplayListCommandHeader, pay
             let size = clip.path_data.size as usize;
             assert!(start <= payload.len() && size <= payload.len() - start);
             let path = Path::from_serialized_bytes(&payload[start..start + size]);
-            let svg_path = path.to_svg_string();
-            let has_host_dependent_curves = svg_path.contains('Q') || svg_path.contains('C');
             output.push_str("clip_path=[bounds: ");
             push_float_rect(output, clip.clip_rect_or_path_device_bounds);
-            if has_host_dependent_curves {
-                let command_count = svg_path
-                    .bytes()
-                    .filter(|byte| matches!(byte, b'M' | b'L' | b'Q' | b'C' | b'Z'))
-                    .count();
-                write!(output, ", curved path: {command_count} commands]").unwrap();
-            } else {
-                write!(output, ", path: {svg_path}]").unwrap();
+            write!(output, ", {}]", path_description(&path)).unwrap();
+            if clip.path_winding_rule != libgfx_rust::WindingRule::default() {
+                write!(output, " winding_rule={:?}", clip.path_winding_rule).unwrap();
             }
         } else {
             output.push_str("clip=");
             push_float_rect(output, clip.clip_rect_or_path_device_bounds);
-            write_inline_clip_radii(output, clip.corner_radii);
+            if clip.corner_radii.has_any_radius() {
+                output.push_str(" radii=");
+                push_clip_radii(output, clip.corner_radii);
+            }
         }
         if clip.mode == ClipMode::Difference {
             output.push_str(" mode=difference");
         }
         if clip.has_own_space {
-            output.push_str(" in ");
-            write_spatial_node_index(output, clip.space);
+            write!(output, " in {}", names.spatial(clip.space)).unwrap();
         }
     }
     output.push(']');
 }
 
 // A context prints its spatial, clip and effect nodes.
-fn write_context(output: &mut String, context: ContextRef) {
-    write_spatial_node_index(output, context.spatial);
+fn write_context(output: &mut String, names: &mut DumpNames, context: ContextRef) {
+    output.push_str(&names.spatial(context.spatial));
     if !context.clip.is_none() {
-        write!(output, "/c{}", context.clip.0).unwrap();
+        write!(output, "/{}", names.clip(context.clip)).unwrap();
     }
     if !context.effect.is_none() {
-        write!(output, "/e{}", context.effect.0).unwrap();
-    }
-}
-
-fn write_color(output: &mut String, color: Color) {
-    match color.alpha() {
-        0 => write!(output, "rgba({}, {}, {}, 0)", color.red(), color.green(), color.blue()).unwrap(),
-        255 => write!(output, "rgb({}, {}, {})", color.red(), color.green(), color.blue()).unwrap(),
-        alpha => {
-            let (digits, length) = format_to_8bit_compatible(alpha);
-            let fraction = std::str::from_utf8(&digits[..length]).expect("digits are ASCII");
-            write!(
-                output,
-                "rgba({}, {}, {}, 0.{fraction})",
-                color.red(),
-                color.green(),
-                color.blue()
-            )
-            .unwrap();
-        }
-    }
-}
-
-fn write_blend_mode(output: &mut String, operator: CompositingAndBlendingOperator) {
-    if operator != CompositingAndBlendingOperator::Normal {
-        write!(output, " blend_mode={}", operator as i32).unwrap();
-    }
-}
-
-fn line_style_name(style: LineStyle) -> &'static str {
-    match style {
-        LineStyle::Solid => "Solid",
-        LineStyle::Dotted => "Dotted",
-        LineStyle::Dashed => "Dashed",
-    }
-}
-
-fn scaling_mode_name(mode: ScalingMode) -> &'static str {
-    match mode {
-        ScalingMode::None => "None",
-        ScalingMode::Bilinear => "Bilinear",
-        ScalingMode::BilinearMipmap => "BilinearMipmap",
-        ScalingMode::NearestNeighbor => "NearestNeighbor",
-    }
-}
-
-fn write_corner_radii(output: &mut String, radii: CornerRadii) {
-    if !radii.has_any_radius() {
-        return;
-    }
-    write!(
-        output,
-        " corner_radii=[{}x{},{}x{},{}x{},{}x{}]",
-        radii.top_left.horizontal_radius,
-        radii.top_left.vertical_radius,
-        radii.top_right.horizontal_radius,
-        radii.top_right.vertical_radius,
-        radii.bottom_right.horizontal_radius,
-        radii.bottom_right.vertical_radius,
-        radii.bottom_left.horizontal_radius,
-        radii.bottom_left.vertical_radius
-    )
-    .unwrap();
-}
-
-fn write_inline_clip_radii(output: &mut String, radii: CornerRadii) {
-    if radii.has_any_radius() {
-        write!(
-            output,
-            " radii=({},{},{},{})",
-            radii.top_left.horizontal_radius,
-            radii.top_right.horizontal_radius,
-            radii.bottom_right.horizontal_radius,
-            radii.bottom_left.horizontal_radius
-        )
-        .unwrap();
+        write!(output, "/{}", names.effect(context.effect)).unwrap();
     }
 }
 
@@ -953,7 +549,7 @@ mod tests {
     use super::*;
     use crate::painting::display_list::builder::DisplayListBuilder;
     use crate::painting::display_list::builder::{HEADER_SIZE, read_header};
-    use libgfx_rust::IntRect;
+    use libgfx_rust::{Color, CompositingAndBlendingOperator, IntRect};
 
     #[test]
     fn command_dump_matches_the_canonical_format() {
@@ -1011,21 +607,22 @@ mod tests {
             let header = read_header(bytes);
             let payload = &bytes[HEADER_SIZE..HEADER_SIZE + header.payload_size as usize];
             let mut output = format!("{}@", header.command_type.name());
-            write_context(&mut output, builder.command_runs()[0].context);
-            dump_command(&mut output, header.command_type, payload);
+            let mut names = DumpNames::default();
+            write_context(&mut output, &mut names, builder.command_runs()[0].context);
+            push_fields(&mut output, &command_fields(header.command_type, payload), &mut names);
             output
         };
         assert_eq!(
             dump(clip_and_effect),
-            "FillRect@s0/c0/e0 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) blend_mode=2"
+            "FillRect@s0/c0/e0 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) compositing_and_blending_operator=Multiply"
         );
         assert_eq!(
             dump(effect_only),
-            "FillRect@s0/e0 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) blend_mode=2"
+            "FillRect@s0/e0 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) compositing_and_blending_operator=Multiply"
         );
         assert_eq!(
             dump(ContextRef::default()),
-            "FillRect@s0 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) blend_mode=2"
+            "FillRect@s0 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) compositing_and_blending_operator=Multiply"
         );
     }
 }

@@ -2,14 +2,14 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-        [s2] transform=[0.9848077,-0.17364818,0.17364818,0.9848077,0,0] origin=(48,48) (BlockContainer<DIV>.box.left)
-        [s3] transform=[0.8,0,0,0.8,0,0] origin=(138,48) (BlockContainer<DIV>.box.right)
+        [s2] transform=[0.9848077,-0.17364818,0.17364818,0.9848077,0,0] origin=(48,48) bounds=[8,8 80x80] (BlockContainer<DIV>.box.left)
+        [s3] transform=[0.8,0,0,0.8,0,0] origin=(138,48) bounds=[98,8 80x80] (BlockContainer<DIV>.box.right)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
 FillRect@s2/e0 rect=[8,8 80x80] color=rgb(255, 0, 0)
-DrawGlyphRun@s2/e0 rect=[8,8 15x16] translation=[8,21] color=rgb(0, 0, 0)
+DrawGlyphRun@s2/e0 font_id=font1 glyphs=1 rect=[8,8 15x16] glyph_bounding_rect=[8,8 13x15] translation=[8,21] color=rgb(0, 0, 0)
 FillRect@s3/e0 rect=[98,8 80x80] color=rgb(0, 0, 255)
-DrawGlyphRun@s3/e0 rect=[98,8 10x16] translation=[98,21] color=rgb(0, 0, 0)
+DrawGlyphRun@s3/e0 font_id=font1 glyphs=1 rect=[98,8 10x16] glyph_bounding_rect=[98,8 13x15] translation=[98,21] color=rgb(0, 0, 0)
 

@@ -12,8 +12,8 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 DeclareMaskContent@s2/c0/e1 rect=[-10,-10 120x120] effect=e1
-  FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x50]
-FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100]
+  FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x50] path_data=[path: M0 0L100 0L100 50L0 50L0 0Z] color=rgb(255, 255, 255)
+FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0)
 
 After switching to mask-type luminance:
 AccumulatedVisualContext Tree:
@@ -29,6 +29,6 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 DeclareMaskContent@s2/c0/e1 rect=[-10,-10 120x120] effect=e1
-  FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x50]
-FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100]
+  FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x50] path_data=[path: M0 0L100 0L100 50L0 50L0 0Z] color=rgb(255, 255, 255)
+FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(0, 128, 0)
 

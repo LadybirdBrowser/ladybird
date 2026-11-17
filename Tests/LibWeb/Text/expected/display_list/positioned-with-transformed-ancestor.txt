@@ -2,7 +2,7 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-        [s2] transform=[1,0,0,1,10,10] origin=(108,108) (BlockContainer<DIV>.transformed-ancestor)
+        [s2] transform=[1,0,0,1,10,10] origin=(108,108) bounds=[8,8 200x200] (BlockContainer<DIV>.transformed-ancestor)
   effects:
     [e0 in s0] effects=[]
 
@@ -10,5 +10,5 @@ DisplayList:
 FillRect@s2/e0 rect=[8,8 200x200] color=rgb(211, 211, 211)
 FillRect@s2/e0 rect=[8,8 200x90] color=rgb(173, 216, 230)
 FillRect@s2/e0 rect=[33,33 100x50] color=rgb(255, 127, 80)
-DrawGlyphRun@s2/e0 rect=[33,33 84x16] translation=[33,46] color=rgb(0, 0, 0)
+DrawGlyphRun@s2/e0 font_id=font1 glyphs=10 rect=[33,33 84x16] glyph_bounding_rect=[33,34 89x15] translation=[33,46] color=rgb(0, 0, 0)
 

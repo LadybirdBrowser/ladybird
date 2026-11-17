@@ -6,7 +6,7 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-StrokePath@s1/e0 path_bounding_rect=[10,15 230x44] thickness=3 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=9.03 inline_clips=[clip=[25,15 57x3] mode=difference]
-DrawGlyphRun@s1/e0 rect=[27,8 54x16] translation=[27,21] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/e0 rect=[25,29 63x17] translation=[25,42.59375] color=rgb(0, 0, 0)
+StrokePath@s1/e0 dash_array=[6.0229473, 6.0229473] dash_offset=9.034421 path_bounding_rect=[10,15 230x44] path_data=[curved path: 135 commands] color=rgb(0, 0, 255) thickness=3 inline_clips=[clip=[25,15 57x3] mode=difference]
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=6 rect=[27,8 54x16] glyph_bounding_rect=[27,8 59x15] translation=[27,21] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=7 rect=[25,29 63x17] glyph_bounding_rect=[25,30 69x15] translation=[25,42.59375] color=rgb(0, 0, 0)
 

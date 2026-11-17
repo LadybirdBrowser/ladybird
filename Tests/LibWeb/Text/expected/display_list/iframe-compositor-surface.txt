@@ -15,6 +15,6 @@ L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x83]
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x83]
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 120x80]
-L1 DrawCompositedContext@s1/e0 dst_rect=[0,0 120x80] inline_clips=[clip=[0,0 120x80]]
-L0 CompositorNestedContextWheelRegion@s1/e0 rect=[0,0 120x80]
+L1 DrawCompositedContext@s1/e0 dst_rect=[0,0 120x80] child_context_id=context1 scaling_mode=NearestNeighbor spatial_node_index=s1 snap_origin_if_untransformed=true inline_clips=[clip=[0,0 120x80]]
+L0 CompositorNestedContextWheelRegion@s1/e0 rect=[0,0 120x80] child_context_id=context1
 

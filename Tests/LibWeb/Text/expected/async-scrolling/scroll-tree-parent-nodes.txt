@@ -7,7 +7,7 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-        [s2] sticky scroller=s1 position_relative_to_scroller=[0,0] border_box_size=[800x100] scrollport_size=[800x600] containing_block_region=[0,0 800x2100] needs_parent_offset_adjustment=true insets=[top=0] (BlockContainer<DIV>#sticky)
+        [s2] sticky scroller=s1 position_relative_to_scroller=[0,0] border_box_origin=[0,0] border_box_size=[800x100] scrollport_size=[800x600] containing_block_region=[0,0 800x2100] needs_parent_offset_adjustment=true insets=[top=0] (BlockContainer<DIV>#sticky)
           [s3] scroll (BlockContainer<DIV>#scroller)
   clips:
     [c0 in s2] clip=[0,0 100x100] (BlockContainer<DIV>#scroller)
@@ -26,8 +26,8 @@ CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,100 800x2
 CompositorWheelHitTestTarget@s2/e0 target_scroll_node_index=s1 rect=[0,0 800x100]
 CompositorWheelHitTestTarget@s2/e0 target_scroll_node_index=s3 rect=[0,0 100x100]
 CompositorWheelHitTestTarget@s3/c0/e0 target_scroll_node_index=s3 rect=[0,0 500x500]
-CompositorScrollbar@s2/e0 scroll_node_index=s3 gutter_rect=[0,0 0x0] thumb_rect=[91,2 7x24] track_rect=[91,0 9x100] expanded_gutter_rect=[85,0 15x100] expanded_thumb_rect=[87,2 11x24] scroll_size=0.18 expanded_scroll_size=0.18 min_scroll_offset=0 max_scroll_offset=400 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true is_painted_by_compositor=false
-PaintScrollBar@s2/e0
-CompositorScrollbar@s2/e0 scroll_node_index=s3 gutter_rect=[0,0 0x0] thumb_rect=[2,91 24x7] track_rect=[0,91 85x9] expanded_gutter_rect=[0,85 85x15] expanded_thumb_rect=[2,87 24x11] scroll_size=0.1425 expanded_scroll_size=0.1425 min_scroll_offset=0 max_scroll_offset=400 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=false is_painted_by_compositor=false
-PaintScrollBar@s2/e0
+CompositorScrollbar@s2/e0 scroll_node_index=s3 thumb_rect=[91,2 7x24] track_rect=[91,0 9x100] expanded_gutter_rect=[85,0 15x100] expanded_thumb_rect=[87,2 11x24] scroll_size=0.18 expanded_scroll_size=0.18 max_scroll_offset=400 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true
+PaintScrollBar@s2/e0 scroll_node_index=s3 thumb_rect=[91,2 7x24] track_rect=[91,0 9x100] expanded_gutter_rect=[85,0 15x100] scroll_size=0.18 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true
+CompositorScrollbar@s2/e0 scroll_node_index=s3 thumb_rect=[2,91 24x7] track_rect=[0,91 85x9] expanded_gutter_rect=[0,85 85x15] expanded_thumb_rect=[2,87 24x11] scroll_size=0.1425 expanded_scroll_size=0.1425 max_scroll_offset=400 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098)
+PaintScrollBar@s2/e0 scroll_node_index=s3 thumb_rect=[2,91 24x7] track_rect=[0,91 85x9] expanded_gutter_rect=[0,85 85x15] scroll_size=0.1425 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098)
 

@@ -2,11 +2,11 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-        [s2] transform=[1,0,0,1,50,30] origin=(58,58) (BlockContainer<DIV>.box)
+        [s2] transform=[1,0,0,1,50,30] origin=(58,58) bounds=[8,8 100x100] (BlockContainer<DIV>.box)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
 FillRect@s2/e0 rect=[8,8 100x100] color=rgb(0, 0, 255)
-DrawGlyphRun@s2/e0 rect=[8,8 38x16] translation=[8,21] color=rgb(0, 0, 0)
+DrawGlyphRun@s2/e0 font_id=font1 glyphs=4 rect=[8,8 38x16] glyph_bounding_rect=[8,8 44x15] translation=[8,21] color=rgb(0, 0, 0)
 

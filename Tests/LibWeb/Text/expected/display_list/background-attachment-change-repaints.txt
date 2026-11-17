@@ -7,7 +7,7 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-PaintLinearGradient@s1/e0 rect=[0,0 200x600] inline_clips=[clip=[0,0 200x200]]
+PaintLinearGradient@s1/e0 gradient_rect=[0,0 200x600] gradient_angle=180 color_stops=[rgb(0, 128, 0) 0, rgb(0, 0, 255) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[0,0 200x200]]
 
 After background-attachment change:
 AccumulatedVisualContext Tree:
@@ -17,5 +17,5 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-PaintLinearGradient@s0/e0 rect=[0,0 800x600] inline_clips=[clip=[0,0 200x200] in s1]
+PaintLinearGradient@s0/e0 gradient_rect=[0,0 800x600] gradient_angle=180 color_stops=[rgb(0, 128, 0) 0, rgb(0, 0, 255) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[0,0 200x200] in s1]
 

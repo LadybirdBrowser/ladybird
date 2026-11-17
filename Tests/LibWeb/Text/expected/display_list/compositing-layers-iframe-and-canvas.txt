@@ -15,10 +15,10 @@ DisplayList:
 L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x13]
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[20,20 200x120]
-L1 DrawCompositedContext@s1/e0 dst_rect=[20,20 200x120] inline_clips=[clip=[20,20 200x120]]
-L0 CompositorNestedContextWheelRegion@s1/e0 rect=[20,20 200x120]
+L1 DrawCompositedContext@s1/e0 dst_rect=[20,20 200x120] child_context_id=context1 scaling_mode=NearestNeighbor spatial_node_index=s1 snap_origin_if_untransformed=true inline_clips=[clip=[20,20 200x120]]
+L0 CompositorNestedContextWheelRegion@s1/e0 rect=[20,20 200x120] child_context_id=context1
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[300,20 200x120]
-L2 DrawCanvas@s1/e0 dst_rect=[300,20 200x120]
+L2 DrawCanvas@s1/e0 dst_rect=[300,20 200x120] canvas_id=canvas1 scaling_mode=Bilinear
 L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[100,60 300x40]
 L3 FillRect@s1/e0 rect=[100,60 300x40] color=rgba(255, 255, 255, 0.5)
 

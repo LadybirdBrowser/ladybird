@@ -11,7 +11,7 @@
     test(() => {
         for (const line of internals.dumpDisplayList().split("\n")) {
             if (line.startsWith("CompositorScrollbar"))
-                println(`${line.match(/vertical=\w+/)[0]} ${line.match(/track_rect=\[[^\]]*\]/)[0]}`);
+                println(`vertical=${line.includes(" vertical=true")} ${line.match(/track_rect=\[[^\]]*\]/)[0]}`);
         }
     });
 </script>
