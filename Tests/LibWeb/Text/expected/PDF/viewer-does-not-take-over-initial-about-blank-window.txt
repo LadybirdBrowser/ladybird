@@ -1,0 +1,3 @@
+Initial window document: about:blank
+document: SecurityError
+localStorage: SecurityError
