@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>CSS Floats — table sizing with multiple adjacent floats (reference)</title>
+<style>
+div {
+  display: inline-block;
+  background-color: blue;
+  height: 100px;
+  width: 50px;
+}
+.wide {
+  width: 150px;
+  height: 50px;
+}
+.table {
+  background-color: green;
+}
+</style>
+<p>Test passes if blue and green boxes do not overlap.</p>
+<div class=table></div><div class=wide></div><div></div>

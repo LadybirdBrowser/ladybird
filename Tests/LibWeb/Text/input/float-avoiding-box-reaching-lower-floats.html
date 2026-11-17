@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .container { position: relative; width: 30px; margin-bottom: 60px; font-size: 0; }
+    .left { float: left; clear: both; height: 10px; }
+    .right { float: right; clear: both; height: 10px; }
+    .inline-block { display: inline-block; height: 10px; }
+    .leaf { display: inline-block; width: 10px; height: 10px; }
+</style>
+<div class="container" id="nested-inline-blocks"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden"><div class="inline-block"><div class="inline-block"><div class="inline-block"></div><div class="leaf"></div></div><div class="leaf"></div></div><div class="leaf"></div></div></div>
+<div class="container" id="wider-float-below"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="narrower-float-below"><div class="left" style="width: 20px"></div><div class="left" style="width: 10px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="ends-above-wider-float"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="three-floats"><div class="left" style="width: 5px"></div><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="float-below-fills-the-line"><div class="left" style="width: 10px"></div><div class="left" style="width: 30px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="right-float-below"><div class="left" style="width: 10px"></div><div class="right" style="width: 10px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="two-floats-in-a-row-above"><div class="left" style="width: 5px; clear: none"></div><div class="left" style="width: 5px; clear: none"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="floats-in-sibling-before"><div><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="block-after"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div><div class="x" style="height: 5px"></div></div>
+<div class="container" id="two-boxes"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="flow-root"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="display: flow-root"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="flex"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="display: flex; flex-wrap: wrap"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="table"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><table class="x" style="border-spacing: 0"><tr><td style="padding: 0"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></td></tr></table></div>
+<div class="container" id="replaced"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><canvas class="x" width="15" height="15" style="display: block"></canvas></div>
+<div class="container" id="border-and-padding"><div class="left" style="width: 10px"></div><div class="left" style="width: 18px"></div><div class="x" style="overflow: hidden; border-left: 1px solid; padding-left: 1px"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="margin-left"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden; margin-left: 5px"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="fixed-height"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden; height: 15px"><div class="leaf"></div></div></div>
+<div class="container" id="fixed-width"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden; width: 20px"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="percentage-width"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden; width: 50%"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="min-width"><div class="left" style="width: 10px"></div><div class="left" style="width: 20px"></div><div class="x" style="overflow: hidden; min-width: 15px"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="rtl" style="direction: rtl"><div class="right" style="width: 10px"></div><div class="right" style="width: 20px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<div class="container" id="vertical" style="writing-mode: vertical-rl; width: auto; height: 30px"><div class="left" style="height: 10px; width: 10px"></div><div class="left" style="height: 20px; width: 10px"></div><div class="x" style="overflow: hidden"><div class="leaf"></div><div class="leaf"></div><div class="leaf"></div></div></div>
+<script>
+    test(() => {
+        // The border box of a box that establishes a formatting context overlaps no float, however far down the box
+        // reaches. So a box narrows to fit beside the widest float beside it, and goes below the floats where its
+        // width can't give way.
+        for (const container of document.querySelectorAll(".container")) {
+            const origin = container.getBoundingClientRect();
+            const rects = [...container.querySelectorAll(".x")].map(box => {
+                const rect = box.getBoundingClientRect();
+                return `${rect.left - origin.left},${rect.top - origin.top} ${rect.width}x${rect.height}`;
+            });
+            println(`${container.id}: ${rects.join(" | ")}`);
+        }
+    });
+</script>
