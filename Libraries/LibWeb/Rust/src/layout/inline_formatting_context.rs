@@ -1642,7 +1642,7 @@ impl<'context> InlineFormattingContext<'context> {
 
     fn clear_floating_boxes(&self, node: Node) -> bool {
         self.parent
-            .clear_floating_boxes(node, Some(self), self.containing_block_position_in_bfc_root)
+            .clear_floating_boxes(node, Some(self), None, self.containing_block_position_in_bfc_root)
     }
 
     fn reset_parent_margin_state(&self) {

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; width: 600px; }
+    .root { position: relative; display: flow-root; }
+    .clearfix::after { content: ""; display: table; clear: both; }
+    .float { float: left; width: 300px; height: 80px; }
+    .right { float: right; width: 100px; height: 120px; }
+    .column { float: left; width: 200px; height: 60px; margin-top: 30px; }
+    .tall { height: 80px; }
+    .short { height: 10px; }
+</style>
+<div class="root" id="after-clearfix"><div class="clearfix"><div class="float"></div></div><div class="clearfix x" style="clear: both; margin-top: -30px"><div class="column x"></div><div class="column x"></div><div class="column x"></div></div></div>
+<div class="root" id="after-block-without-clearfix"><div><div class="float"></div></div><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div></div>
+<div class="root" id="after-block-as-tall-as-float"><div class="float"></div><div class="tall"></div><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div></div>
+<div class="root" id="margin-reaches-past-float"><div class="float"></div><div class="x" style="clear: both; margin-top: 100px"><div class="short"></div></div></div>
+<div class="root" id="margin-ends-at-float-end"><div class="float"></div><div class="x" style="clear: both; margin-top: 80px"><div class="short"></div></div></div>
+<div class="root" id="margin-ends-beside-float"><div class="float"></div><div class="x" style="clear: both; margin-top: 20px"><div class="short"></div></div></div>
+<div class="root" id="sibling-margin-reaches-past-float"><div class="float"></div><div class="short" style="margin-bottom: 100px"></div><div class="x" style="clear: both; margin-top: 20px"><div class="short"></div></div></div>
+<div class="root" id="pulled-up-beside-float-after-short-block"><div class="float"></div><div class="short"></div><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div></div>
+<div class="root" id="pulled-up-but-still-below-float"><div class="float"></div><div class="tall" style="height: 120px"></div><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div></div>
+<div class="root" id="pulled-up-by-one-pixel"><div class="float"></div><div class="tall"></div><div class="x" style="clear: both; margin-top: -1px"><div class="short"></div></div></div>
+<div class="root" id="no-margin"><div class="float"></div><div class="tall"></div><div class="x" style="clear: both"><div class="short"></div></div></div>
+<div class="root" id="collapses-with-sibling-positive-margin"><div class="float"></div><div class="tall" style="margin-bottom: 20px"></div><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div></div>
+<div class="root" id="collapses-with-sibling-negative-margin"><div class="float"></div><div class="tall" style="margin-bottom: -40px"></div><div class="x" style="clear: both; margin-top: 20px"><div class="short"></div></div></div>
+<div class="root" id="after-empty-block-with-negative-margin"><div class="float"></div><div class="tall"></div><div style="margin-bottom: -30px"></div><div class="x" style="clear: both"><div class="short"></div></div></div>
+<div class="root" id="negative-margin-on-parent-of-clearing-box"><div class="float"></div><div class="tall"></div><div class="x" style="margin-top: -30px"><div class="short x" style="clear: both"></div></div></div>
+<div class="root" id="clearing-first-child"><div class="float"></div><div class="tall"></div><div class="x"><div class="short x" style="clear: both; margin-top: -30px"></div></div></div>
+<div class="root" id="clearing-first-grandchild"><div class="float"></div><div class="tall"></div><div class="x"><div class="x"><div class="short x" style="clear: both; margin-top: -30px"></div></div></div></div>
+<div class="root" id="first-child-margin-pulls-box-up"><div class="float"></div><div class="tall"></div><div class="x" style="clear: both"><div class="short x" style="margin-top: -30px"></div></div></div>
+<div class="root" id="first-child-margin-reaches-past-float"><div class="float"></div><div class="x" style="clear: both"><div class="short x" style="margin-top: 100px"></div></div></div>
+<div class="root" id="first-child-margin-ends-beside-float"><div class="float"></div><div class="x" style="clear: both"><div class="short x" style="margin-top: 20px"></div></div></div>
+<div class="root" id="margin-after-empty-first-child"><div class="float"></div><div class="x" style="clear: both"><div style="margin: 30px 0 100px"></div><div class="short x"></div></div></div>
+<div class="root" id="first-child-margin-behind-border"><div class="float"></div><div class="x" style="clear: both; border-top: 1px solid"><div class="short x" style="margin-top: 100px"></div></div></div>
+<div class="root" id="float-in-box-the-margin-moves"><div class="short"></div><div class="x"><div class="float x"></div><div class="x" style="clear: both; margin-top: 200px"><div class="short"></div></div></div></div>
+<div class="root" id="float-in-box-the-margin-moves-pulled-up"><div class="x"><div class="float x"></div><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div></div></div>
+<div class="root" id="float-in-sibling-in-box-the-margin-moves"><div class="x"><div><div class="float x"></div></div><div class="x" style="clear: both; margin-top: 400px"><div class="short"></div></div></div></div>
+<div class="root" id="float-outside-box-the-margin-moves"><div class="float x"></div><div class="x"><div class="x" style="clear: both; margin-top: 200px"><div class="short"></div></div></div></div>
+<div class="root" id="float-in-outer-of-two-boxes-the-margin-moves"><div class="x"><div class="float x"></div><div class="x"><div class="x" style="clear: both; margin-top: 200px"><div class="short"></div></div></div></div></div>
+<div class="root" id="floats-inside-and-outside-box-the-margin-moves"><div class="float x" style="height: 120px"></div><div class="x"><div class="right x" style="height: 80px"></div><div class="x" style="clear: both; margin-top: 200px"><div class="short"></div></div></div></div>
+<div class="root" id="clears-only-float-outside-box-the-margin-moves"><div class="float x" style="height: 120px"></div><div class="x"><div class="right x" style="height: 80px"></div><div class="x" style="clear: left; margin-top: 200px"><div class="short"></div></div></div></div>
+<div class="root" id="clears-only-float-inside-box-the-margin-moves"><div class="float x" style="height: 120px"></div><div class="x"><div class="right x" style="height: 80px"></div><div class="x" style="clear: right; margin-top: 200px"><div class="short"></div></div></div></div>
+<div class="root" id="block-between-float-and-box-in-box"><div class="x"><div class="float x"></div><div class="short"></div><div class="x" style="clear: both; margin-top: 100px"><div class="short"></div></div></div></div>
+<div class="root" id="float-after-pending-margin"><div class="short" style="margin-bottom: 10px"></div><div class="float"></div><div class="x" style="clear: both; margin-top: 100px"><div class="short"></div></div></div>
+<div class="root" id="in-nested-block"><div class="float"></div><div><div class="tall"></div><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div></div></div>
+<div class="root" id="in-inline-box"><div class="float"></div><div class="tall"></div><span><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div></span></div>
+<div class="root" id="clear-left-beside-right-float"><div class="right"></div><div class="tall"></div><div class="x" style="clear: left; margin-top: -30px"><div class="short"></div></div></div>
+<div class="root" id="clear-right-beside-right-float"><div class="right"></div><div class="tall"></div><div class="x" style="clear: right; margin-top: -30px"><div class="short"></div></div></div>
+<div class="root" id="empty"><div class="float"></div><div class="tall"></div><div class="x" style="clear: both; margin-top: -30px"></div><div class="short x"></div></div>
+<div class="root" id="empty-with-bottom-margin"><div class="float"></div><div class="tall"></div><div class="x" style="clear: both; margin: -30px 0 20px"></div><div class="short x"></div></div>
+<div class="root" id="flow-root"><div class="float"></div><div class="tall"></div><div class="x" style="clear: both; margin-top: -30px; overflow: hidden"><div class="short"></div></div></div>
+<div class="root" id="border-top"><div class="float"></div><div class="tall"></div><div class="x" style="clear: both; margin-top: -30px; border-top: 2px solid"><div class="short"></div></div></div>
+<div class="root" id="float-after-block"><div class="tall"></div><div class="float" style="height: 20px"></div><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div></div>
+<div class="root" id="clearing-float"><div class="float"></div><div class="tall"></div><div class="x" style="float: left; clear: both; margin-top: -30px; width: 50px; height: 10px"></div></div>
+<div class="root" id="two-in-a-row"><div class="float"></div><div class="tall"></div><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div><div class="x" style="clear: both; margin-top: -30px"><div class="short"></div></div></div>
+<div class="root" id="vertical" style="writing-mode: vertical-lr; height: 300px"><div class="float" style="width: 80px; height: 100px"></div><div style="width: 80px"></div><div class="x" style="clear: both; margin-left: -30px; width: 10px"></div></div>
+<div class="root" id="first-child-percentage-margin-in-narrow-box"><div class="float"></div><div class="x" style="clear: both; width: 200px"><div class="short" style="margin-top: 20%"></div></div></div>
+<div class="root" id="first-child-percentage-margin-in-wide-box"><div class="float"></div><div class="x" style="clear: both; width: 500px"><div class="short" style="margin-top: 20%"></div></div></div>
+<div class="root" id="first-child-percentage-margin-in-padded-box"><div class="float"></div><div class="x" style="clear: both; padding: 0 200px"><div class="short" style="margin-top: 30%"></div></div></div>
+<div class="root" id="first-grandchild-percentage-margin"><div class="float"></div><div class="x" style="clear: both; width: 400px"><div style="width: 50%"><div class="short" style="margin-top: 30%"></div></div></div></div>
+<div class="root" id="zero-height-block-before-first-child"><div class="float"></div><div class="x" style="clear: both"><div style="height: 0; margin-bottom: 100px"></div><div class="short"></div></div></div>
+<div class="root" id="zero-min-height-block-before-first-child"><div class="float"></div><div class="x" style="clear: both"><div style="min-height: 0; margin-bottom: 100px"></div><div class="short"></div></div></div>
+<div class="root" id="zero-height-block-with-contents-before-first-child"><div class="float"></div><div class="x" style="clear: both"><div style="height: 0; margin-bottom: 100px"><div class="short"></div></div><div class="short"></div></div></div>
+<div class="root" id="min-height-block-before-first-child"><div class="float"></div><div class="x" style="clear: both"><div style="min-height: 1px; margin-bottom: 100px"></div><div class="short"></div></div></div>
+<div class="root" id="aspect-ratio-block-before-first-child"><div class="float"></div><div class="x" style="clear: both"><div style="aspect-ratio: 1; width: 30px; margin-bottom: 100px"></div><div class="short"></div></div></div>
+<div class="root" id="first-child-clears-side-without-float"><div class="float"></div><div class="x" style="clear: both"><div class="short" style="clear: right; margin-top: 100px"></div></div></div>
+<div class="root" id="first-child-margin-reaches-past-float-it-clears"><div class="float"></div><div class="x" style="clear: both"><div class="short" style="clear: left; margin-top: 100px"></div></div></div>
+<div class="root" id="first-child-margin-ends-beside-float-it-clears"><div class="float"></div><div class="x" style="clear: both"><div class="short" style="clear: left; margin-top: 20px"></div></div></div>
+<div class="root" id="first-child-pulls-box-up-and-clears-side-without-float"><div class="float"></div><div class="tall"></div><div class="x" style="clear: both"><div class="short" style="clear: right; margin-top: -30px"></div></div></div>
+<div class="root" id="first-grandchild-margin-ends-past-float-it-clears"><div class="float"></div><div class="x" style="clear: both"><div style="margin-top: 90px"><div class="short" style="clear: left; margin-top: 20px"></div></div></div></div>
+<script>
+    test(() => {
+        // A box with "clear" gets clearance if its top border edge wouldn't be past the floats without it. That edge is
+        // where the margins before it put it, so a negative margin can pull the box up beside a float that the flow is
+        // already past, and a positive one can carry it past a float on its own. The margins of its first children
+        // collapse with its own, and count the same way: at the sizes their percentages resolve to in the boxes they
+        // are in, through the boxes before them that have no height, and for as long as none of them gets clearance
+        // itself. But a float inside a box that the margin would move goes wherever the clearing box goes, so no
+        // margin carries the box past it.
+        for (const root of document.querySelectorAll(".root")) {
+            const origin = root.getBoundingClientRect();
+            const positions = [...root.querySelectorAll(".x")].map(box => {
+                const rect = box.getBoundingClientRect();
+                return `${rect.left - origin.left},${rect.top - origin.top}`;
+            });
+            println(`${root.id}: ${positions.join(" ")}`);
+        }
+    });
+</script>

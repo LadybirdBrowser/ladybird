@@ -108,6 +108,15 @@ pub(crate) struct InterruptedInlineContent {
     offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint,
 }
 
+/// What the place of a block-level box of a flow depends on before the box is laid out.
+#[derive(Clone, Copy)]
+pub(crate) struct BlockLevelBoxInFlow<'input> {
+    pub(crate) block_start_margin: CssPixels,
+    pub(crate) containing_block_inline_size: CssPixels,
+    /// What the box is laid out with.
+    pub(crate) input: &'input LayoutInput,
+}
+
 /// A block container whose children a block formatting context lays out, with the cells the container is laid out with.
 #[derive(Clone, Copy)]
 pub(crate) struct BlockContainer {
@@ -432,6 +441,63 @@ impl FragmentationState {
 struct FloatAvoidanceProbe {
     opportunity: Option<CssPixels>,
     content_inline_size: Option<CssPixels>,
+}
+
+/// The sides whose floats the `clear` of a box names, or on which a scan of boxes found floats.
+// FIXME: Honor writing-mode, direction and text-orientation.
+#[derive(Clone, Copy, Default)]
+struct FloatSides {
+    left: bool,
+    right: bool,
+}
+
+impl FloatSides {
+    fn cleared_by(style: &StyleValues<'_>) -> Self {
+        Self {
+            left: matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START),
+            right: matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END),
+        }
+    }
+
+    fn of_float(style: &StyleValues<'_>) -> Self {
+        let is_left = matches!(style.float_(), float::LEFT | float::INLINE_START);
+        Self {
+            left: is_left,
+            right: !is_left,
+        }
+    }
+
+    fn any_of(self, sides: Self) -> bool {
+        (self.left && sides.left) || (self.right && sides.right)
+    }
+
+    fn with(self, sides: Self) -> Self {
+        Self {
+            left: self.left || sides.left,
+            right: self.right || sides.right,
+        }
+    }
+}
+
+/// What a scan of the contents of a box has found of the margins that collapse with the block-start margin of the box.
+struct MarginsOfContents<'scan> {
+    /// The margins that collapse with the block-start margin of the box, as far as the scan has found them.
+    margins: CollapsedMargins,
+    /// The sides of the floats among the boxes the scan went through.
+    passed_floats: FloatSides,
+    /// Answers whether one of the contents that clears the floats on the given sides would get clearance, where the
+    /// given margins are those the scan found down to that one's own.
+    gets_clearance: &'scan dyn Fn(FloatSides, CollapsedMargins) -> bool,
+}
+
+/// Where the block-start border edge of a box would go if the box cleared no float.
+#[derive(Clone, Copy)]
+struct PositionWithoutClearance {
+    /// The position among the flow positions of the box's block container, as that container stands now.
+    flow_position: CssPixels,
+    /// The block container whose contents the block-start margin of the box moves along with the box, and how far,
+    /// where it collapses into the block-start margin of that container and moves it.
+    moves_contents: Option<(Node, CssPixels)>,
 }
 
 fn round_css_pixels(value: CssPixels) -> CssPixels {
@@ -2714,15 +2780,31 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     pub(crate) fn block_offset_adjustment_from_pending_ancestor_block_start_margins(&self, node: Node) -> CssPixels {
+        self.block_offset_adjustment_from_pending_ancestor_block_start_margins_where_innermost_group_holds(node, None)
+    }
+
+    /// As [`Self::block_offset_adjustment_from_pending_ancestor_block_start_margins`], with `margins_of_innermost_group`
+    /// as what the open top margin group of the innermost margin state holds, where it has one and they are given.
+    fn block_offset_adjustment_from_pending_ancestor_block_start_margins_where_innermost_group_holds(
+        &self,
+        node: Node,
+        margins_of_innermost_group: Option<CollapsedMargins>,
+    ) -> CssPixels {
         let states = self.margin_states.borrow();
         let mut adjustment = CssPixels::default();
         // NB: Contents that join the top margin group of their enclosing margin state hold their margins until they are
         //     laid out, so the group they join collapses theirs too.
         let mut margins_joining_enclosing_group = CollapsedMargins::default();
         for (index, state) in states.iter().enumerate().rev() {
-            let Some(group) = state.top_margin_group else {
+            let Some(mut group) = state.top_margin_group else {
                 continue;
             };
+            if index + 1 == states.len()
+                && group.open
+                && let Some(margins) = margins_of_innermost_group
+            {
+                group.margins = margins;
+            }
             if group.joins_enclosing_group {
                 margins_joining_enclosing_group = margins_joining_enclosing_group.collapsed_with(group.margins);
                 continue;
@@ -2808,29 +2890,36 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.rebuild_float_bands();
     }
 
+    /// Moves the flow past the floats the `clear` of `node` names, if they reach below where the box would go, and
+    /// returns whether it did. `block_level_box` holds what the place of a block-level box of this flow depends on;
+    /// what a line clears has none of that.
     pub(crate) fn clear_floating_boxes(
         &self,
         node: Node,
         inline_context: Option<&inline_formatting_context::InlineFormattingContext>,
+        block_level_box: Option<BlockLevelBoxInFlow<'_>>,
         containing_block_position_in_root: FfiCssPixelPoint,
     ) -> bool {
         if self.style(node).clear() == clear::NONE {
             return false;
         }
+        let flow_position =
+            inline_context.map_or_else(|| self.flow_position(), |context| context.block_axis_float_clearance());
         let lowest_flow_position = match inline_context {
             Some(_) => CssPixels::default(),
-            None => self.flow_position().min(CssPixels::default()),
+            None => flow_position.min(CssPixels::default()),
         };
         self.note_float_read_from(
             containing_block_position_in_root.y
                 + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
                 + lowest_flow_position,
         );
-        let flow_position =
-            inline_context.map_or_else(|| self.flow_position(), |context| context.block_axis_float_clearance());
-        let Some(clearance) =
-            self.flow_position_past_floats_cleared_by(node, flow_position, containing_block_position_in_root)
-        else {
+        let Some(clearance) = self.flow_position_past_floats_cleared_by(
+            node,
+            flow_position,
+            block_level_box,
+            containing_block_position_in_root,
+        ) else {
             return false;
         };
         match inline_context {
@@ -2840,17 +2929,345 @@ impl<'pass> BlockFormattingContext<'pass> {
         true
     }
 
+    /// Where the block-start border edge of `node`, a block-level box of this flow with the block-start margin
+    /// `block_start_margin`, would go from `flow_position` if the box cleared no float: past that margin, collapsed
+    /// with the margins before the box.
+    fn position_of_box_without_clearance(
+        &self,
+        node: Node,
+        flow_position: CssPixels,
+        block_level_box: BlockLevelBoxInFlow<'_>,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> PositionWithoutClearance {
+        // NB: The block-start border edge of one of the contents whose margin collapses with that of the box is where
+        //     that of the box is, so it gets clearance where the box would with its `clear`, at the margins down to it.
+        let gets_clearance = |cleared_sides: FloatSides, margins: CollapsedMargins| {
+            let position = self.position_past_margins(node, flow_position, margins);
+            self.flow_position_past_floats_on(node, cleared_sides, &position, containing_block_position_in_root)
+                .is_some()
+        };
+        let margins_before_contents = self
+            .margin_state()
+            .margins_since_reset
+            .with_margin(block_level_box.block_start_margin);
+        let mut contents = MarginsOfContents {
+            margins: margins_before_contents,
+            passed_floats: FloatSides::default(),
+            gets_clearance: &gets_clearance,
+        };
+        self.add_margins_of_contents_collapsing_with_block_start_margin(
+            node,
+            block_level_box.containing_block_inline_size,
+            block_level_box.input,
+            &mut contents,
+            0,
+        );
+        self.position_past_margins(node, flow_position, contents.margins)
+    }
+
+    /// Where the block-start border edge of `node` would go from `flow_position` past `margins`: its block-start
+    /// margin, collapsed with those of its contents and with the margins before the box.
+    fn position_past_margins(
+        &self,
+        node: Node,
+        flow_position: CssPixels,
+        margins: CollapsedMargins,
+    ) -> PositionWithoutClearance {
+        if !self.margin_state().has_open_top_margin_group() {
+            return PositionWithoutClearance {
+                flow_position: flow_position + margins.collapsed_margin(),
+                moves_contents: None,
+            };
+        }
+        // NB: The margin collapses into the block-start margin of a block container the box is in, so it moves that
+        //     container, and everything in it, rather than the box in its own block container.
+        let offset =
+            self.block_offset_adjustment_from_pending_ancestor_block_start_margins_where_innermost_group_holds(
+                node,
+                Some(margins),
+            ) - self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node);
+        let moved_block_container = self
+            .margin_states
+            .borrow()
+            .iter()
+            .rev()
+            .find(|state| state.top_margin_group.is_some_and(|group| !group.joins_enclosing_group))
+            .map(|state| state.block_container);
+        PositionWithoutClearance {
+            flow_position: flow_position + offset,
+            moves_contents: moved_block_container
+                .filter(|_| offset != CssPixels::default())
+                .map(|block_container| (block_container, offset)),
+        }
+    }
+
+    /// Resolves the block size of `sized_child`, a box without a formatting context of its own, as far as it is known
+    /// before the contents of the box are laid out.
+    fn resolve_block_size_before_contents(
+        &self,
+        sized_child: ChildSizedHere<'_>,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) {
+        let node = sized_child.node;
+        self.resolve_used_block_size_if_not_treated_as_auto(sized_child, available_space, constraints);
+        // NOTE: Flex containers with an automatic block size are treated as max-content, so resolve it early.
+        if self.facts(node).has_auto_content_box_size() || self.style(node).display().is_flex_inside() {
+            self.resolve_used_block_size_if_treated_as_auto(sized_child, available_space, constraints, None, None);
+        }
+    }
+
+    /// Resolves the block size of `sized_child`, a box without a formatting context of its own, from `children`: the
+    /// sum of the contents this flow laid out in the box, or `None` for contents that take up no block size.
+    fn resolve_block_size_after_contents(
+        &self,
+        sized_child: ChildSizedHere<'_>,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        children: Option<&ChildrenSummary>,
+    ) {
+        let node = sized_child.node;
+        // NB: Tables set their block size during their run in every case.
+        if !self.style(node).display().is_table_inside() {
+            self.resolve_used_block_size_if_treated_as_auto(sized_child, available_space, constraints, None, children);
+        }
+        if self.sizing().block_size_is_ratio_dependent(
+            sizing_context::SizedBox::new(node, &self.metrics_of(sized_child)),
+            available_space,
+            constraints,
+        ) {
+            let content_block_size = self.compute_automatic_block_size_for_block_level_element(
+                sized_child,
+                self.cells_laid_out_here(sized_child)
+                    .available_inner_space_or_constraints_from(available_space),
+                constraints,
+                None,
+                children,
+            );
+            self.sizing().apply_automatic_minimum_block_size_from_aspect_ratio(
+                self.sized_cells_of(sized_child),
+                available_space,
+                constraints,
+                Some(content_block_size),
+            );
+        }
+    }
+
+    /// The cells of `node`, a box without a formatting context of its own that this flow lays out with `input` in a
+    /// containing block `containing_block_inline_size` wide, sized the way its layout sizes them around contents that
+    /// take up no block size.
+    fn cells_of_box_sized_around_no_contents(
+        &self,
+        node: Node,
+        containing_block_inline_size: CssPixels,
+        input: &LayoutInput,
+    ) -> used_values::RootInputCells {
+        let constraints = input.containing_block_constraints;
+        let cells = Cell::new(used_values::cells_before_sizing(&self.run.pass, node, constraints));
+        let sized_box = ChildSizedHere::laid_out_in(node, &cells);
+        self.resolve_vertical_box_model_metrics(sized_box, containing_block_inline_size, constraints);
+        self.resolve_block_size_known_ahead_of_contents(sized_box, input);
+        if let Some(content_inline_size) =
+            self.resolve_root_inline_metrics_and_content_size(sized_box, input.available_space, constraints, None)
+        {
+            self.update_cells_of(sized_box, |cells| cells.set_content_inline_size(content_inline_size));
+        }
+        let available_space =
+            self.sizing()
+                .available_space_for_block_size_resolution(node, input.available_space, constraints);
+        self.resolve_block_size_before_contents(sized_box, available_space, constraints);
+        self.resolve_block_size_after_contents(sized_box, available_space, constraints, None);
+        cells.get()
+    }
+
+    /// Adds to `contents` the margins of the contents of `node` that collapse with its block-start margin, as far as
+    /// the box tree and the sizes of the boxes tell before the contents are laid out: the block-start margins of its
+    /// first in-flow children, and both margins of the boxes before them that margins collapse through. Returns
+    /// whether margins collapse through `node` altogether. `node` is laid out with `input`, in a containing block
+    /// `containing_block_inline_size` wide.
+    // https://drafts.csswg.org/css2/#collapsing-margins
+    fn add_margins_of_contents_collapsing_with_block_start_margin(
+        &self,
+        node: Node,
+        containing_block_inline_size: CssPixels,
+        input: &LayoutInput,
+        contents: &mut MarginsOfContents<'_>,
+        depth: usize,
+    ) -> bool {
+        // NB: A chain of first children nested deeper than this is left out, so the scan never runs far down the stack.
+        const DEEPEST_FIRST_CHILD: usize = 32;
+        let facts = self.facts(node);
+        if depth > DEEPEST_FIRST_CHILD
+            || !facts.is_block_container()
+            || formatting_context::formatting_context_type_created_by_box(facts).is_some()
+        {
+            return false;
+        }
+        let cells = self.cells_of_box_sized_around_no_contents(node, containing_block_inline_size, input);
+        if cells.border_top() > CssPixels::default() || cells.padding_top() > CssPixels::default() {
+            return false;
+        }
+        if facts.children_are_inline() {
+            // NB: A line box keeps the margins after it apart from the box's block-start margin, and what a line
+            //     holds is known only once it is laid out.
+            if self
+                .children(node)
+                .any(|child| !self.facts(child).is_floating_or_absolutely_positioned())
+                || self.run.pass.children(node).any(|child| !self.facts(child).is_box())
+            {
+                return false;
+            }
+            for child in self.children(node) {
+                if self.facts(child).is_floating() {
+                    contents.passed_floats = contents.passed_floats.with(FloatSides::of_float(&self.style(child)));
+                }
+            }
+        } else {
+            let space_available_for_contents = if facts.is_anonymous() {
+                input.available_space
+            } else {
+                cells.available_inner_space_or_constraints_from(input.available_space)
+            };
+            // NB: The input of the contents doesn't depend on what their block-axis percentage insets resolve against.
+            let input_of_contents = self.child_layout_input(
+                BlockContainer {
+                    node,
+                    cells,
+                    percentage_block_insets_have_definite_basis: false,
+                },
+                input.clone(),
+                space_available_for_contents,
+            );
+            let content_inline_size = cells.content_inline_size();
+            for child in self.children(node) {
+                let child_facts = self.facts(child);
+                let child_style = self.style(child);
+                if child_facts.is_floating() {
+                    contents.passed_floats = contents.passed_floats.with(FloatSides::of_float(&child_style));
+                }
+                if child_facts.is_floating_or_absolutely_positioned() || child_facts.is_list_item_marker_box() {
+                    continue;
+                }
+                let sides_child_clears = FloatSides::cleared_by(&child_style);
+                // NB: A float the scan went through goes wherever these boxes go, so no margin takes the child past
+                //     it, and the clearance that gets the child keeps its margins apart from these.
+                if sides_child_clears.any_of(contents.passed_floats) {
+                    return false;
+                }
+                let margins_before_child = contents.margins;
+                let mut child_sides = used_values::RootInputCells::default();
+                child_sides.resolve_vertical_box_model(&child_style, content_inline_size);
+                contents.margins = contents.margins.with_margin(child_sides.margin_top());
+                let margins_collapse_through_child = self.add_margins_of_contents_collapsing_with_block_start_margin(
+                    child,
+                    content_inline_size,
+                    &input_of_contents,
+                    contents,
+                    depth + 1,
+                );
+                // NB: Clearance would keep the margins of the child apart from these.
+                if (sides_child_clears.left || sides_child_clears.right)
+                    && (contents.gets_clearance)(sides_child_clears, contents.margins)
+                {
+                    contents.margins = margins_before_child;
+                    return false;
+                }
+                if !margins_collapse_through_child {
+                    return false;
+                }
+                contents.margins = contents.margins.with_margin(child_sides.margin_bottom());
+            }
+        }
+        margins_can_collapse_through_box_itself(facts, false, || cells.border_box_block_size(false))
+    }
+
+    /// The lowest margin edges, in the root's coordinate space, of the left and of the right floats inside
+    /// `block_container`, and of those outside it.
+    fn lowest_margin_edges_of_floats_inside_and_outside(&self, block_container: Node) -> [[Option<CssPixels>; 2]; 2] {
+        let mut edges = [[None; 2]; 2];
+        for floating_box in self.floats.borrow().iter() {
+            let edge = floating_box.margin_box_rect_in_root_coordinate_space.bottom()
+                + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(floating_box.box_);
+            let is_outside = !self.is_inclusive_ancestor_of(block_container, floating_box.box_);
+            let lowest = &mut edges[usize::from(is_outside)][usize::from(floating_box.side != FloatSide::Left)];
+            *lowest = (*lowest).max(Some(edge));
+        }
+        edges
+    }
+
     /// Where the flow goes from `flow_position` to place `node` past the floats its `clear` names, if they reach below
-    /// that position.
+    /// where the box would go without clearance. For a block-level box of this flow, that depends on
+    /// `block_level_box`. What a line clears has none of that, and goes at the flow position.
     fn flow_position_past_floats_cleared_by(
         &self,
         node: Node,
         flow_position: CssPixels,
+        block_level_box: Option<BlockLevelBoxInFlow<'_>>,
         containing_block_position_in_root: FfiCssPixelPoint,
     ) -> Option<CssPixels> {
-        let style = self.style(node);
-        let mut position_past_floats = None;
-        let mut clear_to = |lowest_margin_edge_in_root: Option<CssPixels>| {
+        // https://drafts.csswg.org/css2/#flow-control
+        // Computing the clearance of an element on which clear is set is done by first determining the hypothetical
+        // position of the element's top border edge. This position is where the actual top border edge would have been
+        // if the element's clear property had been none.
+        // If this hypothetical position of the element's top border edge is not past the relevant floats, then
+        // clearance is introduced, and margins collapse according to the rules in 8.3.1.
+        let cleared_sides = FloatSides::cleared_by(&self.style(node));
+        let deferred_float_sides = if self.run.fragmentainer.is_some() {
+            self.deferred_float_sides.get()
+        } else {
+            0
+        };
+        let has_float_to_clear = (cleared_sides.left
+            && (self.lowest_left_margin_edge.get().is_some() || deferred_float_sides & 1 != 0))
+            || (cleared_sides.right
+                && (self.lowest_right_margin_edge.get().is_some() || deferred_float_sides & 2 != 0));
+        if !has_float_to_clear {
+            return None;
+        }
+        let without_clearance = match block_level_box {
+            Some(block_level_box) => self.position_of_box_without_clearance(
+                node,
+                flow_position,
+                block_level_box,
+                containing_block_position_in_root,
+            ),
+            None => PositionWithoutClearance {
+                flow_position,
+                moves_contents: None,
+            },
+        };
+        // NB: A margin can take the box up beside floats that the flow is already past, which it then reads.
+        if without_clearance.flow_position < flow_position {
+            self.note_float_read_from(
+                containing_block_position_in_root.y
+                    + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
+                    + without_clearance.flow_position,
+            );
+        }
+        self.flow_position_past_floats_on(
+            node,
+            cleared_sides,
+            &without_clearance,
+            containing_block_position_in_root,
+        )
+    }
+
+    /// Where the flow goes to place `node` past the floats on `cleared_sides`, if they reach below `without_clearance`,
+    /// where the box would go if it cleared none.
+    fn flow_position_past_floats_on(
+        &self,
+        node: Node,
+        cleared_sides: FloatSides,
+        without_clearance: &PositionWithoutClearance,
+        containing_block_position_in_root: FfiCssPixelPoint,
+    ) -> Option<CssPixels> {
+        let FloatSides {
+            left: clears_left,
+            right: clears_right,
+        } = cleared_sides;
+        let mut introduces_clearance = false;
+        let mut position_past_floats: Option<CssPixels> = None;
+        let mut clear_past = |lowest_margin_edge_in_root: Option<CssPixels>, flow_position_without_clearance| {
             let Some(clearance_block_offset_in_root) = lowest_margin_edge_in_root else {
                 return;
             };
@@ -2862,9 +3279,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             let clearance = clearance_block_offset_in_root
                 - containing_block_position_in_root.y
                 - self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node);
-            if clearance > position_past_floats.unwrap_or(flow_position) {
-                position_past_floats = Some(clearance);
-            }
+            introduces_clearance |= clearance > flow_position_without_clearance;
+            position_past_floats = position_past_floats.max(Some(clearance));
         };
 
         if let Some(block_size) = self
@@ -2873,21 +3289,34 @@ impl<'pass> BlockFormattingContext<'pass> {
             .and_then(|fragmentainer| fragmentainer.block_size)
         {
             let sides = self.deferred_float_sides.get();
-            if (sides & 1 != 0 && matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START))
-                || (sides & 2 != 0 && matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END))
-            {
-                clear_to(Some(block_size));
+            if (sides & 1 != 0 && clears_left) || (sides & 2 != 0 && clears_right) {
+                clear_past(Some(block_size), without_clearance.flow_position);
             }
         }
 
         // FIXME: Honor writing-mode, direction and text-orientation.
-        if matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START) {
-            clear_to(self.lowest_left_margin_edge.get());
+        match without_clearance.moves_contents {
+            None => {
+                if clears_left {
+                    clear_past(self.lowest_left_margin_edge.get(), without_clearance.flow_position);
+                }
+                if clears_right {
+                    clear_past(self.lowest_right_margin_edge.get(), without_clearance.flow_position);
+                }
+            }
+            // NB: The floats in a block container that the box's margin moves go wherever the box does, so no margin
+            //     takes the box past them. They are as far below it as they are below the flow position now.
+            Some((moved_block_container, offset)) => {
+                let [inside, outside] = self.lowest_margin_edges_of_floats_inside_and_outside(moved_block_container);
+                for (side, is_cleared) in [clears_left, clears_right].into_iter().enumerate() {
+                    if is_cleared {
+                        clear_past(inside[side], without_clearance.flow_position - offset);
+                        clear_past(outside[side], without_clearance.flow_position);
+                    }
+                }
+            }
         }
-        if matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END) {
-            clear_to(self.lowest_right_margin_edge.get());
-        }
-        position_past_floats
+        position_past_floats.filter(|_| introduces_clearance)
     }
 
     fn compute_normal_flow_inline_offset(
@@ -3476,7 +3905,21 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.margin_state_mut()
                 .add_margin(self.metrics_of(sized_child).margin_top());
         }
-        let introduced_clearance = self.clear_floating_boxes(node, None, containing_block_position_in_root);
+        let block_start_margin = if discards_block_start_margin {
+            CssPixels::default()
+        } else {
+            self.metrics_of(sized_child).margin_top()
+        };
+        let introduced_clearance = self.clear_floating_boxes(
+            node,
+            None,
+            Some(BlockLevelBoxInFlow {
+                block_start_margin,
+                containing_block_inline_size: block_container_inline_size,
+                input: &input,
+            }),
+            containing_block_position_in_root,
+        );
         if introduced_clearance {
             self.margin_state_mut().reset();
         }
@@ -3686,21 +4129,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         // independent run only commits in its prelude — so independent
         // children resolve these pre-body block sizes there instead.
         if !has_independent_formatting_context {
-            self.resolve_used_block_size_if_not_treated_as_auto(
+            self.resolve_block_size_before_contents(
                 sized_child,
                 available_space_for_block_size_resolution,
                 input.containing_block_constraints,
             );
-            // NOTE: Flex containers with an automatic block size are treated as max-content, so resolve it early.
-            if facts.has_auto_content_box_size() || style.display().is_flex_inside() {
-                self.resolve_used_block_size_if_treated_as_auto(
-                    sized_child,
-                    available_space_for_block_size_resolution,
-                    input.containing_block_constraints,
-                    None,
-                    None,
-                );
-            }
         }
 
         if continuation.is_some() && self.cells_laid_out_here(sized_child).has_definite_block_size() {
@@ -3920,36 +4353,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         // An independent run resolved its automatic block size in its own epilogue; same-flow children still resolve
-        // here. Tables set their block size during their run in every case.
-        if !has_independent_formatting_context && !style.display().is_table_inside() {
-            self.resolve_used_block_size_if_treated_as_auto(
+        // here.
+        if !has_independent_formatting_context {
+            self.resolve_block_size_after_contents(
                 sized_child,
                 available_space_for_block_size_resolution,
                 input.containing_block_constraints,
-                None,
                 summary_of_children_laid_out_in_this_flow.as_ref(),
-            );
-        }
-        if !has_independent_formatting_context
-            && self.sizing().block_size_is_ratio_dependent(
-                sizing_context::SizedBox::new(node, &self.metrics_of(sized_child)),
-                available_space_for_block_size_resolution,
-                input.containing_block_constraints,
-            )
-        {
-            let content_block_size = self.compute_automatic_block_size_for_block_level_element(
-                sized_child,
-                self.cells_laid_out_here(sized_child)
-                    .available_inner_space_or_constraints_from(available_space_for_block_size_resolution),
-                input.containing_block_constraints,
-                None,
-                summary_of_children_laid_out_in_this_flow.as_ref(),
-            );
-            self.sizing().apply_automatic_minimum_block_size_from_aspect_ratio(
-                self.sized_cells_of(sized_child),
-                available_space_for_block_size_resolution,
-                input.containing_block_constraints,
-                Some(content_block_size),
             );
         }
 
@@ -4109,6 +4519,8 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// Places `unplaced`, the layout of `sized_child`, and moves the flow past it.
+    // NB: This is out of line to keep what it holds off the stack of every level of nested boxes.
+    #[inline(never)]
     fn place_laid_out_block_level_box(
         &self,
         sized_child: ChildSizedHere<'_>,
@@ -4534,8 +4946,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         self.rebuild_float_bands();
         let flow_position = self.flow_position();
-        let position_past_floats =
-            self.flow_position_past_floats_cleared_by(node, flow_position, containing_block_position_in_root);
+        let position_past_floats = self.flow_position_past_floats_cleared_by(
+            node,
+            flow_position,
+            Some(BlockLevelBoxInFlow {
+                block_start_margin: entry.cells.margin_top(),
+                containing_block_inline_size: entry.key.containing_block_inline_size,
+                input: &entry.key.input,
+            }),
+            containing_block_position_in_root,
+        );
         let block_start_margin = {
             let mut margin_state = self.margin_state().clone();
             let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
@@ -4579,8 +4999,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         self.rebuild_float_bands();
         let flow_position = self.flow_position();
-        let position_past_floats =
-            self.flow_position_past_floats_cleared_by(node, flow_position, containing_block_position_in_root);
+        let position_past_floats = self.flow_position_past_floats_cleared_by(
+            node,
+            flow_position,
+            Some(BlockLevelBoxInFlow {
+                block_start_margin: entry.cells.margin_top(),
+                containing_block_inline_size: entry.key.containing_block_inline_size,
+                input: &entry.key.input,
+            }),
+            containing_block_position_in_root,
+        );
         if floats_read.read_before_top_margins_settled
             && (floats_read.stored_in_open_top_margin_group
                 || floats_read.margins_before_box != self.margin_state().margins_since_reset
@@ -4705,7 +5133,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.run.pass.layout_trace().reused_in_flow_subtree(node);
         self.cells_laid_out_here(sized_child).set(entry.cells);
         let metrics = self.metrics_of(sized_child);
-        let introduces_clearance = self.clear_floating_boxes(node, None, containing_block_position_in_root);
+        let introduces_clearance = self.clear_floating_boxes(
+            node,
+            None,
+            Some(BlockLevelBoxInFlow {
+                block_start_margin: metrics.margin_top(),
+                containing_block_inline_size: block_container.cells.content_inline_size,
+                input: &entry.key.input,
+            }),
+            containing_block_position_in_root,
+        );
         let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
         let block_start_margin = collapse_block_start_margin_of_reused_child(
             &mut self.margin_state_mut(),
@@ -5151,8 +5588,16 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         self.rebuild_float_bands();
         let flow_position = self.flow_position();
-        let position_past_floats =
-            self.flow_position_past_floats_cleared_by(node, flow_position, containing_block_position_in_root);
+        let position_past_floats = self.flow_position_past_floats_cleared_by(
+            node,
+            flow_position,
+            Some(BlockLevelBoxInFlow {
+                block_start_margin: entry.cells.margin_top(),
+                containing_block_inline_size: entry.key.containing_block_inline_size,
+                input: &entry.key.input,
+            }),
+            containing_block_position_in_root,
+        );
         let block_start_margin = {
             let mut margin_state = self.margin_state().clone();
             let mut margins_left_by_contents = entry.margins_left_by_contents.clone();
