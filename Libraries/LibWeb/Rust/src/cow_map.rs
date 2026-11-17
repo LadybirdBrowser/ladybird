@@ -414,6 +414,10 @@ impl<T: Clone + Eq + Hash> CowSet<T> {
         self.0.heap_size()
     }
 
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub(crate) fn clear(&mut self) {
         self.0.clear();
     }
