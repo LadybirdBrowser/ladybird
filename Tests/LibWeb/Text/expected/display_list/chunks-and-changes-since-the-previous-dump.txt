@@ -1,0 +1,19 @@
+Chunk k1 id=<hash> records=3 bytes=120
+No previous dump of this document. This one, of 4 nodes, 3 records and 1 chunks, is what the next one is compared with.
+
+Nodes: 0 added, 0 removed, 1 changed, 3 unchanged
+  ~ [s2] transform=[1,0,0,1,20,0] origin=(33,38) bounds=[8,28 50x20] (BlockContainer<DIV>#moved)
+    was [s2] transform=[1,0,0,1,10,0] origin=(33,58) bounds=[8,48 50x20] (BlockContainer<DIV>#moved)
+Records: 1 added, 1 removed, 2 changed, 0 unchanged
+  ~ FillRect {"rect":[8,8,50,20],"color":"#ffff00ff"} owner=BlockContainer<DIV>#recolored phase=background
+    was FillRect {"rect":[8,8,50,20],"color":"#008000ff"} owner=BlockContainer<DIV>#recolored phase=background
+  + FillRect {"rect":[8,61,50,20],"color":"#000000ff"} owner=BlockContainer<DIV>#added phase=background
+  ~ FillRect {"rect":[8,28,50,20],"color":"#ff0000ff"} owner=BlockContainer<DIV>#moved phase=background
+    was FillRect {"rect":[8,48,50,20],"color":"#ff0000ff"} owner=BlockContainer<DIV>#moved phase=background
+  - FillRect {"rect":[8,28,50,20],"color":"#0000ffff"} owner=BlockContainer<DIV>#removed phase=background
+Chunks: 0 of 1 kept their id
+
+Nodes: 0 added, 0 removed, 0 changed, 4 unchanged
+Records: 0 added, 0 removed, 0 changed, 3 unchanged
+Chunks: 1 of 1 kept their id
+

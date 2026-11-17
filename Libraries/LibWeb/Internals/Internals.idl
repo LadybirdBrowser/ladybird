@@ -250,6 +250,8 @@ interface Internals {
     readonly attribute boolean hasAnimationFrameCallbacks;
 
     DOMString dumpDisplayList(optional DisplayListDumpOptions options = {});
+    // What changed in the display list since the previous call for the document, which the first call only summarizes.
+    DOMString dumpDisplayListChanges(optional DisplayListDumpOptions options = {});
     DOMString dumpAccessibilityTree();
     // The per-character offsets that the accessibility tree reports for a text node, as space-separated "x,y" pairs.
     DOMString accessibilityCharacterOffsets(Node node);
@@ -549,6 +551,7 @@ dictionary DisplayListDumpOptions {
     boolean text = true;
     boolean fonts = false;
     boolean recordIds = false;
+    boolean chunks = false;
     boolean rawNodeIndices = false;
     DisplayListDumpFormat format = "text";
 };

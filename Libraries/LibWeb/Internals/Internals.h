@@ -229,6 +229,7 @@ public:
     bool has_animation_frame_callbacks();
 
     Utf16String dump_display_list(Bindings::DisplayListDumpOptions const&);
+    Utf16String dump_display_list_changes(Bindings::DisplayListDumpOptions const&);
     Utf16String dump_accessibility_tree();
     String accessibility_character_offsets(GC::Ref<DOM::Node>);
     String dump_accessibility_node_data(GC::Ref<DOM::Node>);
@@ -394,6 +395,12 @@ private:
     GC::Root<JS::Cell> m_actions_executor;
     bool m_actions_running { false };
     Optional<Utf16String> m_pending_action_test_result;
+
+    struct DisplayListDumpForChanges {
+        UniqueNodeID document_id;
+        String jsonl;
+    };
+    Optional<DisplayListDumpForChanges> m_display_list_dump_for_changes;
     Vector<GC::Ref<InternalGamepad>> m_gamepads;
     Optional<HTML::DevToolsObjectTable> m_devtools_object_table;
     HTML::DevToolsLoggedObjects m_devtools_logged_objects;

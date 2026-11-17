@@ -266,11 +266,26 @@ Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document
         .text = options.text,
         .fonts = options.fonts,
         .record_ids = options.record_ids,
+        .chunks = options.chunks,
         .raw_node_indices = options.raw_node_indices,
         .jsonl = options.jsonl,
     };
     Layout::RustFFI::painting_dump(document_host(document), &read, viewport_row_slot(read, document), device_viewport_rect, ffi_options, callbacks);
     return move(context.dump);
+}
+
+Utf16String display_list_dump_changes(Optional<StringView> previous_jsonl, StringView jsonl)
+{
+    Utf16String changes;
+    Layout::RustFFI::painting_dump_changes(
+        previous_jsonl.has_value() ? reinterpret_cast<u8 const*>(previous_jsonl->characters_without_null_termination()) : nullptr,
+        previous_jsonl.has_value() ? previous_jsonl->length() : 0,
+        previous_jsonl.has_value(),
+        reinterpret_cast<u8 const*>(jsonl.characters_without_null_termination()),
+        jsonl.length(),
+        &changes,
+        [](void* context, u8 const* bytes, size_t byte_count) { *static_cast<Utf16String*>(context) = Utf16String::from_utf8_without_validation(StringView { bytes, byte_count }); });
+    return changes;
 }
 
 static void append_bytes_to_string_builder(void* context, u8 const* bytes, size_t byte_count)
