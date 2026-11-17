@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A ws: URL to a Known HSTS Host must be upgraded to wss:. This port serves HTTPS, so a ws: connection to it only
+    // opens if the connection was upgraded.
+    const connectSource = `
+        function connect(url) {
+            return new Promise(resolve => {
+                const ws = new WebSocket(url);
+                ws.onopen = () => {
+                    ws.close();
+                    resolve("opened");
+                };
+                ws.onerror = () => resolve("failed");
+            });
+        }`;
+
+    function connectFromWorker(url) {
+        const source = `${connectSource}; connect(${JSON.stringify(url)}).then(postMessage);`;
+        const worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+        return new Promise(resolve => {
+            worker.onmessage = event => {
+                worker.terminate();
+                resolve(event.data);
+            };
+        });
+    }
+
+    promiseTest(async () => {
+        eval(connectSource);
+
+        for (const [name, connectInContext] of [
+            ["Window", connect],
+            ["Worker", connectFromWorker],
+        ]) {
+            const host = uniqueLocalhostHostname("hsts-websocket-upgrade");
+            const url = `ws://${host}:${internals.getHttpsEchoServerPort()}/`;
+
+            println(`${name} without HSTS policy: ${await connectInContext(url)}`);
+
+            // NB: The synchronous isKnownHSTSHost() call orders after the asynchronous store of the policy.
+            internals.setHSTSPolicy(host, 31536000, false);
+            if (!internals.isKnownHSTSHost(host)) {
+                println(`FAIL - HSTS policy for ${name} was not installed`);
+                continue;
+            }
+            println(`${name} with HSTS policy: ${await connectInContext(url)}`);
+
+            internals.setHSTSPolicy(host, 0, false);
+        }
+    });
+</script>
