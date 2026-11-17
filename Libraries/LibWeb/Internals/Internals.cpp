@@ -1922,6 +1922,7 @@ static Utf16String dump_string_to_utf16(String const& string)
 Utf16String Internals::dump_display_list(Bindings::DisplayListDumpOptions const& options)
 {
     return window().associated_document().dump_display_list({
+        .record_ids = options.record_ids,
         .raw_node_indices = options.raw_node_indices,
     });
 }

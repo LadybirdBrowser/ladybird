@@ -162,8 +162,14 @@ impl LayerPlan {
                 .all(|(layer, other_layer)| layer.kind == other_layer.kind)
     }
 
-    /// One line per layer, bottom to top: `[L<index>] <kind> rect=[<x>,<y> <width>x<height>]` after `indent`.
-    pub fn write_layer_lines(&self, output: &mut impl std::fmt::Write, indent: &str) -> std::fmt::Result {
+    /// One line per layer, bottom to top: `[L<index>] <kind> rect=[<x>,<y> <width>x<height>]` after `indent`, with the
+    /// records the layer draws where `describe_records` describes them.
+    pub fn write_layer_lines(
+        &self,
+        output: &mut impl std::fmt::Write,
+        indent: &str,
+        describe_records: impl Fn(&[RecordSpan]) -> Option<String>,
+    ) -> std::fmt::Result {
         for (index, layer) in self.layers.iter().enumerate() {
             let rect = layer.rect;
             write!(
@@ -171,6 +177,9 @@ impl LayerPlan {
                 "{indent}[L{index}] {} rect=[{},{} {}x{}]",
                 layer.kind, rect.x, rect.y, rect.width, rect.height
             )?;
+            if let Some(records) = describe_records(&layer.record_spans) {
+                write!(output, " records={records}")?;
+            }
             match &layer.window_server_placement {
                 Some(Ok(placement)) => writeln!(output, " shown by the window server: {placement}")?,
                 Some(Err(rejection)) => writeln!(output, " replayed: {rejection}")?,

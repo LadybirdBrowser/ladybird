@@ -258,6 +258,7 @@ Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document
     };
     Gfx::IntRect device_viewport_rect { {}, document.page().css_to_device_rect(document.viewport_rect()).size().to_type<int>() };
     Layout::RustFFI::FfiDisplayListDumpOptions ffi_options {
+        .record_ids = options.record_ids,
         .raw_node_indices = options.raw_node_indices,
     };
     Layout::RustFFI::painting_dump(document_host(document), &read, viewport_row_slot(read, document), device_viewport_rect, ffi_options, callbacks);
