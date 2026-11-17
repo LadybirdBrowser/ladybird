@@ -322,6 +322,13 @@ impl<R: PaintRead> PointWalk<'_, R> {
     // Runs of hits on the planes of one 3D rendering context are reordered front to back. A context's items are
     // consecutive in paint order, so its hits sit next to each other.
     fn everything_topmost_first(mut self) -> Vec<PointHit> {
+        let no_hit_is_on_a_plane_ranked_by_depth = (0..self.hits.len()).all(|position| {
+            let spatial = self.hits[position].item.context.spatial;
+            self.depth_sorting.group_for(spatial).is_none()
+        });
+        if no_hit_is_on_a_plane_ranked_by_depth {
+            return self.hits;
+        }
         let mut order: Vec<usize> = (0..self.hits.len()).collect();
         let mut run_begin = 0;
         while run_begin < order.len() {
