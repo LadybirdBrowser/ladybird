@@ -205,18 +205,6 @@ public:
         return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
     }
 
-    int table_row_for_suggestion_index(int suggestion_index) const
-    {
-        if (suggestion_index < 0 || suggestion_index >= static_cast<int>(m_suggestions.size()))
-            return -1;
-        return suggestion_index;
-    }
-
-    size_t visible_suggestion_count() const
-    {
-        return m_suggestions.size();
-    }
-
 private:
     Vector<WebView::AutocompleteSuggestion> m_suggestions;
     Vector<QIcon> m_favicons;
@@ -436,18 +424,10 @@ void Autocomplete::set_selected_suggestion(Optional<size_t> suggestion_index)
     if (!m_list_view)
         return;
 
-    int table_row = suggestion_index.has_value()
-        ? m_model->table_row_for_suggestion_index(static_cast<int>(*suggestion_index))
-        : -1;
-
-    if (table_row == -1) {
-        m_list_view->setCurrentIndex({});
-        return;
-    }
-
-    auto index = m_model->index(table_row, 0);
+    auto index = suggestion_index.has_value() ? m_model->index(static_cast<int>(*suggestion_index), 0) : QModelIndex {};
     m_list_view->setCurrentIndex(index);
-    m_list_view->scrollTo(index);
+    if (index.isValid())
+        m_list_view->scrollTo(index);
 }
 
 bool Autocomplete::close()
@@ -501,7 +481,7 @@ bool Autocomplete::eventFilter(QObject* watched, QEvent* event)
 
 int Autocomplete::list_height() const
 {
-    int visible_count = static_cast<int>(min(m_model->visible_suggestion_count(), MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS));
+    int visible_count = min(m_model->rowCount(), static_cast<int>(MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS));
     int total_height = 0;
     for (int i = 0; i < visible_count; ++i) {
         QStyleOptionViewItem option;
