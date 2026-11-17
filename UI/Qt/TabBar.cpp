@@ -981,7 +981,7 @@ QSize TabBar::minimumSizeHint() const
 
 QSize TabBar::tabSizeHint(int index) const
 {
-    auto hint = QTabBar::tabSizeHint(index);
+    QSize hint;
 
     if (tab_layout() != TabLayout::Horizontal) {
         hint.setWidth(vertical_tab_width(m_available_width, tab_layout()));
@@ -1002,6 +1002,8 @@ QSize TabBar::tabSizeHint(int index) const
         // NB: While the widths are locked, the tabs keep the share they had.
         auto width = max(horizontal_tab_min_width(index), m_locked_tab_width.value_or(horizontal_tab_share()));
         hint.setWidth(width + end_room);
+    } else {
+        hint = QTabBar::tabSizeHint(index);
     }
 
     hint.setHeight(HORIZONTAL_TAB_HEIGHT);
