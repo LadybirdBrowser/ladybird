@@ -60,6 +60,12 @@ public:
     virtual void consume() override;
     virtual void set_wake_handler(PipelineWakeHandler) override;
 
+    // Called once a blocked read is able to continue, after the producer has stopped reporting Blocked. It runs on the
+    // thread that delivered the data, under the demuxer's lock, so it must not block or take other locks.
+    void set_read_unblocked_handler(Function<void()>);
+    // Callable from any thread.
+    void set_checkpoint(PipelineCheckpoint);
+
     AK::Duration select_fast_seek_target(AK::Duration timestamp, SeekMode);
     virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
 
@@ -93,6 +99,8 @@ private:
 
         void seek(AK::Duration timestamp, InvalidateHeldData);
         AK::Duration select_fast_seek_target(AK::Duration target, SeekMode) const;
+        void set_read_unblocked_handler(Function<void()>);
+        void set_checkpoint(PipelineCheckpoint);
 
         void register_decode_thread();
         void wait_for_start();
@@ -117,6 +125,7 @@ private:
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
 
         void dispatch_wake_if_needed_while_locked();
+        void dispatch_wake_later();
 
         [[nodiscard]] MutexLocker<Mutex> take_lock() const { return MutexLocker(m_wait_state->mutex); }
         void wake() const { m_wait_state->condition.broadcast(); }
@@ -174,6 +183,7 @@ private:
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
         // Set by the demuxer under its own lock, which may be taken while ours is held.
         Atomic<bool> m_demuxer_read_is_blocked { false };
+        Atomic<PipelineCheckpoint> m_checkpoint { 0 };
         bool m_decoder_has_decode_in_progress { false };
 
         enum class SeekReason : u8 {

@@ -660,7 +660,7 @@ TEST_CASE(audio_playback_sink_reopens_its_output_after_loss_with_a_seek_in_fligh
 {
     RemoteSinkFixture fixture;
     auto remote_output_factory = Media::AudioOutputFactory::create(Audio::OutputSession::create(AUTHORIZED_GROUP));
-    RefPtr<Media::AudioPlaybackSink> sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus) { }, remote_output_factory));
+    RefPtr<Media::AudioPlaybackSink> sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus, Media::PipelineCheckpoint) { }, remote_output_factory));
     sink->start();
     sink->resume();
     EXPECT(fixture.pump_until([&] { return fixture.mixer->active_client_count() == 1; }));

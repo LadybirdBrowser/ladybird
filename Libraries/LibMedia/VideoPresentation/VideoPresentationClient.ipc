@@ -10,7 +10,7 @@ endpoint VideoPresentationClient {
     update_edge_time_reader(u64 edge_id, Media::MediaTimeReader time_reader) =|
     lend_frame(u64 edge_id, u64 lend_id, u32 seek_id, Media::VideoFrameMetadata metadata, Media::VideoFramePixels pixels) =|
     // The status the consumer reaches once every frame lent under the same seek has been taken.
-    edge_status_changed(u64 edge_id, Media::PipelineStatus status, u32 seek_id) =|
+    edge_status_changed(u64 edge_id, Media::PipelineStatus status, u32 seek_id, Media::PipelineCheckpoint checkpoint) =|
     notify_clock_resumed(u64 edge_id) =|
     seek_sink(u64 edge_id, u32 requested_seek_id, Media::InvalidateHeldData invalidate_held_data) =|
 }

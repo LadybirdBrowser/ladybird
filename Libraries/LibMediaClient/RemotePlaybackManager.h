@@ -86,6 +86,8 @@ public:
     bool is_playing() const { return m_is_playing; }
     Media::PlaybackState state() const { return m_state; }
     Media::AvailableData available_data() const { return m_available_data; }
+    // Whether the playback state can only change through further input, such as more data or a seek.
+    bool playback_state_is_settled() const;
     Media::BufferedRanges buffered_time_ranges() const;
     // The range playback can seek to, if any. AK::Duration::max() as the duration means it's unbounded, as a live
     // stream's is. NB: This is never more than one range, and that range may start and end at the same time.
@@ -98,6 +100,7 @@ public:
     void set_audio_group(Audio::PlaybackGroupId);
 
     Function<void()> on_playback_state_change;
+    Function<void()> on_playback_state_settled_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void()> on_buffered_ranges_change;
     // Called whenever an input of the seekable ranges changes: the duration, the buffered ranges, or the live seekable
@@ -114,7 +117,7 @@ public:
     void media_source_added(Badge<Client>, Optional<u64> stream_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<AK::UnixDateTime> start_time_realtime, Media::DemuxerScanState);
     void media_stream_source_failed(Badge<Client>, u64 stream_id, Media::DecoderError);
     void duration_changed(Badge<Client>, AK::Duration);
-    void state_changed(Badge<Client>, u64 applied_seek_request_id, Media::PlaybackState, bool is_playing, Media::AvailableData, AK::Duration current_time);
+    void state_changed(Badge<Client>, u64 applied_seek_request_id, Media::PlaybackState, bool is_playing, Media::AvailableData, bool server_playback_state_is_settled, AK::Duration current_time);
     void media_stream_scan_state_changed(Badge<Client>, u64 stream_id, Media::DemuxerScanState);
     void error(Badge<Client>, Media::DecoderError);
     void video_resized(Badge<Client>, Media::VideoSinkHandle, Gfx::Size<u32>);
@@ -149,6 +152,8 @@ private:
     void dispatch_error(Media::DecoderError&&);
     RemoteSourceBuffer* find_source_buffer(u64 source_buffer_id);
     void dispatch_state_change() const;
+    void advance_seek_request_id();
+    void dispatch_playback_state_settled_change_if_changed(bool was_settled) const;
     void dispatch_buffered_ranges_change() const;
     void dispatch_seekable_ranges_change() const;
     bool source_has_enabled_track(ReadonlySpan<Media::Track> audio_tracks, ReadonlySpan<Media::Track> video_tracks) const;
@@ -175,6 +180,8 @@ private:
     // A seek reports its target as the current time until the server has chosen where it lands. State reported
     // before the server applied the latest seek request is stale, and is ignored.
     u64 m_latest_seek_request_id { 0 };
+    u64 m_latest_reported_seek_request_id { 0 };
+    bool m_server_playback_state_is_settled { true };
     AK::Duration m_seek_timestamp;
 
     HashTable<Media::Track> m_enabled_audio_tracks;

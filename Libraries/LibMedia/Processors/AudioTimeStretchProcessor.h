@@ -62,6 +62,7 @@ private:
     mutable bool m_stretcher_reached_eos { false };
 
     mutable AudioBlock m_pending_block;
+    mutable PipelineCheckpoint m_input_checkpoint { 0 };
 
     SynchronizedWakeHandler m_wake_handler;
 };

@@ -75,7 +75,10 @@ constexpr PipelineStatus select_combined_pipeline_status(PipelineStatus a, Pipel
     return PipelineStatus::EndOfStream;
 }
 
-using PipelineStateChangeHandler = Function<void(PipelineStatus)>;
+// A monotonically increasing number representing a point a pipeline's owner wants to observe at its outputs.
+using PipelineCheckpoint = u64;
+
+using PipelineStateChangeHandler = Function<void(PipelineStatus, PipelineCheckpoint)>;
 using PipelineWakeHandler = Function<void()>;
 using PipelineResizeHandler = Function<void(Gfx::Size<u32>)>;
 

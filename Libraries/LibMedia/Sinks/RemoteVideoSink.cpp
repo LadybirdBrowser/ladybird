@@ -41,6 +41,7 @@ private:
     struct PublishedStatus {
         PipelineStatus status { PipelineStatus::Pending };
         u32 seek_id { 0 };
+        PipelineCheckpoint checkpoint { 0 };
 
         bool operator==(PublishedStatus const&) const = default;
     };
@@ -129,10 +130,10 @@ void RemoteVideoSink::set_resize_handler(PipelineResizeHandler on_resize)
     m_on_resize = move(on_resize);
 }
 
-void RemoteVideoSink::report_remote_status(PipelineStatus status)
+void RemoteVideoSink::report_remote_status(PipelineStatus status, PipelineCheckpoint checkpoint)
 {
     if (m_on_state_changed)
-        m_on_state_changed(status);
+        m_on_state_changed(status, checkpoint);
 }
 
 void RemoteVideoSink::report_remote_resize(Gfx::Size<u32> size)
@@ -342,7 +343,7 @@ void RemoteVideoSink::ThreadData::publish_status(PublishedStatus status)
             return;
         m_published_status = status;
     }
-    m_delegates.send_status(status.status, status.seek_id);
+    m_delegates.send_status(status.status, status.seek_id, status.checkpoint);
 }
 
 void RemoteVideoSink::ThreadData::lend_frame(NonnullRefPtr<VideoFrame> const& frame, u32 seek_id)
@@ -366,6 +367,7 @@ void RemoteVideoSink::ThreadData::pump_thread_loop()
 {
     // The seek ID a frame was lent under, while it has yet to be consumed from the input.
     Optional<u32> lent_frame_seek_id;
+    PipelineCheckpoint input_checkpoint = 0;
 
     while (true) {
         if (lent_frame_seek_id.has_value()) {
@@ -387,7 +389,7 @@ void RemoteVideoSink::ThreadData::pump_thread_loop()
                 if (m_input)
                     m_input->consume();
             }
-            publish_status({ PipelineStatus::Pending, lent_frame_seek_id.value() });
+            publish_status({ PipelineStatus::Pending, lent_frame_seek_id.value(), input_checkpoint });
             lent_frame_seek_id = {};
             continue;
         }
@@ -411,6 +413,7 @@ void RemoteVideoSink::ThreadData::pump_thread_loop()
                     continue;
                 }
                 output = m_input->peek();
+                input_checkpoint = output.checkpoint;
                 if (output.status == PipelineStatus::HaveData)
                     m_peeked_frame = output.frame;
             }
@@ -419,7 +422,7 @@ void RemoteVideoSink::ThreadData::pump_thread_loop()
         if (!frames_to_lend_again.is_empty()) {
             for (auto const& frame : frames_to_lend_again)
                 lend_frame(frame, seek_id);
-            publish_status({ PipelineStatus::Pending, seek_id });
+            publish_status({ PipelineStatus::Pending, seek_id, input_checkpoint });
             continue;
         }
 
@@ -430,7 +433,7 @@ void RemoteVideoSink::ThreadData::pump_thread_loop()
             continue;
         }
 
-        publish_status({ output.status, seek_id });
+        publish_status({ output.status, seek_id, input_checkpoint });
         MutexLocker locker { m_mutex };
         wait_on_pump_thread(locker);
     }
