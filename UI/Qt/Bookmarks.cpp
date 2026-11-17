@@ -56,6 +56,11 @@ void Bookmarks::appearance_changed()
     update_show_bookmarks_bar_actions();
 }
 
+void Bookmarks::tab_settings_changed()
+{
+    update_show_bookmarks_bar_actions();
+}
+
 void Bookmarks::create_menus()
 {
     m_menu = Menu::create("Bookmarks"sv);
@@ -294,6 +299,9 @@ void Bookmarks::create_menu_items(Optional<MenuData> data)
 
 void Bookmarks::update_show_bookmarks_bar_actions()
 {
+    auto const& tab_settings = Application::settings().tab_settings();
+    m_show_bookmarks_bar_menu->set_visible(!tab_settings.vertical_tabs_enabled || !tab_settings.everything_in_sidebar);
+
     auto show_always = Application::settings().appearance().show_bookmarks_bar == WebView::ShowBookmarksBar::Always;
     m_show_bookmarks_bar_always_action->set_shortcut_hint(show_always ? OptionalNone {} : Optional<ActionID> { ActionID::ToggleBookmarksBar });
     m_show_bookmarks_bar_never_action->set_shortcut_hint(show_always ? Optional<ActionID> { ActionID::ToggleBookmarksBar } : OptionalNone {});

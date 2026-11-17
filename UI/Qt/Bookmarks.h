@@ -43,6 +43,7 @@ private:
     virtual void bookmarks_changed() override;
 
     virtual void appearance_changed() override;
+    virtual void tab_settings_changed() override;
 
     struct ContextMenuItem {
         String id;

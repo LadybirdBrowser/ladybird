@@ -2,6 +2,7 @@ const tabLayoutGroup = document.querySelector("#tab-layout-group");
 const tabLayoutInputs = tabLayoutGroup.querySelectorAll('input[name="tab-layout"]');
 const verticalTabsExpandOnHover = document.querySelector("#vertical-tabs-expand-on-hover");
 const verticalTabsPosition = document.querySelector("#vertical-tabs-position");
+const showBookmarksBar = document.querySelector("#show-bookmarks-bar");
 
 let TAB_SETTINGS = {};
 
@@ -21,6 +22,10 @@ const updateVerticalTabsDependentSettings = () => {
     verticalTabsPosition.parentElement.classList.toggle(
         "hidden",
         !verticalTabsEnabled || !!TAB_SETTINGS.everythingInSidebar
+    );
+    showBookmarksBar.parentElement.classList.toggle(
+        "hidden",
+        verticalTabsEnabled && !!TAB_SETTINGS.everythingInSidebar
     );
 };
 
