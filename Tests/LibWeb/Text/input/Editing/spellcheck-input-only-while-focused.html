@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="input" value="quikc fox">
+<input id="left-mid-check" value="quikc fox">
+<textarea id="area">quikc fox</textarea>
+<script>
+    promiseTest(async () => {
+        // Checks run only on the user's behalf, so the user focuses each field with a click.
+        const clickOn = element => {
+            const rect = element.getBoundingClientRect();
+            internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        };
+        const show = (label, element) => println(`${label}: ${internals.spellingErrorRanges(element) || "(none)"}`);
+        const input = document.getElementById("input");
+        const leftMidCheck = document.getElementById("left-mid-check");
+        const area = document.getElementById("area");
+
+        clickOn(input);
+        await internals.spellCheckSettled();
+        show("input while focused", input);
+
+        clickOn(area);
+        await internals.spellCheckSettled();
+        show("input after focus left", input);
+        show("textarea while focused", area);
+
+        // The input's check is still out when focus leaves it, so its answer comes back to an unfocused input.
+        clickOn(leftMidCheck);
+        clickOn(area);
+        await internals.spellCheckSettled();
+        show("input left while its check was out", leftMidCheck);
+
+        internals.click(5, 200);
+        await internals.spellCheckSettled();
+        show("textarea after focus left", area);
+    });
+</script>
