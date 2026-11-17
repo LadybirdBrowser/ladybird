@@ -84,6 +84,7 @@
             }
 
             .history-entry {
+                position: relative;
                 display: flex;
                 align-items: center;
                 gap: 14px;
@@ -140,6 +141,14 @@
                 text-decoration: none;
             }
 
+            /* The title's link stretches over the whole entry, as the whole entry lights up under the pointer. */
+            .entry-title::after {
+                content: "";
+                position: absolute;
+                inset: 0;
+                border-radius: 6px;
+            }
+
             .entry-domain {
                 flex-shrink: 0;
                 max-width: 30%;
@@ -155,6 +164,12 @@
                 align-items: center;
                 flex-shrink: 0;
                 position: relative;
+                z-index: 1;
+            }
+
+            /* The open menu stays above the entries after its own. */
+            .entry-actions:has(.menu-toggle[aria-expanded="true"]) {
+                z-index: 2;
             }
 
             .menu-toggle {
