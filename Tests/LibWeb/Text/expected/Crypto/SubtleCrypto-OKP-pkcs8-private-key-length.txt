@@ -1,0 +1,2 @@
+Ed25519 PKCS#8 with an empty private key: DataError
+Ed25519 PKCS#8 with a 32-byte private key: imported

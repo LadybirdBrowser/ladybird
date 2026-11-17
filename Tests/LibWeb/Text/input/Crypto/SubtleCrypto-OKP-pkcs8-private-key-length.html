@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const hex = string => Uint8Array.from(string.match(/../g), byte => parseInt(byte, 16));
+
+    promiseTest(async () => {
+        const keys = [
+            ["an empty private key", "300e020100300506032b65700402" + "0400"],
+            ["a 32-byte private key", "302e020100300506032b657004220420" + "00".repeat(32)],
+        ];
+        for (const [name, der] of keys) {
+            try {
+                await crypto.subtle.importKey("pkcs8", hex(der), { name: "Ed25519" }, true, ["sign"]);
+                println(`Ed25519 PKCS#8 with ${name}: imported`);
+            } catch (error) {
+                println(`Ed25519 PKCS#8 with ${name}: ${error.name}`);
+            }
+        }
+    });
+</script>

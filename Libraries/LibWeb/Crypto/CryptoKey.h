@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibCrypto/KeyHandle.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CryptoKey.h>
@@ -21,9 +20,6 @@ enum class KeyType : u8;
 
 namespace Web::Crypto {
 
-using ::Crypto::OKPPrivateKey;
-using ::Crypto::OKPPublicKey;
-
 using KeyUsage = Bindings::KeyUsage;
 
 enum class KeyType {
@@ -36,8 +32,6 @@ class WEB_API CryptoKey final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(CryptoKey, crypto_key)
 
 public:
-    using InternalKeyData = ::Crypto::KeyHandle;
-
     struct KeyAlgorithmData {
         Utf16String const& name() const { return m_name; }
 
@@ -102,8 +96,6 @@ public:
 
     using InternalAlgorithmData = Variant<KeyAlgorithmData, RsaKeyAlgorithmData, RsaHashedKeyAlgorithmData, EcKeyAlgorithmData, AesKeyAlgorithmData, HmacKeyAlgorithmData, KmacKeyAlgorithmData>;
 
-    [[nodiscard]] static GC::Ref<CryptoKey> create(InternalKeyData);
-
     bool extractable() const;
     KeyType type() const;
 
@@ -115,7 +107,6 @@ public:
     void set_algorithm(InternalAlgorithmData);
     void set_usages(Vector<KeyUsage>);
 
-    InternalKeyData const& handle() const;
     Utf16String algorithm_name() const;
 };
 

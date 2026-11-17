@@ -3,3 +3,9 @@ expandedKey: NotSupportedError
 both: imported
 seedWithoutItsTag: DataError
 expandedKeyThatIsNotAValidKey: NotSupportedError
+bothWithTheExpandedKeyOfAnotherSeed: DataError
+expandedKeyInAConstructedOctetString: DataError
+seedWithATrailingByte: DataError
+seedWithALongFormLength: DataError
+seedWithAnotherTag: DataError
+bothWithAnExtraElement: DataError

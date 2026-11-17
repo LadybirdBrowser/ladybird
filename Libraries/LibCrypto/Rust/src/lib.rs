@@ -9,26 +9,60 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::ffi::c_void;
+use core::ffi::{CStr, c_int, c_uint};
 
-use ak::{Span, SpanMut, Utf16String};
+use ak::Utf16String;
 use subtle::ConstantTimeEq;
 
-mod ffi;
+use key::SecretBytes;
+use openssl::{Cipher, CipherContext, Pkey, end_parameter, octet_string_parameter, uint_parameter, utf8_parameter};
+
+mod der;
+mod ec;
 mod key;
 mod key_info;
+mod ml;
+mod openssl;
+mod rsa;
+mod sys;
 
-pub use key::{KeyComponents, KeyDecodeError, KeyHandle, KeyPair};
-pub use key_info::{Asn1Value, KeyInfo, decode_asn1_structure};
+pub use ec::{
+    ec_compute_coordinate, ec_export_der, ec_export_private_scalar, ec_export_public_coordinates,
+    ec_export_uncompressed, ec_generate_key_pair, ec_key_from_coordinates, ec_key_is_valid, ec_parse_raw_public_key,
+    ec_public_key_scalar_size, ec_sign, ec_verify,
+};
+pub use key::{HandleTag, KeyDecodeError, KeyHandle, KeyPair, StoredKey};
+pub use key_info::{KeyAlgorithm, KeyInfo, parse_octet_string, parse_private_key_info, parse_subject_public_key_info};
+pub use ml::{
+    ml_export_der, ml_seed_bytes, mldsa_generate_key_pair, mldsa_public_bytes, mldsa_read_public_key, mldsa_sign,
+    mldsa_verify, mlkem_decapsulate, mlkem_encapsulate, mlkem_generate_key_pair, mlkem_public_bytes,
+    mlkem_read_public_key,
+};
+pub use rsa::{
+    RsaSignaturePadding, rsa_export_der, rsa_export_jwk_integer, rsa_export_public_exponent, rsa_generate_key_pair,
+    rsa_key_from_components, rsa_key_is_valid, rsa_oaep_cipher, rsa_read_key_metadata, rsa_sign,
+    rsa_validate_modulus_length, rsa_validate_public_exponent, rsa_verify,
+};
 
-use ffi::ReceiveBytes;
-
+/// The error of an operation: an input that it rejects, for the reason given, or a failure of OpenSSL.
 #[derive(Debug)]
-pub struct BackendError;
+pub enum CryptoError {
+    Invalid(&'static str),
+    Backend,
+}
 
-#[repr(i32)]
+impl CryptoError {
+    pub fn message(&self) -> &'static str {
+        match self {
+            Self::Invalid(reason) => reason,
+            Self::Backend => "The cryptographic operation failed",
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub enum ShaHashKind {
-    Sha1 = 2,
+    Sha1,
     Sha256,
     Sha384,
     Sha512,
@@ -37,36 +71,31 @@ pub enum ShaHashKind {
     Sha3_512,
 }
 
-#[repr(i32)]
 pub enum CShakeKind {
     CShake128,
     CShake256,
 }
 
-#[repr(i32)]
 #[derive(Clone, Copy)]
 pub enum KmacKind {
     Kmac128,
     Kmac256,
 }
 
-#[repr(i32)]
 pub enum Argon2Type {
     Argon2d,
     Argon2i,
     Argon2id,
 }
 
-#[derive(Clone, Copy)]
-#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum EcCurve {
     P256,
     P384,
     P521,
 }
 
-#[derive(Clone, Copy)]
-#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum OkpCurve {
     Ed25519,
     Ed448,
@@ -74,7 +103,6 @@ pub enum OkpCurve {
     X448,
 }
 
-#[repr(u8)]
 pub enum RsaJwkInteger {
     Modulus,
     PublicExponent,
@@ -86,28 +114,18 @@ pub enum RsaJwkInteger {
     Coefficient,
 }
 
-#[derive(Clone, Copy)]
-#[repr(i32)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum MlDsaSize {
     MlDsa44,
     MlDsa65,
     MlDsa87,
 }
 
-#[derive(Clone, Copy)]
-#[repr(i32)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum MlKemSize {
     MlKem512,
     MlKem768,
     MlKem1024,
-}
-
-#[derive(Clone, Copy)]
-#[repr(u8)]
-pub enum Asn1Structure {
-    SubjectPublicKeyInfo,
-    PrivateKeyInfo,
-    OctetString,
 }
 
 pub struct Argon2Inputs<'a> {
@@ -116,131 +134,47 @@ pub struct Argon2Inputs<'a> {
     pub memory: u32,
     pub passes: u32,
     pub parallelism: u32,
-    pub version: u32,
     pub secret_value: Option<&'a [u8]>,
     pub associated_data: Option<&'a [u8]>,
     pub tag_length: u32,
 }
 
-unsafe extern "C" fn receive_bytes(state: *mut c_void, bytes: Span<'_, u8>) {
-    // SAFETY: The native call supplies the output slot and lends the bytes during the callback.
-    unsafe { *state.cast::<Vec<u8>>() = bytes.as_slice().to_vec() };
-}
-
-fn receive_native_bytes<T>(call: impl FnOnce(*mut c_void, ReceiveBytes) -> T) -> (T, Vec<u8>) {
-    let mut bytes = Vec::new();
-    let status = call(core::ptr::from_mut(&mut bytes).cast(), receive_bytes);
-    (status, bytes)
-}
-
-fn result_from_error(raw: usize) -> Result<(), Utf16String> {
-    if raw == 0 {
-        Ok(())
-    } else {
-        // SAFETY: A nonzero error returned by LibCrypto transfers an owned string.
-        Err(unsafe { Utf16String::from_raw_owned(raw) })
-    }
-}
-
 pub fn fill_with_random(bytes: &mut [u8]) {
-    // SAFETY: The native function writes into the span during the call.
-    unsafe { ffi::crypto_fill_with_random(SpanMut::new(bytes)) };
+    // NB: As with AK's fill_with_random(), a failure to produce random bytes is not something to recover from.
+    openssl::fill_with_random(bytes).expect("OpenSSL produces random bytes");
 }
 
-pub fn generate_random_uuid() -> Utf16String {
-    // SAFETY: The native function invokes the receiver synchronously.
-    let ((), bytes) =
-        receive_native_bytes(|state, receive| unsafe { ffi::crypto_generate_random_uuid(state, receive) });
-    Utf16String::from_ascii(&bytes)
-}
-
-pub fn sha_digest(kind: ShaHashKind, data: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) =
-        receive_native_bytes(|state, receive| unsafe { ffi::crypto_sha_digest(kind, Span::new(data), state, receive) });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn cshake_validate_parameters(output_length: u32) -> Result<(), Utf16String> {
-    // SAFETY: The call takes no pointers.
-    result_from_error(unsafe { ffi::crypto_cshake_validate_parameters(output_length) })
-}
-
-pub fn cshake_digest(
-    kind: CShakeKind,
-    data: &[u8],
-    output_length: u32,
-    customization: Option<&[u8]>,
-    function_name: Option<&[u8]>,
-) -> Result<Vec<u8>, Utf16String> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_cshake_digest(
-            kind,
-            Span::new(data),
-            output_length,
-            customization.into(),
-            function_name.into(),
-            state,
-            receive,
-        )
-    });
-    result_from_error(status)?;
-    Ok(bytes)
-}
-
-pub fn hmac_sign(kind: ShaHashKind, key: &[u8], message: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (succeeded, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_hmac_sign(kind, Span::new(key), Span::new(message), state, receive)
-    });
-    if !succeeded {
-        return Err(BackendError);
+impl ShaHashKind {
+    /// The name of the digest, as OpenSSL takes it.
+    pub(crate) fn name(&self) -> &'static CStr {
+        match self {
+            Self::Sha1 => c"SHA1",
+            Self::Sha256 => c"SHA2-256",
+            Self::Sha384 => c"SHA2-384",
+            Self::Sha512 => c"SHA2-512",
+            Self::Sha3_256 => c"SHA3-256",
+            Self::Sha3_384 => c"SHA3-384",
+            Self::Sha3_512 => c"SHA3-512",
+        }
     }
-    Ok(bytes)
 }
 
-pub fn timing_safe_compare(left: &[u8], right: &[u8]) -> bool {
-    left.ct_eq(right).into()
-}
-
-pub fn kmac_default_key_length(kind: KmacKind) -> u32 {
-    // SAFETY: The input is borrowed for the call.
-    unsafe { ffi::crypto_kmac_default_key_length(kind) }
-}
-
-pub fn kmac_validate_parameters(output_length: u32, customization: Option<&[u8]>) -> bool {
-    // SAFETY: The input is borrowed for the call.
-    unsafe { ffi::crypto_kmac_validate_parameters(output_length, customization.into()) }
-}
-
-pub fn kmac_sign(
-    kind: KmacKind,
-    key: &[u8],
-    message: &[u8],
-    output_length: u32,
-    customization: Option<&[u8]>,
-) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_kmac_sign(
-            kind,
-            Span::new(key),
-            Span::new(message),
-            output_length,
-            customization.into(),
-            state,
-            receive,
-        )
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
+pub fn sha_digest(kind: ShaHashKind, data: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    openssl::digest(kind.name(), data)
 }
 
 pub fn hash_digest_size(kind: ShaHashKind) -> usize {
-    // SAFETY: The input is borrowed for the call.
-    unsafe { ffi::crypto_hash_digest_size(kind) }
+    match kind {
+        ShaHashKind::Sha1 => 20,
+        ShaHashKind::Sha256 | ShaHashKind::Sha3_256 => 32,
+        ShaHashKind::Sha384 | ShaHashKind::Sha3_384 => 48,
+        ShaHashKind::Sha512 | ShaHashKind::Sha3_512 => 64,
+    }
+}
+
+pub fn hmac_sign(kind: ShaHashKind, key: &[u8], message: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    let params = [utf8_parameter(c"digest", kind.name()), end_parameter()];
+    openssl::mac(c"HMAC", key, message, hash_digest_size(kind), &params)
 }
 
 pub fn hkdf_derive_key(
@@ -249,21 +183,17 @@ pub fn hkdf_derive_key(
     key: &[u8],
     info: &[u8],
     length: u32,
-) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_hkdf_derive_key(
-            kind,
-            Span::new(salt),
-            Span::new(key),
-            Span::new(info),
-            length,
-            state,
-            receive,
-        )
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
+) -> Result<Vec<u8>, CryptoError> {
+    let params = [
+        utf8_parameter(c"digest", kind.name()),
+        octet_string_parameter(c"key", key),
+        octet_string_parameter(c"salt", salt),
+        octet_string_parameter(c"info", info),
+        end_parameter(),
+    ];
+    let mut derived = vec![0; length as usize];
+    openssl::kdf(c"HKDF", &params, &mut derived)?;
+    Ok(derived)
 }
 
 pub fn pbkdf2_derive_key(
@@ -272,44 +202,241 @@ pub fn pbkdf2_derive_key(
     salt: &[u8],
     iterations: u32,
     length: u32,
-) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_pbkdf2_derive_key(
-            kind,
-            Span::new(password),
-            Span::new(salt),
-            iterations,
-            length,
-            state,
-            receive,
-        )
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
+) -> Result<Vec<u8>, CryptoError> {
+    // NB: OpenSSL's PBKDF2 takes the iteration count and the lengths as int.
+    let fits_in_int = |value: usize| c_int::try_from(value).is_ok();
+    if ![iterations as usize, password.len(), salt.len(), length as usize]
+        .into_iter()
+        .all(fits_in_int)
+    {
+        return Err(CryptoError::Backend);
+    }
+    let mut iterations: c_uint = iterations;
+    // NB: Web Crypto does not impose SP 800-132's lower bounds on the salt, iterations and key length, which OpenSSL
+    //     checks unless asked for PKCS #5 behaviour.
+    let mut pkcs5 = 1;
+    let params = [
+        utf8_parameter(c"digest", kind.name()),
+        octet_string_parameter(c"pass", password),
+        octet_string_parameter(c"salt", salt),
+        uint_parameter(c"iter", &mut iterations),
+        openssl::int_parameter(c"pkcs5", &mut pkcs5),
+        end_parameter(),
+    ];
+    let mut derived = vec![0; length as usize];
+    openssl::kdf(c"PBKDF2", &params, &mut derived)?;
+    Ok(derived)
 }
 
-pub fn argon2_validate_parameters(nonce: &[u8]) -> Result<(), Utf16String> {
-    // SAFETY: The input is borrowed for the call.
-    result_from_error(unsafe { ffi::crypto_argon2_validate_parameters(Span::new(nonce)) })
+pub fn cshake_validate_parameters(output_length: u32) -> Result<(), CryptoError> {
+    if !output_length.is_multiple_of(8) {
+        return Err(CryptoError::Invalid("SHAKE output length must be a multiple of 8 bits"));
+    }
+    Ok(())
 }
 
-pub fn argon2_derive_key(kind: Argon2Type, inputs: &Argon2Inputs<'_>) -> Result<Vec<u8>, Utf16String> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_argon2_derive_key(kind, &inputs.into(), state, receive)
-    });
-    result_from_error(status)?;
-    Ok(bytes)
+// https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-185.pdf
+fn left_encode(output: &mut Vec<u8>, value: u64) {
+    let bytes = value.to_be_bytes();
+    let leading_zeros = bytes.iter().take_while(|&&byte| byte == 0).count().min(bytes.len() - 1);
+    output.push((bytes.len() - leading_zeros) as u8);
+    output.extend_from_slice(&bytes[leading_zeros..]);
 }
 
-pub fn aes_cbc_cipher(encrypt: bool, key: &[u8], input: &[u8], iv: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_aes_cbc_cipher(encrypt, Span::new(key), Span::new(input), Span::new(iv), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
+// https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-185.pdf
+fn encode_string(output: &mut Vec<u8>, string: &[u8]) {
+    left_encode(output, string.len() as u64 * 8);
+    output.extend_from_slice(string);
+}
+
+pub fn cshake_digest(
+    kind: CShakeKind,
+    data: &[u8],
+    output_length: u32,
+    customization: Option<&[u8]>,
+    function_name: Option<&[u8]>,
+) -> Result<Vec<u8>, CryptoError> {
+    cshake_validate_parameters(output_length)?;
+    let mut output = vec![0; (output_length / 8) as usize];
+    cshake(
+        kind,
+        data,
+        function_name.unwrap_or_default(),
+        customization.unwrap_or_default(),
+        &mut output,
+    )?;
+    Ok(output)
+}
+
+fn cshake(
+    kind: CShakeKind,
+    data: &[u8],
+    name: &[u8],
+    customization: &[u8],
+    output: &mut [u8],
+) -> Result<(), CryptoError> {
+    // If N = "" and S = "", return SHAKE128(X, L) (or SHAKE256(X, L) for cSHAKE256).
+    if name.is_empty() && customization.is_empty() {
+        let shake = match kind {
+            CShakeKind::CShake128 => c"SHAKE128",
+            CShakeKind::CShake256 => c"SHAKE256",
+        };
+        return openssl::extendable_output(shake, &[data], output);
+    }
+
+    // Else return KECCAK[256](bytepad(encode_string(N) || encode_string(S), 168) || X || 00, L) for cSHAKE128, or
+    // KECCAK[512](bytepad(encode_string(N) || encode_string(S), 136) || X || 00, L) for cSHAKE256.
+    // NB: OpenSSL's KECCAK-KMAC digests are KECCAK[c](M || 00, L), the function that KMAC builds on.
+    let (rate, keccak_name) = match kind {
+        CShakeKind::CShake128 => (168, c"KECCAK-KMAC-128"),
+        CShakeKind::CShake256 => (136, c"KECCAK-KMAC-256"),
+    };
+    let mut prefix = Vec::new();
+    left_encode(&mut prefix, rate as u64);
+    encode_string(&mut prefix, name);
+    encode_string(&mut prefix, customization);
+    prefix.resize(prefix.len().div_ceil(rate) * rate, 0);
+    openssl::extendable_output(keccak_name, &[&prefix, data], output)
+}
+
+pub fn timing_safe_compare(left: &[u8], right: &[u8]) -> bool {
+    left.ct_eq(right).into()
+}
+
+pub fn kmac_validate_parameters(output_length: u32, customization: Option<&[u8]>) -> bool {
+    // OpenSSL's KMAC implementation rejects longer outputs and customization strings.
+    const MAXIMUM_OUTPUT_LENGTH: u32 = 0xFF_FFFF / 8;
+    const MAXIMUM_CUSTOMIZATION_LENGTH: usize = 512;
+
+    output_length != 0
+        && output_length.is_multiple_of(8)
+        && output_length / 8 <= MAXIMUM_OUTPUT_LENGTH
+        && customization.is_none_or(|customization| customization.len() <= MAXIMUM_CUSTOMIZATION_LENGTH)
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-sign
+pub fn kmac_sign(
+    kind: KmacKind,
+    key: &[u8],
+    message: &[u8],
+    output_length: u32,
+    customization: Option<&[u8]>,
+) -> Result<Vec<u8>, CryptoError> {
+    if !kmac_validate_parameters(output_length, customization) {
+        return Err(CryptoError::Backend);
+    }
+    let name = match kind {
+        KmacKind::Kmac128 => c"KMAC-128",
+        KmacKind::Kmac256 => c"KMAC-256",
+    };
+    let output_size = (output_length / 8) as usize;
+    let mut size = c_uint::try_from(output_size).map_err(|_| CryptoError::Backend)?;
+    let mut params = vec![uint_parameter(c"size", &mut size)];
+    if let Some(customization) = customization {
+        params.push(octet_string_parameter(c"custom", customization));
+    }
+    params.push(end_parameter());
+    openssl::mac(name, key, message, output_size, &params)
+}
+
+pub fn argon2_validate_parameters(nonce: &[u8]) -> Result<(), CryptoError> {
+    // OpenSSL's Argon2 implementation rejects shorter salts.
+    const MINIMUM_NONCE_LENGTH: usize = 8;
+
+    if nonce.len() < MINIMUM_NONCE_LENGTH {
+        return Err(CryptoError::Invalid("Argon2 nonce must be at least 8 bytes"));
+    }
+    Ok(())
+}
+
+/// Argon2 with inputs that `argon2_validate_parameters()` accepts.
+pub fn argon2_derive_key(kind: Argon2Type, inputs: &Argon2Inputs<'_>) -> Result<Vec<u8>, CryptoError> {
+    let name = match kind {
+        Argon2Type::Argon2d => c"ARGON2D",
+        Argon2Type::Argon2i => c"ARGON2I",
+        Argon2Type::Argon2id => c"ARGON2ID",
+    };
+    // NB: OpenSSL takes version 0x13, the only version Web Crypto allows, and one thread when none are given.
+    let mut output = vec![0; inputs.tag_length as usize];
+    let (mut passes, mut lanes, mut memory) = (inputs.passes, inputs.parallelism, inputs.memory);
+    let mut size = c_uint::try_from(output.len()).map_err(|_| CryptoError::Backend)?;
+    let mut params = vec![
+        octet_string_parameter(c"pass", inputs.password),
+        octet_string_parameter(c"salt", inputs.nonce),
+        uint_parameter(c"iter", &mut passes),
+        uint_parameter(c"lanes", &mut lanes),
+        uint_parameter(c"memcost", &mut memory),
+        uint_parameter(c"size", &mut size),
+    ];
+    if let Some(secret) = inputs.secret_value {
+        params.push(octet_string_parameter(c"secret", secret));
+    }
+    if let Some(associated_data) = inputs.associated_data {
+        params.push(octet_string_parameter(c"ad", associated_data));
+    }
+    params.push(end_parameter());
+    openssl::kdf(name, &params, &mut output)?;
+    Ok(output)
+}
+
+enum AesMode {
+    Cbc,
+    Ctr,
+    Gcm,
+    Ocb,
+    Kw,
+}
+
+fn aes_cipher(mode: AesMode, key: &[u8]) -> Result<Cipher, CryptoError> {
+    let ciphers = match mode {
+        AesMode::Cbc => [sys::EVP_aes_128_cbc, sys::EVP_aes_192_cbc, sys::EVP_aes_256_cbc],
+        AesMode::Ctr => [sys::EVP_aes_128_ctr, sys::EVP_aes_192_ctr, sys::EVP_aes_256_ctr],
+        AesMode::Gcm => [sys::EVP_aes_128_gcm, sys::EVP_aes_192_gcm, sys::EVP_aes_256_gcm],
+        AesMode::Ocb => [sys::EVP_aes_128_ocb, sys::EVP_aes_192_ocb, sys::EVP_aes_256_ocb],
+        AesMode::Kw => [sys::EVP_aes_128_wrap, sys::EVP_aes_192_wrap, sys::EVP_aes_256_wrap],
+    };
+    let getter = match key.len() {
+        16 => ciphers[0],
+        24 => ciphers[1],
+        32 => ciphers[2],
+        _ => return Err(CryptoError::Backend),
+    };
+    Ok(Cipher::from_static(getter))
+}
+
+/// Encrypts or decrypts `input` whole with a context set up with the cipher, key and IV.
+fn cipher(
+    encrypt: bool,
+    cipher: Cipher,
+    key: &[u8],
+    iv: Option<&[u8]>,
+    input: &[u8],
+    allow_key_wrapping: bool,
+) -> Result<Vec<u8>, CryptoError> {
+    let mut context = CipherContext::create()?;
+    if allow_key_wrapping {
+        context.allow_key_wrapping();
+    }
+    context.init(encrypt, Some(cipher), Some(key), iv)?;
+    let mut output = Vec::with_capacity(input.len());
+    // NB: Key wrapping takes its input whole.
+    if allow_key_wrapping {
+        context.update_whole(input, &mut output)?;
+    } else {
+        context.update(input, &mut output)?;
+    }
+    context.finalize(&mut output)?;
+    Ok(output)
+}
+
+pub fn aes_cbc_cipher(encrypt: bool, key: &[u8], input: &[u8], iv: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    const IV_LENGTH: usize = 16;
+
+    let aes = aes_cipher(AesMode::Cbc, key)?;
+    if iv.len() != IV_LENGTH {
+        return Err(CryptoError::Backend);
+    }
+    cipher(encrypt, aes, key, Some(iv), input, false)
 }
 
 /// Increments only the low `counter_length` bits of the counter block, modulo 2^counter_length, as the standard
@@ -320,10 +447,10 @@ pub fn aes_ctr_cipher(
     input: &[u8],
     counter: &[u8],
     counter_length: u8,
-) -> Result<Vec<u8>, BackendError> {
-    let counter_block: [u8; 16] = counter.try_into().map_err(|_| BackendError)?;
+) -> Result<Vec<u8>, CryptoError> {
+    let counter_block: [u8; 16] = counter.try_into().map_err(|_| CryptoError::Backend)?;
     if counter_length == 0 || counter_length > 128 {
-        return Err(BackendError);
+        return Err(CryptoError::Backend);
     }
 
     // The native cipher increments the whole block, so split the input where the low bits wrap around.
@@ -355,78 +482,72 @@ fn aes_ctr_cipher_whole_block_counter(
     key: &[u8],
     input: &[u8],
     counter: &[u8],
-) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_aes_ctr_cipher(
-            encrypt,
-            Span::new(key),
-            Span::new(input),
-            Span::new(counter),
-            state,
-            receive,
-        )
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
+) -> Result<Vec<u8>, CryptoError> {
+    let aes = aes_cipher(AesMode::Ctr, key)?;
+    cipher(encrypt, aes, key, Some(counter), input, false)
 }
 
-pub fn aes_kw_cipher(wrap: bool, key: &[u8], input: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_aes_kw_cipher(wrap, Span::new(key), Span::new(input), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
+pub fn aes_kw_cipher(wrap: bool, key: &[u8], input: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    let aes = aes_cipher(AesMode::Kw, key)?;
+    cipher(wrap, aes, key, None, input, true)
 }
 
-pub fn aes_gcm_encrypt(
+/// Encrypts `input`, giving the ciphertext followed by a tag of `tag_length` bytes, or decrypts such a ciphertext.
+fn aead(
+    cipher: Cipher,
+    encrypt: bool,
     key: &[u8],
-    plaintext: &[u8],
     iv: &[u8],
     additional_data: &[u8],
     tag_length: usize,
-) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
-    let mut first = Vec::new();
-    let mut second = Vec::new();
-    // SAFETY: Inputs and both output slots are borrowed for the call.
-    let status = unsafe {
-        ffi::crypto_aes_gcm_encrypt(
-            Span::new(key),
-            Span::new(plaintext),
-            Span::new(iv),
-            Span::new(additional_data),
-            tag_length,
-            core::ptr::from_mut(&mut first).cast(),
-            core::ptr::from_mut(&mut second).cast(),
-            receive_bytes,
-        )
+    input: &[u8],
+) -> Result<Vec<u8>, CryptoError> {
+    let (input, tag) = if encrypt {
+        (input, None)
+    } else {
+        let split_index = input
+            .len()
+            .checked_sub(tag_length)
+            .ok_or(CryptoError::Invalid("Ciphertext too short"))?;
+        let (ciphertext, tag) = input.split_at(split_index);
+        (ciphertext, Some(tag))
     };
-    status.then_some(()).ok_or(BackendError)?;
-    Ok((first, second))
+
+    let mut context = CipherContext::create()?;
+    context.init(encrypt, Some(cipher), None, None)?;
+    context.set_iv_length(iv.len())?;
+    // NB: In OCB mode the tag length can only be set before the IV is; otherwise a default length is used.
+    let ocb_ciphers = [sys::EVP_aes_128_ocb, sys::EVP_aes_192_ocb, sys::EVP_aes_256_ocb].map(Cipher::from_static);
+    if ocb_ciphers.contains(&cipher) {
+        context.set_tag_length(tag_length)?;
+    }
+    context.init(encrypt, None, Some(key), Some(iv))?;
+    if let Some(tag) = tag {
+        context.set_tag(tag)?;
+    }
+    context.add_additional_data(additional_data)?;
+
+    let mut output = Vec::with_capacity(input.len() + tag_length);
+    context.update(input, &mut output)?;
+    context.finalize(&mut output)?;
+    if encrypt {
+        output.extend_from_slice(&context.tag(tag_length)?);
+    }
+    Ok(output)
 }
 
-pub fn aes_gcm_decrypt(
+/// AES-GCM encryption, giving the ciphertext followed by a tag of `tag_length` bytes, or decryption of such a
+/// ciphertext.
+pub fn aes_gcm_cipher(
+    encrypt: bool,
     key: &[u8],
-    ciphertext: &[u8],
+    input: &[u8],
     iv: &[u8],
     additional_data: &[u8],
-    tag: &[u8],
-) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_aes_gcm_decrypt(
-            Span::new(key),
-            Span::new(ciphertext),
-            Span::new(iv),
-            Span::new(additional_data),
-            Span::new(tag),
-            state,
-            receive,
-        )
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
+    tag_length: usize,
+) -> Result<Vec<u8>, CryptoError> {
+    let cipher = aes_cipher(AesMode::Gcm, key)?;
+    aead(cipher, encrypt, key, iv, additional_data, tag_length, input)
 }
 
 pub fn aes_ocb_cipher(
@@ -436,22 +557,13 @@ pub fn aes_ocb_cipher(
     iv: &[u8],
     additional_data: &[u8],
     tag_length: usize,
-) -> Result<Vec<u8>, Utf16String> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_aes_ocb_cipher(
-            encrypt,
-            Span::new(key),
-            Span::new(input),
-            Span::new(iv),
-            Span::new(additional_data),
-            tag_length,
-            state,
-            receive,
-        )
-    });
-    result_from_error(status)?;
-    Ok(bytes)
+) -> Result<Vec<u8>, CryptoError> {
+    let tag_length_bytes = tag_length / 8;
+    if !(1..=16).contains(&tag_length_bytes) {
+        return Err(CryptoError::Invalid("Invalid AES-OCB tag length"));
+    }
+    let cipher = aes_cipher(AesMode::Ocb, key).map_err(|_| CryptoError::Invalid("Invalid AES-OCB key length"))?;
+    aead(cipher, encrypt, key, iv, additional_data, tag_length_bytes, input)
 }
 
 pub fn chacha20_poly1305_cipher(
@@ -460,320 +572,113 @@ pub fn chacha20_poly1305_cipher(
     iv: &[u8],
     input: &[u8],
     additional_data: &[u8],
-) -> Result<Vec<u8>, Utf16String> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_chacha20_poly1305_cipher(
-            encrypt,
-            Span::new(key),
-            Span::new(iv),
-            Span::new(input),
-            Span::new(additional_data),
-            state,
-            receive,
-        )
-    });
-    result_from_error(status)?;
-    Ok(bytes)
-}
+) -> Result<Vec<u8>, CryptoError> {
+    const KEY_SIZE: usize = 32;
+    const NONCE_SIZE: usize = 12;
+    const TAG_SIZE: usize = 16;
 
-pub fn rsa_key_is_valid(key: &KeyHandle) -> Result<bool, BackendError> {
-    let mut value = false;
-    // SAFETY: Inputs and output are borrowed for the call.
-    let status = unsafe { ffi::crypto_rsa_key_is_valid(key.as_raw(), &mut value) };
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(value)
-}
-
-/// Whether the big-endian `exponent` is at least 3, is odd, and is less than 2^modulus_length - 1.
-pub fn rsa_validate_public_exponent(exponent: &[u8], modulus_length: u32) -> bool {
-    let exponent = strip_leading_zeros(exponent);
-    let (Some(&first), Some(&last)) = (exponent.first(), exponent.last()) else {
-        return false;
-    };
-    if (exponent.len() == 1 && first < 3) || last & 1 == 0 {
-        return false;
+    if key.len() != KEY_SIZE {
+        return Err(CryptoError::Invalid("ChaCha20-Poly1305 key must be 32 bytes"));
     }
-
-    // NB: exponent + 1 has one bit more than exponent exactly when every bit of exponent is set.
-    let bit_length = (exponent.len() as u64 - 1) * 8 + u64::from(8 - first.leading_zeros());
-    let all_bits_set = (first & first.wrapping_add(1)) == 0 && exponent[1..].iter().all(|&byte| byte == 0xff);
-    let incremented_bit_length = bit_length + u64::from(all_bits_set);
-    incremented_bit_length <= u64::from(modulus_length)
+    if iv.len() != NONCE_SIZE {
+        return Err(CryptoError::Invalid("ChaCha20-Poly1305 nonce must be 12 bytes"));
+    }
+    aead(
+        Cipher::from_static(sys::EVP_chacha20_poly1305),
+        encrypt,
+        key,
+        iv,
+        additional_data,
+        TAG_SIZE,
+        input,
+    )
 }
 
-fn strip_leading_zeros(bytes: &[u8]) -> &[u8] {
-    let leading_zeros = bytes.iter().take_while(|&&byte| byte == 0).count();
-    &bytes[leading_zeros..]
+impl OkpCurve {
+    /// The name of the curve's key type, as OpenSSL takes it.
+    fn name(self) -> &'static CStr {
+        match self {
+            Self::Ed25519 => c"ED25519",
+            Self::Ed448 => c"ED448",
+            Self::X25519 => c"X25519",
+            Self::X448 => c"X448",
+        }
+    }
 }
 
-pub fn rsa_validate_modulus_length(modulus_length: u32) -> bool {
-    // SAFETY: The input is borrowed for the call.
-    unsafe { ffi::crypto_rsa_validate_modulus_length(modulus_length) }
+pub fn okp_generate_private_key(curve: OkpCurve) -> Result<Vec<u8>, CryptoError> {
+    Ok(Pkey::generate(curve.name(), None)?.raw_private_key()?.into_vec())
 }
 
-pub fn rsa_generate_key_pair(modulus_length: u32, exponent: &[u8]) -> Result<KeyPair, BackendError> {
-    let mut public_key = core::ptr::null_mut();
-    let mut private_key = core::ptr::null_mut();
-    // SAFETY: Inputs and output slots are borrowed for the call.
-    let status = unsafe {
-        ffi::crypto_rsa_generate_key_pair(modulus_length, Span::new(exponent), &mut public_key, &mut private_key)
+pub fn okp_generate_public_key(curve: OkpCurve, private_key: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    Pkey::from_raw_private_key(curve.name(), private_key)?.raw_public_key()
+}
+
+pub fn okp_compute_coordinate(curve: OkpCurve, private_key: &[u8], public_key: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    if !matches!(curve, OkpCurve::X25519 | OkpCurve::X448) {
+        return Err(CryptoError::Backend);
+    }
+    let key = Pkey::from_raw_private_key(curve.name(), private_key)?;
+    let peer = Pkey::from_raw_public_key(curve.name(), public_key)?;
+    openssl::derive(&key, &peer, false)
+}
+
+pub fn okp_sign(curve: OkpCurve, private_key: &[u8], message: &[u8], context: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    let key = Pkey::from_raw_private_key(curve.name(), private_key)?;
+    match curve {
+        OkpCurve::Ed25519 => openssl::digest_sign(&key, None, &[end_parameter()], message),
+        OkpCurve::Ed448 => openssl::digest_sign(&key, None, &openssl::context_string_parameters(context), message),
+        OkpCurve::X25519 | OkpCurve::X448 => Err(CryptoError::Backend),
+    }
+}
+
+// NB: The y-coordinates of the points of order 1, 2, 4 and 8, which Web Crypto's verify operation returns false for
+//     when the public key or the signature's R is one. The sign bit of x is ignored.
+const SMALL_ORDER_ED25519_Y_COORDINATES: [[u8; 32]; 7] = [
+    // y = 0, order 4
+    [
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ],
+    // y = 1, the identity
+    [
+        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ],
+    // Order 8
+    [
+        0x26, 0xe8, 0x95, 0x8f, 0xc2, 0xb2, 0x27, 0xb0, 0x45, 0xc3, 0xf4, 0x89, 0xf2, 0xef, 0x98, 0xf0, 0xd5, 0xdf,
+        0xac, 0x05, 0xd3, 0xc6, 0x33, 0x39, 0xb1, 0x38, 0x02, 0x88, 0x6d, 0x53, 0xfc, 0x05,
+    ],
+    // Order 8
+    [
+        0xc7, 0x17, 0x6a, 0x70, 0x3d, 0x4d, 0xd8, 0x4f, 0xba, 0x3c, 0x0b, 0x76, 0x0d, 0x10, 0x67, 0x0f, 0x2a, 0x20,
+        0x53, 0xfa, 0x2c, 0x39, 0xcc, 0xc6, 0x4e, 0xc7, 0xfd, 0x77, 0x92, 0xac, 0x03, 0x7a,
+    ],
+    // y = p - 1, order 2
+    [
+        0xec, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
+    ],
+    // y = p, a non-canonical 0
+    [
+        0xed, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
+    ],
+    // y = p + 1, a non-canonical 1
+    [
+        0xee, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
+    ],
+];
+
+fn is_small_order_ed25519_point(point: &[u8]) -> bool {
+    let Some((&last, rest)) = point.split_last() else {
+        return false;
     };
-    status.then_some(()).ok_or(BackendError)?;
-    // SAFETY: Success transfers ownership of both keys.
-    Ok(unsafe { KeyPair::from_raw(public_key, private_key) })
-}
-
-/// The big-endian `exponent` with no leading zero bytes.
-pub fn rsa_export_public_exponent(exponent: &[u8]) -> Vec<u8> {
-    strip_leading_zeros(exponent).to_vec()
-}
-
-pub fn rsa_export_der(key: &KeyHandle, is_public: bool) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_rsa_export_der(key.as_raw(), is_public, state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn rsa_export_jwk_integer(key: &KeyHandle, component: RsaJwkInteger) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_rsa_export_jwk_integer(key.as_raw(), component, state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn rsa_oaep_cipher(
-    encrypt: bool,
-    hash_kind: ShaHashKind,
-    key: &KeyHandle,
-    label: &[u8],
-    input: &[u8],
-) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_rsa_oaep_cipher(
-            encrypt,
-            hash_kind,
-            key.as_raw(),
-            Span::new(label),
-            Span::new(input),
-            state,
-            receive,
-        )
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn rsa_pss_sign(
-    hash_kind: ShaHashKind,
-    key: &KeyHandle,
-    salt_length: u32,
-    message: &[u8],
-) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_rsa_pss_sign(hash_kind, key.as_raw(), salt_length, Span::new(message), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn rsa_pss_verify(
-    hash_kind: ShaHashKind,
-    key: &KeyHandle,
-    salt_length: u32,
-    message: &[u8],
-    signature: &[u8],
-) -> Result<bool, BackendError> {
-    let mut value = false;
-    // SAFETY: Inputs and output are borrowed for the call.
-    let status = unsafe {
-        ffi::crypto_rsa_pss_verify(
-            hash_kind,
-            key.as_raw(),
-            salt_length,
-            Span::new(message),
-            Span::new(signature),
-            &mut value,
-        )
-    };
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(value)
-}
-
-pub fn rsa_pkcs1_sign(hash_kind: ShaHashKind, key: &KeyHandle, message: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_rsa_pkcs1_sign(hash_kind, key.as_raw(), Span::new(message), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn rsa_pkcs1_verify(
-    hash_kind: ShaHashKind,
-    key: &KeyHandle,
-    message: &[u8],
-    signature: &[u8],
-) -> Result<bool, BackendError> {
-    let mut value = false;
-    // SAFETY: Inputs and output are borrowed for the call.
-    let status = unsafe {
-        ffi::crypto_rsa_pkcs1_verify(
-            hash_kind,
-            key.as_raw(),
-            Span::new(message),
-            Span::new(signature),
-            &mut value,
-        )
-    };
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(value)
-}
-
-pub fn ec_generate_key_pair(curve: EcCurve) -> Result<KeyPair, BackendError> {
-    let mut public_key = core::ptr::null_mut();
-    let mut private_key = core::ptr::null_mut();
-    // SAFETY: Inputs and output slots are borrowed for the call.
-    let status = unsafe { ffi::crypto_ec_generate_key_pair(curve, &mut public_key, &mut private_key) };
-    status.then_some(()).ok_or(BackendError)?;
-    // SAFETY: Success transfers ownership of both keys.
-    Ok(unsafe { KeyPair::from_raw(public_key, private_key) })
-}
-
-pub fn ec_verify(curve: EcCurve, key: &KeyHandle, digest: &[u8], r: &[u8], s: &[u8]) -> Result<bool, Utf16String> {
-    let mut value = false;
-    // SAFETY: Inputs and output are borrowed for the call.
-    let status = unsafe {
-        ffi::crypto_ec_verify(
-            curve,
-            key.as_raw(),
-            Span::new(digest),
-            Span::new(r),
-            Span::new(s),
-            &mut value,
-        )
-    };
-    result_from_error(status)?;
-    Ok(value)
-}
-
-pub fn ec_public_key_scalar_size(key: &KeyHandle) -> usize {
-    // SAFETY: The input is borrowed for the call.
-    unsafe { ffi::crypto_ec_public_key_scalar_size(key.as_raw()) }
-}
-
-pub fn ec_key_from_coordinates(x: &[u8], y: &[u8], d: Option<&[u8]>) -> Option<KeyHandle> {
-    // SAFETY: The input is borrowed for the call.
-    let raw = unsafe { ffi::crypto_ec_key_from_coordinates(Span::new(x), Span::new(y), d.into()) };
-    // SAFETY: The native operation transfers ownership of the key.
-    unsafe { KeyHandle::from_raw(raw) }
-}
-
-pub fn ec_parse_raw_public_key(bytes: &[u8]) -> Option<KeyHandle> {
-    // SAFETY: The input is borrowed for the call.
-    let raw = unsafe { ffi::crypto_ec_parse_raw_public_key(Span::new(bytes)) };
-    // SAFETY: The native operation transfers ownership of the key.
-    unsafe { KeyHandle::from_raw(raw) }
-}
-
-pub fn ec_key_is_valid(curve: EcCurve, key: &KeyHandle) -> Result<bool, BackendError> {
-    let mut value = false;
-    // SAFETY: Inputs and output are borrowed for the call.
-    let status = unsafe { ffi::crypto_ec_key_is_valid(curve, key.as_raw(), &mut value) };
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(value)
-}
-
-pub fn ec_export_der(curve: EcCurve, key: &KeyHandle, is_public: bool) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_ec_export_der(curve, key.as_raw(), is_public, state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn ec_export_uncompressed(key: &KeyHandle) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_ec_export_uncompressed(key.as_raw(), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn ec_export_public_coordinates(key: &KeyHandle) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
-    let mut first = Vec::new();
-    let mut second = Vec::new();
-    // SAFETY: Inputs and both output slots are borrowed for the call.
-    let status = unsafe {
-        ffi::crypto_ec_export_public_coordinates(
-            key.as_raw(),
-            core::ptr::from_mut(&mut first).cast(),
-            core::ptr::from_mut(&mut second).cast(),
-            receive_bytes,
-        )
-    };
-    status.then_some(()).ok_or(BackendError)?;
-    Ok((first, second))
-}
-
-pub fn ec_export_private_scalar(key: &KeyHandle) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_ec_export_private_scalar(key.as_raw(), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn okp_generate_private_key(curve: OkpCurve) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) =
-        receive_native_bytes(|state, receive| unsafe { ffi::crypto_okp_generate_private_key(curve, state, receive) });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn okp_generate_public_key(curve: OkpCurve, private_key: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_okp_generate_public_key(curve, Span::new(private_key), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn okp_compute_coordinate(curve: OkpCurve, private_key: &[u8], public_key: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_okp_compute_coordinate(curve, Span::new(private_key), Span::new(public_key), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn okp_sign(curve: OkpCurve, private_key: &[u8], message: &[u8], context: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_okp_sign(
-            curve,
-            Span::new(private_key),
-            Span::new(message),
-            Span::new(context),
-            state,
-            receive,
-        )
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
+    SMALL_ORDER_ED25519_Y_COORDINATES
+        .iter()
+        .any(|y| rest == &y[..31] && last & 0x7f == y[31])
 }
 
 pub fn okp_verify(
@@ -782,240 +687,55 @@ pub fn okp_verify(
     signature: &[u8],
     message: &[u8],
     context: &[u8],
-) -> Result<bool, Utf16String> {
-    let mut value = false;
-    // SAFETY: Inputs and output are borrowed for the call.
-    let status = unsafe {
-        ffi::crypto_okp_verify(
-            curve,
-            Span::new(public_key),
-            Span::new(signature),
-            Span::new(message),
-            Span::new(context),
-            &mut value,
-        )
-    };
-    result_from_error(status)?;
-    Ok(value)
+) -> Result<bool, CryptoError> {
+    if matches!(curve, OkpCurve::Ed25519)
+        && (is_small_order_ed25519_point(public_key) || signature.get(..32).is_some_and(is_small_order_ed25519_point))
+    {
+        return Ok(false);
+    }
+    let key = Pkey::from_raw_public_key(curve.name(), public_key)?;
+    match curve {
+        OkpCurve::Ed25519 => openssl::digest_verify(&key, None, &[end_parameter()], message, signature),
+        OkpCurve::Ed448 => openssl::digest_verify(
+            &key,
+            None,
+            &openssl::context_string_parameters(context),
+            message,
+            signature,
+        ),
+        OkpCurve::X25519 | OkpCurve::X448 => Err(CryptoError::Invalid("The algorithm does not sign")),
+    }
 }
 
-pub fn okp_export_der(curve: OkpCurve, is_public: bool, key: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_okp_export_der(curve, is_public, Span::new(key), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn mldsa_sign(size: MlDsaSize, key: &KeyHandle, message: &[u8], context: &[u8]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_mldsa_sign(
-            size,
-            key.as_raw(),
-            Span::new(message),
-            Span::new(context),
-            state,
-            receive,
-        )
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn mldsa_verify(
-    size: MlDsaSize,
-    key: &KeyHandle,
-    message: &[u8],
-    signature: &[u8],
-    context: &[u8],
-) -> Result<bool, BackendError> {
-    let mut value = false;
-    // SAFETY: Inputs and output are borrowed for the call.
-    let status = unsafe {
-        ffi::crypto_mldsa_verify(
-            size,
-            key.as_raw(),
-            Span::new(message),
-            Span::new(signature),
-            Span::new(context),
-            &mut value,
-        )
-    };
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(value)
-}
-
-pub fn mldsa_generate_key_pair(size: MlDsaSize, seed: &[u8]) -> Result<KeyPair, Utf16String> {
-    let mut public_key = core::ptr::null_mut();
-    let mut private_key = core::ptr::null_mut();
-    // SAFETY: Inputs and output slots are borrowed for the call.
-    let status =
-        unsafe { ffi::crypto_mldsa_generate_key_pair(size, Span::new(seed), &mut public_key, &mut private_key) };
-    result_from_error(status)?;
-    // SAFETY: Success transfers ownership of both keys.
-    Ok(unsafe { KeyPair::from_raw(public_key, private_key) })
-}
-
-pub fn mldsa_read_public_key(size: MlDsaSize, bytes: &[u8]) -> Option<KeyHandle> {
-    // SAFETY: The input is borrowed for the call.
-    let raw = unsafe { ffi::crypto_mldsa_read_public_key(size, Span::new(bytes)) };
-    // SAFETY: A non-null result transfers ownership of the key.
-    unsafe { KeyHandle::from_raw(raw) }
-}
-
-pub fn mldsa_public_bytes(key: &KeyHandle) -> &[u8] {
-    let mut bytes = Span::default();
-    // SAFETY: The key owns the bytes returned by the native call.
-    unsafe { ffi::crypto_mldsa_public_bytes(key.as_raw(), &mut bytes) };
-    bytes.as_slice()
-}
-
-pub fn mldsa_seed_bytes(key: &KeyHandle) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) =
-        receive_native_bytes(|state, receive| unsafe { ffi::crypto_mldsa_seed_bytes(key.as_raw(), state, receive) });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn mldsa_export_der(key: &KeyHandle, is_public: bool, oid: &[u32]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_mldsa_export_der(key.as_raw(), is_public, Span::new(oid), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn mlkem_generate_key_pair(size: MlKemSize, seed: &[u8]) -> Result<KeyPair, Utf16String> {
-    let mut public_key = core::ptr::null_mut();
-    let mut private_key = core::ptr::null_mut();
-    // SAFETY: Inputs and output slots are borrowed for the call.
-    let status =
-        unsafe { ffi::crypto_mlkem_generate_key_pair(size, Span::new(seed), &mut public_key, &mut private_key) };
-    result_from_error(status)?;
-    // SAFETY: Success transfers ownership of both keys.
-    Ok(unsafe { KeyPair::from_raw(public_key, private_key) })
-}
-
-pub fn mlkem_read_public_key(bytes: &[u8]) -> Option<KeyHandle> {
-    // SAFETY: The input is borrowed for the call.
-    let raw = unsafe { ffi::crypto_mlkem_read_public_key(Span::new(bytes)) };
-    // SAFETY: A non-null result transfers ownership of the key.
-    unsafe { KeyHandle::from_raw(raw) }
-}
-
-pub fn mlkem_public_bytes(key: &KeyHandle) -> Vec<u8> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let ((), bytes) =
-        receive_native_bytes(|state, receive| unsafe { ffi::crypto_mlkem_public_bytes(key.as_raw(), state, receive) });
-    bytes
-}
-
-pub fn mlkem_seed_bytes(key: &KeyHandle) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) =
-        receive_native_bytes(|state, receive| unsafe { ffi::crypto_mlkem_seed_bytes(key.as_raw(), state, receive) });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-/// Whether an ML-DSA or ML-KEM private key has its seed, which a key given in the expandedKey form does not.
-pub fn ml_private_key_has_seed(key: &KeyHandle) -> bool {
-    // SAFETY: The key is borrowed for the call.
-    unsafe { ffi::crypto_ml_private_key_has_seed(key.as_raw()) }
-}
-
-pub fn mlkem_export_der(key: &KeyHandle, is_public: bool, oid: &[u32]) -> Result<Vec<u8>, BackendError> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_mlkem_export_der(key.as_raw(), is_public, Span::new(oid), state, receive)
-    });
-    status.then_some(()).ok_or(BackendError)?;
-    Ok(bytes)
-}
-
-pub fn mlkem_encapsulate(size: MlKemSize, key: &KeyHandle) -> Result<(Vec<u8>, Vec<u8>), Utf16String> {
-    let mut first = Vec::new();
-    let mut second = Vec::new();
-    // SAFETY: Inputs and both output slots are borrowed for the call.
-    let status = unsafe {
-        ffi::crypto_mlkem_encapsulate(
-            size,
-            key.as_raw(),
-            core::ptr::from_mut(&mut first).cast(),
-            core::ptr::from_mut(&mut second).cast(),
-            receive_bytes,
-        )
-    };
-    result_from_error(status)?;
-    Ok((first, second))
-}
-
-pub fn mlkem_decapsulate(size: MlKemSize, key: &KeyHandle, ciphertext: &[u8]) -> Result<Vec<u8>, Utf16String> {
-    // SAFETY: Inputs and output are borrowed for the synchronous native call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_mlkem_decapsulate(size, key.as_raw(), Span::new(ciphertext), state, receive)
-    });
-    result_from_error(status)?;
-    Ok(bytes)
+pub fn okp_export_der(curve: OkpCurve, is_public: bool, key: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    if is_public {
+        Pkey::from_raw_public_key(curve.name(), key)?.public_key_info()
+    } else {
+        // https://www.rfc-editor.org/rfc/rfc8410#section-7
+        // CurvePrivateKey ::= OCTET STRING
+        let private_key = SecretBytes::new(der::element(der::OCTET_STRING, &[key]));
+        Ok(der::private_key_info(
+            KeyAlgorithm::Okp(curve).oid(),
+            None,
+            &private_key,
+        ))
+    }
 }
 
 pub fn public_key_for_private_key(key: &KeyHandle, name: &Utf16String) -> Option<KeyHandle> {
-    // SAFETY: The inputs are borrowed for the call.
-    let raw = unsafe { ffi::crypto_public_key_for_private_key(key.as_raw(), name.raw_identity()) };
-    // SAFETY: A non-null result transfers ownership of the key.
-    unsafe { KeyHandle::from_raw(raw) }
-}
-
-pub fn rsa_read_key_metadata(key: &KeyHandle) -> Result<(u32, Vec<u8>), BackendError> {
-    let mut modulus_length = 0;
-    // SAFETY: The key and output slots live until the native call returns.
-    let (success, exponent) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_rsa_read_key_metadata(key.as_raw(), &mut modulus_length, state, receive)
-    });
-    success.then_some((modulus_length, exponent)).ok_or(BackendError)
-}
-
-pub fn rsa_key_from_components(is_private: bool, components: &[&[u8]]) -> Option<KeyHandle> {
-    if (is_private && !matches!(components.len(), 3 | 8)) || (!is_private && components.len() != 2) {
-        return None;
+    if key.is_okp_private() {
+        let curve = [
+            ("Ed25519", OkpCurve::Ed25519),
+            ("Ed448", OkpCurve::Ed448),
+            ("X25519", OkpCurve::X25519),
+            ("X448", OkpCurve::X448),
+        ]
+        .into_iter()
+        .find_map(|(curve_name, curve)| (*name == curve_name).then_some(curve))?;
+        let public_key = okp_generate_public_key(curve, key.okp_bytes()).ok()?;
+        return Some(KeyHandle::from_okp_bytes(false, &public_key));
     }
-    let mut spans = [Span::default(); 8];
-    for (span, component) in spans.iter_mut().zip(components) {
-        *span = Span::new(component);
-    }
-    // SAFETY: The spans are live for the call and contain the required components.
-    let raw = unsafe { ffi::crypto_rsa_key_from_jwk_components(is_private, Span::new(&spans[..components.len()])) };
-    // SAFETY: A non-null result transfers ownership of the key.
-    unsafe { KeyHandle::from_raw(raw) }
-}
-
-pub fn ec_sign(curve: EcCurve, key: &KeyHandle, digest: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Utf16String> {
-    let mut r = Vec::new();
-    let mut s = Vec::new();
-    // SAFETY: Inputs and both output slots are live for the synchronous call.
-    let status = unsafe {
-        ffi::crypto_ec_sign(
-            curve,
-            key.as_raw(),
-            Span::new(digest),
-            core::ptr::from_mut(&mut r).cast(),
-            core::ptr::from_mut(&mut s).cast(),
-            receive_bytes,
-        )
-    };
-    result_from_error(status)?;
-    Ok((r, s))
-}
-
-pub fn ec_compute_coordinate(curve: EcCurve, key: &KeyHandle, public_key: &KeyHandle) -> Result<Vec<u8>, Utf16String> {
-    // SAFETY: The key handles and output slot are live for the synchronous call.
-    let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
-        ffi::crypto_ec_compute_coordinate(curve, key.as_raw(), public_key.as_raw(), state, receive)
-    });
-    result_from_error(status)?;
-    Ok(bytes)
+    ml::public_key_for_private_key(key)
+        .or_else(|| ec::public_key_for_private_key(key))
+        .or_else(|| rsa::public_key_for_private_key(key))
 }

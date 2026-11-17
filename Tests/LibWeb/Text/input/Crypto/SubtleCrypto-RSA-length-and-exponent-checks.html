@@ -1,0 +1,41 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const generate = async (name, usages) =>
+        crypto.subtle.generateKey(
+            { name, modulusLength: 1024, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+            true,
+            usages
+        );
+
+    promiseTest(async () => {
+        const message = new Uint8Array([1, 2, 3]);
+
+        const oaep = await generate("RSA-OAEP", ["encrypt", "decrypt"]);
+        const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "RSA-OAEP" }, oaep.publicKey, message));
+        try {
+            await crypto.subtle.decrypt({ name: "RSA-OAEP" }, oaep.privateKey, ciphertext.slice(1));
+            println("RSA-OAEP ciphertext one byte short: decrypted");
+        } catch (error) {
+            println(`RSA-OAEP ciphertext one byte short: ${error.name}`);
+        }
+
+        const pss = await generate("RSA-PSS", ["sign", "verify"]);
+        const algorithm = { name: "RSA-PSS", saltLength: 32 };
+        const signature = new Uint8Array(await crypto.subtle.sign(algorithm, pss.privateKey, message));
+        println(`RSA-PSS signature: ${await crypto.subtle.verify(algorithm, pss.publicKey, signature, message)}`);
+        println(
+            `RSA-PSS signature one byte short: ${await crypto.subtle.verify(algorithm, pss.publicKey, signature.slice(1), message)}`
+        );
+
+        const jwk = await crypto.subtle.exportKey("jwk", pss.publicKey);
+        try {
+            await crypto.subtle.importKey("jwk", { ...jwk, e: "AQ" }, { name: "RSA-PSS", hash: "SHA-256" }, true, [
+                "verify",
+            ]);
+            println("public exponent 1: imported");
+        } catch (error) {
+            println(`public exponent 1: ${error.name}`);
+        }
+    });
+</script>
