@@ -1,0 +1,13 @@
+Primary button:
+pointerdown: PointerEvent, pointerId 0, pointerType mouse, button 0, detail 0, isPrimary true, pressure 0.5, trusted true
+click: PointerEvent, pointerId 0, pointerType mouse, button 0, detail 1, isPrimary false, pressure 0, trusted true
+Primary button, second click:
+pointerdown: PointerEvent, pointerId 0, pointerType mouse, button 0, detail 0, isPrimary true, pressure 0.5, trusted true
+click: PointerEvent, pointerId 0, pointerType mouse, button 0, detail 2, isPrimary false, pressure 0, trusted true
+Middle button:
+pointerdown: PointerEvent, pointerId 0, pointerType mouse, button 1, detail 0, isPrimary true, pressure 0.5, trusted true
+auxclick: PointerEvent, pointerId 0, pointerType mouse, button 1, detail 1, isPrimary false, pressure 0, trusted true
+Secondary button:
+pointerdown: PointerEvent, pointerId 0, pointerType mouse, button 2, detail 0, isPrimary true, pressure 0.5, trusted true
+contextmenu: PointerEvent, pointerId 0, pointerType mouse, button 2, detail 0, isPrimary false, pressure 0, trusted true
+auxclick: PointerEvent, pointerId 0, pointerType mouse, button 2, detail 1, isPrimary false, pressure 0, trusted true

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	click using touch is a PointerEvent with correct properties
+Pass	click using touch is a PointerEvent with correct properties when no other PointerEvent listeners are present
+Fail	click using touch is a PointerEvent with correct properties in a subframe

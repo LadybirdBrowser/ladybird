@@ -42,9 +42,10 @@ double PointerEvent::client_y() const { return should_have_fractional_coordinate
 double PointerEvent::offset_x() const { return should_have_fractional_coordinates() ? m_offset_x : MouseEvent::offset_x(); }
 double PointerEvent::offset_y() const { return should_have_fractional_coordinates() ? m_offset_y : MouseEvent::offset_y(); }
 
-WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
+WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail)
 {
     PointerEventOptions event_options;
+    event_options.detail = detail;
     event_options.ctrl_key = modifiers & Mod_Ctrl;
     event_options.shift_key = modifiers & Mod_Shift;
     event_options.alt_key = modifiers & Mod_Alt;
@@ -55,9 +56,14 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     event_options.client_y = client.y().to_double();
     event_options.view = window_proxy;
     event_options.pointer_id = mouse_pointer_id;
-    event_options.is_primary = true;
     event_options.pointer_type = PointerTypes::Mouse;
-    event_options.pressure = event_name != EventNames::pointerup && buttons ? ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE : 0;
+    // https://w3c.github.io/pointerevents/#click
+    // For these events, all PointerEvent specific attributes (defined in this spec) other than pointerId and
+    // pointerType MUST have their default values.
+    if (event_name != EventNames::click && event_name != EventNames::auxclick && event_name != EventNames::contextmenu) {
+        event_options.is_primary = true;
+        event_options.pressure = event_name != EventNames::pointerup && buttons ? ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE : 0;
+    }
     if (movement.has_value()) {
         event_options.movement_x = movement.value().x().to_double();
         event_options.movement_y = movement.value().y().to_double();
@@ -72,9 +78,10 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy> window_proxy, Utf16FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
+WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy> window_proxy, Utf16FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail)
 {
     PointerEventOptions event_options;
+    event_options.detail = detail;
     event_options.ctrl_key = modifiers & Mod_Ctrl;
     event_options.shift_key = modifiers & Mod_Shift;
     event_options.alt_key = modifiers & Mod_Alt;
@@ -85,9 +92,14 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     event_options.client_y = client.y().to_double();
     event_options.view = window_proxy;
     event_options.pointer_id = mouse_pointer_id;
-    event_options.is_primary = true;
     event_options.pointer_type = PointerTypes::Mouse;
-    event_options.pressure = event_name != EventNames::pointerup && buttons ? ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE : 0;
+    // https://w3c.github.io/pointerevents/#click
+    // For these events, all PointerEvent specific attributes (defined in this spec) other than pointerId and
+    // pointerType MUST have their default values.
+    if (event_name != EventNames::click && event_name != EventNames::auxclick && event_name != EventNames::contextmenu) {
+        event_options.is_primary = true;
+        event_options.pressure = event_name != EventNames::pointerup && buttons ? ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE : 0;
+    }
     if (movement.has_value()) {
         event_options.movement_x = movement->x().to_double();
         event_options.movement_y = movement->y().to_double();

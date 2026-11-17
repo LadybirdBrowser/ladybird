@@ -1,0 +1,10 @@
+Harness status: Error
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Pass	click using mouse is a PointerEvent with correct properties
+Pass	click using mouse is a PointerEvent with correct properties when no other PointerEvent listeners are present
+Pass	click using mouse is a PointerEvent with correct properties using non-pointing device
+Fail	click using mouse is a PointerEvent with correct properties in a subframe
