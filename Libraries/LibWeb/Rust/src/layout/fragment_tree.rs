@@ -288,6 +288,11 @@ pub(crate) struct ParentShowFacts {
     /// for a box hidden after a clamp point, and the area before the block-end content edge of a line-clamp container
     /// for a float inside it.
     pub(crate) clip_decided_by_parent: Option<CssPixelRect>,
+    /// For a block-level box in the flow of a block container: the margin that flow leaves past the block end of the
+    /// box, which is its block-end margin, collapsed with the margins of its contents that collapse through its block
+    /// end. For a box that margins collapse through, which sits past the margins before it, that is how much its
+    /// block-end margin adds to them. The scrollable overflow of a scroll container ends its in-flow content there.
+    pub(crate) block_end_margin_collapsed_in_flow: Option<CssPixels>,
 }
 
 impl ParentShowFacts {

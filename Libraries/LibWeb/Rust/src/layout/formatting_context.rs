@@ -468,6 +468,15 @@ impl PlacedChild {
         self
     }
 
+    /// The child, a block-level box of a block container's flow, with the margin that flow leaves past its block end.
+    pub(crate) fn with_block_end_margin_collapsed_in_flow(mut self, margin: CssPixels) -> Self {
+        self.facts_decided_by_parent
+            .fragment_facts
+            .show
+            .block_end_margin_collapsed_in_flow = Some(margin);
+        self
+    }
+
     /// The child, a block-level box, with the offset the relative positioning of the inline boxes it interrupts gives
     /// it.
     pub(crate) fn with_offset_from_relatively_positioned_inline_ancestors(mut self, offset: FfiCssPixelPoint) -> Self {

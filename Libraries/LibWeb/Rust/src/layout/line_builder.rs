@@ -1177,7 +1177,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             return;
         }
         let has_fragments = !self.line(line_index).fragments.is_empty();
-        if has_fragments {
+        // NB: A line that holds nothing but a forced break is a line box all the same, so the margins before it end
+        //     there as they do before any other.
+        if has_fragments || self.line(line_index).has_forced_break {
             self.prepare_to_append_inline_content();
         }
         let containing_style = self.containing_style;
