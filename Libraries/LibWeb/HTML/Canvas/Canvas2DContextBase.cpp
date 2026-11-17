@@ -44,7 +44,6 @@
 #include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/PredefinedColorSpace.h>
-#include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -160,7 +159,7 @@ bool web_canvas_2d_context_draw_image_bitmap(void* context, void* image_bitmap, 
 // What the Rust implementation asks of LibWeb, declared in Bindings/Rust/src/canvas_2d/canvas.rs.
 void web_canvas_2d_canvas_did_change_content(void* canvas_host);
 void web_canvas_2d_canvas_did_create_backing_storage(void* canvas_host);
-void* web_canvas_2d_canvas_create_transport(void* canvas_host);
+bool web_canvas_2d_canvas_create_transport(void* canvas_host, Compositor::CompositorHost::Canvas2DTransport* out_transport);
 void* web_canvas_2d_canvas_wrapper(void* canvas, bool canvas_is_offscreen, void* realm);
 void* web_canvas_2d_canvas_relevant_realm(void* canvas_host);
 u64 web_canvas_2d_canvas_font_environment_generation(void* canvas_host);
@@ -180,8 +179,7 @@ bool web_canvas_2d_image_is_not_origin_clean(void* source_wrapper, CanvasImageSo
 bool web_canvas_2d_image_source_canvas_id(void* source_wrapper, CanvasImageSourceKind, u64* out_canvas_id, bool* out_source_is_2d);
 Gfx::DecodedImageFrame* web_canvas_2d_image_source_frame(void* source_wrapper, CanvasImageSourceKind, i32 raster_width, i32 raster_height, bool* out_rasterized);
 bool web_canvas_2d_capture_video_frame(void* source_wrapper, CapturedVideoFrame* out_frame);
-void* web_canvas_2d_video_transport(void* source_wrapper);
-void web_canvas_2d_video_frame_hold_unref(Compositing::VideoFrameHold*);
+bool web_canvas_2d_video_transport(void* source_wrapper, Compositor::CompositorHost::Canvas2DTransport* out_transport);
 void web_canvas_2d_set_video_frame_copy(Optional<Gfx::DecodedImageFrame>* out_frame, Gfx::DecodedImageFrame const* frame);
 
 // What Bindings/Rust/src/html/canvas_gradient.rs asks of LibWeb.
@@ -338,19 +336,20 @@ void web_canvas_2d_canvas_did_create_backing_storage(void* canvas_host)
     host_from(canvas_host).did_create_canvas_backing_storage();
 }
 
-static void* transport_for(Page& page)
+static bool transport_for(Page& page, Compositor::CompositorHost::Canvas2DTransport* out_transport)
 {
     if (!page.has_compositor_host())
-        return nullptr;
+        return false;
     auto transport = page.compositor_host().create_canvas_2d_transport();
-    if (!transport)
-        return nullptr;
-    return &transport.release_nonnull().leak_ref();
+    if (!transport.has_value())
+        return false;
+    *out_transport = *transport;
+    return true;
 }
 
-void* web_canvas_2d_canvas_create_transport(void* canvas_host)
+bool web_canvas_2d_canvas_create_transport(void* canvas_host, Compositor::CompositorHost::Canvas2DTransport* out_transport)
 {
-    return transport_for(host_from(canvas_host).canvas_page());
+    return transport_for(host_from(canvas_host).canvas_page(), out_transport);
 }
 
 void* web_canvas_2d_canvas_wrapper(void* canvas, bool canvas_is_offscreen, void* realm_pointer)
@@ -853,15 +852,10 @@ bool web_canvas_2d_capture_video_frame(void* source_wrapper, CapturedVideoFrame*
     return true;
 }
 
-void* web_canvas_2d_video_transport(void* source_wrapper)
+bool web_canvas_2d_video_transport(void* source_wrapper, Compositor::CompositorHost::Canvas2DTransport* out_transport)
 {
     auto& video = Bindings::impl_from<HTMLVideoElement>(*static_cast<JS::Object*>(source_wrapper));
-    return transport_for(video.document().page());
-}
-
-void web_canvas_2d_video_frame_hold_unref(Compositing::VideoFrameHold* hold)
-{
-    hold->unref();
+    return transport_for(video.document().page(), out_transport);
 }
 
 void web_canvas_2d_set_video_frame_copy(Optional<Gfx::DecodedImageFrame>* out_frame, Gfx::DecodedImageFrame const* frame)

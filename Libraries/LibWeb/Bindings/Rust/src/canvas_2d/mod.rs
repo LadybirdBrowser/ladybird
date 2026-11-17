@@ -5,7 +5,7 @@
  */
 
 //! The WebContent half of the 2D canvas: the state that the two kinds of 2D context share, which records the commands
-//! of a canvas for the Compositor. The recorder and the records are those of the display list tape
+//! of a canvas into the stream that goes to the Compositor. The recorder and the records are those of the display list tape
 //! (Libraries/LibCompositing/Rust/src/display_list/canvas_2d.rs); the attributes and operations of the contexts are
 //! in the modules of their IDL files in crate::html. What is here reaches LibWeb, which the tests of the crate do not
 //! link.
@@ -22,6 +22,8 @@ pub(crate) mod exports;
 pub(crate) mod host;
 #[cfg(not(test))]
 pub(crate) mod path;
+#[cfg(not(test))]
+pub(crate) mod stream;
 #[cfg(not(test))]
 pub(crate) mod text;
 

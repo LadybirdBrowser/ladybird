@@ -26,6 +26,7 @@ set(SOURCES
     Bindings/WrapperWorld.cpp
     Clipboard/Clipboard.cpp
     Clipboard/ClipboardEvent.cpp
+    Compositor/Canvas2DStreamFFI.cpp
     Compositor/CompositorConnection.cpp
     Compositor/CompositorHost.cpp
     Compositor/NavigablePresenter.cpp
@@ -348,7 +349,6 @@ set(SOURCES
     HTML/Canvas/CanvasHost.cpp
     HTML/Canvas/CanvasDrawImage.cpp
     HTML/Canvas/PredefinedColorSpace.cpp
-    HTML/Canvas/RemoteCanvas2DTransportFFI.cpp
     HTML/Canvas/SerializeBitmap.cpp
     HTML/CanvasRenderingContext2D.cpp
     HTML/CheckUnloadingCanceledState.cpp

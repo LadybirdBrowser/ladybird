@@ -346,7 +346,13 @@ void ConnectionFromWebContent::create_canvas_2d_context(Compositing::CanvasId ca
     (void)m_canvas_host.create_2d_context(canvas_id, size, alpha, will_read_frequently, color_space);
 }
 
-void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontDescription> fonts)
+void ConnectionFromWebContent::describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDescription> fonts)
+{
+    if (!m_canvas_host.describe_canvas_2d_fonts(fonts, m_registered_typefaces))
+        did_misbehave("WebContent described a font of a typeface it has not registered");
+}
+
+void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments)
 {
     for (auto const& segment : segments) {
         if (Compositing::validate_canvas_2d_tape(segment.tape).is_error()) {
@@ -354,8 +360,7 @@ void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canva
             return;
         }
     }
-    if (!m_canvas_host.execute_canvas_2d_stream(segments, fonts, m_registered_typefaces, m_registered_image_frames))
-        did_misbehave("WebContent described a font of a typeface it has not registered");
+    m_canvas_host.execute_canvas_2d_stream(segments, m_registered_image_frames);
 }
 
 void ConnectionFromWebContent::destroy_canvas_context(Compositing::CanvasId canvas_id)

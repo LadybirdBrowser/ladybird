@@ -6,12 +6,10 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
-#include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibWeb/Compositor/CompositorConnection.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Compositor/RenderClock.h>
-#include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 
 // The Paint stage keeps what the compositor keeps of the display lists sent for each context.
@@ -137,30 +135,47 @@ void CompositorContextHandle::prepare_remote_descendants_for_screenshot(Function
     m_host.prepare_remote_descendants_for_screenshot(m_context_id, move(callback));
 }
 
+extern "C" {
+
+void* web_canvas_2d_stream_create();
+void web_canvas_2d_stream_destroy(void* stream);
+void web_canvas_2d_stream_flush(void* stream, CompositorConnection* connection);
+void web_canvas_2d_stream_discard(void* stream);
+}
+
 CompositorHost::CompositorHost()
-    : m_canvas_2d_stream(adopt_ref(*new Compositing::Canvas2DCommandStream()))
+    : m_canvas_2d_stream(web_canvas_2d_stream_create())
 {
 }
 
-CompositorHost::~CompositorHost() = default;
+CompositorHost::~CompositorHost()
+{
+    web_canvas_2d_stream_destroy(m_canvas_2d_stream);
+}
 
 OwnPtr<CompositorContextHandle> CompositorHost::create_context(Web::CompositorContextId context_id)
 {
     return adopt_own(*new CompositorContextHandle(*this, context_id));
 }
 
+Optional<CompositorHost::Canvas2DTransport> CompositorHost::create_canvas_2d_transport()
+{
+    auto* connection = compositor_connection();
+    if (!connection)
+        return {};
+    connection->ref();
+    return Canvas2DTransport { .stream = m_canvas_2d_stream, .connection = connection };
+}
+
 void CompositorHost::flush_canvas_2d_stream()
 {
-    if (m_canvas_2d_stream->is_empty())
-        return;
-    send_canvas_2d_stream(*m_canvas_2d_stream);
+    if (auto* connection = compositor_connection())
+        web_canvas_2d_stream_flush(m_canvas_2d_stream, connection);
 }
 
 void CompositorHost::discard_canvas_2d_stream()
 {
-    (void)m_canvas_2d_stream->take_segments();
-    (void)m_canvas_2d_stream->take_image_frames();
-    (void)m_canvas_2d_stream->take_video_frame_holds();
+    web_canvas_2d_stream_discard(m_canvas_2d_stream);
 }
 
 class CompositorRemoteWebGLTransport final : public Web::WebGL::RemoteWebGLTransport {
@@ -270,104 +285,10 @@ private:
     Optional<Compositing::CanvasId> m_canvas_id;
 };
 
-class CompositorRemoteCanvas2DTransport final : public Web::HTML::RemoteCanvas2DTransport {
-public:
-    CompositorRemoteCanvas2DTransport(NonnullRefPtr<CompositorConnection> connection, NonnullRefPtr<Compositing::Canvas2DCommandStream> stream)
-        : m_connection(move(connection))
-        , m_stream(move(stream))
-    {
-    }
-
-private:
-    virtual bool create_context(Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace const& color_space) override
-    {
-        VERIFY(!m_canvas_id.has_value());
-        auto canvas_id = m_connection->create_canvas_2d_context(size, alpha, will_read_frequently, color_space);
-        if (!canvas_id.has_value())
-            return false;
-        m_canvas_id = *canvas_id;
-        return true;
-    }
-
-    virtual Optional<Compositing::CanvasId> canvas_id() const override
-    {
-        return m_canvas_id;
-    }
-
-    virtual void destroy_context() override
-    {
-        if (!m_canvas_id.has_value())
-            return;
-        m_connection->destroy_canvas_context(*m_canvas_id);
-        m_canvas_id.clear();
-    }
-
-    virtual void append_command(ReadonlyBytes record) override
-    {
-        VERIFY(m_canvas_id.has_value());
-        m_stream->append_command(*m_canvas_id, record);
-    }
-
-    virtual Compositing::FontResourceId add_font(Gfx::Font const& font) override
-    {
-        return m_stream->add_font(font);
-    }
-
-    virtual Compositing::ImageFrameResourceId add_image_frame(Gfx::DecodedImageFrame const& frame) override
-    {
-        return m_stream->add_image_frame(frame);
-    }
-
-    virtual void retain_video_frame_hold(NonnullRefPtr<Compositing::VideoFrameHold> hold) override
-    {
-        m_stream->retain_video_frame_hold(move(hold));
-    }
-
-    virtual void record_present() override
-    {
-        VERIFY(m_canvas_id.has_value());
-        m_stream->record_present(*m_canvas_id);
-    }
-
-    virtual size_t pending_command_count() const override
-    {
-        return m_stream->total_command_count();
-    }
-
-    virtual void flush() override
-    {
-        m_connection->update_canvas_2d_stream(*m_stream);
-    }
-
-    virtual Optional<Gfx::DecodedImageFrame> read_back_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space) override
-    {
-        if (!m_canvas_id.has_value())
-            return {};
-        auto shareable_bitmap = m_connection->get_canvas_pixels(*m_canvas_id, rect, alpha_type, color_space);
-        if (!shareable_bitmap.is_valid())
-            return {};
-        auto frame = Gfx::DecodedImageFrame::create(*shareable_bitmap.bitmap(), color_space);
-        if (frame.is_error())
-            return {};
-        return frame.release_value();
-    }
-
-    NonnullRefPtr<CompositorConnection> m_connection;
-    NonnullRefPtr<Compositing::Canvas2DCommandStream> m_stream;
-    Optional<Compositing::CanvasId> m_canvas_id;
-};
-
 RefPtr<Web::WebGL::RemoteWebGLTransport> CompositorHost::create_webgl_transport()
 {
     if (auto* connection = compositor_connection())
         return adopt_ref(*new CompositorRemoteWebGLTransport(*connection));
-    return nullptr;
-}
-
-RefPtr<Web::HTML::RemoteCanvas2DTransport> CompositorHost::create_canvas_2d_transport()
-{
-    if (auto* connection = compositor_connection())
-        return adopt_ref(*new CompositorRemoteCanvas2DTransport(*connection, canvas_2d_stream()));
     return nullptr;
 }
 
@@ -395,12 +316,6 @@ Web::Compositor::PlaceholderCanvasPixels CompositorHost::read_placeholder_canvas
     if (auto* connection = compositor_connection())
         return connection->get_placeholder_canvas_pixels(canvas_id, rect);
     return {};
-}
-
-void CompositorHost::send_canvas_2d_stream(Compositing::Canvas2DCommandStream& stream)
-{
-    if (auto* connection = compositor_connection())
-        connection->update_canvas_2d_stream(stream);
 }
 
 bool CompositorHost::rasterize_image(Layout::RustFFI::FfiImageRasterization const& image, NonnullRefPtr<Gfx::Bitmap> target) const

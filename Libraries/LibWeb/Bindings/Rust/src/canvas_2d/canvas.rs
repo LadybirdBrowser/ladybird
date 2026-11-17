@@ -20,7 +20,7 @@ use libgfx_rust::{Color, IntSize};
 use libjs_rust::api::{Gc, Object, Realm};
 
 use super::drawing_state::{CanvasColor, DrawingState};
-use super::host::CppTransport;
+use super::host::{CompositorTransport, TransportAbi, VideoFrameHold};
 use crate::bindings::conversions::CppInterface;
 use crate::html::canvas_text_drawing_styles::{
     CanvasFontKerning, CanvasFontStretch, CanvasFontVariantCaps, CanvasTextRendering,
@@ -30,7 +30,7 @@ use crate::html::predefined_color_space::PredefinedColorSpace;
 unsafe extern "C" {
     fn web_canvas_2d_canvas_did_change_content(canvas_host: *mut c_void);
     fn web_canvas_2d_canvas_did_create_backing_storage(canvas_host: *mut c_void);
-    fn web_canvas_2d_canvas_create_transport(canvas_host: *mut c_void) -> *mut c_void;
+    fn web_canvas_2d_canvas_create_transport(canvas_host: *mut c_void, out_transport: *mut TransportAbi) -> bool;
     fn web_canvas_2d_canvas_wrapper(canvas: *mut c_void, canvas_is_offscreen: bool, realm: *mut c_void) -> *mut c_void;
     fn web_canvas_2d_canvas_relevant_realm(canvas_host: *mut c_void) -> *mut c_void;
     fn web_canvas_2d_canvas_font_environment_generation(canvas_host: *mut c_void) -> u64;
@@ -103,8 +103,7 @@ unsafe extern "C" {
         out_rasterized: *mut bool,
     ) -> *mut c_void;
     fn web_canvas_2d_capture_video_frame(source_wrapper: *mut c_void, out_frame: *mut CapturedVideoFrameAbi) -> bool;
-    fn web_canvas_2d_video_transport(source_wrapper: *mut c_void) -> *mut c_void;
-    fn web_canvas_2d_video_frame_hold_unref(hold: *mut c_void);
+    fn web_canvas_2d_video_transport(source_wrapper: *mut c_void, out_transport: *mut TransportAbi) -> bool;
 }
 
 /// What a CSS value of a context is resolved with besides its canvas: the font of the context, if it has one yet.
@@ -238,23 +237,9 @@ struct CapturedVideoFrameAbi {
 
 /// A frame of a video, which the hold keeps until the Compositor has drawn it.
 pub(crate) struct CapturedVideoFrame {
-    hold: NonNull<c_void>,
+    pub(crate) hold: VideoFrameHold,
     pub(crate) sink_handle: u64,
     pub(crate) generation: u64,
-}
-
-impl CapturedVideoFrame {
-    /// The Compositing::VideoFrameHold, which the value keeps alive.
-    pub(crate) fn hold(&self) -> NonNull<c_void> {
-        self.hold
-    }
-}
-
-impl Drop for CapturedVideoFrame {
-    fn drop(&mut self) {
-        // SAFETY: The value owns a reference to the hold.
-        unsafe { web_canvas_2d_video_frame_hold_unref(self.hold.as_ptr()) };
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -277,10 +262,11 @@ impl Canvas {
     }
 
     /// A transport to a new context in the Compositor, if the page of the canvas has a Compositor.
-    pub(crate) fn create_transport(self) -> Option<CppTransport> {
-        let transport = unsafe { web_canvas_2d_canvas_create_transport(self.host.as_ptr()) };
-        // SAFETY: LibWeb hands over a reference to the transport.
-        NonNull::new(transport).map(|transport| unsafe { CppTransport::from_raw(transport) })
+    pub(crate) fn create_transport(self) -> Option<CompositorTransport> {
+        let mut transport = TransportAbi::default();
+        // SAFETY: LibWeb hands over the transport where it answers true.
+        unsafe { web_canvas_2d_canvas_create_transport(self.host.as_ptr(), &raw mut transport) }
+            .then(|| unsafe { CompositorTransport::adopt(transport) })
     }
 
     pub(crate) fn wrapper(self, realm: Gc<Realm>) -> CppInterface {
@@ -516,17 +502,19 @@ pub(crate) fn capture_video_frame(video: CppInterface) -> Option<CapturedVideoFr
     if !unsafe { web_canvas_2d_capture_video_frame(video.wrapper().as_ptr().cast(), &raw mut frame) } {
         return None;
     }
+    let hold = NonNull::new(frame.hold).expect("LibWeb passes the hold of the frame");
     Some(CapturedVideoFrame {
-        hold: NonNull::new(frame.hold).expect("LibWeb passes the hold of the frame"),
+        // SAFETY: LibWeb handed over a reference to the hold.
+        hold: unsafe { VideoFrameHold::adopt(hold) },
         sink_handle: frame.sink_handle,
         generation: frame.generation,
     })
 }
 
 /// A transport to a new context in the Compositor of the page of the video, if the page has a Compositor.
-pub(crate) fn video_transport(video: CppInterface) -> Option<CppTransport> {
-    // SAFETY: The wrapper is a live HTMLVideoElement.
-    let transport = unsafe { web_canvas_2d_video_transport(video.wrapper().as_ptr().cast()) };
-    // SAFETY: LibWeb hands over a reference to the transport.
-    NonNull::new(transport).map(|transport| unsafe { CppTransport::from_raw(transport) })
+pub(crate) fn video_transport(video: CppInterface) -> Option<CompositorTransport> {
+    let mut transport = TransportAbi::default();
+    // SAFETY: The wrapper is a live HTMLVideoElement, and LibWeb hands over the transport where it answers true.
+    unsafe { web_canvas_2d_video_transport(video.wrapper().as_ptr().cast(), &raw mut transport) }
+        .then(|| unsafe { CompositorTransport::adopt(transport) })
 }

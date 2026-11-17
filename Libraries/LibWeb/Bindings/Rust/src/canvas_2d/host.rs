@@ -4,38 +4,39 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The transport of a 2D canvas in the product: a RemoteCanvas2DTransport of LibWeb, through the C ABI that
-//! Libraries/LibWeb/HTML/Canvas/RemoteCanvas2DTransportFFI.cpp gives it.
+//! The transport of a 2D canvas in the product: the stream of its Web::Compositor::CompositorHost, and the
+//! CompositorConnection of LibWeb, through the C ABI that Libraries/LibWeb/Compositor/Canvas2DStreamFFI.cpp gives it.
 
+use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
+use core::mem::MaybeUninit;
 use core::ptr::NonNull;
+use std::rc::Rc;
 
 use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace, Transport};
 use libcompositing_rust::display_list::commands::{CanvasId, FontResourceId, ImageFrameResourceId};
+use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{IntRect, IntSize};
+use libipc_rust::cpp_connection::{FfiThreadSafeMessagePoster, ThreadSafeMessagePoster};
+
+use super::stream::{Canvas2DStream, flush, shared_stream};
 
 unsafe extern "C" {
-    fn web_canvas_2d_transport_unref(transport: *mut c_void);
-    fn web_canvas_2d_transport_create_context(
-        transport: *mut c_void,
+    fn web_canvas_2d_connection_unref(connection: *mut c_void);
+    fn web_canvas_2d_connection_create_context(
+        connection: *mut c_void,
         width: i32,
         height: i32,
         alpha: bool,
         will_read_frequently: bool,
         color_space: ColorSpace,
+        out_canvas_id: *mut u64,
     ) -> bool;
-    fn web_canvas_2d_transport_canvas_id(transport: *const c_void, out_canvas_id: *mut u64) -> bool;
-    fn web_canvas_2d_transport_destroy_context(transport: *mut c_void);
-    fn web_canvas_2d_transport_append_command(transport: *mut c_void, record: ak::Span<'_, u8>);
-    fn web_canvas_2d_transport_add_font(transport: *mut c_void, font: *const c_void) -> u64;
-    fn web_canvas_2d_transport_add_image_frame(transport: *mut c_void, frame: *const c_void) -> u64;
-    fn web_canvas_2d_transport_retain_video_frame_hold(transport: *mut c_void, hold: *mut c_void);
-    fn web_canvas_2d_transport_record_present(transport: *mut c_void);
-    fn web_canvas_2d_transport_pending_command_count(transport: *const c_void) -> usize;
-    fn web_canvas_2d_transport_flush(transport: *mut c_void);
-    fn web_canvas_2d_transport_read_back_pixels(
-        transport: *mut c_void,
+    fn web_canvas_2d_connection_destroy_context(connection: *mut c_void, canvas_id: u64);
+    fn web_canvas_2d_connection_read_back_pixels(
+        connection: *mut c_void,
+        canvas_id: u64,
         x: i32,
         y: i32,
         width: i32,
@@ -43,102 +44,70 @@ unsafe extern "C" {
         alpha_type: AlphaType,
         color_space: ColorSpace,
     ) -> *mut c_void;
+    fn web_canvas_2d_connection_prepare_stream_batch(
+        connection: *mut c_void,
+        fonts: *const *const c_void,
+        font_count: usize,
+        image_frames: *const *const c_void,
+        image_frame_count: usize,
+        out_poster: *mut FfiThreadSafeMessagePoster,
+    ) -> bool;
+    fn web_canvas_2d_connection_did_fail_to_post_stream_batch(connection: *mut c_void);
+    fn web_canvas_2d_video_frame_hold_ref(hold: *mut c_void);
+    fn web_canvas_2d_video_frame_hold_unref(hold: *mut c_void);
+    fn web_canvas_2d_video_frame_hold_note_sent_to_compositor(hold: *mut c_void);
 }
 
-/// A Gfx::Font that C++ lends.
-pub(crate) struct LentFont(pub(crate) NonNull<c_void>);
+#[derive(Clone, Copy)]
+pub(crate) struct CompositorConnection(NonNull<c_void>);
 
-/// A Compositing::VideoFrameHold that C++ lends.
-pub(crate) struct LentVideoFrameHold(pub(crate) NonNull<c_void>);
-
-pub(crate) struct CppTransport(NonNull<c_void>);
-
-impl CppTransport {
+// SAFETY (of every call below): The connection is live, and the fonts and image frames are lent for the call, in which
+// C++ takes references of its own.
+impl CompositorConnection {
     /// # Safety
     ///
-    /// `transport` is a RemoteCanvas2DTransport, one reference to which the value takes over.
-    pub(crate) unsafe fn from_raw(transport: NonNull<c_void>) -> Self {
-        Self(transport)
+    /// `connection` must be a CompositorConnection that outlives the value.
+    pub(crate) unsafe fn lent(connection: NonNull<c_void>) -> Self {
+        Self(connection)
     }
 
-    fn as_ptr(&self) -> *mut c_void {
-        self.0.as_ptr()
-    }
-}
-
-impl Drop for CppTransport {
-    fn drop(&mut self) {
-        // SAFETY: The value owns one reference to the transport.
-        unsafe { web_canvas_2d_transport_unref(self.as_ptr()) };
-    }
-}
-
-// SAFETY (of every call below): The value holds a reference to the transport, and the font, the image frame and the
-// video frame hold passed are lent for the call.
-impl Transport for CppTransport {
-    type Font = LentFont;
-    type ImageFrame = ImageFrameHandle;
-    type VideoFrameHold = LentVideoFrameHold;
-
-    fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool, color_space: ColorSpace) -> bool {
+    fn create_context(
+        self,
+        size: IntSize,
+        alpha: bool,
+        will_read_frequently: bool,
+        color_space: ColorSpace,
+    ) -> Option<CanvasId> {
+        let mut canvas_id = 0;
         unsafe {
-            web_canvas_2d_transport_create_context(
-                self.as_ptr(),
+            web_canvas_2d_connection_create_context(
+                self.0.as_ptr(),
                 size.width,
                 size.height,
                 alpha,
                 will_read_frequently,
                 color_space,
+                &raw mut canvas_id,
             )
         }
+        .then_some(CanvasId(canvas_id))
     }
 
-    fn canvas_id(&self) -> Option<CanvasId> {
-        let mut canvas_id = 0;
-        unsafe { web_canvas_2d_transport_canvas_id(self.as_ptr(), &raw mut canvas_id) }.then_some(CanvasId(canvas_id))
-    }
-
-    fn destroy_context(&self) {
-        unsafe { web_canvas_2d_transport_destroy_context(self.as_ptr()) };
-    }
-
-    fn append_command(&self, record: &[u8]) {
-        unsafe { web_canvas_2d_transport_append_command(self.as_ptr(), ak::Span::new(record)) };
-    }
-
-    fn add_font(&self, font: &LentFont) -> FontResourceId {
-        FontResourceId(unsafe { web_canvas_2d_transport_add_font(self.as_ptr(), font.0.as_ptr()) })
-    }
-
-    fn add_image_frame(&self, frame: &ImageFrameHandle) -> ImageFrameResourceId {
-        ImageFrameResourceId(unsafe { web_canvas_2d_transport_add_image_frame(self.as_ptr(), frame.as_raw()) })
-    }
-
-    fn retain_video_frame_hold(&self, hold: &LentVideoFrameHold) {
-        unsafe { web_canvas_2d_transport_retain_video_frame_hold(self.as_ptr(), hold.0.as_ptr()) };
-    }
-
-    fn record_present(&self) {
-        unsafe { web_canvas_2d_transport_record_present(self.as_ptr()) };
-    }
-
-    fn pending_command_count(&self) -> usize {
-        unsafe { web_canvas_2d_transport_pending_command_count(self.as_ptr()) }
-    }
-
-    fn flush(&self) {
-        unsafe { web_canvas_2d_transport_flush(self.as_ptr()) };
+    fn destroy_context(self, canvas_id: CanvasId) {
+        unsafe { web_canvas_2d_connection_destroy_context(self.0.as_ptr(), canvas_id.0) };
     }
 
     fn read_back_pixels(
-        &self,
+        self,
+        canvas_id: CanvasId,
         rect: IntRect,
         alpha_type: AlphaType,
         color_space: ColorSpace,
     ) -> Option<ImageFrameHandle> {
         let frame = unsafe {
-            web_canvas_2d_transport_read_back_pixels(
-                self.as_ptr(),
+            web_canvas_2d_connection_read_back_pixels(
+                self.0.as_ptr(),
+                canvas_id.0,
                 rect.x,
                 rect.y,
                 rect.width,
@@ -149,5 +118,184 @@ impl Transport for CppTransport {
         };
         // SAFETY: LibWeb hands over a frame that it allocated with new, or null.
         (!frame.is_null()).then(|| unsafe { ImageFrameHandle::adopt(frame) })
+    }
+
+    pub(crate) fn prepare_stream_batch(
+        self,
+        fonts: &[&FontHandle],
+        image_frames: &[&ImageFrameHandle],
+    ) -> Option<ThreadSafeMessagePoster> {
+        let fonts: Vec<*const c_void> = fonts.iter().map(|font| font.as_raw()).collect();
+        let image_frames: Vec<*const c_void> = image_frames.iter().map(|frame| frame.as_raw()).collect();
+        let mut poster = MaybeUninit::<FfiThreadSafeMessagePoster>::uninit();
+        let prepared = unsafe {
+            web_canvas_2d_connection_prepare_stream_batch(
+                self.0.as_ptr(),
+                fonts.as_ptr(),
+                fonts.len(),
+                image_frames.as_ptr(),
+                image_frames.len(),
+                poster.as_mut_ptr(),
+            )
+        };
+        // SAFETY: C++ sets the poster to one reference to the poster of the connection where it answers true.
+        prepared.then(|| unsafe { ThreadSafeMessagePoster::adopt(poster.assume_init()) })
+    }
+
+    pub(crate) fn did_fail_to_post_stream_batch(self) {
+        unsafe { web_canvas_2d_connection_did_fail_to_post_stream_batch(self.0.as_ptr()) };
+    }
+}
+
+pub(crate) struct VideoFrameHold(NonNull<c_void>);
+
+// SAFETY (of every call below): The value owns a reference to the hold.
+impl VideoFrameHold {
+    /// # Safety
+    ///
+    /// `hold` must be a VideoFrameHold, one reference to which the value takes over.
+    pub(crate) unsafe fn adopt(hold: NonNull<c_void>) -> Self {
+        Self(hold)
+    }
+
+    pub(crate) fn is_same_hold_as(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+
+    pub(crate) fn note_sent_to_compositor(&self) {
+        unsafe { web_canvas_2d_video_frame_hold_note_sent_to_compositor(self.0.as_ptr()) };
+    }
+}
+
+impl Clone for VideoFrameHold {
+    fn clone(&self) -> Self {
+        unsafe { web_canvas_2d_video_frame_hold_ref(self.0.as_ptr()) };
+        Self(self.0)
+    }
+}
+
+impl Drop for VideoFrameHold {
+    fn drop(&mut self) {
+        unsafe { web_canvas_2d_video_frame_hold_unref(self.0.as_ptr()) };
+    }
+}
+
+#[repr(C)]
+pub(crate) struct TransportAbi {
+    pub(crate) stream: *mut c_void,
+    pub(crate) connection: *mut c_void,
+}
+
+impl Default for TransportAbi {
+    fn default() -> Self {
+        Self {
+            stream: core::ptr::null_mut(),
+            connection: core::ptr::null_mut(),
+        }
+    }
+}
+
+pub(crate) struct CompositorTransport {
+    stream: Rc<RefCell<Canvas2DStream>>,
+    connection: CompositorConnection,
+    canvas_id: Cell<Option<CanvasId>>,
+}
+
+impl CompositorTransport {
+    /// # Safety
+    ///
+    /// The transport must be one that LibWeb has just handed over.
+    pub(crate) unsafe fn adopt(transport: TransportAbi) -> Self {
+        let stream = NonNull::new(transport.stream).expect("LibWeb passes the stream of the host");
+        let connection = NonNull::new(transport.connection).expect("LibWeb passes the connection");
+        Self {
+            // SAFETY: The host keeps the stream while it hands it out.
+            stream: unsafe { shared_stream(stream) },
+            // SAFETY: The value owns a reference to the connection, which it gives up when dropped.
+            connection: unsafe { CompositorConnection::lent(connection) },
+            canvas_id: Cell::new(None),
+        }
+    }
+
+    fn recording_canvas_id(&self) -> CanvasId {
+        self.canvas_id
+            .get()
+            .expect("a canvas records once its context is created")
+    }
+}
+
+impl Drop for CompositorTransport {
+    fn drop(&mut self) {
+        // SAFETY: The value owns a reference to the connection.
+        unsafe { web_canvas_2d_connection_unref(self.connection.0.as_ptr()) };
+    }
+}
+
+impl Transport for CompositorTransport {
+    type Font = FontHandle;
+    type ImageFrame = ImageFrameHandle;
+    type VideoFrameHold = VideoFrameHold;
+
+    fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool, color_space: ColorSpace) -> bool {
+        assert!(self.canvas_id.get().is_none(), "a transport creates one context");
+        let Some(canvas_id) = self
+            .connection
+            .create_context(size, alpha, will_read_frequently, color_space)
+        else {
+            return false;
+        };
+        self.canvas_id.set(Some(canvas_id));
+        true
+    }
+
+    fn canvas_id(&self) -> Option<CanvasId> {
+        self.canvas_id.get()
+    }
+
+    fn destroy_context(&self) {
+        if let Some(canvas_id) = self.canvas_id.take() {
+            self.connection.destroy_context(canvas_id);
+        }
+    }
+
+    fn append_command(&self, record: &[u8]) {
+        let canvas_id = self.recording_canvas_id();
+        self.stream.borrow_mut().append_command(canvas_id, record);
+    }
+
+    fn add_font(&self, font: &FontHandle) -> FontResourceId {
+        self.stream.borrow_mut().add_font(font)
+    }
+
+    fn add_image_frame(&self, frame: &ImageFrameHandle) -> ImageFrameResourceId {
+        self.stream.borrow_mut().add_image_frame(frame)
+    }
+
+    fn retain_video_frame_hold(&self, hold: &VideoFrameHold) {
+        self.stream.borrow_mut().retain_video_frame_hold(hold);
+    }
+
+    fn record_present(&self) {
+        let canvas_id = self.recording_canvas_id();
+        self.stream.borrow_mut().record_present(canvas_id);
+    }
+
+    fn pending_command_count(&self) -> usize {
+        self.stream.borrow().pending_command_count()
+    }
+
+    fn flush(&self) {
+        flush(&self.stream, self.connection);
+    }
+
+    fn read_back_pixels(
+        &self,
+        rect: IntRect,
+        alpha_type: AlphaType,
+        color_space: ColorSpace,
+    ) -> Option<ImageFrameHandle> {
+        let canvas_id = self.canvas_id.get()?;
+        self.connection
+            .read_back_pixels(canvas_id, rect, alpha_type, color_space)
     }
 }

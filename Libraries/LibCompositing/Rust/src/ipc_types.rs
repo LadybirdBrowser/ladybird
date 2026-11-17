@@ -12,7 +12,7 @@
 
 use crate::css_pixels::CssPixelPoint;
 use crate::display_list::chunks::ChunkId;
-use crate::display_list::commands::{CompositorContextId, UniqueNodeId};
+use crate::display_list::commands::{CanvasId, CompositorContextId, UniqueNodeId};
 use crate::display_list::layers::{LayerPlan, UnvalidatedLayerPlan};
 use crate::display_list::storage::PackedChunkSize;
 use crate::visual_context::VisualContextTree;
@@ -20,6 +20,7 @@ use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encod
 use std::sync::Arc;
 
 pub type Web_CompositorContextId = CompositorContextId;
+pub type Compositing_CanvasId = CanvasId;
 pub type Web_UniqueNodeID = UniqueNodeId;
 pub type Web_CSSPixelPoint = CssPixelPoint;
 pub type Gfx_IntPoint = libgfx_rust::IntPoint;

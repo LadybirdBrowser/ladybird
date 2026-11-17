@@ -18,7 +18,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::canvas_2d::canvas::{CanvasImageSourceKind, Usability, capture_video_frame};
 use crate::canvas_2d::context::{CanvasKind, ContextState, RenderingContext2D};
 use crate::canvas_2d::float;
-use crate::canvas_2d::host::LentVideoFrameHold;
 
 /// The union CanvasImageSource of HTML/Canvas/CanvasDrawImage.idl, whose members the bindings convert.
 #[derive(Clone, Copy)]
@@ -300,7 +299,7 @@ impl ContextState {
                 let state = self.drawing_state();
                 self.record(|recorder| {
                     recorder.draw_video_frame(
-                        &LentVideoFrameHold(captured_frame.hold()),
+                        &captured_frame.hold,
                         captured_frame.sink_handle,
                         captured_frame.generation,
                         destination_rect,

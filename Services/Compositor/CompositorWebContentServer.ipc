@@ -1,6 +1,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
-#include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
+#include <LibCompositing/DisplayList/Canvas2DCommandStreamSegment.h>
 #include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
@@ -62,9 +62,10 @@ endpoint CompositorWebContentServer
     reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
     // The pixels of the context, and the colors of its commands, are in the color space.
     create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace color_space) =|
-    // The fonts are those that the segments draw. The fonts of the previous batch that are not among them are
-    // released.
-    update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontDescription> fonts) =|
+    // The fonts are those that the segments of the canvas 2D stream that follow draw. The fonts described before that
+    // are not among them are released.
+    describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDescription> fonts) =|
+    [RustSender] update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments) =|
     destroy_canvas_context(Compositing::CanvasId canvas_id) =|
     // The pixels come back in the color space.
     get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace color_space) => (Gfx::ShareableBitmap pixels)

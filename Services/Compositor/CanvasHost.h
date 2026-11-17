@@ -66,7 +66,8 @@ public:
     CreateWebGLContextResult create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias);
     void destroy_context(Compositing::CanvasId);
 
-    [[nodiscard]] bool execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const&, Vector<Compositing::DisplayListFontDescription> const& fonts, Compositing::RegisteredTypefaces const&, Compositing::RegisteredImageFrames const&);
+    [[nodiscard]] bool describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDescription> const&, Compositing::RegisteredTypefaces const&);
+    void execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const&, Compositing::RegisteredImageFrames const&);
     void execute_webgl_commands(Compositing::CanvasId, ReadonlyBytes, Vector<Compositing::WebGL::ImageSourceFrame> const&);
     void set_webgl_shared_command_buffer(Compositing::CanvasId, Compositing::WebGL::WebGLSharedCommandBuffer);
     [[nodiscard]] bool execute_webgl_commands_from_shared_buffer(Compositing::CanvasId, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> const&);
@@ -107,7 +108,7 @@ private:
     CanvasSurfaceRegistry& m_canvas_surface_registry;
     Compositing::CanvasSurfaceOwnerId m_canvas_surface_owner_id;
     HashMap<Compositing::CanvasId, Context> m_contexts;
-    DrawnFonts m_fonts_of_latest_stream_batch;
+    DrawnFonts m_described_canvas_2d_fonts;
     Compositing::RegisteredImageFrames const* m_image_frames_registered_while_stream_batch_plays { nullptr };
 
     VideoFrameHolds const& m_video_frame_holds;

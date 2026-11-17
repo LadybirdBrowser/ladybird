@@ -394,48 +394,27 @@ Optional<Compositing::CanvasId> CompositorConnection::create_canvas_2d_context(G
     return canvas_id;
 }
 
-void CompositorConnection::update_canvas_2d_stream(Compositing::Canvas2DCommandStream& stream)
+RefPtr<IPC::ThreadSafeMessagePoster> CompositorConnection::prepare_canvas_2d_stream_batch(ReadonlySpan<Gfx::Font const*> fonts, ReadonlySpan<Gfx::DecodedImageFrame const*> image_frames)
 {
-    // The stream is drained only here, and only when the message can actually
-    // be delivered: a flush through a connection that has been lost must leave
-    // the segments in place for whoever flushes through a live one.
-    if (stream.is_empty() || !can_send_message_to_compositor())
-        return;
-
-    auto fonts_of_this_batch = stream.take_fonts();
-    Vector<Gfx::Font const*> fonts;
-    fonts.ensure_capacity(fonts_of_this_batch.size());
-    for (auto const& font : fonts_of_this_batch)
-        fonts.unchecked_append(font.font.ptr());
-    if (!register_typefaces_of_fonts_with_compositor(*m_poster, fonts)) {
-        for (auto const& font : fonts_of_this_batch)
-            stream.add_font(*font.font);
+    if (!can_send_message_to_compositor())
+        return nullptr;
+    if (!register_typefaces_of_fonts_with_compositor(*m_poster, fonts) || !register_image_frames_with_compositor(*m_poster, image_frames)) {
         did_lose_compositor();
-        return;
+        return nullptr;
     }
+    if (!fonts.is_empty()) {
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::DescribeCanvas2dFonts::static_encode(descriptions_of_fonts(fonts)));
+        if (!m_poster->try_post(encoded_message)) {
+            did_lose_compositor();
+            return nullptr;
+        }
+    }
+    return m_poster;
+}
 
-    auto image_frames_of_this_batch = stream.take_image_frames();
-    Vector<Gfx::DecodedImageFrame const*> image_frames;
-    image_frames.ensure_capacity(image_frames_of_this_batch.size());
-    for (auto const& image_frame : image_frames_of_this_batch)
-        image_frames.unchecked_append(&image_frame.frame);
-    if (!register_image_frames_with_compositor(*m_poster, image_frames)) {
-        for (auto const& font : fonts_of_this_batch)
-            stream.add_font(*font.font);
-        for (auto const& image_frame : image_frames_of_this_batch)
-            stream.add_image_frame(image_frame.frame);
-        did_lose_compositor();
-        return;
-    }
-
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), descriptions_of_fonts(fonts)));
-    auto video_frame_holds = stream.take_video_frame_holds();
-    if (post_message(encoded_message).is_error()) {
-        did_lose_compositor();
-        return;
-    }
-    for (auto& hold : video_frame_holds)
-        hold->note_sent_to_compositor();
+void CompositorConnection::did_fail_to_post_canvas_2d_stream_batch()
+{
+    did_lose_compositor();
 }
 
 void CompositorConnection::destroy_canvas_context(Compositing::CanvasId canvas_id)
