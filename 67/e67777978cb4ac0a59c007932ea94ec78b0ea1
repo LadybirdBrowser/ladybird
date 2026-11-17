@@ -1,0 +1,16 @@
+Ladybird renders an SVG image that has a viewBox in a viewport with the
+proportions of the image’s box, whatever transforms the box is under.
+The transforms then stretch what was rendered. So under scale(2, 4), the
+circle of a 24x24 image becomes an ellipse 40px wide and 80px tall.
+
+The other engines lay the image out at the size of its box too, going by
+their sources. Blink’s SVGImage::DrawForContainer draws the image for
+the container size that its SVGImage::DrawInfo carries. WebKit sets that
+size with SVGImage::setContainerSize. Gecko’s VectorImage::CreateSurface
+hands its viewport size to SVGDocumentWrapper::UpdateViewportBounds.
+
+Run in Chrome 157.0.8103.78, Firefox 151.0, and WebKit 26.5 (the build
+that Playwright ships), an img element and a background that doesn’t
+repeat both show that ellipse under scale(2, 4). In all three, each one
+matches, pixel for pixel, the same image drawn at 48x96 with its
+preserveAspectRatio set to none.
