@@ -218,7 +218,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
         RETURNING cache_key, vary_key;
     )#"sv));
     statements.select_entries = TRY(database.prepare_statement("SELECT vary_key, url, request_headers, response_headers, data_size, request_time, response_time, last_access_time FROM CacheIndex WHERE cache_key = ?;"sv));
-    statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ?, last_access_time = ? WHERE cache_key = ? AND vary_key = ?;"sv));
+    statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ?, request_time = ?, response_time = ?, last_access_time = ? WHERE cache_key = ? AND vary_key = ?;"sv));
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ? AND vary_key = ?;"sv));
 
     statements.remove_entries_exceeding_cache_limit = TRY(database.prepare_statement(R"#(
@@ -523,7 +523,7 @@ void CacheIndex::remove_entries_for_cache_key(u64 cache_key, Function<void(u64 c
     }
 }
 
-ErrorOr<void> CacheIndex::update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList> response_headers)
+ErrorOr<void> CacheIndex::update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList> response_headers, UnixDateTime request_time, UnixDateTime response_time)
 {
     auto entry = get_entry(cache_key, vary_key);
     if (!entry.has_value())
@@ -541,12 +541,14 @@ ErrorOr<void> CacheIndex::update_response_headers(u64 cache_key, u64 vary_key, N
 
     auto now = UnixDateTime::now();
 
-    TRY(m_database->try_execute_statement(m_statements.update_response_headers, {}, serialized_response_headers, now, encode_cache_key_for_database(cache_key), encode_cache_key_for_database(vary_key)));
+    TRY(m_database->try_execute_statement(m_statements.update_response_headers, {}, serialized_response_headers, request_time, response_time, now, encode_cache_key_for_database(cache_key), encode_cache_key_for_database(vary_key)));
 
     adjust_total_estimated_size(-static_cast<i64>(entry->serialized_response_headers_size));
     adjust_total_estimated_size(static_cast<i64>(serialized_response_headers_size));
     entry->response_headers = move(response_headers);
     entry->serialized_response_headers_size = serialized_response_headers_size;
+    entry->request_time = request_time;
+    entry->response_time = response_time;
     entry->last_access_time = now;
     return {};
 }
