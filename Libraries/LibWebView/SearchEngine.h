@@ -15,10 +15,6 @@
 
 namespace WebView {
 
-struct SearchSuggestions {
-    String query_url;
-};
-
 struct SearchEngine {
     WEBVIEW_API String format_search_query_for_display(StringView query) const;
     WEBVIEW_API String format_search_query_for_navigation(StringView query) const;
@@ -26,7 +22,7 @@ struct SearchEngine {
 
     String name;
     String query_url;
-    Optional<SearchSuggestions> suggestions {};
+    Optional<String> suggestions_url {};
 };
 
 WEBVIEW_API ReadonlySpan<SearchEngine> builtin_search_engines();

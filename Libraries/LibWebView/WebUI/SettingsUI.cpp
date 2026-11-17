@@ -463,7 +463,7 @@ void SettingsUI::load_available_engines()
     for (auto const& engine : WebView::builtin_search_engines()) {
         JsonObject object;
         object.set("name"sv, engine.name);
-        object.set("supportsSuggestions"sv, engine.suggestions.has_value());
+        object.set("supportsSuggestions"sv, engine.suggestions_url.has_value());
         search_engines.must_append(move(object));
     }
 
