@@ -9,6 +9,7 @@
 #ifdef USE_VULKAN_DMABUF_IMAGES
 
 #    include <AK/ConditionVariable.h>
+#    include <AK/FixedArray.h>
 #    include <AK/HashMap.h>
 #    include <AK/Mutex.h>
 #    include <AK/Queue.h>
@@ -77,13 +78,21 @@ private:
         u8 bit_depth { 0 };
     };
 
-    FFmpegVulkanVideoDecoder(FFmpegFunctions const&, VulkanVideoDevice&, AVCodecContext*, AVPacket*, AVFrame*);
+    enum class EndOfStreamIsFinal : u8 {
+        Yes,
+        No,
+    };
 
+    FFmpegVulkanVideoDecoder(FFmpegFunctions const&, VulkanVideoDevice&, CodecID, AVBufferRef* device_context, FixedArray<u8> codec_configuration, AVPacket*, AVFrame*);
+
+    DecoderErrorOr<AVCodecContext*> create_codec_context();
+    DecoderErrorOr<void> replace_codec_context();
     static AVPixelFormat negotiate_pixel_format(AVCodecContext*, AVPixelFormat const*);
     static int get_buffer(AVCodecContext*, AVFrame*, int flags);
     DecoderErrorOr<void> create_frames_context();
 
-    DecoderErrorOr<void> receive_decoded_frames();
+    DecoderErrorOr<void> decode_coded_frame(CodedFrame const&, u64 key);
+    DecoderErrorOr<void> receive_decoded_frames(EndOfStreamIsFinal = EndOfStreamIsFinal::Yes);
     void enqueue_decoding_frame(DecodingFrame);
     void free_decoding_frames(Vector<DecodingFrame>&);
 
@@ -95,6 +104,9 @@ private:
 
     FFmpegFunctions const& m_functions;
     VulkanVideoDevice& m_device;
+    CodecID m_codec_id;
+    // The process keeps the device context alive.
+    AVBufferRef* m_device_context { nullptr };
     AVCodecContext* m_codec_context { nullptr };
     AVPacket* m_packet { nullptr };
     AVFrame* m_received_frame { nullptr };
@@ -103,6 +115,15 @@ private:
     // Only the caller's thread uses these.
     VideoFramesAwaitingOutput m_frames_awaiting_output;
     Optional<DecoderError> m_pixel_format_error;
+    // Replacing the codec context starts it from the latest configuration the stream has carried.
+    FixedArray<u8> m_codec_configuration;
+    // A second negotiation would start a Vulkan session that uses the old one's pictures after FFmpeg frees parts of
+    // them, so a context that would negotiate again is replaced instead.
+    bool m_codec_context_has_negotiated { false };
+    bool m_codec_context_must_be_replaced { false };
+    // A refused negotiation drops the codec context's own reference to its frames, so this one keeps them alive until
+    // the context's pictures are freed.
+    AVBufferRef* m_codec_frames_context { nullptr };
     bool m_received_end_of_stream { false };
     Vector<u64> m_drm_format_modifiers;
     VkImageDrmFormatModifierListCreateInfoEXT m_drm_format_modifier_list {};
@@ -125,8 +146,8 @@ private:
     RefPtr<Threading::Thread> m_completion_thread;
 
     // Only the completion thread uses these. A frames context recycles its images, so each one's surface is kept and
-    // recognized when it comes back.
-    AVHWFramesContext const* m_frames_context_of_surfaces { nullptr };
+    // recognized when it comes back. The context is referenced so that a new one can't take its address.
+    AVBufferRef* m_frames_context_of_surfaces { nullptr };
     HashMap<u64, NonnullRefPtr<VideoSurface>> m_surfaces_by_image;
 
     // Only the completion thread uses these. The decoded frames' context is kept because the exportable frames'
