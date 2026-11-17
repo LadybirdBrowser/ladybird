@@ -272,6 +272,51 @@ TEST_CASE(test_bmp_rle24)
     EXPECT_EQ(frame.image->begin()[1] & 0x00ffffffU, 0x00332211U);
 }
 
+TEST_CASE(test_bmp_rle4_rows_with_odd_width)
+{
+    // 9x2 BI_RLE4 image. Each row is one run of two alternating colors, so every row ends mid-byte.
+    Array<u8, 8> rle_data { 9, 0x12, 0, 0, 9, 0x34, 0, 1 };
+    Vector<u8> bmp_data;
+    auto append_u16 = [&](u16 value) {
+        bmp_data.append(value & 0xff);
+        bmp_data.append(value >> 8);
+    };
+    auto append_u32 = [&](u32 value) {
+        append_u16(value & 0xffff);
+        append_u16(value >> 16);
+    };
+    bmp_data.append('B');
+    bmp_data.append('M');
+    append_u32(118 + rle_data.size()); // File size.
+    append_u32(0);                     // Reserved.
+    append_u32(118);                   // Pixel offset.
+    append_u32(40);                    // BITMAPINFOHEADER size.
+    append_u32(9);                     // Width.
+    append_u32(2);                     // Height.
+    append_u16(1);                     // Plane count.
+    append_u16(4);                     // Bits per pixel.
+    append_u32(2);                     // BI_RLE4 compression.
+    append_u32(rle_data.size());       // Pixel data size.
+    append_u32(0);                     // Horizontal resolution.
+    append_u32(0);                     // Vertical resolution.
+    append_u32(16);                    // Palette colors.
+    append_u32(0);                     // Important palette colors.
+    for (u8 i = 0; i < 16; ++i) {
+        bmp_data.append(0);      // Blue.
+        bmp_data.append(0);      // Green.
+        bmp_data.append(i * 16); // Red.
+        bmp_data.append(0);
+    }
+    bmp_data.append(rle_data.data(), rle_data.size());
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 9, 2 }));
+    for (int x = 0; x < 9; ++x) {
+        EXPECT_EQ(frame.image->get_pixel(x, 0), Gfx::Color(x % 2 ? 4 * 16 : 3 * 16, 0, 0));
+        EXPECT_EQ(frame.image->get_pixel(x, 1), Gfx::Color(x % 2 ? 2 * 16 : 1 * 16, 0, 0));
+    }
+}
+
 TEST_CASE(test_ico_malformed_frame)
 {
     Array test_inputs = {

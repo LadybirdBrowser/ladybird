@@ -178,16 +178,8 @@ ErrorOr<void> ICOImageDecoderPlugin::load_ico_bitmap(ICOLoadingContext& context)
         return {};
     } else {
         auto bmp_decoder = TRY(BMPImageDecoderPlugin::create_as_included_in_ico({}, { context.data + desc.offset, desc.size }));
-        // NOTE: We don't initialize a BMP decoder in the usual way, but rather
-        // we just create an object and try to sniff for a frame when it's included
-        // inside an ICO image.
-        if (bmp_decoder->sniff_dib()) {
-            auto decoded_bmp_frame = TRY(bmp_decoder->frame(0));
-            desc.bitmap = decoded_bmp_frame.image;
-        } else {
-            dbgln_if(ICO_DEBUG, "load_ico_bitmap: encoded image not supported at index: {}", real_index);
-            return Error::from_string_literal("Encoded image not supported");
-        }
+        auto decoded_bmp_frame = TRY(bmp_decoder->frame(0));
+        desc.bitmap = decoded_bmp_frame.image;
         return {};
     }
 }
