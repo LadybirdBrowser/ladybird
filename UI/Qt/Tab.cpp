@@ -101,7 +101,6 @@ static QIcon calendar_month_chevron_icon(QWidget const& widget, ChevronDirection
     return QIcon(pixmap);
 }
 
-static constexpr int TAB_FAVICON_SIZE = 16;
 static constexpr int PRIVATE_SESSION_POPOVER_WIDTH = 320;
 
 // The page's zoom, with buttons to change it and a way back to the default.
@@ -188,7 +187,7 @@ Tab::Tab(BrowserWindow* window, DeferredTab deferred_tab)
     , WebView::SettingsObserver(Application::settings())
     , m_window(window)
     , m_title(deferred_tab.title)
-    , m_favicon(favicon_with_rounded_corners(deferred_tab.favicon, TAB_FAVICON_SIZE))
+    , m_favicon(deferred_tab.favicon)
     , m_session_tab_id(deferred_tab.session_tab_id)
     , m_deferred_tab(AK::move(deferred_tab))
 {

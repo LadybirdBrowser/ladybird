@@ -621,7 +621,7 @@ QIcon ProcessManagerWindow::favicon_for(WebView::ProcessPageSnapshot const& page
         return *icon;
     QIcon icon;
     if (auto png = m_source.favicon_png ? m_source.favicon_png(*favicon_hash) : Optional<ByteBuffer> {}; png.has_value())
-        icon = favicon_with_rounded_corners(icon_from_png(png->bytes(), 16), 16);
+        icon = favicon_from_png(png->bytes(), 16);
     if (icon.isNull())
         icon = create_chrome_icon(ChromeIcon::Globe, Theme::panel().body);
     m_favicons.set(*favicon_hash, icon);

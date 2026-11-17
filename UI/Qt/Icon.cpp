@@ -36,22 +36,6 @@ QIcon load_icon_from_uri(StringView uri)
     return QIcon { path };
 }
 
-QIcon icon_from_png(ReadonlyBytes favicon_png, int logical_size)
-{
-    QPixmap pixmap;
-    if (!pixmap.loadFromData(favicon_png.data(), static_cast<uint>(favicon_png.size()), "PNG"))
-        return {};
-
-    QIcon icon;
-    for (auto device_pixel_ratio : ICON_DEVICE_PIXEL_RATIOS) {
-        auto size = logical_size * device_pixel_ratio;
-        auto scaled_pixmap = pixmap.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        scaled_pixmap.setDevicePixelRatio(device_pixel_ratio);
-        icon.addPixmap(scaled_pixmap);
-    }
-    return icon;
-}
-
 // Favicons get slightly rounded corners, so that square ones sit well in the round shapes of the chrome around them.
 static constexpr qreal FAVICON_CORNER_RADIUS_FRACTION = 3.0 / 16.0;
 
@@ -74,15 +58,20 @@ QPixmap favicon_with_rounded_corners(QPixmap const& favicon)
     return QPixmap::fromImage(rounded);
 }
 
-QIcon favicon_with_rounded_corners(QIcon const& favicon, int logical_size)
+QIcon favicon_from_png(ReadonlyBytes favicon_png, int logical_size)
 {
-    if (favicon.isNull())
+    QPixmap pixmap;
+    if (!pixmap.loadFromData(favicon_png.data(), static_cast<uint>(favicon_png.size()), "PNG"))
         return {};
 
-    QIcon rounded;
-    for (auto device_pixel_ratio : ICON_DEVICE_PIXEL_RATIOS)
-        rounded.addPixmap(favicon_with_rounded_corners(favicon.pixmap(QSize(logical_size, logical_size), device_pixel_ratio)));
-    return rounded;
+    QIcon icon;
+    for (auto device_pixel_ratio : ICON_DEVICE_PIXEL_RATIOS) {
+        auto size = logical_size * device_pixel_ratio;
+        auto scaled_pixmap = pixmap.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        scaled_pixmap.setDevicePixelRatio(device_pixel_ratio);
+        icon.addPixmap(favicon_with_rounded_corners(scaled_pixmap));
+    }
+    return icon;
 }
 
 // Parses the path data of an SVG <path> element. Only the commands used by the icons below are understood: moveto,

@@ -367,7 +367,7 @@ static Action::Observer& initialize_native_control(Action& action, QAction& qact
         break;
     case ActionID::BookmarkItem:
         if (auto icon = action.png_icon(); icon.has_value())
-            qaction.setIcon(favicon_with_rounded_corners(icon_from_png(icon->bytes(), MENU_ICON_SIZE), MENU_ICON_SIZE));
+            qaction.setIcon(favicon_from_png(icon->bytes(), MENU_ICON_SIZE));
         else
             qaction.setIcon(create_chrome_icon(ChromeIcon::Globe, palette));
         break;
@@ -420,7 +420,7 @@ static QAction* create_session_history_traversal_menu_action(QMenu& menu, Remote
     auto* action = new QAction(qstring_from_ak_string(item.title), &menu);
     action->setToolTip(qstring_from_ak_string(item.url));
     if (item.favicon_png.has_value())
-        action->setIcon(icon_from_png(item.favicon_png->bytes(), MENU_ICON_SIZE));
+        action->setIcon(favicon_from_png(item.favicon_png->bytes(), MENU_ICON_SIZE));
     else
         action->setIcon(create_chrome_icon(ChromeIcon::Globe, menu.palette()));
     action->setData(item.step);
@@ -522,7 +522,7 @@ static QAction* create_recent_history_menu_action(QMenu& menu, WebContentView& v
     auto* action = new QAction(qstring_from_ak_string(title), &menu);
     action->setToolTip(qstring_from_ak_string(entry.url));
     if (entry.favicon_png.has_value())
-        action->setIcon(icon_from_png(entry.favicon_png->bytes(), MENU_ICON_SIZE));
+        action->setIcon(favicon_from_png(entry.favicon_png->bytes(), MENU_ICON_SIZE));
     else
         action->setIcon(create_chrome_icon(ChromeIcon::Globe, menu.palette()));
 
