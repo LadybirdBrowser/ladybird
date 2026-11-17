@@ -1,0 +1,13 @@
+Ladybird now gives a Hangul filler (U+115F, U+1160, U+3164, or U+FFA0)
+its font’s advance, rather than treating it as default-ignorable.
+HarfBuzz does the same in its is_default_ignorable(), which leaves the
+four fillers out of its list. And so do Chrome 157 and WebKit 26.5: Run
+with a font that has spacing glyphs for the fillers, both gave a lone
+U+115F and U+1160 a width of 36.8px, where Firefox 151 gave them none.
+With the system’s sans-serif font, Chrome gave U+3164 and U+FFA0 a
+width, as Ladybird now does, and WebKit and Firefox gave them none.
+
+A filler that no font has a glyph for still stays invisible, with no
+width, rather than showing the missing-glyph box. That case went
+untested in the other engines: The system fonts here have glyphs for
+all four fillers, so none of them could be made to fall back.
