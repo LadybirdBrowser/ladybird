@@ -1,0 +1,20 @@
+When a flex container’s items have different order values, Ladybird
+sorts them into order-modified document order for every flex direction,
+and reverses a reversed direction only when it places them along the
+main axis. Blink does the same: Its FlexChildIterator yields children in
+order-modified document order, and FlexLayoutAlgorithm::ApplyReversals()
+reverses the items of each line afterward. WebKit’s FlexLayout::
+buildFlexItemList() stable-sorts the flex items by order, and its
+FlexFormattingContext::computeFlexItemRects() flips a reversed direction
+when it turns flow-relative positions into physical ones. Gecko’s
+nsFlexContainerFrame::GenerateFlexLines() walks the children with a
+CSSOrderAwareFrameIterator, and its FlexboxAxisTracker reverses the main
+axis in LogicalPointFromFlexRelativePoint().
+
+Item positions match Chrome 157.0.8103.78, Firefox 151.0 and WebKit 26.5
+in 36 cases: row, row-reverse, column, column-reverse, row-reverse with
+wrap, wrap-reverse, row-reverse with rtl, rtl, and row-reverse in
+vertical-lr, each with mixed, negative, equal and two groups of order
+values. Ladybird paints overlapping items in order-modified document
+order, as Firefox and WebKit do; Chrome paints the items of a reversed
+row in the opposite order.
