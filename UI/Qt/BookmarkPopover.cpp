@@ -159,6 +159,9 @@ void BookmarkPopover::set_bookmark(String id, JustAdded just_added)
         delete item;
     }
     m_folder_row->layout()->addWidget(m_folder_picker);
+    // NB: The popover was polished when it first opened, so sizing it no longer applies the style sheet to its new
+    //     picker, which would still have the platform style's height.
+    m_folder_picker->ensurePolished();
     adjustSize();
 }
 
