@@ -457,7 +457,7 @@ bool Autocomplete::is_visible() const
 bool Autocomplete::eventFilter(QObject* watched, QEvent* event)
 {
     auto type = event->type();
-    if ((watched == m_anchor->window() && first_is_one_of(type, QEvent::Hide, QEvent::Resize)) || (watched == qApp && type == QEvent::Quit)) {
+    if ((first_is_one_of(type, QEvent::Hide, QEvent::Resize) && watched == m_anchor->window()) || (watched == qApp && type == QEvent::Quit)) {
         if (close())
             emit dismissed();
     }
