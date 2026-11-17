@@ -1250,7 +1250,9 @@ void LocationEdit::update_chrome_style()
 
     m_is_updating_chrome_style = true;
     // Match the popup's palette without feeding our styled background into the next style update.
-    setStyleSheet(ChromeStyle::location_edit_style_sheet(Theme::chrome_palette(*this)));
+    auto style_sheet = ChromeStyle::location_edit_style_sheet(Theme::chrome_palette(*this));
+    if (styleSheet() != style_sheet)
+        setStyleSheet(style_sheet);
     m_is_updating_chrome_style = false;
     update_zoom_indicator();
     update_in_use_chip_icons();
