@@ -1445,8 +1445,10 @@ void Tab::recreate_location_edit_icons()
 
 void Tab::show_translation_menu()
 {
-    if (!m_translation_menu)
+    if (!m_translation_menu) {
         m_translation_menu = create_application_menu(*this, view().translation_menu());
+        m_location_edit->follow_translation_menu(*m_translation_menu);
+    }
     auto& button = m_location_edit->translate_button();
     m_translation_menu->popup(button.mapToGlobal(QPoint { 0, button.height() }));
 }
@@ -1498,6 +1500,7 @@ void Tab::show_bookmark_popover()
         m_bookmark_popover->on_remove = [this](Function<void()> const& remove) {
             m_location_edit->animate_trailing_action_change(LocationEdit::TrailingActionMotion::Fade, remove);
         };
+        m_location_edit->follow_bookmark_popover(*m_bookmark_popover);
     }
     m_bookmark_popover->update_chrome_style(palette());
     m_bookmark_popover->set_bookmark(bookmark->id, just_added);
