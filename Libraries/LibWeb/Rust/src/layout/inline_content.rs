@@ -448,6 +448,31 @@ pub struct InlineBoxPieceRecord {
     pub is_geometry_only_placeholder: bool,
 }
 
+fn pieces_only_moved<'a>(
+    previous_pieces: impl ExactSizeIterator<Item = &'a InlineBoxPieceRecord>,
+    pieces: impl ExactSizeIterator<Item = &'a InlineBoxPieceRecord>,
+) -> bool {
+    if previous_pieces.len() != pieces.len() {
+        return false;
+    }
+    let mut offset_of_every_piece = None;
+    for (previous_piece, piece) in previous_pieces.zip(pieces) {
+        let (previous_rect, rect) = (previous_piece.border_box_rect, piece.border_box_rect);
+        if previous_piece.is_geometry_only_placeholder
+            || piece.is_geometry_only_placeholder
+            || previous_piece.present_edges != piece.present_edges
+            || (previous_rect.width, previous_rect.height) != (rect.width, rect.height)
+        {
+            return false;
+        }
+        let offset = (rect.x - previous_rect.x, rect.y - previous_rect.y);
+        if *offset_of_every_piece.get_or_insert(offset) != offset {
+            return false;
+        }
+    }
+    offset_of_every_piece.is_some()
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) struct ClampedInlineBoxRect {
     pub node: NodeSlotId,
@@ -631,6 +656,30 @@ impl InlineContent {
                 }
             }
             ink.into_boxed_slice()
+        })
+    }
+
+    /// The inline boxes whose pieces all lie as they did in `previous`, moved by one offset and drawn at the same size.
+    pub(crate) fn inline_boxes_whose_pieces_only_moved_since<'a>(
+        &'a self,
+        previous: &'a InlineContent,
+    ) -> impl Iterator<Item = NodeSlotId> + 'a {
+        let mut previous_boxes = previous.inline_boxes.boxes().peekable();
+        self.inline_boxes.boxes().filter_map(move |(node, piece_indices)| {
+            while previous_boxes
+                .next_if(|(previous_node, _)| inline_box_order(*previous_node) < inline_box_order(node))
+                .is_some()
+            {}
+            let (_, previous_piece_indices) = previous_boxes.next_if(|(previous_node, _)| *previous_node == node)?;
+            pieces_only_moved(
+                previous_piece_indices
+                    .iter()
+                    .map(|&index| &previous.inline_box_pieces[index as usize]),
+                piece_indices
+                    .iter()
+                    .map(|&index| &self.inline_box_pieces[index as usize]),
+            )
+            .then_some(node)
         })
     }
 

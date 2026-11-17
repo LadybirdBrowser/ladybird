@@ -162,6 +162,12 @@ impl PaintGenerations {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum OwnInkOverflow {
+    MayChange,
+    Kept,
+}
+
 impl LayoutNodeArena {
     pub(crate) fn take_paint_generation(&mut self) -> PaintGeneration {
         let generations = &mut self.paintable_rows.paint_generations;
@@ -201,6 +207,15 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn note_paint_change(&mut self, row: NodeSlotId, change: RowPaintChange) {
+        self.note_paint_change_to_row(row, change, OwnInkOverflow::MayChange);
+    }
+
+    /// Notes a change that leaves the ink overflow of the row itself, relative to its padding box, as it was.
+    pub(crate) fn note_paint_change_keeping_own_ink_overflow(&mut self, row: NodeSlotId, change: RowPaintChange) {
+        self.note_paint_change_to_row(row, change, OwnInkOverflow::Kept);
+    }
+
+    fn note_paint_change_to_row(&mut self, row: NodeSlotId, change: RowPaintChange, own_ink_overflow: OwnInkOverflow) {
         if change.is_empty() || !self.paintable_row_is_populated(row) {
             return;
         }
@@ -208,7 +223,9 @@ impl LayoutNodeArena {
             self.note_hit_test_items_changed();
         }
         if change.intersects(RowPaintChange::DRAWING | RowPaintChange::PLACE | RowPaintChange::ORDER) {
-            self.request_ink_overflow_recalculation(row);
+            if own_ink_overflow == OwnInkOverflow::MayChange {
+                self.request_ink_overflow_recalculation(row);
+            }
             self.request_inline_ink_overflow_recalculation(row);
             if change.intersects(RowPaintChange::PLACE) {
                 self.request_containing_block_ink_overflow_recalculation(row);
