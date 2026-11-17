@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 20px/1 Ahem; }
+    .f { display: flex; flex-direction: column; align-items: baseline; width: 200px; margin-bottom: 10px; }
+    .f > div { background: silver; }
+</style>
+<!-- In a column flex container, baseline alignment runs across the horizontal axis. An item with no baseline there
+     synthesizes one from its left border edge. A vertical-lr item aligns with the others at the left edge, a
+     vertical-rl item with the other vertical-rl items at the right edge, and any other item at the cross-start edge.
+     An item with an auto cross-axis margin doesn't take part. Each line gives each item's offset from the left. -->
+<div class="f" id="different-heights"><div style="width: 30px; height: 20px"></div><div style="width: 30px; height: 50px"></div></div>
+<div class="f" id="different-margins"><div style="width: 30px; height: 20px; margin-left: 15px"></div><div style="width: 30px; height: 50px"></div></div>
+<div class="f" id="horizontal-text"><div>ab</div><div style="font-size: 40px">ab</div></div>
+<div class="f" id="vertical-lr"><div style="writing-mode: vertical-lr; width: 20px; height: 20px; margin-left: 10px"></div><div style="writing-mode: vertical-lr; width: 40px; height: 20px"></div><div style="width: 30px; height: 20px"></div></div>
+<div class="f" id="vertical-rl"><div style="writing-mode: vertical-rl; width: 20px; height: 20px"></div><div style="writing-mode: vertical-rl; width: 40px; height: 20px; margin-right: 10px"></div><div style="width: 30px; height: 20px"></div></div>
+<div class="f" id="align-self"><div style="width: 30px; height: 20px; align-self: center"></div><div style="width: 30px; height: 50px"></div></div>
+<div class="f" id="auto-margin"><div style="width: 30px; height: 20px; margin-left: auto"></div><div style="width: 30px; height: 50px; margin-left: 15px"></div></div>
+<div class="f" id="rtl" style="direction: rtl"><div style="width: 30px; height: 20px"></div><div style="width: 50px; height: 50px; margin-right: 15px"></div></div>
+<div class="f" id="wrap-reverse" style="flex-wrap: wrap-reverse"><div style="width: 30px; height: 20px"></div><div style="width: 50px; height: 50px; margin-right: 15px"></div></div>
+<div class="f" id="vertical-rl-rtl" style="direction: rtl"><div style="writing-mode: vertical-rl; width: 20px; height: 20px"></div><div style="width: 30px; height: 20px"></div></div>
+<script>
+    function run(report) {
+        for (const container of document.querySelectorAll(".f")) {
+            const left = container.getBoundingClientRect().left;
+            const offsets = [...container.children].map(item => item.getBoundingClientRect().left - left);
+            report(`${container.id}: ${offsets.join(", ")}`);
+        }
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>

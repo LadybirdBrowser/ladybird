@@ -2,21 +2,21 @@ Harness status: OK
 
 Found 16 tests
 
-4 Pass
-12 Fail
+10 Pass
+6 Fail
 Fail	.box > span 1
 Pass	.box > span 2
 Fail	.box > span 3
 Fail	.box > span 4
-Fail	.box > span 5
+Pass	.box > span 5
 Pass	.box > span 6
-Fail	.box > span 7
-Fail	.box > span 8
+Pass	.box > span 7
+Pass	.box > span 8
 Fail	.box > span 9
 Pass	.box > span 10
 Fail	.box > span 11
 Fail	.box > span 12
-Fail	.box > span 13
-Fail	.box > span 14
-Fail	.box > span 15
+Pass	.box > span 13
+Pass	.box > span 14
+Pass	.box > span 15
 Pass	.box > span 16

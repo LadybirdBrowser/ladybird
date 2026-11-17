@@ -1,0 +1,10 @@
+different-heights: 0, 0
+different-margins: 15, 15
+horizontal-text: 0, 0
+vertical-lr: 10, 10, 10
+vertical-rl: 150, 150, 0
+align-self: 85, 0
+auto-margin: 170, 15
+rtl: 135, 135
+wrap-reverse: 135, 135
+vertical-rl-rtl: 170, 170

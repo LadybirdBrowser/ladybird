@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 6 tests
 
-1 Pass
-5 Fail
-Fail	#target > div 1
+2 Pass
+4 Fail
+Pass	#target > div 1
 Fail	#target > div 2
 Fail	#target > div 3
 Pass	#target > div 4
