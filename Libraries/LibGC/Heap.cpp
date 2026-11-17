@@ -1301,10 +1301,21 @@ NO_SANITIZE_ADDRESS static void gather_asan_fake_stack_roots(PossiblePointers& p
         return;
 
     for (auto* real_stack_addr = reinterpret_cast<void const* const*>(begin); real_stack_addr < end; ++real_stack_addr) {
-        void const* real_address = *real_stack_addr;
-        if (real_address == nullptr)
+        // ASan hands out fake frames from a pool without clearing them, so the parts of a frame that its function has not
+        // written yet still hold whatever an earlier function left there, often a pointer to a cell. ASan poisons the
+        // redzones and every local that is out of scope, so no live value can be in a poisoned byte. Skip those: a word
+        // is addressable up to its first poisoned byte, which leaves the low bytes of the value on a little-endian
+        // machine.
+        auto* first_poisoned_byte = static_cast<u8 const*>(__asan_region_is_poisoned(const_cast<void*>(static_cast<void const*>(real_stack_addr)), sizeof(FlatPtr)));
+        auto addressable_bytes = first_poisoned_byte ? static_cast<size_t>(first_poisoned_byte - reinterpret_cast<u8 const*>(real_stack_addr)) : sizeof(FlatPtr);
+        if (addressable_bytes == 0)
             continue;
-        add_possible_value(possible_pointers, reinterpret_cast<FlatPtr>(real_address), HeapRoot { .type = HeapRoot::Type::StackPointer }, bounds);
+        auto real_address = reinterpret_cast<FlatPtr>(*real_stack_addr);
+        if (addressable_bytes < sizeof(FlatPtr))
+            real_address &= (static_cast<FlatPtr>(1) << (addressable_bytes * 8)) - 1;
+        if (real_address == 0)
+            continue;
+        add_possible_value(possible_pointers, real_address, HeapRoot { .type = HeapRoot::Type::StackPointer }, bounds);
     }
 }
 #else
