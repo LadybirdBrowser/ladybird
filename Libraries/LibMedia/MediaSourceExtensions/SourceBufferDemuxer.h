@@ -54,6 +54,14 @@ public:
         NeedsReanchoring,
     };
 
+    // Where a track's reads continue from in its runs.
+    struct Cursor {
+        size_t run { 0 };
+        size_t frame { 0 };
+        CursorContinuity continuity { CursorContinuity::Continuous };
+        Optional<AK::Duration> presentation_timestamp;
+    };
+
     // Defers internal bookkeeping until this goes out of scope to avoid unnecessary work.
     class MEDIA_API ChangeBatch {
         AK_MAKE_NONCOPYABLE(ChangeBatch);
@@ -127,10 +135,7 @@ private:
 
         Vector<FrameRun> runs;
         bool runs_need_reordering { false };
-        size_t current_run { 0 };
-        size_t current_frame { 0 };
-        CursorContinuity cursor_continuity { CursorContinuity::Continuous };
-        Optional<AK::Duration> cursor_presentation_timestamp;
+        Cursor cursor;
         // The presentation time that reads have reached in the buffered ranges, which a read may only move past
         // within the range that contains it. Seeking sets it to the seek's target.
         Optional<AK::Duration> read_anchor;
@@ -169,7 +174,7 @@ private:
     static void for_each_earliest_evictable_group(TrackData const&, AK::Duration current_time, Callback);
     static bool run_ends_at_last_appended_frame(TrackData const&, size_t run_index);
     static void note_delivered_frame(TrackData&, Media::CodedFrame const&);
-    static void note_cursor_jumped(TrackData&);
+    static void note_cursor_jumped(Cursor&);
     static size_t first_run_starting_at_or_after(TrackData const&, AK::Duration presentation_start);
     static void note_run_start_changed(TrackData&, size_t run_index);
     static void restore_run_order(TrackData&);
@@ -178,7 +183,7 @@ private:
     static bool removed_frames_overlap_group_of_pictures_being_read(FrameRun const& cursor_run, size_t cursor_frame_index, size_t first_removed_frame_index, size_t removed_frame_count);
     size_t erase_frames_and_dependants(TrackData&, size_t run_index, size_t first_frame, size_t minimum_frame_count);
     Optional<size_t> find_run_to_play_from_while_locked(TrackData const&, AK::Duration) const;
-    bool move_cursor_to_presentation_time_while_locked(TrackData&, AK::Duration);
+    bool move_cursor_to_presentation_time_while_locked(TrackData const&, Cursor&, AK::Duration);
 
     static void extend_run_bounds_for_frame(FrameRun&, Media::CodedFrame const&);
     static void recalculate_run_bounds(FrameRun&);
