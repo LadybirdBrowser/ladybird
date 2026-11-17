@@ -1,0 +1,14 @@
+Ladybird aligns the last line of a block, and a line before a forced
+break, per text-align-last, where auto means text-align, except that
+justify becomes start. Blink does the same in ComputedStyle::
+GetTextAlign(is_last_line), WebKit in InlineFormattingUtils’s
+computedHorizontalAlignment (and InlineLineBuilder for justification),
+and Gecko in nsLineLayout::TextAlignLine(), via nsStyleText::
+TextAlignForLastLine(). Run in Chrome 157, Firefox 151, and WebKit
+26.5, a page of 14 variants (a soft-wrapped block, a line before a br,
+a preserved newline, a block child, RTL, a single line, an inline child,
+text-justify: none, and match-parent) aligns its lines by the same rule
+in all three, and in Ladybird, but for one: match-parent under an RTL
+parent’s text-align-last: start. WebKit and Ladybird align that line
+right, as the spec says, since start resolves against the parent’s
+direction. But Chrome and Firefox align it left, by the child’s start.
