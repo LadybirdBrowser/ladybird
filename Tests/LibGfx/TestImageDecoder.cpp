@@ -672,6 +672,44 @@ TEST_CASE(test_32bit_bmp_with_alpha_values_in_ico_ignores_and_mask)
     EXPECT_EQ(frame.image->get_pixel(1, 0), Gfx::Color(0x44, 0x55, 0x66));
 }
 
+TEST_CASE(test_bitfields_bmp_with_alpha_values_in_ico_ignores_and_mask)
+{
+    // 1x1 image with an alpha mask and an alpha value, followed by an AND mask that would make the pixel transparent.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 56, 1, 2, 32, 3 /* BI_BITFIELDS */, 0);
+    append_u32(dib, 0x00ff0000);
+    append_u32(dib, 0x0000ff00);
+    append_u32(dib, 0x000000ff);
+    append_u32(dib, 0xff000000);
+    Array<u8, 8> pixel_and_mask { 0x33, 0x22, 0x11, 0x80, 0b1000'0000, 0, 0, 0 };
+    dib.append(pixel_and_mask.data(), pixel_and_mask.size());
+    auto ico_data = make_ico_file(1, 1, 32, dib);
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(ico_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0x11, 0x22, 0x33, 0x80));
+}
+
+TEST_CASE(test_rle8_bmp_in_ico_uses_and_mask)
+{
+    // 8x1 image whose RLE data sets the first four pixels and skips the rest, followed by an AND mask that makes the
+    // first pixel transparent.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 40, 8, 2, 8, 1 /* BI_RLE8 */, 1);
+    append_u32(dib, 0xff0000); // Red.
+    Array<u8, 8> rle_data_and_mask { 4, 0, 0, 1, 0b1000'0000, 0, 0, 0 };
+    dib.append(rle_data_and_mask.data(), rle_data_and_mask.size());
+    auto ico_data = make_ico_file(8, 1, 8, dib);
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(ico_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 8, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0).alpha(), 0);
+    EXPECT_EQ(frame.image->get_pixel(1, 0), Gfx::Color::NamedColor::Red);
+    EXPECT_EQ(frame.image->get_pixel(3, 0), Gfx::Color::NamedColor::Red);
+    EXPECT_EQ(frame.image->get_pixel(4, 0).alpha(), 0);
+    EXPECT_EQ(frame.image->get_pixel(7, 0).alpha(), 0);
+}
+
 TEST_CASE(test_malformed_maskless_ico)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ico/malformed_maskless.ico"sv)));
