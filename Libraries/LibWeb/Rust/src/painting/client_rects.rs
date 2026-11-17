@@ -71,6 +71,13 @@ fn for_each_inline_fragment_border_box_rect(
     };
     let root_positions = paintable_geometry::LineRootPositions::new(arena, root);
     let root_side = arena.committed_side_data(root);
+    let rects_after_clamp = root_side
+        .inline_content
+        .as_ref()
+        .and_then(|content| content.inline_box_rects_after_clamp.as_deref());
+    // NB: An inline box whose content is all past the clamp point has a placeholder piece that isn't on any line.
+    let is_on_lines_after_clamp =
+        rects_after_clamp.is_some_and(|rects| rects.iter().any(|rect| rect.node == inline_paintable));
     let mut pushed_a_rect = false;
     let mut empty_piece_after_last_block = None;
     with_inline_pieces(arena, inline_paintable, |piece| {
@@ -93,11 +100,23 @@ fn for_each_inline_fragment_border_box_rect(
                 push_rect(block.border_box_rect);
                 pushed_a_rect = true;
                 empty_piece_after_last_block = Some(empty_piece_rect(&block, true));
+                return true;
             }
-            return true;
+            if piece.fragment_count != 0 || is_on_lines_after_clamp {
+                return true;
+            }
         }
         let root_position = root_positions.of_line(root_side.lines(), piece.line_index as usize);
-        push_rect(CssPixelRect::from(piece.border_box_rect).translated_by(root_position));
+        let mut rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_position);
+        if piece.is_geometry_only_placeholder {
+            // NB: The placeholder piece of an empty part of the inline box holds the content box of that part.
+            let padding = paintable_geometry::committed_padding(arena, inline_paintable);
+            let border = paintable_geometry::committed_border(arena, inline_paintable);
+            rect = rect
+                .inflated(padding.top, padding.right, padding.bottom, padding.left)
+                .inflated(border.top, border.right, border.bottom, border.left);
+        }
+        push_rect(rect);
         pushed_a_rect = true;
         empty_piece_after_last_block = None;
         true
@@ -105,11 +124,7 @@ fn for_each_inline_fragment_border_box_rect(
     if let Some(rect) = empty_piece_after_last_block {
         push_rect(rect);
     }
-    if let Some(rects) = root_side
-        .inline_content
-        .as_ref()
-        .and_then(|content| content.inline_box_rects_after_clamp.as_deref())
-    {
+    if let Some(rects) = rects_after_clamp {
         for rect in rects.iter().filter(|rect| rect.node == inline_paintable) {
             push_rect(CssPixelRect::from(rect.rect).translated_by(root_positions.of_fragment(rect.box_fragment)));
         }

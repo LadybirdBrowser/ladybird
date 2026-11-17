@@ -12,7 +12,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <p.no-open> at [8,48] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 13, rect: [8,48 117.8125x16] baseline: 13
             "no-open-quote"
-        InlineNode <(anonymous)> at [8,48] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+        InlineNode <(anonymous)> at [8,48] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
         TextNode <#text> (not painted)
       BlockContainer <p.open> at [8,80] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 18, rect: [24.09375,80 158.859375x16] baseline: 13
@@ -25,7 +25,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <p.no-close> at [8,112] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 14, rect: [8,112 121.25x16] baseline: 13
             "no-close-quote"
-        InlineNode <(anonymous)> at [8,112] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+        InlineNode <(anonymous)> at [8,112] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
         TextNode <#text> (not painted)
       BlockContainer <p.open> at [8,144] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 19, rect: [24.09375,144 162.296875x16] baseline: 13

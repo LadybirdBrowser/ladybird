@@ -723,6 +723,41 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(line_block_length);
     }
 
+    /// Puts `box_`, an inline box that holds no in-flow content, at the end of the current line, for the line to take
+    /// its strut from. Its content begins `leading_edges` past the content of the line: The item after the box takes
+    /// the start edges between them. Such a box is on one line alone, so one that the line before this one holds
+    /// stays there.
+    pub(crate) fn add_strut_of_empty_inline_box(&mut self, box_: Node, leading_edges: CssPixels) {
+        let line_index = self.ensure_last_line_index();
+        if line_index > 0
+            && self
+                .line(line_index - 1)
+                .inline_box_struts
+                .iter()
+                .any(|strut| strut.box_ == box_)
+        {
+            return;
+        }
+        let mut line = self.line_mut(line_index);
+        let inline_offset = line.inline_length + leading_edges;
+        match line.inline_box_struts.iter_mut().find(|strut| strut.box_ == box_) {
+            Some(strut) => strut.inline_offset = inline_offset,
+            None => line.add_inline_box_strut(box_, leading_edges),
+        }
+    }
+
+    /// Puts the inline boxes that `node` is inside on the current line, for the line to take the strut of each one
+    /// that no fragment on the line belongs to. `leading_edges` is the size of the start edges that `node` has yet to
+    /// add to the line.
+    pub(crate) fn add_struts_of_inline_boxes_around(&mut self, node: Node, leading_edges: CssPixels) {
+        let line_index = self.ensure_last_line_index();
+        let mut box_ = self.context().nearest_fragmented_inline_ancestor(node);
+        while !box_.is_invalid() {
+            self.line_mut(line_index).add_inline_box_strut(box_, leading_edges);
+            box_ = self.context().nearest_fragmented_inline_ancestor(box_);
+        }
+    }
+
     pub(crate) fn append_static_position_marker(&mut self, node: Node, preceded_by_start_edges: bool) {
         let line_index = self.ensure_last_line_index();
         self.line_mut(line_index)
@@ -1180,6 +1215,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if has_fragments {
             self.prepare_to_append_inline_content();
         }
+        if self.line(line_index).takes_inline_box_struts() {
+            let strut_count = self.line(line_index).inline_box_struts.len();
+            for strut_index in 0..strut_count {
+                let box_ = self.line(line_index).inline_box_struts[strut_index].box_;
+                let block_size = TextLayoutBounds::new(self.style(box_), None).block_size();
+                self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(block_size);
+            }
+        }
         let containing_style = self.containing_style;
         let unclamped_line_block_size = self.max_block_size_on_current_line.max(containing_style.line_height());
         if !self.only_finds_line_breaks && (has_fragments || self.line(line_index).has_forced_break) {
@@ -1341,6 +1384,20 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         }
         {
             let mut line = self.line_mut(line_index);
+            let content_inline_length = line.inline_length;
+            let is_right_to_left = line.direction == direction::RTL;
+            for strut in &mut line.inline_box_struts {
+                let offset = strut.inline_offset.min(content_inline_length);
+                strut.inline_offset = marker_inline_offset
+                    + if is_right_to_left {
+                        content_inline_length - offset
+                    } else {
+                        offset
+                    };
+            }
+        }
+        {
+            let mut line = self.line_mut(line_index);
             line.block_length = latest - earliest;
             line.block_start = current_block_offset;
             line.block_end = current_block_offset + line.block_length;
@@ -1363,6 +1420,86 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     fn align_fragments_of_line(
         &self,
         line_index: usize,
+        inline_offset: CssPixels,
+        block_offset: CssPixels,
+    ) -> LineAlignment {
+        // https://drafts.csswg.org/css-inline-3/#invisible-line-boxes
+        // An inline box on the line with none of its content there is aligned like any other box, as a fragment as
+        // wide as nothing. The line holds that fragment only while its fragments are aligned — so, nothing else
+        // gets to see it.
+        let fragment_count = self.line(line_index).fragments.len();
+        for strut in self.inline_box_struts_without_fragments(line_index) {
+            let fragment = self.fragment_of_inline_box_strut(line_index, strut);
+            self.line_mut(line_index).push_fragment(fragment);
+        }
+        let alignment =
+            self.align_fragments_and_struts_of_line(line_index, fragment_count, inline_offset, block_offset);
+        self.line_mut(line_index).fragments.truncate(fragment_count);
+        alignment
+    }
+
+    /// The struts of the line at `line_index` that count: those of inline boxes that no fragment on the line belongs
+    /// to, on a line that isn't empty apart from them.
+    fn inline_box_struts_without_fragments(&self, line_index: usize) -> Vec<line_box::InlineBoxStrut> {
+        let line = self.line(line_index);
+        if line.inline_box_struts.is_empty() || !line.takes_inline_box_struts() {
+            return Vec::new();
+        }
+        let containing_block = self.context().containing_block;
+        let holds_fragment = |box_: Node| {
+            line.visible_fragments().any(|fragment| {
+                let mut node = fragment.style_source;
+                while !node.is_invalid() && node != containing_block {
+                    if node == box_ {
+                        return true;
+                    }
+                    node = self.context().parent_node(node);
+                }
+                false
+            })
+        };
+        line.inline_box_struts
+            .iter()
+            .filter(|strut| !holds_fragment(strut.box_))
+            .copied()
+            .collect()
+    }
+
+    fn fragment_of_inline_box_strut(
+        &self,
+        line_index: usize,
+        strut: line_box::InlineBoxStrut,
+    ) -> line_box_fragment::LineBoxFragmentData {
+        let style = self.style(strut.box_);
+        let line = self.line(line_index);
+        line_box_fragment::LineBoxFragmentData::new(
+            strut.box_,
+            0,
+            0,
+            strut.inline_offset,
+            CssPixels::default(),
+            CssPixels::default(),
+            TextLayoutBounds::new(style, None).block_size(),
+            CssPixels::default(),
+            line.direction,
+            line.writing_mode,
+            None,
+            line_box_fragment::FragmentBuildFacts {
+                style_source: strut.box_,
+                is_atomic_inline: false,
+                white_space_collapse: style.white_space_collapse(),
+                text_utf16: std::ptr::null(),
+                text_length_in_code_units: 0,
+            },
+        )
+    }
+
+    /// Aligns the fragments of the line at `line_index`, the ones from `strut_fragment_start` on being those of the
+    /// struts of inline boxes.
+    fn align_fragments_and_struts_of_line(
+        &self,
+        line_index: usize,
+        strut_fragment_start: usize,
         inline_offset: CssPixels,
         block_offset: CssPixels,
     ) -> LineAlignment {
@@ -1589,7 +1726,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 // subtree shift below, so they never count as unshifted.
                 let fragment_is_unshifted =
                     aligned_subtree.is_none() && accumulated_vertical_shift == CssPixels::default();
-                if first_unshifted_text_baseline.is_none() && fragment_is_unshifted {
+                if first_unshifted_text_baseline.is_none()
+                    && fragment_is_unshifted
+                    && fragment_index < strut_fragment_start
+                {
                     first_unshifted_text_baseline = Some(fragment_baseline - current_block_offset);
                 }
             }

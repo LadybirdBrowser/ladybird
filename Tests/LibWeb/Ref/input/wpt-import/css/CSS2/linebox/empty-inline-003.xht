@@ -1,0 +1,55 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: Line height calculations - Empty inline elements influence</title>
+
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visudet.html#line-height" title="10.8 Line height calculations: the 'line-height' and 'vertical-align' properties" />
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="author" title="Bruno Fassino" href="http://www.brunildo.org/" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/linebox/empty-inline-003-ref.xht" />
+
+  <meta content="The line-height of an empty inline element influences the height of a line containing it with some other content" name="assert" />
+
+  <style type="text/css"><![CDATA[
+  div#rel-pos-wrapper {position: relative;}
+
+  div#test
+  {
+  background-color: green;
+  color: white;
+  line-height: 1;
+  }
+
+  span#empty-inline-element {line-height: 5;}
+
+  div#reference-overlapped-red
+  {
+  background-color: red;
+  left: 0;
+  line-height: 5;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  z-index: -1;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a wide filled green rectangle with one "X" in it and if there is <strong>no red</strong>.</p>
+
+  <div id="rel-pos-wrapper">
+
+    <div id="test"><span id="empty-inline-element"></span>X</div>
+
+    <div id="reference-overlapped-red">X</div>
+
+  </div>
+
+ </body>
+</html>

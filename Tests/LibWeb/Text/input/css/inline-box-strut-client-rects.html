@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 10px/20px Ahem; }
+    .case { position: relative; width: 300px; }
+</style>
+<div class="case" id="two-br"><span class="t"><br><br></span></div>
+<div class="case" id="br-then-text"><span class="t"><br>x</span></div>
+<div class="case" id="text-br-br"><span class="t">x<br><br></span></div>
+<div class="case" id="nested-in-padding">x<span style="padding-left: 20px"><span class="t"></span></span>y</div>
+<div class="case" id="nested-in-padding-with-text">x<span style="padding-left: 20px"><span class="t"></span>y</span></div>
+<div class="case" id="after-empty-with-padding">x<span style="padding-right: 20px"></span><span class="t"></span>y</div>
+<div class="case" id="own-padding">x<span class="t" style="padding-left: 20px; margin-left: 5px"></span>y</div>
+<div class="case" id="nested-ws">x<span style="padding-left: 20px"><span class="t"> </span></span>y</div>
+<div class="case" id="justify" style="width: 100px; text-align: justify">aa <span class="t"></span>bb cc dd</div>
+<div class="case" id="justify-ws" style="width: 100px; text-align: justify">aa<span class="t"> </span>bb cc dd</div>
+<div class="case" id="justify-br" style="width: 100px; text-align: justify">aa bb<span class="t"><br></span>cc</div>
+<div class="case" id="ellipsis" style="width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">aaaa<span class="t"></span>bbbbbb</div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        for (const element of document.querySelectorAll(".case")) {
+            const origin = element.getBoundingClientRect();
+            const rects = Array.from(element.querySelector(".t").getClientRects(), rect =>
+                `(${rect.left - origin.left},${rect.top - origin.top} ${rect.width}x${rect.height})`);
+            println(`${element.id}: ${rects.join(" ")}`);
+        }
+    });
+</script>

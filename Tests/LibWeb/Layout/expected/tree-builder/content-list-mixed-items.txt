@@ -43,7 +43,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.empty-attr> at [8,286] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 10, rect: [8,286 84.265625x16] baseline: 13
             "empty attr"
-        InlineNode <(anonymous)> at [8,286] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+        InlineNode <(anonymous)> at [8,286] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
           GeneratedTextNode <(anonymous)> (not painted)
         TextNode <#text> (not painted)
 

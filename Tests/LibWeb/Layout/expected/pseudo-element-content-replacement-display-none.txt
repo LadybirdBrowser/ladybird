@@ -16,7 +16,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from GeneratedTextNode start: 0, length: 7, rect: [8,24 58.703125x16] baseline: 13
               "[outer]"
           GeneratedTextNode <(anonymous)> (not painted)
-        InlineNode <span.hidden-close> at [8,24] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
+        InlineNode <span.hidden-close> at [66.703125,24] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
         InlineNode <span.visible-inner> at [66.703125,24] [0+0+0 118.375 0+0+0] [0+0+0 16 0+0+0]
           InlineNode <(anonymous)> at [66.703125,24] [0+0+0 55.5 0+0+0] [0+0+0 16 0+0+0]
             frag 0 from GeneratedTextNode start: 0, length: 7, rect: [66.703125,24 55.5x16] baseline: 13

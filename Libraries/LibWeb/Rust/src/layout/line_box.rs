@@ -39,6 +39,15 @@ pub(crate) struct InlineBoxBaseline {
     pub(crate) accumulated_vertical_shift: CssPixels,
 }
 
+/// An inline box on a line, and where on the line its content begins. No fragment on the line belongs to a box that's
+/// empty, or to one whose content there is only whitespace that collapsed away, the forced break that ends the line,
+/// or a block-level box the line stops at.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct InlineBoxStrut {
+    pub(crate) box_: Node,
+    pub(crate) inline_offset: CssPixels,
+}
+
 /// What text-overflow elided from the end of a line.
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) struct TextOverflowElision {
@@ -67,6 +76,11 @@ pub(crate) struct LineBoxData {
     pub(crate) fragments: Vec<line_box_fragment::LineBoxFragmentData>,
     pub(crate) static_position_markers: Vec<StaticPositionMarker>,
     pub(crate) inline_box_baselines: Vec<InlineBoxBaseline>,
+    /// The inline boxes that are on the line whether or not a fragment on it belongs to them. One that no fragment
+    /// belongs to takes part in the height and alignment of the line box by its strut (a box as wide as nothing, with
+    /// its font and line height) — but only where the line holds content or ends in a forced break.
+    /// https://drafts.csswg.org/css-inline-3/#invisible-line-boxes
+    pub(crate) inline_box_struts: Vec<InlineBoxStrut>,
     pub(crate) text_overflow_elision: Option<TextOverflowElision>,
     /// The block-level box the line holds, where the line is interrupted for one.
     pub(crate) block_level_box: Option<BlockLevelBoxOnLine>,
@@ -93,6 +107,7 @@ impl LineBoxData {
             fragments: Vec::new(),
             static_position_markers: Vec::new(),
             inline_box_baselines: Vec::new(),
+            inline_box_struts: Vec::new(),
             text_overflow_elision: None,
             block_level_box: None,
             record: inline_content::LineRecord {
@@ -228,6 +243,22 @@ impl LineBoxData {
             .copied()
     }
 
+    /// Puts `box_` on the line, with its content beginning `leading_edges` past the content the line holds so far.
+    pub(crate) fn add_inline_box_strut(&mut self, box_: Node, leading_edges: CssPixels) {
+        if self.inline_box_struts.iter().any(|strut| strut.box_ == box_) {
+            return;
+        }
+        self.inline_box_struts.push(InlineBoxStrut {
+            box_,
+            inline_offset: self.record.inline_length + leading_edges,
+        });
+    }
+
+    /// Whether the struts of the inline boxes on the line count, which they don't on a line with nothing else on it.
+    pub(crate) fn takes_inline_box_struts(&self) -> bool {
+        !self.has_block_level_box && (!self.fragments.is_empty() || self.has_forced_break)
+    }
+
     pub(crate) fn clamp_static_position_markers_to_inline_length(&mut self) {
         for marker in &mut self.static_position_markers {
             if marker.inline_offset > self.record.inline_length {
@@ -326,7 +357,16 @@ impl LineBoxData {
     }
 
     pub(crate) fn trim_trailing_whitespace(&mut self) {
-        self.calculate_or_trim_trailing_whitespace(true);
+        let trimmed_inline_size = self.calculate_or_trim_trailing_whitespace(true);
+        // An inline box after the trimmed whitespace is at the end of what the line keeps.
+        if trimmed_inline_size != CssPixels::default()
+            && let Some(last) = self.fragments.last()
+        {
+            let end = last.inline_offset + last.inline_length;
+            for strut in &mut self.inline_box_struts {
+                strut.inline_offset = strut.inline_offset.min(end);
+            }
+        }
     }
 
     pub(crate) fn trim_trailing_whitespace_before_block_ellipsis(&mut self) {

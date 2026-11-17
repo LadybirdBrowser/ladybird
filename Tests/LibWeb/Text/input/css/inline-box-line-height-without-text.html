@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { font: 16px/19px serif; }
+    .case > span { font-size: 51px; line-height: 56px; }
+</style>
+<div class="case" id="br"><span><br></span></div>
+<div class="case" id="empty"><span></span></div>
+<div class="case" id="text"><span>x</span></div>
+<div class="case" id="image"><span><img style="width: 10px; height: 10px"></span></div>
+<div class="case" id="whitespace-before-br"><span> </span><br></div>
+<div class="case" id="empty-before-br"><span></span><br></div>
+<div class="case" id="empty-before-text"><span></span>x</div>
+<div class="case" id="empty-after-text">x<span></span></div>
+<div class="case" id="only-whitespace"><span> </span></div>
+<div class="case" id="empty-before-image"><span></span><img style="width: 10px; height: 10px"></div>
+<div class="case" id="br-own-line-height"><span><br style="line-height: 100px"></span></div>
+<div class="case" id="nested-br"><span><span style="font-size: 20px; line-height: 24px"><br></span></span></div>
+<div class="case" id="two-br"><span><br><br></span></div>
+<div class="case" id="empty-before-two-br"><span></span><br><br></div>
+<div class="case" id="whitespace-before-text"><span> </span>x</div>
+<div class="case" id="whitespace-after-text">x<span> </span></div>
+<div class="case" id="preserved-breaks"><span style="white-space: pre">&#10;&#10;</span></div>
+<div class="case" id="block-in-inline"><span><div style="height: 10px"></div></span></div>
+<div class="case" id="empty-before-block"><span></span><div style="height: 10px"></div></div>
+<div class="case" id="collapsing-margin" style="margin-top: 10px"><span></span><div style="margin-top: 20px; height: 10px"></div></div>
+<div class="case" id="no-break-at-empty" style="width: 60px; font-family: Ahem">MMMM<span></span>MMMM</div>
+<div class="case" id="empty-before-soft-wrap" style="width: 150px; font-family: Ahem">word word<span></span> next</div>
+<div class="case" id="whitespace-around-empty" style="width: 60px; font-family: Ahem">x <span></span> y</div>
+<div class="case" id="trailing-space-before-empty" style="width: 100px; font-family: Ahem; text-align: right">x <span></span></div>
+<div class="case" id="max-content-whitespace" style="width: max-content; font-family: Ahem">x <span></span> y</div>
+<div class="case" id="whitespace-at-soft-wrap" style="width: 60px; font-family: Ahem"><b>AAA</b><span> </span><b>BBB</b></div>
+<div class="case" id="empty-before-overflowing-image" style="width: 10px"><span></span><img style="width: 20px; height: 10px"></div>
+<div class="case" id="empty-before-overflowing-text" style="width: 10px; font-family: Ahem"><span></span>AAA</div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        const results = Array.from(document.querySelectorAll(".case"), element =>
+            `${element.id}: ${element.getBoundingClientRect().height}`);
+        results.push(`max-content-whitespace width: ${document.getElementById("max-content-whitespace").getBoundingClientRect().width}`);
+        const softWrap = document.getElementById("whitespace-at-soft-wrap");
+        results.push(`whitespace-at-soft-wrap span is on first line: ${softWrap.querySelector("span").getBoundingClientRect().bottom <= softWrap.lastChild.getBoundingClientRect().top}`);
+        const trailing = document.getElementById("trailing-space-before-empty");
+        const range = document.createRange();
+        range.setStart(trailing.firstChild, 0);
+        range.setEnd(trailing.firstChild, 1);
+        results.push(`trailing-space-before-empty text end: ${range.getBoundingClientRect().right - trailing.getBoundingClientRect().left}`);
+        results.push(`trailing-space-before-empty span: ${trailing.querySelector("span").getBoundingClientRect().left - trailing.getBoundingClientRect().left}`);
+        results.forEach(println);
+    });
+</script>
