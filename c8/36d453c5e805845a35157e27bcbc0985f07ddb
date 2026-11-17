@@ -1,0 +1,14 @@
+On Linux, RequestServer sends the lookups that it makes with the
+system resolver to the UI process, which runs getaddrinfo() for them on
+a thread pool, so RequestServer’s sandbox allows none of the resolver
+files. Chromium does the same, and only on Linux: Its network service
+sends system DNS lookups to the browser process over network::mojom::
+SystemDnsResolver, which content::SystemDnsResolverMojoImpl answers on
+a thread pool. And ShouldRunOutOfProcessSystemDnsResolution(), in its
+ContentBrowserClient, is true only on Linux, since the macOS and
+Windows sandboxes can allow system DNS resolution itself.
+
+WebKitGTK runs its network process outside the bubblewrap sandbox, as
+bubblewrapSpawn() returns early for ProcessType::Network. And Gecko
+resolves names in its parent process, through GetAddrInfo(), which its
+nsHostResolver calls. So neither sandboxes the system resolver at all.
