@@ -1,0 +1,58 @@
+after-clearfix: 0,80 0,110 200,110 400,110
+after-block-without-clearfix: 0,80
+after-block-as-tall-as-float: 0,80
+margin-reaches-past-float: 0,100
+margin-ends-at-float-end: 0,80
+margin-ends-beside-float: 0,80
+sibling-margin-reaches-past-float: 0,110
+pulled-up-beside-float-after-short-block: 0,80
+pulled-up-but-still-below-float: 0,90
+pulled-up-by-one-pixel: 0,80
+no-margin: 0,80
+collapses-with-sibling-positive-margin: 0,80
+collapses-with-sibling-negative-margin: 0,80
+after-empty-block-with-negative-margin: 0,80
+negative-margin-on-parent-of-clearing-box: 0,50 0,80
+clearing-first-child: 0,80 0,80
+clearing-first-grandchild: 0,80 0,80 0,80
+first-child-margin-pulls-box-up: 0,80 0,80
+first-child-margin-reaches-past-float: 0,100 0,100
+first-child-margin-ends-beside-float: 0,80 0,80
+margin-after-empty-first-child: 0,100 0,100
+first-child-margin-behind-border: 0,80 0,181
+float-in-box-the-margin-moves: 0,10 0,10 0,90
+float-in-box-the-margin-moves-pulled-up: 0,0 0,0 0,80
+float-in-sibling-in-box-the-margin-moves: 0,0 0,0 0,80
+float-outside-box-the-margin-moves: 0,0 0,200 0,200
+float-in-outer-of-two-boxes-the-margin-moves: 0,0 0,0 0,0 0,80
+floats-inside-and-outside-box-the-margin-moves: 0,0 0,0 500,0 0,120
+clears-only-float-outside-box-the-margin-moves: 0,0 0,200 500,200 0,200
+clears-only-float-inside-box-the-margin-moves: 0,0 0,0 500,0 0,80
+block-between-float-and-box-in-box: 0,0 0,0 0,110
+float-after-pending-margin: 0,110
+in-nested-block: 0,80
+in-inline-box: 0,80
+clear-left-beside-right-float: 0,50
+clear-right-beside-right-float: 0,120
+empty: 0,80 0,80
+empty-with-bottom-margin: 0,80 0,100
+flow-root: 0,80
+border-top: 0,80
+float-after-block: 0,100
+clearing-float: 0,50
+two-in-a-row: 0,80 0,80
+vertical: 80,0
+first-child-percentage-margin-in-narrow-box: 0,80
+first-child-percentage-margin-in-wide-box: 0,100
+first-child-percentage-margin-in-padded-box: 0,80
+first-grandchild-percentage-margin: 0,80
+zero-height-block-before-first-child: 0,100
+zero-min-height-block-before-first-child: 0,100
+zero-height-block-with-contents-before-first-child: 0,80
+min-height-block-before-first-child: 0,80
+aspect-ratio-block-before-first-child: 0,80
+first-child-clears-side-without-float: 0,100
+first-child-margin-reaches-past-float-it-clears: 0,100
+first-child-margin-ends-beside-float-it-clears: 0,80
+first-child-pulls-box-up-and-clears-side-without-float: 0,80
+first-grandchild-margin-ends-past-float-it-clears: 0,90

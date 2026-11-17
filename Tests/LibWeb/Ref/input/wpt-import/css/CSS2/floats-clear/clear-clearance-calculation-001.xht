@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Clearance calculations - clear box non-collapsing margins with larger margings than clearance</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/clear-clearance-calculation-001-ref.xht" />
+
+        <meta name="flags" content="ahem image" />
+        <meta name="assert" content="When a cleared element has more top margin than the height of the floated element the margin is collpased with previous in-flow children. The element is then placed at the point of the resulting collapsed margin." />
+        <!-- C1 = H-M2 -->
+        <!-- C2 = Max(M1, M2) - M1 - M2 -->
+        <link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+        <style type="text/css">
+            div
+            {
+                font: 20px/1em Ahem;
+                width: 5em;
+            }
+            #parent
+            {
+                background: url('support/clear-clearance-calculation-001.png');
+                min-height: 6em;
+            }
+            div div
+            {
+                background: green;
+                height: 1em;
+            }
+            #div1
+            {
+                margin-bottom: 1em;
+            }
+            #div2
+            {
+                float: left;
+                margin: 0;
+            }
+            #div3
+            {
+                clear: left;
+                margin-top: 4em;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is no red.</p>
+        <div id="parent">
+            <div id="div1"></div>
+            <div id="div2"></div>
+            <div id="div3"></div>
+        </div>
+    </body>
+</html>
