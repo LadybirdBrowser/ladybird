@@ -48,6 +48,10 @@ public:
     // Returns true if there are events waiting to be flushed.
     bool has_pending_events() const;
 
+    // Returns true while process() runs inside an event that an outer process() dispatched, as it does when that event
+    // spins a nested event loop.
+    bool is_processing_nested() const;
+
 private:
     ThreadEventQueue();
     ~ThreadEventQueue();
