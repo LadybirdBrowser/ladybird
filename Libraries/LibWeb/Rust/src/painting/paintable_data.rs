@@ -223,6 +223,7 @@ pub(crate) struct CommittedSideData {
     pub(crate) order_inputs: crate::painting::paint_order_plan::PaintOrderInputs,
     pub(crate) containing_block_fragment: u32,
     pub(crate) box_fragments: Option<std::sync::Arc<Vec<CommittedBoxFragment>>>,
+    pub(crate) hit_test_bounds_of_lines: Option<std::sync::Arc<[crate::painting::ink_overflow::HitTestBoundOfLine]>>,
 }
 
 /// Rows are the same when they hold equal records; a shared record is compared only when the rows
@@ -241,6 +242,11 @@ impl PartialEq for CommittedSideData {
                 a == b
             })
             && self.containing_block_fragment == other.containing_block_fragment
+            && same_payload(
+                self.hit_test_bounds_of_lines.as_ref(),
+                other.hit_test_bounds_of_lines.as_ref(),
+                |a, b| a == b,
+            )
             && same_payload(self.box_fragments.as_ref(), other.box_fragments.as_ref(), |a, b| {
                 a.len() == b.len()
                     && a.iter().zip(b.iter()).all(|(left, right)| {

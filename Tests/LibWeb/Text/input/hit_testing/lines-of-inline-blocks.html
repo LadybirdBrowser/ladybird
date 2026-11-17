@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px monospace; }
+    #lines { width: 210px; }
+    .cell { display: inline-block; width: 40px; height: 20px; vertical-align: top; }
+    #tall { width: 10px; height: 60px; margin-left: 20px; }
+    #text { margin: 40px 0 0; width: 210px; }
+    #zero { line-height: 0; }
+</style>
+<div id="lines"></div>
+<p id="text">first <span id="zero">zero</span> line<br>second line<br>third line</p>
+<script>
+    function describe(element) {
+        return element ? element.id || element.localName : "null";
+    }
+    function probe(label, x, y) {
+        const all = document.elementsFromPoint(x, y).map(describe).join(" ");
+        println(`${label}: ${describe(document.elementFromPoint(x, y))} [${all}]`);
+    }
+    function probeTopmostAndWhetherUnder(label, x, y, id) {
+        const under = document.elementsFromPoint(x, y).some(element => element.id === id);
+        println(`${label}: ${describe(document.elementFromPoint(x, y))}, ${id} ${under ? "is" : "is not"} under it`);
+    }
+    test(() => {
+        const lines = document.getElementById("lines");
+        for (let index = 0; index < 12; ++index) {
+            const cell = document.createElement("span");
+            cell.className = "cell";
+            cell.id = `cell-${index}`;
+            lines.appendChild(cell);
+        }
+        const tall = document.createElement("div");
+        tall.id = "tall";
+        document.getElementById("cell-2").appendChild(tall);
+
+        probe("a cell on the first line", 10, 10);
+        probe("a cell on the last line", 50, 50);
+        probe("past the cells of the last line", 150, 50);
+        probeTopmostAndWhetherUnder("a child of a cell on the first line, under a cell of the second", 105, 30, "tall");
+        probe("a child of a cell on the first line, reaching into the last", 105, 50);
+        probe("below the cells", 105, 70);
+        tall.style.height = "80px";
+        probe("below the cells, once the child grew", 105, 70);
+        probe("past the cells of the last line, once the child grew", 150, 50);
+
+        const zero = document.getElementById("zero").getBoundingClientRect();
+        probe("text with no line height", zero.left + zero.width / 2, zero.top + zero.height / 2);
+        const text = document.getElementById("text").getBoundingClientRect();
+        probe("text on the second line", text.left + 5, text.top + 30);
+        probe("past the text of the last line", text.left + 200, text.top + 50);
+    });
+</script>

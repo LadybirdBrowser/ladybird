@@ -15,7 +15,7 @@ use super::query::{DepthSortingState, item_contains_point};
 use super::*;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::painting::host::FfiHitTestQueryCallbacks;
-use crate::painting::ink_overflow::{ScopeInkBound, scope_ink_bound};
+use crate::painting::ink_overflow::{HitTestBoundOfLine, ScopeInkBound, scope_ink_bound};
 use crate::painting::paint_order_plan::{
     PaintOrderInputs, PaintOrderItem, PaintProducer, PaintScope, PaintScopeKind, PaintScopePlan, PlanLeavesOut,
 };
@@ -109,6 +109,13 @@ impl<R: PaintRead> PlanLeavesOut for WhatThePointMisses<'_, '_, R> {
     fn leaves_out_child_scope(&mut self, child: PaintScope, child_inputs: PaintOrderInputs) -> bool {
         self.walk.point_misses_child_scope(child, child_inputs, self.owner)
     }
+
+    fn leaves_out_line(&mut self, line_root: NodeSlotId, line_index: u32) -> bool {
+        line_root == self.owner.slot
+            && self
+                .walk
+                .point_misses_line(line_root, line_index, self.owner.absolute_content_origin)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -187,6 +194,19 @@ impl<R: PaintRead> HitTestItemSink for PointWalk<'_, R> {
                 .contains_point(to_css_point(local))
     }
 
+    fn rejects_text_fragments_placed_at_their_line_root_before_building_them(&self) -> bool {
+        self.skips_scopes_the_point_misses
+    }
+
+    fn misses_line(
+        &mut self,
+        line_root: NodeSlotId,
+        line_index: u32,
+        line_root_absolute_content_origin: CssPixelPoint,
+    ) -> bool {
+        self.point_misses_line(line_root, line_index, line_root_absolute_content_origin)
+    }
+
     fn append(&mut self, item: HitTestItem) {
         let Some(local) = self.local_point_inside_clips(item.context) else {
             return;
@@ -256,6 +276,36 @@ impl<R: PaintRead> PointWalk<'_, R> {
             return owner.absolute_content_origin.translated(offset.x, offset.y);
         }
         paintable_geometry::absolute_rect(self.rows, child).location()
+    }
+
+    fn point_misses_line(
+        &mut self,
+        line_root: NodeSlotId,
+        line_index: u32,
+        line_root_absolute_content_origin: CssPixelPoint,
+    ) -> bool {
+        let rows = self.rows;
+        let side = rows.committed_side_data(line_root);
+        let Some(bounds) = side.hit_test_bounds_of_lines.as_deref() else {
+            return false;
+        };
+        if bounds.len() != side.lines().len() {
+            return false;
+        }
+        let Some(HitTestBoundOfLine::RectInContentBoxOfLineRoot(bound)) = bounds.get(line_index as usize) else {
+            return false;
+        };
+        let bound = bound.translated_by(line_root_absolute_content_origin);
+        let context = rows
+            .paintable_data(line_root)
+            .accumulated_visual_context_for_descendants;
+        let Some(local) = self.local_point_ignoring_clips(context) else {
+            return false;
+        };
+        let one_pixel = CssPixels::from_integer(1);
+        !bound
+            .inflated(one_pixel, one_pixel, one_pixel, one_pixel)
+            .contains_point(to_css_point(local))
     }
 
     fn point_misses_child_scope(

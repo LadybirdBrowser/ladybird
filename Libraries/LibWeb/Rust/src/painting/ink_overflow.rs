@@ -500,6 +500,58 @@ fn has_resampled_ink(style: crate::layout::ComputedValuesView<'_>) -> bool {
         })
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum HitTestBoundOfLine {
+    RectInContentBoxOfLineRoot(CssPixelRect),
+    Unbounded,
+}
+
+pub(crate) fn hit_test_bounds_of_lines(
+    source: &impl PaintRead,
+    line_root: NodeSlotId,
+) -> Option<std::sync::Arc<[HitTestBoundOfLine]>> {
+    use crate::painting::paintable_data::PaintableFlag;
+    if !node_painting::has_lines(source, line_root)
+        || source
+            .paintable_data(line_root)
+            .has_flag(PaintableFlag::HasLaterBoxFragments)
+    {
+        return None;
+    }
+    let side = source.committed_side_data(line_root);
+    if side.lines().len() < 2 {
+        return None;
+    }
+    let content_origin = paintable_geometry::absolute_rect(source, line_root).location();
+    let mut bounds = vec![HitTestBoundOfLine::RectInContentBoxOfLineRoot(CssPixelRect::default()); side.lines().len()];
+    for fragment in side.fragments() {
+        let bound = bounds.get_mut(fragment.line_index as usize)?;
+        let HitTestBoundOfLine::RectInContentBoxOfLineRoot(rect) = bound else {
+            continue;
+        };
+        if !fragment.is_atomic_inline {
+            rect.unite(text_fragment::rect_in_containing_block(fragment));
+            continue;
+        }
+        let atomic_inline = fragment.layout_node;
+        if !source.paintable_row_is_populated(atomic_inline) {
+            continue;
+        }
+        let ink = source.stored_ink_overflow(atomic_inline);
+        if ink.unbounded || ink.contribution_unbounded {
+            *bound = HitTestBoundOfLine::Unbounded;
+            continue;
+        }
+        let padding_box_origin = paintable_geometry::first_fragment_padding_box_rect(source, atomic_inline).location();
+        rect.unite(
+            ink.rect
+                .translated_by(padding_box_origin)
+                .translated(-content_origin.x, -content_origin.y),
+        );
+    }
+    Some(bounds.into())
+}
+
 /// What bounds everything a paint scope paints.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum ScopeInkBound {
@@ -775,6 +827,11 @@ impl crate::layout::LayoutNodeArena {
             source.paintable_rows.ink_overflow_dirty[index] = false;
             let ink = recalculated_ink_overflow(&source, state, node);
             recalculated += 1;
+            let hit_test_bounds_of_lines = hit_test_bounds_of_lines(&source, node);
+            if hit_test_bounds_of_lines.is_some() || source.committed_side_data(node).hit_test_bounds_of_lines.is_some()
+            {
+                source.committed_side_data_mut(node).hit_test_bounds_of_lines = hit_test_bounds_of_lines;
+            }
             let store = &mut source.paintable_rows;
             if store.ink_overflow.get(index).is_some_and(|previous| *previous == ink) {
                 continue;
@@ -821,6 +878,12 @@ impl crate::layout::LayoutNodeArena {
                 stored == recomputed,
                 "Stored ink overflow is stale: {:?} {node:?}, stored {stored:?}, recomputed {recomputed:?}",
                 source.node_kind_if_live(node)
+            );
+            let stored_hit_test_bounds_of_lines = source.committed_side_data(node).hit_test_bounds_of_lines.clone();
+            let recomputed_hit_test_bounds_of_lines = hit_test_bounds_of_lines(&source, node);
+            assert!(
+                stored_hit_test_bounds_of_lines == recomputed_hit_test_bounds_of_lines,
+                "Stored hit test bounds of the lines of {node:?} are stale: stored {stored_hit_test_bounds_of_lines:?}, recomputed {recomputed_hit_test_bounds_of_lines:?}"
             );
             counts.checked += 1;
         }
