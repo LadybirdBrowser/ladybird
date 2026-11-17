@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .container { position: relative; display: flow-root; width: 400px; height: 100px; }
+    .left { float: left; width: 100px; height: 80px; }
+    .right { float: right; width: 100px; height: 80px; }
+    .abspos { position: absolute; width: 30px; height: 30px; }
+    .clear { clear: both; }
+</style>
+<div class="container" id="nothing-after"><div class="left"></div><div class="left"></div><span class="abspos"></span></div>
+<div class="container" id="clearing-block-after"><div class="left"></div><div class="left"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="plain-block-after"><div class="left"></div><div class="left"></div><span class="abspos"></span><div></div></div>
+<div class="container" id="block-before-and-after"><div style="height: 10px"></div><div class="left"></div><div class="left"></div><span class="abspos"></span><div></div></div>
+<div class="container" id="block-level-abspos"><div class="left"></div><div class="left"></div><div class="abspos"></div><div class="clear"></div></div>
+<div class="container" id="inline-block"><div class="left"></div><div class="left"></div><span class="abspos" style="display: inline-block"></span><div class="clear"></div></div>
+<div class="container" id="inline-flex"><div class="left"></div><span class="abspos" style="display: inline-flex"></span><div class="clear"></div></div>
+<div class="container" id="fixed" style="transform: translate(0)"><div class="left"></div><span class="abspos" style="position: fixed"></span><div class="clear"></div></div>
+<div class="container" id="right-float"><div class="right"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="rtl-right-float" style="direction: rtl"><div class="right"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="rtl-left-float" style="direction: rtl"><div class="left"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="text-align-center" style="text-align: center"><div class="left"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="text-align-center-between-floats" style="text-align: center"><div class="left"></div><div class="right"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="text-align-center-without-floats" style="text-align: center"><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="text-align-right" style="text-align: right"><div class="left"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="text-align-end" style="text-align: end"><div class="left"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="floats-fill-the-line"><div class="left" style="width: 400px; height: 40px"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="floats-leave-less-than-the-box"><div class="left" style="width: 380px; height: 40px"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="wider-float-below"><div class="left" style="height: 20px"></div><div class="left" style="clear: left; width: 150px"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="margins-before-and-after"><div style="height: 10px; margin-bottom: 20px"></div><div class="left"></div><span class="abspos"></span><div class="clear" style="margin-top: 5px"></div></div>
+<div class="container" id="float-in-sibling-before"><div><div class="left"></div></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="in-nested-block"><div class="left"></div><div><span class="abspos"></span><div></div></div></div>
+<div class="container" id="container-padding" style="padding-left: 15px"><div class="left"></div><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="own-margins"><div class="left"></div><span class="abspos" style="margin-left: 7px; margin-top: 3px"></span><div class="clear"></div></div>
+<div class="container" id="two-boxes"><div class="left"></div><span class="abspos"></span><span class="abspos"></span><div class="clear"></div></div>
+<div class="container" id="vertical" style="writing-mode: vertical-rl"><div class="left" style="width: 80px; height: 100px"></div><span class="abspos"></span><div class="clear"></div></div>
+<script>
+    test(() => {
+        // An absolutely positioned box with no insets goes to its static position. For a box that would be inline-level
+        // in flow, that's where a line would put it: beside the floats, and where the text alignment says, whatever
+        // follows the box.
+        for (const container of document.querySelectorAll(".container")) {
+            const origin = container.getBoundingClientRect();
+            const positions = [...container.querySelectorAll(".abspos")].map(box => {
+                const rect = box.getBoundingClientRect();
+                return `${rect.left - origin.left},${rect.top - origin.top}`;
+            });
+            println(`${container.id}: ${positions.join(" ")}`);
+        }
+
+        // A block that comes in after the box is there wraps it, just as one that was there from the start does.
+        const container = document.getElementById("nothing-after");
+        container.append(document.createElement("div"));
+        const rect = container.querySelector(".abspos").getBoundingClientRect();
+        println(`block-inserted-after: ${rect.left - container.getBoundingClientRect().left}`);
+        if (window.internals)
+            println(`the tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>
