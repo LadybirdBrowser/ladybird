@@ -69,35 +69,84 @@ bool Document::custom_highlight_static_ranges_may_have_changed() const
     return m_custom_highlight_observers_read_static_ranges && character_data_version() != m_custom_highlight_observers_character_data_version;
 }
 
-static bool range_intersects_node(AbstractRange const& range, Node& node)
+static void record_element(Vector<CSS::StyleNodeID>& style_nodes, Node& node)
 {
-    if (auto const* live_range = as_if<Range>(range))
-        return live_range->intersects_node(node);
-    auto* parent = node.parent();
-    if (!parent)
-        return true;
-    auto offset = static_cast<WebIDL::UnsignedLong>(node.index());
-    return position_of_boundary_point_relative_to_other_boundary_point({ *parent, offset }, range.end()) == RelativeBoundaryPointPosition::Before
-        && position_of_boundary_point_relative_to_other_boundary_point({ *parent, offset + 1 }, range.start()) == RelativeBoundaryPointPosition::After;
+    if (auto* element = as_if<Element>(node); element && element->style_node_id() != CSS::StyleNodeID {})
+        style_nodes.append(element->style_node_id());
+}
+
+static void record_shadow_including_inclusive_descendants(Vector<CSS::StyleNodeID>& style_nodes, Node& root)
+{
+    root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
+        record_element(style_nodes, node);
+        return TraversalDecision::Continue;
+    });
+}
+
+static void record_node_and_its_shadow_tree(Vector<CSS::StyleNodeID>& style_nodes, Node& node)
+{
+    record_element(style_nodes, node);
+    if (auto* element = as_if<Element>(node); element && element->shadow_root())
+        record_shadow_including_inclusive_descendants(style_nodes, *element->shadow_root());
+}
+
+static void record_siblings_until(Vector<CSS::StyleNodeID>& style_nodes, Node* first_sibling, Node const* sibling_to_stop_at)
+{
+    for (auto* sibling = first_sibling; sibling && sibling != sibling_to_stop_at; sibling = sibling->next_sibling())
+        record_shadow_including_inclusive_descendants(style_nodes, *sibling);
+}
+
+// NB: A range intersects the nodes on the paths from its common ancestor down to its boundary nodes and every node
+//     between those paths. Testing each child of the common ancestor for intersection instead would walk its
+//     preceding siblings every time, which is quadratic in a wide tree.
+static void record_elements_intersecting_range(Vector<CSS::StyleNodeID>& style_nodes, Node& common_ancestor, AbstractRange const& range)
+{
+    auto& start_node = *range.start_container();
+    auto& end_node = *range.end_container();
+
+    record_node_and_its_shadow_tree(style_nodes, common_ancestor);
+
+    Node* first_child_between_paths = nullptr;
+    if (&start_node == &common_ancestor) {
+        first_child_between_paths = common_ancestor.child_at_index(range.start_offset());
+    } else {
+        record_node_and_its_shadow_tree(style_nodes, start_node);
+        record_siblings_until(style_nodes, start_node.child_at_index(range.start_offset()), nullptr);
+        Node* node_on_start_path = &start_node;
+        for (; node_on_start_path->parent() != &common_ancestor; node_on_start_path = node_on_start_path->parent()) {
+            record_node_and_its_shadow_tree(style_nodes, *node_on_start_path->parent());
+            record_siblings_until(style_nodes, node_on_start_path->next_sibling(), nullptr);
+        }
+        first_child_between_paths = node_on_start_path->next_sibling();
+    }
+
+    Node* child_after_children_between_paths = nullptr;
+    if (&end_node == &common_ancestor) {
+        child_after_children_between_paths = common_ancestor.child_at_index(range.end_offset());
+    } else {
+        record_node_and_its_shadow_tree(style_nodes, end_node);
+        record_siblings_until(style_nodes, end_node.first_child(), end_node.child_at_index(range.end_offset()));
+        Node* node_on_end_path = &end_node;
+        for (; node_on_end_path->parent() != &common_ancestor; node_on_end_path = node_on_end_path->parent()) {
+            record_node_and_its_shadow_tree(style_nodes, *node_on_end_path->parent());
+            record_siblings_until(style_nodes, node_on_end_path->parent()->first_child(), node_on_end_path);
+        }
+        child_after_children_between_paths = node_on_end_path;
+    }
+
+    record_siblings_until(style_nodes, first_child_between_paths, child_after_children_between_paths);
 }
 
 static void collect_highlight_observing_elements(Vector<CSS::StyleNodeID>& style_nodes, Node& root, AbstractRange const* range)
 {
-    auto record_element = [&](Node& node) {
-        if (auto* element = as_if<Element>(node); element && element->style_node_id() != CSS::StyleNodeID {})
-            style_nodes.append(element->style_node_id());
-    };
-
     // NB: Ancestors supply inherited highlight styles, and text controls paint through
     //     their internal shadow trees. Neither requires visiting unrelated subtrees.
     for (auto* ancestor = root.flat_tree_parent(); ancestor; ancestor = ancestor->flat_tree_parent())
-        record_element(*ancestor);
-    root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
-        if (range && &node.root() == &range->start_container()->root() && !range_intersects_node(*range, node))
-            return TraversalDecision::SkipChildrenAndContinue;
-        record_element(node);
-        return TraversalDecision::Continue;
-    });
+        record_element(style_nodes, *ancestor);
+    if (range)
+        record_elements_intersecting_range(style_nodes, root, *range);
+    else
+        record_shadow_including_inclusive_descendants(style_nodes, root);
 }
 
 struct HighlightStyleInput {
