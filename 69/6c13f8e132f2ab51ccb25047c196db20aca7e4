@@ -1,0 +1,6 @@
+When a stored response is revalidated with a 304, Ladybird now counts
+its age from the revalidation request, recording that request’s time and
+the time of its response in the cache index. Chromium does the same:
+HttpCache::Transaction::DoUpdateCachedResponse() sets the cached
+response’s request_time and response_time to those of the 304. This
+comes from reading Chromium’s source; Gecko and WebKit weren’t checked.
