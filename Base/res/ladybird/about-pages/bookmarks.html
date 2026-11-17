@@ -42,15 +42,16 @@
                 border-radius: 6px;
                 color: var(--text);
                 text-decoration: none;
-                cursor: default;
+                cursor: pointer;
             }
 
+            /* The current folder's fill is deeper than the faint hover fill, so a hovered folder never looks current. */
             .folder-link:hover {
-                background-color: var(--control);
+                background-color: var(--hover-faint);
             }
 
             .folder-link[aria-current="page"] {
-                background-color: var(--control);
+                background-color: var(--control-pressed);
             }
 
             .folder-link.drop-inside {
@@ -204,6 +205,14 @@
                 text-decoration: none;
             }
 
+            /* The title's link stretches over the whole row, as the whole row lights up under the pointer. */
+            .title::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                border-radius: 6px;
+            }
+
             .detail {
                 flex: 1;
                 min-width: 0;
@@ -228,6 +237,7 @@
                 background-color: var(--control);
                 visibility: hidden;
                 position: relative;
+                z-index: 1;
             }
 
             /* The button takes clicks from a 32 px square around it. */
@@ -510,7 +520,7 @@
 
                 if (item.type === "folder") {
                     row.append(createElement("span", { className: "favicon", innerHTML: FOLDER_SVG }));
-                    const title = createElement("a", { href: "#", className: "title" });
+                    const title = createElement("a", { href: "#", className: "title", draggable: false });
                     title.append(...highlightText(item.title || "(no title)", SEARCH_QUERY));
                     title.addEventListener("click", event => {
                         event.preventDefault();
@@ -531,7 +541,7 @@
                     if (item.favicon)
                         favicon.append(createElement("img", { src: `data:image/png;base64,${item.favicon}`, alt: "" }));
                     else favicon.innerHTML = GLOBE_SVG;
-                    const title = createElement("a", { href: item.url, className: "title" });
+                    const title = createElement("a", { href: item.url, className: "title", draggable: false });
                     title.append(...highlightText(item.title || item.url, SEARCH_QUERY));
                     const detail = createElement("span", { className: "detail" });
                     detail.append(...highlightText(displayUrl(item.url), SEARCH_QUERY));

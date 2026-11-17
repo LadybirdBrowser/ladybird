@@ -101,6 +101,10 @@
                 cursor: pointer;
             }
 
+            .report-toggle:hover {
+                background-color: var(--control);
+            }
+
             .report-chevron {
                 flex: none;
                 width: 12px;
@@ -241,6 +245,7 @@
                 display: flex;
                 align-items: flex-start;
                 gap: 8px;
+                cursor: pointer;
             }
 
             .report-website input {
@@ -267,15 +272,21 @@
             }
 
             .report-show {
-                padding: 0;
+                margin: -1px -4px;
+                padding: 1px 4px;
 
                 border: none;
+                border-radius: 4px;
                 background: none;
                 color: var(--link);
 
                 font: inherit;
 
                 cursor: pointer;
+            }
+
+            .report-show:hover {
+                background-color: var(--control);
             }
 
             .report-text-note {
