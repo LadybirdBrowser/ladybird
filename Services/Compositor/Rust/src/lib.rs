@@ -17,6 +17,7 @@ mod rust_panic;
 
 pub mod async_scroll_update_outbox;
 pub mod backing_stores;
+pub mod canvas_2d_contexts;
 pub mod context_scene;
 pub mod context_state;
 pub mod core;

@@ -64,11 +64,7 @@ private:
     virtual void register_image_frames(Vector<Compositing::DisplayListImageFrameResource>) override;
     virtual void unregister_image_frame(Compositing::ImageFrameResourceId) override;
     virtual void describe_display_list_fonts(Web::CompositorContextId, Vector<Compositing::DisplayListFontDescription>) override;
-    virtual Messages::CompositorWebContentServer::ReserveCanvasIdsResponse reserve_canvas_ids() override;
-    virtual void create_canvas_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace) override;
     virtual void describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDescription>) override;
-    virtual void update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment>) override;
-    virtual void destroy_canvas_context(Compositing::CanvasId) override;
     virtual Messages::CompositorWebContentServer::GetCanvasPixelsResponse get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType, Gfx::ColorSpace) override;
     virtual Messages::CompositorWebContentServer::AllocatePlaceholderCanvasResponse allocate_placeholder_canvas() override;
     virtual void release_placeholder_canvas(Compositing::CanvasId) override;
@@ -77,6 +73,7 @@ private:
     virtual void stage_rasterization(u64 token, Vector<Compositing::DisplayListFontDescription>, Vector<Compositing::ImageFrameResourceId>, Gfx::ShareableBitmap target_bitmap) override;
 
     virtual Messages::CompositorWebContentServer::CreateWebglContextResponse create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) override;
+    virtual void destroy_webgl_context(Compositing::CanvasId canvas_id) override;
     virtual void webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) override;
     virtual void webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> frames) override;
     virtual void webgl_drain_command_buffer(Compositing::CanvasId canvas_id) override;
@@ -106,6 +103,7 @@ private:
     virtual void video_sink_counted_frames(Media::VideoSinkHandle, Media::DisplayingVideoSinkFrameCounts) override;
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) override;
     virtual Compositing::CanvasSurfaceOwnerId canvas_surface_owner_id() const override { return m_canvas_host.canvas_surface_owner_id(); }
+    virtual CanvasHost& canvas_host() override { return m_canvas_host; }
     virtual Compositing::RegisteredImageFrames const& registered_image_frames() const override { return m_registered_image_frames; }
     virtual void ask_to_paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId> const& context_ids) override { async_paint_contexts_for_screenshot(preparation_id, context_ids); }
     virtual void tell_remote_descendants_prepared_for_screenshot(u64 request_id) override { async_remote_descendants_prepared_for_screenshot(request_id); }
@@ -118,14 +116,6 @@ private:
     Compositing::RegisteredTypefaces m_registered_typefaces;
     Compositing::RegisteredImageFrames m_registered_image_frames;
 
-    // The canvas IDs this WebContent has reserved and not yet named a 2D context with.
-    struct ReservedCanvasIds {
-        u64 next { 0 };
-        u64 end { 0 };
-
-        bool is_used_up() const { return next == end; }
-    };
-    ReservedCanvasIds m_reserved_canvas_ids;
     Function<void(ConnectionFromWebContent&)> m_on_death;
 
     // The presentation client end of this WebContent's video presentation channel (connect-only for now).

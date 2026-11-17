@@ -13,13 +13,14 @@ use crate::cpp_object::FfiCppObject;
 use crate::remote_layers::{RemoteLayerHost, RemoteLayerObject, WindowServerObject};
 use crate::surfaces::painting_surface::PaintingSurface;
 use crate::surfaces::presentable_surface::PresentableSurface;
-use libcompositing_rust::display_list::commands::CompositorContextId;
+use libcompositing_rust::display_list::commands::{CanvasId, CompositorContextId, DisplayListCommandType};
 use libcompositing_rust::display_list::storage::{
     ListChunk, PackedChunkSize, receive_packed_chunks_from_shared_memory,
 };
 use libcompositing_rust::host::FfiRasterPainter;
 use libcompositing_rust::ipc_types::{
     Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind, Core_AnonymousBuffer,
+    Web_Bindings_PredefinedColorSpace,
 };
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::{Color, FloatRect, IntRect, IntSize, ScalingMode};
@@ -164,6 +165,14 @@ pub struct FfiRemoteLayerHostHandle {
     pub id: u64,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiCanvas2DPainter {
+    pub player: *mut c_void,
+    /// Plays a command, whose payload is lent for the call.
+    pub play_command: unsafe extern "C" fn(*mut c_void, DisplayListCommandType, ak::Span<'_, u8>),
+}
+
 /// The entry points of the mechanism the core drives, and the object they are called on:
 /// `Compositor::RustFFI::FfiRasterHost`.
 #[repr(C)]
@@ -291,6 +300,31 @@ pub struct FfiRasterHost {
     pub begin_staged_rasterization: unsafe extern "C" fn(*mut c_void, u64, u64, *mut FfiRasterPainter) -> bool,
     /// Ends the painting that began, flushes it into the target, and drops what was staged.
     pub finish_staged_rasterization: unsafe extern "C" fn(*mut c_void, u64, u64),
+
+    /// Reserves canvas IDs that name nothing else, as many as asked for, and answers the first of them.
+    pub reserve_canvas_ids: unsafe extern "C" fn(*mut c_void, u64) -> u64,
+    /// Arguments: the client, the canvas, the size of the context, whether it has alpha, whether it will be read
+    /// frequently, and the color space of its pixels. Answers whether the context could be made.
+    pub create_canvas_2d_context: unsafe extern "C" fn(
+        *mut c_void,
+        u64,
+        CanvasId,
+        IntSize,
+        bool,
+        bool,
+        Web_Bindings_PredefinedColorSpace,
+    ) -> bool,
+    pub destroy_canvas_2d_context: unsafe extern "C" fn(*mut c_void, u64, CanvasId),
+    /// Arguments: the client, the canvas of a context it made, and where the painter is written. The painting lasts
+    /// until `end_canvas_2d_painting`.
+    pub begin_canvas_2d_painting: unsafe extern "C" fn(*mut c_void, u64, CanvasId, *mut FfiCanvas2DPainter),
+    /// Answers whether the painting sampled a frame of a video on the GPU.
+    pub end_canvas_2d_painting: unsafe extern "C" fn(*mut c_void) -> bool,
+    /// Arguments: the client and the canvas. Makes what the context drew the content the canvas shows, and answers
+    /// whether it could.
+    pub present_canvas_2d_context: unsafe extern "C" fn(*mut c_void, u64, CanvasId) -> bool,
+    /// Arguments: the client and canvases of its contexts. Submits the GPU work drawn into their surfaces.
+    pub flush_canvas_2d_contexts: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, CanvasId>),
 }
 
 /// Sublayers whose content the C++ side resolved, which keep that content busy until they are shown or dropped.
@@ -766,6 +800,77 @@ impl RasterHost {
         // SAFETY: The host outlives this.
         unsafe { (self.0.finish_staged_rasterization)(self.host(), client, token) };
         began
+    }
+
+    pub fn reserve_canvas_ids(&self, count: u64) -> u64 {
+        // SAFETY: The host outlives this.
+        unsafe { (self.0.reserve_canvas_ids)(self.host(), count) }
+    }
+
+    pub fn create_canvas_2d_context(
+        &self,
+        client: u64,
+        canvas_id: CanvasId,
+        size: IntSize,
+        alpha: bool,
+        will_read_frequently: bool,
+        color_space: Web_Bindings_PredefinedColorSpace,
+    ) -> bool {
+        // SAFETY: The host outlives this.
+        unsafe {
+            (self.0.create_canvas_2d_context)(
+                self.host(),
+                client,
+                canvas_id,
+                size,
+                alpha,
+                will_read_frequently,
+                color_space,
+            )
+        }
+    }
+
+    pub fn destroy_canvas_2d_context(&self, client: u64, canvas_id: CanvasId) {
+        // SAFETY: The host outlives this.
+        unsafe { (self.0.destroy_canvas_2d_context)(self.host(), client, canvas_id) };
+    }
+
+    pub fn begin_canvas_2d_painting(&self, client: u64, canvas_id: CanvasId) -> Canvas2DPainting<'_> {
+        let mut painter = std::mem::MaybeUninit::<FfiCanvas2DPainter>::uninit();
+        // SAFETY: The host outlives this, and writes the painter.
+        unsafe { (self.0.begin_canvas_2d_painting)(self.host(), client, canvas_id, painter.as_mut_ptr()) };
+        Canvas2DPainting {
+            raster: self,
+            // SAFETY: The host wrote the painter.
+            painter: unsafe { painter.assume_init() },
+        }
+    }
+
+    pub fn try_present_canvas_2d_context(&self, client: u64, canvas_id: CanvasId) -> bool {
+        // SAFETY: The host outlives this.
+        unsafe { (self.0.present_canvas_2d_context)(self.host(), client, canvas_id) }
+    }
+
+    pub fn flush_canvas_2d_contexts(&self, client: u64, canvas_ids: &[CanvasId]) {
+        // SAFETY: The host outlives this, and reads the IDs during the call.
+        unsafe { (self.0.flush_canvas_2d_contexts)(self.host(), client, ak::Span::new(canvas_ids)) };
+    }
+}
+
+pub struct Canvas2DPainting<'a> {
+    raster: &'a RasterHost,
+    painter: FfiCanvas2DPainter,
+}
+
+impl Canvas2DPainting<'_> {
+    pub fn play_command(&self, command_type: DisplayListCommandType, payload: &[u8]) {
+        // SAFETY: The painting has not ended, and the player reads the payload during the call.
+        unsafe { (self.painter.play_command)(self.painter.player, command_type, ak::Span::new(payload)) };
+    }
+
+    pub fn end_reporting_whether_video_frames_were_sampled_on_the_gpu(self) -> bool {
+        // SAFETY: The host outlives this.
+        unsafe { (self.raster.0.end_canvas_2d_painting)(self.raster.host()) }
     }
 }
 

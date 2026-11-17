@@ -9,6 +9,7 @@
 #include <LibCompositing/Types.h>
 #include <LibCompositing/WebGL/Types.h>
 #include <LibGfx/Rect.h>
+#include <LibWebCommon/Bindings/PredefinedColorSpace.h>
 
 [ExistingCpp]
 enum Compositing::WindowResizingInProgress : u8 {
@@ -251,4 +252,13 @@ struct Compositing::Canvas2DCommandStreamSegment {
     Compositing::CanvasId canvas_id;
     ByteBuffer tape;
     bool present;
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#predefinedcolorspace
+[ExistingCpp]
+enum Web::Bindings::PredefinedColorSpace : u8 {
+    Srgb,
+    SrgbLinear,
+    DisplayP3,
+    DisplayP3Linear,
 }

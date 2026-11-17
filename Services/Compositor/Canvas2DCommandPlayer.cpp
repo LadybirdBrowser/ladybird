@@ -16,7 +16,6 @@
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/SkiaUtils.h>
-#include <LibCompositing/DisplayList/Canvas2DTape.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
@@ -73,22 +72,20 @@ void Canvas2DCommandPlayer::clear(Gfx::Color color)
     clear_rect({ {}, m_surface->size().to_type<float>() }, color);
 }
 
-void Canvas2DCommandPlayer::play(ReadonlyBytes tape)
+void Canvas2DCommandPlayer::play_command(DisplayListCommandType command_type, ReadonlyBytes payload)
 {
-    for_each_canvas_2d_command(tape, [&](DisplayListCommandType command_type, ReadonlyBytes payload) {
-        m_payload = payload;
-        switch (command_type) {
+    m_payload = payload;
+    switch (command_type) {
 #define PLAY_CANVAS_2D_COMMAND(command_type)                                        \
     case DisplayListCommandType::command_type:                                      \
         play_command(read_display_list_object<Compositing::command_type>(payload)); \
         break;
-            ENUMERATE_CANVAS_2D_COMMANDS(PLAY_CANVAS_2D_COMMAND)
+        ENUMERATE_CANVAS_2D_COMMANDS(PLAY_CANVAS_2D_COMMAND)
 #undef PLAY_CANVAS_2D_COMMAND
-        default:
-            // NB: Validation lets only the commands of the canvas 2D stream onto the tape of a canvas.
-            VERIFY_NOT_REACHED();
-        }
-    });
+    default:
+        // NB: Validation lets only the commands of the canvas 2D stream onto the tape of a canvas.
+        VERIFY_NOT_REACHED();
+    }
     m_payload = {};
 }
 

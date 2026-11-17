@@ -64,10 +64,14 @@ public:
 
     bool create_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace const&);
     CreateWebGLContextResult create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias);
-    void destroy_context(Compositing::CanvasId);
+    void destroy_2d_context(Compositing::CanvasId);
+    void destroy_webgl_context(Compositing::CanvasId);
 
     [[nodiscard]] bool describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDescription> const&, Compositing::RegisteredTypefaces const&);
-    void execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const&, Compositing::RegisteredImageFrames const&);
+    Canvas2DCommandPlayer& begin_2d_painting(Compositing::CanvasId, Compositing::RegisteredImageFrames const&);
+    bool end_2d_painting_reporting_whether_video_frames_were_sampled_on_gpu();
+    bool try_present_2d_context(Compositing::CanvasId);
+    void flush_2d_contexts(ReadonlySpan<Compositing::CanvasId>);
     void execute_webgl_commands(Compositing::CanvasId, ReadonlyBytes, Vector<Compositing::WebGL::ImageSourceFrame> const&);
     void set_webgl_shared_command_buffer(Compositing::CanvasId, Compositing::WebGL::WebGLSharedCommandBuffer);
     [[nodiscard]] bool execute_webgl_commands_from_shared_buffer(Compositing::CanvasId, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> const&);
@@ -92,7 +96,6 @@ private:
         NonnullOwnPtr<Canvas2DCommandPlayer> command_player;
         PresentableSurfacePool presented_surfaces;
         NonnullRefPtr<Gfx::PaintingSurface> presented_surface;
-        bool has_uncommitted_commands { false };
     };
     using WebGLContext = NonnullOwnPtr<HostWebGLContext>;
     using Context = Variant<Canvas2DContext, WebGLContext>;
@@ -100,7 +103,7 @@ private:
     Context* context(Compositing::CanvasId);
     OwnPtr<Canvas2DCommandPlayer> create_2d_command_player(Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace const&);
     static HostWebGLContext& as_webgl(Context&);
-    void present_canvas_2d_context(Compositing::CanvasId, Canvas2DContext&);
+    Canvas2DContext& canvas_2d_context(Compositing::CanvasId);
     sk_sp<SkImage> held_video_frame_image(Media::VideoSinkHandle, u64 generation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context_of_canvas);
     Vector<HostWebGLContext::UploadSource> resolve_webgl_upload_sources(Vector<Compositing::WebGL::ImageSourceFrame> const&) const;
 
@@ -109,12 +112,12 @@ private:
     Compositing::CanvasSurfaceOwnerId m_canvas_surface_owner_id;
     HashMap<Compositing::CanvasId, Context> m_contexts;
     DrawnFonts m_described_canvas_2d_fonts;
-    Compositing::RegisteredImageFrames const* m_image_frames_registered_while_stream_batch_plays { nullptr };
+    Compositing::RegisteredImageFrames const* m_image_frames_registered_while_painting { nullptr };
 
     VideoFrameHolds const& m_video_frame_holds;
     struct VideoFrameImage;
     HashMap<Media::VideoSinkHandle, NonnullOwnPtr<VideoFrameImage>> m_video_frame_images;
-    bool m_drew_video_frame_in_segment { false };
+    bool m_painting_sampled_video_frame_on_gpu { false };
 };
 
 }

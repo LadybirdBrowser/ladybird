@@ -15,25 +15,34 @@ use std::rc::Rc;
 
 use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace, Transport};
 use libcompositing_rust::display_list::commands::{CanvasId, FontResourceId, ImageFrameResourceId};
+use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
+    CreateCanvas2dContext, DestroyCanvas2dContext,
+};
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{IntRect, IntSize};
 use libipc_rust::cpp_connection::{FfiThreadSafeMessagePoster, ThreadSafeMessagePoster};
+use libipc_rust::wire::EndpointMessage;
 
 use super::stream::{Canvas2DStream, flush, shared_stream};
 
 unsafe extern "C" {
     fn web_canvas_2d_connection_unref(connection: *mut c_void);
-    fn web_canvas_2d_connection_create_context(
+    fn web_canvas_2d_connection_poster(connection: *mut c_void, out_poster: *mut FfiThreadSafeMessagePoster) -> bool;
+    fn web_canvas_2d_connection_reserve_context_id(
         connection: *mut c_void,
         width: i32,
         height: i32,
-        alpha: bool,
-        will_read_frequently: bool,
-        color_space: ColorSpace,
         out_canvas_id: *mut u64,
     ) -> bool;
-    fn web_canvas_2d_connection_destroy_context(connection: *mut c_void, canvas_id: u64);
+    fn web_canvas_2d_connection_post_stream_batch_fonts_and_image_frames(
+        connection: *mut c_void,
+        fonts: *const *const c_void,
+        font_count: usize,
+        image_frames: *const *const c_void,
+        image_frame_count: usize,
+    ) -> bool;
+    fn web_canvas_2d_connection_did_fail_to_post(connection: *mut c_void);
     fn web_canvas_2d_connection_read_back_pixels(
         connection: *mut c_void,
         canvas_id: u64,
@@ -44,15 +53,6 @@ unsafe extern "C" {
         alpha_type: AlphaType,
         color_space: ColorSpace,
     ) -> *mut c_void;
-    fn web_canvas_2d_connection_prepare_stream_batch(
-        connection: *mut c_void,
-        fonts: *const *const c_void,
-        font_count: usize,
-        image_frames: *const *const c_void,
-        image_frame_count: usize,
-        out_poster: *mut FfiThreadSafeMessagePoster,
-    ) -> bool;
-    fn web_canvas_2d_connection_did_fail_to_post_stream_batch(connection: *mut c_void);
     fn web_canvas_2d_video_frame_hold_ref(hold: *mut c_void);
     fn web_canvas_2d_video_frame_hold_unref(hold: *mut c_void);
     fn web_canvas_2d_video_frame_hold_note_sent_to_compositor(hold: *mut c_void);
@@ -71,30 +71,49 @@ impl CompositorConnection {
         Self(connection)
     }
 
-    fn create_context(
+    pub(crate) fn poster_while_compositor_is_reachable(self) -> Option<ThreadSafeMessagePoster> {
+        let mut poster = MaybeUninit::<FfiThreadSafeMessagePoster>::uninit();
+        let reachable = unsafe { web_canvas_2d_connection_poster(self.0.as_ptr(), poster.as_mut_ptr()) };
+        // SAFETY: C++ sets the poster to one reference to the poster of the connection where it answers true.
+        reachable.then(|| unsafe { ThreadSafeMessagePoster::adopt(poster.assume_init()) })
+    }
+
+    pub(crate) fn post_or_lose_compositor<M: EndpointMessage>(
         self,
-        size: IntSize,
-        alpha: bool,
-        will_read_frequently: bool,
-        color_space: ColorSpace,
-    ) -> Option<CanvasId> {
+        poster: &ThreadSafeMessagePoster,
+        message: M,
+    ) -> bool {
+        let posted = poster.try_post(message).expect("a message of a 2D canvas encodes");
+        if !posted {
+            unsafe { web_canvas_2d_connection_did_fail_to_post(self.0.as_ptr()) };
+        }
+        posted
+    }
+
+    fn reserve_context_id(self, size: IntSize) -> Option<CanvasId> {
         let mut canvas_id = 0;
         unsafe {
-            web_canvas_2d_connection_create_context(
-                self.0.as_ptr(),
-                size.width,
-                size.height,
-                alpha,
-                will_read_frequently,
-                color_space,
-                &raw mut canvas_id,
-            )
+            web_canvas_2d_connection_reserve_context_id(self.0.as_ptr(), size.width, size.height, &raw mut canvas_id)
         }
         .then_some(CanvasId(canvas_id))
     }
 
-    fn destroy_context(self, canvas_id: CanvasId) {
-        unsafe { web_canvas_2d_connection_destroy_context(self.0.as_ptr(), canvas_id.0) };
+    pub(crate) fn post_stream_batch_fonts_and_image_frames(
+        self,
+        fonts: &[&FontHandle],
+        image_frames: &[&ImageFrameHandle],
+    ) -> bool {
+        let fonts: Vec<*const c_void> = fonts.iter().map(|font| font.as_raw()).collect();
+        let image_frames: Vec<*const c_void> = image_frames.iter().map(|frame| frame.as_raw()).collect();
+        unsafe {
+            web_canvas_2d_connection_post_stream_batch_fonts_and_image_frames(
+                self.0.as_ptr(),
+                fonts.as_ptr(),
+                fonts.len(),
+                image_frames.as_ptr(),
+                image_frames.len(),
+            )
+        }
     }
 
     fn read_back_pixels(
@@ -118,32 +137,6 @@ impl CompositorConnection {
         };
         // SAFETY: LibWeb hands over a frame that it allocated with new, or null.
         (!frame.is_null()).then(|| unsafe { ImageFrameHandle::adopt(frame) })
-    }
-
-    pub(crate) fn prepare_stream_batch(
-        self,
-        fonts: &[&FontHandle],
-        image_frames: &[&ImageFrameHandle],
-    ) -> Option<ThreadSafeMessagePoster> {
-        let fonts: Vec<*const c_void> = fonts.iter().map(|font| font.as_raw()).collect();
-        let image_frames: Vec<*const c_void> = image_frames.iter().map(|frame| frame.as_raw()).collect();
-        let mut poster = MaybeUninit::<FfiThreadSafeMessagePoster>::uninit();
-        let prepared = unsafe {
-            web_canvas_2d_connection_prepare_stream_batch(
-                self.0.as_ptr(),
-                fonts.as_ptr(),
-                fonts.len(),
-                image_frames.as_ptr(),
-                image_frames.len(),
-                poster.as_mut_ptr(),
-            )
-        };
-        // SAFETY: C++ sets the poster to one reference to the poster of the connection where it answers true.
-        prepared.then(|| unsafe { ThreadSafeMessagePoster::adopt(poster.assume_init()) })
-    }
-
-    pub(crate) fn did_fail_to_post_stream_batch(self) {
-        unsafe { web_canvas_2d_connection_did_fail_to_post_stream_batch(self.0.as_ptr()) };
     }
 }
 
@@ -238,12 +231,22 @@ impl Transport for CompositorTransport {
 
     fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool, color_space: ColorSpace) -> bool {
         assert!(self.canvas_id.get().is_none(), "a transport creates one context");
-        let Some(canvas_id) = self
-            .connection
-            .create_context(size, alpha, will_read_frequently, color_space)
-        else {
+        let Some(canvas_id) = self.connection.reserve_context_id(size) else {
             return false;
         };
+        let Some(poster) = self.connection.poster_while_compositor_is_reachable() else {
+            return false;
+        };
+        let message = CreateCanvas2dContext {
+            canvas_id,
+            size,
+            alpha,
+            will_read_frequently,
+            color_space: color_space.into(),
+        };
+        if !self.connection.post_or_lose_compositor(&poster, message) {
+            return false;
+        }
         self.canvas_id.set(Some(canvas_id));
         true
     }
@@ -253,8 +256,12 @@ impl Transport for CompositorTransport {
     }
 
     fn destroy_context(&self) {
-        if let Some(canvas_id) = self.canvas_id.take() {
-            self.connection.destroy_context(canvas_id);
+        let Some(canvas_id) = self.canvas_id.take() else {
+            return;
+        };
+        if let Some(poster) = self.connection.poster_while_compositor_is_reachable() {
+            self.connection
+                .post_or_lose_compositor(&poster, DestroyCanvas2dContext { canvas_id });
         }
     }
 

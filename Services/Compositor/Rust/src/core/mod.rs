@@ -51,6 +51,7 @@ pub struct CompositorCore {
     scrollbars_always_shown: bool,
     display_list_chunk_stores: RefCell<crate::display_list_chunk_stores::DisplayListChunkStores>,
     remote_layers: RefCell<RemoteLayers>,
+    canvas_2d_contexts: RefCell<crate::canvas_2d_contexts::Canvas2DContexts>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -124,6 +125,7 @@ impl CompositorCore {
             scrollbars_always_shown,
             display_list_chunk_stores: RefCell::default(),
             remote_layers: RefCell::default(),
+            canvas_2d_contexts: RefCell::default(),
         }
     }
 
@@ -144,6 +146,10 @@ impl CompositorCore {
 
     pub fn raster(&self) -> &RasterHost {
         &self.raster
+    }
+
+    pub fn canvas_2d_contexts(&self) -> std::cell::RefMut<'_, crate::canvas_2d_contexts::Canvas2DContexts> {
+        self.canvas_2d_contexts.borrow_mut()
     }
 
     /// Schedules what a message the core took asked for.

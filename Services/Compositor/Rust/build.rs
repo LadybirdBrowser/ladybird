@@ -32,6 +32,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("EncodedValue", "AK::ReadonlyBytes"),
         ("FfiRasterPainter", "Compositing::RustFFI::FfiRasterPainter"),
         ("CanvasId", "Compositing::CanvasId"),
+        ("DisplayListCommandType", "Compositing::DisplayListCommandType"),
+        (
+            "Web_Bindings_PredefinedColorSpace",
+            "Web::Bindings::PredefinedColorSpace",
+        ),
         ("ImageFrameResourceId", "Compositing::ImageFrameResourceId"),
         ("PaintingSurface", "Gfx::PaintingSurface"),
         ("PresentableSurface", "Compositor::PresentableSurface"),
@@ -56,6 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "Compositor/PaintingSurface.h",
             "Compositor/PresentableSurface.h",
             "LibCompositing/DisplayList/ContextRef.h",
+            "LibCompositing/DisplayList/DisplayListCommandsGenerated.h",
             "LibCompositing/DisplayList/DisplayListResourceIds.h",
             "LibGfx/Color.h",
             "LibGfx/Point.h",
@@ -65,6 +71,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "LibIPC/RawAttachment.h",
             "LibCompositing/RustFFI.h",
             "LibIPC/RawMessage.h",
+            "LibWebCommon/Bindings/PredefinedColorSpace.h",
         ]
         .map(String::from),
     );

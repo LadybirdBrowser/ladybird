@@ -12,6 +12,7 @@
  */
 
 #include <AK/Utf16StringBuilder.h>
+#include <LibCompositing/CanvasColorSpace.h>
 #include <LibCompositing/RustFFI.h>
 #include <LibCompositing/Video/VideoFrameHold.h>
 #include <LibGfx/AffineTransform.h>
@@ -707,7 +708,7 @@ Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_ro
     auto row_size = static_cast<size_t>(width) * sizeof(Gfx::RawPixel);
     for (int y = 0; y < height; ++y)
         __builtin_memcpy(bitmap.value()->scanline(y), first_row + static_cast<size_t>(y) * pitch, row_size);
-    auto frame = Gfx::DecodedImageFrame::create(*bitmap.release_value(), gfx_color_space_for(predefined_color_space_from_underlying(color_space)));
+    auto frame = Gfx::DecodedImageFrame::create(*bitmap.release_value(), Compositing::gfx_color_space_for(predefined_color_space_from_underlying(color_space)));
     if (frame.is_error())
         return nullptr;
     return new Gfx::DecodedImageFrame { frame.release_value() };

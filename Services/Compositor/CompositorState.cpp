@@ -9,9 +9,11 @@
 #include <AK/StdLibExtras.h>
 #include <AK/TemporaryChange.h>
 #include <Compositor/BackingStoreFactory.h>
+#include <Compositor/Canvas2DCommandPlayer.h>
 #include <Compositor/CanvasHost.h>
 #include <Compositor/CompositorState.h>
 #include <Compositor/SkiaUtils.h>
+#include <LibCompositing/CanvasColorSpace.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/DisplayList/RegisteredImageFrames.h>
 #include <LibCore/AnonymousBuffer.h>
@@ -197,6 +199,7 @@ CompositorState::ContextOwnerCheckResult CompositorState::check_context_owner(We
 
 void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWebContentClient& client)
 {
+    m_core.forget_web_content_client(client.web_content_client_id());
     Vector<Web::CompositorContextId> context_ids;
     for (auto& context : m_presented_contexts) {
         if (context.value->web_content_client.web_content_client_id() == client.web_content_client_id())
@@ -1081,6 +1084,31 @@ bool CompositorState::staged_rasterization_has_resources(WebContentClientId clie
 // The largest frame WebContent rasterizes for an SVG image.
 static constexpr int max_rasterization_target_dimension = 16384;
 
+CanvasHost& CompositorState::canvas_host_of(WebContentClientId client_id)
+{
+    auto* client = web_content_client_if_present(client_id);
+    VERIFY(client);
+    return client->canvas_host();
+}
+
+void CompositorState::begin_canvas_2d_painting(WebContentClientId client_id, Compositing::CanvasId canvas_id, RustFFI::FfiCanvas2DPainter& painter)
+{
+    auto* client = web_content_client_if_present(client_id);
+    VERIFY(client);
+    VERIFY(!m_canvas_host_painting_2d_context);
+    m_canvas_host_painting_2d_context = &client->canvas_host();
+    auto& player = m_canvas_host_painting_2d_context->begin_2d_painting(canvas_id, client->registered_image_frames());
+    painter = {
+        .player = &player,
+        .play_command = [](void* player, Compositing::DisplayListCommandType command_type, ReadonlyBytes payload) { static_cast<Canvas2DCommandPlayer*>(player)->play_command(command_type, payload); },
+    };
+}
+
+bool CompositorState::end_canvas_2d_painting_reporting_whether_video_frames_were_sampled_on_gpu()
+{
+    return exchange(m_canvas_host_painting_2d_context, nullptr)->end_2d_painting_reporting_whether_video_frames_were_sampled_on_gpu();
+}
+
 bool CompositorState::begin_staged_rasterization(WebContentClientId client, u64 token, Compositing::RustFFI::FfiRasterPainter& painter)
 {
     auto* rasterization = staged_rasterization(client, token);
@@ -1525,6 +1553,13 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .staged_rasterization_has_resources = [](void* host, u64 client, u64 token, ReadonlySpan<u64> font_ids, ReadonlySpan<u64> image_frame_ids) { return state_of(host).staged_rasterization_has_resources(WebContentClientId { client }, token, font_ids, image_frame_ids); },
         .begin_staged_rasterization = [](void* host, u64 client, u64 token, Compositing::RustFFI::FfiRasterPainter* painter) { return state_of(host).begin_staged_rasterization(WebContentClientId { client }, token, *painter); },
         .finish_staged_rasterization = [](void* host, u64 client, u64 token) { state_of(host).finish_staged_rasterization(WebContentClientId { client }, token); },
+        .reserve_canvas_ids = [](void* host, u64 count) { return state_of(host).m_canvas_surface_registry.reserve_canvas_ids(count).value(); },
+        .create_canvas_2d_context = [](void* host, u64 client, Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Web::Bindings::PredefinedColorSpace color_space) { return state_of(host).canvas_host_of(WebContentClientId { client }).create_2d_context(canvas_id, size, alpha, will_read_frequently, Compositing::gfx_color_space_for(color_space)); },
+        .destroy_canvas_2d_context = [](void* host, u64 client, Compositing::CanvasId canvas_id) { state_of(host).canvas_host_of(WebContentClientId { client }).destroy_2d_context(canvas_id); },
+        .begin_canvas_2d_painting = [](void* host, u64 client, Compositing::CanvasId canvas_id, RustFFI::FfiCanvas2DPainter* painter) { state_of(host).begin_canvas_2d_painting(WebContentClientId { client }, canvas_id, *painter); },
+        .end_canvas_2d_painting = [](void* host) { return state_of(host).end_canvas_2d_painting_reporting_whether_video_frames_were_sampled_on_gpu(); },
+        .present_canvas_2d_context = [](void* host, u64 client, Compositing::CanvasId canvas_id) { return state_of(host).canvas_host_of(WebContentClientId { client }).try_present_2d_context(canvas_id); },
+        .flush_canvas_2d_contexts = [](void* host, u64 client, ReadonlySpan<Compositing::CanvasId> canvas_ids) { state_of(host).canvas_host_of(WebContentClientId { client }).flush_2d_contexts(canvas_ids); },
     };
 }
 

@@ -9,6 +9,7 @@
 
 use super::canvas_2d::{Compositing, Paint, Stroke, TapeWriter};
 use super::commands::*;
+use crate::ipc_types::Web_Bindings_PredefinedColorSpace;
 use libgfx_rust::{
     AffineTransform, Color, FloatPoint, FloatRect, IntPoint, IntRect, IntSize, ScalingMode, WindingRule,
 };
@@ -35,6 +36,17 @@ pub enum ColorSpace {
     SrgbLinear,
     DisplayP3,
     DisplayP3Linear,
+}
+
+impl From<ColorSpace> for Web_Bindings_PredefinedColorSpace {
+    fn from(color_space: ColorSpace) -> Self {
+        match color_space {
+            ColorSpace::Srgb => Self::Srgb,
+            ColorSpace::SrgbLinear => Self::SrgbLinear,
+            ColorSpace::DisplayP3 => Self::DisplayP3,
+            ColorSpace::DisplayP3Linear => Self::DisplayP3Linear,
+        }
+    }
 }
 
 /// The context of a canvas in the Compositor, and the stream that the commands of every canvas of WebContent share.
