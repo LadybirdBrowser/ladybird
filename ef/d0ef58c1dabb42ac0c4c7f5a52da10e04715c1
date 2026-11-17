@@ -1,0 +1,22 @@
+Ladybird paints a translucent root background color once over the
+canvas: in the root element’s own background, or, for a hidden root, in
+the canvas fill. Inside a transformed or sticky root, it still paints it
+twice, as before: The root keeps its own fill, where its filter and
+blend modes apply, and the canvas fill covers the rest of the canvas.
+Blink paints it once, from the view, in its ViewPainter::
+PaintRootElementGroup(). WebKit paints it from the view, in
+RenderView::paintBoxDecorations(), and its RenderBox treats the document
+element’s background as special, rather than painting it again. Gecko
+paints it once, from the canvas frame, with the style it gets from
+nsCSSRendering::FindRootFrameBackground().
+
+Run in Chrome 157.0.8103.78, Firefox 151.0, and WebKit 26.5, a root with
+a 40% blue background comes out rgb(153, 153, 255) in all three — with a
+blur filter, visibility: hidden, a propagated body background, an image
+layer, or background-clip, as it now does in Ladybird. With transform:
+scale(0.5), the engines show it once everywhere; Ladybird still shows it
+twice inside the scaled root. They differ with the root’s opacity:
+Chrome applies it to the canvas background (rgb(204, 204, 255)), and
+Firefox and WebKit don’t (rgb(153, 153, 255)). And with filter:
+invert(1), Chrome inverts the color alone, while Firefox and WebKit
+invert the composited canvas. Ladybird now matches Chrome in both.
