@@ -90,10 +90,6 @@
 #    cmakedefine01 HTTPJOB_DEBUG
 #endif
 
-#ifndef ICO_DEBUG
-#    cmakedefine01 ICO_DEBUG
-#endif
-
 #ifndef IDL_DEBUG
 #    cmakedefine01 IDL_DEBUG
 #endif

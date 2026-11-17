@@ -18,5 +18,8 @@ mod ffi;
 pub mod bmp;
 pub use bmp::*;
 
+pub mod ico;
+pub use ico::*;
+
 pub mod jpeg_xl;
 pub use jpeg_xl::*;
