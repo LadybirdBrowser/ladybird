@@ -14,7 +14,6 @@
 #include <LibCore/File.h>
 #include <LibCrypto/Authentication/HMAC.h>
 #include <LibFileSystem/FileSystem.h>
-#include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
@@ -54,9 +53,6 @@ RequestServerManager::RequestServerManager()
 {
     if (!uses_site_request_servers())
         return;
-
-    // Older versions kept the responses of every site in the cache of the RequestServer with no site.
-    HTTP::DiskCache::remove(HTTP::DiskCache::Mode::Normal, LexicalPath { Application::request_server_options().cache_path });
 
     m_site_cache_key = load_or_create_site_cache_key();
 }
@@ -293,7 +289,7 @@ ByteBuffer RequestServerManager::load_or_create_site_cache_key() const
             return key.release_value();
     }
 
-    // Nothing can find the caches of sites that were named with another key, or by older versions.
+    // Nothing can find the caches of sites that were named with another key.
     (void)FileSystem::remove(sites_directory(), FileSystem::RecursionMode::Allowed);
 
     auto key = MUST(ByteBuffer::create_uninitialized(site_cache_key_size));
