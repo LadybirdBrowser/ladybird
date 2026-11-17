@@ -59,14 +59,14 @@ endpoint CompositorWebContentServer
     [RustReceiver, RustSender] update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state, Optional<Compositing::LayerPlan> layer_plan) =|
 
     // Hands WebContent a range of canvas IDs it may name its own 2D contexts with, so creating one needs no round trip.
-    reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
+    [RustReceiver] reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
     // The pixels of the context, and the colors of its commands, are in the color space.
-    create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace color_space) =|
+    [RustReceiver, RustSender] create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Web::Bindings::PredefinedColorSpace color_space) =|
     // The fonts are those that the segments of the canvas 2D stream that follow draw. The fonts described before that
     // are not among them are released.
     describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDescription> fonts) =|
-    [RustSender] update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments) =|
-    destroy_canvas_context(Compositing::CanvasId canvas_id) =|
+    [RustReceiver, RustSender] update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments) =|
+    [RustReceiver, RustSender] destroy_canvas_2d_context(Compositing::CanvasId canvas_id) =|
     // The pixels come back in the color space.
     get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace color_space) => (Gfx::ShareableBitmap pixels)
 
@@ -82,6 +82,7 @@ endpoint CompositorWebContentServer
     [RustReceiver, RustSender] rasterize_display_list(u64 token, Compositing::DisplayList display_list, Compositing::VisualContextTree visual_context_tree) =|
 
     create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) => (bool success, Compositing::CanvasId canvas_id, Vector<String> supported_extensions)
+    destroy_webgl_context(Compositing::CanvasId canvas_id) =|
     webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) =|
     webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Compositing::WebGL::ImageSourceFrame> frames) =|
     webgl_drain_command_buffer(Compositing::CanvasId canvas_id) => ()

@@ -1,7 +1,7 @@
 include(libcompositing_generators)
 
 set(SOURCES
-    DisplayList/Canvas2DTape.cpp
+    CanvasColorSpace.cpp
     DisplayList/DisplayListResourceEncoding.cpp
     DisplayList/DisplayListResources.cpp
     DisplayList/RegisteredImageFrames.cpp

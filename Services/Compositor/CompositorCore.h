@@ -71,6 +71,7 @@ public:
     // A video sink or an image frame that the context draws has new pixels.
     void context_content_changed(Web::CompositorContextId);
     void canvas_content_changed(WebContentClientId, Compositing::CanvasId);
+    void forget_web_content_client(WebContentClientId);
 
     // Answers false for a context with nothing to paint yet.
     bool paint_screenshot(Web::CompositorContextId, Gfx::PaintingSurface&);

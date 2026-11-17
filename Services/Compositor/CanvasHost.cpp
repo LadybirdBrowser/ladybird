@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/TemporaryChange.h>
 #include <Compositor/Canvas2DCommandPlayer.h>
 #include <Compositor/CanvasHost.h>
 #include <Compositor/CanvasSurfaceRegistry.h>
@@ -14,7 +13,6 @@
 #include <Compositor/VideoFrameHolds.h>
 #include <Compositor/VideoFrameSkia.h>
 #include <LibCompositing/CanvasSize.h>
-#include <LibCompositing/DisplayList/Canvas2DCommandStreamSegment.h>
 #include <LibCompositing/DisplayList/RegisteredImageFrames.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
@@ -79,9 +77,9 @@ OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize 
         return &m_described_canvas_2d_fonts.font(Compositing::FontResourceId { font_id });
     };
     auto image_frame_resolver = [this](u64 frame_id) -> Gfx::DecodedImageFrame const* {
-        if (!m_image_frames_registered_while_stream_batch_plays)
+        if (!m_image_frames_registered_while_painting)
             return nullptr;
-        auto image_frame = m_image_frames_registered_while_stream_batch_plays->image_frame(Compositing::ImageFrameResourceId { frame_id });
+        auto image_frame = m_image_frames_registered_while_painting->image_frame(Compositing::ImageFrameResourceId { frame_id });
         if (!image_frame)
             return nullptr;
         return &image_frame->frame();
@@ -169,10 +167,21 @@ CanvasHost::CreateWebGLContextResult CanvasHost::create_webgl_context(Compositin
     return { .success = true, .canvas_id = canvas_id, .supported_extensions = move(supported_extensions) };
 }
 
-void CanvasHost::destroy_context(Compositing::CanvasId canvas_id)
+void CanvasHost::destroy_2d_context(Compositing::CanvasId canvas_id)
 {
-    if (m_contexts.remove(canvas_id))
-        m_canvas_surface_registry.remove_canvas_surface(canvas_id);
+    auto* context = this->context(canvas_id);
+    VERIFY(context && context->has<Canvas2DContext>());
+    m_contexts.remove(canvas_id);
+    m_canvas_surface_registry.remove_canvas_surface(canvas_id);
+}
+
+void CanvasHost::destroy_webgl_context(Compositing::CanvasId canvas_id)
+{
+    auto* context = this->context(canvas_id);
+    if (!context || !context->has<WebGLContext>())
+        return;
+    m_contexts.remove(canvas_id);
+    m_canvas_surface_registry.remove_canvas_surface(canvas_id);
 }
 
 CanvasHost::Context* CanvasHost::context(Compositing::CanvasId canvas_id)
@@ -183,18 +192,26 @@ CanvasHost::Context* CanvasHost::context(Compositing::CanvasId canvas_id)
     return &it->value;
 }
 
-void CanvasHost::present_canvas_2d_context(Compositing::CanvasId canvas_id, Canvas2DContext& context)
+CanvasHost::Canvas2DContext& CanvasHost::canvas_2d_context(Compositing::CanvasId canvas_id)
 {
+    auto* context = this->context(canvas_id);
+    VERIFY(context);
+    return context->get<Canvas2DContext>();
+}
+
+bool CanvasHost::try_present_2d_context(Compositing::CanvasId canvas_id)
+{
+    auto& context = canvas_2d_context(canvas_id);
     auto presented_surface_or_error = present_into_surface_of_pool(context.presented_surfaces, context.command_player->surface(), m_skia_backend_context);
     // The canvas goes on showing what it presented before, and presents again with its next commands.
     if (presented_surface_or_error.is_error()) {
         dbgln("Unable to present a 2D canvas context: {}", presented_surface_or_error.error());
-        return;
+        return false;
     }
     auto presented_surface = presented_surface_or_error.release_value();
     m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, *presented_surface);
     context.presented_surface = presented_surface->painting_surface();
-    context.has_uncommitted_commands = false;
+    return true;
 }
 
 bool CanvasHost::describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDescription> const& fonts, Compositing::RegisteredTypefaces const& registered_typefaces)
@@ -209,36 +226,26 @@ bool CanvasHost::describe_canvas_2d_fonts(Vector<Compositing::DisplayListFontDes
     return true;
 }
 
-void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Compositing::RegisteredImageFrames const& registered_image_frames)
+Canvas2DCommandPlayer& CanvasHost::begin_2d_painting(Compositing::CanvasId canvas_id, Compositing::RegisteredImageFrames const& registered_image_frames)
 {
-    TemporaryChange image_frames_registered_while_stream_batch_plays { m_image_frames_registered_while_stream_batch_plays, &registered_image_frames };
-    Vector<NonnullRefPtr<Gfx::PaintingSurface>> surfaces_that_sample_video_frames;
-    for (auto const& segment : segments) {
-        // The canvas may have been destroyed while this segment was pending in
-        // WebContent, so a missing context is not a protocol violation.
-        auto* context = this->context(segment.canvas_id);
-        auto* canvas_context = context ? context->get_pointer<Canvas2DContext>() : nullptr;
-        if (!canvas_context)
-            continue;
+    VERIFY(!m_image_frames_registered_while_painting);
+    m_image_frames_registered_while_painting = &registered_image_frames;
+    m_painting_sampled_video_frame_on_gpu = false;
+    return *canvas_2d_context(canvas_id).command_player;
+}
 
-        if (!segment.tape.is_empty()) {
-            m_drew_video_frame_in_segment = false;
-            canvas_context->command_player->play(segment.tape);
-            canvas_context->has_uncommitted_commands = true;
-            if (m_drew_video_frame_in_segment && !surfaces_that_sample_video_frames.contains_slow(canvas_context->command_player->surface()))
-                surfaces_that_sample_video_frames.append(canvas_context->command_player->surface());
-        }
+bool CanvasHost::end_2d_painting_reporting_whether_video_frames_were_sampled_on_gpu()
+{
+    m_image_frames_registered_while_painting = nullptr;
+    return m_painting_sampled_video_frame_on_gpu;
+}
 
-        if (segment.present && canvas_context->has_uncommitted_commands)
-            present_canvas_2d_context(segment.canvas_id, *canvas_context);
-    }
-
-    // The frames stay held only until WebContent releases them, which follows this stream, so the GPU has to have
-    // finished sampling them by then.
-    if (m_skia_backend_context) {
-        for (auto& surface : surfaces_that_sample_video_frames)
-            m_skia_backend_context->flush_and_submit(surface);
-    }
+void CanvasHost::flush_2d_contexts(ReadonlySpan<Compositing::CanvasId> canvas_ids)
+{
+    if (!m_skia_backend_context)
+        return;
+    for (auto canvas_id : canvas_ids)
+        m_skia_backend_context->flush_and_submit(canvas_2d_context(canvas_id).command_player->surface());
 }
 
 sk_sp<SkImage> CanvasHost::held_video_frame_image(Media::VideoSinkHandle handle, u64 generation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context_of_canvas)
@@ -262,7 +269,7 @@ sk_sp<SkImage> CanvasHost::held_video_frame_image(Media::VideoSinkHandle handle,
     if (!video_frame_image->image_on_gpu) {
         video_frame_image->image_on_gpu = sk_image_from_video_frame(*video_frame_image->frame, skia_backend_context_of_canvas);
         if (video_frame_image->image_on_gpu)
-            m_drew_video_frame_in_segment = true;
+            m_painting_sampled_video_frame_on_gpu = true;
     }
     return video_frame_image->image_on_gpu;
 }

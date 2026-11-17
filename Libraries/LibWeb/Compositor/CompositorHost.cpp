@@ -207,7 +207,7 @@ private:
     {
         if (!m_canvas_id.has_value())
             return;
-        m_connection->destroy_canvas_context(*m_canvas_id);
+        m_connection->destroy_webgl_context(*m_canvas_id);
         m_canvas_id.clear();
     }
 

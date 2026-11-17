@@ -65,6 +65,7 @@ public:
     // The owner of this client's canvases, which are the only ones its contexts may draw.
     virtual Compositing::CanvasSurfaceOwnerId canvas_surface_owner_id() const = 0;
     virtual Compositing::RegisteredImageFrames const& registered_image_frames() const = 0;
+    virtual CanvasHost& canvas_host() = 0;
     virtual void ask_to_paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId> const&) = 0;
     virtual void tell_remote_descendants_prepared_for_screenshot(u64 request_id) = 0;
 };
@@ -226,6 +227,9 @@ private:
     bool staged_rasterization_has_resources(WebContentClientId, u64 token, ReadonlySpan<u64> font_ids, ReadonlySpan<u64> image_frame_ids);
     bool begin_staged_rasterization(WebContentClientId, u64 token, Compositing::RustFFI::FfiRasterPainter&);
     void finish_staged_rasterization(WebContentClientId, u64 token);
+    CanvasHost& canvas_host_of(WebContentClientId);
+    void begin_canvas_2d_painting(WebContentClientId, Compositing::CanvasId, RustFFI::FfiCanvas2DPainter&);
+    bool end_canvas_2d_painting_reporting_whether_video_frames_were_sampled_on_gpu();
     void report_live_content(Web::CompositorContextId, ReadonlySpan<u64> canvas_ids, void* receiver, void (*receive)(void*, RustFFI::FfiLiveContent const*));
     Optional<RemoteLayer::Content> remote_layer_content(PresentedContext&, RustFFI::MediaKind, u64 media_id);
     bool remote_layer_can_show(RemoteLayer&, Web::CompositorContextId, RustFFI::MediaKind, u64 media_id, RustFFI::FfiSublayerPlacement const&, double device_pixel_ratio);
@@ -288,6 +292,7 @@ private:
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     CanvasSurfaceRegistry m_canvas_surface_registry;
+    CanvasHost* m_canvas_host_painting_2d_context { nullptr };
     // A context nested in another is painted while the frame of the other is, by a player of its own.
     Vector<NonnullOwnPtr<DisplayListPlayerSkia>> m_display_list_players;
     size_t m_painting_depth { 0 };

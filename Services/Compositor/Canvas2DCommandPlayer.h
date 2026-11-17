@@ -60,8 +60,7 @@ public:
 
     void clear(Gfx::Color);
 
-    // Plays a tape that passed Compositing::validate_canvas_2d_tape().
-    void play(ReadonlyBytes tape);
+    void play_command(Compositing::DisplayListCommandType, ReadonlyBytes payload);
 
 private:
 #define DECLARE_PLAY_COMMAND(command_type) \

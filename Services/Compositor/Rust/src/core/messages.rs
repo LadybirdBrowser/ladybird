@@ -8,8 +8,10 @@
 //! sender may ask for, and the answer a synchronous one gets.
 
 use super::{CompositorCore, ContextOwnerCheckResult};
+use crate::canvas_2d_contexts::ContextCreation;
 use crate::display_list_chunk_stores::chunks_of_list_sent_whole;
 use crate::host::{PresentationId, WebContentClientId};
+use libcompositing_rust::display_list::commands::CanvasId;
 use libcompositing_rust::display_list::replay::{ReplayFrame, ReplaySelection, replay_display_list};
 use libcompositing_rust::display_list::storage::DisplayListStorage;
 use libcompositing_rust::display_list::window::RecordedWindow;
@@ -24,13 +26,14 @@ use libcompositing_rust::ipc_types::compositor_presentation_server::messages::{
 use libcompositing_rust::ipc_types::compositor_web_content_client::messages::DidRasterizeDisplayList;
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, BeginInputTraceForTesting, BeginInputTraceForTestingResponse,
-    ClearPerTestInputStateForTesting, ClearPerTestInputStateForTestingResponse, InvalidateKeyboardScrollState,
-    InvalidateKeyboardScrollStateResponse, InvalidateWheelEventListenerState, RasterizeDisplayList,
+    ClearPerTestInputStateForTesting, ClearPerTestInputStateForTestingResponse, CreateCanvas2dContext,
+    DestroyCanvas2dContext, InvalidateKeyboardScrollState, InvalidateKeyboardScrollStateResponse,
+    InvalidateWheelEventListenerState, RasterizeDisplayList, ReserveCanvasIds, ReserveCanvasIdsResponse,
     RouteFirstWheelStepForTesting, RouteFirstWheelStepForTestingResponse, ScrollStateForTesting,
     ScrollStateForTestingResponse, TakeInputTraceForTesting, TakeInputTraceForTestingResponse,
     TakePendingAsyncScrollUpdates, TakePendingAsyncScrollUpdatesResponse, TakeWheelEventFromMainThread,
-    TakeWheelEventFromMainThreadResponse, UpdateDisplayList, UpdateScrollState, UpdateVisualContextTree,
-    WheelEventCanceled, WheelEventLetThrough, WheelEventLetThroughResponse,
+    TakeWheelEventFromMainThreadResponse, UpdateCanvas2dStream, UpdateDisplayList, UpdateScrollState,
+    UpdateVisualContextTree, WheelEventCanceled, WheelEventLetThrough, WheelEventLetThroughResponse,
 };
 use libcompositing_rust::ipc_types::{
     Compositing_RemoteLayerHostHandle, Compositing_RemoteLayerHostKind,
@@ -283,6 +286,46 @@ impl MessagesFromWebContent<'_> {
 }
 
 impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
+    fn reserve_canvas_ids(&mut self, _: ReserveCanvasIds) -> Result<ReserveCanvasIdsResponse, Misbehavior> {
+        let reserved_ids = self
+            .core
+            .canvas_2d_contexts()
+            .reserve_ids(self.client_id, self.core.raster())
+            .map_err(Misbehavior)?;
+        Ok(ReserveCanvasIdsResponse {
+            first_canvas_id: CanvasId(reserved_ids.start),
+            count: reserved_ids.end - reserved_ids.start,
+        })
+    }
+
+    fn create_canvas_2d_context(&mut self, message: CreateCanvas2dContext) -> Result<(), Misbehavior> {
+        let creation = ContextCreation {
+            canvas_id: message.canvas_id,
+            size: message.size,
+            alpha: message.alpha,
+            will_read_frequently: message.will_read_frequently,
+            color_space: message.color_space,
+        };
+        self.core
+            .canvas_2d_contexts()
+            .create(self.client_id, self.core.raster(), creation)
+            .map_err(Misbehavior)
+    }
+
+    fn update_canvas_2d_stream(&mut self, message: UpdateCanvas2dStream) -> Result<(), Misbehavior> {
+        self.core
+            .canvas_2d_contexts()
+            .play_stream(self.client_id, self.core.raster(), &message.segments)
+            .map_err(Misbehavior)
+    }
+
+    fn destroy_canvas_2d_context(&mut self, message: DestroyCanvas2dContext) -> Result<(), Misbehavior> {
+        self.core
+            .canvas_2d_contexts()
+            .destroy(self.client_id, self.core.raster(), message.canvas_id);
+        Ok(())
+    }
+
     fn update_display_list(&mut self, message: UpdateDisplayList) -> Result<(), Misbehavior> {
         let started_at = std::time::Instant::now();
         let SharedDisplayList {

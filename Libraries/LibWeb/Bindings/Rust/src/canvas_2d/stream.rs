@@ -109,17 +109,20 @@ pub(crate) fn flush(stream: &RefCell<Canvas2DStream>, connection: CompositorConn
         stream.borrow_mut().pending.put_back_ahead(batch);
         return;
     }
-    let fonts: Vec<&FontHandle> = batch.fonts.values().collect();
-    let image_frames: Vec<&ImageFrameHandle> = batch.image_frames.values().collect();
-    let Some(poster) = connection.prepare_stream_batch(&fonts, &image_frames) else {
+    let Some(poster) = connection.poster_while_compositor_is_reachable() else {
         stream.borrow_mut().pending.put_back_ahead(batch);
         return;
     };
+    let fonts: Vec<&FontHandle> = batch.fonts.values().collect();
+    let image_frames: Vec<&ImageFrameHandle> = batch.image_frames.values().collect();
+    if !connection.post_stream_batch_fonts_and_image_frames(&fonts, &image_frames) {
+        stream.borrow_mut().pending.put_back_ahead(batch);
+        return;
+    }
     let message = UpdateCanvas2dStream {
         segments: std::mem::take(&mut batch.segments),
     };
-    if !poster.try_post(message).expect("a canvas 2D stream encodes") {
-        connection.did_fail_to_post_stream_batch();
+    if !connection.post_or_lose_compositor(&poster, message) {
         return;
     }
     for hold in &batch.video_frame_holds {
