@@ -1649,7 +1649,10 @@ fn freeze_tick_frame(
     clock_recorder: &mut ClockRecorder,
 ) -> Result<(FrozenFrame, RecordingInputs, Option<ClockTickVisualContexts>), Park> {
     let ClockRecorder {
-        recorder, presented, ..
+        recorder,
+        presentation,
+        presented,
+        ..
     } = clock_recorder;
     match std::mem::replace(presented, TickPresented::Nothing) {
         TickPresented::Nothing => {}
@@ -1659,6 +1662,15 @@ fn freeze_tick_frame(
     let viewport = arena.layout_root();
     if arena.paint_state().trace_recordings {
         return Err(Park("a trace reads the recording"));
+    }
+    // NB: A lane that goes on from the state past a rendering update that presented no frame forks the tree as the host
+    //     left it. The host may have given that tree another structure without presenting it, as a hit test or a
+    //     rendering update that paints nothing does, and the tick's update of the tree only tells the structures of the
+    //     fork apart, not that of the fork and the tree the lane's frames are sealed to go with.
+    if presentation.visual_context_tree_structural_epoch()
+        != Some(arena.paint_state().visual_context.structural_epoch())
+    {
+        return Err(Park("visual contexts the frame does not show"));
     }
     let visual_contexts = prepare_for_clock_tick(arena, viewport)?;
     // A tick's frame copies from the lane's own, and its damage stays: the whole document would record again on every tick.
