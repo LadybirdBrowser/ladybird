@@ -419,6 +419,13 @@ pub(crate) fn all_hits(rows: &impl PaintRead, query: PointQuery<'_>) -> Vec<Poin
             "Skipping paint scopes by their ink bounds changed the hits at {:?}: {hits:?} instead of {hits_without_skipping:?}",
             query.point
         );
+        let topmost_without_skipping = walk_for(rows, query, Wanted::Topmost, false).topmost();
+        assert!(
+            topmost_without_skipping.as_ref() == hits_without_skipping.first(),
+            "The walk that stops at the topmost hit at {:?} found {topmost_without_skipping:?} instead of {:?}",
+            query.point,
+            hits_without_skipping.first()
+        );
     }
     hits
 }

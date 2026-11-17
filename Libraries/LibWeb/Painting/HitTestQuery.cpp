@@ -171,12 +171,18 @@ Optional<HitTestResult> HitTestQuery::hit_test(Layout::BegunRead const& read, CS
 
 TraversalDecision HitTestQuery::hit_test_all(Layout::BegunRead const& read, CSSPixelPoint point, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
+    Layout::RustFFI::FfiPointHit topmost_hit;
+    if (!Layout::RustFFI::layout_hit_test_topmost_hit(m_arena->host(), &read, ffi_query(), point, &topmost_hit))
+        return TraversalDecision::Continue;
+    if (callback(hit_test_result_for(read, topmost_hit)) == TraversalDecision::Break)
+        return TraversalDecision::Break;
+
     Vector<Layout::RustFFI::FfiPointHit> hits;
     Layout::RustFFI::layout_hit_test_all_hits(m_arena->host(), &read, ffi_query(), point, &hits, [](void* sink, Layout::RustFFI::FfiPointHit const* hit) {
         static_cast<Vector<Layout::RustFFI::FfiPointHit>*>(sink)->append(*hit);
     });
-    for (auto const& hit : hits) {
-        if (callback(hit_test_result_for(read, hit)) == TraversalDecision::Break)
+    for (size_t index_below_topmost_hit = 1; index_below_topmost_hit < hits.size(); ++index_below_topmost_hit) {
+        if (callback(hit_test_result_for(read, hits[index_below_topmost_hit])) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 
