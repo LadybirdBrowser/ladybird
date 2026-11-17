@@ -49,6 +49,7 @@
 #include <QToolButton>
 #include <QVariantAnimation>
 #include <QWheelEvent>
+#include <QWindow>
 #include <QtMath>
 
 namespace Ladybird {
@@ -1629,8 +1630,14 @@ void BookmarksBarContainer::update_geometry()
     m_bar->setGeometry(0, height - full_height, width(), full_height);
     set_view_overlay_height(on_hover && visible ? height : 0);
     setVisible(visible);
-    if (on_hover && visible)
+
+    if (on_hover && visible) {
         raise();
+
+        // A newly shown page can place its native view above the bar even when the bar is already the topmost widget.
+        if (auto* handle = windowHandle())
+            handle->raise();
+    }
 
 #if defined(AK_OS_MACOS)
     ensure_appkit_window_is_exposed(*this);
