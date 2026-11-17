@@ -683,33 +683,55 @@ void WebContentClient::cancel_navigation_transactions()
 // Seeing HttpOnly cookies, storing cookies the way an HTTP response does, and changing a cookie by its identity are for
 // WebDriver and the test harness. RequestServer handles the cookies of HTTP responses and requests itself, so a renderer
 // serving an ordinary browsing session never needs any of it.
-bool WebContentClient::renderers_may_access_cookies_like_http()
+// NB: Under WebDriver, the renderer may do so only while it runs a cookie command, and only for the document the
+//     command is for. Otherwise any renderer of an automated browser could take the cookies of every site.
+static Optional<URL::URL> url_of_webdriver_cookie_command_running_in(WebContentClient const& client)
 {
-    return Application::browser_options().webdriver_browser_endpoint.has_value()
-        || Application::web_content_options().is_test_mode == IsTestMode::Yes;
+    if (!Application::browser_options().webdriver_browser_endpoint.has_value())
+        return {};
+
+    Optional<URL::URL> url;
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        url = view.url_of_webdriver_cookie_command_running_in(client);
+        return url.has_value() ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return url;
 }
 
-bool WebContentClient::renderers_may_synthesize_input()
+WebContentClient::HTTPCookieAccess WebContentClient::http_cookie_access_for(URL::URL const& url) const
 {
-    // WebDriver's actions and the internals object dispatch input as though the user produced it.
-    return Application::browser_options().webdriver_browser_endpoint.has_value()
-        || Application::web_content_options().is_test_mode == IsTestMode::Yes
+    if (Application::web_content_options().is_test_mode == IsTestMode::Yes)
+        return HTTPCookieAccess::Allowed;
+
+    auto command_url = url_of_webdriver_cookie_command_running_in(*this);
+    if (!command_url.has_value())
+        return HTTPCookieAccess::Refused;
+    return command_url->equals(url, URL::ExcludeFragment::Yes) ? HTTPCookieAccess::Allowed : HTTPCookieAccess::RefusedForURL;
+}
+
+bool WebContentClient::renderers_may_synthesize_input_for_testing()
+{
+    // The internals object dispatches input as though the user produced it.
+    return Application::web_content_options().is_test_mode == IsTestMode::Yes
         || Application::web_content_options().expose_internals_object == ExposeInternalsObject::Yes;
 }
 
 bool WebContentClient::may_read_local_files() const
 {
-    // WebDriver's Element Send Keys selects the files it names by path through the process hosting the file input.
-    if (Application::browser_options().webdriver_browser_endpoint.has_value())
-        return true;
-
     return m_has_hosted_local_file_content;
 }
 
 Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse WebContentClient::did_request_all_cookies_webdriver(URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context)
 {
-    if (!renderers_may_access_cookies_like_http()) {
-        did_misbehave("did_request_all_cookies_webdriver"sv, "not driven by WebDriver"sv);
+    if (auto access = http_cookie_access_for(url); access != HTTPCookieAccess::Allowed) {
+        if (access == HTTPCookieAccess::Refused)
+            did_misbehave("did_request_all_cookies_webdriver"sv, "not running a WebDriver cookie command"sv);
+        return Vector<HTTP::Cookie::Cookie> {};
+    }
+    // NB: Only the internals object of a test asks for the cookies of a partition. WebDriver asks for the unpartitioned
+    //     cookies of the document its command is for.
+    if (partition_context.has_value() && Application::web_content_options().is_test_mode != IsTestMode::Yes) {
+        did_misbehave("did_request_all_cookies_webdriver"sv, "partition context outside of a test"sv);
         return Vector<HTTP::Cookie::Cookie> {};
     }
     return m_session->cookie_jar->get_all_cookies_webdriver(url, partition_context);
@@ -732,8 +754,9 @@ Messages::WebContentClient::DidRequestNotificationsStateForTestingResponse WebCo
 
 Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL url, String name)
 {
-    if (!renderers_may_access_cookies_like_http()) {
-        did_misbehave("did_request_named_cookie"sv, "not driven by WebDriver"sv);
+    if (auto access = http_cookie_access_for(url); access != HTTPCookieAccess::Allowed) {
+        if (access == HTTPCookieAccess::Refused)
+            did_misbehave("did_request_named_cookie"sv, "not running a WebDriver cookie command"sv);
         return Optional<HTTP::Cookie::Cookie> {};
     }
 
@@ -742,8 +765,9 @@ Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_
 
 Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(Web::PageId page_id, Optional<Web::HTML::EnvironmentId> environment_id, URL::URL url, HTTP::Cookie::Source source)
 {
-    if (source == HTTP::Cookie::Source::Http && !renderers_may_access_cookies_like_http()) {
-        did_misbehave("did_request_cookie"sv, "HTTP cookie source"sv);
+    if (auto access = source == HTTP::Cookie::Source::Http ? http_cookie_access_for(url) : HTTPCookieAccess::Allowed; access != HTTPCookieAccess::Allowed) {
+        if (access == HTTPCookieAccess::Refused)
+            did_misbehave("did_request_cookie"sv, "HTTP cookie source"sv);
         return HTTP::Cookie::VersionedCookie {};
     }
 
@@ -888,12 +912,28 @@ void WebContentClient::did_close_browsing_context(Web::PageId page_id)
 
 void WebContentClient::did_update_cookie(HTTP::Cookie::Cookie cookie)
 {
-    if (!renderers_may_access_cookies_like_http()) {
-        did_misbehave("did_update_cookie"sv, "not driven by WebDriver"sv);
+    if (Application::web_content_options().is_test_mode == IsTestMode::Yes) {
+        m_session->cookie_jar->update_cookie(move(cookie));
         return;
     }
 
-    m_session->cookie_jar->update_cookie(cookie);
+    // NB: WebDriver's Delete Cookie expires the cookies of the document its cookie command is for, which it got from
+    //     the cookie jar. So the browser expires its own copy of the cookie, and the renderer changes nothing else.
+    auto command_url = url_of_webdriver_cookie_command_running_in(*this);
+    if (!command_url.has_value()) {
+        did_misbehave("did_update_cookie"sv, "not running a WebDriver cookie command"sv);
+        return;
+    }
+
+    // NB: A cookie of the document can expire, and leave the cookie jar, before the renderer asks to expire it.
+    for (auto existing : m_session->cookie_jar->get_all_cookies_webdriver(*command_url)) {
+        if (existing.name != cookie.name || existing.domain != cookie.domain || existing.path != cookie.path
+            || existing.host_only != cookie.host_only || existing.partition_key != cookie.partition_key)
+            continue;
+        existing.expiry_time = UnixDateTime::earliest();
+        m_session->cookie_jar->update_cookie(move(existing));
+        return;
+    }
 }
 
 Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_known_hsts_host(String domain)
