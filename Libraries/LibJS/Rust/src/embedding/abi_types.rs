@@ -435,6 +435,11 @@ pub struct JSSourceCode {
     _opaque: [u8; 0],
 }
 
+/// A weak reference to a SourceCode, which tells whether anything still holds the source code without holding it.
+pub struct JSWeakSourceCode {
+    _opaque: [u8; 0],
+}
+
 /// Hands `value` to the embedder's sink.
 pub fn append_to_value_sink(sink: &JSValueSink, value: Value) {
     let append = sink.append.expect("a value sink has an append function");

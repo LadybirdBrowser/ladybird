@@ -51,4 +51,38 @@ void SourceCode::unref() const
     js_source_code_release(source_code_to_abi(*this));
 }
 
+static JSWeakSourceCode* weak_source_code_to_abi(FFI::WeakSourceCode* weak)
+{
+    return reinterpret_cast<JSWeakSourceCode*>(weak);
+}
+
+WeakSourceCode::WeakSourceCode(SourceCode const& source_code)
+    : m_weak(reinterpret_cast<FFI::WeakSourceCode*>(js_source_code_downgrade(source_code_to_abi(source_code))))
+{
+}
+
+WeakSourceCode::WeakSourceCode(WeakSourceCode&& other)
+    : m_weak(exchange(other.m_weak, nullptr))
+{
+}
+
+WeakSourceCode& WeakSourceCode::operator=(WeakSourceCode&& other)
+{
+    if (this != &other) {
+        js_weak_source_code_destroy(weak_source_code_to_abi(m_weak));
+        m_weak = exchange(other.m_weak, nullptr);
+    }
+    return *this;
+}
+
+WeakSourceCode::~WeakSourceCode()
+{
+    js_weak_source_code_destroy(weak_source_code_to_abi(m_weak));
+}
+
+bool WeakSourceCode::is_alive() const
+{
+    return m_weak && js_weak_source_code_is_alive(weak_source_code_to_abi(m_weak));
+}
+
 }
