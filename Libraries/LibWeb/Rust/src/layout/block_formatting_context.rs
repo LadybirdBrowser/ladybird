@@ -350,7 +350,6 @@ pub(crate) struct RootFlowChild {
     pub(crate) node: Node,
     /// The block end of the child's border box, in the root's content box.
     pub(crate) border_box_block_end: CssPixels,
-    pub(crate) border_box_block_size: CssPixels,
     pub(crate) margin_bottom: CssPixels,
     pub(crate) collapses_through: bool,
     pub(crate) is_invisible_for_line_clamp: bool,
@@ -361,7 +360,6 @@ impl RootFlowChild {
         Self {
             node,
             border_box_block_end: outcome.border_box_block_end(),
-            border_box_block_size: outcome.border_box_block_size(),
             margin_bottom: outcome.margin_bottom(),
             collapses_through: outcome.collapses_through,
             is_invisible_for_line_clamp: outcome.is_invisible_for_line_clamp,
@@ -8372,38 +8370,27 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             let child_facts = NodeFacts::new(&pass, child.node);
             child_facts.is_flow_layout_participant() && !child_facts.is_floating()
         };
-        let last_participant = flow_children.iter().rposition(participates);
-        for (index, child) in flow_children.iter().enumerate() {
-            if !participates(child) || child.is_invisible_for_line_clamp {
-                continue;
-            }
-            // https://drafts.csswg.org/css2/#collapsing-margins
-            // NB: The margins of a box that margins collapse through collapse with those of the boxes around it, so
-            //     the box reaches no further than the collapsed margin they all end with, which the box before it
-            //     accounts for, or the run's start where there's no such box.
-            if child.collapses_through {
-                continue;
-            }
+        // AD-HOC: The spec ends the root at "the bottom margin-edge of the bottommost block-level child box". The
+        //         root ends at the bottom margin edge of its last in-flow child instead, which is where its flow
+        //         ends — and what pages are written to: A negative margin that pulls the last child up, over the
+        //         child before it, pulls the end of the root up with it, and the child before it overflows the root.
+        // https://drafts.csswg.org/css2/#collapsing-margins
+        // NB: The margins of a box that margins collapse through collapse with those of the boxes around it, so the
+        //     box reaches no further than the collapsed margin they all end with, which the box before it accounts
+        //     for, or the run's start where there's no such box.
+        let last_child =
+            flow_children.iter().enumerate().rev().find(|(_, child)| {
+                participates(child) && !child.is_invisible_for_line_clamp && !child.collapses_through
+            });
+        if let Some((index, child)) = last_child {
             // Margins cannot collapse out of a BFC root: below the last real in-flow
             // child, the run's trailing collapsed margin (which folds in any trailing
             // collapse-through siblings) replaces that child's own bottom margin.
             let margin_bottom = match trailing_collapsed_margin {
                 Some((Some(index_of_last_real_child), aggregate)) if index_of_last_real_child == index => aggregate,
-                // NB: The margins of an empty box collapse through it into those of the boxes after it, which
-                //     are placed past them, so its own bottom margin reaches no further than theirs.
-                _ if Some(index) != last_participant
-                    && child.border_box_block_size == CssPixels::default()
-                    && formatting_context::formatting_context_type_created_by_box(NodeFacts::new(
-                        &pass, child.node,
-                    ))
-                    .is_none() =>
-                {
-                    CssPixels::default()
-                }
                 _ => child.margin_bottom,
             };
-            let child_bottom = child.border_box_block_end + margin_bottom;
-            bottom = Some(bottom.map_or(child_bottom, |value: CssPixels| value.max(child_bottom)));
+            bottom = Some(child.border_box_block_end + margin_bottom);
         }
         // Where margins collapse through every in-flow child, their collapsed margin starts at the top content edge.
         if let Some((None, aggregate)) = trailing_collapsed_margin {

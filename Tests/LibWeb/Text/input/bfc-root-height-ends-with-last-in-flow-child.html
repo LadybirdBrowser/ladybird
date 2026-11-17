@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .root { display: flow-root; position: relative; width: 300px; font: 14px/20px monospace; }
+    .tall { height: 120px; }
+    .last { height: 10px; }
+    .float { float: left; width: 100px; }
+</style>
+<div class="root" id="pulled-up"><div class="tall"></div><div class="last" style="margin-top: -30px"></div></div>
+<div class="root" id="pulled-up-to-the-top"><div class="tall"></div><div class="last" style="margin-top: -130px"></div></div>
+<div class="root" id="pulled-up-above-the-top"><div class="tall"></div><div class="last" style="margin-top: -200px"></div></div>
+<div class="root" id="tall-child-in-the-middle"><div class="last"></div><div class="tall"></div><div class="last" style="margin-top: -100px"></div></div>
+<div class="root" id="then-empty-with-margins"><div class="tall"></div><div class="last" style="margin-top: -30px"></div><div style="margin: 5px 0"></div></div>
+<div class="root" id="with-bottom-margin"><div class="tall"></div><div class="last" style="margin-top: -30px; margin-bottom: 15px"></div></div>
+<div class="root" id="negative-bottom-margin"><div class="tall"></div><div class="last" style="margin-bottom: -50px"></div></div>
+<div class="root" id="negative-bottom-margin-past-the-top"><div class="tall"></div><div class="last" style="margin-bottom: -200px"></div></div>
+<div class="root" id="relatively-positioned"><div class="tall"></div><div class="last" style="position: relative; top: -100px"></div></div>
+<div class="root" id="pulled-up-wrapper"><div class="tall"></div><div style="margin-top: -30px"><div class="last"></div></div></div>
+<div class="root" id="negative-bottom-margin-on-tall-child"><div class="tall" style="margin-bottom: -60px"></div><div class="last"></div></div>
+<div class="root" id="float-past-the-last-child"><div class="float" style="height: 90px"></div><div class="tall"></div><div class="last" style="margin-top: -100px"></div></div>
+<div class="root" id="abspos-child"><div class="tall"></div><div class="last" style="margin-top: -30px"></div><div style="position: absolute; top: 0; height: 300px; width: 5px"></div></div>
+<div class="root" id="line-in-the-middle"><div class="tall"></div>text<div class="last" style="margin-top: -80px"></div></div>
+<div class="root" id="block-in-inline"><div class="tall"></div><span><div class="last" style="margin-top: -30px"></div></span></div>
+<div class="root" id="in-plain-block"><div><div class="tall"></div><div class="last" style="margin-top: -30px"></div></div></div>
+<div class="root" id="overflow-hidden" style="display: block; overflow: hidden"><div class="tall"></div><div class="last" style="margin-top: -30px"></div></div>
+<div class="root" id="overflow-auto" style="display: block; overflow: auto"><div class="tall"></div><div class="last" style="margin-top: -30px"></div></div>
+<div class="root" id="flex-item" style="display: flex"><div style="flex: 1"><div class="tall"></div><div class="last" style="margin-top: -30px"></div></div></div>
+<div class="root" id="grid-item" style="display: grid"><div><div class="tall"></div><div class="last" style="margin-top: -30px"></div></div></div>
+<div class="root" id="inline-block" style="display: inline-block"><div class="tall"></div><div class="last" style="margin-top: -30px"></div></div>
+<div class="root" id="table-cell" style="display: table-cell"><div class="tall"></div><div class="last" style="margin-top: -30px"></div></div>
+<div class="root" id="float" style="float: left"><div class="tall" style="width: 50px"></div><div class="last" style="margin-top: -30px"></div></div>
+<div style="clear: both"></div>
+<div class="root" id="abspos" style="position: absolute"><div class="tall" style="width: 50px"></div><div class="last" style="margin-top: -30px"></div></div>
+<table class="root" id="table-with-caption" style="display: table; border-spacing: 0"><caption style="caption-side: bottom"><div class="tall"></div><div class="last" style="margin-top: -30px"></div></caption><tr><td style="padding: 0; height: 10px"></td></tr></table>
+<fieldset class="root" id="fieldset" style="display: block; border: 0; padding: 0; margin: 0"><div class="tall"></div><div class="last" style="margin-top: -30px"></div></fieldset>
+<div class="root" id="vertical" style="writing-mode: vertical-rl; height: 60px; width: auto"><div class="tall" style="width: 120px; height: auto"></div><div class="last" style="width: 10px; height: auto; margin-right: -30px"></div></div>
+<script>
+    test(() => {
+        // The automatic height of a box that establishes a block formatting context ends where its flow ends: at the
+        // bottom margin edge of its last in-flow child, however far up a negative margin pulls that child. A child
+        // before it that reaches further down overflows the box, and can be scrolled to.
+        for (const root of document.querySelectorAll(".root")) {
+            const rect = root.getBoundingClientRect();
+            const scroll = root.id == "overflow-auto" ? `, scroll height ${root.scrollHeight}` : "";
+            println(`${root.id}: ${root.id == "vertical" ? rect.width : rect.height}${scroll}`);
+        }
+    });
+</script>
