@@ -1,0 +1,50 @@
+Ladybird centers script and sequential keyboard focus independently
+at each ancestor scroll container. An axis retains its scroll offset
+when the target’s border box is fully visible or covers the whole
+scrollport. Other axes use centered alignment, with scroll-margin and
+scroll-padding applied after the visibility check. Click focus,
+preventScroll, autofocus, and ordinary scrollIntoView() retain their
+separate scrolling behavior. The accessibility focus action requests
+the same Key trigger as sequential navigation, so it also centers
+offscreen focusable elements when needed.
+
+Blink routes sequential navigation through FocusController::
+AdvanceFocusInDocumentOrder() into Element::Focus(). The focus path
+uses Element::UpdateSelectionOnFocus() and the default arguments of
+scroll_into_view_util::CreateScrollIntoViewParams(), which select
+ScrollAlignment::CenterIfNeeded(). ScrollRectToVisible() walks the
+ancestors, and CalculateScrollAlignment() treats a target covering
+the scrollport as visible, preserving that axis instead of centering.
+
+Gecko’s nsFocusManager::ScrollIntoView() selects WhereToScroll::Center
+and WhenToScroll::IfNotVisible on both axes. PresShell evaluates
+ComputeNeedToScroll() before ComputeWhereToScroll(). Its visibility
+condition leaves a covering target unchanged. The visibility test
+also allows some partial visibility, so it differs from Ladybird for
+partially visible ordinary elements. TextControlElement::
+ScrollSelectionIntoViewAsync() also reveals text-control selections.
+
+WebKit’s FocusController::advanceFocusInDocumentOrder() calls the
+ordinary element focus path. Element::updateFocusAppearance() defers
+scrolling to LocalFrameView::scrollToFocusedElementInternal(), which
+uses ScrollAlignment::alignCenterIfNeeded on both axes. The helper
+ScrollableArea::getRectToExposeForScrollIntoView() preserves axes
+where the target fits inside, or covers, the entire visible interval.
+
+Runtime probes used Chrome 157.0.8103.78, Firefox 151.0, and Playwright
+WebKit 26.5. All three agree on 14 keyboard cases: visible and offscreen
+targets, each axis separately, nested scrollers, oversized covering
+targets, and oversized offscreen targets. All three also preserve
+covered axes in the 11 oversized script-focus cases. Measurements
+wait two animation frames because WebKit defers its focus scrolling.
+
+HTML’s focus() steps require centered block and inline alignment.
+Ladybird deliberately preserves fully visible and fully covered axes
+for interoperability, and applies that alignment to keyboard focus.
+For partially visible targets that don’t cover the scrollport,
+Ladybird retains centered alignment. Chrome and WebKit reveal the
+nearest edge of a partially visible ordinary element, while Firefox
+leaves it unchanged. For a partially visible input, Firefox and WebKit
+center it, while Chrome reveals its nearest edge. Autofocus still uses
+FocusTrigger::Other, so this change doesn’t fix the issue’s autofocus
+example. The engine sources were inspected for behavior only.
