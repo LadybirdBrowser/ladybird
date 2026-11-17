@@ -11,13 +11,6 @@
 // https://datatracker.ietf.org/doc/html/rfc8032#section-7.1
 TEST_CASE(TEST_1)
 {
-    u8 private_bytes[32] = {
-        0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60,
-        0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c, 0xc4,
-        0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19,
-        0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60
-    };
-
     u8 public_bytes[32] = {
         0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7,
         0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64, 0x07, 0x3a,
@@ -38,23 +31,16 @@ TEST_CASE(TEST_1)
         0x65, 0x51, 0x41, 0x43, 0x8e, 0x7a, 0x10, 0x0b
     };
 
-    ReadonlyBytes private_key { private_bytes, 32 };
     ReadonlyBytes public_key { public_bytes, 32 };
     ReadonlyBytes message { message_bytes, 0 };
     ReadonlyBytes expected_signature { signature_bytes, 64 };
 
-    Crypto::Curves::Ed25519 curve;
-
-    auto generated_signature = TRY_OR_FAIL(curve.sign(private_key, message));
-    EXPECT_EQ(generated_signature, expected_signature);
-    EXPECT(TRY_OR_FAIL(curve.verify(public_key, expected_signature, message)));
+    EXPECT(TRY_OR_FAIL(Crypto::Curves::ed25519_verify(public_key, expected_signature, message)));
 }
 
 // Test case for small-order point rejection
 TEST_CASE(small_order_point_rejection)
 {
-    Crypto::Curves::Ed25519 curve;
-
     // Test message
     u8 message_bytes[5] = { 0x68, 0x65, 0x6c, 0x6c, 0x6f }; // "hello"
     ReadonlyBytes message { message_bytes, 5 };
@@ -100,27 +86,25 @@ TEST_CASE(small_order_point_rejection)
     ReadonlyBytes signature { dummy_signature, 64 };
 
     // All of these should return false (verification failure due to small-order point)
-    auto result1 = TRY_OR_FAIL(curve.verify(ReadonlyBytes { identity_point, 32 }, signature, message));
+    auto result1 = TRY_OR_FAIL(Crypto::Curves::ed25519_verify(ReadonlyBytes { identity_point, 32 }, signature, message));
     EXPECT(!result1);
 
-    auto result2 = TRY_OR_FAIL(curve.verify(ReadonlyBytes { order_2_point, 32 }, signature, message));
+    auto result2 = TRY_OR_FAIL(Crypto::Curves::ed25519_verify(ReadonlyBytes { order_2_point, 32 }, signature, message));
     EXPECT(!result2);
 
-    auto result3 = TRY_OR_FAIL(curve.verify(ReadonlyBytes { order_4_point, 32 }, signature, message));
+    auto result3 = TRY_OR_FAIL(Crypto::Curves::ed25519_verify(ReadonlyBytes { order_4_point, 32 }, signature, message));
     EXPECT(!result3);
 
-    auto result4 = TRY_OR_FAIL(curve.verify(ReadonlyBytes { order_8_point, 32 }, signature, message));
+    auto result4 = TRY_OR_FAIL(Crypto::Curves::ed25519_verify(ReadonlyBytes { order_8_point, 32 }, signature, message));
     EXPECT(!result4);
 
-    auto result5 = TRY_OR_FAIL(curve.verify(ReadonlyBytes { wpt_small_order_point, 32 }, signature, message));
+    auto result5 = TRY_OR_FAIL(Crypto::Curves::ed25519_verify(ReadonlyBytes { wpt_small_order_point, 32 }, signature, message));
     EXPECT(!result5);
 }
 
 // Test case for small-order R point in signature rejection
 TEST_CASE(small_order_signature_r_point_rejection)
 {
-    Crypto::Curves::Ed25519 curve;
-
     // Test message
     u8 message_bytes[5] = { 0x68, 0x65, 0x6c, 0x6c, 0x6f }; // "hello"
     ReadonlyBytes message { message_bytes, 5 };
@@ -147,6 +131,6 @@ TEST_CASE(small_order_signature_r_point_rejection)
     ReadonlyBytes signature { signature_with_small_order_r, 64 };
 
     // This should return false (verification failure due to small-order R point in signature)
-    auto result = TRY_OR_FAIL(curve.verify(public_key, signature, message));
+    auto result = TRY_OR_FAIL(Crypto::Curves::ed25519_verify(public_key, signature, message));
     EXPECT(!result);
 }
