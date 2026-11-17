@@ -3840,6 +3840,30 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
+    /// Grows the block size of a column container, where it was transferred through the container's preferred aspect
+    /// ratio, to the automatic minimum size that its content gives it, before its items flex within it. So, they flex
+    /// against the grown size.
+    /// https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
+    fn grow_block_size_transferred_through_aspect_ratio_to_content(&mut self) {
+        let facts = self.facts(self.run.box_);
+        // https://drafts.csswg.org/css-contain-2/#containment-size
+        // NB: A size-contained container is sized as if it had no content, so its content can't grow it.
+        if self.is_row_layout() || !facts.has_preferred_aspect_ratio() || facts.node_has_size_containment() {
+            return;
+        }
+        let layout_input = self.layout_input.as_ref().unwrap();
+        let constraints = layout_input.containing_block_constraints;
+        let sizing = self.sizing();
+        let available_space =
+            sizing.available_space_for_block_size_resolution(self.run.box_, layout_input.available_space, constraints);
+        sizing.apply_automatic_minimum_block_size_from_aspect_ratio(
+            sizing_context::SizedCells::new(self.run.box_, &self.container_cells, self.run.pass.frame),
+            available_space,
+            constraints,
+            Some(self.largest_outer_hypothetical_main_size_of_lines()),
+        );
+    }
+
     fn resolve_own_auto_block_size_from_line_cross_sizes(&mut self) {
         if self.cross_axis_is_horizontal() {
             return;
@@ -4227,6 +4251,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // 5. Collect flex items into flex lines:
         // After this step no additional items are to be added to flex_lines or any of its items!
         self.collect_flex_items_into_flex_lines();
+        self.grow_block_size_transferred_through_aspect_ratio_to_content();
         // 6. Resolve the flexible lengths
         self.resolve_flexible_lengths();
         // Cross Size Determination
@@ -4408,7 +4433,11 @@ impl<'pass> FlexFormattingContext<'pass> {
             self.place_item(index, placed_item, fragment_arrival);
         }
         if self.facts(self.run.box_).has_preferred_aspect_ratio() {
-            self.in_flow_items_margin_box_block_extent = self.margin_box_block_extent_of_placed_in_flow_items();
+            self.in_flow_items_margin_box_block_extent = if self.is_row_layout() {
+                self.margin_box_block_extent_of_placed_in_flow_items()
+            } else {
+                Some(self.largest_outer_hypothetical_main_size_of_lines())
+            };
         }
         // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
         // If any of the flex items on the flex container's startmost/endmost flex line participate in baseline
@@ -4466,6 +4495,24 @@ impl<'pass> FlexFormattingContext<'pass> {
                 y: item.main_offset,
             }
         }
+    }
+
+    /// The block size a column flex container's content would take up if its items didn't flex: the sum of the outer
+    /// hypothetical main sizes of the items on its longest line, and the gaps between them. That's the min-content
+    /// block size that the automatic minimum size of a box with a preferred aspect ratio grows to, whereas the extent
+    /// of the placed items is only what's left of it after they shrank to fit the block size transferred through the
+    /// ratio.
+    /// https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
+    fn largest_outer_hypothetical_main_size_of_lines(&self) -> CssPixels {
+        let main_gap = self.main_gap();
+        self.flex_lines
+            .iter()
+            .map(|line| {
+                line.items.iter().fold(CssPixels::default(), |sum, index| {
+                    sum + self.flex_items[index].outer_hypothetical_main_size()
+                }) + main_gap * line.items.len().saturating_sub(1)
+            })
+            .fold(CssPixels::default(), CssPixels::max)
     }
 
     /// The block size of the margin boxes of the container's in-flow children, once its items are placed, unless a box

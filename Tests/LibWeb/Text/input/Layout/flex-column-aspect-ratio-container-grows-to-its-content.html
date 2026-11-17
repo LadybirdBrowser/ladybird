@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .card { width: 100px; aspect-ratio: 1 / 1; float: left; margin: 0 8px 8px 0; }
+    .column { display: flex; flex-direction: column; }
+    .tall { height: 200px; }
+</style>
+<!-- A box with a preferred aspect ratio and an automatic block size grows to its min-content block size, which for a
+     column flex container is what its items take up before they shrink. Its items then flex within the grown size.
+     Each line gives the height of the container, and then of each of its items. -->
+<div class="card column" id="item"><div class="tall"></div></div>
+<div class="card column" id="flexible-item"><div class="tall" style="flex: 1 1 auto"></div></div>
+<div class="card column" id="scrollable-item"><div style="flex: 1 1 auto; overflow: hidden"><div class="tall"></div></div></div>
+<div class="card column" id="two-items"><div style="height: 150px"></div><div style="height: 50px"></div></div>
+<div class="card column" id="two-items-with-gap" style="gap: 10px"><div style="height: 60px"></div><div style="height: 60px"></div></div>
+<div class="card column" id="item-with-min-height-zero"><div class="tall" style="min-height: 0"></div></div>
+<div class="card column" id="short-item"><div style="height: 50px"></div></div>
+<div class="card column" id="container-overflow-hidden" style="overflow: hidden"><div class="tall"></div></div>
+<div class="card column" id="container-min-height-zero" style="min-height: 0"><div class="tall"></div></div>
+<div class="card column" id="container-contain-size" style="contain: size"><div class="tall" style="flex: none"></div></div>
+<div class="card column" id="container-contain-inline-size" style="contain: inline-size"><div class="tall" style="flex: none"></div></div>
+<div class="card column" id="container-max-height" style="max-height: 150px"><div class="tall"></div></div>
+<div class="card column" id="wrap" style="flex-wrap: wrap"><div style="height: 60px; width: 40px"></div><div style="height: 60px; width: 40px"></div></div>
+<div class="card column" id="column-reverse" style="flex-direction: column-reverse"><div class="tall"></div></div>
+<div class="card" id="row" style="display: flex"><div class="tall" style="width: 50px"></div></div>
+<div style="display: flex; align-items: flex-start"><div class="card column" id="flex-item-card"><div class="tall"></div></div></div>
+<div style="position: relative; height: 220px"><div class="card column" id="abspos-card" style="position: absolute"><div class="tall"></div></div></div>
+<script>
+    function run(report) {
+        const height = element => element.getBoundingClientRect().height;
+        for (const card of document.querySelectorAll(".card"))
+            report(`${card.id}: ${height(card)}; items ${[...card.children].map(height).join(", ")}`);
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>
