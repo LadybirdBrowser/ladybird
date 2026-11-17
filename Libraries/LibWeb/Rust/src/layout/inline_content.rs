@@ -9,6 +9,7 @@ use super::geometry::{AvailableSize, Side};
 use super::layout_node_arena::LayoutNodeArena;
 use super::node_data::NodeSlotId;
 use super::{formatting_context, inline_formatting_context, used_values};
+use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::fast_hash::FastSet as HashSet;
 
 // Finalized inline output shared by committed fragments, formatting-context caches and painting.
@@ -33,6 +34,22 @@ pub struct InlineContent {
     pub inline_boxes: InlineBoxIndex,
     /// The fragments of each node, by node.
     pub text_fragments: TextFragmentIndex,
+    pub(crate) glyph_ink_of_lines: GlyphInkOfLines,
+}
+
+#[derive(Default)]
+pub struct GlyphInkOfLines(std::sync::OnceLock<Box<[CssPixelRect]>>);
+
+impl Clone for GlyphInkOfLines {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+
+impl PartialEq for GlyphInkOfLines {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
 }
 
 /// The indices of each node's fragments in its line root's content, which queries that start from a node look up in a
@@ -515,7 +532,9 @@ impl InlineContent {
             inline_box_rects_after_clamp: data.inline_box_rects_after_clamp,
             elided_content_rects,
             writing_mode,
+            glyph_ink_of_lines: GlyphInkOfLines::default(),
         };
+        content.glyph_ink_of_lines();
         // Plain text needs no interleaving and keeps its single foreground producer.
         if content.inline_box_pieces.is_empty() && !content.fragments.iter().any(|fragment| fragment.is_atomic_inline) {
             return content;
@@ -581,7 +600,38 @@ impl InlineContent {
         }
         combined.drop_repeated_placeholder_pieces();
         combined.index_inline_boxes();
+        let translated_glyph_ink_of_lines = contents
+            .iter()
+            .map(|(content, _, offset)| {
+                let ink = content.glyph_ink_of_lines.0.get()?;
+                (content.writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB).then(|| {
+                    ink.iter()
+                        .map(|rect| rect.translated(offset.x, offset.y))
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect::<Option<Vec<_>>>();
+        if let Some(translated) = translated_glyph_ink_of_lines {
+            let _ = combined
+                .glyph_ink_of_lines
+                .0
+                .set(translated.into_iter().flatten().collect());
+        }
         std::sync::Arc::new(combined)
+    }
+
+    pub(crate) fn glyph_ink_of_lines(&self) -> &[CssPixelRect] {
+        self.glyph_ink_of_lines.0.get_or_init(|| {
+            let mut ink = vec![CssPixelRect::default(); self.lines.len()];
+            for fragment in &self.fragments {
+                if let Some(line_ink) = ink.get_mut(fragment.line_index as usize) {
+                    line_ink.unite(crate::painting::text_fragment::glyph_ink_rect_in_containing_block(
+                        fragment,
+                    ));
+                }
+            }
+            ink.into_boxed_slice()
+        })
     }
 
     /// Indexes the pieces of each inline box again, after they were renumbered or given to other boxes.
@@ -883,7 +933,6 @@ impl<'content> PhysicalPlane<'content> {
     }
 
     pub(crate) fn delta(&self, delta: used_values::FfiCssPixelPoint) -> used_values::FfiCssPixelPoint {
-        use crate::css::css_pixels::CssPixelRect;
         let origin = self.frame.rect_to_physical(CssPixelRect::default(), self.content_size);
         let moved = self.frame.rect_to_physical(
             CssPixelRect::new(delta.x, delta.y, CssPixels::default(), CssPixels::default()),
