@@ -11,7 +11,9 @@ use super::dump_format::{
 };
 use super::effect_clip_plan::EffectClipPlan;
 use super::layers::{LayerPlan, LayerPlanInputs, build_layer_plan};
-use super::nested_records::{NestedRecordsRole, for_each_nested_record_span, span_bytes};
+use super::nested_records::{
+    NestedRecordsRole, for_each_command_including_nested, for_each_nested_record_span, span_bytes,
+};
 use super::record_fields::visit_command_fields;
 use super::storage::DisplayListStorage;
 use super::summary::{LiveContent, summarize};
@@ -24,6 +26,7 @@ use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::VisualContextTreeDump;
 use crate::painting::visual_context::dump::SlotKind;
 use crate::stage::MainThread;
+use libcompositing_rust::host::RecordSpan;
 use libcompositing_rust::visual_context::CompositorScrollTable;
 use libgfx_rust::path::Path;
 use libgfx_rust::{FloatPoint, FloatRect, IntRect};
@@ -37,6 +40,8 @@ crate::stage::main_thread_ffi_entries!();
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiDisplayListDumpOptions {
+    /// Numbers every record, nested ones too, in tape order, and names the records of each layer by those numbers.
+    pub record_ids: bool,
     /// Names visual context nodes by their indices in the tree rather than by the order the dump first prints them in.
     pub raw_node_indices: bool,
 }
@@ -230,6 +235,9 @@ pub unsafe extern "C" fn painting_dump(
         Some(callbacks.debug_description(&main_thread, owner))
     });
     dump_compositor_scroll_table(&mut output, &mut names, visual_context_tree.compositor_scroll_table());
+    let record_ids = options
+        .record_ids
+        .then(|| RecordIdsOfTopLevelRecords::of(tape, command_runs));
     let layer_plan = dump_layers_if_every_canvas_and_video_kept_updating(
         &mut output,
         tape,
@@ -237,11 +245,13 @@ pub unsafe extern "C" fn painting_dump(
         visual_context_tree,
         host.scroll_state().device_offsets(),
         device_viewport_rect,
+        record_ids.as_ref(),
     );
     output.push_str("\nDisplayList:\n");
     let mut records = RecordDump {
         output: &mut output,
         names: &mut names,
+        next_record_id: options.record_ids.then_some(1),
     };
     match layer_plan {
         Some(layer_plan) => records.dump_top_level_commands_with_their_layers(&display_list, &layer_plan),
@@ -371,6 +381,7 @@ fn dump_layers_if_every_canvas_and_video_kept_updating(
     tree: &VisualContextTree,
     scroll_offsets: &[FloatPoint],
     device_viewport_rect: IntRect,
+    record_ids: Option<&RecordIdsOfTopLevelRecords>,
 ) -> Option<LayerPlan> {
     let summary = summarize(tape, command_runs);
     let mut active_media = Vec::new();
@@ -398,7 +409,11 @@ fn dump_layers_if_every_canvas_and_video_kept_updating(
     match layer_plan {
         Ok(layer_plan) => {
             output.push_str("\nLayers:\n");
-            layer_plan.write_layer_lines(output, "  ").unwrap();
+            layer_plan
+                .write_layer_lines(output, "  ", |spans| {
+                    record_ids.map(|record_ids| record_ids.describe_spans(spans))
+                })
+                .unwrap();
             Some(layer_plan)
         }
         Err(unlayered_reason) => {
@@ -408,10 +423,63 @@ fn dump_layers_if_every_canvas_and_video_kept_updating(
     }
 }
 
+/// The number of each top-level record of a tape, which counts the records nested in the ones before it too.
+struct RecordIdsOfTopLevelRecords {
+    ids_by_offset: HashMap<u32, u32>,
+    record_count: u32,
+    tape_size: u32,
+}
+
+impl RecordIdsOfTopLevelRecords {
+    fn of(tape: &[u8], command_runs: &[DisplayListCommandRun]) -> Self {
+        let mut ids_by_offset = HashMap::new();
+        let mut record_count = 0;
+        for run in command_runs {
+            let run_bytes = &tape[run.offset as usize..(run.offset + run.size) as usize];
+            for_each_command(run_bytes, |_, offset_in_run, payload| {
+                ids_by_offset.insert(run.offset + offset_in_run as u32, record_count + 1);
+                let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
+                for_each_command_including_nested(record_bytes, &mut |_, _, _| record_count += 1);
+            });
+        }
+        Self {
+            ids_by_offset,
+            record_count,
+            tape_size: tape.len() as u32,
+        }
+    }
+
+    fn id_at(&self, offset: u32) -> u32 {
+        if offset == self.tape_size {
+            return self.record_count + 1;
+        }
+        self.ids_by_offset[&offset]
+    }
+
+    // Spans of top-level records as the ranges of the numbers of every record they hold.
+    fn describe_spans(&self, spans: &[RecordSpan]) -> String {
+        let mut text = String::new();
+        for (index, span) in spans.iter().enumerate() {
+            if index > 0 {
+                text.push(',');
+            }
+            let (first, last) = (self.id_at(span.begin_offset), self.id_at(span.end_offset) - 1);
+            if first == last {
+                write!(text, "#{first}").unwrap();
+            } else {
+                write!(text, "#{first}-#{last}").unwrap();
+            }
+        }
+        text
+    }
+}
+
 /// Where the DisplayList section is written, with the names it gives what the records name.
 struct RecordDump<'a> {
     output: &'a mut String,
     names: &'a mut DumpNames,
+    // The number the next record is printed with, while records are numbered.
+    next_record_id: Option<u32>,
 }
 
 impl RecordDump<'_> {
@@ -449,6 +517,10 @@ impl RecordDump<'_> {
     fn dump_command_bytes(&mut self, command_bytes: &[u8], context: ContextRef, base_indent: usize) {
         for_each_command(command_bytes, |header, _, payload| {
             push_indent(self.output, base_indent);
+            if let Some(record_id) = &mut self.next_record_id {
+                write!(self.output, "#{record_id} ").unwrap();
+                *record_id += 1;
+            }
             write!(self.output, "{}@", header.command_type.name()).unwrap();
             write_context(self.output, self.names, context);
             let fields = command_fields(header.command_type, payload);
@@ -637,5 +709,42 @@ mod tests {
             dump(ContextRef::default()),
             "FillRect@s0 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) compositing_and_blending_operator=Multiply"
         );
+    }
+
+    #[test]
+    fn record_ids_count_nested_records_and_name_spans_of_top_level_records() {
+        let fill = FillRect {
+            rect: IntRect::new(0, 0, 10, 10),
+            color: Color::from_rgba(0, 0, 0, 255),
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_effect: EffectNodeIndex::NONE,
+        };
+        let mut builder = DisplayListBuilder::new();
+        builder.append(&fill, &[], ContextRef::default());
+        let group = builder.begin_group::<DrawIsolatedGroup>(Vec::new());
+        builder.append(&fill, &[], ContextRef::default());
+        builder.append(&fill, &[], ContextRef::default());
+        let group_command = DrawIsolatedGroup {
+            clip_rect: libgfx_rust::FloatRect::new(0.0, 0.0, 10.0, 10.0),
+            content: builder.group_content_span(&group),
+            mask: DisplayListDataSpan::default(),
+            filter: DisplayListDataSpan::default(),
+            opacity: 0.5,
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            mask_kind: libgfx_rust::MaskKind::Alpha,
+        };
+        builder.finish_group(group, &group_command, ContextRef::default());
+        builder.append(&fill, &[], ContextRef::default());
+        let (tape, runs) = (builder.bytes(), builder.command_runs());
+        let record_ids = RecordIdsOfTopLevelRecords::of(tape, runs);
+        let mut top_level_offsets = Vec::new();
+        for_each_command(tape, |_, offset, _| top_level_offsets.push(offset as u32));
+        let span = |begin: usize, end: Option<usize>| RecordSpan {
+            begin_offset: top_level_offsets[begin],
+            end_offset: end.map_or(tape.len() as u32, |end| top_level_offsets[end]),
+        };
+        assert_eq!(record_ids.describe_spans(&[span(0, Some(1))]), "#1");
+        assert_eq!(record_ids.describe_spans(&[span(1, Some(2))]), "#2-#4");
+        assert_eq!(record_ids.describe_spans(&[span(0, Some(1)), span(2, None)]), "#1,#5");
     }
 }

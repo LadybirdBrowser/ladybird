@@ -9,6 +9,7 @@
 namespace Web::Painting {
 
 struct DisplayListDumpOptions {
+    bool record_ids { false };
     bool raw_node_indices { false };
 };
 

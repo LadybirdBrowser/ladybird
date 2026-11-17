@@ -1250,7 +1250,7 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
 
     if (request == "dump-display-list") {
         if (auto doc = page->page().local_traversable()->active_document()) {
-            auto display_list_dump = doc->dump_display_list({});
+            auto display_list_dump = doc->dump_display_list({ .record_ids = true });
             dbgln("{}", display_list_dump.to_utf8());
         }
         return;
