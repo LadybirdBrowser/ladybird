@@ -1,0 +1,5 @@
+input while focused: 0-5
+input after focus left: 0-5
+textarea while focused: 0-5
+input left while its check was out: 0-5
+textarea after focus left: 0-5
