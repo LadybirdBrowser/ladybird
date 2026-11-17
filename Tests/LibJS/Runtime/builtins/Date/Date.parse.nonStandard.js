@@ -328,10 +328,11 @@ test("ambiguous date: 3 numbers", () => {
 
     expect(Date.parse("40 18 10")).toBeNaN(); // YDM fails
 
-    expect(Date.parse("7 8 9 Feb")).toBeNaN(); // Introducing an explicit month fails (too many numbers).
-    expect(Date.parse("7 8 Feb 9")).toBeNaN();
-    expect(Date.parse("7 Feb 8 9")).toBeNaN();
-    expect(Date.parse("Feb 7 8 9")).toBeNaN();
+    // With an explicit month, the first two numbers are the day and the year, and the third is ignored.
+    expect("2008-02-07T08:00:00.000Z").toBe(new Date("7 8 9 Feb").toISOString());
+    expect("2008-02-07T08:00:00.000Z").toBe(new Date("7 8 Feb 9").toISOString());
+    expect("2008-02-07T08:00:00.000Z").toBe(new Date("7 Feb 8 9").toISOString());
+    expect("2008-02-07T08:00:00.000Z").toBe(new Date("Feb 7 8 9").toISOString());
 
     expect(Date.parse("0 0")).toBeNaN(); // YM with M=0
     expect(Date.parse("2000 0")).toBeNaN();
@@ -711,4 +712,19 @@ test("non-ASCII input", () => {
     expect(Date.parse("Jan 01 2024 12:34\u00a0PM")).toBeNaN();
     expect(Date.parse("Jan 01 2024 GMT\u00a0")).toBeNaN();
     expect(Date.parse("Jan 01 2024 (UTC)\u00a0")).toBeNaN();
+});
+
+test("named month followed by three numbers", () => {
+    const originalTimeZone = setTimeZone("UTC");
+
+    // The first two numbers are the day and the year, and the third is ignored.
+    expect("2022-11-16T00:00:00.000Z").toBe(new Date("November 16-22, 2026").toISOString());
+    expect("2022-11-16T00:00:00.000Z").toBe(new Date("Nov 16 22 2026").toISOString());
+    expect("2022-11-16T00:00:00.000Z").toBe(new Date("16 November 22 2026").toISOString());
+    expect("2022-11-16T10:00:00.000Z").toBe(new Date("Nov 16 22 2026 10:00").toISOString());
+    expect("2040-11-22T00:00:00.000Z").toBe(new Date("Nov 40 22 2026").toISOString());
+
+    expect(Date.parse("Nov 1 2 3 4")).toBeNaN();
+
+    setTimeZone(originalTimeZone);
 });
