@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        // Resource selection fails on a source without a src and waits for another one. That source is then removed
+        // and a new one appended, as consent scripts do while they hold a source back.
+        const video = document.createElement("video");
+        const held = document.createElement("source");
+        video.appendChild(held);
+        document.body.appendChild(video);
+        video.addEventListener("loadedmetadata", () => {
+            println(`loaded metadata: ${video.videoWidth}x${video.videoHeight}`);
+            done();
+        });
+        setTimeout(() => {
+            held.remove();
+            const source = document.createElement("source");
+            source.src = "../../../Assets/h264-reordered-frames.mp4";
+            video.appendChild(source);
+        }, 100);
+    });
+</script>
