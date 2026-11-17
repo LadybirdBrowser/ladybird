@@ -121,10 +121,7 @@ static ErrorOr<bool> verify_signature(Records::DNSKEY const& key, ReadonlyBytes 
             : key.algorithm == Algorithm::RSASHA512            ? Crypto::Hash::HashKind::SHA512
                                                                : Crypto::Hash::HashKind::SHA1;
         auto components = TRY(key.rsa_public_key_components());
-        auto public_key = TRY(Crypto::PK::RSAPublicKey::from_components(components.modulus, components.exponent));
-        if (!TRY(public_key.is_valid()))
-            return false;
-        return Crypto::PK::rsa_pkcs1_verify(public_key, hash_kind, signed_data, signature);
+        return Crypto::PK::rsa_pkcs1_verify(components.modulus, components.exponent, hash_kind, signed_data, signature);
     }
     case Algorithm::ECDSAP256SHA256:
     case Algorithm::ECDSAP384SHA384: {
@@ -136,14 +133,11 @@ static ErrorOr<bool> verify_signature(Records::DNSKEY const& key, ReadonlyBytes 
         size_t scalar_size = is_p256 ? 32 : 48;
         if (key.public_key.size() != scalar_size * 2 || signature.size() != scalar_size * 2)
             return false;
-        auto public_key = TRY(Crypto::PK::ECPublicKey::from_coordinates(key.public_key.bytes().slice(0, scalar_size), key.public_key.bytes().slice(scalar_size, scalar_size)));
         auto digest = Crypto::Hash::digest(is_p256 ? Crypto::Hash::HashKind::SHA256 : Crypto::Hash::HashKind::SHA384, signed_data);
-        return Crypto::PK::ecdsa_verify(public_key, digest.bytes(), signature.slice(0, scalar_size), signature.slice(scalar_size, scalar_size));
+        return Crypto::PK::ecdsa_verify(key.public_key.bytes().slice(0, scalar_size), key.public_key.bytes().slice(scalar_size, scalar_size), digest.bytes(), signature.slice(0, scalar_size), signature.slice(scalar_size, scalar_size));
     }
-    case Algorithm::ED25519: {
-        Crypto::Curves::Ed25519 ed25519;
-        return ed25519.verify(key.public_key.bytes(), signature, signed_data);
-    }
+    case Algorithm::ED25519:
+        return Crypto::Curves::ed25519_verify(key.public_key.bytes(), signature, signed_data);
     default:
         return false;
     }

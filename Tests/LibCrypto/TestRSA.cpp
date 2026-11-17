@@ -31,6 +31,5 @@ TEST_CASE(test_RSA_rejects_invalid_public_key)
     __builtin_memcpy(encoded_message.data() + separator + 1 + digest_info_prefix.size(), digest.bytes().data(), digest.bytes().size());
 
     u8 const exponent_one[] { 1 };
-    auto invalid_key = TRY_OR_FAIL(Crypto::PK::RSAPublicKey::from_components(modulus, exponent_one));
-    EXPECT(!TRY_OR_FAIL(Crypto::PK::rsa_pkcs1_verify(invalid_key, Crypto::Hash::HashKind::SHA256, message, encoded_message)));
+    EXPECT(!TRY_OR_FAIL(Crypto::PK::rsa_pkcs1_verify(modulus, exponent_one, Crypto::Hash::HashKind::SHA256, message, encoded_message)));
 }

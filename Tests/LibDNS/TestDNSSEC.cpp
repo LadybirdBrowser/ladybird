@@ -12,12 +12,13 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
 #include <LibCore/UDPServer.h>
-#include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibCrypto/Hash/Hash.h>
 #include <LibDNS/Resolver.h>
 #include <LibTest/TestCase.h>
 
 #include <AK/Windows.h>
+
+#include <openssl/evp.h>
 
 using namespace DNS::Messages;
 
@@ -73,6 +74,46 @@ static int compare_buffers(ByteBuffer const& a, ByteBuffer const& b)
     return a.size() == b.size() ? 0 : (a.size() < b.size() ? -1 : 1);
 }
 
+// NB: LibCrypto verifies Ed25519 signatures but does not make them, so these tests sign their zones with OpenSSL.
+static ByteBuffer raw_ed25519_key(EVP_PKEY* key, int (*get)(EVP_PKEY const*, unsigned char*, size_t*))
+{
+    size_t size = 0;
+    VERIFY(get(key, nullptr, &size) == 1);
+    auto bytes = MUST(ByteBuffer::create_uninitialized(size));
+    VERIFY(get(key, bytes.data(), &size) == 1);
+    return bytes;
+}
+
+struct Ed25519KeyPair {
+    ByteBuffer private_key;
+    ByteBuffer public_key;
+};
+
+static Ed25519KeyPair generate_ed25519_key_pair()
+{
+    auto* key = EVP_PKEY_Q_keygen(nullptr, nullptr, "ED25519");
+    VERIFY(key);
+    auto private_key = raw_ed25519_key(key, EVP_PKEY_get_raw_private_key);
+    auto public_key = raw_ed25519_key(key, EVP_PKEY_get_raw_public_key);
+    EVP_PKEY_free(key);
+    return { move(private_key), move(public_key) };
+}
+
+static ByteBuffer ed25519_sign(ReadonlyBytes private_key, ReadonlyBytes message)
+{
+    auto* key = EVP_PKEY_new_raw_private_key_ex(nullptr, "ED25519", nullptr, private_key.data(), private_key.size());
+    VERIFY(key);
+    auto* context = EVP_MD_CTX_new();
+    VERIFY(EVP_DigestSignInit_ex(context, nullptr, nullptr, nullptr, nullptr, key, nullptr) == 1);
+    size_t size = 0;
+    VERIFY(EVP_DigestSign(context, nullptr, &size, message.data(), message.size()) == 1);
+    auto signature = MUST(ByteBuffer::create_uninitialized(size));
+    VERIFY(EVP_DigestSign(context, signature.data(), &size, message.data(), message.size()) == 1);
+    EVP_MD_CTX_free(context);
+    EVP_PKEY_free(key);
+    return signature;
+}
+
 struct Zone {
     DomainName apex;
     bool signed_ { true };
@@ -96,9 +137,8 @@ struct Zone {
         Zone zone;
         zone.apex = DomainName::from_string(apex_name);
         zone.use_nsec3 = use_nsec3;
-        Crypto::Curves::Ed25519 ed25519;
-        zone.private_key = MUST(ed25519.generate_private_key());
-        auto public_key = MUST(ed25519.generate_public_key(zone.private_key));
+        auto [private_key, public_key] = generate_ed25519_key_pair();
+        zone.private_key = move(private_key);
         zone.dnskey = Records::DNSKEY { 257, 3, DNSSEC::Algorithm::ED25519, public_key, 0 };
         zone.dnskey.calculated_key_tag = key_tag_for(zone.dnskey);
         zone.add(zone.apex, ResourceType::DNSKEY, zone.dnskey, 3600);
@@ -229,8 +269,7 @@ struct Zone {
         for (auto const& buffer : encoded)
             MUST(signed_data.try_append(buffer));
 
-        Crypto::Curves::Ed25519 ed25519;
-        rrsig.signature = MUST(ed25519.sign(private_key, signed_data));
+        rrsig.signature = ed25519_sign(private_key, signed_data);
         if (corrupt_signatures)
             rrsig.signature[0] ^= 0x01;
         return ResourceRecord { rrset.first().name, ResourceType::RRSIG, Class::IN, rrset.first().ttl, move(rrsig), {} };

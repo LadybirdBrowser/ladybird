@@ -87,30 +87,6 @@ class OpenSSL_X509 {
 
 class OpenSSL_PKEY {
     OPENSSL_WRAPPER_CLASS(OpenSSL_PKEY, EVP_PKEY, EVP_PKEY);
-
-public:
-    static ErrorOr<OpenSSL_PKEY> create();
-
-    friend class OpenSSL_SharedPKEY;
-};
-
-// OpenSSL never changes a key once it is built, so copies share one key.
-class OpenSSL_SharedPKEY {
-public:
-    OpenSSL_SharedPKEY() = default;
-    explicit OpenSSL_SharedPKEY(OpenSSL_PKEY&&);
-
-    OpenSSL_SharedPKEY(OpenSSL_SharedPKEY const&);
-    OpenSSL_SharedPKEY(OpenSSL_SharedPKEY&&);
-    OpenSSL_SharedPKEY& operator=(OpenSSL_SharedPKEY const&);
-    OpenSSL_SharedPKEY& operator=(OpenSSL_SharedPKEY&&);
-    ~OpenSSL_SharedPKEY();
-
-    // NB: OpenSSL takes a non-const key even to read from it.
-    EVP_PKEY* ptr() const { return m_ptr; }
-
-private:
-    EVP_PKEY* m_ptr { nullptr };
 };
 
 class OpenSSL_PKEY_CTX {

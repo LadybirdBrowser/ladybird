@@ -8,32 +8,12 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
+#include <AK/Error.h>
+#include <AK/Span.h>
 #include <LibCrypto/Hash/Hash.h>
-#include <LibCrypto/OpenSSL.h>
 
-// NB: RSA key components are big-endian unsigned integers.
 namespace Crypto::PK {
 
-class RSAPublicKey {
-public:
-    RSAPublicKey() = default;
-
-    static ErrorOr<RSAPublicKey> from_components(ReadonlyBytes modulus, ReadonlyBytes public_exponent);
-
-    size_t length() const { return m_length; }
-
-    ErrorOr<bool> is_valid() const;
-
-    EVP_PKEY* openssl_key() const { return m_key.ptr(); }
-
-private:
-    RSAPublicKey(OpenSSL_SharedPKEY key);
-
-    OpenSSL_SharedPKEY m_key;
-    size_t m_length { 0 };
-};
-
-ErrorOr<bool> rsa_pkcs1_verify(RSAPublicKey const&, Hash::HashKind, ReadonlyBytes message, ReadonlyBytes signature);
+ErrorOr<bool> rsa_pkcs1_verify(ReadonlyBytes modulus, ReadonlyBytes public_exponent, Hash::HashKind, ReadonlyBytes message, ReadonlyBytes signature);
 
 }
