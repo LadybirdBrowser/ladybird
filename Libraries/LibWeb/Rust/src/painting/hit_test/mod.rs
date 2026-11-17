@@ -45,12 +45,12 @@ pub struct HitTestItem {
     pub rect: CssPixelRect,
     pub context: ContextRef,
     pub border_radii: BorderRadii,
-    pub path: Option<Arc<libgfx_rust::path::Path>>,
+    pub path: Option<Arc<crate::layout::fragment_tree::CommittedSvgPath>>,
     pub winding_rule: libgfx_rust::WindingRule,
     /// For an SVG path, the `svg_hit_area` flags naming which of its areas pointer events can target.
     pub svg_hit_areas: u8,
     /// For an SVG path whose stroke pointer events can target, the shape of that stroke.
-    pub svg_stroke: Option<Arc<SvgStrokeHitRegion>>,
+    pub svg_stroke: Option<SvgStrokeHitRegion>,
 }
 
 /// The areas of an SVG graphics element that pointer events can target.
@@ -61,19 +61,15 @@ pub mod svg_hit_area {
 }
 
 /// The stroke of an SVG path as hit testing reads it. The outline of the stroke is only built when a point first
-/// reaches it, and the copies of an item that later recordings reuse share it.
-#[derive(Debug)]
+/// reaches it, and the committed path keeps it for as long as the stroke keeps its style.
+#[derive(Clone, Debug, PartialEq)]
 pub struct SvgStrokeHitRegion {
     style: libgfx_rust::path::StrokeStyle,
-    outline: std::sync::OnceLock<libgfx_rust::path::Path>,
 }
 
 impl SvgStrokeHitRegion {
     pub fn new(style: libgfx_rust::path::StrokeStyle) -> Self {
-        Self {
-            style,
-            outline: std::sync::OnceLock::new(),
-        }
+        Self { style }
     }
 
     /// How far past the path its stroke can reach.
@@ -88,16 +84,8 @@ impl SvgStrokeHitRegion {
         self.style.thickness / 2.0 * factor
     }
 
-    pub fn contains(&self, path: &libgfx_rust::path::Path, x: f32, y: f32) -> bool {
-        self.outline
-            .get_or_init(|| path.stroke_to_fill(&self.style))
-            .contains(x, y, libgfx_rust::WindingRule::Nonzero)
-    }
-}
-
-impl PartialEq for SvgStrokeHitRegion {
-    fn eq(&self, other: &Self) -> bool {
-        self.style == other.style
+    pub fn contains(&self, path: &crate::layout::fragment_tree::CommittedSvgPath, x: f32, y: f32) -> bool {
+        path.stroke_with_style_contains(&self.style, x, y)
     }
 }
 

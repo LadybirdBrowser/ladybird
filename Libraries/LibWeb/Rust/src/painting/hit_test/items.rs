@@ -494,7 +494,7 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
         self.sink.append(item);
     }
 
-    fn svg_stroke_hit_region(&self, paintable: NodeSlotId) -> Option<std::sync::Arc<SvgStrokeHitRegion>> {
+    fn svg_stroke_hit_region(&self, paintable: NodeSlotId) -> Option<SvgStrokeHitRegion> {
         let style = self.rows.node_style_if_live(paintable)?;
         let stroke = crate::painting::record::paint::svg::svg_stroke_style(self.rows, paintable, &style);
         let mut thickness = stroke.width;
@@ -516,16 +516,14 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
         if thickness.is_nan() || thickness <= 0.0 {
             return None;
         }
-        Some(std::sync::Arc::new(SvgStrokeHitRegion::new(
-            libgfx_rust::path::StrokeStyle {
-                thickness,
-                cap_style: stroke.cap_style,
-                join_style: stroke.join_style,
-                miter_limit: stroke.miter_limit,
-                dash_array,
-                dash_offset,
-            },
-        )))
+        Some(SvgStrokeHitRegion::new(libgfx_rust::path::StrokeStyle {
+            thickness,
+            cap_style: stroke.cap_style,
+            join_style: stroke.join_style,
+            miter_limit: stroke.miter_limit,
+            dash_array,
+            dash_offset,
+        }))
     }
 
     fn empty_editable_item(&mut self, paintable: NodeSlotId) {

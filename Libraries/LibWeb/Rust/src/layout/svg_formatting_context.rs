@@ -2358,7 +2358,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
 
         self.update_svg_payload_of(graphics_box, |svg| {
-            svg.path = Some(std::sync::Arc::new(path));
+            svg.path = Some(std::sync::Arc::new(fragment_tree::CommittedSvgPath::new(path)));
             svg.text_character_cells = character_cells.map(std::sync::Arc::new);
         });
         let object_bounding_box = if is_text_content_box {

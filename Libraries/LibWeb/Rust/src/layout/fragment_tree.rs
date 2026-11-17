@@ -128,8 +128,65 @@ pub(crate) struct GridPayload {
 pub(crate) struct SvgPayload {
     pub(crate) facts: CommittedSvgFacts,
     pub(crate) geometry: svg_formatting_context::SvgGeometry,
-    pub(crate) path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
+    pub(crate) path: Option<std::sync::Arc<CommittedSvgPath>>,
     pub(crate) text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
+}
+
+pub(crate) struct CommittedSvgPath {
+    pub(crate) path: libgfx_rust::path::Path,
+    latest_stroke_outline: std::sync::Mutex<Option<StrokeOutline>>,
+}
+
+struct StrokeOutline {
+    style_it_was_built_for: libgfx_rust::path::StrokeStyle,
+    outline: libgfx_rust::path::Path,
+}
+
+impl CommittedSvgPath {
+    pub(crate) fn new(path: libgfx_rust::path::Path) -> Self {
+        Self {
+            path,
+            latest_stroke_outline: std::sync::Mutex::new(None),
+        }
+    }
+
+    pub(crate) fn stroke_with_style_contains(&self, style: &libgfx_rust::path::StrokeStyle, x: f32, y: f32) -> bool {
+        let mut latest_stroke_outline = self
+            .latest_stroke_outline
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let stroke_outline = match latest_stroke_outline.take() {
+            Some(stroke_outline) if stroke_outline.style_it_was_built_for == *style => stroke_outline,
+            _ => StrokeOutline {
+                style_it_was_built_for: style.clone(),
+                outline: self.path.stroke_to_fill(style),
+            },
+        };
+        latest_stroke_outline
+            .insert(stroke_outline)
+            .outline
+            .contains(x, y, libgfx_rust::WindingRule::Nonzero)
+    }
+}
+
+impl std::ops::Deref for CommittedSvgPath {
+    type Target = libgfx_rust::path::Path;
+
+    fn deref(&self) -> &libgfx_rust::path::Path {
+        &self.path
+    }
+}
+
+impl PartialEq for CommittedSvgPath {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+    }
+}
+
+impl std::fmt::Debug for CommittedSvgPath {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.path.fmt(formatter)
+    }
 }
 
 /// Compares payloads as painting needs: the layout data painting reads through its allocation as the same allocations,
