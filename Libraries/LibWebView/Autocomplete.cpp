@@ -451,7 +451,7 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
 
     auto const& settings = m_host.autocomplete_settings();
     auto engine = settings.search_engine_settings().engine;
-    if (!settings.search_engine_settings().suggestions || !engine.has_value() || !engine->suggestions.has_value()) {
+    if (!settings.search_engine_settings().suggestions || !engine.has_value() || !engine->suggestions_url.has_value()) {
         m_remote_suggestions.clear();
         m_remote_query_complete = true;
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping remote autocomplete because search suggestions are disabled or unavailable");
@@ -552,7 +552,7 @@ void Autocomplete::start_remote_query(AutocompleteQueryID query_id, SearchEngine
         if (response.content_type.has_value())
             content_type = *response.content_type;
 
-        if (auto result = received_autocomplete_response(*engine.suggestions, content_type, StringView { response.body.bytes() }); result.is_error()) {
+        if (auto result = received_autocomplete_response(content_type, StringView { response.body.bytes() }); result.is_error()) {
             warnln("Unable to handle autocomplete response: {}", result.error());
             deliver_without_an_answer();
         } else {
@@ -652,7 +652,7 @@ static ErrorOr<Vector<String>> parse_opensearch_autocomplete(JsonValue const& js
     return results;
 }
 
-ErrorOr<Vector<String>> Autocomplete::received_autocomplete_response(SearchSuggestions const&, Optional<ByteString const&> content_type, StringView response)
+ErrorOr<Vector<String>> Autocomplete::received_autocomplete_response(Optional<ByteString const&> content_type, StringView response)
 {
     auto decoder = [&]() -> Optional<TextCodec::Decoder> {
         if (!content_type.has_value())

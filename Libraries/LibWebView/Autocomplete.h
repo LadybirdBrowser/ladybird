@@ -163,7 +163,7 @@ public:
 private:
     virtual void search_engine_settings_changed() override;
 
-    static ErrorOr<Vector<String>> received_autocomplete_response(SearchSuggestions const&, Optional<ByteString const&> content_type, StringView response);
+    static ErrorOr<Vector<String>> received_autocomplete_response(Optional<ByteString const&> content_type, StringView response);
     void start_remote_query(AutocompleteQueryID, SearchEngine, String query);
     void stop_remote_query_timers();
     void drop_remote_suggestions_for_other_text();

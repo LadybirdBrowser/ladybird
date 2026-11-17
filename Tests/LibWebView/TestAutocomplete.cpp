@@ -482,7 +482,7 @@ TEST_CASE(autocomplete)
     WebView::Application::settings().add_custom_search_engine(WebView::SearchEngine {
         .name = "Test"_string,
         .query_url = "http://127.0.0.1:47919/search?q=%s"_string,
-        .suggestions = WebView::SearchSuggestions { "http://127.0.0.1:47919/suggest?q=%s"_string },
+        .suggestions_url = "http://127.0.0.1:47919/suggest?q=%s"_string,
     });
     WebView::Application::settings().set_search_engine_settings({
         .engine = WebView::Application::settings().find_search_engine_by_name("Test"sv),
