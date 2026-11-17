@@ -505,7 +505,9 @@ void JavaScriptDialog::update_chrome_style()
         return;
 
     m_is_updating_chrome_style = true;
-    setStyleSheet(ChromeStyle::javascript_dialog_style_sheet(palette()));
+    auto style_sheet = ChromeStyle::javascript_dialog_style_sheet(palette());
+    if (styleSheet() != style_sheet)
+        setStyleSheet(style_sheet);
 #if !defined(AK_OS_MACOS)
     if (m_panel_shadow)
         m_panel_shadow->setColor(QColor(0, 0, 0, Theme::is_dark() ? 140 : 56));
