@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe id="frame" style="width: 200px; height: 200px; border: 0" srcdoc="
+    <style>
+        @keyframes shrink {
+            from { height: 50px; }
+            to { height: 10px; }
+        }
+        #header {
+            height: 50px;
+            animation: shrink linear both;
+            animation-timeline: scroll(root);
+        }
+        #box {
+            width: 10px;
+            height: 10px;
+            transform: translateX(1px);
+        }
+        #spacer {
+            height: 2000px;
+        }
+    </style>
+    <div id='header'></div>
+    <div id='box'></div>
+    <div id='spacer'></div>
+"></iframe>
+<script>
+    // A task drops a transform in a hidden iframe's document, and has the host bring its visual context tree up to date,
+    // which gives the tree another structure. The rendering update after it paints nothing of a hidden iframe, so no
+    // frame presents that tree, and the lane of the frame on screen goes on from the state as the update left it. The
+    // compositor does not have the tree of that state, so the frame of the lane's next tick is the host's.
+    asyncTest(async done => {
+        await srcdocLoaded(frame);
+        const inner = frame.contentWindow;
+        const innerDocument = frame.contentDocument;
+        const untilInnerLaneSettled = async () => {
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle" || internals.clockLaneIsComing(innerDocument));
+        };
+        const result = await whileLaneAnimates(() => innerDocument.getElementById("header").getAnimations()[0], async frameTime => {
+            await untilInnerLaneSettled();
+            const laneBefore = internals.clockLaneState(innerDocument);
+            frame.style.visibility = "hidden";
+            innerDocument.getElementById("box").style.transform = "none";
+            inner.internals.updateVisualContextsForTesting();
+            internals.injectRenderingOpportunity(frameTime + 16);
+            await untilInnerLaneSettled();
+            inner.internals.injectClockTick(frameTime + 32, 1000);
+            return {
+                laneBefore,
+                lane: internals.clockLaneState(innerDocument),
+                presentedBy: internals.lastFramePresentedBy(innerDocument),
+            };
+        });
+        println(`render clock of the iframe's document before the task: ${result.laneBefore}`);
+        println(`render clock after a frame scrolled down: ${result.lane}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>
