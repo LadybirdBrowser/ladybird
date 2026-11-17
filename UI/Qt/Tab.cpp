@@ -219,9 +219,6 @@ void Tab::initialize(Optional<u64> hub_view_id)
     m_view->set_window_size({ m_window->width(), m_window->height() });
     m_javascript_dialog = new JavaScriptDialog(m_view);
     m_javascript_dialog->on_page_dim_change = [this](qreal dim) { m_view->set_page_dim(dim); };
-    m_find_in_page = new FindInPageWidget(this, m_view);
-    m_view->add_floating_surface(*m_find_in_page);
-    m_find_in_page->setVisible(false);
 
     // The window's toolbar holds the address field while it shows this tab.
     m_location_edit = new LocationEdit(this, Application::settings(), make<SuggestionProvider>(m_window->is_private()));
@@ -844,6 +841,7 @@ void Tab::initialize(Optional<u64> hub_view_id)
     };
 
     view().on_find_in_page = [this](auto current_match_index, auto const& total_match_count) {
+        VERIFY(m_find_in_page);
         m_find_in_page->update_result_label(current_match_index, total_match_count);
     };
 
@@ -1440,7 +1438,7 @@ bool Tab::eventFilter(QObject* watched, QEvent* event)
         && hover_text_belongs_on_right(static_cast<QMouseEvent*>(event)->position().toPoint()) != m_hover_text_is_on_right)
         update_hover_label();
     if (watched == m_view && (event->type() == QEvent::Resize || event->type() == QEvent::Move)) {
-        if (m_find_in_page->isVisible())
+        if (m_find_in_page && m_find_in_page->isVisible())
             m_find_in_page->reposition();
         m_window->reposition_page_cards();
     }
@@ -1671,20 +1669,31 @@ void Tab::position_private_session_popover()
     move_popover_below(*m_private_session_popover, m_window->ladybird_button(), PopoverAlignment::Leading, m_window->ladybird_button().tile_rect());
 }
 
+FindInPageWidget& Tab::ensure_find_in_page()
+{
+    if (!m_find_in_page) {
+        m_find_in_page = new FindInPageWidget(this, m_view);
+        m_view->add_floating_surface(*m_find_in_page);
+        m_find_in_page->setVisible(false);
+    }
+    return *m_find_in_page;
+}
+
 void Tab::show_find_in_page()
 {
-    m_find_in_page->setVisible(true);
-    m_find_in_page->focus_search_field();
+    auto& find_in_page = ensure_find_in_page();
+    find_in_page.setVisible(true);
+    find_in_page.focus_search_field();
 }
 
 void Tab::find_previous()
 {
-    m_find_in_page->find_previous();
+    ensure_find_in_page().find_previous();
 }
 
 void Tab::find_next()
 {
-    m_find_in_page->find_next();
+    ensure_find_in_page().find_next();
 }
 
 void Tab::request_close()

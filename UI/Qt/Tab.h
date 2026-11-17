@@ -192,6 +192,7 @@ private:
     void create_tab_shell();
     void create_tab_context_menu();
     void initialize(Optional<u64> hub_view_id);
+    FindInPageWidget& ensure_find_in_page();
 
     void location_edit_return_pressed(String, Optional<URL::URL>, WebView::OmniboxDestinationKind);
     virtual void resizeEvent(QResizeEvent*) override;
