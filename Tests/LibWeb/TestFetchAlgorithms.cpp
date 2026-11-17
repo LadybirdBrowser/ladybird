@@ -816,7 +816,7 @@ public:
         MUST(message.transfer_message(*m_resource_loader.request_server));
         auto marker = ByteString::formatted("received {}", ++m_received_count);
         auto request_id = handle().request_id().value();
-        auto marker_message = MUST(Messages::RequestClient::HeadersBecameAvailable::static_encode(request_id, Vector<HTTP::Header> {}, Optional<u32> {}, Optional<String> {}, Requests::CacheState::NotCached, marker));
+        auto marker_message = MUST(Messages::RequestClient::HeadersBecameAvailable::static_encode(request_id, URL::about_blank(), Vector<HTTP::Header> {}, Optional<u32> {}, Optional<String> {}, Requests::CacheState::NotCached, marker));
         MUST(marker_message.transfer_message(*m_resource_loader.request_server));
 
         auto weak_handle = handle().make_weak_ptr<NetworkTransportHandle>();

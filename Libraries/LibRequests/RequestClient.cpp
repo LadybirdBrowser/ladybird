@@ -233,11 +233,11 @@ void RequestClient::request_finished(u64 request_id, u64 total_size, RequestTimi
         m_requests.remove(request_id);
 }
 
-void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, CacheState cache_state, ByteString http_version)
+void RequestClient::headers_became_available(u64 request_id, URL::URL url, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, CacheState cache_state, ByteString http_version)
 {
     RefPtr<Request> request = m_requests.get(request_id).value_or(nullptr);
     if (request)
-        request->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, cache_state, move(http_version));
+        request->did_receive_headers({}, move(url), HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, cache_state, move(http_version));
     else
         warnln("Received headers for non-existent request {}", request_id);
 }
