@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Reference: Percent height quirk does not traverse flex/grid containers</title>
+  <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+  <link rel="author" href="https://mozilla.org" title="Mozilla">
+  <style>
+    .fixed-height-outer {
+      height: 80px;
+      border: 1px solid gray;
+      margin-bottom: 5px;
+    }
+
+    .row-flex {
+      display: flex;
+      flex-direction: row
+    }
+
+    .column-flex {
+      display: flex;
+      flex-direction: column
+    }
+
+    .grid {
+      display: grid;
+    }
+
+    .container {
+      border: 3px solid black;
+    }
+
+    .pct {
+        height: 75%;
+        min-height: 10px;
+        width: 50px;
+        display: inline-block;
+        vertical-align: top;
+        background: purple;
+    }
+    .px {
+        height: 50px;
+        width: 50px;
+        display: inline-block;
+        vertical-align: top;
+        background: blue
+    }
+  </style>
+</head>
+<body>
+  <div class="fixed-height-outer">
+    <div class="container column-flex">
+      <div>
+        <div class="pct"></div>
+        <div class="px"></div>
+      </div>
+    </div>
+  </div>
+  <div class="fixed-height-outer">
+    <div class="container row-flex">
+      <div>
+        <div class="pct"></div>
+        <div class="px"></div>
+      </div>
+    </div>
+  </div>
+  <div class="fixed-height-outer">
+    <div class="container grid">
+      <div>
+        <div class="pct"></div>
+        <div class="px"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

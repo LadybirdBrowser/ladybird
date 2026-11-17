@@ -1,0 +1,56 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Percent height quirk applies for percent heights on flex/grid containers</title>
+  <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+  <link rel="author" href="https://mozilla.org" title="Mozilla">
+  <link rel="help" href="https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk">
+  <link rel="match" href="../../../expected/wpt-import/quirks/reference/percentage-height-quirk-excludes-flex-grid-002-ref.html">
+  <meta name="assert" content="This quirk only starts differentiating by box-type when looking at the containing block of the percent-height thing. So, the quirk applies to percent-heights on flex/grid containers, when the ancestors are all blocks up to the nearest definite height.">
+  <style>
+    .fixed-height-outer {
+      height: 80px;
+      border: 1px solid gray;
+      margin-bottom: 5px;
+    }
+
+    .row-flex {
+      display: flex;
+      flex-direction: row
+    }
+
+    .column-flex {
+      display: flex;
+      flex-direction: column
+    }
+
+    .grid {
+      display: grid;
+    }
+
+    .pct {
+        height: 75%;
+        min-height: 10px;
+        width: 50px;
+        background: purple;
+    }
+  </style>
+</head>
+<body>
+  <div class="fixed-height-outer">
+    <div>
+      <div class="column-flex pct"></div>
+    </div>
+  </div>
+  <div class="fixed-height-outer">
+    <div>
+      <div class="row-flex pct"></div>
+    </div>
+  </div>
+  <div class="fixed-height-outer">
+    <div>
+      <div class="grid pct"></div>
+    </div>
+  </div>
+</body>
+</html>

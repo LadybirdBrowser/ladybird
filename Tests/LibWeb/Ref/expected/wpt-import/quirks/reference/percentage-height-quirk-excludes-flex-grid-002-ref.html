@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Reference case: Percent height quirk applies for percent heights on flex/grid containers</title>
+  <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+  <link rel="author" href="https://mozilla.org" title="Mozilla">
+  <link rel="mismatch" href="percentage-height-quirk-excludes-flex-grid-002-notref.html">
+  <style>
+    .fixed-height-outer {
+      height: 80px;
+      border: 1px solid gray;
+      margin-bottom: 5px;
+    }
+
+    .row-flex {
+      display: flex;
+      flex-direction: row
+    }
+
+    .column-flex {
+      display: flex;
+      flex-direction: column
+    }
+
+    .grid {
+      display: grid;
+    }
+
+    .pct {
+        height: 75%;
+        min-height: 10px;
+        width: 50px;
+        background: purple;
+    }
+  </style>
+</head>
+<body>
+  <div class="fixed-height-outer">
+    <div class="column-flex pct"></div>
+  </div>
+  <div class="fixed-height-outer">
+    <div class="row-flex pct"></div>
+  </div>
+  <div class="fixed-height-outer">
+    <div class="grid pct"></div>
+  </div>
+</body>
+</html>

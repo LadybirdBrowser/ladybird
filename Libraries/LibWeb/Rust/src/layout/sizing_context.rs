@@ -1404,6 +1404,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             })
         } else if quirks_body_block.is_some() {
             quirks_body_block
+        } else if !style.height().is_auto() && !metrics.has_definite_block_size() {
+            // NB: A height that can't be resolved, such as a percentage of an indefinite size, behaves as auto, but
+            //     step 3 still ends the search at the element. So its block size leaves percentages no basis.
+            None
         } else if !style.height().is_auto()
             || facts.is_absolutely_positioned()
             || !facts.is_block_container()
