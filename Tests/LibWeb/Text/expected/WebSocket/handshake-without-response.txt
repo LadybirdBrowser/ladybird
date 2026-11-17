@@ -1,0 +1,2 @@
+open
+close, readyState: 3, wasClean: true, code: 1005
