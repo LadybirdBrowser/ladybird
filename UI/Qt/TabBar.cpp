@@ -4691,7 +4691,8 @@ void TabWidget::set_tab_text(int index, QString const& text)
 
 void TabWidget::set_tab_icon(int index, QIcon const& icon)
 {
-    m_tab_bar->setTabIcon(index, icon);
+    if (m_tab_bar->tabIcon(index).cacheKey() != icon.cacheKey())
+        m_tab_bar->setTabIcon(index, icon);
     update_all_tabs_entries_soon();
 }
 
