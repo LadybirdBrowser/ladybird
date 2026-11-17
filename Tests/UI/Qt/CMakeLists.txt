@@ -33,6 +33,7 @@ set(TEST_SOURCES
     TestHiddenPageSizing.cpp
     TestJavaScriptDialog.cpp
     TestLadybirdMenu.cpp
+    TestLocationEdit.cpp
     TestNativeTextEditingLineEdit.cpp
     TestNativeWindowContainerFocus.cpp
     TestPermissionPromptPopover.cpp
