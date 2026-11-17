@@ -48,7 +48,8 @@
     // - cssAnimations: each CSS animation's name and applied definition.
     // - styleValues: the animated value of the longhand the payload of its group holds.
     // - animationRecords: the records the animation and its effect keep their state in, a transition's keyframes, and
-    //   the element's lists of its animations and of the effect descriptions it published to the engine.
+    //   the element's lists of its animations, of those it let go of while inert, and of the effect descriptions it
+    //   published to the engine.
     const animationBudgets = {
         records: 464,
         payloads: 656,
@@ -63,7 +64,7 @@
         animationEffects: 416,
         cssAnimations: 240,
         cppInstalledStyles: 8,
-        animationRecords: 856,
+        animationRecords: 880,
     };
     const transitionBudgets = {
         records: 464,
@@ -77,7 +78,7 @@
         layoutStyleColumns: 28,
         animationEffects: 348,
         cppInstalledStyles: 8,
-        animationRecords: 1058,
+        animationRecords: 1066,
     };
 
     // NB: What a transaction in flight holds of earlier generations, and what the style threads keep for the next
