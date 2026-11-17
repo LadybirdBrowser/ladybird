@@ -632,6 +632,7 @@ void LocationEdit::update_trailing_action_visibility()
 {
     m_trailing_action_button->setVisible(m_trailing_action_button->defaultAction() && !m_is_editing_location && !m_url_is_hidden);
     update_translate_button();
+    update_zoom_indicator();
     update_text_margins();
     update_trailing_item_positions();
 }
@@ -1397,6 +1398,12 @@ void LocationEdit::update_zoom_indicator()
 {
     if (!m_zoom_indicator_button)
         return;
+
+    if (m_is_editing_location || m_url_is_hidden) {
+        m_zoom_indicator_fade->stop();
+        m_zoom_indicator_button->hide();
+        return;
+    }
 
     // The chip fades in when the page is zoomed and out when the zoom is reset. Its number changes in place.
     auto fade_to = [this](qreal opacity) {
