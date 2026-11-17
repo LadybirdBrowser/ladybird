@@ -13,6 +13,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Origin.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
@@ -23,6 +24,7 @@
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Fetch/Infrastructure/PortBlocking.h>
@@ -195,7 +197,8 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     request->set_redirect_mode(Fetch::Infrastructure::Request::RedirectMode::Error);
 
     // FIXME: Fetch request as per the remaining steps of https://websockets.spec.whatwg.org/#concept-websocket-establish
-    // AD-HOC: Until the opening handshake goes through fetch, run the blocking checks of main fetch here.
+    // AD-HOC: Until the opening handshake goes through fetch, run the blocking checks and the HSTS upgrade of main
+    //         fetch here.
     request->set_policy_container(client.policy_container()->clone());
     request->set_client_snapshot(Fetch::Fetching::snapshot_client_context(client));
     auto report_violation = ContentSecurityPolicy::violation_reporter_for_request(client.realm(), request);
@@ -206,6 +209,8 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
         || ContentSecurityPolicy::should_request_be_blocked_by_content_security_policy(request, report_violation) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         return Error::from_string_literal("WebSocket connection was blocked");
     }
+
+    Fetch::Fetching::upgrade_request_to_https_for_known_hsts_host_if_appropriate(Bindings::principal_host_defined_page(client.realm()), *request);
 
     if (m_ready_state != Requests::WebSocket::ReadyState::Connecting)
         return Error::from_string_literal("The WebSocket was closed before it connected");
