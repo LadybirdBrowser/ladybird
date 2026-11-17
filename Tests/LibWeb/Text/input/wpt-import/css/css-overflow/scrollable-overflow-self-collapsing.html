@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta name="assert" content="This ensures that an end self-collapsing block contributes to the scrollable overflow correctly.">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#scrollable" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.target')">
+  <div class="target" style="width: 100px; height: 100px; overflow: scroll;" data-expected-scroll-height="110">
+    <div style="width: 50px; height: 100px; margin-bottom: 10px; background: lime;"></div>
+    <div></div> <!-- self-collapsing -->
+  </div>
+  <div class="target" style="width: 100px; height: 100px; overflow: scroll;" data-expected-scroll-height="150">
+    <div style="width: 50px; height: 100px; margin-bottom: 10px; background: lime;"></div>
+    <div style="margin-bottom: 50px;"></div> <!-- self-collapsing -->
+  </div>
+  <div class="target" style="width: 100px; height: 100px; overflow: scroll;" data-expected-scroll-height="180">
+    <div style="width: 50px; height: 100px; margin-bottom: 30px; background: lime;"></div>
+    <div style="margin-bottom: 100px;"> <!-- self-collapsing -->
+      <div style="margin-top: -20px;"></div>
+    </div>
+  </div>
+  <div id=log></div>
+</body>

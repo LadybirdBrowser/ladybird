@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .scroller { width: 300px; overflow: auto; font: 14px/20px sans-serif; }
+    p { margin: 14px 0; }
+    .padded { height: 50px; padding: 7px; }
+    .block { height: 50px; }
+</style>
+<div class="scroller" id="text-then-empty">Text<p></p></div>
+<div class="scroller" id="block-then-empty"><p>Text</p><p></p></div>
+<div class="scroller" id="block-in-inline-then-break-then-empty"><span><p>Text</p></span><br><p></p></div>
+<div class="scroller" id="block-in-inline-then-break"><span><p>Text</p></span><br></div>
+<div class="scroller" id="block-in-inline-then-empty"><span><p>Text</p></span><p></p></div>
+<div class="scroller" id="block-in-inline-then-text-then-empty"><span><p>Text</p></span>x<p></p></div>
+<div class="scroller" id="block-in-inline-then-empty-in-inline"><span><p>Text</p></span><span><p></p></span></div>
+<div class="scroller" id="text-then-break-then-empty">Text<br><p></p></div>
+<div class="scroller" id="block-then-break-then-empty"><p>Text</p><br><p></p></div>
+<div class="scroller" id="only-empty"><p></p></div>
+<div class="scroller" id="empty-then-block"><p></p><p>Text</p></div>
+<div class="scroller" id="block-then-two-empty"><p>Text</p><p></p><p></p></div>
+<div class="scroller" id="empty-with-larger-top-margin"><p>Text</p><p style="margin: 30px 0 5px"></p></div>
+<div class="scroller" id="empty-with-larger-bottom-margin"><p>Text</p><p style="margin: 5px 0 30px"></p></div>
+<div class="scroller" id="empty-with-negative-top-margin"><p>Text</p><p style="margin: -5px 0 30px"></p></div>
+<div class="scroller" id="empty-in-block"><p>Text</p><div><p></p></div></div>
+<div class="scroller" id="block-in-block"><div><p>Text</p></div></div>
+<div class="scroller" id="empty-with-clear"><p>Text</p><p style="clear: both"></p></div>
+<div class="scroller" id="padding" style="padding: 7px"><p>Text</p><p></p></div>
+<div class="scroller" id="padding-around-block-in-block" style="padding: 7px"><div><p>Text</p></div></div>
+<div class="scroller padded" id="overflowing-block-in-block"><div><div class="block"></div><p>Text</p></div></div>
+<div class="scroller padded" id="overflowing-then-empty"><div class="block"></div><p>Text</p><p></p></div>
+<div class="scroller padded" id="overflowing-then-two-empty"><div class="block"></div><p>Text</p><p style="margin: 5px 0 30px"></p><p></p></div>
+<div class="scroller padded" id="overflowing-only-empty-after-block"><div class="block"></div><p style="margin: 5px 0 30px"></p></div>
+<div class="scroller padded" id="not-overflowing-empty"><p></p></div>
+<div class="scroller padded" id="overflowing-text-then-empty"><div class="block"></div>Text<p></p></div>
+<div class="scroller padded" id="overflowing-block-in-inline-then-break-then-empty"><div class="block"></div><span><p>Text</p></span><br><p></p></div>
+<div class="scroller" id="vertical" style="writing-mode: vertical-rl; width: auto; height: 100px"><p style="margin: 0 14px">Text</p><p style="margin: 0 14px"></p></div>
+<div class="scroller" id="in-flex-item" style="display: flex; flex-direction: column"><div style="overflow: auto"><p>Text</p><p></p></div></div>
+<script>
+    test(() => {
+        // The in-flow content of a scroll container ends where its flow does: after the margins that collapse at the end
+        // of it, counted once. So a box whose height fits its content has nothing to scroll, whatever margins collapse
+        // through its last children.
+        for (const scroller of document.querySelectorAll(".scroller")) {
+            if (scroller.id == "in-flex-item")
+                println(`${scroller.id}: ${scroller.firstChild.clientHeight} ${scroller.firstChild.scrollHeight}`);
+            else if (scroller.id == "vertical")
+                println(`${scroller.id}: ${scroller.clientWidth} ${scroller.scrollWidth}`);
+            else
+                println(`${scroller.id}: ${scroller.clientHeight} ${scroller.scrollHeight}`);
+        }
+    });
+</script>

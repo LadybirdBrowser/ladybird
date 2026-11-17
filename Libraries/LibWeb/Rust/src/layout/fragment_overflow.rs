@@ -10,7 +10,7 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
 use crate::layout::LayoutNodeArena;
 use crate::layout::fragment_tree::{Fragment, FragmentLink, OuterLinks, SvgPayload};
-use crate::layout::geometry::{Frame, Sides};
+use crate::layout::geometry::{Frame, Side, Sides};
 use crate::layout::inline_content::{InlineContent, PhysicalPlane};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts::{self, NodeShape};
@@ -377,6 +377,7 @@ pub(crate) fn scrollable_overflow_of<'link>(
     //          its 3D rendering context. [CSS3-TRANSFORMS]
     let container_inline_axis_is_horizontal =
         style.is_none_or(|style| style.writing_mode() == writing_mode::HORIZONTAL_TB);
+    let container_frame = Frame::of(style.map_or(writing_mode::HORIZONTAL_TB, |style| style.writing_mode()));
     for link in contained_links {
         let child = &link.fragment;
         let child_node = child.node;
@@ -461,6 +462,19 @@ pub(crate) fn scrollable_overflow_of<'link>(
                     } else {
                         (zero, zero)
                     };
+                    // NB: Past the block end of a box in the flow of a block container, the margin that counts is
+                    //     what that flow collapsed there, not the box's own: The margins of the box's contents that
+                    //     collapse through its block end count too, and those that collapse through the box itself
+                    //     count once.
+                    let [top, right, bottom, left] =
+                        match link.placement.shown_as.facts.block_end_margin_collapsed_in_flow {
+                            Some(block_end_margin) => {
+                                let mut margins = [top, right, bottom, left];
+                                margins[container_frame.physical_side(Side::Bottom) as usize] = block_end_margin;
+                                margins
+                            }
+                            None => [top, right, bottom, left],
+                        };
                     let (left, right) = if overflow_directions.horizontal_axis_is_positive {
                         (left.max(zero), right.max(-border_box.width))
                     } else {

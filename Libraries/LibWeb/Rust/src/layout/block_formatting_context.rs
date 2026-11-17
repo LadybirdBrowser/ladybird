@@ -715,6 +715,36 @@ impl BlockMarginState {
         }
     }
 
+    /// Collapses the margins after a block-level box of the flow: what the contents of the box left in their margin
+    /// state, `margins_left_by_contents`, where the box has contents in the flow, and its block-end margin. Returns the
+    /// margin the flow leaves past the block end of the box: its block-end margin, collapsed with the margins of its
+    /// contents that collapse through its block end. For a box that margins collapse through, which sits past the
+    /// margins before it, that is how much its block-end margin adds to them.
+    fn collapse_margins_after_block_level_box(
+        &mut self,
+        margins_left_by_contents: Option<&Self>,
+        collapses_through: bool,
+        continues_in_next_fragment: bool,
+        margin_bottom: CssPixels,
+    ) -> CssPixels {
+        if let Some(contents) = margins_left_by_contents {
+            self.take_in_margins_left_by_contents(contents);
+        }
+        let last_in_flow_child_margin_bottom_collapsed =
+            margins_left_by_contents.is_some_and(|contents| contents.box_last_in_flow_child_margin_bottom_collapsed);
+        if !collapses_through && (!last_in_flow_child_margin_bottom_collapsed || continues_in_next_fragment) {
+            self.reset();
+        }
+        let margin_before_block_end_margin = self.current_collapsed_margin();
+        self.add_margin(margin_bottom);
+        self.update_open_top_margin_group();
+        if collapses_through {
+            self.current_collapsed_margin() - margin_before_block_end_margin
+        } else {
+            self.current_collapsed_margin()
+        }
+    }
+
     /// The block-start margin of a block container in this margin state, whose contents collapsed `group` into it.
     fn block_start_margin_collapsing(&self, group: TopMarginGroup) -> CssPixels {
         self.margins_since_reset
@@ -1521,17 +1551,39 @@ impl<'pass> BlockFormattingContext<'pass> {
         continues_in_next_fragment: bool,
         margin_bottom: CssPixels,
     ) {
-        let mut margin_state = self.margin_state_mut();
-        if let Some(contents) = margins_left_by_contents {
-            margin_state.take_in_margins_left_by_contents(contents);
-        }
-        let last_in_flow_child_margin_bottom_collapsed =
-            margins_left_by_contents.is_some_and(|contents| contents.box_last_in_flow_child_margin_bottom_collapsed);
-        if !collapses_through && (!last_in_flow_child_margin_bottom_collapsed || continues_in_next_fragment) {
-            margin_state.reset();
-        }
-        margin_state.add_margin(margin_bottom);
-        margin_state.update_open_top_margin_group();
+        self.margin_state_mut().collapse_margins_after_block_level_box(
+            margins_left_by_contents,
+            collapses_through,
+            continues_in_next_fragment,
+            margin_bottom,
+        );
+    }
+
+    /// The margin this flow leaves past the block end of a block-level box, which collapsing the margins after the box
+    /// answers (see [`BlockMarginState::collapse_margins_after_block_level_box`]), before they are collapsed.
+    /// `contents_are_in_this_flow` says if the innermost margin state is that of the box's contents.
+    fn block_end_margin_collapsed_after_block_level_box(
+        &self,
+        contents_are_in_this_flow: bool,
+        collapses_through: bool,
+        continues_in_next_fragment: bool,
+        margin_bottom: CssPixels,
+    ) -> CssPixels {
+        let states = self.margin_states.borrow();
+        let (enclosing, margins_left_by_contents) = if contents_are_in_this_flow {
+            let [.., enclosing, contents] = states.as_slice() else {
+                panic!("a block container's contents have a margin state of their own");
+            };
+            (enclosing, Some(contents))
+        } else {
+            (states.last().expect("a flow has a margin state"), None)
+        };
+        enclosing.clone().collapse_margins_after_block_level_box(
+            margins_left_by_contents,
+            collapses_through,
+            continues_in_next_fragment,
+            margin_bottom,
+        )
     }
 
     /// Takes out the top margin group of the innermost margin state, whose margins collapse into the block-start margin
@@ -4546,11 +4598,27 @@ impl<'pass> BlockFormattingContext<'pass> {
         let node = sized_child.node;
         let has_independent_formatting_context =
             formatting_context::formatting_context_type_created_by_box(self.facts(node)).is_some();
-        let placed_child = child_to_place.with_offset_from_relatively_positioned_inline_ancestors(
-            interrupted_inline_content.map_or(FfiCssPixelPoint::default(), |interrupted| {
-                interrupted.offset_from_relatively_positioned_inline_ancestors
-            }),
-        );
+        let margins_collapse_through_without_clearance = !has_independent_formatting_context
+            && self.margins_collapse_through(sized_child, false, summary_of_children_laid_out_in_this_flow.as_ref());
+        // NB: Clearance separates the margins of a box, whatever its contents left of theirs.
+        let collapses_through = !introduced_clearance && margins_collapse_through_without_clearance;
+        // NB: A child its own run laid out has the metrics that run handed back, and any other those of its cells here.
+        let metrics = match &laid_out_box_handed_back_by_its_run {
+            Some(handed_back) => handed_back.cells,
+            None => self.metrics_of(sized_child),
+        };
+        let placed_child = child_to_place
+            .with_offset_from_relatively_positioned_inline_ancestors(
+                interrupted_inline_content.map_or(FfiCssPixelPoint::default(), |interrupted| {
+                    interrupted.offset_from_relatively_positioned_inline_ancestors
+                }),
+            )
+            .with_block_end_margin_collapsed_in_flow(self.block_end_margin_collapsed_after_block_level_box(
+                !has_independent_formatting_context,
+                collapses_through,
+                fragment_facts.breaks.continues_in_next,
+                metrics.margin_bottom(),
+            ));
         let mut deferred_legend = None;
         let mut placed = match pending_position {
             Some(position) => formatting_context::place_child(
@@ -4580,15 +4648,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
-        let margins_collapse_through_without_clearance = !has_independent_formatting_context
-            && self.margins_collapse_through(sized_child, false, summary_of_children_laid_out_in_this_flow.as_ref());
-        // NB: Clearance separates the margins of a box, whatever its contents left of theirs.
-        let collapses_through = !introduced_clearance && margins_collapse_through_without_clearance;
-        // NB: A child its own run laid out has the metrics that run handed back, and any other those of its cells here.
-        let metrics = match &laid_out_box_handed_back_by_its_run {
-            Some(handed_back) => handed_back.cells,
-            None => self.metrics_of(sized_child),
-        };
         let margins_left_by_contents =
             (!has_independent_formatting_context).then(|| self.leave_margin_state_of_contents(node));
         if !collapses_through {
@@ -5162,6 +5221,14 @@ impl<'pass> BlockFormattingContext<'pass> {
             x: entry.content_inline_offset,
             y: self.flow_position() + block_start_margin + metrics.border_box_top(false),
         };
+        // NB: Clearance separates the margins of a box, whatever its contents left of theirs.
+        let collapses_through = !introduces_clearance && entry.margins_collapse_through_without_clearance;
+        let block_end_margin_collapsed_in_flow = self.margin_state().clone().collapse_margins_after_block_level_box(
+            Some(&margins_left_by_contents),
+            collapses_through,
+            false,
+            metrics.margin_bottom(),
+        );
         // NB: A balancing probe builds no fragments, so it only finds where the box goes.
         let placed = formatting_context::place_child(
             &self.run,
@@ -5170,7 +5237,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 cells: self.metrics_of(sized_child),
                 line_data: root.fragment.line_data.clone(),
             })
-            .with_in_flow_box_insets(insets),
+            .with_in_flow_box_insets(insets)
+            .with_block_end_margin_collapsed_in_flow(block_end_margin_collapsed_in_flow),
             content_offset,
             None,
             self.run.fragments.is_some().then_some(root),
@@ -5187,8 +5255,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                 })
                 .collect(),
         );
-        // NB: Clearance separates the margins of a box, whatever its contents left of theirs.
-        let collapses_through = !introduces_clearance && entry.margins_collapse_through_without_clearance;
         if !collapses_through {
             self.block_offset_of_current_block_container.set(Some(
                 content_offset.y
