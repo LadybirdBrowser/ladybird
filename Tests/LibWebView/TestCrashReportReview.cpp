@@ -124,11 +124,10 @@ TEST_CASE(the_crash_date_is_read_from_the_report_and_not_from_its_name)
     VERIFY(setenv("TZ", "XYZ-2", 1) == 0);
     tzset();
 
-    // Reports saved before names carried the time of the crash have no time to take from their names.
-    write_named_report("WebContent-legacy.txt"sv, report_text);
+    auto name = write_report("2026-10-02T00-00-00Z"sv);
     WebView::CrashReportStore store { test_directory() };
     CrashReportReview review { store };
-    auto report = MUST(review.open(ByteString { "WebContent-legacy.txt"sv }));
+    auto report = MUST(review.open(name));
 
     EXPECT_EQ(report.fields[0].label, "Crash date"sv);
     EXPECT_EQ(report.fields[0].value, "2026-10-01 14:34:56"sv);
@@ -139,10 +138,10 @@ TEST_CASE(a_report_that_does_not_say_when_it_crashed_has_no_crash_date)
     cleanup();
     ScopeGuard guard = cleanup;
 
-    write_named_report("WebContent-legacy.txt"sv, "Ladybird crash report, format 1\nProcess: WebContent\nCrashed at: yesterday\n"sv);
+    auto name = write_report("2026-10-02T00-00-00Z"sv, "Ladybird crash report, format 1\nProcess: WebContent\nCrashed at: yesterday\n"sv);
     WebView::CrashReportStore store { test_directory() };
     CrashReportReview review { store };
-    auto report = MUST(review.open(ByteString { "WebContent-legacy.txt"sv }));
+    auto report = MUST(review.open(name));
 
     for (auto const& field : report.fields)
         EXPECT(field.label != "Crash date"sv);

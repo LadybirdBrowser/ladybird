@@ -43,8 +43,7 @@ public:
     Optional<String> website(ByteString const& name) const;
     ErrorOr<void> remove_websites_saved_since(UnixDateTime) const;
 
-    // The reports waiting to be reviewed, newest first. A report of a crash from before the hard cutoff date
-    // (October 2, 2026 20:00 UTC) or more than 30 days before `now` is never pending.
+    // The reports waiting to be reviewed, newest first. A report of a crash more than 30 days before `now` is never pending.
     ErrorOr<Vector<ByteString>> pending_report_names(UnixDateTime now = UnixDateTime::now()) const;
 
     // Seen reports move into a subdirectory, where the newest of them are kept for reference and never offered again.
