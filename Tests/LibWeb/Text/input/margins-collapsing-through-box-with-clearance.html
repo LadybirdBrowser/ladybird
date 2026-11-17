@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .root { display: flow-root; position: relative; width: 300px; }
+    .float { float: left; width: 100px; height: 30px; }
+    .next { height: 10px; }
+    .clear { clear: both; }
+</style>
+<div class="root" id="last-in-root"><div class="float"></div><div class="clear x" style="margin: 20px 0"></div></div>
+<div class="root" id="block-after"><div class="float"></div><div class="clear x" style="margin: 20px 0"></div><div class="next x"></div></div>
+<div class="root" id="larger-bottom-margin"><div class="float"></div><div class="clear x" style="margin: 10px 0 50px"></div><div class="next x"></div></div>
+<div class="root" id="larger-bottom-margin-last-in-root"><div class="float"></div><div class="clear x" style="margin: 20px 0 40px"></div></div>
+<div class="root" id="block-with-margin-after"><div class="float"></div><div class="clear x" style="margin: 10px 0 50px"></div><div class="next x" style="margin-top: 60px"></div></div>
+<div class="root" id="top-margin-reaches-past-float"><div class="float"></div><div class="clear x" style="margin: 50px 0 10px"></div><div class="next x" style="margin-top: 5px"></div></div>
+<div class="root" id="negative-top-margin"><div class="float" style="height: 80px"></div><div style="height: 80px"></div><div class="clear x" style="margin: -30px 0 20px"></div><div class="next x"></div></div>
+<div class="root" id="negative-bottom-margin"><div class="float"></div><div class="clear x" style="margin: 20px 0 -10px"></div><div class="next x"></div></div>
+<div class="root" id="large-negative-bottom-margin"><div class="float"></div><div class="clear x" style="margin: 10px 0 -50px"></div><div class="next x"></div></div>
+<div class="root" id="only-bottom-margin"><div class="float"></div><div class="clear x" style="margin: 0 0 20px"></div><div class="next x"></div></div>
+<div class="root" id="no-margins"><div class="float"></div><div class="clear x"></div><div class="next x"></div></div>
+<div class="root" id="margin-before"><div class="next" style="margin-bottom: 15px"></div><div class="float"></div><div class="clear x" style="margin: 20px 0"></div><div class="next x"></div></div>
+<div class="root" id="larger-margin-before"><div class="next" style="margin-bottom: 50px"></div><div class="float"></div><div class="clear x" style="margin: 12px 0"></div><div class="x" style="margin: -8px 0 20px"></div><div class="next x" style="margin-top: 5px"></div></div>
+<div class="root" id="margins-on-empty-child"><div class="float"></div><div class="clear x"><div style="margin: 20px 0"></div></div><div class="next x"></div></div>
+<div class="root" id="empty-block-after"><div class="float"></div><div class="clear x" style="margin: 20px 0"></div><div class="x" style="margin: 15px 0"></div><div class="next x"></div></div>
+<div class="root" id="empty-block-with-larger-margins-after"><div class="float"></div><div class="clear x" style="margin: 10px 0 50px"></div><div class="x" style="margin: 60px 0"></div><div class="next x"></div></div>
+<div class="root" id="last-in-parent"><div class="x"><div class="float"></div><div class="clear x" style="margin: 20px 0"></div></div><div class="next x"></div></div>
+<div class="root" id="last-in-parent-with-bottom-margin"><div class="x" style="margin-bottom: 5px"><div class="float"></div><div class="clear x" style="margin: 20px 0"></div></div><div class="next x"></div></div>
+<div class="root" id="last-in-parent-larger-bottom-margin"><div class="x"><div class="float"></div><div class="clear x" style="margin: 10px 0 50px"></div></div><div class="next x"></div></div>
+<div class="root" id="first-in-parent"><div class="float"></div><div class="x"><div class="clear x" style="margin: 20px 0"></div><div class="next x"></div></div></div>
+<div class="root" id="only-child-of-parent"><div class="float"></div><div class="x"><div class="clear x" style="margin: 20px 0"></div></div><div class="next x"></div></div>
+<div class="root" id="zero-height"><div class="float"></div><div class="clear x" style="margin: 20px 0; height: 0; min-height: 0"></div><div class="next x"></div></div>
+<div class="root" id="border-top"><div class="float"></div><div class="clear x" style="margin: 20px 0; border-top: 1px solid"></div><div class="next x"></div></div>
+<div class="root" id="root-padding" style="padding-bottom: 7px"><div class="float"></div><div class="clear x" style="margin: 20px 0"></div></div>
+<div class="root" id="scroll-container" style="display: block; overflow: auto"><div class="float"></div><div class="clear x" style="margin: 20px 0 40px"></div></div>
+<div class="root" id="vertical" style="writing-mode: vertical-lr; height: 100px; width: auto"><div class="float" style="width: 30px; height: 50px"></div><div class="clear x" style="margin: 0 20px"></div><div class="next x" style="width: 10px; height: auto"></div></div>
+<script>
+    test(() => {
+        // Margins collapse through an empty block, with or without clearance. Clearance goes above the top margin of
+        // the block, and keeps it apart from the margins before the block. So the block goes at the end of the float,
+        // and what follows it goes on from where its margins began, past their collapsed margin. That margin never
+        // collapses with the bottom margin of the block's parent.
+        for (const root of document.querySelectorAll(".root")) {
+            const origin = root.getBoundingClientRect();
+            const vertical = root.id == "vertical";
+            const positions = [...root.querySelectorAll(".x")].map(box => {
+                const rect = box.getBoundingClientRect();
+                return vertical ? `${rect.left - origin.left}` : `${rect.top - origin.top}+${rect.height}`;
+            });
+            const scroll = root.id == "scroll-container" ? `, scroll height ${root.scrollHeight}` : "";
+            println(`${root.id}: ${positions.join(" ")} | root ${vertical ? origin.width : origin.height}${scroll}`);
+        }
+    });
+</script>

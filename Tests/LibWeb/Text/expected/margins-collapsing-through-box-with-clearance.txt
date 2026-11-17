@@ -1,0 +1,26 @@
+last-in-root: 30+0 | root 30
+block-after: 30+0 30+10 | root 40
+larger-bottom-margin: 30+0 70+10 | root 80
+larger-bottom-margin-last-in-root: 30+0 | root 50
+block-with-margin-after: 30+0 80+10 | root 90
+top-margin-reaches-past-float: 50+0 50+10 | root 60
+negative-top-margin: 80+0 100+10 | root 110
+negative-bottom-margin: 30+0 20+10 | root 30
+large-negative-bottom-margin: 30+0 -20+10 | root 30
+only-bottom-margin: 30+0 50+10 | root 60
+no-margins: 30+0 30+10 | root 40
+margin-before: 55+0 55+10 | root 65
+larger-margin-before: 90+0 82+0 90+10 | root 100
+margins-on-empty-child: 30+0 30+10 | root 40
+empty-block-after: 30+0 30+0 30+10 | root 40
+empty-block-with-larger-margins-after: 30+0 80+0 80+10 | root 90
+last-in-parent: 0+30 30+0 30+10 | root 40
+last-in-parent-with-bottom-margin: 0+30 30+0 35+10 | root 45
+last-in-parent-larger-bottom-margin: 0+70 30+0 70+10 | root 80
+first-in-parent: 0+40 30+0 30+10 | root 40
+only-child-of-parent: 0+30 30+0 30+10 | root 40
+zero-height: 30+0 30+10 | root 40
+border-top: 30+1 51+10 | root 61
+root-padding: 30+0 | root 37
+scroll-container: 30+0 | root 50, scroll height 50
+vertical: 30 30 | root 40
