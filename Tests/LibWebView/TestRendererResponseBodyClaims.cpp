@@ -306,6 +306,21 @@ public:
         return true;
     }
 
+    // Has the UI process acquire the response that the view's process reports with a body of its own. Returns whether
+    // the UI process acquired it.
+    bool try_acquire_response_with_a_body_of_its_own(Function<void(Web::HTML::NavigationPopulationResult&)> const& report)
+    {
+        auto result = result_with_response_body_of(m_view.page().client().request_server_site_bindings().client_id().value(), 0);
+        result.navigation_params.get<Web::HTML::NavigationParamsDescriptor>().response.body = MUST(ByteBuffer::copy("<!DOCTYPE html><script>document.title = location.origin</script>"sv.bytes()));
+        report(result);
+        m_loader->did_finish_navigation_params_creation(move(result));
+
+        Optional<bool> acquired;
+        m_loader->acquire_response_body(m_view.page().client(), [&](bool succeeded) { acquired = succeeded; });
+        Core::EventLoop::current().spin_until([&] { return acquired.has_value(); });
+        return *acquired;
+    }
+
     void move_response_body_to(WebView::HeadlessWebView const& host_view)
     {
         Optional<bool> moved;
@@ -646,6 +661,32 @@ TEST_CASE(reported_response_url_is_the_url_requestserver_fetched)
     EXPECT(!acquires([&](auto const&, auto& result) {
         result.redirected_url = made_up_url;
     }));
+    EXPECT(view->page().client().is_open());
+}
+
+// A response to a request with an HTTP(S) URL comes from RequestServer. The UI process acquires a response that a
+// process reports with a body of its own only if none of the navigation's URLs is an HTTP(S) URL.
+TEST_CASE(reported_http_response_with_a_body_of_its_own_is_refused)
+{
+    TestFixture fixture;
+    auto view = fixture.create_view();
+    auto victim_url = URL::Parser::basic_parse("https://victim.example/account"sv).release_value();
+    auto data_url = URL::Parser::basic_parse("data:text/html,<title>data</title>"sv).release_value();
+
+    auto acquires = [&](URL::URL const& url, Function<void(Web::HTML::NavigationPopulationResult&)> const& report) {
+        TestPopulation population { *view, url };
+        return population.try_acquire_response_with_a_body_of_its_own(report);
+    };
+    auto response_url_list = [](Web::HTML::NavigationPopulationResult& result) -> Vector<URL::URL>& {
+        return result.navigation_params.get<Web::HTML::NavigationParamsDescriptor>().response.url_list;
+    };
+
+    EXPECT(acquires(data_url, [&](auto& result) { response_url_list(result) = { data_url }; }));
+
+    EXPECT(!acquires(victim_url, [&](auto& result) { response_url_list(result) = { victim_url }; }));
+    EXPECT(!acquires(victim_url, [](auto&) { }));
+    EXPECT(!acquires(data_url, [&](auto& result) { response_url_list(result) = { victim_url }; }));
+    EXPECT(!acquires(data_url, [&](auto& result) { result.redirected_url = victim_url; }));
     EXPECT(view->page().client().is_open());
 }
 

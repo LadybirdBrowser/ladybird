@@ -16,7 +16,9 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/CanonicalNavigable.h>
+#include <LibWebView/CanonicalNavigation.h>
 #include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/NavigationLoader.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
@@ -452,6 +454,21 @@ void WebDriverBiDi::fail_navigations_of(Function<bool(Web::HTML::CrossProcessId)
         if (auto waiter = m_reload_waiters.take(navigable_id); waiter.has_value())
             waiter->on_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "Navigation failed"sv));
     }
+}
+
+static RefPtr<CanonicalNavigation> navigation_with_id(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
+{
+    auto* traversable = CanonicalTraversable::traversable_containing(navigable_id);
+    if (!traversable)
+        return nullptr;
+    RefPtr<CanonicalNavigation> navigation;
+    traversable->for_each_in_inclusive_subtree([&](CanonicalNavigable& navigable) {
+        if (navigable.id() != navigable_id)
+            return IterationDecision::Continue;
+        navigation = navigable.navigation_with_id(navigation_id);
+        return IterationDecision::Break;
+    });
+    return navigation;
 }
 
 static bool navigable_exists(Web::HTML::CrossProcessId navigable_id)
@@ -904,9 +921,11 @@ void WebDriverBiDi::did_receive_event(WebContentPage& page, Web::HTML::CrossProc
                 auto existing = m_blocked_network_requests.find(*id);
                 if (existing != m_blocked_network_requests.end() && existing->value.page != &page)
                     return;
-                if (params.as_object().get_bool("isBlocked"sv).value_or(false))
-                    m_blocked_network_requests.set(*id, { page, navigable_id, m_next_network_interception_generation++ });
-                else if (name.is_one_of("network.responseCompleted"sv, "network.fetchError"sv))
+                if (params.as_object().get_bool("isBlocked"sv).value_or(false)) {
+                    auto url = request->get_string("url"sv).map([](auto const& url) { return URL::Parser::basic_parse(url); }).value_or({});
+                    auto navigation_id = params.as_object().get_string("navigation"sv).map([](auto const& id) { return Utf16String::from_utf8(id); });
+                    m_blocked_network_requests.set(*id, { page, navigable_id, m_next_network_interception_generation++, move(url), move(navigation_id) });
+                } else if (name.is_one_of("network.responseCompleted"sv, "network.fetchError"sv))
                     m_blocked_network_requests.remove(*id);
             }
         }
@@ -1080,12 +1099,32 @@ void WebDriverBiDi::run_command(u64 command_id, String const& method, JsonValue 
             auto id = params.get_string("request"sv).release_value();
             if (auto blocked = m_blocked_network_requests.get(id); blocked.has_value() && blocked->page->routed_connection()) {
                 auto content_command_id = m_next_content_command_id++;
-                m_pending_content_commands.set(content_command_id, [id, generation = blocked->generation, on_complete = move(on_complete)](Web::WebDriver::Response response) mutable {
+                // NB: The process running a navigation's request reports the response that WebDriver provides for it with
+                //     a body of its own. The process also reports which navigation the request belongs to, so the
+                //     navigation's loader takes such a body only for the request's URL and with the bytes WebDriver gave.
+                WeakPtr<NavigationLoader> provided_response_loader;
+                if (method == "network.provideResponse"sv && blocked->url.has_value() && blocked->navigation_id.has_value()) {
+                    if (auto navigation = navigation_with_id(blocked->navigable_id, *blocked->navigation_id); navigation) {
+                        auto overrides = Web::WebDriver::Network::deserialize_interception_overrides(method, params);
+                        if (auto loader = navigation->loader(); loader && !overrides.is_error()) {
+                            auto provided = loader->set_response_provided_by_webdriver(NavigationLoader::ResponseProvidedByWebDriver {
+                                .url = *blocked->url,
+                                .body = overrides.release_value().body.value_or({}),
+                                .command_id = content_command_id,
+                            });
+                            if (provided)
+                                provided_response_loader = loader->make_weak_ptr();
+                        }
+                    }
+                }
+                m_pending_content_commands.set(content_command_id, [id, content_command_id, generation = blocked->generation, provided_response_loader, on_complete = move(on_complete)](Web::WebDriver::Response response) mutable {
                     if (!response.is_error()) {
                         if (auto* bidi = WebDriverBiDi::the()) {
                             if (auto current = bidi->m_blocked_network_requests.get(id); current.has_value() && current->generation == generation)
                                 bidi->m_blocked_network_requests.remove(id);
                         }
+                    } else if (auto loader = provided_response_loader.strong_ref()) {
+                        loader->withdraw_response_provided_by_webdriver(content_command_id);
                     }
                     on_complete(move(response));
                 });

@@ -252,8 +252,8 @@ void NavigationLoader::obtain_the_response_policies(CanonicalNavigable const& na
 
     auto const& response_url = navigation_params->response.url_list.is_empty() ? m_request.history_entry.url : navigation_params->response.url_list.last();
 
-    // NB: A response that the fetching process read from its own HTTP memory cache has no RequestServer request, so
-    //     its headers are the ones that process reported.
+    // NB: A response without a RequestServer request, such as one for a non-HTTP(S) URL or one that WebDriver BiDi
+    //     provided, has the headers that the fetching process reported.
     auto header_list = m_response_header_list ? NonnullRefPtr { *m_response_header_list } : HTTP::HeaderList::create(navigation_params->response.headers);
 
     // 17. Let responseCOOP be a new opener policy.
@@ -391,7 +391,7 @@ void NavigationLoader::acquire_response_body(WebContentClient const& population_
 
     auto const* body_handle = response_body_handle(*m_result);
     if (!body_handle) {
-        did_acquire(true);
+        did_acquire(!reports_an_http_response_of_its_own());
         return;
     }
     if (!response_body_was_fetched_by(*body_handle, population_worker)) {
@@ -445,6 +445,38 @@ bool NavigationLoader::reported_urls_match_the_response_url(URL::URL const& resp
         auto parsed_url = URL::Parser::basic_parse(url.serialize());
         return !parsed_url.has_value() || !parsed_url->equals(response_url, URL::ExcludeFragment::Yes);
     });
+}
+
+// NB: A navigation's response to a request with an HTTP(S) URL comes from RequestServer, from which the UI process
+//     takes it. One the process that fetched it reports with a response of its own is made up: the document it would
+//     create could run what that process chose with the origin of another site, in a process of that site. Such a
+//     navigation is canceled.
+bool NavigationLoader::reports_an_http_response_of_its_own() const
+{
+    auto const* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>();
+    if (!navigation_params)
+        return false;
+
+    auto reports_an_http_url = any_reported_url(m_request.history_entry.url, navigation_params, [](URL::URL const& url) {
+        return Web::Fetch::Infrastructure::is_http_or_https_scheme(url.scheme());
+    });
+    if (!reports_an_http_url)
+        return false;
+
+    // AD-HOC: WebDriver BiDi provides the responses of the requests it intercepts, which the process running a request
+    //         reports with the body that WebDriver gave it. The Hub saw that body when it routed the command, so the
+    //         process must report exactly those bytes.
+    if (!m_response_provided_by_webdriver.has_value())
+        return true;
+    auto const& provided = *m_response_provided_by_webdriver;
+    auto const& response_url = navigation_params->response.url_list.is_empty() ? m_request.history_entry.url : navigation_params->response.url_list.last();
+    if (!provided.url.equals(response_url, URL::ExcludeFragment::Yes))
+        return true;
+    auto const* reported_body = navigation_params->response.body.get_pointer<ByteBuffer>();
+    auto reported_bytes = reported_body ? reported_body->bytes() : ReadonlyBytes {};
+    if (reported_bytes != provided.body.bytes())
+        return true;
+    return !reported_urls_match_the_response_url(response_url);
 }
 
 void NavigationLoader::set_response_body_callbacks(Requests::Request& request)
