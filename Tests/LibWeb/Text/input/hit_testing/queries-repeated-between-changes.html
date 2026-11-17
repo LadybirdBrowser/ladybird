@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #grid { position: absolute; left: 0; top: 0; width: 400px; height: 300px; }
+    #grid > div { position: absolute; width: 18px; height: 18px; }
+    #rotated { position: absolute; left: 420px; top: 0; width: 200px; height: 200px; transform: rotate(180deg); }
+    #rotated > div { float: left; width: 20px; height: 20px; }
+    #scroller { position: absolute; left: 420px; top: 220px; width: 200px; height: 100px; overflow: auto; }
+    #scroller > div { height: 10px; }
+    #shapes { position: absolute; left: 0; top: 320px; }
+    #text { position: absolute; left: 420px; top: 340px; margin: 0; font: 20px/20px monospace; }
+</style>
+<div id="grid"></div>
+<div id="rotated"></div>
+<div id="scroller"></div>
+<svg id="shapes" width="400" height="200"></svg>
+<p id="text">plain <span data-name="span">span</span> plain</p>
+<script>
+    function describe(element) {
+        return element ? element.id || element.dataset.name || element.localName : "null";
+    }
+    const answersByLabel = [];
+    function probe(label, x, y) {
+        const answers = [];
+        for (let repetition = 0; repetition < 3; ++repetition) {
+            const all = document.elementsFromPoint(x, y).map(describe).join(" ");
+            answers.push(`${describe(document.elementFromPoint(x, y))} [${all}]`);
+        }
+        const agree = answers.every(answer => answer === answers[0]);
+        answersByLabel.push(`${label}: ${agree ? answers[0] : `repeated queries disagree: ${answers.join(" | ")}`}`);
+    }
+    function pointInside(element) {
+        const rect = element.getBoundingClientRect();
+        return [rect.left + 5, rect.top + 5];
+    }
+    function named(name) {
+        return document.querySelector(`[data-name="${name}"]`);
+    }
+    function appendNamed(parent, name, localName = "div") {
+        const element = document.createElement(localName);
+        element.dataset.name = name;
+        parent.appendChild(element);
+        return element;
+    }
+    test(() => {
+        const grid = document.getElementById("grid");
+        for (let row = 0; row < 15; ++row) {
+            for (let column = 0; column < 20; ++column) {
+                const cell = appendNamed(grid, `cell-${row}-${column}`);
+                cell.style.left = `${column * 20}px`;
+                cell.style.top = `${row * 20}px`;
+            }
+        }
+        const rotated = document.getElementById("rotated");
+        for (let index = 0; index < 100; ++index)
+            appendNamed(rotated, `rotated-${index}`);
+        const scroller = document.getElementById("scroller");
+        for (let index = 0; index < 60; ++index)
+            appendNamed(scroller, `scrolled-${index}`);
+        const shapes = document.getElementById("shapes");
+        for (let index = 0; index < 40; ++index) {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.dataset.name = `circle-${index}`;
+            circle.setAttribute("cx", 20 + (index % 10) * 40);
+            circle.setAttribute("cy", 20 + Math.floor(index / 10) * 40);
+            circle.setAttribute("r", 10);
+            circle.setAttribute("fill", "none");
+            circle.setAttribute("stroke", "black");
+            circle.setAttribute("stroke-width", 8);
+            shapes.appendChild(circle);
+        }
+
+        probe("a cell", 50, 50);
+        probe("a cell across two cells of 128px", 127, 127);
+        probe("a cell past 128px", 141, 141);
+        probe("between cells", 119, 50);
+
+        const cell = named("cell-2-2");
+        cell.style.pointerEvents = "none";
+        probe("a cell that takes no pointer events", 50, 50);
+        cell.style.pointerEvents = "";
+        probe("the cell taking pointer events again", 50, 50);
+        cell.style.visibility = "hidden";
+        probe("a hidden cell", 50, 50);
+        cell.style.visibility = "";
+        cell.style.left = "401px";
+        probe("where a moved cell was", 50, 50);
+        probe("where the moved cell is", 410, 50);
+        cell.style.left = "40px";
+        cell.style.transform = "translate(361px, 20px)";
+        probe("where a translated cell was", 50, 50);
+        probe("where the translated cell is", 410, 70);
+        cell.remove();
+        probe("where a removed cell was", 50, 50);
+        const late = appendNamed(grid, "late");
+        late.style.left = "40px";
+        late.style.top = "40px";
+        probe("a cell added late", 50, 50);
+        late.style.borderRadius = "9px";
+        probe("the corner of a cell that became round", 41, 41);
+        probe("the middle of the round cell", 49, 49);
+        late.style.background = "green";
+        probe("the corner of the round cell with a background", 41, 41);
+        probe("the middle of the round cell with a background", 49, 49);
+
+        const lower = named("cell-5-5");
+        lower.style.left = "110px";
+        probe("two cells that overlap", 124, 105);
+        lower.style.zIndex = "1";
+        probe("the earlier cell raised above the later one", 124, 105);
+
+        probe("a box in a rotated box", ...pointInside(named("rotated-0")));
+        const pointInsideAnotherRotatedBox = pointInside(named("rotated-37"));
+        probe("another box in the rotated box", ...pointInsideAnotherRotatedBox);
+        named("rotated-37").style.pointerEvents = "none";
+        probe("the same point once that box takes no pointer events", ...pointInsideAnotherRotatedBox);
+
+        probe("a box in a scroller", 430, 225);
+        scroller.scrollTop = 200;
+        probe("the same point after scrolling", 430, 225);
+        named("scrolled-20").style.height = "40px";
+        probe("below a box that grew", 430, 265);
+        scroller.scrollTop = 0;
+
+        probe("the stroke of a circle", 30, 340);
+        probe("inside the circle", 20, 340);
+        named("circle-0").setAttribute("stroke-width", 30);
+        probe("inside the circle after its stroke grew", 20, 340);
+        named("circle-0").setAttribute("stroke", "none");
+        probe("where the circle had a stroke", 30, 340);
+        named("circle-11").style.pointerEvents = "all";
+        probe("inside a circle that takes all pointer events", 60, 380);
+
+        const span = named("span");
+        const pointInsideSpan = pointInside(span);
+        probe("text in a span", ...pointInsideSpan);
+        span.style.color = "green";
+        probe("the text in another color", ...pointInsideSpan);
+        span.style.pointerEvents = "none";
+        probe("the text once the span takes no pointer events", ...pointInsideSpan);
+        span.style.pointerEvents = "";
+        span.style.visibility = "hidden";
+        probe("the text once the span is hidden", ...pointInsideSpan);
+
+        answersByLabel.forEach(println);
+    });
+</script>

@@ -146,7 +146,7 @@ pub(crate) fn committed_collapsed_table_borders(
 pub(crate) fn committed_svg_path(
     arena: &impl GeometryRead,
     slot: NodeSlotId,
-) -> Option<std::sync::Arc<libgfx_rust::path::Path>> {
+) -> Option<std::sync::Arc<crate::layout::fragment_tree::CommittedSvgPath>> {
     if !arena.node_kind_if_live(slot).is_some_and(node_painting::is_svg_path) {
         return None;
     }
