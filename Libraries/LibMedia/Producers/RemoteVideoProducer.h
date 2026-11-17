@@ -37,7 +37,7 @@ public:
 
     // Dropping the frame releases it back to the sink.
     void receive_frame(u64 lend_id, u32 seek_id, NonnullRefPtr<VideoFrame>);
-    void receive_status(PipelineStatus, u32 seek_id);
+    void receive_status(PipelineStatus, u32 seek_id, PipelineCheckpoint);
     void notify_clock_resumed();
 
     void stop_consuming();
@@ -67,6 +67,8 @@ private:
     // Received under the expected seek, oldest first.
     Vector<NonnullRefPtr<VideoFrame>> m_queued_frames;
     Optional<ReceivedStatus> m_status;
+    // Checkpoints are independent of seeks, so the newest one received under any seek is passed on.
+    PipelineCheckpoint m_checkpoint { 0 };
     SynchronizedWakeHandler m_wake_handler;
 };
 

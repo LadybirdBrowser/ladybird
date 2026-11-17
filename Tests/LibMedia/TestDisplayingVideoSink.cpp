@@ -130,7 +130,7 @@ TEST_CASE(paused_sink_before_its_first_frame_stays_suspended)
 
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     Vector<Media::PipelineStatus> dispatched_statuses;
-    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status, Media::PipelineCheckpoint) {
         dispatched_statuses.append(status);
     });
     auto producer = ScriptedVideoProducer::create();
@@ -170,7 +170,7 @@ TEST_CASE(seek_within_the_displayed_frame_resumes_a_suspended_input)
 
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     Vector<Media::PipelineStatus> dispatched_statuses;
-    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status, Media::PipelineCheckpoint) {
         dispatched_statuses.append(status);
     });
     auto producer = ScriptedVideoProducer::create();
@@ -202,7 +202,7 @@ TEST_CASE(held_late_frame_waiting_on_input_reports_pending)
 
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     Vector<Media::PipelineStatus> dispatched_statuses;
-    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status, Media::PipelineCheckpoint) {
         dispatched_statuses.append(status);
     });
     auto producer = ScriptedVideoProducer::create();
@@ -233,7 +233,7 @@ TEST_CASE(seek_past_the_cached_frames_waits_for_the_frame_at_the_target)
 
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     Vector<Media::PipelineStatus> dispatched_statuses;
-    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status, Media::PipelineCheckpoint) {
         dispatched_statuses.append(status);
     });
     auto producer = ScriptedVideoProducer::create();
@@ -388,7 +388,7 @@ TEST_CASE(a_suspension_is_not_followed_by_the_status_it_replaced)
     auto clock = MUST(Media::MonotonicMediaClock::try_create());
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     Vector<Media::PipelineStatus> dispatched_statuses;
-    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status, Media::PipelineCheckpoint) {
         dispatched_statuses.append(status);
     });
     auto producer = ScriptedVideoProducer::create();
@@ -477,7 +477,7 @@ TEST_CASE(seek_while_not_ticking_resolves_once_a_frame_covers_the_target)
 
     auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
     Vector<Media::PipelineStatus> dispatched_statuses;
-    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status, Media::PipelineCheckpoint) {
         dispatched_statuses.append(status);
     });
     auto producer = ScriptedVideoProducer::create();

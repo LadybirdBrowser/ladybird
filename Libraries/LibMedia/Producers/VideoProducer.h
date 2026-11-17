@@ -19,6 +19,7 @@ namespace Media {
 struct VideoProducerOutput {
     RefPtr<VideoFrame> frame;
     PipelineStatus status;
+    PipelineCheckpoint checkpoint { 0 };
 };
 
 class VideoProducer : public virtual MediaPipelineNode {

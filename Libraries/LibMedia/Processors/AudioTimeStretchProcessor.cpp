@@ -171,7 +171,9 @@ bool AudioTimeStretchProcessor::input_is_suspended_while_locked() const
 {
     if (m_input == nullptr || !m_sample_specification.is_valid())
         return false;
-    return m_input->peek().status == PipelineStatus::Suspended;
+    auto output = m_input->peek();
+    m_input_checkpoint = output.checkpoint;
+    return output.status == PipelineStatus::Suspended;
 }
 
 PipelineStatus AudioTimeStretchProcessor::produce_block_while_locked(AudioBlock& into) const
@@ -200,6 +202,7 @@ PipelineStatus AudioTimeStretchProcessor::produce_block_while_locked(AudioBlock&
             return PipelineStatus::Error;
 
         auto output = m_input->peek();
+        m_input_checkpoint = output.checkpoint;
         if (output.status == PipelineStatus::EndOfStream) {
             m_stretcher->signal_end_of_stream();
             m_stretcher_reached_eos = false;
@@ -225,7 +228,7 @@ AudioProducerOutput AudioTimeStretchProcessor::peek()
     }
     if (!m_pending_block.is_empty())
         status = PipelineStatus::HaveData;
-    return { m_pending_block.is_empty() ? nullptr : &m_pending_block, status };
+    return { m_pending_block.is_empty() ? nullptr : &m_pending_block, status, m_input_checkpoint };
 }
 
 void AudioTimeStretchProcessor::consume()

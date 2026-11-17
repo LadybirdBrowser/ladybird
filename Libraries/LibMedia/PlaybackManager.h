@@ -98,11 +98,17 @@ public:
     PlaybackState state();
     AvailableData available_data();
     BufferedRanges buffered_time_ranges() const;
+    // Whether the playback state can only change through further input, such as more data or a seek.
+    bool playback_state_is_settled() const { return m_playback_state_is_settled; }
+    // Called after data is added, so that the playback state is known to be unsettled before the addition is reported
+    // as done.
+    void update_whether_playback_state_is_settled();
 
     void set_volume(double);
     void set_playback_rate(float);
 
     Function<void()> on_playback_state_change;
+    Function<void()> on_playback_state_settled_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void()> on_buffered_ranges_change;
     Function<void(DecoderError&&)> on_error;
@@ -147,6 +153,7 @@ private:
         // The sink above, when it is the pump of a cross-process edge.
         RefPtr<RemoteVideoSink> video_edge_sink { nullptr };
         PipelineStatus sink_status { PipelineStatus::Pending };
+        PipelineCheckpoint sink_checkpoint { 0 };
         // While ticking, the sink's dispatched status is live and remains the sole ending
         // authority; while unticked, it is stale and the track ends at its verified end time.
         bool ticking { true };
@@ -179,13 +186,17 @@ private:
     void attach_video_sink(VideoTrackData&, NonnullRefPtr<VideoSink>);
     static void disconnect_video_sink(VideoTrackData&);
     void detach_video_sink(VideoSinkHandle);
-    void on_audio_sink_state_changed(PipelineStatus);
-    void on_video_sink_state_changed(Track const&, PipelineStatus);
+    void on_audio_sink_state_changed(PipelineStatus, PipelineCheckpoint);
+    void on_video_sink_state_changed(Track const&, PipelineStatus, PipelineCheckpoint);
     void update_duration_from_scan_states();
     bool source_has_enabled_track(Demuxer const&) const;
     Optional<AK::Duration> verified_end_time_for_source(Demuxer const&) const;
     CombinedScanState scan_state_for_enabled_tracks(Demuxer const&) const;
     void update_pipeline_state();
+    void hand_out_latest_checkpoint();
+    bool every_waiting_sink_has_reported_the_latest_checkpoint() const;
+    void set_whether_playback_state_is_settled(PipelineStatus combined_status);
+    void dispatch_playback_state_settled_change_if_changed(bool was_settled);
     void reset_pipeline_state();
     PipelineStatus combined_pipeline_status() const;
     void check_for_demuxed_duration_change(AK::Duration);
@@ -268,7 +279,10 @@ private:
     Optional<AK::UnixDateTime> m_start_time_realtime;
 
     PipelineStatus m_audio_sink_status { PipelineStatus::HaveData };
+    PipelineCheckpoint m_audio_sink_checkpoint { 0 };
+    Atomic<PipelineCheckpoint> m_latest_checkpoint { 0 };
     PipelineStatus m_last_traced_combined_status { PipelineStatus::Pending };
+    bool m_playback_state_is_settled { true };
 
     bool m_is_in_error_state { false };
 };

@@ -44,8 +44,8 @@ public:
 
     ReadonlySpan<float> move_output_to_playback_stream_buffer(Span<float>, MonotonicTime buffer_starts_playing_at);
     i64 hold_clock_at_played_frame_while_locked(MediaTimeReader const&);
-    void dispatch_state_if_changed(PipelineStatus, u32 seek_id);
-    void report_input_status_while_locked(PipelineStatus, u32 seek_id);
+    void dispatch_state_if_changed(PipelineStatus, PipelineCheckpoint, u32 seek_id);
+    void report_input_status_while_locked(PipelineStatus, PipelineCheckpoint, u32 seek_id);
     void handle_input_suspension_while_locked(u32 seek_id);
     void request_resume_from_suspension_while_locked();
     void request_played_out_check_if_needed_while_locked();
@@ -74,7 +74,9 @@ public:
     float m_eos_media_frame_remainder { 0.0f };
 
     PipelineStatus m_last_pull_status { PipelineStatus::Pending };
+    PipelineCheckpoint m_last_pull_checkpoint { 0 };
     PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
+    PipelineCheckpoint m_last_dispatched_checkpoint { 0 };
     i64 m_last_real_data_end_in_frames { 0 };
 
     Atomic<u32> m_seek_id { 0 };
@@ -116,7 +118,8 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         output_thread_data->m_upstream_woke_since_probe = false;
                     }
                     if (!input_seek_in_flight) {
-                        auto status = input->peek().status;
+                        auto probe = input->peek();
+                        auto status = probe.status;
                         MutexLocker locker { output_thread_data->m_output_mutex };
                         if (output_thread_data->m_seek_id == seek_id_at_probe) {
                             if (status == PipelineStatus::Suspended) {
@@ -124,12 +127,14 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                             } else {
                                 if (audio_processor_will_enqueue(status)) {
                                     output_thread_data->m_last_pull_status = status;
+                                    output_thread_data->m_last_pull_checkpoint = probe.checkpoint;
                                     output_thread_data->m_waiting_for_upstream_data = false;
                                 }
                                 // Nothing is pulled while the playback rate is zero, so the status is reported here.
                                 if (output_thread_data->m_playback_rate == 0.0f && seek_id_at_probe != 0) {
                                     output_thread_data->m_last_pull_status = status;
-                                    output_thread_data->report_input_status_while_locked(status, seek_id_at_probe);
+                                    output_thread_data->m_last_pull_checkpoint = probe.checkpoint;
+                                    output_thread_data->report_input_status_while_locked(status, probe.checkpoint, seek_id_at_probe);
                                 }
                             }
                         }
@@ -194,6 +199,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         continue;
                     }
                     output_thread_data->m_last_pull_status = status;
+                    output_thread_data->m_last_pull_checkpoint = output.checkpoint;
                     if (status == PipelineStatus::HaveData && output_block.end_frame_index() <= output_thread_data->m_next_frame_to_play) {
                         output_thread_data->m_waiting_for_upstream_data = false;
                         continue;
@@ -240,7 +246,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                     if (audio_processor_will_enqueue(status))
                         output_thread_data->m_waiting_for_upstream_data = false;
 
-                    output_thread_data->report_input_status_while_locked(status, seek_id_at_pull);
+                    output_thread_data->report_input_status_while_locked(status, output.checkpoint, seek_id_at_pull);
                 }
             }
 
@@ -455,7 +461,7 @@ void AudioPlaybackSink::OutputThreadData::handle_input_suspension_while_locked(u
     m_waiting_for_upstream_data = true;
 
     m_last_pull_status = PipelineStatus::Suspended;
-    dispatch_state_if_changed(m_last_pull_status, seek_id);
+    dispatch_state_if_changed(m_last_pull_status, m_last_pull_checkpoint, seek_id);
     request_resume_from_suspension_while_locked();
 }
 
@@ -472,7 +478,9 @@ void AudioPlaybackSink::OutputThreadData::request_resume_from_suspension_while_l
 
 void AudioPlaybackSink::OutputThreadData::request_played_out_check_if_needed_while_locked()
 {
-    if (!is_waiting_for_data(m_last_pull_status) || m_last_pull_status == m_last_dispatched_status)
+    if (!is_waiting_for_data(m_last_pull_status))
+        return;
+    if (m_last_pull_status == m_last_dispatched_status && m_last_pull_checkpoint == m_last_dispatched_checkpoint)
         return;
     if (m_next_frame_to_play < m_last_real_data_end_in_frames)
         return;
@@ -485,7 +493,7 @@ void AudioPlaybackSink::OutputThreadData::request_played_out_check_if_needed_whi
     });
 }
 
-void AudioPlaybackSink::OutputThreadData::report_input_status_while_locked(PipelineStatus status, u32 seek_id)
+void AudioPlaybackSink::OutputThreadData::report_input_status_while_locked(PipelineStatus status, PipelineCheckpoint checkpoint, u32 seek_id)
 {
     if (is_waiting_for_data(status)) {
         // The output may run dry due to the input running slightly behind our playback rate, so we need to start the
@@ -495,20 +503,21 @@ void AudioPlaybackSink::OutputThreadData::report_input_status_while_locked(Pipel
     }
     if (!status_change_should_wake(m_last_dispatched_status, status))
         return;
-    dispatch_state_if_changed(status, seek_id);
+    dispatch_state_if_changed(status, checkpoint, seek_id);
 }
 
-void AudioPlaybackSink::OutputThreadData::dispatch_state_if_changed(PipelineStatus status, u32 seek_id)
+void AudioPlaybackSink::OutputThreadData::dispatch_state_if_changed(PipelineStatus status, PipelineCheckpoint checkpoint, u32 seek_id)
 {
-    if (status == m_last_dispatched_status)
+    if (status == m_last_dispatched_status && checkpoint == m_last_dispatched_checkpoint)
         return;
     m_last_dispatched_status = status;
-    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), status, seek_id] {
+    m_last_dispatched_checkpoint = checkpoint;
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), status, checkpoint, seek_id] {
         if (self->m_seek_id != seek_id)
             return;
         auto sink = self->m_sink.strong_ref();
         if (sink && sink->m_on_state_changed)
-            sink->m_on_state_changed(status);
+            sink->m_on_state_changed(status, checkpoint);
     });
 }
 
@@ -549,7 +558,7 @@ void AudioPlaybackSink::dispatch_waiting_status_once_played_out()
     }
 
     output_thread_data.m_played_out_check_requested = false;
-    output_thread_data.dispatch_state_if_changed(status, output_thread_data.m_seek_id);
+    output_thread_data.dispatch_state_if_changed(status, output_thread_data.m_last_pull_checkpoint, output_thread_data.m_seek_id);
 }
 
 void AudioPlaybackSink::resume()
