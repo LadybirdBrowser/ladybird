@@ -86,23 +86,16 @@ impl TryFrom<u8> for HandleTag {
     }
 }
 
-/// The stored form of a key: its tag, its buffers and, for an EC private key, the curve it was given with and whether
-/// it has its public key.
+/// The stored form of a key: its tag and its buffers. An EC private key's buffers are its private value and its public
+/// key's coordinates.
 pub struct StoredKey {
     pub tag: HandleTag,
-    pub(crate) buffers: Vec<SecretBytes>,
-    pub ec_parameters: Option<Vec<u32>>,
-    pub has_ec_public_key: bool,
+    buffers: Vec<SecretBytes>,
 }
 
 impl StoredKey {
     pub(crate) fn new(tag: HandleTag, buffers: Vec<SecretBytes>) -> Self {
-        Self {
-            tag,
-            buffers,
-            ec_parameters: None,
-            has_ec_public_key: false,
-        }
+        Self { tag, buffers }
     }
 
     pub fn buffers(&self) -> Vec<&[u8]> {

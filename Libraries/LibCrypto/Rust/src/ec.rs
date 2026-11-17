@@ -21,13 +21,10 @@ pub(crate) struct EcPublicKey {
     curve: EcCurve,
 }
 
-/// A private key keeps the optional parts of the ECPrivateKey it was given in, which it is exported with: its curve's
-/// parameters, and its public key.
 pub(crate) struct EcPrivateKey {
     key: Pkey,
     curve: EcCurve,
-    has_parameters: bool,
-    public_key: Option<EcPublicKey>,
+    public_key: EcPublicKey,
 }
 
 impl EcCurve {
@@ -154,18 +151,13 @@ impl EcPrivateKey {
     fn generate(curve: EcCurve) -> Result<Self, CryptoError> {
         let params = [utf8_parameter(c"group", curve.name()), end_parameter()];
         let key = Pkey::generate(c"EC", Some(params.as_ptr()))?;
-        let mut private_key = Self {
-            key,
-            curve,
-            has_parameters: false,
-            public_key: None,
-        };
-        private_key.public_key = Some(private_key.derive_public_key()?);
-        Ok(private_key)
+        let (x, y) = coordinates(&key, curve)?;
+        let public_key = EcPublicKey::from_coordinates(&x, &y)?;
+        Ok(Self { key, curve, public_key })
     }
 
     /// The key of the private value `d`, whose public key, when given, must be the one `d` gives.
-    fn from_scalar(d: &[u8], has_parameters: bool, public_key: Option<EcPublicKey>) -> Result<Self, CryptoError> {
+    fn from_scalar(d: &[u8], public_key: Option<EcPublicKey>) -> Result<Self, CryptoError> {
         let curve = EcCurve::from_scalar_size(d.len())?;
         let point =
             openssl::ec_public_point(curve.nid(), d)?.ok_or(CryptoError::Invalid("EC private key is out of range"))?;
@@ -181,35 +173,16 @@ impl EcPrivateKey {
         builder.push_octets(c"pub", &point)?;
         let params = builder.build()?;
         let key = Pkey::from_data(c"EC", sys::EVP_PKEY_KEYPAIR, params.as_ptr())?;
-        Ok(Self {
-            key,
-            curve,
-            has_parameters,
-            public_key,
-        })
+        let public_key = match public_key {
+            Some(public_key) => public_key,
+            None => EcPublicKey::from_octets(&point)?,
+        };
+        Ok(Self { key, curve, public_key })
     }
 
     fn d_bytes(&self) -> Result<SecretBytes, CryptoError> {
         let d = self.key.number(c"priv").ok_or(CryptoError::Backend)?;
         d.to_padded(self.curve.scalar_size())
-    }
-
-    fn derive_public_key(&self) -> Result<EcPublicKey, CryptoError> {
-        let (x, y) = coordinates(&self.key, self.curve)?;
-        EcPublicKey::from_coordinates(&x, &y)
-    }
-
-    /// The ECPrivateKey of this key, with the parts it was given in.
-    fn export_as_der(&self) -> Result<Vec<u8>, CryptoError> {
-        let public_point = match &self.public_key {
-            Some(public_key) => Some(public_key.to_uncompressed()?),
-            None => None,
-        };
-        Ok(encode_private_key(
-            &self.d_bytes()?,
-            self.has_parameters.then_some(self.curve),
-            public_point.as_deref(),
-        ))
     }
 }
 
@@ -238,24 +211,21 @@ pub(crate) fn parse_private_key_info(curve: EcCurve, key: Pkey, encoded: &[u8]) 
         .number(c"priv")
         .ok_or(CryptoError::Backend)?
         .to_padded(scalar_size)?;
-    let public_key = EcPrivateKey::from_scalar(&d, false, None)?.derive_public_key()?;
-    let uncompressed = public_key.to_uncompressed()?;
+    let private_key = EcPrivateKey::from_scalar(&d, None)?;
+    let uncompressed = private_key.public_key.to_uncompressed()?;
     let mut compressed = uncompressed[..=scalar_size].to_vec();
     compressed[0] = 0x02 | (uncompressed.last().copied().unwrap_or_default() & 1);
 
     // NB: OpenSSL accepts BER, and a privateKey of any width. The parameters and the public key are optional, and the
     //     public key may be compressed, so the encoding must be the DER encoding of the key in one of those forms.
-    for with_parameters in [false, true] {
+    for parameters in [None, Some(curve)] {
         for public_point in [None, Some(uncompressed.as_slice()), Some(compressed.as_slice())] {
-            let parameters = with_parameters.then_some(curve);
             let mut candidate = encode_private_key(&d, parameters, public_point);
             let matches = candidate == encoded;
             crate::key::clear(&mut candidate);
-            if !matches {
-                continue;
+            if matches {
+                return Ok(KeyHandle(Key::EcPrivate(private_key)));
             }
-            let private_key = EcPrivateKey::from_scalar(&d, with_parameters, public_point.map(|_| public_key.clone()))?;
-            return Ok(KeyHandle(Key::EcPrivate(private_key)));
         }
     }
     Err(CryptoError::Invalid("Invalid ECPrivateKey"))
@@ -282,7 +252,7 @@ fn private_key(key: &KeyHandle) -> &EcPrivateKey {
 
 pub fn ec_generate_key_pair(curve: EcCurve) -> Result<KeyPair, CryptoError> {
     let private_key = EcPrivateKey::generate(curve).map_err(|_| CryptoError::Backend)?;
-    let public_key = private_key.public_key.clone().ok_or(CryptoError::Backend)?;
+    let public_key = private_key.public_key.clone();
     Ok(KeyPair {
         public_key: KeyHandle(Key::EcPublic(public_key)),
         private_key: KeyHandle(Key::EcPrivate(private_key)),
@@ -314,7 +284,7 @@ pub fn ec_key_from_coordinates(x: &[u8], y: &[u8], d: Option<&[u8]>) -> Option<K
     let Some(d) = d else {
         return Some(KeyHandle(Key::EcPublic(public_key)));
     };
-    let private_key = EcPrivateKey::from_scalar(d, false, Some(public_key)).ok()?;
+    let private_key = EcPrivateKey::from_scalar(d, Some(public_key)).ok()?;
     Some(KeyHandle(Key::EcPrivate(private_key)))
 }
 
@@ -342,10 +312,15 @@ pub fn ec_export_der(curve: EcCurve, key: &KeyHandle, is_public: bool) -> Result
             &point,
         ));
     }
-    let mut private_key = private_key(key).export_as_der()?;
-    let private_key_info = der::private_key_info(KeyAlgorithm::Ec.oid(), Some(&parameters), &private_key);
-    crate::key::clear(&mut private_key);
-    Ok(private_key_info)
+    // NB: The ECPrivateKey has its public key and not its parameters, which the PrivateKeyInfo already has.
+    let private_key = private_key(key);
+    let public_point = private_key.public_key.to_uncompressed()?;
+    let encoded = SecretBytes::new(encode_private_key(&private_key.d_bytes()?, None, Some(&public_point)));
+    Ok(der::private_key_info(
+        KeyAlgorithm::Ec.oid(),
+        Some(&parameters),
+        &encoded,
+    ))
 }
 
 pub fn ec_export_uncompressed(key: &KeyHandle) -> Result<Vec<u8>, CryptoError> {
@@ -355,10 +330,7 @@ pub fn ec_export_uncompressed(key: &KeyHandle) -> Result<Vec<u8>, CryptoError> {
 pub fn ec_export_public_coordinates(key: &KeyHandle) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
     match &key.0 {
         Key::EcPublic(public_key) => public_key.coordinates(),
-        Key::EcPrivate(private_key) => match &private_key.public_key {
-            Some(public_key) => public_key.coordinates(),
-            None => private_key.derive_public_key()?.coordinates(),
-        },
+        Key::EcPrivate(private_key) => private_key.public_key.coordinates(),
         _ => panic!("The key is not an EC key"),
     }
 }
@@ -383,10 +355,7 @@ pub(crate) fn public_key_for_private_key(key: &KeyHandle) -> Option<KeyHandle> {
     let Key::EcPrivate(private_key) = &key.0 else {
         return None;
     };
-    if let Some(public_key) = &private_key.public_key {
-        return Some(KeyHandle(Key::EcPublic(public_key.clone())));
-    }
-    Some(KeyHandle(Key::EcPublic(private_key.derive_public_key().ok()?)))
+    Some(KeyHandle(Key::EcPublic(private_key.public_key.clone())))
 }
 
 impl EcPublicKey {
@@ -398,20 +367,20 @@ impl EcPublicKey {
 }
 
 impl EcPrivateKey {
-    /// The stored form of the key: its private value, then its public key's coordinates if it has its public key, with
-    /// the curve it was given with.
+    /// The stored form of the key: its private value, then its public key's coordinates.
     pub(crate) fn stored(&self) -> StoredKey {
-        let mut buffers = vec![self.d_bytes().expect("OpenSSL gives an EC key's private value")];
-        if let Some(public_key) = &self.public_key {
-            let (x, y) = public_key.coordinates().expect("OpenSSL gives an EC key's coordinates");
-            buffers.extend([SecretBytes::new(x), SecretBytes::new(y)]);
-        }
-        StoredKey {
-            tag: HandleTag::EcPrivate,
-            buffers,
-            ec_parameters: self.has_parameters.then(|| self.curve.arcs().to_vec()),
-            has_ec_public_key: self.public_key.is_some(),
-        }
+        let (x, y) = self
+            .public_key
+            .coordinates()
+            .expect("OpenSSL gives an EC key's coordinates");
+        StoredKey::new(
+            HandleTag::EcPrivate,
+            vec![
+                self.d_bytes().expect("OpenSSL gives an EC key's private value"),
+                SecretBytes::new(x),
+                SecretBytes::new(y),
+            ],
+        )
     }
 }
 
@@ -433,9 +402,8 @@ pub(crate) fn decode_stored(
             } else {
                 None
             };
-            let private_key =
-                EcPrivateKey::from_scalar(buffers[0], parameters.is_some(), public_key).map_err(invalid)?;
-            // NB: A key stores the parameters it was given with, which name its own curve.
+            let private_key = EcPrivateKey::from_scalar(buffers[0], public_key).map_err(invalid)?;
+            // NB: A stored key may have its own curve's parameters, and may not have its public key.
             if parameters.is_some_and(|parameters| parameters != private_key.curve.arcs()) {
                 return Err(KeyDecodeError::InvalidComponents);
             }

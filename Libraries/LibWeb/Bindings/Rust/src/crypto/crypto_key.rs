@@ -505,29 +505,17 @@ impl Serializable for CryptoKey {
         }
 
         // 5. Set serialized.[[Handle]] to the [[handle]] internal slot of value.
-        // NB: An EC private key's parameters and whether it has its public key follow its first buffer.
+        // NB: An EC private key's first buffer is followed by a has-parameters flag, which is false, and a
+        //     has-public-key flag, which is true, before its public key's buffers.
         let stored = self.handle().to_stored();
         serialized.write_u8(stored.tag as u8);
         let buffers = stored.buffers();
-        if stored.tag != HandleTag::EcPrivate {
-            for buffer in buffers {
-                serialized.write_bytes(buffer);
+        for (index, buffer) in buffers.into_iter().enumerate() {
+            serialized.write_bytes(buffer);
+            if index == 0 && stored.tag == HandleTag::EcPrivate {
+                serialized.write_bool(false);
+                serialized.write_bool(true);
             }
-            return Ok(());
-        }
-
-        serialized.write_bytes(buffers[0]);
-        serialized.write_bool(stored.ec_parameters.is_some());
-        if let Some(parameters) = &stored.ec_parameters {
-            serialized.write_u64(parameters.len() as u64);
-            for &parameter in parameters {
-                serialized.write_u32(parameter);
-            }
-        }
-        serialized.write_bool(stored.has_ec_public_key);
-        if stored.has_ec_public_key {
-            serialized.write_bytes(buffers[1]);
-            serialized.write_bytes(buffers[2]);
         }
         Ok(())
     }
