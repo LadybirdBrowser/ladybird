@@ -1,0 +1,17 @@
+Ladybird skips letter-spacing after a cluster that starts with a
+character of a cursive script, and counts a character by its script
+extensions when its own script is Common or Inherited. Blink’s
+ShapeResultSpacing::ComputeSpacing() also skips it inside a cursive
+script run, except at spaces, and its IsCursiveScript() lists the same
+seven scripts. Its script runs take in Common and Inherited characters,
+so it gives a tatweel inside an Arabic word no spacing either. Gecko’s
+PropertyProvider::GetSpacingInternal() checks each cluster’s base
+character with UnicodeProperties::IsCursiveScript(), which lists the
+same seven scripts but reads only the Script property, and a tatweel’s
+is Common — so Gecko spaces a tatweel inside an Arabic word.
+
+Run in Chrome 157 and Firefox 151 on ten samples, both add no spacing
+inside Arabic (with harakat, and with Arabic-Indic digits), Syriac,
+N’Ko, or Mongolian words, and add it once at the space between two
+Arabic words, as Ladybird now does. For a tatweel, Chrome adds none, as
+Ladybird now does, and Firefox adds it once.
