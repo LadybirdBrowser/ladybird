@@ -16,6 +16,7 @@
 #include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
+#include <LibCore/ThreadEventQueue.h>
 #include <LibCore/TimeZone.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
@@ -401,14 +402,28 @@ u32 Internals::worker_agent_count() const
     return Bindings::worker_agent_count();
 }
 
+static void collect_garbage_from_the_outermost_event_loop_turn(GC::Root<WebIDL::Promise>);
+
 void Internals::gc_async(GC::Ref<WebIDL::Promise> promise)
 {
-    // Queue a LibCore event to run the collection, so that it runs outside the JS execution context with as small a
-    // stack as possible.
-    Core::deferred_invoke([promise = GC::make_root(promise)] {
+    collect_garbage_from_the_outermost_event_loop_turn(GC::make_root(promise));
+}
+
+static void collect_garbage_from_the_outermost_event_loop_turn(GC::Root<WebIDL::Promise> promise)
+{
+    // Queue a LibCore event to run the collection, so that it runs outside the JS execution context. Nothing on the stack
+    // of the outermost event loop turn refers to a cell that is not rooted some other way, so the collection leaves the
+    // stack out. A word there that only looks like a cell pointer would otherwise keep that cell alive, and one in a
+    // frame of the event loop itself would keep it alive for every later collection too.
+    Core::deferred_invoke([promise = move(promise)]() mutable {
+        // A nested event loop has script waiting further up the stack, so wait for it to finish.
+        if (Core::ThreadEventQueue::current().is_processing_nested()) {
+            collect_garbage_from_the_outermost_event_loop_turn(move(promise));
+            return;
+        }
         auto& realm = WebIDL::promise_realm(*promise);
         HTML::TemporaryExecutionContext execution_context { realm };
-        realm.vm().heap().collect_garbage();
+        realm.vm().heap().collect_garbage_without_scanning_the_stack();
         WebIDL::resolve_promise(*promise);
     });
 }

@@ -908,11 +908,19 @@ NO_SANITIZE_ADDRESS void Heap::collect_garbage(CollectionType collection_type, b
     run_collection(captured_registers, collection_type, print_report);
 }
 
-void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, CollectionType collection_type, bool print_report)
+void Heap::collect_garbage_without_scanning_the_stack()
+{
+    VERIFY(!heap_access_is_forbidden_on_this_thread());
+    VERIFY(is_on_owner_thread());
+    run_collection({}, CollectionType::CollectGarbage, false, false);
+}
+
+void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, CollectionType collection_type, bool print_report, bool scan_stack)
 {
     ConservativeScanOrigin origin {
         .stack_floor = bit_cast<FlatPtr>(__builtin_frame_address(0)),
         .callee_saved_registers = callee_saved_registers,
+        .scan_stack = scan_stack,
     };
 
     VERIFY(!m_collecting_garbage);
@@ -1257,7 +1265,7 @@ void Heap::gather_roots(ConservativeScanOrigin const& origin, HashMap<Cell*, Hea
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.gather_embedder_roots_us };
         m_gather_embedder_roots(roots);
     }
-    {
+    if (origin.scan_stack) {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.gather_conservative_roots_us };
         gather_conservative_roots(origin, roots, out_stack_frames);
     }

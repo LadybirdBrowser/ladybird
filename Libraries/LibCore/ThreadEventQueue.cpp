@@ -7,6 +7,7 @@
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Once.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoopImplementation.h>
 #include <LibCore/EventReceiver.h>
@@ -48,6 +49,8 @@ struct ThreadEventQueue::Private {
 
     Mutex mutex;
     Vector<QueuedEvent> queued_events;
+    // Only the queue's own thread reads and writes this.
+    size_t processing_depth { 0 };
 };
 
 static pthread_key_t s_current_thread_event_queue_key;
@@ -131,6 +134,9 @@ size_t ThreadEventQueue::process()
         events = move(m_private->queued_events);
     }
 
+    ++m_private->processing_depth;
+    ScopeGuard leave = [this] { --m_private->processing_depth; };
+
     for (auto& queued_event : events) {
         if (auto receiver = queued_event.receiver.strong_ref()) {
             switch (queued_event.event_type) {
@@ -157,6 +163,11 @@ size_t ThreadEventQueue::process()
     }
 
     return events.size();
+}
+
+bool ThreadEventQueue::is_processing_nested() const
+{
+    return m_private->processing_depth > 1;
 }
 
 bool ThreadEventQueue::has_pending_events() const
