@@ -17,6 +17,7 @@
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsObjectAddress.h>
@@ -157,6 +158,14 @@ public:
         VERIFY(m_microtask_checkpoint_deferrals > 0);
         --m_microtask_checkpoint_deferrals;
     }
+    bool microtask_checkpoints_are_deferred() const { return m_microtask_checkpoint_deferrals > 0; }
+
+    enum class PromiseSettlement : u8 {
+        Resolve,
+        Reject,
+    };
+    bool defer_promise_settlement_if_needed(GC::Ref<JS::PromiseCapability const>, PromiseSettlement, JS::Value);
+    Optional<PromiseSettlement> deferred_promise_settlement(JS::PromiseCapability const&) const;
 
     void register_document(Badge<DOM::Document>, DOM::Document&);
     void unregister_document(Badge<DOM::Document>, DOM::Document&);
@@ -300,6 +309,16 @@ private:
     bool m_performing_a_microtask_checkpoint { false };
     bool m_has_rejected_promises_to_notify_about { false };
     u32 m_microtask_checkpoint_deferrals { 0 };
+
+    void settle_deferred_promises();
+
+    struct DeferredPromiseSettlement {
+        GC::Ref<JS::PromiseCapability const> promise;
+        PromiseSettlement settlement;
+        JS::Value value;
+    };
+    Queue<DeferredPromiseSettlement> m_deferred_promise_settlements;
+    bool m_settling_deferred_promises { false };
 
     mutable Vector<GC::Weak<DOM::Document>> m_documents;
     mutable bool m_documents_sort_dirty { false };

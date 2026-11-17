@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<iframe id="frame" style="width: 300px; height: 100px"></iframe>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    (async () => {
+        await animationFrame();
+        await animationFrame();
+        const doc = frame.contentDocument;
+        await doc.fonts.ready;
+        const style = doc.createElement("style");
+        style.textContent = "@media (min-width: 200px) { @font-face { font-family: test; src: url(data:font/woff;base64,AAAA) } }";
+        doc.head.append(style);
+        doc.body.innerHTML = '<div id="target" style="font-family: test">Hello</div>';
+        const target = doc.getElementById("target");
+        frame.contentWindow.getComputedStyle(target).fontFamily;
+        target.offsetWidth;
+        Object.defineProperty(doc.fonts, "then", {
+            get() {
+                target.style.display = "none";
+                doc.body.offsetWidth;
+                return undefined;
+            },
+        });
+        frame.style.width = "100px";
+        frame.contentWindow.getComputedStyle(target).fontFamily;
+        await animationFrame();
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
+</html>
