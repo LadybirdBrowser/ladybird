@@ -47,7 +47,7 @@ test("basic functionality", () => {
         expect(typedArray[1]).toBe(2);
         expect(typedArray[2]).toBe(3);
 
-        expect(typedArray.sort(() => 1)).toBe(typedArray);
+        expect(typedArray.sort(() => -1)).toBe(typedArray);
         expect(typedArray[0]).toBe(3);
         expect(typedArray[1]).toBe(2);
         expect(typedArray[2]).toBe(1);
@@ -66,7 +66,7 @@ test("basic functionality", () => {
         expect(typedArray[1]).toBe(2n);
         expect(typedArray[2]).toBe(3n);
 
-        expect(typedArray.sort(() => 1)).toBe(typedArray);
+        expect(typedArray.sort(() => -1)).toBe(typedArray);
         expect(typedArray[0]).toBe(3n);
         expect(typedArray[1]).toBe(2n);
         expect(typedArray[2]).toBe(1n);
