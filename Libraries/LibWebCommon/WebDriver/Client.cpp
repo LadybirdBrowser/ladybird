@@ -11,6 +11,8 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
 #include <AK/Format.h>
+#include <AK/IPv4Address.h>
+#include <AK/IPv6Address.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/Span.h>
@@ -187,6 +189,56 @@ static JsonValue make_success_response(JsonValue value)
     return result;
 }
 
+// NB: A page using DNS rebinding sends a Host header with its own domain name, which resolves to the local machine. A
+//     WebDriver client names the listener by IP address, or as localhost.
+static bool is_allowed_host(StringView host)
+{
+    if (host.starts_with('[')) {
+        auto closing_bracket = host.find(']');
+        if (!closing_bracket.has_value())
+            return false;
+        auto rest = host.substring_view(*closing_bracket + 1);
+        if (!rest.is_empty() && !rest.starts_with(':'))
+            return false;
+        return IPv6Address::from_string(host.substring_view(1, *closing_bracket - 1)).has_value();
+    }
+
+    if (auto colon = host.find_last(':'); colon.has_value())
+        host = host.substring_view(0, *colon);
+    return host.equals_ignoring_ascii_case("localhost"sv) || IPv4Address::from_string(host).has_value();
+}
+
+static Optional<StringView> find_header(HTTP::HttpRequest const& request, StringView name)
+{
+    if (auto it = request.headers().headers().find_if([&](auto& header) { return header.name.equals_ignoring_ascii_case(name); }); !it.is_end())
+        return it->value.view();
+    return {};
+}
+
+// NB: The WebDriver endpoint controls the browser without authentication, so web pages must not reach it.
+static ErrorOr<void, Error> reject_requests_from_web_pages(HTTP::HttpRequest const& request)
+{
+    auto host = find_header(request, "Host"sv);
+    if (!host.has_value() || !is_allowed_host(host->trim_whitespace()))
+        return Error { 403, "unknown error"_string, "The Host header does not name the local machine"_string, {} };
+
+    // A browser sends Origin with every request a page makes, except for a same-origin GET or HEAD, which a page can
+    // only make to WebDriver through DNS rebinding.
+    if (find_header(request, "Origin"sv).has_value())
+        return Error { 403, "unknown error"_string, "Requests from web pages are not allowed"_string, {} };
+
+    // A page can send a request with a CORS-safelisted Content-Type without a CORS preflight.
+    if (auto content_type = find_header(request, "Content-Type"sv); content_type.has_value()) {
+        auto essence = content_type->find_first_split_view(';').trim_whitespace();
+        if (essence.equals_ignoring_ascii_case("application/x-www-form-urlencoded"sv)
+            || essence.equals_ignoring_ascii_case("multipart/form-data"sv)
+            || essence.equals_ignoring_ascii_case("text/plain"sv))
+            return Error { 415, "unknown error"_string, "The Content-Type of the request is not allowed"_string, {} };
+    }
+
+    return {};
+}
+
 static bool is_keep_alive_request(HTTP::HttpRequest const& request)
 {
     if (auto it = request.headers().headers().find_if([](auto& header) { return header.name.equals_ignoring_ascii_case("Connection"sv); }); !it.is_end())
@@ -277,6 +329,12 @@ void Client::process_next_pending_request()
             return;
 
         auto pending_request = this_ref->m_pending_requests.head();
+        if (auto result = reject_requests_from_web_pages(pending_request->http_request); result.is_error()) {
+            this_ref->handle_error(pending_request->http_request, result.release_error());
+            this_ref->dequeue_current_pending_request();
+            return;
+        }
+
         auto body = read_body_as_json(pending_request->http_request);
         if (body.is_error()) {
             this_ref->handle_error(pending_request->http_request, body.release_error());
