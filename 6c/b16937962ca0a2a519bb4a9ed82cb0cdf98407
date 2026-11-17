@@ -1,0 +1,44 @@
+Ladybird records the tile of a repeating SVG background at the scale
+that the transforms of its box accumulate to, so the tile’s raster has
+the size that the tile has on the screen, to within a pixel. It chooses
+that scale when it records the tile, as it does for its other SVG
+images: When a transform changes without the box being painted again,
+the tile keeps the scale it was recorded at.
+
+The other engines choose the scale when they rasterize, going by their
+sources. In Blink, SVGImage::DrawPatternForContainer records the tile
+into a paint-record shader, which PaintShader::CreateScaledPaintRecord
+then rasterizes at the scale of the matrix it’s drawn under. WebKit’s
+SVGImage::drawPattern sizes its image buffer by the xScale() and
+yScale() of the context’s matrix. Gecko’s VectorImage::Draw bypasses its
+surface cache when it draws into a recording, so WebRender rasterizes
+the drawing commands themselves.
+
+Run in Chrome 157.0.8103.78, Firefox 151.0, and WebKit 26.5 (the build
+that Playwright ships), a 24px SVG background stays sharp under
+scale(4), scale(2, 3), scale(4.3), scale(40), a rotation with scale(3),
+and scale(4) translateZ(1px) — repeating or not, animated or not, with a
+viewBox or without one, and with a background-blend-mode. Ladybird now
+matches Chrome in each of those cases.
+
+Ladybird renders the image at one scale in both axes, in a viewport of
+the size of the tile’s destination. So under scale(2, 3), an image whose
+viewBox is fitted to its viewport keeps its layout, and its circle
+becomes an ellipse, as it does in Chrome.
+
+Ladybird limits the tile to 2048x2048 pixels, and to 8192 along a side.
+Blink’s PaintShader::GetClampedRasterizationTileRect limits its tile to
+the largest texture. So under scale(1000), Ladybird and Chrome both show
+the edge of the tile’s curve soft, where WebKit shows it sharp. (Firefox
+never finished its screenshot of that case.)
+
+Where the scale would give the tile a fractional size in device pixels,
+Ladybird lowers it to the nearest scale that gives the tile whole pixels
+on each side. The tile is then drawn a little larger than it was
+rasterized, which softens it: Under scale(3.7), a 24x12 tile is recorded
+at 88x44, and comes out softer in Ladybird than in Chrome.
+
+One difference is left as it was. All three engines draw an SVG
+background with “image-rendering: pixelated” as smooth under scale(4) as
+they draw one without it. Ladybird keeps such a tile at the size of its
+destination, so it shows the pixels of that tile enlarged.
