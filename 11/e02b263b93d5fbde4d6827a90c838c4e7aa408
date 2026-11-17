@@ -1,0 +1,24 @@
+Ladybird decodes a JPEG with several scans as a buffered image, reads
+all the input there is, and outputs its rows from the scans read. When
+the input was cut off, it outputs from the scan before the one read
+last, and turns off block smoothing. Blink’s JPEGImageReader::Decode()
+also decodes such files as buffered images, and starts output with the
+scan before the last one unless it reached EOI, but it keeps smoothing
+on. And WebKit’s JPEGImageReader::decode() and Gecko’s nsJPEGDecoder::
+ReadJPEGData() decode progressive files as buffered images as well.
+
+A 64x48 progressive JPEG cut at 90%, 60% and 30% of its bytes decodes
+to the whole image in Chrome 157.0.8103.78, Firefox 151.0 and WebKit
+26.5, and now in Ladybird. Cut within the header of their second scan,
+three progressive JPEGs (64x48, 16x16 and 64x800) decode in full from
+their first scan in WebKit and now in Ladybird, with the same colors.
+Firefox leaves their last row of blocks out, and Chrome shows nothing,
+since block smoothing waits on the next scan. Cut where the first scan
+ends, before any marker, WebKit still decodes every row, while Firefox
+and Ladybird leave out the last row of blocks, whose final Huffman
+codes the decoder only reads once it sees what follows them.
+
+A baseline JPEG cut short decodes differently in each engine: Chrome
+draws nothing, Firefox repeats the last rows it read, and WebKit fills
+the rest with gray. So Ladybird keeps its own behavior there, which
+leaves the rest transparent.
