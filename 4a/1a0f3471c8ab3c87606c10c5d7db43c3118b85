@@ -1,0 +1,14 @@
+Ladybird takes a flex container’s first baseline from its startmost
+flex line and its last baseline from its endmost one, which under
+wrap-reverse are its last and first lines. Gecko’s DoFlexLayout() picks
+the same lines through StartmostLine() and EndmostLine(), which check
+IsCrossAxisReversed(). WebKit’s FlexLayout::flexItemForFirstBaseline()
+and flexItemForLastBaseline() swap the first and last lines for
+wrap-reverse too. And Blink’s FlexLayoutAlgorithm::ApplyReversals()
+reverses the lines for wrap-reverse before its BaselineAccumulator reads
+the baselines of the first and last lines.
+
+Chrome 157.0.8103.78, Firefox 151.0 and WebKit 26.5 agree on five
+cases: a reversed row with wrap-reverse and mixed order values, a
+reversed row and a row with mixed order values, a reversed row with
+equal ones, and a row with wrap-reverse. Ladybird now matches all five.
