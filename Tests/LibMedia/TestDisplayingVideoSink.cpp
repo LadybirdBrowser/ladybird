@@ -379,6 +379,35 @@ TEST_CASE(resuming_ticking_seeks_past_frames_held_behind_the_clock)
     EXPECT_EQ(frame_counts.dropped, 0u);
 }
 
+// A sink that is not ticking reports its input's suspension at once, while the status of its last update is still waiting
+// to be dispatched. That status is older than the suspension, so it must not be dispatched after it.
+TEST_CASE(a_suspension_is_not_followed_by_the_status_it_replaced)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    Vector<Media::PipelineStatus> dispatched_statuses;
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+        dispatched_statuses.append(status);
+    });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+    sink->set_ticking(false);
+
+    producer->append_output(nullptr, Media::PipelineStatus::Blocked);
+    (void)sink->update(MonotonicTime::now());
+
+    producer->consume();
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended);
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    EXPECT(!dispatched_statuses.is_empty());
+    if (!dispatched_statuses.is_empty())
+        EXPECT_EQ(dispatched_statuses.last(), Media::PipelineStatus::Suspended);
+}
+
 // A sink reports its status in a deferred task, so a wake can arrive before that report is dispatched. The sink is
 // already presenting a frame by then, and must not take further frames while it is not ticking.
 TEST_CASE(wakes_before_a_status_is_dispatched_leave_frames_held_behind_the_clock)
