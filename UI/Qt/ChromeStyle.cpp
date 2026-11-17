@@ -633,7 +633,8 @@ QToolButton#LadybirdInUseChip:pressed {{
     background: {14};
 }}
 
-QToolButton#LadybirdLocationAction {{
+QToolButton#LadybirdLocationAction,
+QToolButton#LadybirdLocationTranslate {{
     background: transparent;
     border: 0;
     margin: 0;
