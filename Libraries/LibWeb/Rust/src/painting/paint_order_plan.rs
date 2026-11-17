@@ -710,7 +710,7 @@ impl<R: PaintRead, LeavesOut: PlanLeavesOut> PaintOrderBuilder<'_, R, LeavesOut>
         let begin = self.items.len();
         let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
         while let Some(child) = next_child {
-            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, child);
+            next_child = crate::painting::paint_order::next_paint_sibling_of_paint_child(self.layout_arena, child);
             if !matches(self, child) || self.descendant_phase_is_empty(child, phase) {
                 continue;
             }
