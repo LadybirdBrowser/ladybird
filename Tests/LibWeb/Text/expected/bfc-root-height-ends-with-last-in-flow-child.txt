@@ -1,0 +1,27 @@
+pulled-up: 100
+pulled-up-to-the-top: 0
+pulled-up-above-the-top: 0
+tall-child-in-the-middle: 40
+then-empty-with-margins: 105
+with-bottom-margin: 115
+negative-bottom-margin: 80
+negative-bottom-margin-past-the-top: 0
+relatively-positioned: 130
+pulled-up-wrapper: 100
+negative-bottom-margin-on-tall-child: 70
+float-past-the-last-child: 90
+abspos-child: 100
+line-in-the-middle: 70
+block-in-inline: 100
+in-plain-block: 100
+overflow-hidden: 100
+overflow-auto: 100, scroll height 120
+flex-item: 100
+grid-item: 100
+inline-block: 100
+table-cell: 100
+float: 100
+abspos: 100
+table-with-caption: 110
+fieldset: 100
+vertical: 100
