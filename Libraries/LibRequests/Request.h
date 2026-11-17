@@ -21,6 +21,7 @@
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/RequestTransferLease.h>
+#include <LibURL/URL.h>
 
 namespace Requests {
 
@@ -94,6 +95,9 @@ public:
     int request_server_client_id() const;
     int fd() const { return m_fd; }
     ByteString const& http_version() const { return m_http_version; }
+    // The URL that RequestServer requested, which is the response's URL, as RequestServer follows no redirects. It is
+    // known once the response's headers have been received.
+    Optional<URL::URL> const& response_url() const { return m_response_url; }
     bool stop();
     void set_body_delivery_paused(bool);
     void resume_body_delivery();
@@ -136,7 +140,7 @@ public:
     Function<void(TeardownReason)> on_teardown;
 
     void did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error);
-    void did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, CacheState cache_state, ByteString http_version);
+    void did_receive_headers(Badge<RequestClient>, URL::URL url, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, CacheState cache_state, ByteString http_version);
     void did_transfer(Badge<RequestClient>);
 
     void set_request_fd(Badge<RequestClient>, int fd);
@@ -213,6 +217,7 @@ private:
     bool m_body_delivery_paused { false };
     bool m_finished { false };
     ByteString m_http_version;
+    Optional<URL::URL> m_response_url;
 };
 
 }

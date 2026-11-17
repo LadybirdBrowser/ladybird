@@ -330,8 +330,9 @@ void Request::did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo
         on_finish(total_size, timing_info, effective_network_error);
 }
 
-void Request::did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, CacheState cache_state, ByteString http_version)
+void Request::did_receive_headers(Badge<RequestClient>, URL::URL url, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, CacheState cache_state, ByteString http_version)
 {
+    m_response_url = move(url);
     m_http_version = move(http_version);
     if (on_headers_received)
         on_headers_received(move(response_headers), response_code, reason_phrase, cache_state);
