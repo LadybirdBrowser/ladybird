@@ -85,6 +85,11 @@ public:
     //     they are in the frame it runs in, and the frames below become the scan's floor. The definitions are
     //     NO_SANITIZE_ADDRESS so that the capture buffer stays on the real stack rather than ASan's fake one.
     NEVER_INLINE void collect_garbage(CollectionType = CollectionType::CollectGarbage, bool print_report = false);
+
+    // Collects without taking any root from the stack or the registers, so no stale or lookalike word there keeps a
+    // cell alive. Only safe where every cell the stack refers to is rooted some other way, as in the outermost turn of
+    // the event loop.
+    void collect_garbage_without_scanning_the_stack();
     NEVER_INLINE AK::JsonObject dump_graph();
 
     // A cell on a retaining path, which reaches the next one through a field it visits. The cell is live until the next
@@ -281,12 +286,13 @@ private:
     struct ConservativeScanOrigin {
         FlatPtr stack_floor { 0 };
         ReadonlySpan<FlatPtr> callee_saved_registers;
+        bool scan_stack { true };
     };
 
     // NB: NEVER_INLINE so that these stay below their entry point's frame, and so that __builtin_frame_address(0)
     //     yields a floor that leaves out their own frames -- which is what keeps the collection's large locals from
     //     being scanned.
-    NEVER_INLINE void run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, CollectionType, bool print_report);
+    NEVER_INLINE void run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, CollectionType, bool print_report, bool scan_stack = true);
     NEVER_INLINE AK::JsonObject build_graph(ReadonlySpan<FlatPtr> callee_saved_registers);
     NEVER_INLINE Vector<RetainingPath> build_retaining_paths(ReadonlySpan<FlatPtr> callee_saved_registers, AK::Function<bool(Cell&)> const& is_target, size_t max_paths);
 
