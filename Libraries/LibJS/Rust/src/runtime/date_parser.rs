@@ -228,6 +228,14 @@ impl DateParser {
         let number1 = self.numbers[1];
         let number2 = self.numbers[2];
 
+        if self.year.is_none() && self.month.is_some() {
+            // INTEROP: With a named month, the first two numbers are the day and the year, and a third number is
+            //          ignored. This makes "November 16-22, 2026" the 16th of November 2022, which is what websites
+            //          that format such a date range get in the most widely used engine.
+            self.numbers.truncate(2);
+            return self.guess_date_from_2_numbers();
+        }
+
         if self.year.is_some() || self.month.is_some() {
             return false; // Too many numbers
         }
