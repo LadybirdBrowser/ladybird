@@ -331,6 +331,7 @@ static StringView chrome_icon_path(ChromeIcon icon)
     case ChromeIcon::Close:
     case ChromeIcon::TabClose:
         return CLOSE_ICON_PATH;
+    case ChromeIcon::Bookmarks:
     case ChromeIcon::Star:
     case ChromeIcon::StarFilled:
         return STAR_ICON_PATH;

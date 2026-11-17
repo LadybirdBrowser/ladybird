@@ -141,6 +141,7 @@ public:
 
     void bind(Tab*);
     void set_sidebar(QWidget&);
+    void set_suppressed(bool);
     bool shows_over_page() const;
     void update_geometry();
 
@@ -165,6 +166,8 @@ private:
     QVariantAnimation* m_hover_expand_animation { nullptr };
     bool m_hover_expanded { false };
     qreal m_hover_expand_progress { 0.0 };
+
+    bool m_suppressed { false };
 };
 
 }
