@@ -55,6 +55,7 @@
         --control-hover: rgba(0, 0, 0, 0.075);
         --control-pressed: rgba(0, 0, 0, 0.09);
         --segment: #ffffff;
+        --hover-faint: rgba(0, 0, 0, 0.04);
         --surface: #fbfbfc;
         --tile: #f3f3f5;
         --edge: rgba(0, 0, 0, 0.1);
@@ -93,6 +94,7 @@
         --control-hover: rgba(255, 255, 255, 0.12);
         --control-pressed: rgba(255, 255, 255, 0.14);
         --segment: #48484e;
+        --hover-faint: rgba(255, 255, 255, 0.04);
         --surface: #333336;
         --tile: #2c2c2f;
         --edge: rgba(255, 255, 255, 0.12);
@@ -147,12 +149,19 @@
     --secondary-button-color: var(--control);
     --secondary-button-hover: var(--control-hover);
     --secondary-button-active: var(--control-pressed);
+
+    /* A neutral fill laid over a colored control under the pointer, as the toolbar's hover fill takes on the tint of the
+       surface below it. */
+    --hover-overlay: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08));
+
+    --checkbox-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 4.9 8.6 9.5 3.6' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
         --focus-edge: rgba(64, 140, 255, 0.75);
         --focus-ring: rgba(64, 140, 255, 0.16);
+        --hover-overlay: linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1));
     }
 }
 
@@ -271,6 +280,20 @@ select:focus {
     outline: none;
 }
 
+select:not(:disabled) {
+    cursor: pointer;
+}
+
+/* Like the toolbar's controls, a field deepens a little under the pointer. The states are in :where() so that a field
+   drawn by its container, such as a search field with an icon, can keep its own background with a plain :hover. */
+input[type="number"]:where(:not(:disabled, :focus)):hover,
+input[type="search"]:where(:not(:disabled, :focus)):hover,
+input[type="text"]:where(:not(:disabled, :focus)):hover,
+input[type="url"]:where(:not(:disabled, :focus)):hover,
+select:where(:not(:disabled, :focus-visible)):hover {
+    background-color: var(--control-hover);
+}
+
 input::placeholder {
     color: var(--muted);
 }
@@ -291,7 +314,10 @@ input[type="checkbox"]:not([switch]) {
     background-color: transparent;
     background-position: center;
     background-repeat: no-repeat;
-    background-size: 12px 12px;
+    /* The second size is for the hover fill that is laid under the check mark. */
+    background-size:
+        12px 12px,
+        100% 100%;
 
     outline: none;
     cursor: pointer;
@@ -299,8 +325,16 @@ input[type="checkbox"]:not([switch]) {
 
 input[type="checkbox"]:not([switch]):checked {
     background-color: var(--accent);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 4.9 8.6 9.5 3.6' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-image: var(--checkbox-check);
     box-shadow: none;
+}
+
+input[type="checkbox"]:not([switch]):not(:checked, :disabled):hover {
+    background-color: var(--control);
+}
+
+input[type="checkbox"]:not([switch]):checked:not(:disabled):hover {
+    background-image: var(--checkbox-check), var(--hover-overlay);
 }
 
 input[type="checkbox"]:not([switch]):disabled {
@@ -346,6 +380,10 @@ input[type="checkbox"][switch]:checked {
     background-color: var(--accent);
 }
 
+input[type="checkbox"][switch]:not(:disabled):hover {
+    background-image: var(--hover-overlay);
+}
+
 input[type="checkbox"][switch]::before {
     background-color: white;
     border: 7px solid white;
@@ -383,6 +421,11 @@ input[type="checkbox"][switch]:checked::before {
     pointer-events: none;
 }
 
+/* A segment's hover fill is fainter than other controls' fills, so it never matches the raised chosen segment. */
+.segmented label:not(:has(input:checked)):hover {
+    background: var(--hover-faint);
+}
+
 .segmented label:has(input:checked) {
     background: var(--segment);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
@@ -412,6 +455,10 @@ input[type="checkbox"][switch]:checked::before {
     border-radius: 10px;
     box-shadow: inset 0 0 0 1px var(--separator);
     cursor: pointer;
+}
+
+.tab-option:not(:has(input:checked)):hover {
+    background: var(--control);
 }
 
 .tab-option:has(input:checked) {
@@ -547,6 +594,13 @@ input[type="checkbox"][switch]:checked::before {
 /* The System theme follows the system's accent color, so its dot is a wheel of every hue, ringed in neutral gray. */
 .system-swatch {
     background: conic-gradient(#ff3b30, #ff9500, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff2d55, #ff3b30);
+}
+
+.color-swatch:not(:has(input:checked, input:focus-visible)):hover {
+    box-shadow:
+        inset 0 0 0 1px var(--edge),
+        0 0 0 2px var(--page),
+        0 0 0 4px var(--separator);
 }
 
 .color-swatch:has(input:checked) {
