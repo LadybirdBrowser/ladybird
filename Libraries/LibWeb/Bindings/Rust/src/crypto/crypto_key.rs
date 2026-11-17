@@ -10,7 +10,7 @@ use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 
 use ak::{Span, Utf16String};
-use libcrypto_rust::{KeyDecodeError, KeyHandle};
+use libcrypto_rust::{HandleTag, KeyHandle};
 use libjs_rust::api::{
     Array, CellRoot, ErrorKind, ErrorType, Gc, GcRefCell, GcWeak, IntegrityLevel, MarkedVec, Must, Object,
     PrimitiveString, PropertyKey, Trace, Value, Vm,
@@ -18,7 +18,7 @@ use libjs_rust::api::{
 
 use crate::bindings::conversions::create_uint8_array;
 use crate::bindings::interface::{
-    Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, create_dictionary_object, realm_arguments, wrap,
+    Ref, Wrappable, allocate, cell_from_abi, create_dictionary_object, realm_arguments, wrap,
 };
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::structured_data::{Serializable, SerializationReader, SerializationWriter};
@@ -419,13 +419,6 @@ const ALGORITHM_AES: u8 = 4;
 const ALGORITHM_HMAC: u8 = 5;
 const ALGORITHM_KMAC: u8 = 6;
 
-/// The tags of a serialized handle, Crypto::HandleTag, which are part of the stable storage serialization format.
-const HANDLE_EC_PRIVATE_KEY: u8 = 4;
-
-/// The number of buffers of the handle of each tag, Crypto::HandleTag. An EC private key has one, then optionally its
-/// parameters and its public key, whose two buffers follow.
-const HANDLE_BUFFER_COUNTS: [usize; 11] = [1, 2, 8, 2, 1, 1, 3, 1, 3, 1, 1];
-
 fn data_clone_error(message: &[u8]) -> Exception {
     Exception::Dom("DataCloneError", Utf16String::from_ascii(message))
 }
@@ -512,30 +505,30 @@ impl Serializable for CryptoKey {
         }
 
         // 5. Set serialized.[[Handle]] to the [[handle]] internal slot of value.
-        self.handle().with_components(|fields| {
-            serialized.write_u8(fields.tag);
-            let buffers = fields.buffers();
-            if fields.tag != HANDLE_EC_PRIVATE_KEY {
-                for buffer in buffers {
-                    serialized.write_bytes(buffer);
-                }
-                return;
+        // NB: An EC private key's parameters and whether it has its public key follow its first buffer.
+        let stored = self.handle().to_stored();
+        serialized.write_u8(stored.tag as u8);
+        let buffers = stored.buffers();
+        if stored.tag != HandleTag::EcPrivate {
+            for buffer in buffers {
+                serialized.write_bytes(buffer);
             }
+            return Ok(());
+        }
 
-            serialized.write_bytes(buffers[0]);
-            serialized.write_bool(fields.ec_parameters.is_some());
-            if let Some(parameters) = fields.ec_parameters {
-                serialized.write_u64(parameters.len() as u64);
-                for &parameter in parameters {
-                    serialized.write_u32(parameter);
-                }
+        serialized.write_bytes(buffers[0]);
+        serialized.write_bool(stored.ec_parameters.is_some());
+        if let Some(parameters) = &stored.ec_parameters {
+            serialized.write_u64(parameters.len() as u64);
+            for &parameter in parameters {
+                serialized.write_u32(parameter);
             }
-            serialized.write_bool(fields.has_ec_public_key);
-            if fields.has_ec_public_key {
-                serialized.write_bytes(buffers[1]);
-                serialized.write_bytes(buffers[2]);
-            }
-        });
+        }
+        serialized.write_bool(stored.has_ec_public_key);
+        if stored.has_ec_public_key {
+            serialized.write_bytes(buffers[1]);
+            serialized.write_bytes(buffers[2]);
+        }
         Ok(())
     }
 
@@ -597,13 +590,12 @@ impl Serializable for CryptoKey {
         }
 
         // 5. Initialize the [[handle]] internal slot of value to serialized.[[Handle]].
-        let handle_tag = serialized.read_u8()?;
-        let Some(&buffer_count) = HANDLE_BUFFER_COUNTS.get(usize::from(handle_tag)) else {
+        let Ok(handle_tag) = HandleTag::try_from(serialized.read_u8()?) else {
             return Err(data_clone_error(b"Invalid CryptoKey handle tag"));
         };
         let mut buffers: Vec<&[u8]> = Vec::new();
         let (mut has_ec_parameters, mut ec_parameters, mut has_ec_public_key) = (false, Vec::new(), false);
-        if handle_tag == HANDLE_EC_PRIVATE_KEY {
+        if handle_tag == HandleTag::EcPrivate {
             buffers.push(serialized.read_borrowed_bytes()?);
             has_ec_parameters = serialized.read_bool()?;
             if has_ec_parameters {
@@ -618,28 +610,18 @@ impl Serializable for CryptoKey {
                 buffers.push(serialized.read_borrowed_bytes()?);
             }
         } else {
-            for _ in 0..buffer_count {
+            for _ in 0..handle_tag.buffer_count() {
                 buffers.push(serialized.read_borrowed_bytes()?);
             }
         }
 
-        let handle = KeyHandle::from_components(
+        let Ok(handle) = KeyHandle::from_stored(
             handle_tag,
             &buffers,
             has_ec_parameters.then_some(ec_parameters.as_slice()),
             has_ec_public_key,
-        );
-        let handle = match handle {
-            Ok(handle) => handle,
-            Err(KeyDecodeError::OutOfMemory) => {
-                return cx
-                    .vm()
-                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                    .map_err(Into::into);
-            }
-            Err(KeyDecodeError::InvalidComponents) => {
-                return Err(data_clone_error(b"Invalid CryptoKey handle components"));
-            }
+        ) else {
+            return Err(data_clone_error(b"Invalid CryptoKey handle components"));
         };
         let key = Self::create(cx.vm(), handle);
 
@@ -759,16 +741,6 @@ impl InternalAlgorithmData {
 
 /// # Safety
 ///
-/// The VM is live and the caller transfers ownership of the handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_key_create(vm: *const c_void, handle: KeyHandle) -> *mut c_void {
-    // SAFETY: The VM is live and the handle is owned.
-    let vm = unsafe { &*vm.cast::<Vm>() };
-    cell_into_abi(CryptoKey::create(vm, handle))
-}
-
-/// # Safety
-///
 /// The VM, realm, and CryptoKey cell must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_crypto_key_wrap(
@@ -779,15 +751,6 @@ pub unsafe extern "C" fn web_rust_crypto_key_wrap(
     // SAFETY: The caller supplies the live VM, realm, and CryptoKey cell.
     let ((vm, realm), key) = unsafe { (realm_arguments(vm, realm), cell_from_abi::<CryptoKey>(key)) };
     wrap(&CallContext::new(vm, realm), key).as_ptr().cast()
-}
-
-/// # Safety
-///
-/// The key must be a live CryptoKey cell.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_key_handle(key: *mut c_void) -> *mut c_void {
-    // SAFETY: LibWeb supplies a live CryptoKey cell.
-    unsafe { cell_from_abi::<CryptoKey>(key) }.handle().as_raw()
 }
 
 /// # Safety

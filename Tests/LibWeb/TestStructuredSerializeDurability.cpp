@@ -93,8 +93,7 @@ TEST_CASE(crypto_key_storage_record_round_trips)
     EXPECT_EQ(key.algorithm_name(), "HKDF"_string);
     EXPECT_EQ(key.internal_usages().size(), 1u);
     EXPECT_EQ(key.internal_usages()[0], Web::Bindings::KeyUsage::DeriveKey);
-    EXPECT(key.handle().has<ByteBuffer>());
-    EXPECT_EQ(key.handle().get<ByteBuffer>().span(), handle);
+    EXPECT_EQ(storage_serialize(GC::Ref { value.as_object() }).data.span(), crypto_key_secret_record(handle, handle.size()).data.span());
 }
 
 TEST_CASE(value_tag_primitives_round_trip)
@@ -616,13 +615,9 @@ TEST_CASE(crypto_key_with_an_invalid_ec_point_is_a_data_clone_error)
 
 TEST_CASE(crypto_key_with_an_ml_dsa_seed_that_does_not_match_its_public_key_is_a_data_clone_error)
 {
-    auto key_pair = mldsa_44_key_pair();
-    Array<u8, 32> other_seed;
-    other_seed.fill(0xff);
-    auto other_key_pair = MUST(::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA44, other_seed));
-    auto expanded_key = MUST(key_pair.private_key.expanded_key());
-    auto seed = seed_of(key_pair.private_key);
-    auto record = crypto_key_full_record("private"sv, "sign"sv, alg_key_algorithm("ML-DSA-44"sv), handle_triple_buffer(6, seed, other_key_pair.public_key.public_key(), expanded_key));
+    auto key = mldsa_44_key();
+    auto other_key = mldsa_44_key(0xff);
+    auto record = crypto_key_full_record("private"sv, "sign"sv, alg_key_algorithm("ML-DSA-44"sv), handle_triple_buffer(6, key.seed, other_key.public_key, key.expanded_key));
     auto& realm = principal_test_realm();
     auto result = Web::WebIDL::throw_dom_exception_if_needed(realm.vm(), realm, [&] {
         return principal_storage_deserialize(record);
@@ -638,9 +633,7 @@ TEST_CASE(crypto_key_with_an_ml_kem_public_key_that_fails_the_encapsulation_key_
     public_key.fill(0xff);
     auto record = crypto_key_full_record("public"sv, "encapsulateBits"sv, alg_key_algorithm("ML-KEM-512"sv), handle_single_buffer(7, public_key));
     auto value = MUST(principal_storage_deserialize(record));
-    auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
-    EXPECT(key.handle().has<::Crypto::PK::MLKEMPublicKey>());
-    EXPECT(!key.handle().get<::Crypto::PK::MLKEMPublicKey>().size().has_value());
+    EXPECT_EQ(storage_serialize(GC::Ref { value.as_object() }).data.span(), record.data.span());
 }
 
 TEST_CASE(crypto_key_handle_variants_decode_from_frozen_bytes)
@@ -648,43 +641,7 @@ TEST_CASE(crypto_key_handle_variants_decode_from_frozen_bytes)
     for (auto const& golden : crypto_handle_goldens()) {
         auto record = crypto_key_full_record(golden.type, golden.usage, golden.algorithm, golden.handle);
         auto value = MUST(principal_storage_deserialize(record));
-        auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
-
-        switch (golden.tag) {
-        case HandleTag::ByteBuffer:
-            EXPECT(key.handle().has<ByteBuffer>());
-            break;
-        case HandleTag::RSAPublicKey:
-            EXPECT(key.handle().has<::Crypto::PK::RSAPublicKey>());
-            break;
-        case HandleTag::RSAPrivateKey:
-            EXPECT(key.handle().has<::Crypto::PK::RSAPrivateKey>());
-            break;
-        case HandleTag::ECPublicKey:
-            EXPECT(key.handle().has<::Crypto::PK::ECPublicKey>());
-            break;
-        case HandleTag::ECPrivateKey:
-            EXPECT(key.handle().has<::Crypto::PK::ECPrivateKey>());
-            break;
-        case HandleTag::MLDSAPublicKey:
-            EXPECT(key.handle().has<::Crypto::PK::MLDSAPublicKey>());
-            break;
-        case HandleTag::MLDSAPrivateKey:
-            EXPECT(key.handle().has<::Crypto::PK::MLDSAPrivateKey>());
-            break;
-        case HandleTag::MLKEMPublicKey:
-            EXPECT(key.handle().has<::Crypto::PK::MLKEMPublicKey>());
-            break;
-        case HandleTag::MLKEMPrivateKey:
-            EXPECT(key.handle().has<::Crypto::PK::MLKEMPrivateKey>());
-            break;
-        case HandleTag::OKPPublicKey:
-            EXPECT(key.handle().has<Web::Crypto::OKPPublicKey>());
-            break;
-        case HandleTag::OKPPrivateKey:
-            EXPECT(key.handle().has<Web::Crypto::OKPPrivateKey>());
-            break;
-        }
+        EXPECT_EQ(storage_serialize(GC::Ref { value.as_object() }).data.span(), record.data.span());
     }
 }
 

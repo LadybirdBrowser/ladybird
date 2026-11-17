@@ -1,0 +1,66 @@
+Harness status: OK
+
+Found 61 tests
+
+61 Pass
+Pass	setup
+Pass	AES-CBC 128-bit key
+Pass	AES-CBC 192-bit key
+Pass	AES-CBC 256-bit key
+Pass	AES-CBC 128-bit key with altered plaintext during call
+Pass	AES-CBC 192-bit key with altered plaintext during call
+Pass	AES-CBC 256-bit key with altered plaintext during call
+Pass	AES-CBC 128-bit key with altered plaintext after call
+Pass	AES-CBC 192-bit key with altered plaintext after call
+Pass	AES-CBC 256-bit key with altered plaintext after call
+Pass	AES-CBC 128-bit key with transferred plaintext during call
+Pass	AES-CBC 192-bit key with transferred plaintext during call
+Pass	AES-CBC 256-bit key with transferred plaintext during call
+Pass	AES-CBC 128-bit key with transferred plaintext after call
+Pass	AES-CBC 192-bit key with transferred plaintext after call
+Pass	AES-CBC 256-bit key with transferred plaintext after call
+Pass	AES-CBC 128-bit key decryption
+Pass	AES-CBC 192-bit key decryption
+Pass	AES-CBC 256-bit key decryption
+Pass	AES-CBC 128-bit key decryption with altered ciphertext during call
+Pass	AES-CBC 192-bit key decryption with altered ciphertext during call
+Pass	AES-CBC 256-bit key decryption with altered ciphertext during call
+Pass	AES-CBC 128-bit key decryption with altered ciphertext after call
+Pass	AES-CBC 192-bit key decryption with altered ciphertext after call
+Pass	AES-CBC 256-bit key decryption with altered ciphertext after call
+Pass	AES-CBC 128-bit key decryption with transferred ciphertext during call
+Pass	AES-CBC 192-bit key decryption with transferred ciphertext during call
+Pass	AES-CBC 256-bit key decryption with transferred ciphertext during call
+Pass	AES-CBC 128-bit key decryption with transferred ciphertext after call
+Pass	AES-CBC 192-bit key decryption with transferred ciphertext after call
+Pass	AES-CBC 256-bit key decryption with transferred ciphertext after call
+Pass	AES-CBC 128-bit key without encrypt usage
+Pass	AES-CBC 192-bit key without encrypt usage
+Pass	AES-CBC 256-bit key without encrypt usage
+Pass	AES-CBC 128-bit key with mismatched key and algorithm
+Pass	AES-CBC 192-bit key with mismatched key and algorithm
+Pass	AES-CBC 256-bit key with mismatched key and algorithm
+Pass	AES-CBC 128-bit key without decrypt usage
+Pass	AES-CBC 192-bit key without decrypt usage
+Pass	AES-CBC 256-bit key without decrypt usage
+Pass	AES-CBC 128-bit key, 64-bit IV
+Pass	AES-CBC 128-bit key, 192-bit IV
+Pass	AES-CBC 192-bit key, 64-bit IV
+Pass	AES-CBC 192-bit key, 192-bit IV
+Pass	AES-CBC 256-bit key, 64-bit IV
+Pass	AES-CBC 256-bit key, 192-bit IV
+Pass	AES-CBC 128-bit key, 64-bit IV decryption
+Pass	AES-CBC 128-bit key, 192-bit IV decryption
+Pass	AES-CBC 192-bit key, 64-bit IV decryption
+Pass	AES-CBC 192-bit key, 192-bit IV decryption
+Pass	AES-CBC 256-bit key, 64-bit IV decryption
+Pass	AES-CBC 256-bit key, 192-bit IV decryption
+Pass	AES-CBC 128-bit key, zeroPadChar
+Pass	AES-CBC 128-bit key, bigPadChar
+Pass	AES-CBC 128-bit key, inconsistentPadChars
+Pass	AES-CBC 192-bit key, zeroPadChar
+Pass	AES-CBC 192-bit key, bigPadChar
+Pass	AES-CBC 192-bit key, inconsistentPadChars
+Pass	AES-CBC 256-bit key, zeroPadChar
+Pass	AES-CBC 256-bit key, bigPadChar
+Pass	AES-CBC 256-bit key, inconsistentPadChars

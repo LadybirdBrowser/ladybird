@@ -38,8 +38,6 @@ struct CryptoKeyAlgorithmFields {
 
 extern "C" {
 
-CryptoKey* web_rust_crypto_key_create(JSVM*, CryptoKey::InternalKeyData*);
-CryptoKey::InternalKeyData const* web_rust_crypto_key_handle(CryptoKey const*);
 bool web_rust_crypto_key_extractable(CryptoKey const*);
 u8 web_rust_crypto_key_type(CryptoKey const*);
 void web_rust_crypto_key_set_extractable(CryptoKey*, bool);
@@ -49,16 +47,6 @@ void web_rust_crypto_key_set_algorithm(CryptoKey*, CryptoKeyAlgorithmFields cons
 FlatPtr web_rust_crypto_key_algorithm_name(CryptoKey const*);
 void web_rust_crypto_key_with_usages(CryptoKey const*, void*, void (*)(void*, ReadonlySpan<KeyUsage>));
 void web_rust_crypto_key_set_usages(CryptoKey*, ReadonlySpan<KeyUsage>);
-}
-
-GC::Ref<CryptoKey> CryptoKey::create(InternalKeyData key_data)
-{
-    return *web_rust_crypto_key_create(JS::HostABI::vm_to_abi(JS::VM::the()), new InternalKeyData(move(key_data)));
-}
-
-CryptoKey::InternalKeyData const& CryptoKey::handle() const
-{
-    return *web_rust_crypto_key_handle(this);
 }
 
 void CryptoKey::set_algorithm(InternalAlgorithmData algorithm)

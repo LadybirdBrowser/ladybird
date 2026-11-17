@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const hex = bytes => Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
+    const text = string => new TextEncoder().encode(string);
+
+    promiseTest(async () => {
+        const vectors = [
+            ["cSHAKE128 without a function name or customization", "cSHAKE128", 256, text("abc"), {}],
+            // NIST SP 800-185 cSHAKE sample #1
+            [
+                "cSHAKE128 with customization",
+                "cSHAKE128",
+                256,
+                new Uint8Array([0, 1, 2, 3]),
+                { customization: text("Email Signature") },
+            ],
+            // NIST SP 800-185 cSHAKE sample #3
+            [
+                "cSHAKE256 with customization",
+                "cSHAKE256",
+                512,
+                new Uint8Array([0, 1, 2, 3]),
+                { customization: text("Email Signature") },
+            ],
+            ["cSHAKE128 with a function name", "cSHAKE128", 256, text("hello"), { functionName: text("KMAC") }],
+        ];
+        for (const [description, name, length, data, parameters] of vectors) {
+            const digest = await crypto.subtle.digest({ name, outputLength: length, ...parameters }, data);
+            println(`${description}: ${hex(digest)}`);
+        }
+    });
+</script>

@@ -8,14 +8,26 @@
 
 #include <AK/Array.h>
 #include <AK/Types.h>
-#include <LibCrypto/KeyHandle.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 
 namespace Web::Crypto {
 
 // HandleTag and KeyAlgorithmTag values are part of the stable storage serialization format.
 // Do not reorder or reuse values; leave removed tags reserved.
-using ::Crypto::HandleTag;
+// These tags identify the key components in stored CryptoKey records.
+enum class HandleTag : u8 {
+    ByteBuffer = 0,
+    RSAPublicKey = 1,
+    RSAPrivateKey = 2,
+    ECPublicKey = 3,
+    ECPrivateKey = 4,
+    MLDSAPublicKey = 5,
+    MLDSAPrivateKey = 6,
+    MLKEMPublicKey = 7,
+    MLKEMPrivateKey = 8,
+    OKPPublicKey = 9,
+    OKPPrivateKey = 10,
+};
 
 enum class KeyAlgorithmTag : u8 {
     KeyAlgorithm = 0,

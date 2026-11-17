@@ -1,0 +1,66 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const hex = bytes => Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
+    const bytes = string => Uint8Array.from(string.match(/../g) ?? [], byte => parseInt(byte, 16));
+    const text = string => new TextEncoder().encode(string);
+
+    async function deriveBits(name, keyData, parameters, length) {
+        const key = await crypto.subtle.importKey("raw", keyData, name, false, ["deriveBits"]);
+        try {
+            return hex(await crypto.subtle.deriveBits({ name, ...parameters }, key, length));
+        } catch (error) {
+            return error.name;
+        }
+    }
+
+    promiseTest(async () => {
+        const ikm = bytes("0b".repeat(22));
+        // https://www.rfc-editor.org/rfc/rfc5869#appendix-A.1
+        println(
+            `HKDF RFC 5869 A.1: ${await deriveBits(
+                "HKDF",
+                ikm,
+                { hash: "SHA-256", salt: bytes("000102030405060708090a0b0c"), info: bytes("f0f1f2f3f4f5f6f7f8f9") },
+                42 * 8
+            )}`
+        );
+        // https://www.rfc-editor.org/rfc/rfc5869#appendix-A.3
+        println(
+            `HKDF RFC 5869 A.3: ${await deriveBits(
+                "HKDF",
+                ikm,
+                { hash: "SHA-256", salt: new Uint8Array(), info: new Uint8Array() },
+                42 * 8
+            )}`
+        );
+        println(
+            `HKDF longer than 255 SHA-1 blocks: ${await deriveBits(
+                "HKDF",
+                ikm,
+                { hash: "SHA-1", salt: new Uint8Array(), info: new Uint8Array() },
+                256 * 20 * 8
+            )}`
+        );
+
+        // https://www.rfc-editor.org/rfc/rfc6070#section-2
+        for (const hash of ["SHA-1", "SHA-256"]) {
+            println(
+                `PBKDF2 RFC 6070 test 1 with ${hash}: ${await deriveBits(
+                    "PBKDF2",
+                    text("password"),
+                    { hash, salt: text("salt"), iterations: 1 },
+                    20 * 8
+                )}`
+            );
+        }
+        println(
+            `PBKDF2 with 2^31 iterations: ${await deriveBits(
+                "PBKDF2",
+                text("password"),
+                { hash: "SHA-256", salt: text("salt"), iterations: 0x80000000 },
+                8
+            )}`
+        );
+    });
+</script>

@@ -1,0 +1,4 @@
+d = 1: imported
+d = 0: DataError
+d = the order of the curve: DataError
+d = 31 bytes wide: DataError

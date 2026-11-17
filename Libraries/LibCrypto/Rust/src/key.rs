@@ -6,193 +6,246 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::ffi::c_void;
-use core::ptr::NonNull;
+use crate::ec::{self, EcPrivateKey, EcPublicKey};
+use crate::ml::{self, MlDsaPublicKey, MlKemPublicKey, MlPrivateKey};
+use crate::rsa::{self, RsaPrivateKey, RsaPublicKey};
 
-use ak::Span;
+pub struct KeyHandle(pub(crate) Key);
 
-#[repr(transparent)]
-pub struct KeyHandle(NonNull<c_void>);
+pub(crate) enum Key {
+    Secret(SecretBytes),
+    OkpPublic(Vec<u8>),
+    OkpPrivate(SecretBytes),
+    MlDsaPublic(MlDsaPublicKey),
+    MlKemPublic(MlKemPublicKey),
+    MlPrivate(MlPrivateKey),
+    EcPublic(EcPublicKey),
+    EcPrivate(EcPrivateKey),
+    RsaPublic(RsaPublicKey),
+    RsaPrivate(RsaPrivateKey),
+}
+
+/// The tag of a stored key, which says what its buffers hold. The values are part of the stable storage serialization
+/// format (Web::Crypto::HandleTag).
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum HandleTag {
+    Secret = 0,
+    RsaPublic = 1,
+    RsaPrivate = 2,
+    EcPublic = 3,
+    EcPrivate = 4,
+    MlDsaPublic = 5,
+    MlDsaPrivate = 6,
+    MlKemPublic = 7,
+    MlKemPrivate = 8,
+    OkpPublic = 9,
+    OkpPrivate = 10,
+}
+
+impl HandleTag {
+    const ALL: [Self; 11] = [
+        Self::Secret,
+        Self::RsaPublic,
+        Self::RsaPrivate,
+        Self::EcPublic,
+        Self::EcPrivate,
+        Self::MlDsaPublic,
+        Self::MlDsaPrivate,
+        Self::MlKemPublic,
+        Self::MlKemPrivate,
+        Self::OkpPublic,
+        Self::OkpPrivate,
+    ];
+
+    /// The number of buffers that a key of this tag stores. An EC private key stores one, followed by its public key's
+    /// two when it has its public key.
+    pub fn buffer_count(self) -> usize {
+        match self {
+            Self::Secret
+            | Self::EcPrivate
+            | Self::MlDsaPublic
+            | Self::MlKemPublic
+            | Self::OkpPublic
+            | Self::OkpPrivate => 1,
+            Self::RsaPublic | Self::EcPublic => 2,
+            Self::MlDsaPrivate | Self::MlKemPrivate => 3,
+            Self::RsaPrivate => 8,
+        }
+    }
+}
+
+impl TryFrom<u8> for HandleTag {
+    type Error = KeyDecodeError;
+
+    fn try_from(value: u8) -> Result<Self, KeyDecodeError> {
+        Self::ALL
+            .get(usize::from(value))
+            .copied()
+            .ok_or(KeyDecodeError::InvalidComponents)
+    }
+}
+
+/// The stored form of a key: its tag, its buffers and, for an EC private key, the curve it was given with and whether
+/// it has its public key.
+pub struct StoredKey {
+    pub tag: HandleTag,
+    pub(crate) buffers: Vec<SecretBytes>,
+    pub ec_parameters: Option<Vec<u32>>,
+    pub has_ec_public_key: bool,
+}
+
+impl StoredKey {
+    pub(crate) fn new(tag: HandleTag, buffers: Vec<SecretBytes>) -> Self {
+        Self {
+            tag,
+            buffers,
+            ec_parameters: None,
+            has_ec_public_key: false,
+        }
+    }
+
+    pub fn buffers(&self) -> Vec<&[u8]> {
+        self.buffers.iter().map(|buffer| &**buffer).collect()
+    }
+}
+
+/// Bytes that are cleared when they are dropped.
+pub(crate) struct SecretBytes(Vec<u8>);
+
+impl SecretBytes {
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+
+    /// Shortens the bytes to `length`, clearing the ones cut off.
+    pub(crate) fn truncate(&mut self, length: usize) {
+        if length < self.0.len() {
+            clear(&mut self.0[length..]);
+            self.0.truncate(length);
+        }
+    }
+
+    /// Appends `bytes`, which must fit in the capacity reserved so that no partial copy is left behind by a reallocation.
+    pub(crate) fn extend_from_slice(&mut self, bytes: &[u8]) {
+        assert!(self.0.len() + bytes.len() <= self.0.capacity());
+        self.0.extend_from_slice(bytes);
+    }
+
+    pub(crate) fn into_vec(mut self) -> Vec<u8> {
+        core::mem::take(&mut self.0)
+    }
+}
+
+impl core::ops::Deref for SecretBytes {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for SecretBytes {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        &mut self.0
+    }
+}
+
+impl Drop for SecretBytes {
+    fn drop(&mut self) {
+        clear(&mut self.0);
+    }
+}
+
+/// Overwrites `bytes` with zeros in a way the compiler does not remove.
+pub(crate) fn clear(bytes: &mut [u8]) {
+    for byte in bytes.iter_mut() {
+        // SAFETY: The pointer comes from a live mutable reference.
+        unsafe { core::ptr::write_volatile(byte, 0) };
+    }
+    core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+}
 
 pub struct KeyPair {
     pub public_key: KeyHandle,
     pub private_key: KeyHandle,
 }
 
-impl KeyPair {
-    pub(super) unsafe fn from_raw(public_key: *mut c_void, private_key: *mut c_void) -> Self {
-        // SAFETY: The caller transfers ownership of both native keys.
-        let (public_key, private_key) = unsafe { (KeyHandle::from_raw(public_key), KeyHandle::from_raw(private_key)) };
-        Self {
-            public_key: public_key.expect("LibCrypto returns a public key"),
-            private_key: private_key.expect("LibCrypto returns a private key"),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum KeyDecodeError {
     InvalidComponents,
-    OutOfMemory,
-}
-
-pub struct KeyComponents<'a> {
-    pub tag: u8,
-    buffers: [&'a [u8]; 8],
-    buffer_count: usize,
-    pub ec_parameters: Option<&'a [u32]>,
-    pub has_ec_public_key: bool,
-}
-
-impl<'a> KeyComponents<'a> {
-    pub fn buffers(&self) -> &[&'a [u8]] {
-        &self.buffers[..self.buffer_count]
-    }
-}
-
-/// The result of decoding a key handle, Crypto's KeyDecodeResult.
-#[repr(u8)]
-#[allow(dead_code, reason = "LibCrypto constructs the variants")]
-enum RawKeyDecodeResult {
-    Decoded,
-    InvalidComponents,
-    OutOfMemory,
-}
-
-#[repr(C)]
-struct RawKeyComponents<'a> {
-    tag: u8,
-    buffers: [Span<'a, u8>; 8],
-    buffer_count: usize,
-    has_ec_parameters: bool,
-    ec_parameters: Span<'a, u32>,
-    has_ec_public_key: bool,
-}
-
-unsafe extern "C" {
-    fn crypto_key_destroy_handle(key: *mut c_void);
-    fn crypto_key_create_byte_handle(bytes: Span<'_, u8>) -> *mut c_void;
-    fn crypto_key_create_okp_handle(is_private: bool, bytes: Span<'_, u8>) -> *mut c_void;
-    fn crypto_key_byte_handle_bytes(key: *const c_void, bytes: &mut Span<'_, u8>);
-    fn crypto_key_okp_handle_bytes(key: *const c_void, bytes: &mut Span<'_, u8>);
-    fn crypto_key_encode_handle(
-        key: *const c_void,
-        state: *mut c_void,
-        steps: unsafe extern "C" fn(*mut c_void, *const RawKeyComponents<'_>),
-    );
-    fn crypto_key_decode_handle(fields: &RawKeyComponents<'_>, key: &mut *mut c_void) -> RawKeyDecodeResult;
 }
 
 impl KeyHandle {
-    /// # Safety
-    ///
-    /// A non-null pointer must transfer ownership of a LibCrypto key handle.
-    pub unsafe fn from_raw(key: *mut c_void) -> Option<Self> {
-        NonNull::new(key).map(Self)
-    }
-
-    pub fn as_raw(&self) -> *mut c_void {
-        self.0.as_ptr()
-    }
-
     pub fn from_secret_bytes(bytes: &[u8]) -> Self {
-        // SAFETY: The input is borrowed for the copy.
-        let key = unsafe { crypto_key_create_byte_handle(Span::new(bytes)) };
-        // SAFETY: The native call transfers ownership of the key.
-        unsafe { Self::from_raw(key) }.expect("LibCrypto returns a secret key")
+        Self(Key::Secret(SecretBytes::new(bytes.to_vec())))
     }
 
     pub fn from_okp_bytes(is_private: bool, bytes: &[u8]) -> Self {
-        // SAFETY: The input is borrowed for the copy.
-        let key = unsafe { crypto_key_create_okp_handle(is_private, Span::new(bytes)) };
-        // SAFETY: The native call transfers ownership of the key.
-        unsafe { Self::from_raw(key) }.expect("LibCrypto returns an OKP key")
+        Self(if is_private {
+            Key::OkpPrivate(SecretBytes::new(bytes.to_vec()))
+        } else {
+            Key::OkpPublic(bytes.to_vec())
+        })
     }
 
     pub fn secret_bytes(&self) -> &[u8] {
-        let mut bytes = Span::default();
-        // SAFETY: The key owns the returned bytes.
-        unsafe { crypto_key_byte_handle_bytes(self.as_raw(), &mut bytes) };
-        bytes.as_slice()
+        match &self.0 {
+            Key::Secret(bytes) => bytes,
+            _ => panic!("The key is not a secret key"),
+        }
     }
 
     pub fn okp_bytes(&self) -> &[u8] {
-        let mut bytes = Span::default();
-        // SAFETY: The key owns the returned bytes.
-        unsafe { crypto_key_okp_handle_bytes(self.as_raw(), &mut bytes) };
-        bytes.as_slice()
-    }
-
-    pub fn with_components<R>(&self, callback: impl FnOnce(KeyComponents<'_>) -> R) -> R {
-        fn run<F: FnOnce(KeyComponents<'_>) -> R, R>(key: &KeyHandle, callback: F) -> R {
-            unsafe extern "C" fn receive<F: FnOnce(KeyComponents<'_>) -> R, R>(
-                state: *mut c_void,
-                fields: *const RawKeyComponents<'_>,
-            ) {
-                // SAFETY: LibCrypto invokes the callback synchronously with the live slots.
-                let (state, fields) = unsafe { (&mut *state.cast::<(Option<F>, Option<R>)>(), &*fields) };
-                let callback = state.0.take().expect("LibCrypto supplies the components once");
-                state.1 = Some(callback(KeyComponents {
-                    tag: fields.tag,
-                    buffers: fields.buffers.map(Span::as_slice),
-                    buffer_count: fields.buffer_count,
-                    ec_parameters: fields.has_ec_parameters.then(|| fields.ec_parameters.as_slice()),
-                    has_ec_public_key: fields.has_ec_public_key,
-                }));
-            }
-            let mut state: (Option<F>, Option<R>) = (Some(callback), None);
-            // SAFETY: The key and callback state are live for the synchronous native call.
-            unsafe { crypto_key_encode_handle(key.as_raw(), core::ptr::from_mut(&mut state).cast(), receive::<F, R>) };
-            state.1.expect("LibCrypto supplies the key components")
+        match &self.0 {
+            Key::OkpPublic(bytes) => bytes,
+            Key::OkpPrivate(bytes) => bytes,
+            _ => panic!("The key is not an OKP key"),
         }
-        run(self, callback)
     }
 
-    pub fn from_components(
-        tag: u8,
+    pub(crate) fn is_okp_private(&self) -> bool {
+        matches!(self.0, Key::OkpPrivate(_))
+    }
+
+    pub fn to_stored(&self) -> StoredKey {
+        match &self.0 {
+            Key::Secret(bytes) => StoredKey::new(HandleTag::Secret, vec![SecretBytes::new(bytes.to_vec())]),
+            Key::OkpPublic(bytes) => StoredKey::new(HandleTag::OkpPublic, vec![SecretBytes::new(bytes.clone())]),
+            Key::OkpPrivate(bytes) => StoredKey::new(HandleTag::OkpPrivate, vec![SecretBytes::new(bytes.to_vec())]),
+            Key::EcPublic(key) => key.stored(),
+            Key::EcPrivate(key) => key.stored(),
+            Key::RsaPublic(key) => key.stored(),
+            Key::RsaPrivate(key) => key.stored(),
+            Key::MlDsaPublic(key) => key.stored(),
+            Key::MlKemPublic(key) => key.stored(),
+            Key::MlPrivate(key) => key.stored(),
+        }
+    }
+
+    /// The key that a stored form holds, as `to_stored()` gives it.
+    pub fn from_stored(
+        tag: HandleTag,
         buffers: &[&[u8]],
         ec_parameters: Option<&[u32]>,
         has_ec_public_key: bool,
     ) -> Result<Self, KeyDecodeError> {
-        let expected = match tag {
-            0 | 5 | 7 | 9 | 10 => 1,
-            1 | 3 => 2,
-            2 => 8,
-            4 if has_ec_public_key => 3,
-            4 => 1,
-            6 | 8 => 3,
-            _ => return Err(KeyDecodeError::InvalidComponents),
-        };
-        if buffers.len() != expected || (tag != 4 && (ec_parameters.is_some() || has_ec_public_key)) {
+        let is_ec_private_key = tag == HandleTag::EcPrivate;
+        let expected = tag.buffer_count() + if has_ec_public_key { 2 } else { 0 };
+        if buffers.len() != expected || (!is_ec_private_key && (ec_parameters.is_some() || has_ec_public_key)) {
             return Err(KeyDecodeError::InvalidComponents);
         }
-        let mut spans = [Span::default(); 8];
-        for (span, bytes) in spans.iter_mut().zip(buffers) {
-            *span = Span::new(bytes);
+        match tag {
+            HandleTag::Secret => Ok(Self::from_secret_bytes(buffers[0])),
+            HandleTag::OkpPublic => Ok(Self::from_okp_bytes(false, buffers[0])),
+            HandleTag::OkpPrivate => Ok(Self::from_okp_bytes(true, buffers[0])),
+            HandleTag::RsaPublic | HandleTag::RsaPrivate => rsa::decode_stored(tag, buffers),
+            HandleTag::EcPublic | HandleTag::EcPrivate => {
+                ec::decode_stored(tag, buffers, ec_parameters, has_ec_public_key)
+            }
+            HandleTag::MlDsaPublic | HandleTag::MlDsaPrivate | HandleTag::MlKemPublic | HandleTag::MlKemPrivate => {
+                ml::decode_stored(tag, buffers)
+            }
         }
-        let fields = RawKeyComponents {
-            tag,
-            buffers: spans,
-            buffer_count: buffers.len(),
-            has_ec_parameters: ec_parameters.is_some(),
-            ec_parameters: Span::new(ec_parameters.unwrap_or_default()),
-            has_ec_public_key,
-        };
-        let mut key = core::ptr::null_mut();
-        // SAFETY: The validated fields and output slot are live for the call.
-        match unsafe { crypto_key_decode_handle(&fields, &mut key) } {
-            RawKeyDecodeResult::Decoded => {}
-            RawKeyDecodeResult::InvalidComponents => return Err(KeyDecodeError::InvalidComponents),
-            RawKeyDecodeResult::OutOfMemory => return Err(KeyDecodeError::OutOfMemory),
-        }
-        // SAFETY: Success transfers ownership of the native key.
-        Ok(unsafe { Self::from_raw(key) }.expect("LibCrypto returns the decoded key"))
-    }
-}
-
-impl Drop for KeyHandle {
-    fn drop(&mut self) {
-        // SAFETY: This value owns the native handle.
-        unsafe { crypto_key_destroy_handle(self.as_raw()) };
     }
 }

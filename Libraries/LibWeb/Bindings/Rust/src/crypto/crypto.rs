@@ -118,9 +118,17 @@ impl Crypto {
 // https://w3c.github.io/webcrypto/#dfn-generate-a-random-uuid
 fn generate_random_uuid() -> Utf16String {
     // 1. Let bytes be a byte sequence of length 16.
+    let mut bytes = [0u8; 16];
+
     // 2. Fill bytes with cryptographically secure random bytes.
+    libcrypto_rust::fill_with_random(&mut bytes);
+
     // 3. Set the 4 most significant bits of bytes[6], which represent the UUID version, to 0100.
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+
     // 4. Set the 2 most significant bits of bytes[8], which represent the UUID variant, to 10.
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
     // 5. Return the string concatenation of «
     //    hexadecimal representation of bytes[0], hexadecimal representation of bytes[1], hexadecimal representation of
     //    bytes[2], hexadecimal representation of bytes[3],
@@ -135,8 +143,16 @@ fn generate_random_uuid() -> Utf16String {
     //    of bytes[12], hexadecimal representation of bytes[13], hexadecimal representation of bytes[14], hexadecimal
     //    representation of bytes[15]
     //    ».
-    // NB: The native service performs these steps.
-    libcrypto_rust::generate_random_uuid()
+    const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut uuid = Vec::with_capacity(36);
+    for (index, byte) in bytes.into_iter().enumerate() {
+        if matches!(index, 4 | 6 | 8 | 10) {
+            uuid.push(b'-');
+        }
+        uuid.push(HEX_DIGITS[usize::from(byte >> 4)]);
+        uuid.push(HEX_DIGITS[usize::from(byte & 0x0f)]);
+    }
+    Utf16String::from_ascii(&uuid)
 }
 
 /// # Safety

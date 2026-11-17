@@ -1,0 +1,32 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const base64url = hex =>
+        btoa(String.fromCharCode(...hex.match(/../g).map(byte => parseInt(byte, 16))))
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/, "");
+
+    // The P-256 base point, whose private key is 1.
+    const x = base64url("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296");
+    const y = base64url("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5");
+    const order = "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551";
+
+    promiseTest(async () => {
+        const values = [
+            ["1", "00".repeat(31) + "01"],
+            ["0", "00".repeat(32)],
+            ["the order of the curve", order],
+            ["31 bytes wide", "00".repeat(30) + "01"],
+        ];
+        for (const [name, d] of values) {
+            const jwk = { kty: "EC", crv: "P-256", x, y, d: base64url(d) };
+            try {
+                await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, true, ["sign"]);
+                println(`d = ${name}: imported`);
+            } catch (error) {
+                println(`d = ${name}: ${error.name}`);
+            }
+        }
+    });
+</script>
