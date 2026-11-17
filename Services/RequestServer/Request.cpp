@@ -802,7 +802,8 @@ void Request::handle_fetch_complete(int result_code)
             if (m_type == RequestType::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
                 m_response_headers->set({ HTTP::TEST_CACHE_REVALIDATION_STATUS_HEADER, "fresh"sv });
 
-            m_cache_entry_reader->revalidation_succeeded(m_response_headers);
+            auto current_time_offset_for_testing = HTTP::compute_current_time_offset_for_testing(m_disk_cache, *m_request_headers);
+            m_cache_entry_reader->revalidation_succeeded(m_response_headers, m_request_start_time + current_time_offset_for_testing, UnixDateTime::now() + current_time_offset_for_testing);
             m_cache_entry_was_revalidated = true;
             transition_to_state(m_type == RequestType::Fetch ? State::ReadCache : State::Complete);
             return;

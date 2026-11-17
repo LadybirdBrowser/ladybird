@@ -134,7 +134,7 @@ public:
     RevalidationType revalidation_type() const { return m_revalidation_type; }
     void set_revalidation_type(RevalidationType revalidation_type) { m_revalidation_type = revalidation_type; }
 
-    void revalidation_succeeded(HeaderList const&);
+    void revalidation_succeeded(HeaderList const&, UnixDateTime request_time, UnixDateTime response_time);
     void revalidation_failed();
 
     void send_to(int socket_fd, Function<void(u64 bytes_sent)> on_complete, Function<void(u64 bytes_sent)> on_error);
