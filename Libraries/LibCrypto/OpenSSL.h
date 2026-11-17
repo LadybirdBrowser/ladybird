@@ -85,13 +85,6 @@ class OpenSSL_X509 {
     OPENSSL_WRAPPER_CLASS(OpenSSL_X509, X509, X509);
 };
 
-class OpenSSL_BN {
-    OPENSSL_WRAPPER_CLASS(OpenSSL_BN, BIGNUM, BN);
-
-public:
-    static ErrorOr<OpenSSL_BN> create();
-};
-
 class OpenSSL_PKEY {
     OPENSSL_WRAPPER_CLASS(OpenSSL_PKEY, EVP_PKEY, EVP_PKEY);
 
@@ -124,14 +117,6 @@ class OpenSSL_PKEY_CTX {
     OPENSSL_WRAPPER_CLASS(OpenSSL_PKEY_CTX, EVP_PKEY_CTX, EVP_PKEY_CTX);
 };
 
-class OpenSSL_MAC {
-    OPENSSL_WRAPPER_CLASS(OpenSSL_MAC, EVP_MAC, EVP_MAC);
-};
-
-class OpenSSL_MAC_CTX {
-    OPENSSL_WRAPPER_CLASS(OpenSSL_MAC_CTX, EVP_MAC_CTX, EVP_MAC_CTX);
-};
-
 class OpenSSL_MD_CTX {
     OPENSSL_WRAPPER_CLASS(OpenSSL_MD_CTX, EVP_MD_CTX, EVP_MD_CTX);
 
@@ -139,19 +124,6 @@ public:
     static ErrorOr<OpenSSL_MD_CTX> create();
 };
 
-class OpenSSL_KDF_CTX {
-    OPENSSL_WRAPPER_CLASS(OpenSSL_KDF_CTX, EVP_KDF_CTX, EVP_KDF_CTX);
-};
-
-class OpenSSL_CIPHER_CTX {
-    OPENSSL_WRAPPER_CLASS(OpenSSL_CIPHER_CTX, EVP_CIPHER_CTX, EVP_CIPHER_CTX);
-
-public:
-    static ErrorOr<OpenSSL_CIPHER_CTX> create();
-};
-
 #undef OPENSSL_WRAPPER_CLASS
-
-ErrorOr<ByteBuffer> get_byte_buffer_param_from_key(EVP_PKEY* key, char const* key_name);
 
 }

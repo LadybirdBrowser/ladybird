@@ -15,7 +15,6 @@
 
 namespace Crypto::Hash {
 
-// NB: libcrypto_rust passes these values across the FFI.
 enum class HashKind {
     Unknown,
     None,
