@@ -9,6 +9,7 @@
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibRequests/RequestControlClient.h>
+#include <LibURL/Parser.h>
 #include <LibURL/Site.h>
 #include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
@@ -418,15 +419,49 @@ void NavigationLoader::acquire_response_body(WebContentClient const& population_
     m_response_body_request = request;
 }
 
+// NB: The process that fetched a navigation's response reports the URLs it reached: the history entry's URL, and the
+//     last URLs of the response's and the request's URL lists.
+template<typename Callback>
+static bool any_reported_url(URL::URL const& history_entry_url, Web::HTML::NavigationParamsDescriptor const* navigation_params, Callback const& callback)
+{
+    if (callback(history_entry_url))
+        return true;
+    if (!navigation_params)
+        return false;
+    if (!navigation_params->response.url_list.is_empty() && callback(navigation_params->response.url_list.last()))
+        return true;
+    return navigation_params->request.has_value() && !navigation_params->request->url_list.is_empty() && callback(navigation_params->request->url_list.last());
+}
+
+// NB: The process that fetched the response reports the URLs it reached, and they name the document, its origin, and
+//     the process that hosts it. RequestServer follows no redirects, so the URL of the request it made for the response
+//     is the response's URL. A navigation that reports another URL is made up: the document it would create could
+//     place another site's response in a process of the fetching process's choosing. Such a navigation is canceled.
+bool NavigationLoader::reported_urls_match_the_response_url(URL::URL const& response_url) const
+{
+    auto const* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>();
+    // NB: RequestServer's URL is parsed from its serialization, and a URL the UI process gave a navigation need not be.
+    return !any_reported_url(m_request.history_entry.url, navigation_params, [&](URL::URL const& url) {
+        auto parsed_url = URL::Parser::basic_parse(url.serialize());
+        return !parsed_url.has_value() || !parsed_url->equals(response_url, URL::ExcludeFragment::Yes);
+    });
+}
+
 void NavigationLoader::set_response_body_callbacks(Requests::Request& request)
 {
     auto weak_this = make_weak_ptr();
     request.set_unbuffered_request_callbacks(
-        [weak_this](NonnullRefPtr<HTTP::HeaderList> response_header_list, Optional<u32>, Optional<String> const&, Requests::CacheState) {
-            if (auto* loader = weak_this.ptr()) {
-                loader->m_response_header_list = move(response_header_list);
-                loader->did_acquire(true);
+        // NB: The request owns its callbacks, so it is alive while they run.
+        [weak_this, &request](NonnullRefPtr<HTTP::HeaderList> response_header_list, Optional<u32>, Optional<String> const&, Requests::CacheState) {
+            auto* loader = weak_this.ptr();
+            if (!loader)
+                return;
+            if (!request.response_url().has_value() || !loader->reported_urls_match_the_response_url(*request.response_url())) {
+                loader->did_acquire(false);
+                return;
             }
+            loader->m_response_header_list = move(response_header_list);
+            loader->did_acquire(true);
         },
         [](Requests::ResponseData) { },
         [](Core::ImmutableBytes) { },

@@ -92,6 +92,7 @@ private:
     }
 
     void determine_the_origin_of_the_response();
+    bool reported_urls_match_the_response_url(URL::URL const&) const;
     void did_acquire(bool succeeded);
     void set_response_body_callbacks(Requests::Request&);
     void did_designate_response_body_adopter();
