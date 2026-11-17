@@ -27,7 +27,6 @@ list(TRANSFORM INTERNAL_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladyb
 
 set(ABOUT_PAGES
     about.html
-    blocking.html
     bookmarks.html
     crashes.html
     downloads.html
