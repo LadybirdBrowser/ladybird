@@ -1,0 +1,13 @@
+Ladybird now shapes text that a system fallback font draws with the
+element’s font features, as it shapes text in the element’s own
+fonts. In Chrome 157 and Firefox 151, Armenian text set in Times New
+Roman (which has no Armenian, so a system font draws it) lost its
+ligature under a font-feature-settings that turned liga off, and
+under “font-variant-ligatures: none”. Ladybird kept the ligature in
+both cases before this change.
+
+From their source: Blink’s HarfBuzzShaper takes the features from Font::
+GetFontFeatures(), which the element’s FontDescription decides for every
+font of the run, fallback fonts included. And Gecko’s gfxFontShaper::
+MergeFontFeatures() reads them from the text run’s gfxFontStyle, which
+applies to whichever font its gfxFontGroup falls back to.
