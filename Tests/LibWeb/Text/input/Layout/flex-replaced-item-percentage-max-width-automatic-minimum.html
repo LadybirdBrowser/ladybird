@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .row { display: flex; width: 400px; margin-bottom: 8px; }
+    .text { flex: 1 0 300px; }
+</style>
+<!-- The automatic minimum size of a replaced flex item comes from its min-content size, which a cyclic percentage in its
+     width or max-width compresses only for its min-content contribution. So, the item doesn't shrink below its size. -->
+<div class="row"><img id="max-width-with-height" style="max-width: 100%; height: 112px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E"><div class="text"></div></div>
+<div class="row" style="width: 1000px"><img id="max-width-with-flex-basis" style="max-width: 100%; flex: 0 0 350px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='700' height='400'/%3E"></div>
+<div class="row"><img id="max-width-50-percent" style="max-width: 50%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='100'/%3E"><div class="text"></div></div>
+<div class="row"><img id="width-100-percent" style="width: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='100'/%3E"><div class="text"></div></div>
+<div class="row"><img id="max-width-and-min-width-zero" style="max-width: 100%; min-width: 0; height: 112px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E"><div class="text"></div></div>
+<div class="row"><img id="no-max-width" style="height: 112px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E"><div class="text"></div></div>
+<div style="display: flex; width: 400px"><div id="container-of-compressed-image" style="flex: 0 1 auto; min-width: 0"><img style="max-width: 100%; display: block" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='700' height='100'/%3E"></div></div>
+<script>
+    function run(report) {
+        for (const element of document.querySelectorAll("[id]:not(#out)")) {
+            const rect = element.getBoundingClientRect();
+            report(`${element.id}: ${rect.width}x${rect.height}`);
+        }
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>

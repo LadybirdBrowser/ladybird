@@ -1,0 +1,7 @@
+max-width-with-height: 112x112
+max-width-with-flex-basis: 700x400
+max-width-50-percent: 200x66.65625
+width-100-percent: 200x100
+max-width-and-min-width-zero: 100x112
+no-max-width: 112x112
+container-of-compressed-image: 400x57.140625
