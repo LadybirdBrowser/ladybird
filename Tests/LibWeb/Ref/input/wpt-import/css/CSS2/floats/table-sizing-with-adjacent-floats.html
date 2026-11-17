@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>CSS Floats — table sizing with multiple adjacent floats</title>
+<meta name=assert content="A table next to multiple right-floated elements should shrink its width to avoid overlapping all of them, not just the first one.">
+<link rel=help href="https://www.w3.org/TR/CSS2/visuren.html#floats">
+<link rel=match href="../../../../../expected/wpt-import/css/CSS2/floats/table-sizing-with-adjacent-floats-ref.html">
+<style>
+.container {
+  width: 250px;
+}
+.float-small {
+  float: right;
+  height: 50px;
+  width: 50px;
+  background-color: blue;
+}
+.float-wide {
+  clear: right;
+  float: right;
+  height: 50px;
+  width: 200px;
+  background-color: blue;
+}
+table {
+  background-color: green;
+  border-spacing: 0px;
+}
+td {
+  width: 100px;
+  height: 100px;
+  padding: 0px;
+}
+</style>
+<p>Test passes if blue and green boxes do not overlap.</p>
+<div class=container>
+  <div class=float-small></div>
+  <div class=float-wide></div>
+  <table><td></td></table>
+</div>

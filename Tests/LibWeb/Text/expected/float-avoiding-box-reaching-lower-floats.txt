@@ -1,0 +1,23 @@
+nested-inline-blocks: 20,0 10x30
+wider-float-below: 20,0 10x30
+narrower-float-below: 20,0 10x30
+ends-above-wider-float: 10,0 20x10
+three-floats: 10,0 20x20
+float-below-fills-the-line: 30,0 0x30
+right-float-below: 10,0 10x30
+two-floats-in-a-row-above: 20,0 10x30
+floats-in-sibling-before: 20,0 10x30
+block-after: 20,0 10x30 | 0,30 30x5
+two-boxes: 10,0 20x10 | 20,10 10x20
+flow-root: 20,0 10x30
+flex: 20,0 10x30
+table: 20,0 10x30
+replaced: 0,20 15x15
+border-and-padding: 18,0 12x30
+margin-left: 20,0 10x30
+fixed-height: 20,0 10x15
+fixed-width: 0,20 20x20
+percentage-width: 0,20 15x30
+min-width: 0,20 30x10
+rtl: 0,0 10x30
+vertical: 0,20 30x10
