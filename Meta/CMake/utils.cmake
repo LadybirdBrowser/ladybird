@@ -11,13 +11,13 @@ function(ladybird_generated_sources target_name)
     endif()
 endfunction()
 
-function(ladybird_codesign_command output name entitlements_file)
+function(ladybird_codesign_command output name)
     set(${output}
         "${CMAKE_COMMAND}"
         "-DLOG=${CMAKE_CURRENT_BINARY_DIR}/${name}-codesign.log"
         -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/run_quiet.cmake"
         --
-        codesign -s - -f --entitlements "${entitlements_file}" ${ARGN}
+        codesign -s - -f ${ARGN}
         PARENT_SCOPE
     )
 endfunction()

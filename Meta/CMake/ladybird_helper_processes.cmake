@@ -56,6 +56,6 @@ function(ladybird_sign_helper_process target)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${target}.release.entitlements" DESTINATION entitlements
         COMPONENT ladybird_Runtime)
 
-    ladybird_codesign_command(codesign_command "${target}" "${entitlements_file}" -o runtime "$<TARGET_FILE:${target}>")
+    ladybird_codesign_command(codesign_command "${target}" --entitlements "${entitlements_file}" -o runtime "$<TARGET_FILE:${target}>")
     add_custom_command(TARGET ${target} POST_BUILD COMMAND ${codesign_command} VERBATIM)
 endfunction()
