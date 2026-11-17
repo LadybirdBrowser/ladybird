@@ -48,7 +48,7 @@ public:
 
     Utf16String serialize(Layout::BegunRead const& read)
     {
-        collect(read, m_range->common_ancestor_container());
+        collect(read, m_range->common_ancestor_container(), false);
         if (m_pending_break_is_explicit)
             flush_pending_breaks();
         return m_builder.to_string();
@@ -85,23 +85,52 @@ private:
         m_builder.append(text);
     }
 
-    bool range_fully_contains_node(DOM::Node const& node) const
+    static DOM::Node const* child_on_path_to(DOM::Node const& ancestor, DOM::Node const& descendant)
     {
-        auto parent = node.parent();
-        if (!parent)
-            return false;
-        auto index = static_cast<WebIDL::UnsignedLong>(node.index());
-        auto before_node = DOM::BoundaryPoint { const_cast<DOM::Node&>(*parent), index };
-        auto after_node = DOM::BoundaryPoint { const_cast<DOM::Node&>(*parent), index + 1 };
-        return DOM::position_of_boundary_point_relative_to_other_boundary_point(before_node, m_range->start()) != DOM::RelativeBoundaryPointPosition::Before
-            && DOM::position_of_boundary_point_relative_to_other_boundary_point(after_node, m_range->end()) != DOM::RelativeBoundaryPointPosition::After;
+        for (auto const* node = &descendant; node; node = node->parent()) {
+            if (node->parent() == &ancestor)
+                return node;
+        }
+        return nullptr;
     }
 
-    void collect(Layout::BegunRead const& read, DOM::Node const& node)
+    // NB: Only the nodes the range intersects are visited. Those that are not inclusive ancestors of a boundary node
+    //     lie entirely inside the range, and so do all of their descendants. Testing each child for intersection
+    //     instead would walk its preceding siblings every time, which is quadratic in a wide tree.
+    template<typename Callback>
+    void for_each_child_intersecting_range(DOM::Node const& node, bool node_is_fully_contained, Callback callback)
     {
-        if (!m_range->intersects_node(const_cast<DOM::Node&>(node)))
+        if (node_is_fully_contained) {
+            node.for_each_child([&](DOM::Node const& child) {
+                callback(child, true);
+                return IterationDecision::Continue;
+            });
             return;
+        }
 
+        auto const& start_node = *m_range->start_container();
+        auto const& end_node = *m_range->end_container();
+        auto const* child_on_path_to_start = child_on_path_to(node, start_node);
+        auto const* child_on_path_to_end = child_on_path_to(node, end_node);
+
+        DOM::Node const* first_child = node.first_child();
+        if (&node == &start_node)
+            first_child = node.child_at_index(m_range->start_offset());
+        else if (child_on_path_to_start)
+            first_child = child_on_path_to_start;
+
+        DOM::Node const* child_to_stop_at = nullptr;
+        if (&node == &end_node)
+            child_to_stop_at = node.child_at_index(m_range->end_offset());
+        else if (child_on_path_to_end)
+            child_to_stop_at = child_on_path_to_end->next_sibling();
+
+        for (auto const* child = first_child; child && child != child_to_stop_at; child = child->next_sibling())
+            callback(*child, child != child_on_path_to_start && child != child_on_path_to_end);
+    }
+
+    void collect(Layout::BegunRead const& read, DOM::Node const& node, bool node_is_fully_contained)
+    {
         auto const* layout_node = node.layout_node(read);
         bool is_rendered_block = false;
         if (layout_node && is<Layout::NodeWithStyle>(*layout_node)) {
@@ -131,15 +160,14 @@ private:
                 data = text->data();
             append(data);
         } else if (is<HTML::HTMLBRElement>(node)) {
-            if (range_fully_contains_node(node))
+            if (node_is_fully_contained)
                 request_explicit_line_break();
         } else if (auto const* image = as_if<HTML::HTMLImageElement>(node)) {
-            if (range_fully_contains_node(node) && layout_node && layout_node->user_select_used_value() != CSS::UserSelect::None)
+            if (node_is_fully_contained && layout_node && layout_node->user_select_used_value() != CSS::UserSelect::None)
                 append(image->alt());
         } else {
-            node.for_each_child([&](DOM::Node const& child) {
-                collect(read, child);
-                return IterationDecision::Continue;
+            for_each_child_intersecting_range(node, node_is_fully_contained, [&](DOM::Node const& child, bool child_is_fully_contained) {
+                collect(read, child, child_is_fully_contained);
             });
         }
 
