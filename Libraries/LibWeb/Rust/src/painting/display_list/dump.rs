@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::builder::{HEADER_SIZE, RecordedDisplayList, for_each_command, inline_transform_of, read_command};
+use super::builder::{
+    HEADER_SIZE, RecordedDisplayList, for_each_command, inline_clips_of, inline_transform_of, read_command,
+};
 use super::commands::*;
 use super::dump_format::{
-    DumpNames, DumpValue, dumped_record_field, path_description, push_clip_radii, push_fields, push_value,
+    DumpNames, DumpValue, dumped_record_field, json_corner_radii, json_fields, json_float, json_float_point,
+    json_float_rect, json_int_rect, json_name, path_description, push_clip_radii, push_fields, push_value,
 };
 use super::effect_clip_plan::EffectClipPlan;
 use super::layers::{LayerPlan, LayerPlanInputs, build_layer_plan};
@@ -25,7 +28,7 @@ use crate::painting::paint_read::PaintRead;
 use crate::painting::vector_image_records::display_list_holding_vector_image_records;
 use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::VisualContextTreeDump;
-use crate::painting::visual_context::dump::SlotKind;
+use crate::painting::visual_context::dump::{DumpedNode, SlotKind, tree_section_text};
 use crate::stage::MainThread;
 use libcompositing_rust::host::RecordSpan;
 use libcompositing_rust::visual_context::CompositorScrollTable;
@@ -51,6 +54,8 @@ pub struct FfiDisplayListDumpOptions {
     pub record_ids: bool,
     /// Names visual context nodes by their indices in the tree rather than by the order the dump first prints them in.
     pub raw_node_indices: bool,
+    /// Writes one JSON object per line instead of text, with everything the other options add.
+    pub jsonl: bool,
 }
 
 /// What a display list dump asks the document. The fields are private: the callbacks are reached
@@ -212,6 +217,17 @@ pub unsafe extern "C" fn painting_dump(
     options: FfiDisplayListDumpOptions,
     callbacks: FfiPaintingDumpCallbacks,
 ) {
+    let options = if options.jsonl {
+        FfiDisplayListDumpOptions {
+            owners: true,
+            text: true,
+            fonts: true,
+            record_ids: true,
+            ..options
+        }
+    } else {
+        options
+    };
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     // SAFETY: As above.
@@ -265,28 +281,56 @@ pub unsafe extern "C" fn painting_dump(
     } else {
         DumpNames::numbering_nodes_in_print_order()
     };
-    let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, &mut names, |kind, index| {
-        let owner = owners.owner(kind, index)?;
-        Some(callbacks.debug_description(&main_thread, owner))
-    });
-    dump_compositor_scroll_table(&mut output, &mut names, visual_context_tree.compositor_scroll_table());
     let record_ids = options
         .record_ids
         .then(|| RecordIdsOfTopLevelRecords::of(tape, command_runs));
+    let nodes = visual_context_tree.reachable_nodes_in_print_order(command_runs, &mut names, |kind, index| {
+        let owner = owners.owner(kind, index)?;
+        Some(callbacks.debug_description(&main_thread, owner))
+    });
+    let mut output = String::new();
+    if options.jsonl {
+        push_json_line(
+            &mut output,
+            serde_json::json!({
+                "type": "header",
+                "format": "ladybird-display-list-dump",
+                "version": 1,
+                "viewport": json_int_rect(device_viewport_rect),
+                "node_names": if options.raw_node_indices { "raw-indices" } else { "print-order" },
+                "record_count": record_ids.as_ref().map_or(0, |record_ids| record_ids.record_count),
+            }),
+        );
+        for node in &nodes {
+            push_json_line(&mut output, json_node(node));
+        }
+    } else {
+        output = tree_section_text(&nodes);
+    }
+    dump_compositor_scroll_table(
+        &mut output,
+        &mut names,
+        visual_context_tree.compositor_scroll_table(),
+        options.jsonl,
+    );
     let layer_plan = dump_layers_if_every_canvas_and_video_kept_updating(
         &mut output,
-        tape,
-        command_runs,
+        &display_list,
         visual_context_tree,
         host.scroll_state().device_offsets(),
         device_viewport_rect,
         record_ids.as_ref(),
+        options.jsonl,
     );
-    output.push_str("\nDisplayList:\n");
+    if !options.jsonl {
+        output.push_str("\nDisplayList:\n");
+    }
     let mut records = RecordDump {
         output: &mut output,
         names: &mut names,
-        next_record_id: options.record_ids.then_some(1),
+        jsonl: options.jsonl,
+        prints_record_ids: options.record_ids,
+        record_count: 0,
         record_notes: record_notes.map(|notes| RecordNotesInDumpOrder {
             notes,
             next_index: 0,
@@ -328,8 +372,105 @@ fn push_field(output: &mut String, names: &mut DumpNames, name: &str, value: Dum
     push_value(output, &value, names);
 }
 
+fn json_node(node: &DumpedNode) -> serde_json::Value {
+    let mut object = serde_json::Map::new();
+    object.insert("type".into(), serde_json::json!("node"));
+    object.insert(
+        "kind".into(),
+        serde_json::json!(match node.kind {
+            SlotKind::Spatial => "spatial",
+            SlotKind::Clip => "clip",
+            SlotKind::Effect => "effect",
+        }),
+    );
+    object.insert("name".into(), serde_json::json!(node.name));
+    object.insert("raw".into(), serde_json::json!(node.index));
+    object.insert("depth".into(), serde_json::json!(node.depth));
+    for (key, value) in [
+        ("parent", &node.parent),
+        ("space", &node.space),
+        ("output_clip", &node.output_clip),
+    ] {
+        if let Some(value) = value {
+            object.insert(key.into(), serde_json::json!(value));
+        }
+    }
+    object.insert("description".into(), serde_json::json!(node.description));
+    if let Some(owner) = &node.owner {
+        object.insert("owner".into(), serde_json::json!(owner));
+    }
+    serde_json::Value::Object(object)
+}
+
+fn json_scroll_node(names: &mut DumpNames, table: &CompositorScrollTable, node_index: usize) -> serde_json::Value {
+    use serde_json::json;
+    let node = &table.nodes[node_index];
+    let mut object = serde_json::Map::new();
+    object.insert("type".into(), json!("scroll_node"));
+    object.insert(
+        "scroll_node".into(),
+        json_name(names.spatial(node.scroll_node_index), node.scroll_node_index.0),
+    );
+    object.insert(
+        "parent".into(),
+        json_name(
+            names.spatial(node.parent_scroll_node_index),
+            node.parent_scroll_node_index.0,
+        ),
+    );
+    object.insert("scrollport_rect".into(), json_int_rect(node.scrollport_rect));
+    object.insert("min_scroll_offset".into(), json_float_point(node.min_scroll_offset));
+    object.insert("max_scroll_offset".into(), json_float_point(node.max_scroll_offset));
+    object.insert("is_viewport".into(), json!(node.is_viewport));
+    if let Ok(container_index) = table
+        .snap_containers
+        .binary_search_by_key(&node.scroll_node_index, |container| container.scroll_node_index)
+    {
+        let container = &table.snap_containers[container_index];
+        let first_area_index = container.first_area_index as usize;
+        let areas: Vec<serde_json::Value> = table.snap_areas
+            [first_area_index..first_area_index + container.area_count as usize]
+            .iter()
+            .map(|area| {
+                json!({
+                    "pseudo_element_type": area.pseudo_element_type,
+                    "rect": json_float_rect(css_pixel_rect(area.rect)),
+                    "align_x": area.align_x,
+                    "align_y": area.align_y,
+                    "always_stop": area.always_stop,
+                })
+            })
+            .collect();
+        object.insert(
+            "snap_container".into(),
+            json!({
+                "snapport": json_float_rect(css_pixel_rect(container.snapport)),
+                "min_scroll_offset": json_float_point(css_pixel_point(container.min_scroll_offset)),
+                "max_scroll_offset": json_float_point(css_pixel_point(container.max_scroll_offset)),
+                "strictness": container.strictness,
+                "snaps_x": container.snaps_x,
+                "snaps_y": container.snaps_y,
+                "horizontal_writing_mode": container.horizontal_writing_mode,
+                "areas": areas,
+            }),
+        );
+    }
+    serde_json::Value::Object(object)
+}
+
 // Lists every row, unlike the tree section above it, which shows only the nodes that command runs reach.
-fn dump_compositor_scroll_table(output: &mut String, names: &mut DumpNames, table: &CompositorScrollTable) {
+fn dump_compositor_scroll_table(
+    output: &mut String,
+    names: &mut DumpNames,
+    table: &CompositorScrollTable,
+    jsonl: bool,
+) {
+    if jsonl {
+        for node_index in 0..table.nodes.len() {
+            push_json_line(output, json_scroll_node(names, table, node_index));
+        }
+        return;
+    }
     if table.nodes.is_empty() {
         return;
     }
@@ -419,13 +560,14 @@ fn dump_compositor_scroll_table(output: &mut String, names: &mut DumpNames, tabl
 // A list that draws no canvas, video or nested context gets no section.
 fn dump_layers_if_every_canvas_and_video_kept_updating(
     output: &mut String,
-    tape: &[u8],
-    command_runs: &[DisplayListCommandRun],
+    display_list: &DisplayListStorage,
     tree: &VisualContextTree,
     scroll_offsets: &[FloatPoint],
     device_viewport_rect: IntRect,
     record_ids: Option<&RecordIdsOfTopLevelRecords>,
+    jsonl: bool,
 ) -> Option<LayerPlan> {
+    let (tape, command_runs) = (display_list.bytes(), display_list.command_runs());
     let summary = summarize(tape, command_runs);
     let mut active_media = Vec::new();
     for live_content_record in &summary.live_content_records {
@@ -450,6 +592,39 @@ fn dump_layers_if_every_canvas_and_video_kept_updating(
         active_media: &active_media,
     });
     match layer_plan {
+        Ok(layer_plan) if jsonl => {
+            for (index, layer) in layer_plan.layers.iter().enumerate() {
+                let mut object = serde_json::Map::new();
+                object.insert("type".into(), serde_json::json!("layer"));
+                object.insert("name".into(), serde_json::json!(format!("L{index}")));
+                object.insert("kind".into(), serde_json::json!(layer.kind.to_string()));
+                object.insert("rect".into(), json_int_rect(layer.rect));
+                if let Some(record_ids) = record_ids {
+                    object.insert("records".into(), record_ids.json_spans(&layer.record_spans));
+                }
+                match &layer.window_server_placement {
+                    Some(Ok(placement)) => {
+                        object.insert(
+                            "shown_by_the_window_server".into(),
+                            serde_json::json!(placement.to_string()),
+                        );
+                    }
+                    Some(Err(rejection)) => {
+                        object.insert("replayed".into(), serde_json::json!(rejection.to_string()));
+                    }
+                    None => {}
+                }
+                push_json_line(output, serde_json::Value::Object(object));
+            }
+            Some(layer_plan)
+        }
+        Err(unlayered_reason) if jsonl => {
+            push_json_line(
+                output,
+                serde_json::json!({ "type": "unlayered", "reason": unlayered_reason.to_string() }),
+            );
+            None
+        }
         Ok(layer_plan) => {
             output.push_str("\nLayers:\n");
             layer_plan
@@ -497,6 +672,15 @@ impl RecordIdsOfTopLevelRecords {
             return self.record_count + 1;
         }
         self.ids_by_offset[&offset]
+    }
+
+    fn json_spans(&self, spans: &[RecordSpan]) -> serde_json::Value {
+        serde_json::Value::Array(
+            spans
+                .iter()
+                .map(|span| serde_json::json!([self.id_at(span.begin_offset), self.id_at(span.end_offset) - 1]))
+                .collect(),
+        )
     }
 
     // Spans of top-level records as the ranges of the numbers of every record they hold.
@@ -603,11 +787,45 @@ struct RecordNotesInDumpOrder {
 struct RecordDump<'a> {
     output: &'a mut String,
     names: &'a mut DumpNames,
-    // The number the next record is printed with, while records are numbered.
-    next_record_id: Option<u32>,
+    jsonl: bool,
+    prints_record_ids: bool,
+    // How many records were dumped so far, which numbers the next one.
+    record_count: u32,
     record_notes: Option<RecordNotesInDumpOrder>,
     // The descriptions of the fonts the glyph runs draw with, by their ids, where the dump prints them.
     font_descriptions: Option<HashMap<u64, String>>,
+}
+
+/// Where a record sits: how deep in other records, in which of them and as what, and in which layer.
+#[derive(Clone, Copy)]
+struct RecordPlace {
+    indent: usize,
+    depth: usize,
+    nested_in: Option<(u32, NestedRecordsRole)>,
+    layer: Option<usize>,
+    // The records of an SVG image take the origin of the record that draws the image.
+    origin_of_enclosing_vector_image: Option<Option<RecordOrigin>>,
+}
+
+impl RecordPlace {
+    const TOP_LEVEL: Self = Self {
+        indent: 0,
+        depth: 0,
+        nested_in: None,
+        layer: None,
+        origin_of_enclosing_vector_image: None,
+    };
+}
+
+fn nested_records_role_name(role: NestedRecordsRole) -> &'static str {
+    match role {
+        NestedRecordsRole::IsolatedGroupContent => "content",
+        NestedRecordsRole::IsolatedGroupMask => "mask",
+        NestedRecordsRole::RepeatedTile => "tile",
+        NestedRecordsRole::MaskContent => "mask-content",
+        NestedRecordsRole::PatternTile => "pattern-tile",
+        NestedRecordsRole::VectorImage => "vector-image",
+    }
 }
 
 impl RecordDump<'_> {
@@ -615,7 +833,7 @@ impl RecordDump<'_> {
         let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
         for run in command_runs {
             let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
-            self.dump_command_bytes(run_bytes, run.context, 0, None);
+            self.dump_command_bytes(run_bytes, run.context, RecordPlace::TOP_LEVEL);
         }
     }
 
@@ -625,10 +843,19 @@ impl RecordDump<'_> {
         for run in command_runs {
             let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
             for_each_command(run_bytes, |_, offset_in_run, payload| {
-                let layer_label = format!("L{} ", layer_plan.layer_of_record(run.offset + offset_in_run as u32));
+                let layer = layer_plan.layer_of_record(run.offset + offset_in_run as u32);
                 let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
+                let place = RecordPlace {
+                    layer: Some(layer),
+                    ..RecordPlace::TOP_LEVEL
+                };
+                if self.jsonl {
+                    self.dump_command_bytes(record_bytes, run.context, place);
+                    return;
+                }
+                let layer_label = format!("L{layer} ");
                 let record_dump_start = self.output.len();
-                self.dump_command_bytes(record_bytes, run.context, 0, None);
+                self.dump_command_bytes(record_bytes, run.context, place);
                 let record_dump = self.output.split_off(record_dump_start);
                 for (line_index, line) in record_dump.split_inclusive('\n').enumerate() {
                     if line_index == 0 {
@@ -642,16 +869,9 @@ impl RecordDump<'_> {
         }
     }
 
-    // The records of an SVG image take the origin of the record that draws the image.
-    fn dump_command_bytes(
-        &mut self,
-        command_bytes: &[u8],
-        context: ContextRef,
-        base_indent: usize,
-        origin_of_enclosing_vector_image: Option<Option<RecordOrigin>>,
-    ) {
+    fn dump_command_bytes(&mut self, command_bytes: &[u8], context: ContextRef, place: RecordPlace) {
         for_each_command(command_bytes, |header, _, payload| {
-            let note = match origin_of_enclosing_vector_image {
+            let note = match place.origin_of_enclosing_vector_image {
                 Some(origin) => RecordNote {
                     origin,
                     glyph_run_text: None,
@@ -662,33 +882,31 @@ impl RecordDump<'_> {
                     .map(RecordNotesInDumpOrder::take_next)
                     .unwrap_or_default(),
             };
-            push_indent(self.output, base_indent);
-            if let Some(record_id) = &mut self.next_record_id {
-                write!(self.output, "#{record_id} ").unwrap();
-                *record_id += 1;
+            self.record_count += 1;
+            let record_id = self.record_count;
+            if self.jsonl {
+                self.push_json_record(record_id, header, payload, context, place, &note);
+            } else {
+                push_indent(self.output, place.indent);
+                if self.prints_record_ids {
+                    write!(self.output, "#{record_id} ").unwrap();
+                }
+                write!(self.output, "{}@", header.command_type.name()).unwrap();
+                write_context(self.output, self.names, context);
+                let fields = command_fields(header.command_type, payload);
+                push_fields(self.output, &fields, self.names);
+                if header.inline_clip_count > 0 {
+                    dump_inline_clips(self.output, self.names, header, payload);
+                }
+                if let Some(transform) = inline_transform_of(header, payload) {
+                    self.output.push_str(" inline_transform=");
+                    push_affine_transform(self.output, transform);
+                }
+                self.push_note(header.command_type, payload, &note);
+                self.output.push('\n');
             }
-            write!(self.output, "{}@", header.command_type.name()).unwrap();
-            write_context(self.output, self.names, context);
-            let fields = command_fields(header.command_type, payload);
-            push_fields(self.output, &fields, self.names);
-            if header.inline_clip_count > 0 {
-                dump_inline_clips(self.output, self.names, header, payload);
-            }
-            if let Some(transform) = inline_transform_of(header, payload) {
-                self.output.push_str(" inline_transform=");
-                push_affine_transform(self.output, transform);
-            }
-            self.push_note(header.command_type, payload, &note);
-            self.output.push('\n');
 
-            self.dump_records_inside(
-                header.command_type,
-                payload,
-                context,
-                base_indent + 1,
-                origin_of_enclosing_vector_image,
-                note.origin,
-            );
+            self.dump_records_inside(header.command_type, payload, context, place, record_id, note.origin);
         });
     }
 
@@ -697,8 +915,8 @@ impl RecordDump<'_> {
         command_type: DisplayListCommandType,
         payload: &[u8],
         context: ContextRef,
-        indent: usize,
-        origin_of_enclosing_vector_image: Option<Option<RecordOrigin>>,
+        place: RecordPlace,
+        record_id: u32,
         origin: Option<RecordOrigin>,
     ) {
         for_each_nested_record_span(command_type, payload, |role, span| {
@@ -710,23 +928,40 @@ impl RecordDump<'_> {
                 | NestedRecordsRole::MaskContent
                 | NestedRecordsRole::VectorImage => None,
             };
-            let mut nested_indent = indent;
-            if let Some(label) = label {
-                push_indent(self.output, indent);
+            let mut nested_indent = place.indent + 1;
+            if let Some(label) = label
+                && !self.jsonl
+            {
+                push_indent(self.output, place.indent + 1);
                 self.output.push_str(label);
                 nested_indent += 1;
             }
             let origin_of_enclosing_vector_image = match role {
-                NestedRecordsRole::VectorImage => origin_of_enclosing_vector_image.or(Some(origin)),
-                _ => origin_of_enclosing_vector_image,
+                NestedRecordsRole::VectorImage => place.origin_of_enclosing_vector_image.or(Some(origin)),
+                _ => place.origin_of_enclosing_vector_image,
             };
             self.dump_command_bytes(
                 span_bytes(payload, span),
                 context,
-                nested_indent,
-                origin_of_enclosing_vector_image,
+                RecordPlace {
+                    indent: nested_indent,
+                    depth: place.depth + 1,
+                    nested_in: Some((record_id, role)),
+                    layer: place.layer,
+                    origin_of_enclosing_vector_image,
+                },
             );
         });
+    }
+
+    fn font_description(&self, command_type: DisplayListCommandType, payload: &[u8]) -> Option<&String> {
+        let font_descriptions = self.font_descriptions.as_ref()?;
+        let font_id = match command_type {
+            DisplayListCommandType::DrawGlyphRun => read_command::<DrawGlyphRun>(payload).font_id,
+            DisplayListCommandType::PaintTextShadow => read_command::<PaintTextShadow>(payload).font_id,
+            _ => return None,
+        };
+        font_descriptions.get(&font_id.0)
     }
 
     // What the recording noted of the record, and the font a glyph run draws with: the text, the font and then the
@@ -738,15 +973,9 @@ impl RecordDump<'_> {
         if prints_glyph_run_texts && let Some(text) = &note.glyph_run_text {
             push_glyph_run_text(self.output, text);
         }
-        if let Some(font_descriptions) = &self.font_descriptions {
-            let font_id = match command_type {
-                DisplayListCommandType::DrawGlyphRun => Some(read_command::<DrawGlyphRun>(payload).font_id),
-                DisplayListCommandType::PaintTextShadow => Some(read_command::<PaintTextShadow>(payload).font_id),
-                _ => None,
-            };
-            if let Some(description) = font_id.and_then(|font_id| font_descriptions.get(&font_id.0)) {
-                write!(self.output, " font=\"{description}\"").unwrap();
-            }
+        if let Some(description) = self.font_description(command_type, payload) {
+            let font = format!(" font=\"{description}\"");
+            self.output.push_str(&font);
         }
         let Some(origin) = note.origin.filter(|_| prints_owners) else {
             return;
@@ -760,6 +989,109 @@ impl RecordDump<'_> {
         }
         write!(self.output, " phase={}", origin.phase).unwrap();
     }
+
+    fn push_json_record(
+        &mut self,
+        record_id: u32,
+        header: &DisplayListCommandHeader,
+        payload: &[u8],
+        context: ContextRef,
+        place: RecordPlace,
+        note: &RecordNote,
+    ) {
+        use serde_json::{Value, json};
+        let mut record = serde_json::Map::new();
+        record.insert("type".into(), json!("record"));
+        record.insert("id".into(), json!(record_id));
+        record.insert("op".into(), json!(header.command_type.name()));
+        record.insert("depth".into(), json!(place.depth));
+        if let Some((parent_id, role)) = place.nested_in {
+            record.insert("parent".into(), json!(parent_id));
+            record.insert("role".into(), json!(nested_records_role_name(role)));
+        }
+        if let Some(layer) = place.layer {
+            record.insert("layer".into(), json!(format!("L{layer}")));
+        }
+        record.insert("context".into(), json_context(self.names, context));
+        let fields = command_fields(header.command_type, payload);
+        record.insert("fields".into(), json_fields(&fields, self.names));
+        if header.inline_clip_count > 0 {
+            record.insert("inline_clips".into(), json_inline_clips(self.names, header, payload));
+        }
+        if let Some(transform) = inline_transform_of(header, payload) {
+            record.insert(
+                "inline_transform".into(),
+                Value::Array(transform.values.iter().map(|value| json_float(*value)).collect()),
+            );
+        }
+        if let Some(text) = &note.glyph_run_text {
+            record.insert("text".into(), json!(text));
+        }
+        if let Some(description) = self.font_description(header.command_type, payload) {
+            record.insert("font".into(), json!(description));
+        }
+        if let Some(origin) = note.origin {
+            let owner_label = self
+                .record_notes
+                .as_ref()
+                .and_then(|notes| notes.owner_labels.get(&origin.owner));
+            if let Some(owner_label) = owner_label {
+                record.insert("owner".into(), json!(owner_label));
+            }
+            record.insert("phase".into(), json!(origin.phase));
+        }
+        push_json_line(self.output, Value::Object(record));
+    }
+}
+
+fn push_json_line(output: &mut String, value: serde_json::Value) {
+    output.push_str(&value.to_string());
+    output.push('\n');
+}
+
+fn json_context(names: &mut DumpNames, context: ContextRef) -> serde_json::Value {
+    let mut object = serde_json::Map::new();
+    object.insert(
+        "spatial".into(),
+        json_name(names.spatial(context.spatial), context.spatial.0),
+    );
+    if !context.clip.is_none() {
+        object.insert("clip".into(), json_name(names.clip(context.clip), context.clip.0));
+    }
+    if !context.effect.is_none() {
+        object.insert(
+            "effect".into(),
+            json_name(names.effect(context.effect), context.effect.0),
+        );
+    }
+    serde_json::Value::Object(object)
+}
+
+fn json_inline_clips(names: &mut DumpNames, header: &DisplayListCommandHeader, payload: &[u8]) -> serde_json::Value {
+    use serde_json::json;
+    serde_json::Value::Array(
+        inline_clips_of(header, payload)
+            .map(|clip| {
+                let mut object = serde_json::Map::new();
+                object.insert("kind".into(), json!(format!("{:?}", clip.kind)));
+                object.insert("rect".into(), json_float_rect(clip.clip_rect_or_path_device_bounds));
+                if clip.kind == InlineClipKind::Path {
+                    let path = Path::from_serialized_bytes(span_bytes(payload, clip.path_data));
+                    object.insert("path".into(), json!(path_description(&path)));
+                    object.insert("winding_rule".into(), json!(format!("{:?}", clip.path_winding_rule)));
+                } else if clip.corner_radii.has_any_radius() {
+                    object.insert("corner_radii".into(), json_corner_radii(clip.corner_radii));
+                }
+                if clip.mode == ClipMode::Difference {
+                    object.insert("mode".into(), json!("difference"));
+                }
+                if clip.has_own_space {
+                    object.insert("space".into(), json_name(names.spatial(clip.space), clip.space.0));
+                }
+                serde_json::Value::Object(object)
+            })
+            .collect(),
+    )
 }
 
 impl RecordNotesInDumpOrder {

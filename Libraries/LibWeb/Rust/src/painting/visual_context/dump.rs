@@ -82,12 +82,12 @@ pub trait VisualContextTreeDump {
     fn describe_effect_node(&self, index: EffectNodeIndex, names: &mut DumpNames) -> String;
     // The nodes the runs record under, each tree in first-seen order. An effect's output clip
     // chain counts as reachable, since replay enters it before the effect.
-    fn dump_nodes_reachable_from_runs(
+    fn reachable_nodes_in_print_order(
         &self,
         command_runs: &[DisplayListCommandRun],
         names: &mut DumpNames,
         owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
-    ) -> String;
+    ) -> Vec<DumpedNode>;
 }
 
 impl VisualContextTreeDump for VisualContextTree {
@@ -305,12 +305,12 @@ impl VisualContextTreeDump for VisualContextTree {
         text
     }
 
-    fn dump_nodes_reachable_from_runs(
+    fn reachable_nodes_in_print_order(
         &self,
         command_runs: &[DisplayListCommandRun],
         names: &mut DumpNames,
         mut owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
-    ) -> String {
+    ) -> Vec<DumpedNode> {
         let effect_clips = crate::painting::display_list::effect_clip_plan::EffectClipPlan::new(self, command_runs)
             .expect("dumped command runs reference live visual context nodes");
         let mut visited_spatial_nodes: HashSet<u32> = HashSet::new();
@@ -357,100 +357,132 @@ impl VisualContextTreeDump for VisualContextTree {
             }
         }
 
-        let mut text = String::from("AccumulatedVisualContext Tree:\n");
-        let mut append_owner = |text: &mut String, kind: SlotKind, index: u32| {
-            if let Some(label) = owner_label(kind, index) {
-                let _ = write!(text, " ({label})");
-            }
-            text.push('\n');
-        };
-
-        fn dump_subtree(
-            text: &mut String,
-            names: &mut DumpNames,
-            children: &HashMap<u32, Vec<u32>>,
-            node_line: &impl Fn(u32, &mut DumpNames) -> String,
-            append_owner: &mut impl FnMut(&mut String, u32),
-            node_index: u32,
-            indent: usize,
-        ) {
-            text.push_str(&" ".repeat(indent * 2));
-            text.push_str(&node_line(node_index, names));
-            append_owner(text, node_index);
-            if let Some(child_indices) = children.get(&node_index) {
-                for child in child_indices {
-                    dump_subtree(text, names, children, node_line, append_owner, *child, indent + 1);
-                }
-            }
-        }
-
-        text.push_str("  spatial:\n");
-        dump_subtree(
-            &mut text,
-            names,
-            &spatial_children,
-            &|index: u32, names: &mut DumpNames| {
-                let name = names.spatial(SpatialNodeIndex(index));
-                format!(
-                    "[{name}] {}",
-                    self.describe_spatial_node(SpatialNodeIndex(index), names)
-                )
-            },
-            &mut |text: &mut String, index: u32| append_owner(text, SlotKind::Spatial, index),
-            VISUAL_VIEWPORT_NODE_INDEX.0,
-            2,
-        );
-        if !clip_roots.is_empty() {
-            text.push_str("  clips:\n");
-            for root in clip_roots {
-                dump_subtree(
-                    &mut text,
-                    names,
-                    &clip_children,
-                    &|index: u32, names: &mut DumpNames| {
+        let mut nodes = Vec::new();
+        let mut walk = |kind: SlotKind,
+                        root: u32,
+                        children: &HashMap<u32, Vec<u32>>,
+                        names: &mut DumpNames,
+                        nodes: &mut Vec<DumpedNode>| {
+            let mut pending = vec![(root, 0)];
+            while let Some((index, depth)) = pending.pop() {
+                let mut node = match kind {
+                    SlotKind::Spatial => {
+                        let name = names.spatial(SpatialNodeIndex(index));
+                        let parent = (index != VISUAL_VIEWPORT_NODE_INDEX.0)
+                            .then(|| names.spatial(self.spatial_nodes[index as usize].parent));
+                        DumpedNode {
+                            kind,
+                            index,
+                            name,
+                            depth,
+                            parent,
+                            space: None,
+                            output_clip: None,
+                            description: self.describe_spatial_node(SpatialNodeIndex(index), names),
+                            owner: None,
+                        }
+                    }
+                    SlotKind::Clip => {
+                        let node = &self.clip_nodes[index as usize];
                         let name = names.clip(ClipNodeIndex(index));
-                        let space = names.spatial(self.clip_nodes[index as usize].spatial);
-                        format!(
-                            "[{name} in {space}] {}",
-                            self.describe_clip_node(ClipNodeIndex(index), names)
-                        )
-                    },
-                    &mut |text: &mut String, index: u32| append_owner(text, SlotKind::Clip, index),
-                    root,
-                    2,
-                );
-            }
-        }
-        if !effect_roots.is_empty() {
-            text.push_str("  effects:\n");
-            for root in effect_roots {
-                dump_subtree(
-                    &mut text,
-                    names,
-                    &effect_children,
-                    &|index: u32, names: &mut DumpNames| {
+                        let space = names.spatial(node.spatial);
+                        let parent = (!node.parent.is_none()).then(|| names.clip(node.parent));
+                        DumpedNode {
+                            kind,
+                            index,
+                            name,
+                            depth,
+                            parent,
+                            space: Some(space),
+                            output_clip: None,
+                            description: self.describe_clip_node(ClipNodeIndex(index), names),
+                            owner: None,
+                        }
+                    }
+                    SlotKind::Effect => {
                         let node = &self.effect_nodes[index as usize];
                         let name = names.effect(EffectNodeIndex(index));
                         let space = names.spatial(node.spatial);
                         let resolved_clip = effect_clips.output_clip(EffectNodeIndex(index));
-                        let output_clip = if resolved_clip.is_none() {
-                            String::new()
-                        } else {
-                            format!(" out={}", names.clip(resolved_clip))
-                        };
-                        format!(
-                            "[{name} in {space}{output_clip}] {}",
-                            self.describe_effect_node(EffectNodeIndex(index), names)
-                        )
-                    },
-                    &mut |text: &mut String, index: u32| append_owner(text, SlotKind::Effect, index),
-                    root,
-                    2,
-                );
+                        let output_clip = (!resolved_clip.is_none()).then(|| names.clip(resolved_clip));
+                        let parent = (!node.parent.is_none()).then(|| names.effect(node.parent));
+                        DumpedNode {
+                            kind,
+                            index,
+                            name,
+                            depth,
+                            parent,
+                            space: Some(space),
+                            output_clip,
+                            description: self.describe_effect_node(EffectNodeIndex(index), names),
+                            owner: None,
+                        }
+                    }
+                };
+                node.owner = owner_label(kind, index);
+                nodes.push(node);
+                if let Some(child_indices) = children.get(&index) {
+                    pending.extend(child_indices.iter().rev().map(|&child| (child, depth + 1)));
+                }
             }
+        };
+        walk(
+            SlotKind::Spatial,
+            VISUAL_VIEWPORT_NODE_INDEX.0,
+            &spatial_children,
+            names,
+            &mut nodes,
+        );
+        for root in clip_roots {
+            walk(SlotKind::Clip, root, &clip_children, names, &mut nodes);
         }
-        text
+        for root in effect_roots {
+            walk(SlotKind::Effect, root, &effect_children, names, &mut nodes);
+        }
+        nodes
     }
+}
+
+/// A node of the tree section of the display list dump, with the names the dump gives it and the nodes it names.
+pub(crate) struct DumpedNode {
+    pub(crate) kind: SlotKind,
+    pub(crate) index: u32,
+    pub(crate) name: String,
+    pub(crate) depth: usize,
+    pub(crate) parent: Option<String>,
+    pub(crate) space: Option<String>,
+    pub(crate) output_clip: Option<String>,
+    pub(crate) description: String,
+    pub(crate) owner: Option<String>,
+}
+
+pub(crate) fn tree_section_text(nodes: &[DumpedNode]) -> String {
+    let mut text = String::from("AccumulatedVisualContext Tree:\n");
+    let mut previous_kind = None;
+    for node in nodes {
+        if previous_kind != Some(node.kind) {
+            text.push_str(match node.kind {
+                SlotKind::Spatial => "  spatial:\n",
+                SlotKind::Clip => "  clips:\n",
+                SlotKind::Effect => "  effects:\n",
+            });
+            previous_kind = Some(node.kind);
+        }
+        text.push_str(&" ".repeat((node.depth + 2) * 2));
+        let _ = write!(text, "[{}", node.name);
+        if let Some(space) = &node.space {
+            let _ = write!(text, " in {space}");
+        }
+        if let Some(output_clip) = &node.output_clip {
+            let _ = write!(text, " out={output_clip}");
+        }
+        let _ = write!(text, "] {}", node.description);
+        if let Some(owner) = &node.owner {
+            let _ = write!(text, " ({owner})");
+        }
+        text.push('\n');
+    }
+    text
 }
 
 #[cfg(test)]
@@ -751,7 +783,7 @@ mod node_dump_tests {
 
 #[cfg(test)]
 mod section_dump_tests {
-    use super::{SlotKind, VisualContextTreeDump};
+    use super::{DumpedNode, SlotKind, VisualContextTreeDump, tree_section_text};
     use crate::layout::node_data::NodeSlotId;
     use crate::painting::display_list::commands::{ContextRef, DisplayListCommandRun, SpatialNodeIndex};
     use crate::painting::display_list::dump_format::DumpNames;
@@ -761,6 +793,16 @@ mod section_dump_tests {
         scroll_state::NO_SCROLL_STATE_SLOT,
     };
     use libgfx_rust::{CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, IntRect};
+
+    fn tree_section_text_of(
+        tree: &VisualContextTree,
+        runs: &[DisplayListCommandRun],
+        names: &mut DumpNames,
+        owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
+    ) -> String {
+        let nodes: Vec<DumpedNode> = tree.reachable_nodes_in_print_order(runs, names, owner_label);
+        tree_section_text(&nodes)
+    }
 
     fn run(spatial: SpatialNodeIndex, context: ContextRef) -> DisplayListCommandRun {
         DisplayListCommandRun {
@@ -846,7 +888,7 @@ mod section_dump_tests {
             run(VISUAL_VIEWPORT_NODE_INDEX, ContextRef::default()),
         ];
         let mut names = DumpNames::default();
-        let text = tree.dump_nodes_reachable_from_runs(&runs, &mut names, |kind, index| match (kind, index) {
+        let text = tree_section_text_of(&tree, &runs, &mut names, |kind, index| match (kind, index) {
             (SlotKind::Spatial, 1) => Some("BlockContainer<DIV>#scroller".to_string()),
             (SlotKind::Clip, 0) => Some("BlockContainer<DIV>#scroller".to_string()),
             (SlotKind::Effect, 0) => Some("BlockContainer<DIV>#faded".to_string()),
@@ -898,7 +940,7 @@ mod section_dump_tests {
                 ..ContextRef::default()
             },
         )];
-        let dump = |names: &mut DumpNames| tree.dump_nodes_reachable_from_runs(&runs, names, |_, _| None);
+        let dump = |names: &mut DumpNames| tree_section_text_of(&tree, &runs, names, |_, _| None);
         assert_eq!(
             dump(&mut DumpNames::numbering_nodes_in_print_order()),
             "AccumulatedVisualContext Tree:\n  spatial:\n    [s0] transform=[1,0,0,1,0,0] origin=(0,0)\n      [s1] scroll\n  clips:\n    [c0 in s1] clip=[1,2 3x4]\n"

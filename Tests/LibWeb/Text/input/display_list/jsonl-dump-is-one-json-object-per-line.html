@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    canvas { position: absolute; left: 20px; top: 20px; }
+    #transformed { position: absolute; left: 300px; top: 20px; width: 50px; height: 50px; background: green; transform: rotate(45deg); }
+    #masked { position: absolute; left: 400px; top: 20px; width: 50px; height: 50px; background: blue; mask-image: linear-gradient(black, transparent); }
+</style>
+<canvas id="canvas" width="200" height="120"></canvas>
+<div id="transformed"></div>
+<div id="masked"></div>
+<p style="position: absolute; top: 200px">some text</p>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        const lines = internals.dumpDisplayList({ format: "jsonl" }).trimEnd().split("\n");
+        const objects = lines.map(line => JSON.parse(line));
+        const counts = {};
+        for (const object of objects)
+            counts[object.type] = (counts[object.type] ?? 0) + 1;
+        println(`types: ${JSON.stringify(counts)}`);
+        const header = objects[0];
+        println(`header: ${header.format} version ${header.version} viewport ${JSON.stringify(header.viewport)} ${header.node_names} ${header.record_count} records`);
+        const records = objects.filter(object => object.type === "record");
+        println(`record ids count up from 1: ${records.every((record, index) => record.id === index + 1)}`);
+        for (const object of objects) {
+            if (object.type === "node" || object.type === "layer")
+                println(JSON.stringify(object));
+        }
+        for (const record of records) {
+            if (record.op === "FillRect" || record.op === "DeclareMaskContent" || record.op === "PaintLinearGradient")
+                println(JSON.stringify(record));
+            if (record.op === "DrawGlyphRun")
+                println(JSON.stringify({ id: record.id, text: record.text, has_font: typeof record.font === "string", owner: record.owner, phase: record.phase }));
+        }
+    });
+</script>

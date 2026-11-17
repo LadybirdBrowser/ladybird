@@ -619,3 +619,103 @@ pub(crate) fn push_fields(output: &mut String, fields: &[(&'static str, DumpValu
         push_value(output, value, names);
     }
 }
+
+/// A float as the shortest decimal that reads back as it, which JSON holds as a number, or as text where it is not
+/// finite.
+pub(crate) fn json_float(value: f32) -> serde_json::Value {
+    let text = crate::painting::dump::format_float_like_ak(value);
+    match text.parse::<f64>().ok().and_then(serde_json::Number::from_f64) {
+        Some(number) => serde_json::Value::Number(number),
+        None => serde_json::Value::String(text),
+    }
+}
+
+pub(crate) fn json_color(color: Color) -> serde_json::Value {
+    serde_json::Value::String(format!(
+        "#{:02x}{:02x}{:02x}{:02x}",
+        color.red(),
+        color.green(),
+        color.blue(),
+        color.alpha()
+    ))
+}
+
+pub(crate) fn json_int_rect(rect: IntRect) -> serde_json::Value {
+    serde_json::json!([rect.x, rect.y, rect.width, rect.height])
+}
+
+pub(crate) fn json_float_rect(rect: FloatRect) -> serde_json::Value {
+    serde_json::json!([
+        json_float(rect.x),
+        json_float(rect.y),
+        json_float(rect.width),
+        json_float(rect.height)
+    ])
+}
+
+pub(crate) fn json_float_point(point: FloatPoint) -> serde_json::Value {
+    serde_json::json!([json_float(point.x), json_float(point.y)])
+}
+
+pub(crate) fn json_corner_radii(radii: CornerRadii) -> serde_json::Value {
+    serde_json::Value::Array(
+        [radii.top_left, radii.top_right, radii.bottom_right, radii.bottom_left]
+            .iter()
+            .map(|corner| serde_json::json!([corner.horizontal_radius, corner.vertical_radius]))
+            .collect(),
+    )
+}
+
+/// A name the dump gives what the tape names by an index or id, with that index or id alongside.
+pub(crate) fn json_name(name: String, raw: impl Into<serde_json::Value>) -> serde_json::Value {
+    serde_json::json!({ "name": name, "raw": raw.into() })
+}
+
+pub(crate) fn json_value(value: &DumpValue, names: &mut DumpNames) -> serde_json::Value {
+    use serde_json::{Value, json};
+    match value {
+        DumpValue::Bool(value) => json!(value),
+        DumpValue::Integer(value) => json!(value),
+        DumpValue::Float(value) => json_float(*value),
+        DumpValue::Double(value) => {
+            serde_json::Number::from_f64(*value).map_or_else(|| Value::String(value.to_string()), Value::Number)
+        }
+        DumpValue::Color(value) => json_color(*value),
+        DumpValue::IntPoint(value) => json!([value.x, value.y]),
+        DumpValue::FloatPoint(value) => json_float_point(*value),
+        DumpValue::IntSize(value) => json!([value.width, value.height]),
+        DumpValue::FloatSize(value) => json!([json_float(value.width), json_float(value.height)]),
+        DumpValue::IntRect(value) => json_int_rect(*value),
+        DumpValue::FloatRect(value) => json_float_rect(*value),
+        DumpValue::CornerRadii(value) => json_corner_radii(*value),
+        DumpValue::AffineTransform(value) => {
+            Value::Array(value.values.iter().map(|value| json_float(*value)).collect())
+        }
+        DumpValue::Name(value) => json!(value),
+        DumpValue::SpatialNode(index) => json_name(names.spatial(*index), index.0),
+        DumpValue::EffectNode(index) => json_name(names.effect(*index), index.0),
+        DumpValue::Resource(kind, raw) => json_name(names.resource(*kind, *raw), *raw),
+        DumpValue::TimeOfThisProcess(raw) => json_name(names.time_of_this_process(*raw), *raw),
+        DumpValue::Path(description) => json!(description),
+        DumpValue::Filter(filter) => {
+            let mut text = String::new();
+            push_filter(&mut text, filter, names);
+            json!(text)
+        }
+        DumpValue::Unreadable(byte_count) => json!({ "unreadable_bytes": byte_count }),
+        DumpValue::Count(count) => json!(count),
+        DumpValue::List(values) => Value::Array(values.iter().map(|value| json_value(value, names)).collect()),
+        DumpValue::GradientColorStop(color, position) => {
+            json!({ "color": json_color(*color), "position": json_float(*position) })
+        }
+        DumpValue::Fields(fields) => json_fields(fields, names),
+    }
+}
+
+pub(crate) fn json_fields(fields: &[(&'static str, DumpValue)], names: &mut DumpNames) -> serde_json::Value {
+    let mut object = serde_json::Map::new();
+    for (name, value) in fields {
+        object.insert((*name).to_string(), json_value(value, names));
+    }
+    serde_json::Value::Object(object)
+}

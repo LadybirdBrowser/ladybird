@@ -267,6 +267,7 @@ Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document
         .fonts = options.fonts,
         .record_ids = options.record_ids,
         .raw_node_indices = options.raw_node_indices,
+        .jsonl = options.jsonl,
     };
     Layout::RustFFI::painting_dump(document_host(document), &read, viewport_row_slot(read, document), device_viewport_rect, ffi_options, callbacks);
     return move(context.dump);

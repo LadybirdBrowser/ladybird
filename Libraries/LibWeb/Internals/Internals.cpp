@@ -1927,6 +1927,7 @@ Utf16String Internals::dump_display_list(Bindings::DisplayListDumpOptions const&
         .fonts = options.fonts,
         .record_ids = options.record_ids,
         .raw_node_indices = options.raw_node_indices,
+        .jsonl = options.format == Bindings::DisplayListDumpFormat::Jsonl,
     });
 }
 
