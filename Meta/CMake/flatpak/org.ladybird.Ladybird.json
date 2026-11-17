@@ -17,7 +17,8 @@
     "--socket=fallback-x11",
     "--socket=pulseaudio",
     "--socket=session-bus",
-    "--filesystem=xdg-config/gtk-3.0:ro"
+    "--filesystem=xdg-config/gtk-3.0:ro",
+    "--filesystem=xdg-download"
   ],
   "cleanup": [
     "/sbin",
