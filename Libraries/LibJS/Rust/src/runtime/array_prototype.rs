@@ -2034,14 +2034,17 @@ pub fn array_merge_sort(
         let x = left.get(left_index).expect("the index is below the size");
         let y = right.get(right_index).expect("the index is below the size");
 
-        let comparison_result = compare_func(x, y)?;
+        // INTEROP: The later element is passed as the first argument, and the earlier one stays first unless it compares
+        //          below it. Most other engines do the same, and server rendered pages depend on it when they sort with
+        //          an inconsistent comparator such as `() => 1`, which then has to leave the order unchanged.
+        let comparison_result = compare_func(y, x)?;
 
-        if comparison_result <= 0.0 {
-            append(x);
-            left_index += 1;
-        } else {
+        if comparison_result < 0.0 {
             append(y);
             right_index += 1;
+        } else {
+            append(x);
+            left_index += 1;
         }
     }
 
