@@ -14,7 +14,7 @@ namespace WebView {
 static auto const& s_builtin_search_engines = *new auto(to_array<SearchEngine>({
     { "Bing"_string, "https://www.bing.com/search?q=%s"_string, SearchSuggestions { "https://www.bing.com/osjson.aspx?query=%s"_string } },
     { "Brave"_string, "https://search.brave.com/search?q=%s"_string, SearchSuggestions { "https://search.brave.com/api/suggest?q=%s"_string } },
-    { "DuckDuckGo"_string, "https://duckduckgo.com/?q=%s"_string, SearchSuggestions { "https://duckduckgo.com/ac/?q=%s"_string, SearchSuggestionsFormat::DuckDuckGo } },
+    { "DuckDuckGo"_string, "https://duckduckgo.com/?q=%s"_string, SearchSuggestions { "https://duckduckgo.com/ac/?q=%s&type=list"_string } },
     { "Ecosia"_string, "https://ecosia.org/search?q=%s"_string, SearchSuggestions { "https://ac.ecosia.org/autocomplete?q=%s&type=list"_string } },
     { "Google"_string, "https://www.google.com/search?q=%s"_string, SearchSuggestions { "https://www.google.com/complete/search?client=chrome&q=%s"_string } },
     { "Kagi"_string, "https://kagi.com/search?q=%s"_string, SearchSuggestions { "https://kagisuggest.com/api/autosuggest?q=%s"_string } },

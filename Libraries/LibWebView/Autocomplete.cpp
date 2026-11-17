@@ -629,27 +629,6 @@ void Autocomplete::deliver_current_result()
     invoke_autocomplete_query_complete(*m_query_id, move(merged_suggestions), result_kind);
 }
 
-static ErrorOr<Vector<String>> parse_duckduckgo_autocomplete(JsonValue const& json)
-{
-    if (!json.is_array())
-        return Error::from_string_literal("Expected DuckDuckGo autocomplete response to be a JSON array");
-
-    Vector<String> results;
-    results.ensure_capacity(json.as_array().size());
-
-    TRY(json.as_array().try_for_each([&](JsonValue const& suggestion) -> ErrorOr<void> {
-        if (!suggestion.is_object())
-            return Error::from_string_literal("Invalid DuckDuckGo autocomplete response, expected value to be an object");
-
-        if (auto value = suggestion.as_object().get_string("phrase"sv); value.has_value())
-            results.unchecked_append(*value);
-
-        return {};
-    }));
-
-    return results;
-}
-
 static ErrorOr<Vector<String>> parse_opensearch_autocomplete(JsonValue const& json)
 {
     if (!json.is_array())
@@ -724,8 +703,6 @@ ErrorOr<Vector<String>> Autocomplete::received_autocomplete_response(SearchSugge
     auto json = TRY(JsonValue::from_string(decoded_response));
 
     switch (provider.response_format) {
-    case SearchSuggestionsFormat::DuckDuckGo:
-        return parse_duckduckgo_autocomplete(json);
     case SearchSuggestionsFormat::OpenSearch:
         return parse_opensearch_autocomplete(json);
     case SearchSuggestionsFormat::Yahoo:
