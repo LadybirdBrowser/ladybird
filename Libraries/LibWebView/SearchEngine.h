@@ -17,7 +17,6 @@ namespace WebView {
 
 enum class SearchSuggestionsFormat : u8 {
     OpenSearch,
-    DuckDuckGo,
     Yahoo,
 };
 
