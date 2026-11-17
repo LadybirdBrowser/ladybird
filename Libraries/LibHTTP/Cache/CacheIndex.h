@@ -56,7 +56,7 @@ public:
     Optional<Entry const&> find_entry(u64 cache_key, HeaderList const& request_headers);
     bool has_entry(u64 cache_key, u64 vary_key);
 
-    ErrorOr<void> update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList>);
+    ErrorOr<void> update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList>, UnixDateTime request_time, UnixDateTime response_time);
     void update_last_access_time(u64 cache_key, u64 vary_key);
 
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);

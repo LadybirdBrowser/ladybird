@@ -356,13 +356,16 @@ CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64
 {
 }
 
-void CacheEntryReader::revalidation_succeeded(HeaderList const& response_headers)
+void CacheEntryReader::revalidation_succeeded(HeaderList const& response_headers, UnixDateTime request_time, UnixDateTime response_time)
 {
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mCache revalidation succeeded for\033[0m {}", m_url);
 
     update_header_fields(m_response_headers, response_headers);
 
-    if (auto result = m_index.update_response_headers(m_cache_key, m_vary_key, m_response_headers); result.is_error()) {
+    // The stored response is now as fresh as the response to the validation request, so its age counts from that request
+    // rather than from the one that stored it.
+    // https://httpwg.org/specs/rfc9111.html#freshening.responses
+    if (auto result = m_index.update_response_headers(m_cache_key, m_vary_key, m_response_headers, request_time, response_time); result.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to update cache entry for\033[0m {}: {}", m_url, result.error());
         remove();
     } else {

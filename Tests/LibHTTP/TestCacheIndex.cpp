@@ -248,7 +248,7 @@ TEST_CASE(failed_statements_after_creation_do_not_abort)
 
     // Writes report that they failed.
     EXPECT(state.index.create_entry(2, vary_key, "https://example.com/2"_string, request_headers, response_headers, 10, now, now).is_error());
-    EXPECT(state.index.update_response_headers(1, vary_key, response_headers).is_error());
+    EXPECT(state.index.update_response_headers(1, vary_key, response_headers, UnixDateTime::now(), UnixDateTime::now()).is_error());
     state.index.update_last_access_time(1, vary_key);
 
     // Entries that can't be read are missed.
@@ -342,14 +342,38 @@ TEST_CASE(updated_response_headers_respect_entry_size_limit)
     TRY_OR_FAIL(state.index.create_entry(1, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
 
     auto small_response_headers = HTTP::HeaderList::create({ { "ETag"sv, "v1"sv }, { "X-Small"sv, "x"sv } });
-    TRY_OR_FAIL(state.index.update_response_headers(1, 0, small_response_headers));
+    TRY_OR_FAIL(state.index.update_response_headers(1, 0, small_response_headers, UnixDateTime::now(), UnixDateTime::now()));
 
     auto large_response_headers = HTTP::HeaderList::create({ { "ETag"sv, "v1"sv }, { "X-Large"sv, ByteString::repeated('x', 200) } });
-    EXPECT(state.index.update_response_headers(1, 0, large_response_headers).is_error());
+    EXPECT(state.index.update_response_headers(1, 0, large_response_headers, UnixDateTime::now(), UnixDateTime::now()).is_error());
 
     auto entry = state.index.find_entry(1, *request_headers);
     VERIFY(entry.has_value());
     EXPECT(!entry->response_headers->contains("X-Large"sv));
+}
+
+TEST_CASE(updated_response_headers_record_the_times_of_the_revalidation)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({ { "ETag"sv, "v1"sv } });
+    auto stored_at = UnixDateTime::from_seconds_since_epoch(1000);
+    auto revalidated_at = UnixDateTime::from_seconds_since_epoch(2000);
+
+    TRY_OR_FAIL(state.index.create_entry(1, 0, "https://example.com"_string, request_headers, response_headers, 10, stored_at, stored_at));
+    TRY_OR_FAIL(state.index.update_response_headers(1, 0, response_headers, revalidated_at, revalidated_at + AK::Duration::from_seconds(1)));
+
+    auto entry = state.index.find_entry(1, *request_headers);
+    VERIFY(entry.has_value());
+    EXPECT_EQ(entry->request_time, revalidated_at);
+    EXPECT_EQ(entry->response_time, revalidated_at + AK::Duration::from_seconds(1));
+
+    auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
+    auto reloaded_entry = reloaded_index.find_entry(1, *request_headers);
+    VERIFY(reloaded_entry.has_value());
+    EXPECT_EQ(reloaded_entry->request_time, revalidated_at);
+    EXPECT_EQ(reloaded_entry->response_time, revalidated_at + AK::Duration::from_seconds(1));
 }
 
 TEST_CASE(persisted_entries_are_found_before_they_are_looked_up)
