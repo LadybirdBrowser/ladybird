@@ -24,10 +24,10 @@ public:
     virtual ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) override;
 
 private:
-    ICOImageDecoderPlugin(u8 const*, size_t);
-    static ErrorOr<void> load_ico_bitmap(ICOLoadingContext& context);
+    explicit ICOImageDecoderPlugin(NonnullOwnPtr<ICOLoadingContext>);
+    ErrorOr<NonnullRefPtr<Bitmap>> decode_image();
 
-    OwnPtr<ICOLoadingContext> m_context;
+    NonnullOwnPtr<ICOLoadingContext> m_context;
 };
 
 }

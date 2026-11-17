@@ -4,212 +4,66 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
-#include <AK/Enumerate.h>
-#include <AK/MemoryStream.h>
-#include <AK/Types.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
 #include <LibGfx/ImageFormats/ICOLoader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
+#include <LibImageDecoders/RustFFI.h>
 
 namespace Gfx {
-
-enum class IconType : u16 {
-    ICO = 1,
-    CUR = 2,
-};
-
-// FIXME: This is in little-endian order. Maybe need a NetworkOrdered<T> equivalent eventually.
-struct ICONDIR {
-    u16 must_be_0 = 0;
-    IconType type = IconType::ICO;
-    u16 image_count = 0;
-};
-static_assert(AssertSize<ICONDIR, 6>());
-
-struct ICONDIRENTRY {
-    u8 width;
-    u8 height;
-    u8 color_count;
-    u8 reserved_0;
-    u16 planes;
-    u16 bits_per_pixel;
-    u32 size;
-    u32 offset;
-};
-static_assert(AssertSize<ICONDIRENTRY, 16>());
-
-};
-
-template<>
-class AK::Traits<Gfx::ICONDIR> : public DefaultTraits<Gfx::ICONDIR> {
-public:
-    static constexpr bool is_trivially_serializable() { return true; }
-};
-
-template<>
-class AK::Traits<Gfx::ICONDIRENTRY> : public DefaultTraits<Gfx::ICONDIRENTRY> {
-public:
-    static constexpr bool is_trivially_serializable() { return true; }
-};
-
-namespace Gfx {
-
-struct ICOImageDescriptor {
-    u16 width;
-    u16 height;
-    u16 bits_per_pixel;
-    u16 hotspot_x { 0 };
-    u16 hotspot_y { 0 };
-    size_t offset;
-    size_t size;
-    RefPtr<Gfx::Bitmap> bitmap;
-};
 
 struct ICOLoadingContext {
     AK_ALLOC_WITH_KMALLOC;
 
-    enum State {
-        NotDecoded = 0,
-        Error,
+    enum class State : u8 {
         DirectoryDecoded,
-        BitmapDecoded
+        BitmapDecoded,
+        Error,
     };
-    State state { NotDecoded };
-    u8 const* data { nullptr };
-    size_t data_size { 0 };
-    IconType file_type { IconType::ICO };
-    Vector<ICOImageDescriptor> images;
-    size_t largest_index;
+
+    ReadonlyBytes data;
+    ImageDecoders::FFI::ICOImageInfo info {};
+    State state { State::DirectoryDecoded };
+    RefPtr<Bitmap> bitmap;
 };
 
-static ErrorOr<size_t> decode_ico_header(Stream& stream, IconType& out_type)
+ICOImageDecoderPlugin::ICOImageDecoderPlugin(NonnullOwnPtr<ICOLoadingContext> context)
+    : m_context(move(context))
 {
-    auto header = TRY(stream.read_value<ICONDIR>());
-    if (header.must_be_0 != 0 || (header.type != IconType::ICO && header.type != IconType::CUR))
-        return Error::from_string_literal("Invalid ICO/CUR header");
-
-    out_type = header.type;
-    return { header.image_count };
-}
-
-static ErrorOr<ICOImageDescriptor> decode_ico_direntry(Stream& stream, IconType file_type)
-{
-    auto entry = TRY(stream.read_value<ICONDIRENTRY>());
-    ICOImageDescriptor desc = {
-        entry.width,
-        entry.height,
-        entry.bits_per_pixel,
-        0, 0,
-        entry.offset,
-        entry.size,
-        nullptr
-    };
-
-    if (file_type == IconType::CUR) {
-        // For cursor files, hotsport coordinates are stored in the planes and bits_per_pixel fields
-        desc.hotspot_x = entry.planes;
-        desc.hotspot_y = entry.bits_per_pixel;
-    }
-
-    if (desc.width == 0)
-        desc.width = 256;
-    if (desc.height == 0)
-        desc.height = 256;
-
-    return { desc };
-}
-
-static size_t find_largest_image(ICOLoadingContext const& context)
-{
-    size_t max_area = 0;
-    size_t largest_index = 0;
-    u16 max_bits_per_pixel = 0;
-
-    for (auto const& [index, desc] : enumerate(context.images)) {
-        auto area = static_cast<size_t>(desc.width) * static_cast<size_t>(desc.height);
-
-        if (area > max_area || (area == max_area && desc.bits_per_pixel > max_bits_per_pixel)) {
-            max_area = area;
-            largest_index = index;
-            max_bits_per_pixel = desc.bits_per_pixel;
-        }
-    }
-
-    return largest_index;
-}
-
-static ErrorOr<void> load_ico_directory(ICOLoadingContext& context)
-{
-    FixedMemoryStream stream { { context.data, context.data_size } };
-
-    auto image_count = TRY(decode_ico_header(stream, context.file_type));
-    if (image_count == 0)
-        return Error::from_string_literal("ICO/CUR file has no images");
-
-    for (size_t i = 0; i < image_count; ++i) {
-        auto desc = TRY(decode_ico_direntry(stream, context.file_type));
-        if (desc.offset + desc.size < desc.offset // detect integer overflow
-            || (desc.offset + desc.size) > context.data_size) {
-            dbgln_if(ICO_DEBUG, "load_ico_directory: offset: {} size: {} doesn't fit in ICO size: {}", desc.offset, desc.size, context.data_size);
-            return Error::from_string_literal("ICO size too large");
-        }
-        dbgln_if(ICO_DEBUG, "load_ico_directory: index {} width: {} height: {} offset: {} size: {}", i, desc.width, desc.height, desc.offset, desc.size);
-        TRY(context.images.try_append(desc));
-    }
-    context.largest_index = find_largest_image(context);
-    context.state = ICOLoadingContext::State::DirectoryDecoded;
-    return {};
-}
-
-ErrorOr<void> ICOImageDecoderPlugin::load_ico_bitmap(ICOLoadingContext& context)
-{
-    VERIFY(context.state >= ICOLoadingContext::State::DirectoryDecoded);
-
-    size_t const real_index = context.largest_index;
-    if (real_index >= context.images.size())
-        return Error::from_string_literal("Index out of bounds");
-
-    ICOImageDescriptor& desc = context.images[real_index];
-    if (PNGImageDecoderPlugin::sniff({ context.data + desc.offset, desc.size })) {
-        auto png_decoder = TRY(PNGImageDecoderPlugin::create({ context.data + desc.offset, desc.size }));
-        auto decoded_png_frame = TRY(png_decoder->frame(0));
-        desc.bitmap = decoded_png_frame.image;
-        return {};
-    } else {
-        auto bmp_decoder = TRY(BMPImageDecoderPlugin::create_as_included_in_ico({}, { context.data + desc.offset, desc.size }));
-        auto decoded_bmp_frame = TRY(bmp_decoder->frame(0));
-        desc.bitmap = decoded_bmp_frame.image;
-        return {};
-    }
-}
-
-bool ICOImageDecoderPlugin::sniff(ReadonlyBytes data)
-{
-    FixedMemoryStream stream { data };
-    IconType file_type;
-    return !decode_ico_header(stream, file_type).is_error();
-}
-
-ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> ICOImageDecoderPlugin::create(ReadonlyBytes data)
-{
-    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) ICOImageDecoderPlugin(data.data(), data.size())));
-    TRY(load_ico_directory(*plugin->m_context));
-    return plugin;
-}
-
-ICOImageDecoderPlugin::ICOImageDecoderPlugin(u8 const* data, size_t size)
-{
-    m_context = make<ICOLoadingContext>();
-    m_context->data = data;
-    m_context->data_size = size;
 }
 
 ICOImageDecoderPlugin::~ICOImageDecoderPlugin() = default;
 
+bool ICOImageDecoderPlugin::sniff(ReadonlyBytes data)
+{
+    return ImageDecoders::FFI::ico_rust_sniff(data.data(), data.size());
+}
+
+ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> ICOImageDecoderPlugin::create(ReadonlyBytes data)
+{
+    ImageDecoders::FFI::ICOImageInfo info {};
+    if (!ImageDecoders::FFI::ico_rust_decode_directory(data.data(), data.size(), &info))
+        return Error::from_string_literal("ICOImageDecoderPlugin: Invalid ICO/CUR directory");
+
+    auto context = TRY(adopt_nonnull_own_or_enomem(new (nothrow) ICOLoadingContext));
+    context->data = data;
+    context->info = info;
+    return TRY(adopt_nonnull_own_or_enomem(new (nothrow) ICOImageDecoderPlugin(move(context))));
+}
+
 IntSize ICOImageDecoderPlugin::size()
 {
-    return { m_context->images[m_context->largest_index].width, m_context->images[m_context->largest_index].height };
+    return { static_cast<int>(m_context->info.width), static_cast<int>(m_context->info.height) };
+}
+
+ErrorOr<NonnullRefPtr<Bitmap>> ICOImageDecoderPlugin::decode_image()
+{
+    auto image = m_context->data.slice(m_context->info.image_offset, m_context->info.image_size);
+    if (PNGImageDecoderPlugin::sniff(image)) {
+        auto png_decoder = TRY(PNGImageDecoderPlugin::create(image));
+        return TRY(png_decoder->frame(0)).image;
+    }
+    auto bmp_decoder = TRY(BMPImageDecoderPlugin::create_as_included_in_ico({}, image));
+    return TRY(bmp_decoder->frame(0)).image;
 }
 
 ErrorOr<ImageFrameDescriptor> ICOImageDecoderPlugin::frame(size_t index, Optional<IntSize>)
@@ -220,18 +74,17 @@ ErrorOr<ImageFrameDescriptor> ICOImageDecoderPlugin::frame(size_t index, Optiona
     if (m_context->state == ICOLoadingContext::State::Error)
         return Error::from_string_literal("ICOImageDecoderPlugin: Decoding failed");
 
-    if (m_context->state < ICOLoadingContext::State::BitmapDecoded) {
-        // NOTE: This forces the chunk decoding to happen.
-        auto maybe_error = load_ico_bitmap(*m_context);
-        if (maybe_error.is_error()) {
+    if (m_context->state == ICOLoadingContext::State::DirectoryDecoded) {
+        auto bitmap_or_error = decode_image();
+        if (bitmap_or_error.is_error()) {
             m_context->state = ICOLoadingContext::State::Error;
             return Error::from_string_literal("ICOImageDecoderPlugin: Decoding failed");
         }
+        m_context->bitmap = bitmap_or_error.release_value();
         m_context->state = ICOLoadingContext::State::BitmapDecoded;
     }
 
-    VERIFY(m_context->images[m_context->largest_index].bitmap);
-    return ImageFrameDescriptor { *m_context->images[m_context->largest_index].bitmap, 0 };
+    return ImageFrameDescriptor { *m_context->bitmap, 0 };
 }
 
 }
