@@ -122,8 +122,14 @@ pub(crate) fn next_paint_sibling(layout_arena: &impl PaintRead, slot: NodeSlotId
     {
         return None;
     }
+    next_paint_sibling_of_paint_child(layout_arena, slot)
+}
 
-    let mut node = slot;
+pub(crate) fn next_paint_sibling_of_paint_child(
+    layout_arena: &impl PaintRead,
+    paint_child: NodeSlotId,
+) -> Option<NodeSlotId> {
+    let mut node = paint_child;
     loop {
         if let Some(sibling) =
             first_paintable_in_layout_siblings(layout_arena, layout_arena.node_next_sibling_if_live(node))
