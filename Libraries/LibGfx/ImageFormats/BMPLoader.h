@@ -20,24 +20,23 @@ public:
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<BMPImageDecoderPlugin>> create_as_included_in_ico(Badge<ICOImageDecoderPlugin>, ReadonlyBytes);
 
-    enum class IncludedInICO {
-        Yes,
-        No,
-    };
-
     virtual ~BMPImageDecoderPlugin() override;
 
     virtual IntSize size() override;
 
-    bool sniff_dib();
     virtual ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) override;
     virtual ErrorOr<Optional<ReadonlyBytes>> icc_data() override;
 
 private:
-    BMPImageDecoderPlugin(u8 const*, size_t, IncludedInICO included_in_ico = IncludedInICO::No);
+    enum class IncludedInICO : u8 {
+        No,
+        Yes,
+    };
+
+    explicit BMPImageDecoderPlugin(NonnullOwnPtr<BMPLoadingContext>);
     static ErrorOr<NonnullOwnPtr<BMPImageDecoderPlugin>> create_impl(ReadonlyBytes, IncludedInICO);
 
-    OwnPtr<BMPLoadingContext> m_context;
+    NonnullOwnPtr<BMPLoadingContext> m_context;
 };
 
 }

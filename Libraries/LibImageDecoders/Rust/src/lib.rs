@@ -13,5 +13,10 @@ mod rust_demangle;
 #[path = "../../../RustPanic.rs"]
 mod rust_panic;
 
+mod ffi;
+
+pub mod bmp;
+pub use bmp::*;
+
 pub mod jpeg_xl;
 pub use jpeg_xl::*;

@@ -4,12 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::ffi::{bytes_from_raw, catch_panic_or};
 use jxl::api::states::{Initialized, WithImageInfo};
 use jxl::api::{JxlDecoder, JxlDecoderOptions, JxlOutputBuffer, JxlPixelFormat, ProcessingResult, check_signature};
 use jxl::headers::extra_channels::ExtraChannel;
 use std::ffi::c_void;
-use std::panic::AssertUnwindSafe;
-use std::panic::catch_unwind;
 
 #[repr(C)]
 pub struct JPEGXLImageInfo {
@@ -27,35 +26,6 @@ type JPEGXLFrameDecoded = unsafe extern "C" fn(context: *mut c_void) -> bool;
 pub struct JPEGXLDecoder {
     decoder: Option<JxlDecoder<WithImageInfo>>,
     input_offset: usize,
-}
-
-fn catch_panic_or<F: FnOnce() -> R, R>(fallback: R, f: F) -> R {
-    match catch_unwind(AssertUnwindSafe(f)) {
-        Ok(result) => result,
-        Err(payload) => {
-            if let Some(message) = payload.downcast_ref::<&str>() {
-                eprintln!("Rust panic at JPEG XL FFI boundary: {message}");
-            } else if let Some(message) = payload.downcast_ref::<String>() {
-                eprintln!("Rust panic at JPEG XL FFI boundary: {message}");
-            } else {
-                eprintln!("Rust panic at JPEG XL FFI boundary");
-            }
-            fallback
-        }
-    }
-}
-
-unsafe fn bytes_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a [u8]> {
-    if len == 0 {
-        return Some(&[]);
-    }
-    if bytes.is_null() {
-        eprintln!("bytes_from_raw: null pointer with non-zero length {len}");
-        return None;
-    }
-
-    // SAFETY: The caller guarantees that `bytes` is valid for `len` bytes.
-    Some(unsafe { ak::slice_from_raw_parts(bytes, len) })
 }
 
 fn decode_header(input: &mut &[u8], options: JxlDecoderOptions) -> Option<JxlDecoder<WithImageInfo>> {
@@ -226,14 +196,4 @@ pub unsafe extern "C" fn jpegxl_rust_decode(
             }
         }
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::catch_panic_or;
-
-    #[test]
-    fn panic_at_ffi_boundary_is_contained() {
-        assert!(!catch_panic_or(false, || panic!("expected test panic")));
-    }
 }
