@@ -1,0 +1,11 @@
+a cell on the first line: cell-0 [cell-0 lines body html]
+a cell on the last line: cell-11 [cell-11 lines body html]
+past the cells of the last line: lines [lines body html]
+a child of a cell on the first line, under a cell of the second: cell-7, tall is under it
+a child of a cell on the first line, reaching into the last: tall [tall lines body html]
+below the cells: body [body html]
+below the cells, once the child grew: tall [tall body html]
+past the cells of the last line, once the child grew: lines [lines body html]
+text with no line height: zero [zero text body html]
+text on the second line: text [text body html]
+past the text of the last line: text [text body html]

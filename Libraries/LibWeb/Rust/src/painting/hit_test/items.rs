@@ -172,6 +172,19 @@ pub(crate) trait HitTestItemSink {
         true
     }
 
+    fn rejects_text_fragments_placed_at_their_line_root_before_building_them(&self) -> bool {
+        false
+    }
+
+    fn misses_line(
+        &mut self,
+        _line_root: NodeSlotId,
+        _line_index: u32,
+        _line_root_absolute_content_origin: CssPixelPoint,
+    ) -> bool {
+        false
+    }
+
     fn append(&mut self, item: HitTestItem);
 }
 
@@ -285,8 +298,40 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
             .accumulated_visual_context_for_descendants;
         // Fragments inside self-painting inline boxes are recorded during that box's paint.
         let filter = fragment_ownership::effective_filter(self.rows, paintable);
+        let line_root_positions = self
+            .sink
+            .rejects_text_fragments_placed_at_their_line_root_before_building_them()
+            .then(|| paintable_geometry::LineRootPositions::new(self.rows, paintable));
+        let side = self.rows.committed_side_data(paintable);
+        let mut last_line_missed: Option<(u32, bool)> = None;
         filter.for_each_owned_fragment_index(fragment_count, |index| {
-            if self.fragment_is_block_level_box(paintable, index) {
+            let fragment = &side.fragments()[index];
+            if fragment.is_atomic_inline {
+                return;
+            }
+            if let Some(positions) = &line_root_positions {
+                let line_root_origin = positions.of_line(side.lines(), fragment.line_index as usize);
+                let line_missed = match last_line_missed {
+                    Some((line_index, missed)) if line_index == fragment.line_index => missed,
+                    _ => {
+                        let missed = self.sink.misses_line(paintable, fragment.line_index, line_root_origin);
+                        last_line_missed = Some((fragment.line_index, missed));
+                        missed
+                    }
+                };
+                if line_missed {
+                    return;
+                }
+                let rect_placed_at_its_line_root =
+                    text_fragment::rect_in_containing_block(fragment).translated_by(line_root_origin);
+                if !self
+                    .sink
+                    .wants(HitTestItemKind::TextFragment, rect_placed_at_its_line_root, context)
+                {
+                    return;
+                }
+            }
+            if text_fragment::is_block_level_box(self.rows, fragment) {
                 return;
             }
             self.append_text_fragment(paintable, index as u32, context);

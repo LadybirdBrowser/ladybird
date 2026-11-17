@@ -316,6 +316,7 @@ impl PaintScopePlan {
             items: SmallVec::new(),
             last_inputs: std::cell::Cell::new(None),
             leaves_out,
+            last_line_left_out: None,
         };
         let establishes_stacking_context =
             scope.kind == PaintScopeKind::PaintedAsStackingContext && builder.has_stacking_context(scope.owner);
@@ -335,12 +336,17 @@ impl PaintScopePlan {
 
 pub(crate) trait PlanLeavesOut {
     fn leaves_out_child_scope(&mut self, child: PaintScope, child_inputs: PaintOrderInputs) -> bool;
+    fn leaves_out_line(&mut self, line_root: NodeSlotId, line_index: u32) -> bool;
 }
 
 struct LeavesOutNothing;
 
 impl PlanLeavesOut for LeavesOutNothing {
     fn leaves_out_child_scope(&mut self, _: PaintScope, _: PaintOrderInputs) -> bool {
+        false
+    }
+
+    fn leaves_out_line(&mut self, _: NodeSlotId, _: u32) -> bool {
         false
     }
 }
@@ -352,6 +358,7 @@ struct PaintOrderBuilder<'a, R: PaintRead, LeavesOut: PlanLeavesOut> {
     // Planning asks several questions about the same row in a row; keep its answers.
     last_inputs: std::cell::Cell<Option<(NodeSlotId, PaintOrderInputs)>>,
     leaves_out: &'a mut LeavesOut,
+    last_line_left_out: Option<(NodeSlotId, u32, bool)>,
 }
 
 impl<R: PaintRead, LeavesOut: PlanLeavesOut> PaintOrderBuilder<'_, R, LeavesOut> {
@@ -411,7 +418,9 @@ impl<R: PaintRead, LeavesOut: PlanLeavesOut> PaintOrderBuilder<'_, R, LeavesOut>
         let filter = crate::painting::fragment_ownership::effective_filter(arena, paintable);
         if content.items.is_empty() {
             for index in 0..content.fragments.len() as u32 {
-                if filter.owns_fragment(index) {
+                if filter.owns_fragment(index)
+                    && !self.leaves_out_line(root, content.fragments[index as usize].line_index)
+                {
                     self.items
                         .push(PaintOrderItem::Producer(PaintProducer::TextFragment(index)));
                 }
@@ -421,6 +430,15 @@ impl<R: PaintRead, LeavesOut: PlanLeavesOut> PaintOrderBuilder<'_, R, LeavesOut>
         // interleaved in each line. Layout retains that order alongside geometry.
         for item in &content.items {
             use crate::layout::inline_content::InlineItem;
+            let line_index = match *item {
+                InlineItem::BoxPiece(index) => content.inline_box_pieces[index as usize].line_index,
+                InlineItem::TextFragment(index) | InlineItem::AtomicInline(index) => {
+                    content.fragments[index as usize].line_index
+                }
+            };
+            if self.leaves_out_line(root, line_index) {
+                continue;
+            }
             match *item {
                 InlineItem::BoxPiece(index) => {
                     let piece = &content.inline_box_pieces[index as usize];
@@ -458,6 +476,18 @@ impl<R: PaintRead, LeavesOut: PlanLeavesOut> PaintOrderBuilder<'_, R, LeavesOut>
         // The caret is painted over the line's content.
         self.items
             .push(PaintOrderItem::Producer(PaintProducer::ForegroundCommands));
+    }
+
+    fn leaves_out_line(&mut self, line_root: NodeSlotId, line_index: u32) -> bool {
+        if let Some((root, index, left_out)) = self.last_line_left_out
+            && root == line_root
+            && index == line_index
+        {
+            return left_out;
+        }
+        let left_out = self.leaves_out.leaves_out_line(line_root, line_index);
+        self.last_line_left_out = Some((line_root, line_index, left_out));
+        left_out
     }
 
     fn is_atomic_inline_content(&self, paintable: NodeSlotId) -> bool {
