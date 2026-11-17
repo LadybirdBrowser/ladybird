@@ -1,0 +1,7 @@
+text="short"
+text="\"quoted\" back\\slash"
+text="a line of text that runs well past forty…" text_length=66
+text="shadowed"
+text="shadowed"
+without text, no glyph run names its text: true
+with fonts, every glyph run names its font: true

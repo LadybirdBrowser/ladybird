@@ -10,5 +10,5 @@ DisplayList:
 FillRect@s2/e0 rect=[8,8 200x200] color=rgb(211, 211, 211) owner=BlockContainer<DIV>.transformed-ancestor phase=background
 FillRect@s2/e0 rect=[8,8 200x90] color=rgb(173, 216, 230) owner=BlockContainer<DIV>.intermediate phase=background
 FillRect@s2/e0 rect=[33,33 100x50] color=rgb(255, 127, 80) owner=BlockContainer<DIV>.positioned phase=background
-DrawGlyphRun@s2/e0 font_id=font1 glyphs=10 rect=[33,33 84x16] glyph_bounding_rect=[33,34 89x15] translation=[33,46] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.positioned phase=foreground
+DrawGlyphRun@s2/e0 font_id=font1 glyphs=10 rect=[33,33 84x16] glyph_bounding_rect=[33,34 89x15] translation=[33,46] color=rgb(0, 0, 0) text="Positioned" owner=BlockContainer<DIV>.positioned phase=foreground
 

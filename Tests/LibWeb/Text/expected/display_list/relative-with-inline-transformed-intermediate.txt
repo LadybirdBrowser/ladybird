@@ -9,5 +9,5 @@ DisplayList:
 FillRect@s1/e0 rect=[8,8 300x300] color=rgb(211, 211, 211) owner=BlockContainer<DIV>.block-container phase=background
 FillRect@s1/e0 rect=[8,8 100x16] color=rgb(173, 216, 230) owner=BlockContainer<DIV>.block-container phase=inline-piece
 FillRect@s1/e0 rect=[13,13 100x100] color=rgb(255, 127, 80) owner=BlockContainer<SPAN>.relative-child phase=background
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=8 rect=[13,13 65x16] glyph_bounding_rect=[13,14 69x15] translation=[13,26] color=rgb(0, 0, 0) owner=BlockContainer<SPAN>.relative-child phase=foreground
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=8 rect=[13,13 65x16] glyph_bounding_rect=[13,14 69x15] translation=[13,26] color=rgb(0, 0, 0) text="Relative" owner=BlockContainer<SPAN>.relative-child phase=foreground
 

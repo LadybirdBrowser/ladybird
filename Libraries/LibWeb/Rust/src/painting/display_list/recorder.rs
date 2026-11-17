@@ -273,6 +273,7 @@ pub(crate) struct RecordOrigin {
 #[derive(Default)]
 pub(crate) struct RecordNotes {
     pub(crate) origins: Vec<(u32, RecordOrigin)>,
+    pub(crate) glyph_run_texts: Vec<(u32, String)>,
 }
 
 impl RecordNotes {
@@ -283,6 +284,20 @@ impl RecordNotes {
                 .into_iter()
                 .map(|(offset, origin)| (offset + shift, origin)),
         );
+        self.glyph_run_texts.extend(
+            other
+                .glyph_run_texts
+                .into_iter()
+                .map(|(offset, text)| (offset + shift, text)),
+        );
+    }
+
+    pub(crate) fn glyph_run_text_at(&self, record_offset: u32) -> Option<&str> {
+        let index = self
+            .glyph_run_texts
+            .binary_search_by_key(&record_offset, |(offset, _)| *offset)
+            .ok()?;
+        Some(&self.glyph_run_texts[index].1)
     }
 
     pub(crate) fn origin_at(&self, record_offset: u32) -> Option<RecordOrigin> {
@@ -297,6 +312,7 @@ impl RecordNotes {
 #[derive(Default)]
 struct RecordNoting {
     open_origins: Vec<RecordOrigin>,
+    glyph_run_text: Option<String>,
     notes: RecordNotes,
 }
 
@@ -330,7 +346,7 @@ pub struct DisplayListRecorder {
 }
 
 impl DisplayListRecorder {
-    /// Notes, for each record from now on, the box and phase that recorded it.
+    /// Notes, for each record from now on, the box and phase that recorded it, and the text a glyph run draws.
     pub(crate) fn note_record_origins(&mut self) {
         self.record_noting = Some(Box::default());
     }
@@ -351,6 +367,13 @@ impl DisplayListRecorder {
         }
     }
 
+    /// The text the glyph runs recorded from now on draw, until another is set.
+    pub(crate) fn set_glyph_run_text(&mut self, text: Option<String>) {
+        if let Some(noting) = &mut self.record_noting {
+            noting.glyph_run_text = text;
+        }
+    }
+
     /// The notes of the records recorded since the last chunk was taken, with offsets from where that chunk ended.
     pub(crate) fn take_record_notes(&mut self) -> Option<RecordNotes> {
         self.record_noting
@@ -358,13 +381,16 @@ impl DisplayListRecorder {
             .map(|noting| std::mem::take(&mut noting.notes))
     }
 
-    fn note_record_start(&mut self) {
+    fn note_record_start(&mut self, draws_glyph_run: bool) {
         let Some(noting) = &mut self.record_noting else {
             return;
         };
         let offset = u32::try_from(self.builder.byte_size()).expect("display list exceeds u32");
         if let Some(origin) = noting.open_origins.last() {
             noting.notes.origins.push((offset, *origin));
+        }
+        if draws_glyph_run && let Some(text) = &noting.glyph_run_text {
+            noting.notes.glyph_run_texts.push((offset, text.clone()));
         }
     }
 
@@ -549,7 +575,10 @@ impl DisplayListRecorder {
     }
 
     fn append_command<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8]) {
-        self.note_record_start();
+        self.note_record_start(matches!(
+            C::COMMAND_TYPE,
+            DisplayListCommandType::DrawGlyphRun | DisplayListCommandType::PaintTextShadow
+        ));
         self.builder.append_with_inline_state(
             command,
             inline_data,
@@ -1007,7 +1036,7 @@ impl DisplayListRecorder {
     }
 
     fn begin_group<C: DisplayListCommand>(&mut self) -> OpenRecorderGroup {
-        self.note_record_start();
+        self.note_record_start(false);
         let suspended_ambient_inline_clips = std::mem::take(&mut self.ambient_inline_clips);
         OpenRecorderGroup {
             group: self.builder.begin_group::<C>(suspended_ambient_inline_clips.clone()),

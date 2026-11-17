@@ -752,6 +752,12 @@ fn paint_text_shadow<O: Observer>(
         }
     }
 
+    let text = recorder
+        .recorder
+        .notes_record_origins()
+        .then(|| fragment_text(recorder.source, fragment, span.start_code_unit..span.end_code_unit));
+    recorder.recorder.set_glyph_run_text(text);
+
     // NB: Force-dark leaves text shadows alone. Light text keeps its color under force-dark, so inverting the dark
     // outline set behind it would put a light halo around light glyphs — which reads as blurred text. Blink doesn't
     // filter text shadows either: DarkModeFilter::ApplyToFlagsIfNeeded recolors only the paint flags, never the
@@ -783,6 +789,21 @@ fn paint_text_shadow<O: Observer>(
         orientation,
         ForceDarkRole::None,
     );
+    recorder.recorder.set_glyph_run_text(None);
+}
+
+/// The text a fragment holds between code unit offsets into it.
+fn fragment_text(
+    source: &crate::painting::paint_read::PaintSource<'_>,
+    fragment: &FragmentRecord,
+    offsets: std::ops::Range<usize>,
+) -> String {
+    let Some(rendered_text) = source.rendered_text(fragment.layout_node) else {
+        return String::new();
+    };
+    let end = (fragment.start + offsets.end.min(fragment.length_in_code_units)).min(rendered_text.text.len());
+    let start = (fragment.start + offsets.start).min(end);
+    String::from_utf16_lossy(&rendered_text.text[start..end])
 }
 
 fn paint_text_fragment<O: Observer>(
@@ -880,6 +901,11 @@ fn paint_text_fragment<O: Observer>(
             );
         }
     };
+    let text = recorder
+        .recorder
+        .notes_record_origins()
+        .then(|| fragment_text(recorder.source, fragment, span.start_code_unit..span.end_code_unit));
+    recorder.recorder.set_glyph_run_text(text);
     // Paint text, clipped to span range if not full fragment.
     let is_full_fragment = span.start_code_unit == 0 && span.end_code_unit == fragment.length_in_code_units;
     let mut decoration_box = fragment_absolute_rect;
@@ -903,6 +929,8 @@ fn paint_text_fragment<O: Observer>(
         decoration_box.x = range_rect.x;
         decoration_box.width = range_rect.width;
     }
+
+    recorder.recorder.set_glyph_run_text(None);
 
     for set in decoration_sets {
         crate::painting::record::paint::text_decoration::paint_decoration_lines(

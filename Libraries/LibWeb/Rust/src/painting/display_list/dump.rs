@@ -43,6 +43,10 @@ crate::stage::main_thread_ffi_entries!();
 pub struct FfiDisplayListDumpOptions {
     /// Names, on each record, the box and the paint phase that recorded it.
     pub owners: bool,
+    /// Prints, on each glyph run, the text it draws.
+    pub text: bool,
+    /// Prints, on each glyph run, the family, size and weight of its font.
+    pub fonts: bool,
     /// Numbers every record, nested ones too, in tape order, and names the records of each layer by those numbers.
     pub record_ids: bool,
     /// Names visual context nodes by their indices in the tree rather than by the order the dump first prints them in.
@@ -61,6 +65,8 @@ pub struct FfiPaintingDumpCallbacks {
     /// Describes the row in the slot, as its layout node describes itself.
     debug_description: extern "C" fn(context: *mut c_void, slot: NodeSlotId, description_sink: *mut c_void),
     append_text: extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
+    /// Describes the font, a `Gfx::Font`, by its family, pixel size and weight.
+    describe_font: extern "C" fn(context: *mut c_void, font: *const c_void, description_sink: *mut c_void),
 }
 
 impl FfiPaintingDumpCallbacks {
@@ -69,6 +75,14 @@ impl FfiPaintingDumpCallbacks {
         // The C++ host fills the description sink synchronously through the exported push
         // function.
         (self.debug_description)(self.context, slot, (&raw mut description).cast());
+        String::from_utf8_lossy(&description).into_owned()
+    }
+
+    fn describe_font(&self, _: &MainThread, font: &libgfx_rust::font::FontHandle) -> String {
+        let mut description = Vec::new();
+        // The C++ host fills the description sink synchronously through the exported push function, and the handle
+        // keeps the font alive for the call.
+        (self.describe_font)(self.context, font.as_raw(), (&raw mut description).cast());
         String::from_utf8_lossy(&description).into_owned()
     }
 
@@ -228,14 +242,24 @@ pub unsafe extern "C" fn painting_dump(
             owners
         })
     };
-    let record_origins = options.owners.then(|| {
+    let record_notes = (options.owners || options.text).then(|| {
         let record_notes = recording.record_notes.clone().unwrap_or_default();
-        record_origins_in_tape_order(&recording.display_list, &record_notes)
+        record_notes_in_tape_order(&recording.display_list, &record_notes)
     });
-    let owner_labels = record_origins
+    let owner_labels = record_notes
         .as_ref()
-        .map(|origins| owner_labels(host, read, &main_thread, &callbacks, origins))
+        .filter(|_| options.owners)
+        .map(|notes| owner_labels(host, read, &main_thread, &callbacks, notes))
         .unwrap_or_default();
+    let font_descriptions = options.fonts.then(|| {
+        recording
+            .resources
+            .with_vector_image_resources()
+            .fonts
+            .iter()
+            .map(|(id, font)| (*id, callbacks.describe_font(&main_thread, font)))
+            .collect::<HashMap<_, _>>()
+    });
     let mut names = if options.raw_node_indices {
         DumpNames::default()
     } else {
@@ -263,11 +287,14 @@ pub unsafe extern "C" fn painting_dump(
         output: &mut output,
         names: &mut names,
         next_record_id: options.record_ids.then_some(1),
-        record_origins: record_origins.map(|origins| RecordOriginsInDumpOrder {
-            origins,
+        record_notes: record_notes.map(|notes| RecordNotesInDumpOrder {
+            notes,
             next_index: 0,
             owner_labels,
+            prints_owners: options.owners,
+            prints_glyph_run_texts: options.text,
         }),
+        font_descriptions,
     };
     match layer_plan {
         Some(layer_plan) => records.dump_top_level_commands_with_their_layers(&display_list, &layer_plan),
@@ -490,21 +517,31 @@ impl RecordIdsOfTopLevelRecords {
     }
 }
 
-/// The origin of each record of a tape in tape order, nested records after the one they are nested in. A nested record
+/// What the recording noted of a record, as the dump prints it.
+#[derive(Default)]
+struct RecordNote {
+    origin: Option<RecordOrigin>,
+    glyph_run_text: Option<String>,
+}
+
+/// The notes of each record of a tape in tape order, nested records after the one they are nested in. A nested record
 /// whose recording noted no origin, such as a record of a pattern tile, which is recorded once and copied wherever it
 /// is drawn, has the origin of the record it is nested in.
-fn record_origins_in_tape_order(display_list: &RecordedDisplayList, notes: &RecordNotes) -> Vec<Option<RecordOrigin>> {
+fn record_notes_in_tape_order(display_list: &RecordedDisplayList, notes: &RecordNotes) -> Vec<RecordNote> {
     fn collect(
         bytes: &[u8],
         base_offset: u32,
         enclosing_origin: Option<RecordOrigin>,
         notes: &RecordNotes,
-        origins: &mut Vec<Option<RecordOrigin>>,
+        record_notes: &mut Vec<RecordNote>,
     ) {
         for_each_command(bytes, |header, record_offset, payload| {
             let record_offset = base_offset + record_offset as u32;
             let origin = notes.origin_at(record_offset).or(enclosing_origin);
-            origins.push(origin);
+            record_notes.push(RecordNote {
+                origin,
+                glyph_run_text: notes.glyph_run_text_at(record_offset).map(str::to_owned),
+            });
             let payload_offset = record_offset + HEADER_SIZE as u32;
             for_each_nested_record_span(header.command_type, payload, |_, span| {
                 collect(
@@ -512,17 +549,17 @@ fn record_origins_in_tape_order(display_list: &RecordedDisplayList, notes: &Reco
                     payload_offset + span.offset,
                     origin,
                     notes,
-                    origins,
+                    record_notes,
                 );
             });
         });
     }
-    let mut origins = Vec::new();
+    let mut record_notes = Vec::new();
     for run in &display_list.command_runs {
         let run_bytes = &display_list.bytes[run.offset as usize..(run.offset + run.size) as usize];
-        collect(run_bytes, run.offset, None, notes, &mut origins);
+        collect(run_bytes, run.offset, None, notes, &mut record_notes);
     }
-    origins
+    record_notes
 }
 
 /// The labels of the live boxes that recorded the records.
@@ -531,11 +568,11 @@ fn owner_labels(
     read: &crate::render_state::BegunRead,
     main_thread: &MainThread,
     callbacks: &FfiPaintingDumpCallbacks,
-    origins: &[Option<RecordOrigin>],
+    notes: &[RecordNote],
 ) -> HashMap<NodeSlotId, String> {
-    let owners: Vec<NodeSlotId> = origins
+    let owners: Vec<NodeSlotId> = notes
         .iter()
-        .flatten()
+        .filter_map(|note| note.origin)
         .map(|origin| origin.owner)
         .collect::<std::collections::HashSet<_>>()
         .into_iter()
@@ -552,12 +589,14 @@ fn owner_labels(
         .collect()
 }
 
-/// The origins of the records the DisplayList section prints, which it takes in turn. The records of an SVG image,
-/// which the recording names by the image's id only, are not among them.
-struct RecordOriginsInDumpOrder {
-    origins: Vec<Option<RecordOrigin>>,
+/// The notes of the records the DisplayList section prints, which it takes in turn. The records of an SVG image, which
+/// the recording names by the image's id only, are not among them.
+struct RecordNotesInDumpOrder {
+    notes: Vec<RecordNote>,
     next_index: usize,
     owner_labels: HashMap<NodeSlotId, String>,
+    prints_owners: bool,
+    prints_glyph_run_texts: bool,
 }
 
 /// Where the DisplayList section is written, with the names it gives what the records name.
@@ -566,7 +605,9 @@ struct RecordDump<'a> {
     names: &'a mut DumpNames,
     // The number the next record is printed with, while records are numbered.
     next_record_id: Option<u32>,
-    record_origins: Option<RecordOriginsInDumpOrder>,
+    record_notes: Option<RecordNotesInDumpOrder>,
+    // The descriptions of the fonts the glyph runs draw with, by their ids, where the dump prints them.
+    font_descriptions: Option<HashMap<u64, String>>,
 }
 
 impl RecordDump<'_> {
@@ -610,12 +651,16 @@ impl RecordDump<'_> {
         origin_of_enclosing_vector_image: Option<Option<RecordOrigin>>,
     ) {
         for_each_command(command_bytes, |header, _, payload| {
-            let origin = match origin_of_enclosing_vector_image {
-                Some(origin) => origin,
+            let note = match origin_of_enclosing_vector_image {
+                Some(origin) => RecordNote {
+                    origin,
+                    glyph_run_text: None,
+                },
                 None => self
-                    .record_origins
+                    .record_notes
                     .as_mut()
-                    .and_then(RecordOriginsInDumpOrder::take_next),
+                    .map(RecordNotesInDumpOrder::take_next)
+                    .unwrap_or_default(),
             };
             push_indent(self.output, base_indent);
             if let Some(record_id) = &mut self.next_record_id {
@@ -633,9 +678,7 @@ impl RecordDump<'_> {
                 self.output.push_str(" inline_transform=");
                 push_affine_transform(self.output, transform);
             }
-            if let Some(origin) = origin {
-                self.push_origin(origin);
-            }
+            self.push_note(header.command_type, payload, &note);
             self.output.push('\n');
 
             self.dump_records_inside(
@@ -644,7 +687,7 @@ impl RecordDump<'_> {
                 context,
                 base_indent + 1,
                 origin_of_enclosing_vector_image,
-                origin,
+                note.origin,
             );
         });
     }
@@ -686,11 +729,32 @@ impl RecordDump<'_> {
         });
     }
 
-    fn push_origin(&mut self, origin: RecordOrigin) {
+    // What the recording noted of the record, and the font a glyph run draws with: the text, the font and then the
+    // origin.
+    fn push_note(&mut self, command_type: DisplayListCommandType, payload: &[u8], note: &RecordNote) {
+        let (prints_owners, prints_glyph_run_texts) = self.record_notes.as_ref().map_or((false, false), |notes| {
+            (notes.prints_owners, notes.prints_glyph_run_texts)
+        });
+        if prints_glyph_run_texts && let Some(text) = &note.glyph_run_text {
+            push_glyph_run_text(self.output, text);
+        }
+        if let Some(font_descriptions) = &self.font_descriptions {
+            let font_id = match command_type {
+                DisplayListCommandType::DrawGlyphRun => Some(read_command::<DrawGlyphRun>(payload).font_id),
+                DisplayListCommandType::PaintTextShadow => Some(read_command::<PaintTextShadow>(payload).font_id),
+                _ => None,
+            };
+            if let Some(description) = font_id.and_then(|font_id| font_descriptions.get(&font_id.0)) {
+                write!(self.output, " font=\"{description}\"").unwrap();
+            }
+        }
+        let Some(origin) = note.origin.filter(|_| prints_owners) else {
+            return;
+        };
         let owner_label = self
-            .record_origins
+            .record_notes
             .as_ref()
-            .and_then(|origins| origins.owner_labels.get(&origin.owner));
+            .and_then(|notes| notes.owner_labels.get(&origin.owner));
         if let Some(owner_label) = owner_label {
             write!(self.output, " owner={owner_label}").unwrap();
         }
@@ -698,11 +762,39 @@ impl RecordDump<'_> {
     }
 }
 
-impl RecordOriginsInDumpOrder {
-    fn take_next(&mut self) -> Option<RecordOrigin> {
-        let origin = self.origins.get(self.next_index).copied().flatten();
+impl RecordNotesInDumpOrder {
+    fn take_next(&mut self) -> RecordNote {
+        let note = self
+            .notes
+            .get_mut(self.next_index)
+            .map(std::mem::take)
+            .unwrap_or_default();
         self.next_index += 1;
-        origin
+        note
+    }
+}
+
+const GLYPH_RUN_TEXT_PRINTED_LENGTH: usize = 40;
+
+/// The text a glyph run draws, quoted and escaped, cut to its first characters with its full length after it where it
+/// is longer.
+fn push_glyph_run_text(output: &mut String, text: &str) {
+    output.push_str(" text=\"");
+    let length = text.chars().count();
+    for character in text.chars().take(GLYPH_RUN_TEXT_PRINTED_LENGTH) {
+        match character {
+            '"' => output.push_str("\\\""),
+            '\\' => output.push_str("\\\\"),
+            '\n' => output.push_str("\\n"),
+            '\t' => output.push_str("\\t"),
+            character if character.is_control() => write!(output, "\\u{{{:x}}}", character as u32).unwrap(),
+            character => output.push(character),
+        }
+    }
+    if length > GLYPH_RUN_TEXT_PRINTED_LENGTH {
+        write!(output, "…\" text_length={length}").unwrap();
+    } else {
+        output.push('"');
     }
 }
 
@@ -887,5 +979,19 @@ mod tests {
         assert_eq!(record_ids.describe_spans(&[span(0, Some(1))]), "#1");
         assert_eq!(record_ids.describe_spans(&[span(1, Some(2))]), "#2-#4");
         assert_eq!(record_ids.describe_spans(&[span(0, Some(1)), span(2, None)]), "#1,#5");
+    }
+
+    #[test]
+    fn glyph_run_text_is_escaped_and_cut_with_its_full_length_after_it() {
+        let text = |text: &str| {
+            let mut output = String::new();
+            push_glyph_run_text(&mut output, text);
+            output
+        };
+        assert_eq!(text("say \"hi\"\\\n\t\u{7}"), r#" text="say \"hi\"\\\n\t\u{7}""#);
+        assert_eq!(
+            text(&"é".repeat(41)),
+            format!(" text=\"{}…\" text_length=41", "é".repeat(40))
+        );
     }
 }

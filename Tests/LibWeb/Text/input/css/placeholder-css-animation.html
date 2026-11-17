@@ -18,7 +18,7 @@
 <script>
     test(() => {
         const dumpTransforms = () =>
-            println(internals.dumpDisplayList().split("\n").filter(line => line.includes("transform=")).join("\n"));
+            println(internals.dumpDisplayList().split("\n").filter(line => /^\s+\[s\d+\] transform=/.test(line)).join("\n"));
         dumpTransforms();
 
         // Restyling the placeholder again keeps the animation where it was.

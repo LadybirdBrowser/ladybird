@@ -255,10 +255,16 @@ Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document
         .context = &context,
         .debug_description = [](void* context_pointer, Compositing::RustFFI::NodeSlotId slot, void* description_sink) { push_debug_description(*static_cast<DumpContext*>(context_pointer)->document, slot, description_sink); },
         .append_text = [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<DumpContext*>(context_pointer)->dump = Utf16String::from_utf8_without_validation(StringView { bytes, byte_count }); },
+        .describe_font = [](void*, void const* font_pointer, void* description_sink) {
+            auto const& font = *static_cast<Gfx::Font const*>(font_pointer);
+            auto description = ByteString::formatted("{} {}px {}", font.family(), font.pixel_size(), font.weight());
+            Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, reinterpret_cast<u8 const*>(description.characters()), description.length()); },
     };
     Gfx::IntRect device_viewport_rect { {}, document.page().css_to_device_rect(document.viewport_rect()).size().to_type<int>() };
     Layout::RustFFI::FfiDisplayListDumpOptions ffi_options {
         .owners = options.owners,
+        .text = options.text,
+        .fonts = options.fonts,
         .record_ids = options.record_ids,
         .raw_node_indices = options.raw_node_indices,
     };
