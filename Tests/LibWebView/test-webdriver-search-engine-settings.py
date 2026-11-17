@@ -24,10 +24,10 @@ def run_test(webdriver_binary, graphical):
             json.dumps(
                 {
                     "searchEngine": {
-                        "name": "Google",
+                        "engine": "Google",
+                        "suggestions": True,
                         "custom": [{"name": "Plain custom", "url": "https://example.com/search?q=%s"}],
                     },
-                    "autocompleteEngine": {"name": "Google"},
                 }
             )
         )
@@ -191,10 +191,8 @@ def run_test(webdriver_binary, graphical):
             assert state()[:2] == [False, False]
             toggle_suggestions(True)
             saved = json.loads(settings_file.read_text())
-            assert "autocompleteEngine" not in saved
             assert saved["searchEngine"]["engine"] == "Custom suggestions"
             assert saved["searchEngine"]["suggestions"]
-            assert "name" not in saved["searchEngine"]
             assert saved["searchEngine"]["custom"][1]["suggestionsUrl"] == "https://example.com/suggest?q=%s"
 
             helpers["request"](port, "DELETE", f"/session/{session}")
@@ -210,7 +208,7 @@ def run_test(webdriver_binary, graphical):
                 "!settings.searchEngine.engine",
             )
             assert state() == [True, True, "Choose a search engine to use search suggestions."]
-            print("PASS: search and suggestions use one engine, migrate, and preserve the user's toggle")
+            print("PASS: search and suggestions use one engine and preserve the user's toggle")
         finally:
             if session is not None:
                 helpers["request"](port, "DELETE", f"/session/{session}")

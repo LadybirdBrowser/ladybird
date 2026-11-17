@@ -448,25 +448,10 @@ void Settings::load_from_json(JsonValue const& json_value)
             });
         }
 
-        auto selected_engine = search_engine->get(SEARCH_ENGINE_SELECTION_KEY);
-        auto search_engine_name = selected_engine.has_value()
-            ? search_engine->get_string(SEARCH_ENGINE_SELECTION_KEY)
-            : search_engine->get_string(SEARCH_ENGINE_NAME_KEY);
-        if (search_engine_name.has_value())
+        if (auto search_engine_name = search_engine->get_string(SEARCH_ENGINE_SELECTION_KEY); search_engine_name.has_value())
             m_search_engine_settings.engine = find_search_engine_by_name(*search_engine_name);
 
-        if (auto enabled = search_engine->get(SEARCH_SUGGESTIONS_ENABLED_KEY); enabled.has_value()) {
-            m_search_engine_settings.suggestions = enabled->is_bool() && enabled->as_bool();
-        } else if (m_search_engine_settings.engine.has_value() && m_search_engine_settings.engine->suggestions_url.has_value()) {
-            // NB: Only migrate suggestions when the old provider matches the selected search engine, so typed text
-            //     does not start going to a different provider without the user's consent.
-            if (auto legacy_engine = json.get_object("autocompleteEngine"sv); legacy_engine.has_value()) {
-                auto legacy_name = legacy_engine->get_string("name"sv);
-                m_search_engine_settings.suggestions = legacy_name.has_value()
-                    && legacy_name->is_one_of("DuckDuckGo"sv, "Google"sv, "Kagi"sv, "Yahoo"sv)
-                    && *legacy_name == m_search_engine_settings.engine->name;
-            }
-        }
+        m_search_engine_settings.suggestions = search_engine->get_bool(SEARCH_SUGGESTIONS_ENABLED_KEY).value_or(false);
     }
 
     auto load_site_setting = [&](AutoplaySiteSetting& site_setting, StringView key) {
