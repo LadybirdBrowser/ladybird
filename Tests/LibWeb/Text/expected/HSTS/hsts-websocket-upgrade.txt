@@ -1,0 +1,4 @@
+Window without HSTS policy: failed
+Window with HSTS policy: failed
+Worker without HSTS policy: failed
+Worker with HSTS policy: failed
