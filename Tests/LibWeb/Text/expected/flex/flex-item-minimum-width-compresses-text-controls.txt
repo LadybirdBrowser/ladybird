@@ -2,3 +2,12 @@ flex item around a <input> with width: 100%: 60px
 flex item around a <input> with max-width: 100%: 169.6875px
 flex item around a <textarea> with width: 100%: 60px
 flex item around a <textarea> with max-width: 100%: 245.53125px
+flex item around a <select> with width: 100%: 60px
+flex item around a <select> with max-width: 100%: 206.21875px
+flex item around a <listbox> with width: 100%: 60px
+flex item around a <listbox> with max-width: 100%: 178.21875px
+flex item around an inline-flex <select> with width: 100%: 60px
+flex item around a <select> with width: calc(100% + 80px): 80px
+flex item around a <input> with width: calc(100% + 80px): 80px
+flex item around a <select> with width: fit-content(50%): 206.21875px
+flex item around a <input> with width: fit-content(50%): 169.6875px
