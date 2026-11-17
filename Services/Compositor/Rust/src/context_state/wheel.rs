@@ -208,6 +208,11 @@ impl ContextState {
         // A gesture held by fingers never ends by itself, so one a test left unended would take in the next test's steps.
         self.wheel_gesture_routing.forget_gesture();
         self.pointer_in_nested_contexts = Default::default();
+        // The pointer a test moved through the UI process rests on in this context, where the next test's moves may not
+        // reach: one that moves the pointer in the page alone would have frames of its animations report content under
+        // a pointer that is not there.
+        self.note_pointer_position(None);
+        self.animated_content_was_under_pointer = false;
         self.last_reported_scroll_momentum_step = None;
         self.reported_scroll_momentum_was_interrupted = false;
     }
