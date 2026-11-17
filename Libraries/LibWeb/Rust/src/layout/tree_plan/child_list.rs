@@ -425,6 +425,12 @@ impl PlanTree {
             ChildPosition::Prepend => self.node(insertion_point).first_child(),
         };
         self.attach(insertion_point, node, before);
+        if is_inline_outside {
+            // NB: An absolutely positioned box that would be inline-level in flow is blockified, so attaching it
+            //     doesn't count it as an inline-level child. It is one all the same: a block-level sibling that
+            //     follows has to wrap it in an anonymous block, where a line gives it its static position.
+            *self.facts_mut(insertion_point) |= box_fact::HAS_INLINE_OR_IN_FLOW_CHILDREN;
+        }
 
         let point_box = self.node(insertion_point);
         let children_are_inline = if is_inline_outside {
@@ -831,6 +837,30 @@ mod tests {
         let wrapper = append(&mut tree, parent, abspos);
         assert!(is_wrapper(&tree, wrapper));
         assert!(tree.node(wrapper).has_flag(NodeFlag::ChildrenAreInline));
+    }
+
+    #[test]
+    fn block_after_inline_level_absolutely_positioned_box_wraps_it_with_the_floats_before_it() {
+        let mut tree = PlanTree::default();
+        let parent = root(&mut tree, NodeKind::BlockContainer, block());
+        let float = element(&mut tree, NodeKind::BlockContainer, out_of_flow(block()));
+        assert_eq!(append(&mut tree, parent, float), parent);
+        let abspos = element(
+            &mut tree,
+            NodeKind::BlockContainer,
+            block() | box_fact::ABSOLUTELY_POSITIONED | box_fact::INLINE_OUTSIDE_BEFORE_BLOCKIFICATION,
+        );
+        assert_eq!(append(&mut tree, parent, abspos), parent);
+        assert!(tree.node(parent).has_flag(NodeFlag::ChildrenAreInline));
+        let child = element(&mut tree, NodeKind::BlockContainer, block());
+        assert_eq!(append(&mut tree, parent, child), parent);
+        let parent_children = children(&tree, parent);
+        assert_eq!(parent_children.len(), 2);
+        assert!(is_wrapper(&tree, parent_children[0]));
+        assert!(tree.node(parent_children[0]).has_flag(NodeFlag::ChildrenAreInline));
+        assert_eq!(children(&tree, parent_children[0]), [float, abspos]);
+        assert_eq!(parent_children[1], child);
+        assert!(!tree.node(parent).has_flag(NodeFlag::ChildrenAreInline));
     }
 
     #[test]

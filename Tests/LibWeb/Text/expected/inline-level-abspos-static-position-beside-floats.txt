@@ -1,0 +1,28 @@
+nothing-after: 200,0
+clearing-block-after: 200,0
+plain-block-after: 200,0
+block-before-and-after: 200,10
+block-level-abspos: 0,0
+inline-block: 200,0
+inline-flex: 100,0
+fixed: 100,0
+right-float: 0,0
+rtl-right-float: 270,0
+rtl-left-float: 370,0
+text-align-center: 250,0
+text-align-center-between-floats: 200,0
+text-align-center-without-floats: 200,0
+text-align-right: 400,0
+text-align-end: 400,0
+floats-fill-the-line: 400,0
+floats-leave-less-than-the-box: 380,0
+wider-float-below: 100,0
+margins-before-and-after: 100,30
+float-in-sibling-before: 100,0
+in-nested-block: 100,0
+container-padding: 115,0
+own-margins: 107,3
+two-boxes: 100,0 100,0
+vertical: 370,100
+block-inserted-after: 200
+the tree matches a full rebuild: true
