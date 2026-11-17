@@ -2287,7 +2287,7 @@ void Request::send_headers_to_client()
     auto cache_state = Requests::CacheState::NotCached;
     if (m_cache_status == CacheStatus::ReadFromCache)
         cache_state = m_cache_entry_was_revalidated ? Requests::CacheState::Validated : Requests::CacheState::Local;
-    m_client->async_headers_became_available(m_request_id, m_response_headers->headers(), m_status_code, m_reason_phrase, cache_state, m_http_version);
+    m_client->async_headers_became_available(m_request_id, m_url, m_response_headers->headers(), m_status_code, m_reason_phrase, cache_state, m_http_version);
 }
 
 void Request::write_to_disk_cache(ReadonlyBytes bytes)
