@@ -1472,10 +1472,10 @@ void ViewImplementation::consume_user_activation_of_input_handled_by(Badge<WebCo
         m_pending_input_events[*index].user_activation_time.clear();
 }
 
-bool ViewImplementation::take_input_to_open_link_in_new_tab(Badge<WebContentPage>)
+bool ViewImplementation::take_input_to_open_link_in_new_tab(Badge<WebContentPage>, WebContentPage const& page)
 {
     // NB: Automation lets a renderer synthesize the input that opens a link.
-    if (WebContentClient::renderers_may_synthesize_input())
+    if (WebContentClient::renderers_may_synthesize_input_for_testing() || is_running_webdriver_input_command_in(page))
         return true;
     // NB: Each press opens at most one link, the earliest press first, and only while a page could still be handling it.
     auto now = MonotonicTime::now();
@@ -3521,6 +3521,31 @@ void ViewImplementation::complete_webdriver_input_command(u64 command_id, Web::W
     Application::the().complete_webdriver_content_command(command_id, move(response));
 }
 
+static bool is_webdriver_cookie_command(StringView name)
+{
+    return name.is_one_of("get_all_cookies"sv, "get_named_cookie"sv, "add_cookie"sv, "delete_cookie"sv, "delete_all_cookies"sv);
+}
+
+// https://w3c.github.io/webdriver/#dfn-element-send-keys
+// NB: The renderer splits the text on newlines into the paths of the files to select, if the element is a file input.
+static Vector<ByteString> files_named_by_element_send_keys(StringView name, JsonValue const& envelope)
+{
+    if (name != "element_send_keys"sv || !envelope.is_object())
+        return {};
+    auto payload = envelope.as_object().get_object("__webdriver_input_payload"sv);
+    if (!payload.has_value())
+        return {};
+    auto text = payload->get_string("text"sv);
+    if (!text.has_value())
+        return {};
+
+    Vector<ByteString> files;
+    text->bytes_as_string_view().for_each_split_view('\n', SplitBehavior::KeepEmpty, [&](StringView path) {
+        files.append(path);
+    });
+    return files;
+}
+
 void ViewImplementation::dispatch_webdriver_content_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments, WebDriverProtocol protocol)
 {
     if (m_crash_state.has_value() && !m_crash_state->recovery_started) {
@@ -3562,8 +3587,13 @@ void ViewImplementation::dispatch_webdriver_content_command(u64 command_id, Opti
 
     if (name == "crash_current_page"sv)
         m_pending_webdriver_crash_commands.set(command_id, { *target, name, navigable_id });
-    else
-        m_pending_webdriver_commands.set(command_id, { *target, name, navigable_id });
+    else {
+        // NB: A cookie command is for the cookies of the active document of its browsing context when it starts.
+        Optional<URL::URL> cookie_document_url;
+        if (is_webdriver_cookie_command(name))
+            cookie_document_url = navigable->active_document_url();
+        m_pending_webdriver_commands.set(command_id, { *target, name, navigable_id, protocol, false, files_named_by_element_send_keys(name, payload), false, move(cookie_document_url) });
+    }
     target->async_run_webdriver_command(command_id, navigable_id, name, move(payload), move(arguments));
 }
 
@@ -3572,6 +3602,44 @@ void ViewImplementation::run_webdriver_commands_waiting_for_a_document(Badge<Can
     auto commands = move(m_webdriver_commands_waiting_for_a_document);
     for (auto& [command_id, command] : commands)
         dispatch_webdriver_content_command(command_id, command.navigable_id, command.name, move(command.payload), move(command.arguments), command.protocol);
+}
+
+bool ViewImplementation::is_running_webdriver_command_to_select_file(WebContentPage const& page, StringView path) const
+{
+    for (auto const& [command_id, command] : m_pending_webdriver_commands) {
+        if (command.page.ptr() == &page && command.files_to_select.contains_slow(path))
+            return true;
+    }
+    return false;
+}
+
+// NB: An input command dispatches its input in the page it runs in, until any navigation it started takes that page
+//     away.
+bool ViewImplementation::is_running_webdriver_input_command_in(WebContentPage const& page) const
+{
+    if (!m_webdriver_input_command_running || m_webdriver_input_commands.is_empty())
+        return false;
+    auto command = m_pending_webdriver_commands.get(m_webdriver_input_commands.first().command_id);
+    return command.has_value() && command->page.ptr() == &page && !command->only_waits_for_navigation;
+}
+
+Optional<URL::URL> ViewImplementation::url_of_webdriver_cookie_command_running_in(WebContentClient const& client) const
+{
+    for (auto const& [command_id, command] : m_pending_webdriver_commands) {
+        if (&command.page->client() == &client && command.cookie_document_url.has_value())
+            return command.cookie_document_url;
+    }
+    return {};
+}
+
+bool ViewImplementation::is_running_webdriver_window_command_in(WebContentPage const& page) const
+{
+    for (auto const& [command_id, command] : m_pending_webdriver_commands) {
+        if (command.page.ptr() == &page && command.protocol == WebDriverProtocol::Classic
+            && command.name.is_one_of("set_window_rect"sv, "maximize_window"sv, "minimize_window"sv, "fullscreen_window"sv))
+            return true;
+    }
+    return false;
 }
 
 void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
@@ -3772,6 +3840,7 @@ void ViewImplementation::move_pending_webdriver_commands_to_new_host(Badge<Canon
             continue;
 
         command.page = new_host;
+        command.only_waits_for_navigation = true;
         new_host.async_run_webdriver_command(command_id, navigable_id, "wait_for_navigation"_string, JsonValue {}, {});
     }
 }

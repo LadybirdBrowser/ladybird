@@ -332,7 +332,7 @@ public:
     // Consumes the activation of the input the page is handling, if that input gives activation.
     void consume_user_activation_of_input_handled_by(Badge<WebContentPage>, WebContentPage const&);
     // Opening a link in a new tab takes one key or mouse press the view delivered.
-    bool take_input_to_open_link_in_new_tab(Badge<WebContentPage>);
+    bool take_input_to_open_link_in_new_tab(Badge<WebContentPage>, WebContentPage const&);
     void did_lose_input_event_endpoint(Badge<WebContentPage>, WebContentPage&);
     void did_consume_input_event_in_compositor(Badge<WebContentPage>, u64 event_id);
     void did_not_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id);
@@ -569,6 +569,12 @@ public:
     void run_webdriver_user_prompt_handling(Function<void(Web::WebDriver::Response)> on_complete);
     void did_complete_webdriver_user_prompt_handling(Badge<WebContentPage>, u64 request_id, Web::WebDriver::Response);
     void did_open_user_prompt(Badge<WebContentPage>);
+
+    // NB: Under WebDriver, a renderer has some of the browser's powers only while it runs a command that needs them.
+    bool is_running_webdriver_command_to_select_file(WebContentPage const&, StringView path) const;
+    Optional<URL::URL> url_of_webdriver_cookie_command_running_in(WebContentClient const&) const;
+    bool is_running_webdriver_input_command_in(WebContentPage const&) const;
+    bool is_running_webdriver_window_command_in(WebContentPage const&) const;
     static Optional<ViewImplementation&> find_view_by_handle(StringView);
     void did_change_background_color(Badge<WebContentPage>, Gfx::Color);
     Gfx::Color page_background_color() const { return m_page_background_color; }
@@ -1100,6 +1106,12 @@ protected:
         Optional<Web::HTML::CrossProcessId> navigable_id;
         WebDriverProtocol protocol { WebDriverProtocol::Classic };
         bool stays_on_page { false };
+        // The paths an Element Send Keys command names, which the renderer may open to select them as files.
+        Vector<ByteString> files_to_select {};
+        // A command whose page went away while it waited for a navigation, which its new page only waits for.
+        bool only_waits_for_navigation { false };
+        // The URL of the document a cookie command is for, whose cookies alone the renderer may reach.
+        Optional<URL::URL> cookie_document_url {};
     };
     HashMap<u64, PendingWebDriverCommand> m_pending_webdriver_commands;
     HashMap<u64, PendingWebDriverCommand> m_pending_webdriver_crash_commands;

@@ -122,8 +122,14 @@ public:
     Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
 
     virtual void did_misbehave(StringView message_name, StringView reason) override;
-    static bool renderers_may_access_cookies_like_http();
-    static bool renderers_may_synthesize_input();
+    enum class HTTPCookieAccess : u8 {
+        Allowed,
+        // A WebDriver cookie command runs, but for another document, which the renderer may not have heard of yet.
+        RefusedForURL,
+        Refused,
+    };
+    HTTPCookieAccess http_cookie_access_for(URL::URL const&) const;
+    static bool renderers_may_synthesize_input_for_testing();
     bool may_read_local_files() const;
     // Documents with no site, such as those of an opaque origin, come with whatever made them, so they do not count.
     void did_host_document_of_site(Utf16String site);
