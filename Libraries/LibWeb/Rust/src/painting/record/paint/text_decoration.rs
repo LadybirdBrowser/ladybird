@@ -128,6 +128,45 @@ fn anchor_for_decorating_box(
     )
 }
 
+pub(crate) fn fragment_may_paint_text_decorations(
+    arena: &impl PaintRead,
+    block: NodeSlotId,
+    fragment: &crate::painting::paintable_data::FragmentRecord,
+    block_chain_has_text_decoration_lines: &mut Option<bool>,
+) -> bool {
+    let has_text_decoration_lines = |node: NodeSlotId| {
+        arena
+            .node_style_if_live(node)
+            .is_some_and(|style| !text_decoration_lines(style).is_empty())
+    };
+    let mut ancestor = Some(fragment.style_source);
+    while let Some(current) = ancestor {
+        if current == block {
+            break;
+        }
+        if has_text_decoration_lines(current) {
+            return true;
+        }
+        if crate::painting::style_queries::is_text_decoration_propagation_boundary(arena, current) {
+            return false;
+        }
+        ancestor = arena.node_parent_if_live(current);
+    }
+    *block_chain_has_text_decoration_lines.get_or_insert_with(|| {
+        let mut propagated = Some(block);
+        while let Some(current) = propagated {
+            if has_text_decoration_lines(current) {
+                return true;
+            }
+            if crate::painting::style_queries::is_text_decoration_propagation_boundary(arena, current) {
+                return false;
+            }
+            propagated = arena.node_parent_if_live(current);
+        }
+        false
+    })
+}
+
 pub(crate) fn decoration_sets_for_span(
     arena: &impl PaintRead,
     block: NodeSlotId,

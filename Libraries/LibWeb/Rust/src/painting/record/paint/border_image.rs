@@ -515,6 +515,10 @@ fn sides_present(present_edges: u8) -> [bool; 4] {
     [PIECE_EDGE_TOP, PIECE_EDGE_RIGHT, PIECE_EDGE_BOTTOM, PIECE_EDGE_LEFT].map(|edge| present_edges & edge != 0)
 }
 
+pub(crate) fn paints_border_image(style: ComputedValuesView<'_>) -> bool {
+    style_queries::handle_value(&style.border().border_image_source).is_some_and(|source| source.is_image())
+}
+
 pub(crate) fn border_image_outsets(
     style: ComputedValuesView<'_>,
     border_widths: [CssPixels; 4],

@@ -647,8 +647,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             && style.empty_cells() == crate::css::css_enums::empty_cells::HIDE
             && crate::painting::paint_order::first_paint_child(self.source, paintable).is_none();
         let has_backdrop_filter = effects.backdrop_filter.operations.length != 0;
-        let paints_border_image = crate::painting::style_queries::handle_value(&style.border().border_image_source)
-            .is_some_and(|source| source.is_image());
+        let paints_border_image = paint::border_image::paints_border_image(style);
         let mut facts = BasePaintFacts {
             is_visible,
             empty_cells_property_applies,

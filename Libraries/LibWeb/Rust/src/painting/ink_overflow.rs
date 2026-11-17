@@ -88,17 +88,19 @@ fn box_decoration_ink(source: &impl PaintRead, node: NodeSlotId, border_box: Css
     .max()
     .unwrap_or_default();
     ink.rect.unite(inflated(border_box, border_reach));
-    let [top, right, bottom, left] = border_image::border_image_outsets(
-        style,
-        [
-            style.border_top_width(),
-            style.border_right_width(),
-            style.border_bottom_width(),
-            style.border_left_width(),
-        ],
-        crate::painting::record::paint::border::ALL_PIECE_EDGES,
-    );
-    ink.rect.unite(border_box.inflated(top, right, bottom, left));
+    if border_image::paints_border_image(style) {
+        let [top, right, bottom, left] = border_image::border_image_outsets(
+            style,
+            [
+                style.border_top_width(),
+                style.border_right_width(),
+                style.border_bottom_width(),
+                style.border_left_width(),
+            ],
+            crate::painting::record::paint::border::ALL_PIECE_EDGES,
+        );
+        ink.rect.unite(border_box.inflated(top, right, bottom, left));
+    }
     let outline_width = style_queries::outline_geometry(style)
         .map_or(CssPixels::default(), |geometry| geometry.width)
         .max(style_queries::auto_outline_width());
@@ -194,9 +196,10 @@ pub(crate) fn own_ink_overflow(
                 .translated_by(positions.of_line(side.lines(), piece.line_index as usize));
             let piece_ink = box_decoration_ink(source, piece.node, border_box);
             ink.rect.unite(piece_ink.rect);
-            // Each piece can record a backdrop-filter region covering the whole inline.
-            ink.rect
-                .unite(paintable_geometry::absolute_border_box_rect(source, piece.node));
+            if paints_backdrop_filter(source, piece.node) {
+                ink.rect
+                    .unite(paintable_geometry::absolute_border_box_rect(source, piece.node));
+            }
             ink.unbounded |= piece_ink.unbounded;
         };
         if owner == root || fragment_ownership::is_self_painting_inline(source, owner) {
@@ -211,6 +214,7 @@ pub(crate) fn own_ink_overflow(
         let filter = fragment_ownership::effective_filter(source, owner);
         let owns_every_fragment = owner == root && filter.include_everything && filter.excluded.is_empty();
         let mut text_ink = CssPixelRect::default();
+        let mut block_chain_has_text_decoration_lines = None;
         if owns_every_fragment {
             for (line_index, line_ink) in side.glyph_ink_of_lines().iter().enumerate() {
                 if !line_ink.is_empty() {
@@ -223,12 +227,27 @@ pub(crate) fn own_ink_overflow(
                 }
                 let rect = text_fragment::rect_in_containing_block(fragment)
                     .translated_by(positions.of_line(side.lines(), fragment.line_index as usize));
-                include_text_paint_effects(source, paint_state, root, index as u32, rect, &mut text_ink);
+                include_text_paint_effects(
+                    source,
+                    paint_state,
+                    root,
+                    index as u32,
+                    rect,
+                    &mut block_chain_has_text_decoration_lines,
+                    &mut text_ink,
+                );
             }
             if crate::painting::record::ink_bounds::verification().enabled {
                 let mut text_ink_of_each_fragment = CssPixelRect::default();
                 for index in 0..side.fragments().len() {
-                    include_text_fragment(source, paint_state, root, index as u32, &mut text_ink_of_each_fragment);
+                    include_text_fragment(
+                        source,
+                        paint_state,
+                        root,
+                        index as u32,
+                        &mut None,
+                        &mut text_ink_of_each_fragment,
+                    );
                 }
                 assert!(
                     text_ink == text_ink_of_each_fragment
@@ -239,7 +258,14 @@ pub(crate) fn own_ink_overflow(
             }
         } else {
             filter.for_each_owned_fragment_index(side.fragments().len(), |index| {
-                include_text_fragment(source, paint_state, root, index as u32, &mut text_ink);
+                include_text_fragment(
+                    source,
+                    paint_state,
+                    root,
+                    index as u32,
+                    &mut block_chain_has_text_decoration_lines,
+                    &mut text_ink,
+                );
             });
         }
         ink.rect.unite(text_ink);
@@ -281,7 +307,7 @@ pub(crate) fn text_fragment_ink_rect(
     index: u32,
 ) -> CssPixelRect {
     let mut rect = CssPixelRect::default();
-    include_text_fragment(source, state, root, index, &mut rect);
+    include_text_fragment(source, state, root, index, &mut None, &mut rect);
     rect
 }
 
@@ -298,9 +324,18 @@ pub(crate) fn inline_piece_ink(
     let border_box = CssPixelRect::from(piece.border_box_rect)
         .translated_by(positions.of_line(side.lines(), piece.line_index as usize));
     let mut ink = box_decoration_ink(source, piece.node, border_box);
-    ink.rect
-        .unite(paintable_geometry::absolute_border_box_rect(source, piece.node));
+    if paints_backdrop_filter(source, piece.node) {
+        ink.rect
+            .unite(paintable_geometry::absolute_border_box_rect(source, piece.node));
+    }
     ink
+}
+
+/// Whether each piece of the inline box `node` records a backdrop filter region covering the whole inline.
+fn paints_backdrop_filter(source: &impl PaintRead, node: NodeSlotId) -> bool {
+    source
+        .node_style_if_live(node)
+        .is_some_and(|style| style.effects().backdrop_filter.operations.length != 0)
 }
 
 fn include_text_fragment(
@@ -308,6 +343,7 @@ fn include_text_fragment(
     state: &PublishedPaintState,
     root: NodeSlotId,
     index: u32,
+    block_chain_has_text_decoration_lines: &mut Option<bool>,
     bounds: &mut CssPixelRect,
 ) {
     let side = source.committed_side_data(root);
@@ -321,7 +357,15 @@ fn include_text_fragment(
         text_fragment::glyph_ink_rect_in_containing_block(fragment)
             .translated(rect.x - rect_in_containing_block.x, rect.y - rect_in_containing_block.y),
     );
-    include_text_paint_effects(source, state, root, index, rect, bounds);
+    include_text_paint_effects(
+        source,
+        state,
+        root,
+        index,
+        rect,
+        block_chain_has_text_decoration_lines,
+        bounds,
+    );
 }
 
 fn include_text_paint_effects(
@@ -330,6 +374,7 @@ fn include_text_paint_effects(
     root: NodeSlotId,
     index: u32,
     rect: CssPixelRect,
+    block_chain_has_text_decoration_lines: &mut Option<bool>,
     bounds: &mut CssPixelRect,
 ) {
     let side = source.committed_side_data(root);
@@ -340,19 +385,13 @@ fn include_text_paint_effects(
     let Some(style) = source.node_style_if_live(fragment.style_source) else {
         return;
     };
-    bounds.unite(inflated(
-        text_fragment::glyph_rect_of_fragment_at(fragment, run, rect),
-        text_stroke_reach(style),
-    ));
-    let mut span = text::RenderSpan {
-        fragment_index: index,
-        start_code_unit: 0,
-        end_code_unit: fragment.length_in_code_units,
-        text_color: style.current_color(),
-        shadow_layers: Vec::new(),
-        highlights: Vec::new(),
-        decoration_color: None,
-    };
+    let stroke_reach = text_stroke_reach(style);
+    if stroke_reach > CssPixels::default() {
+        bounds.unite(inflated(
+            text_fragment::glyph_rect_of_fragment_at(fragment, run, rect),
+            stroke_reach,
+        ));
+    }
     for shadow in style.inherited_text().text_shadow.as_slice() {
         let reach = CssPixels::from_raw(shadow.blur_radius) * 2;
         bounds.unite(inflated(rect, reach).translated(
@@ -360,6 +399,7 @@ fn include_text_paint_effects(
             CssPixels::from_raw(shadow.offset_y),
         ));
     }
+    let mut highlights = Vec::new();
     for styles in [
         &state.selection_pseudo_styles,
         &state.search_text_pseudo_styles,
@@ -369,6 +409,9 @@ fn include_text_paint_effects(
     .into_iter()
     .chain(state.custom_highlight_pseudo_styles.values())
     {
+        if styles.is_empty() {
+            continue;
+        }
         let Some(answer) = highlight_style(source, styles, fragment.layout_node) else {
             continue;
         };
@@ -378,7 +421,7 @@ fn include_text_paint_effects(
             );
         }
         if answer.facts.has_text_decoration {
-            span.highlights.push(text::HighlightOverlay {
+            highlights.push(text::HighlightOverlay {
                 highlight: text::HighlightLayer::TextFragmentIndication,
                 background_color: 0,
                 shadow_layers: Vec::new(),
@@ -392,19 +435,39 @@ fn include_text_paint_effects(
             });
         }
     }
-    // The default spelling-error decoration exists without a committed pseudo style.
-    span.highlights.push(text::HighlightOverlay {
-        highlight: text::HighlightLayer::TextFragmentIndication,
-        background_color: 0,
+    if state.spelling_errors.by_node.contains_key(&fragment.layout_node) {
+        highlights.push(text::HighlightOverlay {
+            highlight: text::HighlightLayer::TextFragmentIndication,
+            background_color: 0,
+            shadow_layers: Vec::new(),
+            text_decoration: Some(text::SpanTextDecoration {
+                lines: [text_decoration_line::SPELLING_ERROR, 0, 0, 0, 0, 0, 0, 0],
+                line_count: 1,
+                style: text_decoration_style::WAVY,
+                color: 0,
+                metrics: None,
+            }),
+        });
+    }
+    if highlights.is_empty()
+        && !text_decoration::fragment_may_paint_text_decorations(
+            source,
+            root,
+            fragment,
+            block_chain_has_text_decoration_lines,
+        )
+    {
+        return;
+    }
+    let span = text::RenderSpan {
+        fragment_index: index,
+        start_code_unit: 0,
+        end_code_unit: fragment.length_in_code_units,
+        text_color: style.current_color(),
         shadow_layers: Vec::new(),
-        text_decoration: Some(text::SpanTextDecoration {
-            lines: [text_decoration_line::SPELLING_ERROR, 0, 0, 0, 0, 0, 0, 0],
-            line_count: 1,
-            style: text_decoration_style::WAVY,
-            color: 0,
-            metrics: None,
-        }),
-    });
+        highlights,
+        decoration_color: None,
+    };
     for set in text_decoration::decoration_sets_for_span(source, root, &span) {
         bounds.unite(text_decoration::decoration_ink_bounds(rect, &set));
     }
