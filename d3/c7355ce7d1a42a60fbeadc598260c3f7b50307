@@ -1,0 +1,12 @@
+Ladybird takes a box to be the root element’s box, and so the one that
+paints the canvas background, only if its element is the document
+element. Blink’s LayoutObject::IsDocumentElement() and WebKit’s
+RenderObject::isDocumentElementRenderer() compare the object’s node
+with the document’s documentElement, and Gecko’s nsCSSRendering::
+FindBackgroundFrame() takes the root element’s frame from the frame
+constructor’s GetRootElementStyleFrame(). An html element anywhere
+else is an ordinary element in all three.
+
+Chrome 157.0.8103.78, Firefox 151.0 and WebKit 26.5 all paint a page
+with one html element in a div, and another in a shadow root, just like
+the same page without them. And Ladybird now does as well.
