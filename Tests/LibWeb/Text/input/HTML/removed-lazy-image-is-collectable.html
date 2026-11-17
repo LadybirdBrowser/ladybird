@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container" style="margin-top: 10000px"></div>
+<script>
+    // A lazy image that was removed before it came into view never fetches, so nothing may keep it alive: its shared
+    // request with the other images of the same URL stays unfetched, and must not hold the callbacks of the image.
+    promiseTest(async () => {
+        const weakImages = [];
+        (() => {
+            for (let i = 0; i < 5; i++) {
+                const image = document.createElement("img");
+                image.loading = "lazy";
+                image.src = "../../../Assets/120.png";
+                // NB: An expando preserves the wrapper, so that the WeakRef follows the image rather than its wrapper.
+                image.preserved = true;
+                container.appendChild(image);
+                weakImages.push(new WeakRef(image));
+            }
+        })();
+        // Let the images update their image data, which defers their fetches until they come into view.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        container.replaceChildren();
+
+        await collectGarbageUntilCleared(weakImages);
+
+        const collected = weakImages.filter(weak => weak.deref() === undefined).length;
+        println(`collected ${collected} of ${weakImages.length} removed lazy images`);
+    });
+</script>
