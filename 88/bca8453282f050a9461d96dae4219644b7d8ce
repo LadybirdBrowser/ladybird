@@ -1,0 +1,60 @@
+On a line that holds content or ends in a forced break, Ladybird counts
+the strut of every inline box that’s on the line: its font and line
+height, aligned by its vertical-align. That includes a box with no text
+on the line: an empty box, a box whose whitespace collapsed, and a box
+around the line’s forced break or around a block-level box next to the
+line. A line that holds nothing but such boxes keeps zero height. An
+empty box is on the line that holds the content before it, also when
+that line wraps right after it.
+
+Blink does the same. LogicalLineBuilder::HandleOpenTag() computes the
+text metrics of every inline box it opens. For the boxes still open at
+the start of a line, InlineLayoutStateStack::OnBeginPlaceItems()
+restores those metrics. And on a line with nothing else on it,
+SetIsEmptyLine() makes AddBoxFragmentPlaceholder() give a box no block
+size. In WebKit, InlineLevelBox::mayStretchLineBox() lets an inline box
+stretch the line box whether or not it has content. In Gecko, each span
+gets its minimum line height in nsLineLayout::VerticalAlignFrames(),
+unless that sets its zeroEffectiveSpanBox flag for the span. And
+VerticalAlignLine() gives an empty line (mLineIsEmpty) no height,
+through SetSpanForEmptyLine(). All of that is from reading the sources.
+
+In quirks mode, Ladybird gives an inline box without text no strut,
+unless it has a border or padding at its start or end, or it’s around a
+forced break. That’s the line-height-calculation quirk as Blink and
+WebKit apply it. HandleOpenTag() skips the metrics of an item that
+IsEmptyItem(), and LogicalLineBuilder::PlaceControlItem() calls
+EnsureTextMetrics() for the box around a forced break. WebKit decides
+the same two things in InlineQuirks::inlineBoxAffectsLineBox() and
+lineBreakBoxAffectsParentInlineBox(). Gecko’s zeroEffectiveSpanBox also
+counts a box with a margin, and leaves out a box around a forced break
+that follows text on its line. Blink applies the quirk in limited-quirks
+mode too (Document::InLineHeightQuirksMode()). Ladybird doesn’t: Its
+line builder knows quirks mode only.
+
+Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5 ran
+the cases of the three tests added here. Two of those tests are
+inline-box-struts.html and its quirks-mode twin. In standards mode, the
+three agree on all 85 cases, and Ladybird gives what they give: the
+heights with an empty box under each vertical-align value, with nested
+boxes, in vertical writing modes, beside blocks, at soft wraps and
+forced breaks, and the position of the empty box on its line. In quirks
+mode, Ladybird gives what Chrome and WebKit give on all 85 cases of that
+test, and Firefox differs from those two engines on some of them.
+
+A third test, inline-box-strut-client-rects.html, has 12 cases of where
+the client rects of such a box are: after the start edges of the boxes
+around it, on a justified line, and on each of two lines that end in
+forced breaks. Ladybird gives what WebKit gives on all 12 cases. Chrome
+differs on one, where it adds a rect for a forced break. And Firefox
+differs on two, where it widens a justified space by 2px less.
+
+The same run found differences that the tests leave out, and that this
+change doesn’t address. A tall inline box with vertical-align:middle or
+vertical-align:text-top makes a 60px line 67px or 89px tall, with text
+in the box or without. A wbr element inside an inline box gives no soft
+wrap opportunity. An empty box is one space off in the inline direction
+where it follows a hanging space under white-space:pre-wrap, and where
+it sits between left-to-right text in a right-to-left block. And in
+quirks mode, a line holding only an inline-block or only a forced break
+keeps the strut of its block container.
