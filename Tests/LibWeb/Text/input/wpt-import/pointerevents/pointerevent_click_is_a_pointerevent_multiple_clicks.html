@@ -1,0 +1,98 @@
+<!DOCTYPE HTML>
+<title>click is a PointerEvent</title>
+<meta name="variant" content="?mouse">
+<meta name="variant" content="?pen">
+<meta name="variant" content="?touch">
+<link rel="help" href="https://github.com/w3c/pointerevents/pull/317">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-actions.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<input id="target" style="margin: 20px">
+
+<script>
+'use strict';
+let target = document.getElementById("target");
+let pointerId_one = 0;
+let pointerType_one = "";
+let pointerId_two = 0;
+let pointerType_two = "";
+let pointerId_three = 0;
+let pointerType_three = "";
+let inputSource = location.search.substring(1);
+const phase_one = 1;
+const phase_two = 2;
+const phase_three = 3;
+let pointerdown_phase = phase_one;
+let click_phase = phase_one;
+
+target.addEventListener("pointerdown", (e)=>{
+  if(pointerdown_phase === phase_one){
+    pointerdown_phase = phase_two;
+    pointerId_one = e.pointerId;
+    pointerType_one = e.pointerType;
+  }else if(pointerdown_phase === phase_two){
+    pointerdown_phase = phase_three;
+    pointerId_two = e.pointerId;
+    pointerType_two = e.pointerType;
+  }else if(pointerdown_phase === phase_three){
+    pointerId_three = e.pointerId;
+    pointerType_three = e.pointerType;
+  }
+});
+
+function test_pointer(e, pointerId, pointerType, click_phase){
+  assert_equals(e.constructor, window.PointerEvent, "click should use a PointerEvent constructor in phase " + click_phase);
+  assert_true(e instanceof PointerEvent, "click should be a PointerEvent in phase " + click_phase);
+  assert_equals(e.pointerId, pointerId, "click's pointerId should match the pointerId of the pointer event that triggers it in phase " + click_phase);
+  assert_equals(e.pointerType, pointerType, "click's pointerType should match the pointerType of the pointer event that triggers it in phase " + click_phase);
+}
+
+function testFunction(test){
+  return test.step_func(e=>{
+    if(click_phase === phase_one){
+      test_pointer(e, pointerId_one, pointerType_one, click_phase);
+      click_phase = phase_two;
+    }else if(click_phase === phase_two){
+      test_pointer(e, pointerId_two, pointerType_two, click_phase);
+      click_phase = phase_three;
+    }else if(click_phase === phase_three)
+      test_pointer(e, pointerId_three, pointerType_three, click_phase);
+  });
+}
+
+function run_test(pointerType){
+  promise_test((test) => new Promise((resolve, reject) => {
+    const testPointer = pointerType + "TestPointer";
+    let clickFunc = testFunction(test);
+    test.add_cleanup(() => {
+      target.removeEventListener("click", clickFunc);
+      pointerId_one = 0;
+      pointerType_one = "";
+      pointerId_two = 0;
+      pointerType_two = "";
+      pointerId_three = 0;
+      pointerType_three = "";
+      pointerdown_phase = phase_one;
+      click_phase = phase_one;
+    });
+    target.addEventListener("click", clickFunc);
+    let eventWatcher = new EventWatcher(test, target, ["click"]);
+    let actions = new test_driver.Actions();
+    actions = actions
+      .addPointer(testPointer, pointerType)
+      .pointerMove(0,0, {origin:target, sourceName:testPointer})
+      .pointerDown({sourceName:testPointer})
+      .pointerUp({sourceName:testPointer})
+      .pointerDown({sourceName:testPointer})
+      .pointerUp({sourceName:testPointer})
+      .pointerDown({sourceName:testPointer})
+      .pointerUp({sourceName:testPointer});
+    Promise.all([eventWatcher.wait_for(["click", "click", "click"]), actions.send()]).then(()=>resolve());
+  }), "click using " + pointerType + " is a PointerEvent");
+}
+
+run_test(inputSource);
+</script>

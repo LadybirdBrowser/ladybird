@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="width: 100px; height: 100px"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        for (const type of ["pointerdown", "click", "auxclick", "contextmenu"]) {
+            target.addEventListener(type, event => {
+                println(`${type}: ${event.constructor.name}, pointerId ${event.pointerId}, pointerType ${event.pointerType}, button ${event.button}, detail ${event.detail}, isPrimary ${event.isPrimary}, pressure ${event.pressure}, trusted ${event.isTrusted}`);
+                if (type === "contextmenu")
+                    event.preventDefault();
+            });
+        }
+
+        println("Primary button:");
+        internals.click(50, 50);
+        println("Primary button, second click:");
+        internals.click(50, 50, 2);
+        println("Middle button:");
+        internals.click(50, 50, 1, internals.BUTTON_MIDDLE);
+        println("Secondary button:");
+        internals.click(50, 50, 1, internals.BUTTON_RIGHT);
+    });
+</script>
