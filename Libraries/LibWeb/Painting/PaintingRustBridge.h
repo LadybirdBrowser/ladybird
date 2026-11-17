@@ -74,6 +74,7 @@ WEB_API void publish_rust_display_list_recording(Layout::BegunRead const&, DOM::
 WEB_API void take_recording_trace_if_pending(Layout::BegunRead const&, DOM::Document&);
 // Dumps the display list the document recorded last.
 WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&, DisplayListDumpOptions const&);
+WEB_API Utf16String display_list_dump_changes(Optional<StringView> previous_jsonl, StringView jsonl);
 
 WEB_API Layout::RustFFI::FfiVectorImageKey vector_image_key_to_ffi(VectorImageKey const&);
 // Has the compositor rasterize `paint` into `target` as `request` asks, which must be a shareable BGRA8888 bitmap with

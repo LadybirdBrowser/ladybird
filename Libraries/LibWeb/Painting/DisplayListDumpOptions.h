@@ -13,6 +13,7 @@ struct DisplayListDumpOptions {
     bool text { true };
     bool fonts { false };
     bool record_ids { false };
+    bool chunks { false };
     bool raw_node_indices { false };
     bool jsonl { false };
 };

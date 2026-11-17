@@ -1926,9 +1926,22 @@ Utf16String Internals::dump_display_list(Bindings::DisplayListDumpOptions const&
         .text = options.text,
         .fonts = options.fonts,
         .record_ids = options.record_ids,
+        .chunks = options.chunks,
         .raw_node_indices = options.raw_node_indices,
         .jsonl = options.format == Bindings::DisplayListDumpFormat::Jsonl,
     });
+}
+
+Utf16String Internals::dump_display_list_changes(Bindings::DisplayListDumpOptions const& options)
+{
+    auto& document = window().associated_document();
+    auto jsonl = document.dump_display_list({ .raw_node_indices = options.raw_node_indices, .jsonl = true }).to_utf8();
+    Optional<StringView> previous_jsonl;
+    if (m_display_list_dump_for_changes.has_value() && m_display_list_dump_for_changes->document_id == document.unique_id())
+        previous_jsonl = m_display_list_dump_for_changes->jsonl;
+    auto changes = Painting::display_list_dump_changes(previous_jsonl, jsonl);
+    m_display_list_dump_for_changes = DisplayListDumpForChanges { document.unique_id(), move(jsonl) };
+    return changes;
 }
 
 Utf16String Internals::dump_accessibility_tree()

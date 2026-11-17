@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 50px; height: 20px; }
+</style>
+<div id="recolored" style="background: green"></div>
+<div id="removed" style="background: blue"></div>
+<div id="moved" style="background: red; transform: translateX(10px)"></div>
+<script>
+    test(() => {
+        const output = [];
+        const chunkLines = internals.dumpDisplayList({ chunks: true }).split("\n").filter(line => line.startsWith("Chunk "));
+        output.push(...chunkLines.map(line => line.replace(/id=[0-9a-f]+/, "id=<hash>")));
+        output.push(internals.dumpDisplayListChanges());
+        document.getElementById("recolored").style.background = "yellow";
+        document.getElementById("removed").remove();
+        const added = document.createElement("div");
+        added.id = "added";
+        added.style.background = "black";
+        document.body.appendChild(added);
+        document.getElementById("moved").style.transform = "translateX(20px)";
+        output.push(internals.dumpDisplayListChanges());
+        output.push(internals.dumpDisplayListChanges());
+        for (const line of output)
+            println(line);
+    });
+</script>

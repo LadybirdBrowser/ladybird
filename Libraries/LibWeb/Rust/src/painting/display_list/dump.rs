@@ -7,6 +7,7 @@
 use super::builder::{
     HEADER_SIZE, RecordedDisplayList, for_each_command, inline_clips_of, inline_transform_of, read_command,
 };
+use super::chunks::ChunkId;
 use super::commands::*;
 use super::dump_format::{
     DumpNames, DumpValue, dumped_record_field, json_corner_radii, json_fields, json_float, json_float_point,
@@ -52,6 +53,8 @@ pub struct FfiDisplayListDumpOptions {
     pub fonts: bool,
     /// Numbers every record, nested ones too, in tape order, and names the records of each layer by those numbers.
     pub record_ids: bool,
+    /// Marks where each chunk of the tape starts, with its id, its record count and its size.
+    pub chunks: bool,
     /// Names visual context nodes by their indices in the tree rather than by the order the dump first prints them in.
     pub raw_node_indices: bool,
     /// Writes one JSON object per line instead of text, with everything the other options add.
@@ -223,6 +226,7 @@ pub unsafe extern "C" fn painting_dump(
             text: true,
             fonts: true,
             record_ids: true,
+            chunks: true,
             ..options
         }
     } else {
@@ -339,12 +343,46 @@ pub unsafe extern "C" fn painting_dump(
             prints_glyph_run_texts: options.text,
         }),
         font_descriptions,
+        chunk_starts: if options.chunks {
+            ChunkStart::of_tape(&display_list)
+        } else {
+            HashMap::new()
+        },
+        current_chunk: None,
     };
     match layer_plan {
         Some(layer_plan) => records.dump_top_level_commands_with_their_layers(&display_list, &layer_plan),
         None => records.dump_commands(&display_list),
     }
     callbacks.append_text(&main_thread, &output);
+}
+
+/// Hands `append_text` what changed from the JSON Lines dump `previous`, if there is one, to the JSON Lines dump
+/// `current` of the display list of the same document.
+///
+/// # Safety
+///
+/// `previous` must point to `previous_length` readable bytes where `has_previous` is set, and `current` to
+/// `current_length`; `append_text` copies the report synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn painting_dump_changes(
+    previous: *const u8,
+    previous_length: usize,
+    has_previous: bool,
+    current: *const u8,
+    current_length: usize,
+    context: *mut c_void,
+    append_text: extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
+) {
+    // SAFETY: Guaranteed by the caller.
+    let previous = has_previous.then(|| unsafe { ak::slice_from_raw_parts(previous, previous_length) });
+    // SAFETY: Guaranteed by the caller.
+    let current = unsafe { ak::slice_from_raw_parts(current, current_length) };
+    let report = super::dump_changes::display_list_dump_changes(
+        previous.map(|previous| String::from_utf8_lossy(previous)).as_deref(),
+        &String::from_utf8_lossy(current),
+    );
+    append_text(context, report.as_ptr(), report.len());
 }
 
 fn push_indent(output: &mut String, indent: usize) {
@@ -794,6 +832,44 @@ struct RecordDump<'a> {
     record_notes: Option<RecordNotesInDumpOrder>,
     // The descriptions of the fonts the glyph runs draw with, by their ids, where the dump prints them.
     font_descriptions: Option<HashMap<u64, String>>,
+    // The chunks of the tape by the index of their first run, where the dump marks them.
+    chunk_starts: HashMap<usize, ChunkStart>,
+    current_chunk: Option<String>,
+}
+
+/// Where a chunk of the tape starts, with what it holds.
+struct ChunkStart {
+    name: String,
+    id: ChunkId,
+    record_count: usize,
+    byte_count: u32,
+}
+
+impl ChunkStart {
+    fn of_tape(display_list: &DisplayListStorage) -> HashMap<usize, Self> {
+        let (bytes, command_runs, chunks) = (display_list.bytes(), display_list.command_runs(), display_list.chunks());
+        (0..chunks.len())
+            .map(|chunk_index| {
+                let runs = &command_runs[chunks.runs_of(chunk_index)];
+                let mut record_count = 0;
+                for run in runs {
+                    for_each_command_including_nested(
+                        &bytes[run.offset as usize..(run.offset + run.size) as usize],
+                        &mut |_, _, _| record_count += 1,
+                    );
+                }
+                (
+                    chunks.runs_of(chunk_index).start,
+                    Self {
+                        name: format!("k{}", chunk_index + 1),
+                        id: chunks.id(chunk_index),
+                        record_count,
+                        byte_count: runs.iter().map(|run| run.size).sum(),
+                    },
+                )
+            })
+            .collect()
+    }
 }
 
 /// Where a record sits: how deep in other records, in which of them and as what, and in which layer.
@@ -829,9 +905,40 @@ fn nested_records_role_name(role: NestedRecordsRole) -> &'static str {
 }
 
 impl RecordDump<'_> {
+    fn mark_chunk_starting_at(&mut self, run_index: usize) {
+        let Some(chunk) = self.chunk_starts.get(&run_index) else {
+            return;
+        };
+        if self.jsonl {
+            push_json_line(
+                self.output,
+                serde_json::json!({
+                    "type": "chunk",
+                    "name": chunk.name,
+                    "id": format!("{:016x}{:016x}", chunk.id.0[0], chunk.id.0[1]),
+                    "first_record": self.record_count + 1,
+                    "records": chunk.record_count,
+                    "bytes": chunk.byte_count,
+                }),
+            );
+        } else {
+            writeln!(
+                self.output,
+                "Chunk {} id={:012x} records={} bytes={}",
+                chunk.name,
+                chunk.id.0[0] >> 16,
+                chunk.record_count,
+                chunk.byte_count
+            )
+            .unwrap();
+        }
+        self.current_chunk = Some(chunk.name.clone());
+    }
+
     fn dump_commands(&mut self, display_list: &DisplayListStorage) {
         let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
-        for run in command_runs {
+        for (run_index, run) in command_runs.iter().enumerate() {
+            self.mark_chunk_starting_at(run_index);
             let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
             self.dump_command_bytes(run_bytes, run.context, RecordPlace::TOP_LEVEL);
         }
@@ -840,7 +947,8 @@ impl RecordDump<'_> {
     // Each top-level command starts with the layer it draws into. The records nested in it draw into the same layer.
     fn dump_top_level_commands_with_their_layers(&mut self, display_list: &DisplayListStorage, layer_plan: &LayerPlan) {
         let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
-        for run in command_runs {
+        for (run_index, run) in command_runs.iter().enumerate() {
+            self.mark_chunk_starting_at(run_index);
             let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
             for_each_command(run_bytes, |_, offset_in_run, payload| {
                 let layer = layer_plan.layer_of_record(run.offset + offset_in_run as u32);
@@ -1011,6 +1119,9 @@ impl RecordDump<'_> {
         }
         if let Some(layer) = place.layer {
             record.insert("layer".into(), json!(format!("L{layer}")));
+        }
+        if let Some(chunk) = &self.current_chunk {
+            record.insert("chunk".into(), json!(chunk));
         }
         record.insert("context".into(), json_context(self.names, context));
         let fields = command_fields(header.command_type, payload);

@@ -7,6 +7,7 @@
 //! The recorder that produces display lists, on top of the display list code the compositor shares.
 
 pub mod dump;
+pub mod dump_changes;
 pub mod dump_format;
 pub mod recorder;
 
