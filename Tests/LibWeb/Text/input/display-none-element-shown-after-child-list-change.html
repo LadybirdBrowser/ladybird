@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .container { position: relative; width: 200px; height: 50px; }
+    .abspos { position: absolute; inset: 0; }
+    .float { float: left; width: 100%; height: 100%; }
+    .hide-children > * { display: none; }
+</style>
+<div class="tests">
+<div class="container"><span id="abspos-span" class="abspos" style="display: none"></span></div>
+<div class="container"><span id="float-span" class="float" style="display: none"></span></div>
+<div class="container"><div id="abspos-div" class="abspos" style="display: none"></div></div>
+<div class="container"><span id="shown-before-insertion" class="abspos" style="display: none"></span></div>
+<div class="container"><span id="element-child" class="abspos" style="display: none"></span></div>
+<div class="container"><span id="child-removed-again" class="abspos" style="display: none"></span></div>
+<div class="container"><span id="layout-between" class="abspos" style="display: none"></span></div>
+<div class="container"><span id="hidden-attribute" class="abspos" hidden></span></div>
+<div class="container"><span id="shown-as-block" class="abspos" style="display: none"></span></div>
+<div class="container"><span id="shown-by-class-on-parent" class="abspos"></span></div>
+<div class="container" style="transform: translate(0)"><span id="fixed" class="abspos" style="display: none; position: fixed"></span></div>
+<div class="container"><span id="before-text" class="abspos" style="display: none"></span>x</div>
+<div class="container">x<span id="after-text" class="abspos" style="display: none"></span></div>
+<div class="container"><div></div><span id="after-block" class="abspos" style="display: none"></span></div>
+<div class="container"><span id="before-block" class="abspos" style="display: none"></span><div></div></div>
+<div class="container"><div><span id="in-nested-block" class="abspos" style="display: none"></span></div></div>
+<div class="container"><span><span id="in-inline-box" class="abspos" style="display: none"></span></span></div>
+<div class="container" style="display: flex"><span id="in-flex-container" class="abspos" style="display: none"></span></div>
+<div class="container" style="display: grid"><span id="in-grid-container" class="abspos" style="display: none"></span></div>
+<div class="container"><span id="inline-span" style="display: none"></span></div>
+<div class="container"><div id="block-div" style="display: none"></div></div>
+<table><tbody id="table-row-group" style="display: none"></tbody></table>
+<table><caption id="table-caption" style="display: none"></caption></table>
+<ul><li id="list-item" style="display: none"></li></ul>
+<div class="container"><span id="hidden-after-insertion" class="abspos"></span></div>
+</div>
+<script>
+    test(() => {
+        // An element that isn't displayed has no box. When its children change while it's hidden, and it's then
+        // displayed before anything lays the page out again, it gets its box like any other element that's shown.
+        document.body.offsetWidth;
+        const element = id => document.getElementById(id);
+        const show = id => element(id).style.display = "";
+        const insertingFirst = [
+            "abspos-span", "float-span", "abspos-div", "fixed", "before-text", "after-text", "after-block",
+            "before-block", "in-nested-block", "in-inline-box", "in-flex-container", "in-grid-container",
+            "inline-span", "block-div", "table-caption", "list-item",
+        ];
+        for (const id of insertingFirst) {
+            element(id).append("text");
+            show(id);
+        }
+        show("shown-before-insertion");
+        element("shown-before-insertion").append("text");
+        element("element-child").append(document.createElement("b"));
+        show("element-child");
+        const text = document.createTextNode("text");
+        element("child-removed-again").append(text);
+        text.remove();
+        show("child-removed-again");
+        element("layout-between").append("text");
+        document.body.offsetWidth;
+        show("layout-between");
+        element("hidden-attribute").append("text");
+        element("hidden-attribute").hidden = false;
+        element("shown-as-block").append("text");
+        element("shown-as-block").style.display = "block";
+        const parent = element("shown-by-class-on-parent").parentNode;
+        parent.classList.add("hide-children");
+        document.body.offsetWidth;
+        element("shown-by-class-on-parent").append("text");
+        parent.classList.remove("hide-children");
+        const row = document.createElement("tr");
+        row.innerHTML = "<td>text</td>";
+        element("table-row-group").append(row);
+        show("table-row-group");
+        element("hidden-after-insertion").append("text");
+        element("hidden-after-insertion").style.display = "none";
+
+        for (const target of document.querySelectorAll(".tests [id]")) {
+            const hasBox = target.getClientRects().length > 0;
+            const size = target.classList.length ? `, ${target.offsetWidth}px wide` : "";
+            println(`${target.id}: ${hasBox ? "has a box" : "has no box"}${hasBox ? size : ""}`);
+        }
+        if (window.internals)
+            println(`the tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>

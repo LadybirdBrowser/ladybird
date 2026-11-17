@@ -1396,6 +1396,17 @@ pub(crate) fn element_record_damage_of_views(facts: ElementDamageFacts, record_m
         damage.any_computed_value_changed = true;
         damage.merge(StyleInvalidation::full());
     }
+    // NB: An element that leaves `display: none` has no box to build again, so whatever else changed along with its
+    //     display, its box appears: its layout parent takes the box in as a change of its child list, as it takes in
+    //     the box of an inserted element. And the host tells an element whose box appears from one just inserted,
+    //     whose insertion already asked for its box, by this root.
+    if !facts.is_pseudo_element
+        && damage.level >= INVALIDATION_REBUILD_LAYOUT_TREE
+        && old_values.display().is_none()
+        && !new_values.display().is_none()
+    {
+        damage.rebuild_root = REBUILD_ROOT_BOX_PRESENCE_CHANGE;
+    }
     damage.pack()
 }
 

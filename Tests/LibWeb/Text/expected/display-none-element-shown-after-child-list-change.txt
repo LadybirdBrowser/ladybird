@@ -1,0 +1,26 @@
+abspos-span: has a box, 200px wide
+float-span: has a box, 200px wide
+abspos-div: has a box, 200px wide
+shown-before-insertion: has a box, 200px wide
+element-child: has a box, 200px wide
+child-removed-again: has a box, 200px wide
+layout-between: has a box, 200px wide
+hidden-attribute: has a box, 200px wide
+shown-as-block: has a box, 200px wide
+shown-by-class-on-parent: has a box, 200px wide
+fixed: has a box, 200px wide
+before-text: has a box, 200px wide
+after-text: has a box, 200px wide
+after-block: has a box, 200px wide
+before-block: has a box, 200px wide
+in-nested-block: has a box, 200px wide
+in-inline-box: has a box, 200px wide
+in-flex-container: has a box, 200px wide
+in-grid-container: has a box, 200px wide
+inline-span: has a box
+block-div: has a box
+table-row-group: has a box
+table-caption: has a box
+list-item: has a box
+hidden-after-insertion: has no box
+the tree matches a full rebuild: true
