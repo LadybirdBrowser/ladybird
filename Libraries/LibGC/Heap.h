@@ -90,6 +90,11 @@ public:
     // cell alive. Only safe where every cell the stack refers to is rooted some other way, as in the outermost turn of
     // the event loop.
     void collect_garbage_without_scanning_the_stack();
+
+    // Tells the heap that no frame on the stack of the outermost turn of this thread's event loop holds the only
+    // reference to a cell. The collections that the heap starts from its own timers then leave the stack out when they
+    // run in that turn. Only the embedder can promise this, since those frames include its own, like main().
+    void set_outermost_event_loop_turn_holds_no_cells(bool value) { m_outermost_event_loop_turn_holds_no_cells = value; }
     NEVER_INLINE AK::JsonObject dump_graph();
 
     // A cell on a retaining path, which reaches the next one through a field it visits. The cell is live until the next
@@ -388,6 +393,8 @@ private:
     RefPtr<Core::Timer> m_incremental_sweep_timer;
 
     RefPtr<Core::Timer> m_idle_gc_timer;
+    bool m_outermost_event_loop_turn_holds_no_cells { false };
+    void collect_garbage_from_timer();
     enum class AbandonedObjectGraphState : u8 {
         None,
         WaitingToCollect,

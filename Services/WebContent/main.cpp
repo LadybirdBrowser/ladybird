@@ -289,6 +289,8 @@ NEVER_INLINE static ErrorOr<ProcessState> initialize_process(Main::Arguments arg
     Web::Bindings::initialize_agent(Web::HTML::AgentType::SimilarOriginWindow);
     auto& agent = Web::HTML::surrounding_agent();
     agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
+    // See initialize_process() and ladybird_main() for what keeps this true.
+    Web::Bindings::main_thread_vm().heap().set_outermost_event_loop_turn_holds_no_cells(true);
     if (stats_log)
         Web::Bindings::main_thread_vm().heap().enable_stats();
 
