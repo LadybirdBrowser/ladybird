@@ -178,7 +178,7 @@ TEST_CASE(revalidation_that_outgrows_entry_size_limit_removes_entry)
     VERIFY(reader.has_value());
     EXPECT_EQ(reader->revalidation_type(), HTTP::CacheEntryReader::RevalidationType::MustRevalidate);
 
-    reader->revalidation_succeeded(HTTP::HeaderList::create({ { "ETag"sv, "\"v1\""sv }, { "X-Large"sv, ByteString::repeated('x', 200) } }));
+    reader->revalidation_succeeded(HTTP::HeaderList::create({ { "ETag"sv, "\"v1\""sv }, { "X-Large"sv, ByteString::repeated('x', 200) } }), UnixDateTime::now(), UnixDateTime::now());
     if (auto body_file = reader->take_body_file(); !body_file.is_error())
         MUST(Core::System::close(body_file.value().fd));
 
