@@ -353,7 +353,7 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
     m_trailing_action_button->setCursor(Qt::ArrowCursor);
     m_trailing_action_button->hide();
 
-    m_translate_button = new QToolButton(this);
+    m_translate_button = new LocationActionButton(this);
     m_translate_button->setObjectName("LadybirdLocationTranslate");
     m_translate_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
     m_translate_button->setIconSize({ 16, 16 });
