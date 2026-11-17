@@ -44,6 +44,63 @@ static ErrorOr<Gfx::ImageFrameDescriptor> expect_single_frame_of_size(Gfx::Image
     return frame;
 }
 
+static void append_u16(Vector<u8>& data, u16 value)
+{
+    data.append(value & 0xff);
+    data.append(value >> 8);
+}
+
+static void append_u32(Vector<u8>& data, u32 value)
+{
+    append_u16(data, value & 0xffff);
+    append_u16(data, value >> 16);
+}
+
+static void append_bitmap_info_header(Vector<u8>& data, u32 header_size, i32 width, i32 height, u16 bits_per_pixel, u32 compression, u32 palette_colors)
+{
+    append_u32(data, header_size);
+    append_u32(data, width);
+    append_u32(data, height);
+    append_u16(data, 1); // Plane count.
+    append_u16(data, bits_per_pixel);
+    append_u32(data, compression);
+    append_u32(data, 0); // Pixel data size.
+    append_u32(data, 0); // Horizontal resolution.
+    append_u32(data, 0); // Vertical resolution.
+    append_u32(data, palette_colors);
+    append_u32(data, 0); // Important palette colors.
+}
+
+static Vector<u8> make_bmp_file(ReadonlyBytes dib, size_t pixel_offset_in_dib)
+{
+    Vector<u8> data;
+    data.append('B');
+    data.append('M');
+    append_u32(data, 14 + dib.size()); // File size.
+    append_u32(data, 0);               // Reserved.
+    append_u32(data, 14 + pixel_offset_in_dib);
+    data.append(dib.data(), dib.size());
+    return data;
+}
+
+static Vector<u8> make_ico_file(u8 width, u8 height, u16 bits_per_pixel, ReadonlyBytes image)
+{
+    Vector<u8> data;
+    append_u16(data, 0); // Reserved.
+    append_u16(data, 1); // Icon type.
+    append_u16(data, 1); // Image count.
+    data.append(width);
+    data.append(height);
+    data.append(0);      // Palette colors.
+    data.append(0);      // Reserved.
+    append_u16(data, 1); // Plane count.
+    append_u16(data, bits_per_pixel);
+    append_u32(data, image.size());
+    append_u32(data, 22); // Image offset.
+    data.append(image.data(), image.size());
+    return data;
+}
+
 static ErrorOr<ByteBuffer> make_webp_with_declared_but_missing_iccp_chunk(ReadonlyBytes simple_webp)
 {
     VERIFY(simple_webp.size() >= 20);
@@ -275,39 +332,14 @@ TEST_CASE(test_bmp_rle24)
 TEST_CASE(test_bmp_rle4_rows_with_odd_width)
 {
     // 9x2 BI_RLE4 image. Each row is one run of two alternating colors, so every row ends mid-byte.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 40, 9, 2, 4, 2 /* BI_RLE4 */, 16);
+    for (u8 i = 0; i < 16; ++i)
+        append_u32(dib, i * 16 << 16);
+    auto pixel_offset = dib.size();
     Array<u8, 8> rle_data { 9, 0x12, 0, 0, 9, 0x34, 0, 1 };
-    Vector<u8> bmp_data;
-    auto append_u16 = [&](u16 value) {
-        bmp_data.append(value & 0xff);
-        bmp_data.append(value >> 8);
-    };
-    auto append_u32 = [&](u32 value) {
-        append_u16(value & 0xffff);
-        append_u16(value >> 16);
-    };
-    bmp_data.append('B');
-    bmp_data.append('M');
-    append_u32(118 + rle_data.size()); // File size.
-    append_u32(0);                     // Reserved.
-    append_u32(118);                   // Pixel offset.
-    append_u32(40);                    // BITMAPINFOHEADER size.
-    append_u32(9);                     // Width.
-    append_u32(2);                     // Height.
-    append_u16(1);                     // Plane count.
-    append_u16(4);                     // Bits per pixel.
-    append_u32(2);                     // BI_RLE4 compression.
-    append_u32(rle_data.size());       // Pixel data size.
-    append_u32(0);                     // Horizontal resolution.
-    append_u32(0);                     // Vertical resolution.
-    append_u32(16);                    // Palette colors.
-    append_u32(0);                     // Important palette colors.
-    for (u8 i = 0; i < 16; ++i) {
-        bmp_data.append(0);      // Blue.
-        bmp_data.append(0);      // Green.
-        bmp_data.append(i * 16); // Red.
-        bmp_data.append(0);
-    }
-    bmp_data.append(rle_data.data(), rle_data.size());
+    dib.append(rle_data.data(), rle_data.size());
+    auto bmp_data = make_bmp_file(dib, pixel_offset);
 
     auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_data));
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 9, 2 }));
@@ -315,6 +347,41 @@ TEST_CASE(test_bmp_rle4_rows_with_odd_width)
         EXPECT_EQ(frame.image->get_pixel(x, 0), Gfx::Color(x % 2 ? 4 * 16 : 3 * 16, 0, 0));
         EXPECT_EQ(frame.image->get_pixel(x, 1), Gfx::Color(x % 2 ? 2 * 16 : 1 * 16, 0, 0));
     }
+}
+
+TEST_CASE(test_bmp_rgb32_has_no_alpha_channel)
+{
+    // 2x1 BI_RGB image. Without an alpha mask, the fourth byte of each pixel is not alpha.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 40, 2, 1, 32, 0 /* BI_RGB */, 0);
+    auto pixel_offset = dib.size();
+    Array<u8, 8> pixels { 0x33, 0x22, 0x11, 0x00, 0x66, 0x55, 0x44, 0x80 };
+    dib.append(pixels.data(), pixels.size());
+    auto bmp_data = make_bmp_file(dib, pixel_offset);
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0x11, 0x22, 0x33));
+    EXPECT_EQ(frame.image->get_pixel(1, 0), Gfx::Color(0x44, 0x55, 0x66));
+}
+
+TEST_CASE(test_bmp_v4_rgb16_with_empty_alpha_mask_is_opaque)
+{
+    // 1x1 BI_BITFIELDS RGB565 image with a BITMAPV4HEADER whose alpha mask is zero.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 108, 1, 1, 16, 3 /* BI_BITFIELDS */, 0);
+    append_u32(dib, 0xf800); // Red mask.
+    append_u32(dib, 0x07e0); // Green mask.
+    append_u32(dib, 0x001f); // Blue mask.
+    append_u32(dib, 0);      // Alpha mask.
+    dib.resize(108);         // Color space, endpoints and gamma.
+    auto pixel_offset = dib.size();
+    append_u32(dib, 0xf800); // Red pixel, then row padding.
+    auto bmp_data = make_bmp_file(dib, pixel_offset);
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
 }
 
 TEST_CASE(test_ico_malformed_frame)
@@ -501,6 +568,36 @@ TEST_CASE(test_24bit_bmp_embedded_in_ico)
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 16, 16 }));
     EXPECT_EQ(frame.image->get_pixel(14, 14), Gfx::Color(234, 0, 0));
     EXPECT_EQ(frame.image->get_pixel(13, 15), Gfx::Color(255, 10, 15));
+}
+
+TEST_CASE(test_32bit_bmp_without_alpha_values_in_ico)
+{
+    // 2x1 image whose fourth bytes are all zero, so only its AND mask makes pixels transparent.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 40, 2, 2, 32, 0 /* BI_RGB */, 0);
+    Array<u8, 12> pixels_and_mask { 0x33, 0x22, 0x11, 0x00, 0x66, 0x55, 0x44, 0x00, 0b0100'0000, 0, 0, 0 };
+    dib.append(pixels_and_mask.data(), pixels_and_mask.size());
+    auto ico_data = make_ico_file(2, 1, 32, dib);
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(ico_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0x11, 0x22, 0x33));
+    EXPECT_EQ(frame.image->get_pixel(1, 0).alpha(), 0);
+}
+
+TEST_CASE(test_32bit_bmp_with_alpha_values_in_ico_ignores_and_mask)
+{
+    // 2x1 image with alpha values, followed by an AND mask that would make both pixels transparent.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 40, 2, 2, 32, 0 /* BI_RGB */, 0);
+    Array<u8, 12> pixels_and_mask { 0x33, 0x22, 0x11, 0x80, 0x66, 0x55, 0x44, 0xff, 0b1100'0000, 0, 0, 0 };
+    dib.append(pixels_and_mask.data(), pixels_and_mask.size());
+    auto ico_data = make_ico_file(2, 1, 32, dib);
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(ico_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0x11, 0x22, 0x33, 0x80));
+    EXPECT_EQ(frame.image->get_pixel(1, 0), Gfx::Color(0x44, 0x55, 0x66));
 }
 
 TEST_CASE(test_malformed_maskless_ico)

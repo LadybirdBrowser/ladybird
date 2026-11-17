@@ -480,6 +480,10 @@ fn decode_dib(data: &[u8], included_in_ico: bool) -> Option<(BMPDecoder, BMPImag
         }
     }
 
+    // INTEROP: An empty alpha mask means that the image has no alpha channel.
+    if dib.masks.get(3) == Some(&0) {
+        dib.masks.truncate(3);
+    }
     let masks: Vec<ColorMask> = dib.masks.iter().map(|&mask| ColorMask::new(mask)).collect();
 
     // NB: A BMP included in an ICO is always given an alpha channel, since its AND mask makes pixels transparent.
@@ -487,9 +491,8 @@ fn decode_dib(data: &[u8], included_in_ico: bool) -> Option<(BMPDecoder, BMPImag
         BMPBitmapFormat::BGRA8888
     } else {
         match dib.bpp {
-            16 if masks.len() == 4 => BMPBitmapFormat::BGRA8888,
+            16 | 32 if masks.len() == 4 => BMPBitmapFormat::BGRA8888,
             24 => BMPBitmapFormat::RGBx8888,
-            32 => BMPBitmapFormat::BGRA8888,
             _ => BMPBitmapFormat::BGRx8888,
         }
     };
@@ -748,6 +751,7 @@ impl BMPDecoder {
             None => (data.get(self.data_offset..)?, self.bpp),
         };
         let mut reader = Reader::new(pixel_data);
+        let mut has_alpha_values = false;
 
         let width = self.width;
         let height = self.height;
@@ -818,8 +822,12 @@ impl BMPDecoder {
                     }
                     32 => {
                         let value = reader.read_u32()?;
-                        if self.masks.is_empty() {
+                        if self.masks.is_empty() && self.included_in_ico {
+                            has_alpha_values |= value >> 24 != 0;
                             set_pixel(column, value);
+                        } else if self.masks.is_empty() {
+                            // INTEROP: Without an alpha mask, the fourth byte of a standalone BMP is not alpha.
+                            set_pixel(column, value | 0xff00_0000);
                         } else {
                             set_pixel(column, self.masked_color(value));
                         }
@@ -834,8 +842,20 @@ impl BMPDecoder {
             skip_row_padding(&mut reader, consumed)?;
         }
 
+        // INTEROP: The fourth byte of a 32-bit BMP in an ICO is alpha, unless it is zero for every pixel. Only an image
+        //          without alpha values uses its AND mask.
+        let may_have_alpha_values = self.included_in_ico && self.bpp == 32 && self.masks.is_empty();
+        if may_have_alpha_values && !has_alpha_values {
+            for row in 0..height {
+                let row_start = row * stride;
+                for pixel in output[row_start..row_start + row_bytes].as_chunks_mut::<4>().0 {
+                    *pixel = (u32::from_ne_bytes(*pixel) | 0xff00_0000).to_ne_bytes();
+                }
+            }
+        }
+
         // An ICO image is followed by an AND mask with one bit per pixel, which makes pixels transparent.
-        if self.included_in_ico && !reader.is_at_end() {
+        if self.included_in_ico && !(may_have_alpha_values && has_alpha_values) && !reader.is_at_end() {
             for row in 0..height {
                 let row_start = output_row(row);
                 let pixels = &mut output[row_start..row_start + row_bytes];
