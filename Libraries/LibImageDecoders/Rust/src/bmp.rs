@@ -247,9 +247,8 @@ fn decode_core_dib(reader: &mut Reader, dib: &mut DIBHeader, dib_type: DIBType) 
     if dib.width < 0 || dib.height == i32::MIN {
         return None;
     }
-    if reader.read_u16()? != 1 {
-        return None;
-    }
+    // INTEROP: The plane count should be 1, but is ignored.
+    reader.skip(2)?;
     dib.bpp = reader.read_u16()?;
     match dib.bpp {
         1 | 2 | 4 | 8 | 16 | 24 | 32 => Some(()),
@@ -263,9 +262,8 @@ fn decode_osv2_dib(reader: &mut Reader, dib: &mut DIBHeader, dib_type: DIBType) 
     if dib.width < 0 || dib.height == i32::MIN {
         return None;
     }
-    if reader.read_u16()? != 1 {
-        return None;
-    }
+    // INTEROP: The plane count should be 1, but is ignored.
+    reader.skip(2)?;
     dib.bpp = reader.read_u16()?;
     // OS/2 did not expect 16 or 32 bpp to be popular.
     if !matches!(dib.bpp, 1 | 2 | 4 | 8 | 24) {
@@ -769,7 +767,8 @@ impl BMPDecoder {
                 (height - 1 - row) * stride
             }
         };
-        let palette_color = |index: u8| -> Option<u32> { color_table.get(usize::from(index)).copied() };
+        // INTEROP: Indices past the end of the color table are opaque black.
+        let palette_color = |index: u8| -> u32 { color_table.get(usize::from(index)).copied().unwrap_or(0xff00_0000) };
 
         let skip_row_padding = |reader: &mut Reader, consumed: usize| -> Option<()> {
             let remainder = consumed % 4;
@@ -799,13 +798,13 @@ impl BMPDecoder {
                                 break;
                             }
                             let shift = 8 - bits_per_pixel as usize * (i + 1);
-                            set_pixel(column, palette_color((byte >> shift) & index_mask)?);
+                            set_pixel(column, palette_color((byte >> shift) & index_mask));
                             column += 1;
                         }
                     }
                     8 => {
                         let byte = reader.read_u8()?;
-                        set_pixel(column, palette_color(byte)?);
+                        set_pixel(column, palette_color(byte));
                         column += 1;
                     }
                     16 => {

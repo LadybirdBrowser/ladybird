@@ -383,6 +383,38 @@ TEST_CASE(test_bmp_v4_rgb16_with_empty_alpha_mask_is_opaque)
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
 }
 
+TEST_CASE(test_bmp_palette_index_out_of_range_is_black)
+{
+    // 2x1 8-bit image with a one-color palette, whose second pixel uses an index past the end of the palette.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 40, 2, 1, 8, 0 /* BI_RGB */, 1);
+    append_u32(dib, 0xff0000); // Red.
+    auto pixel_offset = dib.size();
+    Array<u8, 4> pixels { 0, 5, 0, 0 };
+    dib.append(pixels.data(), pixels.size());
+    auto bmp_data = make_bmp_file(dib, pixel_offset);
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
+    EXPECT_EQ(frame.image->get_pixel(1, 0), Gfx::Color::NamedColor::Black);
+}
+
+TEST_CASE(test_bmp_ignores_plane_count)
+{
+    // 1x1 24-bit image whose plane count is 0 instead of 1.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 40, 1, 1, 24, 0 /* BI_RGB */, 0);
+    dib[12] = 0;
+    auto pixel_offset = dib.size();
+    append_u32(dib, 0xff0000); // Red pixel in BGR order, then row padding.
+    auto bmp_data = make_bmp_file(dib, pixel_offset);
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
+}
+
 TEST_CASE(test_bmp_rle8_skipped_pixels_are_transparent)
 {
     // 4x1 BI_RLE8 image: one red pixel, a delta that skips two pixels, then one green pixel.
