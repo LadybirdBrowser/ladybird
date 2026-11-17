@@ -291,6 +291,7 @@ public:
 #if defined(AK_OS_MACOS)
         setQuitOnLastWindowClosed(false);
         install_appkit_event_capture();
+        install_appkit_popup_attachment();
 #endif
         installEventFilter(&m_plain_text_event_filter);
 
