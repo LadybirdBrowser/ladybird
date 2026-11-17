@@ -85,6 +85,12 @@ fn record_display_list_impl<O: Observer>(
     let window_focus_changed = source_recording
         .as_ref()
         .is_some_and(|frame| frame.window_is_focused != inputs.window_is_focused);
+    // Only output that read an accumulated scale depends on one, so only a published recording that holds such
+    // output is asked which scales it read.
+    let accumulated_scales_changed = source_recording
+        .as_ref()
+        .and_then(|frame| frame.accumulated_scales)
+        .is_some_and(|published_scales| accumulated_scales_of(paint_state) != Some(published_scales));
     let force_dark_settings = inputs.force_dark_enabled.then_some(inputs.force_dark_settings);
     // A recording of a frame without a visual context tree holds all of it.
     let window = window.filter(|_| paint_state.visual_context_tree.is_some());
@@ -125,6 +131,7 @@ fn record_display_list_impl<O: Observer>(
         run_draws_vector_image_placeholders: false,
         live_producer: false,
         producer_reads_window_focus: std::cell::Cell::new(false),
+        producer_reads_accumulated_scale: std::cell::Cell::new(false),
         line_root_positions: None,
         blocking_wheel_event_region_count: 0,
         records_per_box_wheel_hit_test_targets: frame_inputs.records_per_box_wheel_hit_test_targets(),
@@ -160,8 +167,13 @@ fn record_display_list_impl<O: Observer>(
             let anything_changed = source
                 .paint_change_stamps(viewport)
                 .row_or_anything_below_it_changed_since(frame.recorded_as_of);
-            frame_is_unchanged(root, anything_changed, window_focus_changed, coverage)
-                && !has_inspector_overlays
+            frame_is_unchanged(
+                root,
+                anything_changed,
+                window_focus_changed,
+                accumulated_scales_changed,
+                coverage,
+            ) && !has_inspector_overlays
                 && frame.prologue_id == prologue_id
         })
         .map(|(frame, root)| {
@@ -188,8 +200,13 @@ fn record_display_list_impl<O: Observer>(
             (chunks, display_list, None)
         }
         None => {
-            let recorded_root = Assembler::new(&mut recorder, window_focus_changed, coverage)
-                .assemble_root(root_scope, published_root.as_ref());
+            let recorded_root = Assembler::new(
+                &mut recorder,
+                window_focus_changed,
+                accumulated_scales_changed,
+                coverage,
+            )
+            .assemble_root(root_scope, published_root.as_ref());
             let mut chunks: Vec<Arc<RecordedChunk>> = prologue.into_iter().collect();
             recorded_root.for_each_chunk(&mut |chunk| chunks.push(Arc::clone(chunk)));
             if has_inspector_overlays {
@@ -213,6 +230,10 @@ fn record_display_list_impl<O: Observer>(
         .recorder
         .notes_record_origins()
         .then(|| Arc::new(record_notes_of_tape(&chunks, &mut recorder.record_notes_of_chunks)));
+    let accumulated_scales = recorded_root
+        .as_ref()
+        .filter(|root| root.facts.reads_accumulated_scale)
+        .and_then(|_| accumulated_scales_of(paint_state));
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
         recorded_as_of: source.frame().paint_generation(),
@@ -230,6 +251,7 @@ fn record_display_list_impl<O: Observer>(
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
         is_identical_to_published_recording: false,
         window_is_focused: inputs.window_is_focused,
+        accumulated_scales,
         capture_log: recorder.observer.finish(),
         vector_image_ids_by_request: Vec::new(),
         resources: Default::default(),
@@ -368,6 +390,23 @@ fn without_vector_image_ids(bytes: &[u8]) -> Vec<u8> {
         bytes[offset..offset + std::mem::size_of::<u64>()].fill(0);
     }
     bytes
+}
+
+/// A digest of the scale that each space of the tree accumulates, or none without a tree.
+fn accumulated_scales_of(paint_state: &crate::painting::published_frame::PublishedPaintState) -> Option<u64> {
+    use crate::painting::display_list::commands::SpatialNodeIndex;
+    use crate::painting::visual_context::IncludeVisualViewportTransform;
+    use std::hash::Hasher;
+    let tree = paint_state.visual_context_tree.as_deref()?;
+    let world_transforms = paint_state.unscrolled_world_transforms();
+    let mut digest = crate::fast_hash::fast_hasher();
+    for index in 0..tree.spatial_nodes.len() {
+        let scale =
+            world_transforms.accumulated_2d_scale(SpatialNodeIndex(index as u32), IncludeVisualViewportTransform::No);
+        digest.write_u32(scale.width.to_bits());
+        digest.write_u32(scale.height.to_bits());
+    }
+    Some(digest.finish())
 }
 
 fn reused_output_is_verified() -> bool {
