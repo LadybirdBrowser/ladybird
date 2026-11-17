@@ -1,2 +1,2 @@
-open
-close, readyState: 3, wasClean: true, code: 1005
+error, readyState: 3
+close, readyState: 3, wasClean: false, code: 1006
