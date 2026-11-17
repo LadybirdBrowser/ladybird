@@ -44,7 +44,7 @@ if (BUILD_TESTING)
     add_test(
         NAME LibWebUIProcessSessionHistory
         COMMAND $<TARGET_FILE:test-web> --per-test-timeout 120
-            --force-new-process --run-ui-process-session-history-tests -f "Text/input/navigation/*"
+            --temporary-profile --run-ui-process-session-history-tests -f "Text/input/navigation/*"
             --results-dir test-dumps/ui-process-session-history-results
     )
 
