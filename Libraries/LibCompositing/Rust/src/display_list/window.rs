@@ -17,7 +17,7 @@ use crate::display_list::commands::SpatialNodeIndex;
 use crate::host::FfiVisualAnimationTargetKind;
 use crate::ipc_types::Compositing_DisplayListWindow;
 use crate::visual_context::{ScrollData, SpatialData, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, WorldTransforms};
-use libgfx_rust::{AffineTransform, FloatPoint, FloatRect, FloatSize, IntSize};
+use libgfx_rust::{AffineTransform, FloatPoint, FloatRect, FloatSize, IntSize, multiply_affine};
 use std::sync::Arc;
 
 /// How far a window reaches past the viewport on each side, in viewports.
@@ -160,7 +160,10 @@ impl RecordedWindow {
             let Some(now_inverse) = now.inverse() else {
                 return true;
             };
-            self.rect.contains_rect(then.map_rect(now_inverse.map_rect(shown)))
+            // Taken through both transforms at once: a box around what shows in a rotated space, taken back out of it,
+            // would be larger than what shows, though the space did not move.
+            self.rect
+                .contains_rect(multiply_affine(then, now_inverse).map_rect(shown))
         })
     }
 }
@@ -434,6 +437,36 @@ mod tests {
             spaces.to_root(inner, FloatRect::new(0.0, 100.0, 10.0, 10.0)),
             Some(FloatRect::new(0.0, 200.0, 20.0, 20.0))
         );
+    }
+
+    #[test]
+    fn a_rotated_space_covers_what_it_covered_while_its_rotation_holds() {
+        // A space rotated by 60 degrees far below what shows. What shows, taken back to that space and placed again
+        // as it was, is where it was: not the box around the box around it, which is taller than the window.
+        let rotated_by = |angle: f32| {
+            let mut tree = empty_tree();
+            let page = tree.append_spatial(scroller(0), VISUAL_VIEWPORT_NODE_INDEX);
+            tree.append_spatial(
+                transform(
+                    libgfx_rust::translation_matrix(0.0, 50_000.0, 0.0)
+                        .multiplied(libgfx_rust::rotation_matrix([0.0, 0.0, 1.0], angle)),
+                ),
+                page,
+            );
+            tree
+        };
+        let tree = rotated_by(std::f32::consts::FRAC_PI_3);
+        let window = RecordedWindow::placed_at(VIEWPORT, 1.0, offsets(&tree, &[(0.0, 0.0)]));
+        assert!(covers(&window, &tree, &[(0.0, 0.0)]));
+        assert!(covers(&window, &tree, &[(0.0, -500.0)]));
+        assert!(!covers(&window, &tree, &[(0.0, -700.0)]));
+        // Rotating it further turns what it holds about a point far from what shows.
+        assert!(!covers_with(
+            &window,
+            &tree,
+            &rotated_by(std::f32::consts::FRAC_PI_2),
+            &[(0.0, 0.0)]
+        ));
     }
 
     #[test]
