@@ -37,22 +37,32 @@
 
             .input-reset-button {
                 position: absolute;
-                right: 12px;
+                right: 6px;
                 top: 50%;
 
                 transform: translateY(-50%);
 
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 20px;
+                height: 20px;
+
+                color: inherit;
                 background: none;
                 border: none;
-                padding: 0 4px;
+                border-radius: 5px;
+                padding: 0;
 
                 font-size: 18px;
+                line-height: 1;
                 opacity: 0.4;
 
                 cursor: pointer;
             }
 
             .input-reset-button:hover {
+                background-color: var(--control);
                 opacity: 0.8;
             }
 
@@ -88,8 +98,59 @@
                 margin-bottom: 0;
             }
 
-            .inline-container:has(> input[type="checkbox"]:disabled) > label {
+            /* Every row whose label names a control acts as one control: a click anywhere on it reaches the control, as
+               the label's hit area is stretched over the whole row, under the row's controls, and the row shows a
+               rounded fill under the pointer. The fill reaches a little past the row's sides but stays clear of the
+               lines between rows, and is held back while the pointer is over a button of its own beside the control,
+               such as an Exceptions… button. A row whose control is disabled is dimmed and does nothing. */
+            .card-group.inline-container {
+                --row-fill-inset: 4px -10px;
+            }
+
+            .input-field-container {
+                --row-fill-inset: -6px -10px;
+            }
+
+            :is(.inline-container, .input-field-container):has(> label[for]) {
+                position: relative;
+                isolation: isolate;
+            }
+
+            :is(.inline-container, .input-field-container) > label[for] {
+                cursor: pointer;
+            }
+
+            :is(.inline-container, .input-field-container) > label[for]::after {
+                content: "";
+                position: absolute;
+                inset: 0;
+            }
+
+            :is(.inline-container, .input-field-container):has(> label[for]) > :not(label) {
+                position: relative;
+                z-index: 1;
+            }
+
+            :is(.inline-container, .input-field-container):has(:is(input, select, textarea):disabled, > button:disabled)
+                > label[for] {
                 opacity: 0.5;
+                cursor: default;
+            }
+
+            :is(.inline-container, .input-field-container):has(> label[for]):not(
+                    :has(
+                        :is(input, select, textarea):disabled,
+                        > button:disabled,
+                        .setting-controls > button:hover,
+                        .input-reset-button:hover
+                    )
+                ):hover::before {
+                content: "";
+                position: absolute;
+                inset: var(--row-fill-inset);
+                z-index: -1;
+                border-radius: 8px;
+                background-color: var(--control);
             }
 
             .button-container {
@@ -181,6 +242,10 @@
                 outline: none;
             }
 
+            textarea:where(:not(:disabled, :focus)):hover {
+                background-color: var(--control-hover);
+            }
+
             input[type="number"].error,
             input[type="text"].error,
             input[type="url"].error {
@@ -269,25 +334,42 @@
                 font-weight: 600;
             }
 
+            /* An icon button, filled under the pointer like the toolbar's buttons. */
             dialog .dialog-button {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 28px;
+                height: 28px;
+
+                color: inherit;
                 background: none;
                 border: none;
+                border-radius: 6px;
                 outline: none;
 
                 padding: 0;
 
                 font-size: 22px;
+                line-height: 1;
                 opacity: 0.8;
 
                 cursor: pointer;
             }
 
-            dialog .dialog-button:hover {
+            /* NB: The close button's glyph keeps its place at the header's edge, with the fill reaching past it. */
+            dialog .dialog-header .dialog-button {
+                margin-right: -7px;
+            }
+
+            dialog .dialog-button:not(:disabled):hover {
+                background-color: var(--control);
                 opacity: 1;
             }
 
             dialog .dialog-button:disabled {
                 opacity: 0.3;
+                cursor: default;
             }
 
             dialog .dialog-list {
@@ -308,10 +390,6 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-            }
-
-            dialog .dialog-list-item:hover {
-                background-color: var(--control);
             }
 
             dialog .dialog-list-item-placeholder {
@@ -403,6 +481,10 @@
                 border-top: 1px solid var(--separator-soft);
             }
 
+            .crash-mode:not(:has(input:checked)):hover {
+                background: var(--control);
+            }
+
             .crash-mode:has(input:checked) {
                 background: var(--choice-fill);
             }
@@ -484,7 +566,16 @@
             }
 
             .expandable-list summary {
+                width: fit-content;
+                margin-left: -6px;
+                padding: 2px 6px;
+                border-radius: 5px;
+
                 cursor: pointer;
+            }
+
+            .expandable-list summary:hover {
+                background-color: var(--control);
             }
 
             .expandable-list[open] summary {
@@ -525,6 +616,7 @@
             }
 
             .search-field {
+                cursor: text;
                 display: flex;
                 align-items: center;
                 gap: 8px;
@@ -533,6 +625,10 @@
                 padding: 0 10px;
                 border-radius: 7px;
                 background-color: var(--control);
+            }
+
+            .search-field:not(:focus-within):hover {
+                background-color: var(--control-hover);
             }
 
             .search-field:focus-within {
@@ -550,7 +646,8 @@
             }
 
             .search-field input,
-            .search-field input:focus {
+            .search-field input:focus,
+            .search-field input:hover {
                 flex: 1;
                 min-width: 0;
                 height: auto;
@@ -589,13 +686,14 @@
                 opacity: 1;
             }
 
+            /* The chosen section's fill is deeper than the faint hover fill, so a hovered section never looks chosen. */
             .tab-button:hover {
-                background-color: var(--control);
+                background-color: var(--hover-faint);
                 opacity: 1;
             }
 
             .tab-button.active {
-                background-color: var(--control);
+                background-color: var(--control-pressed);
             }
 
             /* The focus ring appears only for keyboard focus, never after a click. */
@@ -726,8 +824,13 @@
                 cursor: pointer;
             }
 
-            button.link-button:hover {
-                text-decoration: underline;
+            button.link-button:not(:disabled):hover {
+                background-color: var(--control);
+            }
+
+            button.link-button:disabled {
+                opacity: 0.5;
+                cursor: default;
             }
 
             .engine-choice {
@@ -738,6 +841,10 @@
                 position: absolute;
                 opacity: 0;
                 pointer-events: none;
+            }
+
+            .engine-choice:not(:has(input:checked)):hover {
+                background: var(--control);
             }
 
             .engine-choice:has(input:checked) {
@@ -773,6 +880,33 @@
 
             .engine-choice:has(input:checked) .engine-check {
                 visibility: visible;
+            }
+
+            /* The checkbox's label is stretched over the whole row, under the checkbox and the Remove button, so a click
+               anywhere else on the row toggles the list, and the whole row is filled under the pointer, except while
+               the pointer is over its Remove button. */
+            .filter-list-row {
+                position: relative;
+                isolation: isolate;
+            }
+
+            .filter-list-row > label {
+                cursor: pointer;
+            }
+
+            .filter-list-row > label::after {
+                content: "";
+                position: absolute;
+                inset: 0;
+            }
+
+            .filter-list-row > :not(label) {
+                position: relative;
+                z-index: 1;
+            }
+
+            .filter-list-row:not(:has(button:hover)):hover {
+                background: var(--control);
             }
 
             .filter-list-row input[type="checkbox"] {
@@ -1100,7 +1234,7 @@
                         <div class="card-group inline-container">
                             <label for="new-tab-page-url">New tab page URL</label>
                             <div class="input-with-reset">
-                                <input id="new-tab-page-url" type="url" />
+                                <input id="new-tab-page-url" type="url" spellcheck="false" />
                                 <button
                                     id="new-tab-page-url-reset"
                                     class="input-reset-button hidden"
@@ -1150,14 +1284,12 @@
             <div class="tab-panel" id="tab-privacy" data-title="Privacy and security">
                 <div class="card">
                     <div class="card-body">
-                        <div class="card-group">
-                            <div class="inline-container">
-                                <label for="global-privacy-control-toggle">
-                                    Global Privacy Control
-                                    <p class="description">Tell websites not to sell or share your data.</p>
-                                </label>
-                                <input id="global-privacy-control-toggle" type="checkbox" switch />
-                            </div>
+                        <div class="card-group inline-container">
+                            <label for="global-privacy-control-toggle">
+                                Global Privacy Control
+                                <p class="description">Tell websites not to sell or share your data.</p>
+                            </label>
+                            <input id="global-privacy-control-toggle" type="checkbox" switch />
                         </div>
                     </div>
                 </div>
@@ -1167,7 +1299,7 @@
                     <div class="card-body">
                         <p id="browsing-data-total-size" class="card-group"></p>
                         <div class="card-group inline-container">
-                            <span>Clear browsing data</span>
+                            <label for="browsing-data-settings">Clear browsing data</label>
                             <button id="browsing-data-settings" class="secondary-button">Clear…</button>
                         </div>
                     </div>
@@ -1309,6 +1441,7 @@
                                     id="custom-content-blocker-subscription-url"
                                     type="url"
                                     placeholder="Filter list URL"
+                                    spellcheck="false"
                                 />
                                 <button id="add-content-blocker-subscription" class="secondary-button">Add</button>
                             </div>
@@ -1389,7 +1522,7 @@
                             <button id="review-crash-reports" class="secondary-button">Review reports</button>
                         </div>
                         <div class="card-group inline-container">
-                            <p>Open the folder containing saved crash reports.</p>
+                            <label for="open-crash-reports">Open the folder containing saved crash reports.</label>
                             <button id="open-crash-reports" class="secondary-button">Open folder</button>
                         </div>
                         <p id="crash-reports-status" class="description" role="status" hidden></p>
@@ -1427,18 +1560,18 @@
                             </div>
                             <div class="card-group inline-container">
                                 <label for="dns-server">DNS server (IP or hostname)</label>
-                                <input id="dns-server" type="text" />
+                                <input id="dns-server" type="text" spellcheck="false" />
                             </div>
                             <div class="card-group inline-container">
                                 <label for="dns-port">Port</label>
-                                <input id="dns-port" type="text" placeholder="53" />
+                                <input id="dns-port" type="text" placeholder="53" spellcheck="false" />
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <h3 class="card-title">Developer</h3>
-                <div class="search-container">
+                <label class="search-container">
                     <svg
                         class="search-icon"
                         xmlns="http://www.w3.org/2000/svg"
@@ -1455,8 +1588,9 @@
                         type="search"
                         class="search-input"
                         placeholder="Filter configuration keys"
+                        spellcheck="false"
                     />
-                </div>
+                </label>
                 <div class="card">
                     <div class="card-body">
                         <div id="config-list"></div>
@@ -1501,7 +1635,12 @@
                         Search URL
                         <p class="description">Use %s as a placeholder for the search query</p>
                     </label>
-                    <input id="search-custom-url" type="url" placeholder="https://example.com/search?q=%s" />
+                    <input
+                        id="search-custom-url"
+                        type="url"
+                        placeholder="https://example.com/search?q=%s"
+                        spellcheck="false"
+                    />
                 </div>
                 <div class="form-group">
                     <label for="search-custom-suggestions-url">
@@ -1514,6 +1653,7 @@
                         id="search-custom-suggestions-url"
                         type="url"
                         placeholder="https://example.com/suggest?q=%s"
+                        spellcheck="false"
                     />
                 </div>
                 <div class="dialog-controls">
@@ -1531,7 +1671,7 @@
                 <label>Site exceptions</label>
                 <div id="site-settings-list" class="dialog-list"></div>
                 <div class="dialog-controls">
-                    <input id="site-settings-input" type="text" placeholder="https://example.com" />
+                    <input id="site-settings-input" type="text" placeholder="https://example.com" spellcheck="false" />
                     <select id="site-settings-decision" aria-label="Site policy"></select>
                     <button id="site-settings-add" class="primary-button">Add&nbsp;site</button>
                 </div>
@@ -1562,7 +1702,7 @@
             </div>
             <div class="dialog-body" style="height: auto">
                 <div class="input-field-container">
-                    <p>Remove&nbsp;browsing&nbsp;data&nbsp;from:</p>
+                    <label for="clear-browsing-data-time-range">Remove&nbsp;browsing&nbsp;data&nbsp;from:</label>
                     <select id="clear-browsing-data-time-range">
                         <option value="lastHour">Last hour</option>
                         <option value="last4Hours">Last 4 hours</option>
@@ -1777,6 +1917,63 @@
                         dialog.close();
                     }
                 });
+            });
+
+            // A label names a field to type a new value into, so clicking it selects the field's text, and typing
+            // replaces it.
+            const TEXT_FIELD_SELECTOR = 'input:is([type="text"], [type="url"], [type="number"], [type="search"])';
+
+            document.addEventListener("click", event => {
+                const field = event.target.closest?.("label[for]")?.control;
+                if (!field || field.disabled || !field.matches(TEXT_FIELD_SELECTOR)) {
+                    return;
+                }
+
+                event.preventDefault();
+                field.focus();
+                field.select();
+            });
+
+            // Enter commits a field's new value and leaves the field, and Escape restores the value the field had when it
+            // took focus and leaves it. A search field holds no setting to restore, so Escape clears it, and leaves it once
+            // it is empty. A field in a dialog keeps the dialog's keys instead, and a textarea keeps Enter for new lines
+            // and keeps its text on Escape, as its changes are saved with a button of their own.
+            const valueAtFocus = new WeakMap();
+
+            document.addEventListener("focusin", event => {
+                if (event.target.matches?.(TEXT_FIELD_SELECTOR)) {
+                    valueAtFocus.set(event.target, event.target.value);
+                }
+            });
+
+            document.addEventListener("keydown", event => {
+                if ((event.key !== "Enter" && event.key !== "Escape") || event.defaultPrevented) {
+                    return;
+                }
+
+                const field = event.target;
+                if (field.closest?.("dialog")) {
+                    return;
+                }
+
+                if (field.matches?.(TEXT_FIELD_SELECTOR)) {
+                    const isSearch = field.type === "search";
+                    const restoredValue = isSearch ? "" : valueAtFocus.get(field);
+                    if (event.key === "Escape" && restoredValue !== undefined && field.value !== restoredValue) {
+                        field.value = restoredValue;
+                        // NB: Filters and the like follow the field as it is edited, so they learn of the new value.
+                        field.dispatchEvent(new Event("input", { bubbles: true }));
+                        if (isSearch) {
+                            event.preventDefault();
+                            return;
+                        }
+                    }
+                } else if (!(event.key === "Escape" && field.matches?.("textarea"))) {
+                    return;
+                }
+
+                event.preventDefault();
+                field.blur();
             });
 
             document.addEventListener("WebUILoaded", () => {
