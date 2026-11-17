@@ -14,6 +14,8 @@ function createControl(variable) {
     const type = variable.type === "array" && variable.elementType === "string" ? "textarea" : "input";
     const input = document.createElement(type);
     input.id = variable.name;
+    // NB: Configuration values are names, numbers and addresses, not words to check the spelling of.
+    input.spellcheck = false;
 
     if (variable.type === "boolean") {
         input.type = "checkbox";

@@ -84,6 +84,13 @@ header h1 {
 
     border: none;
     border-radius: 7px;
+
+    /* The whole field is the label of its input, so a click anywhere in it puts the caret in the input. */
+    cursor: text;
+}
+
+.search-container:not(:focus-within):hover {
+    background-color: var(--control-hover);
 }
 
 .search-container:focus-within {
@@ -102,7 +109,8 @@ header h1 {
 
 .search-container .search-input,
 .search-container .search-input:focus,
-.search-container .search-input:focus-visible {
+.search-container .search-input:focus-visible,
+.search-container .search-input:hover {
     background: none;
     color: inherit;
 
