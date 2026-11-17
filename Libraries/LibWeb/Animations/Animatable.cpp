@@ -80,7 +80,7 @@ Animatable::~Animatable()
 void Animatable::finalize_animations()
 {
     if (auto* animations = exchange(m_animations, nullptr))
-        RustFFI::animations_element_animations_destroy(animations);
+        RustFFI::animations_element_animations_destroy(animations, as_if<DOM::Element>(*this));
 }
 
 RustFFI::ElementAnimations& Animatable::ensure_animations()

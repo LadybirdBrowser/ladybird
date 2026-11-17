@@ -2599,11 +2599,19 @@ pub extern "C" fn animations_element_animations_create() -> *mut ElementAnimatio
 /// Destroys the lists of the animations of an element, giving up the references they hold.
 ///
 /// # Safety
-/// `animations` must be lists `animations_element_animations_create` handed out, which the host gives up.
+/// `animations` must be lists `animations_element_animations_create` handed out, which the host gives up, and
+/// `element` null or the element whose lists they are.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn animations_element_animations_destroy(animations: *mut ElementAnimations) {
+pub unsafe extern "C" fn animations_element_animations_destroy(
+    animations: *mut ElementAnimations,
+    element: *mut c_void,
+) {
     // SAFETY: Guaranteed by the caller.
-    drop(unsafe { Box::from_raw(animations) });
+    let mut animations = unsafe { Box::from_raw(animations) };
+    if let Some(element) = NonNull::new(element) {
+        animations.forget_element_as_target_of_disassociated(element);
+    }
+    drop(animations);
 }
 
 /// Calls `visit` with `context` and each GC cell of the host that keeps alive what an animation the lists hold names.
