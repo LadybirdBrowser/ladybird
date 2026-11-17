@@ -304,8 +304,8 @@ void SourceBufferDemuxer::add_coded_frame(Media::Track const& track, Media::Code
     auto insert_index = first_run_starting_at_or_after(data, run.presentation_start);
     data.runs.insert(insert_index, move(run));
     verify_runs_are_ordered_around_index(data, insert_index);
-    if (insert_index <= data.current_run && !data.runs.is_empty())
-        data.current_run = min(data.current_run + 1, data.runs.size() - 1);
+    if (insert_index <= data.cursor.run && !data.runs.is_empty())
+        data.cursor.run = min(data.cursor.run + 1, data.runs.size() - 1);
     data.run_ending_with_last_appended_frame = insert_index;
 
     buffered_data_changed_while_locked();
@@ -319,10 +319,10 @@ void SourceBufferDemuxer::note_delivered_frame(TrackData& data, Media::CodedFram
         data.highest_delivered_presentation_end = end;
 }
 
-void SourceBufferDemuxer::note_cursor_jumped(TrackData& data)
+void SourceBufferDemuxer::note_cursor_jumped(Cursor& cursor)
 {
-    if (data.cursor_continuity == CursorContinuity::Continuous)
-        data.cursor_continuity = CursorContinuity::Jumped;
+    if (cursor.continuity == CursorContinuity::Continuous)
+        cursor.continuity = CursorContinuity::Jumped;
 }
 
 size_t SourceBufferDemuxer::first_run_starting_at_or_after(TrackData const& data, AK::Duration presentation_start)
@@ -363,18 +363,18 @@ void SourceBufferDemuxer::restore_run_order(TrackData& data)
 
     Vector<FrameRun> runs;
     runs.ensure_capacity(data.runs.size());
-    auto current_run = data.current_run;
+    auto current_run = data.cursor.run;
     Optional<size_t> run_ending_with_last_appended_frame;
     for (size_t new_index = 0; new_index < old_indices.size(); new_index++) {
         auto old_index = old_indices[new_index];
-        if (old_index == data.current_run)
+        if (old_index == data.cursor.run)
             current_run = new_index;
         if (old_index == data.run_ending_with_last_appended_frame)
             run_ending_with_last_appended_frame = new_index;
         runs.unchecked_append(move(data.runs[old_index]));
     }
     data.runs = move(runs);
-    data.current_run = current_run;
+    data.cursor.run = current_run;
     data.run_ending_with_last_appended_frame = run_ending_with_last_appended_frame;
 }
 
@@ -406,11 +406,11 @@ void SourceBufferDemuxer::split_run(TrackData& data, size_t run_index, size_t sp
     data.runs.insert(insert_index, move(tail));
     note_run_start_changed(data, run_index);
     note_run_start_changed(data, insert_index);
-    if (data.current_run == run_index && data.current_frame >= split_at) {
-        data.current_run = insert_index;
-        data.current_frame -= split_at;
-    } else if (data.current_run >= insert_index) {
-        data.current_run++;
+    if (data.cursor.run == run_index && data.cursor.frame >= split_at) {
+        data.cursor.run = insert_index;
+        data.cursor.frame -= split_at;
+    } else if (data.cursor.run >= insert_index) {
+        data.cursor.run++;
     }
     if (data.run_ending_with_last_appended_frame == run_index)
         data.run_ending_with_last_appended_frame = insert_index;
@@ -464,8 +464,8 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
     }
 
     // The frames replacing the group being read may land in another run, so reads must find them by time.
-    if (data.current_run == run_index && removed_frames_overlap_group_of_pictures_being_read(run, data.current_frame, first_frame, frame_count))
-        data.cursor_continuity = CursorContinuity::NeedsReanchoring;
+    if (data.cursor.run == run_index && removed_frames_overlap_group_of_pictures_being_read(run, data.cursor.frame, first_frame, frame_count))
+        data.cursor.continuity = CursorContinuity::NeedsReanchoring;
 
     if (data.run_ending_with_last_appended_frame == run_index && first_frame + frame_count == run.frames.size())
         data.run_ending_with_last_appended_frame.clear();
@@ -475,12 +475,12 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
     data.track_buffer_ranges_need_rebuild = true;
     decrement_frames_with_maximum_duration(data, removed_frames_with_the_maximum_duration);
 
-    if (data.current_run == run_index) {
-        if (data.current_frame >= first_frame + frame_count) {
-            data.current_frame -= frame_count;
-        } else if (data.current_frame >= first_frame) {
-            data.current_frame = first_frame;
-            note_cursor_jumped(data);
+    if (data.cursor.run == run_index) {
+        if (data.cursor.frame >= first_frame + frame_count) {
+            data.cursor.frame -= frame_count;
+        } else if (data.cursor.frame >= first_frame) {
+            data.cursor.frame = first_frame;
+            note_cursor_jumped(data.cursor);
         }
     }
 
@@ -488,10 +488,10 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
         data.runs.remove(run_index);
         if (data.run_ending_with_last_appended_frame.has_value() && data.run_ending_with_last_appended_frame.value() > run_index)
             data.run_ending_with_last_appended_frame = data.run_ending_with_last_appended_frame.value() - 1;
-        if (data.current_run > run_index)
-            data.current_run--;
-        else if (data.current_run == run_index)
-            data.cursor_continuity = CursorContinuity::NeedsReanchoring;
+        if (data.cursor.run > run_index)
+            data.cursor.run--;
+        else if (data.cursor.run == run_index)
+            data.cursor.continuity = CursorContinuity::NeedsReanchoring;
         return saturating_sub(total_bytes_before_erasing, data.total_bytes);
     }
 
@@ -568,9 +568,9 @@ bool SourceBufferDemuxer::is_frame_evictable(TrackData const& data, Media::Coded
 {
     auto time_range_start = current_time;
     auto time_range_end = current_time;
-    if (data.cursor_presentation_timestamp.has_value()) {
-        time_range_start = min(time_range_start, data.cursor_presentation_timestamp.value());
-        time_range_end = max(time_range_end, data.cursor_presentation_timestamp.value());
+    if (data.cursor.presentation_timestamp.has_value()) {
+        time_range_start = min(time_range_start, data.cursor.presentation_timestamp.value());
+        time_range_end = max(time_range_end, data.cursor.presentation_timestamp.value());
     }
     return frame.presentation_timestamp() < time_range_start || frame.presentation_timestamp() > time_range_end;
 }
@@ -846,17 +846,17 @@ Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_fo
     auto& data = track_data(track);
 
     auto continue_into_next_run_while_locked = [&] {
-        if (data.current_run + 1 >= data.runs.size())
+        if (data.cursor.run + 1 >= data.runs.size())
             return false;
-        auto const& current_run = data.runs[data.current_run];
-        auto const& next_run = data.runs[data.current_run + 1];
+        auto const& current_run = data.runs[data.cursor.run];
+        auto const& next_run = data.runs[data.cursor.run + 1];
         auto gap = next_run.presentation_start - current_run.presentation_end;
         if (gap > maximum_time_range_gap(data))
             return false;
 
-        data.current_run++;
-        data.current_frame = 0;
-        note_cursor_jumped(data);
+        data.cursor.run++;
+        data.cursor.frame = 0;
+        note_cursor_jumped(data.cursor);
 
         return true;
     };
@@ -865,13 +865,13 @@ Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_fo
     Optional<Media::DecoderError> error;
     while (true) {
         bool has_frame_at_cursor = false;
-        if (data.cursor_continuity == CursorContinuity::NeedsReanchoring) {
-            auto anchor = data.cursor_presentation_timestamp.value_or(AK::Duration::zero());
-            if (move_cursor_to_presentation_time_while_locked(data, anchor))
+        if (data.cursor.continuity == CursorContinuity::NeedsReanchoring) {
+            auto anchor = data.cursor.presentation_timestamp.value_or(AK::Duration::zero());
+            if (move_cursor_to_presentation_time_while_locked(data, data.cursor, anchor))
                 continue;
-        } else if (data.current_run < data.runs.size() && data.current_frame < data.runs[data.current_run].frames.size()) {
+        } else if (data.cursor.run < data.runs.size() && data.cursor.frame < data.runs[data.cursor.run].frames.size()) {
             has_frame_at_cursor = true;
-            if (may_read_frame_while_locked(data, data.runs[data.current_run].frames[data.current_frame]))
+            if (may_read_frame_while_locked(data, data.runs[data.cursor.run].frames[data.cursor.frame]))
                 break;
         } else if (continue_into_next_run_while_locked()) {
             continue;
@@ -881,7 +881,7 @@ Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_fo
             break;
         }
         // Once the stream has ended, a frame outside the buffered ranges will never become readable.
-        if (m_reached_end_of_stream && (has_frame_at_cursor || data.current_run + 1 >= data.runs.size())) {
+        if (m_reached_end_of_stream && (has_frame_at_cursor || data.cursor.run + 1 >= data.runs.size())) {
             error = Media::DecoderError::with_description(Media::DecoderErrorCategory::EndOfStream, "End of stream"sv);
             data.delivered_end_of_stream = true;
             break;
@@ -900,13 +900,13 @@ Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_fo
     if (error.has_value())
         return error.release_value();
 
-    auto const& stored_frame = data.runs[data.current_run].frames[data.current_frame];
+    auto const& stored_frame = data.runs[data.cursor.run].frames[data.cursor.frame];
     if (!data.read_anchor.has_value() || stored_frame.presentation_timestamp() > data.read_anchor.value())
         data.read_anchor = stored_frame.presentation_timestamp();
 
-    if (data.cursor_continuity == CursorContinuity::Jumped) {
-        data.cursor_continuity = CursorContinuity::Continuous;
-        auto configuration = codec_configuration_at_position(data, data.current_run, data.current_frame);
+    if (data.cursor.continuity == CursorContinuity::Jumped) {
+        data.cursor.continuity = CursorContinuity::Continuous;
+        auto configuration = codec_configuration_at_position(data, data.cursor.run, data.cursor.frame);
         auto configuration_is_new = configuration.has_value() && (!data.last_delivered_codec_configuration.has_value() || *configuration != data.last_delivered_codec_configuration->span());
         if (configuration_is_new)
             data.last_delivered_codec_configuration = MUST(FixedArray<u8>::create(*configuration));
@@ -926,18 +926,18 @@ Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_fo
                 MUST(FixedArray<u8>::create(stored_frame.data())),
                 move(new_codec_configuration),
             };
-            data.cursor_presentation_timestamp = frame.presentation_timestamp();
+            data.cursor.presentation_timestamp = frame.presentation_timestamp();
             note_delivered_frame(data, frame);
-            data.current_frame++;
+            data.cursor.frame++;
             return frame;
         }
     } else if (auto configuration = stored_frame.new_codec_configuration(); configuration.has_value()) {
         data.last_delivered_codec_configuration = MUST(FixedArray<u8>::create(*configuration));
     }
 
-    data.cursor_presentation_timestamp = stored_frame.presentation_timestamp();
+    data.cursor.presentation_timestamp = stored_frame.presentation_timestamp();
     note_delivered_frame(data, stored_frame);
-    data.current_frame++;
+    data.cursor.frame++;
     return stored_frame;
 }
 
@@ -964,7 +964,7 @@ AK::Duration SourceBufferDemuxer::select_fast_seek_target_for_track(Media::Track
     return best_timestamp.value_or(target);
 }
 
-bool SourceBufferDemuxer::move_cursor_to_presentation_time_while_locked(TrackData& data, AK::Duration timestamp)
+bool SourceBufferDemuxer::move_cursor_to_presentation_time_while_locked(TrackData const& data, Cursor& cursor, AK::Duration timestamp)
 {
     auto run_index = find_run_to_play_from_while_locked(data, timestamp);
     if (!run_index.has_value())
@@ -981,10 +981,10 @@ bool SourceBufferDemuxer::move_cursor_to_presentation_time_while_locked(TrackDat
             keyframe_index = index;
     }
 
-    data.current_run = run_index.value();
-    data.current_frame = keyframe_index;
-    data.cursor_presentation_timestamp = run.frames[data.current_frame].presentation_timestamp();
-    data.cursor_continuity = CursorContinuity::Jumped;
+    cursor.run = run_index.value();
+    cursor.frame = keyframe_index;
+    cursor.presentation_timestamp = run.frames[cursor.frame].presentation_timestamp();
+    cursor.continuity = CursorContinuity::Jumped;
     return true;
 }
 
@@ -1001,7 +1001,7 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> SourceBufferDemuxer::seek_to_mos
         if (data.aborted.load())
             return Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Seek aborted"sv);
 
-        if (move_cursor_to_presentation_time_while_locked(data, timestamp)) {
+        if (move_cursor_to_presentation_time_while_locked(data, data.cursor, timestamp)) {
             data.read_anchor = timestamp;
             data.highest_delivered_presentation_end.clear();
             data.delivered_end_of_stream = false;
