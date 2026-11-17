@@ -142,7 +142,7 @@ with tempfile.TemporaryDirectory() as directory:
         settings()
         command("back", {})
         assert command("execute/sync", {"script": "return location.href", "args": []}) == "about:about"
-        command("url", {"url": "about:blocking"})
+        command("url", {"url": "about:settings#blocking"})
         state = settings()
         assert command(
             "execute/sync",
