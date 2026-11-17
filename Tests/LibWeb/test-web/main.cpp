@@ -1069,9 +1069,10 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
                 url = URL::create_with_file_scheme(real_path).release_value();
             }
 
-            // Append variant query string if present (variant is "?foo=bar", set_query expects "foo=bar")
+            // Append variant query string if present (variant is "?foo=bar"). Parsing it against the URL
+            // percent-encodes it, as it is in the URL that the test's request fetches.
             if (test.variant.has_value())
-                url->set_query(test.variant->bytes_as_string_view().substring_view(1));
+                url = URL::Parser::basic_parse(*test.variant, *url).release_value();
 
             switch (test.mode) {
             case TestMode::Crash:
