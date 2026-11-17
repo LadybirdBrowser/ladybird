@@ -1452,11 +1452,14 @@ void BrowserWindow::create_menu_bar_window_controls()
 void BrowserWindow::update_menu_bar_visibility()
 {
     auto show_menu_bar = show_menu_bar_option_available() && Application::settings().appearance().show_menu_bar;
-    menuBar()->setVisible(show_menu_bar);
 
+    // Update the controls first so the menu bar measures its corner widgets with the controls visible when shown.
     if (m_menu_bar_window_controls)
         m_menu_bar_window_controls->setVisible(show_menu_bar && uses_client_side_decorations());
-    // NB: A full-screen window has no window controls of its own on display, so the chrome leaves no room for them.
+
+    menuBar()->setVisible(show_menu_bar);
+
+    // A full-screen window has no window controls of its own on display, so the chrome leaves no room for them.
     m_tabs_container->set_window_controls_visible(!show_menu_bar && has_chrome_in_titlebar() && !isFullScreen());
 }
 
