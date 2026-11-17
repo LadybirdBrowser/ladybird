@@ -80,6 +80,7 @@
 
             .toggle {
                 border: none;
+                border-radius: 4px;
                 background: none;
                 color: var(--secondary-text-color);
                 font-size: 12px;
@@ -135,9 +136,22 @@
                 font-size: 12px;
             }
 
+            .toggle:hover {
+                background-color: var(--control);
+            }
+
             summary {
+                width: fit-content;
+                margin-left: -6px;
+                padding: 2px 6px;
+                border-radius: 5px;
+
                 cursor: pointer;
                 font-size: 13px;
+            }
+
+            summary:hover {
+                background-color: var(--control);
             }
 
             @media (max-width: 640px) {
