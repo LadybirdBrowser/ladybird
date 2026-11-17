@@ -28,7 +28,7 @@
         internals.recordDisplayListForTesting();
         const state = internals.recordedAsyncScrollingState();
         const viewportNode = state.scrollNodes.find(node => node.isViewport);
-        const displayList = internals.dumpDisplayList();
+        const displayList = internals.dumpDisplayList({ rawNodeIndices: true });
         const stickyNodes = [...displayList.matchAll(/\[s(\d+)\] sticky scroller=s(\d+)(?: parent_sticky=s(\d+))?.*? insets=\[([^\]]*)\]/g)]
             .map(match => ({
                 index: Number(match[1]),

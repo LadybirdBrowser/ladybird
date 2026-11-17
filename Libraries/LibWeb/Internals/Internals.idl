@@ -249,7 +249,7 @@ interface Internals {
     readonly attribute boolean needsDisplayListRecord;
     readonly attribute boolean hasAnimationFrameCallbacks;
 
-    DOMString dumpDisplayList();
+    DOMString dumpDisplayList(optional DisplayListDumpOptions options = {});
     DOMString dumpAccessibilityTree();
     // The per-character offsets that the accessibility tree reports for a text node, as space-separated "x,y" pairs.
     DOMString accessibilityCharacterOffsets(Node node);
@@ -541,6 +541,10 @@ dictionary StyleRecordsDumpOptions {
     boolean customPropertyEnvironments = false;
     boolean layout = false;
     boolean groups = false;
+};
+
+dictionary DisplayListDumpOptions {
+    boolean rawNodeIndices = false;
 };
 
 dictionary LayoutTraceOptions {

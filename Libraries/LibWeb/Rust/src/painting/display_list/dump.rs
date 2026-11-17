@@ -33,6 +33,14 @@ use std::fmt::Write;
 
 crate::stage::main_thread_ffi_entries!();
 
+/// What the display list dump prints besides what it always does.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiDisplayListDumpOptions {
+    /// Names visual context nodes by their indices in the tree rather than by the order the dump first prints them in.
+    pub raw_node_indices: bool,
+}
+
 /// What a display list dump asks the document. The fields are private: the callbacks are reached
 /// only through the methods below, which take the main thread token.
 ///
@@ -179,6 +187,7 @@ pub unsafe extern "C" fn painting_dump(
     read: &crate::render_state::BegunRead,
     viewport: NodeSlotId,
     device_viewport_rect: IntRect,
+    options: FfiDisplayListDumpOptions,
     callbacks: FfiPaintingDumpCallbacks,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
@@ -211,7 +220,11 @@ pub unsafe extern "C" fn painting_dump(
             owners
         })
     };
-    let mut names = DumpNames::default();
+    let mut names = if options.raw_node_indices {
+        DumpNames::default()
+    } else {
+        DumpNames::numbering_nodes_in_print_order()
+    };
     let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, &mut names, |kind, index| {
         let owner = owners.owner(kind, index)?;
         Some(callbacks.debug_description(&main_thread, owner))

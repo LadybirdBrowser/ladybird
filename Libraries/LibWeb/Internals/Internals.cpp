@@ -1919,9 +1919,11 @@ static Utf16String dump_string_to_utf16(String const& string)
     return Utf16String::from_utf8_without_validation(string.bytes_as_string_view());
 }
 
-Utf16String Internals::dump_display_list()
+Utf16String Internals::dump_display_list(Bindings::DisplayListDumpOptions const& options)
 {
-    return window().associated_document().dump_display_list();
+    return window().associated_document().dump_display_list({
+        .raw_node_indices = options.raw_node_indices,
+    });
 }
 
 Utf16String Internals::dump_accessibility_tree()

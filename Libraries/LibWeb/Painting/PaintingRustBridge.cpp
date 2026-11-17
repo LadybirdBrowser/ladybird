@@ -244,7 +244,7 @@ static void push_debug_description(DOM::Document const& document, Compositing::R
     Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, bytes.data(), bytes.size());
 }
 
-Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document const& document)
+Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document const& document, DisplayListDumpOptions const& options)
 {
     struct DumpContext {
         GC::Ref<DOM::Document const> document;
@@ -257,7 +257,10 @@ Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document
         .append_text = [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<DumpContext*>(context_pointer)->dump = Utf16String::from_utf8_without_validation(StringView { bytes, byte_count }); },
     };
     Gfx::IntRect device_viewport_rect { {}, document.page().css_to_device_rect(document.viewport_rect()).size().to_type<int>() };
-    Layout::RustFFI::painting_dump(document_host(document), &read, viewport_row_slot(read, document), device_viewport_rect, callbacks);
+    Layout::RustFFI::FfiDisplayListDumpOptions ffi_options {
+        .raw_node_indices = options.raw_node_indices,
+    };
+    Layout::RustFFI::painting_dump(document_host(document), &read, viewport_row_slot(read, document), device_viewport_rect, ffi_options, callbacks);
     return move(context.dump);
 }
 

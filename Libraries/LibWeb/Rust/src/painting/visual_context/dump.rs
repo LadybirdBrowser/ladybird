@@ -754,6 +754,7 @@ mod section_dump_tests {
     use super::{SlotKind, VisualContextTreeDump};
     use crate::layout::node_data::NodeSlotId;
     use crate::painting::display_list::commands::{ContextRef, DisplayListCommandRun, SpatialNodeIndex};
+    use crate::painting::display_list::dump_format::DumpNames;
     use crate::painting::visual_context::{
         ClipData, ClipMode, ClipNodeData, ClipNodeIndex, EffectNodeData, EffectNodeIndex, EffectsData, ScrollData,
         SpatialData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
@@ -844,7 +845,7 @@ mod section_dump_tests {
             run(scroll_node, escaping_context),
             run(VISUAL_VIEWPORT_NODE_INDEX, ContextRef::default()),
         ];
-        let mut names = crate::painting::display_list::dump_format::DumpNames::default();
+        let mut names = DumpNames::default();
         let text = tree.dump_nodes_reachable_from_runs(&runs, &mut names, |kind, index| match (kind, index) {
             (SlotKind::Spatial, 1) => Some("BlockContainer<DIV>#scroller".to_string()),
             (SlotKind::Clip, 0) => Some("BlockContainer<DIV>#scroller".to_string()),
@@ -854,6 +855,57 @@ mod section_dump_tests {
         assert_eq!(
             text,
             "AccumulatedVisualContext Tree:\n  spatial:\n    [s0] transform=[1,0,0,1,0,0] origin=(0,0)\n      [s1] scroll (BlockContainer<DIV>#scroller)\n  clips:\n    [c0 in s1] clip=[1,2 3x4] (BlockContainer<DIV>#scroller)\n      [c1 in s1] clip=[5,6 7x8]\n  effects:\n    [e0 in s1 out=c0] effects=[opacity=0.5] (BlockContainer<DIV>#faded)\n"
+        );
+    }
+
+    #[test]
+    fn nodes_are_numbered_in_the_order_the_dump_first_prints_them() {
+        let mut tree = VisualContextTree::create(TransformData {
+            matrix: FloatMatrix4x4::identity(),
+            origin: FloatPoint::default(),
+            sorting_context_root_index: None,
+            flattens_inherited_transform: false,
+            role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
+            establishes_sorting_context: false,
+            bounds: FloatRect::default(),
+        });
+        let scroll_node = |tree: &mut VisualContextTree| {
+            tree.append_spatial(
+                SpatialData::Scroll(ScrollData {
+                    state_slot: NO_SCROLL_STATE_SLOT,
+                    owner_paintable: NodeSlotId::INVALID,
+                }),
+                VISUAL_VIEWPORT_NODE_INDEX,
+            )
+        };
+        let _unreachable_scroll_node = scroll_node(&mut tree);
+        let scroller = scroll_node(&mut tree);
+        let _unreachable_clip = tree.append_clip(
+            ClipNodeData::rect_clip(FloatRect::new(9.0, 9.0, 9.0, 9.0)),
+            ClipNodeIndex::NONE,
+            scroller,
+        );
+        let clip = tree.append_clip(
+            ClipNodeData::rect_clip(FloatRect::new(1.0, 2.0, 3.0, 4.0)),
+            ClipNodeIndex::NONE,
+            scroller,
+        );
+        let runs = [run(
+            scroller,
+            ContextRef {
+                clip,
+                ..ContextRef::default()
+            },
+        )];
+        let dump = |names: &mut DumpNames| tree.dump_nodes_reachable_from_runs(&runs, names, |_, _| None);
+        assert_eq!(
+            dump(&mut DumpNames::numbering_nodes_in_print_order()),
+            "AccumulatedVisualContext Tree:\n  spatial:\n    [s0] transform=[1,0,0,1,0,0] origin=(0,0)\n      [s1] scroll\n  clips:\n    [c0 in s1] clip=[1,2 3x4]\n"
+        );
+        assert_eq!(
+            dump(&mut DumpNames::default()),
+            "AccumulatedVisualContext Tree:\n  spatial:\n    [s0] transform=[1,0,0,1,0,0] origin=(0,0)\n      [s2] scroll\n  clips:\n    [c1 in s2] clip=[1,2 3x4]\n"
         );
     }
 }

@@ -26,12 +26,21 @@ use libgfx_rust::{
 use std::collections::HashMap;
 use std::fmt::Write;
 
-/// Names the resources of a dump by the order it first prints them in, since their ids count up across the process.
+/// Names the resources of a dump by the order it first prints them in, since their ids count up across the process,
+/// and its visual context nodes either the same way, per kind, or by their indices in the tree.
 #[derive(Default)]
 pub(crate) struct DumpNames {
     resources: HashMap<(ResourceKind, u64), u32>,
     resource_counts: HashMap<ResourceKind, u32>,
     times_of_this_process: HashMap<i64, u32>,
+    numbered_nodes: Option<[HashMap<u32, u32>; 3]>,
+}
+
+#[derive(Clone, Copy)]
+enum NodeKind {
+    Spatial,
+    Clip,
+    Effect,
 }
 
 fn resource_kind_name(kind: ResourceKind) -> &'static str {
@@ -46,6 +55,22 @@ fn resource_kind_name(kind: ResourceKind) -> &'static str {
 }
 
 impl DumpNames {
+    pub(crate) fn numbering_nodes_in_print_order() -> Self {
+        Self {
+            numbered_nodes: Some(Default::default()),
+            ..Self::default()
+        }
+    }
+
+    fn node_number(&mut self, kind: NodeKind, index: u32) -> u32 {
+        let Some(numbered_nodes) = &mut self.numbered_nodes else {
+            return index;
+        };
+        let numbers = &mut numbered_nodes[kind as usize];
+        let next_number = numbers.len() as u32;
+        *numbers.entry(index).or_insert(next_number)
+    }
+
     pub(crate) fn resource(&mut self, kind: ResourceKind, raw: u64) -> String {
         let count = self.resource_counts.entry(kind).or_default();
         let number = *self.resources.entry((kind, raw)).or_insert_with(|| {
@@ -62,15 +87,15 @@ impl DumpNames {
     }
 
     pub(crate) fn spatial(&mut self, index: SpatialNodeIndex) -> String {
-        format!("s{}", index.0)
+        format!("s{}", self.node_number(NodeKind::Spatial, index.0))
     }
 
     pub(crate) fn clip(&mut self, index: ClipNodeIndex) -> String {
-        format!("c{}", index.0)
+        format!("c{}", self.node_number(NodeKind::Clip, index.0))
     }
 
     pub(crate) fn effect(&mut self, index: EffectNodeIndex) -> String {
-        format!("e{}", index.0)
+        format!("e{}", self.node_number(NodeKind::Effect, index.0))
     }
 }
 

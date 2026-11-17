@@ -228,7 +228,7 @@ public:
     bool needs_display_list_record();
     bool has_animation_frame_callbacks();
 
-    Utf16String dump_display_list();
+    Utf16String dump_display_list(Bindings::DisplayListDumpOptions const&);
     Utf16String dump_accessibility_tree();
     String accessibility_character_offsets(GC::Ref<DOM::Node>);
     String dump_accessibility_node_data(GC::Ref<DOM::Node>);
