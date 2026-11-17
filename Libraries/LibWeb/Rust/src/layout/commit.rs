@@ -939,7 +939,20 @@ impl<'tree> Commit<'_, 'tree> {
                 !crate::painting::paint_order_plan::content_plans_same_foreground(&previous, line_data),
             )
         });
-        self.arena_mut().committed_side_data_mut(slot).inline_content = Some(line_data.clone());
+        let previous_content = self
+            .arena_mut()
+            .committed_side_data_mut(slot)
+            .inline_content
+            .replace(line_data.clone());
+        if !previous_content
+            .as_ref()
+            .is_some_and(|previous| std::sync::Arc::ptr_eq(previous, line_data))
+        {
+            self.refresh_paint_order_inputs_that_disagree_with_the_atomic_inlines_of(
+                previous_content.as_deref(),
+                Some(line_data),
+            );
+        }
         if item_order_changed {
             self.arena_mut().note_paint_change(slot, RowPaintChange::ORDER);
         }
@@ -956,7 +969,43 @@ impl<'tree> Commit<'_, 'tree> {
     /// Clears the inline content of a row whose new fragment has none.
     fn clear_line_data(&mut self, slot: NodeSlotId) {
         if self.arena().committed_side_data(slot).inline_content.is_some() {
-            self.arena_mut().committed_side_data_mut(slot).inline_content = None;
+            let previous_content = self.arena_mut().committed_side_data_mut(slot).inline_content.take();
+            self.refresh_paint_order_inputs_that_disagree_with_the_atomic_inlines_of(previous_content.as_deref(), None);
+        }
+    }
+
+    fn refresh_paint_order_inputs_that_disagree_with_the_atomic_inlines_of(
+        &mut self,
+        previous_content: Option<&crate::layout::inline_content::InlineContent>,
+        content: Option<&crate::layout::inline_content::InlineContent>,
+    ) {
+        let atomic_inlines_before_and_after: Vec<NodeSlotId> = [previous_content, content]
+            .into_iter()
+            .flatten()
+            .flat_map(|content| content.fragments.iter())
+            .filter(|fragment| fragment.is_atomic_inline)
+            .map(|fragment| fragment.layout_node)
+            .collect();
+        let is_atomic_inline_of_content = |node: NodeSlotId| {
+            content.is_some_and(|content| {
+                content
+                    .fragment_indices_of(node)
+                    .iter()
+                    .any(|&index| content.fragments[index as usize].is_atomic_inline)
+            })
+        };
+        for node in atomic_inlines_before_and_after {
+            let arena = self.arena();
+            if !arena.slot_is_live(node) || !arena.paintable_row_is_populated(node) {
+                continue;
+            }
+            let inputs_disagree = arena
+                .committed_side_data(node)
+                .prepared_order_inputs()
+                .is_some_and(|inputs| inputs.is_atomic_inline_content() != is_atomic_inline_of_content(node));
+            if inputs_disagree {
+                self.arena_mut().refresh_paint_order_inputs(node);
+            }
         }
     }
 
