@@ -192,7 +192,12 @@ void AudioMixer::consume()
 bool AudioMixer::any_input_is_suspended_while_locked()
 {
     for (auto& [input, input_data] : m_inputs) {
-        if (input->peek().status == PipelineStatus::Suspended)
+        auto status = input->peek().status;
+        // A mix stops at the first input with nothing to mix, so the status of every other input is taken here. An
+        // input whose block is still being mixed keeps the status it had when the block was taken.
+        if (input_data.current_block.is_empty())
+            input_data.last_status = status;
+        if (status == PipelineStatus::Suspended)
             return true;
     }
     return false;
