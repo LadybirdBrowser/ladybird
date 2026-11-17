@@ -404,21 +404,35 @@ u32 Internals::worker_agent_count() const
 }
 
 // TEMP DIAGNOSTICS: kept out of line so that the frame of the collection's caller stays as it is without them.
-[[gnu::noinline]] static void diagnose_retained_svg_images(GC::Heap& heap)
+[[gnu::noinline]] static void diagnose_retained_cells(GC::Heap& heap, int first_round_to_report, int round)
 {
-    static int round = 0;
-    ++round;
-    auto paths = heap.find_retaining_paths([](GC::Cell& cell) { return GC::class_name_of(cell) == "SVGDecodedImageData"sv; }, 4);
+    if (round < first_round_to_report || (round > first_round_to_report + 4 && round != 99))
+        return;
+    auto paths = heap.find_retaining_paths([first_round_to_report](GC::Cell& cell) {
+        auto name = GC::class_name_of(cell);
+        if (first_round_to_report == 1)
+            return name == "SVGDecodedImageData"sv;
+        return name == "HTMLDocument"sv || name == "Document"sv;
+    },
+        16);
     bool any_conservative = false;
     for (auto const& path : paths) {
         StringBuilder steps;
         for (auto const& step : path.steps)
             steps.appendff(" > {}", step.class_name);
+        ByteString target_description;
+        if (auto target = path.steps.last(); target.class_name != "SVGDecodedImageData"sv) {
+            if (auto* document = dynamic_cast<DOM::Document*>(target.cell.ptr()))
+                target_description = ByteString::formatted(" document={} body={}", document->url(), document->body() ? document->body()->text_content().value_or({}) : Utf16String {});
+        }
+        steps.append(target_description);
         dbgln("SVGDIAG round {} root={} raw={:#x} half={} top-{} path:{}", round, GC::Heap::describe_root(path.root), path.root.raw_value, path.root.compressed_half, path.root.offset_from_stack_top, steps.string_view());
-        if (path.root.type == GC::HeapRoot::Type::StackPointer || path.root.type == GC::HeapRoot::Type::RegisterPointer)
+        // The collection's caller keeps its own settings object on the stack.
+        if ((path.root.type == GC::HeapRoot::Type::StackPointer || path.root.type == GC::HeapRoot::Type::RegisterPointer) && path.steps.first().class_name != "WindowEnvironmentSettingsObject"sv)
             any_conservative = true;
     }
-    if (any_conservative) {
+    static int detailed_reports = 0;
+    if (any_conservative && detailed_reports++ < 3) {
         dump_backtrace();
         auto graph = heap.dump_graph();
         Vector<ByteString> labels;
@@ -467,13 +481,31 @@ void Internals::gc_async(GC::Ref<WebIDL::Promise> promise)
 {
     // Queue a LibCore event to run the collection, so that it runs outside the JS execution context with as small a
     // stack as possible.
-    bool diagnose = window().associated_document().url().serialize().contains("svg-image-environments"sv);
-    Core::deferred_invoke([promise = GC::make_root(promise), diagnose] {
+    int diagnose = 0;
+    {
+        auto url = window().associated_document().url().serialize();
+        if (url.contains("svg-image-environments"sv))
+            diagnose = 1;
+        else if (url.contains("zz-docdiag"sv))
+            diagnose = 30;
+    }
+    static u32 last_requester = 0;
+    static int round = 0;
+    if (diagnose) {
+        auto requester = window().associated_document().url().serialize().to_byte_string();
+        if (requester.hash() != last_requester) {
+            last_requester = requester.hash();
+            round = 0;
+            dbgln("SVGDIAG gcAsync first requested by {}", requester);
+        }
+        ++round;
+    }
+    Core::deferred_invoke([promise = GC::make_root(promise), diagnose, round = round] {
         auto& realm = WebIDL::promise_realm(*promise);
         HTML::TemporaryExecutionContext execution_context { realm };
         realm.vm().heap().collect_garbage();
         if (diagnose)
-            diagnose_retained_svg_images(realm.vm().heap());
+            diagnose_retained_cells(realm.vm().heap(), diagnose, round);
         WebIDL::resolve_promise(*promise);
     });
 }
