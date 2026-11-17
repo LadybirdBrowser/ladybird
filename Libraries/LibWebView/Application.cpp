@@ -663,15 +663,10 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         }
     }
 
-    // Reports belong to the profile they came from, whose own setting decides what happens to them. A temporary
-    // profile takes nothing over, since it would take it to its grave.
+    // Reports belong to the profile they came from, whose own setting decides what happens to them.
     CrashReport::set_sandbox_is_disabled(m_browser_options.disable_sandbox);
     auto& crash_report_store = CrashReportStore::the();
     crash_report_store.set_directory(LexicalPath::join(profile().paths().data, "CrashReports"sv).string());
-    if (!profile().is_temporary()) {
-        if (auto result = crash_report_store.adopt_reports_from(CrashReportStore::default_directory()); result.is_error())
-            warnln("Could not move crash reports into the profile: {}", result.error());
-    }
     if (captures_browser_crashes()) {
         if (auto result = crash_report_store.initialize_browser_crash_handler(); result.is_error())
             warnln("Could not prepare Browser crash reporting: {}", result.error());
