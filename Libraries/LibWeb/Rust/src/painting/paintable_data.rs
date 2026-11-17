@@ -266,6 +266,11 @@ impl CommittedSideData {
     pub(crate) fn fragments(&self) -> &[FragmentRecord] {
         self.inline_content.as_ref().map_or(&[], |content| &content.fragments)
     }
+    pub(crate) fn glyph_ink_of_lines(&self) -> &[crate::css::css_pixels::CssPixelRect] {
+        self.inline_content
+            .as_ref()
+            .map_or(&[], |content| content.glyph_ink_of_lines())
+    }
     /// For a line root, the indices of the fragments of `node` among its fragments, in fragment order.
     pub(crate) fn fragment_indices_of(&self, node: NodeSlotId) -> &[u32] {
         self.inline_content

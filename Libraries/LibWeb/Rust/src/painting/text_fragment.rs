@@ -283,8 +283,15 @@ pub(crate) fn rect_for_selection_offsets(
     fragment: &FragmentRecord,
     offsets: SelectionOffsets,
 ) -> CssPixelRect {
+    rect_for_selection_offsets_of_fragment_at(fragment, absolute_rect(layout_arena, fragment), offsets)
+}
+
+fn rect_for_selection_offsets_of_fragment_at(
+    fragment: &FragmentRecord,
+    mut rect: CssPixelRect,
+    offsets: SelectionOffsets,
+) -> CssPixelRect {
     let horizontal = is_horizontal(fragment);
-    let mut rect = absolute_rect(layout_arena, fragment);
     let length = fragment.length_in_code_units;
 
     let start_in_text = offsets.start.min(length);
@@ -339,6 +346,48 @@ pub(crate) fn rect_for_selection_offsets(
         }
     }
     rect
+}
+
+pub(crate) fn glyph_rect_of_fragment_at(
+    fragment: &FragmentRecord,
+    run: &crate::layout::inline_content::GlyphRunRecord,
+    rect: CssPixelRect,
+) -> CssPixelRect {
+    let glyph = run.bounding_box;
+    let pixel = CssPixels::nearest_value_for_f32;
+    if is_horizontal(fragment) {
+        CssPixelRect::new(
+            rect.x + pixel(glyph.x),
+            rect.y + fragment.baseline + pixel(glyph.y),
+            pixel(glyph.width),
+            pixel(glyph.height),
+        )
+    } else {
+        CssPixelRect::new(
+            rect.right() - fragment.baseline - pixel(glyph.y + glyph.height),
+            rect.y + pixel(glyph.x),
+            pixel(glyph.height),
+            pixel(glyph.width),
+        )
+    }
+}
+
+pub(crate) fn glyph_ink_rect_in_containing_block(fragment: &FragmentRecord) -> CssPixelRect {
+    let Some(run) = &fragment.glyph_run else {
+        return CssPixelRect::default();
+    };
+    let rect = rect_in_containing_block(fragment);
+    let mut ink = rect;
+    ink.unite(glyph_rect_of_fragment_at(fragment, run, rect));
+    ink.unite(rect_for_selection_offsets_of_fragment_at(
+        fragment,
+        rect,
+        SelectionOffsets {
+            start: 0,
+            end: fragment.length_in_code_units,
+        },
+    ));
+    ink
 }
 
 /// Like `rect_for_selection_offsets()`, but with one rect for each visually separate piece of the range: Code units

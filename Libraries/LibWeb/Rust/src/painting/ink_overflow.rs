@@ -5,7 +5,7 @@
  */
 
 use crate::css::computed_value_views::ComputedValuesView;
-use crate::css::css_enums::{line_style, overflow, text_decoration_line, text_decoration_style, writing_mode};
+use crate::css::css_enums::{line_style, overflow, text_decoration_line, text_decoration_style};
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
@@ -209,9 +209,40 @@ pub(crate) fn own_ink_overflow(
             }
         }
         let filter = fragment_ownership::effective_filter(source, owner);
-        filter.for_each_owned_fragment_index(side.fragments().len(), |index| {
-            include_text_fragment(source, paint_state, root, index as u32, &mut ink.rect);
-        });
+        let owns_every_fragment = owner == root && filter.include_everything && filter.excluded.is_empty();
+        let mut text_ink = CssPixelRect::default();
+        if owns_every_fragment {
+            for (line_index, line_ink) in side.glyph_ink_of_lines().iter().enumerate() {
+                if !line_ink.is_empty() {
+                    text_ink.unite(line_ink.translated_by(positions.of_line(side.lines(), line_index)));
+                }
+            }
+            for (index, fragment) in side.fragments().iter().enumerate() {
+                if fragment.glyph_run.is_none() {
+                    continue;
+                }
+                let rect = text_fragment::rect_in_containing_block(fragment)
+                    .translated_by(positions.of_line(side.lines(), fragment.line_index as usize));
+                include_text_paint_effects(source, paint_state, root, index as u32, rect, &mut text_ink);
+            }
+            if crate::painting::record::ink_bounds::verification().enabled {
+                let mut text_ink_of_each_fragment = CssPixelRect::default();
+                for index in 0..side.fragments().len() {
+                    include_text_fragment(source, paint_state, root, index as u32, &mut text_ink_of_each_fragment);
+                }
+                assert!(
+                    text_ink == text_ink_of_each_fragment
+                        || (text_ink.is_empty() && text_ink_of_each_fragment.is_empty())
+                        || (css_rect_is_saturated(text_ink) && css_rect_is_saturated(text_ink_of_each_fragment)),
+                    "The glyph ink kept with the lines of {root:?} is stale: {text_ink:?}, each fragment gives {text_ink_of_each_fragment:?}"
+                );
+            }
+        } else {
+            filter.for_each_owned_fragment_index(side.fragments().len(), |index| {
+                include_text_fragment(source, paint_state, root, index as u32, &mut text_ink);
+            });
+        }
+        ink.rect.unite(text_ink);
     }
     ink.unbounded |= css_rect_is_saturated(ink.rect);
     ink
@@ -281,33 +312,38 @@ fn include_text_fragment(
 ) {
     let side = source.committed_side_data(root);
     let fragment = &side.fragments()[index as usize];
+    if fragment.glyph_run.is_none() {
+        return;
+    }
+    let rect = text_fragment::absolute_rect(source, fragment);
+    let rect_in_containing_block = text_fragment::rect_in_containing_block(fragment);
+    bounds.unite(
+        text_fragment::glyph_ink_rect_in_containing_block(fragment)
+            .translated(rect.x - rect_in_containing_block.x, rect.y - rect_in_containing_block.y),
+    );
+    include_text_paint_effects(source, state, root, index, rect, bounds);
+}
+
+fn include_text_paint_effects(
+    source: &impl PaintRead,
+    state: &PublishedPaintState,
+    root: NodeSlotId,
+    index: u32,
+    rect: CssPixelRect,
+    bounds: &mut CssPixelRect,
+) {
+    let side = source.committed_side_data(root);
+    let fragment = &side.fragments()[index as usize];
     let Some(run) = &fragment.glyph_run else {
         return;
     };
-    let rect = text_fragment::absolute_rect(source, fragment);
-    bounds.unite(rect);
-    let glyph = run.bounding_box;
-    let pixel = CssPixels::nearest_value_for_f32;
-    let glyph_rect = if fragment.writing_mode == writing_mode::HORIZONTAL_TB {
-        CssPixelRect::new(
-            rect.x + pixel(glyph.x),
-            rect.y + fragment.baseline + pixel(glyph.y),
-            pixel(glyph.width),
-            pixel(glyph.height),
-        )
-    } else {
-        CssPixelRect::new(
-            rect.right() - fragment.baseline - pixel(glyph.y + glyph.height),
-            rect.y + pixel(glyph.x),
-            pixel(glyph.height),
-            pixel(glyph.width),
-        )
-    };
-    bounds.unite(glyph_rect);
     let Some(style) = source.node_style_if_live(fragment.style_source) else {
         return;
     };
-    bounds.unite(inflated(glyph_rect, text_stroke_reach(style)));
+    bounds.unite(inflated(
+        text_fragment::glyph_rect_of_fragment_at(fragment, run, rect),
+        text_stroke_reach(style),
+    ));
     let mut span = text::RenderSpan {
         fragment_index: index,
         start_code_unit: 0,
@@ -372,14 +408,6 @@ fn include_text_fragment(
     for set in text_decoration::decoration_sets_for_span(source, root, &span) {
         bounds.unite(text_decoration::decoration_ink_bounds(rect, &set));
     }
-    bounds.unite(text_fragment::rect_for_selection_offsets(
-        source,
-        fragment,
-        text_fragment::SelectionOffsets {
-            start: 0,
-            end: fragment.length_in_code_units,
-        },
-    ));
 }
 
 fn has_resampled_ink(style: crate::layout::ComputedValuesView<'_>) -> bool {
