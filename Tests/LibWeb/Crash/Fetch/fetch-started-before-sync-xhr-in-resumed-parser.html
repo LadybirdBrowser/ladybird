@@ -1,0 +1,60 @@
+<!doctype html>
+<html class="test-wait">
+    <body>
+        <script>
+            const runId = crypto.randomUUID();
+            const styleSheetPath = `fetch-started-before-sync-xhr-style-sheet-${runId}`;
+
+            const request = new XMLHttpRequest();
+            request.open("POST", "/echo", false);
+            request.setRequestHeader("Content-Type", "application/json");
+            request.send(
+                JSON.stringify({
+                    method: "GET",
+                    path: `/echo/${styleSheetPath}`,
+                    status: 200,
+                    headers: { "Content-Type": "text/css" },
+                    wait_for_unblock: styleSheetPath,
+                })
+            );
+
+            async function waitForRequest(path) {
+                while (true) {
+                    const response = await fetch(`/recorded-request-headers${path}`, { cache: "no-store" });
+                    if (response.ok) return;
+                    await new Promise(resolve => setTimeout(resolve, 5));
+                }
+            }
+
+            async function finish() {
+                await fetch(`/unblock/${styleSheetPath}`, { cache: "no-store" });
+                document.documentElement.classList.remove("test-wait");
+            }
+
+            window.addEventListener("message", async event => {
+                if (event.data === "child-parser-about-to-block") {
+                    // The child's parser waits for the style sheet before it runs its next script.
+                    await waitForRequest(`/echo/${styleSheetPath}`);
+
+                    // Removing the style sheet resumes the child's parser from a deferred invocation. The fetch below
+                    // is started after it, and the child's script starts a sync XHR before the fetch has started.
+                    const childDocument = document.querySelector("iframe").contentDocument;
+                    childDocument.querySelector("link").remove();
+                    fetch("data:text/plain,started-before-the-sync-xhr").then(finish, finish);
+                }
+            });
+
+            const iframe = document.createElement("iframe");
+            iframe.srcdoc = `
+                <script>parent.postMessage("child-parser-about-to-block", "*");<\/script>
+                <link rel="stylesheet" href="/echo/${styleSheetPath}">
+                <script>
+                    const request = new XMLHttpRequest();
+                    request.open("GET", "data:text/plain,sync", false);
+                    request.send();
+                <\/script>
+            `;
+            document.body.append(iframe);
+        </script>
+    </body>
+</html>

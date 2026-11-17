@@ -9,7 +9,9 @@
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Queue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
 #include <LibWeb/Fetch/Engine/EngineCommandSink.h>
@@ -32,11 +34,17 @@ protected:
 
     FetchExecutorServices const& services() const { return m_services; }
 
-    virtual void post_task(Function<void()>) = 0;
+    // Answers false if the task can never run, as the loop it would run on is gone.
+    virtual bool post_task(Function<void()>) = 0;
 
 private:
+    void run_pending_commands();
+    void drop_pending_commands();
+
     FetchExecutorServices m_services;
     NonnullOwnPtr<EngineCommandSink> m_engine;
+    Mutex m_pending_commands_mutex;
+    Queue<EngineCommand> m_pending_commands;
     Atomic<bool> m_shut_down { false };
 };
 
