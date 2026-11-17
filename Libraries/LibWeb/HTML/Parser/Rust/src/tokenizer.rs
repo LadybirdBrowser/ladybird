@@ -392,6 +392,12 @@ impl HtmlTokenizer {
         self.insertion_point = None;
     }
 
+    /// Undefine the insertion point along with every old insertion point that is waiting to be restored.
+    pub fn discard_insertion_points(&mut self) {
+        self.insertion_point = None;
+        self.old_insertion_points.fill(None);
+    }
+
     pub fn is_insertion_point_defined(&self) -> bool {
         self.insertion_point.is_some()
     }
