@@ -1,0 +1,8 @@
+Ladybird computes a media element’s seekable ranges from the attached
+MediaSource’s live seekable range and its buffered ranges the way the
+spec defines, as the other engines do: Gecko in its MediaSource::
+SetLiveSeekableRange() and MediaSourceDecoder::GetSeekableImpl(), WebKit
+in MediaSource::setLiveSeekableRange() and MediaSourcePrivate::
+seekable(), and Blink in MediaSource::setLiveSeekableRange() and
+MediaSource::SeekableInternal(). Each of them returns the union of the
+live range and the buffered ranges for an infinite duration.
