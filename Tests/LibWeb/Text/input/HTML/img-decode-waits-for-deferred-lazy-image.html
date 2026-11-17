@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="margin-top: 10000px"><img id="lazy" loading="lazy" src="../../../Assets/120.png?decode-waits-for-deferred-lazy-image"></div>
+<script>
+    asyncTest(async done => {
+        const lazy = document.getElementById("lazy");
+        let settled = false;
+        const decoded = lazy.decode().then(
+            () => `resolved, complete=${lazy.complete}, naturalWidth=${lazy.naturalWidth}`,
+            error => `rejected: ${error.name}`);
+        decoded.then(() => { settled = true; });
+
+        const eager = new Image();
+        eager.src = lazy.src;
+        await new Promise(resolve => eager.onload = resolve);
+        for (let i = 0; i < 3; ++i)
+            await animationFrame();
+        println(`settled while deferred: ${settled}`);
+
+        lazy.loading = "eager";
+        println(await decoded);
+        done();
+    });
+</script>
