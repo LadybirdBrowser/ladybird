@@ -324,9 +324,8 @@ TEST_CASE(test_bmp_rle24)
     auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 1 }));
-    EXPECT_EQ(frame.image->format(), Gfx::BitmapFormat::RGBx8888);
-    EXPECT_EQ(frame.image->begin()[0] & 0x00ffffffU, 0x00332211U);
-    EXPECT_EQ(frame.image->begin()[1] & 0x00ffffffU, 0x00332211U);
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0x11, 0x22, 0x33));
+    EXPECT_EQ(frame.image->get_pixel(1, 0), Gfx::Color(0x11, 0x22, 0x33));
 }
 
 TEST_CASE(test_bmp_rle4_rows_with_odd_width)
@@ -382,6 +381,47 @@ TEST_CASE(test_bmp_v4_rgb16_with_empty_alpha_mask_is_opaque)
     auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_data));
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1, 1 }));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
+}
+
+TEST_CASE(test_bmp_rle8_skipped_pixels_are_transparent)
+{
+    // 4x1 BI_RLE8 image: one red pixel, a delta that skips two pixels, then one green pixel.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 40, 4, 1, 8, 1 /* BI_RLE8 */, 3);
+    append_u32(dib, 0x0000ff); // Blue.
+    append_u32(dib, 0xff0000); // Red.
+    append_u32(dib, 0x00ff00); // Green.
+    auto pixel_offset = dib.size();
+    Array<u8, 10> rle_data { 1, 1, 0, 2, 2, 0, 1, 2, 0, 1 };
+    dib.append(rle_data.data(), rle_data.size());
+    auto bmp_data = make_bmp_file(dib, pixel_offset);
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 4, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
+    EXPECT_EQ(frame.image->get_pixel(1, 0).alpha(), 0);
+    EXPECT_EQ(frame.image->get_pixel(2, 0).alpha(), 0);
+    EXPECT_EQ(frame.image->get_pixel(3, 0), Gfx::Color::NamedColor::Green);
+}
+
+TEST_CASE(test_bmp_rle8_top_down)
+{
+    // 2x2 top-down BI_RLE8 image: a red row, then a row that ends after one green pixel.
+    Vector<u8> dib;
+    append_bitmap_info_header(dib, 40, 2, -2, 8, 1 /* BI_RLE8 */, 2);
+    append_u32(dib, 0xff0000); // Red.
+    append_u32(dib, 0x00ff00); // Green.
+    auto pixel_offset = dib.size();
+    Array<u8, 8> rle_data { 2, 0, 0, 0, 1, 1, 0, 1 };
+    dib.append(rle_data.data(), rle_data.size());
+    auto bmp_data = make_bmp_file(dib, pixel_offset);
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 2 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
+    EXPECT_EQ(frame.image->get_pixel(1, 0), Gfx::Color::NamedColor::Red);
+    EXPECT_EQ(frame.image->get_pixel(0, 1), Gfx::Color::NamedColor::Green);
+    EXPECT_EQ(frame.image->get_pixel(1, 1).alpha(), 0);
 }
 
 TEST_CASE(test_ico_malformed_frame)
