@@ -2527,7 +2527,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         } else if style.width().contains_percentage()
             && !matches!(available_space.inline_size, AvailableSize::Definite(_))
         {
-            CssPixels::default()
+            // https://drafts.csswg.org/css-sizing-3/#min-content-zero
+            // NB: A width with a cyclic percentage that isn't treated as auto resolves that percentage against zero,
+            //     which keeps any length in it: calc(100% + 80px) contributes 80px.
+            let mut zero_constraints = constraints;
+            zero_constraints.percentage_basis_inline_size = Some(CssPixels::default());
+            self.calculate_inner_inline_size(sized, available_space.inline_size, style.width(), zero_constraints)
         } else {
             self.calculate_inner_inline_size(sized, available_space.inline_size, style.width(), constraints)
         };
@@ -3117,11 +3122,15 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let answered_from_style = |size| Some(self.content_inline_size_answered_from_style(node, block_size, size));
         // https://drafts.csswg.org/css-sizing-3/#min-content-zero
         // input with any type that is not "button-like"; this can vary depending on the UA.
-        // NB: Text entry inputs and textareas are compressible even though their layout boxes are not replaced boxes.
-        let is_compressible_text_input = facts.resolves_cyclic_percentages_like_replaced_box()
+        // NB: Text entry inputs, textareas, and selects are compressible even though their layout boxes are not
+        //     replaced boxes.
+        // NB: Only a width that resolves to a length once its percentage does is compressed this way. Any other width,
+        //     such as fit-content(50%), is measured, since resolving it would need this very min-content size.
+        let is_compressible_form_control = style.width().contains_percentage()
+            && style.width().is_length_percentage()
             && !facts.is_replaced_box()
-            && style.width().contains_percentage();
-        if is_compressible_text_input
+            && facts.resolves_cyclic_percentages_like_replaced_box();
+        if is_compressible_form_control
             || (facts.is_replaced_box()
                 && (style.width().contains_percentage() || style.max_width().contains_percentage()))
         {
@@ -3140,7 +3149,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             } else {
                 CssPixels::default()
             };
-            if is_compressible_text_input {
+            if is_compressible_form_control {
                 return answered_from_style(
                     self.calculate_inner_inline_size(sized, AvailableSize::MinContent, style.width(), zero_constraints)
                         .max(minimum),

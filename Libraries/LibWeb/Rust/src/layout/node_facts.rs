@@ -1034,9 +1034,24 @@ impl<'pass> NodeFacts<'pass> {
 
     /// https://drafts.csswg.org/css-sizing-3/#min-content-zero
     /// A box whose cyclic percentage width resolves against zero for its min-content contribution: a replaced box, or a
-    /// compressible text control (a text entry input or a textarea).
+    /// compressible form control (a text entry input, a textarea, or a select).
     pub(crate) fn resolves_cyclic_percentages_like_replaced_box(&self) -> bool {
-        self.is_replaced_box() || self.is_text_input() || self.data().kind.get() == NodeKind::TextAreaBox
+        self.is_replaced_box()
+            || self.is_text_input()
+            || self.data().kind.get() == NodeKind::TextAreaBox
+            || self.is_select_box()
+    }
+
+    /// Whether the box is a select element's own box. Its kind is that of any box with its display type, so only the
+    /// element's construction facts tell it apart, and reading them takes a lookup in the style store.
+    pub(crate) fn is_select_box(&self) -> bool {
+        use crate::css::style::bridge::element_construction_fact;
+        let arena = self.pass.arena();
+        arena.dom_node_style_node(self.node).is_some_and(|element| {
+            arena.with_style_store(|engine| engine.element_construction_facts(element))
+                & element_construction_fact::IS_HTML_SELECT_ELEMENT
+                != 0
+        })
     }
 
     pub(crate) fn is_range_input_box(&self) -> bool {
