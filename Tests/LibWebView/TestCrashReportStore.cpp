@@ -90,6 +90,8 @@ TEST_CASE(a_stored_report_is_named_after_the_time_of_the_crash)
 TEST_CASE(unrelated_files_are_not_reports)
 {
     EXPECT(!WebView::CrashReportStore::is_saved_report_name("notes.txt"sv));
+    EXPECT(!WebView::CrashReportStore::is_saved_report_name("WebContent-abc123.txt"sv));
+    EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04X05-06-07Z-WebContent-abc123.txt"sv));
     EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-Firefox-abc123.txt"sv));
     EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-WebContent-abc123.log"sv));
     EXPECT(WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-WebContent-abc123.txt"sv));
@@ -170,25 +172,6 @@ TEST_CASE(a_seen_report_is_no_longer_pending)
     EXPECT(!MUST(store.pending_report_names(now)).is_empty());
 }
 
-TEST_CASE(a_report_from_before_the_hard_cutoff_date_is_not_pending)
-{
-    cleanup();
-    ScopeGuard guard = cleanup;
-
-    auto before = report_name("2026-10-02T19-59-59Z"sv);
-    auto at = report_name("2026-10-02T20-00-00Z"sv, "Browser"sv);
-    write_file(before, "Too old\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 2, 19, 59, 59, 0));
-    write_file(at, "Recent enough\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 2, 20, 0, 0, 0));
-    auto store = test_store();
-
-    auto soon_after = UnixDateTime::from_unix_time_parts(2026, 10, 3, 0, 0, 0, 0);
-    EXPECT_EQ(MUST(store.pending_report_names(soon_after)), Vector<ByteString> { at });
-
-    // The report is only ignored, so it can still be read.
-    EXPECT_EQ(MUST(store.saved_report(before)).text, "Too old\n"sv);
-    EXPECT_EQ(directory_entries().size(), 2u);
-}
-
 TEST_CASE(a_report_older_than_30_days_is_not_pending)
 {
     cleanup();
@@ -238,7 +221,7 @@ TEST_CASE(a_stored_report_is_as_old_as_its_crash)
 
     // A crash recovered at a later launch is still as old as when it happened.
     auto store = test_store();
-    auto crashed_at = UnixDateTime::from_unix_time_parts(2026, 10, 3, 0, 0, 0, 0);
+    auto crashed_at = UnixDateTime::from_unix_time_parts(2026, 2, 25, 0, 0, 0, 0);
     auto name = MUST(store.store_report(WebView::ProcessType::Browser, "A report\n"sv, crashed_at));
 
     EXPECT_EQ(MUST(store.pending_report_names(crashed_at + AK::Duration::from_seconds(30 * 24 * 60 * 60))), Vector<ByteString> { name });
@@ -295,16 +278,6 @@ TEST_CASE(retention_only_drops_the_oldest_seen_reports)
     for (u32 i = 0; i < 3; ++i)
         awaiting_review.append(store_report_modified_at(i, 500 + i));
 
-    // Reports saved before names began with the crash time are seen reports like any other.
-    auto legacy_name = "WebContent-legacy.txt"sv;
-    write_file(legacy_name, "A legacy report\n"sv);
-    {
-        timespec times[2] { { 1, 0 }, { 1, 0 } };
-        auto file = MUST(directory.open(legacy_name, Core::File::OpenMode::Read));
-        VERIFY(futimens(file->fd(), times) == 0);
-    }
-    MUST(store.mark_seen(legacy_name));
-
     Vector<ByteString> seen;
     for (u32 i = 0; i < 21; ++i) {
         seen.append(store_report_modified_at(100 + i, 1000 + i));
@@ -318,7 +291,6 @@ TEST_CASE(retention_only_drops_the_oldest_seen_reports)
 
     auto seen_entries = directory_entries("Seen"sv);
     EXPECT_EQ(seen_entries.size(), 20u);
-    EXPECT(!seen_entries.contains_slow(legacy_name));
     EXPECT(!seen_entries.contains_slow(seen[0]));
     for (auto const& name : seen.span().slice(1))
         EXPECT(seen_entries.contains_slow(name));

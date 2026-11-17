@@ -51,20 +51,13 @@ CrashReportStore& CrashReportStore::the()
 bool CrashReportStore::is_saved_report_name(StringView name)
 {
     constexpr auto timestamp_pattern = "####-##-##T##-##-##Z-"sv;
-    if (!name.ends_with(".txt"sv))
+    if (!name.ends_with(".txt"sv) || name.length() <= timestamp_pattern.length())
         return false;
-    auto suffix = name;
-    if (name.length() > timestamp_pattern.length()) {
-        bool has_timestamp = true;
-        for (size_t i = 0; i < timestamp_pattern.length(); ++i) {
-            if (timestamp_pattern[i] == '#' ? !is_ascii_digit(name[i]) : name[i] != timestamp_pattern[i]) {
-                has_timestamp = false;
-                break;
-            }
-        }
-        if (has_timestamp)
-            suffix = name.substring_view(timestamp_pattern.length());
+    for (size_t i = 0; i < timestamp_pattern.length(); ++i) {
+        if (timestamp_pattern[i] == '#' ? !is_ascii_digit(name[i]) : name[i] != timestamp_pattern[i])
+            return false;
     }
+    auto suffix = name.substring_view(timestamp_pattern.length());
     for (auto type : { ProcessType::Browser, ProcessType::WebContent,
              ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::MediaServer, ProcessType::AudioServer, ProcessType::VideoDecoderServer, ProcessType::Compositor }) {
         auto prefix = ByteString::formatted("{}-", process_name_from_type(type));
@@ -84,7 +77,6 @@ static constexpr auto pending_suffix = ".pending"sv;
 static constexpr off_t maximum_report_size = 1048576;
 static constexpr size_t retained_report_count = 20;
 static constexpr size_t maximum_waiting_report_count = 100;
-static constexpr auto hard_cutoff_date = UnixDateTime::from_unix_time_parts(2026, 10, 2, 20, 0, 0, 0);
 static constexpr auto maximum_unsent_report_age = AK::Duration::from_seconds(30ll * 24 * 60 * 60);
 
 static NeverDestroyed<ByteString> s_browser_pending_path;
@@ -259,7 +251,7 @@ ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names(UnixDateTime 
 {
     // Runs on every launch, so this only lists names instead of reading every report.
     auto directory = TRY(open_report_directory(m_directory));
-    auto earliest_time = max(hard_cutoff_date, now - maximum_unsent_report_age);
+    auto earliest_time = now - maximum_unsent_report_age;
 
     Vector<ByteString> names;
     Core::DirIterator iterator(directory.path().string(), Core::DirIterator::SkipDots);
