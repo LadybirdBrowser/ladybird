@@ -1,0 +1,4 @@
+Additional environments: 1
+Additional SVG images: 2
+Environment collected: true
+Images collected: true

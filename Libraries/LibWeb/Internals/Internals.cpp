@@ -10,6 +10,7 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonParser.h>
 #include <AK/NumericLimits.h>
+#include <AK/StackInfo.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibAudio/ClientConnection.h>
@@ -134,6 +135,7 @@
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/WebDriver/Response.h>
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
+#include <dlfcn.h>
 
 namespace Web::Internals {
 
@@ -401,14 +403,77 @@ u32 Internals::worker_agent_count() const
     return Bindings::worker_agent_count();
 }
 
+// TEMP DIAGNOSTICS: kept out of line so that the frame of the collection's caller stays as it is without them.
+[[gnu::noinline]] static void diagnose_retained_svg_images(GC::Heap& heap)
+{
+    static int round = 0;
+    ++round;
+    auto paths = heap.find_retaining_paths([](GC::Cell& cell) { return GC::class_name_of(cell) == "SVGDecodedImageData"sv; }, 4);
+    bool any_conservative = false;
+    for (auto const& path : paths) {
+        StringBuilder steps;
+        for (auto const& step : path.steps)
+            steps.appendff(" > {}", step.class_name);
+        dbgln("SVGDIAG round {} root={} raw={:#x} half={} top-{} path:{}", round, GC::Heap::describe_root(path.root), path.root.raw_value, path.root.compressed_half, path.root.offset_from_stack_top, steps.string_view());
+        if (path.root.type == GC::HeapRoot::Type::StackPointer || path.root.type == GC::HeapRoot::Type::RegisterPointer)
+            any_conservative = true;
+    }
+    if (any_conservative) {
+        dump_backtrace();
+        auto graph = heap.dump_graph();
+        Vector<ByteString> labels;
+        if (auto frames = graph.get_array("stack_frames"sv); frames.has_value()) {
+            size_t index = 0;
+            frames->for_each([&](JsonValue const& frame) {
+                auto label = frame.as_object().get_string("label"sv).map([](auto const& string) { return string.to_byte_string(); }).value_or("?"sv);
+                dbgln("SVGDIAG stack_frame {} size={} {}", index++, frame.as_object().get_u64("size"sv).value_or(0), label);
+                labels.append(move(label));
+            });
+        }
+        graph.for_each_member([&](auto const& key, JsonValue const& value) {
+            if (!value.is_object())
+                return;
+            auto root = value.as_object().get_string("root"sv);
+            if (!root.has_value() || !(root->contains("StackPointer"sv) || root->contains("RegisterPointer"sv)))
+                return;
+            auto frame_index = value.as_object().get_u64("stack_frame_index"sv);
+            ByteString frame_label = "-"sv;
+            if (frame_index.has_value())
+                frame_label = ByteString::formatted("{} {}", *frame_index, *frame_index < labels.size() ? labels[*frame_index] : ByteString {});
+            dbgln("SVGDIAG conservative_root cell={} {} {} class={} frame={}", key, *root, value.as_object().get_string("diag"sv).value_or({}), value.as_object().get_string("class_name"sv).value_or({}), frame_label);
+        });
+        for (auto const& path : paths)
+            dbgln("SVGDIAG path_root_cell={}", bit_cast<FlatPtr>(path.steps.first().cell.ptr()));
+        StackInfo stack_info;
+        auto* frame = static_cast<FlatPtr const*>(__builtin_frame_address(0));
+        for (int depth = 0; depth < 64; ++depth) {
+            auto address = bit_cast<FlatPtr>(frame);
+            if (address < stack_info.base() || address + 2 * sizeof(FlatPtr) > stack_info.top() || address % sizeof(FlatPtr))
+                break;
+            auto return_address = frame[1];
+            Dl_info info {};
+            dladdr(bit_cast<void*>(return_address), &info);
+            dbgln("SVGDIAG frame top-{} ra={:#x} {} {}", stack_info.top() - address, return_address - bit_cast<FlatPtr>(info.dli_fbase), info.dli_sname ? info.dli_sname : "?", info.dli_fname ? info.dli_fname : "?");
+            auto* next = bit_cast<FlatPtr const*>(frame[0]);
+            if (next <= frame)
+                break;
+            frame = next;
+        }
+    }
+    dbgln("SVGDIAG round {} done", round);
+}
+
 void Internals::gc_async(GC::Ref<WebIDL::Promise> promise)
 {
     // Queue a LibCore event to run the collection, so that it runs outside the JS execution context with as small a
     // stack as possible.
-    Core::deferred_invoke([promise = GC::make_root(promise)] {
+    bool diagnose = window().associated_document().url().serialize().contains("svg-image-environments"sv);
+    Core::deferred_invoke([promise = GC::make_root(promise), diagnose] {
         auto& realm = WebIDL::promise_realm(*promise);
         HTML::TemporaryExecutionContext execution_context { realm };
         realm.vm().heap().collect_garbage();
+        if (diagnose)
+            diagnose_retained_svg_images(realm.vm().heap());
         WebIDL::resolve_promise(*promise);
     });
 }

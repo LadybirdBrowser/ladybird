@@ -1,0 +1,99 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    async function checkSVGImages() {
+        const output = [];
+        const println = line => output.push(line);
+
+        const countCells = () => {
+            const counts = { environments: 0, images: 0 };
+            for (const cell of Object.values(JSON.parse(internals.dumpGCGraph()))) {
+                if (cell.class_name === "SVGDecodedImageData::SVGPageClient") ++counts.environments;
+                else if (cell.class_name === "SVGDecodedImageData") ++counts.images;
+            }
+            return counts;
+        };
+
+        await internals.gcAsync();
+        const initial = countCells();
+
+        let frame = document.createElement("iframe");
+        frame.srcdoc = ["red", "blue"]
+            .map(
+                color =>
+                    `<img src='data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><style>rect { fill: ${color}; }</style><rect width="10" height="10"/></svg>`)}'>`
+            )
+            .join("");
+        await new Promise(resolve => {
+            frame.onload = resolve;
+            document.body.append(frame);
+        });
+        const loaded = countCells();
+        println(`Additional environments: ${loaded.environments - initial.environments}`);
+        println(`Additional SVG images: ${loaded.images - initial.images}`);
+
+        // The iframe's navigable, and with it the images, stays alive until its document has been unloaded, which
+        // happens in a task queued once the UI process has handled the iframe's removal.
+        await new Promise(resolve => {
+            frame.contentWindow.onunload = resolve;
+            frame.remove();
+            frame = null;
+        });
+        // A stale pointer on the stack can keep a cell alive through one conservative collection.
+        let collected;
+        for (let attempt = 0; attempt < 10; ++attempt) {
+            await internals.gcAsync();
+            collected = countCells();
+            if (collected.environments === initial.environments && collected.images === initial.images)
+                break;
+        }
+        if (collected.environments !== initial.environments || collected.images !== initial.images) {
+            let extra = 0;
+            for (; extra < 300; ++extra) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+                await internals.gcAsync();
+                const now = countCells();
+                if (now.environments === initial.environments && now.images === initial.images)
+                    break;
+            }
+            println(`DIAG extra rounds until collected: ${extra} (300 means never)`);
+        }
+        println(`Environment collected: ${collected.environments === initial.environments}`);
+        println(`Images collected: ${collected.images === initial.images}`);
+
+        return output;
+    }
+
+    promiseTest(async () => {
+        // Cell counts must belong to this test, rather than documents left over in a reused WebContent process.
+        const server = httpTestServer();
+        const url = new URL(await server.createEcho("GET", "/svg-image-environments", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!doctype html><body><script>
+                (${checkSVGImages.toString()})().then(
+                    output => parent.postMessage({ output }, "*"),
+                    error => parent.postMessage({ error: String(error) }, "*")
+                );
+            <\/script>`,
+        }));
+        url.hostname = uniqueLocalhostHostname("svg-environments");
+        const frame = document.createElement("iframe");
+        const result = new Promise(resolve => {
+            window.addEventListener("message", function receive(event) {
+                if (event.source !== frame.contentWindow) return;
+                window.removeEventListener("message", receive);
+                resolve(event.data);
+            });
+        });
+        frame.src = url;
+        document.body.append(frame);
+        try {
+            const { output, error } = await result;
+            if (error) throw new Error(error);
+            for (const line of output) println(line);
+        } finally {
+            frame.remove();
+        }
+    });
+</script>

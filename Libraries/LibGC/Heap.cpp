@@ -563,8 +563,15 @@ static void add_possible_value(PossiblePointers& possible_pointers, FlatPtr data
 {
     // A compiler may keep only a compressed cell pointer alive across a collection, in a register or in a spill slot that
     // shares a word with other data, so either half of a word may be one.
-    add_possible_compressed_pointer(possible_pointers, static_cast<u32>(data), origin, bounds);
-    add_possible_compressed_pointer(possible_pointers, static_cast<u32>(data >> 32), origin, bounds);
+    origin.raw_value = data;
+    {
+        auto low = origin;
+        low.compressed_half = 1;
+        add_possible_compressed_pointer(possible_pointers, static_cast<u32>(data), low, bounds);
+        auto high = origin;
+        high.compressed_half = 2;
+        add_possible_compressed_pointer(possible_pointers, static_cast<u32>(data >> 32), high, bounds);
+    }
 
     // Because NanBoxedValue stores heap offsets in the payload, decode
     // pointer-backed values relative to the heap region before checking the
@@ -660,6 +667,7 @@ public:
                 node.set("root"sv, Heap::describe_root(*it.value.root_origin));
                 if (it.value.root_origin->stack_frame_index.has_value())
                     node.set("stack_frame_index"sv, it.value.root_origin->stack_frame_index.value());
+                node.set("diag"sv, MUST(String::formatted("raw={:#x} half={} top-{}", it.value.root_origin->raw_value, it.value.root_origin->compressed_half, it.value.root_origin->offset_from_stack_top)));
             }
             node.set("class_name"sv, it.value.class_name);
             node.set("edges"sv, edges);
@@ -1450,7 +1458,7 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
                 continue;
             }
             auto data = *reinterpret_cast<FlatPtr*>(stack_address);
-            add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer, .stack_frame_index = frame_index_for_stack_address(stack_address) }, bounds);
+            add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer, .stack_frame_index = frame_index_for_stack_address(stack_address), .offset_from_stack_top = stack_top - stack_address }, bounds);
             gather_asan_fake_stack_roots(possible_pointers, data, bounds, stack_reference, stack_top);
         }
     }
