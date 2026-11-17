@@ -37,7 +37,7 @@ public:
         // Called from the pump thread, in the order the frames are lent.
         Function<void(LentFrame)> send_frame;
         // Called from the pump thread, after the frames the status follows.
-        Function<void(PipelineStatus, u32 seek_id)> send_status;
+        Function<void(PipelineStatus, u32 seek_id, PipelineCheckpoint)> send_status;
         Function<void()> notify_clock_resumed;
         // A seek reaches the far-end consumer so that its cached frames are consulted. Unless the frames lent to it
         // could satisfy the seek, the input is seeked before the seek is transmitted, and the consumer's request for
@@ -62,7 +62,7 @@ public:
     virtual void set_resize_handler(PipelineResizeHandler) override;
     void start_input();
 
-    void report_remote_status(PipelineStatus);
+    void report_remote_status(PipelineStatus, PipelineCheckpoint);
     void report_remote_resize(Gfx::Size<u32>);
 
     // Callable from any thread.

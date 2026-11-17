@@ -17,6 +17,7 @@ namespace Media {
 struct AudioProducerOutput {
     AudioBlock const* block { nullptr };
     PipelineStatus status;
+    PipelineCheckpoint checkpoint { 0 };
 };
 
 class AudioProducer : public virtual MediaPipelineNode {

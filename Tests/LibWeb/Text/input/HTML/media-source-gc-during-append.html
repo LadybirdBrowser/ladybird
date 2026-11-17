@@ -40,11 +40,15 @@
     asyncTest(async done => {
         const media = await (await fetch("../../../Assets/vp9-frame-rate-change.webm")).arrayBuffer();
         let secondUpdateEnded = false;
-        await new Promise(resolve => startSecondAppendToUnreferencedSourceBuffer(media, () => resolve(), () => {
+        let secondAppendStarted = false;
+        startSecondAppendToUnreferencedSourceBuffer(media, () => { secondAppendStarted = true; }, () => {
             secondUpdateEnded = true;
             println("updateend fired for the second append");
             done();
-        }));
+        });
+        // Collect while the element waits for its first frame, too.
+        while (!secondAppendStarted)
+            await internals.gcAsync();
         while (!secondUpdateEnded)
             await internals.gcAsync();
     });

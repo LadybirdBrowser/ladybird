@@ -287,6 +287,7 @@ void HTMLMediaElement::finalize()
 
     if (m_playback_manager) {
         m_playback_manager->on_playback_state_change = nullptr;
+        m_playback_manager->on_playback_state_settled_change = nullptr;
         m_playback_manager->on_buffered_ranges_change = nullptr;
     }
     release_active_video_sink();
@@ -2492,6 +2493,9 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();
     });
+    m_playback_manager->on_playback_state_settled_change = GC::weak_callback(*this, [](auto& self) {
+        self.update_pending_activity();
+    });
 
     m_playback_manager->on_buffered_ranges_change = GC::weak_callback(*this, [](auto& self) {
         self.queue_a_media_element_task(GC::create_function(GC::Heap::the(), [](HTMLMediaElement& self) {
@@ -2567,6 +2571,9 @@ void HTMLMediaElement::set_up_playback_manager_for_local(GC::Ref<GC::Function<vo
 
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();
+    });
+    m_playback_manager->on_playback_state_settled_change = GC::weak_callback(*this, [](auto& self) {
+        self.update_pending_activity();
     });
 
     m_playback_manager->on_buffered_ranges_change = GC::weak_callback(*this, [](auto& self) {
@@ -2756,14 +2763,17 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     // of text tracks all the media-resource-specific text tracks, then empty the media element's audioTracks attribute's AudioTrackList object, then
     // empty the media element's videoTracks attribute's VideoTrackList object. No events (in particular, no removetrack events) are fired as part of
     // this; the error and emptied events, fired by the algorithms that invoke this one, can be used instead.
-    if (m_playback_manager)
+    if (m_playback_manager) {
         m_playback_manager->on_playback_state_change = nullptr;
+        m_playback_manager->on_playback_state_settled_change = nullptr;
+    }
     release_active_video_sink();
     m_media_data_is_cors_cross_origin = false;
     m_audio_tracks->remove_all_tracks();
     m_video_tracks->remove_all_tracks();
     update_audio_play_state();
     m_playback_manager.clear();
+    update_pending_activity();
     if (m_media_stream_playback) {
         m_media_stream_playback->set_tracks({});
         m_media_stream_playback.clear();
@@ -3594,6 +3604,10 @@ bool HTMLMediaElement::should_be_kept_alive() const
     // NB: After an error, only a new load can fire further events or play, and that needs a reference to the element.
     if (error())
         return false;
+
+    // NB: Data that has not yet made its way through the pipeline may still raise the readyState.
+    if (m_playback_manager && !m_playback_manager->playback_state_is_settled())
+        return true;
 
     if (seeking())
         return true;

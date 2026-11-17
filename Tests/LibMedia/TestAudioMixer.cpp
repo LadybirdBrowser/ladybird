@@ -41,7 +41,7 @@ private:
     Media::AudioBlock m_block;
 };
 
-// An input with no data to mix, which reports whatever status the test gives it.
+// An input with no data to mix, which reports whatever status and checkpoint the test gives it.
 class WaitingAudioProducer final : public Media::AudioProducer {
 public:
     void start() override { }
@@ -50,12 +50,18 @@ public:
     void seek(AK::Duration) override { }
     ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) override { return {}; }
 
-    Media::AudioProducerOutput peek() override { return { nullptr, m_status }; }
+    Media::AudioProducerOutput peek() override { return { nullptr, m_status, m_checkpoint }; }
 
     void set_status(Media::PipelineStatus status) { m_status = status; }
+    void set_state(Media::PipelineStatus status, Media::PipelineCheckpoint checkpoint)
+    {
+        m_status = status;
+        m_checkpoint = checkpoint;
+    }
 
 private:
     Media::PipelineStatus m_status { Media::PipelineStatus::Blocked };
+    Media::PipelineCheckpoint m_checkpoint { 0 };
 };
 
 }
@@ -99,4 +105,45 @@ TEST_CASE(the_status_of_every_input_is_combined)
 
     first_input->set_status(Media::PipelineStatus::Pending);
     EXPECT_EQ(mixer->peek().status, Media::PipelineStatus::Pending);
+}
+
+// A mix only reflects a change once every input has been observed after it, so the mixer passes on the oldest checkpoint
+// among its inputs, each taken with that input's status.
+TEST_CASE(the_oldest_checkpoint_among_the_inputs_is_passed_on)
+{
+    auto mixer = MUST(Media::AudioMixer::try_create());
+    auto first_input = adopt_ref(*new WaitingAudioProducer());
+    auto second_input = adopt_ref(*new WaitingAudioProducer());
+    MUST(mixer->connect_input(first_input));
+    MUST(mixer->connect_input(second_input));
+    MUST(mixer->set_output_sample_specification(Audio::SampleSpecification(48'000, Audio::ChannelMap::stereo())));
+    mixer->seek(AK::Duration::zero());
+    mixer->start();
+
+    auto output = mixer->peek();
+    EXPECT_EQ(output.status, Media::PipelineStatus::Blocked);
+    EXPECT_EQ(output.checkpoint, 0u);
+
+    // The first input has been given checkpoint 1 and continues, but the second has not been given it yet.
+    first_input->set_state(Media::PipelineStatus::Pending, 1);
+    output = mixer->peek();
+    EXPECT_EQ(output.status, Media::PipelineStatus::Blocked);
+    EXPECT_EQ(output.checkpoint, 0u);
+
+    second_input->set_state(Media::PipelineStatus::Blocked, 1);
+    output = mixer->peek();
+    EXPECT_EQ(output.status, Media::PipelineStatus::Blocked);
+    EXPECT_EQ(output.checkpoint, 1u);
+
+    first_input->set_state(Media::PipelineStatus::Blocked, 2);
+    second_input->set_state(Media::PipelineStatus::Pending, 2);
+    output = mixer->peek();
+    EXPECT_EQ(output.status, Media::PipelineStatus::Blocked);
+    EXPECT_EQ(output.checkpoint, 2u);
+
+    first_input->set_state(Media::PipelineStatus::Pending, 3);
+    second_input->set_state(Media::PipelineStatus::Pending, 3);
+    output = mixer->peek();
+    EXPECT_EQ(output.status, Media::PipelineStatus::Pending);
+    EXPECT_EQ(output.checkpoint, 3u);
 }
