@@ -1257,9 +1257,7 @@ void LocationEdit::update_editing_icon()
         return;
     }
 
-    QIcon favicon;
-    if (!favicon_png.is_empty())
-        favicon = favicon_with_rounded_corners(icon_from_png(favicon_png, 16), 16);
+    auto favicon = favicon_from_png(favicon_png, 16);
     m_leading_icon_button->setIcon(favicon.isNull() ? create_chrome_icon(ChromeIcon::Globe, muted) : favicon);
 }
 
