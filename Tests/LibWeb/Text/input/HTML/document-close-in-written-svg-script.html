@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="iframe"></iframe>
+<script>
+    test(() => {
+        const iframeDocument = document.getElementById("iframe").contentDocument;
+        iframeDocument.open();
+        iframeDocument.write("<body><svg><script>document.close();<\/script></svg><p>first</p>");
+        println(`After close: ${iframeDocument.body.innerHTML}`);
+        println(`readyState: ${iframeDocument.readyState}`);
+
+        iframeDocument.write("<style></style><p>second</p>");
+        println(`After write: ${iframeDocument.documentElement.outerHTML}`);
+        iframeDocument.close();
+    });
+</script>
