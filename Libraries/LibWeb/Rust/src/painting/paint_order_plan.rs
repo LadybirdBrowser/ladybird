@@ -176,6 +176,7 @@ enum PaintOrderFlag {
     HiddenColumns,
     HasZIndex,
     AtomicInlineContent,
+    FormsContainingBlockForChildren,
 }
 
 impl PaintOrderInputs {
@@ -189,6 +190,10 @@ impl PaintOrderInputs {
 
     pub(crate) fn is_atomic_inline_content(self) -> bool {
         self.has(PaintOrderFlag::AtomicInlineContent)
+    }
+
+    pub(crate) fn forms_containing_block_for_children(self) -> bool {
+        self.has(PaintOrderFlag::FormsContainingBlockForChildren)
     }
 
     fn z_index(self) -> Option<i32> {
@@ -264,6 +269,12 @@ impl PaintOrderInputs {
             (HiddenColumns, hidden_columns),
             (HasZIndex, z_index.is_some()),
             (AtomicInlineContent, atomic_inline_content),
+            (
+                FormsContainingBlockForChildren,
+                arena
+                    .node(row)
+                    .is_some_and(|node| node_facts::node_forms_containing_block_for_children(&node, node.style())),
+            ),
         ];
         // The high bit distinguishes the initial empty snapshot from a prepared row.
         let flags = decisions.iter().fold(1 << 31, |flags, &(flag, value)| {
@@ -290,11 +301,21 @@ impl PaintScopePlan {
     /// Planning reads the snapshots kept on the rows, and gathers style and layout facts only
     /// for a row that has none.
     pub(crate) fn build(arena: &impl PaintRead, scope: PaintScope, paint_overlay: bool) -> Self {
+        Self::build_leaving_out(arena, scope, paint_overlay, &mut LeavesOutNothing)
+    }
+
+    pub(crate) fn build_leaving_out(
+        arena: &impl PaintRead,
+        scope: PaintScope,
+        paint_overlay: bool,
+        leaves_out: &mut impl PlanLeavesOut,
+    ) -> Self {
         let mut builder = PaintOrderBuilder {
             layout_arena: arena,
             paint_overlay,
             items: SmallVec::new(),
             last_inputs: std::cell::Cell::new(None),
+            leaves_out,
         };
         let establishes_stacking_context =
             scope.kind == PaintScopeKind::PaintedAsStackingContext && builder.has_stacking_context(scope.owner);
@@ -312,15 +333,28 @@ impl PaintScopePlan {
     }
 }
 
-struct PaintOrderBuilder<'a, R: PaintRead> {
+pub(crate) trait PlanLeavesOut {
+    fn leaves_out_child_scope(&mut self, child: PaintScope, child_inputs: PaintOrderInputs) -> bool;
+}
+
+struct LeavesOutNothing;
+
+impl PlanLeavesOut for LeavesOutNothing {
+    fn leaves_out_child_scope(&mut self, _: PaintScope, _: PaintOrderInputs) -> bool {
+        false
+    }
+}
+
+struct PaintOrderBuilder<'a, R: PaintRead, LeavesOut: PlanLeavesOut> {
     layout_arena: &'a R,
     paint_overlay: bool,
     items: SmallVec<[PaintOrderItem; 16]>,
     // Planning asks several questions about the same row in a row; keep its answers.
     last_inputs: std::cell::Cell<Option<(NodeSlotId, PaintOrderInputs)>>,
+    leaves_out: &'a mut LeavesOut,
 }
 
-impl<R: PaintRead> PaintOrderBuilder<'_, R> {
+impl<R: PaintRead, LeavesOut: PlanLeavesOut> PaintOrderBuilder<'_, R, LeavesOut> {
     fn inputs(&self, row: NodeSlotId) -> PaintOrderInputs {
         if let Some((previous, inputs)) = self.last_inputs.get()
             && previous == row
@@ -431,8 +465,15 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
     }
 
     fn append_stacking_context(&mut self, owner: NodeSlotId) {
-        self.items
-            .push(PaintOrderItem::Scope(PaintScope::stacking_context(owner)));
+        self.append_child_scope(PaintScope::stacking_context(owner));
+    }
+
+    fn append_child_scope(&mut self, scope: PaintScope) {
+        let owner_inputs = self.inputs(scope.owner);
+        if self.leaves_out.leaves_out_child_scope(scope, owner_inputs) {
+            return;
+        }
+        self.items.push(PaintOrderItem::Scope(scope));
     }
 
     fn append_svg_root(&mut self) {
@@ -643,10 +684,10 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
             if !matches(self, child) || self.descendant_phase_is_empty(child, phase) {
                 continue;
             }
-            self.items.push(PaintOrderItem::Scope(PaintScope {
+            self.append_child_scope(PaintScope {
                 owner: child,
                 kind: PaintScopeKind::Descendants(phase),
-            }));
+            });
         }
         let display = style_queries::display(self.layout_arena, paintable);
         if display.is_flex_inside() || display.is_grid_inside() {
