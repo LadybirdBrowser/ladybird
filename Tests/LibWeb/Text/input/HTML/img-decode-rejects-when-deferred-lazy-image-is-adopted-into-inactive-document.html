@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="margin-top: 10000px">
+    <img id="inactive" loading="lazy" src="../../../Assets/120.png?decode-rejects-adopted-into-inactive">
+    <img id="iframe" loading="lazy" src="../../../Assets/120.png?decode-rejects-adopted-into-iframe">
+</div>
+<script>
+    function decodeResult(image) {
+        const result = { settled: false };
+        result.promise = image.decode().then(() => "resolved", error => `rejected: ${error.name}`).finally(() => { result.settled = true; });
+        return result;
+    }
+
+    asyncTest(async done => {
+        const inactive = document.getElementById("inactive");
+        const inactiveDecoded = decodeResult(inactive);
+        await animationFrame();
+        println(`settled before adoption: ${inactiveDecoded.settled}`);
+        document.implementation.createHTMLDocument().adoptNode(inactive);
+        println(`adopted into inactive document: ${await inactiveDecoded.promise}`);
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const image = document.getElementById("iframe");
+        const iframeDecoded = decodeResult(image);
+        await animationFrame();
+        iframe.contentDocument.adoptNode(image);
+        await animationFrame();
+        println(`settled while iframe is active: ${iframeDecoded.settled}`);
+        iframe.remove();
+        println(`iframe removed after adoption: ${await iframeDecoded.promise}`);
+        done();
+    });
+</script>

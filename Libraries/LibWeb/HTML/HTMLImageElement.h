@@ -165,7 +165,13 @@ private:
     virtual void did_set_viewport_rect(CSSPixelRect const&) override;
 
     void handle_failed_fetch();
-    void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url, SharedResourceRequest::DelaysLoadEvent);
+    enum class LazyLoadOutcome {
+        Resumed,
+        Superseded,
+    };
+    void settle_decodes_waiting_for_lazy_load(LazyLoadOutcome);
+    void retire_lazy_load_continuation();
+    void add_callbacks_to_image_request(GC::Ref<ImageRequest>, GC::Ref<DOM::Document> originating_document, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url, SharedResourceRequest::DelaysLoadEvent);
     void stop_delaying_the_load_event_for_aborted_requests();
     void update_image_document_zoom();
 
@@ -217,6 +223,10 @@ private:
     u64 m_update_the_image_data_count { 0 };
 
     bool m_has_resumed_lazy_loading { false };
+    bool m_is_retiring_lazy_load_continuation { false };
+
+    // NB: decode() calls on a deferred lazy image, which wait until its lazy load resumption steps run.
+    Vector<GC::Ref<GC::Function<void(LazyLoadOutcome)>>> m_decodes_waiting_for_lazy_load;
 
     GC::Ptr<HTMLMapElement> m_cached_associated_map_element;
     Optional<u64> m_cached_associated_map_element_dom_tree_version;
