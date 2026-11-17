@@ -286,6 +286,11 @@ static RefPtr<Infrastructure::Response> select_response_from_cache(HTTP::MemoryC
     if (!g_http_memory_cache_enabled)
         return {};
 
+    // NB: A navigation's response comes from RequestServer, so that the UI process can take it from there. The UI
+    //     process refuses a response with a URL of the network that this process reports with a body of its own.
+    if (request.mode() == Infrastructure::Request::Mode::Navigate)
+        return {};
+
     auto cache_entry = http_cache.open_entry(request.current_url(), request.method(), request.header_list(), request.cache_mode());
     if (!cache_entry.has_value())
         return {};
