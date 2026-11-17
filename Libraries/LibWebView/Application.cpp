@@ -300,7 +300,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<u32> screenshot_delay;
     Optional<StringView> screenshot_path;
     bool new_window = false;
-    bool force_new_process = false;
     StringView stats_log_directory;
     Optional<StringView> profile_name;
     Optional<StringView> profile_path;
@@ -406,7 +405,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     });
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
 #if !defined(AK_OS_ANDROID)
-    args_parser.add_option(force_new_process, "Force creation of a new browser process", "force-new-process");
     args_parser.add_option(stats_log_directory, "Directory for process statistics (JSON lines)", "stats-log-dir", 0, "path");
     args_parser.add_option(profile_name, "Select or create a named profile", "profile", 0, "name");
     args_parser.add_option(profile_path, "Use a self-contained profile at an absolute path", "profile-path", 0, "path");
@@ -641,7 +639,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     };
 
     create_platform_options(m_browser_options, m_request_server_options, m_web_content_options);
-    TRY(create_profile(profile_name, profile_path, force_new_process, temporary_profile));
+    TRY(create_profile(profile_name, profile_path, temporary_profile));
 
     // Browsers launched by WebDriver are driven directly and must never join an existing browser process. A browser
     // that logs process statistics must not join one either, since that browser would not sample them.
@@ -753,17 +751,10 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     return {};
 }
 
-ErrorOr<void> Application::create_profile([[maybe_unused]] Optional<StringView> profile_name, [[maybe_unused]] Optional<StringView> profile_path, [[maybe_unused]] bool force_new_process, [[maybe_unused]] bool temporary_profile)
+ErrorOr<void> Application::create_profile([[maybe_unused]] Optional<StringView> profile_name, [[maybe_unused]] Optional<StringView> profile_path, [[maybe_unused]] bool temporary_profile)
 {
 #if !defined(AK_OS_ANDROID)
     ProfileSelection profile_selection { .temporary = temporary_profile };
-
-    if (force_new_process) {
-        if (profile_name.has_value() || profile_path.has_value() || temporary_profile)
-            return Error::from_string_literal("--force-new-process cannot be combined with another profile selector");
-        warnln("--force-new-process is deprecated; using --temporary-profile");
-        profile_selection.temporary = true;
-    }
 
     if (profile_name.has_value())
         profile_selection.name = profile_name->to_byte_string();
