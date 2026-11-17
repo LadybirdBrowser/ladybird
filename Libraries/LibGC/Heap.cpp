@@ -27,6 +27,7 @@
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/StatsLog.h>
+#include <LibCore/ThreadEventQueue.h>
 #include <LibCore/Timer.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/CellAllocator.h>
@@ -2003,7 +2004,7 @@ void Heap::idle_gc_on_timer()
         return;
     case IdleCollectionPolicy::Decision::Collect:
         m_allocated_bytes_since_last_gc = 0;
-        collect_garbage();
+        collect_garbage_from_timer();
         m_idle_gc_timer->stop();
         return;
     }
@@ -2053,6 +2054,19 @@ void Heap::on_abandoned_object_graph_timer()
     }
 
     m_allocated_bytes_since_last_gc = 0;
+    collect_garbage_from_timer();
+}
+
+void Heap::collect_garbage_from_timer()
+{
+    // A timer fires from the event loop. In its outermost turn the only frames on the stack are the event loop's and the
+    // embedder's, so if the embedder vouches for its own, there is no root to find there. Words that only look like a
+    // cell pointer are still there, and some never change, so scanning them could keep a cell alive for good. A nested
+    // event loop has its caller's frames further up the stack, and those need the scan.
+    if (m_outermost_event_loop_turn_holds_no_cells && !Core::ThreadEventQueue::current().is_processing_nested()) {
+        collect_garbage_without_scanning_the_stack();
+        return;
+    }
     collect_garbage();
 }
 
