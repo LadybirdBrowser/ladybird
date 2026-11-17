@@ -453,6 +453,12 @@ impl Presentation {
         self.seal.presented_other_scroll_offsets
     }
 
+    /// The structural epoch of the visual context tree the sealed frames go with: the one the compositor has, or the one
+    /// a clock tick's update last left the seal.
+    pub(crate) fn visual_context_tree_structural_epoch(&self) -> Option<u64> {
+        self.seal.visual_context_tree_structural_epoch
+    }
+
     /// What the clock lane of the frame this presented presents its frames with: the presenter, and a seal of frames
     /// that start from this one, or none where the compositor shows another display list than this frame records from.
     /// On the Paint thread, once this presented.

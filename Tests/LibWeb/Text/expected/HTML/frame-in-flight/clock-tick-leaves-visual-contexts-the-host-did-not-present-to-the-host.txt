@@ -1,0 +1,3 @@
+render clock of the iframe's document before the task: ticking
+render clock after a frame scrolled down: parked
+last frame presented by: commit
