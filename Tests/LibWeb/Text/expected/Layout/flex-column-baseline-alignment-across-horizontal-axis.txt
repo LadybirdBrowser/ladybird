@@ -3,6 +3,13 @@ different-margins: 15, 15
 horizontal-text: 0, 0
 vertical-lr: 10, 10, 10
 vertical-rl: 150, 150, 0
+vertical-lr-text: 0, 5
+vertical-rl-text: 170, 175
+vertical-lr-text-two-lines: 0, 5
+vertical-lr-text-in-nested-block: 0, 0
+vertical-lr-text-after-empty-block: 0, 0
+sideways-text: 170, 172
+upright-text: 0, 5
 align-self: 85, 0
 auto-margin: 170, 15
 rtl: 135, 135
