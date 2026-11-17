@@ -9,10 +9,15 @@ use super::{
     SpatialNodeIndex, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
 };
 use crate::painting::display_list::commands::DisplayListCommandRun;
+use crate::painting::display_list::dump_format::{
+    DumpNames, path_description, push_clip_radii, push_corner_radii, push_filter_bytes, push_matrix,
+};
 use crate::painting::dump::{
     format_float_like_ak, push_float_point, push_float_rect, push_float_size, push_int_rect_components,
 };
-use libgfx_rust::{CompositingAndBlendingOperator, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind};
+use libgfx_rust::{
+    CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind,
+};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
@@ -41,14 +46,30 @@ fn format_rect(rect: FloatRect) -> String {
     text
 }
 
-fn format_spatial_node_index(index: SpatialNodeIndex) -> String {
-    format!("s{}", index.0)
-}
-
 fn format_int_rect_components(rect: IntRect) -> String {
     let mut text = String::new();
     push_int_rect_components(&mut text, rect);
     text
+}
+
+// A 2D affine matrix as its six components, any other as all sixteen in row order.
+fn push_transform_matrix(text: &mut String, keyword: &str, matrix: &FloatMatrix4x4) {
+    if matrix.is_2d_affine() {
+        let elements = &matrix.elements;
+        let _ = write!(
+            text,
+            "{keyword}=[{},{},{},{},{},{}]",
+            format_float_like_ak(elements[0][0]),
+            format_float_like_ak(elements[0][1]),
+            format_float_like_ak(elements[1][0]),
+            format_float_like_ak(elements[1][1]),
+            format_float_like_ak(elements[0][3]),
+            format_float_like_ak(elements[1][3]),
+        );
+    } else {
+        let _ = write!(text, "{keyword}3d=");
+        push_matrix(text, matrix);
+    }
 }
 
 /// The debug dumps the layout and display list tests compare against.
@@ -56,37 +77,68 @@ pub trait VisualContextTreeDump {
     fn dump_spatial_node(&self, index: SpatialNodeIndex) -> String;
     fn dump_clip_node(&self, index: ClipNodeIndex) -> String;
     fn dump_effect_node(&self, index: EffectNodeIndex) -> String;
+    fn describe_spatial_node(&self, index: SpatialNodeIndex, names: &mut DumpNames) -> String;
+    fn describe_clip_node(&self, index: ClipNodeIndex, names: &mut DumpNames) -> String;
+    fn describe_effect_node(&self, index: EffectNodeIndex, names: &mut DumpNames) -> String;
     // The nodes the runs record under, each tree in first-seen order. An effect's output clip
     // chain counts as reachable, since replay enters it before the effect.
     fn dump_nodes_reachable_from_runs(
         &self,
         command_runs: &[DisplayListCommandRun],
+        names: &mut DumpNames,
         owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
     ) -> String;
 }
 
 impl VisualContextTreeDump for VisualContextTree {
     fn dump_spatial_node(&self, index: SpatialNodeIndex) -> String {
+        self.describe_spatial_node(index, &mut DumpNames::default())
+    }
+
+    fn dump_clip_node(&self, index: ClipNodeIndex) -> String {
+        self.describe_clip_node(index, &mut DumpNames::default())
+    }
+
+    fn dump_effect_node(&self, index: EffectNodeIndex) -> String {
+        self.describe_effect_node(index, &mut DumpNames::default())
+    }
+
+    fn describe_spatial_node(&self, index: SpatialNodeIndex, names: &mut DumpNames) -> String {
         let mut text = String::new();
+        // A node flattens what it inherits unless its box preserves 3D. The root inherits nothing.
+        let inherits_nothing = index == VISUAL_VIEWPORT_NODE_INDEX;
+        let flattens_marker = |flattens_inherited_transform: bool| {
+            if flattens_inherited_transform || inherits_nothing {
+                ""
+            } else {
+                " flattens_inherited_transform=false"
+            }
+        };
         match &self.spatial_nodes[index.0 as usize].data {
-            SpatialData::Perspective(_) => text.push_str("perspective"),
+            SpatialData::Perspective(perspective) => {
+                text.push_str("perspective=");
+                push_matrix(&mut text, &perspective.matrix);
+                text.push_str(flattens_marker(perspective.flattens_inherited_transform));
+            }
             SpatialData::BackfaceVisibility(backface) => {
                 let _ = write!(
                     text,
-                    "backface-hidden plane_root={}",
-                    format_spatial_node_index(backface.plane_root_index)
+                    "backface-hidden plane_root={}{}",
+                    names.spatial(backface.plane_root_index),
+                    flattens_marker(backface.flattens_inherited_transform)
                 );
             }
             SpatialData::Scroll(_) => text.push_str("scroll"),
             SpatialData::Sticky(sticky) => {
-                let _ = write!(text, "sticky scroller={}", format_spatial_node_index(sticky.scroller));
+                let _ = write!(text, "sticky scroller={}", names.spatial(sticky.scroller));
                 if let Some(parent_sticky) = sticky.parent_sticky {
-                    let _ = write!(text, " parent_sticky={}", format_spatial_node_index(parent_sticky));
+                    let _ = write!(text, " parent_sticky={}", names.spatial(parent_sticky));
                 }
                 let _ = write!(
                     text,
-                    " position_relative_to_scroller={} border_box_size={} scrollport_size={} containing_block_region={} needs_parent_offset_adjustment={}",
+                    " position_relative_to_scroller={} border_box_origin={} border_box_size={} scrollport_size={} containing_block_region={} needs_parent_offset_adjustment={}",
                     format_point(sticky.position_relative_to_scroller),
+                    format_point(sticky.border_box_origin),
                     format_size(sticky.border_box_size),
                     format_size(sticky.scrollport_size),
                     format_rect(sticky.containing_block_region),
@@ -114,31 +166,36 @@ impl VisualContextTreeDump for VisualContextTree {
                 text.push(']');
             }
             SpatialData::Transform(transform) => {
-                let matrix = &transform.matrix.elements;
-                let origin = transform.origin;
+                let keyword = match transform.role {
+                    TransformDataRole::CssTransform => "transform",
+                    TransformDataRole::SvgViewportTransform => "svg-viewport-transform",
+                };
+                push_transform_matrix(&mut text, keyword, &transform.matrix);
                 let _ = write!(
                     text,
-                    "{}=[{},{},{},{},{},{}] origin=({},{})",
-                    if transform.role == TransformDataRole::SvgViewportTransform {
-                        "svg-viewport-transform"
-                    } else {
-                        "transform"
-                    },
-                    format_float_like_ak(matrix[0][0]),
-                    format_float_like_ak(matrix[0][1]),
-                    format_float_like_ak(matrix[1][0]),
-                    format_float_like_ak(matrix[1][1]),
-                    format_float_like_ak(matrix[0][3]),
-                    format_float_like_ak(matrix[1][3]),
-                    format_float_like_ak(origin.x),
-                    format_float_like_ak(origin.y)
+                    " origin=({},{})",
+                    format_float_like_ak(transform.origin.x),
+                    format_float_like_ak(transform.origin.y)
                 );
+                if let Some(sorting_context_root) = transform.sorting_context_root_index {
+                    let _ = write!(text, " sorting_context_root={}", names.spatial(sorting_context_root));
+                }
+                text.push_str(flattens_marker(transform.flattens_inherited_transform));
+                if transform.synthetic_plane {
+                    text.push_str(" synthetic_plane");
+                }
+                if transform.establishes_sorting_context {
+                    text.push_str(" establishes_sorting_context");
+                }
+                if !transform.bounds.is_empty() {
+                    let _ = write!(text, " bounds={}", format_rect(transform.bounds));
+                }
             }
             SpatialData::AnchorScrollShift(shift) => {
                 let _ = write!(
                     text,
                     "anchor_scroll_shift(node_index={}{}{}{})",
-                    format_spatial_node_index(shift.scroll_node_index),
+                    names.spatial(shift.scroll_node_index),
                     if shift.negate { ", negate" } else { "" },
                     if shift.compensate_horizontal_scroll {
                         ""
@@ -153,47 +210,28 @@ impl VisualContextTreeDump for VisualContextTree {
         text
     }
 
-    fn dump_clip_node(&self, index: ClipNodeIndex) -> String {
+    fn describe_clip_node(&self, index: ClipNodeIndex, _names: &mut DumpNames) -> String {
         let mut text = String::new();
         match &self.clip_nodes[index.0 as usize].data {
             ClipNodeData::Rect(clip) => {
                 let _ = write!(text, "clip={}", format_rect(clip.rect));
                 if clip.corner_radii.has_any_radius() {
-                    let corner_radii = clip.corner_radii;
-                    let _ = write!(
-                        text,
-                        " radii=({},{},{},{})",
-                        corner_radii.top_left.horizontal_radius,
-                        corner_radii.top_right.horizontal_radius,
-                        corner_radii.bottom_right.horizontal_radius,
-                        corner_radii.bottom_left.horizontal_radius
-                    );
+                    text.push_str(" radii=");
+                    push_clip_radii(&mut text, clip.corner_radii);
                 }
                 if clip.mode == ClipMode::Difference {
                     text.push_str(" mode=difference");
                 }
             }
             ClipNodeData::Path(clip_path) => {
-                let svg_path = clip_path.path.to_svg_string();
-                let has_curves_with_host_dependent_control_points = svg_path.contains('Q') || svg_path.contains('C');
-                if has_curves_with_host_dependent_control_points {
-                    let command_count = svg_path
-                        .chars()
-                        .filter(|code_point| matches!(code_point, 'M' | 'L' | 'Q' | 'C' | 'Z'))
-                        .count();
-                    let _ = write!(
-                        text,
-                        "clip_path=[bounds: {}, curved path: {} commands]",
-                        format_int_rect_components(clip_path.bounding_rect),
-                        command_count
-                    );
-                } else {
-                    let _ = write!(
-                        text,
-                        "clip_path=[bounds: {}, path: {}]",
-                        format_int_rect_components(clip_path.bounding_rect),
-                        svg_path
-                    );
+                let _ = write!(
+                    text,
+                    "clip_path=[bounds: {}, {}]",
+                    format_int_rect_components(clip_path.bounding_rect),
+                    path_description(&clip_path.path)
+                );
+                if clip_path.fill_rule != libgfx_rust::WindingRule::default() {
+                    let _ = write!(text, " fill_rule={:?}", clip_path.fill_rule);
                 }
             }
             ClipNodeData::Dead => text.push_str("tombstone"),
@@ -201,39 +239,43 @@ impl VisualContextTreeDump for VisualContextTree {
         text
     }
 
-    fn dump_effect_node(&self, index: EffectNodeIndex) -> String {
+    fn describe_effect_node(&self, index: EffectNodeIndex, names: &mut DumpNames) -> String {
         let mut text = String::new();
         match &self.effect_nodes[index.0 as usize].data {
             EffectNodeData::Effects(effects) => {
                 text.push_str("effects=[");
-                let mut has_content = false;
+                let mut separator = "";
+                if effects.isolation {
+                    text.push_str("isolation");
+                    separator = " ";
+                }
                 if effects.opacity < 1.0 {
-                    let _ = write!(text, "opacity={}", format_float_like_ak(effects.opacity));
-                    has_content = true;
+                    let _ = write!(text, "{separator}opacity={}", format_float_like_ak(effects.opacity));
+                    separator = " ";
                 }
                 if effects.blend_mode != CompositingAndBlendingOperator::Normal {
-                    if has_content {
-                        text.push(' ');
-                    }
-                    let _ = write!(text, "blend_mode={}", effects.blend_mode as i32);
-                    has_content = true;
+                    let _ = write!(text, "{separator}blend_mode={:?}", effects.blend_mode);
+                    separator = " ";
                 }
-                if effects.filter.is_some() {
-                    if has_content {
-                        text.push(' ');
-                    }
-                    text.push_str("filter");
-                    has_content = true;
+                if let Some(filter) = &effects.filter {
+                    let _ = write!(text, "{separator}filter=[");
+                    push_filter_bytes(&mut text, filter, names);
+                    text.push(']');
+                    separator = " ";
                 }
                 if let Some(backdrop_filter) = &effects.backdrop_filter {
-                    if has_content {
-                        text.push(' ');
-                    }
                     let _ = write!(
                         text,
-                        "backdrop-filter=[{}]",
+                        "{separator}backdrop-filter=[region=[{}]",
                         format_int_rect_components(backdrop_filter.region)
                     );
+                    if backdrop_filter.corner_radii.has_any_radius() {
+                        text.push_str(" corner_radii=");
+                        push_corner_radii(&mut text, backdrop_filter.corner_radii);
+                    }
+                    text.push_str(" filter=[");
+                    push_filter_bytes(&mut text, &backdrop_filter.filter, names);
+                    text.push_str("]]");
                 }
                 text.push(']');
             }
@@ -266,6 +308,7 @@ impl VisualContextTreeDump for VisualContextTree {
     fn dump_nodes_reachable_from_runs(
         &self,
         command_runs: &[DisplayListCommandRun],
+        names: &mut DumpNames,
         mut owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
     ) -> String {
         let effect_clips = crate::painting::display_list::effect_clip_plan::EffectClipPlan::new(self, command_runs)
@@ -324,18 +367,19 @@ impl VisualContextTreeDump for VisualContextTree {
 
         fn dump_subtree(
             text: &mut String,
+            names: &mut DumpNames,
             children: &HashMap<u32, Vec<u32>>,
-            node_line: &impl Fn(u32) -> String,
+            node_line: &impl Fn(u32, &mut DumpNames) -> String,
             append_owner: &mut impl FnMut(&mut String, u32),
             node_index: u32,
             indent: usize,
         ) {
             text.push_str(&" ".repeat(indent * 2));
-            text.push_str(&node_line(node_index));
+            text.push_str(&node_line(node_index, names));
             append_owner(text, node_index);
             if let Some(child_indices) = children.get(&node_index) {
                 for child in child_indices {
-                    dump_subtree(text, children, node_line, append_owner, *child, indent + 1);
+                    dump_subtree(text, names, children, node_line, append_owner, *child, indent + 1);
                 }
             }
         }
@@ -343,8 +387,15 @@ impl VisualContextTreeDump for VisualContextTree {
         text.push_str("  spatial:\n");
         dump_subtree(
             &mut text,
+            names,
             &spatial_children,
-            &|index: u32| format!("[s{index}] {}", self.dump_spatial_node(SpatialNodeIndex(index))),
+            &|index: u32, names: &mut DumpNames| {
+                let name = names.spatial(SpatialNodeIndex(index));
+                format!(
+                    "[{name}] {}",
+                    self.describe_spatial_node(SpatialNodeIndex(index), names)
+                )
+            },
             &mut |text: &mut String, index: u32| append_owner(text, SlotKind::Spatial, index),
             VISUAL_VIEWPORT_NODE_INDEX.0,
             2,
@@ -354,12 +405,14 @@ impl VisualContextTreeDump for VisualContextTree {
             for root in clip_roots {
                 dump_subtree(
                     &mut text,
+                    names,
                     &clip_children,
-                    &|index: u32| {
+                    &|index: u32, names: &mut DumpNames| {
+                        let name = names.clip(ClipNodeIndex(index));
+                        let space = names.spatial(self.clip_nodes[index as usize].spatial);
                         format!(
-                            "[c{index} in s{}] {}",
-                            self.clip_nodes[index as usize].spatial.0,
-                            self.dump_clip_node(ClipNodeIndex(index))
+                            "[{name} in {space}] {}",
+                            self.describe_clip_node(ClipNodeIndex(index), names)
                         )
                     },
                     &mut |text: &mut String, index: u32| append_owner(text, SlotKind::Clip, index),
@@ -373,19 +426,21 @@ impl VisualContextTreeDump for VisualContextTree {
             for root in effect_roots {
                 dump_subtree(
                     &mut text,
+                    names,
                     &effect_children,
-                    &|index: u32| {
+                    &|index: u32, names: &mut DumpNames| {
                         let node = &self.effect_nodes[index as usize];
+                        let name = names.effect(EffectNodeIndex(index));
+                        let space = names.spatial(node.spatial);
                         let resolved_clip = effect_clips.output_clip(EffectNodeIndex(index));
                         let output_clip = if resolved_clip.is_none() {
                             String::new()
                         } else {
-                            format!(" out=c{}", resolved_clip.0)
+                            format!(" out={}", names.clip(resolved_clip))
                         };
                         format!(
-                            "[e{index} in s{}{output_clip}] {}",
-                            node.spatial.0,
-                            self.dump_effect_node(EffectNodeIndex(index))
+                            "[{name} in {space}{output_clip}] {}",
+                            self.describe_effect_node(EffectNodeIndex(index), names)
                         )
                     },
                     &mut |text: &mut String, index: u32| append_owner(text, SlotKind::Effect, index),
@@ -403,9 +458,9 @@ mod node_dump_tests {
     use super::VisualContextTreeDump;
     use crate::layout::node_data::NodeSlotId;
     use crate::painting::visual_context::{
-        AnchorScrollShift, BackfaceVisibilityData, ClipData, ClipMode, ClipNodeData, ClipNodeIndex, EffectNodeData,
-        EffectNodeIndex, EffectsData, MaskData, MaskLayerOrigin, PerspectiveData, ScrollData, SpatialData, StickyData,
-        TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
+        AnchorScrollShift, BackdropFilterData, BackfaceVisibilityData, ClipData, ClipMode, ClipNodeData, ClipNodeIndex,
+        EffectNodeData, EffectNodeIndex, EffectsData, MaskData, MaskLayerOrigin, PerspectiveData, ScrollData,
+        SpatialData, StickyData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
         scroll_state::NO_SCROLL_STATE_SLOT,
     };
     use libgfx_rust::{
@@ -518,6 +573,26 @@ mod node_dump_tests {
             }),
             transformed,
         );
+        let rotated_in_3d = tree.append_spatial(
+            SpatialData::Transform(TransformData {
+                matrix: FloatMatrix4x4 {
+                    elements: [
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, -1.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ],
+                },
+                origin: FloatPoint::default(),
+                sorting_context_root_index: Some(transformed),
+                flattens_inherited_transform: true,
+                role: TransformDataRole::CssTransform,
+                synthetic_plane: true,
+                establishes_sorting_context: true,
+                bounds: FloatRect::new(0.0, 0.0, 10.0, 20.0),
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
         let anchor_shift = tree.append_spatial(
             SpatialData::AnchorScrollShift(AnchorScrollShift {
                 scroll_node_index: scroll_node,
@@ -534,23 +609,33 @@ mod node_dump_tests {
         );
         assert_eq!(
             tree.dump_spatial_node(transformed),
-            "transform=[0.8660254,0,0,1,0,0] origin=(58,58)"
+            "transform=[0.8660254,0,0,1,0,0] origin=(58,58) flattens_inherited_transform=false"
         );
         assert_eq!(
             tree.dump_spatial_node(svg_viewport),
-            "svg-viewport-transform=[1,0,0,1,1,0] origin=(0,0)"
+            "svg-viewport-transform=[1,0,0,1,1,0] origin=(0,0) flattens_inherited_transform=false"
+        );
+        assert_eq!(
+            tree.dump_spatial_node(rotated_in_3d),
+            "transform3d=[1,0,0,0,0,0,-1,0,0,1,0,0,0,0,0,1] origin=(0,0) sorting_context_root=s1 synthetic_plane establishes_sorting_context bounds=[0,0 10x20]"
         );
         assert_eq!(tree.dump_spatial_node(scroll_node), "scroll");
         assert_eq!(
             tree.dump_spatial_node(outer_sticky),
-            "sticky scroller=s3 position_relative_to_scroller=[0,0] border_box_size=[0x0] scrollport_size=[0x0] containing_block_region=[0,0 0x0] needs_parent_offset_adjustment=false insets=[]"
+            "sticky scroller=s3 position_relative_to_scroller=[0,0] border_box_origin=[0,0] border_box_size=[0x0] scrollport_size=[0x0] containing_block_region=[0,0 0x0] needs_parent_offset_adjustment=false insets=[]"
         );
         assert_eq!(
             tree.dump_spatial_node(inner_sticky),
-            "sticky scroller=s3 parent_sticky=s4 position_relative_to_scroller=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x16] needs_parent_offset_adjustment=true insets=[top=20, bottom=1.5]"
+            "sticky scroller=s3 parent_sticky=s4 position_relative_to_scroller=[0,0] border_box_origin=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x16] needs_parent_offset_adjustment=true insets=[top=20, bottom=1.5]"
         );
-        assert_eq!(tree.dump_spatial_node(perspective), "perspective");
-        assert_eq!(tree.dump_spatial_node(backface), "backface-hidden plane_root=s1");
+        assert_eq!(
+            tree.dump_spatial_node(perspective),
+            "perspective=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1] flattens_inherited_transform=false"
+        );
+        assert_eq!(
+            tree.dump_spatial_node(backface),
+            "backface-hidden plane_root=s1 flattens_inherited_transform=false"
+        );
         assert_eq!(
             tree.dump_spatial_node(anchor_shift),
             "anchor_scroll_shift(node_index=s3, negate, no-x)"
@@ -602,6 +687,28 @@ mod node_dump_tests {
             VISUAL_VIEWPORT_NODE_INDEX,
             ClipNodeIndex::NONE,
         );
+        let isolated_blurred_backdrop = tree.append_effect(
+            EffectNodeData::Effects(EffectsData {
+                isolation: true,
+                opacity: 1.0,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: None,
+                backdrop_filter: Some(BackdropFilterData {
+                    filter: std::sync::Arc::new(
+                        libgfx_rust::filter::Filter::compose(
+                            libgfx_rust::filter::Filter::color(libgfx_rust::ColorFilterType::Invert, 1.0, None),
+                            libgfx_rust::filter::Filter::blur(4.0, 4.0, None),
+                        )
+                        .serialize(),
+                    ),
+                    region: IntRect::new(1, 2, 30, 40),
+                    corner_radii: CornerRadii::uniform(3),
+                }),
+            }),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
         let mask = tree.append_effect(
             EffectNodeData::Mask(MaskData {
                 rect: IntRect::new(1, 2, 30, 40),
@@ -628,10 +735,11 @@ mod node_dump_tests {
         assert_eq!(tree.dump_effect_node(plain_effects), "effects=[]");
         assert_eq!(
             tree.dump_effect_node(full_effects),
-            format!(
-                "effects=[opacity=0.5 blend_mode={} filter]",
-                CompositingAndBlendingOperator::Multiply as i32
-            )
+            "effects=[opacity=0.5 blend_mode=Multiply filter=[unreadable 3 bytes]]"
+        );
+        assert_eq!(
+            tree.dump_effect_node(isolated_blurred_backdrop),
+            "effects=[isolation backdrop-filter=[region=[1,2 30x40] corner_radii=[3x3,3x3,3x3,3x3] filter=[blur(4,4) Invert(1)]]]"
         );
         assert_eq!(
             tree.dump_effect_node(mask),
@@ -736,7 +844,8 @@ mod section_dump_tests {
             run(scroll_node, escaping_context),
             run(VISUAL_VIEWPORT_NODE_INDEX, ContextRef::default()),
         ];
-        let text = tree.dump_nodes_reachable_from_runs(&runs, |kind, index| match (kind, index) {
+        let mut names = crate::painting::display_list::dump_format::DumpNames::default();
+        let text = tree.dump_nodes_reachable_from_runs(&runs, &mut names, |kind, index| match (kind, index) {
             (SlotKind::Spatial, 1) => Some("BlockContainer<DIV>#scroller".to_string()),
             (SlotKind::Clip, 0) => Some("BlockContainer<DIV>#scroller".to_string()),
             (SlotKind::Effect, 0) => Some("BlockContainer<DIV>#faded".to_string()),

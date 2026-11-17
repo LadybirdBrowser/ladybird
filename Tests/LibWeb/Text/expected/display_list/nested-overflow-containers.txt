@@ -19,15 +19,15 @@ CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600
 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x175]
 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 784x154]
 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s2 rect=[8,8 204x154]
-FillRoundedRectRing@s1/e0 rect=[8,8 204x154] widths=[2,2,2,2] color=rgb(0, 0, 255)
+FillRoundedRectRing@s1/e0 rect=[8,8 204x154] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(0, 0, 255)
 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s3 rect=[10,10 302x102]
 FillRect@s2/c0/e0 rect=[10,10 302x102] color=rgb(255, 255, 224)
-FillRoundedRectRing@s2/c0/e0 rect=[10,10 302x102] widths=[1,1,1,1] color=rgb(255, 0, 0)
+FillRoundedRectRing@s2/c0/e0 rect=[10,10 302x102] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(255, 0, 0)
 CompositorWheelHitTestTarget@s3/c1/e0 target_scroll_node_index=s3 rect=[11,11 400x80]
 FillRect@s3/c1/e0 rect=[11,11 400x80] color=rgb(240, 128, 128)
-DrawGlyphRun@s3/c1/e0 rect=[11,11 178x16] translation=[11,24] color=rgb(0, 0, 0)
-CompositorScrollbar@s2/c0/e0 scroll_node_index=s3 gutter_rect=[0,0 0x0] thumb_rect=[13,102 222x7] track_rect=[11,102 300x9] expanded_gutter_rect=[11,96 300x15] expanded_thumb_rect=[13,98 222x11] scroll_size=0.74 expanded_scroll_size=0.74 min_scroll_offset=0 max_scroll_offset=100 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=false is_painted_by_compositor=false
-PaintScrollBar@s2/c0/e0
-CompositorScrollbar@s1/e0 scroll_node_index=s2 gutter_rect=[0,0 0x0] thumb_rect=[12,151 130x7] track_rect=[10,151 200x9] expanded_gutter_rect=[10,145 200x15] expanded_thumb_rect=[12,147 130x11] scroll_size=0.6490502450980392 expanded_scroll_size=0.6490502450980392 min_scroll_offset=0 max_scroll_offset=102 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=false is_painted_by_compositor=false
-PaintScrollBar@s1/e0
+DrawGlyphRun@s3/c1/e0 font_id=font1 glyphs=21 rect=[11,11 178x16] glyph_bounding_rect=[11,12 184x15] translation=[11,24] color=rgb(0, 0, 0)
+CompositorScrollbar@s2/c0/e0 scroll_node_index=s3 thumb_rect=[13,102 222x7] track_rect=[11,102 300x9] expanded_gutter_rect=[11,96 300x15] expanded_thumb_rect=[13,98 222x11] scroll_size=0.74 expanded_scroll_size=0.74 max_scroll_offset=100 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098)
+PaintScrollBar@s2/c0/e0 scroll_node_index=s3 thumb_rect=[13,102 222x7] track_rect=[11,102 300x9] expanded_gutter_rect=[11,96 300x15] scroll_size=0.74 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098)
+CompositorScrollbar@s1/e0 scroll_node_index=s2 thumb_rect=[12,151 130x7] track_rect=[10,151 200x9] expanded_gutter_rect=[10,145 200x15] expanded_thumb_rect=[12,147 130x11] scroll_size=0.6490502450980392 expanded_scroll_size=0.6490502450980392 max_scroll_offset=102 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098)
+PaintScrollBar@s1/e0 scroll_node_index=s2 thumb_rect=[12,151 130x7] track_rect=[10,151 200x9] expanded_gutter_rect=[10,145 200x15] scroll_size=0.6490502450980392 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098)
 

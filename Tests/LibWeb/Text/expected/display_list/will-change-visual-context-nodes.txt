@@ -2,8 +2,8 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-        [s2] transform=[1,0,0,1,0,0] origin=(25,25) (BlockContainer<DIV>#transform)
-        [s3] transform=[1,0,0,1,0,0] origin=(25,75) (BlockContainer<DIV>#translate)
+        [s2] transform=[1,0,0,1,0,0] origin=(25,25) bounds=[0,0 50x50] (BlockContainer<DIV>#transform)
+        [s3] transform=[1,0,0,1,0,0] origin=(25,75) bounds=[0,50 50x50] (BlockContainer<DIV>#translate)
   effects:
     [e0 in s0] effects=[]
       [e1 in s1] effects=[] (BlockContainer<DIV>#opacity)

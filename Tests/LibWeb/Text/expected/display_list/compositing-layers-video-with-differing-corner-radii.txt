@@ -10,5 +10,5 @@ Layers:
   [L1] video rect=[7,7 326x246] replayed: rounded corners of differing radii
 
 DisplayList:
-L1 DrawVideoFrame@s1/e0 dst_rect=[10,10 320x240] inline_clips=[clip=[10,10 320x240], clip=[10,10 320x240] radii=(4,16,4,16)]
+L1 DrawVideoFrame@s1/e0 dst_rect=[10,10 320x240] video_sink_handle=video1 scaling_mode=BilinearMipmap inline_clips=[clip=[10,10 320x240], clip=[10,10 320x240] radii=(4,16,4,16)]
 

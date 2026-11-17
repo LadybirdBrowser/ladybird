@@ -8,8 +8,8 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 FillRect@s1/e0 rect=[8,13 100x100] color=rgb(173, 216, 230)
-PaintLinearGradient@s1/e0 rect=[8,13 100x100] inline_clips=[clip=[8,13 100x100]]
-DrawGlyphRun@s1/e0 rect=[8,13 30x16] translation=[8,26] color=rgb(0, 0, 0)
+PaintLinearGradient@s1/e0 gradient_rect=[8,13 100x100] gradient_angle=180 color_stops=[rgb(255, 0, 0) 0, rgb(0, 0, 255) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[8,13 100x100]]
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[8,13 30x16] glyph_bounding_rect=[8,14 33x15] translation=[8,26] color=rgb(0, 0, 0)
 
 After background-blend-mode change:
 AccumulatedVisualContext Tree:
@@ -21,6 +21,6 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 FillRect@s1/e0 rect=[8,13 100x100] color=rgb(173, 216, 230)
-PaintLinearGradient@s1/e0 rect=[8,13 100x100] blend_mode=2 inline_clips=[clip=[8,13 100x100]]
-DrawGlyphRun@s1/e0 rect=[8,13 30x16] translation=[8,26] color=rgb(0, 0, 0)
+PaintLinearGradient@s1/e0 gradient_rect=[8,13 100x100] gradient_angle=180 color_stops=[rgb(255, 0, 0) 0, rgb(0, 0, 255) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} compositing_and_blending_operator=Multiply inline_clips=[clip=[8,13 100x100]]
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[8,13 30x16] glyph_bounding_rect=[8,14 33x15] translation=[8,26] color=rgb(0, 0, 0)
 

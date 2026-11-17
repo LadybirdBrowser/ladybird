@@ -3,7 +3,7 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
         [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGBox<svg>)
-          [s3] transform=[1,0,0,1,20,20] origin=(0,0) (SVGGeometryBox<rect>)
+          [s3] transform=[1,0,0,1,20,20] origin=(0,0) flattens_inherited_transform=false bounds=[0,0 200x200] (SVGGeometryBox<rect>)
   clips:
     [c0 in s1] clip=[8,8 200x200] (SVGSVGBox<svg>)
   effects:
@@ -11,5 +11,5 @@ AccumulatedVisualContext Tree:
       [e1 in s2 out=c0] effects=[opacity=0.5] (SVGGeometryBox<rect>)
 
 DisplayList:
-FillPath@s3/c0/e1 path_bounding_rect=[0,0 100x100]
+FillPath@s3/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(255, 0, 0)
 

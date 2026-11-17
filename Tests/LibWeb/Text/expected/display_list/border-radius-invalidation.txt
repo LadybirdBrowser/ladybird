@@ -10,7 +10,7 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 FillRect@s1/e0 rect=[8,13 100x100] color=rgb(173, 216, 230)
-DrawGlyphRun@s1/c0/e0 rect=[8,13 30x16] translation=[8,26] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=3 rect=[8,13 30x16] glyph_bounding_rect=[8,14 33x15] translation=[8,26] color=rgb(0, 0, 0)
 
 After border-radius change:
 AccumulatedVisualContext Tree:
@@ -23,6 +23,6 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRectWithRoundedCorners@s1/e0 rect=[8,13 100x100] color=rgb(173, 216, 230)
-DrawGlyphRun@s1/c0/e0 rect=[8,13 30x16] translation=[8,26] color=rgb(0, 0, 0)
+FillRectWithRoundedCorners@s1/e0 rect=[8,13 100x100] color=rgb(173, 216, 230) corner_radii=[20x20,20x20,20x20,20x20]
+DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=3 rect=[8,13 30x16] glyph_bounding_rect=[8,14 33x15] translation=[8,26] color=rgb(0, 0, 0)
 

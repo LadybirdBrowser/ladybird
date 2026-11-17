@@ -3,7 +3,7 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
         [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGBox<svg>)
-          [s3] transform=[1,0,0,1,1,0] origin=(0,0) (SVGForeignObjectBox<foreignObject>#fo)
+          [s3] transform=[1,0,0,1,1,0] origin=(0,0) flattens_inherited_transform=false bounds=[0,0 100x100] (SVGForeignObjectBox<foreignObject>#fo)
   clips:
     [c0 in s1] clip=[8,8 100x100] (SVGSVGBox<svg>)
       [c1 in s3] clip=[0,0 100x100] (SVGForeignObjectBox<foreignObject>#fo)
@@ -13,6 +13,6 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 DeclareMaskContent@s3/c0/e1 rect=[-10,-10 120x120] effect=e1
-  FillPath@s3/c0/e1 path_bounding_rect=[0,0 100x100]
+  FillPath@s3/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[curved path: 129 commands] color=rgb(255, 255, 255)
 FillRect@s3/c1/e1 rect=[0,0 100x100] color=rgb(0, 0, 0)
 

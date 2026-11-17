@@ -6,13 +6,13 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-DrawGlyphRun@s1/e0 rect=[8,-17 169x100] translation=[8,63] color=rgb(0, 0, 0) inline_clips=[clip=[9,-15 60x91]]
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[8,-17 169x100] glyph_bounding_rect=[9,-15 191x91] translation=[8,63] color=rgb(0, 0, 0) inline_clips=[clip=[9,-15 60x91]]
 FillRect@s1/e0 rect=[8,65 37x10] color=rgb(0, 0, 0)
 FillRect@s1/e0 rect=[57,65 10x10] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/e0 rect=[8,-17 169x100] translation=[8,63] color=rgb(0, 0, 0) inline_clips=[clip=[116,-15 61x91]]
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[8,-17 169x100] glyph_bounding_rect=[9,-15 191x91] translation=[8,63] color=rgb(0, 0, 0) inline_clips=[clip=[116,-15 61x91]]
 FillRect@s1/e0 rect=[116,65 37x10] color=rgb(0, 0, 0)
 FillRect@s1/e0 rect=[165,65 12x10] color=rgb(0, 0, 0)
 FillRect@s1/e0 rect=[69,-17 47x100] color=rgba(101, 2, 0, 0.8)
-DrawGlyphRun@s1/e0 rect=[8,-17 169x100] translation=[8,63] color=rgb(0, 0, 0) inline_clips=[clip=[69,-15 47x91]]
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[8,-17 169x100] glyph_bounding_rect=[9,-15 191x91] translation=[8,63] color=rgb(0, 0, 0) inline_clips=[clip=[69,-15 47x91]]
 FillRect@s1/e0 rect=[109,65 7x10] color=rgb(0, 0, 0)
 

@@ -6,5 +6,5 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-DrawScaledDecodedImageFrame@s1/e0 dst_rect=[0,-20 40x80] inline_clips=[clip=[0,0 40x40]]
+DrawScaledDecodedImageFrame@s1/e0 dst_rect=[0,-20 40x80] frame_id=image1 scaling_mode=BilinearMipmap inline_clips=[clip=[0,0 40x40]]
 

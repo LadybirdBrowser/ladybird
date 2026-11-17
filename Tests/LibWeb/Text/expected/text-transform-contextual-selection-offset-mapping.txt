@@ -6,8 +6,8 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-DrawGlyphRun@s1/e0 rect=[8,16 55x16] translation=[8,29] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/e0 rect=[8,32 35x16] translation=[8,45] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=9 rect=[8,16 55x16] glyph_bounding_rect=[8,-8 59x39] translation=[8,29] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=4 rect=[8,32 35x16] glyph_bounding_rect=[8,32 38x15] translation=[8,45] color=rgb(0, 0, 0)
 FillRect@s1/e0 rect=[8,48 51x16] color=rgb(1, 2, 3)
-DrawGlyphRun@s1/e0 rect=[8,48 51x16] translation=[8,61] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=5 rect=[8,48 51x16] glyph_bounding_rect=[8,48 55x15] translation=[8,61] color=rgb(0, 0, 0)
 

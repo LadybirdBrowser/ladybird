@@ -10,6 +10,6 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 FillRect@s1/c1/e0 rect=[8,11 23x13] color=rgba(101, 2, 0, 0.8)
-DrawGlyphRun@s1/c1/e0 rect=[8,11 23x13] translation=[8,21] color=rgb(0, 0, 0)
-FillRoundedRectRing@s1/e0 rect=[6,9 160x17] corner_radii=[8x8,8x8,8x8,8x8] widths=[2,2,2,2] color=rgb(61, 174, 233)
+DrawGlyphRun@s1/c1/e0 font_id=font1 glyphs=3 rect=[8,11 23x13] glyph_bounding_rect=[8,11 26x12] translation=[8,21] color=rgb(0, 0, 0)
+FillRoundedRectRing@s1/e0 rect=[6,9 160x17] corner_radii=[8x8,8x8,8x8,8x8] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233)
 
