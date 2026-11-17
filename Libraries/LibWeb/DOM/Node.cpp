@@ -1675,7 +1675,7 @@ void Node::remove(bool suppress_observers)
     auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
     if (document().has_valid_html_collection_caches())
         affects_elements = mutation_affects_elements(*this);
-    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Removal, *this, affects_elements };
+    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Removal, *this, affects_elements, old_previous_sibling };
     parent->children_changed(metadata);
     parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
 

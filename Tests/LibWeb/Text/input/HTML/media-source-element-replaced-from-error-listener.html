@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        // The error event of a source that failed removes that source and appends a new one, before resource selection
+        // looks for the next candidate.
+        const video = document.createElement("video");
+        const held = document.createElement("source");
+        held.addEventListener("error", () => {
+            println("error at the held source");
+            held.remove();
+            const source = document.createElement("source");
+            source.src = "../../../Assets/h264-reordered-frames.mp4";
+            video.appendChild(source);
+        });
+        video.appendChild(held);
+        document.body.appendChild(video);
+        video.addEventListener("loadedmetadata", () => {
+            println(`loaded metadata: ${video.videoWidth}x${video.videoHeight}`);
+            done();
+        });
+    });
+</script>

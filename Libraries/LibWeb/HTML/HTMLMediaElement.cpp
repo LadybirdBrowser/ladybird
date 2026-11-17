@@ -1037,6 +1037,7 @@ public:
     SourceElementSelector(GC::Ref<HTMLMediaElement> media_element, GC::Ref<HTMLSourceElement> candidate)
         : m_media_element(media_element)
         , m_candidate(candidate)
+        , m_node_before_pointer(candidate)
     {
     }
 
@@ -1045,7 +1046,7 @@ public:
         Base::visit_edges(visitor);
         visitor.visit(m_media_element);
         visitor.visit(m_candidate);
-        visitor.visit(m_previously_failed_candidate);
+        visitor.visit(m_node_before_pointer);
     }
 
     void process_candidate()
@@ -1103,10 +1104,23 @@ public:
 
     void process_next_candidate()
     {
-        if (!m_previously_failed_candidate)
+        if (!m_waiting)
             return;
 
-        wait_for_next_candidate(*m_previously_failed_candidate);
+        wait_for_next_candidate();
+    }
+
+    // If the node before pointer is removed: Let pointer be the point between the node after pointer and the node
+    // before the node after pointer. In other words, pointer doesn't move relative to the remaining nodes.
+    void node_removed(DOM::Node const& node, GC::Ptr<DOM::Node> old_previous_sibling)
+    {
+        if (m_node_before_pointer.ptr() == &node)
+            m_node_before_pointer = old_previous_sibling;
+    }
+
+    void all_children_removed()
+    {
+        m_node_before_pointer = nullptr;
     }
 
 private:
@@ -1125,40 +1139,43 @@ private:
             // 11. ⌛ Forget the media element's media-resource-specific tracks.
             selector.m_media_element->forget_media_resource_specific_tracks();
 
-            selector.find_next_candidate(selector.m_candidate);
+            selector.find_next_candidate();
         }));
     }
 
-    void find_next_candidate(GC::Ref<DOM::Node> previous_candidate)
+    GC::Ptr<DOM::Node> node_after(GC::Ptr<DOM::Node> node_before_pointer) const
+    {
+        return node_before_pointer ? node_before_pointer->next_sibling() : m_media_element->first_child();
+    }
+
+    void find_next_candidate()
     {
         // 12. ⌛ Find next candidate: Let candidate be null.
         GC::Ptr<HTMLSourceElement> candidate;
 
-        // 13. ⌛ Search loop: If the node after pointer is the end of the list, then jump to the waiting step below.
-        auto* next_sibling = previous_candidate->next_sibling();
-        if (!next_sibling) {
-            waiting(previous_candidate);
-            return;
-        }
+        while (!candidate) {
+            // 13. ⌛ Search loop: If the node after pointer is the end of the list, then jump to the waiting step below.
+            auto node_after_pointer = node_after(m_node_before_pointer);
+            if (!node_after_pointer) {
+                waiting();
+                return;
+            }
 
-        // 14. ⌛ If the node after pointer is a source element, let candidate be that element.
-        if (auto* source_element = as_if<HTMLSourceElement>(next_sibling))
-            candidate = source_element;
+            // 14. ⌛ If the node after pointer is a source element, let candidate be that element.
+            candidate = as_if<HTMLSourceElement>(*node_after_pointer);
 
-        // 15. ⌛ Advance pointer so that the node before pointer is now the node that was after pointer, and the node
-        //     after pointer is the node after the node that used to be after pointer, if any.
+            // 15. ⌛ Advance pointer so that the node before pointer is now the node that was after pointer, and the node
+            //     after pointer is the node after the node that used to be after pointer, if any.
+            m_node_before_pointer = node_after_pointer;
 
-        // 16. ⌛ If candidate is null, jump back to the search loop step. Otherwise, jump back to the process candidate step.
-        if (!candidate) {
-            find_next_candidate(*next_sibling);
-            return;
+            // 16. ⌛ If candidate is null, jump back to the search loop step. Otherwise, jump back to the process candidate step.
         }
 
         m_candidate = *candidate;
         process_candidate();
     }
 
-    void waiting(GC::Ref<DOM::Node> previous_candidate)
+    void waiting()
     {
         // 17. ⌛ Waiting: Set the element's networkState attribute to the NETWORK_NO_SOURCE value.
         m_media_element->set_network_state(HTMLMediaElement::NetworkState::NoSource);
@@ -1175,19 +1192,19 @@ private:
         // 20. End the synchronous section, continuing the remaining steps in parallel.
 
         // 21. Wait until the node after pointer is a node other than the end of the list. (This step might wait forever.)
-        wait_for_next_candidate(previous_candidate);
+        wait_for_next_candidate();
     }
 
-    void wait_for_next_candidate(GC::Ref<DOM::Node> previous_candidate)
+    void wait_for_next_candidate()
     {
         // NOTE: If there isn't another candidate to check, we implement the "waiting" step by returning until the media
         //       element's children have changed.
-        if (previous_candidate->next_sibling() == nullptr) {
-            m_previously_failed_candidate = previous_candidate;
+        if (!node_after(m_node_before_pointer)) {
+            m_waiting = true;
             return;
         }
 
-        m_previously_failed_candidate = nullptr;
+        m_waiting = false;
 
         // FIXME: 22. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm until
         //            the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
@@ -1200,12 +1217,13 @@ private:
         m_media_element->set_network_state(HTMLMediaElement::NetworkState::Loading);
 
         // 25. ⌛ Jump back to the find next candidate step above.
-        find_next_candidate(previous_candidate);
+        find_next_candidate();
     }
 
     GC::Ref<HTMLMediaElement> m_media_element;
     GC::Ref<HTMLSourceElement> m_candidate;
-    GC::Ptr<DOM::Node> m_previously_failed_candidate;
+    bool m_waiting { false };
+    GC::Ptr<DOM::Node> m_node_before_pointer;
 };
 
 GC_DEFINE_ALLOCATOR(SourceElementSelector);
@@ -1214,8 +1232,13 @@ void HTMLMediaElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 
-    if (m_source_element_selector)
+    if (m_source_element_selector) {
+        if (metadata.type == ChildrenChangedMetadata::Type::Removal)
+            m_source_element_selector->node_removed(*metadata.node, metadata.old_previous_sibling);
+        else if (metadata.type == ChildrenChangedMetadata::Type::AllChildrenRemoved)
+            m_source_element_selector->all_children_removed();
         m_source_element_selector->process_next_candidate();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#concept-media-load-algorithm
