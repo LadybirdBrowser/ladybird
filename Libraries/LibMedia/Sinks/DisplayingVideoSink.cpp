@@ -50,7 +50,9 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
     VERIFY(m_input == nullptr);
     m_input = input;
     input->set_wake_handler([this] {
-        if (m_input->peek().status == PipelineStatus::Suspended) {
+        auto output = m_input->peek();
+        m_input_checkpoint = output.checkpoint;
+        if (output.status == PipelineStatus::Suspended) {
             m_next_frame = nullptr;
             // A ticking sink's update resumes the input if the time is moving, and reports the suspension otherwise.
             if (m_is_ticking) {
@@ -58,7 +60,7 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
                 return;
             }
             m_latest_status = PipelineStatus::Suspended;
-            dispatch_state_if_changed(PipelineStatus::Suspended);
+            dispatch_state_if_changed(PipelineStatus::Suspended, m_input_checkpoint);
             return;
         }
         // Update the sink to dispatch a status if we're still resolving a seek or waiting for data. If we're not, avoid
@@ -132,13 +134,14 @@ void DisplayingVideoSink::seek(AK::Duration timestamp, InvalidateHeldData invali
     m_next_frame = nullptr;
 }
 
-void DisplayingVideoSink::dispatch_state_if_changed(PipelineStatus status)
+void DisplayingVideoSink::dispatch_state_if_changed(PipelineStatus status, PipelineCheckpoint checkpoint)
 {
-    if (status == m_last_dispatched_status)
+    if (status == m_last_dispatched_status && checkpoint == m_last_dispatched_checkpoint)
         return;
     m_last_dispatched_status = status;
+    m_last_dispatched_checkpoint = checkpoint;
     if (m_on_state_changed)
-        m_on_state_changed(status);
+        m_on_state_changed(status, checkpoint);
 }
 
 DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
@@ -161,6 +164,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         if (m_next_frame == nullptr) {
             auto output = m_input->peek();
             last_status = output.status;
+            m_input_checkpoint = output.checkpoint;
             if (output.frame == nullptr) {
                 if (is_terminal(last_status) && m_seek_status == SeekStatus::InProgress) {
                     m_seek_status = SeekStatus::None;
@@ -199,6 +203,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         if (!seek_resolved_during_this_update && current_time > m_next_frame->conservative_end()) {
             auto next = m_input->peek();
             last_status = next.status;
+            m_input_checkpoint = next.checkpoint;
             if (!is_terminal(last_status)) {
                 if (last_status == PipelineStatus::HaveData) {
                     if (!m_seek_resolution_is_pending_frame_at_target) {
@@ -263,10 +268,10 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         m_on_present_needed();
 
     m_latest_status = status_to_dispatch;
-    if (status_to_dispatch != m_last_dispatched_status) {
+    if (status_to_dispatch != m_last_dispatched_status || m_input_checkpoint != m_last_dispatched_checkpoint) {
         // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while
         // an update is being processed.
-        Core::deferred_invoke([weak_self = make_weak_ref(), status_to_dispatch, seek_id = m_seek_id] {
+        Core::deferred_invoke([weak_self = make_weak_ref(), status_to_dispatch, checkpoint = m_input_checkpoint, seek_id = m_seek_id] {
             auto self = weak_self.strong_ref();
             if (!self)
                 return;
@@ -275,7 +280,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
             // A status that the sink reached since has replaced this one, and is dispatched or queued already.
             if (status_to_dispatch != self->m_latest_status)
                 return;
-            self->dispatch_state_if_changed(status_to_dispatch);
+            self->dispatch_state_if_changed(status_to_dispatch, checkpoint);
         });
     }
 

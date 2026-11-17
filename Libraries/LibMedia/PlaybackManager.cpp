@@ -137,10 +137,10 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
             self->m_audio_mixer = MUST(AudioMixer::try_create());
             self->m_audio_time_stretch_processor = MUST(AudioTimeStretchProcessor::try_create());
             self->m_audio_sink = MUST(AudioPlaybackSink::try_create(
-                [self](PipelineStatus status) {
+                [self](PipelineStatus status, PipelineCheckpoint checkpoint) {
                     if (!self)
                         return;
-                    self->on_audio_sink_state_changed(status);
+                    self->on_audio_sink_state_changed(status, checkpoint);
                 },
                 self->m_audio_output_factory));
             MUST(self->m_audio_time_stretch_processor->connect_input(*self->m_audio_mixer));
@@ -187,9 +187,11 @@ PlaybackManager::~PlaybackManager()
 {
     for (auto const& track_data : m_video_track_datas) {
         track_data.producer->set_error_handler(nullptr);
+        track_data.producer->set_read_unblocked_handler(nullptr);
     }
     for (auto const& track_data : m_audio_track_datas) {
         track_data.producer->set_error_handler(nullptr);
+        track_data.producer->set_read_unblocked_handler(nullptr);
     }
     m_clock->pause();
     for (auto& track_data : m_video_track_datas) {
@@ -259,16 +261,44 @@ WeakPlaybackManager PlaybackManager::weak()
 
 void PlaybackManager::set_up_producers()
 {
+    // The checkpoint is taken at once, so that a settled state reported after the data arrived accounts for it, but
+    // it is handed to the producers on this thread, where their tracks may be enabled and disabled.
+    auto& main_thread_event_loop = Core::EventLoop::current();
+    auto create_read_unblocked_handler = [&] {
+        return [this, self = weak(), &main_thread_event_loop] {
+            m_latest_checkpoint.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+            main_thread_event_loop.deferred_invoke([self] {
+                if (self)
+                    self->hand_out_latest_checkpoint();
+            });
+        };
+    };
+
     for (auto const& video_track_data : m_video_track_datas) {
         video_track_data.producer->set_error_handler([this](DecoderError&& error) {
             dispatch_error(move(error));
         });
+        video_track_data.producer->set_read_unblocked_handler(create_read_unblocked_handler());
     }
 
     for (auto const& audio_track_data : m_audio_track_datas) {
         audio_track_data.producer->set_error_handler([this](DecoderError&& error) {
             dispatch_error(move(error));
         });
+        audio_track_data.producer->set_read_unblocked_handler(create_read_unblocked_handler());
+    }
+}
+
+void PlaybackManager::hand_out_latest_checkpoint()
+{
+    auto checkpoint = m_latest_checkpoint.load(AK::MemoryOrder::memory_order_relaxed);
+    for (auto const& track_data : m_video_track_datas) {
+        if (track_data.video_sink != nullptr)
+            track_data.producer->set_checkpoint(checkpoint);
+    }
+    for (auto const& track_data : m_audio_track_datas) {
+        if (track_data.enabled)
+            track_data.producer->set_checkpoint(checkpoint);
     }
 }
 
@@ -278,18 +308,20 @@ AK::Duration PlaybackManager::current_time() const
     return min(time, duration());
 }
 
-void PlaybackManager::on_audio_sink_state_changed(PipelineStatus status)
+void PlaybackManager::on_audio_sink_state_changed(PipelineStatus status, PipelineCheckpoint checkpoint)
 {
-    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): Audio sink reports {}", this, status);
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): Audio sink reports {} at checkpoint {}", this, status, checkpoint);
     m_audio_sink_status = status;
+    m_audio_sink_checkpoint = checkpoint;
     update_pipeline_state();
 }
 
-void PlaybackManager::on_video_sink_state_changed(Track const& track, PipelineStatus status)
+void PlaybackManager::on_video_sink_state_changed(Track const& track, PipelineStatus status, PipelineCheckpoint checkpoint)
 {
     auto& track_data = get_video_data_for_track(track);
-    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): Video sink for track {} reports {}", this, track.identifier(), status);
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): Video sink for track {} reports {} at checkpoint {}", this, track.identifier(), status, checkpoint);
     track_data.sink_status = status;
+    track_data.sink_checkpoint = checkpoint;
     update_pipeline_state();
 }
 
@@ -352,7 +384,51 @@ void PlaybackManager::update_pipeline_state()
             dbgln("PlaybackManager({:p}): Combined status {} in {} ({})", this, status, m_handler->state(), breakdown.string_view());
         }
     }
+    // The state changes that the handler reports must carry whether the new state is settled.
+    auto was_settled = m_playback_state_is_settled;
+    set_whether_playback_state_is_settled(status);
     m_handler->on_pipeline_status_changed(status);
+    dispatch_playback_state_settled_change_if_changed(was_settled);
+}
+
+bool PlaybackManager::every_waiting_sink_has_reported_the_latest_checkpoint() const
+{
+    auto latest_checkpoint = m_latest_checkpoint.load(AK::MemoryOrder::memory_order_relaxed);
+    // A sink with data to present cannot be holding a status from before the latest change.
+    auto sink_is_behind = [&](PipelineStatus status, PipelineCheckpoint reported_checkpoint) {
+        if (status != PipelineStatus::Pending && status != PipelineStatus::Blocked)
+            return false;
+        return reported_checkpoint < latest_checkpoint;
+    };
+
+    if (m_audio_sink != nullptr && sink_is_behind(m_audio_sink_status, m_audio_sink_checkpoint))
+        return false;
+
+    for (auto const& track_data : m_video_track_datas) {
+        if (track_data.video_sink == nullptr)
+            continue;
+        if (sink_is_behind(track_data.sink_status, track_data.sink_checkpoint))
+            return false;
+    }
+    return true;
+}
+
+void PlaybackManager::set_whether_playback_state_is_settled(PipelineStatus combined_status)
+{
+    m_playback_state_is_settled = combined_status != PipelineStatus::Pending && every_waiting_sink_has_reported_the_latest_checkpoint();
+}
+
+void PlaybackManager::dispatch_playback_state_settled_change_if_changed(bool was_settled)
+{
+    if (m_playback_state_is_settled != was_settled && on_playback_state_settled_change)
+        on_playback_state_settled_change();
+}
+
+void PlaybackManager::update_whether_playback_state_is_settled()
+{
+    auto was_settled = m_playback_state_is_settled;
+    set_whether_playback_state_is_settled(combined_pipeline_status());
+    dispatch_playback_state_settled_change_if_changed(was_settled);
 }
 
 void PlaybackManager::reset_pipeline_state()
@@ -434,17 +510,17 @@ void PlaybackManager::disable_audio()
     m_audio_time_stretch_processor = nullptr;
     m_audio_sink = nullptr;
     set_clock(MUST(MonotonicMediaClock::try_create()));
-    on_audio_sink_state_changed(PipelineStatus::EndOfStream);
+    on_audio_sink_state_changed(PipelineStatus::EndOfStream, 0);
 }
 
 void PlaybackManager::attach_video_sink(VideoTrackData& track_data, NonnullRefPtr<VideoSink> video_sink)
 {
     VERIFY(track_data.video_sink == nullptr);
     auto track = track_data.track;
-    video_sink->set_state_change_handler([self = weak(), track](PipelineStatus status) {
+    video_sink->set_state_change_handler([self = weak(), track](PipelineStatus status, PipelineCheckpoint checkpoint) {
         if (!self)
             return;
-        self->on_video_sink_state_changed(track, status);
+        self->on_video_sink_state_changed(track, status, checkpoint);
     });
     video_sink->set_resize_handler([self = weak(), track](Gfx::Size<u32> size) {
         if (!self)
@@ -453,6 +529,7 @@ void PlaybackManager::attach_video_sink(VideoTrackData& track_data, NonnullRefPt
         if (track_data.on_resize)
             track_data.on_resize(size);
     });
+    track_data.producer->set_checkpoint(m_latest_checkpoint.load(AK::MemoryOrder::memory_order_relaxed));
     MUST(video_sink->connect_input(track_data.producer));
     track_data.video_sink = move(video_sink);
     update_pipeline_state();
@@ -584,6 +661,7 @@ void PlaybackManager::enable_an_audio_track(Track const& track, ResumeEndedPlayb
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(!track_data.enabled);
     m_audio_sink_status = m_audio_sink != nullptr ? PipelineStatus::Pending : PipelineStatus::HaveData;
+    track_data.producer->set_checkpoint(m_latest_checkpoint.load(AK::MemoryOrder::memory_order_relaxed));
     if (m_audio_mixer) {
         MUST(m_audio_mixer->connect_input(track_data.producer));
         m_audio_sink->reseek_input_keeping_clock();

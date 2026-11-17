@@ -84,13 +84,13 @@ void VideoPresentationClientConnection::video_edge_ready(u64 edge_id, MediaTimeR
 
     auto sink = MUST(DisplayingVideoSink::try_create(time_reader));
     edge_state->time_reader = time_reader;
-    sink->set_state_change_handler([weak_connection, edge_id](PipelineStatus status) {
+    sink->set_state_change_handler([weak_connection, edge_id](PipelineStatus status, PipelineCheckpoint checkpoint) {
         weak_connection.with_target([&](auto& connection) {
             VERIFY(connection.m_owner_thread_id.is_current_thread());
             u32 requested_seek_id = 0;
             if (auto edge_state = connection.m_edge_states.get(edge_id); edge_state.has_value())
                 requested_seek_id = edge_state->expected_requested_seek_id;
-            connection.async_notify_sink_status(edge_id, status, requested_seek_id);
+            connection.async_notify_sink_status(edge_id, status, requested_seek_id, checkpoint);
         });
     });
     sink->set_resize_handler([weak_connection, edge_id](Gfx::Size<u32> size) {
@@ -142,10 +142,10 @@ void VideoPresentationClientConnection::lend_frame(u64 edge_id, u64 lend_id, u32
     edge_state->consumer->receive_frame(lend_id, seek_id, move(frame));
 }
 
-void VideoPresentationClientConnection::edge_status_changed(u64 edge_id, PipelineStatus status, u32 seek_id)
+void VideoPresentationClientConnection::edge_status_changed(u64 edge_id, PipelineStatus status, u32 seek_id, PipelineCheckpoint checkpoint)
 {
     if (auto edge_state = m_edge_states.get(edge_id); edge_state.has_value() && edge_state->consumer)
-        edge_state->consumer->receive_status(status, seek_id);
+        edge_state->consumer->receive_status(status, seek_id, checkpoint);
 }
 
 void VideoPresentationClientConnection::notify_clock_resumed(u64 edge_id)

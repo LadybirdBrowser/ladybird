@@ -67,6 +67,18 @@ Some nodes (i.e. AudioMixer) may also wake when moving away from a previously di
 `EndOfStream`, so stale EOS state can be recovered after a seek or after new input becomes
 available.
 
+## Checkpoints
+
+The pipeline can carry a `PipelineCheckpoint`, a monotonic integer indicating what data has been
+processed so far by the pipeline. When a node peeks a checkpoint, it passes it on downstream
+immediately, rather than waiting for its output to reach the data the checkpoint was introduced at.
+A node that takes multiple inputs only passes on their oldest checkpoint, ensuring that the output
+only advances to a new checkpoint once all its inputs have produced it.
+
+This is used by the playback manager to determine when its state may still be pending a change due
+to appended data. This is exposed to the media element to allow it to stay alive while a source
+buffer's append is still propagating through the pipeline.
+
 ## Seeking
 
 Seeking is initiated downstream and forwarded upstream. For downstream nodes, a seek completes when
