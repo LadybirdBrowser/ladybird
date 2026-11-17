@@ -47,6 +47,7 @@ public:
     virtual ~SharedResourceRequest() override;
 
     URL::URL const& url() const { return m_key.url; }
+    Key const& key() const { return m_key; }
     Optional<String> const& image_mime_type() const { return m_image_mime_type; }
     [[nodiscard]] bool can_be_shared() const { return m_can_be_shared; }
 

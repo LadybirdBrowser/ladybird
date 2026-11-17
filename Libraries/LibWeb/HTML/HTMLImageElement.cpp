@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/TemporaryChange.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/Bitmap.h>
@@ -128,6 +129,9 @@ void HTMLImageElement::initialize_element()
     m_document_observer = DOM::DocumentObserver::create(document());
     m_document_observer->set_document_became_inactive(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
         self.m_load_event_delayer.clear();
+        // NB: decode() rejects once the node document is not fully active. Its lazy load resumption steps stay in
+        //     place, so the image can still resume if the document becomes active again.
+        self.settle_decodes_waiting_for_lazy_load(LazyLoadOutcome::Superseded);
     }));
 }
 
@@ -173,6 +177,11 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
 
     m_cached_associated_map_element = nullptr;
     m_cached_associated_map_element_dom_tree_version.clear();
+
+    // NB: decode() rejects once the node document is not fully active. A decode() waiting for the lazy load
+    //     resumption steps would otherwise not notice, so reject it now.
+    if (!document().is_fully_active())
+        settle_decodes_waiting_for_lazy_load(LazyLoadOutcome::Superseded);
 
     // FIXME: The current and pending requests may still be pointing at the old document's SharedResourceRequests.
 }
@@ -237,6 +246,7 @@ void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document_observer);
     visitor.visit(m_dimension_attribute_source);
     visitor.visit(m_cached_associated_map_element);
+    visitor.visit(m_decodes_waiting_for_lazy_load);
     visit_lazy_loading_element(visitor);
 }
 
@@ -744,12 +754,41 @@ void HTMLImageElement::decode(GC::Ref<WebIDL::Promise> promise) const
             return;
         }
 
-        current_request.add_callbacks_without_delaying_the_load_event(
-            // AD-HOC: Queue a task to preserve ordering relative to update_the_image_data's step 16, which is queued the
-            //         same way. Otherwise decode() can resolve before the current request transitions to
-            //         CompletelyAvailable, leaving the image dimensions at zero when callers inspect them.
-            GC::create_function(GC::Heap::the(), GC::captures(weak_this, expected_request, queue_resolve_task, queue_reject_task), [](auto& weak_this, auto& expected_request, auto& queue_resolve_task, auto& queue_reject_task) {
-                queue_image_task(weak_this ? &weak_this->document() : nullptr, GC::create_function(GC::Heap::the(), GC::captures(weak_this, expected_request, queue_resolve_task, queue_reject_task), [](auto& weak_this, auto& expected_request, auto& queue_resolve_task, auto& queue_reject_task) {
+        auto wait_for_fetch = GC::create_function(GC::Heap::the(), GC::captures(weak_this, expected_request, queue_resolve_task, queue_reject_task), [](auto& weak_this, auto& expected_request, auto& queue_resolve_task, auto& queue_reject_task) {
+            // NB: A deferred lazy image runs this when it resumes, or when a newer update of its image data retires the
+            //     deferred continuation, after which the current request may already have changed.
+            if (weak_this && weak_this->m_current_request != expected_request) {
+                queue_reject_task->function()("Current request changed or was mutated"_utf16);
+                return;
+            }
+            expected_request->add_callbacks_without_delaying_the_load_event(
+                // AD-HOC: Queue a task to preserve ordering relative to update_the_image_data's step 16, which is queued the
+                //         same way. Otherwise decode() can resolve before the current request transitions to
+                //         CompletelyAvailable, leaving the image dimensions at zero when callers inspect them.
+                GC::create_function(GC::Heap::the(), GC::captures(weak_this, expected_request, queue_resolve_task, queue_reject_task), [](auto& weak_this, auto& expected_request, auto& queue_resolve_task, auto& queue_reject_task) {
+                    queue_image_task(weak_this ? &weak_this->document() : nullptr, GC::create_function(GC::Heap::the(), GC::captures(weak_this, expected_request, queue_resolve_task, queue_reject_task), [](auto& weak_this, auto& expected_request, auto& queue_resolve_task, auto& queue_reject_task) {
+                        if (!weak_this) {
+                            queue_reject_task->function()("Image element no longer available"_utf16);
+                            return;
+                        }
+                        auto& image = *weak_this;
+
+                        if (!image.document().is_fully_active()) {
+                            queue_reject_task->function()("Node document not fully active"_utf16);
+                            return;
+                        }
+                        if (image.m_current_request != expected_request) {
+                            queue_reject_task->function()("Current request changed or was mutated"_utf16);
+                            return;
+                        }
+                        if (image.current_request().state() == ImageRequest::State::Broken) {
+                            queue_reject_task->function()("Current request state is broken"_utf16);
+                            return;
+                        }
+                        queue_resolve_task->function()();
+                    }));
+                }),
+                GC::create_function(GC::Heap::the(), GC::captures(weak_this, expected_request, queue_reject_task), [](auto& weak_this, auto& expected_request, auto& queue_reject_task) {
                     if (!weak_this) {
                         queue_reject_task->function()("Image element no longer available"_utf16);
                         return;
@@ -760,35 +799,30 @@ void HTMLImageElement::decode(GC::Ref<WebIDL::Promise> promise) const
                         queue_reject_task->function()("Node document not fully active"_utf16);
                         return;
                     }
+
                     if (image.m_current_request != expected_request) {
                         queue_reject_task->function()("Current request changed or was mutated"_utf16);
                         return;
                     }
-                    if (image.current_request().state() == ImageRequest::State::Broken) {
-                        queue_reject_task->function()("Current request state is broken"_utf16);
-                        return;
-                    }
-                    queue_resolve_task->function()();
+                    queue_reject_task->function()("Current request state is broken"_utf16);
                 }));
-            }),
-            GC::create_function(GC::Heap::the(), GC::captures(weak_this, expected_request, queue_reject_task), [](auto& weak_this, auto& expected_request, auto& queue_reject_task) {
-                if (!weak_this) {
-                    queue_reject_task->function()("Image element no longer available"_utf16);
-                    return;
-                }
-                auto& image = *weak_this;
+        });
 
-                if (!image.document().is_fully_active()) {
-                    queue_reject_task->function()("Node document not fully active"_utf16);
-                    return;
-                }
-
-                if (image.m_current_request != expected_request) {
+        // NB: A deferred lazy image only adds its own callbacks to the shared request once it resumes. Waiting on the
+        //     request before then could resolve the promise when another image completes the same fetch, while this
+        //     image's request is still unavailable.
+        if (self.has_lazy_load_resumption_steps()) {
+            const_cast<HTMLImageElement&>(self).m_decodes_waiting_for_lazy_load.append(GC::create_function(GC::Heap::the(), GC::captures(wait_for_fetch, queue_reject_task), [](auto& wait_for_fetch, auto& queue_reject_task, LazyLoadOutcome outcome) {
+                if (outcome == LazyLoadOutcome::Superseded) {
                     queue_reject_task->function()("Current request changed or was mutated"_utf16);
                     return;
                 }
-                queue_reject_task->function()("Current request state is broken"_utf16);
+                wait_for_fetch->function()();
             }));
+            return;
+        }
+
+        wait_for_fetch->function()();
     }));
 
     // 3. Return promise.
@@ -987,6 +1021,8 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
             m_current_request->set_state(ImageRequest::State::CompletelyAvailable);
             register_with_decoded_image_data_if_needed();
 
+            retire_lazy_load_continuation();
+
             // 5. Prepare the current request for presentation given the img element.
             m_current_request->prepare_for_presentation(*this);
 
@@ -1081,6 +1117,7 @@ after_step_7:
             abort_the_image_request(self.m_pending_request);
             self.stop_delaying_the_load_event_for_aborted_requests();
             self.m_pending_request = nullptr;
+            self.retire_lazy_load_continuation();
 
             // AD-HOC: The element may have been rendering as blank space while a load was pending;
             //         now that the current request is broken it renders its alt text instead.
@@ -1128,6 +1165,7 @@ after_step_7:
 
             // 3. Set the pending request to null.
             self.m_pending_request = nullptr;
+            self.retire_lazy_load_continuation();
 
             // AD-HOC: The element may have been rendering as blank space while a load was pending;
             //         now that the current request is broken it renders its alt text instead.
@@ -1176,6 +1214,7 @@ after_step_7:
             self.m_current_request->set_state(ImageRequest::State::CompletelyAvailable);
             self.m_current_request->set_current_pixel_density(pixel_density.value_or(1.0f));
             self.register_with_decoded_image_data_if_needed();
+            self.retire_lazy_load_continuation();
             self.m_current_request->prepare_for_presentation(self);
 
             self.set_needs_layout_update_or_repaint_after_image_data_change();
@@ -1245,6 +1284,7 @@ after_step_7:
             self.unregister_with_decoded_image_data_if_needed();
             self.m_current_request = image_request;
             self.register_with_decoded_image_data_if_needed();
+            self.retire_lazy_load_continuation();
             CSS::record_element_replaced_content_input(self);
         } else {
             self.m_pending_request = image_request;
@@ -1262,12 +1302,12 @@ after_step_7:
         if (delay_load_event)
             self.m_load_event_delayer.emplace(self.document());
 
-        self.add_callbacks_to_image_request(*image_request, maybe_omit_events, url_string->utf16_view(), previous_url.utf16_view(),
-            delay_load_event ? SharedResourceRequest::DelaysLoadEvent::Yes : SharedResourceRequest::DelaysLoadEvent::No);
-
         // AD-HOC: If the image request is already available or fetching, no need to start another fetch.
-        if (image_request->is_available() || image_request->is_fetching())
+        if (image_request->is_available() || image_request->is_fetching()) {
+            self.add_callbacks_to_image_request(*image_request, self.document(), maybe_omit_events, url_string->utf16_view(), previous_url.utf16_view(),
+                delay_load_event ? SharedResourceRequest::DelaysLoadEvent::Yes : SharedResourceRequest::DelaysLoadEvent::No);
             return;
+        }
 
         // AD-HOC: create_potential_CORS_request expects a url, but the following step passes a URL string.
         auto url_record = self.document().encoding_parse_url(selected_source.value().url);
@@ -1299,13 +1339,20 @@ after_step_7:
         //          Subsequent source changes must not wait for another intersection observation.
         if (!self.m_has_resumed_lazy_loading && self.will_lazy_load_element()) {
             // 1. Set the img's lazy load resumption steps to the rest of this algorithm starting with the step labeled fetch the image.
-            self.set_lazy_load_resumption_steps(GC::create_function(GC::Heap::the(), GC::captures(self, request, image_request, update_the_image_data_count, GC::Ref { self.document() }), [](auto& self, auto& request, auto& image_request, auto& update_the_image_data_count, auto& observing_document) {
+            // NB: The image waits for the fetch only once it resumes. The shared resource request may stay unfetched, and
+            //     callbacks added to it before then would keep the image alive for as long as its document lives.
+            self.set_lazy_load_resumption_steps(GC::create_function(GC::Heap::the(), GC::captures(self, request, image_request, update_the_image_data_count, GC::Ref { self.document() }, maybe_omit_events, url_string, previous_url), [](auto& self, auto& request, auto& image_request, auto& update_the_image_data_count, auto& observing_document, auto& maybe_omit_events, auto& url_string, auto& previous_url) {
                 // NB: Unobserve in the document which registered the image, including after adoption.
                 observing_document->stop_intersection_observing_a_lazy_loading_element(self);
-                if (update_the_image_data_count != self.m_update_the_image_data_count)
-                    return;
-                self.m_has_resumed_lazy_loading = true;
-                image_request->fetch_image(request);
+                auto resumes = !self.m_is_retiring_lazy_load_continuation && update_the_image_data_count == self.m_update_the_image_data_count;
+                if (resumes) {
+                    self.m_has_resumed_lazy_loading = true;
+                    // NB: The request's client is the observing document's settings object, so its fetch result belongs to
+                    //     that document even if the image was adopted into another one since.
+                    self.add_callbacks_to_image_request(*image_request, observing_document, maybe_omit_events, url_string->utf16_view(), previous_url.utf16_view(), SharedResourceRequest::DelaysLoadEvent::No);
+                    image_request->fetch_image(request);
+                }
+                self.settle_decodes_waiting_for_lazy_load(resumes ? LazyLoadOutcome::Resumed : LazyLoadOutcome::Superseded);
             }));
 
             // 2. Start intersection-observing a lazy loading element for the img element.
@@ -1315,15 +1362,40 @@ after_step_7:
             return;
         }
 
+        self.add_callbacks_to_image_request(*image_request, self.document(), maybe_omit_events, url_string->utf16_view(), previous_url.utf16_view(),
+            delay_load_event ? SharedResourceRequest::DelaysLoadEvent::Yes : SharedResourceRequest::DelaysLoadEvent::No);
         image_request->fetch_image(request);
     }));
 }
 
-void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url, SharedResourceRequest::DelaysLoadEvent delays_load_event)
+// NB: Called when the current request is replaced or becomes broken. A continuation deferred by an earlier update of
+//     the image data no longer applies, so run it now: being superseded, it stops intersection-observing the element
+//     and rejects the decode() calls waiting for it, instead of making decode() calls on the new request wait for it.
+void HTMLImageElement::retire_lazy_load_continuation()
+{
+    // NB: Promoting the pending request does not start a newer update of the image data, so the continuation cannot
+    //     tell from the update count alone that it must not fetch.
+    if (auto superseded_steps = take_lazy_load_resumption_steps_internal()) {
+        TemporaryChange retiring { m_is_retiring_lazy_load_continuation, true };
+        superseded_steps->function()();
+    }
+    settle_decodes_waiting_for_lazy_load(LazyLoadOutcome::Superseded);
+}
+
+// NB: A decode() call on a deferred lazy image waits for its lazy load resumption steps. If those resume the fetch, the
+//     call waits for the fetch to finish. If a newer update of the image data superseded them, or the current request
+//     was replaced or became broken, the call rejects.
+void HTMLImageElement::settle_decodes_waiting_for_lazy_load(LazyLoadOutcome outcome)
+{
+    GC::RootVector decodes { move(m_decodes_waiting_for_lazy_load) };
+    for (auto& decode : decodes)
+        decode->function()(outcome);
+}
+
+void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, GC::Ref<DOM::Document> originating_document, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url, SharedResourceRequest::DelaysLoadEvent delays_load_event)
 {
     auto captured_url_string = Utf16String::from_utf16(url_string);
     auto captured_previous_url = Utf16String::from_utf16(previous_url);
-    auto originating_document = GC::Ref { document() };
 
     ListOfAvailableImages::Key cache_key;
     cache_key.url = captured_url_string;
@@ -1372,8 +1444,13 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
 
                 // 3. Add the image to the list of available images using the key key, with the ignore higher-layer caching flag set.
                 // NB: An image from a navigation response was not checked against the policies of the document, so other
-                //     elements must not get it from this list.
-                if (image_request->shared_resource_request()->can_be_shared())
+                //     elements must not get it from this list. A deferred lazy image adds its callbacks only once it
+                //     resumes, by which time the document may have pruned its finished request and fetched the URL again
+                //     with a newer request, whose image this older one must not replace. So only the request the document
+                //     still has for its key adds its image, as no newer request for the key exists while it does.
+                auto& shared_resource_request = *image_request->shared_resource_request();
+                auto request_for_key = originating_document->shared_resource_requests().get(shared_resource_request.key());
+                if (shared_resource_request.can_be_shared() && request_for_key.has_value() && request_for_key.value().ptr() == &shared_resource_request)
                     originating_document->list_of_available_images().add(cache_key, *image_data, true);
                 originating_document->prune_image_resource_caches();
 
@@ -1638,6 +1715,7 @@ void HTMLImageElement::upgrade_pending_request_to_current_request()
     unregister_with_decoded_image_data_if_needed();
     m_current_request = m_pending_request;
     register_with_decoded_image_data_if_needed();
+    retire_lazy_load_continuation();
     CSS::record_element_replaced_content_input(*this);
 
     // 2. Set the img element's pending request to null.

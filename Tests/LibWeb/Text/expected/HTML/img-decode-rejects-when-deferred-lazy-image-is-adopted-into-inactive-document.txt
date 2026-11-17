@@ -1,0 +1,4 @@
+settled before adoption: false
+adopted into inactive document: rejected: EncodingError
+settled while iframe is active: false
+iframe removed after adoption: rejected: EncodingError

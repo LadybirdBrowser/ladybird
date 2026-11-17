@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="margin-top: 10000px">
+    <img id="uncached" loading="lazy" src="../../../Assets/120.png?decode-rejects-uncached-first">
+    <img id="cached" loading="lazy" src="../../../Assets/120.png?decode-rejects-cached-first">
+    <img id="cached-srcset" loading="lazy" src="../../../Assets/120.png?decode-rejects-cached-srcset-first">
+    <img id="eager" loading="lazy" src="../../../Assets/120.png?decode-rejects-eager-first">
+    <img id="removed" loading="lazy" src="../../../Assets/120.png?decode-rejects-removed-first">
+    <img id="invalid" loading="lazy" src="../../../Assets/120.png?decode-rejects-invalid-first">
+</div>
+<script>
+    function decodeResult(image) {
+        return image.decode().then(() => "resolved", error => `rejected: ${error.name}`);
+    }
+
+    asyncTest(async done => {
+        const available = new Image();
+        available.src = "../../../Assets/120.png?decode-rejects-available";
+        await new Promise(resolve => available.onload = resolve);
+
+        const uncached = document.getElementById("uncached");
+        const uncachedDecoded = decodeResult(uncached);
+        await animationFrame();
+        uncached.src = "../../../Assets/120.png?decode-rejects-uncached-second";
+        println(`uncached source: ${await uncachedDecoded}`);
+
+        const cached = document.getElementById("cached");
+        const cachedDecoded = decodeResult(cached);
+        await animationFrame();
+        cached.src = available.src;
+        println(`cached source: ${await cachedDecoded}`);
+
+        const cachedSrcset = document.getElementById("cached-srcset");
+        const cachedSrcsetDecoded = decodeResult(cachedSrcset);
+        await animationFrame();
+        cachedSrcset.srcset = `${available.src} 1x`;
+        println(`cached srcset: ${await cachedSrcsetDecoded}`);
+
+        const eager = document.getElementById("eager");
+        const eagerDecoded = decodeResult(eager);
+        await animationFrame();
+        eager.src = "../../../Assets/120.png?decode-rejects-eager-second";
+        eager.loading = "eager";
+        println(`source change then eager: ${await eagerDecoded}`);
+
+        const removed = document.getElementById("removed");
+        const removedDecoded = decodeResult(removed);
+        await animationFrame();
+        removed.removeAttribute("src");
+        println(`source removed: ${await removedDecoded}`);
+
+        const invalid = document.getElementById("invalid");
+        const invalidDecoded = decodeResult(invalid);
+        await animationFrame();
+        invalid.src = "http://[";
+        println(`invalid source: ${await invalidDecoded}`);
+        done();
+    });
+</script>
