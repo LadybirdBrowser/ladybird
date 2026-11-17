@@ -40,7 +40,7 @@ n0 generic bounds=8,8 784x188
 n0 generic bounds=8,8 784x188
   n1 status bounds=8,10 124x16 live=polite
     n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
-  n3 generic bounds=8,8 0x20
+  n3 generic bounds=132,10 0x16
   n4 generic bounds=8,28 784x20
     n5 banner bounds=8,28 784x20
       n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
@@ -58,7 +58,7 @@ n0 generic bounds=8,8 784x188
 n0 generic bounds=8,8 784x186
   n1 status bounds=8,10 124x16 live=polite
     n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
-  n3 generic bounds=8,8 0x20
+  n3 generic bounds=132,10 0x16
   n4 generic bounds=8,28 784x20
     n5 banner bounds=8,28 784x20
       n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
@@ -76,7 +76,7 @@ n0 generic bounds=8,8 784x186
 n0 generic bounds=8,8 784x186 editable multi_line
   n1 status bounds=8,10 124x16 live=polite editable multi_line
     n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
-  n3 generic bounds=8,8 0x20 editable multi_line
+  n3 generic bounds=132,10 0x16 editable multi_line
   n4 generic bounds=8,28 784x20 editable multi_line
     n5 banner bounds=8,28 784x20 editable multi_line
       n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
@@ -94,7 +94,7 @@ n0 generic bounds=8,8 784x186 editable multi_line
 n0 generic bounds=8,8 784x186
   n1 status bounds=8,10 124x16 live=polite
     n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
-  n3 generic bounds=8,8 0x20
+  n3 generic bounds=132,10 0x16
   n4 generic bounds=8,28 784x20
     n5 banner bounds=8,28 784x20
       n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
@@ -112,7 +112,7 @@ n0 generic bounds=8,8 784x186
 n0 generic bounds=8,8 784x186
   n1 status bounds=8,10 124x16 live=polite
     n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
-  n3 generic bounds=8,8 0x20
+  n3 generic bounds=132,10 0x16
   n4 generic bounds=8,28 784x20
     n5 banner bounds=8,28 784x20
       n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16
@@ -130,7 +130,7 @@ n0 generic bounds=8,8 784x186
 n0 generic bounds=8,8 784x186
   n1 status bounds=8,10 124x16 live=polite
     n2 text leaf name="custom element" bounds=8,10 124x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 18,0 28,0 34,0 45,0 57,0 65,0 74,0 78,0 87,0 99,0 108,0 117,0 lines=0@16
-  n3 generic bounds=8,8 0x20
+  n3 generic bounds=132,10 0x16
   n4 generic bounds=8,28 784x20
     n5 banner bounds=8,28 784x20
       n6 text leaf name="section header" bounds=8,30 119x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 26,0 33,0 38,0 48,0 58,0 66,0 75,0 84,0 93,0 101,0 110,0 lines=0@16

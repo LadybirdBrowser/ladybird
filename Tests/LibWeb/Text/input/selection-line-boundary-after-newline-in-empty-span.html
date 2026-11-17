@@ -1,0 +1,14 @@
+<!doctype html>
+<pre><span id="target">
+X</span></pre>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // The first line holds just the newline, and the span's start on it holds no caret position.
+        const text = document.getElementById("target").firstChild;
+        const selection = getSelection();
+        selection.collapse(text, 0);
+        selection.modify("extend", "forward", "lineboundary");
+        println(`line boundary from offset 0: ${selection.focusOffset}`);
+    });
+</script>

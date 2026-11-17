@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 3, rect: [9,9 33.921875x16] baseline: 13
               "ABC"
           TextNode <#text> (not painted)
-        InlineNode <span> at [9,9] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
+        InlineNode <span> at [42.921875,9] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
           TextNode <#text> (not painted)
         InlineNode <span.nowrap> at [9,25] [0+0+0 33.921875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from TextNode start: 0, length: 3, rect: [9,25 33.921875x16] baseline: 13

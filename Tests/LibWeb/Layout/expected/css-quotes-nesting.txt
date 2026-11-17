@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "a"
           frag 1 from TextNode start: 0, length: 1, rect: [75.578125,8 4.5625x16] baseline: 13
               "i"
-          InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+          InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
           InlineNode <span> at [17.34375,8] [0+0+0 58.234375 0+0+0] [0+0+0 16 0+0+0]
@@ -15,7 +15,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "b"
             frag 1 from TextNode start: 0, length: 1, rect: [66.28125,8 9.296875x16] baseline: 13
                 "h"
-            InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+            InlineNode <(anonymous)> at [17.34375,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
               GeneratedTextNode <(anonymous)> (not painted)
             TextNode <#text> (not painted)
             InlineNode <span> at [26.8125,8] [0+0+0 39.46875 0+0+0] [0+0+0 16 0+0+0]
@@ -23,7 +23,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                   "c"
               frag 1 from TextNode start: 0, length: 1, rect: [58.71875,8 7.5625x16] baseline: 13
                   "g"
-              InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+              InlineNode <(anonymous)> at [26.8125,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
                 GeneratedTextNode <(anonymous)> (not painted)
               TextNode <#text> (not painted)
               InlineNode <span> at [35.703125,8] [0+0+0 23.015625 0+0+0] [0+0+0 16 0+0+0]
@@ -31,28 +31,28 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                     "d"
                 frag 1 from TextNode start: 0, length: 1, rect: [52.28125,8 6.4375x16] baseline: 13
                     "f"
-                InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+                InlineNode <(anonymous)> at [35.703125,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
                   GeneratedTextNode <(anonymous)> (not painted)
                 TextNode <#text> (not painted)
                 InlineNode <span> at [43.5625,8] [0+0+0 8.71875 0+0+0] [0+0+0 16 0+0+0]
                   frag 0 from TextNode start: 0, length: 1, rect: [43.5625,8 8.71875x16] baseline: 13
                       "e"
-                  InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+                  InlineNode <(anonymous)> at [43.5625,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
                     GeneratedTextNode <(anonymous)> (not painted)
                   TextNode <#text> (not painted)
-                  InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+                  InlineNode <(anonymous)> at [52.28125,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
                     GeneratedTextNode <(anonymous)> (not painted)
                 TextNode <#text> (not painted)
-                InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+                InlineNode <(anonymous)> at [58.71875,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
                   GeneratedTextNode <(anonymous)> (not painted)
               TextNode <#text> (not painted)
-              InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+              InlineNode <(anonymous)> at [66.28125,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
                 GeneratedTextNode <(anonymous)> (not painted)
             TextNode <#text> (not painted)
-            InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+            InlineNode <(anonymous)> at [75.578125,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
               GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
-          InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+          InlineNode <(anonymous)> at [80.140625,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
             GeneratedTextNode <(anonymous)> (not painted)
       BlockContainer <div.b> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <span> at [8,24] [0+0+0 130.578125 0+0+0] [0+0+0 16 0+0+0]

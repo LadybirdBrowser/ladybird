@@ -833,6 +833,18 @@ struct PendingInlineEdge {
     takes_leading_metrics: bool,
 }
 
+/// An inline box that holds no in-flow item.
+#[derive(Clone, Copy)]
+pub(crate) struct EmptyInlineBox {
+    /// Where the box is among the items: the index of the item it comes before or, once the items are resolved, the
+    /// number of items from that one to the last one.
+    position: usize,
+    pub(crate) node: Node,
+    /// The start edges between the content before the box and the content of the box, which the item after them
+    /// takes: those of the box, of the boxes around it that begin with it, and the end edges of empty boxes before it.
+    pub(crate) leading_edges: CssPixels,
+}
+
 struct TextNodeContext<'pass> {
     chunks: std::sync::Arc<super::rendered_text::CachedTextChunks>,
     text: &'pass [u16],
@@ -941,21 +953,34 @@ impl PreparedInlineContent {
         atomic_sizing: AtomicInlineSizing,
     ) -> InlineLevelIterator {
         context.atomic_items_are_right_to_left = self.orders_atomic_items_right_to_left(context);
-        let (entered_box_model_nodes, items) = RunItemResolver {
+        let (entered_box_model_nodes, empty_inline_boxes, items) = RunItemResolver {
             context,
             prepared: &self,
             atomic_sizing,
             pending_inline_edges: Vec::new(),
             box_model_node_stack: Vec::new(),
             entered_box_model_nodes: Vec::new(),
+            in_flow_item_count: 0,
+            item_count: 0,
+            empty_inline_boxes: Vec::new(),
+            empty_inline_boxes_after_item: Vec::new(),
+            inline_boxes_ending_with_item: Vec::new(),
             accumulated_inline_size_for_tabs: CssPixels::default(),
             next_box_event: 0,
             next_tab_stop: 0,
             forced_break_owner: NodeSlotId::INVALID,
         }
         .resolve();
+        let item_count = items.len();
         InlineLevelIterator {
             entered_box_model_nodes,
+            empty_inline_boxes: empty_inline_boxes
+                .into_iter()
+                .map(|empty_box| EmptyInlineBox {
+                    position: item_count - empty_box.position,
+                    ..empty_box
+                })
+                .collect(),
             items: ItemQueue::Owned(items.into_iter()),
             items_kept_for_looking_ahead: 0,
             prepared: self,
@@ -1619,8 +1644,16 @@ struct RunItemResolver<'resolver, 'context> {
     prepared: &'resolver PreparedInlineContent,
     atomic_sizing: AtomicInlineSizing,
     pending_inline_edges: Vec<PendingInlineEdge>,
-    box_model_node_stack: Vec<Node>,
+    /// The inline boxes the resolver is inside, each with the number of in-flow items there were when it began.
+    box_model_node_stack: Vec<(Node, usize)>,
     entered_box_model_nodes: Vec<Node>,
+    in_flow_item_count: usize,
+    item_count: usize,
+    empty_inline_boxes: Vec<EmptyInlineBox>,
+    /// The inline boxes that hold no in-flow item and come right after the item being resolved.
+    empty_inline_boxes_after_item: Vec<EmptyInlineBox>,
+    /// The inline boxes that end with the item about to be resolved, and hold no in-flow item before it.
+    inline_boxes_ending_with_item: Vec<EmptyInlineBox>,
     accumulated_inline_size_for_tabs: CssPixels,
     next_box_event: usize,
     next_tab_stop: usize,
@@ -1632,12 +1665,14 @@ impl<'context> RunItemResolver<'_, 'context> {
         self.context
     }
 
-    /// The inline boxes the items enter, and the items.
-    fn resolve(mut self) -> (Vec<Node>, Vec<Item>) {
+    /// The inline boxes the items enter, the ones among them that hold no in-flow item (each with the index of the
+    /// item it comes before), and the items.
+    fn resolve(mut self) -> (Vec<Node>, Vec<EmptyInlineBox>, Vec<Item>) {
         let prepared = self.prepared;
         let mut items: Vec<Item> = Vec::with_capacity(prepared.items.len());
         let mut next_non_whitespace = 0;
         for (index, prepared_item) in prepared.items.iter().enumerate() {
+            self.item_count = items.len();
             self.apply_inline_box_events_at(index, false);
             if !self.pending_inline_edges.is_empty()
                 && prepared_item.type_() == ItemType::Text
@@ -1658,6 +1693,7 @@ impl<'context> RunItemResolver<'_, 'context> {
                     .is_none_or(|next| matches!(next.type_(), ItemType::BlockLevelBox | ItemType::ForcedBreak))
                 {
                     // Whitespace at a line end disappears, but its inline box edges still belong on that line.
+                    self.keep_inline_boxes_ending_with_item_as_empty();
                     continue;
                 }
             }
@@ -1673,6 +1709,16 @@ impl<'context> RunItemResolver<'_, 'context> {
                 let next = prepared.items.get(index + 1).map(PreparedItem::node);
                 self.append_unattached_edges(&mut items, InlineEdgeBoundary::BeforeBreak(next));
             }
+            // NB: The boxes that begin or end within an item do so after its content, so they count it.
+            if matches!(
+                prepared_item.type_(),
+                ItemType::Text | ItemType::Element | ItemType::ForcedBreak | ItemType::BlockLevelBox
+            ) {
+                self.in_flow_item_count += 1;
+                self.inline_boxes_ending_with_item.clear();
+            } else {
+                self.keep_inline_boxes_ending_with_item_as_empty();
+            }
             let item = self.resolve_item(index, prepared_item);
             if matches!(item.type_, ItemType::ForcedBreak | ItemType::BlockLevelBox) {
                 self.accumulated_inline_size_for_tabs = CssPixels::default();
@@ -1684,15 +1730,28 @@ impl<'context> RunItemResolver<'_, 'context> {
                 self.forced_break_owner = prepared_item.node();
             }
             items.push(item);
+            let position = items.len();
+            self.empty_inline_boxes.extend(
+                self.empty_inline_boxes_after_item
+                    .drain(..)
+                    .map(|empty_box| EmptyInlineBox { position, ..empty_box }),
+            );
             if closes_boundary {
                 let next = prepared.items.get(index + 1).map(PreparedItem::node);
                 self.append_unattached_edges(&mut items, InlineEdgeBoundary::Closing(prepared_item.node(), next));
             }
         }
+        self.item_count = items.len();
         self.apply_inline_box_events_at(prepared.items.len(), false);
+        self.keep_inline_boxes_ending_with_item_as_empty();
         self.append_unattached_edges(&mut items, InlineEdgeBoundary::End);
         debug_assert_eq!(self.next_box_event, prepared.box_events.len());
-        (self.entered_box_model_nodes, items)
+        (self.entered_box_model_nodes, self.empty_inline_boxes, items)
+    }
+
+    /// The item that these inline boxes end with isn't in-flow content, so they hold none.
+    fn keep_inline_boxes_ending_with_item_as_empty(&mut self) {
+        self.empty_inline_boxes.append(&mut self.inline_boxes_ending_with_item);
     }
 
     fn append_unattached_edges(&mut self, items: &mut Vec<Item>, boundary: InlineEdgeBoundary) {
@@ -1752,7 +1811,13 @@ impl<'context> RunItemResolver<'_, 'context> {
                     last.type_ == ItemType::ForcedBreak && is_ancestor(edge.node, self.forced_break_owner)
                 })
             {
-                items.insert(items.len() - 1, item);
+                let forced_break_index = items.len() - 1;
+                items.insert(forced_break_index, item);
+                for empty_box in &mut self.empty_inline_boxes {
+                    if empty_box.position > forced_break_index {
+                        empty_box.position += 1;
+                    }
+                }
             } else {
                 advance += item.border_box_inline_size();
                 items.push(item);
@@ -1819,7 +1884,7 @@ impl<'context> RunItemResolver<'_, 'context> {
             self.next_box_event += 1;
             match event.entered_box() {
                 Some(node) => self.enter_node_with_box_model_metrics(node),
-                None => self.exit_node_with_box_model_metrics(event.leaves_before_item()),
+                None => self.exit_node_with_box_model_metrics(event.leaves_before_item(), within_item),
             }
         }
     }
@@ -1828,12 +1893,42 @@ impl<'context> RunItemResolver<'_, 'context> {
         self.entered_box_model_nodes.push(node);
         let sides = lay_out_entered_inline_box(self.context, node);
         self.keep_inline_edge(node, &sides, true, true);
-        self.box_model_node_stack.push(node);
+        self.box_model_node_stack.push((node, self.in_flow_item_count));
     }
 
-    fn exit_node_with_box_model_metrics(&mut self, before_item: bool) {
-        let node = self.box_model_node_stack.pop().unwrap();
+    fn exit_node_with_box_model_metrics(&mut self, before_item: bool, within_item: bool) {
+        let (node, in_flow_item_count_at_start) = self.box_model_node_stack.pop().unwrap();
         let sides = self.context().sides_of_entered_inline_box(node);
+        // https://quirks.spec.whatwg.org/#the-line-height-calculation-quirk
+        // No item tells the line builder about an inline box that holds no in-flow item, so it's kept apart, for the
+        // line it's on to take its strut from — except in quirks mode, where an inline box without text has none
+        // unless it has a border or padding at its start or end.
+        let none = CssPixels::default();
+        if in_flow_item_count_at_start == self.in_flow_item_count
+            && (!self.context().facts(node).document_in_quirks_mode()
+                || sides.border_left != none
+                || sides.border_right != none
+                || sides.padding_left != none
+                || sides.padding_right != none)
+        {
+            let empty_box = EmptyInlineBox {
+                position: self.item_count,
+                node,
+                leading_edges: self
+                    .pending_inline_edges
+                    .iter()
+                    .filter(|edge| edge.takes_leading_metrics)
+                    .map(|edge| edge.physical.margin + edge.physical.border + edge.physical.padding)
+                    .fold(CssPixels::default(), |sum, edge| sum + edge),
+            };
+            if within_item {
+                self.empty_inline_boxes_after_item.push(empty_box);
+            } else if before_item {
+                self.empty_inline_boxes.push(empty_box);
+            } else {
+                self.inline_boxes_ending_with_item.push(empty_box);
+            }
+        }
         self.keep_inline_edge(node, &sides, false, before_item);
     }
 
@@ -2098,6 +2193,7 @@ fn lay_out_entered_inline_box(
 struct SharedInlineItems {
     items: std::rc::Rc<[Item]>,
     entered_box_model_nodes: std::rc::Rc<[Node]>,
+    empty_inline_boxes: std::rc::Rc<[EmptyInlineBox]>,
     prepared: std::sync::Arc<PreparedInlineContent>,
 }
 
@@ -2148,6 +2244,8 @@ impl ItemQueue {
 
 pub(crate) struct InlineLevelIterator {
     entered_box_model_nodes: Vec<Node>,
+    /// The inline boxes that hold no in-flow item, in item order.
+    empty_inline_boxes: std::rc::Rc<[EmptyInlineBox]>,
     items: ItemQueue,
     /// The number of items at the end that this iterator only shows to look ahead, and does not hand out.
     items_kept_for_looking_ahead: usize,
@@ -2173,16 +2271,18 @@ impl InlineLevelIterator {
                 (
                     shared.items.clone(),
                     shared.entered_box_model_nodes.clone(),
+                    shared.empty_inline_boxes.clone(),
                     shared.prepared.clone(),
                 )
             });
-        if let Some((items, entered_box_model_nodes, prepared)) = shared {
+        if let Some((items, entered_box_model_nodes, empty_inline_boxes, prepared)) = shared {
             context.atomic_items_are_right_to_left = prepared.orders_atomic_items_right_to_left(context);
             for node in entered_box_model_nodes.iter() {
                 lay_out_entered_inline_box(context, *node);
             }
             return Self {
                 entered_box_model_nodes: entered_box_model_nodes.to_vec(),
+                empty_inline_boxes,
                 items: ItemQueue::Shared { items, next: 0 },
                 items_kept_for_looking_ahead: 0,
                 prepared,
@@ -2199,12 +2299,14 @@ impl InlineLevelIterator {
             SharedInlineItems {
                 items: shared_items.clone(),
                 entered_box_model_nodes: iterator.entered_box_model_nodes.as_slice().into(),
+                empty_inline_boxes: iterator.empty_inline_boxes.clone(),
                 prepared: iterator.prepared.clone(),
             },
         );
         let laid_out_atomic_inlines = items.iter().any(|item| item.type_ == ItemType::Element);
         Self {
             entered_box_model_nodes: iterator.entered_box_model_nodes,
+            empty_inline_boxes: iterator.empty_inline_boxes,
             items: if laid_out_atomic_inlines {
                 ItemQueue::Owned(items.into_iter())
             } else {
@@ -2243,6 +2345,33 @@ impl InlineLevelIterator {
         &self.entered_box_model_nodes
     }
 
+    pub(crate) fn has_empty_inline_boxes(&self) -> bool {
+        !self.empty_inline_boxes.is_empty()
+    }
+
+    /// The inline boxes that hold no in-flow item and come right before the item this iterator handed out last.
+    pub(crate) fn empty_inline_boxes_before_last_item(&self) -> impl Iterator<Item = EmptyInlineBox> + '_ {
+        self.empty_inline_boxes_before_items_left(self.items.as_slice().len() + 1)
+    }
+
+    /// The inline boxes that hold no in-flow item and come right after the item this iterator handed out last.
+    pub(crate) fn empty_inline_boxes_after_last_item(&self) -> impl Iterator<Item = EmptyInlineBox> + '_ {
+        self.empty_inline_boxes_before_items_left(self.items.as_slice().len())
+    }
+
+    fn empty_inline_boxes_before_items_left(&self, item_count: usize) -> impl Iterator<Item = EmptyInlineBox> + '_ {
+        let boxes = &self.empty_inline_boxes;
+        let start = if boxes.is_empty() {
+            0
+        } else {
+            boxes.partition_point(|empty_box| empty_box.position > item_count)
+        };
+        boxes[start..]
+            .iter()
+            .take_while(move |empty_box| empty_box.position == item_count)
+            .copied()
+    }
+
     /// The content the items were resolved from, which their glyph runs are read against.
     pub(crate) fn prepared_content(&self) -> &PreparedInlineContent {
         &self.prepared
@@ -2275,8 +2404,23 @@ impl InlineLevelIterator {
     /// ahead at the items after `range` up to `look_ahead_end`, without handing them out.
     pub(crate) fn duplicate(&self, range: std::ops::Range<usize>, look_ahead_end: usize) -> Self {
         let items: Vec<Item> = self.items()[range.start..look_ahead_end].to_vec();
+        let empty_inline_boxes = if self.empty_inline_boxes.is_empty() {
+            self.empty_inline_boxes.clone()
+        } else {
+            // NB: The copy ends at `look_ahead_end`, so each box counts the items left from there.
+            let items_after_copy = self.items().len() - look_ahead_end;
+            self.empty_inline_boxes
+                .iter()
+                .filter(|empty_box| (items_after_copy..=items_after_copy + items.len()).contains(&empty_box.position))
+                .map(|empty_box| EmptyInlineBox {
+                    position: empty_box.position - items_after_copy,
+                    ..*empty_box
+                })
+                .collect()
+        };
         Self {
             entered_box_model_nodes: self.entered_box_model_nodes.clone(),
+            empty_inline_boxes,
             items: ItemQueue::Owned(items.into_iter()),
             items_kept_for_looking_ahead: look_ahead_end - range.end,
             prepared: self.prepared.clone(),

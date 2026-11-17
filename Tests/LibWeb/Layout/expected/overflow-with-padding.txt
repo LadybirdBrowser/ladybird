@@ -8,7 +8,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 1 from TextNode start: 48, length: 12, rect: [35,51 93.4375x16] baseline: 13
               "the padding."
           TextNode <#text> (not painted)
-          InlineNode <span> at [35,35] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
+          InlineNode <span> at [128.4375,51] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
       BlockContainer <div.outer> at [34,156] [0+1+25 400 25+1+332] [0+1+25 70 25+1+0] [BFC] children: not-inline overflow: [9,131 452x234]
         BlockContainer <div.inner> at [35,157] [0+1+0 400 0+1+-2] [0+1+0 100 0+1+0] children: inline
           frag 0 from TextNode start: 0, length: 46, rect: [35,157 373.796875x16] baseline: 13

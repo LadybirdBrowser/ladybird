@@ -1,0 +1,32 @@
+br: 56
+empty: 0
+text: 56
+image: 56
+whitespace-before-br: 56
+empty-before-br: 56
+empty-before-text: 56
+empty-after-text: 56
+only-whitespace: 0
+empty-before-image: 56
+br-own-line-height: 56
+nested-br: 56
+two-br: 112
+empty-before-two-br: 75
+whitespace-before-text: 56
+whitespace-after-text: 56
+preserved-breaks: 112
+block-in-inline: 10
+empty-before-block: 10
+collapsing-margin: 10
+no-break-at-empty: 56
+empty-before-soft-wrap: 75
+whitespace-around-empty: 56
+trailing-space-before-empty: 56
+max-content-whitespace: 56
+whitespace-at-soft-wrap: 75
+empty-before-overflowing-image: 56
+empty-before-overflowing-text: 56
+max-content-whitespace width: 48
+whitespace-at-soft-wrap span is on first line: true
+trailing-space-before-empty text end: 100
+trailing-space-before-empty span: 100

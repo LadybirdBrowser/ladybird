@@ -16,7 +16,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <p.empty-before> at [8,48] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [20.296875,48 25.28125x16] baseline: 13
             "ext"
-        InlineNode <(anonymous)> at [8,48] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+        InlineNode <(anonymous)> at [8,48] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]
           GeneratedTextNode <(anonymous)> (not painted)
         InlineNode <(anonymous)> at [8,48] [0+0+0 12.296875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [8,48 12.296875x16] baseline: 13

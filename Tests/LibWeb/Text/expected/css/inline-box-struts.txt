@@ -1,0 +1,85 @@
+block-after-text: 70
+block-before-text: 70
+block-between-text: 130
+block-between-outer-text: 130
+empty-then-sibling-block: 70
+wrap-space-then-empty: 80 span@(40,5 0x50)
+wrap-empty-then-space: 80 span@(40,5 0x50)
+wrap-space-then-collapsed-space: 80 span@(40,5 0x50)
+wrap-space-in-span: 80 span@(40,5 0x50)
+wrap-anywhere: 80 span@(60,5 0x50)
+close-after-br: 80 span@(0,5 50x50)
+close-after-wrap: 80 span@(0,5 100x50)
+open-before-wrap: 80 span@(0,25 100x50)
+empty-after-br: 20
+empty-before-br-then-text: 80
+br-in-span-after-text: 60
+br-then-text-in-span: 120
+br-in-nested-b: 60
+alone: 0
+alone-top: 0
+alone-with-float: 0
+alone-with-abspos: 0
+abspos-only-then-text: 60
+float-only-then-text: 60
+with-padding: 60
+lh0: 20
+lh0-alone-br: 20
+nested-taller: 90
+nested-in-top: 60
+nested-shifted: 90
+nested-outer-shifted: 79
+two-empties: 60
+rtl: 60
+pre-space: 60
+inline-block: 60
+tall-top-image: 100
+generated: 60
+generated-on-block: 60
+empty-in-inline-block: 60
+nowrap-empty: 60 span@(60,5 0x50)
+text-then-empty-top: 60
+empty-display-contents: 60
+empty-text-node-span: 60
+va-top: 60
+va-br-top: 60
+va-bottom: 60
+va-br-bottom: 60
+va-10px: 60
+va-br-10px: 60
+va--10px: 60
+va-br--10px: 60
+va-super: 60
+va-br-super: 60
+va-sub: 60
+va-br-sub: 60
+va-text-bottom: 60
+va-br-text-bottom: 60
+va-50%: 79
+va-br-50%: 79
+va-baseline: 60
+va-br-baseline: 60
+vertical-rl-empty-text: 60
+vertical-rl-br: 60
+vertical-rl-alone: 0
+vertical-lr-empty-text: 60
+vertical-lr-br: 60
+vertical-lr-alone: 0
+sideways-rl-empty-text: 60
+sideways-rl-br: 60
+sideways-rl-alone: 0
+abspos-only-after-br: 20
+abspos-only-after-br-then-text: 80
+empty-after-br-then-text: 80
+empty-after-nested-br: 20
+empty-after-image: 60
+empty-after-float: 60
+empty-between-spaces-wrap: 80 span@(40,5 0x50)
+two-lines-two-empties: 140 span@(40,5 0x50)
+empty-with-margin: 60
+empty-with-padding-then-text: 60
+wide-space-then-empty: 60 span@(60,5 0x50)
+wide-empty-between-spaces: 60 span@(60,5 0x50)
+wide-space-in-span: 60 span@(40,5 50x50)
+wide-right-aligned: 60 span@(300,5 0x50)
+wide-centered-br: 60 span@(170,5 0x50)

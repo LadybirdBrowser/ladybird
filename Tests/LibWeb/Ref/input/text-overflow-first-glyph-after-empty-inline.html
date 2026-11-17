@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/text-overflow-first-glyph-after-empty-inline-ref.html">
+<style>
+    div { width: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 20px/1 monospace; }
+</style>
+<!-- An empty inline before the text shows nothing, so the first glyph is still clipped rather than dropped. -->
+<div><span></span>WWWWW</div>

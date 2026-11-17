@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>CSS Inline Layout Model: Phantom Line Boxes</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-inline/#invisible-line-boxes">
+<link rel="help" href="https://drafts.csswg.org/css2/#collapsing-margins">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/9344">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-inline/model/../../reference/ref-filled-green-200px-square.html">
+<meta name="assert" content="Non-zero inline-axis margins, padding, or borders
+    prevent a line box from becoming a phantom line box, and therefore prevent
+    the inline formatting context from collapsing margins through.
+    This test checks non-zero padding.">
+
+<style>
+.wrapper {
+  float: left;
+  width: 50px;
+  background: red;
+}
+.wrapper.phantom {
+  background: green;
+}
+.wrapper > div {
+  line-height: 0;
+  background: green;
+}
+.wrapper.phantom > div {
+  background: red
+}
+.wrapper > div::after {
+  content: "";
+  display: flow-root;
+  margin-top: 200px;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div class="wrapper phantom">
+  <div><span style="padding-top: 1px"></span></div>
+</div>
+<div class="wrapper phantom">
+  <div><span style="padding-bottom: 1px"></span></div>
+</div>
+<div class="wrapper">
+  <div><span style="padding-left: 1px"></span></div>
+</div>
+<div class="wrapper">
+  <div><span style="padding-right: 1px"></span></div>
+</div>

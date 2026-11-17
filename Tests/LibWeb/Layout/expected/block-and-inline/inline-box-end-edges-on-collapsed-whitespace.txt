@@ -51,7 +51,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 1 from TextNode start: 1, length: 1, rect: [49.6875,108 14.453125x20] baseline: 16
             "X"
         TextNode <#text> (not painted)
-        InlineNode <span.margin> at [8,108] [0+0+0 0 0+0+20] [0+0+0 20 0+0+0]
+        InlineNode <span.margin> at [29.6875,108] [0+0+0 0 0+0+20] [0+0+0 20 0+0+0]
         TextNode <#text> (not painted)
       BlockContainer <div> at [8,128] [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] children: inline
         InlineNode <span.margin> at [8,128] [0+0+0 21.6875 0+0+20] [0+0+0 20 0+0+0]

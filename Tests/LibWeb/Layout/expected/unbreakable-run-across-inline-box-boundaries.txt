@@ -235,13 +235,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 3, rect: [68,828 30x10] baseline: 8
               "ccc"
           TextNode <#text> (not painted)
-          InlineNode <b> at [8,828] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
+          InlineNode <b> at [98,828] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
             TextNode <#text> (not painted)
       BlockContainer <div> at [8,848] [0+0+0 90 0+0+694] [0+0+0 10 0+0+10] children: inline
         frag 0 from TextNode start: 0, length: 9, rect: [8,848 90x10] baseline: 8
             "aa-bb-ccc"
         TextNode <#text> (not painted)
-        InlineNode <span> at [8,848] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
+        InlineNode <span> at [98,848] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
           TextNode <#text> (not painted)
       BlockContainer <div> at [8,868] [0+0+0 70 0+0+714] [0+0+0 10 0+0+10] children: inline
         frag 0 from TextNode start: 0, length: 4, rect: [8,868 40x10] baseline: 8
@@ -338,7 +338,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         InlineNode <span> at [98,1038] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [98,1038 10x10] baseline: 8
               "d"
-          InlineNode <b> at [8,1038] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
+          InlineNode <b> at [98,1038] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
             TextNode <#text> (not painted)
           TextNode <#text> (not painted)
       BlockContainer <div> at [8,1058] [0+0+0 100 0+0+684] [0+0+0 10 0+0+10] children: inline
@@ -351,7 +351,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 1, rect: [88,1058 10x10] baseline: 8
               " "
           TextNode <#text> (not painted)
-        InlineNode <span> at [8,1058] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
+        InlineNode <span> at [98,1058] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
       BlockContainer <div> at [8,1078] [0+0+0 40 0+0+744] [0+0+0 30 0+0+10] [BFC] children: inline

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .s { font-size: 50px; line-height: 60px; }
+    .gen::before { content: ""; font-size: 50px; line-height: 60px; }
+    .genblock::before { content: ""; font-size: 50px; line-height: 60px; }
+    .case { position: relative; }
+</style>
+<div class="case" id="block-after-text">x<span class="s"><div style="height: 10px"></div></span></div>
+<div class="case" id="block-before-text"><span class="s"><div style="height: 10px"></div></span>y</div>
+<div class="case" id="block-between-text"><span class="s">a<div style="height: 10px"></div></span>y</div>
+<div class="case" id="block-between-outer-text">x<span class="s"><div style="height: 10px"></div></span>y</div>
+<div class="case" id="empty-then-sibling-block">x<span class="s"></span><div style="height: 10px"></div></div>
+<div class="case" id="wrap-space-then-empty" style="width: 60px">xx <span class="s"></span>yy</div>
+<div class="case" id="wrap-empty-then-space" style="width: 60px">xx<span class="s"></span> yy</div>
+<div class="case" id="wrap-space-then-collapsed-space" style="width: 60px">xx <span class="s"> </span>yy</div>
+<div class="case" id="wrap-space-in-span" style="width: 60px">xx<span class="s"> </span>yy</div>
+<div class="case" id="wrap-anywhere" style="width: 60px; overflow-wrap: anywhere">xxx<span class="s"></span>yy</div>
+<div class="case" id="close-after-br"><span class="s">x<br></span>y</div>
+<div class="case" id="close-after-wrap" style="width: 60px"><span class="s">xx </span>yy</div>
+<div class="case" id="open-before-wrap" style="width: 60px">xx <span class="s">yy</span></div>
+<div class="case" id="empty-after-br">x<br><span class="s"></span></div>
+<div class="case" id="empty-before-br-then-text"><span class="s"></span><br>x</div>
+<div class="case" id="br-in-span-after-text">x<span class="s"><br></span></div>
+<div class="case" id="br-then-text-in-span"><span class="s"><br>x</span></div>
+<div class="case" id="br-in-nested-b"><span class="s"><b><br></b></span></div>
+<div class="case" id="alone"><span class="s"></span></div>
+<div class="case" id="alone-top"><span class="s" style="vertical-align: top"></span></div>
+<div class="case" id="alone-with-float"><span class="s"></span><div style="float: left; width: 5px; height: 5px"></div></div>
+<div class="case" id="alone-with-abspos"><span class="s"><div style="position: absolute"></div></span></div>
+<div class="case" id="abspos-only-then-text"><span class="s"><div style="position: absolute"></div></span>x</div>
+<div class="case" id="float-only-then-text"><span class="s"><div style="float: left; width: 5px; height: 5px"></div></span>x</div>
+<div class="case" id="with-padding"><span class="s" style="padding-left: 1px"></span></div>
+<div class="case" id="lh0"><span style="font-size: 50px; line-height: 0"></span>x</div>
+<div class="case" id="lh0-alone-br"><span style="font-size: 50px; line-height: 0"><br></span></div>
+<div class="case" id="nested-taller"><span class="s"><span style="line-height: 90px"></span></span>x</div>
+<div class="case" id="nested-in-top"><span style="vertical-align: top"><span class="s"></span></span>x</div>
+<div class="case" id="nested-shifted"><span class="s"><span style="vertical-align: 30px"></span></span>x</div>
+<div class="case" id="nested-outer-shifted"><span style="vertical-align: 30px"><span class="s"></span></span>x</div>
+<div class="case" id="two-empties"><span class="s"></span><span class="s" style="vertical-align: top"></span>x</div>
+<div class="case" id="rtl" style="direction: rtl"><span class="s"></span>x</div>
+<div class="case" id="pre-space"><span class="s" style="white-space: pre"> </span></div>
+<div class="case" id="inline-block"><span class="s"></span><div style="display: inline-block; width: 5px; height: 30px"></div></div>
+<div class="case" id="tall-top-image"><span class="s" style="vertical-align: bottom"></span><div style="display: inline-block; width: 5px; height: 100px; vertical-align: top"></div></div>
+<div class="case" id="generated"><span class="gen"></span>x</div>
+<div class="case genblock" id="generated-on-block">x</div>
+<div class="case" id="empty-in-inline-block"><div style="display: inline-block"><span class="s"></span>x</div></div>
+<div class="case" id="nowrap-empty" style="width: 60px; white-space: nowrap">xx <span class="s"></span>yy</div>
+<div class="case" id="text-then-empty-top">x<span class="s" style="vertical-align: top"></span></div>
+<div class="case" id="empty-display-contents"><span class="s"><span style="display: contents"></span></span>x</div>
+<div class="case" id="empty-text-node-span"><span class="s"><!-- c --></span>x</div>
+<div class="case" id="va-top"><span class="s" style="vertical-align: top"></span>x</div>
+<div class="case" id="va-br-top"><span class="s" style="vertical-align: top"><br></span></div>
+<div class="case" id="va-bottom"><span class="s" style="vertical-align: bottom"></span>x</div>
+<div class="case" id="va-br-bottom"><span class="s" style="vertical-align: bottom"><br></span></div>
+<div class="case" id="va-10px"><span class="s" style="vertical-align: 10px"></span>x</div>
+<div class="case" id="va-br-10px"><span class="s" style="vertical-align: 10px"><br></span></div>
+<div class="case" id="va--10px"><span class="s" style="vertical-align: -10px"></span>x</div>
+<div class="case" id="va-br--10px"><span class="s" style="vertical-align: -10px"><br></span></div>
+<div class="case" id="va-super"><span class="s" style="vertical-align: super"></span>x</div>
+<div class="case" id="va-br-super"><span class="s" style="vertical-align: super"><br></span></div>
+<div class="case" id="va-sub"><span class="s" style="vertical-align: sub"></span>x</div>
+<div class="case" id="va-br-sub"><span class="s" style="vertical-align: sub"><br></span></div>
+<div class="case" id="va-text-bottom"><span class="s" style="vertical-align: text-bottom"></span>x</div>
+<div class="case" id="va-br-text-bottom"><span class="s" style="vertical-align: text-bottom"><br></span></div>
+<div class="case" id="va-50%"><span class="s" style="vertical-align: 50%"></span>x</div>
+<div class="case" id="va-br-50%"><span class="s" style="vertical-align: 50%"><br></span></div>
+<div class="case" id="va-baseline"><span class="s" style="vertical-align: baseline"></span>x</div>
+<div class="case" id="va-br-baseline"><span class="s" style="vertical-align: baseline"><br></span></div>
+<div class="case v" id="vertical-rl-empty-text" style="writing-mode: vertical-rl; height: 200px"><span class="s"></span>x</div>
+<div class="case v" id="vertical-rl-br" style="writing-mode: vertical-rl; height: 200px"><span class="s"><br></span></div>
+<div class="case v" id="vertical-rl-alone" style="writing-mode: vertical-rl; height: 200px"><span class="s"></span></div>
+<div class="case v" id="vertical-lr-empty-text" style="writing-mode: vertical-lr; height: 200px"><span class="s"></span>x</div>
+<div class="case v" id="vertical-lr-br" style="writing-mode: vertical-lr; height: 200px"><span class="s"><br></span></div>
+<div class="case v" id="vertical-lr-alone" style="writing-mode: vertical-lr; height: 200px"><span class="s"></span></div>
+<div class="case v" id="sideways-rl-empty-text" style="writing-mode: sideways-rl; height: 200px"><span class="s"></span>x</div>
+<div class="case v" id="sideways-rl-br" style="writing-mode: sideways-rl; height: 200px"><span class="s"><br></span></div>
+<div class="case v" id="sideways-rl-alone" style="writing-mode: sideways-rl; height: 200px"><span class="s"></span></div>
+<div class="case" id="abspos-only-after-br">x<br><span class="s"><div style="position: absolute"></div></span></div>
+<div class="case" id="abspos-only-after-br-then-text">x<br><span class="s"><div style="position: absolute"></div></span>y</div>
+<div class="case" id="empty-after-br-then-text">x<br><span class="s"></span>y</div>
+<div class="case" id="empty-after-nested-br"><b>x<br></b><span class="s"></span></div>
+<div class="case" id="empty-after-image"><div style="display: inline-block; width: 5px; height: 5px"></div><span class="s"></span></div>
+<div class="case" id="empty-after-float"><div style="float: left; width: 5px; height: 5px"></div><span class="s"></span>x</div>
+<div class="case" id="empty-between-spaces-wrap" style="width: 60px">xx <span class="s"></span> yy</div>
+<div class="case" id="two-lines-two-empties" style="width: 60px">xx <span class="s"></span>yy <span class="s"></span>zz</div>
+<div class="case" id="empty-with-margin"><span class="s" style="margin-left: 5px"></span>x</div>
+<div class="case" id="empty-with-padding-then-text"><span class="s" style="padding-left: 5px"></span>x</div>
+<div class="case" id="wide-space-then-empty" style="width: 300px">xx <span class="s"></span>yy</div>
+<div class="case" id="wide-empty-between-spaces" style="width: 300px">xx <span class="s"></span> yy</div>
+<div class="case" id="wide-space-in-span" style="width: 300px">xx<span class="s"> </span>yy</div>
+<div class="case" id="wide-right-aligned" style="width: 300px; text-align: right">xx <span class="s"></span></div>
+<div class="case" id="wide-centered-br" style="width: 300px; text-align: center">xx<span class="s"><br></span></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        for (const element of document.querySelectorAll(".case")) {
+            const rect = element.getBoundingClientRect();
+            let line = `${element.id}: ${element.classList.contains("v") ? rect.width : rect.height}`;
+            // NB: The cases that tell which line an inline box is on, or where it is on its line, print its rect.
+            const span = element.querySelector("span.s");
+            if (span && /wrap|close-after|open-before|two-lines|^wide/.test(element.id)) {
+                const spanRect = span.getBoundingClientRect();
+                line += ` span@(${spanRect.left - rect.left},${spanRect.top - rect.top} ${spanRect.width}x${spanRect.height})`;
+            }
+            println(line);
+        }
+    });
+</script>
