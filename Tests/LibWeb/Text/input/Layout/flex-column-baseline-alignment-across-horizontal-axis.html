@@ -6,15 +6,23 @@
     .f { display: flex; flex-direction: column; align-items: baseline; width: 200px; margin-bottom: 10px; }
     .f > div { background: silver; }
 </style>
-<!-- In a column flex container, baseline alignment runs across the horizontal axis. An item with no baseline there
-     synthesizes one from its left border edge. A vertical-lr item aligns with the others at the left edge, a
-     vertical-rl item with the other vertical-rl items at the right edge, and any other item at the cross-start edge.
-     An item with an auto cross-axis margin doesn't take part. Each line gives each item's offset from the left. -->
+<!-- In a column flex container, baseline alignment runs across the horizontal axis. An item in a vertical writing mode
+     aligns by its dominant baseline: central, unless its text is sideways. Any other item synthesizes a baseline from
+     its left border edge. A vertical-lr item aligns at the left edge, a vertical-rl item at the right edge, and any
+     other item at the cross-start edge. An item with an auto cross-axis margin doesn't take part. Each line gives
+     each item's offset from the left. -->
 <div class="f" id="different-heights"><div style="width: 30px; height: 20px"></div><div style="width: 30px; height: 50px"></div></div>
 <div class="f" id="different-margins"><div style="width: 30px; height: 20px; margin-left: 15px"></div><div style="width: 30px; height: 50px"></div></div>
 <div class="f" id="horizontal-text"><div>ab</div><div style="font-size: 40px">ab</div></div>
 <div class="f" id="vertical-lr"><div style="writing-mode: vertical-lr; width: 20px; height: 20px; margin-left: 10px"></div><div style="writing-mode: vertical-lr; width: 40px; height: 20px"></div><div style="width: 30px; height: 20px"></div></div>
 <div class="f" id="vertical-rl"><div style="writing-mode: vertical-rl; width: 20px; height: 20px"></div><div style="writing-mode: vertical-rl; width: 40px; height: 20px; margin-right: 10px"></div><div style="width: 30px; height: 20px"></div></div>
+<div class="f" id="vertical-lr-text"><div style="writing-mode: vertical-lr; font-size: 30px">ab</div><div style="writing-mode: vertical-lr">ab</div></div>
+<div class="f" id="vertical-rl-text"><div style="writing-mode: vertical-rl; font-size: 30px">ab</div><div style="writing-mode: vertical-rl">ab</div></div>
+<div class="f" id="vertical-lr-text-two-lines"><div style="writing-mode: vertical-lr; font-size: 30px">ab<br>cd</div><div style="writing-mode: vertical-lr">ab</div></div>
+<div class="f" id="vertical-lr-text-in-nested-block"><div style="writing-mode: vertical-lr; font-size: 10px"><div style="font-size: 30px">ab</div></div><div style="writing-mode: vertical-lr; font-size: 30px">ab</div></div>
+<div class="f" id="vertical-lr-text-after-empty-block"><div style="writing-mode: vertical-lr; font-size: 10px"><div></div><div style="font-size: 30px">ab</div></div><div style="writing-mode: vertical-lr; font-size: 30px">ab</div></div>
+<div class="f" id="sideways-text"><div style="writing-mode: vertical-rl; text-orientation: sideways; font-size: 30px">ab</div><div style="writing-mode: vertical-rl; text-orientation: sideways">ab</div></div>
+<div class="f" id="upright-text"><div style="writing-mode: vertical-lr; text-orientation: upright; font-size: 30px">ab</div><div style="writing-mode: vertical-lr; text-orientation: upright">ab</div></div>
 <div class="f" id="align-self"><div style="width: 30px; height: 20px; align-self: center"></div><div style="width: 30px; height: 50px"></div></div>
 <div class="f" id="auto-margin"><div style="width: 30px; height: 20px; margin-left: auto"></div><div style="width: 30px; height: 50px; margin-left: 15px"></div></div>
 <div class="f" id="rtl" style="direction: rtl"><div style="width: 30px; height: 20px"></div><div style="width: 50px; height: 50px; margin-right: 15px"></div></div>
