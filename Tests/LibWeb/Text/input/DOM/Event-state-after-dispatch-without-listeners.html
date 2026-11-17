@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // Nothing listens for any of these event types, so each dispatch invokes no listener.
+    const log = println;
+    function describe(value) {
+        if (value === null) return "null";
+        if (value === document) return "document";
+        if (value.id) return "#" + value.id;
+        if (value.nodeType === Node.TEXT_NODE) return "text";
+        return value.nodeName.toLowerCase();
+    }
+    function after(name, event, extra) {
+        log(`${name}: target=${event.target === null ? "null" : describe(event.target)} srcElement=${event.srcElement === null ? "null" : describe(event.srcElement)} currentTarget=${event.currentTarget} eventPhase=${event.eventPhase} composedPath=${event.composedPath().length}${extra || ""}`);
+    }
+    function runVariants() {
+        const detached = document.createElement("div");
+        detached.id = "detached";
+        let event = new Event("unheard", { bubbles: true });
+        detached.dispatchEvent(event);
+        after("detached element", event);
+
+        const text = document.createTextNode("text");
+        document.body.appendChild(text);
+        event = new Event("unheard", { bubbles: true });
+        text.dispatchEvent(event);
+        after("text node", event);
+
+        const fragment = document.createDocumentFragment();
+        const inFragment = document.createElement("span");
+        inFragment.id = "in-fragment";
+        fragment.appendChild(inFragment);
+        event = new Event("unheard", { bubbles: true });
+        inFragment.dispatchEvent(event);
+        after("element in a fragment", event);
+
+        const host = document.createElement("div");
+        host.id = "host";
+        document.body.appendChild(host);
+        const shadow = host.attachShadow({ mode: "open" });
+        const inShadow = document.createElement("span");
+        inShadow.id = "in-shadow";
+        shadow.appendChild(inShadow);
+        event = new Event("unheard", { bubbles: true });
+        inShadow.dispatchEvent(event);
+        after("in a shadow tree", event);
+        event = new Event("unheard", { bubbles: true, composed: true });
+        inShadow.dispatchEvent(event);
+        after("in a shadow tree, composed", event);
+
+        const slotted = document.createElement("b");
+        slotted.id = "slotted";
+        host.appendChild(slotted);
+        shadow.appendChild(document.createElement("slot"));
+        event = new Event("unheard", { bubbles: true });
+        slotted.dispatchEvent(event);
+        after("assigned slottable", event);
+
+        const related = document.createElement("i");
+        related.id = "related";
+        document.body.appendChild(related);
+        const plain = document.createElement("p");
+        plain.id = "plain";
+        document.body.appendChild(plain);
+        event = new MouseEvent("unheardmouse", { bubbles: true, relatedTarget: related });
+        plain.dispatchEvent(event);
+        after("with a related target", event, ` relatedTarget=${describe(event.relatedTarget)}`);
+        event = new MouseEvent("unheardmouse", { bubbles: true, relatedTarget: inShadow });
+        plain.dispatchEvent(event);
+        after("with a related target in a shadow tree", event, ` relatedTarget=${event.relatedTarget === null ? "null" : describe(event.relatedTarget)}`);
+
+        const other = document.createElement("em");
+        other.id = "other";
+        document.body.appendChild(other);
+        event = new Event("unheard", { bubbles: true });
+        plain.dispatchEvent(event);
+        other.dispatchEvent(event);
+        after("dispatched again elsewhere", event);
+
+        event = new Event("unheard", { bubbles: true, cancelable: true });
+        event.stopPropagation();
+        event.preventDefault();
+        const result = plain.dispatchEvent(event);
+        after("stopped and canceled first", event, ` cancelBubble=${event.cancelBubble} defaultPrevented=${event.defaultPrevented} returned=${result}`);
+
+        event = new Event("unheard", { bubbles: true });
+        document.dispatchEvent(event);
+        after("on the document", event);
+
+        event = new Event("unheard", { bubbles: false });
+        plain.dispatchEvent(event);
+        after("not bubbling", event);
+    }
+    test(runVariants);
+</script>
+</body>

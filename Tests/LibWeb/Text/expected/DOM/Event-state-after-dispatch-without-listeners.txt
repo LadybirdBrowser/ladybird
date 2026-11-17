@@ -1,0 +1,12 @@
+detached element: target=#detached srcElement=#detached currentTarget=null eventPhase=0 composedPath=0
+text node: target=text srcElement=text currentTarget=null eventPhase=0 composedPath=0
+element in a fragment: target=#in-fragment srcElement=#in-fragment currentTarget=null eventPhase=0 composedPath=0
+in a shadow tree: target=null srcElement=null currentTarget=null eventPhase=0 composedPath=0
+in a shadow tree, composed: target=#host srcElement=#host currentTarget=null eventPhase=0 composedPath=0
+assigned slottable: target=#slotted srcElement=#slotted currentTarget=null eventPhase=0 composedPath=0
+with a related target: target=#plain srcElement=#plain currentTarget=null eventPhase=0 composedPath=0 relatedTarget=#related
+with a related target in a shadow tree: target=#plain srcElement=#plain currentTarget=null eventPhase=0 composedPath=0 relatedTarget=#host
+dispatched again elsewhere: target=#other srcElement=#other currentTarget=null eventPhase=0 composedPath=0
+stopped and canceled first: target=#plain srcElement=#plain currentTarget=null eventPhase=0 composedPath=0 cancelBubble=false defaultPrevented=true returned=false
+on the document: target=document srcElement=document currentTarget=null eventPhase=0 composedPath=0
+not bubbling: target=#plain srcElement=#plain currentTarget=null eventPhase=0 composedPath=0
