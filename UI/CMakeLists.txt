@@ -103,6 +103,11 @@ function(create_ladybird_bundle target_name)
         set(bundled_sparkle_framework "${bundle_dir}/Contents/Frameworks/Sparkle.framework")
         set_property(TARGET ${target_name} APPEND PROPERTY BUILD_RPATH "@executable_path/../Frameworks")
         set_property(TARGET ${target_name} APPEND PROPERTY INSTALL_RPATH "@executable_path/../Frameworks")
+
+        ladybird_codesign_command(sparkle_autoupdate_codesign_command "${target_name}-sparkle-autoupdate" -o runtime "${bundled_sparkle_framework}/Versions/B/Autoupdate")
+        ladybird_codesign_command(sparkle_updater_codesign_command "${target_name}-sparkle-updater" -o runtime "${bundled_sparkle_framework}/Versions/B/Updater.app")
+        ladybird_codesign_command(sparkle_codesign_command "${target_name}-sparkle" "${bundled_sparkle_framework}")
+
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E rm -rf "${bundled_sparkle_framework}"
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${bundle_dir}/Contents/Frameworks"
@@ -111,9 +116,9 @@ function(create_ladybird_bundle target_name)
                 "${bundled_sparkle_framework}/Headers" "${bundled_sparkle_framework}/Versions/B/Headers"
                 "${bundled_sparkle_framework}/PrivateHeaders" "${bundled_sparkle_framework}/Versions/B/PrivateHeaders"
                 "${bundled_sparkle_framework}/Modules" "${bundled_sparkle_framework}/Versions/B/Modules"
-            COMMAND codesign -s - -f -o runtime "${bundled_sparkle_framework}/Versions/B/Autoupdate"
-            COMMAND codesign -s - -f -o runtime "${bundled_sparkle_framework}/Versions/B/Updater.app"
-            COMMAND codesign -s - -f "${bundled_sparkle_framework}"
+            COMMAND ${sparkle_autoupdate_codesign_command}
+            COMMAND ${sparkle_updater_codesign_command}
+            COMMAND ${sparkle_codesign_command}
             VERBATIM
         )
 
@@ -123,7 +128,7 @@ function(create_ladybird_bundle target_name)
             COMMAND "${CMAKE_COMMAND}" -E create_symlink "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" "${bundle_dir}/Contents/lib"
         )
 
-        ladybird_codesign_command(codesign_command "${target_name}" "${LADYBIRD_ENTITLEMENTS_FILE}" -v "${bundle_dir}")
+        ladybird_codesign_command(codesign_command "${target_name}" --entitlements "${LADYBIRD_ENTITLEMENTS_FILE}" -v "${bundle_dir}")
         add_custom_command(TARGET ${target_name} POST_BUILD COMMAND ${codesign_command} VERBATIM)
     endif()
 
@@ -211,7 +216,7 @@ if (APPLE)
     # WebDriver and the helpers can link into the bundle after ladybird has signed it — and that leaves the seal stale
     # until something later relinks ladybird. Sign once more with everything in place.
     set(bundle_signed_stamp "${CMAKE_CURRENT_BINARY_DIR}/ladybird_bundle_signed.stamp")
-    ladybird_codesign_command(codesign_command ladybird-bundle "${LADYBIRD_ENTITLEMENTS_FILE}" -v "$<TARGET_BUNDLE_DIR:ladybird>")
+    ladybird_codesign_command(codesign_command ladybird-bundle --entitlements "${LADYBIRD_ENTITLEMENTS_FILE}" -v "$<TARGET_BUNDLE_DIR:ladybird>")
 
     add_custom_command(
         OUTPUT "${bundle_signed_stamp}"
