@@ -255,6 +255,12 @@ bool WebSocketImplCurl::flush_pending_write_buffer()
 
 bool WebSocketImplCurl::did_connect()
 {
+    // NB: curl can finish the transfer successfully when the server closes the connection without sending a response
+    //     to the opening handshake. Only a 101 response completes the handshake.
+    long response_code = 0;
+    if (curl_easy_getinfo(m_easy_handle, CURLINFO_RESPONSE_CODE, &response_code) != CURLE_OK || response_code != 101)
+        return false;
+
     curl_socket_t socket_fd = CURL_SOCKET_BAD;
     auto res = curl_easy_getinfo(m_easy_handle, CURLINFO_ACTIVESOCKET, &socket_fd);
     if (res != CURLE_OK || socket_fd == CURL_SOCKET_BAD)
