@@ -272,6 +272,9 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
                 return;
             if (seek_id != self->m_seek_id)
                 return;
+            // A status that the sink reached since has replaced this one, and is dispatched or queued already.
+            if (status_to_dispatch != self->m_latest_status)
+                return;
             self->dispatch_state_if_changed(status_to_dispatch);
         });
     }
