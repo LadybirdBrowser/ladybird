@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::builder::{HEADER_SIZE, for_each_command, inline_transform_of, read_command};
+use super::builder::{HEADER_SIZE, RecordedDisplayList, for_each_command, inline_transform_of, read_command};
 use super::commands::*;
 use super::dump_format::{
     DumpNames, DumpValue, dumped_record_field, path_description, push_clip_radii, push_fields, push_value,
@@ -15,6 +15,7 @@ use super::nested_records::{
     NestedRecordsRole, for_each_command_including_nested, for_each_nested_record_span, span_bytes,
 };
 use super::record_fields::visit_command_fields;
+use super::recorder::{RecordNotes, RecordOrigin};
 use super::storage::DisplayListStorage;
 use super::summary::{LiveContent, summarize};
 use crate::layout::LayoutNodeArena;
@@ -40,6 +41,8 @@ crate::stage::main_thread_ffi_entries!();
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiDisplayListDumpOptions {
+    /// Names, on each record, the box and the paint phase that recorded it.
+    pub owners: bool,
     /// Numbers every record, nested ones too, in tape order, and names the records of each layer by those numbers.
     pub record_ids: bool,
     /// Names visual context nodes by their indices in the tree rather than by the order the dump first prints them in.
@@ -225,6 +228,14 @@ pub unsafe extern "C" fn painting_dump(
             owners
         })
     };
+    let record_origins = options.owners.then(|| {
+        let record_notes = recording.record_notes.clone().unwrap_or_default();
+        record_origins_in_tape_order(&recording.display_list, &record_notes)
+    });
+    let owner_labels = record_origins
+        .as_ref()
+        .map(|origins| owner_labels(host, read, &main_thread, &callbacks, origins))
+        .unwrap_or_default();
     let mut names = if options.raw_node_indices {
         DumpNames::default()
     } else {
@@ -252,6 +263,11 @@ pub unsafe extern "C" fn painting_dump(
         output: &mut output,
         names: &mut names,
         next_record_id: options.record_ids.then_some(1),
+        record_origins: record_origins.map(|origins| RecordOriginsInDumpOrder {
+            origins,
+            next_index: 0,
+            owner_labels,
+        }),
     };
     match layer_plan {
         Some(layer_plan) => records.dump_top_level_commands_with_their_layers(&display_list, &layer_plan),
@@ -474,12 +490,83 @@ impl RecordIdsOfTopLevelRecords {
     }
 }
 
+/// The origin of each record of a tape in tape order, nested records after the one they are nested in. A nested record
+/// whose recording noted no origin, such as a record of a pattern tile, which is recorded once and copied wherever it
+/// is drawn, has the origin of the record it is nested in.
+fn record_origins_in_tape_order(display_list: &RecordedDisplayList, notes: &RecordNotes) -> Vec<Option<RecordOrigin>> {
+    fn collect(
+        bytes: &[u8],
+        base_offset: u32,
+        enclosing_origin: Option<RecordOrigin>,
+        notes: &RecordNotes,
+        origins: &mut Vec<Option<RecordOrigin>>,
+    ) {
+        for_each_command(bytes, |header, record_offset, payload| {
+            let record_offset = base_offset + record_offset as u32;
+            let origin = notes.origin_at(record_offset).or(enclosing_origin);
+            origins.push(origin);
+            let payload_offset = record_offset + HEADER_SIZE as u32;
+            for_each_nested_record_span(header.command_type, payload, |_, span| {
+                collect(
+                    span_bytes(payload, span),
+                    payload_offset + span.offset,
+                    origin,
+                    notes,
+                    origins,
+                );
+            });
+        });
+    }
+    let mut origins = Vec::new();
+    for run in &display_list.command_runs {
+        let run_bytes = &display_list.bytes[run.offset as usize..(run.offset + run.size) as usize];
+        collect(run_bytes, run.offset, None, notes, &mut origins);
+    }
+    origins
+}
+
+/// The labels of the live boxes that recorded the records.
+fn owner_labels(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    main_thread: &MainThread,
+    callbacks: &FfiPaintingDumpCallbacks,
+    origins: &[Option<RecordOrigin>],
+) -> HashMap<NodeSlotId, String> {
+    let owners: Vec<NodeSlotId> = origins
+        .iter()
+        .flatten()
+        .map(|origin| origin.owner)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    let live_owners = crate::painting::ffi::read_arena(host, read, owners, |arena, owners| {
+        owners
+            .into_iter()
+            .filter(|&owner| owner != NodeSlotId::INVALID && arena.slot_is_live(owner))
+            .collect::<Vec<_>>()
+    });
+    live_owners
+        .into_iter()
+        .map(|owner| (owner, callbacks.debug_description(main_thread, owner)))
+        .collect()
+}
+
+/// The origins of the records the DisplayList section prints, which it takes in turn. The records of an SVG image,
+/// which the recording names by the image's id only, are not among them.
+struct RecordOriginsInDumpOrder {
+    origins: Vec<Option<RecordOrigin>>,
+    next_index: usize,
+    owner_labels: HashMap<NodeSlotId, String>,
+}
+
 /// Where the DisplayList section is written, with the names it gives what the records name.
 struct RecordDump<'a> {
     output: &'a mut String,
     names: &'a mut DumpNames,
     // The number the next record is printed with, while records are numbered.
     next_record_id: Option<u32>,
+    record_origins: Option<RecordOriginsInDumpOrder>,
 }
 
 impl RecordDump<'_> {
@@ -487,7 +574,7 @@ impl RecordDump<'_> {
         let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
         for run in command_runs {
             let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
-            self.dump_command_bytes(run_bytes, run.context, 0);
+            self.dump_command_bytes(run_bytes, run.context, 0, None);
         }
     }
 
@@ -500,7 +587,7 @@ impl RecordDump<'_> {
                 let layer_label = format!("L{} ", layer_plan.layer_of_record(run.offset + offset_in_run as u32));
                 let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
                 let record_dump_start = self.output.len();
-                self.dump_command_bytes(record_bytes, run.context, 0);
+                self.dump_command_bytes(record_bytes, run.context, 0, None);
                 let record_dump = self.output.split_off(record_dump_start);
                 for (line_index, line) in record_dump.split_inclusive('\n').enumerate() {
                     if line_index == 0 {
@@ -514,8 +601,22 @@ impl RecordDump<'_> {
         }
     }
 
-    fn dump_command_bytes(&mut self, command_bytes: &[u8], context: ContextRef, base_indent: usize) {
+    // The records of an SVG image take the origin of the record that draws the image.
+    fn dump_command_bytes(
+        &mut self,
+        command_bytes: &[u8],
+        context: ContextRef,
+        base_indent: usize,
+        origin_of_enclosing_vector_image: Option<Option<RecordOrigin>>,
+    ) {
         for_each_command(command_bytes, |header, _, payload| {
+            let origin = match origin_of_enclosing_vector_image {
+                Some(origin) => origin,
+                None => self
+                    .record_origins
+                    .as_mut()
+                    .and_then(RecordOriginsInDumpOrder::take_next),
+            };
             push_indent(self.output, base_indent);
             if let Some(record_id) = &mut self.next_record_id {
                 write!(self.output, "#{record_id} ").unwrap();
@@ -532,9 +633,19 @@ impl RecordDump<'_> {
                 self.output.push_str(" inline_transform=");
                 push_affine_transform(self.output, transform);
             }
+            if let Some(origin) = origin {
+                self.push_origin(origin);
+            }
             self.output.push('\n');
 
-            self.dump_records_inside(header.command_type, payload, context, base_indent + 1);
+            self.dump_records_inside(
+                header.command_type,
+                payload,
+                context,
+                base_indent + 1,
+                origin_of_enclosing_vector_image,
+                origin,
+            );
         });
     }
 
@@ -544,6 +655,8 @@ impl RecordDump<'_> {
         payload: &[u8],
         context: ContextRef,
         indent: usize,
+        origin_of_enclosing_vector_image: Option<Option<RecordOrigin>>,
+        origin: Option<RecordOrigin>,
     ) {
         for_each_nested_record_span(command_type, payload, |role, span| {
             let label = match role {
@@ -560,8 +673,36 @@ impl RecordDump<'_> {
                 self.output.push_str(label);
                 nested_indent += 1;
             }
-            self.dump_command_bytes(span_bytes(payload, span), context, nested_indent);
+            let origin_of_enclosing_vector_image = match role {
+                NestedRecordsRole::VectorImage => origin_of_enclosing_vector_image.or(Some(origin)),
+                _ => origin_of_enclosing_vector_image,
+            };
+            self.dump_command_bytes(
+                span_bytes(payload, span),
+                context,
+                nested_indent,
+                origin_of_enclosing_vector_image,
+            );
         });
+    }
+
+    fn push_origin(&mut self, origin: RecordOrigin) {
+        let owner_label = self
+            .record_origins
+            .as_ref()
+            .and_then(|origins| origins.owner_labels.get(&origin.owner));
+        if let Some(owner_label) = owner_label {
+            write!(self.output, " owner={owner_label}").unwrap();
+        }
+        write!(self.output, " phase={}", origin.phase).unwrap();
+    }
+}
+
+impl RecordOriginsInDumpOrder {
+    fn take_next(&mut self) -> Option<RecordOrigin> {
+        let origin = self.origins.get(self.next_index).copied().flatten();
+        self.next_index += 1;
+        origin
     }
 }
 

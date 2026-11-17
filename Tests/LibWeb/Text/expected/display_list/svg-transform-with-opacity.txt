@@ -11,5 +11,5 @@ AccumulatedVisualContext Tree:
       [e1 in s2 out=c0] effects=[opacity=0.5] (SVGGeometryBox<rect>)
 
 DisplayList:
-FillPath@s3/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(255, 0, 0)
+FillPath@s3/c0/e1 path_bounding_rect=[0,0 100x100] path_data=[path: M0 0L100 0L100 100L0 100L0 0Z] color=rgb(255, 0, 0) owner=SVGGeometryBox<rect> phase=foreground
 

@@ -544,6 +544,7 @@ dictionary StyleRecordsDumpOptions {
 };
 
 dictionary DisplayListDumpOptions {
+    boolean owners = true;
     boolean recordIds = false;
     boolean rawNodeIndices = false;
 };

@@ -8,10 +8,10 @@ AccumulatedVisualContext Tree:
       [e1 in s1] mask=[8,8 100x100] kind=alpha origin=css-mask-layers (BlockContainer<DIV>#box.box)
 
 DisplayList:
-DeclareMaskContent@s1/e1 rect=[8,8 100x100] effect=e1
-  PaintLinearGradient@s1/e1 gradient_rect=[8,8 100x100] gradient_angle=180 color_stops=[rgb(0, 0, 0) 0, rgba(0, 0, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[8,8 100x100]]
-FillRect@s1/e1 rect=[8,8 100x100] color=rgb(173, 216, 230)
-DrawGlyphRun@s1/e1 font_id=font1 glyphs=3 rect=[8,8 30x16] glyph_bounding_rect=[8,8 33x15] translation=[8,21] color=rgb(0, 0, 0)
+DeclareMaskContent@s1/e1 rect=[8,8 100x100] effect=e1 owner=BlockContainer<DIV>#box.box phase=preamble
+  PaintLinearGradient@s1/e1 gradient_rect=[8,8 100x100] gradient_angle=180 color_stops=[rgb(0, 0, 0) 0, rgba(0, 0, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[8,8 100x100]] owner=BlockContainer<DIV>#box.box phase=preamble
+FillRect@s1/e1 rect=[8,8 100x100] color=rgb(173, 216, 230) owner=BlockContainer<DIV>#box.box phase=background
+DrawGlyphRun@s1/e1 font_id=font1 glyphs=3 rect=[8,8 30x16] glyph_bounding_rect=[8,8 33x15] translation=[8,21] color=rgb(0, 0, 0) owner=BlockContainer<DIV>#box.box phase=foreground
 
 After mask-image removal:
 AccumulatedVisualContext Tree:
@@ -22,8 +22,8 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/e0 rect=[8,8 100x100] color=rgb(173, 216, 230)
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[8,8 30x16] glyph_bounding_rect=[8,8 33x15] translation=[8,21] color=rgb(0, 0, 0)
+FillRect@s1/e0 rect=[8,8 100x100] color=rgb(173, 216, 230) owner=BlockContainer<DIV>#box.box phase=background
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=3 rect=[8,8 30x16] glyph_bounding_rect=[8,8 33x15] translation=[8,21] color=rgb(0, 0, 0) owner=BlockContainer<DIV>#box.box phase=foreground
 
 After mask-image reinstatement:
 AccumulatedVisualContext Tree:
@@ -35,8 +35,8 @@ AccumulatedVisualContext Tree:
       [e1 in s1] mask=[8,8 100x100] kind=alpha origin=css-mask-layers (BlockContainer<DIV>#box.box)
 
 DisplayList:
-DeclareMaskContent@s1/e1 rect=[8,8 100x100] effect=e1
-  PaintLinearGradient@s1/e1 gradient_rect=[8,8 100x100] gradient_angle=90 color_stops=[rgb(0, 0, 0) 0, rgba(0, 0, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[8,8 100x100]]
-FillRect@s1/e1 rect=[8,8 100x100] color=rgb(173, 216, 230)
-DrawGlyphRun@s1/e1 font_id=font1 glyphs=3 rect=[8,8 30x16] glyph_bounding_rect=[8,8 33x15] translation=[8,21] color=rgb(0, 0, 0)
+DeclareMaskContent@s1/e1 rect=[8,8 100x100] effect=e1 owner=BlockContainer<DIV>#box.box phase=preamble
+  PaintLinearGradient@s1/e1 gradient_rect=[8,8 100x100] gradient_angle=90 color_stops=[rgb(0, 0, 0) 0, rgba(0, 0, 0, 0) 1] repeat_length=1 interpolation_method={rectangular_color_space=Srgb} inline_clips=[clip=[8,8 100x100]] owner=BlockContainer<DIV>#box.box phase=preamble
+FillRect@s1/e1 rect=[8,8 100x100] color=rgb(173, 216, 230) owner=BlockContainer<DIV>#box.box phase=background
+DrawGlyphRun@s1/e1 font_id=font1 glyphs=3 rect=[8,8 30x16] glyph_bounding_rect=[8,8 33x15] translation=[8,21] color=rgb(0, 0, 0) owner=BlockContainer<DIV>#box.box phase=foreground
 

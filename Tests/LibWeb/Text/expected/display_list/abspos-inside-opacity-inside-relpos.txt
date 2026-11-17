@@ -9,5 +9,5 @@ AccumulatedVisualContext Tree:
       [e1 in s1 out=c0] effects=[opacity=0.5] (BlockContainer<DIV>.opacity)
 
 DisplayList:
-FillRect@s1/c0/e1 rect=[8,8 100x100] color=rgb(0, 0, 0)
+FillRect@s1/c0/e1 rect=[8,8 100x100] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.abspos phase=background
 

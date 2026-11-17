@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #box { width: 100px; height: 30px; background: green; border: 2px solid blue; outline: 3px solid red; }
+</style>
+<div id="box">text</div>
+<svg width="100" height="100">
+    <mask id="fade"><rect width="50" height="50" fill="white"></rect></mask>
+    <rect id="masked" width="100" height="100" fill="green" mask="url(#fade)"></rect>
+</svg>
+<script>
+    test(() => {
+        const dump = internals.dumpDisplayList();
+        println(dump.slice(dump.indexOf("DisplayList:")));
+        const withoutOwners = internals.dumpDisplayList({ owners: false });
+        println(`without owners, no record names its owner or phase: ${!withoutOwners.includes(" owner=") && !withoutOwners.includes(" phase=")}`);
+    });
+</script>

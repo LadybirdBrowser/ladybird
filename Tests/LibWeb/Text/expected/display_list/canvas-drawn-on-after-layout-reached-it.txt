@@ -10,5 +10,5 @@ Layers:
   [L1] canvas rect=[5,5 206x126] shown by the window server: clip=[0,0 800x600]
 
 DisplayList:
-L1 DrawCanvas@s1/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear
+L1 DrawCanvas@s1/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
 

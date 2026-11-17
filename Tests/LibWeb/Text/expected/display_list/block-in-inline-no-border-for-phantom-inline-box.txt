@@ -6,9 +6,9 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRoundedRectRing@s1/e0 rect=[0,3 8x14] top_width=2 bottom_width=2 left_width=2 color=rgb(255, 0, 0)
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=1 rect=[2,5 6x10] glyph_bounding_rect=[2,5 8x9] translation=[2,13] color=rgb(0, 0, 0)
-FillRoundedRectRing@s1/e0 rect=[0,63 8x14] top_width=2 right_width=2 bottom_width=2 color=rgb(255, 0, 0)
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=1 rect=[0,65 6x10] glyph_bounding_rect=[0,65 8x9] translation=[0,73] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/e0 font_id=font1 glyphs=1 rect=[100,55 7x10] glyph_bounding_rect=[100,55 8x9] translation=[100,63] color=rgb(0, 0, 0)
+FillRoundedRectRing@s1/e0 rect=[0,3 8x14] top_width=2 bottom_width=2 left_width=2 color=rgb(255, 0, 0) owner=BlockContainer<DIV> phase=inline-piece
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=1 rect=[2,5 6x10] glyph_bounding_rect=[2,5 8x9] translation=[2,13] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
+FillRoundedRectRing@s1/e0 rect=[0,63 8x14] top_width=2 right_width=2 bottom_width=2 color=rgb(255, 0, 0) owner=BlockContainer<DIV> phase=inline-piece
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=1 rect=[0,65 6x10] glyph_bounding_rect=[0,65 8x9] translation=[0,73] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=text-fragment
+DrawGlyphRun@s1/e0 font_id=font1 glyphs=1 rect=[100,55 7x10] glyph_bounding_rect=[100,55 8x9] translation=[100,63] color=rgb(0, 0, 0) owner=BlockContainer<DIV> phase=foreground
 

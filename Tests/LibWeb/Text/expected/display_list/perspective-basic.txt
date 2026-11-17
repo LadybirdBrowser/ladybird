@@ -8,6 +8,6 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s3/e0 rect=[8,8 100x100] color=rgb(0, 0, 255)
-DrawGlyphRun@s3/e0 font_id=font1 glyphs=2 rect=[8,8 21x16] glyph_bounding_rect=[8,8 22x15] translation=[8,21] color=rgb(0, 0, 0)
+FillRect@s3/e0 rect=[8,8 100x100] color=rgb(0, 0, 255) owner=BlockContainer<DIV>.rotated phase=background
+DrawGlyphRun@s3/e0 font_id=font1 glyphs=2 rect=[8,8 21x16] glyph_bounding_rect=[8,8 22x15] translation=[8,21] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.rotated phase=foreground
 

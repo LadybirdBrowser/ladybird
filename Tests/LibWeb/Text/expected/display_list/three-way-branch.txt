@@ -9,10 +9,10 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s2/e0 rect=[8,8 60x60] color=rgb(255, 0, 0)
-DrawGlyphRun@s2/e0 font_id=font1 glyphs=1 rect=[8,8 7x16] glyph_bounding_rect=[8,8 13x15] translation=[8,21] color=rgb(0, 0, 0)
-FillRect@s3/e0 rect=[73,8 60x60] color=rgb(0, 128, 0)
-DrawGlyphRun@s3/e0 font_id=font1 glyphs=1 rect=[73,8 9x16] glyph_bounding_rect=[73,8 13x15] translation=[73,21] color=rgb(0, 0, 0)
-FillRect@s4/e0 rect=[138,8 60x60] color=rgb(0, 0, 255)
-DrawGlyphRun@s4/e0 font_id=font1 glyphs=1 rect=[138,8 10x16] glyph_bounding_rect=[138,8 13x15] translation=[138,21] color=rgb(0, 0, 0)
+FillRect@s2/e0 rect=[8,8 60x60] color=rgb(255, 0, 0) owner=BlockContainer<DIV>.box.a phase=background
+DrawGlyphRun@s2/e0 font_id=font1 glyphs=1 rect=[8,8 7x16] glyph_bounding_rect=[8,8 13x15] translation=[8,21] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.box.a phase=foreground
+FillRect@s3/e0 rect=[73,8 60x60] color=rgb(0, 128, 0) owner=BlockContainer<DIV>.box.b phase=background
+DrawGlyphRun@s3/e0 font_id=font1 glyphs=1 rect=[73,8 9x16] glyph_bounding_rect=[73,8 13x15] translation=[73,21] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.box.b phase=foreground
+FillRect@s4/e0 rect=[138,8 60x60] color=rgb(0, 0, 255) owner=BlockContainer<DIV>.box.c phase=background
+DrawGlyphRun@s4/e0 font_id=font1 glyphs=1 rect=[138,8 10x16] glyph_bounding_rect=[138,8 13x15] translation=[138,21] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.box.c phase=foreground
 

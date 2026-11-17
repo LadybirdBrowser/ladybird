@@ -11,6 +11,6 @@ AccumulatedVisualContext Tree:
 Layers: none (3D sorting context)
 
 DisplayList:
-DrawCanvas@s1/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear
-FillRect@s4/e0 rect=[8,131 100x100] color=rgb(255, 165, 0)
+DrawCanvas@s1/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+FillRect@s4/e0 rect=[8,131 100x100] color=rgb(255, 165, 0) owner=BlockContainer<DIV>#card phase=background
 

@@ -179,6 +179,8 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         }
         self.live_producer = false;
         self.producer_reads_window_focus.set(false);
+        self.recorder
+            .begin_record_origin(owner, super::trace::producer_name(kind));
         let start = self.recorder.byte_size();
         let blocking_wheel_event_regions_before = self.blocking_wheel_event_region_count;
         self.observer
@@ -209,6 +211,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
             }
         }
         let end = self.recorder.byte_size();
+        self.recorder.end_record_origin();
         if self.ink_bounds_audit.enabled {
             self.verify_producer_ink(owner, kind, start..end);
             self.verify_producer_against_open_scopes(owner, kind, start..end);
@@ -227,8 +230,16 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
 
     fn take_run_chunk(&mut self) -> Option<Arc<RecordedChunk>> {
         let chunk = self.recorder.take_chunk();
+        let record_notes = self.recorder.take_record_notes();
         let draws_vector_image_placeholders = std::mem::take(&mut self.run_draws_vector_image_placeholders);
-        (!chunk.records.is_empty()).then(|| RecordedChunk::new(chunk, draws_vector_image_placeholders))
+        if chunk.records.is_empty() {
+            return None;
+        }
+        let chunk = RecordedChunk::new(chunk, draws_vector_image_placeholders);
+        if let Some(record_notes) = record_notes {
+            self.record_notes_of_chunks.push((Arc::clone(&chunk), record_notes));
+        }
+        Some(chunk)
     }
 
     fn changes_of_row(&mut self, row: NodeSlotId) -> RowChanges {
