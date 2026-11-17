@@ -82,6 +82,27 @@ public:
     Web::HTML::NavigationPopulationResult take_result();
     void reclaim_response_body_after_failed_handoff();
 
+    // The response that WebDriver BiDi provides for this navigation's intercepted request, which the process running the
+    // request reports with the body that WebDriver gave it. The first command to provide one keeps it, until that
+    // command fails.
+    struct ResponseProvidedByWebDriver {
+        URL::URL url;
+        ByteBuffer body;
+        u64 command_id { 0 };
+    };
+    bool set_response_provided_by_webdriver(ResponseProvidedByWebDriver response)
+    {
+        if (m_response_provided_by_webdriver.has_value())
+            return false;
+        m_response_provided_by_webdriver = move(response);
+        return true;
+    }
+    void withdraw_response_provided_by_webdriver(u64 command_id)
+    {
+        if (m_response_provided_by_webdriver.has_value() && m_response_provided_by_webdriver->command_id == command_id)
+            m_response_provided_by_webdriver.clear();
+    }
+
     static bool response_body_belongs_to_another_process(Web::HTML::NavigationPopulationResult const&, WebContentClient const&);
     static void discard(WebContentClient const& population_worker, Web::HTML::NavigationPopulationResult&);
 
@@ -93,6 +114,7 @@ private:
 
     void determine_the_origin_of_the_response();
     bool reported_urls_match_the_response_url(URL::URL const&) const;
+    bool reports_an_http_response_of_its_own() const;
     void did_acquire(bool succeeded);
     void set_response_body_callbacks(Requests::Request&);
     void did_designate_response_body_adopter();
@@ -109,6 +131,7 @@ private:
     bool m_response_body_was_handed_off { false };
     WeakPtr<WebContentClient> m_response_body_host;
     Optional<int> m_response_body_adopter_client_id;
+    Optional<ResponseProvidedByWebDriver> m_response_provided_by_webdriver;
     Function<void(bool)> m_completion_steps;
     Function<void()> m_steps_after_adopter_designation;
 };

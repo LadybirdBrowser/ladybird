@@ -169,6 +169,9 @@ private:
         RefPtr<WebContentPage> page;
         Web::HTML::CrossProcessId navigable_id;
         u64 generation;
+        Optional<URL::URL> url;
+        // The id of the navigation the request fetches the response of, if it does.
+        Optional<Utf16String> navigation_id;
     };
     u64 m_next_network_interception_generation { 0 };
     HashMap<String, BlockedNetworkRequest> m_blocked_network_requests;
