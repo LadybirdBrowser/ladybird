@@ -216,6 +216,11 @@ void HTMLTokenizer::undefine_insertion_point()
     rust_html_tokenizer_undefine_insertion_point(m_tokenizer);
 }
 
+void HTMLTokenizer::discard_insertion_points()
+{
+    rust_html_tokenizer_discard_insertion_points(m_tokenizer);
+}
+
 void HTMLTokenizer::store_insertion_point()
 {
     rust_html_tokenizer_store_insertion_point(m_tokenizer);

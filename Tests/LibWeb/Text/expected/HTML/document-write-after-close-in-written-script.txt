@@ -1,0 +1,2 @@
+After close: <p>first</p><script>document.close();</script>
+After write: <html><head><style></style></head><body><p>second</p></body></html>

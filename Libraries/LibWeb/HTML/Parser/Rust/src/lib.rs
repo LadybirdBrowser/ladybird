@@ -431,6 +431,14 @@ pub extern "C" fn rust_html_tokenizer_undefine_insertion_point(handle: Option<&m
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn rust_html_tokenizer_discard_insertion_points(handle: Option<&mut RustFfiTokenizerHandle>) {
+    let Some(handle) = handle else {
+        return;
+    };
+    handle.tokenizer.discard_insertion_points();
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn rust_html_tokenizer_is_insertion_point_defined(handle: Option<&mut RustFfiTokenizerHandle>) -> bool {
     let Some(handle) = handle else {
         return false;

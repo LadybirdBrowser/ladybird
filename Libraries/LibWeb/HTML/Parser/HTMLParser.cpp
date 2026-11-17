@@ -675,8 +675,11 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
     }
 
     // 2. Set the insertion point to undefined.
+    // NB: A script that the parser is executing can get here through document.close(). Processing its end tag then
+    //     lets the insertion point have the value of the old insertion point, which would define it again for a
+    //     parser that has stopped, so the old insertion points are discarded as well.
     if (parser)
-        parser->m_tokenizer.undefine_insertion_point();
+        parser->m_tokenizer.discard_insertion_points();
 
     // NB: The normal parser fetches nothing more.
     discard_speculative_preloads(*document);
