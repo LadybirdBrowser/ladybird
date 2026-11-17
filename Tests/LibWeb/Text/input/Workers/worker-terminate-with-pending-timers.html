@@ -10,9 +10,14 @@
         `;
         const worker = new Worker(URL.createObjectURL(new Blob([script], { type: "text/javascript" })));
         const messages = [];
-        worker.onmessage = event => messages.push(event.data);
-        await waitForCondition(() => messages.length >= 1);
-        worker.terminate();
+        const { promise: terminated, resolve } = Promise.withResolvers();
+        // Terminate from the handler of the first message, so that no later message can be delivered before it.
+        worker.onmessage = event => {
+            messages.push(event.data);
+            worker.terminate();
+            resolve();
+        };
+        await terminated;
         await timeout(100);
         for (const message of messages) println(message);
     });
