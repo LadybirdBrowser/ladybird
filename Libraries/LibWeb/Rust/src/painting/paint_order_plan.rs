@@ -175,6 +175,7 @@ enum PaintOrderFlag {
     CollapsedBorders,
     HiddenColumns,
     HasZIndex,
+    AtomicInlineContent,
 }
 
 impl PaintOrderInputs {
@@ -184,6 +185,10 @@ impl PaintOrderInputs {
 
     fn has(self, flag: PaintOrderFlag) -> bool {
         self.flags & (1 << flag as u32) != 0
+    }
+
+    pub(crate) fn is_atomic_inline_content(self) -> bool {
+        self.has(PaintOrderFlag::AtomicInlineContent)
     }
 
     fn z_index(self) -> Option<i32> {
@@ -213,14 +218,25 @@ impl PaintOrderInputs {
         let display = style_queries::display(arena, row);
         let kind = arena.node_kind_if_live(row);
         let z_index = style_queries::z_index(arena, row);
-        let (collapsed_borders, hidden_columns) = arena.with_committed_fragment_link(row, |link| {
-            link.map_or((false, false), |link| {
-                (
-                    link.fragment.collapsed_table_borders().is_some(),
-                    link.placement.shown_as.facts.hidden_by_collapsed_columns,
-                )
-            })
-        });
+        let (collapsed_borders, hidden_columns, committed_containing_block) =
+            arena.with_committed_fragment_link(row, |link| {
+                link.map_or((false, false, NodeSlotId::INVALID), |link| {
+                    (
+                        link.fragment.collapsed_table_borders().is_some(),
+                        link.placement.shown_as.facts.hidden_by_collapsed_columns,
+                        link.placement.containing_block,
+                    )
+                })
+            });
+        let fragmented_inline = node_painting::is_fragmented_inline(arena, row);
+        let containing_block = if committed_containing_block.is_invalid() {
+            arena.paintable_data(row).containing_block
+        } else {
+            committed_containing_block
+        };
+        let atomic_inline_content = !fragmented_inline
+            && display.is_inline_outside()
+            && is_an_atomic_inline_fragment_of(arena, row, containing_block);
         use PaintOrderFlag::*;
         let decisions = [
             (
@@ -231,7 +247,7 @@ impl PaintOrderInputs {
             (Floating, style_queries::is_floating(arena, row)),
             (Inline, display.is_inline_outside()),
             (FlexOrGridItem, style_queries::is_flex_or_grid_item(arena, row)),
-            (FragmentedInline, node_painting::is_fragmented_inline(arena, row)),
+            (FragmentedInline, fragmented_inline),
             (Replaced, style_queries::is_replaced_box(arena, row)),
             (
                 InlineLevelContext,
@@ -247,6 +263,7 @@ impl PaintOrderInputs {
             (CollapsedBorders, collapsed_borders),
             (HiddenColumns, hidden_columns),
             (HasZIndex, z_index.is_some()),
+            (AtomicInlineContent, atomic_inline_content),
         ];
         // The high bit distinguishes the initial empty snapshot from a prepared row.
         let flags = decisions.iter().fold(1 << 31, |flags, &(flag, value)| {
@@ -257,6 +274,16 @@ impl PaintOrderInputs {
             z_index: z_index.unwrap_or(0),
         }
     }
+}
+
+fn is_an_atomic_inline_fragment_of(arena: &impl PaintRead, row: NodeSlotId, line_root: NodeSlotId) -> bool {
+    if line_root.is_invalid() || !arena.paintable_row_is_populated(line_root) {
+        return false;
+    }
+    let side = arena.committed_side_data(line_root);
+    side.fragment_indices_of(row)
+        .iter()
+        .any(|&index| side.fragments()[index as usize].is_atomic_inline)
 }
 
 impl PaintScopePlan {
@@ -400,18 +427,7 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
     }
 
     fn is_atomic_inline_content(&self, paintable: NodeSlotId) -> bool {
-        if self.is_fragmented_inline(paintable) || !self.inputs(paintable).has(PaintOrderFlag::Inline) {
-            return false;
-        }
-        let block = self.layout_arena.paintable_data(paintable).containing_block;
-        !block.is_invalid()
-            && self.layout_arena.paintable_row_is_populated(block)
-            && self
-                .layout_arena
-                .committed_side_data(block)
-                .fragments()
-                .iter()
-                .any(|fragment| fragment.layout_node == paintable && fragment.is_atomic_inline)
+        self.inputs(paintable).is_atomic_inline_content()
     }
 
     fn append_stacking_context(&mut self, owner: NodeSlotId) {
@@ -643,6 +659,9 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
     }
 
     fn descendant_phase_is_empty(&self, child: NodeSlotId, phase: StackingContextPaintPhase) -> bool {
+        if self.is_painted_at_its_place_on_a_line(child) {
+            return true;
+        }
         // Inline-blocks and inline-tables paint their backgrounds and internal floats
         // in the inline-level phase. Earlier passes through their parent do no work,
         // so there is no need to resolve, copy, or update an empty subtree capture.
@@ -653,6 +672,12 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
             && self.establishes_inline_level_painting_context(child)
             && !self.inputs(child).has(PaintOrderFlag::Floating)
             && (phase == StackingContextPaintPhase::Floats || !self.is_pure_inline_box(child))
+    }
+
+    fn is_painted_at_its_place_on_a_line(&self, child: NodeSlotId) -> bool {
+        !self.inputs(child).has(PaintOrderFlag::Floating)
+            && !self.inputs(child).has(PaintOrderFlag::Positioned)
+            && self.is_atomic_inline_content(child)
     }
 
     fn append_descendant(&mut self, child: NodeSlotId, phase: StackingContextPaintPhase) {
@@ -671,7 +696,7 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
 
         // These boxes are painted atomically at their fragment's position in the
         // containing line's foreground plan, including their internal floats.
-        if !floating && !positioned && self.is_atomic_inline_content(child) {
+        if self.is_painted_at_its_place_on_a_line(child) {
             return;
         }
 

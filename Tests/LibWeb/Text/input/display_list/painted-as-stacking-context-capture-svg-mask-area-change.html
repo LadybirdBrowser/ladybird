@@ -47,9 +47,7 @@ displayListTest({
                       BlockContainer<BODY>#body/scroll-metadata COPY
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
-                      SVGSVGBox<svg>#svg/descendants(background-and-borders) ASSEMBLE
                     BlockContainer<BODY>#body/descendants(inline-background-and-borders) ASSEMBLE
-                      SVGSVGBox<svg>#svg/descendants(inline-background-and-borders) ASSEMBLE
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       SVGSVGBox<svg>#svg ASSEMBLE
@@ -70,7 +68,6 @@ displayListTest({
                             SVGGeometryBox<rect>#masked/svg RECORD
                               SVGGeometryBox<rect>#masked/foreground RECORD
                       BlockContainer<BODY>#body/foreground COPY
-                      SVGSVGBox<svg>#svg/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/outline COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<HTML>#html/outline COPY
