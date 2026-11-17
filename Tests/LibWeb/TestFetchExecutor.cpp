@@ -83,6 +83,55 @@ TEST_CASE(commands_run_on_the_loop_in_posting_order)
         EXPECT(thread.is_current_thread());
 }
 
+TEST_CASE(commands_run_in_posting_order_when_a_command_spins_a_nested_loop)
+{
+    Core::EventLoop loop;
+    RecordedCommands recorded;
+    RefPtr<InlineFetchExecutor> executor;
+
+    // The first command posts a third one and spins a nested loop until it has run, as a sync XHR does.
+    class SpinningSink final : public EngineCommandSink {
+    public:
+        SpinningSink(RecordedCommands& recorded, RefPtr<InlineFetchExecutor>& executor)
+            : m_recorded(recorded)
+            , m_executor(executor)
+        {
+        }
+
+        virtual void handle_command(EngineCommand command) override
+        {
+            auto fetch_id = command.get<Command::Stop>().fetch_id.value();
+            m_recorded.fetch_ids.append(fetch_id);
+            if (fetch_id != 1)
+                return;
+            m_executor->post(Command::Stop { .fetch_id = FetchId(3) });
+            // NB: The cap keeps the test finite when the nested loop does not run the third command.
+            for (auto turns = 0; turns < 10 && !m_recorded.fetch_ids.contains_slow(3); ++turns)
+                Core::EventLoop::current().pump(Core::EventLoop::WaitMode::PollForEvents);
+            m_ran_inside_nested_loop = m_recorded.fetch_ids.contains_slow(3);
+        }
+
+        bool ran_inside_nested_loop() const { return m_ran_inside_nested_loop; }
+
+    private:
+        RecordedCommands& m_recorded;
+        RefPtr<InlineFetchExecutor>& m_executor;
+        bool m_ran_inside_nested_loop { false };
+    };
+
+    auto sink = make<SpinningSink>(recorded, executor);
+    auto& spinning_sink = *sink;
+    executor = InlineFetchExecutor::create(services_for_current_thread(), move(sink));
+    executor->post(Command::Stop { .fetch_id = FetchId(1) });
+    executor->post(Command::Stop { .fetch_id = FetchId(2) });
+
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(recorded.fetch_ids, (Vector<u64> { 1, 2, 3 }));
+    EXPECT(spinning_sink.ran_inside_nested_loop());
+    EXPECT(!has_queued_tasks(*executor));
+    executor = nullptr;
+}
+
 TEST_CASE(an_executor_on_another_thread_runs_its_commands_there)
 {
     Core::EventLoop main_loop;

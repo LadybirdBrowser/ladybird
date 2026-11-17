@@ -19,7 +19,7 @@ public:
 private:
     InlineFetchExecutor(FetchExecutorServices, NonnullOwnPtr<EngineCommandSink>);
 
-    virtual void post_task(Function<void()>) override;
+    virtual bool post_task(Function<void()>) override;
 };
 
 }
