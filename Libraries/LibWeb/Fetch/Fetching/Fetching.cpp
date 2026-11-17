@@ -608,6 +608,27 @@ static bool is_request_from_an_svg_image(Infrastructure::Request const& request)
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
+// NB: This is step 10 of main fetch. The WebSocket opening handshake does not go through main fetch yet, so it runs this
+//     step on its own.
+void upgrade_request_to_https_for_known_hsts_host_if_appropriate(Page& page, Infrastructure::Request& request)
+{
+    // 10. Set request’s current URL’s scheme to "https" if all of the following conditions are true:
+    if (
+        // - request’s current URL’s scheme is "http"
+        request.current_url().scheme() == "http"sv
+        // - request’s current URL’s host is a domain
+        && request.current_url().host().has_value() && request.current_url().host()->is_domain()
+        // - Matching request’s current URL’s host per Known HSTS Host Domain Name Matching results in either a
+        //   superdomain match with an asserted includeSubDomains directive or a congruent match (with or without an
+        //   asserted includeSubDomains directive) [HSTS]
+        && ResourceLoader::is_known_hsts_host(page, request.current_url().host()->get<String>())
+        // FIXME: or DNS resolution for the request finds a matching HTTPS RR per section 9.5 of [SVCB].
+    ) {
+        request.current_url().set_scheme("https"sv);
+    }
+}
+
+// https://fetch.spec.whatwg.org/#concept-main-fetch
 GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Recursive recursive)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' with: fetch_params @ {}", &fetch_params);
@@ -672,19 +693,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     }
 
     // 10. Set request’s current URL’s scheme to "https" if all of the following conditions are true:
-    if (
-        // - request’s current URL’s scheme is "http"
-        request->current_url().scheme() == "http"sv
-        // - request’s current URL’s host is a domain
-        && request->current_url().host().has_value() && request->current_url().host()->is_domain()
-        // - Matching request’s current URL’s host per Known HSTS Host Domain Name Matching results in either a
-        //   superdomain match with an asserted includeSubDomains directive or a congruent match (with or without an
-        //   asserted includeSubDomains directive) [HSTS]
-        && ResourceLoader::is_known_hsts_host(Bindings::principal_host_defined_page(realm), request->current_url().host()->get<String>())
-        // FIXME: or DNS resolution for the request finds a matching HTTPS RR per section 9.5 of [SVCB].
-    ) {
-        request->current_url().set_scheme("https"sv);
-    }
+    upgrade_request_to_https_for_known_hsts_host_if_appropriate(Bindings::principal_host_defined_page(realm), *request);
 
     auto get_response = GC::create_function<GC::Ref<PendingResponse>()>(GC::Heap::the(), GC::captures(realm, NonnullRefPtr { fetch_params }, fetch_params.controller(), request), [](auto& realm, NonnullRefPtr<Infrastructure::FetchParams const>& fetch_params, GC::Ref<Infrastructure::FetchController>& controller, NonnullRefPtr<Infrastructure::Request>& request) -> GC::Ref<PendingResponse> {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' get_response() function");
