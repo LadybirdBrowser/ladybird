@@ -54,6 +54,9 @@ public:
     void animate_trailing_action_change(TrailingActionMotion, Function<void()> const& change);
     // The knobs of the site settings icon slide past each other while the given popover is open.
     void follow_site_settings_popover(QWidget&);
+    // The bookmark star and the translate button look pressed while the given popover or menu is open.
+    void follow_bookmark_popover(QWidget&);
+    void follow_translation_menu(QWidget&);
     void set_zoom_action(QAction*);
     // The translate button stands in the field, before the bookmark star, while the page can be translated.
     void set_translate_action(QAction*);

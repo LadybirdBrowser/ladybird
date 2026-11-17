@@ -49,6 +49,26 @@ namespace Ladybird {
 static constexpr qreal LOCATION_BUTTON_RADIUS = 5;
 static constexpr int SITE_SETTINGS_KNOB_SLIDE_DURATION_MS = 240;
 
+// A button in the field looks pressed while the panel it opened is up. The property also selects that look in the style
+// sheet of the site settings button.
+static constexpr char const* PANEL_OPEN_PROPERTY = "panelOpen";
+
+// The popover or menu that a button in the field opened knows that button by this property.
+static constexpr char const* PANEL_BUTTON_PROPERTY = "ladybirdPanelButton";
+
+// A button in the field, or the "Not secure" pill in place of the site settings button, looks pressed for as long as
+// its panel is open.
+// NB: It is not a checkable button, as a click would toggle it on its own while the panel closes on that same press.
+static void set_panel_open(QToolButton& button, bool open)
+{
+    if (button.property(PANEL_OPEN_PROPERTY).toBool() == open)
+        return;
+    button.setProperty(PANEL_OPEN_PROPERTY, open);
+    button.style()->unpolish(&button);
+    button.style()->polish(&button);
+    button.update();
+}
+
 class LocationActionButton final : public QToolButton {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -81,9 +101,10 @@ private:
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing, true);
 
-        if (isDown() || underMouse()) {
+        auto looks_pressed = isDown() || property(PANEL_OPEN_PROPERTY).toBool();
+        if (looks_pressed || underMouse()) {
             painter.setPen(Qt::NoPen);
-            painter.setBrush(isDown() ? Theme::panel().pressed : Theme::chrome(*this).hover);
+            painter.setBrush(looks_pressed ? Theme::panel().pressed : Theme::chrome(*this).hover);
             painter.drawRoundedRect(QRectF(rect()), LOCATION_BUTTON_RADIUS, LOCATION_BUTTON_RADIUS);
         }
 
@@ -564,6 +585,25 @@ void LocationEdit::follow_site_settings_popover(QWidget& popover)
     popover.installEventFilter(this);
 }
 
+static void follow_panel(LocationEdit& edit, QWidget& panel, QToolButton& button)
+{
+    if (panel.property(PANEL_BUTTON_PROPERTY).value<QObject*>() == &button)
+        return;
+    panel.setProperty(PANEL_BUTTON_PROPERTY, QVariant::fromValue<QObject*>(&button));
+    panel.installEventFilter(&edit);
+    set_panel_open(button, panel.isVisible());
+}
+
+void LocationEdit::follow_bookmark_popover(QWidget& popover)
+{
+    follow_panel(*this, popover, *m_trailing_action_button);
+}
+
+void LocationEdit::follow_translation_menu(QWidget& menu)
+{
+    follow_panel(*this, menu, *m_translate_button);
+}
+
 void LocationEdit::slide_site_settings_knobs(qreal travel)
 {
     if (!m_site_settings_knob_animation) {
@@ -733,27 +773,24 @@ bool LocationEdit::event(QEvent* event)
     return QLineEdit::event(event);
 }
 
-// The site settings button, or the "Not secure" pill in its place, looks pressed for as long as its panel is open.
-// NB: It is not a checkable button, as a click would toggle it on its own while the panel closes on that same press.
-static void set_site_settings_panel_open(QToolButton& button, bool open)
-{
-    if (button.property("panelOpen").toBool() == open)
-        return;
-    button.setProperty("panelOpen", open);
-    button.style()->unpolish(&button);
-    button.style()->polish(&button);
-}
-
 bool LocationEdit::eventFilter(QObject* watched, QEvent* event)
 {
     if (watched == m_site_settings_popover) {
         if (event->type() == QEvent::Show) {
-            set_site_settings_panel_open(*m_leading_icon_button, !m_is_editing_location);
+            set_panel_open(*m_leading_icon_button, !m_is_editing_location);
             slide_site_settings_knobs(1);
         } else if (event->type() == QEvent::Hide) {
-            set_site_settings_panel_open(*m_leading_icon_button, false);
+            set_panel_open(*m_leading_icon_button, false);
             slide_site_settings_knobs(0);
         }
+        return QLineEdit::eventFilter(watched, event);
+    }
+
+    if (auto* button = qobject_cast<QToolButton*>(watched->property(PANEL_BUTTON_PROPERTY).value<QObject*>())) {
+        if (event->type() == QEvent::Show)
+            set_panel_open(*button, true);
+        else if (event->type() == QEvent::Hide)
+            set_panel_open(*button, false);
         return QLineEdit::eventFilter(watched, event);
     }
 
@@ -1338,7 +1375,7 @@ void LocationEdit::update_location_icon()
         // NB: The icon only shows where the text goes, so a click on it lands in the text.
         m_leading_icon_button->setAttribute(Qt::WA_TransparentForMouseEvents, true);
         // NB: The icon of what Return will do is not the site settings button, so it never looks pressed.
-        set_site_settings_panel_open(*m_leading_icon_button, false);
+        set_panel_open(*m_leading_icon_button, false);
         show_indicator(LOCATION_TEXT_MARGIN_FOR_TEXT_X);
         m_shows_editing_icon = true;
         return;
@@ -1355,7 +1392,7 @@ void LocationEdit::update_location_icon()
         show_not_secure_indicator();
     else
         show_site_settings_button();
-    set_site_settings_panel_open(*m_leading_icon_button, m_site_settings_popover && m_site_settings_popover->isVisible());
+    set_panel_open(*m_leading_icon_button, m_site_settings_popover && m_site_settings_popover->isVisible());
 }
 
 void LocationEdit::update_zoom_indicator()
