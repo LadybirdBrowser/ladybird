@@ -9,7 +9,9 @@
 //! publish what the style engine reads of them to the engine the host names as it changes them.
 //! https://www.w3.org/TR/web-animations-1/#the-animatable-interface-mixin
 
-use super::animation::{AnimationCell, AnimationHandle, AnimationRecord, HostCellKind, SmilHolder};
+use super::animation::{
+    AnimationCell, AnimationHandle, AnimationRecord, HostCellKind, SmilHolder, WeakAnimationHandle,
+};
 use super::composite_order::{TreeOrder, composite_order};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style::animations::CssDefinedAnimation;
@@ -82,6 +84,9 @@ pub struct ElementAnimations {
     associated: SmallVec<[AnimationHandle; 1]>,
     /// The lists of the owners that own any CSS animation or transition.
     owners: SmallVec<[OwnedAnimations; 1]>,
+    /// The animations disassociated from the element, which may still name it as their effect target: An animation
+    /// that turns inert leaves `associated`, but its effect keeps targeting the element until it is revived.
+    disassociated: SmallVec<[WeakAnimationHandle; 1]>,
     /// Whether `associated` is in composite order.
     is_sorted_by_composite_order: bool,
     /// Whether any owner has had a CSS animation since the element last canceled them all.
@@ -138,6 +143,8 @@ impl ElementAnimations {
         if self.associated.iter().any(|associated| associated.ptr_eq(&animation)) {
             return false;
         }
+        self.disassociated
+            .retain(|disassociated| disassociated.upgrade().is_some_and(|other| !other.ptr_eq(&animation)));
         animation.note_smil_holder(SmilHolder::TargetList, true);
         self.associated.push(animation);
         self.is_sorted_by_composite_order = false;
@@ -150,10 +157,29 @@ impl ElementAnimations {
         let Some(index) = self.associated.iter().position(|associated| associated.is(animation)) else {
             return false;
         };
-        self.associated
-            .remove(index)
-            .note_smil_holder(SmilHolder::TargetList, false);
+        let animation = self.associated.remove(index);
+        animation.note_smil_holder(SmilHolder::TargetList, false);
+        self.disassociated
+            .retain(|disassociated| disassociated.upgrade().is_some());
+        self.disassociated.push(animation.downgrade());
         true
+    }
+
+    /// Makes the effects of the animations disassociated from `element`, whose lists these are, forget it as their
+    /// target, as the element is finalized: An animation that outlives the element, for an event still pending on it,
+    /// would otherwise name an element that is gone.
+    pub(crate) fn forget_element_as_target_of_disassociated(&mut self, element: NonNull<c_void>) {
+        for disassociated in self.disassociated.drain(..) {
+            let Some(animation) = disassociated.upgrade() else {
+                continue;
+            };
+            let effect = animation.borrow().effect().cloned();
+            if let Some(effect) = effect
+                && effect.borrow().target_element() == Some(element)
+            {
+                effect.borrow_mut().set_target_element(None);
+            }
+        }
     }
 
     pub(crate) fn associated(&self) -> &[AnimationHandle] {
@@ -348,6 +374,7 @@ impl ElementAnimations {
         size_of::<Self>()
             + small_vec_bytes(&self.associated)
             + small_vec_bytes(&self.owners)
+            + small_vec_bytes(&self.disassociated)
             + self
                 .owners
                 .iter()
@@ -378,4 +405,68 @@ fn publish_css_defined_animations(
                 .map(|animation| CssDefinedAnimation::of(animation))
                 .collect(),
         }));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::animations::animation::AnimationKind;
+    use crate::animations::effect::EffectHandle;
+
+    fn element_at(address: &mut u8) -> NonNull<c_void> {
+        NonNull::from(address).cast()
+    }
+
+    fn animation_targeting(element: NonNull<c_void>) -> AnimationHandle {
+        let effect = EffectHandle::new();
+        effect.borrow_mut().set_target_element(Some(element));
+        let animation = AnimationHandle::new(AnimationKind::Script);
+        animation.borrow_mut().set_effect(Some(effect));
+        animation
+    }
+
+    fn target_of(animation: &AnimationHandle) -> Option<NonNull<c_void>> {
+        animation
+            .borrow()
+            .effect()
+            .and_then(|effect| effect.borrow().target_element())
+    }
+
+    #[test]
+    fn finalizing_an_element_clears_the_target_of_an_animation_it_let_go_of() {
+        let mut element = 0;
+        let element = element_at(&mut element);
+        let animation = animation_targeting(element);
+        let mut animations = ElementAnimations::default();
+        animations.associate(animation.clone());
+        animations.disassociate(&animation);
+        animations.forget_element_as_target_of_disassociated(element);
+        assert_eq!(target_of(&animation), None);
+    }
+
+    #[test]
+    fn finalizing_an_element_keeps_the_target_an_animation_it_let_go_of_moved_to() {
+        let (mut first, mut second) = (0, 0);
+        let (first, second) = (element_at(&mut first), element_at(&mut second));
+        let animation = animation_targeting(first);
+        let mut animations = ElementAnimations::default();
+        animations.associate(animation.clone());
+        animations.disassociate(&animation);
+        let effect = animation.borrow().effect().cloned().unwrap();
+        effect.borrow_mut().set_target_element(Some(second));
+        animations.forget_element_as_target_of_disassociated(first);
+        assert_eq!(target_of(&animation), Some(second));
+    }
+
+    #[test]
+    fn an_animation_associated_again_is_no_longer_held_as_let_go_of() {
+        let mut element = 0;
+        let element = element_at(&mut element);
+        let animation = animation_targeting(element);
+        let mut animations = ElementAnimations::default();
+        animations.associate(animation.clone());
+        animations.disassociate(&animation);
+        animations.associate(animation.clone());
+        assert!(animations.disassociated.is_empty());
+    }
 }
