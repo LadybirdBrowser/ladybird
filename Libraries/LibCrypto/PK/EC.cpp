@@ -8,7 +8,6 @@
 #include <AK/Memory.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringView.h>
-#include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/EC.h>
 
@@ -122,157 +121,6 @@ ErrorOr<ByteBuffer> ECPublicKey::to_uncompressed() const
     return bytes;
 }
 
-ErrorOr<ECPrivateKey> ECPrivateKey::generate(size_t scalar_size)
-{
-    auto key = OpenSSL_SharedPKEY { TRY(OpenSSL_PKEY::wrap(EVP_PKEY_Q_keygen(nullptr, nullptr, "EC", TRY(curve_name(scalar_size))))) };
-    ECPrivateKey private_key { move(key), scalar_size, {}, {} };
-    private_key.m_public_key = TRY(private_key.derive_public_key());
-    return private_key;
-}
-
-ErrorOr<ECPrivateKey> ECPrivateKey::from_scalar(ReadonlyBytes d_bytes, Optional<ASN1::ObjectIdentifier> parameters, Optional<ECPublicKey> public_key)
-{
-    auto const* group_name = TRY(curve_name(d_bytes.size()));
-
-    auto* group = OPENSSL_TRY_PTR(EC_GROUP_new_by_curve_name(EC_curve_nist2nid(group_name)));
-    ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
-
-    auto* d = OPENSSL_TRY_PTR(BN_secure_new());
-    ScopeGuard const free_d = [&] { BN_clear_free(d); };
-    OPENSSL_TRY_PTR(BN_bin2bn(d_bytes.data(), d_bytes.size(), d));
-
-    // NB: SEC 1 requires d to be in [1, n − 1].
-    if (BN_is_zero(d) || BN_cmp(d, EC_GROUP_get0_order(group)) >= 0)
-        return Error::from_string_literal("EC private key is out of range");
-
-    auto* point = OPENSSL_TRY_PTR(EC_POINT_new(group));
-    ScopeGuard const free_point = [&] { EC_POINT_free(point); };
-    OPENSSL_TRY(EC_POINT_mul(group, point, d, nullptr, nullptr, nullptr));
-
-    auto public_octets = TRY(ByteBuffer::create_uninitialized(1 + 2 * d_bytes.size()));
-    if (EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED, public_octets.data(), public_octets.size(), nullptr) != public_octets.size())
-        return Error::from_string_literal("Failed to encode EC public key");
-
-    if (public_key.has_value() && TRY(public_key->to_uncompressed()) != public_octets)
-        return Error::from_string_literal("EC public key does not match the private key");
-
-    auto* builder = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_new());
-    ScopeGuard const free_builder = [&] { OSSL_PARAM_BLD_free(builder); };
-    OPENSSL_TRY(OSSL_PARAM_BLD_push_utf8_string(builder, OSSL_PKEY_PARAM_GROUP_NAME, group_name, 0));
-    OPENSSL_TRY(OSSL_PARAM_BLD_push_BN(builder, OSSL_PKEY_PARAM_PRIV_KEY, d));
-    OPENSSL_TRY(OSSL_PARAM_BLD_push_octet_string(builder, OSSL_PKEY_PARAM_PUB_KEY, public_octets.data(), public_octets.size()));
-    auto key = TRY(key_from_parameters(EVP_PKEY_KEYPAIR, builder));
-
-    return ECPrivateKey { move(key), d_bytes.size(), move(parameters), move(public_key) };
-}
-
-// https://www.rfc-editor.org/rfc/rfc5915#section-3
-static ErrorOr<ByteBuffer> encode_private_key(ReadonlyBytes d, Optional<ASN1::ObjectIdentifier> const& parameters, Optional<ReadonlyBytes> public_point)
-{
-    ASN1::Encoder encoder;
-    TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
-        TRY(encoder.write(1u)); // version
-        TRY(encoder.write<ReadonlyBytes>(d));
-
-        if (parameters.has_value()) {
-            TRY(encoder.write_constructed(ASN1::Class::Context, static_cast<ASN1::Kind>(0), [&]() -> ErrorOr<void> {
-                TRY(encoder.write<ASN1::ObjectIdentifier>(*parameters, {}, ASN1::Kind::ObjectIdentifier));
-                return {};
-            }));
-        }
-
-        if (public_point.has_value()) {
-            TRY(encoder.write_constructed(ASN1::Class::Context, static_cast<ASN1::Kind>(1), [&]() -> ErrorOr<void> {
-                TRY(encoder.write(ASN1::BitStringView(*public_point, 0)));
-                return {};
-            }));
-        }
-
-        return {};
-    }));
-
-    return encoder.finish();
-}
-
-ErrorOr<ECPrivateKey> ECPrivateKey::from_private_key_info(EVP_PKEY* key, ASN1::ObjectIdentifier const& curve, ReadonlyBytes encoded)
-{
-    auto scalar_size = (EVP_PKEY_get_bits(key) + 7) / 8;
-    auto d = TRY(integer_parameter(key, OSSL_PKEY_PARAM_PRIV_KEY, scalar_size));
-    ScopeGuard const clear_d = [&] { secure_zero(d.data(), d.size()); };
-    auto public_key = TRY(TRY(from_scalar(d, {}, {})).derive_public_key());
-
-    auto uncompressed = TRY(public_key.to_uncompressed());
-    auto compressed = TRY(ByteBuffer::copy(uncompressed.bytes().trim(1 + scalar_size)));
-    compressed[0] = 0x02 | (uncompressed.bytes().last() & 1);
-
-    // NB: OpenSSL accepts BER, and a privateKey of any width. The parameters and the public key are optional, and the
-    //     public key may be compressed, so the encoding must be the DER encoding of the key in one of those forms.
-    for (auto with_parameters : { false, true }) {
-        for (auto public_point : { Optional<ReadonlyBytes> {}, Optional<ReadonlyBytes> { uncompressed }, Optional<ReadonlyBytes> { compressed } }) {
-            Optional<ASN1::ObjectIdentifier> parameters;
-            if (with_parameters)
-                parameters = curve;
-            auto candidate_encoding = TRY(encode_private_key(d, parameters, public_point));
-            ScopeGuard const clear_candidate_encoding = [&] { secure_zero(candidate_encoding.data(), candidate_encoding.size()); };
-            if (candidate_encoding != encoded)
-                continue;
-
-            Optional<ECPublicKey> maybe_public_key;
-            if (public_point.has_value())
-                maybe_public_key = public_key;
-            return from_scalar(d, move(parameters), move(maybe_public_key));
-        }
-    }
-    return Error::from_string_literal("Invalid ECPrivateKey");
-}
-
-ErrorOr<ByteBuffer> ECPrivateKey::d_bytes() const
-{
-    return integer_parameter(m_key.ptr(), OSSL_PKEY_PARAM_PRIV_KEY, m_scalar_size);
-}
-
-ErrorOr<ECPublicKey> ECPrivateKey::derive_public_key() const
-{
-    auto x = TRY(integer_parameter(m_key.ptr(), OSSL_PKEY_PARAM_EC_PUB_X, m_scalar_size));
-    auto y = TRY(integer_parameter(m_key.ptr(), OSSL_PKEY_PARAM_EC_PUB_Y, m_scalar_size));
-    return ECPublicKey::from_coordinates(x, y);
-}
-
-ErrorOr<ByteBuffer> ECPrivateKey::export_as_der() const
-{
-    auto d = TRY(d_bytes());
-    ScopeGuard const clear_d = [&] { secure_zero(d.data(), d.size()); };
-    Optional<ByteBuffer> public_point;
-    if (m_public_key.has_value())
-        public_point = TRY(m_public_key->to_uncompressed());
-    return encode_private_key(d, m_parameters, public_point.map([](auto const& point) { return point.bytes(); }));
-}
-
-ErrorOr<ECDSASignature> ecdsa_sign(ECPrivateKey const& private_key, ReadonlyBytes digest)
-{
-    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, private_key.openssl_key(), nullptr)));
-    OPENSSL_TRY(EVP_PKEY_sign_init(ctx.ptr()));
-
-    size_t signature_size = 0;
-    OPENSSL_TRY(EVP_PKEY_sign(ctx.ptr(), nullptr, &signature_size, digest.data(), digest.size()));
-
-    auto signature = TRY(ByteBuffer::create_uninitialized(signature_size));
-    OPENSSL_TRY(EVP_PKEY_sign(ctx.ptr(), signature.data(), &signature_size, digest.data(), digest.size()));
-
-    auto const* signature_data = signature.data();
-    auto* signature_object = OPENSSL_TRY_PTR(d2i_ECDSA_SIG(nullptr, &signature_data, signature_size));
-    ScopeGuard const free_signature_object = [&] { ECDSA_SIG_free(signature_object); };
-
-    auto size = private_key.scalar_size();
-    ECDSASignature result {
-        TRY(ByteBuffer::create_uninitialized(size)),
-        TRY(ByteBuffer::create_uninitialized(size)),
-    };
-    if (BN_bn2binpad(ECDSA_SIG_get0_r(signature_object), result.r.data(), size) < 0 || BN_bn2binpad(ECDSA_SIG_get0_s(signature_object), result.s.data(), size) < 0)
-        return Error::from_string_literal("ECDSA signature is too large");
-    return result;
-}
-
 ErrorOr<bool> ecdsa_verify(ECPublicKey const& public_key, ReadonlyBytes digest, ReadonlyBytes r, ReadonlyBytes s)
 {
     if (r.size() != public_key.scalar_size() || s.size() != public_key.scalar_size())
@@ -305,24 +153,6 @@ ErrorOr<bool> ecdsa_verify(ECPublicKey const& public_key, ReadonlyBytes digest, 
         return false;
     OPENSSL_TRY(result);
     VERIFY_NOT_REACHED();
-}
-
-ErrorOr<ByteBuffer> ecdh_derive(ECPrivateKey const& private_key, ECPublicKey const& peer)
-{
-    if (private_key.scalar_size() != peer.scalar_size())
-        return Error::from_string_literal("EC keys are on different curves");
-
-    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, private_key.openssl_key(), nullptr)));
-    OPENSSL_TRY(EVP_PKEY_derive_init(ctx.ptr()));
-    OPENSSL_TRY(EVP_PKEY_derive_set_peer_ex(ctx.ptr(), peer.openssl_key(), 1));
-
-    size_t secret_size = 0;
-    OPENSSL_TRY(EVP_PKEY_derive(ctx.ptr(), nullptr, &secret_size));
-
-    auto secret = TRY(ByteBuffer::create_uninitialized(secret_size));
-    OPENSSL_TRY(EVP_PKEY_derive(ctx.ptr(), secret.data(), &secret_size));
-    secret.resize(secret_size);
-    return secret;
 }
 
 }

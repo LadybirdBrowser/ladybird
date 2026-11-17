@@ -1,7 +1,6 @@
 ladybird_test_suite(LibTLS)
 
 set(TEST_SOURCES
-    TestTLSCertificateParser.cpp
     TestTLSHandshake.cpp
     TestTLSHostname.cpp
 )

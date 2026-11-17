@@ -1,26 +1,11 @@
 add_cxx_compile_options(-Wvla)
 
 set(SOURCES
-    KeyHandle.cpp
     OpenSSL.cpp
-    RustBindings.cpp
-    ASN1/DER.cpp
     Authentication/HMAC.cpp
-    Authentication/KMAC.cpp
-    Cipher/AES.cpp
-    Cipher/ChaCha.cpp
     Curves/EdwardsCurve.cpp
-    Hash/Argon2.cpp
     Hash/Hash.cpp
-    Hash/SHAKE.cpp
-    Hash/HKDF.cpp
-    Hash/PBKDF2.cpp
     PK/EC.cpp
-    PK/KeyInfo.cpp
-    PK/MLDSA.cpp
-    PK/MLKEM.cpp
-    PK/ModuleLatticePrivateKey.cpp
-    PK/PK.cpp
     PK/RSA.cpp
 )
 

@@ -4,18 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteBuffer.h>
 #include <LibCrypto/OpenSSL.h>
 
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 
 namespace Crypto {
-
-ErrorOr<OpenSSL_BN> OpenSSL_BN::create()
-{
-    return OpenSSL_BN(OPENSSL_TRY_PTR(BN_new()));
-}
 
 ErrorOr<OpenSSL_PKEY> OpenSSL_PKEY::create()
 {
@@ -61,22 +55,6 @@ OpenSSL_SharedPKEY::~OpenSSL_SharedPKEY()
 ErrorOr<OpenSSL_MD_CTX> OpenSSL_MD_CTX::create()
 {
     return OpenSSL_MD_CTX(OPENSSL_TRY_PTR(EVP_MD_CTX_new()));
-}
-
-ErrorOr<OpenSSL_CIPHER_CTX> OpenSSL_CIPHER_CTX::create()
-{
-    return OpenSSL_CIPHER_CTX(OPENSSL_TRY_PTR(EVP_CIPHER_CTX_new()));
-}
-
-ErrorOr<ByteBuffer> get_byte_buffer_param_from_key(EVP_PKEY* key, char const* key_name)
-{
-    size_t size;
-    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key, key_name, nullptr, 0, &size));
-
-    auto buffer = TRY(ByteBuffer::create_uninitialized(size));
-
-    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key, key_name, buffer.data(), buffer.size(), &size));
-    return buffer;
 }
 
 }
