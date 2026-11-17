@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { white-space: pre; }
+</style>
+<div>short</div>
+<div>"quoted" back\slash</div>
+<div>a line of text that runs well past forty characters before it ends</div>
+<div style="text-shadow: 1px 1px red">shadowed</div>
+<script>
+    test(() => {
+        const glyphRunLines = dump => dump.split("\n").filter(line => line.startsWith("DrawGlyphRun") || line.startsWith("PaintTextShadow"));
+        const lines = glyphRunLines(internals.dumpDisplayList());
+        for (const line of lines)
+            println(line.slice(0, line.indexOf(" owner=")).replace(/.* text=/, "text="));
+        const withoutText = glyphRunLines(internals.dumpDisplayList({ text: false }));
+        println(`without text, no glyph run names its text: ${withoutText.every(line => !line.includes(" text="))}`);
+        const withFonts = glyphRunLines(internals.dumpDisplayList({ fonts: true }));
+        println(`with fonts, every glyph run names its font: ${withFonts.every(line => / font="[^"]+ [\d.]+px \d+"/.test(line))}`);
+    });
+</script>

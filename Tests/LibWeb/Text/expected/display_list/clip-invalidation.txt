@@ -10,7 +10,7 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 FillRect@s1/c0/e0 rect=[8,13 100x100] color=rgb(173, 216, 230) owner=BlockContainer<DIV>#box.box phase=background
-DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=3 rect=[8,13 30x16] glyph_bounding_rect=[8,14 33x15] translation=[8,26] color=rgb(0, 0, 0) owner=BlockContainer<DIV>#box.box phase=foreground
+DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=3 rect=[8,13 30x16] glyph_bounding_rect=[8,14 33x15] translation=[8,26] color=rgb(0, 0, 0) text="Box" owner=BlockContainer<DIV>#box.box phase=foreground
 
 After clip change:
 AccumulatedVisualContext Tree:
@@ -24,5 +24,5 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 FillRect@s1/c0/e0 rect=[8,13 100x100] color=rgb(173, 216, 230) owner=BlockContainer<DIV>#box.box phase=background
-DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=3 rect=[8,13 30x16] glyph_bounding_rect=[8,14 33x15] translation=[8,26] color=rgb(0, 0, 0) owner=BlockContainer<DIV>#box.box phase=foreground
+DrawGlyphRun@s1/c0/e0 font_id=font1 glyphs=3 rect=[8,13 30x16] glyph_bounding_rect=[8,14 33x15] translation=[8,26] color=rgb(0, 0, 0) text="Box" owner=BlockContainer<DIV>#box.box phase=foreground
 

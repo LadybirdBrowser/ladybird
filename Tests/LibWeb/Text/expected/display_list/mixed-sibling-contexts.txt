@@ -15,7 +15,7 @@ ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[119
 DisplayList:
 FillRoundedRectRing@s1/e0 rect=[118,8 102x102] top_width=1 right_width=1 bottom_width=1 left_width=1 color=rgb(0, 0, 255) owner=BlockContainer<DIV>.clipped phase=border
 FillRect@s2/c0/e0 rect=[119,9 150x150] color=rgb(173, 216, 230) owner=BlockContainer<DIV>.inner phase=background
-DrawGlyphRun@s2/c0/e0 font_id=font1 glyphs=7 rect=[119,9 55x16] glyph_bounding_rect=[119,10 60x15] translation=[119,22] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.inner phase=foreground
+DrawGlyphRun@s2/c0/e0 font_id=font1 glyphs=7 rect=[119,9 55x16] glyph_bounding_rect=[119,10 60x15] translation=[119,22] color=rgb(0, 0, 0) text="Clipped" owner=BlockContainer<DIV>.inner phase=foreground
 FillRect@s3/e0 rect=[8,8 100x100] color=rgb(255, 127, 80) owner=BlockContainer<DIV>.transformed phase=background
-DrawGlyphRun@s3/e0 font_id=font1 glyphs=9 rect=[8,8 88x16] glyph_bounding_rect=[8,8 88x15] translation=[8,21] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.transformed phase=foreground
+DrawGlyphRun@s3/e0 font_id=font1 glyphs=9 rect=[8,8 88x16] glyph_bounding_rect=[8,8 88x15] translation=[8,21] color=rgb(0, 0, 0) text="Transform" owner=BlockContainer<DIV>.transformed phase=foreground
 

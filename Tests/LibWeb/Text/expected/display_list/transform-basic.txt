@@ -8,5 +8,5 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 FillRect@s2/e0 rect=[8,8 100x100] color=rgb(0, 0, 255) owner=BlockContainer<DIV>.box phase=background
-DrawGlyphRun@s2/e0 font_id=font1 glyphs=4 rect=[8,8 38x16] glyph_bounding_rect=[8,8 44x15] translation=[8,21] color=rgb(0, 0, 0) owner=BlockContainer<DIV>.box phase=foreground
+DrawGlyphRun@s2/e0 font_id=font1 glyphs=4 rect=[8,8 38x16] glyph_bounding_rect=[8,8 44x15] translation=[8,21] color=rgb(0, 0, 0) text="Text" owner=BlockContainer<DIV>.box phase=foreground
 

@@ -1923,6 +1923,8 @@ Utf16String Internals::dump_display_list(Bindings::DisplayListDumpOptions const&
 {
     return window().associated_document().dump_display_list({
         .owners = options.owners,
+        .text = options.text,
+        .fonts = options.fonts,
         .record_ids = options.record_ids,
         .raw_node_indices = options.raw_node_indices,
     });

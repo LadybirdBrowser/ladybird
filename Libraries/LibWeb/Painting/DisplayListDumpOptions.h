@@ -10,6 +10,8 @@ namespace Web::Painting {
 
 struct DisplayListDumpOptions {
     bool owners { true };
+    bool text { true };
+    bool fonts { false };
     bool record_ids { false };
     bool raw_node_indices { false };
 };
