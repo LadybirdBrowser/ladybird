@@ -75,6 +75,19 @@ static bool text_is_checkable(DOM::Text& text)
     return parent && parent->is_editable_or_editing_host() && parent->spellcheck();
 }
 
+// INTEROP: The value of an input is checked only while the input has focus, and its markers come off when focus leaves
+//          it. A one-line field mostly holds names, addresses and such, so its errors only show while the user types.
+static bool is_checked_now(DOM::Text& text)
+{
+    if (!text_is_checkable(text))
+        return false;
+    auto editable = checkable_editable_for(text);
+    if (!is<HTML::HTMLInputElement>(*editable))
+        return true;
+    auto focused_area = text.document().focused_area();
+    return focused_area && checkable_editable_for(*focused_area) == editable;
+}
+
 // A check only ever runs on the user's behalf. A check a page could start at will would let it test any words it likes
 // against the user's dictionary.
 static bool has_user_activation(DOM::Document& document)
@@ -485,7 +498,7 @@ void SpellCheckController::apply(Request const& request, Vector<SpellingError> c
         auto text = piece.text.ptr();
         // Text that left the document, or whose checking turned off, since the text was sent takes nothing from the
         // answer.
-        if (!text || !piece.checked || !owns(*text) || !text_is_checkable(*text))
+        if (!text || !piece.checked || !owns(*text) || !is_checked_now(*text))
             continue;
         // A node edited since the text was sent is dirty again, and the next check takes it.
         auto data = text->data().utf16_view();
@@ -511,12 +524,22 @@ void SpellCheckController::apply(Request const& request, Vector<SpellingError> c
 void SpellCheckController::did_focus(GC::Ptr<DOM::Node> node)
 {
     // Focus moving ends the typing that came before. The word the user was typing is no longer being typed, so it gets
-    // checked now. And a typing check queued for an earlier edit no longer runs, since it would read a caret that edit
-    // didn't put there.
+    // checked now, unless it is in an input that focus left. And a typing check queued for an earlier edit no longer
+    // runs, since it would read a caret that edit didn't put there.
     if (auto exempt = exchange(m_exempt_word, {}); exempt.has_value()) {
-        if (auto text = exempt->text.ptr(); text && owns(*text) && text_is_checkable(*text) && m_document->page().spell_checking_available())
+        if (auto text = exempt->text.ptr(); text && owns(*text) && is_checked_now(*text) && m_document->page().spell_checking_available())
             send_window_around(*text, min<size_t>(exempt->start, text->length_in_utf16_code_units()), RequestKind::Other);
     }
+
+    // An input that focus left takes its markers with it.
+    GC::RootVector<GC::Ref<DOM::Text>> unfocused;
+    m_document->spelling_markers().for_each_marked_text([&](DOM::Text& text, auto) {
+        if (auto editable = checkable_editable_for(text); editable && is<HTML::HTMLInputElement>(*editable) && !is_checked_now(text))
+            unfocused.append(text);
+    });
+    for (auto& text : unfocused)
+        m_document->spelling_markers().remove_all(text);
+
     m_typing_check_scheduled = false;
     m_typing_check_wanted = false;
     m_exempt_word_check_scheduled = false;
