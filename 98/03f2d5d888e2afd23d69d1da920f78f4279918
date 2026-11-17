@@ -1,0 +1,15 @@
+With a non-zero letter-spacing, Ladybird turns off liga, clig, dlig, and
+hlig, except for a feature that font-feature-settings set. Gecko does
+the same: gfxFontShaper::MergeFontFeatures() turns those four off for
+its aDisableLigatures, which a non-zero letter-spacing sets, and lets
+font-feature-settings override them. Blink’s FontFeatures::Initialize()
+turns off liga, clig, and calt, and leaves dlig and hlig off, whenever
+the FontDescription’s LetterSpacing() isn’t zero.
+
+In Chrome 157 and Firefox 151, “office affix” in M+ 1p with 20px of
+letter-spacing took the spacing 12 times by default, with common-
+ligatures, and with discretionary-ligatures; 7 times when font-feature-
+settings turned liga on; and 12 times when it turned liga off. Ladybird
+now does the same, where before it took the spacing 7 times in all but
+the last case. Armenian text that a system fallback font draws behaves
+the same way in all three.
