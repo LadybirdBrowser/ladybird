@@ -313,7 +313,6 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
 {
     m_model = new AutocompleteModel(this);
     m_delegate = new AutocompleteDelegate(this);
-    qApp->installEventFilter(this);
 }
 
 QListView* Autocomplete::create_list_view(QWidget& parent)
@@ -344,10 +343,15 @@ void Autocomplete::set_host(QWidget* host)
         return;
 
     auto was_visible = close();
+    if (m_host)
+        disconnect(m_host, &QObject::destroyed, this, nullptr);
+    qApp->removeEventFilter(this);
     delete m_list_view.data();
 
     m_host = host;
     if (host) {
+        qApp->installEventFilter(this);
+        connect(host, &QObject::destroyed, this, [this] { qApp->removeEventFilter(this); });
         m_list_view = create_list_view(*host);
         m_list_view->hide();
         host->layout()->addWidget(m_list_view);
