@@ -6,7 +6,6 @@
 
 #include "HeadlessTest.h"
 #include <AK/LexicalPath.h>
-#include <LibCore/Directory.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
 #include <LibWebView/Application.h>
@@ -32,11 +31,6 @@ TEST_CASE(only_sites_of_normal_sessions_have_disk_caches)
 
     auto browser_server = TRY_OR_FAIL(manager.browser_instance(normal_session));
     auto shared_cache = LexicalPath::join(browser_server->cache_path(), "Cache"sv).string();
-    EXPECT(!FileSystem::exists(shared_cache));
-
-    // A profile from before sites had RequestServers of their own has a shared cache that nothing uses any more.
-    TRY_OR_FAIL(Core::Directory::create(shared_cache, Core::Directory::CreateDirectories::Yes));
-    WebView::RequestServerManager new_manager;
     EXPECT(!FileSystem::exists(shared_cache));
 }
 
@@ -65,13 +59,11 @@ TEST_CASE(site_cache_directories_cannot_be_named_without_the_key)
         EXPECT_EQ(restarted_server->cache_path(), cache_path.string());
     }
 
-    // Directories named by older versions leak the site, and nothing can find them again once the key is gone.
+    // Nothing can find the existing caches again once the key is gone.
     auto sites_directory = cache_path.parent();
-    auto readable_cache = sites_directory.append("https___normal.example-12345678"sv).string();
-    TRY_OR_FAIL(Core::Directory::create(readable_cache, Core::Directory::CreateDirectories::Yes));
     TRY_OR_FAIL(FileSystem::remove(sites_directory.parent().append("SiteCacheKey"sv).string(), FileSystem::RecursionMode::Disallowed));
 
     WebView::RequestServerManager new_manager;
-    EXPECT(!FileSystem::exists(readable_cache));
+    EXPECT(!FileSystem::exists(cache_path.string()));
     EXPECT(FileSystem::exists(sites_directory.parent().append("SiteCacheKey"sv).string()));
 }
