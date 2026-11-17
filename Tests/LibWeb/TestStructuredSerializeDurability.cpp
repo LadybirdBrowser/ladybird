@@ -645,6 +645,24 @@ TEST_CASE(crypto_key_handle_variants_decode_from_frozen_bytes)
     }
 }
 
+TEST_CASE(crypto_key_ec_private_key_stored_without_its_public_key_or_with_its_parameters_decodes)
+{
+    auto x = p256_base_point_x();
+    auto y = p256_base_point_y();
+    auto d = p256_private_value_one();
+    Vector<int> p256 { 1, 2, 840, 10045, 3, 1, 7 };
+    auto algorithm = alg_ec_key_algorithm("ECDSA"sv, "P-256"sv);
+    auto expected = crypto_key_full_record("private"sv, "sign"sv, algorithm, handle_ec_private_key(d, {}, Array<ReadonlyBytes, 2> { x, y }));
+
+    // A stored EC private key may have its curve's parameters and may not have its public key. It is stored again with
+    // its public key and without parameters.
+    for (auto const& handle : { handle_ec_private_key(d, {}, {}), handle_ec_private_key(d, p256, {}), handle_ec_private_key(d, p256, Array<ReadonlyBytes, 2> { x, y }) }) {
+        auto record = crypto_key_full_record("private"sv, "sign"sv, algorithm, handle);
+        auto value = MUST(principal_storage_deserialize(record));
+        EXPECT_EQ(storage_serialize(GC::Ref { value.as_object() }).data.span(), expected.data.span());
+    }
+}
+
 TEST_CASE(crypto_key_handle_completeness)
 {
     // Every HandleTag needs a decode golden.

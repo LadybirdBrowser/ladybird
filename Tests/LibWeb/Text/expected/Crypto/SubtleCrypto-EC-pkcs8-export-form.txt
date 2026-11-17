@@ -1,0 +1,5 @@
+params+pub: exported with the public key and without the parameters
+pub only: exported with the public key and without the parameters
+params only: exported with the public key and without the parameters
+neither: exported with the public key and without the parameters
+params+compressed pub: exported with the public key and without the parameters

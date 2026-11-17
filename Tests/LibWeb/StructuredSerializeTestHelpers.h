@@ -644,6 +644,13 @@ inline Vector<u8> ec_coordinate(u8 fill)
 }
 
 // The base point of P-256, which EC key handles must hold a point on.
+inline Vector<u8> p256_private_value_one()
+{
+    auto bytes = ec_coordinate(0);
+    bytes.last() = 1;
+    return bytes;
+}
+
 inline Vector<u8> p256_base_point_x()
 {
     return { 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96 };
@@ -736,7 +743,8 @@ inline Vector<CryptoHandleGolden> crypto_handle_goldens()
     Array<u8, 4> modulus { 0xC0, 0x00, 0x00, 0x01 };
     auto x = p256_base_point_x();
     auto y = p256_base_point_y();
-    auto d = ec_coordinate(0x33);
+    // NB: The base point is the public key of the private value 1.
+    auto d = p256_private_value_one();
     auto mldsa = mldsa_44_key();
     auto mlkem = mlkem_512_key();
     auto okp = "okpokpokpokpokpo"sv.bytes();
@@ -749,7 +757,7 @@ inline Vector<CryptoHandleGolden> crypto_handle_goldens()
     goldens.append({ HandleTag::RSAPrivateKey, "private"sv, "sign"sv,
         alg_rsa_hashed_key_algorithm("RSASSA-PKCS1-v1_5"sv, 2048, exponent, "SHA-256"sv), handle_rsa_private_key(rsa_components) });
     goldens.append({ HandleTag::ECPublicKey, "public"sv, "verify"sv, alg_ec_key_algorithm("ECDSA"sv, "P-256"sv), handle_ec_public_key(x, y) });
-    goldens.append({ HandleTag::ECPrivateKey, "private"sv, "sign"sv, alg_ec_key_algorithm("ECDSA"sv, "P-256"sv), handle_ec_private_key(d, {}, {}) });
+    goldens.append({ HandleTag::ECPrivateKey, "private"sv, "sign"sv, alg_ec_key_algorithm("ECDSA"sv, "P-256"sv), handle_ec_private_key(d, {}, Array<ReadonlyBytes, 2> { x, y }) });
     goldens.append({ HandleTag::MLDSAPublicKey, "public"sv, "verify"sv, alg_key_algorithm("ML-DSA-44"sv), handle_single_buffer(5, mldsa.public_key) });
     goldens.append({ HandleTag::MLDSAPrivateKey, "private"sv, "sign"sv, alg_key_algorithm("ML-DSA-44"sv), handle_triple_buffer(6, mldsa.seed, mldsa.public_key, mldsa.expanded_key) });
     goldens.append({ HandleTag::MLKEMPublicKey, "public"sv, "encapsulateKey"sv, alg_key_algorithm("ML-KEM-512"sv), handle_single_buffer(7, mlkem.public_key) });

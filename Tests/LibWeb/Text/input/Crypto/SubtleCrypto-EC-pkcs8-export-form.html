@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const bytes = string => Uint8Array.from(string.match(/../g), byte => parseInt(byte, 16));
+    const hex = buffer => Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, "0")).join("");
+
+    promiseTest(async () => {
+        // The same P-256 key, its ECPrivateKey with or without the optional parameters and public key.
+        const forms = [
+            ["params+pub", "308193020100301306072a8648ce3d020106082a8648ce3d030107047930770201010420a210ff3aa9bcdbb7ff984e127bcbf1127492b99eae5b16ac022620f8fbc52a07a00a06082a8648ce3d030107a1440342000477657ff1b7a6ef5f7f1d41007335cf04f3e6ef93f8388dee6e4a3d62b656113d8e6973eae73689ad969b087be2703072af9ad480dab52759640f837b44b398ae"],
+            ["pub only", "308187020100301306072a8648ce3d020106082a8648ce3d030107046d306b0201010420a210ff3aa9bcdbb7ff984e127bcbf1127492b99eae5b16ac022620f8fbc52a07a1440342000477657ff1b7a6ef5f7f1d41007335cf04f3e6ef93f8388dee6e4a3d62b656113d8e6973eae73689ad969b087be2703072af9ad480dab52759640f837b44b398ae"],
+            ["params only", "304d020100301306072a8648ce3d020106082a8648ce3d030107043330310201010420a210ff3aa9bcdbb7ff984e127bcbf1127492b99eae5b16ac022620f8fbc52a07a00a06082a8648ce3d030107"],
+            ["neither", "3041020100301306072a8648ce3d020106082a8648ce3d030107042730250201010420a210ff3aa9bcdbb7ff984e127bcbf1127492b99eae5b16ac022620f8fbc52a07"],
+            ["params+compressed pub", "3073020100301306072a8648ce3d020106082a8648ce3d030107045930570201010420a210ff3aa9bcdbb7ff984e127bcbf1127492b99eae5b16ac022620f8fbc52a07a00a06082a8648ce3d030107a1240322000277657ff1b7a6ef5f7f1d41007335cf04f3e6ef93f8388dee6e4a3d62b656113d"],
+        ];
+        // The form that other browsers export: with the uncompressed public key, without the parameters.
+        const exported = forms[1][1];
+        for (const [name, data] of forms) {
+            const key = await crypto.subtle.importKey("pkcs8", bytes(data), { name: "ECDSA", namedCurve: "P-256" }, true, ["sign"]);
+            const result = hex(await crypto.subtle.exportKey("pkcs8", key));
+            println(`${name}: ${result === exported ? "exported with the public key and without the parameters" : result}`);
+        }
+    });
+</script>
