@@ -1,0 +1,3 @@
+After close: <svg><script>document.close();</script></svg><p>first</p>
+readyState: interactive
+After write: <html><head><style></style></head><body><p>second</p></body></html>

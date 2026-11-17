@@ -1722,7 +1722,9 @@ WebIDL::ExceptionOr<void> Document::close()
         return {};
 
     // run() may have paused on a blocking script (e.g. from document.write inside an inline script).
-    if (has_pending_parsing_blocking_script()) {
+    // NB: An SVG script that the parser is executing keeps the parser paused, so run() did not tokenize anything. The
+    //     outermost invocation of the parser reaches the explicit "EOF" character once that script is done.
+    if (has_pending_parsing_blocking_script() || parser->is_paused()) {
         parser->set_post_parse_action(move(finish_script_created_parser));
         return {};
     }
