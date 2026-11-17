@@ -486,8 +486,13 @@ fn decode_dib(data: &[u8], included_in_ico: bool) -> Option<(BMPDecoder, BMPImag
     }
     let masks: Vec<ColorMask> = dib.masks.iter().map(|&mask| ColorMask::new(mask)).collect();
 
-    // NB: A BMP included in an ICO is always given an alpha channel, since its AND mask makes pixels transparent.
-    let format = if included_in_ico {
+    // NB: A BMP included in an ICO is always given an alpha channel, since its AND mask makes pixels transparent. RLE
+    //     images leave the pixels that they skip transparent.
+    let is_rle = matches!(
+        dib.compression,
+        compression::RLE4 | compression::RLE8 | compression::RLE24
+    );
+    let format = if included_in_ico || is_rle {
         BMPBitmapFormat::BGRA8888
     } else {
         match dib.bpp {
@@ -596,12 +601,8 @@ impl BMPDecoder {
         }
     }
 
-    fn decode_rle_data(&self, data: &[u8], bits_per_pixel: u16) -> Option<Vec<u8>> {
-        // RLE-compressed images cannot be stored top-down.
-        if self.top_down {
-            return None;
-        }
-
+    // Returns the decoded pixel data, and which of its pixels are set. The other pixels were skipped and are transparent.
+    fn decode_rle_data(&self, data: &[u8], bits_per_pixel: u16) -> Option<(Vec<u8>, Vec<bool>)> {
         let mut reader = Reader::new(data.get(self.data_offset..)?);
         let compression = self.compression;
         let width = self.width;
@@ -618,6 +619,10 @@ impl BMPDecoder {
         let mut buffer = Vec::new();
         buffer.try_reserve_exact(buffer_size).ok()?;
         buffer.resize(buffer_size, 0);
+        let mut pixel_is_set = Vec::new();
+        let pixel_count = width.checked_mul(total_rows)?;
+        pixel_is_set.try_reserve_exact(pixel_count).ok()?;
+        pixel_is_set.resize(pixel_count, false);
 
         let mut column = 0usize;
         let mut row = 0usize;
@@ -631,6 +636,7 @@ impl BMPDecoder {
                 return None;
             }
             if *column < width {
+                pixel_is_set[*row * width + *column] = true;
                 let row_start = *row * row_size;
                 match compression {
                     compression::RLE8 => buffer[row_start + *column] = value as u8,
@@ -725,7 +731,7 @@ impl BMPDecoder {
             }
         }
 
-        Some(buffer)
+        Some((buffer, pixel_is_set))
     }
 
     fn masked_color(&self, data: u32) -> u32 {
@@ -742,13 +748,13 @@ impl BMPDecoder {
     fn decode(&self, data: &[u8], output: &mut [u8], stride: usize) -> Option<()> {
         let color_table = self.decode_color_table(data)?;
 
-        let rle_buffer;
-        let (pixel_data, bits_per_pixel) = match self.rle_bits_per_pixel() {
+        let rle_data;
+        let (pixel_data, bits_per_pixel, rle_pixel_is_set) = match self.rle_bits_per_pixel() {
             Some(bits_per_pixel) => {
-                rle_buffer = self.decode_rle_data(data, bits_per_pixel)?;
-                (rle_buffer.as_slice(), bits_per_pixel)
+                rle_data = self.decode_rle_data(data, bits_per_pixel)?;
+                (rle_data.0.as_slice(), bits_per_pixel, rle_data.1.as_slice())
             }
-            None => (data.get(self.data_offset..)?, self.bpp),
+            None => (data.get(self.data_offset..)?, self.bpp, &[][..]),
         };
         let mut reader = Reader::new(pixel_data);
         let mut has_alpha_values = false;
@@ -812,6 +818,8 @@ impl BMPDecoder {
                         if self.included_in_ico {
                             // 24-bit BMPs included in ICOs are already in BGRA8888 order.
                             set_pixel(column, pixel);
+                        } else if self.compression == compression::RLE24 {
+                            set_pixel(column, pixel | 0xff00_0000);
                         } else {
                             set_pixel(
                                 column,
@@ -834,6 +842,14 @@ impl BMPDecoder {
                         column += 1;
                     }
                     _ => return None,
+                }
+            }
+
+            if !rle_pixel_is_set.is_empty() {
+                for (column, &is_set) in rle_pixel_is_set[row * width..(row + 1) * width].iter().enumerate() {
+                    if !is_set {
+                        set_pixel(column, 0);
+                    }
                 }
             }
 
