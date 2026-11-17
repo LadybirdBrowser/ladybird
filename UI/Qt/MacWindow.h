@@ -44,6 +44,8 @@ void offset_appkit_window_controls(QWidget&, int x_offset, int y_offset);
 // to their offset right away, before the next frame is drawn.
 void reapply_appkit_window_control_offsets(QWidget&);
 void install_appkit_event_capture();
+// Popups, such as popovers and menus, move along with the window they hang from, and cannot be moved on their own.
+void install_appkit_popup_attachment();
 // What AppKit says of a flick's momentum at the scroll event a wheel event came from, which Qt does not pass on.
 enum class AppKitScrollMomentumTransition {
     // The fingers lifted, and the momentum of the flick they made is about to begin.
