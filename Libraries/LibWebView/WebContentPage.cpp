@@ -1104,7 +1104,7 @@ void WebContentPage::did_click_link(Web::HTML::PreparedNavigationDescriptor navi
         // NB: The renderer sends a link to open in a new tab only for the user's own click, which the view delivered.
         //     That click opens the link whatever activation the page used up for other things, such as a popup its
         //     click handler opened.
-        if (!view().take_input_to_open_link_in_new_tab({}))
+        if (!view().take_input_to_open_link_in_new_tab({}, *this))
             return;
         view().open_navigation_in_new_tab(verified_navigation.release_value(), open_in_background ? Web::HTML::ActivateTab::No : Web::HTML::ActivateTab::Yes);
     } else {
@@ -1125,7 +1125,7 @@ void WebContentPage::did_middle_click_link(Web::HTML::PreparedNavigationDescript
     }
     // NB: The renderer sends a link to open in a new tab only for the user's own click, which the view delivered.
     //     That click opens the link whatever activation the page used up for other things.
-    if (!view().take_input_to_open_link_in_new_tab({}))
+    if (!view().take_input_to_open_link_in_new_tab({}, *this))
         return;
     view().open_navigation_in_new_tab(verified_navigation.release_value(), Web::HTML::ActivateTab::No);
 }
@@ -1445,10 +1445,20 @@ void WebContentPage::notify_about_user_activation(Web::HTML::CrossProcessId docu
     async_notify_about_user_activation(document_id);
 }
 
+// NB: The internals object of a test, and a WebDriver input command in the page it runs in, dispatch input as though
+//     the user produced it.
+static bool may_synthesize_input(WebContentPage const& page)
+{
+    if (WebContentClient::renderers_may_synthesize_input_for_testing())
+        return true;
+    auto view = page.traversable().view();
+    return view.has_value() && view->is_running_webdriver_input_command_in(page);
+}
+
 bool WebContentPage::has_transient_user_activation() const
 {
     // NB: Automation lets a renderer synthesize the input that gives it activation.
-    if (WebContentClient::renderers_may_synthesize_input())
+    if (may_synthesize_input(*this))
         return true;
     if (m_last_user_activation.has_value() && MonotonicTime::now() - *m_last_user_activation < transient_activation_duration)
         return true;
@@ -1499,7 +1509,7 @@ void WebContentPage::did_notify_about_user_activation(Web::HTML::CrossProcessId 
     // NB: The renderer runs the steps for input the view is delivering to it, and it sends this before it reports that
     //     it finished handling that input. So any other claim is a renderer handing out activation for input it never
     //     got, unless automation lets it synthesize input.
-    if (!WebContentClient::renderers_may_synthesize_input()) {
+    if (!may_synthesize_input(*this)) {
         auto view = traversable().view();
         if (!view.has_value() || !view->is_delivering_user_activation_to(*this))
             return;
@@ -1557,7 +1567,9 @@ void WebContentPage::did_update_resource_count(i32 count_waiting)
 // Only WebDriver's window commands and the internals object of a test ask for a change to the window.
 static bool may_change_window(WebContentPage& page, StringView message)
 {
-    if (WebContentClient::renderers_may_synthesize_input())
+    if (WebContentClient::renderers_may_synthesize_input_for_testing())
+        return true;
+    if (auto view = page.traversable().view(); view.has_value() && view->is_running_webdriver_window_command_in(page))
         return true;
     page.client().did_misbehave(message, "not driven by WebDriver or a test"sv);
     return false;
@@ -1610,7 +1622,10 @@ void WebContentPage::did_request_fullscreen_window()
 {
     // Element fullscreen needs and consumes the activation of the user's input, which the renderer checks. A
     // compromised renderer skips that check. The process of an isolated iframe asks for the window of its tab itself.
-    if (!consume_transient_user_activation()) {
+    // NB: WebDriver's Fullscreen Window command makes the document element fullscreen with no input from the user.
+    auto tab_view = traversable().view();
+    auto is_webdriver_window_command = tab_view.has_value() && tab_view->is_running_webdriver_window_command_in(*this);
+    if (!is_webdriver_window_command && !consume_transient_user_activation()) {
         async_deny_fullscreen_window();
         return;
     }
@@ -1662,9 +1677,14 @@ bool WebContentPage::populates_a_navigation_to_local_file(ByteString const& path
 void WebContentPage::did_request_file(ByteString path, i32 request_id)
 {
     // NB: The renderer's sandbox keeps it out of the local file system, so this is the only way it can read a file.
-    //     Answer only a process that has hosted local file content, or one reading the file a navigation it populates
-    //     names: any other could read every file the user can.
-    if (!client().may_read_local_files() && !populates_a_navigation_to_local_file(path)) {
+    //     Answer only a process that has hosted local file content, one reading the file a navigation it populates
+    //     names, or one selecting a file that WebDriver's Element Send Keys command it runs names: any other could
+    //     read every file the user can.
+    auto selects_file_for_webdriver = [&] {
+        auto view = traversable().view();
+        return view.has_value() && view->is_running_webdriver_command_to_select_file(*this, path);
+    };
+    if (!client().may_read_local_files() && !populates_a_navigation_to_local_file(path) && !selects_file_for_webdriver()) {
         async_handle_file_return(EACCES, {}, request_id);
         return;
     }
@@ -2250,8 +2270,8 @@ void WebContentPage::did_request_key_event_for_testing(Web::KeyEvent event)
 {
     // NB: The event enters the tab's input path as the user's own, reaching the focused navigable in whatever process
     //     hosts it and granting user activation, so only automation may ask for one.
-    if (!WebContentClient::renderers_may_synthesize_input()) {
-        client().did_misbehave("did_request_key_event_for_testing"sv, "not driven by WebDriver or a test"sv);
+    if (!WebContentClient::renderers_may_synthesize_input_for_testing()) {
+        client().did_misbehave("did_request_key_event_for_testing"sv, "not a test"sv);
         return;
     }
     // Only the compositor sets these, on its way to WebContent.
@@ -2512,7 +2532,7 @@ void WebContentPage::did_update_indexed_database(String update)
 void WebContentPage::did_request_clipboard_entries_for_paste(u64 request_id)
 {
     Vector<Web::Clipboard::SystemClipboardItem> items;
-    if (!WebContentClient::renderers_may_synthesize_input() && !view().take_paste_shortcut_handled_by({}, *this)) {
+    if (!may_synthesize_input(*this) && !view().take_paste_shortcut_handled_by({}, *this)) {
         async_retrieved_clipboard_entries(request_id, items);
         return;
     }
@@ -2548,8 +2568,8 @@ void WebContentPage::did_request_clipboard_entries(u64 request_id, Web::HTML::Cr
 void WebContentPage::did_request_paste_from_clipboard_for_testing()
 {
     // NB: This stands in for the browser's Paste command, which hands the page the system clipboard data.
-    if (!WebContentClient::renderers_may_synthesize_input()) {
-        client().did_misbehave("did_request_paste_from_clipboard_for_testing"sv, "not driven by WebDriver or a test"sv);
+    if (!WebContentClient::renderers_may_synthesize_input_for_testing()) {
+        client().did_misbehave("did_request_paste_from_clipboard_for_testing"sv, "not a test"sv);
         return;
     }
     view().paste_from_clipboard(Web::Clipboard::PasteMode::AllMimeTypes);
@@ -3107,8 +3127,8 @@ void WebContentPage::did_request_context_menu(Web::HTML::CrossProcessId local_ro
 void WebContentPage::did_request_spelling_menu_action_for_testing(Web::SpellingMenuActionForTesting action, u32 guess_index)
 {
     // NB: This activates the tab's own menu actions, so only automation may ask for it.
-    if (!WebContentClient::renderers_may_synthesize_input()) {
-        client().did_misbehave("did_request_spelling_menu_action_for_testing"sv, "not driven by WebDriver or a test"sv);
+    if (!WebContentClient::renderers_may_synthesize_input_for_testing()) {
+        client().did_misbehave("did_request_spelling_menu_action_for_testing"sv, "not a test"sv);
         return;
     }
     view().activate_spelling_menu_action_for_testing({}, *this, action, guess_index);
@@ -3117,8 +3137,8 @@ void WebContentPage::did_request_spelling_menu_action_for_testing(Web::SpellingM
 void WebContentPage::did_request_page_translation_for_testing(String target_language)
 {
     // NB: This translates the tab as its menu would, so only automation may ask for it.
-    if (!WebContentClient::renderers_may_synthesize_input()) {
-        client().did_misbehave("did_request_page_translation_for_testing"sv, "not driven by WebDriver or a test"sv);
+    if (!WebContentClient::renderers_may_synthesize_input_for_testing()) {
+        client().did_misbehave("did_request_page_translation_for_testing"sv, "not a test"sv);
         return;
     }
     view().page_translation().translate_for_testing({}, move(target_language));
@@ -3306,8 +3326,11 @@ void WebContentPage::did_change_favicon(Gfx::ShareableBitmap favicon)
 
 void WebContentPage::did_request_delete_all_cookies(u64 request_id, URL::URL url)
 {
-    if (!WebContentClient::renderers_may_access_cookies_like_http()) {
-        client().did_misbehave("did_request_delete_all_cookies"sv, "not driven by WebDriver"sv);
+    if (auto access = client().http_cookie_access_for(url); access != WebContentClient::HTTPCookieAccess::Allowed) {
+        if (access == WebContentClient::HTTPCookieAccess::Refused)
+            client().did_misbehave("did_request_delete_all_cookies"sv, "not running a WebDriver cookie command"sv);
+        else
+            async_did_delete_all_cookies(request_id);
         return;
     }
 
@@ -3434,8 +3457,8 @@ void WebContentPage::did_update_session_history_entry_scroll_restoration_mode(We
 void WebContentPage::did_request_pinch_event_for_testing(Web::HTML::CrossProcessId local_root_id, Web::PinchEvent event)
 {
     // NB: As for a key event for testing, the event is dispatched as the user's own.
-    if (!WebContentClient::renderers_may_synthesize_input()) {
-        client().did_misbehave("did_request_pinch_event_for_testing"sv, "not driven by WebDriver or a test"sv);
+    if (!WebContentClient::renderers_may_synthesize_input_for_testing()) {
+        client().did_misbehave("did_request_pinch_event_for_testing"sv, "not a test"sv);
         return;
     }
 
@@ -3450,24 +3473,49 @@ void WebContentPage::did_request_pinch_event_for_testing(Web::HTML::CrossProcess
 void WebContentPage::did_request_webdriver_mouse_event(u64 request_id, Web::HTML::CrossProcessId local_root_id, Web::MouseEvent event)
 {
     // NB: As for a key event for testing, the event is dispatched as the user's own.
-    if (!WebContentClient::renderers_may_synthesize_input()) {
+    if (!may_synthesize_input(*this)) {
         client().did_misbehave("did_request_webdriver_mouse_event"sv, "not driven by WebDriver or a test"sv);
         return;
     }
-    auto on_handled = [page = NonnullRefPtr<WebContentPage>(*this), request_id]() {
-        page->async_did_handle_webdriver_mouse_event(request_id);
-    };
+
+    // NB: The renderer dispatches the event to a local root it hosts, so naming another would aim it at a document of
+    //     another page. The renderer reports the viewports of the child navigables it hosts with their parents, so
+    //     only a local root's viewport bounds the event below.
+    auto root = hosted_navigable(local_root_id);
+    if (!root.has_value() || (!root->is_top_level_traversable() && !root->has_remote_host())) {
+        client().did_misbehave("did_request_webdriver_mouse_event"sv, "not a local root hosted by the page"sv);
+        return;
+    }
+
+    // NB: The event enters the tab's input path at its position in the tab, so a position outside the viewport of the
+    //     local root would reach whatever the tab shows there. A legitimate one is inside, as WebDriver's actions move
+    //     the pointer only within the viewport. The viewport of an isolated iframe may not be known yet.
+    auto viewport_size = root->is_top_level_traversable() ? view().viewport_size() : root->viewport_rect().map([](auto const& rect) { return rect.size(); }).value_or({});
+    Web::DevicePixelRect viewport { {}, viewport_size };
+    if (!viewport.contains(event.position)) {
+        // NB: The viewport can shrink while a button is pressed, and the page must still get the button's release, so
+        //     it goes to the nearest position in the viewport.
+        if (event.type != Web::MouseEvent::Type::MouseUp || viewport.is_empty()) {
+            async_did_handle_webdriver_mouse_event(request_id);
+            return;
+        }
+        auto clamped_x = clamp(event.position.x(), viewport.left(), viewport.right() - 1);
+        auto clamped_y = clamp(event.position.y(), viewport.top(), viewport.bottom() - 1);
+        event.screen_position.translate_by(Web::DevicePixelPoint { clamped_x, clamped_y } - event.position);
+        event.position = { clamped_x, clamped_y };
+    }
 
     // The event is relative to the viewport of the local root its page dispatches input to.
-    if (auto root = view().traversable().find(local_root_id); root.has_value()) {
-        auto offset = view().traversable().local_root_offset(*root);
-        event.position.translate_by(offset);
-        event.screen_position.translate_by(offset);
-    }
+    auto offset = view().traversable().local_root_offset(*root);
+    event.position.translate_by(offset);
+    event.screen_position.translate_by(offset);
     // Only the compositor sets these, on its way to WebContent.
     event.async_scroll_performed_default_action = false;
     event.scrollbar_dragged_by_compositor = {};
     event.wheel_gesture_mark = {};
+    auto on_handled = [page = NonnullRefPtr<WebContentPage>(*this), request_id]() {
+        page->async_did_handle_webdriver_mouse_event(request_id);
+    };
     view().enqueue_webdriver_mouse_event({}, move(event), move(on_handled));
 }
 
@@ -3779,8 +3827,9 @@ void WebContentPage::did_set_cookie(Optional<Web::HTML::EnvironmentId> environme
 {
     // NB: Only WebDriver sets cookies like HTTP does, for the top-level documents it drives.
     if (source == HTTP::Cookie::Source::Http) {
-        if (!WebContentClient::renderers_may_access_cookies_like_http()) {
-            client().did_misbehave("did_set_cookie"sv, "HTTP cookie source"sv);
+        if (auto access = client().http_cookie_access_for(url); access != WebContentClient::HTTPCookieAccess::Allowed) {
+            if (access == WebContentClient::HTTPCookieAccess::Refused)
+                client().did_misbehave("did_set_cookie"sv, "HTTP cookie source"sv);
             return;
         }
         client().session().cookie_jar->set_cookie(url, cookie, source, {}, HTTP::Cookie::SameSiteContext::same_site());
