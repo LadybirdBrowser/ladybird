@@ -187,6 +187,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         }
         self.live_producer = false;
         self.producer_reads_window_focus.set(false);
+        self.producer_reads_accumulated_scale.set(false);
         self.recorder
             .begin_record_origin(owner, super::trace::producer_name(kind));
         let start = self.recorder.byte_size();
@@ -232,6 +233,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         ProducerOutcome {
             live: self.live_producer,
             reads_window_focus: self.producer_reads_window_focus.get(),
+            reads_accumulated_scale: self.producer_reads_accumulated_scale.get(),
             blocking_wheel_event_regions: self.blocking_wheel_event_region_count - blocking_wheel_event_regions_before,
         }
     }

@@ -47,6 +47,9 @@ pub(crate) struct OutputFacts {
     // Recorded again when the window gains or loses focus. A scope reads the window focus when
     // any child does.
     pub reads_window_focus: bool,
+    // Recorded again when a transform changes a scale that the spaces of the tree accumulate. A scope reads the
+    // accumulated scale when any child does.
+    pub reads_accumulated_scale: bool,
 }
 
 impl OutputFacts {
@@ -54,6 +57,7 @@ impl OutputFacts {
         self.blocking_wheel_event_regions += other.blocking_wheel_event_regions;
         self.live |= other.live;
         self.reads_window_focus |= other.reads_window_focus;
+        self.reads_accumulated_scale |= other.reads_accumulated_scale;
     }
 }
 

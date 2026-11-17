@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+#box { position: absolute; left: 8px; top: 8px; width: 48px; height: 24px; transform-origin: top left; }
+img, #background { position: absolute; top: 0; width: 24px; height: 24px; }
+#background { left: 24px; background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='none' stroke='blue'/></svg>") no-repeat; }
+#tiles { position: absolute; left: 0; top: 24px; width: 48px; height: 24px; background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='none' stroke='blue'/></svg>") 0 0 / 24px 24px; }
+#other { position: absolute; left: 300px; top: 8px; width: 20px; height: 20px; background: green; }
+#box { transform: scale(3); }
+#other { background: blue; }
+</style>
+<div id="box"><img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='none' stroke='blue'/></svg>"><div id="background"></div><div id="tiles"></div></div>
+<div id="other"></div>

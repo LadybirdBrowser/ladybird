@@ -62,6 +62,8 @@ pub(crate) struct ProducerOutcome {
     pub live: bool,
     // Recorded again when the window gains or loses focus.
     pub reads_window_focus: bool,
+    // Recorded again when a transform changes a scale that the spaces of the tree accumulate.
+    pub reads_accumulated_scale: bool,
     pub blocking_wheel_event_regions: u32,
 }
 
@@ -71,6 +73,7 @@ impl ProducerOutcome {
             blocking_wheel_event_regions: self.blocking_wheel_event_regions,
             live: self.live,
             reads_window_focus: self.reads_window_focus,
+            reads_accumulated_scale: self.reads_accumulated_scale,
         }
     }
 }
@@ -174,11 +177,12 @@ enum SegmentKey {
 }
 
 /// Whether the published recording can be returned as it is: nothing changed since, and nothing in it is recorded
-/// every frame or read a window focus that changed.
+/// every frame or read a window focus or an accumulated scale that changed.
 pub(crate) fn frame_is_unchanged(
     published_root: &RecordedScope,
     anything_changed: bool,
     window_focus_changed: bool,
+    accumulated_scales_changed: bool,
     coverage: Coverage,
 ) -> bool {
     let facts = published_root.facts;
@@ -187,29 +191,43 @@ pub(crate) fn frame_is_unchanged(
         Coverage::WholeDocument => !published_root.leaves_out_what_lies_outside_the_window,
         Coverage::AnotherWindow => false,
     };
-    !anything_changed && !facts.live && !(window_focus_changed && facts.reads_window_focus) && covers_the_same
+    !anything_changed
+        && !facts.live
+        && !(window_focus_changed && facts.reads_window_focus)
+        && !(accumulated_scales_changed && facts.reads_accumulated_scale)
+        && covers_the_same
 }
 
 pub(crate) struct Assembler<'a, H: AssemblyHost> {
     host: &'a mut H,
     // The published recording was made in the other window focus state.
     window_focus_changed: bool,
+    // A transform changed a scale that the spaces of the tree accumulate since the published recording.
+    accumulated_scales_changed: bool,
     coverage: Coverage,
 }
 
 impl<'a, H: AssemblyHost> Assembler<'a, H> {
-    pub(crate) fn new(host: &'a mut H, window_focus_changed: bool, coverage: Coverage) -> Self {
+    pub(crate) fn new(
+        host: &'a mut H,
+        window_focus_changed: bool,
+        accumulated_scales_changed: bool,
+        coverage: Coverage,
+    ) -> Self {
         Self {
             host,
             window_focus_changed,
+            accumulated_scales_changed,
             coverage,
         }
     }
 
-    // Reusing a part would keep output that is recorded every frame, or that read the window focus before it
-    // changed.
+    // Reusing a part would keep output that is recorded every frame, or that read the window focus or an
+    // accumulated scale before it changed.
     fn records_again(&self, facts: OutputFacts) -> bool {
-        facts.live || (self.window_focus_changed && facts.reads_window_focus)
+        facts.live
+            || (self.window_focus_changed && facts.reads_window_focus)
+            || (self.accumulated_scales_changed && facts.reads_accumulated_scale)
     }
 
     /// Records the frame's root scope. `published_root` is the root the published recording walked, when that
@@ -683,6 +701,7 @@ mod tests {
         version: u8,
         live: bool,
         reads_window_focus: bool,
+        reads_accumulated_scale: bool,
         blocking: u32,
     }
 
@@ -692,6 +711,7 @@ mod tests {
             version: 1,
             live: false,
             reads_window_focus: false,
+            reads_accumulated_scale: false,
             blocking: 0,
         }
     }
@@ -867,6 +887,7 @@ mod tests {
             ProducerOutcome {
                 live: content.live,
                 reads_window_focus: content.reads_window_focus,
+                reads_accumulated_scale: content.reads_accumulated_scale,
                 blocking_wheel_event_regions: content.blocking,
             }
         }
@@ -928,7 +949,11 @@ mod tests {
     }
 
     // Records the canvas prologue and assembles the viewport context from the host's source frame.
-    fn record_frame_with_focus_change(host: &mut TestHost, window_focus_changed: bool) -> Frame {
+    fn record_frame_with_frame_changes(
+        host: &mut TestHost,
+        window_focus_changed: bool,
+        accumulated_scales_changed: bool,
+    ) -> Frame {
         host.output = new_output();
         host.recorded.clear();
         host.events.clear();
@@ -950,8 +975,8 @@ mod tests {
             (Some(window), Some(Some(published_window))) if window == published_window => Coverage::PublishedWindow,
             (Some(_), _) => Coverage::AnotherWindow,
         };
-        let root =
-            Assembler::new(host, window_focus_changed, coverage).assemble_root(context(row(0)), published.as_ref());
+        let root = Assembler::new(host, window_focus_changed, accumulated_scales_changed, coverage)
+            .assemble_root(context(row(0)), published.as_ref());
         let mut chunks = vec![Arc::new(prologue)];
         root.for_each_chunk(&mut |chunk| chunks.push(Arc::clone(chunk.latest())));
         Frame {
@@ -962,7 +987,7 @@ mod tests {
     }
 
     fn record_frame(host: &mut TestHost) -> Frame {
-        record_frame_with_focus_change(host, false)
+        record_frame_with_frame_changes(host, false, false)
     }
 
     // Publishes `frame`: the next frame reuses from it, and asks what changed since.
@@ -1033,8 +1058,20 @@ mod tests {
         );
         // A chunk for the prologue, one for each of the six runs and one for the run of the walked card.
         assert_eq!(frame.display_list.chunks.len(), 1 + 6 + 1);
-        assert!(frame_is_unchanged(&frame.root, false, false, Coverage::WholeDocument));
-        assert!(!frame_is_unchanged(&frame.root, true, false, Coverage::WholeDocument));
+        assert!(frame_is_unchanged(
+            &frame.root,
+            false,
+            false,
+            false,
+            Coverage::WholeDocument
+        ));
+        assert!(!frame_is_unchanged(
+            &frame.root,
+            true,
+            false,
+            false,
+            Coverage::WholeDocument
+        ));
     }
 
     #[test]
@@ -1176,7 +1213,13 @@ mod tests {
             .unwrap()
             .reads_window_focus = true;
         let first = record_frame(&mut host);
-        assert!(!frame_is_unchanged(&first.root, false, false, Coverage::WholeDocument));
+        assert!(!frame_is_unchanged(
+            &first.root,
+            false,
+            false,
+            false,
+            Coverage::WholeDocument
+        ));
         publish(&mut host, first);
 
         let quiet = record_frame(&mut host);
@@ -1184,9 +1227,43 @@ mod tests {
         assert_matches_from_scratch(&mut host, &quiet);
         publish(&mut host, quiet);
 
-        let refocused = record_frame_with_focus_change(&mut host, true);
+        let refocused = record_frame_with_frame_changes(&mut host, true, false);
         assert_eq!(host.recorded_rows(), vec![1, 2, 5, 6]);
         assert_matches_from_scratch(&mut host, &refocused);
+    }
+
+    #[test]
+    fn output_that_read_an_accumulated_scale_is_not_copied_once_one_changed() {
+        let mut host = cards_host();
+        host.contents
+            .get_mut(&(row(5), ProducerKind::DrawForeground))
+            .unwrap()
+            .reads_accumulated_scale = true;
+        let first = record_frame(&mut host);
+        assert!(frame_is_unchanged(
+            &first.root,
+            false,
+            false,
+            false,
+            Coverage::WholeDocument
+        ));
+        assert!(!frame_is_unchanged(
+            &first.root,
+            false,
+            false,
+            true,
+            Coverage::WholeDocument
+        ));
+        publish(&mut host, first);
+
+        let quiet = record_frame(&mut host);
+        assert_eq!(host.recorded_rows(), Vec::<u32>::new());
+        assert_matches_from_scratch(&mut host, &quiet);
+        publish(&mut host, quiet);
+
+        let rescaled = record_frame_with_frame_changes(&mut host, false, true);
+        assert_eq!(host.recorded_rows(), vec![5, 6]);
+        assert_matches_from_scratch(&mut host, &rescaled);
     }
 
     #[test]
@@ -1258,9 +1335,27 @@ mod tests {
         let third = record_frame(&mut host);
         assert!(host.recorded.is_empty());
         assert_eq!(host.bounds_asked, 1);
-        assert!(frame_is_unchanged(&third.root, false, false, Coverage::PublishedWindow));
-        assert!(!frame_is_unchanged(&third.root, false, false, Coverage::AnotherWindow));
-        assert!(!frame_is_unchanged(&third.root, false, false, Coverage::WholeDocument));
+        assert!(frame_is_unchanged(
+            &third.root,
+            false,
+            false,
+            false,
+            Coverage::PublishedWindow
+        ));
+        assert!(!frame_is_unchanged(
+            &third.root,
+            false,
+            false,
+            false,
+            Coverage::AnotherWindow
+        ));
+        assert!(!frame_is_unchanged(
+            &third.root,
+            false,
+            false,
+            false,
+            Coverage::WholeDocument
+        ));
         assert_matches_from_scratch(&mut host, &third);
     }
 
@@ -1276,7 +1371,13 @@ mod tests {
         assert_eq!(host.rows_recorded().into_iter().collect::<Vec<_>>(), vec![3, 4, 5, 6]);
         assert!(host.left_out_scopes().is_empty());
         assert!(!second.root.leaves_out_what_lies_outside_the_window);
-        assert!(frame_is_unchanged(&second.root, false, false, Coverage::WholeDocument));
+        assert!(frame_is_unchanged(
+            &second.root,
+            false,
+            false,
+            false,
+            Coverage::WholeDocument
+        ));
         assert_matches_from_scratch(&mut host, &second);
     }
 
