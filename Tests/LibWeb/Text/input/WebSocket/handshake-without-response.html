@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A server that closes the connection without responding to the opening handshake must fail the connection.
+    asyncTest(done => {
+        const ws = new WebSocket(`ws://localhost:${internals.getEchoServerPort()}/websocket-close-without-response`);
+        ws.onopen = () => {
+            println("open");
+        };
+        ws.onerror = () => {
+            println(`error, readyState: ${ws.readyState}`);
+        };
+        ws.onclose = event => {
+            println(`close, readyState: ${ws.readyState}, wasClean: ${event.wasClean}, code: ${event.code}`);
+            done();
+        };
+    });
+</script>

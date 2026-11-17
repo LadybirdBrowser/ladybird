@@ -45,6 +45,8 @@ Endpoints:
       server first sends a binary frame of that many bytes: a 1, zeros, and then a 2.
     - GET /reflect-websocket-cookie with an "Upgrade: websocket" header: As above, but first sends the
       handshake's Cookie header (or an empty string) as a text frame.
+    - GET /websocket-close-without-response with an "Upgrade: websocket" header: Closes the connection without
+      responding to the handshake.
     - GET /recorded-request-count/<echo path>: Responds with the number of requests the server has seen at <echo path>,
       with any query ignored.
     - GET /downloads/<name>: Reports the browser's download of <name> into the --downloads-directory: 404 while
@@ -789,6 +791,10 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     # text/binary frame it sends is echoed back verbatim.
 
     def _serve_websocket_echo(self):
+        if self.path == "/websocket-close-without-response":
+            self.close_connection = True
+            return
+
         key = self.headers.get("Sec-WebSocket-Key")
         if not key:
             self.send_error(400, "Missing Sec-WebSocket-Key")
