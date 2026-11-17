@@ -4866,7 +4866,7 @@ void TabWidget::update_all_tabs_entries()
             if (unit.was_window)
                 title = unit.tab_count == 1 ? QStringLiteral("Window with 1 tab") : qformatted("Window with {} tabs", unit.tab_count);
             closed_entries.append({
-                .icon = entry.has_value() && entry->favicon_png.has_value() ? icon_from_png(entry->favicon_png->bytes(), TAB_ICON_SIZE) : QIcon {},
+                .icon = entry.has_value() && entry->favicon_png.has_value() ? favicon_from_png(entry->favicon_png->bytes(), TAB_ICON_SIZE) : QIcon {},
                 .title = AK::move(title),
                 .detail = time_since_closed(now - unit.closed_at),
                 .is_current = false,
