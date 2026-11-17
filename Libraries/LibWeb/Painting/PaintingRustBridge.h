@@ -13,6 +13,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
+#include <LibWeb/Painting/DisplayListDumpOptions.h>
 #include <LibWeb/Painting/DisplayListRecording.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
@@ -72,7 +73,7 @@ WEB_API void publish_rust_display_list_recording(Layout::BegunRead const&, DOM::
 // Hands the document the trace the recording it took in last left, if it left one.
 WEB_API void take_recording_trace_if_pending(Layout::BegunRead const&, DOM::Document&);
 // Dumps the display list the document recorded last.
-WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&);
+WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&, DisplayListDumpOptions const&);
 
 WEB_API Layout::RustFFI::FfiVectorImageKey vector_image_key_to_ffi(VectorImageKey const&);
 // Has the compositor rasterize `paint` into `target` as `request` asks, which must be a shareable BGRA8888 bitmap with

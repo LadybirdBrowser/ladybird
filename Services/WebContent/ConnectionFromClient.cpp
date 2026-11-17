@@ -1250,7 +1250,7 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
 
     if (request == "dump-display-list") {
         if (auto doc = page->page().local_traversable()->active_document()) {
-            auto display_list_dump = doc->dump_display_list();
+            auto display_list_dump = doc->dump_display_list({});
             dbgln("{}", display_list_dump.to_utf8());
         }
         return;
@@ -2852,7 +2852,7 @@ static void append_display_list(Web::Page& page, StringBuilder& builder)
         return;
     }
 
-    builder.append(document->dump_display_list().to_utf8());
+    builder.append(document->dump_display_list({}).to_utf8());
 }
 
 static void append_gc_graph(StringBuilder& builder)

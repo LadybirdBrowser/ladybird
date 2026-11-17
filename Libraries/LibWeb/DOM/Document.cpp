@@ -11748,7 +11748,7 @@ ElementByIdMap& Document::element_by_id() const
     return *m_element_by_id;
 }
 
-Utf16String Document::dump_display_list()
+Utf16String Document::dump_display_list(Painting::DisplayListDumpOptions const& options)
 {
     Layout::ForcedReadScope read { *this };
     update_layout(UpdateLayoutReason::DumpDisplayList);
@@ -11762,7 +11762,7 @@ Utf16String Document::dump_display_list()
     if (!record_display_list(read, HTML::PaintConfig { .records_whole_document = true }, Painting::PaintCommandCacheMode::ReadOnly))
         return "No display list"_utf16;
 
-    return Painting::serialize_painting_dump(read, *this);
+    return Painting::serialize_painting_dump(read, *this, options);
 }
 
 Utf16String Document::dump_stacking_context_tree()

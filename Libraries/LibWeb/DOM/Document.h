@@ -112,6 +112,12 @@ class ImageStyleValueResource;
 
 }
 
+namespace Web::Painting {
+
+struct DisplayListDumpOptions;
+
+}
+
 namespace Web::DOM {
 
 struct MutationObserverOptions;
@@ -1821,7 +1827,7 @@ public:
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
     void remove_from_script_blocking_style_sheet_set(Element&);
 
-    Utf16String dump_display_list();
+    Utf16String dump_display_list(Painting::DisplayListDumpOptions const&);
     Utf16String dump_stacking_context_tree();
 
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
