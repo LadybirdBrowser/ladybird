@@ -599,9 +599,11 @@ impl BMPDecoder {
         }
     }
 
-    // Returns the decoded pixel data, and which of its pixels are set. The other pixels were skipped and are transparent.
-    fn decode_rle_data(&self, data: &[u8], bits_per_pixel: u16) -> Option<(Vec<u8>, Vec<bool>)> {
-        let mut reader = Reader::new(data.get(self.data_offset..)?);
+    // Returns the decoded pixel data, which of its pixels are set, and the offset in `data` where the RLE data ends.
+    // The pixels that are not set were skipped and are transparent.
+    fn decode_rle_data(&self, data: &[u8], bits_per_pixel: u16) -> Option<(Vec<u8>, Vec<bool>, usize)> {
+        let rle_data = data.get(self.data_offset..)?;
+        let mut reader = Reader::new(rle_data);
         let compression = self.compression;
         let width = self.width;
         let total_rows = self.height;
@@ -729,7 +731,8 @@ impl BMPDecoder {
             }
         }
 
-        Some((buffer, pixel_is_set))
+        let end_offset = self.data_offset + (rle_data.len() - reader.remaining());
+        Some((buffer, pixel_is_set, end_offset))
     }
 
     fn masked_color(&self, data: u32) -> u32 {
@@ -747,14 +750,21 @@ impl BMPDecoder {
         let color_table = self.decode_color_table(data)?;
 
         let rle_data;
-        let (pixel_data, bits_per_pixel, rle_pixel_is_set) = match self.rle_bits_per_pixel() {
+        // NB: The AND mask of an RLE image follows its compressed data, not the decoded pixel data.
+        let (pixel_data, bits_per_pixel, rle_pixel_is_set, rle_end_offset) = match self.rle_bits_per_pixel() {
             Some(bits_per_pixel) => {
                 rle_data = self.decode_rle_data(data, bits_per_pixel)?;
-                (rle_data.0.as_slice(), bits_per_pixel, rle_data.1.as_slice())
+                (
+                    rle_data.0.as_slice(),
+                    bits_per_pixel,
+                    rle_data.1.as_slice(),
+                    Some(rle_data.2),
+                )
             }
-            None => (data.get(self.data_offset..)?, self.bpp, &[][..]),
+            None => (data.get(self.data_offset..)?, self.bpp, &[][..], None),
         };
         let mut reader = Reader::new(pixel_data);
+        let has_alpha_mask = self.masks.len() == 4;
         let mut has_alpha_values = false;
 
         let width = self.width;
@@ -808,8 +818,9 @@ impl BMPDecoder {
                         column += 1;
                     }
                     16 => {
-                        let value = reader.read_u16()?;
-                        set_pixel(column, self.masked_color(u32::from(value)));
+                        let color = self.masked_color(u32::from(reader.read_u16()?));
+                        has_alpha_values |= has_alpha_mask && color >> 24 != 0;
+                        set_pixel(column, color);
                         column += 1;
                     }
                     24 => {
@@ -836,7 +847,9 @@ impl BMPDecoder {
                             // INTEROP: Without an alpha mask, the fourth byte of a standalone BMP is not alpha.
                             set_pixel(column, value | 0xff00_0000);
                         } else {
-                            set_pixel(column, self.masked_color(value));
+                            let color = self.masked_color(value);
+                            has_alpha_values |= has_alpha_mask && color >> 24 != 0;
+                            set_pixel(column, color);
                         }
                         column += 1;
                     }
@@ -870,18 +883,28 @@ impl BMPDecoder {
         }
 
         // An ICO image is followed by an AND mask with one bit per pixel, which makes pixels transparent.
-        if self.included_in_ico && !(may_have_alpha_values && has_alpha_values) && !reader.is_at_end() {
+        // INTEROP: An image with alpha values ignores its AND mask.
+        let mut mask_reader = match rle_end_offset {
+            Some(offset) => Reader::new(data.get(offset..)?),
+            None => reader,
+        };
+        if self.included_in_ico && !has_alpha_values && !mask_reader.is_at_end() {
             for row in 0..height {
                 let row_start = output_row(row);
                 let pixels = &mut output[row_start..row_start + row_bytes];
-                let remaining_before_row = reader.remaining();
+                let remaining_before_row = mask_reader.remaining();
 
                 let mut column = 0;
                 while column < width {
-                    let byte = reader.read_u8()?;
+                    let byte = mask_reader.read_u8()?;
                     for bit in (0..8).rev() {
                         if column >= width {
                             break;
+                        }
+                        // Pixels skipped by RLE data stay transparent.
+                        if !rle_pixel_is_set.is_empty() && !rle_pixel_is_set[row * width + column] {
+                            column += 1;
+                            continue;
                         }
                         let pixel_bytes = &mut pixels[column * 4..column * 4 + 4];
                         let mut pixel = u32::from_ne_bytes(pixel_bytes.try_into().ok()?);
@@ -895,9 +918,9 @@ impl BMPDecoder {
                     }
                 }
 
-                let consumed = remaining_before_row - reader.remaining();
+                let consumed = remaining_before_row - mask_reader.remaining();
 
-                skip_row_padding(&mut reader, consumed)?;
+                skip_row_padding(&mut mask_reader, consumed)?;
             }
         }
 
