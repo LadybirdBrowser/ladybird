@@ -329,10 +329,13 @@ QWidget#LadybirdSidebarFooter QToolButton {{
     padding: 0;
 }}
 
-/* NB: The all-tabs button keeps its own size in the toolbar and the sidebar's footer, and the navigation buttons theirs,
-       which is smaller in the sidebar. */
+/*
+ * The all-tabs and bookmarks buttons keep their own size in the sidebar's footer, as does all-tabs in the toolbar.
+ * The navigation buttons keep theirs, which is smaller in the sidebar.
+ */
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdAllTabsButton,
 QWidget#LadybirdSidebarFooter QToolButton#LadybirdAllTabsButton,
+QWidget#LadybirdSidebarFooter QToolButton#LadybirdSidebarBookmarksButton,
 QWidget#LadybirdNavigationButtons QToolButton {{
     min-width: 0;
     min-height: 0;
@@ -1117,6 +1120,7 @@ QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"][active="true"] {{
 }}
 
 QToolButton#LadybirdAllTabsButton,
+QToolButton#LadybirdSidebarBookmarksButton,
 QToolButton#LadybirdVerticalTabsToggleButton {{
     background: transparent;
     border: 0;

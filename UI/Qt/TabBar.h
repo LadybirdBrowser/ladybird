@@ -41,6 +41,7 @@ class QDropEvent;
 class QEvent;
 class QIcon;
 class QLabel;
+class QMenu;
 class QMouseEvent;
 class QPaintEvent;
 class QResizeEvent;
@@ -396,6 +397,7 @@ private:
     void rebuild_layout();
     void rebuild_layout_for_horizontal_tabs();
     bool sidebar_toggle_stays_in_corner() const;
+    bool bookmarks_are_in_sidebar() const;
     void place_all_tabs_and_sidebar_toggle();
     void place_sidebar_toggle_in_corner();
     void place_toolbar_sidebar_buttons();
@@ -450,6 +452,8 @@ private:
     QStackedWidget* m_stacked_widget { nullptr };
     QToolButton* m_new_tab_button { nullptr };
     QToolButton* m_all_tabs_button { nullptr };
+    ChromeHeaderButton* m_bookmarks_menu_button { nullptr };
+    QMenu* m_bookmarks_menu { nullptr };
     AllTabsPopover* m_all_tabs_popover { nullptr };
     bool m_all_tabs_entries_update_is_pending { false };
     Vector<SessionWindowId> m_recently_closed_unit_ids;
@@ -484,6 +488,7 @@ private:
     QBoxLayout* m_vertical_tab_bar_column_layout { nullptr };
     QBoxLayout* m_vertical_tabs_content_layout { nullptr };
     QSpacerItem* m_vertical_tabs_header_spacer { nullptr };
+    QSpacerItem* m_vertical_tabs_footer_spacer { nullptr };
     bool m_tab_bar_visible { true };
     bool m_window_controls_visible { true };
     bool m_vertical_tabs_enabled { false };

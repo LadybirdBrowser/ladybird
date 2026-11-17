@@ -17,6 +17,7 @@
 #include <UI/Qt/AllTabsPopover.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/ApplicationActions.h>
+#include <UI/Qt/Bookmarks.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
@@ -63,6 +64,7 @@
 #include <QLabel>
 #include <QLayoutItem>
 #include <QLinearGradient>
+#include <QMenu>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPaintEvent>
@@ -3454,6 +3456,32 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
         show_all_tabs();
     });
 
+    m_bookmarks_menu_button = new ChromeHeaderButton(this);
+    m_bookmarks_menu_button->setObjectName("LadybirdSidebarBookmarksButton");
+    m_bookmarks_menu_button->set_size(ALL_TABS_BUTTON_SIZE);
+    m_bookmarks_menu_button->setAutoRaise(true);
+    m_bookmarks_menu_button->setIconSize({ 16, 16 });
+    m_bookmarks_menu_button->setFocusPolicy(Qt::NoFocus);
+    m_bookmarks_menu_button->setToolTip("Bookmarks");
+    m_bookmarks_menu_button->setAccessibleName("Bookmarks");
+    m_bookmarks_menu_button->setCheckable(true);
+    m_bookmarks_menu = create_application_menu(*m_bookmarks_menu_button, Application::bookmarks().menu());
+    QObject::connect(m_bookmarks_menu_button, &QToolButton::clicked, this, [this] {
+        // Keep the button's position while its menu is in use, even if hover expansion was about to start.
+        m_vertical_tabs_hover_expand_timer->stop();
+        repopulate_application_menu(*m_bookmarks_menu, Application::bookmarks().menu());
+        // Like the all-tabs list, the menu rises above its footer button and opens toward the page.
+        auto position = m_bookmarks_menu_button->mapToGlobal(QPoint(0, -m_bookmarks_menu->sizeHint().height() - 4));
+        m_bookmarks_menu->popup(position);
+    });
+    QObject::connect(m_bookmarks_menu, &QMenu::aboutToShow, m_bookmarks_menu_button, [this] {
+        m_bookmarks_menu_button->setChecked(true);
+    });
+    QObject::connect(m_bookmarks_menu, &QMenu::aboutToHide, m_bookmarks_menu_button, [this] {
+        m_bookmarks_menu_button->setChecked(false);
+    });
+    m_bookmarks_menu_button->hide();
+
     // The buttons move together on the left. With the sidebar on the right, only the all-tabs button follows it.
     m_ladybird_buttons = new QWidget(this);
     auto* ladybird_buttons_layout = new QHBoxLayout(m_ladybird_buttons);
@@ -3515,6 +3543,7 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     m_vertical_tab_bar_column->setProperty(VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY, false);
     m_vertical_tab_bar_column->installEventFilter(this);
     m_bookmarks_bar->set_sidebar(*m_vertical_tab_bar_column);
+    m_bookmarks_menu_button->setParent(m_vertical_tab_bar_column);
 
     m_vertical_tabs_toggle_button = new ChromeHeaderButton(m_vertical_tab_bar_column);
     m_vertical_tabs_toggle_button->setObjectName("LadybirdVerticalTabsToggleButton");
@@ -4482,6 +4511,10 @@ bool TabWidget::cursor_is_over_vertical_tabs() const
     if (!m_vertical_tabs_content->isVisible())
         return false;
 
+    // The sidebar stays open while its bookmarks menu or one of its submenus is in use.
+    if (m_bookmarks_menu_button->isVisible() && m_bookmarks_menu->isVisible())
+        return true;
+
     if (m_vertical_tab_bar_column->underMouse() || m_tab_bar->underMouse() || m_new_tab_button->underMouse())
         return true;
 
@@ -4620,6 +4653,7 @@ void TabWidget::rebuild_layout()
     clear_layout(*m_page_column_layout);
     clear_layout(*m_vertical_tab_bar_column_layout);
     m_vertical_tabs_header_spacer = nullptr;
+    m_vertical_tabs_footer_spacer = nullptr;
     clear_layout(*m_vertical_tabs_content_layout);
 
     m_tab_bar->set_vertical_tabs_position(m_vertical_tabs_position);
@@ -4682,6 +4716,7 @@ void TabWidget::rebuild_layout()
         m_vertical_tabs_content->hide();
     }
 
+    update_bookmarks_bar_visibility();
     update_tab_button_visibility();
     update_tab_chrome_visibility();
     update_tab_layout();
@@ -4884,20 +4919,50 @@ bool TabWidget::sidebar_toggle_stays_in_corner() const
     return m_everything_in_sidebar && m_vertical_tabs_enabled;
 }
 
-void TabWidget::place_sidebar_toggle_in_corner()
+bool TabWidget::bookmarks_are_in_sidebar() const
 {
-    if (!sidebar_toggle_stays_in_corner())
-        return;
-    auto size = COLLAPSED_VERTICAL_TABS_TOGGLE_BUTTON_SIZE;
-    auto footer_top = m_vertical_tab_bar_column->height() - m_vertical_tab_bar_column_layout->contentsMargins().bottom() - WindowToolbar::sidebar_footer_height();
-    m_vertical_tabs_toggle_button->move((VERTICAL_TABS_COLLAPSED_WIDTH - size.width()) / 2, footer_top + ((WindowToolbar::sidebar_footer_height() - size.height()) / 2));
-    m_vertical_tabs_toggle_button->raise();
+    return sidebar_toggle_stays_in_corner();
 }
 
-// With everything in the open sidebar, the all-tabs button starts its footer. On the right it stays beside the sidebar
-// toggle, and everywhere else it sits beside the Ladybird button.
+void TabWidget::place_sidebar_toggle_in_corner()
+{
+    m_bookmarks_menu_button->setVisible(m_tab_bar_visible && bookmarks_are_in_sidebar());
+    if (!sidebar_toggle_stays_in_corner())
+        return;
+
+    auto size = COLLAPSED_VERTICAL_TABS_TOGGLE_BUTTON_SIZE;
+    auto footer_height = WindowToolbar::sidebar_footer_height();
+    auto reserved_height = footer_height * (vertical_tabs_effectively_expanded() ? 1 : 2);
+
+    if (m_vertical_tabs_footer_spacer && m_vertical_tabs_footer_spacer->sizeHint().height() != reserved_height) {
+        m_vertical_tabs_footer_spacer->changeSize(0, reserved_height, QSizePolicy::Fixed, QSizePolicy::Fixed);
+        m_vertical_tab_bar_column_layout->invalidate();
+    }
+
+    auto footer_top = m_vertical_tab_bar_column->height() - m_vertical_tab_bar_column_layout->contentsMargins().bottom() - footer_height;
+    m_vertical_tabs_toggle_button->move((VERTICAL_TABS_COLLAPSED_WIDTH - size.width()) / 2, footer_top + ((footer_height - size.height()) / 2));
+    m_vertical_tabs_toggle_button->raise();
+
+    auto center_y = m_vertical_tabs_toggle_button->y() + m_vertical_tabs_toggle_button->height() / 2;
+
+    if (!vertical_tabs_effectively_expanded()) {
+        // The collapsed rail stacks bookmarks above the sidebar toggle.
+        m_bookmarks_menu_button->move((VERTICAL_TABS_COLLAPSED_WIDTH - m_bookmarks_menu_button->width()) / 2, center_y - footer_height - m_bookmarks_menu_button->height() / 2);
+        m_bookmarks_menu_button->raise();
+    } else if (m_bookmarks_menu_button->parentWidget() == m_vertical_tab_bar_column) {
+        // Hover expansion keeps the toolbar in its row, so the sidebar places its bookmarks button itself.
+        m_bookmarks_menu_button->move(m_vertical_tabs_toggle_button->geometry().right() + 1, center_y - m_bookmarks_menu_button->height() / 2);
+        m_bookmarks_menu_button->raise();
+    }
+}
+
+// With everything in the open sidebar, the all-tabs and bookmarks buttons start its footer. On the right the all-tabs
+// button stays beside the sidebar toggle, and everywhere else it sits beside the Ladybird button.
 void TabWidget::place_all_tabs_and_sidebar_toggle()
 {
+    if (!toolbar_is_in_sidebar() && m_bookmarks_menu_button->parentWidget() != m_vertical_tab_bar_column)
+        m_bookmarks_menu_button->setParent(m_vertical_tab_bar_column);
+
     if (m_tab_bar->tab_layout() != TabLayout::Horizontal && vertical_tabs_are_on_right()) {
         auto& slot = m_toolbar->trailing_sidebar_slot();
         auto* slot_layout = static_cast<QBoxLayout*>(slot.layout());
@@ -4940,11 +5005,19 @@ void TabWidget::place_all_tabs_and_sidebar_toggle()
 
     auto& footer = m_toolbar->sidebar_footer();
     auto* footer_layout = static_cast<QBoxLayout*>(footer.layout());
+
     if (m_all_tabs_button->parentWidget() != &footer) {
         m_all_tabs_button->setParent(&footer);
         footer_layout->insertWidget(0, m_all_tabs_button, 0, Qt::AlignVCenter);
     }
+
+    if (m_bookmarks_menu_button->parentWidget() != &footer) {
+        m_bookmarks_menu_button->setParent(&footer);
+        footer_layout->insertWidget(1, m_bookmarks_menu_button, 0, Qt::AlignVCenter);
+    }
+
     m_all_tabs_button->show();
+    m_bookmarks_menu_button->setVisible(m_tab_bar_visible && bookmarks_are_in_sidebar());
 }
 
 void TabWidget::place_toolbar_sidebar_buttons()
@@ -5060,11 +5133,12 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
             }
         }
     } else {
-        // The collapsed rail holds only tabs. The Ladybird and all-tabs buttons and the sidebar's toggle move to the
-        // toolbar, after the window controls (see place_toolbar_sidebar_buttons()). Its tabs start as far below the
-        // toolbar as the open sidebar's start below its top row.
+        // Beside the collapsed rail, the Ladybird and all-tabs buttons sit in the toolbar, after the window controls
+        // (see place_toolbar_sidebar_buttons()). Its tabs start as far below the toolbar as the open sidebar's start
+        // below its top row.
         m_vertical_tab_bar_column_layout->addSpacing(VERTICAL_TABS_TOP_MARGIN - VERTICAL_TAB_BAR_END_ROOM);
     }
+
     if (m_vertical_tabs_expanded) {
         if (!vertical_tabs_are_on_right()) {
             m_ladybird_buttons->setParent(m_vertical_tab_bar_column);
@@ -5098,11 +5172,15 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
     m_vertical_tab_bar_column_layout->addWidget(m_tab_bar);
     m_vertical_tab_bar_column_layout->addWidget(m_new_tab_button, 0, vertical_tabs_are_on_right() ? Qt::AlignRight : Qt::AlignLeft);
     m_vertical_tab_bar_column_layout->addStretch(1);
+
     // The toolbar's other buttons sit at the bottom of the sidebar that holds it.
-    if (m_vertical_tabs_expanded && toolbar_is_in_sidebar() && !toggle_moves_toolbar())
+    if (m_vertical_tabs_expanded && toolbar_is_in_sidebar() && !toggle_moves_toolbar()) {
         m_vertical_tab_bar_column_layout->addWidget(&m_toolbar->sidebar_footer());
-    else if (sidebar_toggle_stays_in_corner())
-        m_vertical_tab_bar_column_layout->addSpacing(WindowToolbar::sidebar_footer_height());
+    } else if (sidebar_toggle_stays_in_corner()) {
+        auto footer_height = WindowToolbar::sidebar_footer_height() * (vertical_tabs_effectively_expanded() ? 1 : 2);
+        m_vertical_tabs_footer_spacer = new QSpacerItem(0, footer_height, QSizePolicy::Fixed, QSizePolicy::Fixed);
+        m_vertical_tab_bar_column_layout->addItem(m_vertical_tabs_footer_spacer);
+    }
 }
 
 // A divider runs along the sidebar's edge toward the page.
@@ -5192,11 +5270,14 @@ void TabWidget::add_page_to_page_column()
 
 void TabWidget::update_bookmarks_bar_visibility()
 {
+    m_bookmarks_bar->set_suppressed(bookmarks_are_in_sidebar());
+
     auto index = m_page_column_layout->indexOf(m_bookmarks_bar);
     if (m_bookmarks_bar->shows_over_page() && index != -1)
         m_page_column_layout->removeWidget(m_bookmarks_bar);
     else if (!m_bookmarks_bar->shows_over_page() && index == -1)
         m_page_column_layout->insertWidget(m_page_column_layout->indexOf(m_stacked_widget), m_bookmarks_bar);
+
     m_bookmarks_bar->update_geometry();
 }
 
@@ -5348,6 +5429,7 @@ void TabWidget::update_vertical_tabs_hover_layout()
     update_vertical_tabs_column_margins();
     update_vertical_tabs_button_layout();
 
+    place_sidebar_toggle_in_corner();
     update_tab_button_visibility();
     update_tab_layout();
 }
@@ -5457,6 +5539,7 @@ void TabWidget::update_tab_chrome_visibility()
     m_toolbar->setVisible(m_tab_bar_visible);
     m_toolbar_placeholder->setVisible(m_tab_bar_visible && m_toolbar_follows_page_column);
     m_vertical_tab_bar_column->setVisible(m_tab_bar_visible && !is_horizontal);
+    place_sidebar_toggle_in_corner();
     update_vertical_tabs_content_separator();
 
     auto show_window_controls = m_window_controls_visible
@@ -5480,6 +5563,7 @@ void TabWidget::recreate_icons()
     auto activity = ChromeStyle::window_activity(*this);
     m_new_tab_button->setIcon(create_chrome_icon(ChromeIcon::NewTab, Theme::chrome_palette(*this), activity));
     m_all_tabs_button->setIcon(create_chrome_icon(ChromeIcon::AllTabs, Theme::chrome_palette(*this), activity));
+    m_bookmarks_menu_button->setIcon(create_chrome_icon(ChromeIcon::Bookmarks, Theme::chrome_palette(*this), activity));
     update_window_button_icons();
 }
 
