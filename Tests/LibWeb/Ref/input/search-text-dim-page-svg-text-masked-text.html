@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-svg-text-masked-text-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-28">
+<style>
+svg {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+}
+text {
+    font-size: 20px;
+}
+.masked {
+    -webkit-text-security: disc;
+    text-transform: uppercase;
+}
+</style>
+<svg width="600" height="100">
+<text x="20" y="40"><tspan class="masked">&#x1F600;</tspan> needle</text>
+<text x="20" y="80"><tspan class="masked">&#xDF;</tspan> needle</text>
+</svg>
+<script>
+internals.findInPage("needle", false, true);
+</script>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-svg-text-transform-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-14">
+<style>
+svg {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+}
+text {
+    font-size: 6px;
+}
+</style>
+<svg width="600" height="300" viewBox="0 0 200 100">
+<text x="10" y="20" transform="translate(5.5 10) scale(1.2)">needle <tspan>needle</tspan></text>
+<text transform="translate(180 10) rotate(90)"><tspan>needle</tspan></text>
+</svg>
+<script>
+internals.findInPage("needle", false, true);
+</script>

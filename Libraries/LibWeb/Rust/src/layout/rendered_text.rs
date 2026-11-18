@@ -385,7 +385,7 @@ impl RenderedText {
             + self.svg_source_text.as_deref().map_or(0, size_of_val)
     }
 
-    pub(super) fn dom_range(&self) -> std::ops::Range<usize> {
+    pub(crate) fn dom_range(&self) -> std::ops::Range<usize> {
         self.dom_start_offset..self.dom_start_offset + self.dom_length_in_code_units
     }
 

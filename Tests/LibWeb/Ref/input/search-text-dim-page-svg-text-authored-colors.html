@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-svg-text-authored-colors-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-10">
+<style>
+svg {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+}
+text {
+    font-size: 20px;
+    fill: green;
+}
+text::search-text:current {
+    background-color: orange;
+    color: blue;
+}
+tspan::search-text:current {
+    background-color: orange;
+    color: currentColor;
+}
+</style>
+<svg width="600" height="100">
+<text x="20" y="40"><tspan>nee</tspan>dle</text>
+<text x="20" y="80"><tspan>nee</tspan>dle</text>
+</svg>
+<script>
+internals.findInPage("needle", false, true);
+</script>
