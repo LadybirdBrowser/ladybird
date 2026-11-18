@@ -148,6 +148,8 @@ pub(crate) fn record_find_in_page_overlay<O: Observer>(recorder: &mut PaintRecor
             .is_some_and(|window| window.is_outside(&bound))
     });
 
+    let faded =
+        |color: Color| color.with_alpha((f32::from(color.alpha()) * inputs.find_in_page_dim_opacity).round() as u8);
     let mut chunks = Vec::new();
     let dim_rect = inputs
         .canvas_fill_rect
@@ -160,7 +162,9 @@ pub(crate) fn record_find_in_page_overlay<O: Observer>(recorder: &mut PaintRecor
     };
     record_chunk(recorder, &mut chunks, |recorder| {
         recorder.with_context(dim_context, |recorder| {
-            recorder.recorder.fill_rect(dim_rect, DIM_COLOR, ForceDarkRole::None);
+            recorder
+                .recorder
+                .fill_rect(dim_rect, faded(DIM_COLOR), ForceDarkRole::None);
         });
     });
 
@@ -174,7 +178,7 @@ pub(crate) fn record_find_in_page_overlay<O: Observer>(recorder: &mut PaintRecor
                     (Color::from_rgb(255, 255, 255), 0),
                 ] {
                     for hole in &holes {
-                        text::paint_search_text_ring(recorder, *hole, color, blur_radius, 0);
+                        text::paint_search_text_ring(recorder, *hole, faded(color), blur_radius, 0);
                     }
                 }
             });

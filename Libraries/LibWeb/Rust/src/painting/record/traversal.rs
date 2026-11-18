@@ -179,6 +179,7 @@ fn record_display_list_impl<O: Observer>(
                 && frame.prologue_id == prologue_id
                 && !find_in_page_current_match_bounces
                 && !frame.find_in_page_current_match_bounces
+                && frame.find_in_page_dim_opacity == inputs.find_in_page_dim_opacity
         })
         .map(|(frame, root)| {
             (
@@ -251,6 +252,7 @@ fn record_display_list_impl<O: Observer>(
         root_background_canvas_rect,
         prologue_id,
         find_in_page_current_match_bounces,
+        find_in_page_dim_opacity: inputs.find_in_page_dim_opacity,
         root_group_color,
         hit_test_items_stamp: source.hit_test_items_stamp(),
         chunks,
