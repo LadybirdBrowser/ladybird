@@ -83,6 +83,9 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     unbreakable_run_inline_size_interrupted_by_float: CssPixels,
     /// The advance of the preserved white space that a line is breaking at, which hangs at the end of that line.
     hanging_whitespace_inline_size: CssPixels,
+    /// How many lines from the first are known to hold no content, while no line is known to: Every line until the
+    /// first formatted line is one past floats that held nothing.
+    lines_known_to_hold_no_content: Option<usize>,
     text_indentation: inline_formatting_context::TextIndentation,
     direction: u8,
     last_line_needs_update: bool,
@@ -179,6 +182,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             outside_marker_line: context.parent.pending_outside_marker_line(),
             unbreakable_run_inline_size_interrupted_by_float: CssPixels::default(),
             hanging_whitespace_inline_size: CssPixels::default(),
+            lines_known_to_hold_no_content: Some(0),
             text_indentation: inline_formatting_context::TextIndentation::of(style, containing_inline_size),
             direction: style.direction(),
             last_line_needs_update: false,
@@ -321,10 +325,24 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.max_block_size_on_current_line = CssPixels::default();
         self.last_line_needs_update = true;
         self.should_advance_to_last_line_box_block_end = false;
-        let indent = self.text_indentation.indent_of_line(
-            self.line_count() <= 1 && !self.is_continuation,
-            forced == ForcedBreak::Yes,
-        );
+        // https://drafts.csswg.org/css-text-3/#text-indent-property
+        // "only lines that are the first formatted line of an element are affected."
+        // NB: Line boxes beside floats that no content fit beside come before the first formatted line, rather than
+        //     being it.
+        // NB: Each line before this one is checked once, from where the check for the line before it stopped.
+        while let Some(checked) = self.lines_known_to_hold_no_content
+            && checked < line_index
+        {
+            let holds_no_content = {
+                let line = self.line(checked);
+                !line.counts_toward_widows_and_orphans() && line.block_level_box.is_none()
+            };
+            self.lines_known_to_hold_no_content = holds_no_content.then_some(checked + 1);
+        }
+        let is_first_formatted_line = !self.is_continuation && self.lines_known_to_hold_no_content.is_some();
+        let indent = self
+            .text_indentation
+            .indent_of_line(is_first_formatted_line, forced == ForcedBreak::Yes);
         {
             let mut line = self.line_mut(line_index);
             line.inline_length += indent;
@@ -376,7 +394,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 self.current_block_offset + current_line_block_size,
             );
             let available = self.available_inline_size_for_current_line;
-            let next_too_wide = available.pixels_greater_than(next_size.unwrap_or_default());
+            let indent = self.line(self.line_count() - 1).indent;
+            let next_too_wide = available.pixels_greater_than(next_size.unwrap_or_default() + indent);
             if !floats_intrude
                 || (self
                     .context()
