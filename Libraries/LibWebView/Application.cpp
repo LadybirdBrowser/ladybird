@@ -329,6 +329,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     auto site_isolation_mode = default_site_isolation_mode();
     bool disable_same_origin_tab_sharing = false;
     Optional<size_t> maximum_site_request_servers;
+    Optional<u64> web_content_memory_limit_in_mebibytes;
     bool disable_http_memory_cache = false;
     bool disable_http_disk_cache = false;
     bool disable_content_blocker = false;
@@ -462,6 +463,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_http_memory_cache, "Disable HTTP memory cache", "disable-http-memory-cache");
     args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
     args_parser.add_option(maximum_site_request_servers, "How many RequestServers a session may have for the sites it visits, 0 to share one", "max-site-request-servers", 0, "count");
+    args_parser.add_option(web_content_memory_limit_in_mebibytes, "How much memory a WebContent process may use before it is ended, 0 for no limit", "web-content-memory-limit", 0, "MiB");
     args_parser.add_option(disable_content_blocker, "Disable content blocker", "disable-content-blocker");
     args_parser.add_option(disable_sandbox, "Disable helper process sandboxing", "disable-sandbox");
     args_parser.add_option(force_video_decoder_server, "Also decode video that has no hardware decoder in the VideoDecoderServer", "force-video-decoder-server");
@@ -595,6 +597,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .force_video_decoder_server = force_video_decoder_server ? ForceVideoDecoderServer::Yes : ForceVideoDecoderServer::No,
     };
 
+    if (web_content_memory_limit_in_mebibytes.has_value()) {
+        if (*web_content_memory_limit_in_mebibytes > NumericLimits<u64>::max() / MiB)
+            return Error::from_string_literal("The WebContent memory limit is too large");
+        m_browser_options.web_content_memory_limit_in_bytes = *web_content_memory_limit_in_mebibytes * MiB;
+    }
     if (screenshot_delay.has_value())
         m_browser_options.screenshot_delay = *screenshot_delay;
     if (screenshot_path.has_value())
@@ -1853,6 +1860,7 @@ ErrorOr<void> Application::launch_services()
     m_process_manager->on_process_exited = [this](Process&& process, Optional<int> exit_status) {
         process_did_exit(move(process), exit_status);
     };
+    m_process_manager->set_web_content_memory_limit(m_browser_options.web_content_memory_limit_in_bytes.value_or(ProcessManager::default_web_content_memory_limit()));
 
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
         auto database_path = profile().paths().data;
