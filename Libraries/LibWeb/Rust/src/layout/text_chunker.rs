@@ -1138,6 +1138,8 @@ struct TextChunker<'text> {
     last_non_whitespace_font: Option<u16>,
     first_font_and_ascii_code_points_it_resolves: Option<(&'text FontHandle, u128)>,
     font_for_every_space: Option<&'text FontHandle>,
+    /// Where the look-ahead from a run of white space to the text after it last started, and where it ended.
+    space_look_ahead: std::cell::Cell<(usize, usize)>,
 }
 
 impl<'text> TextChunker<'text> {
@@ -1183,6 +1185,7 @@ impl<'text> TextChunker<'text> {
             last_non_whitespace_font: None,
             first_font_and_ascii_code_points_it_resolves,
             font_for_every_space,
+            space_look_ahead: std::cell::Cell::new((usize::MAX, usize::MAX)),
         }
     }
 
@@ -1292,10 +1295,19 @@ impl<'text> TextChunker<'text> {
         }
 
         // 2. Look ahead to the next non-space to infer the base font of this run.
-        let mut i = at_index;
+        // NB: Each space or tab of a run looks ahead to the same text, so start from where the look-ahead from an
+        //     earlier one in the run ended.
+        let (scanned_from, scanned_to) = self.space_look_ahead.get();
+        let mut i = if (scanned_from..=scanned_to).contains(&at_index) {
+            scanned_to
+        } else {
+            at_index
+        };
+        let scan_start = if i == at_index { at_index } else { scanned_from };
         while i < self.text.len() {
             let code_point = code_point_at(self.text, i);
             if !is_interword_space(code_point) && code_point != '\t' as u32 && code_point != '\n' as u32 {
+                self.space_look_ahead.set((scan_start, i));
                 let font = self.font_for_code_point_at(i, code_point);
                 if !font.is_emoji_font() && has_glyph(&font) {
                     return ChunkFont::FromCascade(font);
@@ -1309,6 +1321,7 @@ impl<'text> TextChunker<'text> {
                 .unwrap_or(self.text.len());
         }
 
+        self.space_look_ahead.set((scan_start, i));
         // 3. No text around (leading/trailing/all spaces) — pick a font with the glyph from the cascade.
         ChunkFont::FromCascade(self.frozen_font_list.font_for_code_point_borrowed(
             space_code_point,
@@ -1322,6 +1335,10 @@ impl<'text> TextChunker<'text> {
     fn expected_font_for(&self, code_point: u32) -> ChunkFont<'text> {
         if is_interword_space(code_point) {
             self.font_for_space(self.current_index, code_point)
+        } else if code_point == '\t' as u32 {
+            // NB: A tab is drawn as a shift to a tab stop rather than as a glyph, so it takes the font that a space in
+            //     its place would take, not a fallback font that happens to have a glyph for it.
+            self.font_for_space(self.current_index, ' ' as u32)
         } else {
             ChunkFont::FromCascade(self.font_for_code_point_at(self.current_index, code_point))
         }
