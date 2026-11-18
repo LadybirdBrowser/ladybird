@@ -1,0 +1,31 @@
+Ladybird draws the text decoration lines of SVG text with the fill and
+stroke of the element that declares them, along every stretch of text
+below that element. An underline and an overline go under the text,
+and a line-through over it. Blink does the same: Its TextPainter::
+SvgTextPaintState::TextDecorationObject() finds the element that
+declares a line, and that element’s fill and stroke paint it. So does
+WebKit, in SVGTextBoxPainter::paintDecoration(). Gecko paints the
+lines with the declaring element’s fill only where the text has a plain
+opaque fill and no stroke; otherwise its SVGTextDrawPathCallbacks::
+PaintDecorationLine() paints them as the decorated text.
+
+The thickness and position of each line follow Blink: a thickness of
+a tenth of the font size, an underline half of its thickness below
+the baseline, an overline on top of the ascent, and a line-through
+centered a third of the ascent above the baseline. Chrome 157.0.8103.79
+renders the new test the same as its reference, except for one row
+of antialiased pixels on a glyph. WebKit 26.5 draws thinner lines, at
+a twentieth of the font size, and takes the metrics of the declaring
+element’s font. Firefox 151.0 draws no line for text without a fill.
+
+Blink also skips the ink of the glyphs an underline crosses, and
+honors text-decoration-style. Ladybird does neither for SVG text,
+and neither does WebKit. None of the three engines paints the lines
+in text-decoration-color.
+
+Where textLength adds space between the characters, Ladybird draws
+the lines of each character along the character’s own cell. In Firefox
+151.0, an underline under such text is in one piece per character, with
+none across the added space, and Chrome 157.0.8103.79 and WebKit 26.5
+draw nothing there either. Under letter-spacing, the line is continuous
+in Chrome and Firefox, as it is in Ladybird.
