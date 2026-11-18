@@ -703,7 +703,7 @@ DecoderErrorOr<void> RemoteVideoDecoder::receive_coded_data(CodedFrame const& co
     MutexLocker locker { m_state->mutex };
     m_state->submissions_in_flight.append({ m_ring_serial, ring_offset, coded_frame.data().size(), m_state->generation });
     m_state->connection.with_target([&](auto& connection) {
-        connection.async_submit_coded_frame(m_state->decoder_id, m_state->generation, ring_offset, coded_frame.data().size(), coded_frame.presentation_timestamp(), coded_frame.decode_timestamp(), coded_frame.duration(), coded_frame.flags(), move(new_codec_configuration), intent, m_output_target);
+        connection.async_submit_coded_frame(m_state->decoder_id, m_state->generation, ring_offset, coded_frame.data().size(), coded_frame.presentation_timestamp(), coded_frame.decode_timestamp(), coded_frame.duration(), coded_frame.flags(), coded_frame.maximum_scene_luminance(), move(new_codec_configuration), intent, m_output_target);
     });
     return {};
 }

@@ -15,6 +15,7 @@
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/ReadonlyBytesCursor.h>
+#include <LibMediaCodecs/Codecs/HDR10Plus.h>
 #include <LibMediaCodecs/Limits.h>
 #include <LibTest/TestCase.h>
 
@@ -163,7 +164,7 @@ enum class WithColorElement : u8 {
     WithOutOfRangeMasteringChromaticity,
 };
 
-ByteBuffer make_matroska_with_av1_track(WithColorElement with_color_element)
+ByteBuffer make_matroska_with_av1_track(WithColorElement with_color_element, Function<void(ByteBuffer&)> const& append_cluster_contents = {})
 {
     ByteBuffer data;
     auto ebml_header = begin_ebml_master(data, Media::Matroska::EBML_MASTER_ELEMENT_ID);
@@ -219,7 +220,11 @@ ByteBuffer make_matroska_with_av1_track(WithColorElement with_color_element)
     finish_ebml_master(data, track_entry);
     finish_ebml_master(data, tracks);
 
-    append_empty_ebml_master(data, Media::Matroska::CLUSTER_ELEMENT_ID);
+    auto cluster = begin_ebml_master(data, Media::Matroska::CLUSTER_ELEMENT_ID);
+    append_ebml_uint(data, Media::Matroska::TIMESTAMP_ID, 0);
+    if (append_cluster_contents)
+        append_cluster_contents(data);
+    finish_ebml_master(data, cluster);
     finish_ebml_master(data, segment);
     return data;
 }
@@ -1353,6 +1358,90 @@ TEST_CASE(mastering_metadata_with_a_float_of_an_invalid_size_is_left_out)
     auto const& color_metadata = track.video_data().color_metadata;
     EXPECT(!color_metadata.mastering_display_color_volume.has_value());
     EXPECT(color_metadata.content_light_level_information.has_value());
+}
+
+// HDR10+ with one processing window whose brightest component is 364.1 cd/m².
+// clang-format off
+constexpr auto HDR10_PLUS_T35_MESSAGE = to_array<u8>({
+    0xb5, 0x00, 0x3c, 0x00, 0x01, 0x04, 0x01, 0x40, 0x00, 0x0c, 0x80, 0x0a, 0x1c, 0x0e, 0x39, 0x02,
+    0x14, 0x01, 0x0a, 0x04, 0x08, 0x01, 0x90, 0x00, 0x00,
+});
+// clang-format on
+
+enum class BlockAdditionsDefect : u8 {
+    None,
+    OversizedBlockAddID,
+    OversizedBlockAdditional,
+};
+
+static void append_block_group_with_hdr10_plus(ByteBuffer& data, i16 timestamp, BlockAdditionsDefect defect)
+{
+    auto block_group = begin_ebml_master(data, Media::Matroska::BLOCK_GROUP_ID);
+    // Track 1, the timestamp, no flags, and a temporal delimiter OBU as the frame.
+    Array<u8, 6> block { 0x81, static_cast<u8>(timestamp >> 8), static_cast<u8>(timestamp & 0xff), 0x00, 0x12, 0x00 };
+    append_ebml_binary(data, Media::Matroska::BLOCK_ID, block);
+    auto block_additions = begin_ebml_master(data, Media::Matroska::BLOCK_ADDITIONS_ID);
+    auto block_more = begin_ebml_master(data, Media::Matroska::BLOCK_MORE_ID);
+    if (defect == BlockAdditionsDefect::OversizedBlockAddID) {
+        append_ebml_id(data, Media::Matroska::BLOCK_ADD_ID_ID);
+        append_ebml_size(data, 9);
+        for (u8 byte : { 0, 0, 0, 0, 0, 0, 0, 0, 4 })
+            data.append(byte);
+    } else {
+        append_ebml_uint(data, Media::Matroska::BLOCK_ADD_ID_ID, 4);
+    }
+    if (defect == BlockAdditionsDefect::OversizedBlockAdditional) {
+        // The message still reads as HDR10+ with the padding after it.
+        ByteBuffer message;
+        message.append(HDR10_PLUS_T35_MESSAGE.span());
+        while (message.size() <= Media::Codecs::HDR10_PLUS_MAXIMUM_T35_MESSAGE_SIZE)
+            message.append(0);
+        append_ebml_id(data, Media::Matroska::BLOCK_ADDITIONAL_ID);
+        append_ebml_size(data, message.size(), 2);
+        data.append(message);
+    } else {
+        append_ebml_binary(data, Media::Matroska::BLOCK_ADDITIONAL_ID, HDR10_PLUS_T35_MESSAGE);
+    }
+    finish_ebml_master(data, block_more);
+    finish_ebml_master(data, block_additions);
+    finish_ebml_master(data, block_group);
+}
+
+TEST_CASE(malformed_block_additions_are_skipped_without_losing_their_block)
+{
+    auto data = make_matroska_with_av1_track(WithColorElement::No, [](ByteBuffer& data) {
+        append_block_group_with_hdr10_plus(data, 0, BlockAdditionsDefect::OversizedBlockAddID);
+        append_block_group_with_hdr10_plus(data, 33, BlockAdditionsDefect::None);
+    });
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto iterator = MUST(reader.create_sample_iterator(stream->create_cursor(), 1));
+
+    auto first_block = MUST(iterator.next_block());
+    EXPECT_EQ(first_block.timestamp().value().to_milliseconds(), 0);
+    EXPECT(!first_block.maximum_scene_luminance().has_value());
+
+    auto second_block = MUST(iterator.next_block());
+    EXPECT_EQ(second_block.timestamp().value().to_milliseconds(), 33);
+    EXPECT(second_block.maximum_scene_luminance().has_value());
+    if (second_block.maximum_scene_luminance().has_value())
+        EXPECT_APPROXIMATE_WITH_ERROR(second_block.maximum_scene_luminance().value(), 364.1, 0.01);
+}
+
+TEST_CASE(block_additional_too_large_to_be_hdr10_plus_is_skipped)
+{
+    auto data = make_matroska_with_av1_track(WithColorElement::No, [](ByteBuffer& data) {
+        append_block_group_with_hdr10_plus(data, 0, BlockAdditionsDefect::OversizedBlockAdditional);
+        append_block_group_with_hdr10_plus(data, 33, BlockAdditionsDefect::None);
+    });
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto iterator = MUST(reader.create_sample_iterator(stream->create_cursor(), 1));
+
+    auto first_block = MUST(iterator.next_block());
+    EXPECT(!first_block.maximum_scene_luminance().has_value());
+    auto second_block = MUST(iterator.next_block());
+    EXPECT(second_block.maximum_scene_luminance().has_value());
 }
 
 TEST_CASE(simple_block_extending_past_the_representable_size_is_corrupted)

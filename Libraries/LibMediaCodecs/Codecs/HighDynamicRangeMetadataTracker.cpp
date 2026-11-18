@@ -43,7 +43,7 @@ ColorMetadata const& HighDynamicRangeMetadataTracker::apply_coded_frame(CodedFra
 {
     if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
         apply_configuration(*configuration);
-    begin_frame();
+    begin_frame(coded_frame);
 
     switch (m_codec_id) {
     case CodecID::H264:
@@ -79,9 +79,9 @@ void HighDynamicRangeMetadataTracker::take_bitstream_metadata(ColorMetadata cons
         m_metadata.maximum_scene_luminance = metadata.maximum_scene_luminance;
 }
 
-void HighDynamicRangeMetadataTracker::begin_frame()
+void HighDynamicRangeMetadataTracker::begin_frame(CodedFrame const& coded_frame)
 {
-    m_metadata.maximum_scene_luminance = {};
+    m_metadata.maximum_scene_luminance = coded_frame.maximum_scene_luminance();
     m_frame_gave_mastering_display_color_volume = false;
     m_frame_gave_content_light_level_information = false;
 }

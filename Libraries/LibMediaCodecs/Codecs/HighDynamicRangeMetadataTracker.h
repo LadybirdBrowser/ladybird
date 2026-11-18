@@ -24,9 +24,10 @@ public:
     ColorMetadata const& apply_coded_frame(CodedFrame const&);
 
     // For a decoder that walks the NAL units of H.264 and H.265 frames itself. A new configuration calls for
-    // forget_stream(), and each frame for begin_frame() before its NAL units are applied.
+    // forget_stream(), and each frame for begin_frame() before its NAL units are applied. The frame starts from the
+    // scene peak its container gave it, which the bitstream may replace.
     void forget_stream();
-    void begin_frame();
+    void begin_frame(CodedFrame const&);
     void apply_nal_unit(ReadonlyBytes);
 
     ColorMetadata const& metadata() const { return m_metadata; }
