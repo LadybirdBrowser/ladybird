@@ -1,0 +1,3 @@
+Default size in a proportional font: 201.875
+Size 2 with appearance: none: 29.1875
+Size 2 in a fixed-width font: 32
