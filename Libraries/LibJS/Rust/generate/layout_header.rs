@@ -459,10 +459,9 @@ pub fn generate() -> LayoutHeader {
     check_host_object_abi_struct!(w, JSHostArrayHooks { set, delete_property });
     check_host_object_abi_struct!(w, JSResolvedBinding { module, binding_name, r#type });
     check_host_object_abi_struct!(w, JSHostModuleHooks { get_exported_names, resolve_export, initialize_environment, execute_module });
-    check_host_object_abi_struct!(w, JSHostClass { abi_version, kind, reserved, flags, name, name_length, parent, hooks, user_data });
+    check_host_object_abi_struct!(w, JSHostClass { kind, flags, name, name_length, parent, hooks, user_data });
     check_host_object_abi_constants!(
         w,
-        JS_HOST_ABI_VERSION,
         JS_COMPLETION_NORMAL,
         JS_COMPLETION_THROW,
         JS_PROPERTY_LOOKUP_PHASE_OWN_PROPERTY,
