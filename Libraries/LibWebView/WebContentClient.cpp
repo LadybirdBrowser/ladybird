@@ -1239,7 +1239,7 @@ void WebContentClient::report_audio_capture_for_testing(Web::PageId labelled_pag
 
 ErrorOr<void> WebContentClient::tell_audio_server_of_capture_permission()
 {
-    auto response = m_audio_server_client->send_sync_but_allow_failure<Messages::AudioServerControl::SetCapturePermission>(m_audio_tab_id, m_audio_capture_permitted);
+    auto response = send_sync_to_helper<Messages::AudioServerControl::SetCapturePermission>(*m_audio_server_client, m_audio_tab_id, m_audio_capture_permitted);
     if (!response)
         return Error::from_string_literal("Failed to tell the AudioServer of the capture permission");
     return {};
@@ -1300,7 +1300,7 @@ void WebContentClient::forget_audio_playback(Web::PageId page_id)
 
 ErrorOr<void> WebContentClient::tell_audio_server_of_playback_authorization(Audio::PlaybackGroupId group)
 {
-    auto response = m_audio_server_client->send_sync_but_allow_failure<Messages::AudioServerControl::AuthorizePlaybackGroup>(m_audio_tab_id, group);
+    auto response = send_sync_to_helper<Messages::AudioServerControl::AuthorizePlaybackGroup>(*m_audio_server_client, m_audio_tab_id, group);
     if (!response)
         return Error::from_string_literal("Failed to tell the AudioServer of a playback authorization");
     return {};

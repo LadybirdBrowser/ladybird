@@ -113,6 +113,19 @@ public:
         return wait_for_specific_endpoint_message<typename RequestType::ResponseType>(MayCancel::Yes);
     }
 
+    // NB: Responses have no ID, so the response to a request that missed its deadline would pass for the response to
+    //     the next request of that type. A caller that gets none while the connection is open must not use the
+    //     connection again.
+    template<typename RequestType, typename... Args>
+    OwnPtr<typename RequestType::ResponseType> send_sync_until(MonotonicTime deadline, Args&&... args)
+    {
+        if (post_sync_request(RequestType(forward<Args>(args)...)).is_error())
+            return nullptr;
+        if (auto message = wait_for_specific_endpoint_message_impl(RequestType::ResponseType::ENDPOINT_MAGIC, RequestType::ResponseType::static_message_id(), MayCancel::Yes, deadline))
+            return message.template release_nonnull<typename RequestType::ResponseType>();
+        return nullptr;
+    }
+
     // Waits for a message from the peer and handles none of the others meanwhile, which stay queued in order. None if
     // the deadline passes first, or the peer goes away.
     template<typename MessageType>
