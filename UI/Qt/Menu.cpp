@@ -614,9 +614,7 @@ MenuZoomRow::MenuZoomRow(QMenu& menu, QAction& zoom_out, QAction& reset_zoom, QA
         // The address bar hides its zoom action at the default level and keeps its last text.
         level->setText(zoom_level.isVisible() && !zoom_level.text().isEmpty() ? zoom_level.text() : QStringLiteral("100%"));
     };
-    QObject::connect(&menu, &QMenu::aboutToShow, level, update_level);
-    for (auto* action : { &zoom_out, &reset_zoom, &zoom_in })
-        QObject::connect(action, &QAction::triggered, level, update_level);
+    QObject::connect(&zoom_level, &QAction::changed, level, update_level);
     update_level();
 
     setDefaultWidget(row);
