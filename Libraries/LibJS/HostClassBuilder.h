@@ -399,6 +399,11 @@ struct HostObjectHookThunks {
     {
         return normal_completion_to_abi(value_to_abi(Traits::get_indexed_value(host_object_from_abi(object), index)));
     }
+
+    static void preserve_identity(JSObject* object)
+    {
+        Traits::preserve_identity(host_object_from_abi(object));
+    }
 };
 
 template<typename Traits>
@@ -481,6 +486,8 @@ consteval JSHostObjectHooks make_host_object_hooks()
         hooks.finalize = &Thunks::finalize;
     if constexpr (requires { &Traits::get_indexed_value; })
         hooks.get_indexed_value = &Thunks::get_indexed_value;
+    if constexpr (requires { &Traits::preserve_identity; })
+        hooks.preserve_identity = &Thunks::preserve_identity;
     return hooks;
 }
 

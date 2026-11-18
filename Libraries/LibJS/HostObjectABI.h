@@ -194,6 +194,10 @@ typedef struct JSHostObjectHooks {
     // the own property there, if the hook can tell without running code; otherwise it returns the empty value, and
     // [[Get]] goes on as it would without it.
     JSCompletion (*get_indexed_value)(JSObject*, uint32_t index);
+    // Optional. Runs when script makes the identity of the object outlive the references to it: when the object is
+    // held weakly, by a WeakRef, a WeakMap, a WeakSet or a FinalizationRegistry, or gains a private element. An
+    // embedder that drops an object it can recreate must keep this one from then on. The hook must not run code.
+    void (*preserve_identity)(JSObject*);
 } JSHostObjectHooks;
 
 // The [[Call]] and [[Construct]] behavior of kind JS_HOST_CLASS_FUNCTION, which the engine runs in the function's own
