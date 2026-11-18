@@ -764,6 +764,8 @@
   "telugu-alpha",
   "telugu",
   "text",
+  "text-after-edge",
+  "text-before-edge",
   "text-bottom",
   "text-top",
   "textarea",

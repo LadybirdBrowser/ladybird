@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 100px Ahem;
+    }
+</style>
+<svg width="800" height="400"></svg>
+<script>
+    const round = value => Math.round(value * 100) / 100;
+    const box = element => {
+        const rect = element.getBBox();
+        return `${round(rect.x)},${round(rect.y)} ${round(rect.width)}x${round(rect.height)}`;
+    };
+
+    asyncTest(async done => {
+        await document.fonts.load("100px Ahem");
+        const svg = document.querySelector("svg");
+
+        // Ahem's ascent is 0.8em and its descent 0.2em, so a glyph cell is 100px tall, and sits 80px above the baseline.
+        const values = [
+            "auto", "alphabetic", "text-before-edge", "text-after-edge", "text-top", "text-bottom", "central", "middle",
+            "hanging", "ideographic", "mathematical", "bogus",
+        ];
+        for (const value of values) {
+            svg.innerHTML = `<text x="0" y="200" dominant-baseline="${value}">X</text>`;
+            const text = svg.firstChild;
+            println(`${value}: computed ${getComputedStyle(text).dominantBaseline}, box ${box(text)}`);
+        }
+
+        svg.innerHTML = `<text x="0" y="200" style="dominant-baseline: text-before-edge">X</text>`;
+        println(`In a style: box ${box(svg.firstChild)}`);
+
+        // Each element is aligned with its own font.
+        for (const value of ["text-before-edge", "text-after-edge"]) {
+            svg.innerHTML = `<text x="0" y="200" dominant-baseline="${value}">X<tspan font-size="50">X</tspan></text>`;
+            const tspan = svg.querySelector("tspan");
+            println(`${value}, inherited by a smaller <tspan>: computed ${getComputedStyle(tspan).dominantBaseline}, box ${box(tspan)}`);
+        }
+        svg.innerHTML = `<text x="0" y="200">X<tspan dominant-baseline="text-before-edge">X</tspan>X</text>`;
+        println(`On a <tspan> alone: <tspan> box ${box(svg.querySelector("tspan"))}, <text> box ${box(svg.firstChild)}`);
+        done();
+    });
+</script>

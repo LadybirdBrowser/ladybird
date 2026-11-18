@@ -1568,7 +1568,12 @@ impl<'pass> SvgFormattingContext<'pass> {
             baseline_metric::IDEOGRAPHIC => -font.descent,
             // FIXME: Read the math baseline from the font's BASE table.
             baseline_metric::MATHEMATICAL => font.ascent * 0.5,
-            // FIXME: Support text-top and text-bottom.
+            // https://drafts.csswg.org/css-inline/#text-over-baseline
+            // Corresponds to the metric used as the line-over edge of an inline's content box per [CSS2].
+            baseline_metric::TEXT_TOP => font.ascent,
+            // https://drafts.csswg.org/css-inline/#text-under-baseline
+            // Corresponds to the metric used as the line-under edge of an inline's content box per [CSS2].
+            baseline_metric::TEXT_BOTTOM => -font.descent,
             _ => 0.0,
         }
     }
