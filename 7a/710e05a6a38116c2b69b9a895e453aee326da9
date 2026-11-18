@@ -1,0 +1,5 @@
+Ladybird now decodes an MP4 handler name that isn’t valid UTF-8 with the
+replacement character, rather than failing the file. Run in Chrome
+157.0.8103.79, Firefox 151.0, and WebKit 26.5, the new test’s file,
+whose handler name holds a byte that isn’t valid UTF-8, loads its
+metadata (160x120) in all three, as it now does in Ladybird.
