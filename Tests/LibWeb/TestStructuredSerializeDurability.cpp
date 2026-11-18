@@ -87,12 +87,12 @@ TEST_CASE(crypto_key_storage_record_round_trips)
     ReadonlyBytes handle { handle_bytes.data(), handle_bytes.size() };
 
     auto value = MUST(principal_storage_deserialize(crypto_key_secret_record(handle, handle.size())));
-    auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
-    EXPECT_EQ(key.type(), Web::Crypto::KeyType::Secret);
-    EXPECT_EQ(key.extractable(), false);
-    EXPECT_EQ(key.algorithm_name(), "HKDF"_string);
-    EXPECT_EQ(key.internal_usages().size(), 1u);
-    EXPECT_EQ(key.internal_usages()[0], Web::Bindings::KeyUsage::DeriveKey);
+    expect_utf16_equals(string_property(value, "type"sv), "secret"_utf16);
+    EXPECT_EQ(property_of(value, "extractable"sv).as_bool(), false);
+    expect_utf16_equals(string_property(property_of(value, "algorithm"sv), "name"sv), "HKDF"_utf16);
+    auto usages = property_of(value, "usages"sv);
+    EXPECT_EQ(number_property(usages, "length"sv), 1.0);
+    expect_utf16_equals(MUST(usages.as_object().get(0u)).as_string().utf16_string(), "deriveKey"_utf16);
     EXPECT_EQ(storage_serialize(GC::Ref { value.as_object() }).data.span(), crypto_key_secret_record(handle, handle.size()).data.span());
 }
 
@@ -590,12 +590,10 @@ TEST_CASE(crypto_key_algorithm_variants_decode_from_frozen_bytes)
     for (auto const& golden : crypto_algorithm_goldens()) {
         auto record = crypto_key_full_record(golden.type, golden.usage, golden.algorithm, golden.handle);
         auto value = MUST(principal_storage_deserialize(record));
-        auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
-
         if (golden.tag == KeyAlgorithmTag::EcKeyAlgorithm) {
-            auto const& algorithm = key.ec_algorithm();
-            expect_utf16_equals(algorithm.name(), "ECDSA"_utf16);
-            expect_utf16_equals(algorithm.named_curve(), "P-256"_utf16);
+            auto algorithm = property_of(value, "algorithm"sv);
+            expect_utf16_equals(string_property(algorithm, "name"sv), "ECDSA"_utf16);
+            expect_utf16_equals(string_property(algorithm, "namedCurve"sv), "P-256"_utf16);
         }
     }
 }
