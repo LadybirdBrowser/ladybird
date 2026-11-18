@@ -1,0 +1,13 @@
+Ladybird runs the SVG filter of a transformed box in the box’s own
+coordinate system, under its transform. Chrome 157, Firefox 151 and
+WebKit (Playwright’s 26.5 build) all do, verified at runtime with the
+new test. In Blink’s FragmentPaintPropertyTreeBuilder, UpdateFilter()
+runs after UpdateTransform() and gives the filter’s effect node the
+box’s own transform as its local_transform_space.
+
+A box with an empty border box (a zero-size wrapper around a visible
+child, e.g.) still references its SVG filter, and Ladybird runs that
+filter under the box’s transform too, so the filter region scales with
+the box. Chrome 157, Firefox 151 and WebKit 26.5 all draw the whole
+enlarged child there, verified at runtime under scale, rotate, skew,
+and a scaled outer wrapper.
