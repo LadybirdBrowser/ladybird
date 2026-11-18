@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-region-covers-box-shadow-extent-ref.html" />
+<style>
+    body { margin: 0; }
+    div { position: absolute; width: 100px; height: 100px; filter: url(#flood); }
+    #negative-spread { left: 100px; top: 0; box-shadow: -100px 0 0 -10px red; }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="flood" x="0" y="0" width="1" height="1">
+        <feFlood flood-color="green" />
+    </filter>
+</svg>
+<!-- The flood fills the filter region, which is the box grown to its shadow, and a negative spread shrinks that
+     shadow. -->
+<div id="negative-spread"></div>
