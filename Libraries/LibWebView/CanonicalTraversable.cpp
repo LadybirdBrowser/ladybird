@@ -58,6 +58,7 @@ void CanonicalTraversable::set_system_visibility_state(Web::HTML::VisibilityStat
     m_system_visibility_state = visibility_state;
     for_each_hosting_page([&](WebContentPage& page) {
         page.async_set_system_visibility_state(visibility_state);
+        page.client().did_change_visibility_of_a_tab();
     });
 
     // When a user agent determines that the system visibility state for
