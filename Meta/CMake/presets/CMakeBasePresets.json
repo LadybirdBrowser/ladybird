@@ -85,6 +85,7 @@
         "BUILD_BROWSER_TESTS_ONLY": "ON",
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_BUILD_TYPE": "Release",
+        "LADYBIRD_BASELINE_CPU_TARGET": "ON",
         "LADYBIRD_GENERATE_SYMBOL_FILES": "ON",
         "LADYBIRD_VCPKG_TYPE": "distribution"
       }
