@@ -1,0 +1,13 @@
+checkbox inset: 0: 0,0 300x50
+radio inset: 0: 0,0 300x50
+checkbox left: 0; right: 0; top: 0: 0,0 300x13
+radio top: 0; bottom: 0; left: 0: 0,0 12x50
+checkbox inset: 0; justify-self: start: 0,0 13x50
+checkbox inset: 0; align-self: center: 0,18.5 300x13
+checkbox inset: 0; padding: 5px; border: 3px solid: 0,0 300x50
+checkbox inset: 0; max-width: 100px: 0,0 100x50
+checkbox inset: 0; margin: 10px: 10,10 280x30
+checkbox inset: 10px; height: 20px: 10,10 280x20
+checkbox inset: 0; writing-mode: vertical-lr: 0,0 300x50
+checkbox inset: 0; aspect-ratio: 1: 0,0 300x300
+radio inset: 0; appearance: none: 0,0 300x50

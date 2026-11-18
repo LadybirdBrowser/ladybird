@@ -1,0 +1,45 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    .container {
+        position: relative;
+        width: 300px;
+        height: 50px;
+    }
+    .container > input {
+        position: absolute;
+        margin: 0;
+    }
+</style>
+<script>
+    test(() => {
+        const cases = [
+            ["checkbox", "inset: 0"],
+            ["radio", "inset: 0"],
+            ["checkbox", "left: 0; right: 0; top: 0"],
+            ["radio", "top: 0; bottom: 0; left: 0"],
+            ["checkbox", "inset: 0; justify-self: start"],
+            ["checkbox", "inset: 0; align-self: center"],
+            ["checkbox", "inset: 0; padding: 5px; border: 3px solid"],
+            ["checkbox", "inset: 0; max-width: 100px"],
+            ["checkbox", "inset: 0; margin: 10px"],
+            ["checkbox", "inset: 10px; height: 20px"],
+            ["checkbox", "inset: 0; writing-mode: vertical-lr"],
+            ["checkbox", "inset: 0; aspect-ratio: 1"],
+            ["radio", "inset: 0; appearance: none"],
+        ];
+        for (const [type, style] of cases) {
+            const container = document.createElement("div");
+            container.className = "container";
+            const input = document.createElement("input");
+            input.type = type;
+            input.style.cssText = style;
+            container.append(input);
+            document.body.append(container);
+            const outer = container.getBoundingClientRect();
+            const rect = input.getBoundingClientRect();
+            println(`${type} ${style}: ${rect.x - outer.x},${rect.y - outer.y} ${rect.width}x${rect.height}`);
+            container.remove();
+        }
+    });
+</script>
