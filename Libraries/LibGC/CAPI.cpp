@@ -238,6 +238,11 @@ bool gc_heap_is_marking_for_collection(GCHeap const* heap)
     return as_heap(heap).is_marking_for_collection();
 }
 
+bool gc_heap_is_returning_memory_to_system(GCHeap const* heap)
+{
+    return as_heap(heap).is_returning_memory_to_system();
+}
+
 void gc_heap_defer_gc(GCHeap* heap)
 {
     CAPI::defer_gc(as_heap(heap));

@@ -97,6 +97,7 @@ unsafe extern "C" {
     pub safe fn gc_heap_collect_garbage(heap: &GCHeap, collection_type: i32, print_report: bool);
     pub safe fn gc_heap_is_collecting_everything(heap: &GCHeap) -> bool;
     pub safe fn gc_heap_is_marking_for_collection(heap: &GCHeap) -> bool;
+    pub safe fn gc_heap_is_returning_memory_to_system(heap: &GCHeap) -> bool;
     pub safe fn gc_heap_undefer_gc(heap: &GCHeap);
     pub safe fn gc_heap_deferral_state(
         heap: &GCHeap,

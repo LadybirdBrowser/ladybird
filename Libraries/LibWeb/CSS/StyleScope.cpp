@@ -383,6 +383,11 @@ void StyleScope::release_kept_data()
     Parser::ValueParserFFI::rust_style_release_kept_data();
 }
 
+void StyleScope::release_shaped_texts()
+{
+    Parser::ValueParserFFI::rust_style_release_shaped_texts();
+}
+
 void StyleScope::for_each_user_agent_stylesheet(bool include_quirks_mode_stylesheet, bool include_mathml_and_svg_stylesheets, Function<void(CSS::StyleSheetState&, StyleSheetIdentifier const&)> const& callback)
 {
     auto callback_with_identifier = [&](StyleSheetState& sheet, Utf16String url) {

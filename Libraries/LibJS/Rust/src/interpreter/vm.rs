@@ -2403,7 +2403,13 @@ unsafe extern "C" fn sweep(context: *mut c_void) {
     let sweep = unsafe { Sweep::new(vm) };
     vm.code_flushing.finish_pass(vm, &sweep);
     crate::parser::release_idle_reparse_contexts();
-    crate::source_text::park_idle_source_texts();
+    // NB: The VM has no heap anymore when this runs for the last collection of a heap that goes away.
+    if vm.heap.get().is_some_and(Heap::is_returning_memory_to_system) {
+        crate::source_text::park_all_source_texts();
+        crate::runtime::regexp_prototype::clear_regex_cache();
+    } else {
+        crate::source_text::park_idle_source_texts();
+    }
     vm.remove_dead_async_waits(&sweep);
     vm.remove_dead_cells_from_weak_containers(&sweep);
     vm.remove_dead_strings_from_weak_caches(&sweep);
