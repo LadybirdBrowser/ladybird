@@ -113,6 +113,7 @@ pub struct FfiSearchTextRange {
     pub start_offset: usize,
     pub end_offset: usize,
     pub is_current: bool,
+    pub is_painted_over_dim: bool,
 }
 
 #[derive(Clone, Copy)]

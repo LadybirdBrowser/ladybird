@@ -664,7 +664,7 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     layers.sort_unstable_by_key(|layer| layer.stacking_order());
     layers.dedup();
     // AD-HOC: While find-in-page dims the page, its current match is painted over the dim.
-    let paints_current_search_text = !recorder.inputs.dims_page_for_find_in_page;
+    let paints_current_search_text = !recorder.paint_state.search_text.current_match_is_painted_over_dim;
     if !paints_current_search_text {
         layers.retain(|layer| *layer != HighlightLayer::BuiltIn(HighlightPseudoElement::SearchTextCurrent));
     }

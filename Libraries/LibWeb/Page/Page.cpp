@@ -2406,8 +2406,8 @@ Page::FindInPageResult Page::find_in_page(FindInPageQuery const& query)
     if (query.string.is_empty()) {
         m_last_find_in_page_query = {};
         set_find_in_page_active_match(nullptr);
-        clear_find_in_page_highlighted_matches();
         set_find_in_page_dimmed_document(nullptr);
+        clear_find_in_page_highlighted_matches_once_dim_has_faded();
         return {};
     }
 
@@ -2444,8 +2444,8 @@ void Page::clear_find_in_page_active_match()
 
 void Page::find_in_page_end()
 {
-    clear_find_in_page_highlighted_matches();
     set_find_in_page_dimmed_document(nullptr);
+    clear_find_in_page_highlighted_matches_once_dim_has_faded();
     auto active_match = find_in_page_active_match();
     set_find_in_page_active_match(nullptr);
     if (!active_match || active_match->collapsed())
@@ -2529,7 +2529,16 @@ void Page::stop_dimming_for_find_in_page()
     if (!m_find_in_page_dimmed_document)
         return;
     set_find_in_page_dimmed_document(nullptr);
-    clear_find_in_page_highlighted_matches();
+    clear_find_in_page_highlighted_matches_once_dim_has_faded();
+}
+
+void Page::clear_find_in_page_highlighted_matches_once_dim_has_faded()
+{
+    if (m_find_in_page_dimmed_document || !m_find_in_page_dim_fade_start_time.has_value()) {
+        clear_find_in_page_highlighted_matches();
+        return;
+    }
+    m_find_in_page_clears_highlighted_matches_after_dim_fade = true;
 }
 
 void Page::set_find_in_page_dimmed_document(GC::Ptr<DOM::Document> document)
@@ -2537,15 +2546,22 @@ void Page::set_find_in_page_dimmed_document(GC::Ptr<DOM::Document> document)
     GC::Ptr<DOM::Document> previous_document = m_find_in_page_dimmed_document.ptr();
     if (previous_document == document)
         return;
+    auto fading_document = document ? document : previous_document;
+    auto start_opacity = find_in_page_dim_opacity(*fading_document);
     m_find_in_page_dimmed_document = document;
 
     for (auto document_to_repaint : { previous_document, document }) {
-        if (document_to_repaint)
+        if (document_to_repaint) {
+            document_to_repaint->note_find_in_page_dim_changed();
             repaint_find_in_page_dim(*document_to_repaint);
+        }
     }
+
+    fade_find_in_page_dim(*fading_document, start_opacity);
 }
 
 static constexpr auto FIND_IN_PAGE_ANIMATION_FRAME_INTERVAL = AK::Duration::from_milliseconds(16);
+static constexpr auto FIND_IN_PAGE_DIM_FADE_DURATION = AK::Duration::from_milliseconds(200);
 static constexpr auto FIND_IN_PAGE_CURRENT_MATCH_BOUNCE_DURATION = AK::Duration::from_milliseconds(120);
 
 static bool animates_find_in_page_dim(Page const& page)
@@ -2567,6 +2583,44 @@ static void advance_find_in_page_animation(Optional<MonotonicTime>& start_time, 
     }
     if (document)
         repaint_find_in_page_dim(*document);
+}
+
+void Page::fade_find_in_page_dim(DOM::Document& document, float start_opacity)
+{
+    m_find_in_page_dim_fade_start_time = {};
+    m_find_in_page_clears_highlighted_matches_after_dim_fade = false;
+    if (!animates_find_in_page_dim(*this)) {
+        if (m_find_in_page_dim_fade_timer)
+            m_find_in_page_dim_fade_timer->stop();
+        return;
+    }
+
+    m_find_in_page_dim_fade_document = document;
+    m_find_in_page_dim_fade_start_time = MonotonicTime::now();
+    m_find_in_page_dim_fade_start_opacity = start_opacity;
+    if (!m_find_in_page_dim_fade_timer) {
+        m_find_in_page_dim_fade_timer = Core::Timer::create_repeating(FIND_IN_PAGE_ANIMATION_FRAME_INTERVAL, [this] {
+            advance_find_in_page_animation(m_find_in_page_dim_fade_start_time, FIND_IN_PAGE_DIM_FADE_DURATION, *m_find_in_page_dim_fade_timer, m_find_in_page_dim_fade_document.ptr());
+            if (!m_find_in_page_dim_fade_start_time.has_value() && exchange(m_find_in_page_clears_highlighted_matches_after_dim_fade, false))
+                clear_find_in_page_highlighted_matches();
+        });
+    }
+    m_find_in_page_dim_fade_timer->start();
+}
+
+float Page::find_in_page_dim_opacity(DOM::Document const& document) const
+{
+    auto opacity = is_dimmed_for_find_in_page(document) ? 1.0f : 0.0f;
+    if (!is_fading_find_in_page_dim(document))
+        return opacity;
+
+    auto progress = find_in_page_animation_progress(*m_find_in_page_dim_fade_start_time, FIND_IN_PAGE_DIM_FADE_DURATION);
+    return mix(m_find_in_page_dim_fade_start_opacity, opacity, progress);
+}
+
+bool Page::is_fading_find_in_page_dim(DOM::Document const& document) const
+{
+    return m_find_in_page_dim_fade_document.ptr().ptr() == &document && m_find_in_page_dim_fade_start_time.has_value();
 }
 
 void Page::bounce_find_in_page_current_match(bool current_match_moved)

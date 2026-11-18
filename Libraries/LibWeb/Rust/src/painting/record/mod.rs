@@ -56,6 +56,7 @@ pub struct RecordingOutput {
     /// The name of the chunk the canvas was recorded into, outside the walked scopes, or none where it drew nothing.
     pub(crate) prologue_id: Option<crate::painting::display_list::chunks::ChunkId>,
     pub(crate) find_in_page_current_match_bounces: bool,
+    pub(crate) find_in_page_dim_opacity: f32,
     pub root_group_color: libgfx_rust::Color,
     /// The rows' hit-test items stamp of the frame the recording recorded: hit testing walks its rows, which place
     /// other items in a frame with another stamp or another visual context tree.
@@ -576,7 +577,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let dims_page = self.inputs.dims_page_for_find_in_page;
         let facts = if dims_page && !is_current {
             Default::default()
-        } else if is_current && !dims_page {
+        } else if is_current && !self.paint_state.search_text.current_match_is_painted_over_dim {
             let background_color = self.default_selection_background(style_source, true);
             crate::painting::host::FfiSelectionStyleFacts {
                 background_color,

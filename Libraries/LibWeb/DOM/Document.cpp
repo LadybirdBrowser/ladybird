@@ -1261,6 +1261,12 @@ void Document::set_find_in_page_active_match(GC::Ptr<Range> active_match)
     request_frame_for_pending_repaint();
 }
 
+void Document::note_find_in_page_dim_changed()
+{
+    m_search_text_states_are_stale = true;
+    request_frame_for_pending_repaint();
+}
+
 void Document::note_selection_changed()
 {
     m_selection_states_are_stale = true;

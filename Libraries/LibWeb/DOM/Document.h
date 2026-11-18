@@ -402,6 +402,7 @@ public:
     Vector<GC::Ref<Range>> const& find_in_page_highlighted_matches() const { return m_find_in_page_highlighted_matches; }
     void set_find_in_page_highlighted_matches(GC::RootVector<GC::Ref<Range>>);
     void remove_find_in_page_highlighted_matches_whose_text_changed();
+    void note_find_in_page_dim_changed();
 
     Editing::SpellingMarkers& spelling_markers();
     Editing::SpellCheckController& spell_check_controller();
