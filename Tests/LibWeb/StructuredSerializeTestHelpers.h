@@ -236,6 +236,11 @@ inline double number_property(JS::Value object, StringView name)
     return property_of(object, name).as_double();
 }
 
+inline Utf16String string_property(JS::Value object, StringView name)
+{
+    return property_of(object, name).as_string().utf16_string();
+}
+
 inline Web::WebIDL::ExceptionOr<JS::Value> storage_deserialize(Web::HTML::StorageSerializationRecord const& record)
 {
     auto& realm = test_realm();
@@ -780,22 +785,18 @@ inline Vector<CryptoHandleGolden> crypto_handle_goldens()
 }
 
 // Deserialize first so encode goldens use slot-consistent CryptoKeys.
-inline GC::Ref<Web::Crypto::CryptoKey> build_live_crypto_key(StringView type, StringView usage, Vector<u8> const& algorithm, Vector<u8> const& handle)
+inline GC::Ref<JS::Object> build_live_crypto_key(StringView type, StringView usage, Vector<u8> const& algorithm, Vector<u8> const& handle)
 {
     auto value = MUST(principal_storage_deserialize(crypto_key_full_record(type, usage, algorithm, handle)));
-    return unwrap_wrappable<Web::Crypto::CryptoKey>(value);
+    return value.as_object();
 }
 
 // Fabricate RsaKeyAlgorithm directly to pin the encode-only tag-1 branch.
-inline GC::Ref<Web::Crypto::CryptoKey> build_live_crypto_key_with_rsa_key_algorithm(StringView type, StringView usage, StringView name, u32 modulus_length, ReadonlyBytes public_exponent, ReadonlyBytes modulus)
+inline GC::Ref<JS::Object> build_live_crypto_key_with_rsa_key_algorithm(StringView type, StringView usage, StringView name, u32 modulus_length, ReadonlyBytes public_exponent, ReadonlyBytes modulus)
 {
     // NB: A stored record cannot hold an RsaKeyAlgorithm, so the key is decoded with an RsaHashedKeyAlgorithm and given
     //     the RsaKeyAlgorithm afterwards.
     auto key = build_live_crypto_key(type, usage, alg_rsa_hashed_key_algorithm(name, modulus_length, public_exponent, "SHA-256"sv), handle_rsa_public_key(modulus, public_exponent));
-    key->set_algorithm(Web::Crypto::CryptoKey::RsaKeyAlgorithmData {
-        Utf16String::from_utf8(name),
-        modulus_length,
-        MUST(ByteBuffer::copy(public_exponent)),
-    });
+    unwrap_wrappable<Web::Crypto::CryptoKey>(key).remove_algorithm_hash_for_testing();
     return key;
 }
