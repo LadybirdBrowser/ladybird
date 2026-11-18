@@ -663,6 +663,7 @@ ViewState View::current_state() const
     state.crash_report_name = crash_report_name();
     state.crash_report_website = crash_report_website();
     state.crash_overlay_failed_url = crash_overlay_failed_url();
+    state.crash_overlay_is_for_memory_limit = crash_overlay_is_for_memory_limit();
     state.host_for_settings = current_host_for_settings();
     state.can_report_website_issue = can_report_website_issue();
     state.can_undo = can_undo();

@@ -342,6 +342,7 @@ private:
 
     PageOverlay* m_crash_overlay { nullptr };
     CrashOverlayUrlLabel* m_crash_overlay_url { nullptr };
+    QLabel* m_crash_overlay_title { nullptr };
     QLabel* m_crash_overlay_message { nullptr };
     QPushButton* m_crash_overlay_reload_button { nullptr };
     QShortcut* m_crash_overlay_reload_shortcut { nullptr };

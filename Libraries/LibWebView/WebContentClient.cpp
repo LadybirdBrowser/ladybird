@@ -634,7 +634,11 @@ void WebContentClient::did_lose_process()
         return;
 
     // The views are told deferred, and looked up by ID, in case they are destroyed before then.
-    auto crash_reason = m_rejected_ipc ? ViewImplementation::WebContentCrashReason::RejectedIPC : ViewImplementation::WebContentCrashReason::ProcessCrash;
+    auto crash_reason = ViewImplementation::WebContentCrashReason::ProcessCrash;
+    if (m_rejected_ipc)
+        crash_reason = ViewImplementation::WebContentCrashReason::RejectedIPC;
+    else if (m_exceeded_memory_limit)
+        crash_reason = ViewImplementation::WebContentCrashReason::ExceededMemoryLimit;
     for (auto const& lost : lost_pages) {
         if (!lost.view_id.has_value())
             continue;
@@ -645,7 +649,7 @@ void WebContentClient::did_lose_process()
             if (!view.has_value())
                 return;
             if (shows_crash_screen)
-                view->handle_web_content_process_crash();
+                view->handle_web_content_process_crash(crash_reason);
             if (view->on_web_content_crashed)
                 view->on_web_content_crashed(crash_reason);
         });

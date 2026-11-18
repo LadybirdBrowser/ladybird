@@ -122,6 +122,8 @@ public:
     Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
 
     virtual void did_misbehave(StringView message_name, StringView reason) override;
+    // The process is about to be ended for using more memory than the limit.
+    void did_exceed_memory_limit() { m_exceeded_memory_limit = true; }
     enum class HTTPCookieAccess : u8 {
         Allowed,
         // A WebDriver cookie command runs, but for another document, which the renderer may not have heard of yet.
@@ -272,6 +274,7 @@ private:
     RequestServerSiteBindings m_request_server_site_bindings;
     bool m_requested_close { false };
     bool m_rejected_ipc { false };
+    bool m_exceeded_memory_limit { false };
     // The site of the documents this process hosts, if it has only hosted those of one.
     Optional<Utf16String> m_site_of_hosted_documents;
     Optional<u64> m_image_decoder_client_generation;
