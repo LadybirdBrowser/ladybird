@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .box { font-size: 50px; line-height: 60px; }
+    .ib { display: inline-block; width: 10px; height: 60px; }
+    .ibs { display: inline-block; width: 10px; height: 10px; }
+    .lh50 { line-height: 50px; }
+    .case { position: relative; }
+</style>
+<div class="case" id="middle-text"><span class="box" style="vertical-align: middle">y</span>x</div>
+<div class="case" id="text-top-text"><span class="box" style="vertical-align: text-top">y</span>x</div>
+<div class="case" id="text-bottom-text"><span class="box" style="vertical-align: text-bottom">y</span>x</div>
+<div class="case" id="middle-empty"><span class="box" style="vertical-align: middle"></span>x</div>
+<div class="case" id="text-top-empty"><span class="box" style="vertical-align: text-top"></span>x</div>
+<div class="case" id="text-bottom-empty"><span class="box" style="vertical-align: text-bottom"></span>x</div>
+<div class="case" id="middle-inline-block"><span class="ib" style="vertical-align: middle"></span>x</div>
+<div class="case" id="text-top-inline-block"><span class="ib" style="vertical-align: text-top"></span>x</div>
+<div class="case" id="text-bottom-inline-block"><span class="ib" style="vertical-align: text-bottom"></span>x</div>
+<div class="case" id="middle-alone"><span class="box" style="vertical-align: middle">y</span></div>
+<div class="case" id="text-top-alone"><span class="box" style="vertical-align: text-top">y</span></div>
+<div class="case" id="middle-and-text-top"><span class="box" style="vertical-align: middle">y</span><span class="box" style="vertical-align: text-top">y</span>x</div>
+<div class="case" id="middle-beside-taller-baseline"><span class="box">z</span><span class="box" style="vertical-align: middle">y</span>x</div>
+<div class="case" id="text-top-beside-taller-baseline"><span class="box">z</span><span class="box" style="vertical-align: text-top">y</span>x</div>
+<div class="case" id="middle-in-top"><span style="vertical-align: top"><span class="box" style="vertical-align: middle">y</span></span>x</div>
+<div class="case" id="text-top-in-parent"><span style="font-size: 30px; line-height: 30px">a<span class="box" style="vertical-align: text-top">y</span></span>x</div>
+<div class="case" id="text-bottom-in-parent"><span style="font-size: 30px; line-height: 30px">a<span class="box" style="vertical-align: text-bottom">y</span></span>x</div>
+<div class="case" id="shifted-box-around-inline-block"><span class="lh50" style="vertical-align: 10px"><span class="ibs"></span></span></div>
+<div class="case" id="middle-box-around-inline-block"><span class="lh50" style="vertical-align: middle"><span class="ibs"></span></span></div>
+<div class="case" id="sub-box-around-inline-block"><span class="lh50" style="vertical-align: sub"><span class="ibs"></span></span></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        for (const element of document.querySelectorAll(".case")) {
+            const rect = element.getBoundingClientRect();
+            const offsets = [...element.querySelectorAll("span")].map(span => span.getBoundingClientRect().top - rect.top);
+            println(`${element.id}: ${rect.height} (${offsets.join(", ")})`);
+        }
+    });
+</script>

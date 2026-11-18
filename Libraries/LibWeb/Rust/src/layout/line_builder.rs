@@ -33,8 +33,6 @@ struct FragmentAlignmentSnapshot {
     style_source: Node,
     layout_node: Node,
     baseline: CssPixels,
-    block_size: CssPixels,
-    border_box_block_start: CssPixels,
     is_atomic_inline: bool,
     inline_offset: CssPixels,
     block_offset: CssPixels,
@@ -1082,6 +1080,76 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         TextLayoutBounds::new(style, fragment.glyphs.as_ref().map(|glyphs| &glyphs.font))
     }
 
+    /// How far the box that `metrics` describe reaches above the baseline of the line box, where `style` aligns it
+    /// within the box of `parent_style`.
+    fn extent_above_line_box_baseline(
+        &self,
+        style: StyleValues,
+        parent_style: StyleValues,
+        metrics: VerticalAlignMetrics,
+    ) -> CssPixels {
+        let block_start = self.block_offset_for_alignment(style, parent_style, metrics, CssPixels::default())
+            - metrics.effective_box_block_start_offset;
+        self.current_block_offset - block_start
+    }
+
+    /// How far its own vertical-align shifts the baseline of `box_`, an inline box, down from where 'baseline' puts it.
+    fn vertical_shift_of_inline_box(&self, box_: Node) -> CssPixels {
+        let style = self.style(box_);
+        if style.vertical_align_is_keyword() && style.vertical_align_keyword() == vertical_align::BASELINE {
+            return CssPixels::default();
+        }
+        let metrics = self.inline_box_alignment_metrics(box_);
+        let parent_style = self.parent_style(box_);
+        let baseline_style = style.with_vertical_align_keyword(vertical_align::BASELINE);
+        self.block_offset_for_alignment(style, parent_style, metrics, CssPixels::default())
+            - self.block_offset_for_alignment(baseline_style, parent_style, metrics, CssPixels::default())
+    }
+
+    /// The inline boxes of this formatting context around `style_source`, innermost first, up to the first one aligned
+    /// to the line box, each with the shift of its baseline by its own vertical-align.
+    fn vertical_shifts_of_enclosing_inline_boxes(&self, style_source: Node) -> Vec<(Node, CssPixels)> {
+        let containing_block = self.context().containing_block;
+        let mut shifts = Vec::new();
+        if style_source == containing_block {
+            return shifts;
+        }
+        let mut ancestor = self.context().parent_node(style_source);
+        while !ancestor.is_invalid() && ancestor != containing_block && self.facts(ancestor).is_fragmented_inline() {
+            if line_relative_alignment(self.style(ancestor)).is_some() {
+                break;
+            }
+            shifts.push((ancestor, self.vertical_shift_of_inline_box(ancestor)));
+            ancestor = self.context().parent_node(ancestor);
+        }
+        shifts
+    }
+
+    fn fragment_alignment_metrics(
+        &self,
+        line_index: usize,
+        fragment_index: usize,
+        style: StyleValues,
+    ) -> VerticalAlignMetrics {
+        let line = self.line(line_index);
+        let fragment = &line.fragments[fragment_index];
+        let mut metrics = VerticalAlignMetrics {
+            baseline: fragment.baseline,
+            block_size: fragment.physical_vertical_extent(),
+            effective_box_block_start_offset: fragment.border_box_block_start,
+            // Intentional old quirk: start is reused as end.
+            effective_box_block_end_offset: fragment.border_box_block_start,
+            line_height: style.line_height(),
+        };
+        if fragment.is_atomic_inline {
+            let atomic_inline = fragment.box_cells();
+            metrics.effective_box_block_start_offset = atomic_inline.margin_top + atomic_inline.border_box_top(false);
+            metrics.effective_box_block_end_offset =
+                atomic_inline.margin_bottom + atomic_inline.border_box_bottom(false);
+        }
+        metrics
+    }
+
     fn inline_box_alignment_metrics(&self, node: Node) -> VerticalAlignMetrics {
         let style = self.style(node);
         let sides = self.context().sides_of_entered_inline_box(node);
@@ -1135,26 +1203,30 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 continue;
             }
             let alignment_style = self.alignment_style(style_source, style);
-            // NB: The box reaches as far above the baseline of the line box as it is shifted up from it (see
-            //     block_offset_for_alignment).
             let shifted_by_keyword = alignment_style.vertical_align_is_keyword()
                 && matches!(
                     alignment_style.vertical_align_keyword(),
                     vertical_align::SUPER | vertical_align::SUB
                 );
-            let adjusted_baseline = if !alignment_style.vertical_align_is_keyword() {
-                fragment_baseline + alignment_style.vertical_align_value().to_px(style.line_height())
-            } else if alignment_style.vertical_align_keyword() == vertical_align::SUPER {
-                fragment_baseline + self.containing_style().font_size() / 3
-            } else if alignment_style.vertical_align_keyword() == vertical_align::SUB {
-                fragment_baseline - self.containing_style().font_size() / 5
-            } else {
-                fragment_baseline
-            };
+            // https://drafts.csswg.org/css2/#line-height
+            // The line box height is the distance between the uppermost box top and the lowermost box bottom.
+            // NB: So, the baseline of the line box is as far below its top as the box that reaches highest above it
+            //     once aligned, which is how far its vertical-align and those of the inline boxes around it shift it.
+            let enclosing_shifts = self.vertical_shifts_of_enclosing_inline_boxes(style_source);
+            let enclosing_shift = enclosing_shifts
+                .iter()
+                .fold(CssPixels::default(), |total, (_, shift)| total + *shift);
+            let metrics = self.fragment_alignment_metrics(line_index, fragment_index, style);
+            let adjusted_baseline =
+                self.extent_above_line_box_baseline(alignment_style, self.parent_style(style_source), metrics)
+                    - enclosing_shift;
             // NB: A vertical-align length or percentage, like 'sub' and 'super', shifts the box relative to the
             //     baseline, which leaves the strut on the baseline, whichever box ends up setting the baseline of the
-            //     line box.
-            if !alignment_style.vertical_align_is_keyword() || shifted_by_keyword {
+            //     line box. So does such a shift of an inline box around it.
+            if !alignment_style.vertical_align_is_keyword()
+                || shifted_by_keyword
+                || enclosing_shift != CssPixels::default()
+            {
                 should_align_strut_to_line_box_baseline = true;
             }
             if adjusted_baseline > line_box_baseline {
@@ -1182,28 +1254,17 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             }
             // https://drafts.csswg.org/css2/#line-height
             // The inline-level boxes are aligned vertically according to their 'vertical-align' property.
-            // NB: An inline box around the fragment that sits on the baseline holds its own layout bounds above it, which
-            //     a box whose content is only other inline boxes has no text fragment of its own to bring in.
-            let containing_block = self.context().containing_block;
-            let mut ancestor = if style_source == containing_block {
-                NodeSlotId::INVALID
-            } else {
-                self.context().parent_node(style_source)
-            };
-            while !ancestor.is_invalid() && ancestor != containing_block && self.facts(ancestor).is_fragmented_inline()
-            {
-                let ancestor_style = self.style(ancestor);
-                if !ancestor_style.vertical_align_is_keyword()
-                    || ancestor_style.vertical_align_keyword() != vertical_align::BASELINE
-                {
-                    break;
-                }
-                let ascent = TextLayoutBounds::new(ancestor_style, None).ascent;
+            // NB: An inline box around the fragment holds its own layout bounds around its baseline, wherever its
+            //     vertical-align and those of the boxes around it put that, which a box whose content is only other
+            //     inline boxes has no text fragment of its own to bring in.
+            let mut ancestor_shift = enclosing_shift;
+            for (ancestor, shift) in enclosing_shifts {
+                let ascent = TextLayoutBounds::new(self.style(ancestor), None).ascent - ancestor_shift;
                 if ascent > line_box_baseline {
                     should_align_strut_to_line_box_baseline = true;
                     line_box_baseline = ascent;
                 }
-                ancestor = self.context().parent_node(ancestor);
+                ancestor_shift -= shift;
             }
         }
         if let Some(marker_line) = self.outside_marker_line(line_index)
@@ -1669,29 +1730,13 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     style_source: fragment.style_source,
                     layout_node: fragment.layout_node,
                     baseline: fragment.baseline,
-                    block_size: fragment.physical_vertical_extent(),
-                    border_box_block_start: fragment.border_box_block_start,
                     is_atomic_inline: fragment.is_atomic_inline,
                     inline_offset: fragment.inline_offset,
                     block_offset: fragment.block_offset,
                 }
             };
             let style = self.style(snapshot.style_source);
-            let mut metrics = VerticalAlignMetrics {
-                baseline: snapshot.baseline,
-                block_size: snapshot.block_size,
-                effective_box_block_start_offset: snapshot.border_box_block_start,
-                // Intentional old quirk: start is reused as end.
-                effective_box_block_end_offset: snapshot.border_box_block_start,
-                line_height: style.line_height(),
-            };
-            if snapshot.is_atomic_inline {
-                let atomic_inline = self.line(line_index).fragments[fragment_index].box_cells();
-                metrics.effective_box_block_start_offset =
-                    atomic_inline.margin_top + atomic_inline.border_box_top(false);
-                metrics.effective_box_block_end_offset =
-                    atomic_inline.margin_bottom + atomic_inline.border_box_bottom(false);
-            }
+            let metrics = self.fragment_alignment_metrics(line_index, fragment_index, style);
             let containing_block = self.context().containing_block;
             let fragment_inline_offset = if self.context().atomic_items_are_right_to_left {
                 self.line(line_index).inline_length
