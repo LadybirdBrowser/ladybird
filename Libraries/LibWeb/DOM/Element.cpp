@@ -1774,10 +1774,19 @@ void Element::swap_in_style_record(Layout::BegunRead const& read, Optional<CSS::
         // NB: The compositor animations of a pseudo-element keep the values they took from its style for as long as
         //     the generation of its element stays the same.
         ++m_animation_style_generation;
-        if (record)
+        if (record) {
             ensure_synthetic_pseudo_element(*pseudo_element).swap_in_style_record(read, record);
-        else if (auto existing_pseudo_element = get_synthetic_pseudo_element(*pseudo_element); existing_pseudo_element.has_value())
+            return;
+        }
+        if (auto existing_pseudo_element = get_synthetic_pseudo_element(*pseudo_element); existing_pseudo_element.has_value())
             existing_pseudo_element->clear_computed_style();
+        // https://drafts.csswg.org/css-animations-2/#owning-element-section
+        // If the display property of an element is set to none and its display value would compute to none when
+        // ignoring the Transitions and Animations cascade origins, then terminate running animations with this owning
+        // element.
+        // NB: A pseudo-element that holds no style any more is no longer rendered, as an element under display: none
+        //     is not.
+        cancel_css_animations_and_transitions_of(*pseudo_element);
         return;
     }
     ++m_animation_style_generation;

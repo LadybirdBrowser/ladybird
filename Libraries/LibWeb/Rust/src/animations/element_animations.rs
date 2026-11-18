@@ -302,14 +302,18 @@ impl ElementAnimations {
         transition.borrow_mut().disassociation_from_target_pending = true;
     }
 
-    /// Takes the CSS animations and transitions of every owner, answering them, and publishes to `engine`, if any, that
-    /// the owners that had CSS animations have none.
+    /// Takes the CSS animations and transitions of the owner at `slot`, or of every owner where it names none, answering
+    /// them, and publishes to `engine`, if any, that the owners that had CSS animations have none.
     pub(crate) fn take_css_animations_and_transitions(
         &mut self,
+        slot: Option<AnimationOwnerSlot>,
         engine: Option<StyleEngineTarget<'_>>,
     ) -> Vec<AnimationHandle> {
         let mut animations = Vec::new();
         for owner in &mut self.owners {
+            if slot.is_some_and(|slot| owner.slot != slot) {
+                continue;
+            }
             if !owner.css_animations.is_empty()
                 && let Some(engine) = engine
             {
@@ -323,7 +327,9 @@ impl ElementAnimations {
             animations.extend(std::mem::take(&mut owner.transitions));
         }
         self.remove_empty_owners();
-        self.has_css_defined_animations = false;
+        if slot.is_none() {
+            self.has_css_defined_animations = false;
+        }
         animations
     }
 
