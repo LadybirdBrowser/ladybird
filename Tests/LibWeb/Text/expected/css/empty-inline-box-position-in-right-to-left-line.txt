@@ -1,0 +1,7 @@
+collapsible-space-at-wrap: 80 span at (40, 5)
+ltr-text-in-rtl-block: 60 span at (160, 5)
+ltr-text-in-rtl-block-without-space: 60 span at (160, 5)
+ltr-text-in-rtl-block-at-end: 60 span at (100, 5)
+ltr-text-in-indented-rtl-block: 60 span at (140, 5)
+ltr-text-in-indented-rtl-block-after-space: 60 span at (140, 5)
+ltr-block: 60 span at (60, 5)
