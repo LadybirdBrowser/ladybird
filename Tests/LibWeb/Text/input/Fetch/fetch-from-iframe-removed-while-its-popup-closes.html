@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const popup = window.open("about:blank");
+        const popupDocument = popup.document;
+
+        // An iframe removed while the popup's document unloads is still waiting for its own document to be unloaded
+        // when the popup's document is destroyed, which leaves its navigable with a parent that has no active document.
+        let iframeWindow;
+        popup.addEventListener("unload", () => {
+            const iframe = popupDocument.createElement("iframe");
+            popupDocument.body.appendChild(iframe);
+            iframeWindow = iframe.contentWindow;
+            iframe.remove();
+        });
+        popup.close();
+
+        while (popupDocument.defaultView)
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+        // Fetching snapshots the iframe window's settings, including its cross-site ancestor status, which is derived
+        // from the active document of its navigable's parent.
+        // NB: The fetch is not awaited, since the iframe's document is no longer fully active.
+        iframeWindow.fetch("data:text/plain,").catch(() => {});
+        println("PASS");
+        done();
+    });
+</script>
