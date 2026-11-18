@@ -90,7 +90,6 @@ jobs:
           cmake --preset Distribution \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
-            -DLADYBIRD_BASELINE_CPU_TARGET=ON \
             -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os_name == 'Linux' }}
 
