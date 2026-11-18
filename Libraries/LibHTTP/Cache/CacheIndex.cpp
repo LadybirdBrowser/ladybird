@@ -18,11 +18,7 @@
 
 namespace HTTP {
 
-static constexpr u32 INDEX_SCHEMA_BASELINE_VERSION = 1u;
-static constexpr u32 INDEX_SCHEMA_PARTITIONED_CACHE_KEYS_VERSION = 2u;
-static constexpr u32 INDEX_SCHEMA_VARY_KEY_VERSION = 3u;
-static constexpr u32 INDEX_SCHEMA_RESPONSES_ONLY_VERSION = 4u;
-static constexpr u32 INDEX_SCHEMA_SHA256_KEYS_VERSION = 5u;
+static constexpr u32 INDEX_SCHEMA_BASELINE_VERSION = 5u;
 
 static ReadonlyBytes encode_cache_key_for_database(CacheDigest const& key)
 {
@@ -125,7 +121,7 @@ static void log_orphaned_disk_cache_entries(Database::Database& database)
 // a migration here without invalidating the cache entries on disk. Entry files embed
 // CACHE_VERSION in their headers and are validated when read, so an entry format break must
 // append a migration that deletes the index rows referencing the now-unreadable entries.
-static_assert(CACHE_VERSION == 9, "Bumping CACHE_VERSION requires appending a CacheIndex migration that deletes the index rows referencing the old entry format");
+static_assert(CACHE_VERSION == 1, "Bumping CACHE_VERSION requires appending a CacheIndex migration that deletes the index rows referencing the old entry format");
 
 ErrorOr<Database::MigrationOutcome> CacheIndex::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
@@ -134,62 +130,6 @@ ErrorOr<Database::MigrationOutcome> CacheIndex::migrate_schema(Database::Databas
             .version = INDEX_SCHEMA_BASELINE_VERSION,
             .sql = R"#(
                 CREATE TABLE IF NOT EXISTS CacheIndex (
-                    cache_key INTEGER,
-                    vary_key INTEGER,
-                    url TEXT,
-                    request_headers BLOB,
-                    response_headers BLOB,
-                    data_size INTEGER,
-                    associated_data_size INTEGER,
-                    request_time INTEGER,
-                    response_time INTEGER,
-                    last_access_time INTEGER,
-                    PRIMARY KEY(cache_key, vary_key)
-                );
-            )#"sv,
-        },
-        {
-            // Cache keys now include the cache partition. No request can reach an entry stored under an older key, so
-            // drop those entries instead of leaving them to take up space until eviction.
-            .version = INDEX_SCHEMA_PARTITIONED_CACHE_KEYS_VERSION,
-            .sql = "DELETE FROM CacheIndex;"sv,
-            .backfill = [](Database::Database& database) -> ErrorOr<void> {
-                for_each_cache_entry_file(database, [](LexicalPath const& cache_entry) {
-                    (void)FileSystem::remove(cache_entry.string(), FileSystem::RecursionMode::Disallowed);
-                });
-                return {};
-            },
-        },
-        {
-            // CACHE_VERSION 8 changed how vary keys are computed.
-            .version = INDEX_SCHEMA_VARY_KEY_VERSION,
-            .sql = "DELETE FROM CacheIndex;"sv,
-            .backfill = [](Database::Database& database) -> ErrorOr<void> {
-                for_each_cache_entry_file(database, [](LexicalPath const& cache_entry) {
-                    (void)FileSystem::remove(cache_entry.string(), FileSystem::RecursionMode::Disallowed);
-                });
-                return {};
-            },
-        },
-        {
-            // The cache now holds responses only. Stored responses stay valid, but the JavaScript bytecode files beside
-            // them, and any such file left half-written, are no longer read or accounted for.
-            .version = INDEX_SCHEMA_RESPONSES_ONLY_VERSION,
-            .sql = "ALTER TABLE CacheIndex DROP COLUMN associated_data_size;"sv,
-            .backfill = [](Database::Database& database) -> ErrorOr<void> {
-                for_each_cache_entry_file(database, [](LexicalPath const& cache_entry) {
-                    if (cache_entry.basename().contains('.'))
-                        (void)FileSystem::remove(cache_entry.string(), FileSystem::RecursionMode::Disallowed);
-                });
-                return {};
-            },
-        },
-        {
-            // CACHE_VERSION 9 changed cache and vary keys to full SHA-256 digests.
-            .version = INDEX_SCHEMA_SHA256_KEYS_VERSION,
-            .sql = R"#(
-                DROP TABLE CacheIndex;
-                CREATE TABLE CacheIndex (
                     cache_key BLOB,
                     vary_key BLOB,
                     url TEXT,
@@ -202,12 +142,6 @@ ErrorOr<Database::MigrationOutcome> CacheIndex::migrate_schema(Database::Databas
                     PRIMARY KEY(cache_key, vary_key)
                 );
             )#"sv,
-            .backfill = [](Database::Database& database) -> ErrorOr<void> {
-                for_each_cache_entry_file(database, [](LexicalPath const& cache_entry) {
-                    (void)FileSystem::remove(cache_entry.string(), FileSystem::RecursionMode::Disallowed);
-                });
-                return {};
-            },
         },
     });
 
