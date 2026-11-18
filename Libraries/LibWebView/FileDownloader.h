@@ -154,6 +154,7 @@ private:
     void forget_persisted_download(u64 id);
     void restore_persisted_downloads();
     bool restore_persisted_download(DownloadRecord&);
+    void remove_orphaned_temporary_files_once(ByteString const& directory);
     static void remove_orphaned_temporary_files(HashTable<ByteString> const& directories, HashTable<ByteString> const& temporary_paths_in_use);
 
     void maybe_split_download(u64 id);
@@ -173,6 +174,7 @@ private:
     HashMap<u64, NonnullOwnPtr<ActiveDownload>> m_active_downloads;
     Vector<FileDownloaderObserver&> m_observers;
     DownloadStore* m_download_store { nullptr };
+    HashTable<ByteString> m_directories_cleared_of_orphaned_temporary_files;
     u64 m_next_download_id { 0 };
 };
 
