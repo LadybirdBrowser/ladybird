@@ -1,0 +1,9 @@
+Ladybird shapes each run of text on a path in the style of the element
+the run is in. For a <tspan> with a font-size of its own inside a
+<textPath>, getComputedTextLength() and getSubStringLength() return the
+same lengths in Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5
+as in Ladybird. Blink lays text on a path in SvgTextLayoutAlgorithm::
+PositionOnPath(), WebKit in SVGTextLayoutAlgorithm::positionOnPaths(),
+and Gecko in SVGTextFrame::DoTextPathLayout() — each from glyphs that
+were shaped per element. Gecko’s bounding box for the text is 2px wider
+on each side than that of Blink, WebKit, and Ladybird.
