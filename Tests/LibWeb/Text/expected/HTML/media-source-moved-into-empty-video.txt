@@ -1,0 +1,2 @@
+networkState before the move: 0
+after the move: loaded metadata

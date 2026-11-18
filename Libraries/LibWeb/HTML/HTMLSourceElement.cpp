@@ -59,7 +59,15 @@ void HTMLSourceElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<DOM::N
     // The source HTML element moving steps, given movedNode, isSubtreeRoot, and oldAncestor are:
     Base::moved_from(is_subtree_root, old_ancestor);
 
-    // 1. If isSubtreeRoot is true and oldAncestor is a picture element, then for each child of oldAncestor's
+    // 1. If movedNode's parent is a media element that has no src attribute and whose networkState has the value
+    //    NETWORK_EMPTY, then invoke that media element's resource selection algorithm.
+    if (auto* media_element = as_if<HTMLMediaElement>(parent()); media_element
+        && !media_element->has_attribute(HTML::AttributeNames::src)
+        && media_element->network_state() == HTMLMediaElement::NetworkState::Empty) {
+        media_element->select_resource();
+    }
+
+    // 2. If isSubtreeRoot is true and oldAncestor is a picture element, then for each child of oldAncestor's
     //    children: if child is an img element, then count this as a relevant mutation for child.
     if (is_subtree_root == IsSubtreeRoot::Yes) {
         if (auto* picture = as_if<HTMLPictureElement>(old_ancestor.ptr()))

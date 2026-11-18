@@ -1,0 +1,2 @@
+failed source moved out: loaded metadata: 160x120
+new source moved in: loaded metadata: 160x120

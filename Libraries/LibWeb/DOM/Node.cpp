@@ -72,6 +72,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLInsertion.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
@@ -2124,11 +2125,17 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     old_parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
     new_parent.invalidate_html_collection_caches_in_ancestors(affects_elements);
 
-    // NB: A move runs no children changed steps, which is where an <html> element publishes which child is the body.
+    // NB: A move runs no children changed steps, which is where an <html> element publishes which child is the body,
+    //     and where a media element keeps its resource selection pointer in place and resumes a selection that waits
+    //     for a new source.
     for (auto* parent : { old_parent, &new_parent }) {
         if (auto* html_element = as_if<HTML::HTMLHtmlElement>(*parent))
             html_element->publish_body_construction_facts();
     }
+    if (auto* media_element = as_if<HTML::HTMLMediaElement>(*old_parent))
+        media_element->child_moved_out(*this, old_previous_sibling);
+    if (auto* media_element = as_if<HTML::HTMLMediaElement>(new_parent))
+        media_element->child_moved_in();
 
     old_parent->bump_dom_tree_version();
     new_parent.bump_dom_tree_version();
