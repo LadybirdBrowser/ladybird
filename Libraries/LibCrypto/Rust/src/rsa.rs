@@ -75,7 +75,7 @@ impl RsaPublicKey {
         if !public_exponent_is_valid(&self.key) {
             return Ok(false);
         }
-        Ok(openssl::check_key(&self.key, false, false)?.public)
+        openssl::check_key(&self.key, false, false)
     }
 }
 
@@ -140,8 +140,7 @@ impl RsaPrivateKey {
             return Ok(false);
         }
         // NB: The pairwise check needs the prime factors, which a key of only n, e and d does not have.
-        let checks = openssl::check_key(&self.key, true, self.has_crt_components)?;
-        Ok(checks.public && checks.private && checks.pairwise)
+        openssl::check_key(&self.key, true, self.has_crt_components)
     }
 }
 

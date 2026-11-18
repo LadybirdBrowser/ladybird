@@ -124,7 +124,7 @@ impl EcPublicKey {
             end_parameter(),
         ];
         let key = Pkey::from_data(c"EC", sys::EVP_PKEY_PUBLIC_KEY, &params).map_err(invalid)?;
-        if !openssl::check_key(&key, false, false).map_err(invalid)?.public {
+        if !openssl::check_key(&key, false, false).map_err(invalid)? {
             return Err(invalid(CryptoError::Backend));
         }
         Ok(Self { key, curve })
