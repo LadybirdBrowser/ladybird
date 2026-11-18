@@ -20,7 +20,9 @@ mod clock;
 mod devtools;
 mod document_host;
 mod owner;
-pub(crate) use owner::{process_style, release_unused_memory_of_style_layout_threads};
+pub(crate) use owner::{
+    process_style, release_caches_of_style_layout_threads, release_unused_memory_of_style_layout_threads,
+};
 mod wait;
 
 pub use clock::hover::FfiHoverPlanInputs;

@@ -155,6 +155,8 @@ struct Pass {
     now: Instant,
     /// The layers in which to flush whatever nothing else holds, whatever its age, by bit (see `FlushLayer`).
     forced_layers: u8,
+    /// Whether the pass is there to give memory back to the system, for a process that is short of it.
+    releases_memory: bool,
 }
 
 impl Pass {
@@ -225,7 +227,12 @@ impl CodeFlushing {
         // NB: The candidates are not traced, so none may outlive the collection that found them, flush pass or not.
         self.bytecode_candidates.borrow_mut().clear();
         self.jit_candidates.borrow_mut().clear();
-        let forced_layers = self.flush_at_next_collection.replace(0);
+        let mut forced_layers = self.flush_at_next_collection.replace(0);
+        // NB: A process that is short of memory is better off compiling its code again than keeping it.
+        let releases_memory = vm.heap().is_returning_memory_to_system();
+        if releases_memory {
+            forced_layers = ALL_FLUSH_LAYERS;
+        }
         if !(self.options.enabled || forced_layers != 0) || vm.debugging_enabled() {
             return;
         }
@@ -236,6 +243,7 @@ impl CodeFlushing {
             } else {
                 forced_layers
             },
+            releases_memory,
         }));
         CodeFlushingStats::count(&self.stats.passes, 1);
         ACTIVE_PASS.set(Some(NonNull::from(self)));
@@ -244,7 +252,9 @@ impl CodeFlushing {
     /// Whether the idle time of an executable that idled for `idle_collections` collections is long enough to flush
     /// it in `layer` in this pass, for a function that was compiled again `recompiles` times after flushes there.
     fn idled_long_enough(&self, pass: Pass, layer: FlushLayer, idle_collections: u8, recompiles: u8) -> bool {
-        if recompiles >= self.options.max_recompiles {
+        // NB: The most recompiles are there to stop a function from being flushed and compiled over and over, which
+        //     is no reason to keep its code in a process that is short of memory.
+        if recompiles >= self.options.max_recompiles && !pass.releases_memory {
             return false;
         }
         if pass.forces(layer) {

@@ -153,6 +153,18 @@ pub(crate) fn release_unused_memory_of_style_layout_threads() {
 #[cfg(not(feature = "allocator"))]
 pub(crate) fn release_unused_memory_of_style_layout_threads() {}
 
+/// Has the style and layout threads of the process let go of what they keep to work faster, and give that memory
+/// back, for a process that is short of memory. Each does so between its jobs, and this does not wait for them.
+pub(crate) fn release_caches_of_style_layout_threads() {
+    if let Some(pool) = SLOT.style_layout_pool.started() {
+        pool.spawn_broadcast(|_| {
+            libgfx_rust::text_layout::clear_shaping_cache();
+            #[cfg(feature = "allocator")]
+            ak::release_unused_allocator_memory();
+        });
+    }
+}
+
 /// The style data every document's style engine shares with the others, which any thread reaches without the slot: only
 /// what it guards itself is written once it is made.
 pub(crate) fn process_style() -> &'static Arc<crate::css::style::ProcessStyle> {

@@ -133,6 +133,8 @@ public:
     static void prepare_user_agent_rules(DOM::Document&);
     // Lets go of the parsed sheets and sheet segments only the process keeps, past the documents that used them.
     static WEB_API void release_kept_data();
+    // Lets go of the shaped texts that this thread and the style and layout threads keep, for a process short of memory.
+    static WEB_API void release_shaped_texts();
     static WEB_API void for_each_user_agent_stylesheet(bool include_quirks_mode_stylesheet, bool include_mathml_and_svg_stylesheets, Function<void(CSS::StyleSheetState&, StyleSheetIdentifier const&)> const&);
     void build_user_style_sheet_if_needed();
 

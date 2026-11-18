@@ -592,6 +592,14 @@ pub extern "C" fn rust_style_release_kept_data() {
     crate::render_state::process_style().release_kept_past_release();
 }
 
+/// Lets go of the shaped texts that the calling thread and the style and layout threads keep, for a process short of
+/// memory.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_release_shaped_texts() {
+    libgfx_rust::text_layout::clear_shaping_cache();
+    crate::render_state::release_caches_of_style_layout_threads();
+}
+
 /// Writes whether the conditions of each rule hold, for the rules the engine has.
 fn write_rule_conditions(host: &crate::render_state::DocumentHost, conditions: Vec<(u64, bool)>) {
     if conditions.is_empty() {
