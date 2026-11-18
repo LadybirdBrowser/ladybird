@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>
+    div { font: 20px/30px SerenitySans; width: 300px; text-indent: 40px; }
+</style>
+<!-- text-indent indents the start of the first line: its right end in a right-to-left block. -->
+<div id="rtl" dir="rtl">אחת שתיים שלוש ארבע חמש שש שבע שמונה תשע עשר</div>
+<div id="rtl-left" dir="rtl" style="text-align: left">אחת שתיים</div>
+<div id="rtl-hanging" dir="rtl" style="text-indent: 40px hanging">אחת שתיים שלוש ארבע חמש שש שבע שמונה תשע עשר</div>
+<div id="rtl-negative" dir="rtl" style="text-indent: -20px">אחת שתיים</div>
+<div id="ltr">one two</div>
+<script>
+    test(() => {
+        // The first word is the rightmost on the first line of a right-to-left block, and the leftmost in the
+        // left-to-right one.
+        for (const div of document.querySelectorAll("div")) {
+            const text = div.firstChild;
+            const range = document.createRange();
+            range.setStart(text, 0);
+            range.setEnd(text, text.data.indexOf(" "));
+            const word = range.getBoundingClientRect();
+            const box = div.getBoundingClientRect();
+            println(`${div.id}: first word from ${word.left - box.left} to ${word.right - box.left}, at ${word.top - box.top}`);
+        }
+    });
+</script>

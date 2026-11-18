@@ -1,0 +1,5 @@
+rtl: first word from 238.0625 to 260, at 5
+rtl-left: first word from 46.5625 to 68.5, at 5
+rtl-hanging: first word from 278.0625 to 300, at 5
+rtl-negative: first word from 298.0625 to 320, at 5
+ltr: first word from 40 to 75.875, at 5
