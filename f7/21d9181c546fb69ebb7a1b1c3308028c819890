@@ -1,0 +1,17 @@
+Ladybird now queues a media element’s pending tasks again for the
+document that adopts it, so a load that’s under way carries on there.
+Gecko behaves the same way: Its HTMLMediaElement::QueueTask() and
+RunInStableState() dispatch to the main thread, not to a document.
+Blink instead restarts a load that’s under way when the element moves
+to another document, in HTMLMediaElement::AttachToNewFrame(), which
+DidMoveToNewDocument() calls.
+
+Run in Chrome 157.0.8103.79 and Firefox 151.0: For a video whose src
+was set in an iframe, adopted, and whose iframe was then removed,
+Firefox loads it, as Ladybird now does, and Chrome never does. With a
+failed candidate’s task still pending when the old document goes away,
+Firefox loads the next source, as Ladybird does, and Chrome never does;
+with the old document kept, both load it. And for a round trip through
+a document that isn’t fully active, Firefox fires error at the failed
+candidate and loads the next source, as Ladybird now does, while Chrome
+restarts and loads the source inserted ahead of the candidate.
