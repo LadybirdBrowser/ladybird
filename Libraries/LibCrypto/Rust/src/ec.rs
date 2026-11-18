@@ -351,7 +351,7 @@ pub fn ec_export_private_scalar(key: &KeyHandle) -> Result<Vec<u8>, CryptoError>
     Ok(private_key(key).d_bytes()?.into_vec())
 }
 
-pub fn ec_compute_coordinate(key: &KeyHandle, public_key: &KeyHandle) -> Result<Vec<u8>, CryptoError> {
+pub fn ec_compute_coordinate(key: &KeyHandle, public_key: &KeyHandle) -> Result<SecretBytes, CryptoError> {
     let private_key = private_key(key);
     let peer = self::public_key(public_key);
     if private_key.curve != peer.curve {

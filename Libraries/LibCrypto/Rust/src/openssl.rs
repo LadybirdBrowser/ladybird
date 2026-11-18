@@ -756,7 +756,7 @@ pub(crate) fn decrypt(key: &Pkey, params: &[Param<'_>], input: &[u8]) -> Result<
 }
 
 /// The secret that `key` and the public key `peer` agree on. OpenSSL checks the peer when `validate_peer` is set.
-pub(crate) fn derive(key: &Pkey, peer: &Pkey, validate_peer: bool) -> Result<Vec<u8>, CryptoError> {
+pub(crate) fn derive(key: &Pkey, peer: &Pkey, validate_peer: bool) -> Result<SecretBytes, CryptoError> {
     let context = key.context()?;
     // SAFETY: The context and peer are live for each call, and the output holds the size the first call gives.
     unsafe {
@@ -768,7 +768,7 @@ pub(crate) fn derive(key: &Pkey, peer: &Pkey, validate_peer: bool) -> Result<Vec
         ))?;
         let mut size = 0;
         check(sys::EVP_PKEY_derive(context.as_ptr(), ptr::null_mut(), &raw mut size))?;
-        let mut secret = vec![0; size];
+        let mut secret = SecretBytes::new(vec![0; size]);
         check(sys::EVP_PKEY_derive(
             context.as_ptr(),
             secret.as_mut_ptr(),

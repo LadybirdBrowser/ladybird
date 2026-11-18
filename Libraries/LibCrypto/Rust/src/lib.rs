@@ -184,7 +184,7 @@ pub fn hkdf_derive_key(
     key: &[u8],
     info: &[u8],
     length: u32,
-) -> Result<Vec<u8>, CryptoError> {
+) -> Result<SecretBytes, CryptoError> {
     let params = [
         utf8_parameter(c"digest", kind.name()),
         octet_string_parameter(c"key", key),
@@ -192,7 +192,7 @@ pub fn hkdf_derive_key(
         octet_string_parameter(c"info", info),
         end_parameter(),
     ];
-    let mut derived = vec![0; length as usize];
+    let mut derived = SecretBytes::new(vec![0; length as usize]);
     openssl::kdf(c"HKDF", &params, &mut derived)?;
     Ok(derived)
 }
@@ -203,7 +203,7 @@ pub fn pbkdf2_derive_key(
     salt: &[u8],
     iterations: u32,
     length: u32,
-) -> Result<Vec<u8>, CryptoError> {
+) -> Result<SecretBytes, CryptoError> {
     // NB: OpenSSL's PBKDF2 takes the iteration count and the lengths as int.
     let fits_in_int = |value: usize| c_int::try_from(value).is_ok();
     if ![iterations as usize, password.len(), salt.len(), length as usize]
@@ -224,7 +224,7 @@ pub fn pbkdf2_derive_key(
         openssl::int_parameter(c"pkcs5", &mut pkcs5),
         end_parameter(),
     ];
-    let mut derived = vec![0; length as usize];
+    let mut derived = SecretBytes::new(vec![0; length as usize]);
     openssl::kdf(c"PBKDF2", &params, &mut derived)?;
     Ok(derived)
 }
@@ -351,14 +351,14 @@ pub fn argon2_validate_parameters(nonce: &[u8]) -> Result<(), CryptoError> {
 }
 
 /// Argon2 with inputs that `argon2_validate_parameters()` accepts.
-pub fn argon2_derive_key(kind: Argon2Type, inputs: &Argon2Inputs<'_>) -> Result<Vec<u8>, CryptoError> {
+pub fn argon2_derive_key(kind: Argon2Type, inputs: &Argon2Inputs<'_>) -> Result<SecretBytes, CryptoError> {
     let name = match kind {
         Argon2Type::Argon2d => c"ARGON2D",
         Argon2Type::Argon2i => c"ARGON2I",
         Argon2Type::Argon2id => c"ARGON2ID",
     };
     // NB: OpenSSL takes version 0x13, the only version Web Crypto allows, and one thread when none are given.
-    let mut output = vec![0; inputs.tag_length as usize];
+    let mut output = SecretBytes::new(vec![0; inputs.tag_length as usize]);
     let (mut passes, mut lanes, mut memory) = (inputs.passes, inputs.parallelism, inputs.memory);
     let mut size = c_uint::try_from(output.len()).map_err(|_| CryptoError::Backend)?;
     let mut params = vec![
@@ -469,12 +469,12 @@ pub fn aes_ctr_cipher(
             _ => remaining.len(),
         };
         let (segment, rest) = remaining.split_at(segment_length);
-        output.extend(aes_ctr_cipher_whole_block_counter(
+        output.extend_from_slice(&SecretBytes::new(aes_ctr_cipher_whole_block_counter(
             encrypt,
             key,
             segment,
             &block.to_be_bytes(),
-        )?);
+        )?));
         remaining = rest;
         block &= !mask;
     }
@@ -679,7 +679,7 @@ pub fn okp_raw_private_key(key: &KeyHandle) -> Result<SecretBytes, CryptoError> 
     okp_key(key).key.raw_private_key()
 }
 
-pub fn okp_compute_coordinate(private_key: &KeyHandle, public_key: &KeyHandle) -> Result<Vec<u8>, CryptoError> {
+pub fn okp_compute_coordinate(private_key: &KeyHandle, public_key: &KeyHandle) -> Result<SecretBytes, CryptoError> {
     let private_key = okp_key(private_key);
     if !matches!(private_key.curve, OkpCurve::X25519 | OkpCurve::X448) {
         return Err(CryptoError::Backend);

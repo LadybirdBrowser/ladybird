@@ -2189,6 +2189,7 @@ impl AlgorithmMethods for HkdfParams {
             normalized_algorithm.info.as_slice(),
             length / 8,
         )
+        .map(SecretBytes::into_vec)
         .map(Bytes::new);
 
         // 6. If the key derivation operation fails, then throw an OperationError.
@@ -2273,6 +2274,7 @@ impl AlgorithmMethods for Pbkdf2Params {
             iterations,
             derived_key_length_bytes,
         )
+        .map(SecretBytes::into_vec)
         .map(Bytes::new);
 
         // 6. If the key derivation operation fails, then throw an OperationError.
@@ -2507,7 +2509,9 @@ impl AlgorithmMethods for Argon2Params {
             tag_length: length.expect("validation requires a length") / 8,
         };
 
-        let result = libcrypto_rust::argon2_derive_key(kind, &inputs).map(Bytes::new);
+        let result = libcrypto_rust::argon2_derive_key(kind, &inputs)
+            .map(SecretBytes::into_vec)
+            .map(Bytes::new);
 
         // 10. If the key derivation operation fails, then throw an OperationError.
         let result = result.map_err(|detail| {
@@ -8986,12 +8990,14 @@ impl AlgorithmMethods for Ecdh {
             //    by the [[handle]] internal slot of publicKey as the EC public key.
             // 2. Let secret be a byte sequence containing the result of applying the field element to octet string
             //    conversion defined in Section 6.2 of [RFC6090] to the output of the ECDH primitive.
-            libcrypto_rust::ec_compute_coordinate(key.handle(), public_key.handle()).map_err(|detail| {
-                Exception::Dom(
-                    "OperationError",
-                    libjs_rust::api::utf16_formatted("Failed to compute secret: {}", &[&detail.message()]),
-                )
-            })?
+            libcrypto_rust::ec_compute_coordinate(key.handle(), public_key.handle())
+                .map_err(|detail| {
+                    Exception::Dom(
+                        "OperationError",
+                        libjs_rust::api::utf16_formatted("Failed to compute secret: {}", &[&detail.message()]),
+                    )
+                })?
+                .into_vec()
         } else {
             // If the namedCurve property of the [[algorithm]] internal slot of key is a value specified
             // in an applicable specification that specifies the use of that value with ECDH:
@@ -11007,7 +11013,8 @@ impl AlgorithmMethods for X25519 {
         // 7. Let secret be the result of performing the X25519 function specified in [RFC7748] Section 5 with
         //    key as the X25519 private key k and
         //    the X25519 public key represented by the [[handle]] internal slot of publicKey as the X25519 public key u.
-        let secret = libcrypto_rust::okp_compute_coordinate(key.handle(), public_key.handle());
+        let secret =
+            libcrypto_rust::okp_compute_coordinate(key.handle(), public_key.handle()).map(SecretBytes::into_vec);
         let Ok(mut secret) = secret else {
             return Err(dom_error("OperationError", b"Failed to compute secret"));
         };
@@ -11583,7 +11590,8 @@ impl AlgorithmMethods for X448 {
         // 5. Let secret be the result of performing the X448 function specified in [RFC7748] Section 5
         //    with key as the X448 private key k and the X448 public key represented by the [[handle]]
         //    internal slot of publicKey as the X448 public key u.
-        let secret = libcrypto_rust::okp_compute_coordinate(key.handle(), public_key.handle());
+        let secret =
+            libcrypto_rust::okp_compute_coordinate(key.handle(), public_key.handle()).map(SecretBytes::into_vec);
         let Ok(mut secret) = secret else {
             return Err(dom_error("OperationError", b"Failed to compute secret"));
         };
