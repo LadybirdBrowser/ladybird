@@ -1,0 +1,9 @@
+In Ladybird, the dx or dy that applies to a character moves the
+character from where its x or y puts it, even where the x or y is
+on an element inside the one with the dx or dy. Blink, WebKit, and
+Gecko each resolve the four attributes per character before they
+position any: in SvgTextLayoutAttributesBuilder::Build(), in the
+resolveCharacterPositioning() of SVGTextLayoutAlgorithm, and in
+SVGTextFrame::ResolvePositionsForNode(). The new test gives the
+same character positions in Chrome 157.0.8103.79, Firefox 151.0, and
+WebKit 26.5 as in Ladybird.
