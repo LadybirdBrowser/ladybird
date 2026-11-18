@@ -670,8 +670,11 @@ void WebContentPage::close()
     NotificationManager::the().page_did_close(*this);
     m_is_open = false;
     // NB: The process can outlive the page, for the shared workers it runs, or for other pages.
-    if (m_client)
+    if (m_client) {
         WorkerAgentManager::the().remove_web_content_page_owner(*m_client, m_id);
+        // NB: This may have been the only page of the process with a tab that is shown.
+        m_client->did_change_visibility_of_a_tab();
+    }
     // NB: Nothing finishes the input this page held, including a page discarded while its process hosts other pages.
     if (m_traversable) {
         if (auto view = m_traversable->view(); view.has_value())
