@@ -9013,23 +9013,18 @@ impl AlgorithmMethods for Ecdh {
 
         // 9. If the namedCurve property of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
         // 10. If performing the operation results in an error, then throw a OperationError.
-        let secret = if ec_curve_from_name(named_curve).is_some() {
+        let mut secret = if ec_curve_from_name(named_curve).is_some() {
             // 1. Perform the ECDH primitive specified in [RFC6090] Section 4
             //    with key as the EC private key d and the EC public key represented
             //    by the [[handle]] internal slot of publicKey as the EC public key.
             // 2. Let secret be a byte sequence containing the result of applying the field element to octet string
             //    conversion defined in Section 6.2 of [RFC6090] to the output of the ECDH primitive.
-            let secret_data = libcrypto_rust::ec_compute_coordinate(key.handle(), public_key.handle());
-            let secret_data = match secret_data {
-                Ok(secret_data) => secret_data,
-                Err(detail) => {
-                    return Err(Exception::Dom(
-                        "OperationError",
-                        libjs_rust::api::utf16_formatted("Failed to compute secret: {}", &[&detail.message()]),
-                    ));
-                }
-            };
-            copy_bytes(cx.vm(), &secret_data)?
+            libcrypto_rust::ec_compute_coordinate(key.handle(), public_key.handle()).map_err(|detail| {
+                Exception::Dom(
+                    "OperationError",
+                    libjs_rust::api::utf16_formatted("Failed to compute secret: {}", &[&detail.message()]),
+                )
+            })?
         } else {
             // If the namedCurve property of the [[algorithm]] internal slot of key is a value specified
             // in an applicable specification that specifies the use of that value with ECDH:
@@ -9056,13 +9051,8 @@ impl AlgorithmMethods for Ecdh {
 
         // Otherwise:
         //    Return a byte sequence containing the first length bits of secret.
-        let mut slice = copy_bytes(cx.vm(), &secret[..length.div_ceil(8)])?;
-        if !length.is_multiple_of(8) {
-            // Zero out the last bits
-            *slice.last_mut().expect("a partial byte is present") &= 0xFF << (8 - (length % 8));
-        }
-
-        Ok(Bytes::new(slice))
+        keep_first_bits(&mut secret, length);
+        Ok(Bytes::new(secret))
     }
 
     // https://w3c.github.io/webcrypto/#ecdh-operations-import-key
@@ -10322,7 +10312,7 @@ impl AlgorithmMethods for Ed25519 {
     }
 
     // https://w3c.github.io/webcrypto/#ed25519-operations-sign
-    fn sign(&self, cx: &CallContext, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
+    fn sign(&self, _: &CallContext, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
         if key.key_type() != KeyType::Private {
             return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
@@ -10336,8 +10326,7 @@ impl AlgorithmMethods for Ed25519 {
         };
 
         // 3. Return result.
-        let result = Bytes::new(copy_bytes(cx.vm(), signature.as_slice())?);
-        Ok(result)
+        Ok(signature)
     }
 
     // https://w3c.github.io/webcrypto/#ed25519-operations-verify
@@ -11052,8 +11041,8 @@ impl AlgorithmMethods for X25519 {
         // 7. Let secret be the result of performing the X25519 function specified in [RFC7748] Section 5 with
         //    key as the X25519 private key k and
         //    the X25519 public key represented by the [[handle]] internal slot of publicKey as the X25519 public key u.
-        let secret = libcrypto_rust::okp_compute_coordinate(key.handle(), public_key.handle()).map(Bytes::new);
-        let Ok(secret) = secret else {
+        let secret = libcrypto_rust::okp_compute_coordinate(key.handle(), public_key.handle());
+        let Ok(mut secret) = secret else {
             return Err(dom_error("OperationError", b"Failed to compute secret"));
         };
 
@@ -11072,8 +11061,7 @@ impl AlgorithmMethods for X25519 {
         // 9. If length is null:
         //    Return secret.
         let Some(length) = length_optional else {
-            let result = Bytes::new(copy_bytes(cx.vm(), secret.as_slice())?);
-            return Ok(result);
+            return Ok(Bytes::new(secret));
         };
 
         // 9. Otherwise:
@@ -11086,13 +11074,8 @@ impl AlgorithmMethods for X25519 {
 
         // Otherwise:
         //    Return a byte sequence containing the first length bits of secret.
-        let mut slice = copy_bytes(cx.vm(), &secret.as_slice()[..length.div_ceil(8)])?;
-        if !length.is_multiple_of(8) {
-            // Zero out the last bits
-            *slice.last_mut().expect("a partial byte is present") &= 0xFF << (8 - (length % 8));
-        }
-
-        Ok(Bytes::new(slice))
+        keep_first_bits(&mut secret, length);
+        Ok(Bytes::new(secret))
     }
 
     // https://w3c.github.io/webcrypto/#x25519-operations-generate-key
@@ -11603,7 +11586,7 @@ impl AlgorithmMethods for X448 {
     // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
     fn derive_bits(
         &self,
-        cx: &CallContext,
+        _: &CallContext,
         _: &AlgorithmParams,
         key: Ref<CryptoKey>,
         length_optional: Option<u32>,
@@ -11634,8 +11617,8 @@ impl AlgorithmMethods for X448 {
         // 5. Let secret be the result of performing the X448 function specified in [RFC7748] Section 5
         //    with key as the X448 private key k and the X448 public key represented by the [[handle]]
         //    internal slot of publicKey as the X448 public key u.
-        let secret = libcrypto_rust::okp_compute_coordinate(key.handle(), public_key.handle()).map(Bytes::new);
-        let Ok(secret) = secret else {
+        let secret = libcrypto_rust::okp_compute_coordinate(key.handle(), public_key.handle());
+        let Ok(mut secret) = secret else {
             return Err(dom_error("OperationError", b"Failed to compute secret"));
         };
 
@@ -11653,8 +11636,7 @@ impl AlgorithmMethods for X448 {
         // 7. If length is null:
         //    Return secret
         let Some(length) = length_optional else {
-            let result = Bytes::new(copy_bytes(cx.vm(), secret.as_slice())?);
-            return Ok(result);
+            return Ok(Bytes::new(secret));
         };
 
         // 7. Otherwise:
@@ -11667,13 +11649,8 @@ impl AlgorithmMethods for X448 {
 
         // Otherwise:
         //    Return an octet string containing the first length bits of secret.
-        let mut slice = copy_bytes(cx.vm(), &secret.as_slice()[..length.div_ceil(8)])?;
-        if !length.is_multiple_of(8) {
-            // Zero out the last bits
-            *slice.last_mut().expect("a partial byte is present") &= 0xFF << (8 - (length % 8));
-        }
-
-        Ok(Bytes::new(slice))
+        keep_first_bits(&mut secret, length);
+        Ok(Bytes::new(secret))
     }
 
     // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
