@@ -30,7 +30,9 @@ HubConnection::HubConnection(NonnullOwnPtr<IPC::Transport> transport)
 
 HubConnection::~HubConnection()
 {
-    s_the = nullptr;
+    // NB: A connection can outlive the one that took its place, as when a launch connects to a second Hub.
+    if (s_the == this)
+        s_the = nullptr;
 }
 
 HubConnection& HubConnection::the()

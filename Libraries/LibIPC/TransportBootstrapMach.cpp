@@ -22,7 +22,7 @@
 
 namespace IPC {
 
-ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_server_port(Core::MachPort const& server_port)
+ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_server_port(Core::MachPort const& server_port, AK::Duration reply_timeout)
 {
     auto reply_port = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
 
@@ -51,9 +51,8 @@ ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_server_port(Core::
         return Core::mach_error_to_error(send_result);
 
     ReceivedIPCChannelPortsMessage reply {};
-    mach_msg_timeout_t const reply_timeout = 5000;
     auto const recv_result = mach_msg(&reply.header, MACH_RCV_MSG | MACH_RCV_TIMEOUT, 0, sizeof(reply),
-        reply_port.port(), reply_timeout, MACH_PORT_NULL);
+        reply_port.port(), static_cast<mach_msg_timeout_t>(reply_timeout.to_milliseconds()), MACH_PORT_NULL);
     if (recv_result != KERN_SUCCESS)
         return Core::mach_error_to_error(recv_result);
 
