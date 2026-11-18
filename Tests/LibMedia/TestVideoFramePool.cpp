@@ -62,6 +62,8 @@ static Media::VideoFrameMetadata make_metadata()
                 Media::MatrixCoefficients::BT709,
                 Media::VideoFullRangeFlag::Full,
             },
+            .mastering_display_color_volume = {},
+            .content_light_level_information = {},
         },
     };
 }
