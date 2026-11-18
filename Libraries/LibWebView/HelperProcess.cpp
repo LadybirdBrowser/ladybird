@@ -665,6 +665,28 @@ ErrorOr<RequestServerClientConnection> connect_new_request_server_client(Browsin
     return RequestServerManager::the().connect_new_client(*instance, session, site_binding);
 }
 
+MonotonicTime deadline_for_helper_response()
+{
+    // NB: A helper that waits for a debugger does not answer until the user lets it go on.
+    if (!Application::browser_options().debug_helper_processes.is_empty())
+        return MonotonicTime::now() + AK::Duration::from_seconds(60 * 60 * 24 * 365);
+    return MonotonicTime::now() + helper_response_timeout;
+}
+
+void end_unresponsive_helper(IPC::ConnectionBase& connection)
+{
+    Optional<u64> child_id;
+    Application::process_manager().for_each_process([&](Process& process) {
+        if (process.client<IPC::ConnectionBase>() == &connection)
+            child_id = process.child_id();
+    });
+    if (child_id.has_value()) {
+        warnln("Ending a helper process that did not respond in time");
+        (void)Application::process_manager().terminate_child(*child_id, Core::Process::TerminationMode::Forceful);
+    }
+    connection.shutdown();
+}
+
 u64 allocate_audio_tab_id()
 {
     static u64 s_next_audio_tab_id { 1 };
@@ -683,7 +705,7 @@ ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(AudioServerControl
     if (!controller.is_open())
         return Error::from_string_literal("The AudioServer is gone");
 
-    auto response = controller.send_sync_but_allow_failure<Messages::AudioServerControl::ConnectNewClient>(audio_tab_id);
+    auto response = send_sync_to_helper<Messages::AudioServerControl::ConnectNewClient>(controller, audio_tab_id);
     if (!response || !response->handle().has_value())
         return Error::from_string_literal("Failed to connect to AudioServer");
     return response->take_handle().release_value();
@@ -702,7 +724,7 @@ static ErrorOr<IPC::TransportHandle> connect_new_video_decoder_server_client(Ref
     if (!controller || !controller->is_open())
         controller = TRY(launch_video_decoder_server_process(owner_child_id, gpu_device_identity));
 
-    auto response = controller->send_sync_but_allow_failure<Messages::VideoDecoderServerControl::ConnectNewClient>();
+    auto response = send_sync_to_helper<Messages::VideoDecoderServerControl::ConnectNewClient>(*controller);
     if (!response || !response->handle().has_value())
         return Error::from_string_literal("Failed to connect to VideoDecoderServer");
     return response->take_handle().release_value();
@@ -725,7 +747,7 @@ ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<Medi
         };
     }
 
-    auto response = controller->send_sync_but_allow_failure<Messages::MediaServer::ConnectNewClient>();
+    auto response = send_sync_to_helper<Messages::MediaServer::ConnectNewClient>(*controller);
     if (!response || !response->handle().has_value())
         return Error::from_string_literal("Failed to connect to MediaServer");
     return MediaServerClientConnection { response->take_handle().release_value(), response->client_id() };
