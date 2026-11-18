@@ -1,0 +1,16 @@
+When an element leaves “display: none”, Ladybird builds its box as a
+change of its layout parent’s child list, whatever display it’s shown
+with, and whether or not its own children changed while it was hidden.
+
+Blink marks such an element with Node::SetNeedsReattachLayoutTree(), and
+Element::RebuildLayoutTree() then attaches it among the layout children
+of its parent. In WebKit, RenderTreeUpdater::updateElementRenderer()
+calls createRenderer() for it where the update holds Style::Change::
+Renderer. Gecko posts nsChangeHint_ReconstructFrame for the element,
+and nsCSSFrameConstructor::RecreateFramesForContent() builds its
+frames. None of the three keeps a mark of its own for children inserted
+into an element without a box, so nothing there can stand in for the
+mark that builds the box.
+
+In Chrome 157.0.8103.79, Firefox 151.0 and WebKit 26.5, the test’s
+25 cases come out the same.
