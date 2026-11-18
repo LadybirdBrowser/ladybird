@@ -25,9 +25,18 @@ enum class FontHintingStyle {
     Full,
 };
 
-struct FontHintingOptions {
-    FontHintingStyle style { FontHintingStyle::Normal };
+enum class FontSubpixelOrder {
+    None,
+    RGB,
+    BGR,
+    VerticalRGB,
+    VerticalBGR,
+};
+
+struct FontRenderingOptions {
+    FontHintingStyle hinting_style { FontHintingStyle::Normal };
     bool force_autohinting { false };
+    bool allows_lcd_text { false };
 };
 
 // The FC_SLANT value for a slope of 0 for upright, 1 for italic or 2 for oblique.
@@ -38,7 +47,8 @@ public:
     static GlobalFontConfig& the();
     FcConfig* get();
 
-    FontHintingOptions hinting_for_font(FlyString const& family, float pixel_size, u16 weight, u8 slope);
+    FontRenderingOptions rendering_options_for_font(FlyString const& family, float pixel_size, u16 weight, u8 slope);
+    FontSubpixelOrder subpixel_order() const;
 
 private:
     friend class AK::NeverDestroyed<GlobalFontConfig>;

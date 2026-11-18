@@ -26,7 +26,7 @@ namespace Compositor {
 #if defined(USE_DIRECTX) || defined(USE_VULKAN)
 static NonnullRefPtr<Gfx::PaintingSurface> create_gpu_painting_surface_with_bitmap_flush(Gfx::IntSize size, Gfx::SharedImageBuffer& buffer, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
-    auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context);
+    auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context, {}, Gfx::PaintingSurface::TextAntialiasing::LCD);
     auto bitmap = buffer.bitmap();
     surface->on_flush = [bitmap = move(bitmap)](auto& surface) {
         surface.read_into_bitmap(*bitmap);
@@ -49,7 +49,7 @@ static NonnullRefPtr<Gfx::PaintingSurface> create_shareable_bitmap_backing_store
 #    endif
 #endif
 
-    return Gfx::PaintingSurface::wrap_bitmap(*buffer.bitmap());
+    return Gfx::PaintingSurface::wrap_bitmap(*buffer.bitmap(), Gfx::PaintingSurface::TextAntialiasing::LCD);
 }
 
 #if defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
@@ -97,7 +97,7 @@ static ErrorOr<GpuBackingStore> create_shared_gpu_backing_store(Gfx::IntSize siz
     auto shared_image = Gfx::duplicate_shared_image(*image);
 
     return GpuBackingStore {
-        .surface = Gfx::PaintingSurface::create_from_vkimage(skia_backend_context, move(image), Gfx::PaintingSurface::Origin::TopLeft),
+        .surface = Gfx::PaintingSurface::create_from_vkimage(skia_backend_context, move(image), Gfx::PaintingSurface::Origin::TopLeft, Gfx::PaintingSurface::TextAntialiasing::LCD),
         .shared_image = move(shared_image),
     };
 }

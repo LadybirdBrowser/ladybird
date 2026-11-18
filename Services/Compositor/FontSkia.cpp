@@ -19,6 +19,7 @@
 #include <core/SkFontMgr.h>
 #include <core/SkFontTypes.h>
 #include <core/SkStream.h>
+#include <core/SkSurfaceProps.h>
 #include <core/SkTypeface.h>
 #include <ports/SkFontMgr_empty.h>
 
@@ -39,10 +40,9 @@
 namespace Compositor {
 
 static FontRasterizer s_font_rasterizer { FontRasterizer::Platform };
+static bool s_use_test_font_rendering { false };
 
 #if defined(USE_FONTCONFIG)
-static bool s_force_hinting_for_testing { false };
-
 static SkFontHinting to_skia_hinting(Gfx::FontHintingStyle style)
 {
     switch (style) {
@@ -59,15 +59,16 @@ static SkFontHinting to_skia_hinting(Gfx::FontHintingStyle style)
 }
 
 // The scale's bits sit above, bit 0 says the word holds an answer, bits 1 and 2 carry the style and bit 3 the
-// autohinting flag.
-static constexpr u64 hinting_memo_holds_answer = 1;
+// autohinting flag, and bit 4 records whether the font allows LCD text.
+static constexpr u64 rendering_options_memo_holds_answer = 1;
 
-static u64 encode_hinting_memo(float scale, Gfx::FontHintingOptions options)
+static u64 encode_rendering_options(float scale, Gfx::FontRenderingOptions options)
 {
     return (static_cast<u64>(bit_cast<u32>(scale)) << 32)
-        | hinting_memo_holds_answer
-        | (static_cast<u64>(to_underlying(options.style)) << 1)
-        | (static_cast<u64>(options.force_autohinting) << 3);
+        | rendering_options_memo_holds_answer
+        | (static_cast<u64>(to_underlying(options.hinting_style)) << 1)
+        | (static_cast<u64>(options.force_autohinting) << 3)
+        | (static_cast<u64>(options.allows_lcd_text) << 4);
 }
 #endif
 
@@ -192,7 +193,7 @@ struct FontData final : public Gfx::RasterizerData {
 #if defined(USE_FONTCONFIG)
     // A font is drawn at one scale most of the time, and fontconfig's answer is a pure function of the family, the
     // scaled pixel size, the weight and the slope, so one answer is kept.
-    Atomic<u64> hinting_memo { 0 };
+    Atomic<u64> rendering_options_memo { 0 };
 #endif
 };
 
@@ -202,19 +203,20 @@ FontData& font_data(Gfx::Font const& font)
 }
 
 #if defined(USE_FONTCONFIG)
-Gfx::FontHintingOptions hinting_options(Gfx::Font const& font, float scale)
+Gfx::FontRenderingOptions rendering_options(Gfx::Font const& font, float scale, FontData& data)
 {
-    auto& memo = font_data(font).hinting_memo;
+    auto& memo = data.rendering_options_memo;
     auto value = memo.load(AK::MemoryOrder::memory_order_relaxed);
-    if ((value & hinting_memo_holds_answer) != 0 && bit_cast<float>(static_cast<u32>(value >> 32)) == scale) {
-        return Gfx::FontHintingOptions {
-            .style = static_cast<Gfx::FontHintingStyle>((value >> 1) & 3),
+    if ((value & rendering_options_memo_holds_answer) != 0 && bit_cast<float>(static_cast<u32>(value >> 32)) == scale) {
+        return Gfx::FontRenderingOptions {
+            .hinting_style = static_cast<Gfx::FontHintingStyle>((value >> 1) & 3),
             .force_autohinting = ((value >> 3) & 1) != 0,
+            .allows_lcd_text = ((value >> 4) & 1) != 0,
         };
     }
 
-    auto options = Gfx::GlobalFontConfig::the().hinting_for_font(font.family(), font.pixel_size() * scale, font.weight(), font.slope());
-    memo.store(encode_hinting_memo(scale, options), AK::MemoryOrder::memory_order_relaxed);
+    auto options = Gfx::GlobalFontConfig::the().rendering_options_for_font(font.family(), font.pixel_size() * scale, font.weight(), font.slope());
+    memo.store(encode_rendering_options(scale, options), AK::MemoryOrder::memory_order_relaxed);
     return options;
 }
 #endif
@@ -226,14 +228,43 @@ void set_font_rasterizer(FontRasterizer rasterizer)
     s_font_rasterizer = rasterizer;
 }
 
-void force_font_hinting_for_testing()
+void use_test_font_rendering()
 {
-#if defined(USE_FONTCONFIG)
-    s_force_hinting_for_testing = true;
-#endif
+    s_use_test_font_rendering = true;
 }
 
-Optional<SkFont> skia_font(Gfx::Font const& font, float scale)
+#if defined(AK_OS_LINUX) && defined(USE_FONTCONFIG)
+static SkPixelGeometry configured_pixel_geometry()
+{
+    switch (Gfx::GlobalFontConfig::the().subpixel_order()) {
+    case Gfx::FontSubpixelOrder::None:
+        return kUnknown_SkPixelGeometry;
+    case Gfx::FontSubpixelOrder::RGB:
+        return kRGB_H_SkPixelGeometry;
+    case Gfx::FontSubpixelOrder::BGR:
+        return kBGR_H_SkPixelGeometry;
+    case Gfx::FontSubpixelOrder::VerticalRGB:
+        return kRGB_V_SkPixelGeometry;
+    case Gfx::FontSubpixelOrder::VerticalBGR:
+        return kBGR_V_SkPixelGeometry;
+    }
+    VERIFY_NOT_REACHED();
+}
+#endif
+
+SkSurfaceProps skia_text_surface_properties(u32 flags, [[maybe_unused]] bool allows_lcd_text)
+{
+    auto geometry = kUnknown_SkPixelGeometry;
+#if defined(AK_OS_LINUX) && defined(USE_FONTCONFIG)
+    if (allows_lcd_text && !s_use_test_font_rendering) {
+        static auto const configured_geometry = configured_pixel_geometry();
+        geometry = configured_geometry;
+    }
+#endif
+    return { flags, geometry };
+}
+
+Optional<SkFont> skia_font(Gfx::Font const& font, float scale, [[maybe_unused]] bool requests_lcd_text)
 {
     auto& data = font_data(font);
     if (!data.typeface)
@@ -250,12 +281,14 @@ Optional<SkFont> skia_font(Gfx::Font const& font, float scale)
         sk_font.setSkewX(-AK::tan(AK::to_radians(synthesis.oblique_angle)));
 
 #if defined(USE_FONTCONFIG)
-    if (s_force_hinting_for_testing) {
+    if (s_use_test_font_rendering) {
         sk_font.setHinting(SkFontHinting::kNormal);
     } else {
-        auto options = hinting_options(font, scale);
-        sk_font.setHinting(to_skia_hinting(options.style));
+        auto options = rendering_options(font, scale, data);
+        sk_font.setHinting(to_skia_hinting(options.hinting_style));
         sk_font.setForceAutoHinting(options.force_autohinting);
+        if (requests_lcd_text && options.allows_lcd_text)
+            sk_font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
     }
 #endif
 

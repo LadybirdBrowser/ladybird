@@ -299,6 +299,7 @@ impl OverlayPicture {
             replay_records(self.ui_overlay_records.as_bytes(), &context, painter);
             if let Some(controls) = &self.picture_in_picture_controls {
                 painter.push_layer(&ReplayLayer {
+                    can_draw_directly_for_lcd_text: false,
                     opacity: controls.opacity,
                     blend_mode: CompositingAndBlendingOperator::Normal,
                     filter_bytes: std::ptr::null(),

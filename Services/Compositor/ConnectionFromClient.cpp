@@ -159,6 +159,11 @@ void ConnectionFromClient::set_context_presents_from_cpu_memory(Web::CompositorC
     m_compositor_state->set_context_presents_from_cpu_memory(context_id, presents_from_cpu_memory);
 }
 
+void ConnectionFromClient::set_context_scales_frames_to_fit(Web::CompositorContextId context_id, bool scales_frames_to_fit)
+{
+    m_compositor_state->set_context_scales_frames_to_fit(context_id, scales_frames_to_fit);
+}
+
 void ConnectionFromClient::crash()
 {
     warnln("Crashing Compositor process by request from Browser");

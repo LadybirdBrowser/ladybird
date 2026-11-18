@@ -883,6 +883,13 @@ void CompositorState::set_context_presents_from_cpu_memory(Web::CompositorContex
     m_core.set_presents_from_cpu_memory(context_id, presents_from_cpu_memory);
 }
 
+void CompositorState::set_context_scales_frames_to_fit(Web::CompositorContextId context_id, bool scales_frames_to_fit)
+{
+    if (!presented_context_if_present(context_id))
+        return;
+    m_core.set_scales_frames_to_fit(context_id, scales_frames_to_fit);
+}
+
 void CompositorState::request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second)
 {
     VERIFY(presented_context_if_present(context_id));
@@ -1103,7 +1110,7 @@ CompositorState::PresentedContext& CompositorState::presented_context(Web::Compo
     return *context;
 }
 
-Compositing::RustFFI::FfiRasterPainter CompositorState::begin_painting(Web::CompositorContextId context_id, Gfx::PaintingSurface& surface, RustFFI::PaintingResources resources)
+Compositing::RustFFI::FfiRasterPainter CompositorState::begin_painting(Web::CompositorContextId context_id, Gfx::PaintingSurface& surface, RustFFI::PaintingResources resources, bool allows_lcd_text)
 {
     auto& context = presented_context(context_id);
     auto& raster_targets = context.raster_targets;
@@ -1112,9 +1119,7 @@ Compositing::RustFFI::FfiRasterPainter CompositorState::begin_painting(Web::Comp
     auto& player = *m_display_list_players[m_painting_depth++];
     switch (resources) {
     case RustFFI::PaintingResources::Page:
-        return player.begin_painting(surface, raster_targets.fonts(), &raster_targets.image_frames(), raster_targets.raster_cache(), &raster_targets.canvas_surfaces(), [this, &client = context.web_content_client](Media::VideoSinkHandle handle) {
-            return current_video_frame(client, handle);
-        });
+        return player.begin_painting(surface, raster_targets.fonts(), &raster_targets.image_frames(), raster_targets.raster_cache(), &raster_targets.canvas_surfaces(), [this, &client = context.web_content_client](Media::VideoSinkHandle handle) { return current_video_frame(client, handle); }, allows_lcd_text);
     case RustFFI::PaintingResources::Overlays:
         return player.begin_painting(surface, raster_targets.overlay_fonts(), nullptr, raster_targets.overlay_raster_cache(), nullptr, nullptr);
     }
@@ -1680,9 +1685,12 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .surface_retain = [](void* surface) { painting_surface_of(surface).ref(); },
         .surface_release = [](void* surface) { painting_surface_of(surface).unref(); },
         .surface_size = [](void* surface, Gfx::IntSize* size) { *size = painting_surface_of(surface).size(); },
-        .create_surface = [](void* host, Gfx::IntSize size, void* like) -> void* {
+        .create_surface = [](void* host, Gfx::IntSize size, void* like, bool inherits_lcd_text) -> void* {
             auto skia_backend_context = like ? painting_surface_of(like).skia_backend_context() : state_of(host).m_skia_backend_context;
-            auto surface = Gfx::PaintingSurface::try_create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context);
+            auto text_antialiasing = Gfx::PaintingSurface::TextAntialiasing::Grayscale;
+            if (inherits_lcd_text && like && canvas_of(like).getBaseProps().pixelGeometry() != kUnknown_SkPixelGeometry)
+                text_antialiasing = Gfx::PaintingSurface::TextAntialiasing::LCD;
+            auto surface = Gfx::PaintingSurface::try_create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context, {}, text_antialiasing);
             if (surface.is_error())
                 return nullptr;
             return &surface.release_value().leak_ref();
@@ -1701,7 +1709,7 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
             paint.setBlendMode(blend == RustFFI::SurfaceBlend::Source ? SkBlendMode::kSrc : SkBlendMode::kSrcOver);
             canvas_of(target).drawImageRect(image.get(), Gfx::to_skia_rect(source_rect), Gfx::to_skia_rect(target_rect), SkSamplingOptions {}, &paint, SkCanvas::kStrict_SrcRectConstraint); },
         .flush_surface = [](void*, void* surface) { DisplayListPlayerSkia::flush(painting_surface_of(surface)); },
-        .begin_painting = [](void* host, u64 context_id, void* surface, RustFFI::PaintingResources resources, Compositing::RustFFI::FfiRasterPainter* painter) { *painter = state_of(host).begin_painting(Context { context_id }, painting_surface_of(surface), resources); },
+        .begin_painting = [](void* host, u64 context_id, void* surface, RustFFI::PaintingResources resources, bool allows_lcd_text, Compositing::RustFFI::FfiRasterPainter* painter) { *painter = state_of(host).begin_painting(Context { context_id }, painting_surface_of(surface), resources, allows_lcd_text); },
         .end_painting = [](void* host) { state_of(host).end_painting(); },
         .start_raster_cache_frame = [](void* host, u64 context_id) { state_of(host).presented_context(Context { context_id }).raster_targets.raster_cache().drop_what_was_not_used_since_last_frame(); },
         .store_state = [](void* host, u64 context_id) -> RustFFI::FfiStoreState {

@@ -673,6 +673,7 @@ fn return_replay_scratch_storage(mut storage: ReplayScratchStorage) {
 pub struct ReplaySelection<'a> {
     pub record_spans: Option<&'a [RecordSpan]>,
     pub skip_root_isolation_layer: bool,
+    pub allows_lcd_text: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -751,6 +752,7 @@ fn replay_layer_of(
     ReplayLayer {
         opacity: effects.opacity,
         blend_mode: effects.blend_mode,
+        can_draw_directly_for_lcd_text: false,
         filter_bytes,
         filter_bytes_size,
         backdrop_filter_bytes,
@@ -1120,6 +1122,11 @@ impl<Painter: ReplayPainter + ?Sized> ReplayDriver<'_, Painter> {
                                     layer.backdrop_base_color = self.backdrop_base_color(effect);
                                     layer.backdrop_blur_edge = self.backdrop_blur_edge(effect);
                                 }
+                                // The canvas fill was recorded before this group. Where it painted opaque pixels,
+                                // the painter can blend text directly into them.
+                                layer.can_draw_directly_for_lcd_text = self.selection.allows_lcd_text
+                                    && tree.root_isolation_effect == Some(effect)
+                                    && !effects.needs_layer();
                                 self.painter.push_layer(&layer);
                             }
                         }
@@ -1443,6 +1450,7 @@ mod tests {
         base_matrix: FloatMatrix4x4,
         fully_clipped_x: i32,
         layer_content_bounds: Vec<Option<FloatRect>>,
+        layers_that_can_draw_directly_for_lcd_text: Vec<bool>,
         backdrop_base_colors: Vec<Color>,
         run_record_sizes: Vec<usize>,
     }
@@ -1454,6 +1462,7 @@ mod tests {
                 base_matrix: translation_matrix(100.0, 200.0, 0.0),
                 fully_clipped_x: i32::MIN,
                 layer_content_bounds: Vec::new(),
+                layers_that_can_draw_directly_for_lcd_text: Vec::new(),
                 backdrop_base_colors: Vec::new(),
                 run_record_sizes: Vec::new(),
             }
@@ -1479,6 +1488,8 @@ mod tests {
         fn push_layer(&mut self, layer: &ReplayLayer) {
             self.events.push(PainterEvent::PushLayer(layer.opacity));
             self.layer_content_bounds.push(layer.content_bounds.get());
+            self.layers_that_can_draw_directly_for_lcd_text
+                .push(layer.can_draw_directly_for_lcd_text);
             if layer.backdrop_filter_bytes_size != 0 {
                 self.backdrop_base_colors.push(layer.backdrop_base_color);
             }
@@ -1706,7 +1717,7 @@ mod tests {
             8,
             ReplaySelection {
                 record_spans: Some(&spans),
-                skip_root_isolation_layer: false,
+                ..Default::default()
             },
         );
         assert_eq!(
@@ -1737,7 +1748,7 @@ mod tests {
             16,
             ReplaySelection {
                 record_spans: Some(&spans),
-                skip_root_isolation_layer: false,
+                ..Default::default()
             },
         );
         assert_eq!(painter.events, vec![PainterEvent::Run(0), PainterEvent::Run(1)]);
@@ -1765,8 +1776,8 @@ mod tests {
             &mut runs,
             8,
             ReplaySelection {
-                record_spans: None,
                 skip_root_isolation_layer: true,
+                ..Default::default()
             },
         );
         assert_eq!(
@@ -1778,6 +1789,48 @@ mod tests {
                 PainterEvent::Pop,
             ]
         );
+    }
+
+    #[test]
+    fn only_the_plain_root_layer_of_an_lcd_presentation_can_draw_directly() {
+        let mut tree = identity_tree();
+        let root = effect_under(&mut tree, effects(1.0), EffectNodeIndex::NONE, ClipNodeIndex::NONE);
+        tree.root_isolation_effect = Some(root);
+        let nested = effect_under(&mut tree, effects(0.5), root, ClipNodeIndex::NONE);
+        let runs = [root, nested].map(|effect| {
+            run(
+                VISUAL_VIEWPORT_NODE_INDEX,
+                ContextRef {
+                    effect,
+                    ..ContextRef::default()
+                },
+                visible_bounds(),
+            )
+        });
+        let effect_clips = EffectClipPlan::new(&tree, &runs).unwrap();
+
+        let white = Color::from_rgb(255, 255, 255);
+        for (color, allows_lcd_text, expected) in [
+            (white, true, [true, false]),
+            (white, false, [false, false]),
+            (Color::TRANSPARENT, true, [true, false]),
+        ] {
+            let mut painter = RecordingPainter::new();
+            replay_display_list(
+                &tree,
+                &[],
+                &runs,
+                &effect_clips,
+                color,
+                &ReplayFrame::unscrolled(0),
+                ReplaySelection {
+                    allows_lcd_text,
+                    ..Default::default()
+                },
+                &mut painter,
+            );
+            assert_eq!(painter.layers_that_can_draw_directly_for_lcd_text, expected);
+        }
     }
 
     #[test]

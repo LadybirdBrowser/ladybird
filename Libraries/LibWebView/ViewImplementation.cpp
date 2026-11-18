@@ -520,7 +520,12 @@ void ViewImplementation::commit_synchronized_resize(u64 token)
 
 void ViewImplementation::set_scales_frames_to_fit(bool scales_frames_to_fit)
 {
+    if (m_scales_frames_to_fit == scales_frames_to_fit)
+        return;
+
     m_scales_frames_to_fit = scales_frames_to_fit;
+    if (has_traversable())
+        Application::the().update_compositor_context_scales_frames_to_fit(page().compositor_context_id(), scales_frames_to_fit);
     update_remote_layer_fit();
 }
 
@@ -3678,6 +3683,7 @@ void ViewImplementation::prepare_page_for_tab(WebContentPage& page)
     // The window handle names the tab to WebDriver, and the viewport is the tab's: both belong to the page displaying
     // it, whose traversable is local.
     page.async_set_window_handle(m_window_handle);
+    Application::the().update_compositor_context_scales_frames_to_fit(page.compositor_context_id(), m_scales_frames_to_fit);
     page.async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     Application::the().update_compositor_viewport(page.compositor_context_id(), viewport_size().to_type<int>(), m_device_pixel_ratio);
 }
@@ -3754,6 +3760,7 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         install_backing_stores(move(backing_stores->bitmap_ids), move(backing_stores->backing_stores));
 
     auto compositor_context_id = page.compositor_context_id();
+    Application::the().update_compositor_context_scales_frames_to_fit(compositor_context_id, m_scales_frames_to_fit);
     // The remote layer goes on showing the outgoing page's last frame until the page presents its first one.
     if (m_remote_layer_id.has_value())
         Application::the().show_context_in_remote_layer(*m_remote_layer_id, compositor_context_id);

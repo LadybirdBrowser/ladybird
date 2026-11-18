@@ -314,6 +314,7 @@ public:
     // Sends the screens that screen_rects() reports to every page hosting documents of the tab.
     void update_screen_rects();
     void set_scales_frames_to_fit(bool);
+    bool scales_frames_to_fit() const { return m_scales_frames_to_fit; }
     void enable_picture_in_picture_controls();
     void enqueue_input_event(Web::InputEvent);
     // The page reporting on an event must be the one handling it.

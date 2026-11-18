@@ -28,6 +28,7 @@ public:
         bool websites_prefer_dark { false };
         // The view of a tab can open others and ask the user about things, unlike that of a Picture-in-Picture window.
         bool is_tab { true };
+        bool scales_frames_to_fit { false };
     };
 
     explicit View(InitialState);
@@ -48,7 +49,6 @@ public:
     void set_viewport(Web::DevicePixelSize, double device_pixel_ratio);
     void set_system_theme(Core::AnonymousBuffer);
     void set_screen_rects(ScreenRects);
-    bool scales_frames_to_fit() const { return m_scales_frames_to_fit; }
     void set_wants_frame_notifications(bool wants_frame_notifications) { m_wants_frame_notifications = wants_frame_notifications; }
     void did_install_backing_stores_in_ui();
 

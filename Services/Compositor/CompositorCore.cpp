@@ -222,6 +222,11 @@ void CompositorCore::set_presents_from_cpu_memory(Web::CompositorContextId conte
     RustFFI::compositor_core_set_presents_from_cpu_memory(m_core, context_id.value(), presents_from_cpu_memory, now().nanoseconds());
 }
 
+void CompositorCore::set_scales_frames_to_fit(Web::CompositorContextId context_id, bool scales_frames_to_fit)
+{
+    RustFFI::compositor_core_set_scales_frames_to_fit(m_core, context_id.value(), scales_frames_to_fit, now().nanoseconds());
+}
+
 void CompositorCore::request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second)
 {
     RustFFI::compositor_core_request_rendering_opportunity(m_core, context_id.value(), maximum_frames_per_second, now().nanoseconds());

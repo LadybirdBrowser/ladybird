@@ -27,6 +27,7 @@ pub struct PaintedFrame {
     pub display_list: Rc<DisplayList>,
     pub frame_inputs: FrameInputs,
     pub viewport_size: IntSize,
+    allows_lcd_text: bool,
     canvas_content_generations: HashMap<u64, u64>,
     video_frame_ids: HashMap<u64, Option<u64>>,
     image_frame_pixel_generations: HashMap<u64, u64>,
@@ -72,6 +73,35 @@ impl StoreDamage {
             self.accumulated.remove(0);
         }
         repaint_rect
+    }
+
+    /// Damage discovered while painting the current store is still owed to the other stores.
+    pub fn add_damage_to_other_stores(&mut self, bitmap_id: i32, damage: IntRect) {
+        for (id, accumulated) in &mut self.accumulated {
+            if *id != bitmap_id {
+                *accumulated = accumulated.united(damage);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_late_full_repaint_is_owed_to_the_other_stores() {
+        let mut damage = StoreDamage::default();
+        let full_rect = IntRect::new(0, 0, 100, 100);
+        let partial_rect = IntRect::new(10, 10, 20, 20);
+        damage.take(1, full_rect, full_rect);
+        damage.take(2, full_rect, full_rect);
+        assert_eq!(damage.take(1, partial_rect, full_rect), full_rect);
+        assert_eq!(damage.take(2, partial_rect, full_rect), partial_rect);
+
+        damage.add_damage_to_other_stores(2, full_rect);
+        assert_eq!(damage.take(2, partial_rect, full_rect), partial_rect);
+        assert_eq!(damage.take(1, partial_rect, full_rect), full_rect);
     }
 }
 
@@ -151,6 +181,7 @@ impl ContextPresenting {
             .iter()
             .map(|&id| (id, env.nested_contexts.frame_generation_of(CompositorContextId(id))))
             .collect();
+        let allows_lcd_text = self.allows_lcd_text(display_list, &frame_inputs);
         self.painted_frame = Some(PaintedFrame {
             display_list: display_list.clone(),
             frame_inputs,
@@ -158,6 +189,7 @@ impl ContextPresenting {
                 width: viewport_rect.width,
                 height: viewport_rect.height,
             },
+            allows_lcd_text,
             canvas_content_generations,
             video_frame_ids,
             image_frame_pixel_generations,
@@ -170,6 +202,7 @@ impl ContextPresenting {
         env: &PresentingEnvironment<'_>,
         viewport_size: IntSize,
         display_list: &DisplayList,
+        frame_inputs: &FrameInputs,
         live_content: &LiveContent,
     ) -> LiveContentChangesSinceLastPaint {
         let mut changes = LiveContentChangesSinceLastPaint::default();
@@ -179,6 +212,7 @@ impl ContextPresenting {
         };
         if painted_frame.viewport_size != viewport_size
             || painted_frame.display_list.surface_clear_color() != display_list.surface_clear_color()
+            || painted_frame.allows_lcd_text != self.allows_lcd_text(display_list, frame_inputs)
         {
             changes.repaints_everything = true;
         }
@@ -261,7 +295,13 @@ impl ContextPresenting {
         };
         let viewport_rect = rect_of_size(viewport_size);
         let forced_damage_rect = pending_frame.forced_damage_rect.intersected(viewport_rect);
-        let changes = self.live_content_changes_since_last_paint(env, viewport_size, frame.display_list, live_content);
+        let changes = self.live_content_changes_since_last_paint(
+            env,
+            viewport_size,
+            frame.display_list,
+            frame.frame_inputs,
+            live_content,
+        );
         self.layers.media_activity.note_updates(&changes.media_updates, env.now);
 
         let mut layers = self.layer_update_for(env, frame, viewport_rect, live_content);

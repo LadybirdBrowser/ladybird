@@ -460,6 +460,7 @@ impl ContextPresenting {
                         height: rect.height,
                     },
                     Some(surface),
+                    false,
                 ) else {
                     self.layers.surfaces = surfaces;
                     return false;
