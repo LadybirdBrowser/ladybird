@@ -1,0 +1,5 @@
+pre-wrap: empty span at 60,0, height 40
+pre-wrap-two-spaces: empty span at 80,0, height 40
+break-spaces: empty span at 60,0, height 40
+pre-line: empty span at 40,0, height 40
+pre-wrap-rtl: empty span at 0,0, height 40

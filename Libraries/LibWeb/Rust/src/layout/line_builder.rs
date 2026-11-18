@@ -81,6 +81,8 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     /// The outside markers that the first line box this builder lays out contributes to.
     outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     unbreakable_run_inline_size_interrupted_by_float: CssPixels,
+    /// The advance of the preserved white space that a line is breaking at, which hangs at the end of that line.
+    hanging_whitespace_inline_size: CssPixels,
     text_indentation: inline_formatting_context::TextIndentation,
     direction: u8,
     last_line_needs_update: bool,
@@ -176,6 +178,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             nodes_with_edges_of_collapsed_whitespace: Vec::new(),
             outside_marker_line: context.parent.pending_outside_marker_line(),
             unbreakable_run_inline_size_interrupted_by_float: CssPixels::default(),
+            hanging_whitespace_inline_size: CssPixels::default(),
             text_indentation: inline_formatting_context::TextIndentation::of(style, containing_inline_size),
             direction: style.direction(),
             last_line_needs_update: false,
@@ -1472,11 +1475,16 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             marker.block_offset += block_offset + current_block_offset + shift;
         }
         {
+            // NB: An inline box after preserved white space that hangs at the end of the line comes after that white
+            //     space, even though the line's inline length doesn't count it.
+            let hanging_whitespace_inline_size = self.hanging_whitespace_inline_size;
             let mut line = self.line_mut(line_index);
             let content_inline_length = line.inline_length;
             let is_right_to_left = line.direction == direction::RTL;
             for strut in &mut line.inline_box_struts {
-                let offset = strut.inline_offset.min(content_inline_length);
+                let offset = strut
+                    .inline_offset
+                    .min(content_inline_length + hanging_whitespace_inline_size);
                 strut.inline_offset = marker_inline_offset
                     + if is_right_to_left {
                         content_inline_length - offset
@@ -1977,6 +1985,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
 
     pub(crate) fn current_block_offset(&self) -> CssPixels {
         self.current_block_offset
+    }
+
+    pub(crate) fn set_hanging_whitespace_inline_size(&mut self, inline_size: CssPixels) {
+        self.hanging_whitespace_inline_size = inline_size;
     }
 
     pub(crate) fn set_unbreakable_run_inline_size_interrupted_by_float(&mut self, inline_size: CssPixels) {

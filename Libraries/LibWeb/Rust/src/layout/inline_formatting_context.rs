@@ -2554,10 +2554,17 @@ impl<'context> InlineFormattingContext<'context> {
                 if item.is_collapsible_whitespace
                     || (item.type_ == inline_level_iterator::ItemType::Text && item.is_ascii_whitespace(self))
                 {
+                    // NB: Preserved white space stays on the line, hanging off its end if it has to, so a box after
+                    //     it comes after it on the line too.
+                    let preserved_whitespace_inline_size = if item.is_collapsible_whitespace {
+                        CssPixels::default()
+                    } else {
+                        inline_level_iterator::inline_extent([&item])
+                    };
                     for empty_box in iterator.empty_inline_boxes_after_last_item() {
                         line_builder.add_strut_of_empty_inline_box(
                             empty_box.node,
-                            pending_leading_edges + empty_box.leading_edges,
+                            pending_leading_edges + preserved_whitespace_inline_size + empty_box.leading_edges,
                         );
                     }
                 }
@@ -2800,11 +2807,20 @@ impl<'context> InlineFormattingContext<'context> {
                         let overflow_break_allowed = !is_whitespace && self.overflow_break_applies_to_style(style);
                         match opportunity {
                             TextItemWrapOpportunity::BeforeWhitespaceSequence(sequence_inline_size) => {
+                                // https://drafts.csswg.org/css-text-3/#white-space-phase-2
+                                // "If 'white-space' is set to 'pre-wrap', the UA must (unconditionally) hang this
+                                // sequence, unless the sequence is followed by a forced line break"
+                                if !item.is_collapsible_whitespace {
+                                    line_builder.set_hanging_whitespace_inline_size(
+                                        inline_level_iterator::inline_extent([&item]),
+                                    );
+                                }
                                 let broke_line = if iterator.next_non_whitespace_text_allows_overflow_break(self) {
                                     line_builder.break_if_needed_before_overflow_breakable_item(sequence_inline_size)
                                 } else {
                                     line_builder.break_if_needed(sequence_inline_size)
                                 };
+                                line_builder.set_hanging_whitespace_inline_size(CssPixels::default());
                                 if broke_line {
                                     line_builder.set_trailing_whitespace_on_previous_line(&item);
                                     let next_line_start = fragmentation::LinePosition {
