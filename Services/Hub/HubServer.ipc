@@ -22,6 +22,7 @@
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
+#include <LibWebView/DefaultBrowser.h>
 #include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/ProcessSnapshot.h>
@@ -199,6 +200,8 @@ endpoint HubServer
     geolocation_error(u64 id, Core::GeolocationError error) =|
     geolocation_authorization_changed(Core::GeolocationAuthorization authorization) =|
     microphone_authorization_changed(WebView::MicrophoneAuthorization authorization) =|
+    default_browser_status_changed(WebView::DefaultBrowserStatus status) =|
+    default_browser_make_default_finished(bool failed, Optional<String> system_message) =|
     gamepad_connected(Web::Gamepad::GamepadDescription description, Web::Gamepad::GamepadState state) =|
     gamepad_disconnected(u32 handle) =|
     gamepad_states_changed(Vector<Web::Gamepad::GamepadState> states) =|

@@ -78,7 +78,8 @@
                 flex-shrink: 0;
             }
 
-            .inline-container input[type="checkbox"] {
+            .inline-container input[type="checkbox"],
+            .inline-container > button {
                 flex-shrink: 0;
             }
 
@@ -1165,6 +1166,13 @@
                 <h3 class="card-title">Startup</h3>
                 <div class="card">
                     <div class="card-body">
+                        <div class="card-group inline-container hidden" id="default-browser-group">
+                            <label id="default-browser-label">
+                                Default browser
+                                <p id="default-browser-status" class="description" role="status"></p>
+                            </label>
+                            <button id="make-default-browser" class="secondary-button">Make default</button>
+                        </div>
                         <div class="card-group inline-container control-row">
                             <label for="restore-previous-session">Restore previous windows and tabs</label>
                             <input id="restore-previous-session" type="checkbox" switch />

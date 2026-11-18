@@ -577,6 +577,18 @@ void HubConnection::microphone_request_authorization()
     });
 }
 
+void HubConnection::default_browser_make_default()
+{
+    auto* default_browser = Application::the().default_browser();
+    if (!default_browser) {
+        async_default_browser_make_default_finished(true, {});
+        return;
+    }
+    default_browser->make_default([this](WebView::MakeDefaultBrowserResult const& result) {
+        async_default_browser_make_default_finished(result.failed, result.system_message);
+    });
+}
+
 // NB: The gamepads are read here, as the Hub links no platform input library. The Hub decides which pages learn of them.
 void HubConnection::gamepad_start(bool ignore_system_gamepads)
 {

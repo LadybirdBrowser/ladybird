@@ -119,6 +119,8 @@ private:
     virtual void geolocation_error(u64 id, Core::GeolocationError error) override;
     virtual void geolocation_authorization_changed(Core::GeolocationAuthorization authorization) override;
     virtual void microphone_authorization_changed(WebView::MicrophoneAuthorization authorization) override;
+    virtual void default_browser_status_changed(WebView::DefaultBrowserStatus status) override;
+    virtual void default_browser_make_default_finished(bool failed, Optional<String> system_message) override;
     virtual void gamepad_connected(Web::Gamepad::GamepadDescription description, Web::Gamepad::GamepadState state) override;
     virtual void gamepad_disconnected(u32 handle) override;
     virtual void gamepad_states_changed(Vector<Web::Gamepad::GamepadState> states) override;

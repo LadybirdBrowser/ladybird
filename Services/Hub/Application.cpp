@@ -349,6 +349,13 @@ Core::EventLoop& Application::create_platform_event_loop()
     return event_loop;
 }
 
+NonnullOwnPtr<WebView::DefaultBrowser> Application::create_default_browser()
+{
+    if (ui_info())
+        return make<DefaultBrowserInUI>();
+    return WebView::Application::create_default_browser();
+}
+
 NonnullOwnPtr<WebView::MicrophoneAuthorizer> Application::create_microphone_authorizer()
 {
     // NB: The UI tells of no authorization where the system has no say over the microphone.
