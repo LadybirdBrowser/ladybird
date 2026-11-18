@@ -382,7 +382,7 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         if node_painting::is_fragmented_inline(arena, node) {
             let mut has_content = paint_order::first_paint_child(arena, node).is_some();
             with_inline_pieces(arena, node, |piece| {
-                has_content |= !piece.is_geometry_only_placeholder;
+                has_content |= !piece.is_geometry_only_placeholder && piece.fragment_count != 0;
                 !has_content
             });
             if has_content {

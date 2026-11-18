@@ -419,7 +419,10 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
                 .committed_side_data(root)
                 .inline_box_piece_indices(paintable)
                 .iter()
-                .any(|piece_index| !self.piece_of(root, *piece_index).is_geometry_only_placeholder)
+                .any(|piece_index| {
+                    let piece = self.piece_of(root, *piece_index);
+                    !piece.is_geometry_only_placeholder && piece.fragment_count != 0
+                })
         });
         has_content_pieces || crate::painting::paint_order::first_paint_child(self.rows, paintable).is_some()
     }

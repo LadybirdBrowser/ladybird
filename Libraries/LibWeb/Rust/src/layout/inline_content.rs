@@ -702,8 +702,9 @@ impl InlineContent {
     }
 
     fn drop_repeated_placeholder_pieces(&mut self) {
-        let is_placeholder =
-            |piece: &InlineBoxPieceRecord| piece.is_geometry_only_placeholder && piece.fragment_count == 0;
+        // NB: An inline box that's empty within one fragment has a piece there with no fragment of its content,
+        //     which is a placeholder unless the box is empty in every fragment it's laid out in.
+        let is_placeholder = |piece: &InlineBoxPieceRecord| piece.fragment_count == 0;
         if !self.inline_box_pieces.iter().any(is_placeholder) {
             return;
         }
@@ -717,15 +718,21 @@ impl InlineContent {
         let mut kept_count = 0u32;
         self.inline_box_pieces.retain(|piece| {
             let keep = !is_placeholder(piece) || nodes_with_pieces.insert(piece.node);
-            new_indices.push(kept_count);
+            new_indices.push(keep.then_some(kept_count));
             kept_count += u32::from(keep);
             keep
         });
-        for item in &mut self.items {
-            if let InlineItem::BoxPiece(index) = item {
-                *index = new_indices[*index as usize];
-            }
-        }
+        // NB: A dropped piece that isn't a geometry-only placeholder is painted, so its item goes too.
+        self.items.retain_mut(|item| match item {
+            InlineItem::BoxPiece(index) => match new_indices[*index as usize] {
+                Some(new_index) => {
+                    *index = new_index;
+                    true
+                }
+                None => false,
+            },
+            _ => true,
+        });
     }
 
     fn append_translated(
