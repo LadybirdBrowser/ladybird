@@ -66,6 +66,8 @@ struct LineTextFacts {
     kept_fragments: std::ops::Range<usize>,
     /// The inline boxes that hold text the line keeps directly, found only in quirks mode.
     boxes_holding_text: std::collections::HashSet<Node>,
+    /// Whether a block ellipsis displaced all of the line's content.
+    holds_only_block_ellipsis: bool,
 }
 
 #[derive(Clone)]
@@ -1277,7 +1279,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let mut boxes_holding_text = std::collections::HashSet::new();
         if in_line_height_quirks_mode {
             for (fragment_index, fragment) in fragments.iter().enumerate() {
+                // NB: A block ellipsis borrows the text node of the content it displaces, but isn't text in the
+                //     block container.
                 if fragment.takes_part_in_line_alignment()
+                    && !fragment.is_block_ellipsis
                     && (kept_fragments.contains(&fragment_index) || !Self::is_collapsible_whitespace(fragment))
                     && self.facts(fragment.layout_node).is_text_node()
                 {
@@ -1285,11 +1290,16 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 }
             }
         }
+        let holds_only_block_ellipsis = fragments.iter().any(|fragment| fragment.is_block_ellipsis)
+            && fragments
+                .iter()
+                .all(|fragment| fragment.is_block_ellipsis || !is_content(fragment));
         LineTextFacts {
             in_line_height_quirks_mode,
             strut_fragment_start,
             kept_fragments,
             boxes_holding_text,
+            holds_only_block_ellipsis,
         }
     }
 
@@ -1307,8 +1317,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         // NB: The zero-width inline box that starts each line is the block container's own, so it matches them on a
         //     line with no text directly in the block container. Only a forced break directly in the block container
         //     that's alone on its line gives it its strut back, and a list item keeps its strut on every line.
+        // NB: So does a line whose content a block ellipsis displaced, which holds the ellipsis alone.
         let containing_block = self.context().containing_block;
-        if self.containing_style().display().is_list_item() || text.boxes_holding_text.contains(&containing_block) {
+        if self.containing_style().display().is_list_item()
+            || text.boxes_holding_text.contains(&containing_block)
+            || text.holds_only_block_ellipsis
+        {
             return true;
         }
         let line = self.line(line_index);
@@ -1362,6 +1376,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let fragment = &self.line(line_index).fragments[fragment_index];
         if fragment_index >= text.strut_fragment_start {
             return self.strut_brings_line_height(line_index, text, fragment.style_source);
+        }
+        // NB: A block ellipsis has the line height of the block container, which only the line's strut brings.
+        if fragment.is_block_ellipsis {
+            return false;
         }
         text.kept_fragments.contains(&fragment_index) || !Self::is_collapsible_whitespace(fragment)
     }
@@ -1988,7 +2006,6 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 fragment.accumulated_vertical_shift = accumulated_vertical_shift;
                 snapshot.block_offset = fragment.block_offset;
             }
-
             let (inline_box_start, inline_box_end) = if snapshot.is_atomic_inline {
                 let atomic_inline = self.line(line_index).fragments[fragment_index].box_cells();
                 (
