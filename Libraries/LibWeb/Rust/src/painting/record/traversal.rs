@@ -151,6 +151,8 @@ fn record_display_list_impl<O: Observer>(
         || inputs.grid_overlays.is_some()
         || !inputs.flex_overlays.is_empty()
         || inputs.caret_debug_rect.is_some();
+    let find_in_page_current_match_bounces =
+        inputs.dims_page_for_find_in_page && inputs.find_in_page_current_match_scale != 1.0;
     let root_scope = PaintScope::stacking_context(viewport);
     // The scopes the published recording walked, where it can be reused from.
     let published_root = recorder
@@ -175,6 +177,8 @@ fn record_display_list_impl<O: Observer>(
                 coverage,
             ) && !has_inspector_overlays
                 && frame.prologue_id == prologue_id
+                && !find_in_page_current_match_bounces
+                && !frame.find_in_page_current_match_bounces
         })
         .map(|(frame, root)| {
             (
@@ -246,6 +250,7 @@ fn record_display_list_impl<O: Observer>(
         frame_inputs,
         root_background_canvas_rect,
         prologue_id,
+        find_in_page_current_match_bounces,
         root_group_color,
         hit_test_items_stamp: source.hit_test_items_stamp(),
         chunks,
