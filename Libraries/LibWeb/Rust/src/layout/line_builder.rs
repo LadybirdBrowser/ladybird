@@ -1667,16 +1667,23 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             // NB: An inline box after preserved white space that hangs at the end of the line comes after that white
             //     space, even though the line's inline length doesn't count it.
             let hanging_whitespace_inline_size = self.hanging_whitespace_inline_size;
+            let fragments_are_mirrored = self.context().atomic_items_are_right_to_left;
             let mut line = self.line_mut(line_index);
             let content_inline_length = line.inline_length;
+            let indent = line.indent;
             let is_right_to_left = line.direction == direction::RTL;
             for strut in &mut line.inline_box_struts {
-                let offset = strut
-                    .inline_offset
-                    .min(content_inline_length + hanging_whitespace_inline_size);
+                let line_end = content_inline_length + hanging_whitespace_inline_size;
+                let offset = strut.inline_offset.min(line_end);
+                // NB: A box between two fragments sits between them as they're laid out, which is in logical order
+                //     unless the fragments are mirrored, and moved by the line's indent as they are. A box at either
+                //     end of a right-to-left line is at that end in the line's own direction.
+                let is_at_line_edge = offset <= indent || offset >= line_end;
                 strut.inline_offset = marker_inline_offset
-                    + if is_right_to_left {
+                    + if is_right_to_left && (fragments_are_mirrored || is_at_line_edge) {
                         content_inline_length - offset
+                    } else if is_right_to_left {
+                        offset - indent
                     } else {
                         offset
                     };
