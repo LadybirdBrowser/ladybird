@@ -14,17 +14,9 @@ fn truncate_line_at_glyph_boundary(
     line_direction: u8,
 ) -> Option<(usize, CssPixels)> {
     let index = line.fragments.iter().position(|fragment| {
-        !fragment.is_fully_truncated
-            && (fragment.has_text_overflow_ellipsis
-                || fragment.inline_offset + fragment.inline_length > available_inline_size)
+        !fragment.is_fully_truncated && fragment.inline_offset + fragment.inline_length > available_inline_size
     })?;
     let fragment = &mut line.fragments[index];
-    if fragment.has_text_overflow_ellipsis {
-        if index == 0 {
-            return Some((index, fragment.inline_offset));
-        }
-        fragment.has_text_overflow_ellipsis = false;
-    }
     let available = available_inline_size - fragment.inline_offset;
     let Some(glyphs) = fragment.glyphs.as_mut().filter(|_| available > CssPixels::default()) else {
         return (index > 0).then_some((index, fragment.inline_offset));
@@ -438,14 +430,15 @@ fn apply_block_ellipsis(
         _ => line.inline_length + ellipsis_inline_size,
     };
     line.inline_length_before_block_ellipsis = Some(line.inline_length);
-    // NB: The block overflow ellipsis takes the place of any text-overflow ellipsis on the line.
+    // NB: The block overflow ellipsis takes the place of any text-overflow ellipsis on the line, and the fragment that
+    //     text-overflow cut keeps what of its text still fits.
     line.fragments.retain(|fragment| !fragment.is_text_overflow_ellipsis);
+    for fragment in &mut line.fragments {
+        fragment.has_text_overflow_ellipsis = false;
+    }
     line.trim_trailing_whitespace_before_block_ellipsis();
     let available_for_content = (available_inline_size - ellipsis_inline_size).max(CssPixels::default());
-    let has_text_overflow_ellipsis = line
-        .visible_fragments()
-        .any(|fragment| fragment.has_text_overflow_ellipsis);
-    let content_fits = line.inline_length <= available_for_content && !has_text_overflow_ellipsis;
+    let content_fits = line.inline_length <= available_for_content;
     let opportunity = if content_fits {
         None
     } else {
@@ -486,7 +479,7 @@ fn apply_block_ellipsis(
         (line.fragments.len(), line.inline_length)
     } else if let Some((fragment_count, inline_offset, length, inline_size, reshaped_glyphs)) = opportunity {
         let last_retained_fragment = &mut line.fragments[fragment_count - 1];
-        if last_retained_fragment.length_in_code_units > length || last_retained_fragment.has_text_overflow_ellipsis {
+        if last_retained_fragment.length_in_code_units > length {
             let mut retained_code_units = 0usize;
             if let Some(glyphs) = reshaped_glyphs {
                 last_retained_fragment.glyphs = Some(glyphs);
@@ -505,7 +498,6 @@ fn apply_block_ellipsis(
             last_retained_fragment.length_in_code_units = length;
             last_retained_fragment.inline_length = inline_size;
             last_retained_fragment.trailing_whitespace = Default::default();
-            last_retained_fragment.has_text_overflow_ellipsis = false;
         }
         (fragment_count, inline_offset)
     } else {
