@@ -1659,14 +1659,6 @@ impl<'pass> SvgFormattingContext<'pass> {
         Some(std::sync::Arc::from(run))
     }
 
-    /// The character data text on a path renders: the text of every text node in its subtree that renders, rather
-    /// than of its direct children alone.
-    fn rendered_svg_text_contents(&self, root: Node) -> Vec<u16> {
-        let mut text: Vec<u16> = Vec::new();
-        self.for_each_svg_text_node(root, |node| text.extend_from_slice(&self.processed_svg_text(node)));
-        text
-    }
-
     fn append_svg_source_text(&self, text_node: Node, out: &mut Vec<u16>) {
         let content = self.run.pass.arena().text_content(text_node);
         debug_assert!(content.is_some(), "SVG text child was not synced before layout");
@@ -2436,8 +2428,8 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     /// The glyph outlines a <textPath> renders: its whole subtree's text, shaped from the origin
-    /// and then laid along the shape its `href` names. Also returns the glyph cell of each of its
-    /// characters.
+    /// and then laid along the shape its `href` names. Each run of text is shaped in the style of
+    /// the element it's in. Also returns the glyph cell of each of its characters.
     /// https://svgwg.org/svg2-draft/text.html#TextPathElement
     /// FIXME: The character cells are those of the text shaped from the origin; they aren't moved
     ///        onto the path or rotated along it, so only their advances are meaningful.
@@ -2448,9 +2440,25 @@ impl<'pass> SvgFormattingContext<'pass> {
         };
 
         let style = self.style(text_path_box);
-        let text = self.rendered_svg_text_contents(text_path_box);
-        // AD-HOC: Text on a path is laid out independently, so the 'textLength' of the <text> it's in doesn't adjust it.
-        let shaped = self.shape_svg_text(style, &text, FfiFloatPoint::default(), 0.0);
+        let mut runs = Vec::new();
+        let mut character_cells = Vec::new();
+        let mut advance = 0.0f32;
+        self.for_each_svg_text_node(text_path_box, |node| {
+            let Some(text) = self.svg_text_run_starting_at(node) else {
+                return;
+            };
+            // AD-HOC: Text on a path is laid out independently, so the 'textLength' of the <text> it's in doesn't
+            //         adjust it.
+            let shaped = self.shape_svg_text(
+                self.style(self.parent(node)),
+                &text,
+                FfiFloatPoint { x: advance, y: 0.0 },
+                0.0,
+            );
+            advance += shaped.advance;
+            runs.extend(shaped.runs);
+            character_cells.extend(shaped.character_cells);
+        });
 
         // https://svgwg.org/svg2-draft/text.html#TextPathElementStartOffsetAttribute
         let mut start_offset = self
@@ -2460,15 +2468,12 @@ impl<'pass> SvgFormattingContext<'pass> {
         // FIXME: Take writing mode and text direction into account.
         match style.inherited_svg().text_anchor {
             text_anchor::START => {}
-            text_anchor::MIDDLE => start_offset -= shaped.advance / 2.0,
-            text_anchor::END => start_offset -= shaped.advance,
+            text_anchor::MIDDLE => start_offset -= advance / 2.0,
+            text_anchor::END => start_offset -= advance,
             _ => unreachable!("invalid text-anchor value"),
         }
 
-        (
-            shape_path.place_glyph_runs_along(&shaped.runs, start_offset),
-            shaped.character_cells,
-        )
+        (shape_path.place_glyph_runs_along(&runs, start_offset), character_cells)
     }
 
     /// The geometry of the shape element an SVG reference names, read from what that element
