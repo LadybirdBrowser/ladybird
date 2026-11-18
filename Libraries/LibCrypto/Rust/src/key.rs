@@ -9,6 +9,7 @@
 use crate::ec::{self, EcPrivateKey, EcPublicKey};
 use crate::ml::{self, MlDsaPublicKey, MlKemPublicKey, MlPrivateKey};
 use crate::rsa::{self, RsaPrivateKey, RsaPublicKey};
+use crate::sys;
 use crate::{OkpCurve, OkpKey, okp_key_from_raw};
 
 pub struct KeyHandle(pub(crate) Key);
@@ -158,6 +159,12 @@ pub(crate) fn clear(bytes: &mut [u8]) {
         unsafe { core::ptr::write_volatile(byte, 0) };
     }
     core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+}
+
+/// Overwrites all of the allocation of `bytes` with zeros, including what lies past its length.
+pub(crate) fn clear_allocation(bytes: &mut Vec<u8>) {
+    // SAFETY: The pointer and capacity describe the vector's allocation.
+    unsafe { sys::OPENSSL_cleanse(bytes.as_mut_ptr().cast(), bytes.capacity()) };
 }
 
 pub struct KeyPair {

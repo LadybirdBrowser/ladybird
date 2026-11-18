@@ -1157,6 +1157,8 @@ impl CipherContext {
     }
 
     pub(crate) fn update(&mut self, input: &[u8], output: &mut Vec<u8>) -> Result<(), CryptoError> {
+        // NB: Reserving room for all of the output first keeps a reallocation from leaving a copy of it behind.
+        output.reserve(input.len() + MAXIMUM_UPDATE_GROWTH);
         for chunk in input.chunks(MAXIMUM_UPDATE_LENGTH) {
             self.update_whole(chunk, output)?;
         }

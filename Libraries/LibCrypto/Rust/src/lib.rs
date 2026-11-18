@@ -421,12 +421,15 @@ fn cipher(
     context.init(encrypt, Some(cipher), Some(key), iv)?;
     let mut output = Vec::with_capacity(input.len());
     // NB: Key wrapping takes its input whole.
-    if allow_key_wrapping {
-        context.update_whole(input, &mut output)?;
+    let result = if allow_key_wrapping {
+        context.update_whole(input, &mut output)
     } else {
-        context.update(input, &mut output)?;
-    }
-    context.finalize(&mut output)?;
+        context.update(input, &mut output)
+    };
+    // NB: OpenSSL writes a plaintext out before it checks its padding.
+    result
+        .and_then(|()| context.finalize(&mut output))
+        .inspect_err(|_| key::clear_allocation(&mut output))?;
     Ok(output)
 }
 
@@ -529,8 +532,12 @@ fn aead(
     context.add_additional_data(additional_data)?;
 
     let mut output = Vec::with_capacity(input.len() + tag_length);
-    context.update(input, &mut output)?;
-    context.finalize(&mut output)?;
+    // NB: OpenSSL writes a plaintext out before it checks its tag, and a failed finalization does not count the
+    //     bytes it wrote.
+    context
+        .update(input, &mut output)
+        .and_then(|()| context.finalize(&mut output))
+        .inspect_err(|_| key::clear_allocation(&mut output))?;
     if encrypt {
         output.extend_from_slice(&context.tag(tag_length)?);
     }

@@ -82,6 +82,7 @@ pub(crate) const POINT_CONVERSION_UNCOMPRESSED: c_int = 4;
 
 unsafe extern "C" {
     pub(crate) fn ERR_clear_error();
+    pub(crate) fn OPENSSL_cleanse(pointer: *mut c_void, length: usize);
     pub(crate) fn RAND_bytes(buffer: *mut u8, length: c_int) -> c_int;
 
     pub(crate) fn OSSL_PARAM_construct_octet_string(key: *const c_char, buffer: *mut c_void, size: usize)
