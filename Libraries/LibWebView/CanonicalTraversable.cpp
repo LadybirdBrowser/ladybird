@@ -886,6 +886,7 @@ bool CanonicalTraversable::update_session_history_entry_navigation_api_state(Can
     if (!entry)
         return false;
     entry->navigation_api_state = move(navigation_api_state);
+    m_session_history.drop_oldest_states_past_maximum(entry.ptr());
     session_history_changed();
     return true;
 }
@@ -1605,11 +1606,25 @@ void CanonicalTraversable::apply_changing_navigable_history_step_continuation(Ap
     }
 }
 
+// NB: Dropping the states of the oldest entries keeps entriesForNavigationAPI within what a message can carry, unless their
+//     other fields (e.g. URLs that long) take it past that. Then the job ends, and the process it would go to is
+//     terminated, so that the page that piled them up takes down only its own tab.
+bool CanonicalTraversable::continuation_fits_in_one_message(ChangingNavigable& changing_navigable, WebContentPage& endpoint)
+{
+    if (session_history_entries_fit_in_one_message(changing_navigable.continuation->entries_for_navigation_api))
+        return true;
+    end_history_jobs(changing_navigable.navigable(), nullptr);
+    endpoint.client().did_misbehave("apply_changing_navigable_continuation"sv, "session history too large to send"sv);
+    return false;
+}
+
 void CanonicalTraversable::send_changing_navigable_continuation_task(HistoryOperation& operation, ChangingNavigable& changing_navigable)
 {
     VERIFY(changing_navigable.has_pending_job());
     VERIFY(changing_navigable.continuation.has_value());
     auto endpoint = changing_job_endpoint(changing_navigable);
+    if (!continuation_fits_in_one_message(changing_navigable, *endpoint))
+        return;
     auto continuation = *changing_navigable.continuation;
     endpoint->owe_reply({ OwedReply::Kind::ContinuationApplied, operation.operation_id, changing_navigable.id });
     endpoint->async_apply_changing_navigable_continuation(
@@ -1634,6 +1649,9 @@ void CanonicalTraversable::send_displayed_document_unload_task(HistoryOperation&
     VERIFY(changing_navigable.continuation.has_value());
     auto endpoint = changing_job_endpoint(changing_navigable);
 
+    // NB: Checked before a reload drops the old nested histories, so that a continuation that isn't sent keeps them.
+    if (!continuation_fits_in_one_message(changing_navigable, *endpoint))
+        return;
     auto const& document_state = *changing_navigable.target_entry->document_state;
     if (changing_navigable.target_entry_reload_pending && operation.parameters.has<Web::ReloadHistoryOperationParameters>()) {
         // INTEROP: Reloading rebuilds the child history tree from the replacement document, as in WebKit.

@@ -80,7 +80,7 @@ WebIDL::ExceptionOr<void> NavigationPrecommitController::redirect(Utf16String co
     if (options.state.has_value()) {
         // 1. Let serializedState be the result of calling StructuredSerializeForStorage(options["state"]). This may
         //    throw an exception.
-        auto serialized_state = TRY(structured_serialize_for_storage(window.principal_realm().vm(), *options.state));
+        auto serialized_state = TRY(structured_serialize_session_history_state(window.principal_realm().vm(), *options.state));
 
         // 2. Set this's event's destination's state to serializedState.
         m_event->destination()->set_state(serialized_state);

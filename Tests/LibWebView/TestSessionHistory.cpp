@@ -589,6 +589,42 @@ TEST_CASE(used_steps_include_nested_history_steps)
     EXPECT(can_go_forward(history));
 }
 
+static Web::HTML::StorageSerializationRecord state_record_of_size(size_t size)
+{
+    return Web::HTML::StorageSerializationRecord { MUST(ByteBuffer::create_zeroed(size)) };
+}
+
+TEST_CASE(oldest_states_are_dropped_past_the_maximum)
+{
+    WebView::TraversableSessionHistory history { initial_history_entry() };
+
+    auto nested_entry = entry(1, "https://frame.example/a"sv);
+    nested_entry.classic_history_api_state = state_record_of_size(100);
+    auto first_entry = entry(0, "https://a.example/"sv, { nested_history("frame-1"sv, { move(nested_entry) }) });
+    first_entry.classic_history_api_state = state_record_of_size(100);
+    first_entry.navigation_api_state = state_record_of_size(100);
+    auto second_entry = entry(2, "https://b.example/"sv);
+    second_entry.classic_history_api_state = state_record_of_size(100);
+    auto third_entry = entry(3, "https://c.example/"sv);
+    third_entry.classic_history_api_state = state_record_of_size(100);
+    EXPECT(history.initialize_for_testing({ move(first_entry), move(second_entry), move(third_entry) }, { 0, 1, 2, 3 }, 3));
+
+    // Within the maximum, nothing is dropped.
+    history.drop_oldest_states_past_maximum(nullptr, 500);
+    EXPECT_EQ(history.entry_at(0)->classic_history_api_state.data.size(), 100u);
+
+    // Past it, the states of the oldest entries go, the nested one included, and the kept entry's stay.
+    // NB: 500 bytes of state, of which dropping the nested entry's and the second entry's leaves 328.
+    history.drop_oldest_states_past_maximum(history.entry_at(0), 350);
+    auto* first = history.entry_at(0);
+    EXPECT_EQ(first->classic_history_api_state.data.size(), 100u);
+    EXPECT_EQ(first->navigation_api_state.data.size(), 100u);
+    EXPECT_EQ(first->document_state->nested_histories[0].entries[0]->classic_history_api_state, Web::HTML::storage_serialization_record_for_null());
+    EXPECT_EQ(history.entry_at(1)->classic_history_api_state, Web::HTML::storage_serialization_record_for_null());
+    EXPECT_EQ(history.entry_at(1)->navigation_api_state, Web::HTML::storage_serialization_record_for_undefined());
+    EXPECT_EQ(history.entry_at(2)->classic_history_api_state.data.size(), 100u);
+}
+
 TEST_CASE(traversal_target_for_top_level_step)
 {
     WebView::TraversableSessionHistory history { initial_history_entry() };

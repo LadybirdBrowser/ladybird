@@ -796,7 +796,7 @@ Messages::HubServer::ViewSessionHistoryTraversalItemsResponse ConnectionFromUI::
 Messages::HubServer::ViewSessionHistorySnapshotResponse ConnectionFromUI::view_session_history_snapshot(u64 view_id)
 {
     if (auto* view = find_view(view_id))
-        return Optional<WebView::SessionHistorySnapshot> { view->session_history_snapshot() };
+        return view->session_history_snapshot_for_ipc();
     return Optional<WebView::SessionHistorySnapshot> {};
 }
 

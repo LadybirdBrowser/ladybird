@@ -209,6 +209,7 @@ private:
     void add_history_operation_completion_endpoint(HistoryOperation&, NonnullRefPtr<WebContentPage>);
     void did_fail_history_navigation_population(HistoryOperation&, ChangingNavigable&);
     void continue_history_navigation_population(HistoryOperation&, ChangingNavigable&);
+    bool continuation_fits_in_one_message(ChangingNavigable&, WebContentPage& endpoint);
     void send_changing_navigable_continuation_task(HistoryOperation&, ChangingNavigable&);
     void send_displayed_document_unload_task(HistoryOperation&, ChangingNavigable&);
     void deactivate_a_document_for_cross_document_navigation(HistoryOperation&, ChangingNavigable&);

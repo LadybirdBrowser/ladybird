@@ -8,6 +8,9 @@
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
+#include <LibIPC/Encoder.h>
+#include <LibIPC/Limits.h>
+#include <LibIPC/Message.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/SessionHistory.h>
@@ -158,6 +161,42 @@ static bool active_path_reaches_step(CanonicalSessionHistoryEntry const& active_
     for (auto const& nested_history : active_entry.document_state->nested_histories) {
         auto const* active_nested_entry = entry_for_step_in_entry_list(nested_history.entries, step);
         if (active_nested_entry && active_path_reaches_step(*active_nested_entry, step))
+            return true;
+    }
+    return false;
+}
+
+bool session_history_entries_fit_in_one_message(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries)
+{
+    // NB: The entries share their message with a few other fields, so they get only half of what it can carry.
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder(buffer);
+    if (encoder.encode(entries).is_error())
+        return false;
+    return buffer.data().size() <= IPC::MAX_MESSAGE_PAYLOAD_SIZE / 2;
+}
+
+bool drop_oldest_states_until_entries_fit_in_one_message(Vector<Web::HTML::SessionHistoryEntryDescriptor>& entries, Optional<size_t> keep_index)
+{
+    if (session_history_entries_fit_in_one_message(entries))
+        return true;
+
+    Vector<size_t> indices_by_age;
+    for (size_t i = 0; i < entries.size(); ++i) {
+        if (i != keep_index)
+            indices_by_age.append(i);
+    }
+    quick_sort(indices_by_age, [&](size_t a, size_t b) { return entries[a].step < entries[b].step; });
+
+    // NB: Dropping by halves keeps the number of trial encodings logarithmic in the number of entries.
+    size_t dropped = 0;
+    for (size_t batch = max<size_t>(indices_by_age.size() / 2, 1); dropped < indices_by_age.size(); batch = max<size_t>((indices_by_age.size() - dropped) / 2, 1)) {
+        for (size_t i = 0; i < batch && dropped < indices_by_age.size(); ++i, ++dropped) {
+            auto& entry = entries[indices_by_age[dropped]];
+            entry.classic_history_api_state = Web::HTML::storage_serialization_record_for_null();
+            entry.navigation_api_state = Web::HTML::storage_serialization_record_for_undefined();
+        }
+        if (session_history_entries_fit_in_one_message(entries))
             return true;
     }
     return false;
@@ -407,6 +446,44 @@ Vector<Web::HTML::SessionHistoryEntryDescriptor> TraversableSessionHistory::entr
 Vector<i32> TraversableSessionHistory::used_steps() const
 {
     return get_all_used_history_steps(m_entries);
+}
+
+static u64 state_size(CanonicalSessionHistoryEntry const& entry)
+{
+    return entry.classic_history_api_state.data.size() + entry.navigation_api_state.data.size();
+}
+
+void TraversableSessionHistory::drop_oldest_states_past_maximum(CanonicalSessionHistoryEntry const* entry_to_keep, u64 maximum)
+{
+    // NB: Entries of one document share its document state, and so its nested histories, which are visited once.
+    Vector<CanonicalSessionHistoryEntry*> entries;
+    HashTable<CanonicalDocumentState const*> visited_document_states;
+    Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const*> entry_lists { &m_entries };
+    u64 total_state_size = 0;
+    while (!entry_lists.is_empty()) {
+        for (auto const& entry : *entry_lists.take_last()) {
+            entries.append(entry.ptr());
+            total_state_size += state_size(*entry);
+            if (visited_document_states.set(entry->document_state.ptr()) != HashSetResult::InsertedNewEntry)
+                continue;
+            for (auto const& nested_history : entry->document_state->nested_histories)
+                entry_lists.append(&nested_history.entries);
+        }
+    }
+    if (total_state_size <= maximum)
+        return;
+
+    quick_sort(entries, [](auto const* a, auto const* b) { return a->step < b->step; });
+    for (auto* entry : entries) {
+        if (total_state_size <= maximum)
+            break;
+        if (entry == entry_to_keep)
+            continue;
+        total_state_size -= state_size(*entry);
+        entry->classic_history_api_state = Web::HTML::storage_serialization_record_for_null();
+        entry->navigation_api_state = Web::HTML::storage_serialization_record_for_undefined();
+        total_state_size += state_size(*entry);
+    }
 }
 
 bool TraversableSessionHistory::has_only_top_level_used_steps() const

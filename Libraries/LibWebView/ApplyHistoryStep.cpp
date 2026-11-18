@@ -349,6 +349,7 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
 
         // 9. Let entriesForNavigationAPI be the result of getting session history entries for the navigation API
         //    given navigable and targetStep.
+        m_session_history.drop_oldest_states_past_maximum(changing_navigable_continuation.target_entry.ptr());
         auto entries_for_navigation_api = m_session_history.get_session_history_entries_for_the_navigation_api(navigable, m_target_step);
         if (!entries_for_navigation_api.has_value()) {
             // AD-HOC: The canonical mirror is reconciling the navigable, so its continuation cannot be applied.

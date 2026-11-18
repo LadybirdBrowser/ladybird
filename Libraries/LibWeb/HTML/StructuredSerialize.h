@@ -66,6 +66,15 @@ WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&
 WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
 WEB_API StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS::Value);
 
+// AD-HOC: The spec puts no limit on the state a session history entry holds. But the UI process keeps every entry's
+//         state, and drops those of the oldest entries once a session history's states add up past its maximum. So a
+//         single state is capped well below that maximum.
+static constexpr size_t maximum_serialized_session_history_state_size = 16 * MiB;
+
+// StructuredSerializeForStorage(value), for the classic history API state or the navigation API state of a session
+// history entry: Throws a QuotaExceededError if the result is larger than the cap above.
+WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_session_history_state(JS::VM&, JS::Value);
+
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&);
 

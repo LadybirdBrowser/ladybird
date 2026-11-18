@@ -4222,6 +4222,14 @@ SessionHistorySnapshot ViewImplementation::session_history_snapshot() const
     };
 }
 
+Optional<SessionHistorySnapshot> ViewImplementation::session_history_snapshot_for_ipc() const
+{
+    auto snapshot = session_history_snapshot();
+    if (!drop_oldest_states_until_entries_fit_in_one_message(snapshot.entries, traversable().session_history().current_top_level_entry_index()))
+        return {};
+    return snapshot;
+}
+
 ErrorOr<void> ViewImplementation::restore_session_history_from_snapshot(SessionHistorySnapshot snapshot)
 {
     TRY(traversable().restore_session_history_from_ui_snapshot(move(snapshot)));
@@ -4301,11 +4309,13 @@ void ViewImplementation::notify_session_history_changed()
 {
     if (!m_reports_session_history)
         return;
-    auto history = session_history_snapshot();
+    auto history = session_history_snapshot_for_ipc();
+    if (!history.has_value())
+        return;
     auto url = traversable().session_history().current_entry().url;
     if (m_records_reported_session_history_for_testing)
-        m_reported_session_history_for_testing = ReportedSessionHistory { history, url };
-    did_change_session_history(history, url);
+        m_reported_session_history_for_testing = ReportedSessionHistory { *history, url };
+    did_change_session_history(*history, url);
 }
 
 NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_state_for_testing()

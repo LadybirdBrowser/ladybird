@@ -285,6 +285,9 @@ public:
     [[nodiscard]] Vector<SessionHistoryTraversalItem> session_history_traversal_items(int direction) const;
 
     [[nodiscard]] SessionHistorySnapshot session_history_snapshot() const;
+    // The snapshot, with the states of its oldest entries dropped as far as it takes for one message to carry it, if
+    // that's enough.
+    [[nodiscard]] Optional<SessionHistorySnapshot> session_history_snapshot_for_ipc() const;
     [[nodiscard]] ErrorOr<void> restore_session_history_from_snapshot(SessionHistorySnapshot);
 
     // A view whose windows and tabs the application keeps tells it of each change to its session history.

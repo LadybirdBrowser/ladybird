@@ -61,6 +61,15 @@ public:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
     Vector<i32> used_steps() const;
 
+    // AD-HOC: The spec puts no limit on the state a session history holds. But a navigable's same-origin entries go to
+    //         the process that hosts it in a single message, and every top-level entry goes to the UI in another, so a
+    //         page that piles up states could push such a message past what IPC can carry. So once the states of all
+    //         entries add up past this, those of the oldest entries are dropped: Their classic history API state becomes
+    //         null, and their navigation API state undefined.
+    static constexpr u64 maximum_state_size = 512 * MiB;
+    // Drops the states of the oldest entries other than entry_to_keep until the states add up to maximum or less.
+    void drop_oldest_states_past_maximum(CanonicalSessionHistoryEntry const* entry_to_keep, u64 maximum = maximum_state_size);
+
     [[nodiscard]] bool has_only_top_level_used_steps() const;
     [[nodiscard]] Optional<TraversalTarget> traversal_target_for_step(i32 step) const;
     [[nodiscard]] Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> get_session_history_entries(CanonicalNavigable const&) const;
@@ -95,6 +104,12 @@ struct SessionHistorySnapshot {
     Vector<i32> used_steps;
     size_t current_used_step_index { 0 };
 };
+
+// Whether a message can carry the given entries with room to spare.
+WEBVIEW_API bool session_history_entries_fit_in_one_message(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&);
+// Drops the states of the given entries, oldest first and other than the one at keep_index, until a message can carry
+// them. Returns false if it can't, even with every such state dropped.
+WEBVIEW_API bool drop_oldest_states_until_entries_fit_in_one_message(Vector<Web::HTML::SessionHistoryEntryDescriptor>&, Optional<size_t> keep_index);
 
 WEBVIEW_API ErrorOr<void> validate_snapshot_is_restorable(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index);
 WEBVIEW_API URL::URL display_url_for_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&, bool include_fragment_directive = true);
