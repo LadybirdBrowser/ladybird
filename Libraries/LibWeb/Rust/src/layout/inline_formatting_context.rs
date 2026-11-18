@@ -2987,12 +2987,17 @@ impl<'context> InlineFormattingContext<'context> {
                                         inline_level_iterator::inline_extent([&item]),
                                     );
                                 }
+                                // NB: The white space ends the line it breaks, and so do the inline boxes that end with it.
+                                line_builder.set_end_edges_of_whitespace_at_break(
+                                    item.margin_end + item.border_end + item.padding_end,
+                                );
                                 let broke_line = if iterator.next_non_whitespace_text_allows_overflow_break(self) {
                                     line_builder.break_if_needed_before_overflow_breakable_item(sequence_inline_size)
                                 } else {
                                     line_builder.break_if_needed(sequence_inline_size)
                                 };
                                 line_builder.set_hanging_whitespace_inline_size(CssPixels::default());
+                                line_builder.set_end_edges_of_whitespace_at_break(CssPixels::default());
                                 if broke_line {
                                     line_builder.set_trailing_whitespace_on_previous_line(&item);
                                     let next_line_start = fragmentation::LinePosition {
