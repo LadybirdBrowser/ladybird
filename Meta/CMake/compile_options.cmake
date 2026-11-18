@@ -130,23 +130,24 @@ if (NOT MSVC)
     endif()
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID  MATCHES "MSVC")
-    # Clang's default constexpr-steps limit is 1048576(2^20), GCC doesn't have one
-    add_cxx_only_compile_options(-fconstexpr-steps=16777216)
-
-    add_cxx_compile_options(-Wmissing-prototypes)
-
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_cxx_compile_options(-Wno-implicit-const-int-float-conversion)
     add_cxx_only_compile_options(-Wno-unqualified-std-cast-call)
 
     # Used for the #embed directive.
     # FIXME: Remove this once #embed is no longer an extension.
     add_cxx_compile_options(-Wno-c23-extensions)
+endif()
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
+    # Clang's default constexpr-steps limit is 1048576(2^20), GCC doesn't have one
+    add_cxx_only_compile_options(-fconstexpr-steps=16777216)
+
+    add_cxx_compile_options(-Wmissing-prototypes)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # Only ignore expansion-to-defined for g++, clang's implementation doesn't complain about function-like macros
     add_cxx_compile_options(-Wno-expansion-to-defined)
     add_cxx_only_compile_options(-Wno-literal-suffix)
-    add_cxx_only_compile_options(-Wno-unqualified-std-cast-call)
     add_cxx_compile_options(-Wvla)
 
     # FIXME: These warnings trigger on Function and ByteBuffer in GCC (only when LTO is disabled...)
@@ -159,10 +160,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 elseif (MSVC)
     # Warning options and defines
     add_cxx_compile_options(/W4)
-    add_cxx_compile_options(-Wno-implicit-const-int-float-conversion)
     add_cxx_compile_options(-Wno-reserved-identifier)
-    add_cxx_compile_options(-Wno-unqualified-std-cast-call)
-    add_cxx_compile_options(-Wno-c23-extensions)
     add_cxx_compile_options(-Wno-microsoft-unqualified-friend) # MSVC doesn't support unqualified friends
     add_cxx_compile_definitions(_CRT_SECURE_NO_WARNINGS) # _s replacements not desired (or implemented on any other platform other than VxWorks)
     add_cxx_compile_definitions(_CRT_NONSTDC_NO_WARNINGS) # POSIX names are just fine, thanks
