@@ -209,8 +209,8 @@ pub struct FfiRasterHost {
     ///     on Windows, so the size does not come back as the return value.
     pub surface_size: unsafe extern "C" fn(*mut c_void, *mut IntSize),
     /// Null where the surface could not be made. The surface is made like the one given, or for the GPU the compositor
-    /// renders with where none is given.
-    pub create_surface: unsafe extern "C" fn(*mut c_void, IntSize, *mut c_void) -> *mut c_void,
+    /// renders with where none is given. The last argument also inherits LCD text for pixel-aligned copies.
+    pub create_surface: unsafe extern "C" fn(*mut c_void, IntSize, *mut c_void, bool) -> *mut c_void,
     pub surfaces_share_backend: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub surface_uses_gpu: unsafe extern "C" fn(*mut c_void) -> bool,
     pub surface_save: unsafe extern "C" fn(*mut c_void) -> i32,
@@ -224,9 +224,10 @@ pub struct FfiRasterHost {
     pub surface_draw_surface: unsafe extern "C" fn(*mut c_void, *mut c_void, IntRect, IntRect, SurfaceBlend),
     pub flush_surface: unsafe extern "C" fn(*mut c_void, *mut c_void),
 
-    /// Arguments: the context, the surface, whose resources it draws with, and where the painter is written. The
-    /// painting lasts until `end_painting`, and paintings nest.
-    pub begin_painting: unsafe extern "C" fn(*mut c_void, u64, *mut c_void, PaintingResources, *mut FfiRasterPainter),
+    /// Arguments: the host, the context, the surface, whose resources it draws with, whether it allows LCD text,
+    /// and where the painter is written. The painting lasts until `end_painting`, and paintings nest.
+    pub begin_painting:
+        unsafe extern "C" fn(*mut c_void, u64, *mut c_void, PaintingResources, bool, *mut FfiRasterPainter),
     pub end_painting: unsafe extern "C" fn(*mut c_void),
     /// Lets the raster caches of the context's page drop what the frames before the one that starts did not use.
     pub start_raster_cache_frame: unsafe extern "C" fn(*mut c_void, u64),
@@ -449,10 +450,15 @@ impl RasterHost {
         size
     }
 
-    pub fn create_surface(&self, size: IntSize, like: Option<&SurfaceHandle>) -> Option<SurfaceHandle> {
+    pub fn create_surface(
+        &self,
+        size: IntSize,
+        like: Option<&SurfaceHandle>,
+        inherits_lcd_text: bool,
+    ) -> Option<SurfaceHandle> {
         let like = like.map_or(std::ptr::null_mut(), SurfaceHandle::as_ptr);
         // SAFETY: The host outlives this, and the surface it is made like is live.
-        self.adopt_surface(unsafe { (self.0.create_surface)(self.host(), size, like) })
+        self.adopt_surface(unsafe { (self.0.create_surface)(self.host(), size, like, inherits_lcd_text) })
     }
 
     pub fn surfaces_share_backend(&self, a: &SurfaceHandle, b: &SurfaceHandle) -> bool {
@@ -523,6 +529,7 @@ impl RasterHost {
         context_id: CompositorContextId,
         surface: &SurfaceHandle,
         resources: PaintingResources,
+        allows_lcd_text: bool,
         paint: impl FnOnce(&mut FfiRasterPainter),
     ) {
         let mut painter = std::mem::MaybeUninit::<FfiRasterPainter>::uninit();
@@ -533,6 +540,7 @@ impl RasterHost {
                 context_id.0,
                 surface.as_ptr(),
                 resources,
+                allows_lcd_text,
                 painter.as_mut_ptr(),
             );
             painter.assume_init()

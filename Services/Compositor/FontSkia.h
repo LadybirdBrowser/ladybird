@@ -10,6 +10,7 @@
 #include <LibGfx/Forward.h>
 
 class SkFont;
+class SkSurfaceProps;
 
 namespace Compositor {
 
@@ -22,11 +23,13 @@ enum class FontRasterizer {
 // Call this before any text is drawn.
 void set_font_rasterizer(FontRasterizer);
 
-// Makes every font use normal hinting, so that text looks the same on every machine.
-void force_font_hinting_for_testing();
+// Keep the hinting and pixel geometry used by the rendering test baselines.
+void use_test_font_rendering();
+
+SkSurfaceProps skia_text_surface_properties(u32 flags, bool allows_lcd_text);
 
 // The Skia font that draws the glyphs of a font at a scale. Empty if Skia cannot load the font's typeface; the caller
 // then draws nothing.
-Optional<SkFont> skia_font(Gfx::Font const&, float scale);
+Optional<SkFont> skia_font(Gfx::Font const&, float scale, bool requests_lcd_text = false);
 
 }

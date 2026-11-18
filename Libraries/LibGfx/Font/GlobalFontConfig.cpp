@@ -8,6 +8,7 @@
 #include <AK/ByteString.h>
 #include <AK/LsanSuppressions.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/ScopeGuard.h>
 #include <LibGfx/Font/GlobalFontConfig.h>
 #include <fontconfig/fontconfig.h>
 
@@ -31,9 +32,56 @@ GlobalFontConfig::GlobalFontConfig()
     FcConfigReference(m_config);
 }
 
-FontHintingOptions GlobalFontConfig::hinting_for_font(FlyString const& family, float pixel_size, u16 weight, u8 slope)
+static FcPattern* resolve_rendering_pattern(FcConfig* config, FcPattern* query, FcChar8 const* font_family = nullptr)
 {
-    FontHintingOptions options;
+    FcConfigSubstitute(config, query, FcMatchPattern);
+    // The display-wide lookup has no font size or style for a rule to match.
+    if (font_family)
+        FcDefaultSubstitute(query);
+
+    // Substitute a duplicate of the query in place of a matched font, so that font-target rules apply without
+    // matching against the font set.
+    auto* pattern = FcPatternDuplicate(query);
+    if (!pattern)
+        return nullptr;
+
+    // Pattern substitution can add default families even when querying the display's pixel order. Only a
+    // selected font should match a font-target family rule.
+    FcPatternDel(pattern, FC_FAMILY);
+    if (font_family && !FcPatternAddString(pattern, FC_FAMILY, font_family)) {
+        FcPatternDestroy(pattern);
+        return nullptr;
+    }
+
+    FcConfigSubstituteWithPat(config, pattern, query, FcMatchFont);
+    return pattern;
+}
+
+static FontSubpixelOrder subpixel_order_of(FcPattern* pattern)
+{
+    FcBool antialias = FcTrue;
+    FcPatternGetBool(pattern, FC_ANTIALIAS, 0, &antialias);
+    int rgba = FC_RGBA_UNKNOWN;
+    if (!antialias || FcPatternGetInteger(pattern, FC_RGBA, 0, &rgba) != FcResultMatch)
+        return FontSubpixelOrder::None;
+
+    switch (rgba) {
+    case FC_RGBA_RGB:
+        return FontSubpixelOrder::RGB;
+    case FC_RGBA_BGR:
+        return FontSubpixelOrder::BGR;
+    case FC_RGBA_VRGB:
+        return FontSubpixelOrder::VerticalRGB;
+    case FC_RGBA_VBGR:
+        return FontSubpixelOrder::VerticalBGR;
+    default:
+        return FontSubpixelOrder::None;
+    }
+}
+
+FontRenderingOptions GlobalFontConfig::rendering_options_for_font(FlyString const& family, float pixel_size, u16 weight, u8 slope)
+{
+    FontRenderingOptions options;
 
     FcPattern* pattern = FcPatternCreate();
     if (!pattern)
@@ -47,24 +95,10 @@ FontHintingOptions GlobalFontConfig::hinting_for_font(FlyString const& family, f
 
     FcPatternAddInteger(pattern, FC_SLANT, fontconfig_slant(slope));
 
-    FcConfigSubstitute(m_config, pattern, FcMatchPattern);
-    FcDefaultSubstitute(pattern);
-
-    // Substitute a duplicate of the query pattern in place of a matched font, so that font-target
-    // rules testing family or size apply without matching against the font set.
-    FcPattern* font_pattern = FcPatternDuplicate(pattern);
-    if (!font_pattern) {
-        FcPatternDestroy(pattern);
+    auto* font_pattern = resolve_rendering_pattern(m_config, pattern, font_family);
+    FcPatternDestroy(pattern);
+    if (!font_pattern)
         return options;
-    }
-    // Font-target rules apply to the selected family. Pattern substitution adds fallback families to the query.
-    FcPatternDel(font_pattern, FC_FAMILY);
-    if (!FcPatternAddString(font_pattern, FC_FAMILY, font_family)) {
-        FcPatternDestroy(font_pattern);
-        FcPatternDestroy(pattern);
-        return options;
-    }
-    FcConfigSubstituteWithPat(m_config, font_pattern, pattern, FcMatchFont);
 
     FcBool hinting_enabled = FcTrue;
     FcPatternGetBool(font_pattern, FC_HINTING, 0, &hinting_enabled);
@@ -73,21 +107,35 @@ FontHintingOptions GlobalFontConfig::hinting_for_font(FlyString const& family, f
     FcPatternGetInteger(font_pattern, FC_HINT_STYLE, 0, &hint_style);
 
     if (!hinting_enabled || hint_style == FC_HINT_NONE)
-        options.style = FontHintingStyle::None;
+        options.hinting_style = FontHintingStyle::None;
     else if (hint_style == FC_HINT_SLIGHT)
-        options.style = FontHintingStyle::Slight;
+        options.hinting_style = FontHintingStyle::Slight;
     else if (hint_style == FC_HINT_MEDIUM)
-        options.style = FontHintingStyle::Normal;
+        options.hinting_style = FontHintingStyle::Normal;
     else
-        options.style = FontHintingStyle::Full;
+        options.hinting_style = FontHintingStyle::Full;
 
     FcBool autohint = FcFalse;
     FcPatternGetBool(font_pattern, FC_AUTOHINT, 0, &autohint);
     options.force_autohinting = autohint;
+    options.allows_lcd_text = subpixel_order_of(font_pattern) != FontSubpixelOrder::None;
 
     FcPatternDestroy(font_pattern);
-    FcPatternDestroy(pattern);
     return options;
+}
+
+FontSubpixelOrder GlobalFontConfig::subpixel_order() const
+{
+    auto* query = FcPatternCreate();
+    if (!query)
+        return FontSubpixelOrder::None;
+    auto* pattern = resolve_rendering_pattern(m_config, query);
+    FcPatternDestroy(query);
+    if (!pattern)
+        return FontSubpixelOrder::None;
+    ScopeGuard destroy_pattern = [&] { FcPatternDestroy(pattern); };
+
+    return subpixel_order_of(pattern);
 }
 
 GlobalFontConfig::~GlobalFontConfig()

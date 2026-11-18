@@ -1658,6 +1658,13 @@ void Application::update_compositor_context_presents_from_cpu_memory(Web::Compos
     m_compositor_client->async_set_context_presents_from_cpu_memory(context_id, presents_from_cpu_memory);
 }
 
+void Application::update_compositor_context_scales_frames_to_fit(Web::CompositorContextId context_id, bool scales_frames_to_fit)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    m_compositor_client->async_set_context_scales_frames_to_fit(context_id, scales_frames_to_fit);
+}
+
 bool Application::handle_and_dispatch_key_event_in_compositor(Web::CompositorContextId context_id, Web::KeyEvent const& event, bool allow_keyboard_scroll)
 {
     if (!can_send_compositor_process_ipc(m_compositor_presentation_client))

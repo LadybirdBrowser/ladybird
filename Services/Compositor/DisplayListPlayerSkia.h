@@ -55,7 +55,7 @@ public:
     // The painter paints into `surface`, with `fonts`, `image_frames` and the caches of `raster_cache`, until
     // end_painting(). It draws no image frame without `image_frames`, no canvas without `canvas_surfaces`, and no video
     // without `current_video_frame`.
-    Compositing::RustFFI::FfiRasterPainter begin_painting(Gfx::PaintingSurface&, DrawnFonts const&, DrawnImageFrames const*, DisplayListRasterCache&, OwnedCanvasSurfaces const*, CurrentVideoFrame);
+    Compositing::RustFFI::FfiRasterPainter begin_painting(Gfx::PaintingSurface&, DrawnFonts const&, DrawnImageFrames const*, DisplayListRasterCache&, OwnedCanvasSurfaces const*, CurrentVideoFrame, bool allows_lcd_text = false);
     void end_painting();
 
     static void flush(Gfx::PaintingSurface&);
@@ -135,6 +135,7 @@ private:
     DrawnImageFrames const* m_image_frames { nullptr };
     DisplayListRasterCache* m_raster_cache { nullptr };
     OwnedCanvasSurfaces const* m_canvas_surfaces { nullptr };
+    bool m_allows_lcd_text { false };
     CurrentVideoFrame m_current_video_frame;
     ReadonlyBytes m_current_command_payload;
 

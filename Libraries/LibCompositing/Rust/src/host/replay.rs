@@ -42,6 +42,7 @@ impl FfiReplaySelection {
                 .replays_only_record_spans
                 .then(|| unsafe { ak::slice_from_raw_parts(self.record_spans, self.record_span_count) }),
             skip_root_isolation_layer: self.skip_root_isolation_layer,
+            allows_lcd_text: false,
         }
     }
 }

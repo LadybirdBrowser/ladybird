@@ -456,11 +456,11 @@ static u64 text_blob_glyph_hash(ReadonlySpan<DisplayListGlyph> glyphs)
     return hash;
 }
 
-static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, ReadonlySpan<DisplayListGlyph> glyphs, [[maybe_unused]] u8 font_smoothing)
+static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, ReadonlySpan<DisplayListGlyph> glyphs, [[maybe_unused]] u8 font_smoothing, bool uses_lcd_text)
 {
     if (font.is_invisible())
         return nullptr;
-    auto maybe_sk_font = skia_font(font, scale);
+    auto maybe_sk_font = skia_font(font, scale, uses_lcd_text);
     if (!maybe_sk_font.has_value())
         return nullptr;
     auto& sk_font = *maybe_sk_font;
@@ -494,13 +494,13 @@ static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, Read
     return builder.make();
 }
 
-sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(Gfx::Font const& font, FontResourceId font_id, float scale, ReadonlySpan<DisplayListGlyph> glyphs, u8 font_smoothing)
+sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(Gfx::Font const& font, FontResourceId font_id, float scale, ReadonlySpan<DisplayListGlyph> glyphs, u8 font_smoothing, bool uses_lcd_text)
 {
     constexpr size_t max_text_blob_cache_bytes = 16 * MiB;
     constexpr auto text_blob_idle_duration = AK::Duration::from_milliseconds(250);
 
     ReadonlyBytes glyph_bytes { reinterpret_cast<u8 const*>(glyphs.data()), glyphs.size() * sizeof(DisplayListGlyph) };
-    TextBlobCacheKey key { font_id.value(), bit_cast<u32>(scale), font_smoothing, text_blob_glyph_hash(glyphs) };
+    TextBlobCacheKey key { font_id.value(), bit_cast<u32>(scale), font_smoothing, uses_lcd_text, text_blob_glyph_hash(glyphs) };
     auto now = MonotonicTime::now();
 
     if (auto cached = m_text_blobs.find(key); cached != m_text_blobs.end()) {
@@ -513,7 +513,7 @@ sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(Gfx::Font const& font, FontR
         m_text_blobs.remove(cached);
     }
 
-    auto blob = make_text_blob(font, scale, glyphs, font_smoothing);
+    auto blob = make_text_blob(font, scale, glyphs, font_smoothing, uses_lcd_text);
     if (!blob)
         return nullptr;
 

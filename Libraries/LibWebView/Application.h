@@ -274,6 +274,7 @@ public:
     void update_compositor_display_metadata(Web::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void update_compositor_context_visibility(Web::CompositorContextId, Web::HTML::VisibilityState);
     void update_compositor_context_presents_from_cpu_memory(Web::CompositorContextId, bool);
+    void update_compositor_context_scales_frames_to_fit(Web::CompositorContextId, bool);
 
     struct RemoteLayer {
         u64 id { 0 };
