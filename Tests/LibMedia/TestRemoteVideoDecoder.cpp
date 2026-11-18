@@ -555,3 +555,58 @@ TEST_CASE(a_server_out_of_slots_is_waited_for_until_a_frame_is_released)
         EXPECT(frame.value()->timestamp() > last_held_timestamp);
     EXPECT_EQ(storage_freed_count, 1u);
 }
+
+// The file was encoded from hevc_hdr10_plus_in_sei.mkv, so its frames carry the same HDR10+, in BlockAdditions.
+TEST_CASE(scene_peaks_from_the_container_reach_the_server_with_their_frames)
+{
+    ScenePeakChecker scene_peaks { hevc_hdr10_plus_in_sei_scene_peaks };
+    auto file = MUST(Core::File::open("./vp9_hdr10_plus_in_block_additions.webm"sv, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    NonnullRefPtr<Media::Demuxer> demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).release_value();
+    TRY_OR_FAIL(demuxer->create_context_for_track(track));
+
+    Mutex wake_mutex;
+    ConditionVariable wake_condition { wake_mutex };
+    auto first_coded_frame = TRY_OR_FAIL(demuxer->get_next_sample_for_track(track));
+    auto decoder = TRY_OR_FAIL(Media::RemoteVideoDecoder::try_create(first_coded_frame.codec_id(), first_coded_frame.new_codec_configuration().value()));
+    decoder->set_decode_completed_callback([&](Media::DecodeCompletion) {
+        MutexLocker locker { wake_mutex };
+        wake_condition.broadcast();
+    });
+
+    TRY_OR_FAIL(decoder->receive_coded_data(first_coded_frame, Media::DecodeIntent::Output));
+    while (true) {
+        auto sample = demuxer->get_next_sample_for_track(track);
+        if (sample.is_error())
+            break;
+        TRY_OR_FAIL(decoder->receive_coded_data(sample.release_value(), Media::DecodeIntent::Output));
+    }
+    decoder->signal_end_of_stream();
+
+    size_t frame_count = 0;
+    auto reached_end_of_stream = false;
+    auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+    while (MonotonicTime::now() < deadline) {
+        auto result = decoder->take_next_output({});
+        if (!result.is_error()) {
+            auto const& frame = result.value();
+            scene_peaks.check(frame->timestamp(), frame->color_metadata().maximum_scene_luminance);
+            frame_count++;
+            continue;
+        }
+        if (result.error().category() == Media::DecoderErrorCategory::EndOfStream) {
+            reached_end_of_stream = true;
+            break;
+        }
+        if (result.error().category() != Media::DecoderErrorCategory::NeedsMoreInput) {
+            FAIL(ByteString::formatted("Unexpected decoder error: {}", result.error().description()));
+            return;
+        }
+        MutexLocker locker { wake_mutex };
+        wake_condition.wait_for(AK::Duration::from_milliseconds(100));
+    }
+    EXPECT(reached_end_of_stream);
+    EXPECT_EQ(frame_count, hevc_hdr10_plus_in_sei_scene_peaks.size());
+    scene_peaks.expect_every_frame_checked();
+}
