@@ -1,0 +1,37 @@
+Ladybird picks the font of each character of SVG text by the character’s
+emoji presentation, keeps an emoji sequence in one font, and draws the
+glyphs of a color font as they are, wherever the text has a fill or
+a stroke. Blink does the same: FontFallbackIterator::Next() takes the
+emoji presentation into account, HarfBuzzShaper shapes a sequence as
+one cluster, and Skia draws a color glyph as an image for a fill pass
+and for a stroke pass alike. WebKit picks the font in FontCascadeFonts::
+glyphDataForCharacter(), and draws through SVGTextBoxPainter::
+paintTextWithShadows(). Gecko picks the font in gfxFontGroup::
+FindFontForChar(), but paints SVG text as glyph outlines whenever
+SVGTextFrame::ShouldRenderAsPath() says so — with a stroke or a fill
+opacity, e.g. — where a bitmap glyph draws nothing.
+
+On macOS, with Apple Color Emoji: Chrome 157.0.8103.79, Firefox 151.0,
+and WebKit 26.5 all draw an emoji in its own colors whatever the fill
+color is, and draw nothing for a fill of none or of transparent. Chrome
+and WebKit draw the emoji for a stroke without a fill, and draw it
+translucent for a fill-opacity, as Ladybird does; Firefox draws nothing
+in either case. Chrome applies the alpha of a translucent fill color
+to the emoji, as Ladybird does; WebKit doesn’t. And in all three, as in
+Ladybird, three emoji that zero width joiners make one are as long as
+one emoji, in text whose own font has a glyph for the joiner.
+
+Where lengthAdjust is spacingAndGlyphs, Ladybird moves a color glyph
+to where it lands, but doesn’t stretch it; Blink and WebKit stretch it.
+And Ladybird leaves color glyphs out of a clipping path, where Blink and
+WebKit clip to their silhouettes.
+
+After a joiner, a character whose variation selector asks for its text
+presentation gets its font by that presentation, rather than staying
+in the emoji font: UTS #51 allows no text presentation sequence in an
+emoji ZWJ sequence. That rule comes from the specification alone, since
+the fonts at hand show no difference between the two in any engine. A
+joiner that follows a character that’s no emoji joins nothing either:
+The character after it gets its font from the cascade, as any other
+character does. The lines the test has for that case print the same in
+the three engines as in Ladybird.
