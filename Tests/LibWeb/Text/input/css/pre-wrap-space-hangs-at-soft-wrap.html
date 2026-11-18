@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { font: 20px/20px Ahem; width: 60px; white-space: pre-wrap; }
+</style>
+<!-- Preserved white space at the end of a line stays there, hanging if it has to, and so does an empty inline box after
+     it. White space that collapses leaves the box right after the text. -->
+<div id="pre-wrap">xx <span></span>yy</div>
+<div id="pre-wrap-two-spaces">xx  <span></span>yy</div>
+<div id="break-spaces" style="white-space: break-spaces">xx <span></span>yy</div>
+<div id="pre-line" style="white-space: pre-line">xx <span></span>yy</div>
+<div id="pre-wrap-rtl" dir="rtl">xx <span></span>yy</div>
+<script>
+    test(() => {
+        for (const div of document.querySelectorAll("div")) {
+            const box = div.getBoundingClientRect();
+            const span = div.querySelector("span").getBoundingClientRect();
+            println(`${div.id}: empty span at ${span.left - box.left},${span.top - box.top}, height ${box.height}`);
+        }
+    });
+</script>
