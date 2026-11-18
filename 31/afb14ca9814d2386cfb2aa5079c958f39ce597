@@ -1,0 +1,5 @@
+Ladybird fits a backdrop filter’s feImage into the box as its
+preserveAspectRatio says, and so does Chrome 157, verified at runtime: a
+2:1 image in a square backdrop-filter box, with a filter region the
+box’s size, draws 100×50 and centered. Firefox 151 and WebKit 26.5 apply
+no SVG filter reference as a backdrop filter.
