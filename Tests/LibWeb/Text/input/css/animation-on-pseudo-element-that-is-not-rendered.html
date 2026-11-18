@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    .target::before, .target::marker, .target::backdrop {
+        --length: 1px;
+        color: rgb(0, 128, 0);
+        width: var(--length);
+    }
+</style>
+<div id="before" class="target"></div>
+<div id="marker" class="target"></div>
+<div id="backdrop" class="target"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const names = ["before", "marker", "backdrop"];
+        const dump = label => {
+            for (const name of names) {
+                const style = getComputedStyle(document.getElementById(name), `::${name}`);
+                println(`${label}, ::${name}: ${style.color}, ${style.getPropertyValue("--length")}, ${style.width}`);
+            }
+        };
+        for (const name of names) {
+            const keyframes = { color: ["rgb(255, 0, 0)", "rgb(255, 0, 0)"], "--length": ["5px", "5px"] };
+            document.getElementById(name).animate(keyframes, { duration: 100000, pseudoElement: `::${name}` });
+        }
+        dump("After animate()");
+        await animationFrame();
+        await animationFrame();
+        dump("After two animation frames");
+        done();
+    });
+</script>

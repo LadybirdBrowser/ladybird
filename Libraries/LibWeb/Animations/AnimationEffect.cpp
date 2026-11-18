@@ -180,6 +180,15 @@ void AnimationUpdateContext::publish()
         // animation style into.
         if (target->style_node_id() == 0)
             continue;
+        // NB: The engine assigns no record to a pseudo-element that is not rendered, so the style a read of it holds
+        //     has no record for its animations to compose over, and it reads as it computes to without them.
+        if (auto pseudo_element = element.pseudo_element(); pseudo_element.has_value() && !CSS::is_element_reference_pseudo_element(*pseudo_element)) {
+            auto& document = target->document();
+            Layout::ForcedReadScope read_scope { document };
+            Layout::BegunRead const& read = read_scope;
+            if (!CSS::StyleEngineFFI::style_engine_assigns_pseudo_element_record(document.style_computer().style_engine().host(), &read, target->style_node_id().value(), CSS::pseudo_element_to_ffi(pseudo_element)))
+                continue;
+        }
         // Provisionally started transitions are not associated with the element yet, so they are
         // never among the collected effects, but their values are already part of the published
         // style. Collect them first, in composite order below every associated effect, or this

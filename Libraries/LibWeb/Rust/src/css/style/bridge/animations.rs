@@ -111,6 +111,26 @@ impl FfiAnimationOverlayPublication {
     }
 }
 
+/// Whether the engine assigns a record to the pseudo-element `pseudo_kind` of `node`'s element, for its animations to
+/// compose over. It assigns none to a pseudo-element that is not rendered, whose record a read of its style alone
+/// holds.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_assigns_pseudo_element_record(
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+    node: u32,
+    pseudo_kind: u8,
+) -> bool {
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return false;
+    };
+    with_engine(read, host, |engine| {
+        engine
+            .computed_group_sets
+            .holds_an_installed_record(crate::css::style::computed::ComputedStyleTarget::new(node, pseudo_kind))
+    })
+}
+
 /// Composes each element's sampled animation overlay over the record it installed, rebuilding only the groups the
 /// overlay writes (see `RetainedState::build_animation_overlay_payloads`), compares it with that record, and publishes
 /// it as the target's record, writing what it answers to the same index of `out`: every element in one call of the
