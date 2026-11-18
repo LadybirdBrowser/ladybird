@@ -1019,7 +1019,7 @@ QSize TabBar::tabSizeHint(int index) const
 
 int TabBar::horizontal_tab_min_width(int index) const
 {
-    auto has_speaker = tabButton(index, QTabBar::LeftSide) != nullptr;
+    auto has_speaker = tab_audio_button(index) != nullptr;
     auto has_microphone = microphone_indicator(index) != nullptr;
     if (has_speaker || has_microphone)
         return horizontal_tab_min_width_with_media_indicators(has_speaker, has_microphone);
@@ -1355,7 +1355,7 @@ void TabBar::paintEvent(QPaintEvent*)
                 tabs_with_cut_titles.set(tab);
 
             // The speaker and the microphone take the favicon's place on a pinned tile.
-            if (is_pinned_tile && (tabButton(index, QTabBar::LeftSide) || microphone_indicator(index)))
+            if (is_pinned_tile && (tab_audio_button(index) || microphone_indicator(index)))
                 continue;
 
             auto icon_center = shape_rect.center();
@@ -1380,13 +1380,13 @@ void TabBar::paintEvent(QPaintEvent*)
             ? shape_rect.toAlignedRect().adjusted(VERTICAL_TAB_CONTENT_LEADING_INSET, 0, -TAB_CONTENT_HORIZONTAL_INSET, 0)
             : horizontal_tab_contents_rect(index, layout_rect).toAlignedRect();
         // The microphone and the speaker sit after the title, with the close button.
-        for (auto* indicator : { static_cast<QWidget*>(microphone_indicator(index)), tabButton(index, QTabBar::LeftSide) }) {
+        for (auto* indicator : { static_cast<QWidget*>(microphone_indicator(index)), static_cast<QWidget*>(tab_audio_button(index)) }) {
             if (indicator && indicator->isVisible())
                 contents_rect.setRight(min(contents_rect.right(), indicator->geometry().left() - TAB_CONTENT_BUTTON_GAP));
         }
         // NB: A horizontal tab keeps its close button's slot whether the button shows or not, so that the title ends at
         //     the same place either way.
-        if (auto* right_button = tabButton(index, QTabBar::RightSide)) {
+        if (auto* right_button = tab_close_button(index)) {
             auto keeps_slot = !is_vertical && horizontal_tab_has_room_for_favicon_before(right_button->x(), contents_rect.left());
             if (right_button->isVisible() || keeps_slot)
                 contents_rect.setRight(min(contents_rect.right(), right_button->geometry().left() - TAB_CONTENT_BUTTON_GAP));
@@ -1396,9 +1396,9 @@ void TabBar::paintEvent(QPaintEvent*)
             // A tab too narrow for its title has it cut entirely.
             if (auto* tab = m_tab_widget ? m_tab_widget->tab(index) : nullptr; tab && !tabText(index).isEmpty())
                 tabs_with_cut_titles.set(tab);
-            auto* close_button = tabButton(index, QTabBar::RightSide);
+            auto* close_button = tab_close_button(index);
             auto close_button_replaces_favicon = close_button && close_button->isVisible()
-                && horizontal_tab_close_button_replaces_favicon(horizontal_tab_contents_rect(index, layout_rect), *close_button, is_selected, tabButton(index, QTabBar::LeftSide) || microphone_indicator(index));
+                && horizontal_tab_close_button_replaces_favicon(horizontal_tab_contents_rect(index, layout_rect), *close_button, is_selected, tab_audio_button(index) || microphone_indicator(index));
             // NB: A tab too narrow for its favicon next to its mute button shows the mute button alone, rather than
             //     drawing the favicon over it.
             if (contents_rect.width() < TAB_ICON_SIZE && !close_button_replaces_favicon)
@@ -1591,7 +1591,7 @@ bool TabBar::eventFilter(QObject* watched, QEvent* event)
     //     indicator keeps its tab hovered like the buttons do.
     auto hovered_tab_for_button = [this](QObject* button) {
         for (int index = 0; index < count(); ++index) {
-            if (tabButton(index, QTabBar::LeftSide) == button || tabButton(index, QTabBar::RightSide) == button || microphone_indicator(index) == button)
+            if (tab_audio_button(index) == button || tab_close_button(index) == button || microphone_indicator(index) == button)
                 return index;
         }
         return -1;
@@ -2564,6 +2564,26 @@ void TabBar::update_loading_ring_animation()
     update();
 }
 
+TabBarButton* TabBar::tab_close_button(int index) const
+{
+    return static_cast<TabBarButton*>(tabButton(index, QTabBar::RightSide));
+}
+
+void TabBar::set_tab_close_button(int index, TabBarButton* button)
+{
+    setTabButton(index, QTabBar::RightSide, button);
+}
+
+TabBarButton* TabBar::tab_audio_button(int index) const
+{
+    return static_cast<TabBarButton*>(tabButton(index, QTabBar::LeftSide));
+}
+
+void TabBar::set_tab_audio_button(int index, TabBarButton* button)
+{
+    setTabButton(index, QTabBar::LeftSide, button);
+}
+
 void TabBar::update_microphone_indicators()
 {
     if (m_tab_widget && m_tab_widget->tab_updates_deferred())
@@ -2882,7 +2902,7 @@ void TabBar::update_tab_button_geometry()
             auto is_dragged = index == dragged_index;
             auto tab_rect = shifted_tab_rect(index);
             auto shape_rect = horizontal_tab_card_shape_rect(QRectF(tab_rect), horizontal_tab_end_room(index));
-            auto* left_button = tabButton(index, QTabBar::LeftSide);
+            QWidget* left_button = tab_audio_button(index);
             prepare_button(left_button, TabBarButton::Placement::Tab);
             auto* microphone = microphone_indicator(index);
             prepare_button(microphone, TabBarButton::Placement::Tab);
@@ -2905,7 +2925,7 @@ void TabBar::update_tab_button_geometry()
 
             // The close button ends the tab's content, and shows on every tab, so nothing on a tab changes as it is
             // hovered.
-            auto* close_button = tabButton(index, QTabBar::RightSide);
+            auto* close_button = tab_close_button(index);
             prepare_button(close_button, TabBarButton::Placement::Tab);
             auto trailing_edge = qRound(content_rect.right());
             if (close_button) {
@@ -2924,14 +2944,10 @@ void TabBar::update_tab_button_geometry()
                 //     than fading out over the favicon.
                 if (!show_close_button && !has_room && close_button->isVisible())
                     close_button->hide();
-                if (auto* tab_bar_button = qobject_cast<TabBarButton*>(close_button)) {
-                    tab_bar_button->set_tab_emphasized(is_selected || index == m_hovered_tab_index);
-                    // NB: A close button that takes the favicon's place shows at once, rather than fading in where the
-                    //     favicon has already gone.
-                    tab_bar_button->set_revealed(show_close_button, replaces_favicon ? TabBarButton::Reveal::AtOnce : TabBarButton::Reveal::Fade);
-                } else if (close_button->isVisible() != show_close_button) {
-                    close_button->setVisible(show_close_button);
-                }
+                close_button->set_tab_emphasized(is_selected || index == m_hovered_tab_index);
+                // NB: A close button that takes the favicon's place shows at once, rather than fading in where the
+                //     favicon has already gone.
+                close_button->set_revealed(show_close_button, replaces_favicon ? TabBarButton::Reveal::AtOnce : TabBarButton::Reveal::Fade);
                 if (has_room)
                     trailing_edge = close_button_position.x() - HORIZONTAL_TAB_CLOSE_BUTTON_GAP;
             }
@@ -2981,8 +2997,8 @@ void TabBar::update_tab_button_geometry()
         // before the close button while it shows, and in its place otherwise. The microphone sits before the speaker
         // while it shows, and in the speaker's place otherwise.
         // NB: A QRect's right() is its last column, one short of its right edge.
-        auto* close_button = tabButton(index, QTabBar::RightSide);
-        auto* speaker = tabButton(index, QTabBar::LeftSide);
+        auto* close_button = tab_close_button(index);
+        auto* speaker = tab_audio_button(index);
         auto end_radius = shape_rect.height() / 2;
         auto x = shape_rect.right() + 1 - end_radius - (button_size.width() / 2);
         if (button != close_button && close_button && close_button->isVisible())
@@ -3032,7 +3048,7 @@ void TabBar::update_tab_button_geometry()
         // microphone on its bottom left corner.
         auto icon_center = QRectF(shape_rect).center();
         QPoint icon_top_left { qRound(icon_center.x()) - (TAB_ICON_SIZE / 2), qRound(icon_center.y()) - (TAB_ICON_SIZE / 2) };
-        auto is_close_button = button == tabButton(index, QTabBar::RightSide);
+        auto is_close_button = button == tab_close_button(index);
         auto badge_center = icon_top_left + QPoint(TAB_ICON_SIZE, TAB_ICON_SIZE) + RAIL_BADGE_CORNER_OUTSET;
         if (is_close_button)
             badge_center = icon_top_left - RAIL_BADGE_CORNER_OUTSET;
@@ -3065,13 +3081,13 @@ void TabBar::update_tab_button_geometry()
         if (!tab_rect.isValid())
             continue;
 
-        auto* close_button = tabButton(index, QTabBar::RightSide);
-        auto* speaker = tabButton(index, QTabBar::LeftSide);
+        auto* close_button = tab_close_button(index);
+        QWidget* speaker = tab_audio_button(index);
         auto* microphone = microphone_indicator(index);
 
         // An unpinned tab scrolled under the pinned tabs keeps its buttons out of sight.
         if (region.count > 0 && !region.scrolls && index >= region.count && tab_rect.top() < region.height) {
-            for (auto* button : { close_button, speaker, static_cast<QWidget*>(microphone) }) {
+            for (auto* button : { static_cast<QWidget*>(close_button), speaker, static_cast<QWidget*>(microphone) }) {
                 if (button && button->isVisible())
                     button->setVisible(false);
             }
@@ -5357,7 +5373,7 @@ void TabWidget::update_tab_button_visibility()
 
     if (m_tab_bar->tab_layout() == TabLayout::VerticalCollapsed) {
         for (int index = 0; index < m_tab_bar->count(); ++index) {
-            if (auto* button = m_tab_bar->tabButton(index, QTabBar::RightSide))
+            if (auto* button = m_tab_bar->tab_close_button(index))
                 button->hide();
         }
 
@@ -5366,9 +5382,9 @@ void TabWidget::update_tab_button_visibility()
     }
 
     for (int index = 0; index < m_tab_bar->count(); ++index) {
-        if (auto* button = m_tab_bar->tabButton(index, QTabBar::LeftSide))
+        if (auto* button = m_tab_bar->tab_audio_button(index))
             button->setVisible(true);
-        if (auto* button = m_tab_bar->tabButton(index, QTabBar::RightSide))
+        if (auto* button = m_tab_bar->tab_close_button(index))
             button->setVisible(true);
     }
 

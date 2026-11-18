@@ -61,6 +61,7 @@ class AllTabsPopover;
 class ChromeHeaderButton;
 class LadybirdButton;
 
+class TabBarButton;
 class TabMicrophoneIndicator;
 class TabWidget;
 class WindowControlsReveal;
@@ -106,6 +107,11 @@ public:
     void lock_tab_widths();
     void recreate_icons();
     int pinned_tab_count() const;
+
+    TabBarButton* tab_close_button(int index) const;
+    void set_tab_close_button(int index, TabBarButton*);
+    TabBarButton* tab_audio_button(int index) const;
+    void set_tab_audio_button(int index, TabBarButton*);
 
     void update_loading_ring_animation();
     void update_microphone_indicators();
