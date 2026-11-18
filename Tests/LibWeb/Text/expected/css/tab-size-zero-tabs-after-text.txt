@@ -1,0 +1,3 @@
+after-text: X at 10px
+at-line-start: X at 0px
+in-two-nodes: X at 10px

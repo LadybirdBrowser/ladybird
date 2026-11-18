@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    pre { font: 10px/20px Ahem; margin: 0; tab-size: 0; }
+</style>
+<!-- With tab-size: 0, preserved tabs aren't rendered, so the X comes right after what's before the tabs. -->
+<div id="host">
+<pre id="after-text">a		X</pre>
+<pre id="at-line-start">		X</pre>
+<pre id="in-two-nodes">a	<span>	</span>X</pre>
+</div>
+<script>
+    test(() => {
+        for (const pre of document.querySelectorAll("#host pre")) {
+            const walker = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT);
+            let node;
+            while ((node = walker.nextNode())) {
+                const offset = node.data.indexOf("X");
+                if (offset < 0)
+                    continue;
+                const range = document.createRange();
+                range.setStart(node, offset);
+                range.setEnd(node, offset + 1);
+                println(`${pre.id}: X at ${range.getBoundingClientRect().left - pre.getBoundingClientRect().left}px`);
+            }
+        }
+    });
+</script>
