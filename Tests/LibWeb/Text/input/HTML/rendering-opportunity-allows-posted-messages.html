@@ -11,8 +11,10 @@
 
     function printRenderingSchedule(title, trace) {
         println(title);
+        // The test's own requests come before the trace begins, so any request in it is incidental: The rendering work
+        // the opportunity starts can request a frame of its own before the trace is taken.
         for (const line of trace.split("\n")) {
-            if (/^(request|opportunity|update$)/.test(line))
+            if (/^(opportunity|update$)/.test(line))
                 println(`  ${line}`);
         }
     }
