@@ -26,7 +26,7 @@ struct Decoding {
     Media::DecoderErrorOr<NonnullRefPtr<Media::VideoFrame>> next_frame() const
     {
         while (true) {
-            auto frame_result = decoder->take_next_output(track.video_data().cicp);
+            auto frame_result = decoder->take_next_output(track.video_data().color_metadata);
             if (!frame_result.is_error() || frame_result.error().category() != Media::DecoderErrorCategory::NeedsMoreInput)
                 return frame_result;
 

@@ -347,7 +347,7 @@ inline Track track_from_track_entry(TrackEntry const& track_entry, bool is_first
             track.set_video_data({
                 .pixel_width = video_track->pixel_width,
                 .pixel_height = video_track->pixel_height,
-                .cicp = cicp,
+                .color_metadata = { .cicp = cicp },
             });
         }
     }

@@ -688,7 +688,7 @@ void DecodedVideoProducer::ThreadData::handle_seek()
                 break;
 
             while (m_decoder != nullptr && new_seek_id == seek_id) {
-                auto frame_result = m_decoder->take_next_output(m_track.video_data().cicp, timestamp);
+                auto frame_result = m_decoder->take_next_output(m_track.video_data().color_metadata, timestamp);
                 if (frame_result.is_error()) {
                     if (frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
                         if (m_decoder_is_draining_before_unavailable_data) {
@@ -877,7 +877,7 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
         if (seek_is_pending())
             return;
 
-        auto frame_result = m_decoder->take_next_output(m_track.video_data().cicp);
+        auto frame_result = m_decoder->take_next_output(m_track.video_data().color_metadata);
         if (frame_result.is_error()) {
             if (frame_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
                 break;

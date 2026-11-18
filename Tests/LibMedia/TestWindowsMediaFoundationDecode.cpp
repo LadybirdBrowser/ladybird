@@ -57,7 +57,7 @@ DecodeResult decode_all_frames(StringView path, Function<void(Media::VideoFrame 
     auto last_timestamp = AK::Duration::min();
     auto take_decoded_frames = [&](Media::DecoderErrorCategory expected_end) {
         while (true) {
-            auto frame_result = decoder->take_next_output(track.video_data().cicp);
+            auto frame_result = decoder->take_next_output(track.video_data().color_metadata);
             if (frame_result.is_error()) {
                 EXPECT_EQ(frame_result.error().category(), expected_end);
                 return;
@@ -156,7 +156,7 @@ TEST_CASE(h264_reference_only_frames_are_decoded_but_not_produced)
     Vector<AK::Duration> presented_timestamps;
     auto drain = [&] {
         while (true) {
-            auto decoded_frame_result = decoder->take_next_output(track.video_data().cicp);
+            auto decoded_frame_result = decoder->take_next_output(track.video_data().color_metadata);
             if (decoded_frame_result.is_error())
                 return;
             presented_timestamps.append(decoded_frame_result.value()->timestamp());
@@ -198,7 +198,7 @@ TEST_CASE(flush_restarts_decoding_from_a_keyframe)
 
     MUST(decoder->receive_coded_data(first_sample, Media::DecodeIntent::Output));
     decoder->signal_end_of_stream();
-    auto frame = MUST(decoder->take_next_output(track.video_data().cicp));
+    auto frame = MUST(decoder->take_next_output(track.video_data().color_metadata));
     EXPECT_EQ(frame->timestamp(), first_sample.presentation_timestamp());
-    EXPECT_EQ(decoder->take_next_output(track.video_data().cicp).error().category(), Media::DecoderErrorCategory::EndOfStream);
+    EXPECT_EQ(decoder->take_next_output(track.video_data().color_metadata).error().category(), Media::DecoderErrorCategory::EndOfStream);
 }

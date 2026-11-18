@@ -18,7 +18,7 @@
 #include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
 #include <LibMediaCodecs/CodecParameters.h>
-#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
+#include <LibMediaCodecs/Color/ColorMetadata.h>
 #include <LibMediaCodecs/TrackType.h>
 
 namespace Media {
@@ -28,7 +28,7 @@ public:
     struct VideoData {
         u64 pixel_width { 0 };
         u64 pixel_height { 0 };
-        CodingIndependentCodePoints cicp;
+        ColorMetadata color_metadata;
     };
 
     struct AudioData {

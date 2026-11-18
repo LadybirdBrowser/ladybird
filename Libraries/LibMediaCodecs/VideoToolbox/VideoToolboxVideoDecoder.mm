@@ -934,7 +934,7 @@ bool VideoToolboxVideoDecoder::may_pull_frame_from_reorder_queue_while_locked() 
     return m_outputs.size() > frames_that_may_still_be_preceded;
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp, Optional<AK::Duration> target)
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_output(ColorMetadata const& container_color_metadata, Optional<AK::Duration> target)
 {
     MutexLocker locker { m_output_mutex };
     while (true) {
@@ -945,7 +945,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_ou
                 auto const& output = m_outputs[index];
                 if (*target < output.timestamp || *target >= output.timestamp + output.duration)
                     continue;
-                auto frame = TRY(adopt_output_while_locked(container_cicp, index));
+                auto frame = TRY(adopt_output_while_locked(container_color_metadata, index));
                 // Everything the covering frame was queued behind precedes the target.
                 m_outputs.remove(0, index + 1);
                 return frame;
@@ -967,12 +967,12 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_ou
         m_caller_is_waiting_for_output = false;
     }
 
-    auto frame = TRY(adopt_output_while_locked(container_cicp, 0));
+    auto frame = TRY(adopt_output_while_locked(container_color_metadata, 0));
     m_outputs.remove(0);
     return frame;
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::adopt_output_while_locked(CodingIndependentCodePoints const& container_cicp, size_t index)
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::adopt_output_while_locked(ColorMetadata const& container_color_metadata, size_t index)
 {
     auto const& output = m_outputs[index];
 
@@ -980,12 +980,12 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::adopt_output
     if (!storage)
         return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video surface the decoder may hand out is held elsewhere"sv);
 
-    auto cicp = container_cicp;
-    cicp.adopt_specified_values(output.cicp);
+    auto color_metadata = container_color_metadata;
+    color_metadata.cicp.adopt_specified_values(output.cicp);
 
     return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(
         output.timestamp, output.duration, output.size.to_type<u32>(),
-        output.bit_depth, output.subsampling, cicp, storage.release_nonnull()));
+        output.bit_depth, output.subsampling, move(color_metadata), storage.release_nonnull()));
 }
 
 void VideoToolboxVideoDecoder::flush()

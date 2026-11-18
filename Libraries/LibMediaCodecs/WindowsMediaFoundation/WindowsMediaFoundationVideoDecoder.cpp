@@ -598,20 +598,20 @@ void WindowsMediaFoundationVideoDecoder::retire_submitted_frames_through(Optiona
         m_submitted_frames.remove(0, *index + 1);
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoFrame>> WindowsMediaFoundationVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp, [[maybe_unused]] Optional<AK::Duration> target)
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> WindowsMediaFoundationVideoDecoder::take_next_output(ColorMetadata const& container_color_metadata, [[maybe_unused]] Optional<AK::Duration> target)
 {
     TRY(collect_available_outputs());
 
     auto output = TRY(m_thread_data->take_completed_output(m_draining));
 
     // Only this thread takes outputs or flushes, so a frame that cannot go out yet can go back to the front.
-    auto frame = copy_output_into_frame_pool(output, container_cicp);
+    auto frame = copy_output_into_frame_pool(output, container_color_metadata);
     if (frame.is_error())
         m_thread_data->return_to_front(move(output));
     return frame;
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoFrame>> WindowsMediaFoundationVideoDecoder::copy_output_into_frame_pool(DecodedOutput const& output, CodingIndependentCodePoints const& container_cicp)
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> WindowsMediaFoundationVideoDecoder::copy_output_into_frame_pool(DecodedOutput const& output, ColorMetadata const& container_color_metadata)
 {
     auto const& format = output.format;
     auto subsampling = Subsampling::yuv420();
@@ -702,7 +702,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> WindowsMediaFoundationVideoDecoder::co
         }
     }
 
-    return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timestamp, output.duration, format.aperture_size, format.bit_depth, subsampling, container_cicp, acquired_slot->storage));
+    return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timestamp, output.duration, format.aperture_size, format.bit_depth, subsampling, container_color_metadata, acquired_slot->storage));
 }
 
 void WindowsMediaFoundationVideoDecoder::flush()

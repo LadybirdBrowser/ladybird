@@ -14,7 +14,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/YUVData.h>
-#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
+#include <LibMediaCodecs/Color/ColorMetadata.h>
 #include <LibMediaCodecs/Export.h>
 #include <LibMediaCodecs/Subsampling.h>
 
@@ -34,7 +34,7 @@ public:
         Gfx::Size<u32> size,
         u8 bit_depth,
         Subsampling subsampling,
-        CodingIndependentCodePoints cicp,
+        ColorMetadata color_metadata,
         NonnullRefPtr<VideoFrameStorage>);
     ~VideoFrame();
 
@@ -54,7 +54,8 @@ public:
 
     u8 bit_depth() const { return m_bit_depth; }
     Subsampling subsampling() const { return m_subsampling; }
-    CodingIndependentCodePoints const& cicp() const { return m_cicp; }
+    ColorMetadata const& color_metadata() const { return m_color_metadata; }
+    CodingIndependentCodePoints const& cicp() const { return m_color_metadata.cicp; }
 
     // A view of the planes in the frame's buffer, absent when a surface holds them instead.
     Optional<Gfx::YUVData> yuv_data() const;
@@ -77,7 +78,7 @@ private:
     Gfx::Size<u32> m_size;
     u8 m_bit_depth;
     Subsampling m_subsampling;
-    CodingIndependentCodePoints m_cicp;
+    ColorMetadata m_color_metadata;
     NonnullRefPtr<VideoFrameStorage> m_storage;
 };
 

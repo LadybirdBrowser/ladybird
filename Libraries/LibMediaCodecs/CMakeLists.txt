@@ -8,6 +8,7 @@ set(SOURCES
     Codecs/MPEG4Audio.cpp
     Codecs/VP9.cpp
     Color/CodingIndependentCodePoints.cpp
+    Color/ColorMetadata.cpp
     DecoderCapabilities.cpp
     DecoderError.cpp
     FFmpeg/FFmpegFunctions.cpp
