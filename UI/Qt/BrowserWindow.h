@@ -37,6 +37,8 @@ class QWindow;
 
 namespace Ladybird {
 
+class MenuZoomRow;
+
 class Tab;
 class TabBarButton;
 class WebContentView;
@@ -308,9 +310,6 @@ private:
     void initialize_application_actions();
     void initialize_application_menu();
     void initialize_ladybird_menu();
-    QAction* create_ladybird_menu_zoom_row();
-    void update_ladybird_menu_zoom_icons();
-    void update_ladybird_menu_zoom_level();
     void initialize_window_context_menu();
 
     void update_chrome_style();
@@ -351,10 +350,7 @@ private:
     QToolButton* m_menu_bar_close_window_button { nullptr };
 
     QMenu* m_ladybird_menu { nullptr };
-    QWidget* m_ladybird_menu_zoom_row { nullptr };
-    QPushButton* m_ladybird_menu_zoom_out { nullptr };
-    QPushButton* m_ladybird_menu_zoom_level { nullptr };
-    QPushButton* m_ladybird_menu_zoom_in { nullptr };
+    MenuZoomRow* m_ladybird_menu_zoom_row { nullptr };
 
     QMenu* m_window_context_menu { nullptr };
     QAction* m_reopen_closed_tab_action { nullptr };
