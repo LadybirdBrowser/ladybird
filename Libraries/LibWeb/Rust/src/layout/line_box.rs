@@ -89,6 +89,9 @@ pub(crate) struct LineBoxData {
     /// Whether placing the line aligned it as the last line of its block, or a line before a forced break, by
     /// text-align-last. Justification follows the same decision.
     pub(crate) uses_last_line_alignment: Option<bool>,
+    /// How far placing the line moved its fragments along it. A line that isn't placed yet has its fragments where
+    /// its content put them, from the start of the line.
+    pub(crate) aligned_inline_offset: CssPixels,
     pub(crate) record: inline_content::LineRecord,
 }
 
@@ -116,6 +119,7 @@ impl LineBoxData {
             text_overflow_elision: None,
             block_level_box: None,
             uses_last_line_alignment: None,
+            aligned_inline_offset: CssPixels::default(),
             record: inline_content::LineRecord {
                 direction,
                 writing_mode,
