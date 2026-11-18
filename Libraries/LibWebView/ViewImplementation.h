@@ -266,6 +266,7 @@ public:
 
     bool crash_overlay_active() const { return m_crash_state.has_value(); }
     String crash_overlay_failed_url() const;
+    bool crash_overlay_is_for_memory_limit() const { return m_crash_state.has_value() && m_crash_state->exceeded_memory_limit; }
     Optional<ByteString> crash_report_name() const;
     Optional<String> crash_report_website() const;
 
@@ -712,6 +713,7 @@ public:
     enum class WebContentCrashReason {
         ProcessCrash,
         RejectedIPC,
+        ExceededMemoryLimit,
     };
     Function<void(WebContentCrashReason)> on_web_content_crashed;
     Function<void(bool)> on_crash_overlay_state_change;
@@ -890,7 +892,7 @@ protected:
     void retry_navigation(NavigationToRetry, Web::Bindings::NavigationHistoryBehavior);
 
     struct CrashState;
-    void handle_web_content_process_crash();
+    void handle_web_content_process_crash(WebContentCrashReason);
     void did_save_crash_report(ByteString report_name);
     void respawn_web_content_process_after_crash();
     void prepare_for_navigation_after_crash(Optional<NavigationToRetry> navigation_to_retry = {});
@@ -943,6 +945,7 @@ protected:
         Optional<NavigationToRetry> navigation_to_retry;
         bool recovery_started { false };
         ByteString report_name {};
+        bool exceeded_memory_limit { false };
     };
     Optional<CrashState> m_crash_state;
 

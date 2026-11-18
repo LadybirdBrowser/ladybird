@@ -118,6 +118,7 @@ public:
     bool is_loading() const { return m_state.is_loading; }
     bool crash_overlay_active() const { return m_state.crash_overlay_active; }
     String crash_overlay_failed_url() const { return m_state.crash_overlay_failed_url; }
+    bool crash_overlay_is_for_memory_limit() const { return m_state.crash_overlay_is_for_memory_limit; }
     Optional<ByteString> crash_report_name() const { return m_state.crash_report_name; }
     Optional<String> crash_report_website() const { return m_state.crash_report_website; }
     void traverse_the_history_to_step(i32 step) { HubConnection::the().async_view_traverse_the_history_to_step(view_id(), step); }
