@@ -221,11 +221,12 @@ pub fn rsa_key_from_components(is_private: bool, components: &[&[u8]]) -> Option
 }
 
 // NB: OpenSSL writes a SubjectPublicKeyInfo of rsaEncryption with NULL parameters.
-pub fn rsa_export_der(key: &KeyHandle, is_public: bool) -> Result<Vec<u8>, CryptoError> {
-    if is_public {
-        return public_key(key).key.public_key_info();
-    }
-    let private_key = private_key(key);
+pub fn rsa_export_der(key: &KeyHandle) -> Result<Vec<u8>, CryptoError> {
+    let private_key = match &key.0 {
+        Key::RsaPublic(public_key) => return public_key.key.public_key_info(),
+        Key::RsaPrivate(private_key) => private_key,
+        _ => panic!("The key is not an RSA key"),
+    };
     if !private_key.has_crt_components {
         return Err(CryptoError::Backend);
     }

@@ -259,17 +259,15 @@ pub fn ec_generate_key_pair(curve: EcCurve) -> Result<KeyPair, CryptoError> {
     })
 }
 
-pub fn ec_sign(curve: EcCurve, key: &KeyHandle, digest: &[u8]) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
+pub fn ec_sign(key: &KeyHandle, digest: &[u8]) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
     let private_key = private_key(key);
-    if private_key.curve != curve {
-        return Err(CryptoError::Invalid("The key is on a different curve"));
-    }
-    openssl::ecdsa_sign(&private_key.key, digest, curve.scalar_size())
+    openssl::ecdsa_sign(&private_key.key, digest, private_key.curve.scalar_size())
 }
 
-pub fn ec_verify(curve: EcCurve, key: &KeyHandle, digest: &[u8], r: &[u8], s: &[u8]) -> Result<bool, CryptoError> {
+pub fn ec_verify(key: &KeyHandle, digest: &[u8], r: &[u8], s: &[u8]) -> Result<bool, CryptoError> {
     let public_key = public_key(key);
-    if public_key.curve != curve || r.len() != curve.scalar_size() || s.len() != curve.scalar_size() {
+    let scalar_size = public_key.curve.scalar_size();
+    if r.len() != scalar_size || s.len() != scalar_size {
         return Ok(false);
     }
     openssl::ecdsa_verify(&public_key.key, digest, r, s)
@@ -302,18 +300,20 @@ pub fn ec_key_is_valid(curve: EcCurve, key: &KeyHandle) -> bool {
     key_curve == curve
 }
 
-pub fn ec_export_der(curve: EcCurve, key: &KeyHandle, is_public: bool) -> Result<Vec<u8>, CryptoError> {
-    let parameters = der::object_identifier(curve.oid());
-    if is_public {
-        let point = public_key(key).to_uncompressed()?;
-        return Ok(der::subject_public_key_info(
-            KeyAlgorithm::Ec.oid(),
-            Some(&parameters),
-            &point,
-        ));
-    }
+pub fn ec_export_der(key: &KeyHandle) -> Result<Vec<u8>, CryptoError> {
+    let private_key = match &key.0 {
+        Key::EcPublic(public_key) => {
+            return Ok(der::subject_public_key_info(
+                KeyAlgorithm::Ec.oid(),
+                Some(&der::object_identifier(public_key.curve.oid())),
+                &public_key.to_uncompressed()?,
+            ));
+        }
+        Key::EcPrivate(private_key) => private_key,
+        _ => panic!("The key is not an EC key"),
+    };
+    let parameters = der::object_identifier(private_key.curve.oid());
     // NB: The ECPrivateKey has its public key and not its parameters, which the PrivateKeyInfo already has.
-    let private_key = private_key(key);
     let public_point = private_key.public_key.to_uncompressed()?;
     let encoded = SecretBytes::new(encode_private_key(&private_key.d_bytes()?, None, Some(&public_point)));
     Ok(der::private_key_info(
@@ -339,11 +339,8 @@ pub fn ec_export_private_scalar(key: &KeyHandle) -> Result<Vec<u8>, CryptoError>
     Ok(private_key(key).d_bytes()?.into_vec())
 }
 
-pub fn ec_compute_coordinate(curve: EcCurve, key: &KeyHandle, public_key: &KeyHandle) -> Result<Vec<u8>, CryptoError> {
+pub fn ec_compute_coordinate(key: &KeyHandle, public_key: &KeyHandle) -> Result<Vec<u8>, CryptoError> {
     let private_key = private_key(key);
-    if private_key.curve != curve {
-        return Err(CryptoError::Invalid("The key is on a different curve"));
-    }
     let peer = self::public_key(public_key);
     if private_key.curve != peer.curve {
         return Err(CryptoError::Invalid("EC keys are on different curves"));

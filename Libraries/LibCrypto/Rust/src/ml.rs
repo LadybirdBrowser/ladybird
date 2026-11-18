@@ -225,14 +225,15 @@ pub fn ml_seed_bytes(key: &KeyHandle) -> Result<Vec<u8>, CryptoError> {
     Ok(private_key(key).seed()?.into_vec())
 }
 
-/// The SubjectPublicKeyInfo or PrivateKeyInfo of an ML-DSA or ML-KEM key of `algorithm`. A private key's privateKey is
-/// in the seed-only form.
-pub fn ml_export_der(key: &KeyHandle, is_public: bool, algorithm: KeyAlgorithm) -> Result<Vec<u8>, CryptoError> {
+/// The SubjectPublicKeyInfo of an ML-DSA or ML-KEM public key, or the PrivateKeyInfo of a private key, of `algorithm`.
+/// A private key's privateKey is in the seed-only form.
+// NB: The algorithm is not taken from the key, since an ML-KEM public key can hold bytes of no parameter set.
+pub fn ml_export_der(key: &KeyHandle, algorithm: KeyAlgorithm) -> Result<Vec<u8>, CryptoError> {
     let oid = algorithm.oid();
     match &key.0 {
-        Key::MlDsaPublic(public_key) if is_public => Ok(der::subject_public_key_info(oid, None, &public_key.bytes)),
-        Key::MlKemPublic(public_key) if is_public => Ok(der::subject_public_key_info(oid, None, &public_key.bytes)),
-        Key::MlPrivate(private_key) if !is_public => {
+        Key::MlDsaPublic(public_key) => Ok(der::subject_public_key_info(oid, None, &public_key.bytes)),
+        Key::MlKemPublic(public_key) => Ok(der::subject_public_key_info(oid, None, &public_key.bytes)),
+        Key::MlPrivate(private_key) => {
             let seed = private_key.seed()?;
             let seed_header = der::header(0x80, seed.len());
             let mut encoded = SecretBytes::new(Vec::with_capacity(seed_header.len() + seed.len()));
