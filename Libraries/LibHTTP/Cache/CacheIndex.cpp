@@ -12,6 +12,7 @@
 #include <AK/StringBuilder.h>
 #include <LibCore/Directory.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibHTTP/Cache/CacheEntry.h>
 #include <LibHTTP/Cache/CacheIndex.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Cache/Version.h>
@@ -101,14 +102,17 @@ static void log_orphaned_disk_cache_entries(Database::Database& database)
     )#"sv));
 
     for_each_cache_entry_file(database, [&](LexicalPath const& cache_entry) {
-        auto cache_entry_data = cache_entry_data_for_file(cache_entry);
-        if (!cache_entry_data.has_value()) {
+        auto cache_header = [&]() -> ErrorOr<CacheHeader> {
+            auto file = TRY(Core::File::open(cache_entry.string(), Core::File::OpenMode::Read));
+            return file->read_value<CacheHeader>();
+        }();
+        if (cache_header.is_error() || cache_header.value().magic != CacheHeader::CACHE_MAGIC) {
             dbgln("Unrecognized cache file: {}", cache_entry);
             return;
         }
 
         bool has_entry = false;
-        auto result = database.try_execute_statement(check_entry, [&](auto) -> ErrorOr<void> { has_entry = true; return {}; }, encode_cache_key_for_database(cache_entry_data->cache_key), encode_cache_key_for_database(cache_entry_data->vary_key));
+        auto result = database.try_execute_statement(check_entry, [&](auto) -> ErrorOr<void> { has_entry = true; return {}; }, encode_cache_key_for_database(cache_header.value().cache_key), encode_cache_key_for_database(cache_header.value().vary_key));
 
         if (!result.is_error() && !has_entry)
             dbgln("Cache file missing from cache index: {}", cache_entry);

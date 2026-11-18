@@ -21,7 +21,8 @@ ErrorOr<CacheHeader> CacheHeader::read_from_stream(Stream& stream)
     CacheHeader header;
     header.magic = TRY(stream.read_value<u32>());
     header.version = TRY(stream.read_value<u32>());
-    header.key_hash = TRY(stream.read_value<u32>());
+    TRY(stream.read_until_filled(header.cache_key.bytes));
+    TRY(stream.read_until_filled(header.vary_key.bytes));
     header.url_size = TRY(stream.read_value<u32>());
     header.url_hash = TRY(stream.read_value<u32>());
     header.status_code = TRY(stream.read_value<u32>());
@@ -34,7 +35,8 @@ ErrorOr<void> CacheHeader::write_to_stream(Stream& stream) const
 {
     TRY(stream.write_value(magic));
     TRY(stream.write_value(version));
-    TRY(stream.write_value(key_hash));
+    TRY(stream.write_until_depleted(cache_key.bytes));
+    TRY(stream.write_until_depleted(vary_key.bytes));
     TRY(stream.write_value(url_size));
     TRY(stream.write_value(url_hash));
     TRY(stream.write_value(status_code));
@@ -48,7 +50,8 @@ u32 CacheHeader::hash() const
     u32 hash = 0;
     hash = pair_int_hash(hash, magic);
     hash = pair_int_hash(hash, version);
-    hash = pair_int_hash(hash, key_hash);
+    hash = pair_int_hash(hash, Traits<CacheDigest>::hash(cache_key));
+    hash = pair_int_hash(hash, Traits<CacheDigest>::hash(vary_key));
     hash = pair_int_hash(hash, url_size);
     hash = pair_int_hash(hash, url_hash);
     hash = pair_int_hash(hash, status_code);
@@ -100,7 +103,7 @@ void CacheEntry::close_and_destroy_cache_entry()
 ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& disk_cache, CacheIndex& index, CacheDigest const& cache_key, String url, UnixDateTime request_time, AK::Duration current_time_offset_for_testing)
 {
     CacheHeader cache_header;
-    cache_header.key_hash = Traits<CacheDigest>::hash(cache_key);
+    cache_header.cache_key = cache_key;
     cache_header.url_size = url.byte_count();
     cache_header.url_hash = url.hash();
 
@@ -146,6 +149,7 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
             return Error::from_string_literal("Response cannot be selected by any request");
 
         m_vary_key = *vary_key;
+        m_cache_header.vary_key = m_vary_key;
 
         // Trailer fields were not considered when deciding cacheability.
         m_response_headers = HeaderList::create(response_headers.headers());
@@ -319,8 +323,8 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
         if (cache_header.version != CACHE_VERSION)
             return Error::from_string_literal("Version mismatch");
 
-        if (cache_header.key_hash != Traits<CacheDigest>::hash(cache_key))
-            return Error::from_string_literal("Key hash mismatch");
+        if (cache_header.cache_key != cache_key || cache_header.vary_key != vary_key)
+            return Error::from_string_literal("Key mismatch");
 
         if (cache_header.url_size != expected_url.byte_count())
             return Error::from_string_literal("URL mismatch");

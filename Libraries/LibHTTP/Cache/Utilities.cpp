@@ -204,46 +204,12 @@ Optional<CacheDigest> create_vary_key(HeaderList const& request_headers, HeaderL
 
 LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, CacheDigest const& cache_key, CacheDigest const& vary_key)
 {
-    auto file = vary_key == CacheDigest {}
-        ? encode_hex(cache_key.bytes)
-        : ByteString::formatted("{}_{}", encode_hex(cache_key.bytes), encode_hex(vary_key.bytes));
+    Crypto::Hash::Hasher hasher { Crypto::Hash::HashKind::SHA256 };
+    hasher.update(cache_key.bytes.span());
+    hasher.update(vary_key.bytes.span());
+    auto digest = hasher.finish();
 
-    return cache_directory.append(file);
-}
-
-static Optional<CacheDigest> parse_digest(StringView hex)
-{
-    auto bytes = decode_hex(hex);
-    if (bytes.is_error())
-        return {};
-    return CacheDigest::from_bytes(bytes.value());
-}
-
-Optional<CacheEntryData> cache_entry_data_for_file(LexicalPath const& cache_file)
-{
-    CacheEntryData result;
-
-    if (auto file_name = cache_file.basename(); file_name.contains('_')) {
-        auto parts = file_name.split_view('_', SplitBehavior::KeepEmpty);
-        if (parts.size() != 2)
-            return {};
-
-        auto cache_key = parse_digest(parts[0]);
-        auto vary_key = parse_digest(parts[1]);
-        if (!cache_key.has_value() || !vary_key.has_value())
-            return {};
-
-        result.cache_key = *cache_key;
-        result.vary_key = *vary_key;
-    } else {
-        auto cache_key = parse_digest(file_name);
-        if (!cache_key.has_value())
-            return {};
-
-        result.cache_key = *cache_key;
-    }
-
-    return result;
+    return cache_directory.append(encode_hex(digest.bytes().trim(16)));
 }
 
 // https://httpwg.org/specs/rfc9111.html#response.cacheability

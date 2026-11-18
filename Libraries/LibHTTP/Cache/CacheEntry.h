@@ -32,7 +32,8 @@ struct CacheHeader {
     u32 magic { CACHE_MAGIC };
     u32 version { CACHE_VERSION };
 
-    u32 key_hash { 0 };
+    CacheDigest cache_key;
+    CacheDigest vary_key;
 
     u32 url_size { 0 };
     u32 url_hash { 0 };
