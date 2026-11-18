@@ -93,6 +93,12 @@
                 gap: 12px;
             }
 
+            #tab-appearance:has(#vertical-tabs-position > option[value="right"]:checked)
+                input[value="vertical"]
+                + .vertical-preview {
+                flex-direction: row-reverse;
+            }
+
             .inline-container > label {
                 max-width: 60ch;
                 margin-bottom: 0;
@@ -1138,9 +1144,9 @@
                                     <input type="radio" name="tab-layout" value="vertical" />
                                     <span class="tab-preview vertical-preview" aria-hidden="true">
                                         <span class="preview-sidebar"><i></i><i class="active"></i><i></i></span>
-                                        <span class="preview-main"
-                                            ><span class="preview-toolbar"><i></i></span
-                                        ></span>
+                                        <span class="preview-main">
+                                            <span class="preview-toolbar"><i></i></span>
+                                        </span>
                                     </span>
                                     <span class="tab-option-label">Tabs on the side</span>
                                 </label>
@@ -1155,9 +1161,9 @@
                             </div>
                         </div>
                         <div class="card-group inline-container hidden">
-                            <label for="vertical-tabs-expand-on-hover"
-                                >Expand vertical tabs on hover when collapsed</label
-                            >
+                            <label for="vertical-tabs-expand-on-hover">
+                                Expand vertical tabs on hover when collapsed
+                            </label>
                             <input id="vertical-tabs-expand-on-hover" type="checkbox" switch />
                         </div>
                         <div class="card-group inline-container hidden">
@@ -1502,9 +1508,9 @@
                                     <input type="radio" name="crash-report-sending" value="ask" />
                                     <span class="crash-mode-text">
                                         Ask me
-                                        <span class="description"
-                                            >Reports are kept on this computer until you review them</span
-                                        >
+                                        <span class="description">
+                                            Reports are kept on this computer until you review them
+                                        </span>
                                     </span>
                                     <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" /></svg>
                                 </label>
