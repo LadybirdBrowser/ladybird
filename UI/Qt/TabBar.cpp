@@ -91,12 +91,12 @@ static constexpr int HORIZONTAL_TAB_STRIP_HEIGHT = 35;
 // tabs, such as their contents and the new tab button, is centered on the middle of the selected tab, 20 px down the
 // strip. What belongs to the window, such as the window controls and the Ladybird button, is centered on the traffic
 // lights' line, 18 px down the strip.
-static constexpr int HORIZONTAL_TAB_HEIGHT = 34;
+static constexpr int HORIZONTAL_TAB_HEIGHT = HORIZONTAL_TAB_STRIP_HEIGHT;
+static constexpr int HORIZONTAL_TAB_TOP_INSET = 1;
 // NB: This is where the 12 px traffic lights are centered, at their inset from the window's top.
 static constexpr int HORIZONTAL_WINDOW_ITEM_CENTER = 18;
-// NB: The tab row starts below the top of the strip, so a window control as tall as this, at the top of the row, is
-//     centered on the window items' line.
-static constexpr int HORIZONTAL_WINDOW_CONTROL_HEIGHT = 2 * (HORIZONTAL_WINDOW_ITEM_CENTER - (HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT));
+// The window controls sit at the bottom of the strip, centered on the window items' line.
+static constexpr int HORIZONTAL_WINDOW_CONTROL_HEIGHT = 2 * (HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_WINDOW_ITEM_CENTER);
 // The first item on the strip is as far from the window's edge as the traffic lights are from its corner on macOS.
 static constexpr int HORIZONTAL_TAB_STRIP_LEADING_MARGIN = use_native_macos_window_controls() ? NATIVE_MACOS_WINDOW_CONTROLS_INSET : 13;
 // The window controls run to the window's edge.
@@ -2061,7 +2061,7 @@ QRect TabBar::animated_tab_rect(int index, QRect const& target) const
         return target;
 
     // NB: The start is where the tab was in the tab bar, before any scrolling.
-    auto from = start->translated(-m_scroll_offset, 0);
+    auto from = start->translated(-m_scroll_offset, 0).adjusted(0, HORIZONTAL_TAB_TOP_INSET, 0, 0);
     auto p = m_layout_animation_progress;
     auto mix = [p](int a, int b) { return qRound(a + ((b - a) * p)); };
     return { mix(from.left(), target.left()), mix(from.top(), target.top()), mix(from.width(), target.width()), mix(from.height(), target.height()) };
@@ -2665,7 +2665,7 @@ bool TabBar::pinned_tabs_are_tiles() const
 QRect TabBar::visual_tab_rect(int index) const
 {
     if (tab_layout() == TabLayout::Horizontal)
-        return tabRect(index).translated(-m_scroll_offset, 0);
+        return tabRect(index).translated(-m_scroll_offset, 0).adjusted(0, HORIZONTAL_TAB_TOP_INSET, 0, 0);
 
     if (index < 0 || index >= count())
         return {};
@@ -4539,7 +4539,7 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
     auto trailing_margin = HORIZONTAL_TAB_STRIP_TRAILING_MARGIN;
     if (!use_native_macos_window_controls() && window_controls_on_left() && m_window_controls_visible)
         swap(leading_margin, trailing_margin);
-    m_tab_bar_row_layout->setContentsMargins(leading_margin, HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT, trailing_margin, 0);
+    m_tab_bar_row_layout->setContentsMargins(leading_margin, 0, trailing_margin, 0);
 
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_EXPANDED_PROPERTY, false);
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_BUTTON_PROPERTY, true);
@@ -4558,20 +4558,20 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
     // NB: The first tab's room for its foot takes part of the gap after the all-tabs button.
     m_ladybird_buttons->setParent(m_tab_bar_row);
     // NB: The buttons sit at the bottom of the tab row, and the Ladybird button's tile is centered in the strip.
-    m_ladybird_button->set_tile_vertical_offset(HORIZONTAL_WINDOW_ITEM_CENTER - (HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT) - (m_ladybird_button->sizeHint().height() / 2));
+    m_ladybird_button->set_tile_vertical_offset(HORIZONTAL_WINDOW_ITEM_CENTER - HORIZONTAL_TAB_TOP_INSET - (m_ladybird_button->sizeHint().height() / 2));
     m_ladybird_buttons->show();
     auto add_ladybird_buttons = [&] {
         m_tab_bar_row_layout->addWidget(m_ladybird_buttons, 0, Qt::AlignBottom);
         m_tab_bar_row_layout->addSpacing(LADYBIRD_BUTTONS_TRAILING_GAP - HORIZONTAL_TAB_END_ROOM);
     };
     if (window_controls_on_left())
-        m_tab_bar_row_layout->addWidget(m_window_controls, 0, use_native_macos_window_controls() ? Qt::AlignVCenter : Qt::AlignTop);
+        m_tab_bar_row_layout->addWidget(m_window_controls, 0, use_native_macos_window_controls() ? Qt::AlignVCenter : Qt::AlignBottom);
     add_ladybird_buttons();
     m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignBottom);
     m_tab_bar_row_layout->addSpacing(new_tab_button_room);
     m_tab_bar_row_layout->addStretch(1);
     if (!window_controls_on_left())
-        m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignTop);
+        m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignBottom);
     place_horizontal_new_tab_button();
 }
 
@@ -4586,8 +4586,8 @@ void TabWidget::place_horizontal_new_tab_button()
     //     already grows to hold tabs that end beyond where they settle (see update_tab_layout()).
     auto x = tab_bar_geometry.right() + 1 - HORIZONTAL_TAB_END_ROOM + HORIZONTAL_NEW_TAB_BUTTON_GAP + min(0, m_tab_bar->horizontal_tabs_end_offset());
     // NB: The buttons are centered on the tabs' cards, which the strip's line runs through.
-    auto card_height = HORIZONTAL_TAB_HEIGHT - HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET - HORIZONTAL_TAB_CARD_SHAPE_BOTTOM_INSET;
-    auto y = tab_bar_geometry.top() + HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET + ((card_height - m_new_tab_button->height()) / 2);
+    auto card_height = HORIZONTAL_TAB_HEIGHT - HORIZONTAL_TAB_TOP_INSET - HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET - HORIZONTAL_TAB_CARD_SHAPE_BOTTOM_INSET;
+    auto y = tab_bar_geometry.top() + HORIZONTAL_TAB_TOP_INSET + HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET + ((card_height - m_new_tab_button->height()) / 2);
     m_new_tab_button->move(x + ((HORIZONTAL_NEW_TAB_BUTTON_SIZE - m_new_tab_button->width()) / 2), y);
     m_new_tab_button->raise();
 }
