@@ -23,9 +23,8 @@ pub(crate) struct MlDsaPublicKey {
 /// Any bytes make an ML-KEM public key. Web Crypto only runs the encapsulation key check of FIPS 203, section 7.2, when
 /// the key is used, so a key that fails it has no OpenSSL key or parameter set.
 pub(crate) struct MlKemPublicKey {
-    key: Option<Pkey>,
     bytes: Vec<u8>,
-    size: Option<MlKemSize>,
+    checked: Option<(Pkey, MlKemSize)>,
 }
 
 /// An ML-DSA or ML-KEM private key, which is made from its seed.
@@ -122,11 +121,9 @@ fn mlkem_public_key_from_bytes(bytes: &[u8]) -> MlKemPublicKey {
                 .ok()
                 .map(|key| (key, size))
         });
-    let (key, size) = checked.map_or((None, None), |(key, size)| (Some(key), Some(size)));
     MlKemPublicKey {
-        key,
         bytes: bytes.to_vec(),
-        size,
+        checked,
     }
 }
 
@@ -297,10 +294,10 @@ pub fn mlkem_encapsulate(size: MlKemSize, key: &KeyHandle) -> Result<(Vec<u8>, V
     let Key::MlKemPublic(public_key) = &key.0 else {
         return Err(CryptoError::Invalid("The key is not an ML-KEM public key"));
     };
-    let (Some(openssl_key), Some(key_size)) = (&public_key.key, public_key.size) else {
+    let Some((openssl_key, key_size)) = &public_key.checked else {
         return Err(CryptoError::Invalid("The key fails the encapsulation key check"));
     };
-    if key_size != size {
+    if *key_size != size {
         return Err(CryptoError::Invalid("The key fails the encapsulation key check"));
     }
     let (shared_key, ciphertext) = openssl::encapsulate(openssl_key)?;
@@ -453,7 +450,7 @@ pub(crate) fn decode_stored(tag: HandleTag, buffers: &[&[u8]]) -> Result<KeyHand
             ParameterSet::MlDsa(mldsa_public_key_from_bytes(buffers[1]).ok_or_else(invalid)?.size)
         }
         HandleTag::MlKemPrivate => {
-            ParameterSet::MlKem(mlkem_public_key_from_bytes(buffers[1]).size.ok_or_else(invalid)?)
+            ParameterSet::MlKem(mlkem_public_key_from_bytes(buffers[1]).checked.ok_or_else(invalid)?.1)
         }
         _ => return Err(invalid()),
     };
