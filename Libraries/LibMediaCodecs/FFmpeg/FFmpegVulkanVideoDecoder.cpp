@@ -712,6 +712,7 @@ DecoderErrorOr<void> FFmpegVulkanVideoDecoder::receive_decoded_frames(EndOfStrea
         DecodingFrame decoding_frame;
         decoding_frame.frame = frame;
         decoding_frame.timing = *timing;
+        decoding_frame.cicp = coding_independent_code_points_of(m_functions, *m_codec_context, {});
         decoding_frame.generation = m_generation;
         auto decoded = semaphore_value_of(*frame);
         decoding_frame.semaphore = decoded.semaphore;
@@ -807,7 +808,7 @@ DecoderErrorOr<FFmpegVulkanVideoDecoder::DecodedOutput> FFmpegVulkanVideoDecoder
     Gfx::Size<u32> size { static_cast<u32>(frame.width), static_cast<u32>(frame.height) };
     auto bit_depth = bit_depth_of(frames_context);
     auto contents = DECODER_TRY_ALLOC(try_make_ref_counted<VulkanFrameContents>(m_functions, exchange(decoding_frame.frame, nullptr)));
-    return DecodedOutput { move(surface), move(contents), decoding_frame.timing, size, bit_depth };
+    return DecodedOutput { move(surface), move(contents), decoding_frame.timing, size, bit_depth, decoding_frame.cicp };
 }
 
 DecoderErrorOr<void> FFmpegVulkanVideoDecoder::prepare_to_copy_frames_from(AVFrame const& frame)
@@ -1107,7 +1108,8 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVulkanVideoDecoder::take_next_ou
     if (!storage)
         return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video surface the decoder may hand out is held elsewhere"sv);
 
-    auto cicp = coding_independent_code_points_of(m_functions, *m_codec_context, container_cicp);
+    auto cicp = container_cicp;
+    cicp.adopt_specified_values(output.cicp);
     auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timing.timestamp, output.timing.duration, output.size, output.bit_depth, Subsampling::yuv420(), cicp, storage.release_nonnull()));
     m_outputs.take_first();
     return frame;
