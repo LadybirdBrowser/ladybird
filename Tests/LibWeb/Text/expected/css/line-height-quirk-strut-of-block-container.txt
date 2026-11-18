@@ -1,0 +1,26 @@
+BackCompat
+text: 20
+inline-block: 10
+image: 10
+text-then-inline-block: 20
+text-in-span: 10
+text-in-nested-span: 10
+inline-block-then-text-in-span: 12
+inline-block-in-tall-span: 10
+inline-block-in-padded-span: 60
+br: 20
+br-then-text: 40
+inline-block-then-br: 30
+text-in-span-then-br: 30
+br-in-span: 10
+collapsed-spaces: 10
+space-between-inline-blocks: 20
+space-at-wrap: 20
+preserved-space-at-wrap: 30
+nbsp: 20
+zero-width-space: 20
+list-item: 20
+empty-span-then-text: 20
+padded-empty-span: 10
+bordered-empty-span: 60
+menu-title: 15 (span at 2)
