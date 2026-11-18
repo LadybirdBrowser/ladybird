@@ -1,0 +1,8 @@
+In Ladybird, a dx or a dy attribute moves the first character its
+element renders. Where nested elements start with the same character,
+only the attribute of the innermost one applies. Blink resolves the
+attributes that way too, in SvgTextLayoutAttributesBuilder::Build().
+Gecko does so in SVGTextFrame::ResolvePositionsForNode(), and WebKit in
+the resolveCharacterPositioning() of its SVGTextLayoutAlgorithm. The new
+test gives the same character positions in Chrome 157.0.8103.79, Firefox
+151.0, and WebKit 26.5 as in Ladybird.
