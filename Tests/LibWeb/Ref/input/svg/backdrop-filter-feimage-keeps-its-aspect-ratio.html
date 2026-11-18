@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/backdrop-filter-feimage-keeps-its-aspect-ratio-ref.html" />
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; backdrop-filter: url(#image); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="image" x="0" y="0" width="1" height="1">
+        <feImage href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'%3E%3Crect width='200' height='100' fill='green'/%3E%3C/svg%3E" />
+    </filter>
+</svg>
+<!-- A 2:1 image drawn over a square box keeps its aspect ratio, centered. -->
+<div></div>
