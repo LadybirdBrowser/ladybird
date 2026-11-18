@@ -113,12 +113,8 @@ impl SecretBytes {
         Self(bytes)
     }
 
-    /// Shortens the bytes to `length`, clearing the ones cut off.
     pub(crate) fn truncate(&mut self, length: usize) {
-        if length < self.0.len() {
-            clear(&mut self.0[length..]);
-            self.0.truncate(length);
-        }
+        self.0.truncate(length);
     }
 
     /// Appends `bytes`, which must fit in the capacity reserved so that no partial copy is left behind by a reallocation.
@@ -127,7 +123,7 @@ impl SecretBytes {
         self.0.extend_from_slice(bytes);
     }
 
-    pub(crate) fn into_vec(mut self) -> Vec<u8> {
+    pub fn into_vec(mut self) -> Vec<u8> {
         core::mem::take(&mut self.0)
     }
 }
@@ -148,17 +144,14 @@ impl core::ops::DerefMut for SecretBytes {
 
 impl Drop for SecretBytes {
     fn drop(&mut self) {
-        clear(&mut self.0);
+        clear_allocation(&mut self.0);
     }
 }
 
 /// Overwrites `bytes` with zeros in a way the compiler does not remove.
 pub(crate) fn clear(bytes: &mut [u8]) {
-    for byte in bytes.iter_mut() {
-        // SAFETY: The pointer comes from a live mutable reference.
-        unsafe { core::ptr::write_volatile(byte, 0) };
-    }
-    core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+    // SAFETY: The pointer and length come from a live mutable slice.
+    unsafe { sys::OPENSSL_cleanse(bytes.as_mut_ptr().cast(), bytes.len()) };
 }
 
 /// Overwrites all of the allocation of `bytes` with zeros, including what lies past its length.
