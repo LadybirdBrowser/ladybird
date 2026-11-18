@@ -1,0 +1,7 @@
+Under primitiveUnits=“objectBoundingBox”, Ladybird scales a primitive’s
+horizontal lengths by the bounding box’s width and its vertical ones by
+its height. Chrome 157, Firefox 151 and WebKit (Playwright’s 26.5 build)
+do the same, verified at runtime with the new test. Blink’s
+Filter::ApplyHorizontalScale() and ApplyVerticalScale() scale by the
+reference box under kBoundingBox, and its FEDisplacementMap takes the
+horizontal scale for its single Skia factor too.
