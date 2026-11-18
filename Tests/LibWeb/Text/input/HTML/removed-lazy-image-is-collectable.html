@@ -11,8 +11,6 @@
                 const image = document.createElement("img");
                 image.loading = "lazy";
                 image.src = "../../../Assets/120.png";
-                // NB: An expando preserves the wrapper, so that the WeakRef follows the image rather than its wrapper.
-                image.preserved = true;
                 container.appendChild(image);
                 weakImages.push(new WeakRef(image));
             }

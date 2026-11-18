@@ -106,6 +106,9 @@ extern JSHostObjectHooks const dom_exception_wrapper_hooks;
 
 // The finalize hook of every wrapper host class calls this to remove the wrapper from its world.
 void finalize_platform_object(JS::HostObject& wrapper);
+// The preserve_identity hook of wrappers: script made the identity of the wrapper outlive the references to it, so the
+// wrapper must not be dropped and recreated anymore.
+void preserve_identity_of_platform_object(JS::HostObject& wrapper);
 
 // https://webidl.spec.whatwg.org/#dfn-platform-object
 // Only host classes give objects the platform object flag, so every platform object is a host object: a wrapper, whose

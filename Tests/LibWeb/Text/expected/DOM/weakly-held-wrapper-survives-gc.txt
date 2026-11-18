@@ -1,0 +1,6 @@
+WeakRef: true
+WeakMap: value
+WeakSet: true
+FinalizationRegistry: not finalized
+Private element: stamped
+Removed node collected: true
