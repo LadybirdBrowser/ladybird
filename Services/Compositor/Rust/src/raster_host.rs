@@ -265,7 +265,6 @@ pub struct FfiRasterHost {
     ),
     pub remote_layer_can_show:
         unsafe extern "C" fn(*mut c_void, u64, MediaKind, u64, *const FfiSublayerPlacement, f64) -> bool,
-    pub remote_layer_can_show_high_dynamic_range: unsafe extern "C" fn(*mut c_void, u64) -> bool,
     /// Resolves the content of the sublayers, which the window server then holds busy until the list is destroyed or
     /// shown.
     pub build_sublayers: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, FfiSublayer>) -> *mut c_void,
@@ -699,11 +698,6 @@ impl RasterHost {
     ) -> bool {
         // SAFETY: The host outlives this.
         unsafe { (self.0.remote_layer_can_show)(self.host(), context_id.0, kind, id, placement, device_pixel_ratio) }
-    }
-
-    pub fn remote_layer_can_show_high_dynamic_range(&self, context_id: CompositorContextId) -> bool {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.remote_layer_can_show_high_dynamic_range)(self.host(), context_id.0) }
     }
 
     pub fn build_sublayers(&self, context_id: CompositorContextId, sublayers: &[FfiSublayer]) -> SublayersHandle {

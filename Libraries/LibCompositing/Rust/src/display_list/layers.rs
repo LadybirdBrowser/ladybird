@@ -78,7 +78,7 @@ impl std::fmt::Display for MediaLayerRejection {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UnlayeredReason {
-    NoActiveMedia,
+    NoMedia,
     EmptyViewport,
     EmptyDisplayList,
     SortingContext3D,
@@ -86,7 +86,6 @@ pub enum UnlayeredReason {
     BlendModeReadsRootGroup,
     CommandBlendsWithRootGroup,
     MaskDeclaredOutsideItsMask,
-    ActiveMediaNotDrawn,
     NoMediaCanBeLayer {
         first_rejected_media: LiveContent,
         rejection: MediaLayerRejection,
@@ -107,7 +106,7 @@ impl std::fmt::Display for UnlayeredReason {
                     "painted layers larger than {MAXIMUM_UPPER_PAINTED_LAYER_AREA_IN_VIEWPORTS} viewports"
                 );
             }
-            UnlayeredReason::NoActiveMedia => "no canvas or video keeps updating",
+            UnlayeredReason::NoMedia => "no canvas, video or nested context is drawn",
             UnlayeredReason::EmptyViewport => "empty viewport",
             UnlayeredReason::EmptyDisplayList => "empty display list",
             UnlayeredReason::SortingContext3D => "3D sorting context",
@@ -115,7 +114,6 @@ impl std::fmt::Display for UnlayeredReason {
             UnlayeredReason::BlendModeReadsRootGroup => "blend mode reads the root group",
             UnlayeredReason::CommandBlendsWithRootGroup => "command blends with the root group",
             UnlayeredReason::MaskDeclaredOutsideItsMask => "mask content declared outside its mask",
-            UnlayeredReason::ActiveMediaNotDrawn => "no updating canvas or video is drawn",
         };
         formatter.write_str(text)
     }
@@ -240,7 +238,6 @@ pub struct LayerPlanInputs<'a> {
     pub tree: &'a VisualContextTree,
     pub scroll_offsets: &'a [FloatPoint],
     pub viewport_rect: IntRect,
-    pub active_media: &'a [LiveContent],
 }
 
 fn tree_has_sorting_contexts(tree: &VisualContextTree) -> bool {
@@ -639,7 +636,7 @@ fn media_candidates(
     let mut first_rejection = None;
     for live_content_record in &inputs.summary.live_content_records {
         let content = live_content_record.content;
-        if matches!(content, LiveContent::ImageFrame(_)) || !inputs.active_media.contains(&content) {
+        if matches!(content, LiveContent::ImageFrame(_)) {
             continue;
         }
         let IndexedRecord {
@@ -669,7 +666,7 @@ fn media_candidates(
         }
     }
     if candidates.is_empty() {
-        return Err(first_rejection.unwrap_or(UnlayeredReason::ActiveMediaNotDrawn));
+        return Err(first_rejection.unwrap_or(UnlayeredReason::NoMedia));
     }
     Ok(candidates)
 }
@@ -797,8 +794,13 @@ fn place_records_in_layers(
 pub fn build_layer_plan(inputs: &LayerPlanInputs<'_>) -> Result<LayerPlan, UnlayeredReason> {
     let tree = inputs.tree;
     let command_runs = inputs.command_runs;
-    if inputs.active_media.is_empty() {
-        return Err(UnlayeredReason::NoActiveMedia);
+    let draws_media = inputs
+        .summary
+        .live_content_records
+        .iter()
+        .any(|record| !matches!(record.content, LiveContent::ImageFrame(_)));
+    if !draws_media {
+        return Err(UnlayeredReason::NoMedia);
     }
     if inputs.viewport_rect.is_empty() {
         return Err(UnlayeredReason::EmptyViewport);
@@ -1069,15 +1071,6 @@ mod tests {
         }
 
         fn plan(&self, tree: &VisualContextTree, scroll_offsets: &[FloatPoint]) -> Result<LayerPlan, UnlayeredReason> {
-            self.plan_with_active_media(tree, scroll_offsets, &[CANVAS])
-        }
-
-        fn plan_with_active_media(
-            &self,
-            tree: &VisualContextTree,
-            scroll_offsets: &[FloatPoint],
-            active_media: &[LiveContent],
-        ) -> Result<LayerPlan, UnlayeredReason> {
             let (tape, runs) = (self.builder.bytes(), self.builder.command_runs());
             let summary = summarize(tape, runs);
             let effect_clips = EffectClipPlan::new(tree, runs).unwrap();
@@ -1089,7 +1082,6 @@ mod tests {
                 tree,
                 scroll_offsets,
                 viewport_rect: VIEWPORT,
-                active_media,
             })
         }
     }
@@ -1317,7 +1309,7 @@ mod tests {
             .with(nested_context(IntRect::new(100, 100, 200, 100)), root)
             .with(fill(IntRect::new(150, 150, 20, 20)), root)
             .with(fill(IntRect::new(500, 400, 20, 20)), elsewhere);
-        let plan = list.plan_with_active_media(&tree, &[], &[NESTED_CONTEXT]).unwrap();
+        let plan = list.plan(&tree, &[]).unwrap();
         assert_eq!(kinds(&plan), ["base", "media", "painted"]);
         assert_eq!(
             plan.layers[1].kind,
@@ -1334,16 +1326,13 @@ mod tests {
     fn a_canvas_keeps_its_layer_when_more_nested_contexts_than_layers_are_drawn_before_it() {
         let tree = identity_tree();
         let mut list = TestList::new();
-        let mut active_media = Vec::new();
         for index in 0..=MAXIMUM_MEDIA_LAYER_COUNT {
             let child_context_id = CompositorContextId(10 + index as u64);
             let rect = IntRect::new(index as i32 * 60, 0, 50, 50);
             list = list.with(nested_context_with_id(rect, child_context_id), ContextRef::default());
-            active_media.push(LiveContent::CompositedContext(child_context_id));
         }
         list = list.with(canvas(IntRect::new(0, 300, 200, 100)), ContextRef::default());
-        active_media.push(CANVAS);
-        let plan = list.plan_with_active_media(&tree, &[], &active_media).unwrap();
+        let plan = list.plan(&tree, &[]).unwrap();
         let media_of_layers: Vec<LiveContent> = plan
             .layers
             .iter()
@@ -1366,7 +1355,7 @@ mod tests {
         let group = tree.append_effect_node_under(root, effects(0.5, CompositingAndBlendingOperator::Normal));
         let list = TestList::new().with(nested_context(IntRect::new(100, 100, 200, 100)), group);
         assert_eq!(
-            list.plan_with_active_media(&tree, &[], &[NESTED_CONTEXT]),
+            list.plan(&tree, &[]),
             Err(UnlayeredReason::NoMediaCanBeLayer {
                 first_rejected_media: NESTED_CONTEXT,
                 rejection: MediaLayerRejection::InsideGroupEffect,
@@ -1410,23 +1399,10 @@ mod tests {
     }
 
     #[test]
-    fn a_canvas_that_does_not_update_is_not_a_layer() {
+    fn a_list_without_canvases_videos_or_nested_contexts_is_not_layered() {
         let tree = identity_tree();
-        let list = TestList::new().with(canvas(IntRect::new(100, 100, 200, 100)), ContextRef::default());
-        let (tape, runs) = (list.builder.bytes(), list.builder.command_runs());
-        let summary = summarize(tape, runs);
-        let effect_clips = EffectClipPlan::new(&tree, runs).unwrap();
-        let plan = build_layer_plan(&LayerPlanInputs {
-            tape,
-            command_runs: runs,
-            summary: &summary,
-            effect_clips: &effect_clips,
-            tree: &tree,
-            scroll_offsets: &[],
-            viewport_rect: VIEWPORT,
-            active_media: &[],
-        });
-        assert_eq!(plan, Err(UnlayeredReason::NoActiveMedia));
+        let list = TestList::new().with(fill(IntRect::new(100, 100, 200, 100)), ContextRef::default());
+        assert_eq!(list.plan(&tree, &[]), Err(UnlayeredReason::NoMedia));
     }
 
     fn list_with_scrolled_box(tree: &mut VisualContextTree) -> (TestList, SpatialNodeIndex) {

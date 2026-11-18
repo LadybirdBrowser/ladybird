@@ -36,7 +36,6 @@ public:
 
     using Content = Variant<NonnullRefPtr<Media::VideoFrame>, NonnullRefPtr<PresentableSurface>>;
     virtual bool can_show(WindowServerPlacement const&, Content const&, double device_pixel_ratio) const = 0;
-    virtual bool can_show_high_dynamic_range() const { return false; }
 
     struct Frame {
         // Without a store, the frame shown before stays, and only the sublayers change.

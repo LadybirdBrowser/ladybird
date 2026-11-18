@@ -1745,9 +1745,6 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .presentable_surface_painting_surface = [](void* surface) -> void* { return &static_cast<PresentableSurface*>(surface)->painting_surface(); },
         .live_content = [](void* host, u64 context_id, ReadonlySpan<u64> canvas_ids, void* receiver, void (*receive)(void*, RustFFI::FfiLiveContent const*)) { state_of(host).report_live_content(Context { context_id }, canvas_ids, receiver, receive); },
         .remote_layer_can_show = [](void* host, u64 context_id, RustFFI::MediaKind kind, u64 media_id, RustFFI::FfiSublayerPlacement const* placement, double device_pixel_ratio) { return state_of(host).remote_layer_can_show(Context { context_id }, kind, media_id, *placement, device_pixel_ratio); },
-        .remote_layer_can_show_high_dynamic_range = [](void* host, u64 context_id) {
-            auto* remote_layer = state_of(host).remote_layer_showing(Context { context_id });
-            return remote_layer && remote_layer->layer->can_show_high_dynamic_range(); },
         .build_sublayers = [](void* host, u64 context_id, ReadonlySpan<RustFFI::FfiSublayer> sublayers) -> void* {
             return state_of(host).build_sublayers(Context { context_id }, sublayers);
         },
