@@ -209,7 +209,7 @@ elseif (MSVC)
     add_cxx_link_option_if_supported(-prefetch-inputs)
 
     # Use ghash compressed debug info for build time and pdb size reduction
-    if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" OR "Debug")
+    if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" OR CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_cxx_compile_options(-gcodeview-ghash)
         add_cxx_link_options(/DEBUG:GHASH)
     endif()
