@@ -1,0 +1,29 @@
+Ladybird lays out the text nodes and child elements of an SVG text
+content element in document order, as one stream of characters. It
+collapses white space across element boundaries, leaving the surviving
+space in the text node its run starts in. And it paints text that
+follows a child element after that child. Blink does the same:
+SvgTextLayoutAlgorithm::Layout() positions one stream of characters,
+InlineItemsBuilder’s AppendCollapseWhitespace() collapses white space
+across inline boundaries, and the text fragments paint in inline order.
+So does WebKit, in its SVGTextLayoutAlgorithm and its inline content
+painter. And so does Gecko, in SVGTextFrame::ResolvePositionsForNode()
+and DoGlyphPositioning(), with SVGTextFrame::PaintSVG() painting
+the rendered runs in order.
+
+In Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5, the two new
+tests and the cases added to the link test give the same character
+positions, with two exceptions. Firefox applies the x attribute of a
+<tspan> with display:none to the text that follows it, where Chrome,
+WebKit, and Ladybird don’t. And where a <tspan> and its parent have
+different white-space values, WebKit drops a space that Chrome,
+Firefox, and Ladybird keep. The bounding boxes the tests print are
+Chrome’s: Firefox’s are 2px wider, and WebKit reports the box of the
+whole <text> for a <tspan>.
+
+All three engines skip the x, y, dx, and dy of an element without
+characters, and none of them renders a <text> nested in a <text>.
+
+Hit testing differs from Blink where an element’s own text overlaps
+one of its child elements: Ladybird still tests all of the element’s
+own text after its children.
