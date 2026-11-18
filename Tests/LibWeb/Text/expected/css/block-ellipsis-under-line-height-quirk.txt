@@ -1,0 +1,4 @@
+CSS1Compat
+text-in-short-span: 10
+text-in-block: 80
+two-lines-kept: 20

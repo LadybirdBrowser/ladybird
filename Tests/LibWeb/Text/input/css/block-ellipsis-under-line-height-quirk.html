@@ -1,0 +1,19 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 20px/80px Ahem; }
+    .clamp { width: 100px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+    .case { position: relative; }
+</style>
+<div class="case clamp" id="text-in-short-span"><span style="line-height: 10px">XX XX XX XX XX XX</span></div>
+<div class="case clamp" id="text-in-block">XX XX XX XX XX XX</div>
+<div class="case clamp" id="two-lines-kept" style="-webkit-line-clamp: 2"><span style="line-height: 10px">XX XX XX XX XX XX</span></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        println(document.compatMode);
+        for (const element of document.querySelectorAll(".case"))
+            println(`${element.id}: ${element.getBoundingClientRect().height}`);
+    });
+</script>
