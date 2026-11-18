@@ -339,7 +339,11 @@ static skhdr::Metadata high_dynamic_range_metadata_of(Media::ColorMetadata const
             .fMinimumDisplayMasteringLuminance = volume->minimum_luminance,
         });
     }
-    if (auto const& information = color_metadata.content_light_level_information; information.has_value() && information->maximum_content_light_level != 0)
+    // Skia's tone map only reads MaxCLL, as the peak of the content. The peak of the scene replaces that of the video, so
+    // that dark scenes are not compressed to make room for highlights elsewhere in it.
+    if (color_metadata.maximum_scene_luminance.has_value())
+        metadata.setContentLightLevelInformation({ .fMaxCLL = *color_metadata.maximum_scene_luminance, .fMaxFALL = 0 });
+    else if (auto const& information = color_metadata.content_light_level_information; information.has_value() && information->maximum_content_light_level != 0)
         metadata.setContentLightLevelInformation(skhdr::ContentLightLevelInformation::MakeUint16(information->maximum_content_light_level, information->maximum_frame_average_light_level));
     return metadata;
 }
