@@ -24,7 +24,7 @@ To build fuzzers without any kind of default instrumentation, pass the ``--stand
 ./Build/lagom-fuzzers-standalone/Fuzzers/FuzzSomething
 ```
 
-The fuzzing build's CMake cache can be manipulated with commands like `cmake -B Build/fuzzers -S . -DENABLE_LAGOM_CCACHE=OFF`.
+The fuzzing build's CMake cache can be manipulated with commands like `cmake -B Build/lagom-fuzzers -S . -DLADYBIRD_ENABLE_CCACHE=OFF`.
 
 Any fuzzing results (particularly slow inputs, crashes, etc.) will be dropped in the current directory.
 
