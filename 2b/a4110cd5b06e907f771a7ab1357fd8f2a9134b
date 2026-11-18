@@ -1,0 +1,23 @@
+The scrollable overflow of a scroll container puts its padding
+after its in-flow content, which ends at the margin boxes of its
+block-level children. Ladybird takes the margin past the end of each
+box from the flow: the bottom margin of the box, collapsed with the
+margins of its contents that collapse through its end. For a box that
+margins collapse through, that’s only what its bottom margin adds
+to the margins before it.
+
+Blink’s BoxFragmentBuilder::AddChild() does that for its inflow bounds,
+with the end margin strut of each child. For a self-collapsing child,
+it takes the difference between the sum of the strut with the child’s
+bottom margin and without it, and ScrollableOverflowCalculator::Result()
+then adds the padding. WebKit’s RenderBlock::computeInFlowOverflow()
+adds the content area that the layout of the block ended with, collapsed
+margins included, and then scrollablePaddingAreaOverflowRect().
+Gecko’s nsBlockFrame::ComputeOverflowAreas() unions the bounds of
+the in-flow children of each line, which ReflowBlockFrame() kept with
+nsLineBox::SetInFlowChildBounds(), and inflates them by the padding.
+
+In Chrome 157.0.8103.79, Firefox 151.0 and WebKit 26.5, the test’s 29
+cases come out the same. For an empty last block with a negative bottom
+margin, the scroll height in Chrome is larger than in the other two by
+that margin, and Ladybird’s is the same as Chrome’s.
