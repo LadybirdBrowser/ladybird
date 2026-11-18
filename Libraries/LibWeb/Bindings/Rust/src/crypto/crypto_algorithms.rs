@@ -5543,8 +5543,8 @@ fn parse_jwk_rsa_key(jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<KeyHand
         .ok_or_else(|| dom_error("DataError", b"Invalid key"))
 }
 
-fn rsa_export_der(key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult<Bytes> {
-    libcrypto_rust::rsa_export_der(key.handle(), is_public)
+fn rsa_export_der(key: Ref<CryptoKey>) -> WebIdlResult<Bytes> {
+    libcrypto_rust::rsa_export_der(key.handle())
         .map(Bytes::new)
         .map_err(operation_error)
 }
@@ -6125,7 +6125,7 @@ impl AlgorithmMethods for RsaOaep {
             //    * Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined
             //      in [RFC3447], Appendix A.1.1, that represents the RSA public key represented by the [[handle]]
             //      internal slot of key
-            let data = rsa_export_der(key, true)?;
+            let data = rsa_export_der(key)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -6150,7 +6150,7 @@ impl AlgorithmMethods for RsaOaep {
             // Note: [RFC5208] specifies that the encoding of this field should be BER encoded in Section 5 (as a "for
             //       example"). However, to avoid requiring WebCrypto implementations support BER-encoding and
             //       BER-decoding, only DER encodings are produced or accepted.
-            let data = rsa_export_der(key, false)?;
+            let data = rsa_export_der(key)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -6811,7 +6811,7 @@ impl AlgorithmMethods for RsaPss {
             //    * Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined
             //      in [RFC3447], Appendix A.1.1, that represents the RSA public key represented by the [[handle]]
             //      internal slot of key
-            let data = rsa_export_der(key, true)?;
+            let data = rsa_export_der(key)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -6836,7 +6836,7 @@ impl AlgorithmMethods for RsaPss {
             // Note: [RFC5208] specifies that the encoding of this field should be BER encoded in Section 5 (as a "for
             //       example"). However, to avoid requiring WebCrypto implementations support BER-encoding and
             //       BER-decoding, only DER encodings are produced or accepted.
-            let data = rsa_export_der(key, false)?;
+            let data = rsa_export_der(key)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -7486,7 +7486,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             //    * Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined
             //      in [RFC3447], Appendix A.1.1, that represents the RSA public key represented by the [[handle]]
             //      internal slot of key
-            let data = rsa_export_der(key, true)?;
+            let data = rsa_export_der(key)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -7511,7 +7511,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             // Note: [RFC5208] specifies that the encoding of this field should be BER encoded in Section 5 (as a "for
             //       example"). However, to avoid requiring WebCrypto implementations support BER-encoding and
             //       BER-decoding, only DER encodings are produced or accepted.
-            let data = rsa_export_der(key, false)?;
+            let data = rsa_export_der(key)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -7933,7 +7933,7 @@ impl AlgorithmMethods for Ecdsa {
             // 1. Perform the ECDSA signing process, as specified in [RFC6090], Section 5.4.2, with M as the message,
             //    using params as the EC domain parameters, and with d as the private key.
             // 2. Let r and s be the pair of integers resulting from performing the ECDSA signing process.
-            let signature = libcrypto_rust::ec_sign(curve, d, m.as_slice());
+            let signature = libcrypto_rust::ec_sign(d, m.as_slice());
             let (r_bytes, s_bytes) = match signature {
                 Ok(signature) => signature,
                 Err(message) => {
@@ -8026,9 +8026,7 @@ impl AlgorithmMethods for Ecdsa {
             unreachable!("the key has an EC algorithm")
         };
 
-        let result;
-
-        if let Some(curve) = ec_curve_from_name(named_curve) {
+        let result = if ec_curve_from_name(named_curve).is_some() {
             // 1. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the
             //    base point of the elliptic curve identified by params.
             let n = libcrypto_rust::ec_public_key_scalar_size(q);
@@ -8046,15 +8044,13 @@ impl AlgorithmMethods for Ecdsa {
 
             // 5. Perform the ECDSA verifying process, as specified in [RFC6090], Section 5.4.3, with M as the received
             //    message, (r, s) as the signature and using params as the EC domain parameters, and Q as the public key.
-            let verification = libcrypto_rust::ec_verify(curve, q, m.as_slice(), r, s);
-            let verification = verification
-                .map_err(|message| Exception::Dom("OperationError", Utf16String::from_utf8(message.message())))?;
-            result = verification;
+            let verification = libcrypto_rust::ec_verify(q, m.as_slice(), r, s);
+            verification.map_err(operation_error)?
         } else {
             // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
             // Perform the ECDSA verification steps specified in that specification passing in M, signature, params and Q and resulting in an indication of whether or not the purported signature is valid.
             return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
-        }
+        };
 
         // 7. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
         // 8. Return result.
@@ -8563,7 +8559,6 @@ impl AlgorithmMethods for Ecdsa {
                 return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
             }
 
-            let data;
             // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
             //    following properties:
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -8576,7 +8571,7 @@ impl AlgorithmMethods for Ecdsa {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = ec_curve_from_name(named_curve) {
+            let data = if ec_curve_from_name(named_curve).is_some() {
                 //    Let keyData be the byte sequence that represents the Elliptic Curve public key represented by the
                 //    [[handle]] internal slot of key according to the encoding rules specified in Section 2.2 of
                 //    [RFC5480] and using the uncompressed form. and keyData.
@@ -8589,13 +8584,13 @@ impl AlgorithmMethods for Ecdsa {
                 //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
                 //       Set parameters to the namedCurve choice with value equal to the object identifier secp521r1
                 //       defined in [RFC5480]
-                let maybe_data = libcrypto_rust::ec_export_der(curve, key.handle(), true).map(Bytes::new);
+                let maybe_data = libcrypto_rust::ec_export_der(key.handle()).map(Bytes::new);
 
                 let Ok(maybe_data) = maybe_data else {
                     return Err(dom_error("DataError", b"Failed to encode public key"));
                 };
 
-                data = maybe_data;
+                maybe_data
             } else {
                 // Otherwise:
                 // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format and
@@ -8604,7 +8599,7 @@ impl AlgorithmMethods for Ecdsa {
                 // FIXME: 2. Set parameters to the namedCurve choice with value equal to the object identifier
                 //           namedCurveOid.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
-            }
+            };
 
             //    * Set the subjectPublicKey field to keyData.
             // 3. Let result be the result of DER-encoding data.
@@ -8616,8 +8611,6 @@ impl AlgorithmMethods for Ecdsa {
             if key.key_type() != KeyType::Private {
                 return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
             }
-
-            let data;
 
             // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
             //    properties:
@@ -8633,7 +8626,7 @@ impl AlgorithmMethods for Ecdsa {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = ec_curve_from_name(named_curve) {
+            let data = if ec_curve_from_name(named_curve).is_some() {
                 //    Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined in
                 //    Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal
                 //    slot of key and that conforms to the following:
@@ -8650,13 +8643,13 @@ impl AlgorithmMethods for Ecdsa {
                 //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
                 //       Set parameters to the namedCurve choice with value equal to the object identifier secp521r1
                 //       defined in [RFC5480]
-                let maybe_data = libcrypto_rust::ec_export_der(curve, key.handle(), false).map(Bytes::new);
+                let maybe_data = libcrypto_rust::ec_export_der(key.handle()).map(Bytes::new);
 
                 let Ok(maybe_data) = maybe_data else {
                     return Err(dom_error("DataError", b"Failed to encode private key"));
                 };
 
-                data = maybe_data;
+                maybe_data
             } else {
                 // Otherwise:
                 // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format and
@@ -8665,7 +8658,7 @@ impl AlgorithmMethods for Ecdsa {
                 // FIXME: 2. Set parameters to the namedCurve choice with value equal to the object identifier
                 //           namedCurveOid.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
-            }
+            };
 
             // * Set the privateKey field to keyData.
             // 3. Let result be the result of DER-encoding data.
@@ -9002,17 +8995,15 @@ impl AlgorithmMethods for Ecdh {
             return Err(dom_error("InvalidAccessError", b"Curve mismatch"));
         }
 
-        let secret;
-
         // 9. If the namedCurve property of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
         // 10. If performing the operation results in an error, then throw a OperationError.
-        if let Some(curve) = ec_curve_from_name(named_curve) {
+        let secret = if ec_curve_from_name(named_curve).is_some() {
             // 1. Perform the ECDH primitive specified in [RFC6090] Section 4
             //    with key as the EC private key d and the EC public key represented
             //    by the [[handle]] internal slot of publicKey as the EC public key.
             // 2. Let secret be a byte sequence containing the result of applying the field element to octet string
             //    conversion defined in Section 6.2 of [RFC6090] to the output of the ECDH primitive.
-            let secret_data = libcrypto_rust::ec_compute_coordinate(curve, key.handle(), public_key.handle());
+            let secret_data = libcrypto_rust::ec_compute_coordinate(key.handle(), public_key.handle());
             let secret_data = match secret_data {
                 Ok(secret_data) => secret_data,
                 Err(detail) => {
@@ -9022,7 +9013,7 @@ impl AlgorithmMethods for Ecdh {
                     ));
                 }
             };
-            secret = copy_bytes(cx.vm(), &secret_data)?;
+            copy_bytes(cx.vm(), &secret_data)?
         } else {
             // If the namedCurve property of the [[algorithm]] internal slot of key is a value specified
             // in an applicable specification that specifies the use of that value with ECDH:
@@ -9031,7 +9022,7 @@ impl AlgorithmMethods for Ecdh {
             // FIXME: 9. Otherwise:
             //    throw a NotSupportedError
             return Err(dom_error("DataError", b"Invalid algorithm"));
-        }
+        };
 
         // 11. If length is null:
         //    Return secret.
@@ -9512,7 +9503,6 @@ impl AlgorithmMethods for Ecdh {
                 return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
             }
 
-            let data;
             // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
             //    following properties:
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -9525,7 +9515,7 @@ impl AlgorithmMethods for Ecdh {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = ec_curve_from_name(named_curve) {
+            let data = if ec_curve_from_name(named_curve).is_some() {
                 //    Let keyData be the byte sequence that represents the Elliptic Curve public key represented by the
                 //    [[handle]] internal slot of key according to the encoding rules specified in Section 2.3.3 of
                 //    [SEC1] and using the uncompressed form.
@@ -9538,13 +9528,13 @@ impl AlgorithmMethods for Ecdh {
                 //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
                 //       Set parameters to the namedCurve choice with value equal to the object identifier secp521r1
                 //       defined in [RFC5480]
-                let maybe_data = libcrypto_rust::ec_export_der(curve, key.handle(), true).map(Bytes::new);
+                let maybe_data = libcrypto_rust::ec_export_der(key.handle()).map(Bytes::new);
 
                 let Ok(maybe_data) = maybe_data else {
                     return Err(dom_error("DataError", b"Failed to encode public key"));
                 };
 
-                data = maybe_data;
+                maybe_data
             } else {
                 // Otherwise:
                 // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format and
@@ -9553,7 +9543,7 @@ impl AlgorithmMethods for Ecdh {
                 // FIXME: 2. Set parameters to the namedCurve choice with value equal to the object identifier
                 //           namedCurveOid.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
-            }
+            };
 
             // * Set the subjectPublicKey field to keyData
             // AD-HOC: The draft omits the result assignment for this DER format.
@@ -9565,8 +9555,6 @@ impl AlgorithmMethods for Ecdh {
             if key.key_type() != KeyType::Private {
                 return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
             }
-
-            let data;
 
             // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
             //    properties:
@@ -9582,7 +9570,7 @@ impl AlgorithmMethods for Ecdh {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = ec_curve_from_name(named_curve) {
+            let data = if ec_curve_from_name(named_curve).is_some() {
                 //    Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined in
                 //    Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal
                 //    slot of key and that conforms to the following:
@@ -9599,13 +9587,13 @@ impl AlgorithmMethods for Ecdh {
                 //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
                 //       Set parameters to the namedCurve choice with value equal to the object identifier secp521r1
                 //       defined in [RFC5480]
-                let maybe_data = libcrypto_rust::ec_export_der(curve, key.handle(), false).map(Bytes::new);
+                let maybe_data = libcrypto_rust::ec_export_der(key.handle()).map(Bytes::new);
 
                 let Ok(maybe_data) = maybe_data else {
                     return Err(dom_error("DataError", b"Failed to encode private key"));
                 };
 
-                data = maybe_data;
+                maybe_data
             } else {
                 // Otherwise:
                 // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format and
@@ -9614,7 +9602,7 @@ impl AlgorithmMethods for Ecdh {
                 // FIXME: 2. Set parameters to the namedCurve choice with value equal to the object identifier
                 //           namedCurveOid.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
-            }
+            };
 
             // * Set the privateKey field to keyData.
             // AD-HOC: The draft omits the result assignment for this DER format.
@@ -12170,8 +12158,8 @@ fn generate_mldsa_key_pair_from_seed(name: &Utf16String, seed: &Bytes) -> Result
     unreachable!("the name identifies an ML-DSA parameter set")
 }
 
-fn ml_export_der(key: Ref<CryptoKey>, is_public: bool, algorithm: KeyAlgorithm) -> WebIdlResult<Bytes> {
-    libcrypto_rust::ml_export_der(key.handle(), is_public, algorithm)
+fn ml_export_der(key: Ref<CryptoKey>, algorithm: KeyAlgorithm) -> WebIdlResult<Bytes> {
+    libcrypto_rust::ml_export_der(key.handle(), algorithm)
         .map(Bytes::new)
         .map_err(operation_error)
 }
@@ -12808,7 +12796,7 @@ impl AlgorithmMethods for MlDsa {
                 return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
             };
 
-            let data = ml_export_der(key, true, algorithm_oid)?;
+            let data = ml_export_der(key, algorithm_oid)?;
 
             // 4. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -12863,7 +12851,7 @@ impl AlgorithmMethods for MlDsa {
                 return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
             };
 
-            let data = ml_export_der(key, false, algorithm_oid)?;
+            let data = ml_export_der(key, algorithm_oid)?;
 
             // 4. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -13404,7 +13392,7 @@ impl AlgorithmMethods for MlKem {
                 return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
             };
 
-            let data = ml_export_der(key, true, algorithm_oid)?;
+            let data = ml_export_der(key, algorithm_oid)?;
 
             // 4. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -13459,7 +13447,7 @@ impl AlgorithmMethods for MlKem {
                 return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
             };
 
-            let data = ml_export_der(key, false, algorithm_oid)?;
+            let data = ml_export_der(key, algorithm_oid)?;
 
             // 4. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
