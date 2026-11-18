@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>SVGTextContentElement.getExtentOfChar</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextContentElement__getExtentOfChar">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<svg width="800" height="200">
+<text><tspan id="tspan1" x="50 150 100" y="100">abc</tspan>d</text>
+<text dominant-baseline="hanging"><tspan id="tspan2" x="50" y="150">abc</tspan></text>
+</svg>
+
+<script>
+test(() => {
+  const element = document.querySelector('#tspan1');
+  assert_equals(element.getNumberOfChars(), 3);
+  assert_equals(element.getExtentOfChar(0).x, 50);
+  assert_equals(element.getExtentOfChar(1).x, 150);
+  assert_equals(element.getExtentOfChar(2).x, 100);
+  assert_throws_dom("IndexSizeError", () => element.getExtentOfChar(3));
+}, 'Multiple chunks in a tspan');
+
+test(() => {
+  const element = document.querySelector('#tspan2');
+  assert_equals(element.getNumberOfChars(), 3);
+  assert_equals(element.getExtentOfChar(0).x, 50);
+  assert_approx_equals(element.getExtentOfChar(0).y, 147.5, 1);
+}, 'With dominant-baseline');
+</script>

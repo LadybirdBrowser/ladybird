@@ -512,14 +512,33 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn svg_paint_descendants(&mut self, paintable: NodeSlotId) {
+        // A text content element paints in document order: its text that follows a child element paints after that
+        // child.
+        // FIXME: Hit testing still tests all of the element's own text after its child elements.
+        let is_text_box =
+            self.source.node_kind_if_live(paintable) == Some(crate::layout::node_data::NodeKind::SVGTextBox);
+        let mut next_text_part = if is_text_box {
+            crate::painting::record::paint::svg::text_parts_before_children(self, paintable)
+        } else {
+            None
+        };
         let mut next_child = crate::painting::paint_order::first_paint_child(self.source, paintable);
         while let Some(child) = next_child {
             next_child = crate::painting::paint_order::next_paint_sibling(self.source, child);
             // A child that establishes a stacking context is painted by that context.
-            if self.has_stacking_context(child) {
-                continue;
+            if !self.has_stacking_context(child) {
+                self.paint_svg_box(child);
             }
-            self.paint_svg_box(child);
+            if let Some(next_text_part) = &mut next_text_part {
+                let context = self.own_context(paintable);
+                self.recorder.set_accumulated_visual_context(context);
+                crate::painting::record::paint::svg::paint_text_after_child(self, paintable, child, next_text_part);
+            }
+        }
+        if let Some(next_text_part) = next_text_part {
+            let context = self.own_context(paintable);
+            self.recorder.set_accumulated_visual_context(context);
+            crate::painting::record::paint::svg::paint_text_after_children(self, paintable, next_text_part);
         }
     }
 

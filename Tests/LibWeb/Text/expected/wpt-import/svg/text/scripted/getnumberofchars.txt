@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	latin text
+Pass	latin text and tspan
+Pass	mixed-rtl text and tspan
+Pass	mixed-rtl text and tested tspan

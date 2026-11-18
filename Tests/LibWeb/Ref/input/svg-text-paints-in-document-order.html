@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-text-paints-in-document-order-ref.html" />
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="200" height="200">
+    <!-- Text that follows a <tspan> paints over that <tspan>. -->
+    <text x="20" y="60" fill="green"><tspan fill="red" stroke="red" stroke-width="6">XX</tspan><tspan x="20">X</tspan>X</text>
+    <!-- Text that comes before a <tspan> paints under it. -->
+    <text x="20" y="120" fill="red">XX<tspan x="20" fill="green" stroke="green" stroke-width="6">XX</tspan></text>
+    <!-- A gradient runs across the text before and after a <tspan> as it does across text in one piece. -->
+    <linearGradient id="gradient" gradientUnits="userSpaceOnUse" x1="20" x2="140">
+        <stop offset="0" stop-color="blue" />
+        <stop offset="1" stop-color="yellow" />
+    </linearGradient>
+    <text x="20" y="180" fill="url(#gradient)">XX<tspan>XX</tspan>XX</text>
+</svg>

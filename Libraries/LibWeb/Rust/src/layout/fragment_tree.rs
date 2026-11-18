@@ -124,11 +124,22 @@ pub(crate) struct GridPayload {
     pub(crate) used_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
 }
 
+/// A part of the glyph outlines of a text content element's own text, which paints after one of the element's children.
+#[derive(Clone, PartialEq)]
+pub(crate) struct SvgTextSegment {
+    /// The child element the part follows, or the invalid slot for the part that comes before every child element.
+    pub(crate) after_child: crate::layout::node_data::NodeSlotId,
+    pub(crate) path: libgfx_rust::path::Path,
+}
+
 #[derive(Clone, Default)]
 pub(crate) struct SvgPayload {
     pub(crate) facts: CommittedSvgFacts,
     pub(crate) geometry: svg_formatting_context::SvgGeometry,
     pub(crate) path: Option<std::sync::Arc<CommittedSvgPath>>,
+    /// The path of a text content element, in the parts that paint apart: Text that follows a child element paints
+    /// after that child. None where all of the element's text comes before its child elements.
+    pub(crate) text_segments: Option<std::sync::Arc<Vec<SvgTextSegment>>>,
     pub(crate) text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
 }
 
@@ -207,6 +218,7 @@ impl PartialEq for FcPayload {
                 left.facts == right.facts
                     && left.geometry == right.geometry
                     && same_allocation(left.path.as_ref(), right.path.as_ref())
+                    && same_allocation(left.text_segments.as_ref(), right.text_segments.as_ref())
                     && same_allocation(left.text_character_cells.as_ref(), right.text_character_cells.as_ref())
             }
             _ => false,
@@ -229,6 +241,7 @@ impl FcPayload {
                 left.facts == right.facts
                     && left.geometry == right.geometry
                     && left.path == right.path
+                    && left.text_segments == right.text_segments
                     && left.text_character_cells == right.text_character_cells
             }
             _ => false,
@@ -242,6 +255,7 @@ impl FcPayload {
                 svg.facts == CommittedSvgFacts::default()
                     && svg.geometry == Default::default()
                     && svg.path.is_none()
+                    && svg.text_segments.is_none()
                     && svg.text_character_cells.is_none()
             }
             Self::Table(_) | Self::Flex(_) | Self::Multicol(_) | Self::Math(_) => false,

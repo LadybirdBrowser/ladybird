@@ -153,12 +153,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "b"
           TextNode <#text> (not painted)
       SVGSVGBox <svg#svg-text> at [8,528] [0+0+0 50 0+0+734] [0+0+0 20 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
-        SVGTextBox <text> at [0,2.203125] [0+0+0 27.703125 0+0+0] [0+0+0 16 0+0+0] children: inline
+        SVGTextBox <text> at [0,2.203125] [0+0+0 43.703125 0+0+0] [0+0+0 16 0+0+0] children: inline
           TextNode <#text> (not painted)
-          SVGTextBox <tspan> at [9.34375,2.203125] [0+0+0 9.46875 0+0+0] [0+0+0 16 0+0+0] children: inline
+          SVGTextBox <tspan> at [17.34375,2.203125] [0+0+0 9.46875 0+0+0] [0+0+0 16 0+0+0] children: inline
             TextNode <#text> (not painted)
           TextNode <#text> (not painted)
-          SVGTextBox <tspan> at [18.8125,2.203125] [0+0+0 8.890625 0+0+0] [0+0+0 16 0+0+0] children: inline
+          SVGTextBox <tspan> at [34.8125,2.203125] [0+0+0 8.890625 0+0+0] [0+0+0 16 0+0+0] children: inline
             TextNode <#text> (not painted)
       BlockContainer <div#abspos> at [8,564] positioned [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
         BlockContainer <p> at [8,564] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline

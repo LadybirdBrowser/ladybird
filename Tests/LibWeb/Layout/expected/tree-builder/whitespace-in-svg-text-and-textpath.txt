@@ -5,12 +5,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       SVGSVGBox <svg> at [8,8] [0+0+0 300 0+0+0] [0+0+0 100 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
         SVGGraphicsBox <g> at [0,0] [0+0+0 5 0+0+0] [0+0+0 5 0+0+0] children: not-inline
           SVGGeometryBox <rect> at [0,0] [0+0+0 5 0+0+0] [0+0+0 5 0+0+0] children: not-inline
-        SVGTextBox <text> at [10,7.203125] [0+0+0 18.8125 0+0+0] [0+0+0 16 0+0+0] children: inline
+        SVGTextBox <text> at [10,7.203125] [0+0+0 26.8125 0+0+0] [0+0+0 16 0+0+0] children: inline
           TextNode <#text> (not painted)
           SVGTextBox <tspan> at [10,7.203125] [0+0+0 9.34375 0+0+0] [0+0+0 16 0+0+0] children: inline
             TextNode <#text> (not painted)
           TextNode <#text> (not painted)
-          SVGTextBox <tspan> at [19.34375,7.203125] [0+0+0 9.46875 0+0+0] [0+0+0 16 0+0+0] children: inline
+          SVGTextBox <tspan> at [27.34375,7.203125] [0+0+0 9.46875 0+0+0] [0+0+0 16 0+0+0] children: inline
             TextNode <#text> (not painted)
           TextNode <#text> (not painted)
         SVGTextBox <text> at [10.8125,72.125] [0+0+0 7 0+0+0] [0+0+0 7.28125 0+0+0] children: not-inline

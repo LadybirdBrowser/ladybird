@@ -28,10 +28,9 @@ SVGTextContentElement::SVGTextContentElement(DOM::Document& document, DOM::Quali
 // A character that is addressable by text positioning attributes and SVG DOM text methods.
 // Characters discarded during layout such as collapsed white space characters are not addressable, neither are
 // characters within an element with a value of none for the display property.
-// Layout commits one cell per code unit of each rendered text content element's own character data, after processing
-// its white space. An element that isn't rendered has no committed box, and so no cells at all.
-// AD-HOC: Layout shapes an element's own character data as one run ahead of its text content children, so the cells
-//         come in that order rather than in document order when text and child elements interleave.
+// Layout commits one cell per code unit of the character data in each rendered text content element's subtree, in
+// document order, after processing its white space. An element that isn't rendered has no committed box, and so no
+// cells at all.
 Vector<Layout::RustFFI::FfiSvgTextCharacterCell> SVGTextContentElement::character_cells()
 {
     Layout::ForcedReadScope read { document() };
@@ -40,22 +39,8 @@ Vector<Layout::RustFFI::FfiSvgTextCharacterCell> SVGTextContentElement::characte
     auto const* layout_node = this->layout_node(read);
     if (!layout_node)
         return cells;
-    auto collect = [&cells](auto& self, Layout::Node const& node) -> void {
-        if (!Painting::has_committed_box(node))
-            return;
-        cells.extend(Painting::svg_text_character_cells(node));
-        for (auto const* child = node.first_child_ptr(); child; child = child->next_sibling_ptr()) {
-            switch (child->kind()) {
-            case Layout::RustFFI::NodeKind::SVGTextBox:
-            case Layout::RustFFI::NodeKind::SVGTextPathBox:
-                self(self, *child);
-                break;
-            default:
-                break;
-            }
-        }
-    };
-    collect(collect, *layout_node);
+    if (Painting::has_committed_box(*layout_node))
+        cells = Painting::svg_text_character_cells(*layout_node);
     return cells;
 }
 

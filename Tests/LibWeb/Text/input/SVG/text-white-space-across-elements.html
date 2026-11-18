@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="800" height="400">
+    <text id="space-before-tspan" x="10" y="30">A <tspan id="space-before-tspan-child"> B</tspan></text>
+    <text id="space-between-tspans" x="10" y="60"><tspan id="between-first">A</tspan> <tspan id="between-second">B</tspan></text>
+    <text id="space-in-both-tspans" x="10" y="90"><tspan id="both-first">A </tspan><tspan id="both-second"> B</tspan></text>
+    <text id="spaces-everywhere" x="10" y="120">  A  <tspan id="spaces-everywhere-child">  B  </tspan>  C  </text>
+    <text id="word-per-tspan" x="10" y="150">
+        <tspan id="word-first" x="10">A</tspan>
+        <tspan id="word-second" x="100">B</tspan>
+    </text>
+    <text id="space-before-chunk" x="10" y="180">A <tspan id="space-before-chunk-child" x="100"> B</tspan></text>
+    <text id="space-across-empty-tspan" x="10" y="210">A <tspan></tspan> B</text>
+    <text id="xml-space-preserve" x="10" y="240" xml:space="preserve"> A <tspan id="xml-space-preserve-child"> B </tspan> C </text>
+    <text id="preserved-tspan" x="10" y="270">A <tspan id="preserved-tspan-child" style="white-space: pre">  B  </tspan> C</text>
+    <text id="collapsing-tspan" x="10" y="300" style="white-space: pre">A  <tspan id="collapsing-tspan-child" style="white-space: normal">  B  </tspan>  C</text>
+    <text id="only-white-space" x="10" y="330"> <tspan id="only-white-space-child"> </tspan> </text>
+</svg>
+<script>
+    const round = value => Math.round(value * 100) / 100;
+    const characters = element => {
+        const positions = [];
+        for (let index = 0; index < element.getNumberOfChars(); ++index) {
+            const cell = element.getExtentOfChar(index);
+            positions.push(`${round(cell.x)},${round(cell.y)}`);
+        }
+        return `${positions.length} characters, length ${round(element.getComputedTextLength())}: ${positions.join(" ")}`;
+    };
+    const box = element => {
+        const rect = element.getBBox();
+        return `${round(rect.x)},${round(rect.y)} ${round(rect.width)}x${round(rect.height)}`;
+    };
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const element of document.querySelectorAll("svg [id]")) {
+            const queries = element.getNumberOfChars ? `${characters(element)}; ` : "";
+            println(`${element.id}: ${queries}box ${box(element)}`);
+        }
+        done();
+    });
+</script>
