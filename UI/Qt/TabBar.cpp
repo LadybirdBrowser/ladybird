@@ -571,7 +571,14 @@ private:
     {
         if (objectName() != "LadybirdNewTabButton")
             return QRectF(rect());
-        return { (width() - HORIZONTAL_NEW_TAB_BUTTON_FILL_SIZE) / 2.0, (height() - HORIZONTAL_NEW_TAB_BUTTON_FILL_SIZE) / 2.0, HORIZONTAL_NEW_TAB_BUTTON_FILL_SIZE, HORIZONTAL_NEW_TAB_BUTTON_FILL_SIZE };
+        // Center the fill in the bottom square of the hit area.
+        auto nominal_rect = QRectF(
+            (width() - HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE) / 2.0,
+            height() - HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE,
+            HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE,
+            HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE);
+        auto fill_inset = (HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE - HORIZONTAL_NEW_TAB_BUTTON_FILL_SIZE) / 2.0;
+        return nominal_rect.adjusted(fill_inset, fill_inset, -fill_inset, -fill_inset);
     }
 
     virtual void paintEvent(QPaintEvent* event) override
@@ -4094,6 +4101,10 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
     if (watched == window() && event->type() == QEvent::Leave)
         defer_update_vertical_tabs_hover_expanded();
 
+    // The window's top margin can change without moving the tab bar within the strip.
+    if (event->type() == QEvent::ContentsRectChange && watched == window() && m_new_tab_button)
+        place_horizontal_new_tab_button();
+
     if (event->type() == QEvent::Resize) {
         if (auto* current = as_if<Tab>(m_stacked_widget->currentWidget()); current && current->is_loaded() && watched == &current->view())
             size_hidden_pages_like_the_current_one();
@@ -4587,8 +4598,12 @@ void TabWidget::place_horizontal_new_tab_button()
     auto x = tab_bar_geometry.right() + 1 - HORIZONTAL_TAB_END_ROOM + HORIZONTAL_NEW_TAB_BUTTON_GAP + min(0, m_tab_bar->horizontal_tabs_end_offset());
     // NB: The buttons are centered on the tabs' cards, which the strip's line runs through.
     auto card_height = HORIZONTAL_TAB_HEIGHT - HORIZONTAL_TAB_TOP_INSET - HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET - HORIZONTAL_TAB_CARD_SHAPE_BOTTOM_INSET;
-    auto y = tab_bar_geometry.top() + HORIZONTAL_TAB_TOP_INSET + HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET + ((card_height - m_new_tab_button->height()) / 2);
-    m_new_tab_button->move(x + ((HORIZONTAL_NEW_TAB_BUTTON_SIZE - m_new_tab_button->width()) / 2), y);
+    auto nominal_top = tab_bar_geometry.top() + HORIZONTAL_TAB_TOP_INSET + HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET
+        + ((card_height - HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE) / 2);
+    // Let the button reach the top of the strip when the window has no resize frame.
+    auto hit_top = window()->contentsMargins().top() == 0 ? 0 : nominal_top;
+    m_new_tab_button->setFixedHeight(HORIZONTAL_NEW_TAB_BUTTON_HIT_SIZE + nominal_top - hit_top);
+    m_new_tab_button->move(x + ((HORIZONTAL_NEW_TAB_BUTTON_SIZE - m_new_tab_button->width()) / 2), hit_top);
     m_new_tab_button->raise();
 }
 
