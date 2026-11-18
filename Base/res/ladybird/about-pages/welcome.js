@@ -15,12 +15,18 @@ const tabLayoutInputs = document.querySelectorAll('input[name="tab-layout"]');
 const colorThemeInputs = document.querySelectorAll('input[name="color-theme"]');
 const enableContentBlocking = document.querySelector("#enable-content-blocking");
 const enableUpdateChecks = document.querySelector("#enable-update-checks");
+const defaultBrowser = document.querySelector("#default-browser");
+const defaultBrowserLabel = document.querySelector("#default-browser-label");
+const defaultBrowserDescription = document.querySelector("#default-browser-description");
+const makeDefaultBrowser = document.querySelector("#make-default-browser");
 const saveStatus = document.querySelector("#save-status");
 
 let settings;
 let engines;
 let features;
 let initialized = false;
+// Why the last attempt to make Ladybird the default browser failed, which is shown in place of the row's description.
+let defaultBrowserFailure = null;
 
 function setSearchEngineSettings(name, suggestions) {
     // NB: Keep our copy current, as the settings update for this change can arrive after the next one is made.
@@ -98,6 +104,24 @@ function updateColorTheme() {
     for (const input of colorThemeInputs) input.checked = input.value === colorTheme;
 }
 
+// The row is only shown where the system can tell which browser is the default, and lets Ladybird become it.
+function updateDefaultBrowser() {
+    const isDefault = settings.defaultBrowser === "default";
+    const canMakeDefault = settings.defaultBrowser === "not-default";
+
+    defaultBrowser.classList.toggle("hidden", !isDefault && !canMakeDefault);
+    defaultBrowserDescription.textContent =
+        defaultBrowserFailure ??
+        (isDefault ? "Links from other apps open in Ladybird." : "Open links from other apps in Ladybird.");
+    makeDefaultBrowser.classList.toggle("hidden", !canMakeDefault);
+
+    // A control row is filled under the pointer, and a click anywhere on it reaches the control its label names. This
+    // row is one only while there is something for the button to do.
+    defaultBrowser.classList.toggle("control-row", canMakeDefault);
+    if (canMakeDefault) defaultBrowserLabel.htmlFor = makeDefaultBrowser.id;
+    else defaultBrowserLabel.removeAttribute("for");
+}
+
 function initialize() {
     if (initialized || !settings || !engines || !features) return;
     initialized = true;
@@ -105,6 +129,7 @@ function initialize() {
     document.querySelector("#tab-layout-section").classList.toggle("hidden", !features.verticalTabs);
     updateTabLayout();
     updateColorTheme();
+    updateDefaultBrowser();
 
     renderSearchEngines();
     updateSearchSuggestions();
@@ -161,6 +186,17 @@ enableUpdateChecks.addEventListener("change", () => {
     ladybird.sendMessage("setUpdateChecksEnabled", enableUpdateChecks.checked);
 });
 
+// The system may ask before it changes the default browser, so the button waits for its answer.
+makeDefaultBrowser.addEventListener("click", () => {
+    if (!initialized) return;
+
+    makeDefaultBrowser.disabled = true;
+    defaultBrowserFailure = null;
+    updateDefaultBrowser();
+
+    ladybird.sendMessage("makeDefaultBrowser");
+});
+
 form.addEventListener("submit", event => {
     event.preventDefault();
     if (!initialized || startBrowsing.disabled) return;
@@ -195,11 +231,19 @@ document.addEventListener("WebUIMessage", event => {
                 enableContentBlocking.checked = settings.contentBlockers.enabled;
             if (Object.hasOwn(data, "backgroundNetworking"))
                 enableUpdateChecks.checked = settings.backgroundNetworking.features.updateChecks;
+            if (Object.hasOwn(data, "defaultBrowser")) {
+                defaultBrowserFailure = null;
+                updateDefaultBrowser();
+            }
         }
     } else if (name === "loadEngines") {
         engines = data;
     } else if (name === "loadFeatures") {
         features = data;
+    } else if (name === "defaultBrowserResult") {
+        makeDefaultBrowser.disabled = false;
+        defaultBrowserFailure = data;
+        updateDefaultBrowser();
     } else if (name === "firstRunCompleted") {
         location.replace(data);
     } else if (name === "firstRunError") {

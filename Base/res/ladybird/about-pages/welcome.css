@@ -118,7 +118,8 @@ section {
     flex: 1;
 }
 
-.control-row input[switch] {
+.control-row input[switch],
+.control-row > button {
     flex-shrink: 0;
 }
 
