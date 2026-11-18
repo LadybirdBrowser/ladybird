@@ -41,7 +41,7 @@ option(LADYBIRD_GENERATE_SYMBOL_FILES "Build with debug info and write the symbo
 if (LADYBIRD_GENERATE_SYMBOL_FILES AND MSVC)
     message(FATAL_ERROR "LADYBIRD_GENERATE_SYMBOL_FILES is not supported with MSVC-style toolchains")
 endif()
-option(ENABLE_CI_BASELINE_CPU "Use a common CPU baseline for portable binaries and ccache sharing" OFF)
+option(LADYBIRD_BASELINE_CPU_TARGET "Use a common CPU baseline for portable binaries and ccache sharing" OFF)
 
 set(LADYBIRD_VERSION "" CACHE STRING "Version of a release, such as 2026.46.0")
 set(LADYBIRD_BROWSER_VERSION "${PROJECT_VERSION}")
