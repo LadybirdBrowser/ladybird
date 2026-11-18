@@ -1204,17 +1204,37 @@ private:
             if (selector.m_candidate)
                 selector.m_candidate->dispatch_event(DOM::Event::create(HTML::relevant_global_object(*selector.m_candidate), HTML::EventNames::error));
 
-            // 10. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm until
-            //     the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
-            // FIXME: Also run the next steps within this task, instead of waiting for a stable state.
-            //        This seems to match the intent in https://github.com/whatwg/html/issues/2882#issuecomment-1108531815.
-            //        Update this if the spec is clarified in regard to this step.
+            // NB: An error listener that invoked the load algorithm (by setting src, e.g.) aborted this selection.
+            if (!selector.is_current())
+                return;
 
-            // 11. ⌛ Forget the media element's media-resource-specific tracks.
-            selector.m_media_element->forget_media_resource_specific_tracks();
+            // NB: An error listener can also adopt the element into a document that isn't fully active, where nothing can
+            //     be fetched. So go on from a media element task instead, which waits until the element is back in a
+            //     fully active document.
+            if (!selector.m_media_element->document().is_fully_active()) {
+                selector.m_media_element->queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(selector), [](auto& selector, HTMLMediaElement&) {
+                    if (selector.is_current())
+                        selector.continue_after_failure();
+                }));
+                return;
+            }
 
-            selector.find_next_candidate();
+            selector.continue_after_failure();
         }));
+    }
+
+    void continue_after_failure()
+    {
+        // 10. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm until
+        //     the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
+        // FIXME: Also run the next steps within this task, instead of waiting for a stable state.
+        //        This seems to match the intent in https://github.com/whatwg/html/issues/2882#issuecomment-1108531815.
+        //        Update this if the spec is clarified in regard to this step.
+
+        // 11. ⌛ Forget the media element's media-resource-specific tracks.
+        m_media_element->forget_media_resource_specific_tracks();
+
+        find_next_candidate();
     }
 
     GC::Ptr<DOM::Node> node_after(GC::Ptr<DOM::Node> node_before_pointer) const
