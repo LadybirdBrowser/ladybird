@@ -11,7 +11,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
-use crate::runtime::abstract_operations::can_be_held_weakly;
+use crate::runtime::abstract_operations::{can_be_held_weakly, preserve_identity_of_value_held_weakly};
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -90,6 +90,7 @@ impl WeakSetPrototype {
         //     a. If e is not empty and SameValue(e, value) is true, then
         //         i. Return S.
         // 5. Append value to S.[[WeakSetData]].
+        preserve_identity_of_value_held_weakly(value);
         weak_set.weak_set_add(vm, value.as_cell());
 
         // 6. Return S.

@@ -1019,6 +1019,14 @@ pub fn can_be_held_weakly(value: Value) -> bool {
     false
 }
 
+/// NB: Not an operation of the spec. Script is about to hold `value` weakly, which makes the identity of an object
+///     outlive the references to it, so the embedder must keep the object from then on (Object::preserve_identity()).
+pub fn preserve_identity_of_value_held_weakly(value: Value) {
+    if value.is_object() {
+        value.as_object().preserve_identity();
+    }
+}
+
 // 13.3.7.2 GetSuperConstructor ( ), https://tc39.es/ecma262/#sec-getsuperconstructor
 pub fn get_super_constructor(vm: &Vm) -> Option<Gc<Object>> {
     // OPTIMIZATION: The running function is envRec.[[FunctionObject]] if its frame answers for the environment.

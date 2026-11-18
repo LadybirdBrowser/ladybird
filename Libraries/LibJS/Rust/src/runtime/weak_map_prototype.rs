@@ -11,7 +11,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
-use crate::runtime::abstract_operations::{call, can_be_held_weakly};
+use crate::runtime::abstract_operations::{call, can_be_held_weakly, preserve_identity_of_value_held_weakly};
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -147,6 +147,7 @@ impl WeakMapPrototype {
 
         // 5. Let p be the Record { [[Key]]: key, [[Value]]: value }.
         // 6. Append p to M.[[WeakMapData]].
+        preserve_identity_of_value_held_weakly(key);
         weak_map.weak_map_set(vm, key.as_cell(), value);
 
         // 7. Return value.
@@ -189,6 +190,7 @@ impl WeakMapPrototype {
         //         ii. Return value.
         // 9. Let p be the Record { [[Key]]: key, [[Value]]: value }.
         // 10. Append p to M.[[WeakMapData]].
+        preserve_identity_of_value_held_weakly(key);
         weak_map.weak_map_set(vm, key.as_cell(), value);
 
         // 11. Return value.
@@ -238,6 +240,7 @@ impl WeakMapPrototype {
         //        ii. Return M.
         // 5. Let p be the Record { [[Key]]: key, [[Value]]: value }.
         // 6. Append p to M.[[WeakMapData]].
+        preserve_identity_of_value_held_weakly(key);
         weak_map.weak_map_set(vm, key.as_cell(), value);
 
         // 7. Return M.
