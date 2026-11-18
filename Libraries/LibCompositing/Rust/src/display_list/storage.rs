@@ -427,13 +427,14 @@ mod tests {
             (tape_chunks.len(), tape_chunks.id(0), tape_chunks.id(1)),
             (2, first.id, second.id)
         );
-        assert_eq!((tape_chunks.runs_of(0), tape_chunks.runs_of(1)), (0..1, 1..3));
+        // The scroll bar is alone in a run.
+        assert_eq!((tape_chunks.runs_of(0), tape_chunks.runs_of(1)), (0..1, 1..4));
         assert!(tape_chunks.records_reaching_outside(0).is_empty());
         assert_eq!(
             tape_chunks.records_reaching_outside(1),
             [TopLevelRecordReachingOutsideItsChunk {
                 record_offset: first.records.len() as u32 + scrollbar_offset_in_second_chunk,
-                run_index: 2,
+                run_index: 3,
                 reach: ReachOutsideChunk::ScrollbarThumbFollowsScrollOffsetOf(SpatialNodeIndex(3)),
             }]
         );

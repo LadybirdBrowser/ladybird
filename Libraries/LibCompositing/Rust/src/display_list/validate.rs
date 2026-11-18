@@ -609,10 +609,14 @@ fn validate_inline_clip(payload: Payload, offset: usize) -> Result<(), Validatio
 struct RunSummary {
     ink_bounds: IntRect,
     has_compositor_metadata: bool,
+    record_count: usize,
+    holds_a_record_that_is_alone_in_its_run: bool,
 }
 
 impl RunSummary {
     fn note(&mut self, header: &DisplayListCommandHeader, payload: &[u8]) {
+        self.record_count += 1;
+        self.holds_a_record_that_is_alone_in_its_run |= header.command_type.is_alone_in_its_run();
         if header.command_type.is_compositor_metadata() {
             self.has_compositor_metadata = true;
         } else {
@@ -788,6 +792,9 @@ pub fn validate_tape(tape: &[u8], run_bytes: &[u8]) -> Result<Vec<DisplayListCom
         }
         if !summary.matches(&run) {
             return Err("Display list command run summary disagrees with its records");
+        }
+        if summary.holds_a_record_that_is_alone_in_its_run && summary.record_count != 1 {
+            return Err("Display list command run holds a record that is alone in its run with other records");
         }
         next_offset += size;
         runs.push(run);
