@@ -10,6 +10,7 @@
 #include <AK/SourceLocation.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibAudio/RecordStream.h>
+#include <LibCore/Timer.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
 #include <LibGfx/Bitmap.h>
@@ -2337,6 +2338,10 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
     update_find_in_page_active_match(all_matches);
     update_find_in_page_highlighted_matches(all_matches, query.highlight_all_matches || query.dim_page);
     set_find_in_page_dimmed_document(query.dim_page && !all_matches.is_empty() ? local_traversable()->active_document() : nullptr);
+    if (auto current_match = find_in_page_active_match(); current_match && m_find_in_page_dimmed_document) {
+        auto current_match_moved = !active_match || *active_match != *current_match;
+        bounce_find_in_page_current_match(current_match_moved);
+    }
 
     return Page::FindInPageResult {
         .current_match_index = m_find_in_page_match_index,
@@ -2490,6 +2495,88 @@ void Page::set_find_in_page_dimmed_document(GC::Ptr<DOM::Document> document)
         if (document_to_repaint)
             repaint_find_in_page_dim(*document_to_repaint);
     }
+}
+
+static constexpr auto FIND_IN_PAGE_ANIMATION_FRAME_INTERVAL = AK::Duration::from_milliseconds(16);
+static constexpr auto FIND_IN_PAGE_CURRENT_MATCH_BOUNCE_DURATION = AK::Duration::from_milliseconds(120);
+
+static bool animates_find_in_page_dim(Page const& page)
+{
+    return !HTML::Window::in_test_mode() && page.preferred_motion() != CSS::PreferredMotion::Reduce;
+}
+
+static float find_in_page_animation_progress(MonotonicTime start_time, AK::Duration duration)
+{
+    auto elapsed = MonotonicTime::now() - start_time;
+    return clamp(elapsed.to_milliseconds() / static_cast<float>(duration.to_milliseconds()), 0.0f, 1.0f);
+}
+
+static void advance_find_in_page_animation(Optional<MonotonicTime>& start_time, AK::Duration duration, Core::Timer& timer, GC::Ptr<DOM::Document> document)
+{
+    if (!document || MonotonicTime::now() - *start_time >= duration) {
+        start_time = {};
+        timer.stop();
+    }
+    if (document)
+        repaint_find_in_page_dim(*document);
+}
+
+void Page::bounce_find_in_page_current_match(bool current_match_moved)
+{
+    if (!animates_find_in_page_dim(*this))
+        return;
+
+    auto now = MonotonicTime::now();
+    auto follows_previous_request = m_find_in_page_current_match_bounce_request_time.has_value()
+        && now - *m_find_in_page_current_match_bounce_request_time < FIND_IN_PAGE_CURRENT_MATCH_BOUNCE_DURATION;
+    m_find_in_page_current_match_bounce_request_time = now;
+
+    if (!current_match_moved) {
+        if (!m_find_in_page_current_match_bounce_start_time.has_value())
+            start_find_in_page_current_match_bounce();
+        return;
+    }
+
+    // A request that closely follows another bounces its match only if no other follows it.
+    if (!follows_previous_request) {
+        start_find_in_page_current_match_bounce();
+        return;
+    }
+
+    if (m_find_in_page_current_match_bounce_start_time.has_value()) {
+        m_find_in_page_current_match_bounce_start_time = {};
+        m_find_in_page_current_match_bounce_timer->stop();
+    }
+
+    if (!m_find_in_page_current_match_deferred_bounce_timer) {
+        m_find_in_page_current_match_deferred_bounce_timer = Core::Timer::create_single_shot(FIND_IN_PAGE_CURRENT_MATCH_BOUNCE_DURATION, [this] {
+            if (m_find_in_page_dimmed_document)
+                start_find_in_page_current_match_bounce();
+        });
+    }
+    m_find_in_page_current_match_deferred_bounce_timer->restart();
+}
+
+void Page::start_find_in_page_current_match_bounce()
+{
+    if (m_find_in_page_current_match_deferred_bounce_timer)
+        m_find_in_page_current_match_deferred_bounce_timer->stop();
+    m_find_in_page_current_match_bounce_start_time = MonotonicTime::now();
+    if (!m_find_in_page_current_match_bounce_timer) {
+        m_find_in_page_current_match_bounce_timer = Core::Timer::create_repeating(FIND_IN_PAGE_ANIMATION_FRAME_INTERVAL, [this] {
+            advance_find_in_page_animation(m_find_in_page_current_match_bounce_start_time, FIND_IN_PAGE_CURRENT_MATCH_BOUNCE_DURATION, *m_find_in_page_current_match_bounce_timer, m_find_in_page_dimmed_document.ptr());
+        });
+    }
+    m_find_in_page_current_match_bounce_timer->start();
+}
+
+float Page::find_in_page_current_match_scale(DOM::Document const& document) const
+{
+    if (!is_dimmed_for_find_in_page(document) || !m_find_in_page_current_match_bounce_start_time.has_value())
+        return 1;
+
+    auto progress = find_in_page_animation_progress(*m_find_in_page_current_match_bounce_start_time, FIND_IN_PAGE_CURRENT_MATCH_BOUNCE_DURATION);
+    return 1 + 0.25f * (1 - abs(2 * progress - 1));
 }
 
 GC::Ptr<DOM::Range> Page::find_in_page_active_match()

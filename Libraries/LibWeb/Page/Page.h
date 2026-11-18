@@ -15,6 +15,7 @@
 #include <AK/JsonValue.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Queue.h>
+#include <AK/Time.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibAudio/Forward.h>
@@ -524,6 +525,7 @@ public:
     void clear_find_in_page_active_match();
     bool is_dimmed_for_find_in_page(DOM::Document const&) const;
     void stop_dimming_for_find_in_page();
+    float find_in_page_current_match_scale(DOM::Document const&) const;
 
     bool listen_for_dom_mutations() const { return m_listen_for_dom_mutations; }
     void set_listen_for_dom_mutations(bool listen_for_dom_mutations) { m_listen_for_dom_mutations = listen_for_dom_mutations; }
@@ -566,6 +568,8 @@ private:
     void update_find_in_page_highlighted_matches(Vector<GC::Root<DOM::Range>> const& matches, bool highlight_all_matches);
     void clear_find_in_page_highlighted_matches();
     void set_find_in_page_dimmed_document(GC::Ptr<DOM::Document>);
+    void bounce_find_in_page_current_match(bool current_match_moved);
+    void start_find_in_page_current_match_bounce();
     GC::Ptr<DOM::Range> find_in_page_active_match();
     void set_find_in_page_active_match(GC::Ptr<DOM::Range>);
 
@@ -713,6 +717,10 @@ private:
     GC::Weak<DOM::Document> m_find_in_page_active_match_document;
     Vector<GC::Weak<DOM::Document>> m_find_in_page_highlighted_documents;
     GC::Weak<DOM::Document> m_find_in_page_dimmed_document;
+    Optional<MonotonicTime> m_find_in_page_current_match_bounce_request_time;
+    Optional<MonotonicTime> m_find_in_page_current_match_bounce_start_time;
+    RefPtr<Core::Timer> m_find_in_page_current_match_bounce_timer;
+    RefPtr<Core::Timer> m_find_in_page_current_match_deferred_bounce_timer;
 
     bool m_listen_for_dom_mutations { false };
     bool m_accessibility_interested { false };

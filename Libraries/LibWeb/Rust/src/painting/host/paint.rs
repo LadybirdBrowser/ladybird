@@ -70,6 +70,7 @@ pub struct FfiRecordingInputs {
     pub text_fragment_indications: *const FfiTextFragmentIndicationRange,
     pub text_fragment_indication_count: usize,
     pub dims_page_for_find_in_page: bool,
+    pub find_in_page_current_match_scale: f32,
     pub mark_color: Color,
     pub mark_text_color: Color,
     /// What the compositor clears the surface with below the recording, for a top-level traversable.
@@ -254,6 +255,7 @@ impl FfiRecordingInputs {
             }),
             text_fragment_indications: text_fragment_indications.to_vec().into(),
             dims_page_for_find_in_page: self.dims_page_for_find_in_page,
+            find_in_page_current_match_scale: self.find_in_page_current_match_scale,
             mark_color: self.mark_color,
             mark_text_color: self.mark_text_color,
         })

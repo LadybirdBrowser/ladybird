@@ -20,7 +20,7 @@ use crate::painting::record::inputs::CaretTarget;
 use crate::painting::selection::{HighlightPseudoElement, SearchTextHighlights, SelectionRange};
 use crate::painting::text_fragment::{self, SelectionOffsets};
 use libgfx_rust::path::Path;
-use libgfx_rust::{Color, CornerRadii, FloatPoint, IntPoint, IntRect, Orientation, WindingRule};
+use libgfx_rust::{AffineTransform, Color, CornerRadii, FloatPoint, IntPoint, IntRect, Orientation, WindingRule};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -591,7 +591,7 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
         let clip = PendingInlineClip::subtracting_path(&highlight_path, WindingRule::Nonzero);
         let clip_depth = recorder.recorder.ambient_inline_clip_depth();
         recorder.recorder.push_ambient_inline_clips(&[clip]);
-        paint_text_fragment(recorder, block, &normal_span, &[], true);
+        paint_text_fragment(recorder, block, &normal_span, &[], true, None);
         recorder.recorder.truncate_ambient_inline_clips(clip_depth);
         stroked_highlights.insert(span.fragment_index);
     }
@@ -604,6 +604,7 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
             span,
             &sets,
             !stroked_highlights.contains(&span.fragment_index),
+            None,
         );
     }
 
@@ -663,7 +664,7 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     {
         let sets =
             crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder.source, block, span);
-        paint_text_fragment(recorder, block, span, &sets, true);
+        paint_text_fragment(recorder, block, span, &sets, true, None);
     }
 }
 
@@ -789,6 +790,25 @@ pub(crate) fn paint_current_search_text_match<O: Observer>(
             color: background_color,
         })
         .collect();
+    let scale = recorder.inputs.find_in_page_current_match_scale;
+    let unscaled_transform = recorder.recorder.ambient_inline_transform();
+    let mut scale_transform = None;
+    if scale != 1.0
+        && let Some(bounds) = backgrounds
+            .iter()
+            .map(|background| background.rect)
+            .reduce(IntRect::united)
+    {
+        let center_x = bounds.x as f32 + bounds.width as f32 / 2.0;
+        let center_y = bounds.y as f32 + bounds.height as f32 / 2.0;
+        scale_transform = Some(
+            AffineTransform::identity()
+                .translated(center_x, center_y)
+                .scaled(scale, scale)
+                .translated(-center_x, -center_y),
+        );
+        recorder.recorder.set_ambient_inline_transform(scale_transform);
+    }
     for (color, blur_radius, offset_y) in [
         (Color::from_rgba(0, 0, 0, 102), device_pixels(4), device_pixels(1)),
         (Color::from_rgb(255, 255, 255), 0, 0),
@@ -814,8 +834,9 @@ pub(crate) fn paint_current_search_text_match<O: Observer>(
     for (block, span) in &matched_spans {
         let sets =
             crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder.source, *block, span);
-        paint_text_fragment(recorder, *block, span, &sets, true);
+        paint_text_fragment(recorder, *block, span, &sets, true, scale_transform);
     }
+    recorder.recorder.set_ambient_inline_transform(unscaled_transform);
 }
 
 fn highlight_rects<O: Observer>(
@@ -981,6 +1002,7 @@ fn paint_text_fragment<O: Observer>(
     span: &RenderSpan,
     decoration_sets: &[crate::painting::record::paint::text_decoration::TextDecorationSet],
     draw_glyphs: bool,
+    inline_transform: Option<AffineTransform>,
 ) {
     if span.start_code_unit == span.end_code_unit {
         return;
@@ -1090,8 +1112,18 @@ fn paint_text_fragment<O: Observer>(
         let range_rects = text_fragment::rects_for_selection_offsets(recorder.source, fragment, offsets);
         for range_rect in &range_rects {
             let span_rect = converter.rounded_device_rect(*range_rect);
-            if draw_glyphs {
-                recorder.recorder.record_clipped_to(span_rect, paint_glyphs);
+            if !draw_glyphs {
+                continue;
+            }
+            // An ambient inline transform does not move inline clips.
+            match inline_transform {
+                Some(transform) => recorder.recorder.record_with_inline_clips(
+                    &[PendingInlineClip::intersecting_float_rect(
+                        transform.map_rect(span_rect.to_float()),
+                    )],
+                    paint_glyphs,
+                ),
+                None => recorder.recorder.record_clipped_to(span_rect, paint_glyphs),
             }
         }
         let range_rect = text_fragment::rect_for_selection_offsets(recorder.source, fragment, offsets);
