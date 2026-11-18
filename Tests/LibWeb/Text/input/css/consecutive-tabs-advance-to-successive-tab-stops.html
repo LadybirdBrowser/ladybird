@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    pre { font: 10px/20px Ahem; margin: 0; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        // Each case is [id, tab-size, HTML]. The offset of the X is printed in units of the advance of a space, so
+        // with tab-size: 8, an X after two tabs sits at 16 whatever text comes before the tabs (if it's shorter than
+        // a tab stop).
+        const cases = [
+            ["one-tab", "8", "\tX"],
+            ["two-tabs", "8", "\t\tX"],
+            ["three-tabs", "8", "\t\t\tX"],
+            ["text-then-two-tabs", "8", "a\t\tX"],
+            ["longer-text-then-two-tabs", "8", "abcdefg\t\tX"],
+            ["text-then-three-tabs", "8", "abc\t\t\tX"],
+            ["tab-size-4-two-tabs", "4", "ab\t\tX"],
+            ["tab-word-tab", "8", "a\tb\tX"],
+            ["tabs-in-two-nodes", "8", "a\t<span>\t</span>X"],
+        ];
+        const host = document.getElementById("host");
+        for (const [id, tabSize, html] of cases) {
+            const pre = document.createElement("pre");
+            pre.style.tabSize = tabSize;
+            pre.innerHTML = html;
+            host.append(pre);
+        }
+        const space = (() => {
+            const pre = document.createElement("pre");
+            pre.textContent = "          ";
+            host.append(pre);
+            const range = document.createRange();
+            range.selectNodeContents(pre.firstChild);
+            const width = range.getBoundingClientRect().width / 10;
+            pre.remove();
+            return width;
+        })();
+        const pres = host.querySelectorAll("pre");
+        cases.forEach(([id], index) => {
+            const pre = pres[index];
+            const walker = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT);
+            let node;
+            while ((node = walker.nextNode())) {
+                const offset = node.data.indexOf("X");
+                if (offset < 0)
+                    continue;
+                const range = document.createRange();
+                range.setStart(node, offset);
+                range.setEnd(node, offset + 1);
+                const x = range.getBoundingClientRect().left - pre.getBoundingClientRect().left;
+                println(`${id}: ${(x / space).toFixed(2)} spaces`);
+            }
+        });
+        // Each tab of a run spans its own stretch of the line, from where the character before it ends to its own
+        // tab stop.
+        cases.forEach(([id], index) => {
+            const text = pres[index].firstChild;
+            const left = pres[index].getBoundingClientRect().left;
+            const extents = [];
+            for (let offset = 0; offset < text.length; ++offset) {
+                const range = document.createRange();
+                range.setStart(text, offset);
+                range.setEnd(text, offset + 1);
+                const rect = range.getBoundingClientRect();
+                extents.push(`${((rect.left - left) / space).toFixed(2)}..${((rect.right - left) / space).toFixed(2)}`);
+            }
+            println(`${id} characters: ${extents.join(" ")}`);
+        });
+    });
+</script>

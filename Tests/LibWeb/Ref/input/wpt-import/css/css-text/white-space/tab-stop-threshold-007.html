@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: the minimum tab advance is measured against the '0' glyph, not against the space</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-4/#white-space-phase-2">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#tab-size-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/tab-stop-threshold-007-ref.html">
+<meta name="assert" content="A preserved tab whose distance to the next tab stop is less than 0.5ch advances to the subsequent tab stop, even when that distance is not less than half the advance of a space. In a proportional font a 0.4ch tab stop is wider than half a space but narrower than 0.5ch, so every tab advances two tab stops, which renders the same as a 0.8ch tab size.">
+<style>
+div {
+    white-space: pre;
+    font-family: serif;
+    font-size: 32px;
+    tab-size: 0.4ch;
+}
+span {
+    background-color: green;
+}
+</style>
+<p>Test passes if the green bar below is 2.4 times as wide as the advance of a "0" glyph, and identical to the reference.</p>
+<div><span>&#9;&#9;&#9;</span></div>

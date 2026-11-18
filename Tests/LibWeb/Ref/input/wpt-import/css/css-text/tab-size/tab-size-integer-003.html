@@ -1,0 +1,36 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Text Test: tab-size: 0</title>
+    <link rel="author" title="David Storey" href="mailto:david@openweb.io">
+    <link rel="reviewer" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+    <link rel="help" href="http://www.w3.org/TR/css-text-3/#tab-size">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-text/tab-size/tab-size-integer-001-ref.html">
+    <meta name="assert" content="Tab should be rendered as 0 times the space character’s advance width (U+0020)">
+    <style type="text/css">
+        .container {
+            position: absolute;
+        }
+        .green {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: green;
+         }
+        .red {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: red;
+            tab-size: 0;
+        }
+    </style>
+</head>
+<body>
+    <p>The test passes if there is no red.</p>
+    <div class="container">
+        <pre class="red">&#09;</pre>
+        <pre class="green">    </pre>
+    </div>
+</body>
+</html>
