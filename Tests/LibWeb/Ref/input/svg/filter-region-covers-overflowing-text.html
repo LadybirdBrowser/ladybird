@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-region-covers-overflowing-text-ref.html" />
+<style>
+    body { margin: 0; }
+    div { width: 100px; font: 20px monospace; white-space: nowrap; color: green; filter: url(#identity); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="identity" x="0" y="0" width="1" height="1">
+        <feOffset dx="0" dy="0" />
+    </filter>
+</svg>
+<!-- The text overflows the box, and the filter region still covers it. -->
+<div>xxxxxxxxxxxxxxxxxxxx</div>

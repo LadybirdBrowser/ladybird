@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-region-follows-a-rotated-one-axis-clip-ref.html" />
+<style>
+    body { margin: 0; }
+    #filtered { margin-left: 200px; width: 100px; height: 100px; filter: url(#identity); }
+    #rotated { width: 100px; height: 100px; overflow-x: clip; overflow-y: visible; transform-origin: 0 0; transform: rotate(90deg); }
+    #child { width: 100px; height: 100px; background: green; transform: translateY(100px); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="identity" x="0" y="0" width="1" height="1">
+        <feOffset dx="0" dy="0" />
+    </filter>
+</svg>
+<!-- The rotated box clips along its own x-axis, which leaves the child it moves down along its y-axis inside the filter region. -->
+<div id="filtered"><div id="rotated"><div id="child"></div></div></div>

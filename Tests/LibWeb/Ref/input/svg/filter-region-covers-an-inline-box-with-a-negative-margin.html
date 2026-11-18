@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-region-covers-an-inline-box-with-a-negative-margin-ref.html" />
+<style>
+    body { margin: 0; }
+    #filtered { margin-left: 100px; width: 100px; height: 100px; font: 20px monospace; filter: url(#identity); }
+    span { margin-left: -100px; color: green; background: green; }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="identity" x="0" y="0" width="1" height="1">
+        <feOffset dx="0" dy="0" />
+    </filter>
+</svg>
+<!-- The inline box's negative margin moves its text out past the filtered box's left edge, where the filter region
+     still covers it. -->
+<div id="filtered"><span>xxxxxxxx</span></div>

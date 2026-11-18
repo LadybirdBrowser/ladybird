@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-region-covers-a-positioned-box-that-escapes-a-clip-ref.html" />
+<style>
+    body { margin: 0; }
+    #filtered { position: relative; margin-left: 100px; width: 100px; height: 100px; filter: url(#identity); }
+    #clip { overflow: hidden; width: 100px; height: 100px; }
+    #escaping { position: absolute; left: -100px; top: 0; width: 100px; height: 100px; background: green; }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="identity" x="0" y="0" width="1" height="1">
+        <feOffset dx="0" dy="0" />
+    </filter>
+</svg>
+<!-- The positioned box's containing block is the filtered box, so the clip between them doesn't cut it, and the filter region covers it. -->
+<div id="filtered"><div id="clip"><div id="escaping"></div></div></div>
