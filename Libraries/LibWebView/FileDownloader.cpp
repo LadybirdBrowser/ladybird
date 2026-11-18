@@ -15,7 +15,6 @@
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/HeaderList.h>
@@ -979,6 +978,12 @@ u64 FileDownloader::start_download(IsPrivate is_private, URL::URL const& url, Le
     active->may_replace_destination = may_replace_destination == MayReplaceDestination::Yes;
     m_active_downloads.set(download_id, move(active));
 
+    // NB: Reading a folder such as the user's downloads folder can make the system ask the user for permission. The
+    //     user has just saved a file to this folder, so this is when to look for what earlier downloads left in it,
+    //     rather than when the browser starts.
+    if (m_download_store)
+        remove_orphaned_temporary_files_once(temporary_destination.dirname());
+
     return download_id;
 }
 
@@ -1401,8 +1406,6 @@ void FileDownloader::restore_persisted_downloads()
     HashTable<ByteString> directories;
     HashTable<ByteString> temporary_paths_in_use;
 
-    directories.set(Core::StandardPaths::downloads_directory());
-
     for (auto& record : m_download_store->resumable_downloads()) {
         LexicalPath temporary_destination { record.temporary_destination.to_byte_string() };
         directories.set(temporary_destination.dirname());
@@ -1416,6 +1419,23 @@ void FileDownloader::restore_persisted_downloads()
         (void)FileSystem::remove(temporary_destination.string(), FileSystem::RecursionMode::Disallowed);
     }
 
+    // NB: These folders hold downloads that we just looked at. Other folders wait for their next download.
+    remove_orphaned_temporary_files(directories, temporary_paths_in_use);
+    for (auto const& directory : directories)
+        m_directories_cleared_of_orphaned_temporary_files.set(directory);
+}
+
+void FileDownloader::remove_orphaned_temporary_files_once(ByteString const& directory)
+{
+    if (m_directories_cleared_of_orphaned_temporary_files.set(directory) != HashSetResult::InsertedNewEntry)
+        return;
+
+    HashTable<ByteString> temporary_paths_in_use;
+    for (auto const& [id, active] : m_active_downloads)
+        temporary_paths_in_use.set(active->temporary_destination.string());
+
+    HashTable<ByteString> directories;
+    directories.set(directory);
     remove_orphaned_temporary_files(directories, temporary_paths_in_use);
 }
 
