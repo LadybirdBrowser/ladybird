@@ -90,6 +90,7 @@
 #endif
 
 #if defined(AK_OS_LINUX)
+#    include <UI/Qt/DefaultBrowserLinux.h>
 #    include <UI/Qt/X11Window.h>
 #endif
 
@@ -810,6 +811,9 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     m_spell_checker = create_platform_spell_checker();
     m_microphone_authorizer = make<MicrophoneAuthorizerMacOS>();
     m_default_browser = make<DefaultBrowserMacOS>();
+#    elif defined(AK_OS_LINUX)
+    auto desktop_id = ByteString::formatted("{}.desktop", ak_byte_string_from_qstring(QGuiApplication::desktopFileName()));
+    m_default_browser = make<DefaultBrowserLinux>(move(desktop_id));
 #    endif
 
     IPC::MessageBuffer ui_info_buffer;
