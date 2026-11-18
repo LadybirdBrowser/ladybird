@@ -5,13 +5,13 @@
  */
 
 //! Crypto::BigFraction, the arbitrary-precision fractions Temporal computes totals and fractional durations with,
-//! over num_bigint, rounding and converting exactly as LibCrypto does.
+//! over num_bigint, rounding as LibCrypto does.
 
 use core::ops::{Add, Div, Mul, Neg, Sub};
 
 use num_bigint::Sign;
 use num_integer::Integer;
-use num_traits::{One, Signed, Zero};
+use num_traits::{Float, One, Signed, Zero};
 
 use ak::Utf16String;
 
@@ -19,7 +19,7 @@ use crate::runtime::big_int::SignedBigInteger;
 use crate::runtime::big_int_algorithms;
 use crate::utf16::Utf16StringBuilder;
 
-/// A fraction whose denominator is positive. Arithmetic reduces it, but the conversion from a double does not.
+/// A fraction whose denominator is positive.
 #[derive(Clone, Debug)]
 pub struct BigFraction {
     numerator: SignedBigInteger,
@@ -33,30 +33,6 @@ impl Default for BigFraction {
             denominator: SignedBigInteger::one(),
         }
     }
-}
-
-/// A double raised to an integral power by multiplying the base by itself rather than calling the C library, with the
-/// product inverted for negative powers. This keeps the digits that from_double() reads stable.
-fn pow_by_repeated_multiplication(base: f64, power: i32) -> f64 {
-    if power == 0 {
-        return 1.0;
-    }
-    if base == 0.0 {
-        return 0.0;
-    }
-    if power == 1 {
-        return base;
-    }
-    let mut result = base;
-    let mut i = 0;
-    while f64::from(i) < f64::from(power).abs() - 1.0 {
-        result *= base;
-        i += 1;
-    }
-    if power < 0 {
-        result = 1.0 / result;
-    }
-    result
 }
 
 impl BigFraction {
@@ -73,39 +49,15 @@ impl BigFraction {
         Self::new(value, SignedBigInteger::one())
     }
 
-    /// BigFraction(double), which reads the decimal digits of the double one at a time with repeated multiplication,
-    /// and so is only exact for small values. Its exponent is an i8, which wraps for values of 10^127 and above, for
-    /// which it never finishes reading digits.
-    pub fn from_double(mut value: f64) -> Self {
-        let mut numerator = SignedBigInteger::zero();
-        let mut denominator = SignedBigInteger::one();
-
-        let mut negative = false;
-        if value < 0.0 {
-            negative = true;
-            value = -value;
+    /// BigFraction(double): the exact value of a finite double.
+    pub fn from_double(value: f64) -> Self {
+        assert!(value.is_finite());
+        let (mantissa, exponent, sign) = Float::integer_decode(value);
+        let numerator = SignedBigInteger::from(mantissa) * sign;
+        if exponent >= 0 {
+            return Self::from_integer(numerator << exponent.unsigned_abs());
         }
-        let mut current_power: i8 = 0;
-        while pow_by_repeated_multiplication(10.0, i32::from(current_power)) <= value {
-            current_power = current_power.wrapping_add(1);
-        }
-        current_power = current_power.wrapping_sub(1);
-        let mut decimal_places: u32 = 0;
-        while value >= f64::EPSILON || current_power >= 0 {
-            numerator *= 10;
-            let digit = ((value * pow_by_repeated_multiplication(0.1, i32::from(current_power))) as u64 % 10) as i8;
-            numerator += digit;
-            value -= f64::from(digit) * pow_by_repeated_multiplication(10.0, i32::from(current_power));
-            if current_power < 0 {
-                decimal_places += 1;
-                denominator = SignedBigInteger::from(10).pow(decimal_places);
-            }
-            current_power = current_power.wrapping_sub(1);
-        }
-        if negative {
-            numerator = -numerator;
-        }
-        Self { numerator, denominator }
+        Self::new(numerator, SignedBigInteger::one() << exponent.unsigned_abs())
     }
 
     pub fn numerator(&self) -> &SignedBigInteger {
