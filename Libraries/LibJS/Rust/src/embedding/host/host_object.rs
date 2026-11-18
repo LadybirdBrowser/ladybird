@@ -134,7 +134,7 @@ fn host_object_methods(table: &'static JSHostClass) -> ObjectMethods {
         methods.internal_own_property_keys = own_property_keys_through_hook;
     }
     if table.has_flag(JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE) {
-        methods.is_cacheable_for_property_absence = |_| false;
+        methods.is_cacheable_for_property_absence = false;
     } else if table.has_flag(JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE) {
         methods.is_cacheable_for_absence_of = |_, _, property_key| !property_key.is_number();
     }

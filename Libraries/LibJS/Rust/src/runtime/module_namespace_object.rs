@@ -48,7 +48,7 @@ pub static MODULE_NAMESPACE_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     internal_define_own_property: ModuleNamespaceObject::internal_define_own_property,
     internal_has_property: ModuleNamespaceObject::internal_has_property,
     internal_get: ModuleNamespaceObject::internal_get,
-    is_cacheable_for_property_absence: |_| false,
+    is_cacheable_for_property_absence: false,
     internal_set: ModuleNamespaceObject::internal_set,
     internal_delete: ModuleNamespaceObject::internal_delete,
     internal_own_property_keys: ModuleNamespaceObject::internal_own_property_keys,

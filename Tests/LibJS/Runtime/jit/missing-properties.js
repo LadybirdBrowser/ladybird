@@ -1,5 +1,6 @@
 // JIT code answers reads of properties that property caches remember as missing
-// without calling into the runtime, for plain objects and for ECMAScript functions.
+// without calling into the runtime, for objects that have no other properties than
+// those of their shape.
 // These tests run every function many times, so that with a low JIT threshold they
 // are compiled.
 
@@ -48,6 +49,37 @@ describe("missing properties in JIT code", () => {
             expect(readPrototype(method)).toBeUndefined();
             const lazy = function () {};
             expect(readPrototype(lazy).constructor).toBe(lazy);
+        }
+    });
+
+    test("objects of other classes", () => {
+        const set = new Set();
+        const iterator = [].values();
+        for (let i = 0; i < iterations; ++i) {
+            expect(readDefaultProps(set)).toBeUndefined();
+            expect(readDefaultProps(iterator)).toBeUndefined();
+        }
+        Set.prototype.defaultProps = "inherited";
+        try {
+            expect(readDefaultProps(set)).toBe("inherited");
+            expect(readDefaultProps(iterator)).toBeUndefined();
+        } finally {
+            delete Set.prototype.defaultProps;
+        }
+        expect(readDefaultProps(set)).toBeUndefined();
+    });
+
+    test("a proxy with the shape of an object that the property is missing from", () => {
+        function read(value) {
+            return value.defaultProps;
+        }
+        // This object and the proxy have the same shape: no properties, and
+        // Object.prototype as a prototype that the empty shape was given later.
+        const plain = Object.setPrototypeOf(Object.create(null), Object.prototype);
+        const proxy = new Proxy({}, { get: (target, key) => `trap ${key}` });
+        for (let i = 0; i < iterations; ++i) {
+            expect(read(plain)).toBeUndefined();
+            expect(read(proxy)).toBe("trap defaultProps");
         }
     });
 });
