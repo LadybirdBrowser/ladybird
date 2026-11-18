@@ -643,6 +643,13 @@ pub(crate) fn construction_fact_word(facts: &super::node_data::NodeConstructionF
     .fold(0, |word, (bit, _)| word | bit)
 }
 
+/// Whether an element with the published construction facts `construction_facts` is a replaced element, whatever kind
+/// of box it gets.
+pub(crate) fn construction_facts_name_replaced_element(construction_facts: u32) -> bool {
+    use crate::css::style::bridge::element_construction_fact as fact;
+    construction_facts & (fact::IS_HTML_INPUT_ELEMENT | fact::IS_HTML_PROGRESS_OR_METER_ELEMENT) != 0
+}
+
 /// The flags a row of `kind` is built with, from its node's published construction facts.
 pub(crate) fn construction_flags(kind: NodeKind, is_anonymous: bool, construction_facts: u32) -> u32 {
     use crate::css::style::bridge::element_construction_fact as fact;
@@ -653,7 +660,7 @@ pub(crate) fn construction_flags(kind: NodeKind, is_anonymous: bool, constructio
     // NB: A progress or meter element lays out its internal shadow tree on its own, as other engines do, so no margin
     //     inside it collapses with the content around it.
     let is_replaced_element =
-        kind_is_replaced_box(kind) || has(fact::IS_HTML_INPUT_ELEMENT) || has(fact::IS_HTML_PROGRESS_OR_METER_ELEMENT);
+        kind_is_replaced_box(kind) || construction_facts_name_replaced_element(construction_facts);
     [
         (NodeFlag::Anonymous, is_anonymous),
         (NodeFlag::HasStyle, has_style),
@@ -1236,14 +1243,6 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(crate) fn can_have_children(&self) -> bool {
         node_can_have_children(self.data())
-    }
-
-    pub(crate) fn has_replaced_element_table_display_adjustment(&self) -> bool {
-        has_flag(self.data(), NodeFlag::IsReplacedElement)
-            && self.computed_values_view_if_styled().is_some_and(|style| {
-                let display = style.display_before_box_type_transformation();
-                display.is_table_inside() || display.is_internal_table() || display.is_table_caption()
-            })
     }
 
     pub(crate) fn creates_block_formatting_context(&self) -> bool {
