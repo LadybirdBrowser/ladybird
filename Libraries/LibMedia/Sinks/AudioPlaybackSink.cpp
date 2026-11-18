@@ -108,8 +108,8 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
 
                 auto& output_block = output_thread_data->m_blocks[output_thread_data->m_block_tail];
 
+                u32 seek_id_at_probe = 0;
                 if (input != nullptr) {
-                    u32 seek_id_at_probe;
                     bool input_seek_in_flight;
                     {
                         MutexLocker locker { output_thread_data->m_output_mutex };
@@ -121,7 +121,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         auto probe = input->peek();
                         auto status = probe.status;
                         MutexLocker locker { output_thread_data->m_output_mutex };
-                        if (output_thread_data->m_seek_id == seek_id_at_probe) {
+                        if (output_thread_data->m_input == input && output_thread_data->m_seek_id == seek_id_at_probe) {
                             if (status == PipelineStatus::Suspended) {
                                 output_thread_data->handle_input_suspension_while_locked(seek_id_at_probe);
                             } else {
@@ -149,6 +149,12 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                     // If a wake lands between the status probe lock and this one, upstream may have suspended, so we
                     // need to re-probe to determine whether to handle the suspension.
                     if (input != nullptr && output_thread_data->m_upstream_woke_since_probe)
+                        continue;
+                    // Likewise, an input connected or a seek started since the probe took its snapshot has already
+                    // signaled the condition, so probe it now rather than wait for a signal that has passed. At a
+                    // playback rate of zero, that probe is the only thing that reports the input's status. (Connecting
+                    // an input also sets m_upstream_woke_since_probe, which catches the same input connected again.)
+                    if (input != output_thread_data->m_input || (input != nullptr && output_thread_data->m_seek_id != seek_id_at_probe))
                         continue;
                     if (output_thread_data->m_seek_id == 0) {
                         output_thread_data->m_output_condition.wait();
@@ -314,6 +320,8 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
     MutexLocker locker { m_output_thread_data->m_output_mutex };
     VERIFY(m_output_thread_data->m_input == nullptr);
     m_output_thread_data->m_input = input;
+    // A probe of this input taken before it was connected is stale, even when the same input was connected before.
+    m_output_thread_data->m_upstream_woke_since_probe = true;
     m_output_thread_data->m_output_condition.broadcast();
     return {};
 }
@@ -767,6 +775,8 @@ void AudioPlaybackSink::reseek_input_continuing_at_output_frame(Optional<i64> co
 
     MutexLocker locker { m_output_thread_data->m_output_mutex };
     m_output_thread_data->m_input_seek_in_flight = false;
+    // The audio thread skips its probe while a seek is in flight, so it has to probe again once the seek is done.
+    m_output_thread_data->m_upstream_woke_since_probe = true;
     m_output_thread_data->m_output_condition.broadcast();
 }
 
@@ -818,6 +828,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
 
         MutexLocker locker { m_output_thread_data->m_output_mutex };
         m_output_thread_data->m_input_seek_in_flight = false;
+        m_output_thread_data->m_upstream_woke_since_probe = true;
         m_output_thread_data->m_output_condition.broadcast();
     }
 
