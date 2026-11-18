@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { font: 16px/20px monospace; white-space: pre-line; width: 300px; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        // Each line feed that white-space: pre-line preserves starts a new line, whatever collapsible white space
+        // comes before or after it. So "two" is on line 2 or 3, at the start of the line.
+        const cases = {
+            "space-before-line-feed": "one \ntwo",
+            "two-spaces-before-line-feed": "one  \ntwo",
+            "space-and-tab-before-line-feed": "one \t\ntwo",
+            "two-line-feeds": "one\n\ntwo",
+            "space-between-line-feeds": "one\n \ntwo",
+            "spaces-between-line-feeds": "one\n   \n   \ntwo",
+            "tab-between-line-feeds": "one\t\n\t\ntwo",
+            "spaces-after-line-feed": "one\n  two",
+            "spaces-around-line-feed": "one  \n  two",
+            "crlf-pairs": "one\r\n\r\ntwo",
+        };
+        const host = document.getElementById("host");
+        for (const [id, text] of Object.entries(cases)) {
+            const div = document.createElement("div");
+            div.textContent = text;
+            host.append(div);
+            const offset = text.indexOf("two");
+            const range = document.createRange();
+            range.setStart(div.firstChild, offset);
+            range.setEnd(div.firstChild, offset + 3);
+            const rect = range.getBoundingClientRect();
+            const first = document.createRange();
+            first.setStart(div.firstChild, 0);
+            first.setEnd(div.firstChild, 3);
+            const box = div.getBoundingClientRect();
+            println(`${id}: height ${box.height}, "two" at line ${(rect.top - first.getBoundingClientRect().top) / 20 + 1}, x ${rect.left - box.left}`);
+        }
+    });
+</script>
