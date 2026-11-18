@@ -1,0 +1,16 @@
+auto: computed auto, box 0,120 100x100
+alphabetic: computed alphabetic, box 0,120 100x100
+text-before-edge: computed text-top, box 0,200 100x100
+text-after-edge: computed text-bottom, box 0,100 100x100
+text-top: computed text-top, box 0,200 100x100
+text-bottom: computed text-bottom, box 0,100 100x100
+central: computed central, box 0,150 100x100
+middle: computed middle, box 0,160 100x100
+hanging: computed hanging, box 0,184 100x100
+ideographic: computed ideographic, box 0,100 100x100
+mathematical: computed mathematical, box 0,160 100x100
+bogus: computed auto, box 0,120 100x100
+In a style: box 0,200 100x100
+text-before-edge, inherited by a smaller <tspan>: computed text-top, box 100,200 50x50
+text-after-edge, inherited by a smaller <tspan>: computed text-bottom, box 100,150 50x50
+On a <tspan> alone: <tspan> box 100,200 100x100, <text> box 0,120 300x180

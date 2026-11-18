@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <metadata>
+    <title>'dominant-baseline: text-after-edge'</title>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#DominantBaselineProperty"/>
+    <h:link rel="match" href="../../../../../expected/wpt-import/svg/text/reftests/../../embedded/reference/green-rect-100x100.svg"/>
+    <h:link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css"/>
+  </metadata>
+  <rect width="100" height="100" fill="red"/>
+  <text dominant-baseline="text-after-edge" y="100" fill="green" font-size="100" font-family="Ahem">X</text>
+</svg>

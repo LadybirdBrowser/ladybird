@@ -2372,7 +2372,9 @@
       "baseline-metric"
     ],
     "valid-identifiers": [
-      "auto"
+      "auto",
+      "text-after-edge>text-bottom",
+      "text-before-edge>text-top"
     ]
   },
   "empty-cells": {
