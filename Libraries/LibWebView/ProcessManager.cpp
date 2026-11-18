@@ -76,6 +76,7 @@ StringView process_name_from_type(ProcessType type)
 ProcessManager::ProcessManager()
     : on_process_added([](Process&) { })
     , on_process_exited([](Process&&, Optional<int>) { })
+    , on_process_near_memory_limit([](Process&, u64) { })
     , on_process_exceeded_memory_limit([](Process&, u64) { })
     , m_process_monitor(ProcessMonitor([this](pid_t pid, Optional<int> exit_status) {
         auto child_id = m_child_ids_by_pid.get(pid);
@@ -181,6 +182,7 @@ Optional<Process> ProcessManager::remove_process(u64 child_id)
     verify_event_loop();
     cancel_forced_exit(child_id);
     m_children_ended_for_memory_use.remove(child_id);
+    m_memory_limit_warnings.remove(child_id);
     auto process = m_processes.take(child_id);
     if (!process.has_value())
         return {};
@@ -283,21 +285,33 @@ void ProcessManager::set_web_content_memory_limit(u64 limit_in_bytes)
     static constexpr auto check_interval = AK::Duration::from_seconds(2);
     if (!m_web_content_memory_limit_timer) {
         m_web_content_memory_limit_timer = Core::Timer::create_repeating(check_interval, [this] {
-            end_helpers_over_memory_limit();
+            check_web_content_memory_use();
         });
     }
     m_web_content_memory_limit_timer->start();
 }
 
-void ProcessManager::end_helpers_over_memory_limit()
+void ProcessManager::check_web_content_memory_use()
 {
     verify_event_loop();
 
-    struct HelperOverLimit {
+    // A helper this near the limit is asked to release memory, so that a page that only holds much garbage or many
+    // caches does not have to be ended. The limit itself is not relaxed for it: a runaway helper does not shrink,
+    // and waiting for it would only let it grow further.
+    auto warning_threshold = m_web_content_memory_limit / 4 * 3;
+    // NB: Releasing memory is costly for a helper, and one that stays near the limit most likely has nothing left to
+    //     release. It is asked again, but each time after twice the wait, until it has been well below the limit for
+    //     a while.
+    static constexpr auto first_warning_interval = AK::Duration::from_seconds(10);
+    static constexpr auto longest_warning_interval = AK::Duration::from_seconds(640);
+
+    struct HelperAndMemoryUse {
         u64 child_id { 0 };
         u64 memory_usage_in_bytes { 0 };
     };
-    Vector<HelperOverLimit> helpers_over_limit;
+    Vector<HelperAndMemoryUse> helpers_near_limit;
+    Vector<HelperAndMemoryUse> helpers_over_limit;
+    auto now = MonotonicTime::now_coarse();
     for (auto const& info : m_statistics.processes) {
         // NB: Child ID zero is the browser itself.
         auto child_id = m_child_ids_by_pid.get(info->pid);
@@ -308,8 +322,33 @@ void ProcessManager::end_helpers_over_memory_limit()
         if (auto process = find_child(*child_id); !process.has_value() || process->type() != ProcessType::WebContent)
             continue;
         auto usage = Core::Platform::process_resource_usage(*info);
-        if (usage.has_value() && usage->attributed_memory_bytes > m_web_content_memory_limit)
+        if (!usage.has_value())
+            continue;
+        if (usage->attributed_memory_bytes > m_web_content_memory_limit) {
             helpers_over_limit.append({ *child_id, usage->attributed_memory_bytes });
+            continue;
+        }
+        auto warning = m_memory_limit_warnings.get(*child_id);
+        if (usage->attributed_memory_bytes <= warning_threshold) {
+            // NB: A helper that only dipped below the threshold keeps its wait, so that one that goes back and forth
+            //     across the threshold is not asked each time it crosses.
+            if (warning.has_value() && now >= warning->next_time + warning->interval)
+                m_memory_limit_warnings.remove(*child_id);
+            continue;
+        }
+        if (warning.has_value() && now < warning->next_time)
+            continue;
+        auto interval = warning.has_value() ? min(warning->interval + warning->interval, longest_warning_interval) : first_warning_interval;
+        m_memory_limit_warnings.set(*child_id, { now + interval, interval });
+        helpers_near_limit.append({ *child_id, usage->attributed_memory_bytes });
+    }
+
+    for (auto const& helper : helpers_near_limit) {
+        auto process = find_child(helper.child_id);
+        if (!process.has_value())
+            continue;
+        dbgln("{} process {} is near its memory limit: it uses {}, and the limit is {}", process_name_from_type(process->type()), process->pid(), human_readable_size(helper.memory_usage_in_bytes), human_readable_size(m_web_content_memory_limit));
+        on_process_near_memory_limit(*process, helper.memory_usage_in_bytes);
     }
 
     // The callback may change the process table, so each helper is looked up again.

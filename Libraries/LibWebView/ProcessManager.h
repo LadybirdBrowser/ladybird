@@ -57,18 +57,21 @@ public:
     // The memory a WebContent process may use on this machine before it is ended. Zero means that there is no limit.
     static u64 default_web_content_memory_limit();
     // Ends each helper that uses more memory than the limit, so that one runaway process cannot take the machine
-    // down. A limit of zero turns the check off.
+    // down. A helper that comes near the limit is reported first, so that it can be asked to release memory. A limit
+    // of zero turns the check off.
     void set_web_content_memory_limit(u64 limit_in_bytes);
     Optional<Core::Platform::ProcessResourceUsage> resource_usage(pid_t) const;
 
     Function<void(Process&)> on_process_added; // test-web
     Function<void(Process&&, Optional<int> exit_status)> on_process_exited;
+    // Called when a helper comes near the memory limit, and again from time to time while it stays there.
+    Function<void(Process&, u64 memory_usage_in_bytes)> on_process_near_memory_limit;
     // Called when a helper was ended for using more memory than the limit, before its exit is handled.
     Function<void(Process&, u64 memory_usage_in_bytes)> on_process_exceeded_memory_limit;
 
 private:
     void verify_event_loop() const;
-    void end_helpers_over_memory_limit();
+    void check_web_content_memory_use();
 
     Core::Platform::ProcessStatistics m_statistics;
     HashMap<u64, Process> m_processes;
@@ -79,6 +82,13 @@ private:
     RefPtr<Core::Timer> m_web_content_memory_limit_timer;
     // NB: A helper ended for its memory use stays in the table until its exit is handled.
     HashTable<u64> m_children_ended_for_memory_use;
+    struct MemoryLimitWarning {
+        // The helper is not asked to release memory again before this time.
+        MonotonicTime next_time;
+        // How long the helper had to wait this time, which is doubled for the next time.
+        AK::Duration interval;
+    };
+    HashMap<u64, MemoryLimitWarning> m_memory_limit_warnings;
     u64 m_next_child_id { 1 };
     ProcessMonitor m_process_monitor;
     Core::EventLoop* m_creation_event_loop { &Core::EventLoop::current() };

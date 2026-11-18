@@ -1883,6 +1883,12 @@ ErrorOr<void> Application::launch_services()
     m_process_manager->on_process_exited = [this](Process&& process, Optional<int> exit_status) {
         process_did_exit(move(process), exit_status);
     };
+    m_process_manager->on_process_near_memory_limit = [](Process& process, u64) {
+        if (process.type() != ProcessType::WebContent)
+            return;
+        if (auto client = process.client<WebContentClient>())
+            client->async_release_memory();
+    };
     m_process_manager->on_process_exceeded_memory_limit = [](Process& process, u64) {
         if (process.type() != ProcessType::WebContent)
             return;
