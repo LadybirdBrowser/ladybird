@@ -261,6 +261,12 @@ SkSurfaceProps skia_text_surface_properties(u32 flags, [[maybe_unused]] bool all
         geometry = configured_geometry;
     }
 #endif
+#if defined(AK_OS_LINUX)
+    // Skia's default sRGB text gamma makes partially covered pixels too bright on dark backgrounds.
+    // Use Chromium's Linux text contrast and gamma.
+    if (!s_use_test_font_rendering)
+        return { flags, geometry, 0.2f, 1.2f };
+#endif
     return { flags, geometry };
 }
 
