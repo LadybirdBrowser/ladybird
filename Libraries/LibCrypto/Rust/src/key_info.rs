@@ -8,7 +8,7 @@
 
 use super::{CryptoError, EcCurve, KeyHandle, MlDsaSize, MlKemSize, OkpCurve, der, ec, ml, rsa};
 use crate::key::SecretBytes;
-use crate::openssl::{self, KeyKind, Pkey};
+use crate::openssl::{self, Pkey};
 
 /// The algorithm of a SubjectPublicKeyInfo or PrivateKeyInfo.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -59,7 +59,7 @@ impl KeyAlgorithm {
         }
     }
 
-    fn from_oid(oid: &[u8]) -> Option<Self> {
+    pub(crate) fn from_oid(oid: &[u8]) -> Option<Self> {
         Self::ALL.into_iter().find(|algorithm| algorithm.oid() == oid)
     }
 }
@@ -74,16 +74,6 @@ pub struct KeyInfo {
     // The RSA, EC, ML-DSA or ML-KEM key of the structure, parsed while the structure is.
     parsed_key: Option<KeyHandle>,
     is_ml_expanded_key_form: bool,
-}
-
-fn kind_of(oid: &[u8]) -> KeyKind {
-    match KeyAlgorithm::from_oid(oid) {
-        Some(KeyAlgorithm::Rsa) => KeyKind::Rsa,
-        Some(KeyAlgorithm::Ec) => KeyKind::Ec,
-        Some(KeyAlgorithm::MlDsa(_)) => KeyKind::MlDsa,
-        Some(KeyAlgorithm::MlKem(_)) => KeyKind::MlKem,
-        Some(KeyAlgorithm::Okp(_)) | None => KeyKind::Other,
-    }
 }
 
 impl KeyInfo {
@@ -134,7 +124,7 @@ pub fn parse_octet_string(data: &[u8]) -> Result<(&[u8], bool), CryptoError> {
 
 /// The DER SubjectPublicKeyInfo at the start of `data`, and whether it takes all of `data`.
 pub fn parse_subject_public_key_info(data: &[u8]) -> Result<(KeyInfo, bool), CryptoError> {
-    let parsed = openssl::parse_subject_public_key_info(data, kind_of).map_err(CryptoError::Invalid)?;
+    let parsed = openssl::parse_subject_public_key_info(data).map_err(CryptoError::Invalid)?;
     let key_info = KeyInfo::new(false, parsed.algorithm, SecretBytes::new(parsed.raw_key));
     let key_info = with_parsed_key(key_info, parsed.key, None)?;
     Ok((key_info, parsed.consumed == data.len()))
@@ -142,7 +132,7 @@ pub fn parse_subject_public_key_info(data: &[u8]) -> Result<(KeyInfo, bool), Cry
 
 /// The DER PrivateKeyInfo at the start of `data`, and whether it takes all of `data`.
 pub fn parse_private_key_info(data: &[u8]) -> Result<(KeyInfo, bool), CryptoError> {
-    let parsed = openssl::parse_private_key_info(data, kind_of).map_err(CryptoError::Invalid)?;
+    let parsed = openssl::parse_private_key_info(data).map_err(CryptoError::Invalid)?;
     let key_info = KeyInfo::new(true, parsed.algorithm, parsed.raw_key);
     let key_info = with_parsed_key(key_info, None, parsed.key)?;
     Ok((key_info, parsed.consumed == data.len()))
