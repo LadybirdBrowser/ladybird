@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // src is set on a video in an iframe, and in the same task, the video is adopted here and the iframe removed. The
+    // load that src started carries on in this document.
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const doc = iframe.contentDocument;
+        const video = doc.createElement("video");
+        doc.body.appendChild(video);
+        video.src = "../../../Assets/h264-reordered-frames.mp4";
+        document.body.appendChild(video);
+        iframe.remove();
+
+        const loaded = new Promise(resolve => video.addEventListener("loadedmetadata", () => resolve("loaded metadata")));
+        const failed = new Promise(resolve => video.addEventListener("error", () => resolve(`error ${video.error.code}`)));
+        println(`after adoption: ${await Promise.race([loaded, failed])}`);
+        done();
+    });
+</script>

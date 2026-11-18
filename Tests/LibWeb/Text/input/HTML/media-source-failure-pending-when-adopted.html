@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Resolves once resource selection has failed on the source and waits for another one. The selection goes on to
+    // wait after the error event's dispatch, in the same task, so check in a later one.
+    async function selectionWaits(video, source) {
+        await new Promise(resolve => source.addEventListener("error", resolve, { once: true }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        if (video.networkState !== HTMLMediaElement.NETWORK_NO_SOURCE)
+            println(`not waiting: networkState ${video.networkState}`);
+    }
+
+    asyncTest(async done => {
+        // Resource selection fails on a source without a src and waits for another one.
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const doc = iframe.contentDocument;
+        const video = doc.createElement("video");
+        const source = doc.createElement("source");
+        const waits = selectionWaits(video, source);
+        video.appendChild(source);
+        const elsewhere = doc.createElement("div");
+        doc.body.append(video, elsewhere);
+        await waits;
+
+        // A source without a src moves in, then a playable one is appended. The selection resumes in a task, fails
+        // on the moved source, and queues the failure's task. The message below runs before that task, and adopts
+        // the video here and removes the iframe, so the failure's task never runs in the iframe's document.
+        const empty = doc.createElement("source");
+        elsewhere.appendChild(empty);
+        video.moveBefore(empty, null);
+        const playable = doc.createElement("source");
+        playable.src = "../../../Assets/h264-reordered-frames.mp4";
+        video.appendChild(playable);
+        window.addEventListener("message", () => {
+            document.body.appendChild(video);
+            iframe.remove();
+        }, { once: true });
+        window.postMessage("adopt", "*");
+
+        const loaded = new Promise(resolve => video.addEventListener("loadedmetadata", () => resolve("loaded metadata")));
+        const timedOut = new Promise(resolve => setTimeout(() => resolve("never loaded"), 2000));
+        println(`next candidate after adoption: ${await Promise.race([loaded, timedOut])}`);
+        done();
+    });
+</script>

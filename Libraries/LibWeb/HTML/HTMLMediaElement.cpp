@@ -316,13 +316,39 @@ void HTMLMediaElement::finalize()
 // https://html.spec.whatwg.org/multipage/media.html#queue-a-media-element-task
 void HTMLMediaElement::queue_a_media_element_task(GC::Ref<GC::Function<void(HTMLMediaElement&)>> steps)
 {
+    m_pending_media_element_tasks.append({ .key = ++m_next_media_element_task_key, .task_id = {}, .steps = steps });
+    queue_pending_media_element_task(m_pending_media_element_tasks.last());
+}
+
+void HTMLMediaElement::queue_pending_media_element_task(PendingMediaElementTask& pending_task)
+{
     // To queue a media element task with a media element element and a series of steps steps, queue an element task on the media element's
     // media element event task source given element and steps.
-    queue_an_element_task(media_element_event_task_source(), GC::create_function(GC::Heap::the(), GC::captures(*this, steps), [](auto& self, auto& steps) {
+    pending_task.task_id = queue_an_element_task(media_element_event_task_source(), GC::create_function(GC::Heap::the(), GC::captures(*this, pending_task.key), [](auto& self, auto key) {
+        // NB: A task that doesn't run here stays pending, so that it can run once the element is adopted into a
+        //     document that's fully active.
         if (!self.document().is_fully_active())
             return;
+        auto index = self.m_pending_media_element_tasks.find_first_index_if([key](auto const& pending_task) { return pending_task.key == key; });
+        if (!index.has_value())
+            return;
+        auto steps = self.m_pending_media_element_tasks.take(*index).steps;
         steps->function()(self);
     }));
+}
+
+// NB: Tasks are queued for the document of the element's relevant global object at the time. So once the element is
+//     adopted, the tasks it still has pending won't run while the old document isn't fully active, and are removed if
+//     that document is destroyed. Instead, take them out of the queue, and queue them again, in the same order, for
+//     the document that adopted the element.
+void HTMLMediaElement::requeue_pending_media_element_tasks()
+{
+    main_thread_event_loop().task_queue().remove_tasks_matching([&](auto const& task) {
+        return task.source() == media_element_event_task_source()
+            && any_of(m_pending_media_element_tasks, [&](auto const& pending_task) { return pending_task.task_id == task.id(); });
+    });
+    for (auto& pending_task : m_pending_media_element_tasks)
+        queue_pending_media_element_task(pending_task);
 }
 
 void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
@@ -335,6 +361,8 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_list_of_newly_introduced_cues);
     visitor.visit(m_document_observer);
     visitor.visit(m_source_element_selector);
+    for (auto const& pending_task : m_pending_media_element_tasks)
+        visitor.visit(pending_task.steps);
     visitor.visit(m_pending_play_promises);
     visitor.visit(m_selected_video_track);
     visitor.visit(m_attached_media_source);
@@ -472,25 +500,13 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
     // While the delaying-the-load-event flag is true, the element must delay the load event of its document.
     // NB: The flag delays the load event of the element's current node document, so it follows the element when it is
     //     adopted into another document.
-    if (m_delaying_the_load_event.has_value()) {
+    if (m_delaying_the_load_event.has_value())
         m_delaying_the_load_event.emplace(document());
 
-        // AD-HOC: If the resource selection algorithm was invoked while the element's node document was not fully
-        //         active, its queued media element tasks are associated with the old document and will never run.
-        //         That would leave this element delaying the load event of the document that adopted it forever.
-        //         Drop those stale tasks and re-invoke the resource selection algorithm so that it can proceed with
-        //         tasks associated with the new document. This matches the major engines, where a pending media load
-        //         continues after adoption and delays the new document's load event until it completes. Once a fetch
-        //         is in flight the pending work lives in the fetch machinery rather than in queued media element
-        //         tasks, and the synthesized activity transitions above take care of stopping and resuming it, so
-        //         only restart resource selection when no fetch has begun.
-        if (!old_document.is_fully_active() && !m_remote_fetch_data) {
-            main_thread_event_loop().task_queue().remove_tasks_matching([&](auto const& task) {
-                return task.source() == media_element_event_task_source();
-            });
-            select_resource_for_current_load();
-        }
-    }
+    // NB: So a load that's under way when the element is adopted carries on in the document that adopted it, and
+    //     delays that document's load event until it's done. Once a fetch is in flight, the activity transitions
+    //     synthesized above stop and resume it.
+    requeue_pending_media_element_tasks();
 
     if (m_screen_wake_lock.has_value()) {
         m_screen_wake_lock.clear();
@@ -958,6 +974,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
     main_thread_event_loop().task_queue().remove_tasks_matching([&](auto& task) {
         return task.source() == media_element_event_task_source();
     });
+    m_pending_media_element_tasks.clear();
 
     // 6. If the media element's networkState is set to NETWORK_LOADING or NETWORK_IDLE, queue a media element task given the media element to
     //    fire an event named abort at the media element.

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The first source has no src, so resource selection fails on it and queues the error event. Before that task
+    // runs, a playable source is inserted before the first one, and the video is adopted into a document that isn't
+    // fully active and back. The selection carries on from where it was: The first source gets its error event, and
+    // the next source after it loads, not the one inserted behind the selection.
+    asyncTest(done => {
+        const inactive = document.implementation.createHTMLDocument();
+        const video = document.createElement("video");
+        const first = document.createElement("source");
+        const next = document.createElement("source");
+        next.src = "../../../Assets/solid-blue-160x120.webm";
+        video.append(first, next);
+        first.addEventListener("error", () => println("error at the first source"));
+        video.addEventListener("loadstart", () => {
+            const inserted = document.createElement("source");
+            inserted.src = "../../../Assets/h264-reordered-frames.mp4";
+            video.insertBefore(inserted, first);
+            inactive.body.appendChild(video);
+            document.body.appendChild(video);
+        }, { once: true });
+        video.addEventListener("loadedmetadata", () => {
+            println(`loaded metadata: ${video.currentSrc.split("/").pop()}`);
+            done();
+        });
+        document.body.appendChild(video);
+    });
+</script>
