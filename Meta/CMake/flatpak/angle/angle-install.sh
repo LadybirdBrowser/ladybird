@@ -12,11 +12,8 @@ popd
 # Libraries
 libs=(
   libEGL.so
-  libEGL_vulkan_secondaries.so
   libGLESv1_CM.so
   libGLESv2.so
-  libGLESv2_vulkan_secondaries.so
-  libGLESv2_with_capture.so
   libchrome_zlib.so
   libfeature_support.so
   libthird_party_abseil-cpp_absl.so
