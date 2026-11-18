@@ -58,14 +58,6 @@ set(LADYBIRD_RELEASE_STAGE "Alpha")
 # Like other browsers, our Linux packages keep Ladybird in a directory of its own.
 set(LADYBIRD_PACKAGE_INSTALL_PREFIX "/opt/ladybird")
 
-# lto1 uses a crazy amount of RAM in static builds.
-# Disable LTO for static gcc builds unless explicitly asked for.
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT BUILD_SHARED_LIBS)
-    set(RELEASE_LTO_DEFAULT OFF)
-else()
-    set(RELEASE_LTO_DEFAULT ON)
-endif()
-
 option(ENABLE_ADDRESS_SANITIZER "Enable address sanitizer testing in gcc/clang" OFF)
 option(ENABLE_MEMORY_SANITIZER "Enable memory sanitizer testing in gcc/clang" OFF)
 option(ENABLE_THREAD_SANITIZER "Enable thread sanitizer testing in gcc/clang" OFF)
@@ -75,7 +67,7 @@ option(ENABLE_FUZZERS_OSSFUZZ "Build OSS-Fuzz compatible fuzzers" OFF)
 option(ENABLE_LAGOM_CCACHE "Enable ccache for Lagom builds" ON)
 set(LAGOM_USE_LINKER "" CACHE STRING "The linker to use (e.g. lld, mold) instead of the system default")
 set(LAGOM_LINK_POOL_SIZE "" CACHE STRING "The maximum number of parallel jobs to use for linking")
-option(ENABLE_LTO_FOR_RELEASE "Enable link-time optimization for release builds" ${RELEASE_LTO_DEFAULT})
+option(LADYBIRD_ENABLE_LTO "Enable link-time optimization" OFF)
 option(ENABLE_LAGOM_COVERAGE_COLLECTION "Enable code coverage instrumentation for lagom binaries in clang" OFF)
 
 if (ENABLE_FUZZERS_LIBFUZZER)
