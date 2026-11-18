@@ -1860,6 +1860,12 @@ ErrorOr<void> Application::launch_services()
     m_process_manager->on_process_exited = [this](Process&& process, Optional<int> exit_status) {
         process_did_exit(move(process), exit_status);
     };
+    m_process_manager->on_process_exceeded_memory_limit = [](Process& process, u64) {
+        if (process.type() != ProcessType::WebContent)
+            return;
+        if (auto client = process.client<WebContentClient>())
+            client->did_exceed_memory_limit();
+    };
     m_process_manager->set_web_content_memory_limit(m_browser_options.web_content_memory_limit_in_bytes.value_or(ProcessManager::default_web_content_memory_limit()));
 
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
@@ -2496,6 +2502,13 @@ static void load_page_for_info_and_exit(Core::EventLoop& event_loop, HeadlessWeb
                 warnln("Unable to get page info: {}", error);
                 event_loop.quit(1);
             });
+    };
+    // NB: A page that was ended for its memory use is not loaded again, so its load never finishes.
+    view.on_web_content_crashed = [&event_loop](auto crash_reason) {
+        if (crash_reason != ViewImplementation::WebContentCrashReason::ExceededMemoryLimit)
+            return;
+        warnln("Unable to get page info: the page was ended for its memory use");
+        event_loop.quit(1);
     };
 
     view.load(url);
