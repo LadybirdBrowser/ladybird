@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-svg-text-unresolved-text-path-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-10">
+<style>
+svg {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+}
+text {
+    font-size: 20px;
+}
+</style>
+<svg width="600" height="100">
+<text x="20" y="40">needle<textPath href="#missing">path</textPath></text>
+<text x="20" y="80"><textPath href="#missing">path</textPath>needle</text>
+</svg>
+<script>
+internals.findInPage("needle", false, true);
+</script>

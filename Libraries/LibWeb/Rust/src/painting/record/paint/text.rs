@@ -8,11 +8,12 @@ use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::trace::Observer;
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use crate::css::svg_paint::svg_paint_color;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId, PaintOuterBoxShadow, TextShadowLayer};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
-use crate::painting::display_list::recorder::GlyphRunForRecording;
+use crate::painting::display_list::recorder::{FillPathParams, GlyphRunForRecording, PaintStyleOrColor};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
 use crate::painting::record::PaintRecorder;
@@ -20,7 +21,9 @@ use crate::painting::record::inputs::CaretTarget;
 use crate::painting::selection::{HighlightPseudoElement, SearchTextHighlights, SelectionRange};
 use crate::painting::text_fragment::{self, SelectionOffsets};
 use libgfx_rust::path::Path;
-use libgfx_rust::{AffineTransform, Color, CornerRadii, FloatPoint, IntPoint, IntRect, Orientation, WindingRule};
+use libgfx_rust::{
+    AffineTransform, Color, CornerRadii, FloatPoint, IntPoint, IntRect, Orientation, ShouldAntiAlias, WindingRule,
+};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -674,7 +677,7 @@ fn current_search_text_overlay(span: &RenderSpan) -> Option<&HighlightOverlay> {
         .find(|overlay| overlay.highlight == HighlightLayer::BuiltIn(HighlightPseudoElement::SearchTextCurrent))
 }
 
-fn joined_along_lines<Key: Copy + PartialEq>(mut rects: Vec<(IntRect, Key)>) -> Vec<(IntRect, Key)> {
+pub(crate) fn joined_along_lines<Key: Copy + PartialEq>(mut rects: Vec<(IntRect, Key)>) -> Vec<(IntRect, Key)> {
     rects.sort_by_key(|(rect, _)| (rect.x, rect.y));
     let mut joined: Vec<(IntRect, Key)> = Vec::new();
     let mut joinable: Vec<usize> = Vec::new();
@@ -758,6 +761,57 @@ struct CurrentMatchBackground {
     color: Color,
 }
 
+fn paint_current_match_backgrounds<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    background_rects: Vec<(IntRect, Color)>,
+) {
+    let converter = recorder.converter;
+    let device_pixels = |css_pixels: i64| converter.rounded_device_pixels(CssPixels::from_integer(css_pixels));
+    let outset = device_pixels(2);
+    let backgrounds: Vec<CurrentMatchBackground> = joined_along_lines(background_rects)
+        .into_iter()
+        .map(|(rect, background_color)| CurrentMatchBackground {
+            rect: rect.inflated_edges(outset, outset, outset, outset),
+            color: background_color,
+        })
+        .collect();
+    let scale = recorder.inputs.find_in_page_current_match_scale;
+    if scale != 1.0
+        && let Some(bounds) = backgrounds
+            .iter()
+            .map(|background| background.rect)
+            .reduce(IntRect::united)
+    {
+        let center_x = bounds.x as f32 + bounds.width as f32 / 2.0;
+        let center_y = bounds.y as f32 + bounds.height as f32 / 2.0;
+        let unscaled_transform = recorder.recorder.ambient_inline_transform();
+        recorder.recorder.set_ambient_inline_transform(Some(
+            unscaled_transform
+                .unwrap_or_else(AffineTransform::identity)
+                .translated(center_x, center_y)
+                .scaled(scale, scale)
+                .translated(-center_x, -center_y),
+        ));
+    }
+    for (color, blur_radius, offset_y) in [
+        (Color::from_rgba(0, 0, 0, 102), device_pixels(4), device_pixels(1)),
+        (Color::from_rgb(255, 255, 255), 0, 0),
+    ] {
+        for background in &backgrounds {
+            paint_search_text_ring(recorder, background.rect, color, blur_radius, offset_y);
+        }
+    }
+    let background_radii = CornerRadii::uniform(search_text_corner_radius(converter));
+    for background in &backgrounds {
+        recorder.recorder.fill_rect_with_rounded_corners(
+            background.rect,
+            background.color,
+            background_radii,
+            ForceDarkRole::Selection,
+        );
+    }
+}
+
 pub(crate) fn paint_current_search_text_match<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     fragments: &[(NodeSlotId, u32)],
@@ -781,51 +835,9 @@ pub(crate) fn paint_current_search_text_match<O: Observer>(
         }
     }
 
-    let device_pixels = |css_pixels: i64| converter.rounded_device_pixels(CssPixels::from_integer(css_pixels));
-    let outset = device_pixels(2);
-    let backgrounds: Vec<CurrentMatchBackground> = joined_along_lines(background_rects)
-        .into_iter()
-        .map(|(rect, background_color)| CurrentMatchBackground {
-            rect: rect.inflated_edges(outset, outset, outset, outset),
-            color: background_color,
-        })
-        .collect();
-    let scale = recorder.inputs.find_in_page_current_match_scale;
     let unscaled_transform = recorder.recorder.ambient_inline_transform();
-    let mut scale_transform = None;
-    if scale != 1.0
-        && let Some(bounds) = backgrounds
-            .iter()
-            .map(|background| background.rect)
-            .reduce(IntRect::united)
-    {
-        let center_x = bounds.x as f32 + bounds.width as f32 / 2.0;
-        let center_y = bounds.y as f32 + bounds.height as f32 / 2.0;
-        scale_transform = Some(
-            AffineTransform::identity()
-                .translated(center_x, center_y)
-                .scaled(scale, scale)
-                .translated(-center_x, -center_y),
-        );
-        recorder.recorder.set_ambient_inline_transform(scale_transform);
-    }
-    for (color, blur_radius, offset_y) in [
-        (Color::from_rgba(0, 0, 0, 102), device_pixels(4), device_pixels(1)),
-        (Color::from_rgb(255, 255, 255), 0, 0),
-    ] {
-        for background in &backgrounds {
-            paint_search_text_ring(recorder, background.rect, color, blur_radius, offset_y);
-        }
-    }
-    let background_radii = CornerRadii::uniform(search_text_corner_radius(converter));
-    for background in &backgrounds {
-        recorder.recorder.fill_rect_with_rounded_corners(
-            background.rect,
-            background.color,
-            background_radii,
-            ForceDarkRole::Selection,
-        );
-    }
+    paint_current_match_backgrounds(recorder, background_rects);
+    let scale_transform = recorder.recorder.ambient_inline_transform();
     for (block, span) in &matched_spans {
         if let Some(overlay) = current_search_text_overlay(span) {
             paint_text_shadow(recorder, *block, span, &overlay.shadow_layers);
@@ -835,6 +847,65 @@ pub(crate) fn paint_current_search_text_match<O: Observer>(
         let sets =
             crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder.source, *block, span);
         paint_text_fragment(recorder, *block, span, &sets, true, scale_transform);
+    }
+    recorder.recorder.set_ambient_inline_transform(unscaled_transform);
+}
+
+pub(crate) fn current_svg_search_text_colors<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    text_box: NodeSlotId,
+    text_node: NodeSlotId,
+) -> Option<(Color, Color)> {
+    let own_color = recorder
+        .source
+        .node_style_if_live(text_box)
+        .and_then(|style| svg_paint_color(&style.inherited_svg().fill, style.current_color()))
+        .map_or(Color::from_rgb(0, 0, 0), Color);
+    let answer = recorder.search_text_style(text_node, HighlightPseudoElement::SearchTextCurrent)?;
+    let facts = &answer.facts;
+    let text_color = if facts.text_color.has_value {
+        facts.text_color.value
+    } else {
+        own_color
+    };
+    let background_color = if facts.background_color_is_current_color {
+        text_color
+    } else {
+        facts.background_color
+    };
+    Some((background_color, text_color))
+}
+
+pub(crate) fn paint_current_svg_search_text_match<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    backgrounds: &[(IntRect, Color)],
+    glyphs: &[(Path, Color)],
+) {
+    let unscaled_transform = recorder.recorder.ambient_inline_transform();
+    paint_current_match_backgrounds(recorder, backgrounds.to_vec());
+    let transform = recorder
+        .recorder
+        .ambient_inline_transform()
+        .unwrap_or_else(AffineTransform::identity);
+    let rects = joined_along_lines(backgrounds.iter().map(|&(rect, _)| (rect, ())).collect());
+    for (rect, ()) in rects {
+        recorder.recorder.record_with_inline_clips(
+            &[PendingInlineClip::intersecting_float_rect(
+                transform.map_rect(rect.to_float()),
+            )],
+            |recorder| {
+                for (path, color) in glyphs {
+                    recorder.fill_path(FillPathParams {
+                        force_dark_role: ForceDarkRole::Foreground,
+                        path,
+                        opacity: 1.0,
+                        paint_style_or_color: PaintStyleOrColor::Color(*color),
+                        winding_rule: WindingRule::Nonzero,
+                        should_anti_alias: ShouldAntiAlias::Yes,
+                    });
+                }
+            },
+        );
     }
     recorder.recorder.set_ambient_inline_transform(unscaled_transform);
 }
