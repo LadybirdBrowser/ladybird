@@ -60,6 +60,7 @@
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/ImageDecoderManager.h>
+#include <LibWebView/NoOpDefaultBrowser.h>
 #include <LibWebView/NoOpMicrophoneAuthorizer.h>
 #include <LibWebView/NoOpNotificationBackend.h>
 #include <LibWebView/PageTranslation.h>
@@ -83,6 +84,7 @@
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebDriverBiDi.h>
 #include <LibWebView/WebDriverBrowserConnection.h>
+#include <LibWebView/WebUI/SettingsUI.h>
 #include <LibWebView/WebUI/SupportUI.h>
 #include <LibWebView/WorkerAgentManager.h>
 
@@ -2614,6 +2616,11 @@ NonnullOwnPtr<MicrophoneAuthorizer> Application::create_microphone_authorizer()
     return make<NoOpMicrophoneAuthorizer>();
 }
 
+NonnullOwnPtr<DefaultBrowser> Application::create_default_browser()
+{
+    return make<NoOpDefaultBrowser>();
+}
+
 ChildIdentity Application::add_child_process(WebView::Process&& process)
 {
     return m_process_manager->add_process(move(process));
@@ -3308,6 +3315,25 @@ MicrophoneAuthorizer& Application::microphone_authorizer()
     if (!m_microphone_authorizer)
         m_microphone_authorizer = create_microphone_authorizer();
     return *m_microphone_authorizer;
+}
+
+DefaultBrowser& Application::default_browser()
+{
+    if (m_default_browser)
+        return *m_default_browser;
+
+    m_default_browser = create_default_browser();
+    m_default_browser->on_status_change = [] {
+        WebContentClient::for_each_client([](WebContentClient& client) {
+            client.for_each_page([](WebContentPage& page) {
+                if (auto* settings_ui = as_if<SettingsUI>(page.web_ui().ptr()))
+                    settings_ui->default_browser_status_changed({});
+                return IterationDecision::Continue;
+            });
+            return IterationDecision::Continue;
+        });
+    };
+    return *m_default_browser;
 }
 
 ErrorOr<NonnullRawPtr<Core::GeolocationProvider>> Application::ensure_geolocation_provider()

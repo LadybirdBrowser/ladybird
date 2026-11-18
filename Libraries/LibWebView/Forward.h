@@ -35,6 +35,7 @@ class CanonicalWindow;
 class CompositorClient;
 class CompositorPresentationClient;
 class CookieJar;
+class DefaultBrowser;
 class DownloadStore;
 class ExternalURLHandler;
 class FaviconStore;

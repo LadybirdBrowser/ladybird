@@ -15,6 +15,7 @@
 #include <LibRequests/RequestClient.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReportStore.h>
+#include <LibWebView/DefaultBrowser.h>
 #include <LibWebView/GamepadManager.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/PageTranslation.h>
@@ -285,6 +286,17 @@ void ConnectionFromUI::microphone_authorization_changed(WebView::MicrophoneAutho
 {
     if (auto* authorizer = MicrophoneAuthorizerInUI::the())
         authorizer->did_change_authorization(authorization);
+}
+
+void ConnectionFromUI::default_browser_status_changed(WebView::DefaultBrowserStatus status)
+{
+    Application::the().default_browser().did_read_status(status);
+}
+
+void ConnectionFromUI::default_browser_make_default_finished(bool failed, Optional<String> system_message)
+{
+    if (auto* default_browser = DefaultBrowserInUI::the())
+        default_browser->did_make_default({ .failed = failed, .system_message = move(system_message) });
 }
 
 void ConnectionFromUI::gamepad_connected(Web::Gamepad::GamepadDescription description, Web::Gamepad::GamepadState state)

@@ -10,6 +10,7 @@
 #include <LibCore/Promise.h>
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/DefaultBrowser.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NotificationBackend.h>
 #include <LibWebView/PictureInPictureWindow.h>
@@ -99,6 +100,7 @@ private:
     virtual void update_tabs_display() const override;
     virtual void did_clear_history_since(UnixDateTime) const override;
     virtual void quit_for_signal() override;
+    virtual NonnullOwnPtr<WebView::DefaultBrowser> create_default_browser() override;
     virtual NonnullOwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() override;
     virtual NonnullOwnPtr<WebView::NotificationBackend> create_notification_backend() override;
     virtual OwnPtr<WebView::MediaSessionPlatformBackend> create_media_session_platform_backend() override;

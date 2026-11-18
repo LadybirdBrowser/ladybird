@@ -143,6 +143,7 @@ if (APPLE)
     target_sources(ladybird_impl PRIVATE
         ApplicationIcon.mm
         Conversions.mm
+        DefaultBrowserMacOS.mm
         DictionaryLookup.mm
         ExternalURLHandler.mm
         LaunchURLsMacOS.cpp
@@ -164,6 +165,7 @@ if (APPLE)
     find_package(unofficial-sparkle CONFIG REQUIRED)
     target_link_libraries(ladybird_impl PRIVATE Qt::GuiPrivate unofficial::sparkle::Sparkle "-framework ApplicationServices" "-framework AVFoundation" "-framework Carbon" "-framework Cocoa" "-framework CoreServices" "-framework IOSurface" "-framework QuartzCore")
     set_source_files_properties(
+        DefaultBrowserMacOS.mm
         LadybirdAccessibilityElement.mm
         MicrophoneAuthorizerMacOS.mm
         PlatformColorsMac.mm

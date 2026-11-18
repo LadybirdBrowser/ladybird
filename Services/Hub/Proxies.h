@@ -11,6 +11,7 @@
 #include <AK/RefCounted.h>
 #include <Hub/View.h>
 #include <LibCore/GeolocationProvider.h>
+#include <LibWebView/DefaultBrowser.h>
 #include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/GamepadSource.h>
 #include <LibWebView/MediaSessionCoordinator.h>
@@ -123,6 +124,23 @@ private:
 
     WebView::MicrophoneAuthorization m_authorization;
     Vector<Function<void(WebView::MicrophoneAuthorization)>> m_pending_requests;
+};
+
+class DefaultBrowserInUI final : public WebView::DefaultBrowser {
+public:
+    DefaultBrowserInUI();
+    virtual ~DefaultBrowserInUI() override;
+
+    static DefaultBrowserInUI* the();
+
+    void did_make_default(WebView::MakeDefaultBrowserResult const&);
+
+private:
+    // The UI reads the status again whenever it may have changed, and tells the Hub.
+    virtual void refresh() override { }
+    virtual void make_default(Function<void(WebView::MakeDefaultBrowserResult const&)> on_complete) override;
+
+    Vector<Function<void(WebView::MakeDefaultBrowserResult const&)>> m_pending_requests;
 };
 
 class GamepadSourceInUI final : public WebView::GamepadSource {
