@@ -17,6 +17,7 @@
 #include <QDrag>
 #include <QGuiApplication>
 #include <QMargins>
+#include <QMetaObject>
 #include <QMouseEvent>
 #include <QPointer>
 #include <QWheelEvent>
@@ -465,8 +466,8 @@ static NSWindow* appkit_window_for(QWidget& widget)
 {
     if (QGuiApplication::platformName() != "cocoa")
         return nil;
-    auto* view = reinterpret_cast<NSView*>(widget.winId());
-    return view ? view.window : nil;
+    auto* view = reinterpret_cast<NSView*>(widget.internalWinId());
+    return view.window;
 }
 
 // A popup is a window of its own, placed by what it hangs from when it opens. Dragging that window by its title bar
@@ -487,25 +488,36 @@ public:
         if (popup.windowType() != Qt::Popup || !popup.parentWidget())
             return false;
 
-        auto* popup_window = appkit_window_for(popup);
-        if (!popup_window)
-            return false;
-
         if (event->type() == QEvent::Hide) {
-            if (popup_window.parentWindow)
-                [popup_window.parentWindow removeChildWindow:popup_window];
+            auto* popup_window = appkit_window_for(popup);
+            if (auto* parent_window = popup_window.parentWindow)
+                [parent_window removeChildWindow:popup_window];
             return false;
         }
 
-        // NB: A window can be dragged by its content with a gesture, which would take a popup away from what it hangs
-        //     from.
-        popup_window.movable = NO;
-        auto* parent_window = appkit_window_for(*popup.parentWidget()->window());
-        if (!parent_window || parent_window == popup_window || popup_window.parentWindow == parent_window)
-            return false;
-        if (popup_window.parentWindow)
-            [popup_window.parentWindow removeChildWindow:popup_window];
-        [parent_window addChildWindow:popup_window ordered:NSWindowAbove];
+        // Qt sends the Show event before applying the popup's geometry to its native window. Attaching it during
+        // that event can expose the window with its initial geometry.
+        auto attach_popup = [&popup] {
+            auto* parent_widget = popup.parentWidget();
+            if (!popup.isVisible() || !parent_widget)
+                return;
+            auto* popup_window = appkit_window_for(popup);
+            if (!popup_window)
+                return;
+
+            // A window can be dragged by its content with a gesture, which would take the popup away from its anchor.
+            popup_window.movable = NO;
+
+            auto* parent_window = appkit_window_for(*parent_widget->window());
+            if (!parent_window || parent_window == popup_window || popup_window.parentWindow == parent_window)
+                return;
+
+            if (auto* previous_parent_window = popup_window.parentWindow)
+                [previous_parent_window removeChildWindow:popup_window];
+            [parent_window addChildWindow:popup_window ordered:NSWindowAbove];
+        };
+
+        QMetaObject::invokeMethod(&popup, attach_popup, Qt::QueuedConnection);
         return false;
     }
 };
