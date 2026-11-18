@@ -15,6 +15,7 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGAElement.h>
+#include <LibWeb/SVG/SVGTextContentElement.h>
 
 namespace Web::SVG {
 
@@ -95,6 +96,12 @@ GC::Ref<DOM::DOMTokenList> SVGAElement::rel_list()
 
 CSS::ElementBoxKind SVGAElement::box_kind() const
 {
+    // https://svgwg.org/svg2-draft/text.html#TextLayoutAlgorithm
+    // The 'text' element is treated as a block element and its descendant 'tspan', 'textPath' and 'a' elements are
+    // treated as inline elements.
+    // NB: So, an <a> inside a text content element renders its text as a <tspan> does.
+    if (first_flat_tree_ancestor_of_type<SVGTextContentElement>())
+        return CSS::ElementBoxKind::SvgText;
     return CSS::ElementBoxKind::SvgGraphics;
 }
 

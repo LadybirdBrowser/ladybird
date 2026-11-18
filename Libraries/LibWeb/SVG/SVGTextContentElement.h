@@ -45,6 +45,8 @@ protected:
     SVGTextContentElement(DOM::Document&, DOM::QualifiedName);
 
 private:
+    virtual bool is_svg_text_content_element() const final { return true; }
+
     Vector<Layout::RustFFI::FfiSvgTextCharacterCell> character_cells();
 };
 
