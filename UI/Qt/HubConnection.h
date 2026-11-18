@@ -106,6 +106,7 @@ private:
     virtual void translator_translate(u64 request_id, u64 session_id, Web::TranslationUnit unit) override;
     virtual void translator_open_language_download_settings() override;
     virtual void microphone_request_authorization() override;
+    virtual void default_browser_make_default() override;
     virtual void gamepad_start(bool ignore_system_gamepads) override;
     virtual void gamepad_set_polling(bool polling) override;
     virtual void gamepad_rumble(u32 handle, u16 low_frequency_magnitude, u16 high_frequency_magnitude, u32 duration_ms) override;
