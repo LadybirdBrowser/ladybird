@@ -137,7 +137,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID  MATCHES
     add_cxx_compile_options(-Wmissing-prototypes)
 
     add_cxx_compile_options(-Wno-implicit-const-int-float-conversion)
-    add_cxx_only_compile_options(-Wno-user-defined-literals)
     add_cxx_only_compile_options(-Wno-unqualified-std-cast-call)
 
     # Used for the #embed directive.
@@ -162,7 +161,6 @@ elseif (MSVC)
     add_cxx_compile_options(/W4)
     add_cxx_compile_options(-Wno-implicit-const-int-float-conversion)
     add_cxx_compile_options(-Wno-reserved-identifier)
-    add_cxx_compile_options(-Wno-user-defined-literals)
     add_cxx_compile_options(-Wno-unqualified-std-cast-call)
     add_cxx_compile_options(-Wno-c23-extensions)
     add_cxx_compile_options(-Wno-microsoft-unqualified-friend) # MSVC doesn't support unqualified friends
