@@ -128,7 +128,7 @@ impl LayoutNodeArena {
         }
         let row = self.committed_geometry(node, style_node);
         if row.has_committed_box {
-            self.with_style_engine(|engine| engine.apply_layout_style_snapshot_commit(&[row]));
+            self.with_style_engine(|engine| engine.apply_new_size_container_geometry(row));
         }
     }
 

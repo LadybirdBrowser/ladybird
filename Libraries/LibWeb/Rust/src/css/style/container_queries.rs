@@ -53,14 +53,15 @@ impl ContainerVerdict {
 
 /// One physical axis' basis for a subject's container-relative lengths, as
 /// `Length::container_relative_length_to_px_without_rounding` finds it: the content size of the
-/// nearest flat-tree ancestor that accepts size queries on that axis as of the last layout commit,
-/// zero while that container has no box, and the viewport's size when there is no such container.
+/// nearest flat-tree ancestor that accepts size queries on that axis and has a box as of the last
+/// layout commit, and the viewport's size when there is no such container.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ContainerUnitBasis {
     basis: f64,
     /// The container the basis is read from, or none for the viewport.
     container: Option<StyleNodeID>,
-    container_has_no_box: bool,
+    /// The outermost container below that one that accepts size queries on the axis but had no box.
+    boxless_container: Option<StyleNodeID>,
 }
 
 impl ContainerUnitBasis {
@@ -69,10 +70,10 @@ impl ContainerUnitBasis {
         self.container
     }
 
-    /// Whether the container has no box as of the last layout commit, so its queries are evaluated again after the
-    /// next layout gives it one.
-    pub(crate) fn container_has_no_box(&self) -> bool {
-        self.container_has_no_box
+    /// The outermost container the basis skipped for having no box as of the last layout commit, which the units are
+    /// evaluated against again once a layout gives it one. A container below it can only get a box after it does.
+    pub(crate) fn boxless_container(&self) -> Option<StyleNodeID> {
+        self.boxless_container
     }
 }
 
@@ -283,6 +284,7 @@ impl RetainedState {
         } else {
             self.projection.flat_tree_parent(subject)
         };
+        let mut boxless_container = None;
         while let Some(node) = ancestor {
             ancestor = self.projection.flat_tree_parent(node);
             let Some(inputs) = records.query_row(node) else {
@@ -301,19 +303,21 @@ impl RetainedState {
                 continue;
             }
             let snapshot = self.layout_style_snapshot(node).unwrap_or_default();
+            // A container without a box, as one under an element that is not rendered has, is not eligible: Its size
+            // queries are unknown, so the units resolve against the next eligible container out.
+            if !snapshot.has_committed_box {
+                boxless_container = Some(node);
+                continue;
+            }
             let raw = if axis_is_horizontal {
                 snapshot.content_width_raw
             } else {
                 snapshot.content_height_raw
             };
             return ContainerUnitBasis {
-                basis: if snapshot.has_committed_box {
-                    crate::css::css_pixels::CssPixels::from_raw(raw).to_double()
-                } else {
-                    0.0
-                },
+                basis: crate::css::css_pixels::CssPixels::from_raw(raw).to_double(),
                 container: Some(node),
-                container_has_no_box: !snapshot.has_committed_box,
+                boxless_container,
             };
         }
         let document = &self.document_style_computation_inputs;
@@ -324,7 +328,7 @@ impl RetainedState {
                 document.viewport_height
             },
             container: None,
-            container_has_no_box: false,
+            boxless_container,
         }
     }
 
@@ -372,19 +376,21 @@ impl RetainedState {
             }
             let basis = self.container_unit_basis(self, node, axis_is_horizontal, subject_is_pseudo_element);
             match basis.container {
-                Some(container) => {
-                    verdict
-                        .effects
-                        .push((container, FfiContainerEffectKind::SizeContainerUsage));
-                    if basis.container_has_no_box {
-                        verdict
-                            .effects
-                            .push((container, FfiContainerEffectKind::UnitsNeedEvaluationAfterLayout));
-                    }
-                }
+                Some(container) => verdict
+                    .effects
+                    .push((container, FfiContainerEffectKind::SizeContainerUsage)),
                 None => verdict
                     .effects
                     .push((node, FfiContainerEffectKind::SubjectViewportDependency)),
+            }
+            if let Some(boxless_container) = basis.boxless_container {
+                verdict
+                    .effects
+                    .push((boxless_container, FfiContainerEffectKind::SizeContainerUsage));
+                verdict.effects.push((
+                    boxless_container,
+                    FfiContainerEffectKind::UnitsNeedEvaluationAfterLayout,
+                ));
             }
         }
         self.note_container_effects_for_host(node, &std::sync::Arc::new(verdict));
@@ -607,18 +613,21 @@ impl RetainedState {
                     .push((candidate, FfiContainerEffectKind::SizeContainerUsage));
             }
             for basis in bases.0 {
-                let Some(container) = basis.container else {
-                    continue;
-                };
-                verdict
-                    .effects
-                    .push((container, FfiContainerEffectKind::SizeContainerUsage));
-                // A container-relative length against a container without a box resolved to
-                // zero, as it does for the host, which evaluates it again after layout.
-                if basis.container_has_no_box {
+                if let Some(container) = basis.container {
                     verdict
                         .effects
-                        .push((container, FfiContainerEffectKind::UnitsNeedEvaluationAfterLayout));
+                        .push((container, FfiContainerEffectKind::SizeContainerUsage));
+                }
+                // A container-relative length skipped a container without a box, as it does for the host, which
+                // evaluates it again after layout.
+                if let Some(boxless_container) = basis.boxless_container {
+                    verdict
+                        .effects
+                        .push((boxless_container, FfiContainerEffectKind::SizeContainerUsage));
+                    verdict.effects.push((
+                        boxless_container,
+                        FfiContainerEffectKind::UnitsNeedEvaluationAfterLayout,
+                    ));
                 }
             }
             if requirements & CONTAINER_QUERY_REQUIRES_STYLE != 0 {

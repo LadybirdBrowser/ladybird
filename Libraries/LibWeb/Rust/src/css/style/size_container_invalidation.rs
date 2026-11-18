@@ -189,6 +189,16 @@ impl StyleEngine {
         }
     }
 
+    /// Take the box of an element whose new style makes it a size container, which no commit has gathered a row for.
+    /// The container-relative units below it that were computed while it had no box resolved past it, to a container
+    /// further out or the viewport, so they are computed again against its box before any layout runs again. Their
+    /// records can come out the same as before the element became a container, so nothing else would ask for that.
+    pub(crate) fn apply_new_size_container_geometry(&mut self, row: crate::layout::style_snapshot::CommittedGeometry) {
+        let container = row.node;
+        self.apply_layout_style_snapshot_commit(&[row]);
+        self.record_size_container_query_dependents_after_input_change(container, true);
+    }
+
     /// The elements the dependent walks have visited, optionally starting the count again.
     #[cfg(test)]
     pub fn size_query_container_scan_visits(&mut self, reset: bool) -> u64 {
