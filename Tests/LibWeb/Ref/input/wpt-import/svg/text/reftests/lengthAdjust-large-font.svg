@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <metadata>
+    <title>lengthAdjust="spacingAndGlyphs" should render properly</title>
+    <h:link rel="help" href="https://www.w3.org/TR/SVG2/text.html#TextElementLengthAdjustAttribute"/>
+    <h:link rel="match" href="../../../../../expected/wpt-import/svg/text/reftests/green-100x100.svg"/>
+    <h:link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+  </metadata>
+  <style>
+    text {
+      font: 100px/1 Ahem;
+    }
+  </style>
+  <rect fill="green" width="100" height="100"/>
+  <rect fill="red" x="80" y="20" width="10" height="60"/>
+  <text x="-82" y="70" fill="green" textLength="180" lengthAdjust="spacingAndGlyphs" font-family="Ahem">
+    XXXXXXX
+  </text>
+</svg>
