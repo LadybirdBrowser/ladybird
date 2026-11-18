@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+.container {
+  display: flex;
+}
+
+.cell {
+  white-space: nowrap;
+  overflow: hidden;
+  border: 1px solid red;
+  text-overflow: ellipsis;
+}
+
+span {
+  display: inline-block;
+  background: green;
+  width: 30px;
+  height: 1em;
+  padding: 4px;
+  margin: 5px;
+}
+</style>
+<div id="target" class="container" style="width: 150px;">
+  <div class="cell">
+    <span></span><span></span><span></span><span></span>
+  </div>
+  <div class="cell">
+    <span></span><span></span><span></span><span></span>
+  </div>
+</div>

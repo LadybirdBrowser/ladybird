@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html class=reftest-wait>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1062733">
+<link rel="match" href="../../../../expected/wpt-import/css/css-overflow/text-overflow-ellipsis-003-ref.html">
+<script src="../../common/reftest-wait.js"></script>
+<style>
+.container {
+  display: flex;
+}
+
+.cell {
+  white-space: nowrap;
+  overflow: hidden;
+  border: 1px solid red;
+  text-overflow: ellipsis;
+}
+
+span {
+  display: inline-block;
+  background: green;
+  width: 30px;
+  height: 1em;
+  padding: 4px;
+  margin: 5px;
+}
+</style>
+<div id="target" class="container" style="width: 200px;">
+  <div class="cell">
+    <span></span><span></span><span></span><span></span>
+  </div>
+  <div class="cell">
+    <span></span><span></span><span></span><span></span>
+  </div>
+</div>
+<script>
+async function runTest() {
+  await new Promise(requestAnimationFrame);
+  document.getElementById('target').style.width = '150px';
+
+  await new Promise(requestAnimationFrame);
+  takeScreenshot();
+}
+requestAnimationFrame(() => { requestAnimationFrame(() => runTest()) });
+</script>

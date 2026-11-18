@@ -1095,7 +1095,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let mut line_box_baseline = Self::baseline_for_style(containing_style, containing_style.line_height());
         let fragment_count = self.line(line_index).fragments.len();
         for fragment_index in 0..fragment_count {
-            if self.line(line_index).fragments[fragment_index].is_fully_truncated {
+            if !self.line(line_index).fragments[fragment_index].takes_part_in_line_alignment() {
                 continue;
             }
             let (node, style_source, content_baselines, box_cells, is_block_ellipsis) = {
@@ -1416,7 +1416,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 }
         };
         let inline_offset = aligned_inline_offset(self.line(line_index).inline_length);
-        self.line_mut(line_index).aligned_inline_offset = inline_offset;
+        self.line_mut(line_index).placed_inline_start = start_inline_offset;
         let block_offset = CssPixels::default();
 
         let LineAlignment {
@@ -1626,10 +1626,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let containing_style = self.containing_style();
         let strut_baseline = Self::baseline_for_style(containing_style, containing_style.line_height());
         let fragment_count = self.line(line_index).fragments.len();
-        let has_line_relative_aligned_subtree = self
-            .line(line_index)
-            .visible_fragments()
-            .any(|fragment| self.line_relative_aligned_subtree_root(fragment.style_source).is_some());
+        let has_line_relative_aligned_subtree = self.line(line_index).fragments.iter().any(|fragment| {
+            fragment.takes_part_in_line_alignment()
+                && self.line_relative_aligned_subtree_root(fragment.style_source).is_some()
+        });
         let (line_box_baseline, should_align_strut_to_line_box_baseline) =
             self.line_box_baseline(line_index, has_line_relative_aligned_subtree);
         let mut should_advance_to_line_box_block_end = should_align_strut_to_line_box_baseline;
@@ -1652,7 +1652,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let mut inline_box_alignments: Vec<InlineBoxAlignment> = Vec::new();
 
         for fragment_index in 0..fragment_count {
-            if self.line(line_index).fragments[fragment_index].is_fully_truncated {
+            if !self.line(line_index).fragments[fragment_index].takes_part_in_line_alignment() {
                 continue;
             }
             inline_box_alignments.clear();
@@ -1845,7 +1845,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
 
             let text_fragment_baseline = {
                 let fragment = &self.line(line_index).fragments[fragment_index];
-                (is_text_node && !fragment.is_fully_truncated).then(|| fragment.block_offset + fragment.baseline)
+                (is_text_node && fragment.takes_part_in_line_alignment())
+                    .then(|| fragment.block_offset + fragment.baseline)
             };
             if let Some(fragment_baseline) = text_fragment_baseline {
                 // Aligned-subtree fragments are placed at their baseline position here and moved by the

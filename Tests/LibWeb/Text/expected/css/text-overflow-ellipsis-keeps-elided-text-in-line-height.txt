@@ -1,0 +1,7 @@
+elided-on-the-right: 40
+elided-on-the-left: 40
+clipped: 40
+top-aligned-elided: 60, text at 0
+top-aligned-clipped: 60, text at 0
+baseline-aligned-elided: 64, text at 44
+baseline-aligned-clipped: 64, text at 44

@@ -463,6 +463,14 @@ pub(crate) fn index_in_node_for_point(
     {
         return 0;
     }
+    // NB: A point on the text-overflow ellipsis is where the elided text starts.
+    if fragment.is_text_overflow_ellipsis {
+        return layout_arena.dom_offset_for_rendered_text_offset(
+            fragment.layout_node,
+            fragment.start,
+            crate::layout::RenderedTextBoundary::End,
+        );
+    }
     let rect = absolute_rect(layout_arena, fragment);
     let x = if is_horizontal(fragment) {
         (position.x - rect.x).to_float()

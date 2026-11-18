@@ -424,6 +424,8 @@ pub struct FragmentRecord {
     pub direction: u8,
     pub writing_mode: u8,
     pub is_block_ellipsis: bool,
+    /// Whether the fragment is the ellipsis that text-overflow draws, rather than content.
+    pub is_text_overflow_ellipsis: bool,
     pub is_atomic_inline: bool,
     pub white_space_collapse: u8,
     pub(crate) content_baselines: Option<formatting_context::DerivedBaselines>,

@@ -1,0 +1,5 @@
+no-offset: 80
+offset-to-the-left: 90
+offset-to-the-right: 80
+offset-run-before-the-cut: 90
+left-to-right: 90

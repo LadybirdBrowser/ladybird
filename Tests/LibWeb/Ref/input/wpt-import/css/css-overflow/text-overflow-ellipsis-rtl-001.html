@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Overflow: text-overflow: ellipsis RTL</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-4/#ellipsis-scrolling">
+<link rel="match" href="../../../../expected/wpt-import/css/css-overflow/reference/text-overflow-ellipsis-rtl-001-ref.html">
+<meta name="assert" content="Check that ellipsis is placed on the right position on the container boundaries in elements with 'text-overflow: ellipsis' in RTL.">
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+  div {
+    font: 100px/1 Ahem;
+    width: 400px;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;
+  }
+</style>
+<p>The test passes if it matches the reference.</p>
+<div>ppp</div>
+<div>pppp</div>
+<div>ppppp</div>

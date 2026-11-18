@@ -59,6 +59,9 @@ pub(crate) struct TextOverflowElision {
     pub(crate) ellipsis_fragment_start: CssPixels,
     /// The inline length of the fragment that ends in the ellipsis before it was shortened.
     pub(crate) ellipsis_fragment_inline_length: CssPixels,
+    /// How much of its inline length that fragment lost at its left end, where the ellipsis is on the left. And there,
+    /// the fragments are still where the content put them, rather than where the line box starts.
+    pub(crate) ellipsis_fragment_inline_length_lost_on_left: Option<CssPixels>,
 }
 
 /// What a line its block container interrupted for a block-level box keeps of the box, as the layout of the box left it.
@@ -89,9 +92,8 @@ pub(crate) struct LineBoxData {
     /// Whether placing the line aligned it as the last line of its block, or a line before a forced break, by
     /// text-align-last. Justification follows the same decision.
     pub(crate) uses_last_line_alignment: Option<bool>,
-    /// How far placing the line moved its fragments along it. A line that isn't placed yet has its fragments where
-    /// its content put them, from the start of the line.
-    pub(crate) aligned_inline_offset: CssPixels,
+    /// Where the line box starts, past any floats, once the line is placed.
+    pub(crate) placed_inline_start: CssPixels,
     pub(crate) record: inline_content::LineRecord,
 }
 
@@ -119,7 +121,7 @@ impl LineBoxData {
             text_overflow_elision: None,
             block_level_box: None,
             uses_last_line_alignment: None,
-            aligned_inline_offset: CssPixels::default(),
+            placed_inline_start: CssPixels::default(),
             record: inline_content::LineRecord {
                 direction,
                 writing_mode,
