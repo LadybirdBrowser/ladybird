@@ -23,7 +23,7 @@ enum class FontRasterizer {
 // Call this before any text is drawn.
 void set_font_rasterizer(FontRasterizer);
 
-// Keep the hinting and pixel geometry used by the rendering test baselines.
+// Keep the font rendering settings used by the test baselines.
 void use_test_font_rendering();
 
 SkSurfaceProps skia_text_surface_properties(u32 flags, bool allows_lcd_text);
