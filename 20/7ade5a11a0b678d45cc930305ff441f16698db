@@ -1,0 +1,7 @@
+Ladybird shifts a text chunk for text-anchor by the chunk’s length from
+its first character’s start to its last character’s end, which takes in
+any dx between the two. Blink does the same in SvgTextLayoutAlgorithm::
+ApplyAnchoring(), WebKit in SVGTextLayoutAlgorithm::applyAnchoring(),
+and Gecko in SVGTextFrame::DoAnchoring(). The new test gives the
+same character positions in Chrome 157.0.8103.79, Firefox 151.0, and
+WebKit 26.5 as in Ladybird.
