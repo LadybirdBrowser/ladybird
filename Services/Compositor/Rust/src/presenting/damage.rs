@@ -6,7 +6,7 @@
 
 //! What a frame repaints of the frame painted before it, and of what each backing store holds.
 
-use super::layers::{LayerUpdate, MediaUpdate};
+use super::layers::LayerUpdate;
 use super::{ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_size};
 use crate::frame_inputs::FrameInputs;
 use crate::host::PendingFrame;
@@ -112,7 +112,6 @@ pub struct LiveContentChangesSinceLastPaint {
     pub video_sinks: Vec<VideoSinkHandle>,
     pub image_frames: Vec<ImageFrameResourceId>,
     pub nested_contexts: Vec<CompositorContextId>,
-    pub media_updates: Vec<MediaUpdate>,
     pub repaints_everything: bool,
 }
 
@@ -231,10 +230,6 @@ impl ContextPresenting {
                 changes.repaints_everything = true;
             }
             changes.canvases.push(CanvasId(*canvas_id));
-            changes.media_updates.push(MediaUpdate {
-                media: LiveMedia::Canvas(CanvasId(*canvas_id)),
-                content_version: current_content_generation,
-            });
         }
         let summary = display_list.storage().summary();
         let image_frame_ids_of_list: HashSet<u64> = summary.image_frame_ids.iter().copied().collect();
@@ -247,10 +242,6 @@ impl ContextPresenting {
             if current_frame_id == *frame_id {
                 continue;
             }
-            changes.media_updates.push(MediaUpdate {
-                media: LiveMedia::VideoFrame(VideoSinkHandle(*video_sink_handle)),
-                content_version: current_frame_id.unwrap_or(0),
-            });
             // A video that no command of this list draws has no command in this list to damage.
             if !video_sink_handles_of_list.contains(video_sink_handle) {
                 changes.repaints_everything = true;
@@ -302,13 +293,8 @@ impl ContextPresenting {
             frame.frame_inputs,
             live_content,
         );
-        self.layers.media_activity.note_updates(
-            &changes.media_updates,
-            frame.display_list.storage().summary(),
-            env.now,
-        );
 
-        let mut layers = self.layer_update_for(env, frame, viewport_rect, live_content);
+        let mut layers = self.layer_update_for(frame, viewport_rect);
         let shown_by_window_server = match layers.plan(&self.layers) {
             Some(plan) => self.window_server_can_show_media_layers_of(env, plan, live_content),
             None => false,
@@ -433,12 +419,7 @@ impl ContextPresenting {
         damage
     }
 
-    pub(super) fn layers_keep_plan_for(
-        &self,
-        frame: &FrameToPaint<'_>,
-        viewport_rect: IntRect,
-        active_media: &[LiveMedia],
-    ) -> bool {
+    pub(super) fn layers_keep_plan_for(&self, frame: &FrameToPaint<'_>, viewport_rect: IntRect) -> bool {
         let Some(painted_frame) = &self.painted_frame else {
             return false;
         };
@@ -446,7 +427,6 @@ impl ContextPresenting {
             && Rc::ptr_eq(&painted_frame.display_list, frame.display_list)
             && painted_frame.viewport_size.width == viewport_rect.width
             && painted_frame.viewport_size.height == viewport_rect.height
-            && self.layers.plan_active_media() == active_media
             && frame.frame_inputs.places_content_like(&painted_frame.frame_inputs)
     }
 }
