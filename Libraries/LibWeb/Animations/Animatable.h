@@ -89,6 +89,8 @@ public:
     void disassociate_with_animation(AnimationRef const&, Optional<EffectRef> const& effect);
     void on_document_changed(DOM::Document& old_document, DOM::Document& new_document);
     void cancel_css_animations_and_transitions();
+    // Cancels the CSS animations and transitions one of the element's pseudo-elements owns.
+    void cancel_css_animations_and_transitions_of(CSS::PseudoElement);
     // Plays or pauses the CSS animations the element and its pseudo-elements own as their animation-play-state last
     // computed.
     void play_or_pause_css_animations_as_their_play_state_asks();

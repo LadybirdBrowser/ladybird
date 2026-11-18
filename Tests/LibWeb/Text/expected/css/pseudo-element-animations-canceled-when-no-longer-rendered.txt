@@ -1,0 +1,5 @@
+Animated ::before, rendered: rgb(255, 0, 0), animations: [CSSAnimation]
+Animated ::before, no longer rendered: rgb(0, 128, 0), animations: []
+Transitioned ::before, rendered: rgb(0, 128, 0), animations: []
+Transitioned ::before, transition started: rgb(0, 0, 255), animations: [CSSTransition]
+Transitioned ::before, no longer rendered: rgb(0, 128, 0), animations: []

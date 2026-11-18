@@ -2868,13 +2868,46 @@ pub unsafe extern "C" fn animations_element_animations_cancel_css_animations_and
     perform: HostEffectPerformer,
 ) {
     // SAFETY: Guaranteed by the caller, and the borrow of the lists ends before the host performs anything.
-    let taken =
-        unsafe { &mut *animations }.take_css_animations_and_transitions(unsafe { style_engine_target(host, node) });
-    for animation in &taken {
+    let taken = unsafe { &mut *animations }
+        .take_css_animations_and_transitions(None, unsafe { style_engine_target(host, node) });
+    cancel_taken_animations(&taken, keep_alive, in_execution_context, context, perform);
+}
+
+/// As [`animations_element_animations_cancel_css_animations_and_transitions`], of the owner at `slot` alone: a
+/// pseudo-element that is no longer rendered, while its element is.
+///
+/// # Safety
+/// As for [`animations_element_animations_cancel_css_animations_and_transitions`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn animations_element_animations_cancel_css_animations_and_transitions_of_owner(
+    animations: *mut ElementAnimations,
+    slot: AnimationOwnerSlot,
+    host: *const DocumentHost,
+    node: u32,
+    keep_alive: FfiKeepAlive,
+    in_execution_context: FfiInExecutionContext,
+    context: *mut c_void,
+    perform: HostEffectPerformer,
+) {
+    // SAFETY: Guaranteed by the caller, and the borrow of the lists ends before the host performs anything.
+    let taken = unsafe { &mut *animations }
+        .take_css_animations_and_transitions(Some(slot), unsafe { style_engine_target(host, node) });
+    cancel_taken_animations(&taken, keep_alive, in_execution_context, context, perform);
+}
+
+/// Cancels the CSS animations and transitions taken from their owners, each kept alive by the host for the call.
+fn cancel_taken_animations(
+    taken: &[AnimationHandle],
+    keep_alive: FfiKeepAlive,
+    in_execution_context: FfiInExecutionContext,
+    context: *mut c_void,
+    perform: HostEffectPerformer,
+) {
+    for animation in taken {
         // SAFETY: The host keeps alive an animation it is handed for as long as this call lasts.
         unsafe { keep_alive(context, animation) };
     }
-    for animation in &taken {
+    for animation in taken {
         cancel_animation(animation, Invalidate::No, in_execution_context, context, perform);
     }
 }
