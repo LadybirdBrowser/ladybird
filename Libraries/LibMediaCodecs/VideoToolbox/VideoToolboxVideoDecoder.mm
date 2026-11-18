@@ -98,13 +98,6 @@ private:
 // How many frames the media engine may be decoding before it has to hand one back.
 constexpr size_t MAXIMUM_FRAMES_IN_FLIGHT = 4;
 
-AK::Duration duration_from_cm_time(CMTime time)
-{
-    if (!CMTIME_IS_NUMERIC(time))
-        return AK::Duration::zero();
-    return AK::Duration::from_time_units(time.value, 1, static_cast<u32>(time.timescale));
-}
-
 CMTime cm_time_from_duration(AK::Duration duration)
 {
     return CMTimeMake(duration.to_nanoseconds(), 1'000'000'000);
@@ -736,11 +729,9 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
     session->format_description = static_cast<CMVideoFormatDescriptionRef>(CFRetain(format->description.ref()));
 
     VTDecompressionOutputCallbackRecord callback {
-        [](void* session_reference, void* frame_reference, OSStatus status, VTDecodeInfoFlags, CVImageBufferRef image_buffer, CMTime presentation_timestamp, CMTime presentation_duration) {
+        [](void* session_reference, void* frame_reference, OSStatus status, VTDecodeInfoFlags, CVImageBufferRef image_buffer, CMTime, CMTime) {
             auto& session = *static_cast<Session*>(session_reference);
-            auto timestamp = duration_from_cm_time(presentation_timestamp);
-            auto duration = duration_from_cm_time(presentation_duration);
-            session.decoder.note_decode_completed(session.cicp, static_cast<u64>(reinterpret_cast<uintptr_t>(frame_reference)), status, image_buffer, timestamp, duration);
+            session.decoder.note_decode_completed(session.cicp, static_cast<u64>(reinterpret_cast<uintptr_t>(frame_reference)), status, image_buffer);
         },
         session.ptr()
     };
@@ -756,18 +747,18 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
     return {};
 }
 
-void VideoToolboxVideoDecoder::note_decode_completed(CodingIndependentCodePoints const& cicp, u64 generation, i32 status, void* image_buffer, AK::Duration timestamp, AK::Duration duration)
+void VideoToolboxVideoDecoder::note_decode_completed(CodingIndependentCodePoints const& cicp, u64 submission_id, i32 status, void* image_buffer)
 {
     auto completion = DecodeCompletion::ProducedNothing;
     auto caller_needs_waking = false;
     {
         MutexLocker locker { m_output_mutex };
 
-        if (generation == m_generation.load(AK::MemoryOrder::memory_order_relaxed)) {
+        if (auto frame = take_in_flight_frame_while_locked(submission_id); frame.has_value()) {
             if (status != noErr)
                 note_decode_failure_while_locked(status);
             else if (image_buffer != nullptr)
-                enqueue_decoded_output_while_locked(cicp, image_buffer, timestamp, duration);
+                enqueue_decoded_output_while_locked(cicp, image_buffer, frame->timestamp, frame->duration);
             auto frame_was_decoded_for_reference_only = status == noErr && image_buffer == nullptr;
             if (!frame_was_decoded_for_reference_only)
                 completion = DecodeCompletion::ProducedOutput;
@@ -780,6 +771,15 @@ void VideoToolboxVideoDecoder::note_decode_completed(CodingIndependentCodePoints
 
     if (caller_needs_waking && m_decode_completed_callback)
         m_decode_completed_callback(completion);
+}
+
+Optional<VideoToolboxVideoDecoder::InFlightFrame> VideoToolboxVideoDecoder::take_in_flight_frame_while_locked(u64 submission_id)
+{
+    for (size_t index = 0; index < m_in_flight_frames.size(); index++) {
+        if (m_in_flight_frames[index].submission_id == submission_id)
+            return m_in_flight_frames.take(index);
+    }
+    return {};
 }
 
 void VideoToolboxVideoDecoder::note_frame_left_the_media_engine_while_locked()
@@ -871,6 +871,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
     block_source.refCon = &block_was_released;
 
     OSStatus status = noErr;
+    auto submission_id = m_next_submission_id++;
     {
         RetainedRef<CMBlockBufferRef> block_buffer;
         if (CMBlockBufferCreateWithMemoryBlock(kCFAllocatorDefault, const_cast<u8*>(data.data()), data.size(), nullptr, &block_source, 0, data.size(), 0, block_buffer.out()) != noErr)
@@ -900,11 +901,11 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
                 m_caller_is_waiting_for_output = false;
             }
             m_frames_in_flight.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+            m_in_flight_frames.append({ submission_id, coded_frame.presentation_timestamp(), coded_frame.duration() });
         }
-        auto generation = m_generation.load(AK::MemoryOrder::memory_order_relaxed);
 
         VTDecodeInfoFlags info_flags = 0;
-        auto* frame_reference = reinterpret_cast<void*>(static_cast<uintptr_t>(generation));
+        auto* frame_reference = reinterpret_cast<void*>(static_cast<uintptr_t>(submission_id));
         status = VTDecompressionSessionDecodeFrame(m_session->session, sample_buffer.ref(), flags, frame_reference, &info_flags);
     }
 
@@ -912,6 +913,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
 
     if (status != noErr) {
         MutexLocker locker { m_output_mutex };
+        (void)take_in_flight_frame_while_locked(submission_id);
         note_frame_left_the_media_engine_while_locked();
         return DecoderError::format(DecoderErrorCategory::Corrupted, "VideoToolbox rejected a frame with status {}", status);
     }
@@ -994,7 +996,8 @@ void VideoToolboxVideoDecoder::flush()
     m_awaiting_first_submitted_frame = true;
 
     MutexLocker locker { m_output_mutex };
-    m_generation.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+    // The media engine still hands back the frames it was decoding, which are discarded once nothing awaits them.
+    m_in_flight_frames.clear();
     m_outputs.clear();
     m_decode_failure.clear();
 }
