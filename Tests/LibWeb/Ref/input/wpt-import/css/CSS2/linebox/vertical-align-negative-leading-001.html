@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>Test vertical-align: top and bottom do not affect the line height</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/linebox/vertical-align-negative-leading-001-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#propdef-vertical-align">
+<link rel="author" href="mailto:kojii@chromium.org">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.container {
+  margin: 30px 0;
+  color: orange;
+  background-color: blue;
+  line-height: 10px;
+  font-size: 30px;
+  font-family: Ahem;
+}
+span { background: purple; }
+.top { vertical-align: top; }
+.bottom { vertical-align: bottom; }
+.text-top { vertical-align: text-top; }
+.text-bottom { vertical-align: text-bottom; }
+</style>
+<body>
+<div class="container">
+  <span class="top">XX</span>
+  <span>XX</span>
+  <span class="bottom">XX</span>
+</div>
+<div class="container">
+  <span class="text-top">XX</span>
+  <span>XX</span>
+  <span class="text-bottom">XX</span>
+</div>
+<div class="container"><span class="top">XX</span></div>
+<div class="container"><span class="bottom">XX</span></div>
+<div class="container"><span class="text-top">XX</span></div>
+<div class="container"><span class="text-bottom">XX</span></div>
+</body>

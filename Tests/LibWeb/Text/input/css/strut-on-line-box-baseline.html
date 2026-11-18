@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 16px/24px Ahem; }
+    .big { font-size: 32px; }
+    .case { position: relative; }
+</style>
+<div class="case" id="taller-font-fixed-line-height">x<span class="big">y</span></div>
+<div class="case" id="taller-font-two-lines">x<span class="big">y</span><br>x</div>
+<div class="case" id="taller-font-alone"><span class="big">y</span></div>
+<div class="case" id="much-taller-font">x<span style="font-size: 64px">y</span></div>
+<div class="case" id="smaller-font">x<span style="font-size: 8px">y</span></div>
+<div class="case" id="number-line-height" style="line-height: 1.5">x<span class="big">y</span><br>x</div>
+<div class="case" id="text-top-negative-leading" style="font-size: 30px; line-height: 10px"><span style="vertical-align: text-top">XX</span></div>
+<div class="case" id="text-bottom-negative-leading" style="font-size: 30px; line-height: 10px"><span style="vertical-align: text-bottom">XX</span></div>
+<div class="case" id="wrapped-lines" style="width: 40px">x<span class="big">y</span> x<span class="big">y</span> x<span class="big">y</span></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        for (const element of document.querySelectorAll(".case")) {
+            const rect = element.getBoundingClientRect();
+            const offsets = [...element.querySelectorAll("span")].map(span => span.getBoundingClientRect().top - rect.top);
+            println(`${element.id}: ${rect.height} (${offsets.join(", ")})`);
+        }
+    });
+</script>

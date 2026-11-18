@@ -1,5 +1,5 @@
 == initial
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 72x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 68x22
       n3 row name="cell text" bounds=10,10 68x22
@@ -34,13 +34,13 @@ n0 generic bounds=8,8 784x203
   n32 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n33 textbox name="retargeted label" bounds=423,171 169x20 editable
   n34 textbox bounds=600,171 169x20 editable
-  n35 button name="shown sometimes" bounds=8,191 134x20
-    n36 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n37 generic bounds=65,194 68x14
-      n38 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n35 button name="shown sometimes" bounds=8,192 134x20
+    n36 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n37 generic bounds=65,195 68x14
+      n38 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == cell textContent
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 109x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 105x22
       n3 row name="new cell text" bounds=10,10 105x22
@@ -75,13 +75,13 @@ n0 generic bounds=8,8 784x203
   n32 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n33 textbox name="retargeted label" bounds=423,171 169x20 editable
   n34 textbox bounds=600,171 169x20 editable
-  n35 button name="shown sometimes" bounds=8,191 134x20
-    n36 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n37 generic bounds=65,194 68x14
-      n38 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n35 button name="shown sometimes" bounds=8,192 134x20
+    n36 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n37 generic bounds=65,195 68x14
+      n38 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == cell Text.data
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -116,13 +116,13 @@ n0 generic bounds=8,8 784x203
   n32 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n33 textbox name="retargeted label" bounds=423,171 169x20 editable
   n34 textbox bounds=600,171 169x20 editable
-  n35 button name="shown sometimes" bounds=8,191 134x20
-    n36 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n37 generic bounds=65,194 68x14
-      n38 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n35 button name="shown sometimes" bounds=8,192 134x20
+    n36 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n37 generic bounds=65,195 68x14
+      n38 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == hidden aria-labelledby target
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -157,13 +157,13 @@ n0 generic bounds=8,8 784x203
   n32 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n33 textbox name="retargeted label" bounds=423,171 169x20 editable
   n34 textbox bounds=600,171 169x20 editable
-  n35 button name="shown sometimes" bounds=8,191 134x20
-    n36 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n37 generic bounds=65,194 68x14
-      n38 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n35 button name="shown sometimes" bounds=8,192 134x20
+    n36 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n37 generic bounds=65,195 68x14
+      n38 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == name from content
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -198,13 +198,13 @@ n0 generic bounds=8,8 784x203
   n32 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n33 textbox name="retargeted label" bounds=423,171 169x20 editable
   n34 textbox bounds=600,171 169x20 editable
-  n35 button name="shown sometimes" bounds=8,191 134x20
-    n36 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n37 generic bounds=65,194 68x14
-      n38 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n35 button name="shown sometimes" bounds=8,192 134x20
+    n36 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n37 generic bounds=65,195 68x14
+      n38 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == label text
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -239,13 +239,13 @@ n0 generic bounds=8,8 784x203
   n32 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n33 textbox name="retargeted label" bounds=423,171 169x20 editable
   n34 textbox bounds=600,171 169x20 editable
-  n35 button name="shown sometimes" bounds=8,191 134x20
-    n36 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n37 generic bounds=65,194 68x14
-      n38 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n35 button name="shown sometimes" bounds=8,192 134x20
+    n36 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n37 generic bounds=65,195 68x14
+      n38 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == aria-label
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -280,13 +280,13 @@ n0 generic bounds=8,8 784x203
   n32 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n33 textbox name="retargeted label" bounds=423,171 169x20 editable
   n34 textbox bounds=600,171 169x20 editable
-  n35 button name="shown sometimes" bounds=8,191 134x20
-    n36 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n37 generic bounds=65,194 68x14
-      n38 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n35 button name="shown sometimes" bounds=8,192 134x20
+    n36 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n37 generic bounds=65,195 68x14
+      n38 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == aria-describedby target
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -321,13 +321,13 @@ n0 generic bounds=8,8 784x203
   n32 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n33 textbox name="retargeted label" bounds=423,171 169x20 editable
   n34 textbox bounds=600,171 169x20 editable
-  n35 button name="shown sometimes" bounds=8,191 134x20
-    n36 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n37 generic bounds=65,194 68x14
-      n38 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n35 button name="shown sometimes" bounds=8,192 134x20
+    n36 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n37 generic bounds=65,195 68x14
+      n38 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == id appears for a pending reference
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -362,13 +362,13 @@ n0 generic bounds=8,8 784x203
   n32 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n33 textbox name="retargeted label" bounds=423,171 169x20 editable
   n34 textbox bounds=600,171 169x20 editable
-  n35 button name="shown sometimes" bounds=8,191 134x20
-    n36 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n37 generic bounds=65,194 68x14
-      n38 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n35 button name="shown sometimes" bounds=8,192 134x20
+    n36 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n37 generic bounds=65,195 68x14
+      n38 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == referenced id removed
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -401,13 +401,13 @@ n0 generic bounds=8,8 784x203
   n30 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n31 textbox name="retargeted label" bounds=423,171 169x20 editable
   n32 textbox bounds=600,171 169x20 editable
-  n33 button name="shown sometimes" bounds=8,191 134x20
-    n34 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n35 generic bounds=65,194 68x14
-      n36 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n33 button name="shown sometimes" bounds=8,192 134x20
+    n34 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n35 generic bounds=65,195 68x14
+      n36 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == generated content
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -440,13 +440,13 @@ n0 generic bounds=8,8 784x203
   n30 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n31 textbox name="retargeted label" bounds=423,171 169x20 editable
   n32 textbox bounds=600,171 169x20 editable
-  n33 button name="shown sometimes" bounds=8,191 134x20
-    n34 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n35 generic bounds=65,194 68x14
-      n36 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n33 button name="shown sometimes" bounds=8,192 134x20
+    n34 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n35 generic bounds=65,195 68x14
+      n36 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == embedded select value
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -479,13 +479,13 @@ n0 generic bounds=8,8 784x203
   n30 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n31 textbox name="retargeted label" bounds=423,171 169x20 editable
   n32 textbox bounds=600,171 169x20 editable
-  n33 button name="shown sometimes" bounds=8,191 134x20
-    n34 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n35 generic bounds=65,194 68x14
-      n36 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n33 button name="shown sometimes" bounds=8,192 134x20
+    n34 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n35 generic bounds=65,195 68x14
+      n36 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == embedded input value
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -518,13 +518,13 @@ n0 generic bounds=8,8 784x203
   n30 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n31 textbox name="retargeted label" bounds=423,171 169x20 editable
   n32 textbox bounds=600,171 169x20 editable
-  n33 button name="shown sometimes" bounds=8,191 134x20
-    n34 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n35 generic bounds=65,194 68x14
-      n36 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n33 button name="shown sometimes" bounds=8,192 134x20
+    n34 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n35 generic bounds=65,195 68x14
+      n36 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == value of an input in its own label
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -557,13 +557,13 @@ n0 generic bounds=8,8 784x203
   n30 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n31 textbox name="retargeted label" bounds=423,171 169x20 editable
   n32 textbox bounds=600,171 169x20 editable
-  n33 button name="shown sometimes" bounds=8,191 134x20
-    n34 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n35 generic bounds=65,194 68x14
-      n36 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n33 button name="shown sometimes" bounds=8,192 134x20
+    n34 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n35 generic bounds=65,195 68x14
+      n36 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == label for retargeted
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -596,13 +596,13 @@ n0 generic bounds=8,8 784x203
   n30 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n31 textbox bounds=423,171 169x20 editable
   n32 textbox name="retargeted label" bounds=600,171 169x20 editable
-  n33 button name="shown sometimes" bounds=8,191 134x20
-    n34 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n35 generic bounds=65,194 68x14
-      n36 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n33 button name="shown sometimes" bounds=8,192 134x20
+    n34 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n35 generic bounds=65,195 68x14
+      n36 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == labelled input id renamed
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 124x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 120x22
       n3 row name="edited cell text" bounds=10,10 120x22
@@ -635,13 +635,13 @@ n0 generic bounds=8,8 784x203
   n30 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n31 textbox bounds=423,171 169x20 editable
   n32 textbox bounds=600,171 169x20 editable
-  n33 button name="shown sometimes" bounds=8,191 134x20
-    n34 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n35 generic bounds=65,194 68x14
-      n36 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n33 button name="shown sometimes" bounds=8,192 134x20
+    n34 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n35 generic bounds=65,195 68x14
+      n36 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == unrelated text
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 115x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 111x22
       n3 row name="unrelated edit" bounds=10,10 111x22
@@ -674,13 +674,13 @@ n0 generic bounds=8,8 784x203
   n30 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n31 textbox bounds=423,171 169x20 editable
   n32 textbox bounds=600,171 169x20 editable
-  n33 button name="shown sometimes" bounds=8,191 134x20
-    n34 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n35 generic bounds=65,194 68x14
-      n36 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n33 button name="shown sometimes" bounds=8,192 134x20
+    n34 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n35 generic bounds=65,195 68x14
+      n36 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
 == visibility: hidden in a name from content
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 115x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 111x22
       n3 row name="unrelated edit" bounds=10,10 111x22
@@ -713,11 +713,11 @@ n0 generic bounds=8,8 784x203
   n30 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n31 textbox bounds=423,171 169x20 editable
   n32 textbox bounds=600,171 169x20 editable
-  n33 button name="shown" bounds=8,191 134x20
-    n34 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+  n33 button name="shown" bounds=8,192 134x20
+    n34 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
 
 == visibility back
-n0 generic bounds=8,8 784x203
+n0 generic bounds=8,8 784x204
   n1 table bounds=8,8 115x26 table=1x1 column_headers=[none] row_headers=[none]
     n2 rowgroup bounds=10,10 111x22
       n3 row name="unrelated edit" bounds=10,10 111x22
@@ -750,8 +750,8 @@ n0 generic bounds=8,8 784x203
   n30 text leaf name="retargeted label" bounds=288,172 126x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 8,0 17,0 24,0 33,0 42,0 50,0 58,0 65,0 74,0 82,0 90,0 94,0 103,0 113,0 122,0 lines=0@16
   n31 textbox bounds=423,171 169x20 editable
   n32 textbox bounds=600,171 169x20 editable
-  n33 button name="shown sometimes" bounds=8,191 134x20
-    n34 text leaf name="shown " bounds=17,194 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
-    n35 generic bounds=65,194 68x14
-      n36 text leaf name="sometimes" bounds=65,194 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
+  n33 button name="shown sometimes" bounds=8,192 134x20
+    n34 text leaf name="shown " bounds=17,195 48x14 font="SerenitySans" 13.328125 400 normal color=#000000 background=#efefef characters=0,0 7,0 15,0 24,0 33,0 41,0 lines=0@14
+    n35 generic bounds=65,195 68x14
+      n36 text leaf name="sometimes" bounds=65,195 68x14 font="SerenitySans" 13.328125 400 normal color=#000000 characters=0,0 7,0 16,0 26,0 33,0 39,0 43,0 53,0 60,0 lines=0@14
 
