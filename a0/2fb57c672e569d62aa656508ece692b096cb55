@@ -1,0 +1,13 @@
+For the dominant-baseline property, Ladybird accepts text-before-edge
+and text-after-edge as aliases of text-top and text-bottom, and aligns
+SVG text with them to the top of the font’s ascent and to the bottom of
+its descent. Gecko does the same: It computes the two legacy keywords
+to text-top and text-bottom. Blink and WebKit keep text-before-edge
+and text-after-edge as keywords of their own, and reject text-top and
+text-bottom for dominant-baseline.
+
+Both keywords put the text where Ladybird now puts it in Chrome
+157.0.8103.79, Firefox 151.0, and WebKit 26.5, for Ahem, Helvetica,
+Times, and Hiragino Sans. A smaller <tspan> that inherits the value
+is aligned with its own font in Chrome and in Ladybird, and to its
+parent’s baseline in Firefox.
