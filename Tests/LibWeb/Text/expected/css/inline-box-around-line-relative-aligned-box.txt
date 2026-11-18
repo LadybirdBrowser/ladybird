@@ -1,0 +1,8 @@
+top-child-alone: 80 (30, -5)
+top-child-after-text: 80 (30, -5)
+bottom-child-alone: 80 (30, 65)
+top-child-in-shifted-box: 80 (30, -5)
+two-boxes-around-top-child: 80 (30, 30, -5)
+raised-box-inside-top-box: 125 (110, 10, 95)
+raised-box-around-bottom-box: 125 (10, 95)
+inline-block-in-top-box: 80 (30, -5, 1)

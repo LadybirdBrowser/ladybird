@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 20px/10px Ahem; }
+    .outer { line-height: 80px; }
+    .inner { line-height: 10px; }
+    .case { position: relative; }
+</style>
+<div class="case" id="top-child-alone"><span class="outer"><span class="inner" style="vertical-align: top">X</span></span></div>
+<div class="case" id="top-child-after-text">a<span class="outer"><span class="inner" style="vertical-align: top">X</span></span></div>
+<div class="case" id="bottom-child-alone"><span class="outer"><span class="inner" style="vertical-align: bottom">X</span></span></div>
+<div class="case" id="top-child-in-shifted-box"><span class="outer" style="vertical-align: 10px"><span class="inner" style="vertical-align: top">X</span></span></div>
+<div class="case" id="two-boxes-around-top-child"><span class="outer"><span style="line-height: 40px"><span class="inner" style="vertical-align: top">X</span></span></span></div>
+<div class="case" id="raised-box-inside-top-box"><span style="vertical-align: top">A<span style="vertical-align: 100px; line-height: 40px"><span style="vertical-align: bottom">B</span></span></span></div>
+<div class="case" id="raised-box-around-bottom-box">x<span style="vertical-align: 100px; line-height: 40px"><span style="vertical-align: bottom">B</span></span></div>
+<div class="case" id="inline-block-in-top-box"><span class="outer"><span class="inner" style="vertical-align: top"><span style="display: inline-block; width: 10px; height: 10px"></span></span></span></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        for (const element of document.querySelectorAll(".case")) {
+            const rect = element.getBoundingClientRect();
+            const offsets = [...element.querySelectorAll("span")].map(span => span.getBoundingClientRect().top - rect.top);
+            println(`${element.id}: ${rect.height} (${offsets.join(", ")})`);
+        }
+    });
+</script>
