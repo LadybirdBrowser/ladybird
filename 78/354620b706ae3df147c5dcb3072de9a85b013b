@@ -1,0 +1,41 @@
+Ladybird resolves filter regions and primitive subregions as Chrome 157
+and Firefox 151 do, verified at runtime on 24 cases: default, fractional
+and percentage subregions in both units, zero widths, feImage fitting,
+and the filter region on SVG and HTML elements. The two differ on a
+negative width: Chrome disables the primitive, as the spec says, and
+Ladybird does too, while Firefox ignores the attribute. WebKit
+(Playwright’s 26.5 build) treats a zero-size primitive as an error that
+hides the element, so it’s no reference here.
+
+For an HTML element, Blink’s PaintLayer::UpdateFilterReferenceBox()
+takes LocalBoundingBoxIncludingSelfPaintingDescendants(), the box’s
+visual overflow grown by its self-painting descendants, and its
+ComputeFilterViewport() takes the box’s size for userSpaceOnUse
+percentages. Ladybird has no visual overflow, so it grows the border box
+by the scrollable overflow and the descendants’ border boxes instead.
+All three engines render filter-region-transformed-child-001 and
+filter-region-negative-positioned-child-001 that way.
+
+A primitive’s default subregion is the union of its inputs’ subregions
+as defined, before the filter region clips them: The spec says “the
+subregions defined for all referenced nodes”. Chrome 157 does that, in
+user space and in bounding-box units: Blink’s SetStandardAttributes()
+stores the unclipped subregion that DefaultFilterPrimitiveSubregion()
+then unions. Firefox 151 unions the clipped ones instead, since Gecko’s
+SVGFilterInstance stores each PrimitiveSubregion() intersected with
+FilterSpaceBounds(). WebKit 26.5 never looks at the inputs: Its
+FilterEffectGeometry::primitiveSubregion() defaults a missing attribute
+to the filter region instead.
+
+An feImage whose image has an aspect ratio but no width or height (an
+SVG with only a viewBox) fits its subregion at that ratio, as in Chrome
+157 and Firefox 151, verified with meet, slice, none, and xMinYMin, and
+with an SVG that has a width but no height. Blink draws an SVG image at
+its container’s size, so the image’s own viewBox does the fitting.
+WebKit 26.5 draws nothing there.
+
+A descendant that a transform moves out past the box’s start edge (a
+child with translateX(-100px), e.g.) counts toward the object bounding
+box too: Ladybird maps each descendant’s border box through its own
+transform and its ancestors’ up to the filtered box. Chrome 157, Firefox
+151 and WebKit 26.5 all draw such a child whole.
