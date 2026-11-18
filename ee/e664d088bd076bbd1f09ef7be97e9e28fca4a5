@@ -1,0 +1,35 @@
+A box with “clear” gets clearance where its top border edge wouldn’t
+otherwise be past the floats it clears. Ladybird works out that
+hypothetical position from the box’s top margin, collapsed with the
+margins before it and with those of its first children. It gets those
+before the box is laid out, by sizing each of those boxes the way their
+layout does — so a percentage margin resolves against the box it’s in,
+and margins collapse through a box only where it ends up with no height.
+One of those children that has “clear” itself counts for as long as
+it wouldn’t get clearance where those margins put it. A float inside a
+block container whose top margin the box’s margin collapses into would
+move down with the box, so it’s measured from the flow position instead,
+and gets the box clearance for as long as it reaches below that.
+
+Blink keeps such floats as adjoining objects of the container, and
+its HasClearancePastAdjoiningFloats() separates the margins there.
+Otherwise, ApplyClearance() moves the box only where the offset that
+its margin strut gives it is short of ExclusionSpace::ClearanceOffset(),
+and a box whose contents change that offset is laid out again, with
+LayoutResult::kBfcBlockOffsetResolved. WebKit estimates the top from
+the collapsed margins, in RenderBlockFlow::estimateLogicalTopPosition(),
+and clearFloatsIfNeeded() adds what computedClearDeltaForChild()
+finds from there. Gecko collapses the top margin with those of the
+frame’s first children ahead of its reflow, in nsBlockReflowContext::
+ComputeCollapsedBStartMargin(), which makes a ReflowInput for each
+of them, and nsBlockFrame::ReflowBlockFrame() asks BlockReflowState::
+ClearFloats() from that position. Where a parent already counted the
+margin in its own, it records the frame in mDiscoveredClearance, and the
+parent is reflowed with the frame treated as having clearance.
+
+In Chrome 157.0.8103.79, Firefox 151.0 and WebKit 26.5, the test’s 58
+cases come out the same. Where a first child’s negative margin undoes
+a positive margin of the clearing box itself, Chrome leaves the box 5px
+lower than Firefox, WebKit and Ladybird do, which the test leaves out.
+It also leaves out an empty first child that clears the same float and
+has a bottom margin, where the three engines each do something else.
