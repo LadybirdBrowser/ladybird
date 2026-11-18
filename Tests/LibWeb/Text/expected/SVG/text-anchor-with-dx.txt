@@ -1,0 +1,5 @@
+anchored in the middle, dx inside: 160,30 220,30
+anchored at the end, dx inside: 100,30 160,30 180,30
+anchored at the end, negative dx inside: 150,30 160,30 180,30
+anchored in the middle, dx on the first character: 220,30 240,30
+anchored in the middle, dx in a second chunk: 180,30 200,30 310,30 350,30
