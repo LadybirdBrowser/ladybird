@@ -5,6 +5,8 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/GenericShorthands.h>
+#include <AK/Math.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
@@ -107,6 +109,13 @@ size_t append_ebml_uint(ByteBuffer& data, u32 id, u64 value, size_t value_byte_w
     return payload_position;
 }
 
+void append_ebml_float(ByteBuffer& data, u32 id, double value)
+{
+    append_ebml_id(data, id);
+    append_ebml_size(data, sizeof(value));
+    append_big_endian_uint(data, bit_cast<u64>(value), sizeof(value));
+}
+
 void append_ebml_string(ByteBuffer& data, u32 id, StringView value)
 {
     append_ebml_id(data, id);
@@ -147,6 +156,11 @@ constexpr Array<u8, 21> BT2020_PQ_AV1_CONFIGURATION_RECORD {
 enum class WithColorElement : u8 {
     No,
     Yes,
+    WithOnlyHighDynamicRangeMetadata,
+    WithInfiniteMasteringLuminance,
+    WithTwoByteMasteringLuminance,
+    WithOnlyMasteringLuminances,
+    WithOutOfRangeMasteringChromaticity,
 };
 
 ByteBuffer make_matroska_with_av1_track(WithColorElement with_color_element)
@@ -177,6 +191,28 @@ ByteBuffer make_matroska_with_av1_track(WithColorElement with_color_element)
         append_ebml_uint(data, Media::Matroska::PRIMARIES_ID, 1);
         append_ebml_uint(data, Media::Matroska::TRANSFER_CHARACTERISTICS_ID, 1);
         append_ebml_uint(data, Media::Matroska::MATRIX_COEFFICIENTS_ID, 1);
+        finish_ebml_master(data, color);
+    } else if (with_color_element != WithColorElement::No) {
+        auto color = begin_ebml_master(data, Media::Matroska::COLOR_ENTRY_ID);
+        append_ebml_uint(data, Media::Matroska::MAX_CLL_ID, 1005);
+        append_ebml_uint(data, Media::Matroska::MAX_FALL_ID, 315);
+        auto mastering_metadata = begin_ebml_master(data, Media::Matroska::MASTERING_METADATA_ID);
+        if (with_color_element != WithColorElement::WithOnlyMasteringLuminances) {
+            append_ebml_float(data, Media::Matroska::PRIMARY_R_CHROMATICITY_X_ID, with_color_element == WithColorElement::WithOutOfRangeMasteringChromaticity ? 1.25 : 0.708);
+            append_ebml_float(data, Media::Matroska::PRIMARY_R_CHROMATICITY_Y_ID, 0.292);
+            append_ebml_float(data, Media::Matroska::PRIMARY_G_CHROMATICITY_X_ID, 0.170);
+            append_ebml_float(data, Media::Matroska::PRIMARY_G_CHROMATICITY_Y_ID, 0.797);
+            append_ebml_float(data, Media::Matroska::PRIMARY_B_CHROMATICITY_X_ID, 0.131);
+            append_ebml_float(data, Media::Matroska::PRIMARY_B_CHROMATICITY_Y_ID, 0.046);
+            append_ebml_float(data, Media::Matroska::WHITE_POINT_CHROMATICITY_X_ID, 0.3127);
+            append_ebml_float(data, Media::Matroska::WHITE_POINT_CHROMATICITY_Y_ID, 0.3290);
+        }
+        if (with_color_element == WithColorElement::WithTwoByteMasteringLuminance)
+            append_ebml_binary(data, Media::Matroska::LUMINANCE_MAX_ID, Array<u8, 2> { 0x03, 0xe8 });
+        else
+            append_ebml_float(data, Media::Matroska::LUMINANCE_MAX_ID, with_color_element == WithColorElement::WithInfiniteMasteringLuminance ? AK::Infinity<double> : 1000);
+        append_ebml_float(data, Media::Matroska::LUMINANCE_MIN_ID, 0.005);
+        finish_ebml_master(data, mastering_metadata);
         finish_ebml_master(data, color);
     }
     finish_ebml_master(data, video);
@@ -1250,6 +1286,73 @@ TEST_CASE(color_element_overrides_the_codec_private_configuration_record)
     auto track = Media::Matroska::track_from_track_entry(*track_entry, true);
     EXPECT_EQ(track.video_data().color_metadata.cicp.color_primaries(), Media::ColorPrimaries::BT709);
     EXPECT_EQ(track.video_data().color_metadata.cicp.transfer_characteristics(), Media::TransferCharacteristics::BT709);
+}
+
+TEST_CASE(color_element_adds_high_dynamic_range_metadata_to_the_codec_private_colors)
+{
+    auto data = make_matroska_with_av1_track(WithColorElement::WithOnlyHighDynamicRangeMetadata);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto track_entry = MUST(reader.track_for_track_number(1));
+
+    auto track = Media::Matroska::track_from_track_entry(*track_entry, true);
+    auto const& color_metadata = track.video_data().color_metadata;
+    EXPECT_EQ(color_metadata.cicp.color_primaries(), Media::ColorPrimaries::BT2020);
+    EXPECT_EQ(color_metadata.cicp.transfer_characteristics(), Media::TransferCharacteristics::SMPTE2084);
+
+    EXPECT(color_metadata.content_light_level_information.has_value());
+    EXPECT_EQ(color_metadata.content_light_level_information->maximum_content_light_level, 1005);
+    EXPECT_EQ(color_metadata.content_light_level_information->maximum_frame_average_light_level, 315);
+
+    EXPECT(color_metadata.mastering_display_color_volume.has_value());
+    auto const& volume = *color_metadata.mastering_display_color_volume;
+    EXPECT_APPROXIMATE(volume.red.x, 0.708f);
+    EXPECT_APPROXIMATE(volume.green.y, 0.797f);
+    EXPECT_APPROXIMATE(volume.blue.x, 0.131f);
+    EXPECT_APPROXIMATE(volume.white_point.y, 0.3290f);
+    EXPECT_APPROXIMATE(volume.maximum_luminance, 1000.0f);
+    EXPECT_APPROXIMATE(volume.minimum_luminance, 0.005f);
+}
+
+TEST_CASE(mastering_metadata_with_a_non_finite_value_is_left_out)
+{
+    auto data = make_matroska_with_av1_track(WithColorElement::WithInfiniteMasteringLuminance);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto track_entry = MUST(reader.track_for_track_number(1));
+
+    auto track = Media::Matroska::track_from_track_entry(*track_entry, true);
+    auto const& color_metadata = track.video_data().color_metadata;
+    EXPECT(!color_metadata.mastering_display_color_volume.has_value());
+    EXPECT(color_metadata.content_light_level_information.has_value());
+}
+
+TEST_CASE(mastering_metadata_missing_its_chromaticities_or_out_of_their_range_is_left_out)
+{
+    for (auto with_color_element : { WithColorElement::WithOnlyMasteringLuminances, WithColorElement::WithOutOfRangeMasteringChromaticity }) {
+        auto data = make_matroska_with_av1_track(with_color_element);
+        auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+        auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+        auto track_entry = MUST(reader.track_for_track_number(1));
+
+        auto track = Media::Matroska::track_from_track_entry(*track_entry, true);
+        auto const& color_metadata = track.video_data().color_metadata;
+        EXPECT(!color_metadata.mastering_display_color_volume.has_value());
+        EXPECT(color_metadata.content_light_level_information.has_value());
+    }
+}
+
+TEST_CASE(mastering_metadata_with_a_float_of_an_invalid_size_is_left_out)
+{
+    auto data = make_matroska_with_av1_track(WithColorElement::WithTwoByteMasteringLuminance);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto track_entry = MUST(reader.track_for_track_number(1));
+
+    auto track = Media::Matroska::track_from_track_entry(*track_entry, true);
+    auto const& color_metadata = track.video_data().color_metadata;
+    EXPECT(!color_metadata.mastering_display_color_volume.has_value());
+    EXPECT(color_metadata.content_light_level_information.has_value());
 }
 
 TEST_CASE(simple_block_extending_past_the_representable_size_is_corrupted)
