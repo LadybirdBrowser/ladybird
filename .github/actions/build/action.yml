@@ -60,7 +60,7 @@ runs:
       id: 'build-parameters'
       shell: bash
       run: |
-        CMAKE_OPTIONS="-DENABLE_CI_BASELINE_CPU=ON"
+        CMAKE_OPTIONS="-DLADYBIRD_BASELINE_CPU_TARGET=ON"
         if ${{ inputs.os == 'Linux' }} ; then
           # FIXME: https://github.com/WebAssembly/wabt/issues/2533
           #        wabt doesn't have binary releases for arm64 Linux
@@ -145,7 +145,7 @@ runs:
         VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && inputs.vcpkg_cache_sas != '' && 'write' || '' }}
       run: |
         cmake --preset ${{ inputs.build_preset }} -B Build `
-          -DENABLE_CI_BASELINE_CPU=ON
+          -DLADYBIRD_BASELINE_CPU_TARGET=ON
 
     - name: Create Build Environment (Fuzzers)
       if: ${{ inputs.build_preset == 'Fuzzers' }}
