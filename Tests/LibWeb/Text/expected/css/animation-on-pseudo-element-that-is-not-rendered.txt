@@ -1,0 +1,6 @@
+After animate(), ::before: rgb(0, 128, 0), 1px, 1px
+After animate(), ::marker: rgb(0, 128, 0), 1px, 1px
+After animate(), ::backdrop: rgb(0, 128, 0), 1px, 1px
+After two animation frames, ::before: rgb(0, 128, 0), 1px, 1px
+After two animation frames, ::marker: rgb(0, 128, 0), 1px, 1px
+After two animation frames, ::backdrop: rgb(0, 128, 0), 1px, 1px
