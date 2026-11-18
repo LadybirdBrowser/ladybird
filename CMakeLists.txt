@@ -57,9 +57,7 @@ if(ENABLE_ALL_THE_DEBUG_MACROS)
     include(all_the_debug_macros)
 endif()
 
-if (ENABLE_LAGOM_CCACHE)
-    include(setup_ccache)
-endif()
+include(setup_ccache)
 
 if (ENABLE_FUZZERS_LIBFUZZER OR ENABLE_FUZZERS_OSSFUZZ)
     set(ENABLE_FUZZERS ON)

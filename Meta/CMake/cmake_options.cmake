@@ -64,7 +64,7 @@ option(ENABLE_THREAD_SANITIZER "Enable thread sanitizer testing in gcc/clang" OF
 option(ENABLE_FUZZERS "Build fuzzing targets" OFF)
 option(ENABLE_FUZZERS_LIBFUZZER "Build fuzzers using Clang's libFuzzer" OFF)
 option(ENABLE_FUZZERS_OSSFUZZ "Build OSS-Fuzz compatible fuzzers" OFF)
-option(ENABLE_LAGOM_CCACHE "Enable ccache for Lagom builds" ON)
+option(LADYBIRD_ENABLE_CCACHE "Compile through ccache when it is installed" ON)
 set(LAGOM_USE_LINKER "" CACHE STRING "The linker to use (e.g. lld, mold) instead of the system default")
 set(LAGOM_LINK_POOL_SIZE "" CACHE STRING "The maximum number of parallel jobs to use for linking")
 option(LADYBIRD_ENABLE_LTO "Enable link-time optimization" OFF)
