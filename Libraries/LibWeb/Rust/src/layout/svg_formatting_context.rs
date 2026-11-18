@@ -36,6 +36,9 @@ pub struct FfiSvgTextCharacterCell {
     pub y: f32,
     pub width: f32,
     pub height: f32,
+    /// Where the alignment point of the typographic character is along the block axis: The current text position the
+    /// character was placed at, which the dominant baseline of its font is aligned to.
+    pub alignment_point_y: f32,
     /// Whether this code unit is the first, in document order, of the typographic character whose
     /// cell this is. A later code unit of the same character carries the same cell, unmarked.
     pub starts_typographic_character: bool,
@@ -112,6 +115,7 @@ fn append_svg_text_character_cells(
             y: top,
             width: end_x - first.x - spacing_after_each_character,
             height,
+            alignment_point_y: 0.0,
             starts_typographic_character: true,
         };
         cells.push(cell);
@@ -133,6 +137,7 @@ fn append_svg_text_character_cells(
             y: top,
             width: 0.0,
             height,
+            alignment_point_y: 0.0,
             starts_typographic_character: false,
         },
         length_in_code_units - covered,
@@ -2168,6 +2173,9 @@ impl<'pass> SvgFormattingContext<'pass> {
                     text_offset,
                     self.text_length_adjustment.spacing(),
                 );
+                for cell in &mut shaped.character_cells {
+                    cell.alignment_point_y = self.current_text_position.y;
+                }
                 if glyph_scale != 1.0 {
                     let glyph_cells = shaped.glyph_cells.to_float_rect();
                     shaped.glyph_cells = float_rect_to_css_pixels(FloatRect::new(

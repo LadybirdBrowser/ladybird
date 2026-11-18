@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+6 Pass
+1 Fail
+Pass	control: without textLength the advances are one em each
+Pass	lengthAdjust="spacing" moves the characters apart and leaves each advance alone
+Pass	lengthAdjust="spacingAndGlyphs" scales the advances, the positions and the extents
+Fail	lengthAdjust="spacingAndGlyphs" does not rotate or change the height of a character
+Pass	getSubStringLength sums the scaled advances under lengthAdjust="spacingAndGlyphs"
+Pass	getCharNumAtPosition finds the characters where lengthAdjust="spacing" put them
+Pass	getCharNumAtPosition finds the stretched characters under lengthAdjust="spacingAndGlyphs"

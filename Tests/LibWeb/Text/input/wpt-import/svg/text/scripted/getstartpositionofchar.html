@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<title>SVGTextContentElement.getStartPositionOfChar and getEndPositionOfChar</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextContentElement__getStartPositionOfChar">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+text {
+  font: 10px/1 Ahem;
+}
+#vrl {
+  writing-mode: vertical-rl;
+}
+#vlr {
+  writing-mode: vertical-lr;
+}
+#srl {
+  writing-mode: sideways-rl;
+}
+#slr {
+  writing-mode: sideways-lr;
+}
+</style>
+
+<svg>
+  <text id="vrl" x="100" y="100">ABC</text>
+  <text id="vlr" x="100" y="100">ABC</text>
+  <text id="srl" x="100" y="100">ABC</text>
+  <text id="slr" x="100" y="100">ABC</text>
+  <text x="100" y="100">A<tspan id="tsp">B</tspan>C</text>
+</svg>
+
+<script>
+const FONT_SIZE = 10;
+function $(sel) { return document.querySelector(sel); }
+
+setup({ explicit_done: true });
+
+document.fonts.ready.then(() => {
+  test(() => {
+    const target = $('#vrl');
+    const base = target.getStartPositionOfChar(0).y;
+    assert_equals(target.getEndPositionOfChar(0).y, base + FONT_SIZE);
+    assert_equals(target.getStartPositionOfChar(1).y, base + FONT_SIZE);
+    assert_equals(target.getEndPositionOfChar(1).y, base + FONT_SIZE * 2);
+    assert_equals(target.getStartPositionOfChar(2).y, base + FONT_SIZE * 2);
+    assert_equals(target.getEndPositionOfChar(2).y, base + FONT_SIZE * 3);
+    assert_throws_dom("IndexSizeError", () => target.getStartPositionOfChar(3));
+    assert_throws_dom("IndexSizeError", () => target.getEndPositionOfChar(3));
+  }, 'vertical-rl');
+
+  test(() => {
+    const target = $('#vlr');
+    const base = target.getStartPositionOfChar(0).y;
+    assert_equals(target.getEndPositionOfChar(0).y, base + FONT_SIZE);
+    assert_equals(target.getStartPositionOfChar(1).y, base + FONT_SIZE);
+    assert_equals(target.getEndPositionOfChar(1).y, base + FONT_SIZE * 2);
+    assert_equals(target.getStartPositionOfChar(2).y, base + FONT_SIZE * 2);
+    assert_equals(target.getEndPositionOfChar(2).y, base + FONT_SIZE * 3);
+  }, 'vertical-lr');
+
+  test(() => {
+    const target = $('#srl');
+    const base = target.getStartPositionOfChar(0).y;
+    assert_equals(target.getEndPositionOfChar(0).y, base + FONT_SIZE);
+    assert_equals(target.getStartPositionOfChar(1).y, base + FONT_SIZE);
+    assert_equals(target.getEndPositionOfChar(1).y, base + FONT_SIZE * 2);
+    assert_equals(target.getStartPositionOfChar(2).y, base + FONT_SIZE * 2);
+    assert_equals(target.getEndPositionOfChar(2).y, base + FONT_SIZE * 3);
+  }, 'sideways-rl');
+
+  test(() => {
+    const target = $('#slr');
+    const base = target.getStartPositionOfChar(0).y;
+    assert_equals(target.getEndPositionOfChar(0).y, base - FONT_SIZE);
+    assert_equals(target.getStartPositionOfChar(1).y, base - FONT_SIZE);
+    assert_equals(target.getEndPositionOfChar(1).y, base - FONT_SIZE * 2);
+    assert_equals(target.getStartPositionOfChar(2).y, base - FONT_SIZE * 2);
+    assert_equals(target.getEndPositionOfChar(2).y, base - FONT_SIZE * 3);
+  }, 'sideways-lr');
+
+  test(() => {
+    const target = $('#tsp');
+    const base = target.parentElement.getStartPositionOfChar(0).y;
+    assert_equals(target.getStartPositionOfChar(0).x, base + FONT_SIZE);
+    assert_equals(target.getEndPositionOfChar(0).x, base + FONT_SIZE * 2);
+    assert_throws_dom("IndexSizeError", () => target.getStartPositionOfChar(1));
+    assert_throws_dom("IndexSizeError", () => target.getEndPositionOfChar(1));
+  }, 'tspan');
+  done();
+});
+</script>

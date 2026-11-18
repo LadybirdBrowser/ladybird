@@ -1,0 +1,49 @@
+<meta charset="utf-8">
+<title>SVGTextContentElement.getStartPositionOfChar and dominant-baseline</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextContentElement__getStartPositionOfChar">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+text {
+  font-family: Arial;
+  font-size: 60px;
+  fill: #ffff00;
+}
+</style>
+<svg>
+  <defs>
+    <path id="path" d="M20 80h120"></path>
+  </defs>
+  <g>
+    <text>
+      <textPath id="textPath1" href="#path">Test</textPath>
+      <tspan id="tspan1" x="0" y="100">Test</tspan>
+    </text>
+  </g>
+  <g transform="translate(140 0)">
+    <text dominant-baseline="middle">
+      <textPath id="textPath2" href="#path">Test</textPath>
+      <tspan id="tspan2" x="0" y="100">Test</tspan>
+    </text>
+  </g>
+</svg>
+
+<script>
+function $(sel) { return document.querySelector(sel); }
+
+test(() => {
+  assert_equals($('#textPath1').getStartPositionOfChar(0).y,
+                $('#textPath2').getStartPositionOfChar(0).y);
+  assert_equals($('#textPath1').getEndPositionOfChar(0).y,
+                $('#textPath2').getEndPositionOfChar(0).y);
+}, 'textPath: get*PositionOfChar().y should not depend on dominant-baseline');
+
+test(() => {
+  assert_equals($('#tspan1').getStartPositionOfChar(0).y,
+                $('#tspan2').getStartPositionOfChar(0).y);
+  assert_equals($('#tspan1').getEndPositionOfChar(0).y,
+                $('#tspan2').getEndPositionOfChar(0).y);
+}, 'tspan: get*PositionOfChar().y should not depend on dominant-baseline');
+</script>
+

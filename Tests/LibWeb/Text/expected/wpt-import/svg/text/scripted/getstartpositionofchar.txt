@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+1 Pass
+4 Fail
+Fail	vertical-rl
+Fail	vertical-lr
+Fail	sideways-rl
+Fail	sideways-lr
+Pass	tspan

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:html="http://www.w3.org/1999/xhtml">
+  <title>Inconsistent two 'textLength' attributes</title>
+  <html:script src="../../../resources/testharness.js"/>
+  <html:script src="../../../resources/testharnessreport.js"/>
+  <html:link rel="help" href="https://crbug.com/1399351"/>
+  <g>
+    <text textLength="150" x="10" y="100">
+    <tspan textLength="300">Scalable Vector</tspan>
+    </text>
+  </g>
+  <html:script>
+test(() => {
+  const tspan = document.querySelector('tspan');
+  assert_less_than(tspan.getStartPositionOfChar(0).x,
+                   tspan.getStartPositionOfChar(1).x);
+}, 'The first characters should be on the left of the second character.');
+  </html:script>
+</svg>
