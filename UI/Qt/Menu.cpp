@@ -8,15 +8,20 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/HistoryStore.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Tab.h>
+#include <UI/Qt/Theme.h>
 #include <UI/Qt/WebContentView.h>
 
 #include <QAction>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QMenu>
 #include <QPointer>
+#include <QPushButton>
 #include <QTimer>
 #include <QToolButton>
 #include <QWidget>
@@ -574,6 +579,55 @@ QAction* create_application_action(QWidget& parent, Action& action, IncludeActio
     auto* qaction = new QAction(&parent);
     initialize_native_control(action, *qaction, parent.palette(), include_action_icon);
     return qaction;
+}
+
+// The menu's zoom row: its label like an item's, and the page's zoom level between buttons to zoom out and in.
+MenuZoomRow::MenuZoomRow(QMenu& menu, QAction& zoom_out, QAction& reset_zoom, QAction& zoom_in, QAction& zoom_level)
+    : QWidgetAction(&menu)
+{
+    auto* row = new QWidget(&menu);
+    row->setObjectName("LadybirdMenuZoomRow");
+    auto* layout = new QHBoxLayout(row);
+    layout->setContentsMargins(10, 3, 10, 3);
+    layout->setSpacing(2);
+    layout->addWidget(new QLabel("Zoom", row), 1);
+
+    auto add_button = [&](char const* object_name, QString const& tooltip, QAction& action) {
+        auto* button = new QPushButton(row);
+        button->setObjectName(object_name);
+        button->setToolTip(tooltip);
+        button->setAccessibleName(tooltip);
+        button->setFocusPolicy(Qt::NoFocus);
+        QObject::connect(button, &QPushButton::clicked, &action, &QAction::trigger);
+        layout->addWidget(button);
+        return button;
+    };
+    m_zoom_out = add_button("LadybirdMenuZoomButton", "Zoom Out", zoom_out);
+    auto* level = add_button("LadybirdMenuZoomLevel", "Reset Zoom", reset_zoom);
+    // NB: The level is drawn in figures of one width, so it doesn't shift as it changes.
+    auto level_font = level->font();
+    level_font.setFeature(QFont::Tag("tnum"), 1);
+    level->setFont(level_font);
+    m_zoom_in = add_button("LadybirdMenuZoomButton", "Zoom In", zoom_in);
+
+    auto update_level = [&zoom_level, level] {
+        // The address bar hides its zoom action at the default level and keeps its last text.
+        level->setText(zoom_level.isVisible() && !zoom_level.text().isEmpty() ? zoom_level.text() : QStringLiteral("100%"));
+    };
+    QObject::connect(&menu, &QMenu::aboutToShow, level, update_level);
+    for (auto* action : { &zoom_out, &reset_zoom, &zoom_in })
+        QObject::connect(action, &QAction::triggered, level, update_level);
+    update_level();
+
+    setDefaultWidget(row);
+    update_style();
+}
+
+void MenuZoomRow::update_style()
+{
+    defaultWidget()->setStyleSheet(ChromeStyle::menu_zoom_row_style_sheet());
+    m_zoom_out->setIcon(create_chrome_icon(ChromeIcon::ZoomOut, Theme::panel().body));
+    m_zoom_in->setIcon(create_chrome_icon(ChromeIcon::NewTab, Theme::panel().body));
 }
 
 ActionBinding::ActionBinding(QWidget& parent, IncludeActionIcon include_action_icon)

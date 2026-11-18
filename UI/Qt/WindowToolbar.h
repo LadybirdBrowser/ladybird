@@ -61,6 +61,7 @@ public:
     static int toolbar_height(bool window_controls_visible);
 
     void bind(Tab*);
+    QAction& zoom_level_action() const { return m_zoom_level_action.action(); }
     void release_location_edit(Tab&);
 
     // While the sidebar is collapsed, the toolbar holds the Ladybird button and the left sidebar's toggle here.
@@ -171,6 +172,7 @@ private:
 
     ActionBinding m_navigate_back_action { *this, IncludeActionIcon::No };
     ActionBinding m_navigate_forward_action { *this, IncludeActionIcon::No };
+    ActionBinding m_zoom_level_action { *this, IncludeActionIcon::No };
     QAction* m_reload_action { nullptr };
     QAction* m_reload_bypassing_cache_action { nullptr };
     QAction* m_stop_action { nullptr };

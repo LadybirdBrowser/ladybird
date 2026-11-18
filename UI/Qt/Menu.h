@@ -7,13 +7,16 @@
 #pragma once
 
 #include <AK/Platform.h>
+#include <AK/kmalloc.h>
 #include <UI/Qt/Actions.h>
 
 #include <QPointer>
+#include <QWidgetAction>
 
 class QAction;
 class QMenu;
 class QPoint;
+class QPushButton;
 class QWidget;
 
 namespace Ladybird {
@@ -31,6 +34,19 @@ void update_history_menu(QMenu& menu, WebContentView*);
 void populate_session_history_traversal_menu(QMenu& menu, WebContentView&, int direction);
 
 QAction* create_application_action(QWidget& parent, Action&, IncludeActionIcon = IncludeActionIcon::Yes);
+
+class MenuZoomRow final : public QWidgetAction {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    MenuZoomRow(QMenu&, QAction& zoom_out, QAction& reset_zoom, QAction& zoom_in, QAction& zoom_level);
+
+    void update_style();
+
+private:
+    QPushButton* m_zoom_out { nullptr };
+    QPushButton* m_zoom_in { nullptr };
+};
 
 // The property of a QAction that's true while its Action is busy.
 static constexpr auto BUSY_ACTION_PROPERTY = "LadybirdBusyAction";
