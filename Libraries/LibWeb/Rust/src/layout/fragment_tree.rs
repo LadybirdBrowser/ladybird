@@ -130,6 +130,26 @@ pub(crate) struct SvgTextSegment {
     /// The child element the part follows, or the invalid slot for the part that comes before every child element.
     pub(crate) after_child: crate::layout::node_data::NodeSlotId,
     pub(crate) path: libgfx_rust::path::Path,
+    /// The glyphs of the part that a color font draws. They have no outlines for the path to hold, so they paint as
+    /// glyphs.
+    pub(crate) color_glyph_runs: Vec<SvgColorGlyphRun>,
+}
+
+/// A run of glyphs of a color font in SVG text, in user units.
+#[derive(Clone, PartialEq)]
+pub(crate) struct SvgColorGlyphRun {
+    pub(crate) font: libgfx_rust::font::FontHandle,
+    /// The glyphs, each positioned by the top of the font's ascent.
+    pub(crate) glyphs: Vec<SvgColorGlyph>,
+    /// The cells the glyphs occupy.
+    pub(crate) bounds: libgfx_rust::FloatRect,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct SvgColorGlyph {
+    pub(crate) x: f32,
+    pub(crate) y: f32,
+    pub(crate) glyph_id: u32,
 }
 
 #[derive(Clone, Default)]

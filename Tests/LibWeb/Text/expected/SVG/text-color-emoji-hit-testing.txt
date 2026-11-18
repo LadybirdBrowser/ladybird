@@ -1,0 +1,4 @@
+In the middle of the emoji: link
+Past the emoji: svg
+In the second emoji of text scaled to twice its length: scaled-link
+Past the text scaled to twice its length: svg

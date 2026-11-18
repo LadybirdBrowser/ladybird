@@ -1,0 +1,5 @@
+An emoji has a length: true
+Three emoji that joiners make one are as long as one emoji: true
+Apart, they're as long as three: true
+Ahem doesn't draw a "B" by itself: true
+Nor a "B" after an "A" and a joiner: true

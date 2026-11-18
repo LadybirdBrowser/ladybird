@@ -619,6 +619,8 @@ impl SvgTextDecorationLines {
 /// What a text content element paints in one go: glyph outlines, or the rects of text decoration lines.
 enum SvgTextPaintPart {
     Glyphs(Vec<libgfx_rust::path::GlyphRun>),
+    /// Glyphs of a color font, which have no outlines.
+    ColorGlyphs(Vec<fragment_tree::SvgColorGlyphRun>),
     DecorationLines(Vec<FloatRect>),
 }
 
@@ -640,6 +642,19 @@ impl SvgTextPaintParts {
             return;
         }
         self.parts.push((after_child, SvgTextPaintPart::Glyphs(runs)));
+    }
+
+    fn add_color_glyphs(&mut self, after_child: Node, run: fragment_tree::SvgColorGlyphRun) {
+        if run.glyphs.is_empty() {
+            return;
+        }
+        if let Some((last_after_child, SvgTextPaintPart::ColorGlyphs(last_runs))) = self.parts.last_mut()
+            && *last_after_child == after_child
+        {
+            last_runs.push(run);
+            return;
+        }
+        self.parts.push((after_child, SvgTextPaintPart::ColorGlyphs(vec![run])));
     }
 
     fn add_decoration_lines(&mut self, after_child: Node, rects: Vec<FloatRect>) {
@@ -1839,26 +1854,49 @@ impl<'pass> SvgFormattingContext<'pass> {
         if text.is_empty() {
             return;
         }
+        const ZERO_WIDTH_JOINER: u32 = 0x200d;
         let frozen_font_list = style.frozen_font_list();
-        let font_for = |offset: usize| {
-            frozen_font_list.font_for_code_point(
-                code_point_at(text, offset),
-                libgfx_rust::font::EmojiPresentation {
-                    is_emoji: false,
-                    forced: false,
-                },
-            )
+        // https://drafts.csswg.org/css-fonts-4/#font-variant-emoji-prop
+        // FIXME: Take 'font-variant-emoji' into account.
+        let presentation_at = |offset: usize| {
+            let code_point = code_point_at(text, offset);
+            let next_offset = offset + code_point_length_at(text, offset);
+            let next_code_point = (next_offset < text.len()).then(|| code_point_at(text, next_offset));
+            libgfx_rust::font::emoji_presentation_for_code_point(code_point, next_code_point)
         };
+        let font_for =
+            |offset: usize| frozen_font_list.font_for_code_point(code_point_at(text, offset), presentation_at(offset));
         let mut last_font = font_for(0);
         let mut run_start = 0;
+        let mut previous_code_point = code_point_at(text, 0);
+        let mut joiner_joins_emoji = false;
         let mut offset = code_point_length_at(text, 0);
         while offset < text.len() {
-            let font = font_for(offset);
-            if font != last_font {
-                run(&last_font, &text[run_start..offset]);
-                last_font = font;
-                run_start = offset;
+            let code_point = code_point_at(text, offset);
+            // NB: A variation selector and a joiner go with the character they follow. And the font that draws that
+            //     character draws the rest of its sequence too, as far as it has the glyphs: What extends the
+            //     sequence, and what a joiner joins to it. A joiner after a character that's no emoji joins nothing,
+            //     and neither does one before a character with a variation selector that asks for its text
+            //     presentation: Those are no part of an emoji sequence.
+            if code_point == ZERO_WIDTH_JOINER {
+                joiner_joins_emoji = libgfx_rust::font::code_point_ends_emoji_zwj_element(previous_code_point);
             }
+            let presentation = presentation_at(offset);
+            let is_joined = previous_code_point == ZERO_WIDTH_JOINER
+                && joiner_joins_emoji
+                && (presentation.is_emoji || !presentation.forced);
+            let stays_in_run = matches!(code_point, 0xfe0e | 0xfe0f | ZERO_WIDTH_JOINER)
+                || ((libgfx_rust::font::code_point_extends_emoji_sequence(code_point) || is_joined)
+                    && last_font.contains_glyph(code_point));
+            if !stays_in_run {
+                let font = font_for(offset);
+                if font != last_font {
+                    run(&last_font, &text[run_start..offset]);
+                    last_font = font;
+                    run_start = offset;
+                }
+            }
+            previous_code_point = code_point;
             offset += code_point_length_at(text, offset);
         }
         run(&last_font, &text[run_start..]);
@@ -2186,7 +2224,39 @@ impl<'pass> SvgFormattingContext<'pass> {
                 }
                 spans.extend(run_spans);
                 paint_parts.add_decoration_lines(after_child, lines_under);
-                paint_parts.add_glyphs(after_child, shaped.runs);
+                for run in shaped.runs {
+                    if !run.font.is_emoji_font() {
+                        paint_parts.add_glyphs(after_child, vec![run]);
+                        continue;
+                    }
+                    // NB: The glyphs of a color font have no outlines to fill or stroke, so they're kept as glyphs.
+                    //     Where 'textLength' scales the glyphs, they move to where they'd land, but aren't stretched.
+                    let facts = run.font.facts();
+                    let mut bounds: Option<FloatRect> = None;
+                    let glyphs = run
+                        .glyphs
+                        .placed()
+                        .filter(|placed| placed.glyph.should_paint())
+                        .map(|placed| {
+                            let x = placed.x * glyph_scale;
+                            let cell = FloatRect::new(x, placed.y, placed.glyph.advance, facts.ascent + facts.descent);
+                            bounds = Some(united_even_if_empty(bounds, cell));
+                            fragment_tree::SvgColorGlyph {
+                                x,
+                                y: placed.y,
+                                glyph_id: u32::from(placed.glyph.glyph_id),
+                            }
+                        })
+                        .collect();
+                    paint_parts.add_color_glyphs(
+                        after_child,
+                        fragment_tree::SvgColorGlyphRun {
+                            font: run.font,
+                            glyphs,
+                            bounds: bounds.unwrap_or_default(),
+                        },
+                    );
+                }
                 paint_parts.add_decoration_lines(after_child, lines_over);
 
                 contents.glyph_cells.unite(shaped.glyph_cells);
@@ -2223,8 +2293,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         //     has to paint between two parts of it, the path paints as it is.
         let paints_as_one_path = paint_parts.are_one_path();
         let mut glyph_outlines = libgfx_rust::path::Path::new();
+        let mut color_glyph_cells = libgfx_rust::path::Path::new();
         let mut segments = Vec::new();
         for (after_child, part) in paint_parts.parts {
+            let mut color_glyph_runs = Vec::new();
             let path = match part {
                 SvgTextPaintPart::Glyphs(runs) => {
                     let path = libgfx_rust::path::Path::from_glyph_runs(&runs);
@@ -2235,14 +2307,25 @@ impl<'pass> SvgFormattingContext<'pass> {
                     glyph_outlines.append_path(&path);
                     path
                 }
+                SvgTextPaintPart::ColorGlyphs(runs) => {
+                    // NB: A glyph without an outline takes hits anywhere in its cell.
+                    for run in &runs {
+                        color_glyph_cells.append_path(&path_of_rects(&[run.bounds]));
+                    }
+                    color_glyph_runs = runs;
+                    libgfx_rust::path::Path::new()
+                }
                 SvgTextPaintPart::DecorationLines(rects) => path_of_rects(&rects),
             };
             segments.push(fragment_tree::SvgTextSegment {
                 after_child,
                 path: scale_glyphs(path),
+                color_glyph_runs,
             });
         }
         contents.path = scale_glyphs(glyph_outlines);
+        // NB: The cells of the color glyphs are where 'textLength' moves the glyphs to already.
+        contents.path.append_path(&color_glyph_cells);
         if !paints_as_one_path {
             contents.segments = Some(segments);
         }

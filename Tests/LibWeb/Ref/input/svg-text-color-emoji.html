@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-text-color-emoji-ref.html" />
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    @font-face {
+        font-family: ColorEmojiFont;
+        src: url("../data/fonts/NotoColorEmoji-Regular_subset.ttf");
+    }
+    @font-face {
+        font-family: MonoEmojiFont;
+        src: url("../data/fonts/NotoEmoji-Regular_subset.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+    }
+</style>
+<svg width="600" height="500">
+    <!-- A glyph of a color font has no outline to fill, so it's drawn as it is. -->
+    <text x="20" y="80" style="font: 48px ColorEmojiFont">&#x1fae8;</text>
+    <!-- Text and emoji, each in its own font. -->
+    <text x="20" y="180" style="font: 50px Ahem, ColorEmojiFont">XX&#x1fae8;</text>
+    <!-- With the emoji variation selector, an emoji takes the color font, even after a font with a text glyph for it. -->
+    <text x="20" y="280" style="font: 48px MonoEmojiFont, ColorEmojiFont">&#x1fae8;&#xfe0f;</text>
+    <!-- An emoji keeps its own colors, whatever the fill is. It has no outline, so a stroke paints the emoji too. -->
+    <text x="20" y="380" fill="red" style="font: 48px ColorEmojiFont">&#x1fae8;</text>
+    <text x="120" y="380" fill="none" stroke="blue" stroke-width="4" style="font: 48px ColorEmojiFont">&#x1fae8;</text>
+    <!-- Without a fill, or with a transparent one, it isn't drawn. -->
+    <text x="20" y="480" fill="none" style="font: 48px ColorEmojiFont">&#x1fae8;</text>
+    <text x="120" y="480" fill="transparent" style="font: 48px ColorEmojiFont">&#x1fae8;</text>
+</svg>
