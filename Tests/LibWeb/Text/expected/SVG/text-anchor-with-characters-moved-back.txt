@@ -1,0 +1,7 @@
+anchored at the start: 260,30 280,30 200,30
+anchored in the middle: 210,30 230,30 150,30
+anchored at the end: 160,30 180,30 100,30
+anchored in the middle, moved back onto the character before: 180,30 200,30 190,30
+anchored at the end, moved back onto the character before: 160,30 180,30 170,30
+anchored at the end, the last character moved back past the first: 180,30 100,30
+anchored at the end, in a second chunk: 30,30 260,30 280,30 200,30

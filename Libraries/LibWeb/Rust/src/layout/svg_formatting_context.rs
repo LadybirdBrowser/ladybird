@@ -720,14 +720,18 @@ impl SvgTextLengthAdjustment {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct SvgTextChunkMeasurement {
-    advance: f32,
+    /// The least and the greatest position along the x axis that the characters of the chunk cover, counted from where
+    /// the chunk starts.
+    start: f32,
+    end: f32,
     anchor: u8,
 }
 
 impl Default for SvgTextChunkMeasurement {
     fn default() -> Self {
         Self {
-            advance: 0.0,
+            start: 0.0,
+            end: 0.0,
             anchor: text_anchor::START,
         }
     }
@@ -2008,7 +2012,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         advance
     }
 
-    /// Measures the total advance of the text chunk that starts at the given box, and determines
+    /// Measures what the characters of the text chunk that starts at the given box cover, and determines
     /// the 'text-anchor' value that applies to the chunk. The chunk extends in document order
     /// through the subtree of the containing <text> element until the next box that starts a chunk
     /// of its own, so it takes in the text that follows the box in the elements the box is in.
@@ -2024,7 +2028,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut found_chunk_start = false;
         let mut found_first_rendered_text = false;
         let mut found_first_rendered_text_node = false;
-        let mut chunk_ends_the_text = false;
+        let mut position = 0.0f32;
         let mut current = subtree_root;
         'walk: loop {
             let kind = self.node_kind(current);
@@ -2041,7 +2045,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 // NB: A 'dx' on the chunk's first character moves where the chunk starts. Any other one moves the
                 //     characters after it apart from those before it, so it's part of what the chunk measures.
                 if found_first_rendered_text_node {
-                    measurement.advance += self.svg_text_dx_before(current);
+                    position += self.svg_text_dx_before(current);
                 }
                 found_first_rendered_text_node = true;
             }
@@ -2059,7 +2063,12 @@ impl<'pass> SvgFormattingContext<'pass> {
                     measurement.anchor = self.style(text_box).inherited_svg().text_anchor;
                     found_first_rendered_text = true;
                 }
-                measurement.advance += self.svg_text_run_advance(text_box, &text);
+                // NB: The space 'textLength' adds after each character is no part of what the character covers.
+                let run_start = position;
+                position += self.svg_text_run_advance(text_box, &text);
+                let run_end = position - self.text_length_adjustment.spacing();
+                measurement.start = measurement.start.min(run_start).min(run_end);
+                measurement.end = measurement.end.max(run_start).max(run_end);
             }
             // AD-HOC: Text on a path is laid out independently; see svg_text_path_box_path().
             if kind == NodeKind::SVGTextBox {
@@ -2071,7 +2080,6 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
             loop {
                 if current == subtree_root {
-                    chunk_ends_the_text = true;
                     break 'walk;
                 }
                 let sibling = self.next_sibling(current);
@@ -2081,10 +2089,6 @@ impl<'pass> SvgFormattingContext<'pass> {
                 }
                 current = self.parent(current);
             }
-        }
-        // NB: 'textLength' adds no space after the last character of the text.
-        if chunk_ends_the_text && found_first_rendered_text {
-            measurement.advance -= self.text_length_adjustment.spacing();
         }
         measurement
     }
@@ -2121,23 +2125,26 @@ impl<'pass> SvgFormattingContext<'pass> {
             // The 'text-anchor' property is applied to each individual text chunk within a given
             // 'text' element.
             // AD-HOC: The spec applies 'text-anchor' as a shift of the chunk's rendered glyphs
-            //         after layout; shifting the chunk's starting position up front by the chunk's
-            //         total advance is equivalent for horizontal text - since every run in the
-            //         chunk is laid out sequentially from this position.
+            //         after layout; shifting the chunk's starting position up front by what the
+            //         chunk's characters cover is equivalent for horizontal text - since every run
+            //         in the chunk is laid out sequentially from this position.
+            // NB: The start and the end of the rendered text are the least and the greatest position its characters
+            //     cover. Those aren't where the first character starts and the last one ends, where a negative 'dx'
+            //     takes a character back past the ones before it.
             let chunk = self.measure_svg_text_chunk(text_box);
             match chunk.anchor {
                 // The rendered characters are aligned such that the start of the resulting
                 // rendered text is at the initial current text position.
-                text_anchor::START => {}
+                text_anchor::START => self.current_text_position.x -= chunk.start,
                 // The rendered characters are shifted such that the geometric middle of the
                 // resulting rendered text (determined from the initial and final current text
                 // position before applying the 'text-anchor' property) is at the initial current
                 // text position.
-                text_anchor::MIDDLE => self.current_text_position.x -= chunk.advance / 2.0,
+                text_anchor::MIDDLE => self.current_text_position.x -= (chunk.start + chunk.end) / 2.0,
                 // The rendered characters are shifted such that the end of the resulting rendered
                 // text (final current text position before applying the 'text-anchor' property) is
                 // at the initial current text position.
-                text_anchor::END => self.current_text_position.x -= chunk.advance,
+                text_anchor::END => self.current_text_position.x -= chunk.end,
                 _ => unreachable!("invalid text-anchor value"),
             }
         }
@@ -2390,7 +2397,9 @@ impl<'pass> SvgFormattingContext<'pass> {
     /// properties letter-spacing and word-spacing and adjustments due to attributes 'dx' and 'dy' on this 'text' or
     /// 'tspan' element or any descendants. This value is used to calibrate the user agent's own calculations with
     /// that of the author.
-    /// NB: A 'dx' on the text's first character moves where the text starts, so it's no part of the length.
+    /// NB: A 'dx' on the text's first character moves where the text starts, so it's no part of the length. And the
+    ///     length is what the characters cover: from the least position one of them starts at to the greatest one
+    ///     ends at, which is past where the last one ends where a negative 'dx' takes a character back.
     /// AD-HOC: Text on a path isn't adjusted, since it's laid out independently.
     fn svg_text_length_adjustment(&self, text_box: Node, attributes: FfiSvgAttributeFacts) -> SvgTextLengthAdjustment {
         if attributes.text_length.kind == SVG_LENGTH_KIND_NONE {
@@ -2408,13 +2417,14 @@ impl<'pass> SvgFormattingContext<'pass> {
         } else {
             f32::MIN_POSITIVE
         };
-        let mut natural_length = 0.0f32;
+        let mut position = 0.0f32;
+        let (mut start, mut end) = (0.0f32, 0.0f32);
         let mut typographic_character_count = 0usize;
         let mut found_first_rendered_text_node = false;
         self.for_each_svg_text_node_in(text_box, false, |node| {
             if !self.processed_svg_text(node).is_empty() {
                 if found_first_rendered_text_node {
-                    natural_length += self.svg_text_dx_before(node);
+                    position += self.svg_text_dx_before(node);
                 }
                 found_first_rendered_text_node = true;
             }
@@ -2427,13 +2437,17 @@ impl<'pass> SvgFormattingContext<'pass> {
                 FfiFloatPoint::default(),
                 spacing_while_measuring,
             );
-            natural_length += shaped.advance;
+            let run_start = position;
+            position += shaped.advance;
+            start = start.min(run_start).min(position);
+            end = end.max(run_start).max(position);
             typographic_character_count += shaped
                 .character_cells
                 .iter()
                 .filter(|cell| cell.starts_typographic_character)
                 .count();
         });
+        let natural_length = end - start;
         if attributes.text_length_adjusts_glyphs {
             if natural_length <= 0.0 {
                 return SvgTextLengthAdjustment::None;
