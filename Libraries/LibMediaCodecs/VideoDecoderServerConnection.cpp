@@ -6,6 +6,7 @@
 
 #include <AK/Checked.h>
 #include <AK/ConditionVariable.h>
+#include <AK/Math.h>
 #include <AK/Queue.h>
 #include <AK/Variant.h>
 #include <LibCore/EventLoop.h>
@@ -28,6 +29,7 @@ public:
         AK::Duration decode_timestamp;
         AK::Duration duration;
         FrameFlags flags { FrameFlags::None };
+        Optional<float> maximum_scene_luminance;
         Optional<ByteBuffer> new_codec_configuration;
         DecodeIntent intent { DecodeIntent::Output };
         Optional<AK::Duration> output_target;
@@ -210,11 +212,16 @@ private:
         if (!m_ring.is_valid() || end.has_overflow() || end.value() > m_ring.size())
             return DecoderError::with_description(DecoderErrorCategory::Invalid, "A coded frame lies outside its ring"sv);
 
+        if (auto luminance = submission.maximum_scene_luminance; luminance.has_value() && (!isfinite(*luminance) || *luminance <= 0))
+            return DecoderError::with_description(DecoderErrorCategory::Invalid, "A coded frame's scene peak is not a positive luminance"sv);
+
         auto data = DECODER_TRY_ALLOC(FixedArray<u8>::create(m_ring.bytes().slice(submission.ring_offset, submission.size)));
         Optional<FixedArray<u8>> new_codec_configuration;
         if (submission.new_codec_configuration.has_value())
             new_codec_configuration = DECODER_TRY_ALLOC(FixedArray<u8>::create(submission.new_codec_configuration->bytes()));
-        return CodedFrame { m_codec_id, submission.presentation_timestamp, submission.decode_timestamp, submission.duration, submission.flags, move(data), move(new_codec_configuration) };
+        CodedFrame coded_frame { m_codec_id, submission.presentation_timestamp, submission.decode_timestamp, submission.duration, submission.flags, move(data), move(new_codec_configuration) };
+        coded_frame.set_maximum_scene_luminance(submission.maximum_scene_luminance);
+        return coded_frame;
     }
 
     void decode_submission(Submission& submission)
@@ -425,7 +432,7 @@ void VideoDecoderServerConnection::replace_coded_data_ring(u64 decoder_id, Core:
         (*session)->enqueue(DecoderSession::ReplaceRing { move(ring) });
 }
 
-void VideoDecoderServerConnection::submit_coded_frame(u64 decoder_id, u32 generation, u64 ring_offset, u64 size, AK::Duration presentation_timestamp, AK::Duration decode_timestamp, AK::Duration duration, FrameFlags flags, Optional<ByteBuffer> new_codec_configuration, DecodeIntent intent, Optional<AK::Duration> output_target)
+void VideoDecoderServerConnection::submit_coded_frame(u64 decoder_id, u32 generation, u64 ring_offset, u64 size, AK::Duration presentation_timestamp, AK::Duration decode_timestamp, AK::Duration duration, FrameFlags flags, Optional<float> maximum_scene_luminance, Optional<ByteBuffer> new_codec_configuration, DecodeIntent intent, Optional<AK::Duration> output_target)
 {
     auto session = m_sessions.get(decoder_id);
     if (!session.has_value())
@@ -438,6 +445,7 @@ void VideoDecoderServerConnection::submit_coded_frame(u64 decoder_id, u32 genera
         .decode_timestamp = decode_timestamp,
         .duration = duration,
         .flags = flags,
+        .maximum_scene_luminance = maximum_scene_luminance,
         .new_codec_configuration = move(new_codec_configuration),
         .intent = intent,
         .output_target = output_target,

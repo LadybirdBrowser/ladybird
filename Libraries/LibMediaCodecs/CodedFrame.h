@@ -33,6 +33,7 @@ public:
     {
         m_leading_discard = other.m_leading_discard;
         m_trailing_discard = other.m_trailing_discard;
+        m_maximum_scene_luminance = other.m_maximum_scene_luminance;
     }
 
     CodedFrame(CodedFrame&&) = default;
@@ -61,6 +62,14 @@ public:
     void set_trailing_discard(AK::Duration discard) { m_trailing_discard = discard; }
     AK::Duration decoded_start_timestamp() const { return m_presentation_timestamp - m_leading_discard; }
     FrameFlags flags() const { return m_flags; }
+    // The brightest light in the frame's scene in cd/m², where the container carries it apart from the bitstream.
+    Optional<float> maximum_scene_luminance() const
+    {
+        if (m_maximum_scene_luminance > 0)
+            return m_maximum_scene_luminance;
+        return {};
+    }
+    void set_maximum_scene_luminance(Optional<float> luminance) { m_maximum_scene_luminance = luminance.value_or(0); }
     bool is_keyframe() const { return has_flag(m_flags, FrameFlags::Keyframe); }
     ReadonlyBytes data() const LIFETIME_BOUND { return m_data.span(); }
     Optional<ReadonlyBytes> new_codec_configuration() const LIFETIME_BOUND
@@ -87,6 +96,8 @@ private:
     CodecID m_codec_id;
     FrameFlags m_flags;
     bool m_has_new_codec_configuration { false };
+    // Stored here to fit in padding.
+    float m_maximum_scene_luminance { 0 };
     AK::Duration m_presentation_timestamp;
     AK::Duration m_decode_timestamp;
     AK::Duration m_duration;

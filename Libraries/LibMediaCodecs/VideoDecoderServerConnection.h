@@ -48,7 +48,7 @@ private:
     virtual void create_decoder(u64 decoder_id, u32 generation, CodecID codec_id, ByteBuffer codec_initialization_data) override;
     virtual void destroy_decoder(u64 decoder_id) override;
     virtual void replace_coded_data_ring(u64 decoder_id, Core::AnonymousBuffer ring) override;
-    virtual void submit_coded_frame(u64 decoder_id, u32 generation, u64 ring_offset, u64 size, AK::Duration presentation_timestamp, AK::Duration decode_timestamp, AK::Duration duration, FrameFlags flags, Optional<ByteBuffer> new_codec_configuration, DecodeIntent intent, Optional<AK::Duration> output_target) override;
+    virtual void submit_coded_frame(u64 decoder_id, u32 generation, u64 ring_offset, u64 size, AK::Duration presentation_timestamp, AK::Duration decode_timestamp, AK::Duration duration, FrameFlags flags, Optional<float> maximum_scene_luminance, Optional<ByteBuffer> new_codec_configuration, DecodeIntent intent, Optional<AK::Duration> output_target) override;
     virtual void signal_end_of_stream(u64 decoder_id, u32 generation) override;
     virtual void flush(u64 decoder_id, u32 generation) override;
     virtual void release_frame(u64 frame_id) override;
