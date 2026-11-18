@@ -1,0 +1,24 @@
+Ladybird prefers artwork entries closest to 512x512, square ones
+first on a tie, and tries the next entry when one fails to load or
+decode. WebKit’s MediaMetadata::imageDimensionsScore() also favors
+square artwork near 512px, and Gecko’s MediaMetadata::FetchArtwork()
+also moves on to the next entry after a failure, though Gecko ranks
+entries by declared area (GetMediaArtworkFetchOrder()). Chromium’s
+MediaImageManager::SelectImage() aims for 150px, which is the size of
+its notification thumbnail.
+
+All three engines fetch artwork in the content process, in no-cors mode
+with credentials, as Ladybird does, and hand the platform a decoded
+image. Ladybird scales it down to at most 512px. Chromium resizes it to
+150px (FilterAndResizeImagesForMaximalSize()), while Gecko and WebKit
+pass it on at its decoded size.
+
+Ladybird puts an artwork entry whose sizes include “any” first, as
+Gecko’s GetMediaArtworkFetchOrder() does. WebKit scores “any” as the
+ideal size (imageDimensionsScore()), and Chromium’s MediaImageManager::
+GetImageScore() gives it a fallback score of its own.
+
+These comparisons come from reading each engine’s source, at Chromium
+8658d682eac5, WebKit 047a16c96ccd, and Gecko 06fa2674be3d: What an
+engine hands the OS media controls isn’t observable from page script, so
+it couldn’t be compared by running them.
