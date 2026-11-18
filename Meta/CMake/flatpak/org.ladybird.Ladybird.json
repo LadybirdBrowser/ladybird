@@ -45,7 +45,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
         "-DSIMDJSON_BUILD_STATIC_LIB=OFF",
         "-DSIMDJSON_DEVELOPER_MODE=OFF"
@@ -64,7 +63,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
         "-DSIMDUTF_TESTS=OFF",
         "-DSIMDUTF_BENCHMARKS=OFF",
@@ -96,7 +94,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DPNG_FRAMEWORK=OFF",
         "-DPNG_TESTS=OFF",
         "-DPNG_TOOLS=OFF",
@@ -311,8 +308,7 @@
       ],
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib"
+        "-DCMAKE_PREFIX_PATH=/app"
       ]
     },
     {
@@ -328,7 +324,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DBROTLI_DISABLE_TESTS=ON",
         "-DBROTLI_BUILD_TOOLS=OFF"
       ],
@@ -354,7 +349,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DCANONICAL_PREFIXES=ON",
         "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
       ]
@@ -410,7 +404,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DAVIF_CODEC_AOM=OFF",
         "-DAVIF_CODEC_DAV1D=SYSTEM",
         "-DAVIF_BUILD_APPS=OFF"
@@ -429,7 +422,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DBUILD_SHARED_LIBS=ON",
         "-DWEBP_BUILD_ANIM_UTILS=ON",
         "-DWEBP_BUILD_LIBWEBPMUX=ON",
@@ -520,8 +512,7 @@
       ],
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib"
+        "-DCMAKE_PREFIX_PATH=/app"
       ]
     },
     {
@@ -537,7 +528,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DBUILD_SHARED=ON",
         "-DBUILD_DWARFDUMP=OFF"
       ]
@@ -555,8 +545,7 @@
       ],
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib"
+        "-DCMAKE_PREFIX_PATH=/app"
       ]
     },
     {
@@ -573,7 +562,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DBUILD_SHARED_LIBS=ON",
         "-DCPPTRACE_USE_EXTERNAL_LIBDWARF=ON",
         "-DCPPTRACE_USE_EXTERNAL_ZSTD=ON"
@@ -640,7 +628,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DMI_BUILD_OBJECT=OFF",
         "-DMI_BUILD_TESTS=OFF",
         "-DMI_BUILD_STATIC=OFF",
@@ -725,7 +712,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DBUILD_SHARED_LIBS=ON",
         "-DZMIJ_TEST=OFF",
         "-DZMIJ_EXAMPLE=OFF"
@@ -745,7 +731,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DENABLE_LIB_ONLY=ON",
         "-DENABLE_SHARED_LIB=ON",
         "-DENABLE_STATIC_LIB=OFF",
@@ -766,7 +751,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DOPENSSL_ROOT_DIR=/app",
         "-DENABLE_OPENSSL=ON",
         "-DENABLE_SHARED_LIB=ON",
@@ -797,7 +781,6 @@
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DOPENSSL_ROOT_DIR=/app",
         "-DBUILD_CURL_EXE=OFF",
         "-DBUILD_EXAMPLES=OFF",
@@ -856,14 +839,11 @@
       "config-opts": [
         "-CCache.cmake",
         "-DCMAKE_PREFIX_PATH=/app",
-        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_C_COMPILER=clang",
         "-DCMAKE_CXX_COMPILER=clang++",
         "-DLADYBIRD_BASELINE_CPU_TARGET=ON",
-        "-DENABLE_LTO_FOR_RELEASE=ON",
         "-DLADYBIRD_GENERATE_SYMBOL_FILES=ON",
-        "-DENABLE_INSTALL_FREEDESKTOP_FILES=ON",
         "-DENABLE_INSTALL_HEADERS=OFF",
         "-DBUILD_TESTING=OFF",
         "-DICU_ROOT=/app"
