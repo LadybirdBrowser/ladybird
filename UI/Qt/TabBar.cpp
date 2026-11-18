@@ -1148,6 +1148,10 @@ void TabBar::paintEvent(QPaintEvent*)
     HashTable<Tab const*> tabs_with_cut_titles;
     auto title_line_height = QFontMetricsF(title_font).height();
 
+    // In an inactive window, the tabs' titles drop to the muted color.
+    auto const& chrome = Theme::chrome(*this);
+    auto tab_text_color = ChromeStyle::window_activity(*this) == ChromeStyle::WindowActivity::Inactive ? chrome.muted : chrome.text;
+
     if (auto rect = closing_tab_rect(); !rect.isEmpty()) {
         painter.save();
         // NB: The closing tab narrows from its end, which is rounded like the top corners of a tab. Its bottom reaches
@@ -1420,23 +1424,6 @@ void TabBar::paintEvent(QPaintEvent*)
         contents_rect.setLeft(icon_rect.right() + HORIZONTAL_TAB_CONTENT_GAP);
 
         auto title = tabText(index);
-        // In an inactive window, the tabs' titles drop to the muted color.
-        // NB: An unselected horizontal tab's title can be quieter than the muted color already, as in dark windows. It
-        //     takes the quieter of the two, so that it never grows louder as its window becomes inactive.
-        auto const& chrome = Theme::chrome(*this);
-        auto is_inactive = ChromeStyle::window_activity(*this) == ChromeStyle::WindowActivity::Inactive;
-        auto quieter_on_strip = [&](QColor const& a, QColor const& b) {
-            auto strip_lightness = chrome.strip.lightnessF();
-            return abs(a.lightnessF() - strip_lightness) <= abs(b.lightnessF() - strip_lightness) ? a : b;
-        };
-        auto unselected_text_color = is_vertical
-            ? (is_inactive ? chrome.muted : chrome.row_title)
-            : (is_inactive ? quieter_on_strip(chrome.tab_title, chrome.muted) : chrome.tab_title);
-        auto selected_text_color = is_inactive ? Theme::chrome(*this).muted : Theme::chrome(*this).text;
-        auto tab_text_color = ChromeStyle::mix(unselected_text_color, selected_text_color, selection);
-
-        // NB: A title keeps its weight whether its tab is selected or not, so nothing reflows as only its color
-        //     cross-fades.
         auto paint_title = [&] {
             painter.setFont(title_font);
 

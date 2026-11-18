@@ -64,12 +64,10 @@ static ChromeColors const light_chrome {
     .field_focused = rgb(0xffffff),
     .text = rgb(0x1d1d1f),
     .muted = rgb(0x5d5d64),
-    .tab_title = rgb(0x55555c),
     .icon = rgb(0x3a3a40),
     .disabled = rgb(0xb3b3b9),
     .hover = rgba(0, 0, 0, 0.06),
     .strip_hover = rgba(0, 0, 0, 0.06),
-    .row_title = rgb(0x3f3f45),
     .separator = rgb(0xbcbcc2),
     .divider = rgb(0xd2d2d6),
     .warning = rgb(0xb25d00),
@@ -88,12 +86,10 @@ static ChromeColors const dark_chrome {
     .field_focused = rgb(0x3a3a3e),
     .text = rgb(0xf2f2f5),
     .muted = rgb(0xacacb4),
-    .tab_title = rgb(0x8f8f97),
     .icon = rgb(0xdcdce1),
     .disabled = rgb(0x5b5b61),
     .hover = rgba(255, 255, 255, 0.06),
     .strip_hover = rgba(255, 255, 255, 0.06),
-    .row_title = rgb(0xcfcfd6),
     .separator = rgb(0x3d3d42),
     .divider = rgb(0x0a0a0c),
     .warning = rgb(0xf2a33a),
@@ -112,13 +108,11 @@ static ChromeColors const private_chrome {
     .field_focused = rgb(0x3b2e55),
     .text = rgb(0xf3f0fa),
     .muted = rgb(0xb3aac4),
-    .tab_title = rgb(0x958ca8),
     .icon = rgb(0xe2dcef),
     .disabled = rgb(0x5e566e),
     .hover = rgba(255, 255, 255, 0.07),
     // NB: The strip and the active tab are close in lightness here, so the normal hover would look like the active tab.
     .strip_hover = rgba(255, 255, 255, 0.06),
-    .row_title = rgb(0xd5cee2),
     .separator = rgb(0x4a3d63),
     .divider = rgb(0x0f0a19),
     .warning = rgb(0xf2a33a),
@@ -137,12 +131,10 @@ static ChromeColors const light_increased_contrast_chrome {
     .field_focused = rgb(0xffffff),
     .text = rgb(0x000000),
     .muted = rgb(0x3a3a40),
-    .tab_title = rgb(0x3a3a40),
     .icon = rgb(0x1d1d1f),
     .disabled = rgb(0x8e8e93),
     .hover = rgba(0, 0, 0, 0.10),
     .strip_hover = rgba(0, 0, 0, 0.10),
-    .row_title = rgb(0x1d1d1f),
     .separator = rgb(0x8e8e93),
     .divider = rgb(0x6e6e73),
     .warning = rgb(0x8a4700),
@@ -161,12 +153,10 @@ static ChromeColors const dark_increased_contrast_chrome {
     .field_focused = rgb(0x000000),
     .text = rgb(0xffffff),
     .muted = rgb(0xd0d0d6),
-    .tab_title = rgb(0xd0d0d6),
     .icon = rgb(0xf2f2f5),
     .disabled = rgb(0x8a8a90),
     .hover = rgba(255, 255, 255, 0.14),
     .strip_hover = rgba(255, 255, 255, 0.14),
-    .row_title = rgb(0xf2f2f5),
     .separator = rgb(0x8a8a90),
     .divider = rgb(0x8a8a90),
     .warning = rgb(0xf2a33a),
@@ -282,7 +272,7 @@ static ChromeColors derive_chrome(ChromeColors const& neutral, Optional<QColor> 
         return colors;
     for (auto* surface : { &colors.strip, &colors.toolbar, &colors.sidebar, &colors.field_focused, &colors.separator, &colors.divider })
         tint(*surface, *tint_color, surface_saturation);
-    for (auto* ink : { &colors.text, &colors.muted, &colors.tab_title, &colors.icon, &colors.disabled, &colors.row_title })
+    for (auto* ink : { &colors.text, &colors.muted, &colors.icon, &colors.disabled })
         tint(*ink, *tint_color, INK_TINT_SATURATION);
     return colors;
 }
