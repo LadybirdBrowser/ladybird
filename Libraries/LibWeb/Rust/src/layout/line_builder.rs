@@ -1219,7 +1219,25 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     )
                 };
             self.line_mut(line_index).fragments[fragment_index].baseline = fragment_baseline;
-            if has_line_relative_aligned_subtree && self.line_relative_aligned_subtree_root(style_source).is_some() {
+            if has_line_relative_aligned_subtree
+                && let Some((root, _)) = self.line_relative_aligned_subtree_root(style_source)
+            {
+                // NB: The inline boxes around the root of an aligned subtree are aligned like any other, and hold
+                //     their own layout bounds around their baselines. Those inside an aligned subtree of their own
+                //     don't take part in choosing the baseline of the line box.
+                let enclosing_shifts = self.vertical_shifts_of_enclosing_inline_boxes(root);
+                let mut ancestor_shift = enclosing_shifts
+                    .iter()
+                    .fold(CssPixels::default(), |total, (_, shift)| total + *shift);
+                for (ancestor, shift) in enclosing_shifts {
+                    if self.line_relative_aligned_subtree_root(ancestor).is_none()
+                        && self.inline_box_has_strut_on_line(text, ancestor)
+                    {
+                        let ascent = TextLayoutBounds::new(self.style(ancestor), None).ascent - ancestor_shift;
+                        line_box_baseline = line_box_baseline.max(ascent);
+                    }
+                    ancestor_shift -= shift;
+                }
                 continue;
             }
             let alignment_style = self.alignment_style(style_source, style);
@@ -1999,6 +2017,47 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     vertical_shift: ancestor_vertical_shift,
                 });
                 ancestor = self.context().parent_node(ancestor);
+            }
+            // NB: The inline boxes around the root of an aligned subtree are aligned like any other, and hold their own
+            //     layout bounds around their baselines. The walk above stops at that root, or skips them altogether
+            //     for a root that isn't atomic, and a box it already recorded isn't recorded again.
+            if let Some((root, _)) = aligned_subtree {
+                let enclosing_shifts = self.vertical_shifts_of_enclosing_inline_boxes(root);
+                let mut ancestor_shift = enclosing_shifts
+                    .iter()
+                    .fold(CssPixels::default(), |total, (_, shift)| total + *shift);
+                for (ancestor, shift) in enclosing_shifts {
+                    let ancestor_baseline = current_block_offset + line_box_baseline + ancestor_shift;
+                    let inserted =
+                        self.line_mut(line_index)
+                            .set_inline_box_baseline(ancestor, ancestor_baseline, ancestor_shift);
+                    if inserted && self.inline_box_has_strut_on_line(&text, ancestor) {
+                        let bounds = TextLayoutBounds::new(self.style(ancestor), None);
+                        let (box_start, box_end) =
+                            (ancestor_baseline - bounds.ascent, ancestor_baseline + bounds.descent);
+                        // NB: An inline box inside an aligned subtree of its own extends that subtree.
+                        if let Some((outer_root, alignment)) = self.line_relative_aligned_subtree_root(ancestor) {
+                            if let Some(subtree) =
+                                aligned_subtrees.iter_mut().find(|subtree| subtree.root == outer_root)
+                            {
+                                subtree.block_start = subtree.block_start.min(box_start);
+                                subtree.block_end = subtree.block_end.max(box_end);
+                            } else {
+                                aligned_subtrees.push(LineRelativeAlignedSubtree {
+                                    root: outer_root,
+                                    alignment,
+                                    block_start: box_start,
+                                    block_end: box_end,
+                                    shift: CssPixels::default(),
+                                });
+                            }
+                        } else {
+                            earliest = earliest.min(box_start);
+                            latest = latest.max(box_end);
+                        }
+                    }
+                    ancestor_shift -= shift;
+                }
             }
             let accumulated_vertical_shift = new_block_offset - baseline_aligned_block_offset;
             {
