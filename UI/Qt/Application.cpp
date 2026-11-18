@@ -25,6 +25,7 @@
 #include <LibWebCommon/MimeSniff/MimeType.h>
 #include <LibWebCommon/WebView/Utilities.h>
 #include <LibWebView/AutocompleteService.h>
+#include <LibWebView/BrowserProcess.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/CrashReportStore.h>
@@ -284,6 +285,10 @@ static bool has_visible_browser_window()
 }
 #endif
 
+// Whether this process is a browser by now, rather than a launch that may still hand over to another browser and end.
+static bool s_browser_has_started = false;
+static Vector<ByteString> s_urls_opened_before_browser_started;
+
 class LadybirdQApplication : public QApplication {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -309,6 +314,18 @@ public:
 
     virtual bool event(QEvent* event) override
     {
+        // NB: Events also arrive while the launch asks the user what to do about a browser that is already running.
+        //     There is no browser to handle them then, so what the user opens meanwhile waits for the browser.
+        if (!s_browser_has_started) {
+            if (event->type() == QEvent::FileOpen) {
+                auto const& open_event = *static_cast<QFileOpenEvent const*>(event);
+                auto const qurl = open_event.url();
+                s_urls_opened_before_browser_started.append(qurl.isEmpty() ? ak_byte_string_from_qstring(open_event.file()) : ByteString { qurl.toEncoded().constData() });
+                return true;
+            }
+            return QApplication::event(event);
+        }
+
         auto& application = Application::the();
         auto const event_type = event->type();
 
@@ -735,6 +752,7 @@ ErrorOr<NonnullOwnPtr<Application>> Application::create(Main::Arguments const& a
     TRY(application->connect_to_hub(arguments));
 #else
     application->m_hub = TRY(Hub::Application::create(arguments, static_cast<Hub::ApplicationHost*>(application.ptr())));
+    s_browser_has_started = true;
 
     // Headless mode has no UI to connect to the Hub.
     if (browser_options().headless_mode.has_value())
@@ -797,6 +815,25 @@ Hub::UIInfo Application::current_ui_info() const
     return info;
 }
 
+[[maybe_unused]] static bool user_wants_to_replace_unresponsive_browser()
+{
+    QMessageBox dialog;
+    dialog.setIcon(QMessageBox::Warning);
+    dialog.setText(QObject::tr("Ladybird is already running, but it is not responding."));
+    dialog.setInformativeText(QObject::tr("To open Ladybird with this profile, the Ladybird that is running must be closed first. What its pages have not saved will be lost."));
+    auto* close_button = dialog.addButton(QObject::tr("Close Ladybird"), QMessageBox::DestructiveRole);
+    dialog.setDefaultButton(dialog.addButton(QMessageBox::Cancel));
+    // NB: Nothing else of this launch is on the screen yet, so the question has to be where the user sees it.
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint);
+    QTimer::singleShot(0, &dialog, [&dialog] {
+        dialog.raise();
+        dialog.activateWindow();
+        QApplication::alert(&dialog);
+    });
+    dialog.exec();
+    return dialog.clickedButton() == close_button;
+}
+
 ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
 {
     auto hub_path = TRY(hub_executable_path());
@@ -832,14 +869,9 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     hub_arguments.append(ByteString::formatted("--ui-info={}", encode_hex(ui_info_buffer.data().span())));
     hub_arguments.append(ByteString::formatted("--ui-pid={}", Core::System::getpid()));
 
-    Core::ProcessSpawnOptions spawn_options {
-        .name = "Hub"sv,
-        .executable = hub_path,
-        .arguments = hub_arguments,
-    };
-
 #    if defined(AK_OS_MACOS)
     // NB: This must answer while the main thread waits for the Hub to initialize, so it answers on its own thread.
+    //     Every round uses the same server, as its name cannot be registered again right after it was let go of.
     auto hub_bootstrap = adopt_ref(*new HubBootstrap);
     IPC::MachBootstrapListener bootstrap_listener { WebView::mach_server_name_for_process("Ladybird-UI"sv, Core::System::getpid()) };
     if (!bootstrap_listener.is_initialized())
@@ -849,49 +881,85 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
             dbgln("Unable to bootstrap the Hub: {}", result.error());
     };
     hub_arguments.append(ByteString::formatted("--ui-mach-server={}", bootstrap_listener.server_port_name()));
-    spawn_options.arguments = hub_arguments;
-
-    auto port_a_recv = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
-    auto port_a_send = TRY(port_a_recv.insert_right(Core::MachPort::MessageRight::MakeSend));
-    auto port_b_recv = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
-    auto port_b_send = TRY(port_b_recv.insert_right(Core::MachPort::MessageRight::MakeSend));
-
-    // The Hub may receive startup messages before it has constructed its transport.
-    IPC::TransportMachPort::raise_receive_queue_limit(port_b_recv);
-
-    Optional<Core::Process> spawned_process;
-    {
-        MutexLocker child_registration_locker(hub_bootstrap->server.child_registration_lock());
-        spawned_process = TRY(Core::Process::spawn(spawn_options));
-        hub_bootstrap->server.register_child_transport(spawned_process->pid(), IPC::TransportBootstrapMachPorts { move(port_b_recv), move(port_a_send) });
-    }
-    auto process = spawned_process.release_value();
-
-    auto transport = make<IPC::Transport>(move(port_a_recv), move(port_b_send));
-#    else
-    int socket_fds[2] {};
-    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, socket_fds));
-
-    spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = socket_fds[1], .fd = socket_fds[1] });
-    TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, ByteString::formatted("ipc:{}", socket_fds[1]), Core::Environment::Overwrite::Yes));
-    auto process = TRY(Core::Process::spawn(spawn_options));
-    TRY(Core::Environment::unset("SOCKET_TAKEOVER"sv));
-    TRY(Core::System::close(socket_fds[1]));
-
-    auto ipc_socket = TRY(Core::LocalSocket::adopt_fd(socket_fds[0]));
-    TRY(ipc_socket->set_blocking(true));
-    auto transport = make<IPC::Transport>(move(ipc_socket));
 #    endif
-    m_hub_connection = adopt_ref(*new HubConnection(move(transport)));
 
-    // The Hub can find that there is nothing for us to do, as when another process has this profile and takes our URLs,
-    // or when asked for its usage. It ends right away then, and how it ended is how we end.
-    auto initial_state = m_hub_connection->try_initialize();
-    if (initial_state.is_error()) {
-        m_exit_status_if_done = TRY(process.wait_for_termination());
+    // NB: A browser that is already running for the profile takes what we were asked to open. One that does not answer
+    //     can be ended to start in its place, which is for the user to decide.
+    Optional<Hub::InitialState> initial_state;
+    // NB: The user agrees to end the browser that they were asked about. One that started after that, as when another
+    //     launch replaced the first one meanwhile, is not ended without asking again.
+    Optional<UnixDateTime> replace_browser_from_before;
+    while (!initial_state.has_value()) {
+        auto round_arguments = hub_arguments;
+        if (replace_browser_from_before.has_value())
+            round_arguments.append(ByteString::formatted("--replace-unresponsive-browser-from-before={}", replace_browser_from_before->milliseconds_since_epoch()));
+        round_arguments.extend(s_urls_opened_before_browser_started);
+        // NB: A browser that this round finds unresponsive was there before the round began.
+        [[maybe_unused]] auto time_before_round = UnixDateTime::now();
+
+        Core::ProcessSpawnOptions spawn_options {
+            .name = "Hub"sv,
+            .executable = hub_path,
+            .arguments = round_arguments,
+        };
+
+#    if defined(AK_OS_MACOS)
+        auto port_a_recv = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+        auto port_a_send = TRY(port_a_recv.insert_right(Core::MachPort::MessageRight::MakeSend));
+        auto port_b_recv = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+        auto port_b_send = TRY(port_b_recv.insert_right(Core::MachPort::MessageRight::MakeSend));
+
+        // The Hub may receive startup messages before it has constructed its transport.
+        IPC::TransportMachPort::raise_receive_queue_limit(port_b_recv);
+
+        Optional<Core::Process> spawned_process;
+        {
+            MutexLocker child_registration_locker(hub_bootstrap->server.child_registration_lock());
+            spawned_process = TRY(Core::Process::spawn(spawn_options));
+            hub_bootstrap->server.register_child_transport(spawned_process->pid(), IPC::TransportBootstrapMachPorts { move(port_b_recv), move(port_a_send) });
+        }
+        auto process = spawned_process.release_value();
+
+        auto transport = make<IPC::Transport>(move(port_a_recv), move(port_b_send));
+#    else
+        int socket_fds[2] {};
+        TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, socket_fds));
+
+        spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = socket_fds[1], .fd = socket_fds[1] });
+        TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, ByteString::formatted("ipc:{}", socket_fds[1]), Core::Environment::Overwrite::Yes));
+        auto process = TRY(Core::Process::spawn(spawn_options));
+        TRY(Core::Environment::unset("SOCKET_TAKEOVER"sv));
+        TRY(Core::System::close(socket_fds[1]));
+
+        auto ipc_socket = TRY(Core::LocalSocket::adopt_fd(socket_fds[0]));
+        TRY(ipc_socket->set_blocking(true));
+        auto transport = make<IPC::Transport>(move(ipc_socket));
+#    endif
+        m_hub_connection = adopt_ref(*new HubConnection(move(transport)));
+
+        // The Hub can find that there is nothing for us to do, as when another process has this profile and takes our
+        // URLs, or when asked for its usage. It ends right away then, and how it ended is how we end.
+        auto state_or_error = m_hub_connection->try_initialize();
+        if (!state_or_error.is_error()) {
+            initial_state = state_or_error.release_value();
+            m_restart_command.hub = move(process);
+            break;
+        }
+
+        m_hub_connection = nullptr;
+        auto exit_status = TRY(process.wait_for_termination());
+#    if !defined(AK_OS_WINDOWS)
+        // FIXME: Ask on Windows as well, once the Hub can end an unresponsive browser there.
+        if (exit_status == WebView::BrowserProcess::unresponsive_browser_exit_status) {
+            if (user_wants_to_replace_unresponsive_browser()) {
+                replace_browser_from_before = time_before_round;
+                continue;
+            }
+        }
+#    endif
+        m_exit_status_if_done = exit_status;
         return {};
     }
-    m_restart_command.hub = move(process);
     auto state = initial_state.release_value();
     m_hub_connection->did_initialize();
 
@@ -970,6 +1038,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     };
     QObject::connect(&SystemAppearance::the(), &SystemAppearance::changed, send_ui_info);
     QObject::connect(&SystemAppearance::the(), &SystemAppearance::interface_appearance_changed, send_ui_info);
+    s_browser_has_started = true;
     return {};
 }
 
@@ -1014,6 +1083,11 @@ Optional<int> Application::exit_status_if_done() const
 {
     if (!hub().should_exit_after_profile_coordination())
         return {};
+    if (hub().browser_is_unresponsive()) {
+        // FIXME: Offer to end the unresponsive browser, as is done when the Hub is in its own process.
+        warnln("Ladybird is already running with this profile, but it is not responding");
+        return WebView::BrowserProcess::unresponsive_browser_exit_status;
+    }
     outln("Opening in existing process");
     return 0;
 }

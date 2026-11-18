@@ -12,6 +12,7 @@
 #include <LibIPC/StartupTransport.h>
 #include <LibMain/Main.h>
 #include <LibThreading/Thread.h>
+#include <LibWebView/BrowserProcess.h>
 
 #if defined(AK_OS_MACOS) || defined(AK_OS_BSD_GENERIC)
 #    include <sys/event.h>
@@ -107,6 +108,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     end_with_ui_process(arguments);
 
     auto application = TRY(Hub::Application::create(arguments, nullptr));
+    if (application->browser_is_unresponsive()) {
+        warnln("Ladybird is already running with this profile, but it is not responding");
+        return WebView::BrowserProcess::unresponsive_browser_exit_status;
+    }
     if (application->should_exit_after_profile_coordination()) {
         outln("Opening in existing process");
         return 0;
