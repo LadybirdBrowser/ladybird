@@ -17,6 +17,7 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/CrashReportStore.h>
+#include <LibWebView/DefaultBrowser.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/WebContentClient.h>
@@ -117,6 +118,9 @@ void SettingsUI::register_interfaces()
     });
     register_interface("setAppearance"sv, [this](auto const& data) {
         set_appearance(data);
+    });
+    register_interface("makeDefaultBrowser"sv, [this](auto const& data) {
+        make_default_browser(data);
     });
 
     if (host() == "welcome"sv) {
@@ -240,6 +244,20 @@ JsonObject SettingsUI::serialize_settings() const
 
     settings.set("defaultNewTabPageURL"sv, Settings::default_new_tab_page_url().serialize());
 
+    switch (Application::the().default_browser().status()) {
+    case DefaultBrowserStatus::Unknown:
+        break;
+    case DefaultBrowserStatus::Unavailable:
+        settings.set("defaultBrowser"sv, "unavailable"_string);
+        break;
+    case DefaultBrowserStatus::NotDefault:
+        settings.set("defaultBrowser"sv, "not-default"_string);
+        break;
+    case DefaultBrowserStatus::Default:
+        settings.set("defaultBrowser"sv, "default"_string);
+        break;
+    }
+
     // The sites the user allowed or blocked, for each permission.
     JsonObject site_settings;
     site_settings.set("autoplay"sv, settings.get("autoplay"sv).value());
@@ -359,6 +377,25 @@ void SettingsUI::complete_first_run(JsonValue const&)
     }
 
     async_send_message("firstRunCompleted"sv, settings.new_tab_page_url().serialize());
+}
+
+void SettingsUI::make_default_browser(JsonValue const&)
+{
+    Application::the().default_browser().make_default([weak_this = make_weak_ptr<SettingsUI>()](MakeDefaultBrowserResult const& result) {
+        auto self = weak_this.strong_ref();
+        if (!self)
+            return;
+
+        if (!result.failed) {
+            self->async_send_message("defaultBrowserResult"sv, JsonValue {});
+            return;
+        }
+
+        auto failure = result.system_message.has_value()
+            ? MUST(String::formatted("Could not make Ladybird the default browser. The system reported: {}", *result.system_message))
+            : "Could not make Ladybird the default browser. Choose it in your system settings instead."_string;
+        self->async_send_message("defaultBrowserResult"sv, move(failure));
+    });
 }
 
 void SettingsUI::set_new_tab_page_url(JsonValue const& new_tab_page_url)

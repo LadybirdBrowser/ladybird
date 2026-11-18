@@ -77,6 +77,7 @@
 
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/ApplicationIcon.h>
+#    include <UI/Qt/DefaultBrowserMacOS.h>
 #    include <UI/Qt/LaunchURLsMacOS.h>
 #    include <UI/Qt/MacWindow.h>
 #    include <UI/Qt/MicrophoneAuthorizerMacOS.h>
@@ -822,6 +823,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
 #    if defined(AK_OS_MACOS)
     m_spell_checker = create_platform_spell_checker();
     m_microphone_authorizer = make<MicrophoneAuthorizerMacOS>();
+    m_default_browser = make<DefaultBrowserMacOS>();
 #    endif
 
     IPC::MessageBuffer ui_info_buffer;
@@ -999,6 +1001,20 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
             if (auto* hub = HubConnection::the_if_connected())
                 hub->async_microphone_authorization_changed(m_microphone_authorizer->authorization());
         });
+    }
+
+    // The user can choose another default browser in the system settings at any time, and comes back to the browser
+    // after doing it.
+    if (m_default_browser) {
+        m_default_browser->on_status_change = [this] {
+            if (auto* hub = HubConnection::the_if_connected())
+                hub->async_default_browser_status_changed(m_default_browser->status());
+        };
+        QObject::connect(qGuiApp, &QGuiApplication::applicationStateChanged, [this](Qt::ApplicationState state) {
+            if (state == Qt::ApplicationActive)
+                m_default_browser->refresh();
+        });
+        m_default_browser->refresh();
     }
 
     // NB: The UI info holds the interface color scheme, which changes with the interface theme as well as with the

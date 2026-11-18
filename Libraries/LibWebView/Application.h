@@ -115,6 +115,7 @@ public:
     Translator* translator() { return m_translator.ptr(); }
     void set_translator(OwnPtr<Translator>);
     MicrophoneAuthorizer& microphone_authorizer();
+    DefaultBrowser& default_browser();
     static FontService& font_service() { return *the().m_font_service; }
     static FontServiceHost& font_service_host() { return *the().m_font_service_host; }
     JsonValue const& site_compatibility_data() const { return m_site_compatibility_data; }
@@ -435,6 +436,7 @@ protected:
     virtual void create_platform_actions() { }
     virtual Core::EventLoop& create_platform_event_loop();
     virtual NonnullOwnPtr<MicrophoneAuthorizer> create_microphone_authorizer();
+    virtual NonnullOwnPtr<DefaultBrowser> create_default_browser();
 
     virtual bool should_coordinate_browser_process() const { return true; }
     // The process that shows this browser to the user, if that is not this process.
@@ -708,6 +710,7 @@ private:
     OwnPtr<SpellChecker> m_spell_checker;
     OwnPtr<Translator> m_translator;
     OwnPtr<MicrophoneAuthorizer> m_microphone_authorizer;
+    OwnPtr<DefaultBrowser> m_default_browser;
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
     Core::EventLoop* m_event_loop { nullptr };
