@@ -1,0 +1,19 @@
+Ladybird ends a line that breaks after a soft hyphen in U+2010 where the
+primary font has a glyph for it, and in U+002D otherwise. Blink makes
+that choice in ComputedStyle::HyphenString(), WebKit in ComputedStyle::
+hyphenString(), and Gecko in gfxFontGroup::MakeHyphenTextRun(). Run in
+Chrome 157, Firefox 151, and WebKit 26.5, a page of soft hyphens
+(min-content and zero widths, “hyphens: none” on a block and on a span
+around the soft hyphen, RTL text, letter-spacing, a soft hyphen that
+ends an inline item, and a break that fits only once the hyphen moves to
+the next line) gives the same lines and widths in all three, and in
+Ladybird, but for two cases. Firefox, WebKit, and Ladybird letter-space
+the hyphen, and Chrome doesn’t. And Chrome, WebKit, and Ladybird break
+after a soft hyphen that ends an inline item, and Firefox doesn’t.
+
+An out-of-flow box between a soft hyphen and the text after it leaves
+that break in place, and Ladybird still leaves room for the hyphen on
+the line that ends there. Chrome 157 and Firefox 151 fit such a line in
+its box, under “overflow-wrap: anywhere” and after a space alike. WebKit
+26.5 does that after a space, but lets the line overflow its box under
+“overflow-wrap: anywhere”.
