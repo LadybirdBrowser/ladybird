@@ -1,0 +1,22 @@
+A box that establishes a formatting context overlaps no float beside it.
+Ladybird places such a box beside the floats at its top edge, and lays
+it out. If its border box then overlaps a float, it places the box again
+beside all the floats that its block size reaches, which narrows the box
+or moves it down, and lays it out again, until it overlaps none.
+
+Blink’s BlockLayoutAlgorithm::LayoutNewFormattingContext() goes through
+the layout opportunities that ExclusionSpace::AllLayoutOpportunities()
+finds, and lays the box out in each one until its fragment fits.
+Gecko’s nsBlockFrame::ReflowBlockFrame() reflows the frame, asks
+BlockReflowState::GetFloatAvailableSpaceForBSize() for the space over
+the block size it got, and reflows it again where that space shrank,
+moving on to the next band where FloatAvoidingBlockFitsInAvailSpace()
+fails. WebKit’s RenderBox::shrinkLogicalWidthToAvoidFloats() measures
+the floats over the block size that the box had at its last layout,
+and RenderBlockFlow::layoutBlockChild() lays the box out again
+where its position changed.
+
+In Chrome 157.0.8103.79, Firefox 151.0 and WebKit 26.5, the test’s 23
+cases come out the same. Where narrowing the box makes it reach a third,
+wider float, Chrome and Firefox narrow it again, as Ladybird does, and
+WebKit leaves it overlapping that float.
