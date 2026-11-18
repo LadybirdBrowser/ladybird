@@ -33,6 +33,7 @@ pub(super) struct InFlowBlockKey {
     pub(super) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     pub(super) initial_containing_block_size: (CssPixels, CssPixels),
     pub(super) document_in_quirks_mode: bool,
+    pub(super) document_in_limited_quirks_mode: bool,
 }
 
 impl InFlowBlockKey {
@@ -58,6 +59,7 @@ impl InFlowBlockKey {
                 run.pass.initial_containing_block_block_size,
             ),
             document_in_quirks_mode: run.pass.document_in_quirks_mode,
+            document_in_limited_quirks_mode: run.pass.document_in_limited_quirks_mode,
         }
     }
 }

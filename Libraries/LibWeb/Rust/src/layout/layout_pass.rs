@@ -27,6 +27,7 @@ pub(crate) struct LayoutPass<'arena> {
     pub(crate) initial_containing_block_inline_size: CssPixels,
     pub(crate) initial_containing_block_block_size: CssPixels,
     pub(crate) document_in_quirks_mode: bool,
+    pub(crate) document_in_limited_quirks_mode: bool,
     /// The frame of the formatting context the pass is laying out, in which style reads see sizes and box sides.
     pub(crate) frame: super::geometry::Frame,
     /// The root of the run this pass view was handed to and that root's containing block, where containing block
@@ -131,6 +132,7 @@ impl<'arena> LayoutPass<'arena> {
             initial_containing_block_inline_size: stage.viewport_inline_size,
             initial_containing_block_block_size: stage.viewport_block_size,
             document_in_quirks_mode: stage.document_in_quirks_mode,
+            document_in_limited_quirks_mode: stage.document_in_limited_quirks_mode,
             frame: super::geometry::Frame::PHYSICAL,
             innermost_run: (NodeSlotId::INVALID, NodeSlotId::INVALID),
             host_findings: host_findings_outside_runs,
@@ -191,6 +193,7 @@ impl<'arena> LayoutPass<'arena> {
                 viewport_inline_size: CssPixels::default(),
                 viewport_block_size: CssPixels::default(),
                 document_in_quirks_mode: false,
+                document_in_limited_quirks_mode: false,
             },
         )
     }

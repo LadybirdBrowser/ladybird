@@ -127,6 +127,7 @@ pub struct FfiLayoutUpdateDocumentFacts {
     pub top_layer_work_pending: bool,
     pub should_collect_devtools_layout_data: bool,
     pub document_in_quirks_mode: bool,
+    pub document_in_limited_quirks_mode: bool,
     pub viewport_inline_size_raw: i32,
     pub viewport_block_size_raw: i32,
     /// The document's style node, which a layout tree build walks from.
@@ -766,6 +767,7 @@ impl LayoutRoundJob {
             viewport_inline_size: crate::layout::CssPixels::from_raw(facts.viewport_inline_size_raw),
             viewport_block_size: crate::layout::CssPixels::from_raw(facts.viewport_block_size_raw),
             document_in_quirks_mode: facts.document_in_quirks_mode,
+            document_in_limited_quirks_mode: facts.document_in_limited_quirks_mode,
         };
         // The round cannot call the host, which hears of the boxes nodes gain and lose once it is over.
         state.arena_mut().queue_box_presence();
@@ -1282,6 +1284,7 @@ mod tests {
             top_layer_work_pending: false,
             should_collect_devtools_layout_data: false,
             document_in_quirks_mode: false,
+            document_in_limited_quirks_mode: false,
             viewport_inline_size_raw: 0,
             viewport_block_size_raw: 0,
             document_style_node: 0,

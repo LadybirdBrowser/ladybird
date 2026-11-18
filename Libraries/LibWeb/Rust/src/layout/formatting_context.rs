@@ -3794,6 +3794,7 @@ pub(crate) struct LayoutStageFacts {
     pub(crate) viewport_inline_size: CssPixels,
     pub(crate) viewport_block_size: CssPixels,
     pub(crate) document_in_quirks_mode: bool,
+    pub(crate) document_in_limited_quirks_mode: bool,
 }
 
 /// What a layout stage computes from: the arena and the layout stage's scratch, borrowed for the
@@ -4233,6 +4234,7 @@ mod baseline_tests {
                 viewport_inline_size: CssPixels::from_integer(800),
                 viewport_block_size: CssPixels::from_integer(600),
                 document_in_quirks_mode: false,
+                document_in_limited_quirks_mode: false,
             },
         );
         RunState::with_root(pass, parent, Node::INVALID, None, |_, pass| {
