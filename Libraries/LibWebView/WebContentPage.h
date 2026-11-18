@@ -84,6 +84,8 @@ public:
     virtual Web::PageId routed_page_id() const override { return m_id; }
 
     CanonicalTraversable& traversable() const;
+    // NB: The tab of a page can go away before the page is closed.
+    bool has_traversable() const { return !m_traversable.is_null(); }
     ViewImplementation& view() const;
     bool displays_tab() const;
     String dump_process_tree() const;
