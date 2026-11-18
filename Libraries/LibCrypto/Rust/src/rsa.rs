@@ -252,17 +252,27 @@ pub fn rsa_export_der(key: &KeyHandle, is_public: bool) -> Result<Vec<u8>, Crypt
     ))
 }
 
-pub fn rsa_export_jwk_integer(key: &KeyHandle, component: RsaJwkInteger) -> Result<Vec<u8>, CryptoError> {
-    match &key.0 {
-        Key::RsaPublic(public_key) => match component {
-            RsaJwkInteger::Modulus | RsaJwkInteger::PublicExponent => {
-                Ok(integer(&public_key.key, component)?.into_vec())
-            }
-            _ => panic!("A public key has only n and e"),
-        },
-        Key::RsaPrivate(private_key) => Ok(private_key.component(component)?.into_vec()),
+/// The integer of an RSA key, or none for a CRT value of a private key that has none.
+pub fn rsa_export_jwk_integer(key: &KeyHandle, component: RsaJwkInteger) -> Result<Option<Vec<u8>>, CryptoError> {
+    let (key, has_crt_components) = match &key.0 {
+        Key::RsaPublic(public_key) => {
+            assert!(
+                matches!(component, RsaJwkInteger::Modulus | RsaJwkInteger::PublicExponent),
+                "A public key has only n and e"
+            );
+            (&public_key.key, false)
+        }
+        Key::RsaPrivate(private_key) => (&private_key.key, private_key.has_crt_components),
         _ => panic!("The key is not an RSA key"),
+    };
+    let is_crt_component = !matches!(
+        component,
+        RsaJwkInteger::Modulus | RsaJwkInteger::PublicExponent | RsaJwkInteger::PrivateExponent
+    );
+    if is_crt_component && !has_crt_components {
+        return Ok(None);
     }
+    Ok(Some(integer(key, component)?.into_vec()))
 }
 
 pub fn rsa_oaep_cipher(
