@@ -13,9 +13,9 @@ use crate::embedding::abi_types::{completion_from_abi, optional_cell_from_abi};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{
-    JS_HOST_ABI_VERSION, JS_HOST_CLASS_ARRAY, JS_HOST_CLASS_FUNCTION, JS_HOST_CLASS_HAS_CONSTRUCTOR,
-    JS_HOST_CLASS_IMMUTABLE_PROTOTYPE, JS_HOST_CLASS_IS_GLOBAL_OBJECT, JS_HOST_CLASS_IS_HTMLDDA,
-    JS_HOST_CLASS_IS_PLATFORM_OBJECT, JS_HOST_CLASS_MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS, JS_HOST_CLASS_MODULE,
+    JS_HOST_CLASS_ARRAY, JS_HOST_CLASS_FUNCTION, JS_HOST_CLASS_HAS_CONSTRUCTOR, JS_HOST_CLASS_IMMUTABLE_PROTOTYPE,
+    JS_HOST_CLASS_IS_GLOBAL_OBJECT, JS_HOST_CLASS_IS_HTMLDDA, JS_HOST_CLASS_IS_PLATFORM_OBJECT,
+    JS_HOST_CLASS_MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS, JS_HOST_CLASS_MODULE,
     JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS, JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE,
     JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE,
     JS_HOST_CLASS_NOT_ELIGIBLE_FOR_OWN_PROPERTY_ENUMERATION_FAST_PATH, JS_HOST_CLASS_OBJECT,
@@ -98,9 +98,7 @@ impl JSHostClass {
         flags: u32,
     ) -> Self {
         Self {
-            abi_version: JS_HOST_ABI_VERSION,
             kind,
-            reserved: 0,
             flags,
             name: name.as_ptr().cast(),
             name_length: name.len(),
@@ -183,16 +181,10 @@ impl JSHostClass {
         unsafe { self.hooks.cast::<JSHostArrayHooks>().as_ref() }.unwrap_or(&HOST_ARRAY_HOOKS_THAT_ARE_ALL_ORDINARY)
     }
 
-    /// Checks what LibJS/HostObjectABI.h requires of a table of `kind`, which the engine then relies on: its version
-    /// and kind, flags that apply to the kind, a parent of the same kind to share an allocator with, and the hooks the
-    /// kind cannot do without.
+    /// Checks what LibJS/HostObjectABI.h requires of a table of `kind`, which the engine then relies on: its kind,
+    /// flags that apply to the kind, a parent of the same kind to share an allocator with, and the hooks the kind
+    /// cannot do without.
     pub fn validate(&'static self, kind: u8) {
-        assert!(
-            self.abi_version == JS_HOST_ABI_VERSION,
-            "the host class {} is of ABI version {}, not {JS_HOST_ABI_VERSION}",
-            self.class_name(),
-            self.abi_version
-        );
         assert!(
             self.kind == kind,
             "the host class {} is of kind {}, not {kind}",

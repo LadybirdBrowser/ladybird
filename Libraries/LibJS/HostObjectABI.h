@@ -26,10 +26,6 @@
 extern "C" {
 #endif
 
-enum {
-    JS_HOST_ABI_VERSION = 1,
-};
-
 // Layout of every host object of kind JS_HOST_CLASS_OBJECT. Direct getter functions read the wrappable slot without
 // checking what it holds, so it only ever holds the embedder's wrapped implementation object. Any other per-object state
 // belongs in the host data slot. The host object's own fields follow the engine's object, which is 32 bytes.
@@ -239,9 +235,7 @@ typedef struct JSHostModuleHooks {
 } JSHostModuleHooks;
 
 typedef struct JSHostClass {
-    uint16_t abi_version;
     uint8_t kind;
-    uint8_t reserved;
     uint32_t flags;
     char const* name;
     size_t name_length;
