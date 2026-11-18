@@ -24,7 +24,7 @@ ErrorOr<void> encode(Encoder& encoder, Media::Track const& track)
         auto const& video_data = track.video_data();
         TRY(encoder.encode(video_data.pixel_width));
         TRY(encoder.encode(video_data.pixel_height));
-        TRY(encoder.encode(video_data.cicp));
+        TRY(encoder.encode(video_data.color_metadata));
         break;
     }
     case Media::TrackType::Audio: {
@@ -62,7 +62,7 @@ ErrorOr<Media::Track> decode(Decoder& decoder)
         Media::Track::VideoData video_data;
         video_data.pixel_width = TRY(decoder.decode<u64>());
         video_data.pixel_height = TRY(decoder.decode<u64>());
-        video_data.cicp = TRY(decoder.decode<Media::CodingIndependentCodePoints>());
+        video_data.color_metadata = TRY(decoder.decode<Media::ColorMetadata>());
         track.set_video_data(video_data);
         break;
     }

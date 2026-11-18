@@ -51,7 +51,7 @@ static size_t decode_every_frame(Media::FFmpeg::SystemFFmpeg const& library, Str
     size_t frame_count = 0;
     auto drain = [&] {
         while (true) {
-            auto frame = decoder->take_next_output(track.video_data().cicp);
+            auto frame = decoder->take_next_output(track.video_data().color_metadata);
             if (frame.is_error())
                 return frame.release_error();
             frame_count++;

@@ -1083,7 +1083,7 @@ DecoderErrorOr<NonnullRefPtr<VideoSurface>> FFmpegVulkanVideoDecoder::surface_fo
     return surface.release_value();
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVulkanVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp, Optional<AK::Duration>)
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVulkanVideoDecoder::take_next_output(ColorMetadata const& container_color_metadata, Optional<AK::Duration>)
 {
     TRY(receive_decoded_frames());
 
@@ -1108,9 +1108,9 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVulkanVideoDecoder::take_next_ou
     if (!storage)
         return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video surface the decoder may hand out is held elsewhere"sv);
 
-    auto cicp = container_cicp;
-    cicp.adopt_specified_values(output.cicp);
-    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timing.timestamp, output.timing.duration, output.size, output.bit_depth, Subsampling::yuv420(), cicp, storage.release_nonnull()));
+    auto color_metadata = container_color_metadata;
+    color_metadata.cicp.adopt_specified_values(output.cicp);
+    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timing.timestamp, output.timing.duration, output.size, output.bit_depth, Subsampling::yuv420(), move(color_metadata), storage.release_nonnull()));
     m_outputs.take_first();
     return frame;
 }

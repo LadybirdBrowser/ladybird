@@ -69,7 +69,7 @@ TEST_CASE(h264_configuration_change)
         MUST(decoder->receive_coded_data(sample, Media::DecodeIntent::Output));
 
         while (true) {
-            auto decoded_frame_result = decoder->take_next_output(new_track.video_data().cicp);
+            auto decoded_frame_result = decoder->take_next_output(new_track.video_data().color_metadata);
             if (decoded_frame_result.is_error()) {
                 EXPECT_EQ(decoded_frame_result.error().category(), Media::DecoderErrorCategory::NeedsMoreInput);
                 break;
@@ -102,7 +102,7 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
     auto last_timestamp = AK::Duration::min();
 
     auto take_decoded_frame = [&]() -> Media::DecoderErrorOr<void> {
-        auto decoded_frame = TRY(decoder->take_next_output(track.video_data().cicp));
+        auto decoded_frame = TRY(decoder->take_next_output(track.video_data().color_metadata));
 
         EXPECT(last_timestamp <= decoded_frame->timestamp());
         EXPECT(!decoded_frame->duration().is_zero());
@@ -157,7 +157,7 @@ TEST_CASE(h264_reference_only_frames_are_decoded_but_not_produced)
     Vector<AK::Duration> presented_timestamps;
     auto drain = [&] {
         while (true) {
-            auto decoded_frame_result = decoder->take_next_output(track.video_data().cicp);
+            auto decoded_frame_result = decoder->take_next_output(track.video_data().color_metadata);
             if (decoded_frame_result.is_error())
                 return;
             presented_timestamps.append(decoded_frame_result.value()->timestamp());

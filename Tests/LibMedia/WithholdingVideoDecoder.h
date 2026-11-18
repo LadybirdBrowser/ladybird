@@ -169,7 +169,7 @@ public:
 
     virtual void signal_end_of_stream() override { m_reached_end_of_stream = true; }
 
-    virtual Media::DecoderErrorOr<NonnullRefPtr<Media::VideoFrame>> take_next_output(Media::CodingIndependentCodePoints const& container_cicp, Optional<AK::Duration>) override
+    virtual Media::DecoderErrorOr<NonnullRefPtr<Media::VideoFrame>> take_next_output(Media::ColorMetadata const& container_color_metadata, Optional<AK::Duration>) override
     {
         MutexLocker locker { m_withheld_outputs->m_mutex };
         // Draining waits for the withheld outputs, as a decoder waits for its device to finish them, and so does
@@ -209,7 +209,7 @@ public:
 
         auto output = m_withheld_outputs->m_released.take_first();
         m_withheld_outputs->m_handed_out_count++;
-        return make_ref_counted<Media::VideoFrame>(output.timestamp, output.duration, FRAME_SIZE, 8, Media::Subsampling::yuv420(), container_cicp, move(acquired_slot->storage));
+        return make_ref_counted<Media::VideoFrame>(output.timestamp, output.duration, FRAME_SIZE, 8, Media::Subsampling::yuv420(), container_color_metadata, move(acquired_slot->storage));
     }
 
     virtual void flush() override
