@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="400" height="100"></svg>
+<script>
+    const round = value => Math.round(value * 100) / 100;
+    const describe = text => {
+        const positions = [];
+        for (let index = 0; index < text.getNumberOfChars(); ++index) {
+            const position = text.getStartPositionOfChar(index);
+            positions.push(`${round(position.x)},${round(position.y)}`);
+        }
+        return positions.join(" ");
+    };
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const svg = document.querySelector("svg");
+
+        // Each glyph of Ahem is 20px wide here.
+        const cases = [
+            ["dx on an element and on its first child", `<text x="100" y="30">A<tspan dx="40"><tspan dx="10">B</tspan></tspan>C</text>`],
+            ["dy on an element and on its first child", `<text x="100" y="30">A<tspan dy="40"><tspan dy="10">B</tspan></tspan>C</text>`],
+            ["dx on an element, dy on its first child", `<text x="100" y="30">A<tspan dx="40"><tspan dy="10">B</tspan></tspan>C</text>`],
+            ["dx on an element and on a later child", `<text x="100" y="30">A<tspan dx="40">B<tspan dx="10">C</tspan></tspan></text>`],
+            ["dx on a <text> and on its first child", `<text x="100" y="30" dx="40"><tspan dx="10">A</tspan>B</text>`],
+            ["dx on an element whose first child renders nothing", `<text x="100" y="30">A<tspan dx="40"><tspan dx="10"></tspan>B</tspan></text>`],
+        ];
+        for (const [name, markup] of cases) {
+            svg.innerHTML = markup;
+            println(`${name}: ${describe(svg.querySelector("text"))}`);
+        }
+        done();
+    });
+</script>
