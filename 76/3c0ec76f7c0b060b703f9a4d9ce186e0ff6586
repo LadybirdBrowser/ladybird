@@ -1,0 +1,30 @@
+Ladybird gives the platform the media session that most recently
+appeared or started playing, across all tabs, and keeps a paused
+one there until another plays or its page goes away. Chromium makes
+the same choice in AudioFocusManager::MaybeUpdateActiveSession(),
+and Gecko’s ControllerManager::UpdateMainControllerIfNeeded()
+makes a controller that starts playing the main one. WebKit’s
+GPUProcess::recomputeNowPlayingOwner() prefers the largest
+main-content media instead.
+
+When the metadata has no title, Ladybird shows the tab’s title,
+as Chromium’s MediaSessionImpl::BuildMetadata() and Gecko’s
+MediaStatusManager::FillMissingTitleAndArtworkIfNeeded() do. WebKit
+uses the media element’s title attribute, then the document title
+(HTMLMediaElement::mediaSessionTitle()).
+
+Ladybird never lets a declared playbackState move a session ahead,
+as the spec requires; Chromium’s audio-focus stack and Gecko’s main
+controller also change only when media starts playing.
+
+Ladybird publishes a private window’s session with the title “Ladybird”
+and no artist, album, or artwork. Chromium replaces an incognito
+session’s metadata with a private-playback title (MediaSessionClient::
+ShouldHideMetadata()), Gecko withholds a private window’s metadata
+(MediaStatusManager::IsInPrivateBrowsing()), and WebKit clears it for an
+ephemeral session (MediaElementSession::computeNowPlayingInfo()).
+
+These comparisons come from reading each engine’s source, at Chromium
+8658d682eac5, WebKit 047a16c96ccd, and Gecko 06fa2674be3d: What an
+engine hands the OS media controls isn’t observable from page script, so
+it couldn’t be compared by running them.
