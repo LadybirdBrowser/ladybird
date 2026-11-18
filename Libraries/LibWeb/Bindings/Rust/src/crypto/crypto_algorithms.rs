@@ -5549,9 +5549,9 @@ fn rsa_export_der(key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult<Bytes> {
         .map_err(operation_error)
 }
 
-fn rsa_export_jwk_integer(key: Ref<CryptoKey>, component: RsaJwkInteger) -> WebIdlResult<Utf16String> {
+fn rsa_export_jwk_integer(key: Ref<CryptoKey>, component: RsaJwkInteger) -> WebIdlResult<Option<Utf16String>> {
     let bytes = libcrypto_rust::rsa_export_jwk_integer(key.handle(), component).map_err(operation_error)?;
-    Ok(base64_url_bytes_encode(&bytes))
+    Ok(bytes.map(|bytes| base64_url_bytes_encode(&bytes)))
 }
 
 fn key_format_to_string(format: KeyFormat) -> &'static str {
@@ -6226,18 +6226,18 @@ impl AlgorithmMethods for RsaOaep {
 
             // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms
             //    [JWA], Section 6.3.1.
-            jwk.n = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Modulus)?);
-            jwk.e = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PublicExponent)?);
+            jwk.n = rsa_export_jwk_integer(key, RsaJwkInteger::Modulus)?;
+            jwk.e = rsa_export_jwk_integer(key, RsaJwkInteger::PublicExponent)?;
 
             // 6. If the [[type]] internal slot of key is "private":
             //    1. Set the attributes named d, p, q, dp, dq, and qi of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.2.
             if key.key_type() == KeyType::Private {
-                jwk.d = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PrivateExponent)?);
-                jwk.p = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime1)?);
-                jwk.q = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime2)?);
-                jwk.dp = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent1)?);
-                jwk.dq = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent2)?);
-                jwk.qi = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Coefficient)?);
+                jwk.d = rsa_export_jwk_integer(key, RsaJwkInteger::PrivateExponent)?;
+                jwk.p = rsa_export_jwk_integer(key, RsaJwkInteger::Prime1)?;
+                jwk.q = rsa_export_jwk_integer(key, RsaJwkInteger::Prime2)?;
+                jwk.dp = rsa_export_jwk_integer(key, RsaJwkInteger::Exponent1)?;
+                jwk.dq = rsa_export_jwk_integer(key, RsaJwkInteger::Exponent2)?;
+                jwk.qi = rsa_export_jwk_integer(key, RsaJwkInteger::Coefficient)?;
 
                 // 2. If the underlying RSA private key represented by the [[handle]] internal slot of key is
                 //    represented by more than two primes, set the attribute named oth of jwk according to the
@@ -6939,19 +6939,19 @@ impl AlgorithmMethods for RsaPss {
             }
 
             // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
-            jwk.n = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Modulus)?);
-            jwk.e = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PublicExponent)?);
+            jwk.n = rsa_export_jwk_integer(key, RsaJwkInteger::Modulus)?;
+            jwk.e = rsa_export_jwk_integer(key, RsaJwkInteger::PublicExponent)?;
 
             // 6. If the [[type]] internal slot of key is "private":
             if key.key_type() == KeyType::Private {
                 // 1. Set the attributes named d, p, q, dp, dq, and qi of jwk according to the corresponding definitions
                 //    in JSON Web Algorithms [JWA], Section 6.3.2.
-                jwk.d = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PrivateExponent)?);
-                jwk.p = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime1)?);
-                jwk.q = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime2)?);
-                jwk.dp = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent1)?);
-                jwk.dq = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent2)?);
-                jwk.qi = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Coefficient)?);
+                jwk.d = rsa_export_jwk_integer(key, RsaJwkInteger::PrivateExponent)?;
+                jwk.p = rsa_export_jwk_integer(key, RsaJwkInteger::Prime1)?;
+                jwk.q = rsa_export_jwk_integer(key, RsaJwkInteger::Prime2)?;
+                jwk.dp = rsa_export_jwk_integer(key, RsaJwkInteger::Exponent1)?;
+                jwk.dq = rsa_export_jwk_integer(key, RsaJwkInteger::Exponent2)?;
+                jwk.qi = rsa_export_jwk_integer(key, RsaJwkInteger::Coefficient)?;
 
                 // 2. If the underlying RSA private key represented by the [[handle]] internal slot of key is represented by more than two primes,
                 //    set the attribute named oth of jwk according to the corresponding definition in JSON Web Algorithms [JWA], Section 6.3.2.7
@@ -7643,19 +7643,19 @@ impl AlgorithmMethods for RsassaPkcs1 {
             }
 
             // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
-            jwk.n = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Modulus)?);
-            jwk.e = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PublicExponent)?);
+            jwk.n = rsa_export_jwk_integer(key, RsaJwkInteger::Modulus)?;
+            jwk.e = rsa_export_jwk_integer(key, RsaJwkInteger::PublicExponent)?;
 
             // 6. If the [[type]] internal slot of key is "private":
             if key.key_type() == KeyType::Private {
                 // 1. Set the attributes named d, p, q, dp, dq, and qi of jwk according to the corresponding definitions
                 //    in JSON Web Algorithms [JWA], Section 6.3.2.
-                jwk.d = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PrivateExponent)?);
-                jwk.p = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime1)?);
-                jwk.q = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime2)?);
-                jwk.dp = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent1)?);
-                jwk.dq = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent2)?);
-                jwk.qi = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Coefficient)?);
+                jwk.d = rsa_export_jwk_integer(key, RsaJwkInteger::PrivateExponent)?;
+                jwk.p = rsa_export_jwk_integer(key, RsaJwkInteger::Prime1)?;
+                jwk.q = rsa_export_jwk_integer(key, RsaJwkInteger::Prime2)?;
+                jwk.dp = rsa_export_jwk_integer(key, RsaJwkInteger::Exponent1)?;
+                jwk.dq = rsa_export_jwk_integer(key, RsaJwkInteger::Exponent2)?;
+                jwk.qi = rsa_export_jwk_integer(key, RsaJwkInteger::Coefficient)?;
 
                 // 2. If the underlying RSA private key represented by the [[handle]] internal slot of key is represented by more than two primes,
                 //    set the attribute named oth of jwk according to the corresponding definition in JSON Web Algorithms [JWA], Section 6.3.2.7
