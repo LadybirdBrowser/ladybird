@@ -239,6 +239,7 @@ pub(in crate::css::style) unsafe fn publish_sampled_animation_overlay(
         input.animated_overlay.cast(),
         groups,
         input.is_document_element,
+        engine.is_svg_graphics_element(node),
     );
     let (animated_overlay, overlay_payloads) = match input.animation_overlay_identity {
         0 => (std::ptr::null(), None),

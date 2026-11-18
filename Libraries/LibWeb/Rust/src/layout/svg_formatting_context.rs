@@ -50,6 +50,28 @@ struct ShapedSvgText {
     character_cells: Vec<FfiSvgTextCharacterCell>,
 }
 
+/// A path with a closed subpath around each of the given rects.
+fn path_of_rects(rects: &[FloatRect]) -> libgfx_rust::path::Path {
+    let mut path = libgfx_rust::path::Path::new();
+    for rect in rects {
+        path.move_to(FloatPoint { x: rect.x, y: rect.y });
+        path.line_to(FloatPoint {
+            x: rect.right(),
+            y: rect.y,
+        });
+        path.line_to(FloatPoint {
+            x: rect.right(),
+            y: rect.bottom(),
+        });
+        path.line_to(FloatPoint {
+            x: rect.x,
+            y: rect.bottom(),
+        });
+        path.close();
+    }
+    path
+}
+
 /// Appends the glyph cell of each code unit of one shaped run, in code unit order. A typographic
 /// character's cell spans its advance, less the `spacing_after_each_character` the run was shaped
 /// with; every code unit of it carries that cell, and the first one is marked as the one that starts
@@ -533,10 +555,77 @@ struct SvgTextBoxContents {
     children_bounding_box: SvgCssPixelRect,
 }
 
-/// The glyphs a text content element paints, in parts: each part with the child element it paints after, in paint order.
+/// A stretch of text that one text node of a text content element renders, which a text decoration line runs along.
+#[derive(Clone, Copy, Debug)]
+struct SvgTextRunSpan {
+    x: f32,
+    advance: f32,
+    baseline: f32,
+    /// The ascent of the first available font of the element the text is in, and that element's font size.
+    ascent: f32,
+    font_size: f32,
+}
+
+/// The text decoration lines a text content element draws along the text in its subtree.
+#[derive(Clone, Copy, Debug, Default)]
+struct SvgTextDecorationLines {
+    underline: bool,
+    overline: bool,
+    line_through: bool,
+    /// The thickness the element's 'text-decoration-thickness' gives the lines, where it gives one.
+    thickness: Option<f32>,
+}
+
+impl SvgTextDecorationLines {
+    fn thickness_for(&self, span: &SvgTextRunSpan) -> f32 {
+        self.thickness.unwrap_or(span.font_size / 10.0).max(1.0)
+    }
+
+    /// The underline and the overline along `span`, which paint before the text.
+    fn rects_under_text(&self, span: &SvgTextRunSpan, rects: &mut Vec<FloatRect>) {
+        let thickness = self.thickness_for(span);
+        if self.underline {
+            // https://drafts.csswg.org/css-text-decor-4/#text-underline-position-property
+            // The user agent may use any algorithm to determine the underline's position; however it must be placed
+            // at or under the alphabetic baseline.
+            let gap = (thickness / 2.0).ceil().max(1.0);
+            rects.push(FloatRect::new(span.x, span.baseline + gap, span.advance, thickness));
+        }
+        if self.overline {
+            rects.push(FloatRect::new(
+                span.x,
+                span.baseline - span.ascent - thickness,
+                span.advance,
+                thickness,
+            ));
+        }
+    }
+
+    /// The line through `span`, which paints after the text.
+    fn rects_over_text(&self, span: &SvgTextRunSpan, rects: &mut Vec<FloatRect>) {
+        if self.line_through {
+            let thickness = self.thickness_for(span);
+            let center = span.baseline - span.ascent / 3.0;
+            rects.push(FloatRect::new(
+                span.x,
+                center - thickness / 2.0,
+                span.advance,
+                thickness,
+            ));
+        }
+    }
+}
+
+/// What a text content element paints in one go: glyph outlines, or the rects of text decoration lines.
+enum SvgTextPaintPart {
+    Glyphs(Vec<libgfx_rust::path::GlyphRun>),
+    DecorationLines(Vec<FloatRect>),
+}
+
+/// The parts a text content element paints, each with the child element it paints after, in paint order.
 #[derive(Default)]
 struct SvgTextPaintParts {
-    parts: Vec<(Node, Vec<libgfx_rust::path::GlyphRun>)>,
+    parts: Vec<(Node, SvgTextPaintPart)>,
 }
 
 impl SvgTextPaintParts {
@@ -544,13 +633,26 @@ impl SvgTextPaintParts {
         if runs.is_empty() {
             return;
         }
-        if let Some((last_after_child, last_runs)) = self.parts.last_mut()
+        if let Some((last_after_child, SvgTextPaintPart::Glyphs(last_runs))) = self.parts.last_mut()
             && *last_after_child == after_child
         {
             last_runs.extend(runs);
             return;
         }
-        self.parts.push((after_child, runs));
+        self.parts.push((after_child, SvgTextPaintPart::Glyphs(runs)));
+    }
+
+    fn add_decoration_lines(&mut self, after_child: Node, rects: Vec<FloatRect>) {
+        if rects.is_empty() {
+            return;
+        }
+        if let Some((last_after_child, SvgTextPaintPart::DecorationLines(last_rects))) = self.parts.last_mut()
+            && *last_after_child == after_child
+        {
+            last_rects.extend(rects);
+            return;
+        }
+        self.parts.push((after_child, SvgTextPaintPart::DecorationLines(rects)));
     }
 
     /// Whether the parts are just the glyphs of text that comes before every child element, which the element's
@@ -558,7 +660,7 @@ impl SvgTextPaintParts {
     fn are_one_path(&self) -> bool {
         match self.parts.as_slice() {
             [] => true,
-            [(after_child, _)] => after_child.is_invalid(),
+            [(after_child, SvgTextPaintPart::Glyphs(_))] => after_child.is_invalid(),
             _ => false,
         }
     }
@@ -730,6 +832,8 @@ pub(super) struct SvgFormattingContext<'pass> {
     processed_svg_text: RefCell<std::collections::HashMap<Node, std::sync::Arc<[u16]>>>,
     /// The glyph cells of the text content element laid out last: those of its whole subtree, in document order.
     last_text_subtree_cells: Option<std::sync::Arc<Vec<FfiSvgTextCharacterCell>>>,
+    /// The stretches of text in the subtree of the <text>, <tspan>, or <a> laid out last, in document order.
+    last_text_subtree_spans: Vec<SvgTextRunSpan>,
     /// What the run's root, where this is the context of the root, hands the root's fragment.
     root_payload: RefCell<fragment_tree::PendingPayload>,
 }
@@ -770,6 +874,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             text_length_adjustment: SvgTextLengthAdjustment::None,
             processed_svg_text: RefCell::new(std::collections::HashMap::new()),
             last_text_subtree_cells: None,
+            last_text_subtree_spans: Vec::new(),
             root_payload: RefCell::new(fragment_tree::PendingPayload::default()),
         }
     }
@@ -1992,7 +2097,21 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
         };
         let mut contents = SvgTextBoxContents::default();
+        // https://svgwg.org/svg2-draft/text.html#TextDecorationProperties
+        // The fill and stroke of the text decoration are given by the fill and stroke of the text at the point where
+        // the text decoration is declared
+        // NB: So, the element that declares a line draws it along all of the text in its subtree.
+        let decoration_lines = self.svg_text_decoration_lines(text_box);
+        let (font_ascent, font_size) = {
+            let style = self.style(text_box);
+            (
+                style.font().first_available_font_metrics().ascent,
+                style.font_size().to_double() as f32,
+            )
+        };
+        let mut spans: Vec<SvgTextRunSpan> = Vec::new();
         // Text that follows a child element paints after that child, so it's kept apart from the text before it.
+        // And an underline or an overline paints before the text it runs along, and a line-through after it.
         let mut paint_parts = SvgTextPaintParts::default();
         let mut after_child = Node::INVALID;
         for child in self.run.pass.children(text_box) {
@@ -2031,13 +2150,51 @@ impl<'pass> SvgFormattingContext<'pass> {
                 // FIXME: Take writing mode and text direction into account.
                 self.current_text_position.x += shaped.advance;
 
+                // NB: The space 'textLength' adds after a character isn't decorated, so each character has its lines
+                //     along its own cell.
+                let run_spans: Vec<SvgTextRunSpan> = if text.is_empty() {
+                    Vec::new()
+                } else if self.text_length_adjustment.spacing() != 0.0 {
+                    shaped
+                        .character_cells
+                        .iter()
+                        .filter(|cell| cell.starts_typographic_character)
+                        .map(|cell| SvgTextRunSpan {
+                            x: cell.x,
+                            advance: cell.width,
+                            baseline: text_offset.y,
+                            ascent: font_ascent,
+                            font_size,
+                        })
+                        .collect()
+                } else {
+                    vec![SvgTextRunSpan {
+                        x: text_offset.x,
+                        advance: shaped.advance,
+                        baseline: text_offset.y,
+                        ascent: font_ascent,
+                        font_size,
+                    }]
+                };
+                let mut lines_under = Vec::new();
+                let mut lines_over = Vec::new();
+                if let Some(lines) = &decoration_lines {
+                    for span in &run_spans {
+                        lines.rects_under_text(span, &mut lines_under);
+                        lines.rects_over_text(span, &mut lines_over);
+                    }
+                }
+                spans.extend(run_spans);
+                paint_parts.add_decoration_lines(after_child, lines_under);
                 paint_parts.add_glyphs(after_child, shaped.runs);
+                paint_parts.add_decoration_lines(after_child, lines_over);
 
                 contents.glyph_cells.unite(shaped.glyph_cells);
                 contents.character_cells.extend(shaped.character_cells);
             } else if matches!(kind, NodeKind::SVGTextBox | NodeKind::SVGTextPathBox) {
                 // <text> and <tspan> elements can contain more text elements, whose glyph cells count toward this
                 // box too.
+                self.last_text_subtree_spans.clear();
                 let child_geometry = self.layout_graphics_element(run, child);
                 contents
                     .children_bounding_box
@@ -2045,21 +2202,41 @@ impl<'pass> SvgFormattingContext<'pass> {
                 if let Some(cells) = self.last_text_subtree_cells.take() {
                     contents.character_cells.extend(cells.iter().copied());
                 }
+                let child_spans = std::mem::take(&mut self.last_text_subtree_spans);
+                let mut lines_under = Vec::new();
+                let mut lines_over = Vec::new();
+                if let Some(lines) = decoration_lines {
+                    for span in &child_spans {
+                        lines.rects_under_text(span, &mut lines_under);
+                        lines.rects_over_text(span, &mut lines_over);
+                    }
+                }
+                paint_parts.add_decoration_lines(after_child, lines_under);
                 after_child = child;
+                paint_parts.add_decoration_lines(after_child, lines_over);
+                spans.extend(child_spans);
             }
         }
+        self.last_text_subtree_spans = spans;
 
-        // NB: Where the element's text all comes before its child elements, its path paints as it is.
+        // NB: The element's path is the outlines of its glyphs alone. Where that's all there is to paint, and nothing
+        //     has to paint between two parts of it, the path paints as it is.
         let paints_as_one_path = paint_parts.are_one_path();
         let mut glyph_outlines = libgfx_rust::path::Path::new();
         let mut segments = Vec::new();
-        for (after_child, runs) in paint_parts.parts {
-            let path = libgfx_rust::path::Path::from_glyph_runs(&runs);
-            if paints_as_one_path {
-                glyph_outlines = path;
-                break;
-            }
-            glyph_outlines.append_path(&path);
+        for (after_child, part) in paint_parts.parts {
+            let path = match part {
+                SvgTextPaintPart::Glyphs(runs) => {
+                    let path = libgfx_rust::path::Path::from_glyph_runs(&runs);
+                    if paints_as_one_path {
+                        glyph_outlines = path;
+                        break;
+                    }
+                    glyph_outlines.append_path(&path);
+                    path
+                }
+                SvgTextPaintPart::DecorationLines(rects) => path_of_rects(&rects),
+            };
             segments.push(fragment_tree::SvgTextSegment {
                 after_child,
                 path: scale_glyphs(path),
@@ -2073,6 +2250,34 @@ impl<'pass> SvgFormattingContext<'pass> {
             self.text_length_adjustment = SvgTextLengthAdjustment::None;
         }
         contents
+    }
+
+    /// The text decoration lines the given text content element declares, if it declares any.
+    /// AD-HOC: Every line is drawn solid, whatever its 'text-decoration-style' is.
+    fn svg_text_decoration_lines(&self, text_box: Node) -> Option<SvgTextDecorationLines> {
+        let style = self.style(text_box);
+        let text_reset = style.text_reset();
+        let mut lines = SvgTextDecorationLines::default();
+        for line in text_reset.text_decoration_lines.as_slice() {
+            match *line {
+                text_decoration_line::UNDERLINE => lines.underline = true,
+                text_decoration_line::OVERLINE => lines.overline = true,
+                text_decoration_line::LINE_THROUGH => lines.line_through = true,
+                _ => {}
+            }
+        }
+        if !(lines.underline || lines.overline || lines.line_through) {
+            return None;
+        }
+        // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-length-percentage
+        const TEXT_DECORATION_THICKNESS_KIND_LENGTH_PERCENTAGE: u8 = 2;
+        if text_reset.text_decoration_thickness_kind == TEXT_DECORATION_THICKNESS_KIND_LENGTH_PERCENTAGE {
+            lines.thickness = text_reset
+                .text_decoration_thickness
+                .length_percentage()
+                .map(|value| value.to_px(style.font_size()).to_double() as f32);
+        }
+        Some(lines)
     }
 
     /// How the given <text> element adjusts its text to its 'textLength'.
