@@ -1,0 +1,26 @@
+CSS1Compat
+text: 20
+inline-block: 20
+image: 20
+text-then-inline-block: 20
+text-in-span: 20
+text-in-nested-span: 20
+inline-block-then-text-in-span: 20
+inline-block-in-tall-span: 60
+inline-block-in-padded-span: 60
+br: 20
+br-then-text: 40
+inline-block-then-br: 40
+text-in-span-then-br: 40
+br-in-span: 20
+collapsed-spaces: 20
+space-between-inline-blocks: 20
+space-at-wrap: 40
+preserved-space-at-wrap: 40
+nbsp: 20
+zero-width-space: 20
+list-item: 20
+empty-span-then-text: 20
+padded-empty-span: 20
+bordered-empty-span: 60
+menu-title: 15 (span at 3)

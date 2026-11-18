@@ -1629,6 +1629,13 @@ impl<'pass> NodeFacts<'pass> {
         self.pass.document_in_quirks_mode
     }
 
+    // https://quirks.spec.whatwg.org/#the-line-height-calculation-quirk
+    // In quirks mode and limited-quirks mode, an inline box that matches the following conditions, must, for the
+    // purpose of line height calculation, act as if the box had a line-height of zero.
+    pub(crate) fn document_in_line_height_quirks_mode(&self) -> bool {
+        self.pass.document_in_quirks_mode || self.pass.document_in_limited_quirks_mode
+    }
+
     pub(crate) fn is_in_user_agent_shadow_tree(&self) -> bool {
         has_flag(self.data(), NodeFlag::IsInUserAgentShadowTree)
     }

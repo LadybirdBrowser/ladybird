@@ -2690,7 +2690,8 @@ impl<'context> InlineFormattingContext<'context> {
         let mut stopped_at_line_limit = false;
         let mut needs_float_fitting = !float_fit_trial;
         // https://quirks.spec.whatwg.org/#the-line-height-calculation-quirk
-        let takes_struts_of_inline_boxes_without_text = !self.facts(self.containing_block).document_in_quirks_mode();
+        let takes_struts_of_inline_boxes_without_text =
+            !self.facts(self.containing_block).document_in_line_height_quirks_mode();
         loop {
             if float_fit_trial && line_builder.float_refit().is_some() {
                 break;

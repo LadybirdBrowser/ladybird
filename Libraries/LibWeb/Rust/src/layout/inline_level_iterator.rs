@@ -2144,7 +2144,7 @@ impl<'context> RunItemResolver<'_, 'context> {
         // unless it has a border or padding at its start or end.
         let none = CssPixels::default();
         if in_flow_item_count_at_start == self.in_flow_item_count
-            && (!self.context().facts(node).document_in_quirks_mode()
+            && (!self.context().facts(node).document_in_line_height_quirks_mode()
                 || sides.border_left != none
                 || sides.border_right != none
                 || sides.padding_left != none
