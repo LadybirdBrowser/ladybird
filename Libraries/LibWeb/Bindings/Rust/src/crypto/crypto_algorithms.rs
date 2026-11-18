@@ -14,8 +14,8 @@ use std::rc::Rc;
 
 use ak::{Utf16String, Utf16StringUnits};
 use libcrypto_rust::{
-    Argon2Inputs, Argon2Type, CShakeKind, CryptoError, EcCurve, KeyAlgorithm, KeyHandle, KeyInfo, KeyPair, KmacKind,
-    MlDsaSize, MlKemSize, OkpCurve, RsaJwkInteger, RsaSignaturePadding, SecretBytes, ShaHashKind,
+    Argon2Inputs, Argon2Type, CShakeKind, CryptoError, EcCurve, KeyAlgorithm, KeyHandle, KeyInfo, KeyMaterial, KeyPair,
+    KmacKind, MlDsaSize, MlKemSize, OkpCurve, RsaJwkInteger, RsaSignaturePadding, SecretBytes, ShaHashKind,
 };
 use libjs_rust::api::{
     ErrorKind, ErrorType, Gc, Object, PropertyKey, Realm, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
@@ -5824,7 +5824,7 @@ impl AlgorithmMethods for RsaOaep {
 
             // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let mut spki = parse_a_subject_public_key_info(key_data.as_slice())?;
+            let spki = parse_a_subject_public_key_info(key_data.as_slice())?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -5839,7 +5839,9 @@ impl AlgorithmMethods for RsaOaep {
             //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
             //    specified in Section A.1.1 of [RFC3447], and exactData set to true.
             // NOTE: We already did this in parse_a_subject_public_key_info
-            let public_key = spki.take_key();
+            let KeyMaterial::Key(public_key) = spki.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 6. If an error occurred while parsing, or it can be determined that publicKey is not
             //    a valid public key according to [RFC3447], then throw a DataError.
@@ -5875,7 +5877,7 @@ impl AlgorithmMethods for RsaOaep {
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let mut private_key_info = parse_a_private_key_info(key_data.as_slice())?;
+            let private_key_info = parse_a_private_key_info(key_data.as_slice())?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -5890,7 +5892,9 @@ impl AlgorithmMethods for RsaOaep {
             //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
             //    specified in Section A.1.2 of [RFC3447], and exactData set to true.
             // NOTE: We already did this in parse_a_private_key_info
-            let rsa_private_key = private_key_info.take_key();
+            let KeyMaterial::Key(rsa_private_key) = private_key_info.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 6. If an error occurred while parsing, or if rsaPrivateKey is not
             //    a valid RSA private key according to [RFC3447], then throw a DataError.
@@ -6511,7 +6515,7 @@ impl AlgorithmMethods for RsaPss {
 
             // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let mut spki = parse_a_subject_public_key_info(key_data.as_slice())?;
+            let spki = parse_a_subject_public_key_info(key_data.as_slice())?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -6526,7 +6530,9 @@ impl AlgorithmMethods for RsaPss {
             //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
             //    specified in Section A.1.1 of [RFC3447], and exactData set to true.
             // NOTE: We already did this in parse_a_subject_public_key_info
-            let public_key = spki.take_key();
+            let KeyMaterial::Key(public_key) = spki.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 6. If an error occurred while parsing, or it can be determined that publicKey is not
             //    a valid public key according to [RFC3447], then throw a DataError.
@@ -6562,7 +6568,7 @@ impl AlgorithmMethods for RsaPss {
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let mut private_key_info = parse_a_private_key_info(key_data.as_slice())?;
+            let private_key_info = parse_a_private_key_info(key_data.as_slice())?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -6577,7 +6583,9 @@ impl AlgorithmMethods for RsaPss {
             //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
             //    specified in Section A.1.2 of [RFC3447], and exactData set to true.
             // NOTE: We already did this in parse_a_private_key_info
-            let rsa_private_key = private_key_info.take_key();
+            let KeyMaterial::Key(rsa_private_key) = private_key_info.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 6. If an error occurred while parsing, or if rsaPrivateKey is not
             //    a valid RSA private key according to [RFC3447], then throw a DataError.
@@ -7184,7 +7192,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
             // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let mut spki = parse_a_subject_public_key_info(key_data.as_slice())?;
+            let spki = parse_a_subject_public_key_info(key_data.as_slice())?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -7199,7 +7207,9 @@ impl AlgorithmMethods for RsassaPkcs1 {
             //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
             //    specified in Section A.1.1 of [RFC3447], and exactData set to true.
             // NOTE: We already did this in parse_a_subject_public_key_info
-            let public_key = spki.take_key();
+            let KeyMaterial::Key(public_key) = spki.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 6. If an error occurred while parsing, or it can be determined that publicKey is not
             //    a valid public key according to [RFC3447], then throw a DataError.
@@ -7235,7 +7245,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let mut private_key_info = parse_a_private_key_info(key_data.as_slice())?;
+            let private_key_info = parse_a_private_key_info(key_data.as_slice())?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -7250,7 +7260,9 @@ impl AlgorithmMethods for RsassaPkcs1 {
             //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
             //    specified in Section A.1.2 of [RFC3447], and exactData set to true.
             // NOTE: We already did this in parse_a_private_key_info
-            let rsa_private_key = private_key_info.take_key();
+            let KeyMaterial::Key(rsa_private_key) = private_key_info.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 6. If an error occurred while parsing, or if rsaPrivateKey is not
             //    a valid RSA private key according to [RFC3447], then throw a DataError.
@@ -8119,7 +8131,7 @@ impl AlgorithmMethods for Ecdsa {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let mut spki = parse_a_subject_public_key_info(key_data.as_slice())?;
+            let spki = parse_a_subject_public_key_info(key_data.as_slice())?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
@@ -8161,7 +8173,9 @@ impl AlgorithmMethods for Ecdsa {
                 //    defined in Section 2.3.4 of [SEC1] using the subjectPublicKey field of spki. The uncompressed
                 //    point format MUST be supported.
                 // The uncompressed point format MUST be supported.
-                let public_key = spki.take_key();
+                let KeyMaterial::Key(public_key) = spki.into_material() else {
+                    unreachable!("the structure holds the key material of its algorithm")
+                };
 
                 // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
                 // 3. If a decode error occurs or an identity point is found, throw a DataError.
@@ -8216,7 +8230,7 @@ impl AlgorithmMethods for Ecdsa {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let mut private_key_info = parse_a_private_key_info(key_data.as_slice())?;
+            let private_key_info = parse_a_private_key_info(key_data.as_slice())?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
             //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
@@ -8260,7 +8274,9 @@ impl AlgorithmMethods for Ecdsa {
                 //    structure specified in Section 3 of [RFC5915], and exactData set to true.
                 // NOTE: We already did this in parse_a_private_key_info
                 // 2. If an error occurred while parsing, then throw a DataError.
-                let ec_private_key = private_key_info.take_key();
+                let KeyMaterial::Key(ec_private_key) = private_key_info.into_material() else {
+                    unreachable!("the structure holds the key material of its algorithm")
+                };
 
                 // 3. If the parameters field of ecPrivateKey is present, and is not an instance of the namedCurve ASN.1
                 //    type defined in [RFC5480], or does not contain the same object identifier as the parameters field
@@ -9106,7 +9122,7 @@ impl AlgorithmMethods for Ecdh {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let mut spki = parse_a_subject_public_key_info(key_data.as_slice())?;
+            let spki = parse_a_subject_public_key_info(key_data.as_slice())?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
@@ -9148,7 +9164,9 @@ impl AlgorithmMethods for Ecdh {
                 //    defined in Section 2.3.4 of [SEC1] to the subjectPublicKey field of spki. The uncompressed point
                 //    format MUST be supported.
                 // The uncompressed point format MUST be supported.
-                let public_key = spki.take_key();
+                let KeyMaterial::Key(public_key) = spki.into_material() else {
+                    unreachable!("the structure holds the key material of its algorithm")
+                };
 
                 // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
                 // 3. If a decode error occurs or an identity point is found, throw a DataError.
@@ -9203,7 +9221,7 @@ impl AlgorithmMethods for Ecdh {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let mut private_key_info = parse_a_private_key_info(key_data.as_slice())?;
+            let private_key_info = parse_a_private_key_info(key_data.as_slice())?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of
             //    privateKeyInfo is not equal to the id-ecPublicKey object identifier defined in [RFC5480], throw a
@@ -9248,7 +9266,9 @@ impl AlgorithmMethods for Ecdh {
                 //    structure specified in Section 3 of [RFC5915], and exactData set to true.
                 // NOTE: We already did this in parse_a_private_key_info
                 // 2. If an error occurred while parsing, then throw a DataError.
-                let ec_private_key = private_key_info.take_key();
+                let KeyMaterial::Key(ec_private_key) = private_key_info.into_material() else {
+                    unreachable!("the structure holds the key material of its algorithm")
+                };
 
                 // 3. If the parameters field of ecPrivateKey is present, and is not an instance
                 //    of the namedCurve ASN.1 type defined in [RFC5480], or does not contain
@@ -9916,10 +9936,12 @@ impl AlgorithmMethods for Ed25519 {
             }
 
             // 6. Let publicKey be the Ed25519 public key identified by the subjectPublicKey field of spki.
-            let public_key = spki.raw_key();
+            let KeyMaterial::Raw(public_key) = spki.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 7. Let key be a new CryptoKey that represents publicKey.
-            key = okp_key(cx.vm(), OkpCurve::Ed25519, false, public_key)?;
+            key = okp_key(cx.vm(), OkpCurve::Ed25519, false, &public_key)?;
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -9966,7 +9988,10 @@ impl AlgorithmMethods for Ed25519 {
             //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 CurvePrivateKey structure
             //    specified in Section 7 of [RFC8410], and exactData set to true.
             // 7. If an error occurred while parsing, then throw a DataError.
-            let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
+            let KeyMaterial::Raw(private_key) = private_key_info.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
+            let curve_private_key_bytes = parse_octet_string(cx.vm(), &private_key)?;
 
             // 8. Let key be a new CryptoKey that represents the Ed25519 private key identified by curvePrivateKey.
             key = okp_key(cx.vm(), OkpCurve::Ed25519, true, curve_private_key_bytes.as_slice())?;
@@ -10484,11 +10509,13 @@ impl AlgorithmMethods for Ed448 {
             }
 
             // 6. Let publicKey be the Ed448 public key identified by the subjectPublicKey field of spki.
-            let public_key = spki.raw_key();
+            let KeyMaterial::Raw(public_key) = spki.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
             //    and that represents publicKey.
-            key = okp_key(cx.vm(), OkpCurve::Ed448, false, public_key)?;
+            key = okp_key(cx.vm(), OkpCurve::Ed448, false, &public_key)?;
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -10535,7 +10562,10 @@ impl AlgorithmMethods for Ed448 {
             //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 CurvePrivateKey structure
             //    specified in Section 7 of [RFC8410], and exactData set to true.
             // 7. If an error occurred while parsing, then throw a DataError.
-            let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
+            let KeyMaterial::Raw(private_key) = private_key_info.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
+            let curve_private_key_bytes = parse_octet_string(cx.vm(), &private_key)?;
 
             // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
             //    and that represents the Ed448 private key identified by curvePrivateKey.
@@ -11183,10 +11213,12 @@ impl AlgorithmMethods for X25519 {
             }
 
             // 6. Let publicKey be the X25519 public key identified by the subjectPublicKey field of spki.
-            let public_key = spki.raw_key();
+            let KeyMaterial::Raw(public_key) = spki.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 7. Let key be a new CryptoKey that represents publicKey.
-            key = okp_key(cx.vm(), OkpCurve::X25519, false, public_key)?;
+            key = okp_key(cx.vm(), OkpCurve::X25519, false, &public_key)?;
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -11233,7 +11265,10 @@ impl AlgorithmMethods for X25519 {
             //    structure as the ASN.1 CurvePrivateKey structure specified in Section 7 of [RFC8410], and
             //    exactData set to true.
             // 7. If an error occurred while parsing, then throw a DataError.
-            let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
+            let KeyMaterial::Raw(private_key) = private_key_info.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
+            let curve_private_key_bytes = parse_octet_string(cx.vm(), &private_key)?;
 
             // 8. Let key be a new CryptoKey that represents the X25519 private key identified by curvePrivateKey.
             key = okp_key(cx.vm(), OkpCurve::X25519, true, curve_private_key_bytes.as_slice())?;
@@ -11862,10 +11897,12 @@ impl AlgorithmMethods for X448 {
             }
 
             // 6. Let publicKey be the X448 public key identified by the subjectPublicKey field of spki.
-            let public_key = spki.raw_key();
+            let KeyMaterial::Raw(public_key) = spki.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents publicKey.
-            let key = okp_key(cx.vm(), OkpCurve::X448, false, public_key)?;
+            let key = okp_key(cx.vm(), OkpCurve::X448, false, &public_key)?;
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -11913,7 +11950,10 @@ impl AlgorithmMethods for X448 {
             //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 CurvePrivateKey
             //    structure specified in Section 7 of [RFC8410], and exactData set to true.
             // 7. If an error occurred while parsing, then throw a DataError.
-            let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
+            let KeyMaterial::Raw(private_key) = private_key_info.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
+            let curve_private_key_bytes = parse_octet_string(cx.vm(), &private_key)?;
 
             // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents the X448 private key identified by curvePrivateKey.
             let key = okp_key(cx.vm(), OkpCurve::X448, true, curve_private_key_bytes.as_slice())?;
@@ -12457,10 +12497,12 @@ impl AlgorithmMethods for MlDsa {
             }
 
             // 7. Let publicKey be the ML-DSA public key identified by the subjectPublicKey field of spki.
-            let public_key = spki.raw_key();
+            let KeyMaterial::Raw(public_key) = spki.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 8. Let key be a new CryptoKey that represents publicKey.
-            key = mldsa_read_public_key(cx.vm(), mldsa_size(&params.name), public_key)?;
+            key = mldsa_read_public_key(cx.vm(), mldsa_size(&params.name), &public_key)?;
 
             // 9. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -12489,7 +12531,7 @@ impl AlgorithmMethods for MlDsa {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let mut private_key_info = parse_a_private_key_info(key_data.as_slice())?;
+            let private_key_info = parse_a_private_key_info(key_data.as_slice())?;
 
             // 4. If the name member of normalizedAlgorithm is "ML-DSA-44":
             //    Let expectedOid be id-ml-dsa-44 (2.16.840.1.101.3.4.3.17). Let asn1Structure be the ASN.1
@@ -12532,19 +12574,23 @@ impl AlgorithmMethods for MlDsa {
             // 9. If mlDsaPrivateKey represents an ML-DSA key in the expandedKey format, or if mlDsaPrivateKey
             //    represents an ML-DSA key in the both format and the both format is not supported, throw a
             //    NotSupportedError.
-            if private_key_info.is_ml_expanded_key_form() {
-                return Err(dom_error(
-                    "NotSupportedError",
-                    b"ML-DSA private keys in the expandedKey format are not supported",
-                ));
-            }
+            let private_key = match private_key_info.into_material() {
+                KeyMaterial::Key(private_key) => private_key,
+                KeyMaterial::MlExpandedKey => {
+                    return Err(dom_error(
+                        "NotSupportedError",
+                        b"ML-DSA private keys in the expandedKey format are not supported",
+                    ));
+                }
+                KeyMaterial::Raw(_) => unreachable!("the structure holds the key material of its algorithm"),
+            };
 
             // 10. If mlDsaPrivateKey represents an ML-DSA key in the both format, and the seed field does not
             //    correspond to the expandedKey field, throw a DataError.
             // NB: LibCrypto checks the correspondence between the seed and expanded key while parsing.
 
             // 11. Let key be a new CryptoKey that represents the ML-DSA private key identified by mlDsaPrivateKey.
-            key = CryptoKey::create(cx.vm(), private_key_info.take_key());
+            key = CryptoKey::create(cx.vm(), private_key);
 
             // 12. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -13116,10 +13162,12 @@ impl AlgorithmMethods for MlKem {
             }
 
             // 7. Let publicKey be the ML-KEM public key identified by the subjectPublicKey field of spki.
-            let public_key = spki.raw_key();
+            let KeyMaterial::Raw(public_key) = spki.into_material() else {
+                unreachable!("the structure holds the key material of its algorithm")
+            };
 
             // 8. Let key be a new CryptoKey that represents publicKey.
-            key = mlkem_read_public_key(cx.vm(), public_key)?;
+            key = mlkem_read_public_key(cx.vm(), &public_key)?;
 
             // 9. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -13148,7 +13196,7 @@ impl AlgorithmMethods for MlKem {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let mut private_key_info = parse_a_private_key_info(key_data.as_slice())?;
+            let private_key_info = parse_a_private_key_info(key_data.as_slice())?;
 
             // 4. If the name member of normalizedAlgorithm is "ML-KEM-512":
             //    Let expectedOid be id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1). Let asn1Structure be the ASN.1
@@ -13191,19 +13239,23 @@ impl AlgorithmMethods for MlKem {
             // 9. If mlKemPrivateKey represents an ML-KEM key in the expandedKey format, or if mlKemPrivateKey
             //    represents an ML-KEM key in the both format and the both format is not supported, throw a
             //    NotSupportedError.
-            if private_key_info.is_ml_expanded_key_form() {
-                return Err(dom_error(
-                    "NotSupportedError",
-                    b"ML-KEM private keys in the expandedKey format are not supported",
-                ));
-            }
+            let private_key = match private_key_info.into_material() {
+                KeyMaterial::Key(private_key) => private_key,
+                KeyMaterial::MlExpandedKey => {
+                    return Err(dom_error(
+                        "NotSupportedError",
+                        b"ML-KEM private keys in the expandedKey format are not supported",
+                    ));
+                }
+                KeyMaterial::Raw(_) => unreachable!("the structure holds the key material of its algorithm"),
+            };
 
             // 10. If mlKemPrivateKey represents an ML-KEM key in the both format, and the seed field does not
             //    correspond to the expandedKey field, throw a DataError.
             // NB: LibCrypto checks the correspondence between the seed and expanded key while parsing.
 
             // 11. Let key be a new CryptoKey that represents the ML-KEM private key identified by mlKemPrivateKey.
-            key = CryptoKey::create(cx.vm(), private_key_info.take_key());
+            key = CryptoKey::create(cx.vm(), private_key);
 
             // 12. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
