@@ -64,7 +64,6 @@
 #include <QVBoxLayout>
 #include <QWheelEvent>
 #include <QWidget>
-#include <QWidgetAction>
 #include <QWindow>
 
 namespace Ladybird {
@@ -545,7 +544,6 @@ void BrowserWindow::initialize_ladybird_menu()
     m_ladybird_menu = new QMenu(this);
     m_ladybird_menu->setObjectName("LadybirdMenu");
     m_ladybird_menu->setMinimumWidth(LADYBIRD_MENU_WIDTH);
-    QObject::connect(m_ladybird_menu, &QMenu::aboutToShow, this, &BrowserWindow::update_ladybird_menu_zoom_level);
 
     m_ladybird_menu->addAction(application.new_tab_action());
     m_ladybird_menu->addAction(application.new_window_action());
@@ -576,7 +574,8 @@ void BrowserWindow::initialize_ladybird_menu()
     });
     m_ladybird_menu->addSeparator();
 
-    m_ladybird_menu->addAction(create_ladybird_menu_zoom_row());
+    m_ladybird_menu_zoom_row = new MenuZoomRow(*m_ladybird_menu, *application.zoom_out_action(), *application.reset_zoom_action(), *application.zoom_in_action(), toolbar().zoom_level_action());
+    m_ladybird_menu->addAction(m_ladybird_menu_zoom_row);
     m_ladybird_menu->addAction(application.find_in_page_action());
     m_ladybird_menu->addSeparator();
 
@@ -590,60 +589,6 @@ void BrowserWindow::initialize_ladybird_menu()
 #endif
 
     m_tabs_container->ladybird_button().setMenu(m_ladybird_menu);
-}
-
-// The menu's zoom row: its label like an item's, and the page's zoom level between buttons to zoom out and in.
-QAction* BrowserWindow::create_ladybird_menu_zoom_row()
-{
-    auto& application = Application::the();
-
-    auto* row = new QWidget(m_ladybird_menu);
-    row->setObjectName("LadybirdMenuZoomRow");
-    row->setStyleSheet(ChromeStyle::menu_zoom_row_style_sheet());
-    m_ladybird_menu_zoom_row = row;
-    auto* layout = new QHBoxLayout(row);
-    layout->setContentsMargins(10, 3, 10, 3);
-    layout->setSpacing(2);
-    layout->addWidget(new QLabel("Zoom", row), 1);
-
-    auto add_button = [&](char const* object_name, QString const& tooltip, QAction* action) {
-        auto* button = new QPushButton(row);
-        button->setObjectName(object_name);
-        button->setToolTip(tooltip);
-        button->setAccessibleName(tooltip);
-        button->setFocusPolicy(Qt::NoFocus);
-        QObject::connect(button, &QPushButton::clicked, action, &QAction::trigger);
-        QObject::connect(action, &QAction::triggered, this, &BrowserWindow::update_ladybird_menu_zoom_level);
-        layout->addWidget(button);
-        return button;
-    };
-    m_ladybird_menu_zoom_out = add_button("LadybirdMenuZoomButton", "Zoom Out", application.zoom_out_action());
-    m_ladybird_menu_zoom_level = add_button("LadybirdMenuZoomLevel", "Reset Zoom", application.reset_zoom_action());
-    // NB: The level is drawn in figures of one width, so it doesn't shift as it changes.
-    auto level_font = m_ladybird_menu_zoom_level->font();
-    level_font.setFeature(QFont::Tag("tnum"), 1);
-    m_ladybird_menu_zoom_level->setFont(level_font);
-    m_ladybird_menu_zoom_in = add_button("LadybirdMenuZoomButton", "Zoom In", application.zoom_in_action());
-    update_ladybird_menu_zoom_icons();
-
-    auto* action = new QWidgetAction(m_ladybird_menu);
-    action->setDefaultWidget(row);
-    return action;
-}
-
-void BrowserWindow::update_ladybird_menu_zoom_icons()
-{
-    if (!m_ladybird_menu_zoom_out || !m_ladybird_menu_zoom_in)
-        return;
-    m_ladybird_menu_zoom_out->setIcon(create_chrome_icon(ChromeIcon::ZoomOut, Theme::panel().body));
-    m_ladybird_menu_zoom_in->setIcon(create_chrome_icon(ChromeIcon::NewTab, Theme::panel().body));
-}
-
-void BrowserWindow::update_ladybird_menu_zoom_level()
-{
-    if (!m_current_tab || !m_ladybird_menu_zoom_level)
-        return;
-    m_ladybird_menu_zoom_level->setText(qformatted("{}%", round_to<int>(m_current_tab->view().zoom_level() * 100)));
 }
 
 enum class TabLayoutChoice : u8 {
@@ -1396,8 +1341,7 @@ void BrowserWindow::update_chrome_style()
 {
     menuBar()->setStyleSheet(ChromeStyle::menu_bar_style_sheet(Theme::chrome_palette(*this)));
     if (m_ladybird_menu_zoom_row)
-        m_ladybird_menu_zoom_row->setStyleSheet(ChromeStyle::menu_zoom_row_style_sheet());
-    update_ladybird_menu_zoom_icons();
+        m_ladybird_menu_zoom_row->update_style();
 }
 
 TabBarButton* BrowserWindow::create_tab_close_button(Tab& tab)
