@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="400" height="100">
+    <path id="path" d="M10 60H390" fill="none" />
+    <text id="text"><textPath id="text-path" href="#path">A<tspan font-size="40">BC</tspan>D</textPath></text>
+    <text id="anchored"><textPath href="#path" startOffset="200" text-anchor="end">A<tspan font-size="40">BC</tspan>D</textPath></text>
+</svg>
+<script>
+    const round = value => Math.round(value * 100) / 100;
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        // Each glyph of Ahem is as wide as its font size: 20px in the <textPath>, and 40px in the <tspan>.
+        for (const id of ["text", "text-path"]) {
+            const element = document.getElementById(id);
+            println(`${id}: length ${round(element.getComputedTextLength())}; "BC" is ${round(element.getSubStringLength(1, 2))} long`);
+        }
+        const box = document.getElementById("text").getBBox();
+        println(`text: box ${round(box.x)},${round(box.y)} ${round(box.width)}x${round(box.height)}`);
+        const anchoredBox = document.getElementById("anchored").getBBox();
+        println(`anchored at the end: box ${round(anchoredBox.x)},${round(anchoredBox.y)} ${round(anchoredBox.width)}x${round(anchoredBox.height)}`);
+        done();
+    });
+</script>

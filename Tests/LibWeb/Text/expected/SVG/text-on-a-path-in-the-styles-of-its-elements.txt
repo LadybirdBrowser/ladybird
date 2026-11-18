@@ -1,0 +1,4 @@
+text: length 120; "BC" is 80 long
+text-path: length 120; "BC" is 80 long
+text: box 10,28 120x40
+anchored at the end: box 90,28 120x40
