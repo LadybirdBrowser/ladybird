@@ -1,0 +1,6 @@
+dx on an element and on its first child: 100,30 130,30 150,30
+dy on an element and on its first child: 100,30 120,40 140,40
+dx on an element, dy on its first child: 100,30 160,40 180,40
+dx on an element and on a later child: 100,30 160,30 190,30
+dx on a <text> and on its first child: 110,30 130,30
+dx on an element whose first child renders nothing: 100,30 160,30
