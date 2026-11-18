@@ -1,0 +1,4 @@
+Ladybird lays out SVG text again when the x, y, dx, or dy attribute of a
+<text> or a <tspan> changes. The new test changes each of them in turn,
+and gives the same character positions after every change in Chrome
+157.0.8103.79, Firefox 151.0, and WebKit 26.5.
