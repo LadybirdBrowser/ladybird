@@ -161,7 +161,63 @@ def run_test(webdriver_binary):
             report(None)
             assert not row(settings_row)["shown"]
 
-            print("PASS: the settings page shows the default browser status and offers to change it")
+            welcome_row = {
+                "group": "#default-browser",
+                "label": "#default-browser-label",
+                "description": "#default-browser-description",
+                "button": "#make-default-browser",
+            }
+
+            command("url", {"url": "about:welcome"})
+            command(
+                "execute/async",
+                {
+                    "script": """
+                    const done = arguments[0];
+                    const options = document.querySelector('#setup-options');
+                    if (!options.disabled) return done();
+                    const observer = new MutationObserver(() => {
+                        if (options.disabled) return;
+                        observer.disconnect();
+                        done();
+                    });
+                    observer.observe(options, {attributes: true, attributeFilter: ['disabled']});
+                    """,
+                    "args": [],
+                },
+            )
+            assert not row(welcome_row)["shown"]
+
+            offered = {
+                "shown": True,
+                "text": "Open links from other apps in Ladybird.",
+                "offersToMakeDefault": True,
+                "labelNamesButton": True,
+                "actsAsOneControl": True,
+            }
+            report("not-default")
+            assert row(welcome_row) == offered
+
+            assert click(welcome_row, "label") == asked
+            assert row(welcome_row) == offered | {"text": FAILURE}
+
+            message("defaultBrowserResult", None)
+            assert row(welcome_row) == offered
+
+            assert click(welcome_row, "button") == asked
+            assert row(welcome_row) == offered | {"text": FAILURE}
+
+            report("default")
+            assert row(welcome_row) == {
+                "shown": True,
+                "text": "Links from other apps open in Ladybird.",
+                "offersToMakeDefault": False,
+                "labelNamesButton": False,
+                "actsAsOneControl": False,
+            }
+            assert click(welcome_row, "label") == {"sent": []}
+
+            print("PASS: the settings and welcome pages show the default browser status and offer to change it")
         finally:
             try:
                 if session is not None:
