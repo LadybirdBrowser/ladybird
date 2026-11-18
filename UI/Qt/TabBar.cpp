@@ -2359,18 +2359,39 @@ QRect TabBar::shifted_tab_rect(int index) const
 }
 
 // The card a dragged tab is drawn as. A horizontal tab's card is the selected tab's body, which starts a little below
-// the top of the tab, and leaves out the room for its foot at either end of the strip.
+// the top of the tab, and leaves out the room for its foot at either end of the strip. A vertical tab's card is the
+// selected tab's own card, which is inset from the tab's row.
 QRect TabBar::tab_drag_card_rect(int index) const
 {
     auto tab_rect = visual_tab_rect(index);
-    if (tab_layout() != TabLayout::Horizontal)
-        return tab_rect;
-    return horizontal_selected_tab_body_rect(QRectF(tab_rect), horizontal_tab_end_room(index)).toAlignedRect();
+    switch (tab_layout()) {
+    case TabLayout::Horizontal:
+        return horizontal_selected_tab_body_rect(QRectF(tab_rect), horizontal_tab_end_room(index)).toAlignedRect();
+    case TabLayout::VerticalCollapsed:
+        return collapsed_vertical_tab_shape_rect(tab_rect);
+    case TabLayout::VerticalExpanded:
+        return tab_card_shape_rect(tab_rect);
+    }
+    VERIFY_NOT_REACHED();
+}
+
+qreal TabBar::tab_drag_card_radius() const
+{
+    switch (tab_layout()) {
+    case TabLayout::Horizontal:
+        return HORIZONTAL_SELECTED_TAB_RADIUS;
+    case TabLayout::VerticalCollapsed:
+        return COLLAPSED_VERTICAL_TAB_RADIUS;
+    case TabLayout::VerticalExpanded:
+        return VERTICAL_TAB_RADIUS;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 QPixmap TabBar::render_tab_drag_pixmap(int index) const
 {
     auto tab_rect = tab_drag_card_rect(index);
+    auto radius = tab_drag_card_radius();
     auto device_pixel_ratio = devicePixelRatioF();
     auto dark = Theme::is_dark(*this);
 
@@ -2382,14 +2403,14 @@ QPixmap TabBar::render_tab_drag_pixmap(int index) const
         QPainter painter(&card);
         painter.setRenderHint(QPainter::Antialiasing);
         QPainterPath shape;
-        shape.addRoundedRect(QRectF(QPointF(), tab_rect.size()), HORIZONTAL_SELECTED_TAB_RADIUS, HORIZONTAL_SELECTED_TAB_RADIUS);
+        shape.addRoundedRect(QRectF(QPointF(), tab_rect.size()), radius, radius);
         painter.setClipPath(shape);
         painter.fillPath(shape, Theme::chrome(*this).toolbar);
         const_cast<TabBar&>(*this).render(&painter, QPoint(), QRegion(tab_rect), QWidget::DrawChildren);
         painter.setClipping(false);
         painter.setPen(QPen(dark ? QColor(255, 255, 255, 26) : QColor(0, 0, 0, 36), 1));
         painter.setBrush(Qt::NoBrush);
-        painter.drawRoundedRect(QRectF(QPointF(), tab_rect.size()).adjusted(0.5, 0.5, -0.5, -0.5), HORIZONTAL_SELECTED_TAB_RADIUS - 0.5, HORIZONTAL_SELECTED_TAB_RADIUS - 0.5);
+        painter.drawRoundedRect(QRectF(QPointF(), tab_rect.size()).adjusted(0.5, 0.5, -0.5, -0.5), radius - 0.5, radius - 0.5);
     }
 
     // The card casts a tight shadow and a wider, softer one beneath it.
@@ -2555,7 +2576,7 @@ void TabBar::update_strip_drag(QPoint position)
     auto card_rect = tab_drag_card_rect(m_tab_widget->index_of(dragged_tab));
     auto card_position = tab_layout() == TabLayout::Horizontal
         ? QPoint(position.x() - m_position_in_selected_tab_while_dragging.x() + m_tab_drag_card_offset.x(), card_rect.top())
-        : QPoint(card_rect.left(), position.y() - m_position_in_selected_tab_while_dragging.y());
+        : QPoint(card_rect.left(), position.y() - m_position_in_selected_tab_while_dragging.y() + m_tab_drag_card_offset.y());
     m_strip_drag_card->move(mapTo(window(), card_position) - QPoint(TAB_DRAG_IMAGE_MARGIN, TAB_DRAG_IMAGE_MARGIN));
     update_drop_preview(position);
 }
