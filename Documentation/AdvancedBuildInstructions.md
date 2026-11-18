@@ -45,7 +45,7 @@ There are some optional features that can be enabled during compilation that are
 - `ENABLE_LAGOM_CCACHE`: compiles through ccache when it is installed. Enabled by default.
 - `LAGOM_USE_LINKER`: sets the linker to use, such as `lld` or `mold`, instead of the compiler's default. On Linux and the BSDs, LLD or mold is picked automatically when one of them is installed.
 - `LAGOM_LINK_POOL_SIZE`: sets the maximum number of link jobs that run at once.
-- `ENABLE_LTO_FOR_RELEASE`: enables link-time optimization in Release builds. Enabled by default, except for static builds with GCC.
+- `LADYBIRD_ENABLE_LTO`: enables link-time optimization. Disabled by default and enabled by the `Distribution` preset. Static builds with GCC need a lot of memory with it.
 - `LADYBIRD_ENABLE_CPPTRACE`: uses cpptrace for stack traces when it is available, and `backtrace.h` otherwise. Enabled by default.
 - `LADYBIRD_GENERATE_SYMBOL_FILES`: builds with debug information and writes the symbols of the installed executables to separate files. Enabled by the `Distribution` preset. Not supported with MSVC-style toolchains.
 - `LADYBIRD_GENERATE_DSYM`: generates dSYM bundles for executables and libraries on macOS.
