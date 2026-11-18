@@ -1,0 +1,19 @@
+An absolutely positioned box that would be inline-level in flow takes
+its static position from where a line would put it. Ladybird keeps such
+a box in the inline content of its parent: Where block-level siblings
+follow, it goes into an anonymous block with the floats and the inline
+content before it, and the line there places it past the floats,
+where the text alignment says.
+
+Blink gets it without an anonymous block. Its BlockLayoutAlgorithm::
+HandleOutOfFlowPositioned() takes the inline offset of the box
+from CalculateOutOfFlowStaticInlineLevelOffset(), which finds the
+layout opportunity beside the floats and applies the text alignment.
+WebKit’s RenderBlockFlow::adjustPositionedBlock() takes that offset
+from staticInlinePositionForOriginalDisplayInline(). Gecko gives
+every out-of-flow frame a placeholder in a line, where ReflowInput::
+CalculateHypotheticalPosition() reads the static position.
+
+In Chrome 157.0.8103.79, Firefox 151.0 and WebKit 26.5, the test’s 27
+cases come out the same. The three disagree where a float follows the
+box, and on “text-indent”, so the test leaves those out.
