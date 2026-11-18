@@ -73,9 +73,11 @@ public:
             auto byte = read_bits<u8>(8);
             value |= static_cast<u64>(byte & 0x7f) << (index * 7);
             if ((byte & 0x80) == 0)
-                break;
+                return value;
         }
-        return value;
+        // The last byte a value may take says that another follows, which makes the value malformed.
+        m_has_overrun = true;
+        return 0;
     }
 
     void skip_bits(size_t count)

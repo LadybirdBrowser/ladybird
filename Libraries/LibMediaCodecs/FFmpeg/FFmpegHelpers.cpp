@@ -60,7 +60,8 @@ DecoderErrorOr<u64> VideoFramesAwaitingOutput::add(CodedFrame const& coded_frame
         if (stale_frame_count > 0)
             dbgln("FFmpeg: {} frames were never output", stale_frame_count);
     }
-    DECODER_TRY_ALLOC(m_frames.try_set(key, { coded_frame.presentation_timestamp(), coded_frame.duration(), intent }));
+    auto const& high_dynamic_range_metadata = m_high_dynamic_range_metadata_tracker.apply_coded_frame(coded_frame);
+    DECODER_TRY_ALLOC(m_frames.try_set(key, { coded_frame.presentation_timestamp(), coded_frame.duration(), intent, high_dynamic_range_metadata }));
     return key;
 }
 

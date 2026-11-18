@@ -126,6 +126,7 @@ public:
                 .cicp = to_cicp(),
                 .mastering_display_color_volume = mastering_display_color_volume,
                 .content_light_level_information = content_light_level_information,
+                .maximum_scene_luminance = {},
             };
         }
     };

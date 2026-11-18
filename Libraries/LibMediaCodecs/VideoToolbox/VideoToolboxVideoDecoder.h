@@ -59,7 +59,7 @@ private:
         Gfx::IntSize size;
         u8 bit_depth { 0 };
         Subsampling subsampling;
-        CodingIndependentCodePoints cicp;
+        ColorMetadata color_metadata;
     };
 
     // What a frame in the media engine was submitted with, which its output is given. The media engine hands the
@@ -68,6 +68,7 @@ private:
         u64 submission_id { 0 };
         AK::Duration timestamp;
         AK::Duration duration;
+        ColorMetadata high_dynamic_range_metadata;
     };
 
     VideoToolboxVideoDecoder(CodecID, NonnullOwnPtr<FormatState>);
@@ -76,7 +77,7 @@ private:
 
     void note_decode_completed(CodingIndependentCodePoints const& cicp, u64 submission_id, i32 status, void* image_buffer);
 
-    void enqueue_decoded_output_while_locked(CodingIndependentCodePoints const& cicp, void* image_buffer, AK::Duration timestamp, AK::Duration duration);
+    void enqueue_decoded_output_while_locked(ColorMetadata const&, void* image_buffer, AK::Duration timestamp, AK::Duration duration);
     void note_decode_failure_while_locked(i32 status);
     void note_frame_left_the_media_engine_while_locked();
 
