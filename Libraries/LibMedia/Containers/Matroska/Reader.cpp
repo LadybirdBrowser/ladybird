@@ -388,9 +388,93 @@ DecoderErrorOr<void> Reader::parse_segment_information(Streamer& streamer)
     return {};
 }
 
+static DecoderErrorOr<Optional<MasteringDisplayColorVolume>> parse_mastering_metadata(Streamer& streamer)
+{
+    MasteringDisplayColorVolume volume {};
+    // A field the element leaves out stays NaN, so the volume is only kept when every field is present.
+    auto chromaticity_values = to_array<float*>({ &volume.red.x, &volume.red.y, &volume.green.x, &volume.green.y, &volume.blue.x, &volume.blue.y, &volume.white_point.x, &volume.white_point.y });
+    auto luminance_values = to_array<float*>({ &volume.maximum_luminance, &volume.minimum_luminance });
+    for (auto* value : chromaticity_values)
+        *value = AK::NaN<float>;
+    for (auto* value : luminance_values)
+        *value = AK::NaN<float>;
+    auto is_usable = true;
+
+    TRY(Reader::parse_master_element(streamer, "MasteringMetadata"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
+        auto read_value = [&](float& value) -> DecoderErrorOr<void> {
+            auto value_position = streamer.position();
+            auto value_or_error = streamer.read_float();
+            if (value_or_error.is_error()) {
+                if (value_or_error.error().category() != DecoderErrorCategory::Invalid)
+                    return value_or_error.release_error();
+                TRY(streamer.seek_to_position(value_position));
+                TRY(streamer.read_unknown_element());
+                is_usable = false;
+                return {};
+            }
+            value = static_cast<float>(value_or_error.release_value());
+            return {};
+        };
+        switch (element_id) {
+        case PRIMARY_R_CHROMATICITY_X_ID:
+            TRY(read_value(volume.red.x));
+            break;
+        case PRIMARY_R_CHROMATICITY_Y_ID:
+            TRY(read_value(volume.red.y));
+            break;
+        case PRIMARY_G_CHROMATICITY_X_ID:
+            TRY(read_value(volume.green.x));
+            break;
+        case PRIMARY_G_CHROMATICITY_Y_ID:
+            TRY(read_value(volume.green.y));
+            break;
+        case PRIMARY_B_CHROMATICITY_X_ID:
+            TRY(read_value(volume.blue.x));
+            break;
+        case PRIMARY_B_CHROMATICITY_Y_ID:
+            TRY(read_value(volume.blue.y));
+            break;
+        case WHITE_POINT_CHROMATICITY_X_ID:
+            TRY(read_value(volume.white_point.x));
+            break;
+        case WHITE_POINT_CHROMATICITY_Y_ID:
+            TRY(read_value(volume.white_point.y));
+            break;
+        case LUMINANCE_MAX_ID:
+            TRY(read_value(volume.maximum_luminance));
+            break;
+        case LUMINANCE_MIN_ID:
+            TRY(read_value(volume.minimum_luminance));
+            break;
+        default:
+            TRY(streamer.read_unknown_element());
+        }
+
+        return ElementIterationDecision::Continue;
+    }));
+
+    dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's MasteringMetadata with luminance {} to {}", volume.minimum_luminance, volume.maximum_luminance);
+    if (!is_usable)
+        return OptionalNone {};
+    // https://www.rfc-editor.org/rfc/rfc9559#section-5.1.4.1.28.31: chromaticities range from 0 to 1, and luminances are
+    // at least 0.
+    for (auto const* value : chromaticity_values) {
+        if (!isfinite(*value) || *value < 0 || *value > 1)
+            return OptionalNone {};
+    }
+    for (auto const* value : luminance_values) {
+        if (!isfinite(*value) || *value < 0)
+            return OptionalNone {};
+    }
+    return volume;
+}
+
 static DecoderErrorOr<TrackEntry::ColorFormat> parse_video_color_information(Streamer& streamer)
 {
     TrackEntry::ColorFormat color_format {};
+    auto content_light_level_information = [&] -> ContentLightLevelInformation& {
+        return color_format.content_light_level_information.ensure([] { return ContentLightLevelInformation {}; });
+    };
 
     TRY(Reader::parse_master_element(streamer, "Colour"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
         switch (element_id) {
@@ -413,6 +497,17 @@ static DecoderErrorOr<TrackEntry::ColorFormat> parse_video_color_information(Str
         case BITS_PER_CHANNEL_ID:
             color_format.bits_per_channel = TRY(streamer.read_u64());
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's BitsPerChannel attribute: {}", color_format.bits_per_channel);
+            break;
+        case MAX_CLL_ID:
+            content_light_level_information().maximum_content_light_level = AK::clamp_to<u16>(TRY(streamer.read_u64()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's MaxCLL attribute: {}", content_light_level_information().maximum_content_light_level);
+            break;
+        case MAX_FALL_ID:
+            content_light_level_information().maximum_frame_average_light_level = AK::clamp_to<u16>(TRY(streamer.read_u64()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's MaxFALL attribute: {}", content_light_level_information().maximum_frame_average_light_level);
+            break;
+        case MASTERING_METADATA_ID:
+            color_format.mastering_display_color_volume = TRY(parse_mastering_metadata(streamer));
             break;
         default:
             TRY(streamer.read_unknown_element());
