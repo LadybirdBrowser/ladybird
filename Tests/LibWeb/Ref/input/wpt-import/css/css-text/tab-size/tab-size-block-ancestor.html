@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 3 Test: tab-size based on block ancestor's space</title>
+<link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#tab-size-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/tab-size/tab-size-block-ancestor-ref.html">
+<meta name="assert" content="tab width is based on space character in the block ancestor">
+<style>
+div {
+    font: 16px monospace;
+    white-space: pre;
+    tab-size: 10;
+}
+.test1 span {
+    font-size: 1px;
+}
+.test2 span {
+    font-size: 10px;
+}
+.test3 span {
+    tab-size: 5;
+}
+.test4 span {
+    font-size: 10px;
+    tab-size: 2.5;
+}
+b {
+    font: bold 16px monospace;
+}
+</style>
+
+<p>Test passes if the five “A” letters below are vertically aligned with each other.
+
+<div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>A</b><!-- indented by 10 spaces -->
+</div>
+<div class=test1>
+<span>&#9;<b>A</b></span>
+</div>
+<div class=test2>
+<span>&#9;<b>A</b></span>
+</div>
+<div class=test3>
+<span>&#9;&#9;<b>A</b></span>
+</div>
+<div class=test4>
+<span>&#9;&#9;&#9;&#9;<b>A</b></span>
+</div>

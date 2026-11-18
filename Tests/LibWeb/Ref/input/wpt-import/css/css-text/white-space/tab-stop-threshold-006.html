@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 3 Test: the nearest tab stop is less than 0.5 ch away, white-space:break-spaces</title>
+<link rel="author" title="Florian Rivoal" href="http://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#white-space-phase-2">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#tab-size-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/reference/tab-stop-threshold-002-ref.html">
+<meta name="assert" content="A preserved tab pushes to the tab stop after the nearest one as long as we're closer to the nearest one than 0.5ch, under white-space:break-spaces.">
+<style>
+div {
+  white-space: break-spaces;
+  font-family: monospace;
+  tab-size: 8; /* the initial value, but since we're measuring against it, we might as well be sure */
+}
+span { display: inline-block; }
+#s1 { width: 7.6ch; }
+#s2 { width: 7.8ch; }
+#s3 { width: 7.9ch; }
+</style>
+
+<p>Test passes if the 4 letters bellow are vertically aligned.
+<div><span id=s1></span>&#9;P</div>
+<div><span id=s2></span>&#9;A</div>
+<div><span id=s3></span>&#9;S</div>
+<div>                S</div>

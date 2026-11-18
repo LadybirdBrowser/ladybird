@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: Interaction between tabs and bidi</title>
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<style>
+div {
+  font-family: monospace;
+  font-size: 20px;
+  line-height: 1;
+  white-space: pre;
+  width: 10ch;
+  background: blue;
+  color: blue;
+}
+span {
+  background: yellow;
+}
+</style>
+<p>The test passes if the two boxes are identical.
+
+<div dir=ltr><span dir=ltr>&#9;0</span></div>
+<div dir=rtl><span dir=rtl>&#9;0</span></div>
+<div dir=ltr><span dir=ltrl>&#9;0</span></div>
+<div dir=rtl><span dir=rtl>&#9;0</span></div>
+
+<br>
+
+<div dir=ltr><span dir=ltr>&#9;0</span></div>
+<div dir=rtl><span dir=rtl>&#9;0</span></div>
+<div dir=ltr><span dir=ltrl>&#9;0</span></div>
+<div dir=rtl><span dir=rtl>&#9;0</span></div>

@@ -1,0 +1,31 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Text Test: tab-size: 4</title>
+    <link rel="author" title="David Storey" href="mailto:david@openweb.io">
+    <style type="text/css">
+        .container {
+            position: absolute;
+        }
+        .green {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: green;
+         }
+        .red {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: red;
+            tab-size: 4;
+        }
+    </style>
+</head>
+<body>
+    <p>The test passes if there is no red.</p>
+    <div class="container">
+        <pre class="green">    </pre>
+    </div>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 3 Test: inline box tab-size tab stops</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#tab-size-property">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#white-space-phase-2">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/tab-size/tab-size-inline-002-ref.html">
+<meta name="assert" content="tab-stops are calculated separatey for each tab with a different tab-size, not stacked up somehow">
+<style>
+div {
+    font-family: monospace;
+    white-space: pre;
+    tab-size: 10;
+    font-size: 2em;
+}
+span {
+    tab-size: 4;
+}
+.wrong { color: orange; }
+.right { color: blue; }
+</style>
+
+<p>Test passes if the black “A” lines up vertically with the blue one, not the orange one.
+
+<div>&#x09;<span>&#x09;A</span></div>
+
+<div class=right>            A</div> <!-- 12 = n * 4, such with n such that n*4 > 10 -->
+<div class=wrong>              A</div> <!-- 14 = 10 + 4 -->

@@ -1,0 +1,18 @@
+one-tab: 8.00 spaces
+two-tabs: 16.00 spaces
+three-tabs: 24.00 spaces
+text-then-two-tabs: 16.00 spaces
+longer-text-then-two-tabs: 16.00 spaces
+text-then-three-tabs: 24.00 spaces
+tab-size-4-two-tabs: 8.00 spaces
+tab-word-tab: 16.00 spaces
+tabs-in-two-nodes: 16.00 spaces
+one-tab characters: 0.00..8.00 8.00..8.72
+two-tabs characters: 0.00..8.00 8.00..16.00 16.00..16.72
+three-tabs characters: 0.00..8.00 8.00..16.00 16.00..24.00 24.00..24.72
+text-then-two-tabs characters: 0.00..1.00 1.00..8.00 8.00..16.00 16.00..16.72
+longer-text-then-two-tabs characters: 0.00..1.00 1.00..2.00 2.00..3.00 3.00..4.00 4.00..5.00 5.00..6.00 6.00..7.00 7.00..8.00 8.00..16.00 16.00..16.72
+text-then-three-tabs characters: 0.00..1.00 1.00..2.00 2.00..3.00 3.00..8.00 8.00..16.00 16.00..24.00 24.00..24.72
+tab-size-4-two-tabs characters: 0.00..1.00 1.00..2.00 2.00..4.00 4.00..8.00 8.00..8.72
+tab-word-tab characters: 0.00..1.00 1.00..8.00 8.00..8.59 8.59..16.00 16.00..16.72
+tabs-in-two-nodes characters: 0.00..1.00 1.00..8.00

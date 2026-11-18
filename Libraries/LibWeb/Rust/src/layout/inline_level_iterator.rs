@@ -83,24 +83,28 @@ fn shaped_glyphs_from(
     shape.with_baseline_start(baseline_start_x).into_glyphs()
 }
 
-/// `glyphs`, the glyphs of a text item past its leading tabs, after a glyph that paints nothing standing for the
-/// `tab_count` tabs and advancing to the tab stop at `tab_advance`, so that the code units of the item's glyphs line up
-/// with those of its text.
-fn glyphs_after_tab_spacer(
+/// `glyphs`, the glyphs of a text item past its leading tabs, after a glyph for each of those tabs that paints nothing
+/// and advances to the tab's stop by the tab's entry in `tab_advances`, so that the code units of the item's glyphs line
+/// up with those of its text.
+fn glyphs_after_tab_spacers(
     glyphs: &libgfx_rust::text_layout::GlyphBuffer,
-    tab_count: usize,
-    tab_advance: f32,
+    tab_advances: &[f32],
 ) -> libgfx_rust::text_layout::GlyphBuffer {
     use libgfx_rust::text_layout::{DrawGlyph, GlyphBuffer, PlacedGlyph};
-    let tab_count_u32 = u32::try_from(tab_count).expect("tab counts fit in 32 bits");
+    let tab_count_u32 = u32::try_from(tab_advances.len()).expect("tab counts fit in 32 bits");
     let mut with_spacer = GlyphBuffer::default();
-    with_spacer.push_placed(PlacedGlyph {
-        glyph: DrawGlyph::new(tab_advance, 0, tab_count, false),
-        x: 0.0,
-        y: glyphs.placed().next().map_or(0.0, |placed| placed.y),
-        cluster_start: 0,
-        is_rtl: false,
-    });
+    let y = glyphs.placed().next().map_or(0.0, |placed| placed.y);
+    let mut x = 0.0;
+    for (index, &tab_advance) in tab_advances.iter().enumerate() {
+        with_spacer.push_placed(PlacedGlyph {
+            glyph: DrawGlyph::new(tab_advance, 0, 1, false),
+            x,
+            y,
+            cluster_start: u32::try_from(index).expect("tab counts fit in 32 bits"),
+            is_rtl: false,
+        });
+        x += tab_advance;
+    }
     for placed in glyphs.placed() {
         with_spacer.push_placed(PlacedGlyph {
             cluster_start: placed.cluster_start + tab_count_u32,
@@ -2197,40 +2201,54 @@ impl<'context> RunItemResolver<'_, 'context> {
         let prepared = self.prepared;
         let mut inline_offset = 0.0f32;
         let mut upright_advance_after_tabs = None;
-        let mut tab_count = 0;
+        let mut tab_advances = Vec::new();
         if prepared_item.has(PreparedItem::TAB_STOP) {
             let tab_stop = prepared.tab_stops[self.next_tab_stop];
             self.next_tab_stop += 1;
             let tab_inline_size = tab_stop.tab_inline_size;
             // https://drafts.csswg.org/css-text-3/#white-space-phase-2
-            // "If the tab size is zero, preserved tabs are not rendered."
-            if tab_inline_size != CssPixels::default() {
-                let accumulated = self.accumulated_inline_size_for_tabs;
-                let mut tab_stop_distance = if accumulated > CssPixels::default() {
-                    accumulated.div_as_fraction(tab_inline_size).ceil() * tab_inline_size - accumulated
-                } else {
-                    tab_inline_size
-                };
-                if tab_stop_distance.to_double() < f64::from(tab_stop.zero_advance) * 0.5 {
-                    tab_stop_distance += tab_inline_size;
+            // "each preserved tab is rendered as a horizontal shift that lines up the start edge of the next glyph with
+            // the next tab stop. If this distance is less than 0.5ch, then the subsequent tab stop is used instead."
+            // NB: So each tab of a run advances from where the tab before it ended, to a tab stop of its own.
+            let distance_to_tab_stop = |position: CssPixels| {
+                // https://drafts.csswg.org/css-text-3/#white-space-phase-2
+                // "If the tab size is zero, preserved tabs are not rendered."
+                if tab_inline_size == CssPixels::default() {
+                    return CssPixels::default();
                 }
-                tab_stop_distance = tab_stop_distance * tab_stop.tab_count as usize;
-                inline_offset = tab_stop_distance.to_double() as f32;
+                // NB: The next tab stop is the first one after the position, even if the position is on a tab stop.
+                let mut distance = position.div_as_fraction(tab_inline_size).ceil() * tab_inline_size - position;
+                if distance <= CssPixels::default() {
+                    distance += tab_inline_size;
+                }
+                if distance.to_double() < f64::from(tab_stop.zero_advance) * 0.5 {
+                    distance += tab_inline_size;
+                }
+                distance
+            };
+            let accumulated = self.accumulated_inline_size_for_tabs;
+            let mut position = accumulated;
+            let mut previous_end = 0.0f32;
+            for _ in 0..tab_stop.tab_count {
+                position += distance_to_tab_stop(position);
+                let end = (position - accumulated).to_double() as f32;
+                tab_advances.push(end - previous_end);
+                previous_end = end;
             }
+            inline_offset = previous_end;
             upright_advance_after_tabs = tab_stop.upright_advance;
-            tab_count = tab_stop.tab_count as usize;
         }
         let shape = prepared_item.shape();
         let mut width = shape.width();
         let mut owned_glyph_run = None;
         // NB: Tabs that tab-size: 0 doesn't render still get the spacer glyph, so that the code units of the item's
         //     glyphs line up with those of its text.
-        if inline_offset != 0.0 || upright_advance_after_tabs.is_some() || tab_count > 0 {
+        if inline_offset != 0.0 || upright_advance_after_tabs.is_some() || !tab_advances.is_empty() {
             let mut glyphs = shaped_glyphs_from(shape, inline_offset);
             if let Some(advance) = upright_advance_after_tabs {
                 width = set_glyphs_upright(&mut glyphs, inline_offset, advance);
-            } else if tab_count > 0 {
-                glyphs = glyphs_after_tab_spacer(&glyphs, tab_count, inline_offset);
+            } else if !tab_advances.is_empty() {
+                glyphs = glyphs_after_tab_spacers(&glyphs, &tab_advances);
             }
             owned_glyph_run = Some(Box::new(OwnedGlyphRun {
                 glyphs,
