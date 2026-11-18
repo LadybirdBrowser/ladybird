@@ -59,9 +59,7 @@ SystemAppearance::SystemAppearance()
         }
     });
     // The chrome's colors depend on the contrast preference, but changing it does not change the application palette.
-    QObject::connect(QGuiApplication::styleHints()->accessibility(), &QAccessibilityHints::contrastPreferenceChanged, this, [] {
-        notify_widgets_of_palette_change();
-    });
+    QObject::connect(QGuiApplication::styleHints()->accessibility(), &QAccessibilityHints::contrastPreferenceChanged, this, notify_widgets_of_palette_change);
     observe_platform_changes();
 }
 
