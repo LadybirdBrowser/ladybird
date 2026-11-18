@@ -125,6 +125,7 @@ private:
     ApplicationHost* m_host { nullptr };
     StringView m_encoded_ui_info;
     StringView m_ui_mach_server_name;
+    StringView m_ui_pid;
     mutable Optional<Hub::UIInfo> m_ui_info;
     HashMap<u64, NonnullOwnPtr<View>> m_views;
     Optional<u64> m_active_view_id;

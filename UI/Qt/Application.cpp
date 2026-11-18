@@ -91,6 +91,11 @@
 #    include <UI/Qt/X11Window.h>
 #endif
 
+#if !defined(AK_OS_WINDOWS)
+#    include <sys/wait.h>
+#    include <unistd.h>
+#endif
+
 #include <QAction>
 #include <QClipboard>
 #include <QDesktopServices>
@@ -824,6 +829,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     hub_arguments.extend(take_urls_from_launch_apple_events());
 #    endif
     hub_arguments.append(ByteString::formatted("--ui-info={}", encode_hex(ui_info_buffer.data().span())));
+    hub_arguments.append(ByteString::formatted("--ui-pid={}", Core::System::getpid()));
 
     Core::ProcessSpawnOptions spawn_options {
         .name = "Hub"sv,
@@ -2474,8 +2480,28 @@ Optional<Application::RestartCommand> Application::take_restart_command()
 // this process has ended, so this process ends only after the Hub has.
 ErrorOr<void> Application::RestartCommand::run()
 {
-    if (hub.has_value())
+    if (hub.has_value()) {
+#if !defined(AK_OS_WINDOWS)
+        // NB: The new browser needs the profile, which the Hub has until it ends. A Hub that does not end by itself
+        //     would keep us waiting with no window to show for it, so it is ended then.
+        static constexpr auto time_for_hub_to_end = AK::Duration::from_seconds(10);
+        auto deadline = MonotonicTime::now() + time_for_hub_to_end;
+        for (;;) {
+            int status = 0;
+            auto result = waitpid(hub->pid(), &status, WNOHANG);
+            if (result == hub->pid() || (result < 0 && errno != EINTR))
+                break;
+            if (MonotonicTime::now() >= deadline) {
+                (void)Core::Process::terminate_process(hub->pid(), Core::Process::TerminationMode::Forceful);
+                TRY(hub->wait_for_termination());
+                break;
+            }
+            usleep(10'000);
+        }
+#else
         TRY(hub->wait_for_termination());
+#endif
+    }
     if (!relaunched_by_updater)
         TRY(Core::Process::spawn({ .executable = executable, .arguments = arguments }));
     return {};
