@@ -641,7 +641,7 @@ fn okp_key(key: &KeyHandle) -> &OkpKey {
 pub fn okp_generate_key_pair(curve: OkpCurve) -> Result<KeyPair, CryptoError> {
     let private_key = OkpKey {
         curve,
-        key: Pkey::generate(curve.name(), None)?,
+        key: Pkey::generate(curve.name(), &[end_parameter()])?,
     };
     Ok(KeyPair {
         public_key: KeyHandle(Key::OkpPublic(private_key.public_key()?)),

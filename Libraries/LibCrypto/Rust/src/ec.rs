@@ -110,12 +110,12 @@ impl EcPublicKey {
         };
         let curve = EcCurve::from_scalar_size(scalar_size)?;
         let invalid = |_| CryptoError::Invalid("Invalid EC public key");
-        let mut params = [
+        let params = [
             utf8_parameter(c"group", curve.name()),
             octet_string_parameter(c"pub", data),
             end_parameter(),
         ];
-        let key = Pkey::from_data(c"EC", sys::EVP_PKEY_PUBLIC_KEY, params.as_mut_ptr()).map_err(invalid)?;
+        let key = Pkey::from_data(c"EC", sys::EVP_PKEY_PUBLIC_KEY, &params).map_err(invalid)?;
         if !openssl::check_key(&key, false, false).map_err(invalid)?.public {
             return Err(invalid(CryptoError::Backend));
         }
@@ -150,7 +150,7 @@ impl EcPublicKey {
 impl EcPrivateKey {
     fn generate(curve: EcCurve) -> Result<Self, CryptoError> {
         let params = [utf8_parameter(c"group", curve.name()), end_parameter()];
-        let key = Pkey::generate(c"EC", Some(params.as_ptr()))?;
+        let key = Pkey::generate(c"EC", &params)?;
         let (x, y) = coordinates(&key, curve)?;
         let public_key = EcPublicKey::from_coordinates(&x, &y)?;
         Ok(Self { key, curve, public_key })
@@ -172,7 +172,7 @@ impl EcPrivateKey {
         builder.push_number(c"priv", d, true)?;
         builder.push_octets(c"pub", &point)?;
         let params = builder.build()?;
-        let key = Pkey::from_data(c"EC", sys::EVP_PKEY_KEYPAIR, params.as_ptr())?;
+        let key = Pkey::from_data(c"EC", sys::EVP_PKEY_KEYPAIR, &params)?;
         let public_key = match public_key {
             Some(public_key) => public_key,
             None => EcPublicKey::from_octets(&point)?,

@@ -56,6 +56,12 @@ pub(crate) struct OSSL_PARAM {
     return_size: usize,
 }
 
+impl OSSL_PARAM {
+    pub(crate) fn is_end(&self) -> bool {
+        self.key.is_null()
+    }
+}
+
 pub(crate) const EVP_PKEY_PUBLIC_KEY: c_int = 0x86;
 pub(crate) const EVP_PKEY_KEYPAIR: c_int = 0x87;
 
