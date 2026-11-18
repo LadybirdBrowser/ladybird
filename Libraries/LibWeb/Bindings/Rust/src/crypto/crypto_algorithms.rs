@@ -14,7 +14,7 @@ use std::rc::Rc;
 
 use ak::{Utf16String, Utf16StringUnits};
 use libcrypto_rust::{
-    Argon2Inputs, Argon2Type, CShakeKind, CryptoError, EcCurve, KeyAlgorithm, KeyHandle, KeyInfo, KeyMaterial, KeyPair,
+    Argon2Inputs, Argon2Type, CShakeKind, CryptoError, EcCurve, KeyAlgorithm, KeyHandle, KeyInfo, KeyMaterial,
     KmacKind, MlDsaSize, MlKemSize, OkpCurve, RsaJwkInteger, RsaSignaturePadding, SecretBytes, ShaHashKind,
 };
 use libjs_rust::api::{
@@ -12129,19 +12129,6 @@ fn mldsa_read_public_key(vm: &Vm, size: MlDsaSize, bytes: &[u8]) -> WebIdlResult
     Ok(CryptoKey::create(vm, key))
 }
 
-fn generate_mldsa_key_pair_from_seed(name: &Utf16String, seed: &Bytes) -> Result<KeyPair, CryptoError> {
-    if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
-        return libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa44, seed.as_slice());
-    }
-    if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
-        return libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa65, seed.as_slice());
-    }
-    if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
-        return libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa87, seed.as_slice());
-    }
-    unreachable!("the name identifies an ML-DSA parameter set")
-}
-
 fn ml_export_der(key: Ref<CryptoKey>, algorithm: KeyAlgorithm) -> WebIdlResult<Bytes> {
     libcrypto_rust::ml_export_der(key.handle(), algorithm)
         .map(Bytes::new)
@@ -12314,11 +12301,11 @@ impl AlgorithmMethods for MlDsa {
         // 2. Generate an ML-DSA key pair, as described in Section 5.1 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm.
         // Note: In order to be able to export the seed ξ, it needs to be stored as part of the generated key material.
         let maybe_key_pair = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
-            libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa44, &[])
+            libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa44)
         } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
-            libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa65, &[])
+            libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa65)
         } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
-            libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa87, &[])
+            libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa87)
         } else {
             unreachable!("the name identifies an ML-DSA parameter set")
         };
@@ -12598,14 +12585,13 @@ impl AlgorithmMethods for MlDsa {
 
             // 4. Let privateKey be the result of performing the ML-DSA.KeyGen_internal function described in Section 6.1
             //    of [FIPS-204] with the parameter set indicated by the name member of normalizedAlgorithm, using data as ξ.
-            let maybe_key_pair = generate_mldsa_key_pair_from_seed(&params.name, &data);
-            let key_pair = maybe_key_pair.map_err(|error| {
-                Exception::Dom(
-                    "OperationError",
-                    libjs_rust::api::utf16_formatted("Key generation failed: {}", &[&error.message()]),
-                )
-            })?;
-            let private_key = key_pair.private_key;
+            let private_key = libcrypto_rust::mldsa_private_key_from_seed(mldsa_size(&params.name), data.as_slice())
+                .map_err(|error| {
+                    Exception::Dom(
+                        "OperationError",
+                        libjs_rust::api::utf16_formatted("Key generation failed: {}", &[&error.message()]),
+                    )
+                })?;
 
             // 5. Let key be a new CryptoKey that represents the ML-DSA private key identified by privateKey.
             key = CryptoKey::create(cx.vm(), private_key);
@@ -12678,17 +12664,15 @@ impl AlgorithmMethods for MlDsa {
 
                 // 2. Let key be a new CryptoKey object that represents the ML-DSA private key
                 //    identified by interpreting the priv attribute of jwk as a base64url encoded seed.
-                let maybe_key_pair = generate_mldsa_key_pair_from_seed(&params.name, &seed);
-                let key_pair = maybe_key_pair.map_err(|error| {
-                    Exception::Dom(
-                        "DataError",
-                        libjs_rust::api::utf16_formatted("Invalid seed: {}", &[&error.message()]),
-                    )
-                })?;
-                let KeyPair {
-                    public_key,
-                    private_key,
-                } = key_pair;
+                let private_key =
+                    libcrypto_rust::mldsa_private_key_from_seed(mldsa_size(&params.name), seed.as_slice()).map_err(
+                        |error| {
+                            Exception::Dom(
+                                "DataError",
+                                libjs_rust::api::utf16_formatted("Invalid seed: {}", &[&error.message()]),
+                            )
+                        },
+                    )?;
                 key = CryptoKey::create(cx.vm(), private_key);
 
                 // 3. Set the [[type]] internal slot of key to "private".
@@ -12701,7 +12685,7 @@ impl AlgorithmMethods for MlDsa {
                 };
 
                 let pub_decoded = base64_url_bytes_decode(public_bytes);
-                let expected = libcrypto_rust::mldsa_public_bytes(&public_key);
+                let expected = libcrypto_rust::mldsa_public_bytes(key.handle());
                 if !pub_decoded.is_ok_and(|bytes| bytes.as_slice() == expected) {
                     return Err(dom_error("DataError", b"JsonWebKey public key does not match"));
                 }
@@ -12974,7 +12958,7 @@ impl AlgorithmMethods for MlKem {
         } else {
             unreachable!("the name identifies an ML-KEM parameter set")
         };
-        let maybe_key_pair = libcrypto_rust::mlkem_generate_key_pair(size, &[]);
+        let maybe_key_pair = libcrypto_rust::mlkem_generate_key_pair(size);
 
         // 3. If the key generation step fails, then throw an OperationError.
         let key_pair = maybe_key_pair.map_err(|error| {
@@ -13275,8 +13259,7 @@ impl AlgorithmMethods for MlKem {
             } else {
                 unreachable!("the name identifies an ML-KEM parameter set")
             };
-            let maybe_key_pair = libcrypto_rust::mlkem_generate_key_pair(size, data.as_slice());
-            let key_pair = maybe_key_pair.map_err(|error| {
+            let private_key = libcrypto_rust::mlkem_private_key_from_seed(size, data.as_slice()).map_err(|error| {
                 Exception::Dom(
                     "OperationError",
                     libjs_rust::api::utf16_formatted("Key generation failed: {}", &[&error.message()]),
@@ -13284,7 +13267,7 @@ impl AlgorithmMethods for MlKem {
             })?;
 
             // 5. Let key be a new CryptoKey that represents the ML-KEM private key identified by privateKey.
-            key = CryptoKey::create(cx.vm(), key_pair.private_key);
+            key = CryptoKey::create(cx.vm(), private_key);
 
             // 6. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
