@@ -7,6 +7,7 @@
 #include <AK/ByteString.h>
 #include <AK/Mutex.h>
 #include <AK/Random.h>
+#include <AK/Time.h>
 #include <LibCore/MachPort.h>
 #include <LibIPC/MachBootstrapListener.h>
 #include <LibIPC/MachBootstrapMessages.h>
@@ -14,6 +15,8 @@
 #include <LibTest/TestCase.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
+#include <spawn.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 static ByteString server_name()
@@ -202,4 +205,79 @@ TEST_CASE(bootstrap_reports_a_missing_reply_port)
     EXPECT_EQ(mach_port_type(mach_task_self(), receive_port, &type), KERN_INVALID_NAME);
     EXPECT_EQ(mach_port_type(mach_task_self(), send_port, &type), KERN_SUCCESS);
     EXPECT_EQ(type, static_cast<mach_port_type_t>(MACH_PORT_TYPE_RECEIVE));
+}
+
+enum class RegisterChild {
+    WhileItRuns,
+    AfterItExited,
+};
+
+// Blocks until the server lets go of the ports of a child that exits before it asks for them.
+static void expect_ports_of_exited_child_to_be_released(RegisterChild register_child)
+{
+    auto local_receive_right = TRY_OR_FAIL(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto child_send_right = TRY_OR_FAIL(local_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
+    auto child_receive_right = TRY_OR_FAIL(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto child_receive_port = child_receive_right.port();
+
+    // NB: This is how a transport learns that its peer is gone.
+    auto notification_receive_right = TRY_OR_FAIL(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    mach_port_t previous = MACH_PORT_NULL;
+    VERIFY(mach_port_request_notification(mach_task_self(), local_receive_right.port(), MACH_NOTIFY_NO_SENDERS, 1, notification_receive_right.port(), MACH_MSG_TYPE_MAKE_SEND_ONCE, &previous) == KERN_SUCCESS);
+
+    IPC::TransportBootstrapMachServer server;
+    pid_t pid = -1;
+    {
+        MutexLocker locker(server.child_registration_lock());
+        // NB: The child runs until its input ends, which is when we close our end of the pipe.
+        int input[2] = {};
+        VERIFY(pipe(input) == 0);
+        posix_spawn_file_actions_t file_actions;
+        VERIFY(posix_spawn_file_actions_init(&file_actions) == 0);
+        VERIFY(posix_spawn_file_actions_adddup2(&file_actions, input[0], STDIN_FILENO) == 0);
+        VERIFY(posix_spawn_file_actions_addclose(&file_actions, input[1]) == 0);
+        char const* arguments[] = { "/bin/cat", nullptr };
+        VERIFY(posix_spawn(&pid, arguments[0], &file_actions, nullptr, const_cast<char**>(arguments), nullptr) == 0);
+        VERIFY(posix_spawn_file_actions_destroy(&file_actions) == 0);
+        VERIFY(close(input[0]) == 0);
+        if (register_child == RegisterChild::AfterItExited) {
+            VERIFY(close(input[1]) == 0);
+            siginfo_t info {};
+            while (waitid(P_PID, pid, &info, WEXITED | WNOWAIT) < 0)
+                VERIFY(errno == EINTR);
+        }
+        server.register_child_transport(pid, { move(child_receive_right), move(child_send_right) });
+        if (register_child == RegisterChild::WhileItRuns)
+            VERIFY(close(input[1]) == 0);
+    }
+
+    struct {
+        mach_msg_header_t header;
+        u8 body[64];
+    } notification {};
+    // NB: The limit only keeps a server that holds on to the ports from stopping the test run.
+    static constexpr mach_msg_timeout_t limit_in_milliseconds = 60'000;
+    EXPECT_EQ(mach_msg(&notification.header, MACH_RCV_MSG | MACH_RCV_TIMEOUT, 0, sizeof(notification), notification_receive_right.port(), limit_in_milliseconds, MACH_PORT_NULL), KERN_SUCCESS);
+    EXPECT_EQ(notification.header.msgh_id, MACH_NOTIFY_NO_SENDERS);
+
+    // The server lets go of the send right first, so the receive right may still be there for a moment.
+    mach_port_type_t type = 0;
+    auto deadline = MonotonicTime::now() + AK::Duration::from_milliseconds(limit_in_milliseconds);
+    while (mach_port_type(mach_task_self(), child_receive_port, &type) != KERN_INVALID_NAME && MonotonicTime::now() < deadline)
+        usleep(1'000);
+    EXPECT_EQ(mach_port_type(mach_task_self(), child_receive_port, &type), KERN_INVALID_NAME);
+
+    int status = 0;
+    while (waitpid(pid, &status, 0) < 0)
+        VERIFY(errno == EINTR);
+}
+
+TEST_CASE(ports_of_a_child_that_exits_before_taking_them_are_released)
+{
+    expect_ports_of_exited_child_to_be_released(RegisterChild::WhileItRuns);
+}
+
+TEST_CASE(ports_of_a_child_that_exited_before_registration_are_released)
+{
+    expect_ports_of_exited_child_to_be_released(RegisterChild::AfterItExited);
 }
