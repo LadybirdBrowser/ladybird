@@ -510,8 +510,14 @@ fn paint_path_parts<O: Observer>(
     let device_scale = recorder.inputs.device_pixels_per_css_pixel as f32;
     let paint_transform = [device_scale, 0.0, 0.0, device_scale, 0.0, 0.0];
     let segments = crate::painting::paintable_geometry::committed_svg_text_segments(recorder.source, paintable);
-    // Each part of the path to paint, with its bounding box in user units.
-    let parts: Vec<(libgfx_rust::path::Path, FloatRect)> = match &segments {
+    // Each part of the path to paint, with its bounding box in user units, and the glyphs of color fonts that paint
+    // along with it.
+    type Part<'a> = (
+        libgfx_rust::path::Path,
+        FloatRect,
+        &'a [crate::layout::fragment_tree::SvgColorGlyphRun],
+    );
+    let parts: Vec<Part<'_>> = match &segments {
         Some(segments) => {
             let range = match path_parts {
                 PathParts::BeforeChildren => {
@@ -528,6 +534,7 @@ fn paint_path_parts<O: Observer>(
                     (
                         segment.path.copy_transformed(paint_transform),
                         FloatRect::from_array(segment.path.bounding_box()),
+                        segment.color_glyph_runs.as_slice(),
                     )
                 })
                 .collect()
@@ -535,6 +542,7 @@ fn paint_path_parts<O: Observer>(
         None => vec![(
             computed_path.copy_transformed(paint_transform),
             FloatRect::from_array(computed_path.bounding_box()),
+            &[][..],
         )],
     };
     let anti_alias = should_anti_alias(facts.should_anti_alias);
@@ -542,7 +550,8 @@ fn paint_path_parts<O: Observer>(
     if recorder.draws_clip_path_geometry() {
         // https://drafts.fxtf.org/css-masking/#ClipPathElement: the raw geometry of each child
         // element, exclusive of rendering properties, defines a 1-bit mask.
-        for (path, _) in &parts {
+        // AD-HOC: The glyphs of a color font have no outlines, so they're left out of the clipping path.
+        for (path, _, _) in &parts {
             recorder.recorder.fill_path(FillPathParams {
                 force_dark_role: ForceDarkRole::Svg,
                 path,
@@ -557,7 +566,7 @@ fn paint_path_parts<O: Observer>(
 
     let geometry =
         crate::painting::paintable_geometry::committed_svg_geometry(recorder.source, paintable).unwrap_or_default();
-    for (path, path_bounding_box) in &parts {
+    for (path, path_bounding_box, color_glyph_runs) in &parts {
         // NB: A paint server is placed from the bounding box of the path it paints, so each part is painted with its
         //     own.
         let paint_context = SvgPaintContext {
@@ -572,6 +581,19 @@ fn paint_path_parts<O: Observer>(
                 paint_order::FILL => {
                     let fill_opacity = facts.fill_opacity;
                     let fill_winding = WindingRule::from_raw(facts.fill_winding);
+                    // NB: The glyphs of a color font paint with their own colors, wherever the text has a fill.
+                    if !color_glyph_runs.is_empty() {
+                        let opacity = if paint_server_style(recorder, paintable, false, &paint_context).is_some() {
+                            Some(fill_opacity)
+                        } else {
+                            facts
+                                .fill_color
+                                .map(|fill_color| fill_opacity * f32::from(Color(fill_color).alpha()) / 255.0)
+                        };
+                        if let Some(opacity) = opacity {
+                            paint_color_glyph_runs(recorder, paintable, color_glyph_runs, opacity, device_scale);
+                        }
+                    }
                     if let Some(paint_style) = paint_server_style(recorder, paintable, false, &paint_context) {
                         recorder.recorder.fill_path(FillPathParams {
                             force_dark_role: ForceDarkRole::Svg,
@@ -611,6 +633,20 @@ fn paint_path_parts<O: Observer>(
                     let stroke_dashoffset = facts.stroke_dashoffset * stroke_scale;
                     let stroke_opacity = facts.stroke_opacity;
 
+                    // NB: A glyph of a color font has no outline to stroke, so a stroke paints the glyph itself.
+                    if !color_glyph_runs.is_empty() && stroke_thickness > 0.0 {
+                        let opacity = if paint_server_style(recorder, paintable, true, &paint_context).is_some() {
+                            Some(stroke_opacity)
+                        } else {
+                            facts
+                                .stroke_color
+                                .map(|stroke_color| stroke_opacity * f32::from(Color(stroke_color).alpha()) / 255.0)
+                        };
+                        if let Some(opacity) = opacity {
+                            paint_color_glyph_runs(recorder, paintable, color_glyph_runs, opacity, device_scale);
+                        }
+                    }
+
                     if let Some(paint_style) = paint_server_style(recorder, paintable, true, &paint_context) {
                         recorder.recorder.stroke_path(StrokePathParams {
                             force_dark_role: ForceDarkRole::Svg,
@@ -647,6 +683,51 @@ fn paint_path_parts<O: Observer>(
                 _ => {}
             }
         }
+    }
+}
+
+fn paint_color_glyph_runs<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    runs: &[crate::layout::fragment_tree::SvgColorGlyphRun],
+    opacity: f32,
+    device_scale: f32,
+) {
+    use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
+    use crate::painting::display_list::recorder::GlyphRunForRecording;
+
+    let Some(style) = recorder.source.node_style_if_live(paintable) else {
+        return;
+    };
+    let font_smoothing = style.inherited_text().font_smoothing;
+    for run in runs {
+        let font_id = recorder.register_font(&run.font);
+        let left = (run.bounds.x * device_scale).floor();
+        let top = (run.bounds.y * device_scale).floor();
+        let device_rect = libgfx_rust::IntRect::new(
+            left as i32,
+            top as i32,
+            ((run.bounds.right() * device_scale).ceil() - left) as i32,
+            ((run.bounds.bottom() * device_scale).ceil() - top) as i32,
+        );
+        recorder.recorder.draw_glyph_run(
+            libgfx_rust::FloatPoint { x: 0.0, y: 0.0 },
+            GlyphRunForRecording {
+                font_smoothing,
+                font_id: FontResourceId(font_id),
+                glyphs: run.glyphs.iter().map(|glyph| DisplayListGlyph {
+                    position: libgfx_rust::FloatPoint { x: glyph.x, y: glyph.y },
+                    glyph_id: glyph.glyph_id,
+                }),
+            },
+            Color::from_rgb(0, 0, 0).with_opacity(opacity),
+            0.0,
+            device_rect,
+            f64::from(device_scale),
+            libgfx_rust::Orientation::Horizontal,
+            device_rect,
+            ForceDarkRole::Svg,
+        );
     }
 }
 

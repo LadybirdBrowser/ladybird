@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: ColorEmoji;
+        src: url("../../../Ref/data/fonts/NotoColorEmoji-Regular_subset.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 48px ColorEmoji;
+    }
+</style>
+<svg width="400" height="200">
+    <text id="text" x="20" y="60"><a id="link" href="#">&#x1fae8;</a></text>
+    <text id="scaled-text" x="20" y="160" lengthAdjust="spacingAndGlyphs"><a id="scaled-link" href="#">&#x1fae8;&#x1fae8;</a></text>
+</svg>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("48px ColorEmoji", "\u{1FAE8}");
+        // A color glyph has no outline, so it's hit anywhere in its cell.
+        const cell = document.getElementById("text").getExtentOfChar(0);
+        const hit = document.elementFromPoint(cell.x + cell.width / 2, cell.y + cell.height / 2);
+        println(`In the middle of the emoji: ${hit.id || hit.localName}`);
+        const miss = document.elementFromPoint(cell.x + cell.width + 20, cell.y + cell.height / 2);
+        println(`Past the emoji: ${miss.id || miss.localName}`);
+
+        // The cell of an emoji is where textLength moves the emoji to.
+        const scaledText = document.getElementById("scaled-text");
+        scaledText.setAttribute("textLength", 2 * scaledText.getComputedTextLength());
+        const scaledCell = scaledText.getExtentOfChar(2);
+        const scaledHit = document.elementFromPoint(scaledCell.x + scaledCell.width / 4, scaledCell.y + scaledCell.height / 2);
+        println(`In the second emoji of text scaled to twice its length: ${scaledHit.id || scaledHit.localName}`);
+        const scaledMiss = document.elementFromPoint(scaledCell.x + scaledCell.width + 30, scaledCell.y + scaledCell.height / 2);
+        println(`Past the text scaled to twice its length: ${scaledMiss.id || scaledMiss.localName}`);
+        done();
+    });
+</script>

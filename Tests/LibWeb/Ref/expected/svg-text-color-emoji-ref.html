@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    @font-face {
+        font-family: ColorEmojiFont;
+        src: url("../data/fonts/NotoColorEmoji-Regular_subset.ttf");
+    }
+    @font-face {
+        font-family: MonoEmojiFont;
+        src: url("../data/fonts/NotoEmoji-Regular_subset.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    div {
+        position: absolute;
+        left: 20px;
+        font: 50px/100px Ahem;
+        white-space: nowrap;
+    }
+    span {
+        line-height: 0;
+    }
+</style>
+<!-- The baseline of each line is 65px below the top of its block: Ahem's ascent is 40px here, and half of the leading 25px. -->
+<div style="top: 15px"><span style="font: 48px/0 ColorEmojiFont">&#x1fae8;</span></div>
+<div style="top: 115px">XX<span style="font: 50px/0 Ahem, ColorEmojiFont">&#x1fae8;</span></div>
+<div style="top: 215px"><span style="font: 48px/0 ColorEmojiFont">&#x1fae8;</span></div>
+<div style="top: 315px"><span style="font: 48px/0 ColorEmojiFont">&#x1fae8;</span></div>
+<div style="top: 315px; left: 120px"><span style="font: 48px/0 ColorEmojiFont">&#x1fae8;</span></div>

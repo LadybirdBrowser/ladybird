@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    @font-face {
+        font-family: OnlyA;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+        unicode-range: U+0041;
+    }
+    svg {
+        font: 20px Ahem;
+    }
+    .letters {
+        font-family: OnlyA, serif;
+    }
+</style>
+<svg width="400" height="200">
+    <text id="one" y="30">&#x1F468;</text>
+    <text id="joined" y="60">&#x1F468;&#x200D;&#x1F469;&#x200D;&#x1F467;</text>
+    <text id="apart" y="90">&#x1F468;&#x200B;&#x1F469;&#x200B;&#x1F467;</text>
+    <text id="letter" class="letters" y="120">B</text>
+    <text id="letter-and-joiner" class="letters" y="150">A&#x200D;</text>
+    <text id="letters-joined" class="letters" y="180">A&#x200D;B</text>
+</svg>
+<script>
+    // Ahem has a glyph for the zero width joiner, and none for an emoji, which a fallback font draws.
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        await document.fonts.load("20px OnlyA", "A");
+        const length = id => document.getElementById(id).getComputedTextLength();
+        println(`An emoji has a length: ${length("one") > 0}`);
+        println(`Three emoji that joiners make one are as long as one emoji: ${length("joined") === length("one")}`);
+        println(`Apart, they're as long as three: ${length("apart") === 3 * length("one")}`);
+        // OnlyA is Ahem, limited to "A" by its unicode-range. So, another font draws "B", though Ahem has a glyph for
+        // it. That holds after a joiner too, where the joiner follows a letter rather than an emoji.
+        println(`Ahem doesn't draw a "B" by itself: ${length("letter") !== 20}`);
+        const afterJoiner = length("letters-joined") - length("letter-and-joiner");
+        println(`Nor a "B" after an "A" and a joiner: ${Math.abs(afterJoiner - length("letter")) < 0.01}`);
+        done();
+    });
+</script>
