@@ -2695,9 +2695,6 @@ impl<'context> InlineFormattingContext<'context> {
         let mut items_after_clamp_point = Vec::new();
         let mut stopped_at_line_limit = false;
         let mut needs_float_fitting = !float_fit_trial;
-        // https://quirks.spec.whatwg.org/#the-line-height-calculation-quirk
-        let takes_struts_of_inline_boxes_without_text =
-            !self.facts(self.containing_block).document_in_line_height_quirks_mode();
         loop {
             if float_fit_trial && line_builder.float_refit().is_some() {
                 break;
@@ -2750,8 +2747,9 @@ impl<'context> InlineFormattingContext<'context> {
                 }
             }
             // NB: The inline boxes around whitespace are on this line whether the whitespace stays there, collapses,
-            //     or ends up hanging off the end of the line.
-            if item.is_collapsible_whitespace && takes_struts_of_inline_boxes_without_text {
+            //     or ends up hanging off the end of the line. Under the line-height quirk, the line builder takes
+            //     their line height away unless they have a border or padding at their start or end.
+            if item.is_collapsible_whitespace {
                 line_builder.add_struts_of_inline_boxes_around(
                     item.node,
                     pending_leading_edges + item.margin_start + item.border_start + item.padding_start,
@@ -2895,9 +2893,7 @@ impl<'context> InlineFormattingContext<'context> {
                     // https://drafts.csswg.org/css2/#anonymous-block-level
                     // NB: The inline boxes around the block-level box are broken around it, so they're on the line
                     //     before it and on the line after it.
-                    if takes_struts_of_inline_boxes_without_text {
-                        line_builder.add_struts_of_inline_boxes_around(item.node, CssPixels::default());
-                    }
+                    line_builder.add_struts_of_inline_boxes_around(item.node, CssPixels::default());
                     line_builder.finish_current_line_before_block_level_box();
                     if float_fit_trial {
                         break;
@@ -2927,9 +2923,7 @@ impl<'context> InlineFormattingContext<'context> {
                     self.margins_collapse_through_interrupting_blocks
                         .borrow_mut()
                         .insert(item.node, collapses_through);
-                    if takes_struts_of_inline_boxes_without_text {
-                        line_builder.add_struts_of_inline_boxes_around(item.node, CssPixels::default());
-                    }
+                    line_builder.add_struts_of_inline_boxes_around(item.node, CssPixels::default());
                 }
                 inline_level_iterator::ItemType::AbsolutelyPositionedElement => {
                     if !self.facts(item.node).is_box() {
