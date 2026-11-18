@@ -446,7 +446,7 @@ fn search_node(arena: &LayoutNodeArena, node: NodeSlotId) -> SearchNode {
     }
     if kind_is_text(data.kind.get()) {
         let style = node_style_view(arena.data(data.parent.get())).expect("text parent has style");
-        if style.visibility() == visibility::VISIBLE && style.effects().opacity != 0.0 {
+        if style.visibility() == visibility::VISIBLE {
             return SearchNode::text(arena, node);
         }
     }
