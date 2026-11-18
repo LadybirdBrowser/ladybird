@@ -1233,9 +1233,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // replaced element with a natural aspect ratio and no natural size in that axis, see e.g. CSS2 §10
         // and CSS Flexible Box Model Level 1 §9.2.
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
-        if facts.has_replaced_element_table_display_adjustment()
-            || (facts.is_replaced_box() && facts.has_auto_content_box_size())
-        {
+        if facts.is_replaced_box() && facts.has_auto_content_box_size() {
             return true;
         }
         if facts.has_preferred_aspect_ratio() || facts.has_auto_content_box_size() {

@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    input {
+        font: 16px sans-serif;
+        margin: 0;
+    }
+</style>
+<script>
+    test(() => {
+        const displays = ["table", "inline-table", "table-cell", "table-row", "table-row-group", "table-column", "table-caption"];
+        for (const type of ["submit", "button", "reset", "file", "color"]) {
+            const reference = document.createElement("input");
+            reference.type = type;
+            if (type !== "file") reference.value = "Send";
+            reference.style.display = "block";
+            document.body.append(reference);
+            const expected = reference.getBoundingClientRect();
+            for (const display of displays) {
+                const wrapper = document.createElement("div");
+                const input = document.createElement("input");
+                input.type = type;
+                if (type !== "file") input.value = "Send";
+                input.style.display = display;
+                wrapper.append(input);
+                document.body.append(wrapper);
+                const rect = input.getBoundingClientRect();
+                const same = rect.width === expected.width && rect.height === expected.height;
+                println(`${type} ${display}: ${same ? "same size as display: block" : `${rect.width}x${rect.height}, not ${expected.width}x${expected.height}`}`);
+                wrapper.remove();
+            }
+            reference.remove();
+        }
+    });
+</script>

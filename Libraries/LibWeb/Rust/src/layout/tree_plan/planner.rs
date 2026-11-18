@@ -4154,17 +4154,27 @@ fn prepare_element(
         layout_svg_pattern,
     );
     prepared_style.layout_kind = layout_kind;
+    // NB: A replaced element whose kind of box follows from its display gets the kind for the display it uses, so a
+    //     table display never makes it a table part. And as an atomic inline, an inline one gets a block container.
+    let kind_display = if node_facts::construction_facts_name_replaced_element(construction_facts) {
+        let display = crate::layout::tree_builder::used_display_of_replaced_element(published_display);
+        if display.is_inline_outside() && display.is_flow_inside() {
+            FfiDisplay::outside_and_inside(display.outside, crate::css::css_enums::display_inside::FLOW_ROOT, false)
+        } else {
+            display
+        }
+    } else {
+        published_display
+    };
     let kind = match layout_kind {
         ElementLayoutKind::ContentReplacement => Some(NodeKind::ImageBox),
         ElementLayoutKind::SvgMask => Some(NodeKind::SVGMaskBox),
         ElementLayoutKind::SvgClipPath => Some(NodeKind::SVGClipBox),
         ElementLayoutKind::SvgPattern => Some(NodeKind::SVGPatternBox),
-        ElementLayoutKind::Normal => {
-            match node_kind_for_element_box_kind(box_kind, published_display, summary.appearance) {
-                Some(NodeKind::ListItemBox) if uses_button_layout => Some(NodeKind::BlockContainer),
-                kind => kind,
-            }
-        }
+        ElementLayoutKind::Normal => match node_kind_for_element_box_kind(box_kind, kind_display, summary.appearance) {
+            Some(NodeKind::ListItemBox) if uses_button_layout => Some(NodeKind::BlockContainer),
+            kind => kind,
+        },
     };
     let Some(kind) = kind else {
         return PreparedElement {
