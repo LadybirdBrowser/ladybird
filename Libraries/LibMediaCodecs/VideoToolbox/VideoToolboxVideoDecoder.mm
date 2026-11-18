@@ -10,6 +10,7 @@
 #include <LibMediaCodecs/Codecs/AV1.h>
 #include <LibMediaCodecs/Codecs/H264.h>
 #include <LibMediaCodecs/Codecs/H265.h>
+#include <LibMediaCodecs/Codecs/HighDynamicRangeMetadataTracker.h>
 #include <LibMediaCodecs/Codecs/NALUnit.h>
 #include <LibMediaCodecs/Codecs/VP9.h>
 #include <LibMediaCodecs/CodedFrame.h>
@@ -271,6 +272,10 @@ bool session_uses_hardware_decoder(VTDecompressionSessionRef session)
 }
 
 struct FormatState {
+    explicit FormatState(CodecID codec_id)
+        : high_dynamic_range_metadata_tracker(codec_id, {})
+    {
+    }
     virtual ~FormatState() = default;
 
     // Takes whatever the frame says about the stream's format.
@@ -285,10 +290,16 @@ struct FormatState {
     bool access_unit_begins_open_gop { false };
     // Whether the last frame's picture is such a leading picture.
     bool access_unit_is_open_gop_leading_picture { false };
+    Codecs::HighDynamicRangeMetadataTracker high_dynamic_range_metadata_tracker;
 };
 
 struct H264State final : FormatState {
     AK_ALLOC_WITH_KMALLOC;
+
+    H264State()
+        : FormatState(CodecID::H264)
+    {
+    }
 
     Codecs::H264::ParameterSetStore parameter_sets;
     u8 nal_unit_length_size { 4 };
@@ -311,9 +322,12 @@ struct H264State final : FormatState {
         if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
             TRY(apply_configuration(*configuration));
 
+        high_dynamic_range_metadata_tracker.begin_frame();
         Codecs::NALUnitIterator iterator { coded_frame.data(), nal_unit_length_size };
-        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next())
+        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
             TRY(apply_nal_unit(*nal_unit));
+            high_dynamic_range_metadata_tracker.apply_nal_unit(*nal_unit);
+        }
         if (iterator.has_error())
             return DecoderError::corrupted("Invalid H.264 NAL unit length"sv);
         return {};
@@ -329,6 +343,7 @@ struct H264State final : FormatState {
 
         parameter_sets = {};
         nal_unit_length_size = sets->nal_unit_length_size;
+        high_dynamic_range_metadata_tracker.forget_stream();
         dirty = true;
 
         for (auto nal_unit : sets->sequence)
@@ -374,6 +389,11 @@ struct H264State final : FormatState {
 struct H265State final : FormatState {
     AK_ALLOC_WITH_KMALLOC;
 
+    H265State()
+        : FormatState(CodecID::H265)
+    {
+    }
+
     Codecs::H265::ParameterSetStore parameter_sets;
     u8 nal_unit_length_size { 4 };
 
@@ -398,9 +418,11 @@ struct H265State final : FormatState {
         auto saw_random_access_point = false;
         auto saw_open_gop_start = false;
         auto saw_open_gop_leading_picture = false;
+        high_dynamic_range_metadata_tracker.begin_frame();
         Codecs::NALUnitIterator iterator { coded_frame.data(), nal_unit_length_size };
         for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
             TRY(apply_nal_unit(*nal_unit));
+            high_dynamic_range_metadata_tracker.apply_nal_unit(*nal_unit);
             auto header = Codecs::H265::parse_nal_unit_header(*nal_unit);
             if (!header.has_value() || !Codecs::H265::is_coded_slice(*header))
                 continue;
@@ -429,6 +451,7 @@ struct H265State final : FormatState {
 
         parameter_sets = {};
         nal_unit_length_size = sets->nal_unit_length_size;
+        high_dynamic_range_metadata_tracker.forget_stream();
         dirty = true;
 
         for (auto nal_unit : sets->video)
@@ -498,6 +521,11 @@ struct H265State final : FormatState {
 struct VP9State final : FormatState {
     AK_ALLOC_WITH_KMALLOC;
 
+    VP9State()
+        : FormatState(CodecID::VP9)
+    {
+    }
+
     Optional<Codecs::VP9::FrameHeader> header;
 
     virtual DecoderErrorOr<void> apply_coded_frame(CodedFrame const& coded_frame) override
@@ -534,6 +562,11 @@ struct VP9State final : FormatState {
 struct AV1State final : FormatState {
     AK_ALLOC_WITH_KMALLOC;
 
+    AV1State()
+        : FormatState(CodecID::AV1)
+    {
+    }
+
     Optional<Codecs::AV1::SequenceHeader> sequence_header;
 
     virtual DecoderErrorOr<void> apply_coded_frame(CodedFrame const& coded_frame) override
@@ -543,6 +576,7 @@ struct AV1State final : FormatState {
             sequence_header = frame_sequence_header;
             dirty = true;
         }
+        high_dynamic_range_metadata_tracker.apply_coded_frame(coded_frame);
         return {};
     }
 
@@ -755,10 +789,12 @@ void VideoToolboxVideoDecoder::note_decode_completed(CodingIndependentCodePoints
         MutexLocker locker { m_output_mutex };
 
         if (auto frame = take_in_flight_frame_while_locked(submission_id); frame.has_value()) {
+            auto color_metadata = frame->high_dynamic_range_metadata;
+            color_metadata.cicp = cicp;
             if (status != noErr)
                 note_decode_failure_while_locked(status);
             else if (image_buffer != nullptr)
-                enqueue_decoded_output_while_locked(cicp, image_buffer, frame->timestamp, frame->duration);
+                enqueue_decoded_output_while_locked(color_metadata, image_buffer, frame->timestamp, frame->duration);
             auto frame_was_decoded_for_reference_only = status == noErr && image_buffer == nullptr;
             if (!frame_was_decoded_for_reference_only)
                 completion = DecodeCompletion::ProducedOutput;
@@ -804,7 +840,7 @@ void VideoToolboxVideoDecoder::insert_output_in_presentation_order_while_locked(
     m_outputs.insert(insertion_index, move(output));
 }
 
-void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(CodingIndependentCodePoints const& cicp, void* image_buffer, AK::Duration timestamp, AK::Duration duration)
+void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(ColorMetadata const& color_metadata, void* image_buffer, AK::Duration timestamp, AK::Duration duration)
 {
     auto* pixel_buffer = static_cast<CVPixelBufferRef>(image_buffer);
     auto* io_surface = CVPixelBufferGetIOSurface(pixel_buffer);
@@ -833,7 +869,7 @@ void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(CodingIndepen
         .size = { static_cast<int>(CVPixelBufferGetWidth(pixel_buffer)), static_cast<int>(CVPixelBufferGetHeight(pixel_buffer)) },
         .bit_depth = static_cast<u8>(is_ten_bit ? 10 : 8),
         .subsampling = Subsampling::yuv420(),
-        .cicp = cicp,
+        .color_metadata = color_metadata,
     };
     insert_output_in_presentation_order_while_locked(move(output));
 }
@@ -901,7 +937,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
                 m_caller_is_waiting_for_output = false;
             }
             m_frames_in_flight.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
-            m_in_flight_frames.append({ submission_id, coded_frame.presentation_timestamp(), coded_frame.duration() });
+            m_in_flight_frames.append({ submission_id, coded_frame.presentation_timestamp(), coded_frame.duration(), m_format_state->high_dynamic_range_metadata_tracker.metadata() });
         }
 
         VTDecodeInfoFlags info_flags = 0;
@@ -983,7 +1019,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::adopt_output
         return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video surface the decoder may hand out is held elsewhere"sv);
 
     auto color_metadata = container_color_metadata;
-    color_metadata.cicp.adopt_specified_values(output.cicp);
+    color_metadata.adopt_specified_values(output.color_metadata);
 
     return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(
         output.timestamp, output.duration, output.size.to_type<u32>(),
@@ -994,6 +1030,7 @@ void VideoToolboxVideoDecoder::flush()
 {
     m_reached_end_of_stream = false;
     m_awaiting_first_submitted_frame = true;
+    m_format_state->high_dynamic_range_metadata_tracker.forget_stream();
 
     MutexLocker locker { m_output_mutex };
     // The media engine still hands back the frames it was decoding, which are discarded once nothing awaits them.

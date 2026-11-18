@@ -492,3 +492,102 @@ TEST_CASE(input_after_the_end_of_stream_is_rejected_until_flushed)
     decoding.decoder->flush();
     EXPECT(!decoding.decoder->receive_coded_data(first_frame, Media::DecodeIntent::Output).is_error());
 }
+
+// The file's mastering display and content light levels are only in its SEI, not in its sample entry.
+TEST_CASE(h265_frames_carry_the_high_dynamic_range_metadata_in_their_bitstream)
+{
+    auto decoding = open_decoding("./hevc_hdr_metadata_in_sei.mp4"sv, Media::CodecID::H265);
+    EXPECT(!decoding.track.video_data().color_metadata.mastering_display_color_volume.has_value());
+
+    size_t frame_count = 0;
+    while (true) {
+        auto frame_result = decoding.next_frame();
+        if (frame_result.is_error()) {
+            if (decoding_is_unavailable(frame_result.error()))
+                return;
+            EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+            break;
+        }
+        auto const& color_metadata = frame_result.value()->color_metadata();
+        EXPECT(color_metadata.mastering_display_color_volume.has_value());
+        if (color_metadata.mastering_display_color_volume.has_value()) {
+            EXPECT_APPROXIMATE(color_metadata.mastering_display_color_volume->maximum_luminance, 1000.0);
+            EXPECT_APPROXIMATE(color_metadata.mastering_display_color_volume->red.x, 0.68);
+        }
+        EXPECT(color_metadata.content_light_level_information.has_value());
+        if (color_metadata.content_light_level_information.has_value()) {
+            EXPECT_EQ(color_metadata.content_light_level_information->maximum_content_light_level, 1000);
+            EXPECT_EQ(color_metadata.content_light_level_information->maximum_frame_average_light_level, 400);
+        }
+        frame_count++;
+    }
+    EXPECT_EQ(frame_count, 6u);
+}
+
+// The file's mastering display and content light levels are only in metadata OBUs, not in its Matroska Colour element.
+TEST_CASE(av1_frames_carry_the_high_dynamic_range_metadata_in_their_bitstream)
+{
+    auto decoding = open_decoding("./av1_hdr_metadata_in_webm.webm"sv, Media::CodecID::AV1);
+    auto frame_result = decoding.next_frame();
+    if (frame_result.is_error() && decoding_is_unavailable(frame_result.error()))
+        return;
+    auto frame = MUST(move(frame_result));
+    auto const& color_metadata = frame->color_metadata();
+
+    EXPECT(color_metadata.content_light_level_information.has_value());
+    if (color_metadata.content_light_level_information.has_value()) {
+        EXPECT_EQ(color_metadata.content_light_level_information->maximum_content_light_level, 1005);
+        EXPECT_EQ(color_metadata.content_light_level_information->maximum_frame_average_light_level, 315);
+    }
+    EXPECT(color_metadata.mastering_display_color_volume.has_value());
+    if (color_metadata.mastering_display_color_volume.has_value()) {
+        EXPECT_APPROXIMATE(color_metadata.mastering_display_color_volume->maximum_luminance, 1000.0);
+        EXPECT_APPROXIMATE_WITH_ERROR(color_metadata.mastering_display_color_volume->red.x, 0.708, 1.0 / (1 << 16));
+    }
+}
+
+TEST_CASE(h265_frames_carry_their_own_hdr10_plus_scene_peaks)
+{
+    ScenePeakChecker scene_peaks { hevc_hdr10_plus_in_sei_scene_peaks };
+    auto decoding = open_decoding("./hevc_hdr10_plus_in_sei.mkv"sv, Media::CodecID::H265);
+
+    size_t frame_count = 0;
+    while (true) {
+        auto frame_result = decoding.next_frame();
+        if (frame_result.is_error()) {
+            if (decoding_is_unavailable(frame_result.error()))
+                return;
+            EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+            break;
+        }
+        auto const& frame = *frame_result.value();
+        auto const& color_metadata = frame.color_metadata();
+        scene_peaks.check(frame.timestamp(), color_metadata.maximum_scene_luminance);
+        EXPECT(color_metadata.content_light_level_information.has_value());
+        frame_count++;
+    }
+    EXPECT_EQ(frame_count, 6u);
+    scene_peaks.expect_every_frame_checked();
+}
+
+TEST_CASE(h265_frames_carry_their_own_dolby_vision_scene_peaks)
+{
+    ScenePeakChecker scene_peaks { hevc_dolby_vision_rpus_scene_peaks };
+    auto decoding = open_decoding("./hevc_dolby_vision_rpus.mkv"sv, Media::CodecID::H265);
+
+    size_t frame_count = 0;
+    while (true) {
+        auto frame_result = decoding.next_frame();
+        if (frame_result.is_error()) {
+            if (decoding_is_unavailable(frame_result.error()))
+                return;
+            EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+            break;
+        }
+        auto const& frame = *frame_result.value();
+        scene_peaks.check(frame.timestamp(), frame.color_metadata().maximum_scene_luminance);
+        frame_count++;
+    }
+    EXPECT_EQ(frame_count, 6u);
+    scene_peaks.expect_every_frame_checked();
+}

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/Function.h>
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
@@ -269,3 +270,70 @@ static inline auto seek_to_resume_and_pump_until_woken_with_data(Core::EventLoop
     size_t seek_count = 0;
     return seek_to_resume_and_pump_until_woken_with_data(loop, producer, timestamp, seek_count);
 }
+
+struct ExpectedScenePeak {
+    i64 milliseconds;
+    Optional<double> luminance;
+};
+
+// The frames of these files were given scene peaks in decoding order, so a peak that does not follow its frame through
+// reordering lands on a frame expecting another.
+static constexpr Array<ExpectedScenePeak, 6> hevc_hdr10_plus_in_sei_scene_peaks { {
+    { 0, 100 },
+    { 33, 400 },
+    { 67, 500 },
+    { 100, 300 },
+    { 133, 600 },
+    { 167, 200 },
+} };
+// Each frame's RPU takes another path through the syntax: a polynomial mapping, floating point coefficients, a reused
+// mapping with compressed display management, nonlinear quantization, no display management at all, and MMR.
+static constexpr Array<ExpectedScenePeak, 6> hevc_dolby_vision_rpus_scene_peaks { {
+    { 0, 100.1 },
+    { 33, 300.33 },
+    { 67, 599.56 },
+    { 100, 500.44 },
+    { 133, {} },
+    { 167, 399.72 },
+} };
+
+// Each expected frame has to be checked exactly once, whatever order the frames come in.
+class ScenePeakChecker {
+public:
+    explicit ScenePeakChecker(Span<ExpectedScenePeak const> expected_scene_peaks)
+        : m_expected_scene_peaks(expected_scene_peaks)
+    {
+        m_checked.resize(expected_scene_peaks.size());
+    }
+
+    void check(AK::Duration timestamp, Optional<float> maximum_scene_luminance)
+    {
+        Optional<size_t> expected_index;
+        for (size_t index = 0; index < m_expected_scene_peaks.size(); index++) {
+            if (m_expected_scene_peaks[index].milliseconds == timestamp.to_milliseconds())
+                expected_index = index;
+        }
+        EXPECT(expected_index.has_value());
+        if (!expected_index.has_value())
+            return;
+        EXPECT(!m_checked[expected_index.value()]);
+        m_checked[expected_index.value()] = true;
+
+        auto const& expected = m_expected_scene_peaks[expected_index.value()];
+        EXPECT_EQ(maximum_scene_luminance.has_value(), expected.luminance.has_value());
+        if (!maximum_scene_luminance.has_value() || !expected.luminance.has_value())
+            return;
+        EXPECT(isfinite(maximum_scene_luminance.value()));
+        EXPECT_APPROXIMATE_WITH_ERROR(maximum_scene_luminance.value(), expected.luminance.value(), 0.5);
+    }
+
+    void expect_every_frame_checked() const
+    {
+        for (auto checked : m_checked)
+            EXPECT(checked);
+    }
+
+private:
+    Span<ExpectedScenePeak const> m_expected_scene_peaks;
+    Vector<bool> m_checked;
+};

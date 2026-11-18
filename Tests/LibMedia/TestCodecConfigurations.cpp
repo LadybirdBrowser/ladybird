@@ -10,12 +10,17 @@
 #include <LibMediaCodecs/CodecParameters.h>
 #include <LibMediaCodecs/Codecs/AAC.h>
 #include <LibMediaCodecs/Codecs/AV1.h>
+#include <LibMediaCodecs/Codecs/DolbyVision.h>
 #include <LibMediaCodecs/Codecs/H264.h>
 #include <LibMediaCodecs/Codecs/H265.h>
+#include <LibMediaCodecs/Codecs/HDR10Plus.h>
+#include <LibMediaCodecs/Codecs/HighDynamicRangeMetadataTracker.h>
 #include <LibMediaCodecs/Codecs/NALUnit.h>
 #include <LibMediaCodecs/Codecs/VP9.h>
 #include <LibMediaCodecs/Limits.h>
 #include <LibTest/TestCase.h>
+
+#include "TestMediaCommon.h"
 
 TEST_CASE(opus_isobmff_configuration_is_normalized_to_opus_head)
 {
@@ -1256,4 +1261,609 @@ TEST_CASE(aac_configuration_record_refuses_sample_rates_outside_the_supported_ra
     EXPECT_EQ(create(Media::MAX_AUDIO_SAMPLE_RATE + 1).error().category(), Media::DecoderErrorCategory::NotImplemented);
     EXPECT_EQ(create(Media::MAX_AUDIO_SAMPLE_RATE / 2, Media::MAX_AUDIO_SAMPLE_RATE + 2).error().category(), Media::DecoderErrorCategory::NotImplemented);
     EXPECT_EQ(create(Media::MIN_AUDIO_SAMPLE_RATE - 1, (Media::MIN_AUDIO_SAMPLE_RATE - 1) * 2).error().category(), Media::DecoderErrorCategory::NotImplemented);
+}
+
+// G(13250, 34500) B(7500, 3000) R(34000, 16000) WP(15635, 16450) L(10000000, 50), as x265 is given them.
+static void expect_h26x_mastering_display_color_volume(Media::ColorMetadata const& metadata)
+{
+    EXPECT(metadata.mastering_display_color_volume.has_value());
+    if (metadata.mastering_display_color_volume.has_value()) {
+        auto const& volume = metadata.mastering_display_color_volume.value();
+        EXPECT_APPROXIMATE(volume.green.x, 0.265);
+        EXPECT_APPROXIMATE(volume.green.y, 0.69);
+        EXPECT_APPROXIMATE(volume.blue.x, 0.15);
+        EXPECT_APPROXIMATE(volume.blue.y, 0.06);
+        EXPECT_APPROXIMATE(volume.red.x, 0.68);
+        EXPECT_APPROXIMATE(volume.red.y, 0.32);
+        EXPECT_APPROXIMATE(volume.white_point.x, 0.3127);
+        EXPECT_APPROXIMATE(volume.white_point.y, 0.329);
+        EXPECT_APPROXIMATE(volume.maximum_luminance, 1000.0);
+        EXPECT_APPROXIMATE(volume.minimum_luminance, 0.005);
+    }
+}
+
+TEST_CASE(h265_prefix_sei_gives_the_mastering_display_and_content_light_levels)
+{
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x4e, 0x01, // prefix SEI, layer 0
+        0x05, 0x02, 0xaa, 0xbb, // an unregistered user data message, which is skipped
+        0x89, 0x18, // mastering display colour volume
+        0x33, 0xc2, 0x86, 0xc4, 0x1d, 0x4c, 0x0b, 0xb8, 0x84, 0xd0, 0x3e, 0x80,
+        0x3d, 0x13, 0x40, 0x42,
+        0x00, 0x98, 0x96, 0x80,
+        0x00, 0x00, 0x03, 0x00, 0x32, // an emulation prevention byte follows the two zero bytes
+        0x90, 0x04, // content light level information
+        0x03, 0xe8, 0x01, 0x90,
+        0x80, // RBSP trailing bits
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    expect_h26x_mastering_display_color_volume(metadata);
+    EXPECT(metadata.content_light_level_information.has_value());
+    if (metadata.content_light_level_information.has_value()) {
+        EXPECT_EQ(metadata.content_light_level_information->maximum_content_light_level, 1000);
+        EXPECT_EQ(metadata.content_light_level_information->maximum_frame_average_light_level, 400);
+    }
+}
+
+TEST_CASE(h265_sei_message_running_past_its_nal_unit_is_ignored)
+{
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x4e, 0x01,
+        0x90, 0x04, 0x03, 0xe8, 0x01, 0x90, // a complete content light level message
+        0x89, 0x18, 0x33, 0xc2, // a mastering display colour volume with only one of its fields
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    EXPECT(!metadata.mastering_display_color_volume.has_value());
+    EXPECT(metadata.content_light_level_information.has_value());
+    if (metadata.content_light_level_information.has_value())
+        EXPECT_EQ(metadata.content_light_level_information->maximum_content_light_level, 1000);
+}
+
+TEST_CASE(h265_sei_mastering_display_with_an_unspecified_peak_is_left_out)
+{
+    // A maximum luminance code of 200,000,000 is outside the range H.265 gives meaning to.
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x4e, 0x01,
+        0x89, 0x18,
+        0x33, 0xc2, 0x86, 0xc4, 0x1d, 0x4c, 0x0b, 0xb8, 0x84, 0xd0, 0x3e, 0x80, 0x3d, 0x13, 0x40, 0x42,
+        0x0b, 0xeb, 0xc2, 0x00,
+        0x00, 0x03, 0x00, 0x00, 0x32,
+        0x90, 0x04, 0x03, 0xe8, 0x01, 0x90,
+        0x80,
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    EXPECT(!metadata.mastering_display_color_volume.has_value());
+    EXPECT(metadata.content_light_level_information.has_value());
+}
+
+TEST_CASE(h265_sei_mastering_display_with_a_zero_minimum_is_kept)
+{
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x4e, 0x01,
+        0x89, 0x18,
+        0x33, 0xc2, 0x86, 0xc4, 0x1d, 0x4c, 0x0b, 0xb8, 0x84, 0xd0, 0x3e, 0x80, 0x3d, 0x13, 0x40, 0x42,
+        0x00, 0x98, 0x96, 0x80,
+        0x00, 0x00, 0x03, 0x00, 0x00,
+        0x90, 0x04, 0x03, 0xe8, 0x01, 0x90,
+        0x80,
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    EXPECT(metadata.mastering_display_color_volume.has_value());
+    if (metadata.mastering_display_color_volume.has_value()) {
+        EXPECT_APPROXIMATE(metadata.mastering_display_color_volume->maximum_luminance, 1000.0);
+        EXPECT_EQ(metadata.mastering_display_color_volume->minimum_luminance, 0.0f);
+    }
+}
+
+TEST_CASE(h265_sei_message_whose_size_overflows_is_ignored)
+{
+    // Without its overflow being caught, a size of 16,843,009 0xFF bytes and a 0x05 adds up to 4.
+    ByteBuffer nal_unit;
+    nal_unit.append(0x4e);
+    nal_unit.append(0x01);
+    nal_unit.append(0x90);
+    MUST(nal_unit.try_resize(nal_unit.size() + 16'843'009));
+    nal_unit.bytes().slice(3).fill(0xff);
+    for (u8 byte : { 0x05, 0x03, 0xe8, 0x01, 0x90, 0x80 })
+        nal_unit.append(byte);
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    EXPECT(!metadata.content_light_level_information.has_value());
+}
+
+TEST_CASE(h264_nal_unit_with_the_forbidden_zero_bit_set_gives_nothing)
+{
+    auto nal_unit = to_array<u8>({ 0x86, 0x90, 0x04, 0x03, 0xe8, 0x01, 0x90, 0x80 });
+    EXPECT(!Media::Codecs::H264::high_dynamic_range_metadata_of_nal_unit(nal_unit).content_light_level_information.has_value());
+}
+
+TEST_CASE(h265_sei_message_running_into_the_trailing_bits_is_ignored)
+{
+    // A content light level message missing its last byte, which the RBSP stop byte would otherwise complete.
+    auto nal_unit = to_array<u8>({ 0x4e, 0x01, 0x90, 0x04, 0x03, 0xe8, 0x01, 0x80 });
+    EXPECT(!Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit).content_light_level_information.has_value());
+}
+
+TEST_CASE(h265_nal_units_other_than_base_layer_prefix_sei_give_nothing)
+{
+    // A suffix SEI, a prefix SEI in layer 1 and a sequence parameter set, each followed by a content light level.
+    // clang-format off
+    Array<Array<u8, 9>, 3> nal_units { {
+        { 0x50, 0x01, 0x90, 0x04, 0x03, 0xe8, 0x01, 0x90, 0x80 },
+        { 0x4e, 0x09, 0x90, 0x04, 0x03, 0xe8, 0x01, 0x90, 0x80 },
+        { 0x42, 0x01, 0x90, 0x04, 0x03, 0xe8, 0x01, 0x90, 0x80 },
+    } };
+    // clang-format on
+
+    for (auto const& nal_unit : nal_units) {
+        auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+        EXPECT(!metadata.content_light_level_information.has_value());
+    }
+}
+
+TEST_CASE(h264_sei_gives_the_mastering_display_and_content_light_levels)
+{
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x06, // SEI
+        0x90, 0x04, 0x03, 0xe8, 0x01, 0x90,
+        0x89, 0x18,
+        0x33, 0xc2, 0x86, 0xc4, 0x1d, 0x4c, 0x0b, 0xb8, 0x84, 0xd0, 0x3e, 0x80,
+        0x3d, 0x13, 0x40, 0x42,
+        0x00, 0x98, 0x96, 0x80,
+        0x00, 0x00, 0x03, 0x00, 0x32,
+        0x80,
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::H264::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    expect_h26x_mastering_display_color_volume(metadata);
+    EXPECT(metadata.content_light_level_information.has_value());
+    if (metadata.content_light_level_information.has_value())
+        EXPECT_EQ(metadata.content_light_level_information->maximum_frame_average_light_level, 400);
+}
+
+TEST_CASE(av1_metadata_obus_give_the_mastering_display_and_content_light_levels)
+{
+    // clang-format off
+    auto obus = to_array<u8>({
+        0x12, 0x00, // a temporal delimiter, which is skipped
+        0x2a, 0x06, // metadata
+        0x01, 0x03, 0xed, 0x01, 0x3b, // HDR_CLL: 1005 and 315
+        0x80, // trailing bits
+        0x2a, 0x1a, // metadata
+        0x02, // HDR_MDCV
+        0xb5, 0x40, 0x4a, 0xc0, // red (46400, 19136)
+        0x2b, 0x85, 0xcc, 0x08, // green (11141, 52232)
+        0x21, 0x8a, 0x0b, 0xc7, // blue (8586, 3015)
+        0x50, 0x0d, 0x54, 0x39, // white point (20493, 21561)
+        0x00, 0x03, 0xe8, 0x00, // 1000 cd/m² in 24.8
+        0x00, 0x00, 0x00, 0x52, // 82 / 2^14 cd/m² in 18.14
+        0x80, // trailing bits
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::AV1::high_dynamic_range_metadata_of_obus(obus);
+    EXPECT(metadata.content_light_level_information.has_value());
+    if (metadata.content_light_level_information.has_value()) {
+        EXPECT_EQ(metadata.content_light_level_information->maximum_content_light_level, 1005);
+        EXPECT_EQ(metadata.content_light_level_information->maximum_frame_average_light_level, 315);
+    }
+
+    EXPECT(metadata.mastering_display_color_volume.has_value());
+    if (metadata.mastering_display_color_volume.has_value()) {
+        auto const& volume = metadata.mastering_display_color_volume.value();
+        EXPECT_APPROXIMATE(volume.red.x, 46400 / 65536.0);
+        EXPECT_APPROXIMATE(volume.red.y, 19136 / 65536.0);
+        EXPECT_APPROXIMATE(volume.green.x, 11141 / 65536.0);
+        EXPECT_APPROXIMATE(volume.green.y, 52232 / 65536.0);
+        EXPECT_APPROXIMATE(volume.blue.x, 8586 / 65536.0);
+        EXPECT_APPROXIMATE(volume.blue.y, 3015 / 65536.0);
+        EXPECT_APPROXIMATE(volume.white_point.x, 20493 / 65536.0);
+        EXPECT_APPROXIMATE(volume.white_point.y, 21561 / 65536.0);
+        EXPECT_APPROXIMATE(volume.maximum_luminance, 1000.0);
+        EXPECT_APPROXIMATE(volume.minimum_luminance, 82 / 16384.0);
+    }
+}
+
+TEST_CASE(av1_metadata_obu_running_into_its_trailing_bits_is_ignored)
+{
+    // An HDR_CLL missing its last byte, which the trailing bits would otherwise complete.
+    auto obus = to_array<u8>({ 0x2a, 0x05, 0x01, 0x03, 0xed, 0x01, 0x80 });
+    EXPECT(!Media::Codecs::AV1::high_dynamic_range_metadata_of_obus(obus).content_light_level_information.has_value());
+}
+
+TEST_CASE(av1_obus_after_a_malformed_one_are_not_read)
+{
+    // clang-format off
+    auto obus = to_array<u8>({
+        0x2a, 0x10, 0x01, // metadata claiming more payload than there is
+        0x2a, 0x06, 0x01, 0x03, 0xed, 0x01, 0x3b, 0x80,
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::AV1::high_dynamic_range_metadata_of_obus(obus);
+    EXPECT(!metadata.content_light_level_information.has_value());
+}
+
+// One processing window whose maxscl is (1294, 3641, 1064), in units of 0.00001 of 10000 cd/m².
+// clang-format off
+static constexpr auto hdr10_plus_with_one_window = to_array<u8>({
+    0xb5, 0x00, 0x3c, 0x00, 0x01, 0x04, 0x01, 0x40, 0x00, 0x0c, 0x80, 0x0a, 0x1c, 0x0e, 0x39, 0x02,
+    0x14, 0x01, 0x0a, 0x04, 0x08, 0x01, 0x90, 0x00, 0x00,
+});
+// clang-format on
+
+TEST_CASE(hdr10_plus_gives_the_brightest_component_of_the_first_window)
+{
+    auto luminance = Media::Codecs::hdr10_plus_maximum_scene_luminance(hdr10_plus_with_one_window);
+    EXPECT(luminance.has_value());
+    if (luminance.has_value())
+        EXPECT_APPROXIMATE_WITH_ERROR(luminance.value(), 364.1, 0.01);
+}
+
+TEST_CASE(hdr10_plus_skips_further_windows_and_the_actual_peak_luminances)
+{
+    // Three windows, the later two with a maxscl of 99999, and a three by two actual peak luminance matrix.
+    // clang-format off
+    auto message = to_array<u8>({
+        0xb5, 0x00, 0x3c, 0x00, 0x01, 0x04, 0x01, 0xc4, 0x8d, 0x04, 0x8d, 0x04, 0x8d, 0x04, 0x8d, 0x04,
+        0x8d, 0x04, 0x8d, 0x15, 0x9e, 0x26, 0x9e, 0x26, 0x9e, 0x26, 0xa2, 0x46, 0x82, 0x46, 0x82, 0x46,
+        0x82, 0x46, 0x82, 0x46, 0x82, 0x46, 0x8a, 0xcf, 0x13, 0x4f, 0x13, 0x4f, 0x13, 0x50, 0x00, 0x03,
+        0x21, 0x18, 0x80, 0x48, 0xd1, 0x40, 0xa1, 0xc0, 0xe3, 0x90, 0x21, 0x40, 0x10, 0xa0, 0x40, 0x80,
+        0x19, 0x00, 0x0c, 0x34, 0xfe, 0x1a, 0x7f, 0x0d, 0x3f, 0x86, 0x9f, 0x10, 0x20, 0x06, 0x40, 0x03,
+        0x0d, 0x3f, 0x86, 0x9f, 0xc3, 0x4f, 0xe1, 0xa7, 0xc4, 0x08, 0x01, 0x90, 0x00, 0x00,
+    });
+    // clang-format on
+
+    auto luminance = Media::Codecs::hdr10_plus_maximum_scene_luminance(message);
+    EXPECT(luminance.has_value());
+    if (luminance.has_value())
+        EXPECT_APPROXIMATE_WITH_ERROR(luminance.value(), 364.1, 0.01);
+}
+
+TEST_CASE(hdr10_plus_rejects_other_messages_and_unknown_versions)
+{
+    auto other_provider = hdr10_plus_with_one_window;
+    other_provider[2] = 0x90;
+    EXPECT(!Media::Codecs::hdr10_plus_maximum_scene_luminance(other_provider).has_value());
+
+    auto later_version = hdr10_plus_with_one_window;
+    later_version[6] = 0x02;
+    EXPECT(!Media::Codecs::hdr10_plus_maximum_scene_luminance(later_version).has_value());
+
+    auto truncated = ReadonlyBytes { hdr10_plus_with_one_window }.trim(12);
+    EXPECT(!Media::Codecs::hdr10_plus_maximum_scene_luminance(truncated).has_value());
+}
+
+TEST_CASE(hdr10_plus_maxscl_beyond_its_range_gives_nothing)
+{
+    // A maxscl of 120,000 fits the 17-bit field, but HDR10+ only gives meaning to values up to 100,000.
+    // clang-format off
+    auto message = to_array<u8>({
+        0xb5, 0x00, 0x3c, 0x00, 0x01, 0x04, 0x01, 0x40, 0x00, 0x0c, 0x83, 0xa9, 0x80, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x04, 0x08, 0x01, 0x90, 0x00, 0x00,
+    });
+    // clang-format on
+
+    EXPECT(!Media::Codecs::hdr10_plus_maximum_scene_luminance(message).has_value());
+}
+
+TEST_CASE(hdr10_plus_with_an_unknown_peak_gives_nothing)
+{
+    // clang-format off
+    auto message = to_array<u8>({
+        0xb5, 0x00, 0x3c, 0x00, 0x01, 0x04, 0x01, 0x40, 0x00, 0x0c, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x04, 0x08, 0x01, 0x90, 0x00, 0x00,
+    });
+    // clang-format on
+
+    EXPECT(!Media::Codecs::hdr10_plus_maximum_scene_luminance(message).has_value());
+}
+
+TEST_CASE(h265_prefix_sei_gives_the_hdr10_plus_scene_peak)
+{
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x4e, 0x01, // prefix SEI, layer 0
+        0x04, 0x19, // user data registered by ITU-T T.35
+        0xb5, 0x00, 0x3c, 0x00, 0x01, 0x04, 0x01, 0x40, 0x00, 0x0c, 0x80, 0x0a, 0x1c, 0x0e, 0x39, 0x02,
+        0x14, 0x01, 0x0a, 0x04, 0x08, 0x01, 0x90, 0x00, 0x00,
+        0x90, 0x04, 0x03, 0xe8, 0x01, 0x90, // content light level information
+        0x80,
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    EXPECT(metadata.maximum_scene_luminance.has_value());
+    if (metadata.maximum_scene_luminance.has_value())
+        EXPECT_APPROXIMATE_WITH_ERROR(metadata.maximum_scene_luminance.value(), 364.1, 0.01);
+    EXPECT(metadata.content_light_level_information.has_value());
+}
+
+TEST_CASE(h265_sei_itu_t_t35_message_too_large_to_be_hdr10_plus_is_skipped)
+{
+    // HDR10+ that would still read as such with the padding after it, then a content light level.
+    ByteBuffer message;
+    message.append(hdr10_plus_with_one_window.span());
+    while (message.size() <= Media::Codecs::HDR10_PLUS_MAXIMUM_T35_MESSAGE_SIZE)
+        message.append(0x11);
+
+    ByteBuffer nal_unit;
+    for (u8 byte : { 0x4e, 0x01, 0x04 })
+        nal_unit.append(byte);
+    for (auto size = message.size(); true; size -= 0xff) {
+        nal_unit.append(static_cast<u8>(min<size_t>(size, 0xff)));
+        if (size < 0xff)
+            break;
+    }
+    nal_unit.append(message);
+    for (u8 byte : { 0x90, 0x04, 0x03, 0xe8, 0x01, 0x90, 0x80 })
+        nal_unit.append(byte);
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    EXPECT(!metadata.maximum_scene_luminance.has_value());
+    EXPECT(metadata.content_light_level_information.has_value());
+}
+
+TEST_CASE(av1_metadata_obu_gives_the_hdr10_plus_scene_peak)
+{
+    // clang-format off
+    auto obus = to_array<u8>({
+        0x2a, 0x1b, // metadata
+        0x04, // ITUT_T35
+        0xb5, 0x00, 0x3c, 0x00, 0x01, 0x04, 0x01, 0x40, 0x00, 0x0c, 0x80, 0x0a, 0x1c, 0x0e, 0x39, 0x02,
+        0x14, 0x01, 0x0a, 0x04, 0x08, 0x01, 0x90, 0x00, 0x00,
+        0x80, // trailing bits
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::AV1::high_dynamic_range_metadata_of_obus(obus);
+    EXPECT(metadata.maximum_scene_luminance.has_value());
+    if (metadata.maximum_scene_luminance.has_value())
+        EXPECT_APPROXIMATE_WITH_ERROR(metadata.maximum_scene_luminance.value(), 364.1, 0.01);
+}
+
+TEST_CASE(h265_prefix_sei_hdr10_plus_drops_its_emulation_prevention_bytes)
+{
+    // The maxscl (0, 0, 3641) codes two zero bytes followed by a byte below 4, so an emulation prevention byte splits it.
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x4e, 0x01,
+        0x04, 0x19,
+        0xb5, 0x00, 0x3c, 0x00, 0x01, 0x04, 0x01, 0x40, 0x00, 0x0c, 0x80, 0x00, 0x00, 0x03, 0x00, 0x00,
+        0x07, 0x1c, 0x80, 0x00, 0x04, 0x08, 0x01, 0x90, 0x00, 0x00,
+        0x80,
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    EXPECT(metadata.maximum_scene_luminance.has_value());
+    if (metadata.maximum_scene_luminance.has_value())
+        EXPECT_APPROXIMATE_WITH_ERROR(metadata.maximum_scene_luminance.value(), 364.1, 0.01);
+
+    // Read with the emulation prevention byte left in, the same message gives another peak.
+    auto escaped_message = Media::Codecs::hdr10_plus_maximum_scene_luminance(ReadonlyBytes { nal_unit }.slice(4, 26));
+    EXPECT(!escaped_message.has_value() || fabsf(escaped_message.value() - 364.1f) > 0.01f);
+}
+
+// These are the first two RPUs of Chromium's glass-blowing2-dolby-vision-profile-8-1-frag.mp4, whose level 1 maximums
+// FFmpeg reads as 3615 and 3687.
+TEST_CASE(h265_dolby_vision_nal_unit_gives_the_level_1_scene_peak)
+{
+    // clang-format off
+    auto first_nal_unit = to_array<u8>({
+        0x7c, 0x01, 0x19, 0x08, 0x09, 0x08, 0x40, 0x61, 0x36, 0x50, 0x6f, 0x00, 0x3f, 0xf8, 0x01, 0xff,
+        0xc0, 0x0f, 0xff, 0xd0, 0x00, 0x00, 0x08, 0x00, 0x00, 0x06, 0x80, 0x00, 0x00, 0x40, 0x00, 0x00,
+        0x34, 0x00, 0x00, 0x03, 0x02, 0x00, 0x00, 0x03, 0x01, 0xc9, 0x59, 0x80, 0x00, 0x0d, 0x7a, 0x89,
+        0x59, 0xbe, 0x7f, 0x3a, 0xc7, 0x09, 0x59, 0x91, 0x32, 0x80, 0x00, 0x00, 0x40, 0x00, 0x00, 0x03,
+        0x02, 0x00, 0x00, 0x03, 0x00, 0x02, 0x00, 0x00, 0x03, 0x00, 0x07, 0x0d, 0x88, 0x90, 0xc0, 0x61,
+        0x82, 0x97, 0x8c, 0x23, 0x81, 0x45, 0x00, 0x00, 0x03, 0x00, 0x69, 0x8f, 0x96, 0xbf, 0xff, 0xc0,
+        0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x18, 0x08, 0x1f, 0x73, 0x80, 0x54,
+        0x60, 0x30, 0x08, 0x01, 0x70, 0xfa, 0xf6, 0x00, 0xc0, 0x28, 0x21, 0x80, 0x08, 0x00, 0x80, 0x06,
+        0x06, 0x80, 0x01, 0x00, 0x02, 0x02, 0x28, 0x39, 0x1e, 0x88, 0x05, 0x00, 0x00, 0x03, 0x00, 0x00,
+        0x03, 0x00, 0x00, 0x03, 0x00, 0x12, 0x0c, 0x1f, 0x40, 0x00, 0x64, 0x00, 0x00, 0x03, 0x00, 0x00,
+        0x59, 0xfc, 0x25, 0x44, 0x80,
+    });
+    auto second_nal_unit = to_array<u8>({
+        0x7c, 0x01, 0x19, 0x08, 0x09, 0x08, 0x40, 0x61, 0x36, 0x50, 0x6f, 0x00, 0x3f, 0xf8, 0x01, 0xff,
+        0xc0, 0x0f, 0xff, 0xd0, 0x00, 0x00, 0x08, 0x00, 0x00, 0x06, 0x80, 0x00, 0x00, 0x40, 0x00, 0x00,
+        0x34, 0x00, 0x00, 0x03, 0x02, 0x00, 0x00, 0x03, 0x01, 0xc9, 0x59, 0x80, 0x00, 0x0d, 0x7a, 0x89,
+        0x59, 0xbe, 0x7f, 0x3a, 0xc7, 0x09, 0x59, 0x91, 0x32, 0x80, 0x00, 0x00, 0x40, 0x00, 0x00, 0x03,
+        0x02, 0x00, 0x00, 0x03, 0x00, 0x02, 0x00, 0x00, 0x03, 0x00, 0x07, 0x0d, 0x88, 0x90, 0xc0, 0x61,
+        0x82, 0x97, 0x8c, 0x23, 0x81, 0x45, 0x00, 0x00, 0x03, 0x00, 0x69, 0x8f, 0x96, 0xbf, 0xff, 0xc0,
+        0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x18, 0x08, 0x1f, 0x73, 0x80, 0x54,
+        0x60, 0x30, 0x08, 0x01, 0x73, 0x3b, 0x18, 0x00, 0xc0, 0x28, 0x21, 0x80, 0x08, 0x00, 0x80, 0x06,
+        0xa2, 0x6c, 0xb1, 0x00, 0x02, 0x02, 0x30, 0xb9, 0xd9, 0x88, 0x05, 0x00, 0x00, 0x03, 0x00, 0x00,
+        0x03, 0x00, 0x00, 0x03, 0x00, 0x12, 0x0c, 0x1f, 0x40, 0x00, 0x64, 0x00, 0x00, 0x03, 0x00, 0x00,
+        0x4b, 0xf6, 0x1b, 0xb2, 0x80,
+    });
+    // clang-format on
+
+    auto first = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(first_nal_unit);
+    EXPECT(first.maximum_scene_luminance.has_value());
+    if (first.maximum_scene_luminance.has_value())
+        EXPECT_APPROXIMATE_WITH_ERROR(first.maximum_scene_luminance.value(), 3330.0, 0.5);
+    auto second = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(second_nal_unit);
+    EXPECT(second.maximum_scene_luminance.has_value());
+    if (second.maximum_scene_luminance.has_value())
+        EXPECT_APPROXIMATE_WITH_ERROR(second.maximum_scene_luminance.value(), 3918.9, 0.5);
+}
+
+TEST_CASE(h265_dolby_vision_nal_unit_reusing_a_mapping_gives_the_level_1_scene_peak)
+{
+    // An RPU that reuses an earlier one's mapping and leaves out the colour transform, with a level 1 maximum of 2851.
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x7c, 0x01, 0x19, 0x08, 0x09, 0x08, 0x40, 0x61, 0x36, 0xc5, 0xfa, 0x60, 0x18, 0x05, 0x04, 0x30,
+        0x43, 0x04, 0x30, 0x43, 0x04, 0x30, 0x42, 0xff, 0xf0, 0x60, 0x10, 0x0c, 0xb2, 0x33, 0x33, 0x00,
+        0x83, 0xd7, 0xab, 0x17, 0x80,
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    EXPECT(metadata.maximum_scene_luminance.has_value());
+    if (metadata.maximum_scene_luminance.has_value())
+        EXPECT_APPROXIMATE_WITH_ERROR(metadata.maximum_scene_luminance.value(), 599.56, 0.5);
+}
+
+TEST_CASE(h265_dolby_vision_nal_unit_with_a_zero_level_1_maximum_gives_nothing)
+{
+    // The RPU above, with its level 1 maximum cleared.
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x7c, 0x01, 0x19, 0x08, 0x09, 0x08, 0x40, 0x61, 0x36, 0xc5, 0xfa, 0x60, 0x18, 0x05, 0x04, 0x30,
+        0x43, 0x04, 0x30, 0x43, 0x04, 0x30, 0x42, 0xff, 0xf0, 0x60, 0x10, 0x0c, 0x00, 0x03, 0x33, 0x00,
+        0x83, 0xd7, 0xab, 0x17, 0x80,
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    EXPECT(!metadata.maximum_scene_luminance.has_value());
+}
+
+TEST_CASE(h265_dolby_vision_level_1_block_shorter_than_its_fields_gives_nothing)
+{
+    // The RPU's level 1 block declares two bytes, which cannot hold its three 12-bit fields.
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x7c, 0x01, 0x19, 0x08, 0x09, 0x08, 0x40, 0x61, 0x36, 0xc5, 0xfa, 0x60, 0x18, 0x05, 0x04, 0x30,
+        0x43, 0x04, 0x30, 0x43, 0x04, 0x30, 0x42, 0xff, 0xf0, 0xc0, 0x40, 0x32, 0xb4, 0xcc, 0xcc, 0x00,
+        0x4a, 0x2b, 0x73, 0x8c, 0x80,
+    });
+    // clang-format on
+
+    EXPECT(!Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit).maximum_scene_luminance.has_value());
+}
+
+TEST_CASE(h265_dolby_vision_nal_unit_without_display_management_gives_nothing)
+{
+    // clang-format off
+    auto nal_unit = to_array<u8>({
+        0x7c, 0x01, 0x19, 0x08, 0x09, 0x08, 0x40, 0x61, 0x36, 0xc1, 0x3c, 0x00, 0xff, 0xe0, 0x07, 0xff,
+        0x00, 0x3f, 0xff, 0x40, 0x00, 0x00, 0x20, 0x00, 0x00, 0x1a, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00,
+        0x03, 0x00, 0xd0, 0x00, 0x00, 0x08, 0x00, 0x00, 0x03, 0x00, 0x0f, 0x3e, 0x9d, 0x3e, 0x80,
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(nal_unit);
+    EXPECT(!metadata.maximum_scene_luminance.has_value());
+}
+
+TEST_CASE(av1_metadata_obu_gives_the_dolby_vision_scene_peak)
+{
+    // An ITU-T T.35 metadata OBU holding an EMDF-wrapped RPU with a level 1 maximum of 2081.
+    // clang-format off
+    auto obus = to_array<u8>({
+        0x2a, 0x98, 0x01, 0x04, 0xb5, 0x00, 0x3b, 0x00, 0x00, 0x08, 0x00, 0x37, 0xcd, 0x08, 0x31, 0x00,
+        0x80, 0x90, 0x84, 0x06, 0x13, 0x6c, 0x1b, 0xc0, 0x0f, 0xfe, 0x00, 0x7f, 0xf0, 0x03, 0xff, 0xf4,
+        0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0xa0, 0x00, 0x00, 0x10, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x00,
+        0x80, 0x00, 0x00, 0x68, 0x95, 0x98, 0x00, 0x00, 0xd7, 0xa8, 0x95, 0x9b, 0xe7, 0xf3, 0xac, 0x70,
+        0x95, 0x99, 0x13, 0x28, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x20, 0x00,
+        0x00, 0x00, 0x70, 0xd8, 0x89, 0x0c, 0x06, 0x18, 0x29, 0x78, 0xc2, 0x38, 0x14, 0x50, 0x00, 0x00,
+        0x06, 0x98, 0xf9, 0x6b, 0xff, 0xfc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x01,
+        0xf7, 0x38, 0x05, 0x44, 0x01, 0x80, 0x50, 0x43, 0x04, 0x30, 0x43, 0x04, 0x30, 0x43, 0x04, 0x2f,
+        0xff, 0x06, 0x01, 0x00, 0xc8, 0x21, 0x33, 0x30, 0x12, 0x0c, 0x07, 0xd0, 0x00, 0x02, 0x00, 0x00,
+        0x00, 0x00, 0x03, 0x14, 0xde, 0x09, 0xe8, 0x00, 0x20, 0x00, 0x80,
+    });
+    // clang-format on
+
+    auto metadata = Media::Codecs::AV1::high_dynamic_range_metadata_of_obus(obus);
+    EXPECT(metadata.maximum_scene_luminance.has_value());
+    if (metadata.maximum_scene_luminance.has_value())
+        EXPECT_APPROXIMATE_WITH_ERROR(metadata.maximum_scene_luminance.value(), 100.1, 0.5);
+}
+
+TEST_CASE(h265_dolby_vision_rpus_of_every_kind_give_their_scene_peaks)
+{
+    ScenePeakChecker scene_peaks { hevc_dolby_vision_rpus_scene_peaks };
+    auto file = MUST(Core::File::open("./hevc_dolby_vision_rpus.mkv"sv, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    auto demuxer = MUST(Media::create_demuxer(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).release_value();
+    MUST(demuxer->create_context_for_track(track));
+
+    u8 nal_unit_length_size = 4;
+    size_t sample_count = 0;
+    while (true) {
+        auto sample_result = demuxer->get_next_sample_for_track(track);
+        if (sample_result.is_error()) {
+            EXPECT_EQ(sample_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+            break;
+        }
+        auto const& sample = sample_result.value();
+        if (auto configuration = sample.new_codec_configuration(); configuration.has_value())
+            nal_unit_length_size = Media::Codecs::H265::parse_parameter_sets_from_configuration_record(*configuration).value().nal_unit_length_size;
+
+        Media::ColorMetadata metadata;
+        Media::Codecs::NALUnitIterator iterator { sample.data(), nal_unit_length_size };
+        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next())
+            metadata.adopt_specified_values(Media::Codecs::H265::high_dynamic_range_metadata_of_nal_unit(*nal_unit));
+        scene_peaks.check(sample.presentation_timestamp(), metadata.maximum_scene_luminance);
+        sample_count++;
+    }
+    EXPECT_EQ(sample_count, 6u);
+    scene_peaks.expect_every_frame_checked();
+}
+
+// Length-prefixed H.265 NAL units: content light level SEIs, slices of IDR, trailing and CRA pictures, and an end of
+// sequence.
+// clang-format off
+constexpr auto h265_content_light_level_sei = to_array<u8>({ 0x00, 0x00, 0x00, 0x09, 0x4e, 0x01, 0x90, 0x04, 0x03, 0xe8, 0x01, 0x90, 0x80 });
+constexpr auto h265_unknown_peak_content_light_level_sei = to_array<u8>({ 0x00, 0x00, 0x00, 0x0a, 0x4e, 0x01, 0x90, 0x04, 0x00, 0x00, 0x03, 0x00, 0xc8, 0x80 });
+constexpr auto h265_idr_slice = to_array<u8>({ 0x00, 0x00, 0x00, 0x03, 0x26, 0x01, 0xaf });
+constexpr auto h265_trailing_slice = to_array<u8>({ 0x00, 0x00, 0x00, 0x03, 0x02, 0x01, 0xaf });
+constexpr auto h265_clean_random_access_slice = to_array<u8>({ 0x00, 0x00, 0x00, 0x03, 0x2a, 0x01, 0xaf });
+constexpr auto h265_end_of_sequence = to_array<u8>({ 0x00, 0x00, 0x00, 0x02, 0x48, 0x01 });
+// clang-format on
+
+static Media::CodedFrame h265_coded_frame(Vector<ReadonlyBytes> nal_units, i64 milliseconds)
+{
+    ByteBuffer data;
+    for (auto nal_unit : nal_units)
+        data.append(nal_unit);
+    auto timestamp = AK::Duration::from_milliseconds(milliseconds);
+    return Media::CodedFrame(Media::CodecID::H265, timestamp, timestamp, AK::Duration::from_milliseconds(33), Media::FrameFlags::Keyframe, MUST(FixedArray<u8>::create(data.bytes())));
+}
+
+TEST_CASE(h265_static_metadata_ends_with_its_coded_video_sequence)
+{
+    Media::Codecs::HighDynamicRangeMetadataTracker tracker { Media::CodecID::H265, {} };
+    EXPECT(tracker.apply_coded_frame(h265_coded_frame({ h265_content_light_level_sei, h265_idr_slice }, 0)).content_light_level_information.has_value());
+    EXPECT(tracker.apply_coded_frame(h265_coded_frame({ h265_trailing_slice }, 33)).content_light_level_information.has_value());
+    EXPECT(!tracker.apply_coded_frame(h265_coded_frame({ h265_idr_slice }, 67)).content_light_level_information.has_value());
+}
+
+TEST_CASE(h265_static_metadata_ends_at_an_end_of_sequence)
+{
+    Media::Codecs::HighDynamicRangeMetadataTracker tracker { Media::CodecID::H265, {} };
+    EXPECT(tracker.apply_coded_frame(h265_coded_frame({ h265_content_light_level_sei, h265_idr_slice }, 0)).content_light_level_information.has_value());
+    // A CRA picture alone may be in the middle of a coded video sequence.
+    EXPECT(tracker.apply_coded_frame(h265_coded_frame({ h265_clean_random_access_slice }, 33)).content_light_level_information.has_value());
+    EXPECT(tracker.apply_coded_frame(h265_coded_frame({ h265_trailing_slice, h265_end_of_sequence }, 67)).content_light_level_information.has_value());
+    EXPECT(!tracker.apply_coded_frame(h265_coded_frame({ h265_clean_random_access_slice }, 100)).content_light_level_information.has_value());
+}
+
+TEST_CASE(h265_content_light_level_message_replaces_the_previous_one)
+{
+    Media::Codecs::HighDynamicRangeMetadataTracker tracker { Media::CodecID::H265, {} };
+    tracker.apply_coded_frame(h265_coded_frame({ h265_content_light_level_sei, h265_idr_slice }, 0));
+    auto const& metadata = tracker.apply_coded_frame(h265_coded_frame({ h265_unknown_peak_content_light_level_sei, h265_idr_slice }, 33));
+    EXPECT(metadata.content_light_level_information.has_value());
+    if (metadata.content_light_level_information.has_value()) {
+        EXPECT_EQ(metadata.content_light_level_information->maximum_content_light_level, 0);
+        EXPECT_EQ(metadata.content_light_level_information->maximum_frame_average_light_level, 200);
+    }
 }

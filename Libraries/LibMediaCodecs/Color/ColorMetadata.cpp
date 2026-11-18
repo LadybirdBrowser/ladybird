@@ -63,17 +63,26 @@ ErrorOr<void> encode(Encoder& encoder, Media::ColorMetadata const& metadata)
     TRY(encoder.encode(metadata.cicp));
     TRY(encoder.encode(metadata.mastering_display_color_volume));
     TRY(encoder.encode(metadata.content_light_level_information));
+    TRY(encoder.encode(metadata.maximum_scene_luminance));
     return {};
 }
 
 template<>
 ErrorOr<Media::ColorMetadata> decode(Decoder& decoder)
 {
-    return Media::ColorMetadata {
+    Media::ColorMetadata metadata {
         .cicp = TRY(decoder.decode<Media::CodingIndependentCodePoints>()),
         .mastering_display_color_volume = TRY(decoder.decode<Optional<Media::MasteringDisplayColorVolume>>()),
         .content_light_level_information = TRY(decoder.decode<Optional<Media::ContentLightLevelInformation>>()),
+        .maximum_scene_luminance = TRY(decoder.decode<Optional<float>>()),
     };
+    if (auto luminance = metadata.maximum_scene_luminance; luminance.has_value()) {
+        if (!isfinite(*luminance))
+            return Error::from_string_literal("IPC: Maximum scene luminance is not finite");
+        if (*luminance <= 0)
+            return Error::from_string_literal("IPC: Maximum scene luminance is not positive");
+    }
+    return metadata;
 }
 
 }

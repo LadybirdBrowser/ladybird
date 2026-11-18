@@ -158,3 +158,17 @@ TEST_CASE(leb128_stops_after_its_final_byte)
     EXPECT_EQ(reader.read_leb128(), 1u);
     EXPECT_EQ(reader.bit_position(), 8u);
 }
+
+TEST_CASE(leb128_whose_last_possible_byte_says_another_follows_is_malformed)
+{
+    Array<u8, 8> unterminated { 0x86, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80 };
+    Media::BitReader reader { unterminated };
+    EXPECT_EQ(reader.read_leb128(), 0u);
+    EXPECT(reader.has_overrun());
+
+    // The same value spread over all eight bytes, with the last one ending it, is still valid.
+    Array<u8, 8> padded { 0x86, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00 };
+    Media::BitReader padded_reader { padded };
+    EXPECT_EQ(padded_reader.read_leb128(), 6u);
+    EXPECT(!padded_reader.has_overrun());
+}
