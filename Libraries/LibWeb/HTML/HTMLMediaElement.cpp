@@ -965,6 +965,8 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
     //          source, or run as part of the fetch. Step 3 will remove any subroutine from the queue. Step 7.2 will stop
     //          any ongoing fetch operation. Therefore, all resource selection algorithms will be cancelled before a new
     //          one begins.
+    // NB: A source element selector also resumes from changes to the element's children, so drop it too.
+    m_source_element_selector = nullptr;
 
     // 3. Let pending tasks be a list of all tasks from the media element's media element event task source in one of
     //    the task queues.
@@ -1151,7 +1153,16 @@ public:
         if (!m_waiting)
             return;
 
-        wait_for_next_candidate();
+        // NB: Resume from a media element task, which runs only while the document is fully active: A selection
+        //     resumed synchronously would fetch a candidate for a document that isn't (one whose iframe was removed,
+        //     e.g.). The pointer itself is still kept in place synchronously, by node_removed(). Each change queues a
+        //     task of its own, and once one task has resumed the selection, the rest find it no longer waiting.
+        m_media_element->queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& selector, HTMLMediaElement&) {
+            // A later load replaced this selector, and that selection decides what loads now.
+            if (!selector.is_current() || !selector.m_waiting)
+                return;
+            selector.wait_for_next_candidate();
+        }));
     }
 
     // If the node before pointer is removed: Let pointer be the point between the node after pointer and the node
@@ -1168,10 +1179,16 @@ public:
     }
 
 private:
+    bool is_current() const { return m_media_element->m_source_element_selector.ptr() == this; }
+
     void failed_with_elements()
     {
         // 9. Failed with elements: Queue a media element task given the media element to fire an event named error at candidate.
         m_media_element->queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& selector, HTMLMediaElement&) {
+            // A later load replaced this selector, and that selection decides what loads now.
+            if (!selector.is_current())
+                return;
+
             selector.m_candidate->dispatch_event(DOM::Event::create(HTML::relevant_global_object(*selector.m_candidate), HTML::EventNames::error));
 
             // 10. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm until
@@ -1229,8 +1246,12 @@ private:
 
         // 19. ⌛ Queue a media element task given the media element to set the element's delaying-the-load-event flag
         //     to false. This stops delaying the load event.
-        m_media_element->queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& selector, HTMLMediaElement&) {
-            selector.m_media_element->set_delaying_the_load_event(false);
+        // NB: Only if this same wait still goes on when the task runs: Once it ends, the fetch it went on to start
+        //     delays the load event, and a later wait queues a task of its own.
+        auto wait = ++m_wait_count;
+        m_media_element->queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(*this, wait), [](auto& selector, auto wait, HTMLMediaElement&) {
+            if (selector.is_current() && selector.m_waiting && selector.m_wait_count == wait)
+                selector.m_media_element->set_delaying_the_load_event(false);
         }));
 
         // 20. End the synchronous section, continuing the remaining steps in parallel.
@@ -1267,6 +1288,7 @@ private:
     GC::Ref<HTMLMediaElement> m_media_element;
     GC::Ref<HTMLSourceElement> m_candidate;
     bool m_waiting { false };
+    u64 m_wait_count { 0 };
     GC::Ptr<DOM::Node> m_node_before_pointer;
 };
 

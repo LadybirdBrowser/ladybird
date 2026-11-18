@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Resolves once resource selection has failed on the source and waits for another one. The selection goes on to
+    // wait after the error event's dispatch, in the same task, so check in a later one.
+    async function selectionWaits(video, source) {
+        await new Promise(resolve => source.addEventListener("error", resolve, { once: true }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        if (video.networkState !== HTMLMediaElement.NETWORK_NO_SOURCE)
+            println(`not waiting: networkState ${video.networkState}`);
+    }
+
+    asyncTest(async done => {
+        // A video in an iframe's document waits for a source. The iframe is then removed, and a source is appended to
+        // the video and another moved into it, in the document that's no longer fully active.
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const doc = iframe.contentDocument;
+        const video = doc.createElement("video");
+        const source = doc.createElement("source");
+        const waits = selectionWaits(video, source);
+        video.appendChild(source);
+        const elsewhere = doc.createElement("div");
+        doc.body.append(video, elsewhere);
+        await waits;
+
+        iframe.remove();
+        const appended = doc.createElement("source");
+        appended.src = "../../../Assets/h264-reordered-frames.mp4";
+        video.appendChild(appended);
+        const moved = doc.createElement("source");
+        moved.src = "../../../Assets/h264-reordered-frames.mp4";
+        elsewhere.appendChild(moved);
+        video.moveBefore(moved, null);
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        println(`survived; networkState ${video.networkState}`);
+        done();
+    });
+</script>
