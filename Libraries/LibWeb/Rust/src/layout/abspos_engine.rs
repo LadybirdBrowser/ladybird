@@ -1925,6 +1925,7 @@ impl AbsposEngine<'_> {
 
     // https://drafts.csswg.org/css-position-3/#abspos-auto-size
     // Form controls use non-replaced sizing here, so their intrinsic dimensions don't prevent stretching. That covers
+<<<<<<< HEAD
     // checkboxes and radio buttons too, which pages lay over a styled box between zero insets to make it clickable,
     // and text inputs and sliders without their native appearance, which have a default preferred size instead.
     fn form_control_stretches(&self, sized: OutOfFlowBox<'_>, equation: AxisEquation, axis: SizingAxis) -> bool {
@@ -1934,6 +1935,13 @@ impl AbsposEngine<'_> {
             || facts.is_non_devolvable_widget()
             || facts.is_text_input()
             || facts.is_slider())
+=======
+    // checkboxes and radio buttons too, which pages lay over a styled box between zero insets to make it clickable.
+    fn form_control_stretches(&self, sized: OutOfFlowBox<'_>, equation: AxisEquation, axis: SizingAxis) -> bool {
+        let style = self.style_of(sized);
+        let facts = self.facts(sized.node);
+        (facts.is_native_form_control_box() || facts.is_non_devolvable_widget())
+>>>>>>> d844fe51 (LibWeb: Stretch abspos checkboxes and radios between insets)
             && axis.select(style.width(), style.height()).is_auto()
             && !self.sizes_to_fit_content(sized, equation, matches!(axis, SizingAxis::Inline))
     }
