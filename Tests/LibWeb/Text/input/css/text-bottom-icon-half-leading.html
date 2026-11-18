@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: TestAhem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    #line { font: 20px/21px TestAhem; }
+    svg { vertical-align: text-bottom; }
+</style>
+<div id="line"><span>Text</span><svg width="16" height="16"></svg></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("20px TestAhem");
+        const line = document.getElementById("line");
+        const [label, icon] = Array.from(line.children, child => child.getBoundingClientRect());
+        const top = line.getBoundingClientRect().top;
+        println(`Label top: ${label.top - top}, height: ${label.height}`);
+        println(`Icon top: ${icon.top - top}`);
+    });
+</script>

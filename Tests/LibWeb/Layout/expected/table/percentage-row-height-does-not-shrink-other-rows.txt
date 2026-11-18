@@ -8,7 +8,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <div.first> at [8,8] [0+0+0 300 0+0+0] [0+0+0 200 0+0+0] children: not-inline
           Box <div.row> at [8,208] table-row [0+0+0 300 0+0+0] [0+0+0 200 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [8,208] table-cell [0+0+0 300 0+0+0] [0+0+0 200 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 4, rect: [8,210 46.984375x20] baseline: 16
+              frag 0 from TextNode start: 0, length: 4, rect: [8,210.5 46.984375x20] baseline: 16
                   "Text"
               TextNode <#text> (not painted)
 

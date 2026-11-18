@@ -2,15 +2,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 436.75 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 420.75 0+0+8] children: not-inline
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 49.59375 0+0+0] children: inline
-        frag 0 from FieldSetBox start: 0, length: 0, rect: [24,15 45.296875x30] baseline: 34.59375
-        FieldSetBox <fieldset> at [24,15] inline-block [2+2+12 45.296875 12+2+2] [0+2+5.59375 30 10+2+0] [BFC] children: not-inline
-          LegendBox <legend> at [26,7.40625] [0+0+2 41.296875 2+0+0] [0+0+0 16 0+0+0] children: inline
-            frag 0 from TextNode start: 0, length: 6, rect: [26,7.40625 41.296875x16] baseline: 13
+        frag 0 from FieldSetBox start: 0, length: 0, rect: [24,15.59375 45.296875x30] baseline: 34.59375
+        FieldSetBox <fieldset> at [24,15.59375] inline-block [2+2+12 45.296875 12+2+2] [0+2+5.59375 30 10+2+0] [BFC] children: not-inline
+          LegendBox <legend> at [26,8] [0+0+2 41.296875 2+0+0] [0+0+0 16 0+0+0] children: inline
+            frag 0 from TextNode start: 0, length: 6, rect: [26,8 41.296875x16] baseline: 13
                 "inline"
             TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> at [24,29] [0+0+0 45.296875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-            BlockContainer <(anonymous)> at [24,29] [0+0+0 45.296875 0+0+0] [0+0+0 16 0+0+0] children: inline
-              frag 0 from TextNode start: 0, length: 4, rect: [24,29 32.140625x16] baseline: 13
+          BlockContainer <(anonymous)> at [24,29.59375] [0+0+0 45.296875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [24,29.59375] [0+0+0 45.296875 0+0+0] [0+0+0 16 0+0+0] children: inline
+              frag 0 from TextNode start: 0, length: 4, rect: [24,29.59375 32.140625x16] baseline: 13
                   "text"
               TextNode <#text> (not painted)
         TextNode <#text> (not painted)
