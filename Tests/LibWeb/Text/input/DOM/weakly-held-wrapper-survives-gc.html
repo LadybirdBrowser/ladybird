@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Holding a node weakly or giving it a private element makes the identity of its wrapper observable, so the wrapper
+    // must survive collections for as long as the node lives, even when script holds no reference to it.
+    promiseTest(async () => {
+        const weakMap = new WeakMap();
+        const weakSet = new WeakSet();
+        const finalized = [];
+        const registry = new FinalizationRegistry(name => finalized.push(name));
+        class ReturnsArgument {
+            constructor(object) {
+                return object;
+            }
+        }
+        class Stamp extends ReturnsArgument {
+            #stamp = "stamped";
+            static read(object) {
+                return #stamp in object ? object.#stamp : "missing";
+            }
+        }
+        let weakRef;
+        let removedWeakRef;
+        (() => {
+            const appendDiv = id => {
+                const div = document.createElement("div");
+                div.id = id;
+                return document.body.appendChild(div);
+            };
+            weakRef = new WeakRef(appendDiv("weak-ref"));
+            weakMap.set(appendDiv("weak-map"), "value");
+            weakSet.add(appendDiv("weak-set"));
+            registry.register(appendDiv("finalization-registry"), "finalization-registry");
+            new Stamp(appendDiv("private-element"));
+
+            const removed = appendDiv("removed");
+            removedWeakRef = new WeakRef(removed);
+            registry.register(removed, "removed");
+            removed.remove();
+        })();
+
+        // NB: The registry handles every collected target in one cleanup task, so once the removed node's callback has
+        //     run, a collected wrapper of the registered node would have been reported as well.
+        await collectGarbageUntil(() => finalized.includes("removed"));
+        if (!finalized.includes("removed"))
+            throw new Error("Removed node cleanup callback did not run");
+
+        println(`WeakRef: ${weakRef.deref() === document.getElementById("weak-ref")}`);
+        println(`WeakMap: ${weakMap.get(document.getElementById("weak-map"))}`);
+        println(`WeakSet: ${weakSet.has(document.getElementById("weak-set"))}`);
+        println(`FinalizationRegistry: ${finalized.includes("finalization-registry") ? "finalized" : "not finalized"}`);
+        println(`Private element: ${Stamp.read(document.getElementById("private-element"))}`);
+        println(`Removed node collected: ${removedWeakRef.deref() === undefined}`);
+    });
+</script>
