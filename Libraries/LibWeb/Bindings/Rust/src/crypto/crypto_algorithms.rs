@@ -27,11 +27,10 @@ use crate::bindings::conversions::{
 };
 use crate::bindings::interface::Ref;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::crypto::crypto_bindings::{CryptoKeyPair, JsonWebKey, crypto_key_from_value};
+use crate::crypto::crypto_bindings::{JsonWebKey, crypto_key_from_value};
 use crate::crypto::crypto_key::{CryptoKey, InternalAlgorithmData, KEY_USAGES, KeyType, KeyUsage};
 use crate::crypto::subtle_crypto::{
-    AlgorithmIdentifier, CryptoKeyOrCryptoKeyPair, KeyFormat, dom_error, get_a_copy_of_the_bytes,
-    normalize_an_algorithm,
+    AlgorithmIdentifier, KeyFormat, dom_error, get_a_copy_of_the_bytes, normalize_an_algorithm,
 };
 
 // https://w3c.github.io/webcrypto/#algorithm-overview
@@ -192,15 +191,23 @@ pub(crate) enum ImportKeyData {
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct EncapsulatedBitsData {
-    pub(crate) shared_key: Option<Bytes>,
-    pub(crate) ciphertext: Option<Bytes>,
+    pub(crate) shared_key: Bytes,
+    pub(crate) ciphertext: Bytes,
 }
 
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct EncapsulatedKeyData {
     pub(crate) shared_key: Ref<CryptoKey>,
-    pub(crate) ciphertext: Option<Bytes>,
+    pub(crate) ciphertext: Bytes,
+}
+
+pub(crate) enum GeneratedKey {
+    Key(Ref<CryptoKey>),
+    Pair {
+        public_key: Ref<CryptoKey>,
+        private_key: Ref<CryptoKey>,
+    },
 }
 
 pub(crate) trait AlgorithmMethods: Trace {
@@ -290,7 +297,7 @@ pub(crate) trait AlgorithmMethods: Trace {
         _algorithm: &AlgorithmParams,
         _extractable: bool,
         _usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         Err(Exception::Dom(
             "NotSupportedError",
             Utf16String::from_utf8("generateKey is not supported"),
@@ -1030,7 +1037,7 @@ impl AlgorithmMethods for HmacKeyGenParams {
         _: &AlgorithmParams,
         extractable: bool,
         usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
         for &usage in usages {
             if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
@@ -1094,7 +1101,7 @@ impl AlgorithmMethods for HmacKeyGenParams {
         key.set_usages(normalized_key_usages(usages));
 
         // 16. Return key.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+        Ok(GeneratedKey::Key(key))
     }
 }
 
@@ -1552,7 +1559,7 @@ impl AlgorithmMethods for KmacKeyGenParams {
         algorithm: &AlgorithmParams,
         extractable: bool,
         usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
         for &usage in usages {
             if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
@@ -1610,7 +1617,7 @@ impl AlgorithmMethods for KmacKeyGenParams {
         key.set_usages(normalized_key_usages(usages));
 
         // 13. Return key.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+        Ok(GeneratedKey::Key(key))
     }
 }
 
@@ -2969,7 +2976,7 @@ impl AlgorithmMethods for AesCbc {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Encrypt
@@ -3020,7 +3027,7 @@ impl AlgorithmMethods for AesCbc {
         key.set_usages(normalized_key_usages(key_usages));
 
         // 13. Return key.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+        Ok(GeneratedKey::Key(key))
     }
 
     // https://w3c.github.io/webcrypto/#aes-cbc-operations-export-key
@@ -3412,7 +3419,7 @@ impl AlgorithmMethods for AesCtr {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Encrypt
@@ -3460,7 +3467,7 @@ impl AlgorithmMethods for AesCtr {
         key.set_usages(normalized_key_usages(key_usages));
 
         // 13. Return key.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+        Ok(GeneratedKey::Key(key))
     }
 
     // https://w3c.github.io/webcrypto/#aes-ctr-operations-encrypt
@@ -4021,7 +4028,7 @@ impl AlgorithmMethods for AesGcm {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Encrypt
@@ -4069,7 +4076,7 @@ impl AlgorithmMethods for AesGcm {
         key.set_usages(normalized_key_usages(key_usages));
 
         // 13. Return key.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+        Ok(GeneratedKey::Key(key))
     }
 }
 
@@ -4365,7 +4372,7 @@ impl AlgorithmMethods for AesKw {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey {
@@ -4409,7 +4416,7 @@ impl AlgorithmMethods for AesKw {
         key.set_usages(normalized_key_usages(key_usages));
 
         // 13. Return key.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+        Ok(GeneratedKey::Key(key))
     }
 
     // https://w3c.github.io/webcrypto/#aes-kw-operations-wrap-key
@@ -4655,7 +4662,7 @@ impl AlgorithmMethods for AesOcb {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Encrypt
@@ -4703,7 +4710,7 @@ impl AlgorithmMethods for AesOcb {
         key.set_usages(normalized_key_usages(key_usages));
 
         // 13. Return key.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+        Ok(GeneratedKey::Key(key))
     }
 
     // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-import-key
@@ -5107,7 +5114,7 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Encrypt
@@ -5148,7 +5155,7 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
         key.set_usages(normalized_key_usages(key_usages));
 
         // 11. Return key.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+        Ok(GeneratedKey::Key(key))
     }
 
     // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-import-key
@@ -5684,7 +5691,7 @@ impl AlgorithmMethods for RsaOaep {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Encrypt
@@ -5783,10 +5790,10 @@ impl AlgorithmMethods for RsaOaep {
         // 21. Set the publicKey attribute of result to be publicKey.
         // 22. Set the privateKey attribute of result to be privateKey.
         // 23. Return result.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
-        }))
+        Ok(GeneratedKey::Pair {
+            public_key,
+            private_key,
+        })
     }
 
     // https://w3c.github.io/webcrypto/#rsa-oaep-operations-import-key
@@ -6291,7 +6298,7 @@ impl AlgorithmMethods for RsaPss {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
@@ -6383,10 +6390,10 @@ impl AlgorithmMethods for RsaPss {
         // 21. Set the publicKey attribute of result to publicKey.
         // 22. Set the privateKey attribute of result to privateKey.
         // 23. Return result.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
-        }))
+        Ok(GeneratedKey::Pair {
+            public_key,
+            private_key,
+        })
     }
 
     // https://w3c.github.io/webcrypto/#rsa-pss-operations-sign
@@ -6980,7 +6987,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
@@ -7074,10 +7081,10 @@ impl AlgorithmMethods for RsassaPkcs1 {
         // 21. Set the publicKey attribute of result to be publicKey.
         // 22. Set the privateKey attribute of result to be privateKey.
         // 23. Return result.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
-        }))
+        Ok(GeneratedKey::Pair {
+            public_key,
+            private_key,
+        })
     }
 
     // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-sign
@@ -7805,7 +7812,7 @@ impl AlgorithmMethods for Ecdsa {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
@@ -7881,10 +7888,10 @@ impl AlgorithmMethods for Ecdsa {
         // 18. Set the publicKey attribute of result to be publicKey.
         // 19. Set the privateKey attribute of result to be privateKey.
         // 20. Return result.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
-        }))
+        Ok(GeneratedKey::Pair {
+            public_key,
+            private_key,
+        })
     }
 
     // https://w3c.github.io/webcrypto/#ecdsa-operations-sign
@@ -8803,7 +8810,7 @@ impl AlgorithmMethods for Ecdh {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
@@ -8883,10 +8890,10 @@ impl AlgorithmMethods for Ecdh {
         // 18. Set the publicKey attribute of result to be publicKey.
         // 19. Set the privateKey attribute of result to be privateKey.
         // 20. Return result.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
-        }))
+        Ok(GeneratedKey::Pair {
+            public_key,
+            private_key,
+        })
     }
 
     // https://w3c.github.io/webcrypto/#ecdh-operations-derive-bits
@@ -9775,7 +9782,7 @@ impl AlgorithmMethods for Ed25519 {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
@@ -9831,10 +9838,10 @@ impl AlgorithmMethods for Ed25519 {
         // 16. Set the publicKey attribute of result to be publicKey.
         // 17. Set the privateKey attribute of result to be privateKey.
         // 18. Return result.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
-        }))
+        Ok(GeneratedKey::Pair {
+            public_key,
+            private_key,
+        })
     }
 
     // https://w3c.github.io/webcrypto/#ed25519-operations-import-key
@@ -10345,7 +10352,7 @@ impl AlgorithmMethods for Ed448 {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
@@ -10403,10 +10410,10 @@ impl AlgorithmMethods for Ed448 {
         // 16. Set the publicKey attribute of result to be publicKey.
         // 17. Set the privateKey attribute of result to be privateKey.
         // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
-        }))
+        Ok(GeneratedKey::Pair {
+            public_key,
+            private_key,
+        })
     }
 
     // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
@@ -11045,7 +11052,7 @@ impl AlgorithmMethods for X25519 {
         _: &AlgorithmParams,
         extractable: bool,
         key_usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         for &usage in key_usages {
             if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
@@ -11105,10 +11112,10 @@ impl AlgorithmMethods for X25519 {
         // 16. Set the publicKey attribute of result to be publicKey.
         // 17. Set the privateKey attribute of result to be privateKey.
         // 18. Return result.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
-        }))
+        Ok(GeneratedKey::Pair {
+            public_key,
+            private_key,
+        })
     }
 
     // https://w3c.github.io/webcrypto/#x25519-operations-import-key
@@ -11620,7 +11627,7 @@ impl AlgorithmMethods for X448 {
         _: &AlgorithmParams,
         extractable: bool,
         usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         for &usage in usages {
             if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
@@ -11675,13 +11682,13 @@ impl AlgorithmMethods for X448 {
         // 15. Let result be a new CryptoKeyPair dictionary.
         // 16. Set the publicKey attribute of result to be publicKey.
         // 17. Set the privateKey attribute of result to be privateKey.
-        let result = CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
+        let result = GeneratedKey::Pair {
+            public_key,
+            private_key,
         };
 
         // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(result))
+        Ok(result)
     }
 
     // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
@@ -12293,7 +12300,7 @@ impl AlgorithmMethods for MlDsa {
         params: &AlgorithmParams,
         extractable: bool,
         usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
         for &usage in usages {
             if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
@@ -12360,13 +12367,13 @@ impl AlgorithmMethods for MlDsa {
         // 16. Let result be a new CryptoKeyPair dictionary.
         // 17. Set the publicKey attribute of result to be publicKey.
         // 18. Set the privateKey attribute of result to be privateKey.
-        let result = CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
+        let result = GeneratedKey::Pair {
+            public_key,
+            private_key,
         };
 
         // 19. Return result.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(result))
+        Ok(result)
     }
 
     // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-import-key
@@ -12941,7 +12948,7 @@ impl AlgorithmMethods for MlKem {
         params: &AlgorithmParams,
         extractable: bool,
         usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+    ) -> WebIdlResult<GeneratedKey> {
         // 1. If usages contains an entry which is not one of "encapsulateKey", "encapsulateBits", "decapsulateKey" or
         //    "decapsulateBits", then throw a SyntaxError.
         for &usage in usages {
@@ -13024,13 +13031,13 @@ impl AlgorithmMethods for MlKem {
         // 16. Let result be a new CryptoKeyPair dictionary.
         // 17. Set the publicKey attribute of result to be publicKey.
         // 18. Set the privateKey attribute of result to be privateKey.
-        let result = CryptoKeyPair {
-            public_key: Some(public_key),
-            private_key: Some(private_key),
+        let result = GeneratedKey::Pair {
+            public_key,
+            private_key,
         };
 
         // 19. Return result.
-        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(result))
+        Ok(result)
     }
 
     // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-import-key
@@ -13546,8 +13553,8 @@ impl AlgorithmMethods for MlKem {
         // 8. Set the ciphertext attribute of result to the result of creating an ArrayBuffer containing ciphertext.
         let (shared_key, ciphertext) = encapsulation;
         let result = EncapsulatedBitsData {
-            shared_key: Some(Bytes::new(shared_key)),
-            ciphertext: Some(Bytes::new(ciphertext)),
+            shared_key: Bytes::new(shared_key),
+            ciphertext: Bytes::new(ciphertext),
         };
 
         // 9. Return result.

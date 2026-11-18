@@ -111,25 +111,20 @@ pub(crate) fn encapsulated_bits(
 ) -> ThrowCompletionOr<Value> {
     let object = create_dictionary_object(&CallContext::new(vm, realm));
 
-    if let Some(shared_key) = &encapsulated_bits.shared_key {
-        object.create_data_property(
-            vm,
-            &PropertyKey::from_utf8("sharedKey"),
-            array_buffer(vm, realm, shared_key),
-            None,
-            None,
-        )?;
-    }
-
-    if let Some(ciphertext) = &encapsulated_bits.ciphertext {
-        object.create_data_property(
-            vm,
-            &PropertyKey::from_utf8("ciphertext"),
-            array_buffer(vm, realm, ciphertext),
-            None,
-            None,
-        )?;
-    }
+    object.create_data_property(
+        vm,
+        &PropertyKey::from_utf8("sharedKey"),
+        array_buffer(vm, realm, &encapsulated_bits.shared_key),
+        None,
+        None,
+    )?;
+    object.create_data_property(
+        vm,
+        &PropertyKey::from_utf8("ciphertext"),
+        array_buffer(vm, realm, &encapsulated_bits.ciphertext),
+        None,
+        None,
+    )?;
 
     Ok(Value::from_object(object))
 }
@@ -150,24 +145,25 @@ pub(crate) fn encapsulated_key(
         None,
     )?;
 
-    if let Some(ciphertext) = &encapsulated_key.ciphertext {
-        object.create_data_property(
-            vm,
-            &PropertyKey::from_utf8("ciphertext"),
-            array_buffer(vm, realm, ciphertext),
-            None,
-            None,
-        )?;
-    }
+    object.create_data_property(
+        vm,
+        &PropertyKey::from_utf8("ciphertext"),
+        array_buffer(vm, realm, &encapsulated_key.ciphertext),
+        None,
+        None,
+    )?;
 
     Ok(Value::from_object(object))
 }
 
-pub(crate) fn crypto_key_pair(vm: &Vm, realm: Gc<Realm>, key_pair: &CryptoKeyPair) -> ThrowCompletionOr<Value> {
+pub(crate) fn crypto_key_pair(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    public_key: Ref<CryptoKey>,
+    private_key: Ref<CryptoKey>,
+) -> ThrowCompletionOr<Value> {
     let cx = CallContext::new(vm, realm);
     let object = create_dictionary_object(&cx);
-    let public_key = key_pair.public_key.expect("a generated pair has a public key");
-    let private_key = key_pair.private_key.expect("a generated pair has a private key");
     object.create_data_property_or_throw(
         vm,
         &PropertyKey::from_utf8("publicKey"),
