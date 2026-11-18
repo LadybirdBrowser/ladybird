@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="400" height="100"></svg>
+<script>
+    const round = value => Math.round(value * 100) / 100;
+    const describe = text => {
+        const positions = [];
+        for (let index = 0; index < text.getNumberOfChars(); ++index) {
+            const position = text.getStartPositionOfChar(index);
+            positions.push(`${round(position.x)},${round(position.y)}`);
+        }
+        return positions.join(" ");
+    };
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const svg = document.querySelector("svg");
+
+        // Each glyph of Ahem is 20px wide here.
+        const cases = [
+            ["anchored in the middle, dx inside", `<text x="200" y="30" text-anchor="middle">A<tspan dx="40">B</tspan></text>`],
+            ["anchored at the end, dx inside", `<text x="200" y="30" text-anchor="end">A<tspan dx="40">B</tspan>C</text>`],
+            ["anchored at the end, negative dx inside", `<text x="200" y="30" text-anchor="end">A<tspan dx="-10">B</tspan>C</text>`],
+            ["anchored in the middle, dx on the first character", `<text x="200" y="30" text-anchor="middle"><tspan dx="40">A</tspan>B</text>`],
+            ["anchored in the middle, dx in a second chunk", `<text x="200" y="30" text-anchor="middle">AB<tspan x="300" dx="40">C</tspan><tspan dx="20">D</tspan></text>`],
+        ];
+        for (const [name, markup] of cases) {
+            svg.innerHTML = markup;
+            println(`${name}: ${describe(svg.querySelector("text"))}`);
+        }
+        done();
+    });
+</script>

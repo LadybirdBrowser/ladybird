@@ -1578,6 +1578,14 @@ impl<'pass> SvgFormattingContext<'pass> {
         None
     }
 
+    /// How far a 'dx' shifts the first character of the given text node along the x axis.
+    fn svg_text_dx_before(&self, text_node: Node) -> f32 {
+        self.svg_text_shift_owner(text_node, |attributes| attributes.text_dx)
+            .map_or(0.0, |element| {
+                self.resolve_svg_text_length(element, self.svg_attributes(element).text_dx, self.viewport_width)
+            })
+    }
+
     fn apply_svg_text_positioning(&mut self, text_box: Node, attributes: FfiSvgAttributeFacts) {
         let viewport_width = self.viewport_width;
         let viewport_height = self.viewport_height;
@@ -1774,6 +1782,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut measurement = SvgTextChunkMeasurement::default();
         let mut found_chunk_start = false;
         let mut found_first_rendered_text = false;
+        let mut found_first_rendered_text_node = false;
         let mut current = subtree_root;
         'walk: loop {
             let kind = self.node_kind(current);
@@ -1784,6 +1793,17 @@ impl<'pass> SvgFormattingContext<'pass> {
                     break 'walk;
                 }
             } else if found_chunk_start
+                && node_facts::kind_is_text(kind)
+                && !self.processed_svg_text(current).is_empty()
+            {
+                // NB: A 'dx' on the chunk's first character moves where the chunk starts. Any other one moves the
+                //     characters after it apart from those before it, so it's part of what the chunk measures.
+                if found_first_rendered_text_node {
+                    measurement.advance += self.svg_text_dx_before(current);
+                }
+                found_first_rendered_text_node = true;
+            }
+            if found_chunk_start
                 && node_facts::kind_is_text(kind)
                 && let Some(text) = self.svg_text_run_starting_at(current)
                 && !text.is_empty()
