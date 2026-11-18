@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { font: 10px/20px Ahem; }
+    .w { width: 180px; }
+    .p { padding: 0 16px; }
+</style>
+<!-- The text is 160px wide, and 192px with both paddings, in a 180px container: Each span whose end edges are on the
+     line with "bbbbbbbb" doesn't fit there, so it takes two lines, whatever white space comes before its end. -->
+<div class="w" id="no-spaces"><span class="p">aaaaaaa bbbbbbbb</span></div>
+<div class="w" id="space-before-text"><span class="p"> aaaaaaa bbbbbbbb</span></div>
+<div class="w" id="space-after-text"><span class="p">aaaaaaa bbbbbbbb </span></div>
+<div class="w" id="spaces-before-and-after-text"><span class="p"> aaaaaaa bbbbbbbb </span></div>
+<div class="w" id="two-spaces-after-text"><span class="p">aaaaaaa bbbbbbbb  </span></div>
+<div class="w" id="space-after-span"><span class="p">aaaaaaa bbbbbbbb</span> </div>
+<div class="w" id="space-after-text-border"><span style="border-right: 24px solid">aaaaaaa bbbbbbbb </span></div>
+<div class="w" id="space-after-text-margin"><span style="margin-right: 24px">aaaaaaa bbbbbbbb </span></div>
+<div class="w" id="space-after-text-nested"><span style="padding-right: 12px"><span style="padding-right: 12px">aaaaaaa bbbbbbbb </span></span></div>
+<div class="w" id="space-after-text-pre-wrap" style="white-space: pre-wrap"><span class="p">aaaaaaa bbbbbbbb </span></div>
+<!-- These fit: Only one side has padding. -->
+<div class="w" id="start-padding-only"><span style="padding-left: 16px">aaaaaaa bbbbbbbb </span></div>
+<div class="w" id="end-padding-only"><span style="padding-right: 16px">aaaaaaa bbbbbbbb </span></div>
+<script>
+    test(() => {
+        for (const div of document.querySelectorAll(".w")) {
+            const span = div.querySelector("span");
+            const rects = [...span.getClientRects()];
+            println(`${div.id}: ${rects.length} line(s), widest ${Math.max(...rects.map(rect => rect.width))}px`);
+        }
+    });
+</script>
