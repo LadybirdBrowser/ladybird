@@ -1,0 +1,8 @@
+CSS1Compat
+between: h=20 span@(20,-24 0x50)
+between-plain: h=20 span@(20,0 0x20)
+margin-then-text: h=20 span@(5,-24 0x50)
+margin-then-ib: h=10 span@(5,-30 0x50)
+padded-collapsed-space: h=60 span@(0,5 5x50)
+plain-collapsed-space: h=20 span@(0,-24 0x50)
+after-wrap: h=40 span@(40,-4 0x50)

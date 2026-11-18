@@ -2138,18 +2138,9 @@ impl<'context> RunItemResolver<'_, 'context> {
     fn exit_node_with_box_model_metrics(&mut self, before_item: bool, within_item: bool) {
         let (node, in_flow_item_count_at_start) = self.box_model_node_stack.pop().unwrap();
         let sides = self.context().sides_of_entered_inline_box(node);
-        // https://quirks.spec.whatwg.org/#the-line-height-calculation-quirk
-        // No item tells the line builder about an inline box that holds no in-flow item, so it's kept apart, for the
-        // line it's on to take its strut from — except in quirks mode, where an inline box without text has none
-        // unless it has a border or padding at its start or end.
-        let none = CssPixels::default();
-        if in_flow_item_count_at_start == self.in_flow_item_count
-            && (!self.context().facts(node).document_in_line_height_quirks_mode()
-                || sides.border_left != none
-                || sides.border_right != none
-                || sides.padding_left != none
-                || sides.padding_right != none)
-        {
+        // NB: No item tells the line builder about an inline box that holds no in-flow item, so it's kept apart, for
+        //     the line it's on to place it and take its strut from.
+        if in_flow_item_count_at_start == self.in_flow_item_count {
             let empty_box = EmptyInlineBox {
                 position: self.item_count,
                 node,

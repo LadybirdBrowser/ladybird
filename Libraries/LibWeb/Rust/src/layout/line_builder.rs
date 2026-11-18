@@ -1312,10 +1312,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             return true;
         }
         let line = self.line(line_index);
-        let has_content = line
-            .fragments
-            .iter()
-            .any(|fragment| fragment.takes_part_in_line_alignment() && !Self::is_collapsible_whitespace(fragment));
+        let has_content = line.fragments.iter().enumerate().any(|(fragment_index, fragment)| {
+            fragment.takes_part_in_line_alignment()
+                && if fragment_index < text.strut_fragment_start {
+                    !Self::is_collapsible_whitespace(fragment)
+                } else {
+                    self.strut_brings_line_height(line_index, text, fragment.style_source)
+                }
+        });
         !has_content
             && line.forced_break.is_some_and(|forced_break| {
                 !forced_break.node.is_invalid() && self.context().parent_node(forced_break.node) == containing_block
@@ -1352,10 +1356,37 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         // https://quirks.spec.whatwg.org/#the-line-height-calculation-quirk
         // NB: The collapsible whitespace that a line starts or ends with isn't text the line keeps, so in quirks mode,
         //     it has no line height to bring to it either.
-        !text.in_line_height_quirks_mode
-            || fragment_index >= text.strut_fragment_start
-            || text.kept_fragments.contains(&fragment_index)
-            || !Self::is_collapsible_whitespace(&self.line(line_index).fragments[fragment_index])
+        if !text.in_line_height_quirks_mode {
+            return true;
+        }
+        let fragment = &self.line(line_index).fragments[fragment_index];
+        if fragment_index >= text.strut_fragment_start {
+            return self.strut_brings_line_height(line_index, text, fragment.style_source);
+        }
+        text.kept_fragments.contains(&fragment_index) || !Self::is_collapsible_whitespace(fragment)
+    }
+
+    /// Whether the strut of `box_`, an inline box on the line at `line_index` with none of its content there, brings
+    /// its line height to the line.
+    fn strut_brings_line_height(&self, line_index: usize, text: &LineTextFacts, box_: Node) -> bool {
+        // https://quirks.spec.whatwg.org/#the-line-height-calculation-quirk
+        // NB: In quirks mode, such a box has a line height only if it has a border or padding at its start or end, or
+        //     if the line's forced break is inside it.
+        if !text.in_line_height_quirks_mode || self.inline_box_has_strut_on_line(text, box_) {
+            return true;
+        }
+        let Some(forced_break) = self.line(line_index).forced_break else {
+            return false;
+        };
+        let containing_block = self.context().containing_block;
+        let mut node = forced_break.node;
+        while !node.is_invalid() && node != containing_block {
+            if node == box_ {
+                return true;
+            }
+            node = self.context().parent_node(node);
+        }
+        false
     }
 
     fn is_collapsible_whitespace(fragment: &line_box_fragment::LineBoxFragmentData) -> bool {
@@ -1487,6 +1518,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             let strut_count = self.line(line_index).inline_box_struts.len();
             for strut_index in 0..strut_count {
                 let box_ = self.line(line_index).inline_box_struts[strut_index].box_;
+                if !self.strut_brings_line_height(line_index, &text, box_) {
+                    continue;
+                }
                 let block_size = TextLayoutBounds::new(self.style(box_), None).block_size();
                 self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(block_size);
             }

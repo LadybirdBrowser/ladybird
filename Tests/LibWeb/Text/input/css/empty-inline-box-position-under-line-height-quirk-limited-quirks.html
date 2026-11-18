@@ -1,0 +1,17 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .s { font-size: 50px; line-height: 60px; }
+    .ib { display: inline-block; width: 10px; height: 10px; }
+    .case { position: relative; }
+</style>
+<div class="case" id="between">A<span class="s"></span>B</div>
+<div class="case" id="between-plain">A<span></span>B</div>
+<div class="case" id="margin-then-text"><span class="s" style="margin-left: 5px"></span>x</div>
+<div class="case" id="margin-then-ib"><span class="s" style="margin-left: 5px"></span><span class="ib"></span></div>
+<div class="case" id="padded-collapsed-space"><span class="s" style="padding-left: 5px"> </span>X</div>
+<div class="case" id="plain-collapsed-space"><span class="s"> </span>X</div>
+<div class="case" id="after-wrap" style="width: 30px">AA BB<span class="s"></span></div>
+<script src="../include.js"></script>
+<script>promiseTest(async () => { await document.fonts.ready; const out=[document.compatMode]; for (const d of document.querySelectorAll(".case")) { const r=d.getBoundingClientRect(); const s=d.querySelector("span").getBoundingClientRect(); out.push(d.id+": h="+r.height+" span@("+(s.left-r.left)+","+(s.top-r.top)+" "+s.width+"x"+s.height+")"); } println(out.join("\n")); });</script>
