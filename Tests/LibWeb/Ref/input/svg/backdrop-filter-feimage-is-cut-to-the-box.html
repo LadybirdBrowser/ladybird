@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/backdrop-filter-feimage-is-cut-to-the-box-ref.html" />
+<!-- The image resamples where the crop cuts it, which blends the one column at the crop's edge. -->
+<meta name="fuzzy" content="maxDifference=0-64;totalPixels=0-100">
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; backdrop-filter: url(#image); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="image" x="0" y="0" width="1" height="1">
+        <feImage preserveAspectRatio="xMidYMid slice" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'%3E%3Crect width='200' height='100' fill='red'/%3E%3Crect x='50' width='100' height='100' fill='green'/%3E%3C/svg%3E" />
+        <feOffset dx="50" dy="0" />
+    </filter>
+</svg>
+<!-- The sliced image reaches past the box, but is cut to it before the offset moves it, so no red comes in. -->
+<div></div>

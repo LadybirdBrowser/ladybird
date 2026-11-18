@@ -524,26 +524,37 @@ impl SvgFilterGraphBuilder {
                     ));
                 };
                 let src_rect = values.image_src_rect;
-                let Some(subregion) = subregion else {
-                    let dest_rect = self.image_rect_without_target?;
-                    return Some(FilterResult::new(
-                        Filter::Image {
-                            frame_id: frame.id(),
-                            src_rect,
-                            dest_rect,
-                            scaling_mode: crate::painting::record::paint::background::to_gfx_scaling_mode(
-                                self.image_rendering,
-                                (src_rect.width, src_rect.height),
-                                (dest_rect.width.round() as i32, dest_rect.height.round() as i32),
-                            ),
-                        },
-                        InterpolationColorSpace::SRGB,
-                    ));
-                };
                 let natural_size = if values.image_natural_width > 0.0 && values.image_natural_height > 0.0 {
                     (values.image_natural_width, values.image_natural_height)
                 } else {
                     (src_rect.width as f32, src_rect.height as f32)
+                };
+                let Some(subregion) = subregion else {
+                    // An image drawn over the box without a subregion still fits it as its preserveAspectRatio says,
+                    // and is cut to the box like any other primitive's result, before a later primitive moves it.
+                    let box_rect = self.image_rect_without_target?;
+                    let dest_rect = crate::painting::record::paint::svg::image_draw_rect(
+                        box_rect,
+                        natural_size,
+                        values.image_preserve_aspect_ratio_align,
+                        values.image_preserve_aspect_ratio_meet_or_slice,
+                    );
+                    return Some(FilterResult::new(
+                        Filter::Crop {
+                            rect: box_rect,
+                            input: Some(Box::new(Filter::Image {
+                                frame_id: frame.id(),
+                                src_rect,
+                                dest_rect,
+                                scaling_mode: crate::painting::record::paint::background::to_gfx_scaling_mode(
+                                    self.image_rendering,
+                                    (src_rect.width, src_rect.height),
+                                    (dest_rect.width.round() as i32, dest_rect.height.round() as i32),
+                                ),
+                            })),
+                        },
+                        InterpolationColorSpace::SRGB,
+                    ));
                 };
                 let draw_rect = crate::painting::record::paint::svg::image_draw_rect(
                     subregion,
