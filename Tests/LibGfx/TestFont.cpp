@@ -90,6 +90,19 @@ static NonnullRefPtr<Gfx::Font> load_text_font(float point_size)
     return adopt_ref(*new Gfx::Font(typeface, point_size, point_size, {}, {}));
 }
 
+#ifdef AK_OS_LINUX
+TEST_CASE(linux_system_font_metrics_enclose_the_legacy_ascent_and_descent)
+{
+    auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/text.ttf"sv)));
+    auto typeface = MUST(Gfx::Typeface::try_load_from_temporary_memory(file->bytes()));
+    typeface->set_system_font_identifier({ 1, 1 });
+    auto font = typeface->font(12);
+
+    EXPECT_EQ(font->pixel_metrics().ascent, 16.0f);
+    EXPECT_EQ(font->pixel_metrics().descent, 4.0f);
+}
+#endif
+
 TEST_CASE(pending_font_only_hides_its_unicode_range)
 {
     auto font = load_text_font(16);

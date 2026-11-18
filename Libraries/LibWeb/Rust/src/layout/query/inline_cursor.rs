@@ -276,8 +276,7 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
     }
 
     /// A caret as tall as the font of `style_source`, at the inline start of `area` and where layout puts text across a
-    /// line of `line_height` from its block start, or across its block extent: the smaller half of the leading is on
-    /// the ascent side.
+    /// line of `line_height` from its block start, or across its block extent.
     fn caret_rect_at_inline_start(
         &self,
         area: CssPixelRect,
@@ -290,7 +289,7 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         let font_height = CssPixels::from_integer((style.font_ascent() + style.font_descent()) as i64);
         let height = font_height.min(line_height);
         let leading = line_height - height;
-        let leading_above = leading.scaled(0.5).floor();
+        let leading_above = leading / 2;
         let one = CssPixels::from_integer(1);
         let at_end = style.inline_axis_is_reverse();
         Some(if horizontal {
