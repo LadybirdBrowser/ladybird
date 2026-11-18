@@ -169,7 +169,7 @@ ErrorOr<RequestServerClientConnection> RequestServerManager::connect_new_client(
 
     // Random client IDs can collide across RequestServers. The UI identifies clients by ID alone, so retry collisions.
     for (size_t attempt = 0; attempt < 8; ++attempt) {
-        auto response = instance.control_client().send_sync_but_allow_failure<Messages::RequestServerControl::ConnectNewClient>(is_private, site_binding);
+        auto response = send_sync_to_helper<Messages::RequestServerControl::ConnectNewClient>(instance.control_client(), is_private, site_binding);
         if (!response || response->client_id() < 0)
             return Error::from_string_literal("Failed to connect to RequestServer");
 
