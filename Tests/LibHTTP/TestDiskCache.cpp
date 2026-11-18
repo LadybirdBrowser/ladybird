@@ -547,3 +547,23 @@ TEST_CASE(cache_file_for_another_url_is_not_served)
     EXPECT(!open_cache_entry(disk_cache, request, url, *headers).has_value());
     EXPECT(!FileSystem::exists(path.string()));
 }
+
+TEST_CASE(cache_file_for_another_key_is_not_served)
+{
+    auto disk_cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    auto url = parse_url("https://example.com/a"sv);
+    auto headers = create_cacheable_request_headers();
+    TestCacheRequest request;
+    store_cache_entry(disk_cache, request, url, *headers, create_cacheable_response_headers(), "body"sv);
+    auto cache_key = HTTP::create_cache_key(test_partition(), HTTP::serialize_url_for_cache_storage(url), "GET"sv);
+    auto path = HTTP::path_for_cache_entry(disk_cache.cache_directory(), cache_key, {});
+    {
+        auto file = TRY_OR_FAIL(Core::File::open(path.string(), Core::File::OpenMode::ReadWrite));
+        auto header = TRY_OR_FAIL(file->read_value<HTTP::CacheHeader>());
+        header.vary_key.bytes.last() ^= 1;
+        (void)TRY_OR_FAIL(file->seek(0, SeekMode::SetPosition));
+        TRY_OR_FAIL(file->write_value(header));
+    }
+    EXPECT(!open_cache_entry(disk_cache, request, url, *headers).has_value());
+    EXPECT(!FileSystem::exists(path.string()));
+}
