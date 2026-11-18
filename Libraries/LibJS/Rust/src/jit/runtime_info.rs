@@ -70,7 +70,7 @@ use crate::runtime::function_environment::{
 };
 use crate::runtime::generator_object::GeneratorObject;
 use crate::runtime::module_environment::ModuleEnvironment;
-use crate::runtime::object::{ORDINARY_OBJECT_METHODS, ObjectMethods, PropertyKind};
+use crate::runtime::object::{ObjectMethods, PropertyKind};
 use crate::runtime::string_object::StringObject;
 use crate::runtime::string_prototype::StringPrototype;
 
@@ -375,8 +375,6 @@ fn runtime_layout() -> RuntimeLayout {
             ObjectMethods,
             is_cacheable_for_property_absence
         )),
-        default_is_cacheable_for_property_absence: ORDINARY_OBJECT_METHODS.is_cacheable_for_property_absence as usize
-            as u64,
         property_lookup_cache_polymorphic_tag: PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG as u64,
         property_lookup_cache_polymorphic_entry_count: MAX_NUMBER_OF_SHAPES_TO_REMEMBER as u32,
         property_lookup_cache_entry_size: offset(size_of::<PropertyLookupCacheEntry>()),
@@ -412,6 +410,9 @@ const _: () = assert!(
     libjs_jit::bytecode::NO_YIELD_CONTINUATION
         == crate::layout::execution_context::ExecutionContext::NO_YIELD_CONTINUATION
 );
+
+// NB: JIT code takes an offset of 0 to mean that there is no such field for it to read.
+const _: () = assert!(offset_of!(ObjectMethods, is_cacheable_for_property_absence) != 0);
 
 // NB: The compiler has its own copy of the bits of the interpreter's feedback.
 const _: () = {
