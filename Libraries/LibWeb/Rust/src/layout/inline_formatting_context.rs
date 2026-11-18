@@ -1018,6 +1018,12 @@ pub(crate) fn compute(
         //     stand in for it only where it has no other lines.
         let mut corners_from_block_lines = FirstAndLastContentLineCorners::default();
 
+        // NB: A box with content on some line, in this fragment or another, has its edges where that content is, so
+        //     only an empty box is on the line that holds its strut alone, for its background, borders, and outline
+        //     to be painted there and its border box to be hit there. Elsewhere, such a line holds a placeholder piece.
+        let holds_content = lines.iter().any(|line| line.first_fragment_index.is_some())
+            || context.inline_boxes_continued_from_previous_fragment.contains(&node)
+            || context.inline_boxes_continued_in_next_fragment.borrow().contains(&node);
         for line in lines {
             let inline_box_anchor = || {
                 let line_data = context.line_data();
@@ -1090,7 +1096,8 @@ pub(crate) fn compute(
             let border_block_start = content_block_start - border_padding_block_low;
             let border_block_length = content_block_length + border_padding_block_low + border_padding_block_high;
             // NB: A placeholder piece holds the content box of its inline box.
-            let rect = if line.is_strut {
+            let is_placeholder = line.is_strut && holds_content;
+            let rect = if is_placeholder {
                 FfiCssPixelRect {
                     x: contributions_inline_start,
                     y: content_block_start,
@@ -1116,7 +1123,7 @@ pub(crate) fn compute(
                     baseline: inline_box_baseline,
                     accumulated_vertical_shift: inline_box_vertical_shift,
                     present_edges: edge_bits(has_low_edge, has_high_edge),
-                    is_geometry_only_placeholder: line.is_strut,
+                    is_geometry_only_placeholder: is_placeholder,
                 },
                 depth,
                 discovery_index: node_index,

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/empty-inline-box-backgrounds-and-borders-ref.html">
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+body {
+    margin: 0;
+    font: 20px/40px Ahem;
+}
+.padded {
+    padding-left: 16px;
+    background: green;
+}
+.bordered {
+    border-left: 16px solid green;
+}
+.tall {
+    padding: 5px 8px;
+    background: green;
+    outline: 2px solid blue;
+}
+</style>
+<div><span class="padded"></span>x</div>
+<div>x<span class="padded"></span>x</div>
+<div>x<span class="padded"></span></div>
+<div><span class="bordered"></span>x</div>
+<div>x<span class="tall"></span></div>
