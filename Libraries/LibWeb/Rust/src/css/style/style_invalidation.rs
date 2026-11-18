@@ -848,6 +848,7 @@ impl RetainedState {
         animated_overlay: *const AnimatedOverlay,
         payloads: &crate::css::computed_values::StyleGroups,
         is_document_element: bool,
+        is_svg_graphics_element: bool,
     ) -> FfiAnimationInvalidation {
         let longhands = old_record.longhands();
         let old_overlay = old_record.animated_overlay;
@@ -912,6 +913,11 @@ impl RetainedState {
         {
             invalidation.repaint_text_decorations = false;
         }
+        // The layout of SVG text places its text decoration lines along with its glyphs, so a sample that moves the
+        // lines has to reach it.
+        if is_svg_graphics_element && invalidation.repaint_text_decorations {
+            invalidation.ensure_level(INVALIDATION_RELAYOUT);
+        }
         ffi_result.invalidation = invalidation.pack();
         ffi_result
     }
@@ -930,8 +936,14 @@ impl RetainedState {
         let is_document_element =
             self.projection.adjustment_facts(node) & element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0;
         let invalidation = StyleInvalidation::unpack(
-            self.compare_animation_overlay(old_record, animated_overlay, payloads, is_document_element)
-                .invalidation,
+            self.compare_animation_overlay(
+                old_record,
+                animated_overlay,
+                payloads,
+                is_document_element,
+                self.is_svg_graphics_element(node),
+            )
+            .invalidation,
         );
         let SampleBounds {
             scroll_snaps,
@@ -989,6 +1001,10 @@ impl RetainedState {
         }
         result.merge(baked_filter_color_damage(old_values, new_values));
         result.pack()
+    }
+
+    pub(crate) fn is_svg_graphics_element(&self, node: StyleNodeID) -> bool {
+        self.projection.adjustment_facts(node) & element_adjustment_fact::IS_SVG_GRAPHICS_ELEMENT != 0
     }
 
     /// The facts of `node` that what moving it, or one of its pseudo-elements, between records
@@ -1388,6 +1404,11 @@ pub(crate) fn element_record_damage_of_views(facts: ElementDamageFacts, record_m
     // currentColor. A color-only change can therefore alter the visible stroke width and the SVG
     // container bounds without changing the stroke longhand itself.
     if facts.is_svg_graphics_element && color_changed && stroke_uses_current_color {
+        damage.ensure_level(INVALIDATION_RELAYOUT);
+    }
+    // The layout of SVG text places its text decoration lines along with its glyphs, so a change to the lines has to
+    // reach it.
+    if facts.is_svg_graphics_element && damage.repaint_text_decorations {
         damage.ensure_level(INVALIDATION_RELAYOUT);
     }
     // Generated pseudo-element boxes are anonymous, so table fixup uses their adjusted display

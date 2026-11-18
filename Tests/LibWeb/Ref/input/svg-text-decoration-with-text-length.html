@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-text-decoration-with-text-length-ref.html" />
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 60px Ahem;
+    }
+</style>
+<!-- In Ahem, "&#xC9;" is a box from the baseline up to the ascent. -->
+<!-- The space that textLength adds between the characters isn't decorated, nor is any after the last character. -->
+<svg width="600" height="400">
+    <text x="20" y="100" fill="blue" textLength="360" style="text-decoration: underline overline">&#xC9;&#xC9;&#xC9;</text>
+    <text x="20" y="250" fill="blue" textLength="360" style="text-decoration: line-through">&#xC9;<tspan fill="green">&#xC9;</tspan>&#xC9;</text>
+    <text x="20" y="380" fill="blue" textLength="360" lengthAdjust="spacingAndGlyphs" style="text-decoration: underline">&#xC9;&#xC9;&#xC9;</text>
+</svg>

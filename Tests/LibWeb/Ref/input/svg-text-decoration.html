@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-text-decoration-ref.html" />
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 60px Ahem;
+    }
+</style>
+<!-- In Ahem, "&#xC9;" is a box from the baseline up to the ascent, and "p" a box from the baseline down to the descent. -->
+<svg width="800" height="500">
+    <text x="20" y="100" fill="blue" text-decoration="underline">&#xC9;&#xC9;</text>
+    <text x="220" y="100" fill="blue" text-decoration="overline">&#xC9;&#xC9;</text>
+    <text x="420" y="100" fill="blue" style="text-decoration: underline overline line-through"><tspan fill="none">&#xC9;&#xC9;</tspan></text>
+
+    <!-- A line is painted as the element that declares it is. A line-through goes over the text, an underline under it. -->
+    <text x="20" y="250" fill="blue" text-decoration="line-through"><tspan fill="green">&#xC9;</tspan>&#xC9;</text>
+    <text x="220" y="250" fill="red" text-decoration="underline"><tspan fill="green">pp</tspan></text>
+    <text x="420" y="250" fill="green">&#xC9;<tspan fill="blue" text-decoration="underline">&#xC9;</tspan>&#xC9;</text>
+    <text x="620" y="250" fill="blue" stroke="green" stroke-width="4" text-decoration="underline"><tspan fill="none" stroke="none">&#xC9;&#xC9;</tspan></text>
+
+    <!-- A line follows each stretch of text. -->
+    <text x="20" y="400" fill="blue" text-decoration="underline">&#xC9;<tspan dy="-30">&#xC9;</tspan><tspan x="200" dy="30">&#xC9;</tspan></text>
+    <text x="320" y="400" fill="blue" style="text-decoration: underline; text-decoration-thickness: 20px">&#xC9;</text>
+    <text x="420" y="400" fill="blue" style="text-decoration: underline; text-decoration-color: red">&#xC9;</text>
+    <text x="520" y="400" fill="blue" text-decoration="underline">&#xC9;<tspan font-size="100">&#xC9;</tspan></text>
+</svg>

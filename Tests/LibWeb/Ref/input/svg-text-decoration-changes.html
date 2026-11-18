@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-text-decoration-changes-ref.html" />
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 60px Ahem;
+    }
+</style>
+<!-- In Ahem, "&#xC9;" is a box from the baseline up to the ascent. -->
+<svg width="600" height="200">
+    <text id="added" x="20" y="100" fill="blue">&#xC9;</text>
+    <text id="removed" x="120" y="100" fill="blue" style="text-decoration: underline">&#xC9;</text>
+    <text id="thicker" x="220" y="100" fill="blue" style="text-decoration: underline">&#xC9;</text>
+    <text id="on-a-child" x="320" y="100" fill="blue">&#xC9;<tspan id="child" fill="green">&#xC9;</tspan></text>
+</svg>
+<script>
+    document.fonts.load("60px Ahem").then(() => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.getElementById("added").style.textDecoration = "underline";
+                document.getElementById("removed").style.textDecoration = "none";
+                document.getElementById("thicker").style.textDecorationThickness = "20px";
+                document.getElementById("child").style.textDecoration = "overline";
+                requestAnimationFrame(() => {
+                    if (window.internals)
+                        internals.signalTestIsDone("PASS");
+                    else
+                        document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>
