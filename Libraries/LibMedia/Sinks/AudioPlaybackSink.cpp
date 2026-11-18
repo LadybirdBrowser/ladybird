@@ -49,6 +49,7 @@ public:
     void handle_input_suspension_while_locked(u32 seek_id);
     void request_resume_from_suspension_while_locked();
     void request_played_out_check_if_needed_while_locked();
+    void signal_output_thread_while_locked();
 
     AudioBlockTimingRing& block_timings() { return m_time_writer.timing_ring(); }
 
@@ -86,7 +87,7 @@ public:
     bool m_waiting_for_upstream_data { false };
     bool m_resume_from_suspension_requested { false };
     bool m_played_out_check_requested { false };
-    bool m_upstream_woke_since_probe { false };
+    u64 m_output_thread_signal_count { 0 };
 };
 
 ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(PipelineStateChangeHandler on_state_changed, NonnullRefPtr<AudioOutputFactory> output_factory)
@@ -101,9 +102,11 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
         [output_thread_data]() -> intptr_t {
             while (!output_thread_data->m_audio_processor_should_exit) {
                 RefPtr<AudioProducer> input;
+                u64 signal_count_at_start;
                 {
                     MutexLocker locker { output_thread_data->m_output_mutex };
                     input = output_thread_data->m_input;
+                    signal_count_at_start = output_thread_data->m_output_thread_signal_count;
                 }
 
                 auto& output_block = output_thread_data->m_blocks[output_thread_data->m_block_tail];
@@ -115,7 +118,6 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         MutexLocker locker { output_thread_data->m_output_mutex };
                         seek_id_at_probe = output_thread_data->m_seek_id;
                         input_seek_in_flight = output_thread_data->m_input_seek_in_flight;
-                        output_thread_data->m_upstream_woke_since_probe = false;
                     }
                     if (!input_seek_in_flight) {
                         auto probe = input->peek();
@@ -146,9 +148,9 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                     MutexLocker locker { output_thread_data->m_output_mutex };
                     if (output_thread_data->m_audio_processor_should_exit)
                         break;
-                    // If a wake lands between the status probe lock and this one, upstream may have suspended, so we
-                    // need to re-probe to determine whether to handle the suspension.
-                    if (input != nullptr && output_thread_data->m_upstream_woke_since_probe)
+                    // A signal sent since this iteration began may have changed what the probe saw, and it will not be
+                    // sent again, so the input must be probed again rather than waited on.
+                    if (output_thread_data->m_output_thread_signal_count != signal_count_at_start)
                         continue;
                     if (output_thread_data->m_seek_id == 0) {
                         output_thread_data->m_output_condition.wait();
@@ -285,7 +287,7 @@ AudioPlaybackSink::~AudioPlaybackSink()
         input = move(m_output_thread_data->m_input);
         playback_stream = move(m_output_thread_data->m_playback_stream);
         m_output_thread_data->m_audio_processor_should_exit = true;
-        m_output_thread_data->m_output_condition.broadcast();
+        m_output_thread_data->signal_output_thread_while_locked();
     }
     if (input != nullptr)
         input->set_wake_handler(nullptr);
@@ -297,8 +299,7 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
         // Pure relay: never peek here (that would race the output thread). Just wake it to pull.
         MutexLocker locker { output_thread_data.m_output_mutex };
         output_thread_data.m_waiting_for_upstream_data = false;
-        output_thread_data.m_upstream_woke_since_probe = true;
-        output_thread_data.m_output_condition.broadcast();
+        output_thread_data.signal_output_thread_while_locked();
     });
     auto const& sample_specification = m_output_thread_data->m_sample_specification;
     if (sample_specification.is_valid()) {
@@ -314,7 +315,7 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
     MutexLocker locker { m_output_thread_data->m_output_mutex };
     VERIFY(m_output_thread_data->m_input == nullptr);
     m_output_thread_data->m_input = input;
-    m_output_thread_data->m_output_condition.broadcast();
+    m_output_thread_data->signal_output_thread_while_locked();
     return {};
 }
 
@@ -377,7 +378,7 @@ void AudioPlaybackSink::create_playback_stream()
         {
             MutexLocker locker { self->m_output_thread_data->m_output_mutex };
             self->m_output_thread_data->m_seek_id++;
-            self->m_output_thread_data->m_output_condition.broadcast();
+            self->m_output_thread_data->signal_output_thread_while_locked();
         }
 
         self->update_playback_stream_state();
@@ -439,7 +440,7 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
 
     request_played_out_check_if_needed_while_locked();
 
-    m_output_condition.broadcast();
+    signal_output_thread_while_locked();
     return buffer;
 }
 
@@ -491,6 +492,12 @@ void AudioPlaybackSink::OutputThreadData::request_played_out_check_if_needed_whi
         if (auto strong_sink = sink.strong_ref())
             strong_sink->dispatch_waiting_status_once_played_out();
     });
+}
+
+void AudioPlaybackSink::OutputThreadData::signal_output_thread_while_locked()
+{
+    m_output_thread_signal_count++;
+    m_output_condition.broadcast();
 }
 
 void AudioPlaybackSink::OutputThreadData::report_input_status_while_locked(PipelineStatus status, PipelineCheckpoint checkpoint, u32 seek_id)
@@ -760,14 +767,14 @@ void AudioPlaybackSink::reseek_input_continuing_at_output_frame(Optional<i64> co
         data.m_played_out_check_requested = false;
         data.m_waiting_for_upstream_data = true;
         data.m_input_seek_in_flight = true;
-        data.m_output_condition.broadcast();
+        data.signal_output_thread_while_locked();
     }
 
     input->seek_continuing_at_output_frame(timestamp, output_frame);
 
     MutexLocker locker { m_output_thread_data->m_output_mutex };
     m_output_thread_data->m_input_seek_in_flight = false;
-    m_output_thread_data->m_output_condition.broadcast();
+    m_output_thread_data->signal_output_thread_while_locked();
 }
 
 void AudioPlaybackSink::seek(AK::Duration time)
@@ -818,7 +825,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
 
         MutexLocker locker { m_output_thread_data->m_output_mutex };
         m_output_thread_data->m_input_seek_in_flight = false;
-        m_output_thread_data->m_output_condition.broadcast();
+        m_output_thread_data->signal_output_thread_while_locked();
     }
 
     if (already_discarding_for_seek)
@@ -863,6 +870,7 @@ void AudioPlaybackSink::set_playback_rate(float rate)
         MutexLocker locker { m_output_thread_data->m_output_mutex };
         input = m_output_thread_data->m_input;
         m_output_thread_data->m_playback_rate = rate;
+        m_output_thread_data->signal_output_thread_while_locked();
     }
 
     if (input != nullptr && rate != 0.0f)
