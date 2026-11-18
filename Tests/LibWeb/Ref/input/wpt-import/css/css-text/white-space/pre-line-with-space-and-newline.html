@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: 'white-space: pre-line' with space and newline</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-text/#white-space-phase-1">
+<link rel="help" href="https://crbug.com/1136688">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/white-space/../../reference/ref-filled-green-200px-square.html">
+<meta name="assert" content="
+  Checks that collapsible spaces immediately preceding a sequent break are removed.
+  That still applies if they are separated into different inline elements.
+  Also, if some text is inserted dynamically, the browser should not crash.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+span {
+  font: 25px/1 Ahem;
+  background: red;
+  color: green;
+}
+i {
+  white-space: pre-line;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="static together">
+  <span>XXXXXXXX<i> &#10;</i>XXXXXXXX</span>
+</div>
+<div class="static separated">
+  <span>XXXXXXXX<i> </i><i>&#10;</i>XXXXXXXX</span>
+</div>
+<div class="dynamic together">
+  <span>XXXXXXXX<i> &#10;</i></span>
+</div>
+<div class="dynamic separated">
+  <span>XXXXXXXX<i> </i><i>&#10;</i></span>
+</div>
+<script>
+// Force layout
+document.body.offsetLeft;
+
+// Insert text, should not crash
+for (let span of document.querySelectorAll(".dynamic > span")) {
+  span.append("XXXXXXXX");
+}
+</script>

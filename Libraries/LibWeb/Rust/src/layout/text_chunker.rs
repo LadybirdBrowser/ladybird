@@ -1211,7 +1211,11 @@ impl<'text> TextChunker<'text> {
     }
 
     fn is_collapsible(&self, code_point: u32) -> bool {
-        self.should_collapse_whitespace && code_point_is_ascii_space(code_point)
+        // NB: A line feed that white-space-collapse: preserve-breaks keeps is a forced line break, not white space that
+        //     collapses with the white space around it.
+        self.should_collapse_whitespace
+            && code_point_is_ascii_space(code_point)
+            && !(self.should_respect_linebreaks && code_point == '\n' as u32)
     }
 
     fn is_at_line_break_opportunity(&self) -> bool {
