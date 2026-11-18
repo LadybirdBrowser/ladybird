@@ -30,7 +30,7 @@ pub use scroll_table::{
     CompositorScrollNodeKind, CompositorScrollNodeRecord, CompositorScrollTable, CompositorSnapAreaRecord,
     CompositorSnapContainerRecord,
 };
-pub use world_transforms::WorldTransforms;
+pub use world_transforms::{RectMapping, WorldTransforms};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
