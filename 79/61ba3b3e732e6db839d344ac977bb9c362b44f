@@ -1,0 +1,24 @@
+In Ladybird, margins collapse through an empty block whether or
+not it has clearance. Clearance goes above the top margin of the
+block, and keeps it apart from the margins before the block. So the
+flow goes on from where the margins of the block began, collapses
+them with the margins after it, and keeps the resulting margin
+inside the parent of the block.
+
+Blink’s BlockLayoutAlgorithm::FinishInflow() notes such a child in
+self_collapsing_child_had_clearance, and lays it out again with a margin
+strut that holds only its own top margin. ComputeInflowPosition() then
+moves the flow past the margin before the clearance and the clearance
+itself, and FinishLayout() adds the end margin strut to the size of
+the parent. WebKit’s RenderBlockFlow::clearFloatsIfNeeded() resets
+the margins it tracks to those of a child that isSelfCollapsingBlock()
+holds for, sets the logical height back to the top margin of the
+child, and keeps the margins from collapsing with the parent’s, with
+setCanCollapseMarginAfterWithChildren(). Gecko’s nsBlockReflowContext::
+PlaceBlock() includes the top margin of an empty block in its bottom
+margin, and backs up the advance of its containing block by that margin.
+
+In Chrome 157.0.8103.79, Firefox 151.0 and WebKit 26.5, the test’s 26
+cases come out the same. After two such blocks in a row, WebKit puts
+what follows 20px higher than Chrome, Firefox and Ladybird do, so
+the test leaves that out.
