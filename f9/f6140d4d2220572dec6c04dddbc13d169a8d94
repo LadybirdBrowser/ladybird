@@ -1,0 +1,13 @@
+Ladybird treats an <a> inside an SVG text content element as a text
+content child element: It lays out and paints the link’s text as it
+does a <tspan>’s. Blink does the same: SVGAElement::CreateLayoutObject()
+makes an inline box for an <a> whose parent is text content, and
+LayoutSVGText::IsChildAllowed() admits it. So does WebKit, where
+SVGTextElement::childShouldCreateRenderer() accepts an <a>, and
+SVGAElement::createElementRenderer() picks the inline renderer.
+And so does Gecko, whose frame constructor allows an <a> among
+the children of SVG text.
+
+The new test gives the same character positions and hit-test targets in
+Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5. None of the three
+renders the text of any other element inside a <text>, such as a <g>.
