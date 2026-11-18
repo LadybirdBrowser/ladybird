@@ -1,0 +1,41 @@
+When media at least 5 seconds long starts playing audibly, Ladybird
+makes its document’s media session the active one, iframes included,
+and a paused session stays active with no time limit. Chromium works
+the same way: MediaSessionImpl::ComputeFrameForRouting() routes to
+iframes too, the latest audio-focus request wins (AudioFocusManager::
+MaybeUpdateActiveSession()), and media under 5 seconds takes only
+transient focus (DurationToMediaContentType()). Gecko picks the
+document that most recently claimed audible, controllable media
+(ShouldClaimActiveAudibleControllableContextForInfo()), with a 3-second
+minimum, and drops a paused controller after 24 hours. WebKit ranks
+candidates by main-content size and then by the latest user interaction
+(selectBestMediaSession()).
+
+Ladybird’s actual playback state is “playing” when the page declares
+it, and the guessed state otherwise. Chromium’s MediaSessionImpl::
+GetMediaSessionInfoSync() and Gecko’s MediaStatusManager::
+UpdateActualPlaybackState() do the same. WebKit instead reports the
+playback state of the media element it selected.
+
+Ladybird derives the position from the media only while one element
+is controlled, as Chromium’s RebuildAndNotifyMediaPositionChanged()
+and Gecko’s MediaStatusManager::GetCurrentPositionState() do.
+It doesn’t report drift under 100ms, the threshold in Chromium’s
+WebMediaPlayerImpl::MediaPositionNeedsUpdate(). And as in Chromium’s
+MediaSession::setActionHandler() and Gecko’s MediaController::
+sDefaultSupportedKeys, clearing a handler in Ladybird brings back that
+action’s default behavior.
+
+Ladybird keeps MediaStream media out of the selection, as Chromium
+does (WebMediaPlayerMS players are one-shot, which MediaSessionImpl::
+IsControllable() rejects) and as Gecko does (HTMLMediaElement::
+IsControllableMediaSource() rejects a source stream). WebKit
+admits such media only once the page sets metadata or a handler
+(MediaElementSession::hasNowPlayingInfo()). Media that isn’t in any
+document counts in Ladybird, as in Chromium, which registers players
+whatever their place in the DOM.
+
+These comparisons come from reading each engine’s source, at Chromium
+8658d682eac5, WebKit 047a16c96ccd, and Gecko 06fa2674be3d: What an
+engine hands the OS media controls isn’t observable from page script, so
+it couldn’t be compared by running them.
