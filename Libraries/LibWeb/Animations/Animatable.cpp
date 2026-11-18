@@ -177,6 +177,17 @@ void Animatable::cancel_css_animations_and_transitions()
         m_animations, style_engine_host_of(*this), style_node_of(*this), keep_animation_alive_in, in_execution_context_of_animation, &animations, web_animation_perform_host_effect);
 }
 
+void Animatable::cancel_css_animations_and_transitions_of(CSS::PseudoElement pseudo_element)
+{
+    auto slot = owner_slot(pseudo_element);
+    if (!m_animations || !slot.has_value())
+        return;
+
+    GC::RootVector<AnimationRef> animations;
+    RustFFI::animations_element_animations_cancel_css_animations_and_transitions_of_owner(
+        m_animations, *slot, style_engine_host_of(*this), style_node_of(*this), keep_animation_alive_in, in_execution_context_of_animation, &animations, web_animation_perform_host_effect);
+}
+
 void Animatable::play_or_pause_css_animations_as_their_play_state_asks()
 {
     if (!m_animations)

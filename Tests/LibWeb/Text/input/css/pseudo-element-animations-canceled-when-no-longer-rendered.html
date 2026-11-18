@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+    @keyframes color {
+        from { color: rgb(255, 0, 0); }
+        to { color: rgb(255, 0, 0); }
+    }
+    .target::before { color: rgb(0, 128, 0); }
+    #animated.rendered::before {
+        content: "x";
+        animation: color 100s;
+    }
+    #transitioned.rendered::before {
+        content: "x";
+        transition: color 100s steps(1, start);
+    }
+    #transitioned.rendered.moved::before { color: rgb(0, 0, 255); }
+</style>
+<div id="animated" class="target"></div>
+<div id="transitioned" class="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const dump = (label, element) => {
+            const animations = element.getAnimations({ subtree: true }).map(animation => animation.constructor.name);
+            println(`${label}: ${getComputedStyle(element, "::before").color}, animations: [${animations}]`);
+        };
+
+        const animated = document.getElementById("animated");
+        animated.classList.add("rendered");
+        dump("Animated ::before, rendered", animated);
+        animated.classList.remove("rendered");
+        dump("Animated ::before, no longer rendered", animated);
+
+        const transitioned = document.getElementById("transitioned");
+        transitioned.classList.add("rendered");
+        dump("Transitioned ::before, rendered", transitioned);
+        transitioned.classList.add("moved");
+        dump("Transitioned ::before, transition started", transitioned);
+        transitioned.classList.remove("rendered");
+        dump("Transitioned ::before, no longer rendered", transitioned);
+    });
+</script>
