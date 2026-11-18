@@ -202,7 +202,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                     CanvasBox <canvas> at [233.5,42] positioned [0+0+0 333 0+0+0] [0+0+0 133 0+0+0] children: not-inline
                   BlockContainer <div.textLayer.selectionRendering> at [233.5,42] positioned [0+0+0 333 0+0+0] [0+0+0 133 0+0+0] [BFC] children: inline
                     BlockContainer <span> at [316.75,64.9375] positioned [0+0+0 121.046875 0+0+0] [0+0+0 23.328125 0+0+0] [BFC] children: inline
-                      frag 0 from TextNode start: 0, length: 9, rect: [316.75,63.9375 121.046875x24] baseline: 19
+                      frag 0 from TextNode start: 0, length: 9, rect: [316.75,64.609375 121.046875x24] baseline: 19
                           "Hello PDF"
                       TextNode <#text> (not painted)
                     BlockContainer <div.endOfContent> at [233.5,175] positioned [0+0+0 333 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
