@@ -9727,15 +9727,14 @@ impl Ed448Params {
     }
 }
 
-fn parse_octet_string(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Vec<u8>> {
-    let octets = parse_an_asn1_structure(
+fn parse_octet_string(bytes: &[u8]) -> WebIdlResult<&[u8]> {
+    parse_an_asn1_structure(
         bytes,
         libcrypto_rust::parse_octet_string,
         "Read of kind OctetString failed: {}",
         true,
     )
-    .map_err(|message| Exception::Dom("DataError", message))?;
-    copy_bytes(vm, octets)
+    .map_err(|message| Exception::Dom("DataError", message))
 }
 
 fn okp_key_handle(curve: OkpCurve, is_private: bool, bytes: &[u8]) -> WebIdlResult<KeyHandle> {
@@ -9948,10 +9947,10 @@ impl AlgorithmMethods for Ed25519 {
             let KeyMaterial::Raw(private_key) = private_key_info.into_material() else {
                 unreachable!("the structure holds the key material of its algorithm")
             };
-            let curve_private_key_bytes = parse_octet_string(cx.vm(), &private_key)?;
+            let curve_private_key_bytes = parse_octet_string(&private_key)?;
 
             // 8. Let key be a new CryptoKey that represents the Ed25519 private key identified by curvePrivateKey.
-            key = okp_key(cx.vm(), OkpCurve::Ed25519, true, curve_private_key_bytes.as_slice())?;
+            key = okp_key(cx.vm(), OkpCurve::Ed25519, true, curve_private_key_bytes)?;
 
             // 9. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -10521,11 +10520,11 @@ impl AlgorithmMethods for Ed448 {
             let KeyMaterial::Raw(private_key) = private_key_info.into_material() else {
                 unreachable!("the structure holds the key material of its algorithm")
             };
-            let curve_private_key_bytes = parse_octet_string(cx.vm(), &private_key)?;
+            let curve_private_key_bytes = parse_octet_string(&private_key)?;
 
             // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
             //    and that represents the Ed448 private key identified by curvePrivateKey.
-            key = okp_key(cx.vm(), OkpCurve::Ed448, true, curve_private_key_bytes.as_slice())?;
+            key = okp_key(cx.vm(), OkpCurve::Ed448, true, curve_private_key_bytes)?;
 
             // 9. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -11218,10 +11217,10 @@ impl AlgorithmMethods for X25519 {
             let KeyMaterial::Raw(private_key) = private_key_info.into_material() else {
                 unreachable!("the structure holds the key material of its algorithm")
             };
-            let curve_private_key_bytes = parse_octet_string(cx.vm(), &private_key)?;
+            let curve_private_key_bytes = parse_octet_string(&private_key)?;
 
             // 8. Let key be a new CryptoKey that represents the X25519 private key identified by curvePrivateKey.
-            key = okp_key(cx.vm(), OkpCurve::X25519, true, curve_private_key_bytes.as_slice())?;
+            key = okp_key(cx.vm(), OkpCurve::X25519, true, curve_private_key_bytes)?;
 
             // 9. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -11897,10 +11896,10 @@ impl AlgorithmMethods for X448 {
             let KeyMaterial::Raw(private_key) = private_key_info.into_material() else {
                 unreachable!("the structure holds the key material of its algorithm")
             };
-            let curve_private_key_bytes = parse_octet_string(cx.vm(), &private_key)?;
+            let curve_private_key_bytes = parse_octet_string(&private_key)?;
 
             // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents the X448 private key identified by curvePrivateKey.
-            let key = okp_key(cx.vm(), OkpCurve::X448, true, curve_private_key_bytes.as_slice())?;
+            let key = okp_key(cx.vm(), OkpCurve::X448, true, curve_private_key_bytes)?;
 
             // 9. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
