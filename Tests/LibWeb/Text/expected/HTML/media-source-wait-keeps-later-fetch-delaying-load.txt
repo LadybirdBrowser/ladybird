@@ -1,0 +1,2 @@
+source appended: loadedmetadata, load
+source appended between two resumes: loadedmetadata, load

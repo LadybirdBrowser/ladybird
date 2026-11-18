@@ -1,0 +1,3 @@
+source added while inactive, then adopted: loaded metadata: 160x120
+adopted, then its iframe removed: loaded metadata: 160x120
+src set before adoption: loaded metadata: 160x120

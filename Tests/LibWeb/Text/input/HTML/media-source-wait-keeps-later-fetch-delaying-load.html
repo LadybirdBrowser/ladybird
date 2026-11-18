@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Resource selection waits for another source. Two children are appended in one task, and each change resumes
+    // the selection in a task of its own. The first one finds no source, and waits again. Before the second one
+    // runs, a playable source is appended, so the second one starts fetching it. Clearing the first wait's
+    // delay mustn't stop that fetch from delaying the load event.
+    function run(label, appendBeforeSource) {
+        return new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            document.body.appendChild(iframe);
+            const doc = iframe.contentDocument;
+            doc.open();
+            doc.write("<body>");
+            const order = [];
+            const finish = () => {
+                if (order.length < 2)
+                    return;
+                println(`${label}: ${order.join(", ")}`);
+                window.removeEventListener("message", onMessage);
+                iframe.remove();
+                resolve();
+            };
+            iframe.contentWindow.addEventListener("load", () => {
+                order.push("load");
+                finish();
+            });
+            const video = doc.createElement("video");
+            const first = doc.createElement("source");
+            video.append(first);
+            video.addEventListener("loadedmetadata", () => {
+                order.push("loadedmetadata");
+                finish();
+            });
+            const onMessage = event => {
+                if (event.data === "waiting") {
+                    if (appendBeforeSource)
+                        video.append(doc.createTextNode("a"));
+                    window.postMessage("append source", "*");
+                    if (appendBeforeSource)
+                        video.append(doc.createTextNode("b"));
+                } else if (event.data === "append source") {
+                    const playable = doc.createElement("source");
+                    playable.src = "../../../Assets/h264-reordered-frames.mp4";
+                    video.append(playable);
+                    window.postMessage("close", "*");
+                } else if (event.data === "close") {
+                    doc.close();
+                }
+            };
+            window.addEventListener("message", onMessage);
+            first.addEventListener("error", () => window.postMessage("waiting", "*"));
+            doc.body.appendChild(video);
+        });
+    }
+
+    asyncTest(async done => {
+        await run("source appended", false);
+        await run("source appended between two resumes", true);
+        done();
+    });
+</script>

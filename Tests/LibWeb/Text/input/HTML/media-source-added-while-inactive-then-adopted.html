@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Resolves once resource selection has failed on the source and waits for another one. The selection goes on to
+    // wait after the error event's dispatch, in the same task, so check in a later one.
+    async function selectionWaits(video, source) {
+        await new Promise(resolve => source.addEventListener("error", resolve, { once: true }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        if (video.networkState !== HTMLMediaElement.NETWORK_NO_SOURCE)
+            println(`not waiting: networkState ${video.networkState}`);
+    }
+
+    async function waitingVideoInIframe() {
+        // Resource selection fails on a source without a src and waits for another one.
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const doc = iframe.contentDocument;
+        const video = doc.createElement("video");
+        const source = doc.createElement("source");
+        const waits = selectionWaits(video, source);
+        video.appendChild(source);
+        doc.body.append(video);
+        await waits;
+        return { iframe, doc, video };
+    }
+
+    function playableSource(doc) {
+        const source = doc.createElement("source");
+        source.src = "../../../Assets/h264-reordered-frames.mp4";
+        return source;
+    }
+
+    function loadedMetadata(video, label) {
+        return new Promise(resolve => {
+            video.addEventListener("loadedmetadata", () => {
+                println(`${label}: loaded metadata: ${video.videoWidth}x${video.videoHeight}`);
+                resolve();
+            });
+        });
+    }
+
+    const settle = () => new Promise(resolve => setTimeout(resolve, 100));
+
+    asyncTest(async done => {
+        {
+            // A source is appended while the iframe's document isn't fully active, then the video is adopted here.
+            const { iframe, doc, video } = await waitingVideoInIframe();
+            iframe.remove();
+            video.appendChild(playableSource(doc));
+            await settle();
+            const loaded = loadedMetadata(video, "source added while inactive, then adopted");
+            document.body.appendChild(video);
+            await loaded;
+        }
+        {
+            // A source is appended, the video adopted, and its iframe removed, all in one task.
+            const { iframe, doc, video } = await waitingVideoInIframe();
+            const loaded = loadedMetadata(video, "adopted, then its iframe removed");
+            video.appendChild(playableSource(doc));
+            document.body.appendChild(video);
+            iframe.remove();
+            await loaded;
+        }
+        {
+            // While the iframe's document isn't fully active, an empty source is appended and src is set, then the
+            // video is adopted: the load that src started wins over the old selection, which never gets to the source.
+            const { iframe, doc, video } = await waitingVideoInIframe();
+            iframe.remove();
+            const empty = doc.createElement("source");
+            empty.addEventListener("error", () => println("src set before adoption: error at the appended source"));
+            video.appendChild(empty);
+            video.src = "../../../Assets/h264-reordered-frames.mp4";
+            const loaded = loadedMetadata(video, "src set before adoption");
+            document.body.appendChild(video);
+            await loaded;
+        }
+        done();
+    });
+</script>
