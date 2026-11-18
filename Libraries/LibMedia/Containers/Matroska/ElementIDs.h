@@ -96,6 +96,10 @@ constexpr u32 BLOCK_GROUP_ID = 0xA0;
 constexpr u32 BLOCK_ID = 0xA1;
 constexpr u32 BLOCK_DURATION_ID = 0x9B;
 constexpr u32 REFERENCE_BLOCK_ID = 0xFB;
+constexpr u32 BLOCK_ADDITIONS_ID = 0x75A1;
+constexpr u32 BLOCK_MORE_ID = 0xA6;
+constexpr u32 BLOCK_ADD_ID_ID = 0xEE;
+constexpr u32 BLOCK_ADDITIONAL_ID = 0xA5;
 
 // Cues
 constexpr u32 CUES_ID = 0x1C53BB6B;

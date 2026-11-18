@@ -322,7 +322,7 @@ struct H264State final : FormatState {
         if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
             TRY(apply_configuration(*configuration));
 
-        high_dynamic_range_metadata_tracker.begin_frame();
+        high_dynamic_range_metadata_tracker.begin_frame(coded_frame);
         Codecs::NALUnitIterator iterator { coded_frame.data(), nal_unit_length_size };
         for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
             TRY(apply_nal_unit(*nal_unit));
@@ -418,7 +418,7 @@ struct H265State final : FormatState {
         auto saw_random_access_point = false;
         auto saw_open_gop_start = false;
         auto saw_open_gop_leading_picture = false;
-        high_dynamic_range_metadata_tracker.begin_frame();
+        high_dynamic_range_metadata_tracker.begin_frame(coded_frame);
         Codecs::NALUnitIterator iterator { coded_frame.data(), nal_unit_length_size };
         for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
             TRY(apply_nal_unit(*nal_unit));
@@ -535,6 +535,7 @@ struct VP9State final : FormatState {
             header = frame_header;
             dirty = true;
         }
+        high_dynamic_range_metadata_tracker.apply_coded_frame(coded_frame);
         return {};
     }
 

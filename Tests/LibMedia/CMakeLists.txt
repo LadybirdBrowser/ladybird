@@ -45,6 +45,7 @@ set(TEST_SOURCES
     TestVideoFramePool.cpp
     TestVorbisDecode.cpp
     TestVP9Decode.cpp
+    TestWebMByteStreamParser.cpp
     TestWav.cpp
     TestWAVDemuxer.cpp
 )

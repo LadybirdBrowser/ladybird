@@ -199,8 +199,9 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
     auto duration = status.block->duration().value_or(AK::Duration::zero());
     auto flags = status.block->only_keyframes() ? FrameFlags::Keyframe : FrameFlags::None;
 
-    return CodedFrame(codec_id, timestamp, timestamp, duration, flags,
-        move(status.frames[status.frame_index++]), move(codec_configuration));
+    CodedFrame frame { codec_id, timestamp, timestamp, duration, flags, move(status.frames[status.frame_index++]), move(codec_configuration) };
+    frame.set_maximum_scene_luminance(status.block->maximum_scene_luminance());
+    return frame;
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()

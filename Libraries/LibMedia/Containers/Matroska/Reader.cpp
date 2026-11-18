@@ -23,6 +23,7 @@
 #include <LibMediaCodecs/Codecs/AV1.h>
 #include <LibMediaCodecs/Codecs/H264.h>
 #include <LibMediaCodecs/Codecs/H265.h>
+#include <LibMediaCodecs/Codecs/HDR10Plus.h>
 #include <LibMediaCodecs/Limits.h>
 
 #include "Reader.h"
@@ -993,6 +994,71 @@ DecoderErrorOr<Block> Reader::parse_simple_block(Streamer& streamer, AK::Duratio
     return block;
 }
 
+// https://www.matroska.org/technical/codec_specs.html#block-addition-mappings
+// An ITU-T T.35 message, which is how WebM carries HDR10+ for VP9.
+static constexpr u64 ITU_T_T35_BLOCK_ADD_ID = 4;
+
+static DecoderErrorOr<void> parse_block_additions(Streamer& streamer, Block& block)
+{
+    TRY(Reader::parse_master_element(streamer, "BlockAdditions"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
+        if (element_id != BLOCK_MORE_ID) {
+            TRY(streamer.read_unknown_element());
+            return ElementIterationDecision::Continue;
+        }
+
+        // https://www.matroska.org/technical/elements.html
+        // BlockAddID: default 1
+        u64 block_add_id = 1;
+        Optional<FixedArray<u8>> block_additional;
+        TRY(Reader::parse_master_element(streamer, "BlockMore"sv, [&](u64 block_more_element_id) -> DecoderErrorOr<ElementIterationDecision> {
+            switch (block_more_element_id) {
+            case BLOCK_ADD_ID_ID:
+                block_add_id = TRY(streamer.read_u64());
+                break;
+            case BLOCK_ADDITIONAL_ID: {
+                auto size = TRY(streamer.read_variable_size_integer());
+                // An addition too large to be HDR10+ is skipped rather than read, whatever its BlockAddID.
+                if (size > Codecs::HDR10_PLUS_MAXIMUM_T35_MESSAGE_SIZE) {
+                    block_additional.clear();
+                    Checked<size_t> end = streamer.position();
+                    end += size;
+                    if (end.has_overflow())
+                        return DecoderError::corrupted("BlockAdditional extends past the representable size"sv);
+                    TRY(streamer.seek_to_position(end.value()));
+                    break;
+                }
+                block_additional = TRY(streamer.read_raw_octets(size));
+                break;
+            }
+            default:
+                TRY(streamer.read_unknown_element());
+                break;
+            }
+            return ElementIterationDecision::Continue;
+        }));
+
+        if (block_add_id == ITU_T_T35_BLOCK_ADD_ID && block_additional.has_value()) {
+            if (auto luminance = Codecs::hdr10_plus_maximum_scene_luminance(block_additional->span()); luminance.has_value())
+                block.set_maximum_scene_luminance(luminance);
+        }
+        return ElementIterationDecision::Continue;
+    }));
+    return {};
+}
+
+static DecoderErrorOr<void> parse_or_skip_block_additions(Streamer& streamer, Block& block)
+{
+    auto additions_position = streamer.position();
+    auto result = parse_block_additions(streamer, block);
+    if (!result.is_error() || result.error().category() == DecoderErrorCategory::EndOfStream)
+        return result;
+
+    // Malformed additions are skipped as an unrecognized element would be, rather than failing the block they accompany.
+    block.set_maximum_scene_luminance({});
+    TRY(streamer.seek_to_position(additions_position));
+    return streamer.read_unknown_element();
+}
+
 DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContexts& contexts)
 {
     Block block;
@@ -1038,6 +1104,10 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
         case REFERENCE_BLOCK_ID: {
             has_reference_block = true;
             TRY(streamer.read_unknown_element());
+            break;
+        }
+        case BLOCK_ADDITIONS_ID: {
+            TRY(parse_or_skip_block_additions(streamer, block));
             break;
         }
         default:

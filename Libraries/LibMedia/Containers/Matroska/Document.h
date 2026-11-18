@@ -390,6 +390,9 @@ public:
     void set_lacing(Lacing lacing) { m_lacing = lacing; }
     bool discardable() const { return m_discardable; }
     void set_discardable(bool discardable) { m_discardable = discardable; }
+    // The brightest light in the scene in cd/m², from HDR10+ carried alongside the block.
+    Optional<float> maximum_scene_luminance() const { return m_maximum_scene_luminance; }
+    void set_maximum_scene_luminance(Optional<float> luminance) { m_maximum_scene_luminance = luminance; }
     size_t data_position() const { return m_data_position; }
     size_t data_size() const { return m_data_size; }
     void set_data(size_t position, size_t size)
@@ -406,6 +409,7 @@ private:
     bool m_invisible { false };
     Lacing m_lacing { None };
     bool m_discardable { true };
+    Optional<float> m_maximum_scene_luminance;
     size_t m_data_position { 0 };
     size_t m_data_size { 0 };
 };

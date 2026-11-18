@@ -287,16 +287,18 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
                 if (m_tracks_needing_codec_configuration.remove(block.track_number()))
                     codec_configuration = MUST(FixedArray<u8>::create(codec_initialization_data_for_track(block.track_number())));
 
+                auto coded_frame = Media::CodedFrame(
+                    codec_id_for_track(block.track_number()),
+                    block.timestamp().value(),
+                    block.timestamp().value(),
+                    block.duration().value_or(AK::Duration::zero()),
+                    block.only_keyframes() ? Media::FrameFlags::Keyframe : Media::FrameFlags::None,
+                    move(frame_data),
+                    move(codec_configuration));
+                coded_frame.set_maximum_scene_luminance(block.maximum_scene_luminance());
                 result.coded_frames.append({
                     .track_number = block.track_number(),
-                    .coded_frame = Media::CodedFrame(
-                        codec_id_for_track(block.track_number()),
-                        block.timestamp().value(),
-                        block.timestamp().value(),
-                        block.duration().value_or(AK::Duration::zero()),
-                        block.only_keyframes() ? Media::FrameFlags::Keyframe : Media::FrameFlags::None,
-                        move(frame_data),
-                        move(codec_configuration)),
+                    .coded_frame = move(coded_frame),
                 });
                 return IterationDecision::Continue;
             }
