@@ -8,7 +8,7 @@ nowrap: 160x20, 160x20, 160x20, 160x20
 pre: 140x40, 140x40, 140x40, 140x40
 pre-wrap: 140x40, 50x100, 140x40, 120x60
 pre-line: 100x40, 50x60, 100x40, 100x40
-break-spaces: 130x40, 60x60, 130x40, 120x40
+break-spaces: 130x40, 60x100, 130x40, 120x60
 mixed whitespace: 230x20, 110x40, 230x20, 120x40
 forced breaks: 100x60, 50x80, 100x60, 100x60
 indent: 173x20, 63x60, 173x20, 120x40
@@ -143,7 +143,7 @@ preserved newlines, fit-content: [100,60]
 no wrapping, min-content: [100,30]
 no wrapping, max-content: [100,30]
 no wrapping, fit-content: [100,30]
-preserved spaces, min-content: [60,120]
+preserved spaces, min-content: [60,150]
 preserved spaces, max-content: [220,30]
 preserved spaces, fit-content: [220,30]
 only spaces, min-content: [20,90]

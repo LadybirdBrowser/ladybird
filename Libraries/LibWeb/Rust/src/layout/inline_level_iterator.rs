@@ -377,6 +377,19 @@ impl Item {
         self.border_start + self.padding_start + self.inline_size + self.padding_end + self.border_end
     }
 
+    /// Whether the item carries the edges of any inline box it starts or ends.
+    fn carries_inline_box_edges(&self) -> bool {
+        let none = CssPixels::default();
+        self.margin_start != none
+            || self.border_start != none
+            || self.padding_start != none
+            || self.padding_end != none
+            || self.border_end != none
+            || self.margin_end != none
+            || self.entered_right_to_left_end_margin != none
+            || self.exited_right_to_left_end_margin != none
+    }
+
     pub(crate) fn is_ascii_whitespace(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
         assert_eq!(self.type_, ItemType::Text);
         let text = &context.pass.text_content(self.node).text;
@@ -2672,6 +2685,7 @@ impl InlineLevelIterator {
         let edges = sequence_inline_extent(
             context,
             items[..start].iter().filter(|item| item.type_ == ItemType::InlineEdge),
+            None,
         );
         let content = match items.get(start) {
             Some(item) if item.type_ == ItemType::Element => inline_extent([item]),
@@ -2710,8 +2724,14 @@ impl InlineLevelIterator {
                 None,
                 false,
             );
-            return sequence_inline_extent(context, items.take(length).chain(first_grapheme_cluster.as_ref())) + hyphen;
+            return sequence_inline_extent(context, items.take(length).chain(first_grapheme_cluster.as_ref()), None)
+                + hyphen;
         }
+        let whitespace_after = if end == SequenceEnd::Whitespace && length > 0 {
+            items.clone().nth(length)
+        } else {
+            None
+        };
         let length = length.max(1);
         let hyphen = hyphen_ending_sequence(
             context,
@@ -2721,7 +2741,7 @@ impl InlineLevelIterator {
             last_line_content(items.clone().take(length)),
             starts_line_content(items.clone().skip(length)),
         );
-        sequence_inline_extent(context, items.take(length)) + hyphen
+        sequence_inline_extent(context, items.take(length), whitespace_after) + hyphen
     }
 
     pub(crate) fn inline_size_following_text(
@@ -2746,7 +2766,8 @@ impl InlineLevelIterator {
         } else {
             CssPixels::default()
         };
-        sequence_inline_extent(context, items.take(length).chain(prefix.as_ref())) + hyphen - inline_extent([item])
+        sequence_inline_extent(context, items.take(length).chain(prefix.as_ref()), None) + hyphen
+            - inline_extent([item])
     }
 
     pub(crate) fn next_non_whitespace_text_allows_overflow_break(
@@ -2783,11 +2804,13 @@ pub(crate) fn whitespace_and_sequence_inline_size(
     if length == 0 && prefix.is_none() {
         return None;
     }
+    let whitespace_after = (end == SequenceEnd::Whitespace && length > 0).then(|| &items[length]);
     let size = sequence_inline_extent(
         context,
         std::iter::once(whitespace)
             .chain(&items[..length])
             .chain(prefix.as_ref()),
+        whitespace_after,
     );
     let hyphen = hyphen_ending_sequence(
         context,
@@ -2809,7 +2832,12 @@ pub(crate) fn sequence_inline_size(
     let (length, end) = sequence_length(context, prepared, items, stop_at_overflow_breakable_text, false);
     let first_grapheme_cluster = matches!(end, SequenceEnd::OverflowBreakableText | SequenceEnd::SoftWrapInText)
         .then(|| first_breakable_segment(context, prepared, &items[length], end));
-    let size = sequence_inline_extent(context, items[..length].iter().chain(first_grapheme_cluster.as_ref()));
+    let whitespace_after = (end == SequenceEnd::Whitespace && length > 0).then(|| &items[length]);
+    let size = sequence_inline_extent(
+        context,
+        items[..length].iter().chain(first_grapheme_cluster.as_ref()),
+        whitespace_after,
+    );
     let hyphen = hyphen_ending_sequence(
         context,
         prepared,
@@ -2874,6 +2902,8 @@ enum SequenceEnd {
     ForcedBreak,
     OverflowBreakableText,
     SoftWrapInText,
+    /// White space that wraps ends the sequence: The line can break after it.
+    Whitespace,
     Other,
 }
 
@@ -2889,6 +2919,13 @@ fn sequence_length<'item>(
         match item.type_ {
             ItemType::ForcedBreak => return (length, SequenceEnd::ForcedBreak),
             ItemType::BlockLevelBox => break,
+            // NB: The edges of an inline box that no item took, such as those after white space that was removed at
+            //     the end of the block, offer no soft wrap opportunity: They stay on the line with the content
+            //     before them.
+            ItemType::InlineEdge => {
+                length += 1;
+                continue;
+            }
             _ => {}
         }
         // NB: The sequence ends at its next soft wrap opportunity, such as the one after a hyphen.
@@ -2897,11 +2934,11 @@ fn sequence_length<'item>(
         }
         let style = context.style(context.style_source(item.node));
         if style.text_wrap_mode() == text_wrap_mode::WRAP {
-            if item.type_ != ItemType::Text || item.is_collapsible_whitespace {
+            if item.type_ != ItemType::Text {
                 break;
             }
-            if item.is_ascii_whitespace(context) {
-                break;
+            if item.is_collapsible_whitespace || item.is_ascii_whitespace(context) {
+                return (length, SequenceEnd::Whitespace);
             }
             if stop_at_overflow_breakable_text && context.overflow_break_applies(item.node) {
                 return (length, SequenceEnd::OverflowBreakableText);
@@ -2963,9 +3000,13 @@ fn first_breakable_segment(
     cluster
 }
 
+/// The inline extent of `items`, without the white space that collapses or hangs at their end. `whitespace_after` is the
+/// white space that ends the sequence, if any: The line breaks after it, so the edges of the inline boxes it starts or
+/// ends are on the line too, while the white space itself collapses or hangs there.
 fn sequence_inline_extent<'item>(
     context: &inline_formatting_context::InlineFormattingContext<'_>,
     items: impl Iterator<Item = &'item Item> + Clone,
+    whitespace_after: Option<&'item Item>,
 ) -> CssPixels {
     let mut last_content = None::<(usize, CssPixels)>;
     for (index, item) in items.clone().enumerate() {
@@ -2985,22 +3026,38 @@ fn sequence_inline_extent<'item>(
             last_content = Some((index, whitespace.inline_size));
         }
     }
+    // NB: Under white-space-collapse: break-spaces, white space takes up its room even at a line's end. White space that
+    //     collapses is never under break-spaces, so only preserved white space needs its style. And white space that
+    //     hangs and carries no box edges adds nothing, so it's left out of the measurement altogether.
+    let whitespace_after = whitespace_after.and_then(|item| {
+        let hangs = item.is_collapsible_whitespace
+            || context.style(context.style_source(item.node)).white_space_collapse()
+                != white_space_collapse::BREAK_SPACES;
+        (!hangs || item.carries_inline_box_edges())
+            .then(|| (item, if hangs { item.inline_size } else { CssPixels::default() }))
+    });
     let mut previous_placed_item = None::<&Item>;
-    inline_extent_without_removed_whitespace(items.enumerate().map(move |(index, item)| {
-        let collapses = item.is_collapsible_whitespace
-            && previous_placed_item
-                .is_some_and(|previous| previous.type_ == ItemType::Text && previous.ends_in_ascii_space(context));
-        if !collapses {
-            previous_placed_item = Some(item);
-        }
-        let removed_inline_size = match last_content {
-            _ if collapses => item.inline_size,
-            Some((last_index, _)) if index < last_index => CssPixels::default(),
-            Some((last_index, whitespace_inline_size)) if index == last_index => whitespace_inline_size,
-            _ => item.inline_size,
-        };
-        (item, removed_inline_size)
-    }))
+    inline_extent_without_removed_whitespace(
+        items
+            .enumerate()
+            .map(move |(index, item)| {
+                let collapses = item.is_collapsible_whitespace
+                    && previous_placed_item.is_some_and(|previous| {
+                        previous.type_ == ItemType::Text && previous.ends_in_ascii_space(context)
+                    });
+                if !collapses {
+                    previous_placed_item = Some(item);
+                }
+                let removed_inline_size = match last_content {
+                    _ if collapses => item.inline_size,
+                    Some((last_index, _)) if index < last_index => CssPixels::default(),
+                    Some((last_index, whitespace_inline_size)) if index == last_index => whitespace_inline_size,
+                    _ => item.inline_size,
+                };
+                (item, removed_inline_size)
+            })
+            .chain(whitespace_after),
+    )
 }
 
 pub(crate) fn inline_extent<'item>(items: impl IntoIterator<Item = &'item Item>) -> CssPixels {
