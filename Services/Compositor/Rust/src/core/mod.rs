@@ -788,16 +788,6 @@ impl CompositorCore {
                 self.resize_backing_stores_if_needed(context_id, now);
             }
             ContextTimer::SurplusStoreRetirement => self.retire_idle_surplus_backing_stores(context_id),
-            ContextTimer::LayerDrop => {
-                if let Some(presenting) = self.presenting_of(context_id) {
-                    let environment = self.environment(
-                        context_id,
-                        now,
-                        &libcompositing_rust::display_list::replay::NoCompositedContexts,
-                    );
-                    presenting.borrow_mut().layer_drop_timer_fired(&environment);
-                }
-            }
             _ => {
                 let caret_damage_rect = context.borrow_mut().timer_fired(timer, now);
                 if let Some(caret_damage_rect) = caret_damage_rect {

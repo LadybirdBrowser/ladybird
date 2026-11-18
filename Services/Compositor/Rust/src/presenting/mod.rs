@@ -730,10 +730,6 @@ impl ContextPresenting {
         Some((source, frame_size))
     }
 
-    pub fn layer_drop_timer_fired(&mut self, env: &PresentingEnvironment<'_>) {
-        self.layers.drop_timer_fired(env);
-    }
-
     // Returns the rect it painted, which grows to the whole frame when the frame has to hold media that the window
     // server was to show.
     fn paint_frame(
