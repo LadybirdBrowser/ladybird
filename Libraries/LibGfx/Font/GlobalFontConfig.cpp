@@ -40,7 +40,8 @@ FontHintingOptions GlobalFontConfig::hinting_for_font(FlyString const& family, f
         return options;
 
     auto family_name = family.bytes_as_string_view().to_byte_string();
-    FcPatternAddString(pattern, FC_FAMILY, reinterpret_cast<FcChar8 const*>(family_name.characters()));
+    auto const* font_family = reinterpret_cast<FcChar8 const*>(family_name.characters());
+    FcPatternAddString(pattern, FC_FAMILY, font_family);
     FcPatternAddDouble(pattern, FC_PIXEL_SIZE, pixel_size);
     FcPatternAddInteger(pattern, FC_WEIGHT, FcWeightFromOpenType(weight));
 
@@ -53,6 +54,13 @@ FontHintingOptions GlobalFontConfig::hinting_for_font(FlyString const& family, f
     // rules testing family or size apply without matching against the font set.
     FcPattern* font_pattern = FcPatternDuplicate(pattern);
     if (!font_pattern) {
+        FcPatternDestroy(pattern);
+        return options;
+    }
+    // Font-target rules apply to the selected family. Pattern substitution adds fallback families to the query.
+    FcPatternDel(font_pattern, FC_FAMILY);
+    if (!FcPatternAddString(font_pattern, FC_FAMILY, font_family)) {
+        FcPatternDestroy(font_pattern);
         FcPatternDestroy(pattern);
         return options;
     }
