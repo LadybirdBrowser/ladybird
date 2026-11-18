@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const base64url = value => {
+        let hex = value.toString(16);
+        if (hex.length % 2) {
+            hex = "0" + hex;
+        }
+        return btoa(String.fromCharCode(...hex.match(/../g).map(byte => parseInt(byte, 16))))
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/, "");
+    };
+
+    // A random odd 65536-bit number with no factor below 1000, so that testing it for primality takes minutes.
+    const hasSmallFactor = value => {
+        for (let divisor = 3n; divisor < 1000n; divisor += 2n) {
+            if (value % divisor === 0n) {
+                return true;
+            }
+        }
+        return false;
+    };
+    const largeFactor = () => {
+        for (;;) {
+            const bytes = crypto.getRandomValues(new Uint8Array(8192));
+            bytes[0] |= 0x80;
+            bytes[bytes.length - 1] |= 1;
+            const value = BigInt("0x" + Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join(""));
+            if (!hasSmallFactor(value)) {
+                return value;
+            }
+        }
+    };
+
+    promiseTest(async () => {
+        const p = largeFactor();
+        const q = largeFactor();
+        const jwk = {
+            kty: "RSA",
+            n: base64url(p * q),
+            e: "AQAB",
+            d: "AQ",
+            p: base64url(p),
+            q: base64url(q),
+            dp: "AQ",
+            dq: "AQ",
+            qi: "AQ",
+        };
+        try {
+            await crypto.subtle.importKey("jwk", jwk, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["decrypt"]);
+            println("imported");
+        } catch (error) {
+            println(error.name);
+        }
+    });
+</script>

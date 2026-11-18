@@ -462,27 +462,21 @@ impl Pkey {
     }
 }
 
-pub(crate) struct KeyChecks {
-    pub(crate) public: bool,
-    pub(crate) private: bool,
-    pub(crate) pairwise: bool,
-}
-
 /// Runs OpenSSL's public, private and pairwise checks of `key`, the last two only when asked for.
-pub(crate) fn check_key(key: &Pkey, private: bool, pairwise: bool) -> Result<KeyChecks, CryptoError> {
+pub(crate) fn check_key(key: &Pkey, private: bool, pairwise: bool) -> Result<bool, CryptoError> {
     let context = key.context()?;
+    // NB: OpenSSL's pairwise check of RSA factors is unbounded, so it must only run on a key whose modulus passed the
+    //     public check.
     // SAFETY: The context is live for each call.
-    let checks = unsafe {
-        KeyChecks {
-            public: sys::EVP_PKEY_public_check(context.as_ptr()) == 1,
-            private: !private || sys::EVP_PKEY_private_check(context.as_ptr()) == 1,
-            pairwise: !pairwise || sys::EVP_PKEY_pairwise_check(context.as_ptr()) == 1,
-        }
+    let valid = unsafe {
+        sys::EVP_PKEY_public_check(context.as_ptr()) == 1
+            && (!private || sys::EVP_PKEY_private_check(context.as_ptr()) == 1)
+            && (!pairwise || sys::EVP_PKEY_pairwise_check(context.as_ptr()) == 1)
     };
     // NB: A failed check leaves its reasons queued.
     // SAFETY: Clearing the error queue takes no arguments.
     unsafe { sys::ERR_clear_error() };
-    Ok(checks)
+    Ok(valid)
 }
 
 /// Signs `message` with `key`, hashing it with the digest `digest_name` unless the algorithm takes none. The parameters
