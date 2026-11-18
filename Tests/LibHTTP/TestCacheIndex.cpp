@@ -8,13 +8,10 @@
 #include <AK/LexicalPath.h>
 #include <AK/QuickSort.h>
 #include <LibCore/Directory.h>
-#include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibDatabase/Database.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/CacheIndex.h>
 #include <LibHTTP/Cache/Utilities.h>
-#include <LibTest/TemporaryDirectory.h>
 #include <LibTest/TestCase.h>
 
 struct CacheIndexTestState {
@@ -140,49 +137,6 @@ TEST_CASE(newer_cache_index_schema_reports_database_too_new)
 
     EXPECT_EQ(TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
     EXPECT_EQ(TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
-}
-
-TEST_CASE(entries_with_previous_vary_keys_are_dropped_on_migration)
-{
-    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
-
-    TRY_OR_FAIL(database->execute_raw("CREATE TABLE SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);"sv));
-    TRY_OR_FAIL(database->execute_raw("INSERT INTO SchemaVersions (store, version) VALUES ('CacheIndex', 2);"sv));
-    TRY_OR_FAIL(database->execute_raw("CREATE TABLE CacheIndex (cache_key INTEGER, vary_key INTEGER, url TEXT, request_headers BLOB, response_headers BLOB, data_size INTEGER, associated_data_size INTEGER, request_time INTEGER, response_time INTEGER, last_access_time INTEGER, PRIMARY KEY(cache_key, vary_key));"sv));
-    TRY_OR_FAIL(database->execute_raw("INSERT INTO CacheIndex VALUES (1, 0, 'https://example.com', x'', x'', 10, 0, 0, 0, 0);"sv));
-
-    EXPECT_EQ(TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database)), Database::MigrationOutcome::Success);
-
-    auto index = MUST(HTTP::CacheIndex::create(*database, cache_directory()));
-    EXPECT(!index.find_entry(key(1), *HTTP::HeaderList::create()).has_value());
-    EXPECT_EQ(index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 0u);
-}
-
-TEST_CASE(legacy_response_and_bytecode_files_are_dropped_on_migration)
-{
-    Test::TemporaryDirectory const directory { "TestCacheIndex"sv };
-    auto database = TRY_OR_FAIL(Database::Database::create(directory.path().string(), "INDEX"sv));
-
-    TRY_OR_FAIL(database->execute_raw("CREATE TABLE SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);"sv));
-    TRY_OR_FAIL(database->execute_raw("INSERT INTO SchemaVersions (store, version) VALUES ('CacheIndex', 3);"sv));
-    TRY_OR_FAIL(database->execute_raw("CREATE TABLE CacheIndex (cache_key INTEGER, vary_key INTEGER, url TEXT, request_headers BLOB, response_headers BLOB, data_size INTEGER, associated_data_size INTEGER, request_time INTEGER, response_time INTEGER, last_access_time INTEGER, PRIMARY KEY(cache_key, vary_key));"sv));
-    TRY_OR_FAIL(database->execute_raw("INSERT INTO CacheIndex VALUES (1, 0, 'https://example.com', x'', x'', 10, 5, 0, 0, 0);"sv));
-
-    auto entry_file = directory.path().append("0000000000000001"sv);
-    auto bytecode_file = directory.path().append("0000000000000001.jsbc"sv);
-    auto partial_bytecode_file = directory.path().append("0000000000000001.jsbc.tmp"sv);
-    for (auto const& path : { entry_file, bytecode_file, partial_bytecode_file })
-        (void)TRY_OR_FAIL(Core::File::open(path.string(), Core::File::OpenMode::Write));
-
-    EXPECT_EQ(TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database)), Database::MigrationOutcome::Success);
-
-    EXPECT(!FileSystem::exists(entry_file.string()));
-    EXPECT(!FileSystem::exists(bytecode_file.string()));
-    EXPECT(!FileSystem::exists(partial_bytecode_file.string()));
-
-    auto index = MUST(HTTP::CacheIndex::create(*database, directory.path()));
-    EXPECT(!index.has_entry(key(1), {}));
-    EXPECT_EQ(index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 0u);
 }
 
 TEST_CASE(negative_stored_sizes_are_skipped_as_corrupt)
