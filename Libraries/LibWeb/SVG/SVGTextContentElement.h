@@ -28,6 +28,14 @@ public:
 
     GC::Ref<SVGAnimatedEnumeration> length_adjust();
 
+    // What the textLength and lengthAdjust attributes ask of layout: The length to fit the text to, where the element
+    // gives a valid one, and whether the glyphs stretch along with the spacing between them.
+    struct ParsedTextLength {
+        Optional<SVGLengthValue> text_length;
+        bool adjusts_glyphs { false };
+    };
+    ParsedTextLength parsed_text_length() const;
+
     // https://svgwg.org/svg2-draft/text.html#__svg__SVGTextContentElement__textLength
     // The initial value of the ‘textLength’ content attribute is defined to equal the user-agent's calculated length
     // for the element.
@@ -43,6 +51,8 @@ public:
 
 protected:
     SVGTextContentElement(DOM::Document&, DOM::QualifiedName);
+
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
 private:
     virtual bool is_svg_text_content_element() const final { return true; }

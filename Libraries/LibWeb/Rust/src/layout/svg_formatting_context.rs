@@ -51,8 +51,9 @@ struct ShapedSvgText {
 }
 
 /// Appends the glyph cell of each code unit of one shaped run, in code unit order. A typographic
-/// character's cell spans its advance; every code unit of it carries that cell, and the first one
-/// is marked as the one that starts it.
+/// character's cell spans its advance, less the `spacing_after_each_character` the run was shaped
+/// with; every code unit of it carries that cell, and the first one is marked as the one that starts
+/// it.
 /// https://svgwg.org/svg2-draft/text.html#TermTypographicCharacterUnit
 /// A unit of a writing system - such as a Latin alphabetic letter (including its diacritics),
 /// Hangul syllable, Chinese ideographic character, Myanmar syllable cluster - that is indivisible
@@ -66,6 +67,7 @@ fn append_svg_text_character_cells(
     run_end_x: f32,
     top: f32,
     height: f32,
+    spacing_after_each_character: f32,
 ) {
     let placed: Vec<_> = glyphs.placed().collect();
     let mut covered = 0usize;
@@ -86,7 +88,7 @@ fn append_svg_text_character_cells(
         let cell = FfiSvgTextCharacterCell {
             x: first.x,
             y: top,
-            width: end_x - first.x,
+            width: end_x - first.x - spacing_after_each_character,
             height,
             starts_typographic_character: true,
         };
@@ -227,6 +229,10 @@ pub struct FfiSvgAttributeFacts {
     pub text_y: FfiSvgLengthValue,
     pub text_dx: FfiSvgLengthValue,
     pub text_dy: FfiSvgLengthValue,
+    /// The `textLength` of a `<text>`, where it gives a valid one, and whether its `lengthAdjust` is
+    /// `spacingAndGlyphs`.
+    pub text_length: FfiSvgLengthValue,
+    pub text_length_adjusts_glyphs: bool,
     /// The element this one's `href` names, as the style mirror's id index answers for it: the
     /// URL's decoded fragment, interned as the atom an element's id is indexed under. Zero when
     /// the element names nothing, or names a URL with no fragment.
@@ -558,6 +564,38 @@ impl SvgTextPaintParts {
     }
 }
 
+/// How the 'textLength' of a <text> adjusts its text to that length.
+/// https://svgwg.org/svg2-draft/text.html#TextElementLengthAdjustAttribute
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+enum SvgTextLengthAdjustment {
+    #[default]
+    None,
+    /// spacing: Indicates that only the advance values are adjusted. The glyphs themselves are not stretched or
+    /// compressed.
+    /// NB: Holds the space to add after each typographic character.
+    Spacing(f32),
+    /// spacingAndGlyphs: Indicates that the advance values are adjusted and the glyphs themselves stretched or
+    /// compressed in one axis (i.e., a direction parallel to the inline-base direction).
+    /// NB: Holds the factor to scale by along that axis.
+    SpacingAndGlyphs(f32),
+}
+
+impl SvgTextLengthAdjustment {
+    fn spacing(self) -> f32 {
+        match self {
+            Self::Spacing(spacing) => spacing,
+            _ => 0.0,
+        }
+    }
+
+    fn glyph_scale(self) -> f32 {
+        match self {
+            Self::SpacingAndGlyphs(scale) => scale,
+            _ => 1.0,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct SvgTextChunkMeasurement {
     advance: f32,
@@ -686,6 +724,8 @@ pub(super) struct SvgFormattingContext<'pass> {
     /// sets it once the root is definite. A nested context takes it from the context that creates it.
     percentage_block_insets_of_run_root_children_have_definite_basis: bool,
     current_text_position: FfiFloatPoint,
+    /// How the <text> element being laid out adjusts its text to its 'textLength'.
+    text_length_adjustment: SvgTextLengthAdjustment,
     /// The characters each text node of the text content elements laid out so far renders.
     processed_svg_text: RefCell<std::collections::HashMap<Node, std::sync::Arc<[u16]>>>,
     /// The glyph cells of the text content element laid out last: those of its whole subtree, in document order.
@@ -727,6 +767,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             viewport_is_committed_viewport: false,
             percentage_block_insets_of_run_root_children_have_definite_basis,
             current_text_position: FfiFloatPoint::default(),
+            text_length_adjustment: SvgTextLengthAdjustment::None,
             processed_svg_text: RefCell::new(std::collections::HashMap::new()),
             last_text_subtree_cells: None,
             root_payload: RefCell::new(fragment_tree::PendingPayload::default()),
@@ -1394,14 +1435,22 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     /// Calls `visit` with each text node below `root` that renders, in document order: The text nodes of `root`, and
     /// of the text content elements below it. Text in any other element inside a <text> isn't rendered.
-    fn for_each_svg_text_node(&self, root: Node, mut visit: impl FnMut(Node)) {
+    fn for_each_svg_text_node(&self, root: Node, visit: impl FnMut(Node)) {
+        self.for_each_svg_text_node_in(root, true, visit);
+    }
+
+    /// As for_each_svg_text_node(), but leaves out the text on a path below `root` where `include_text_on_paths` isn't
+    /// set.
+    fn for_each_svg_text_node_in(&self, root: Node, include_text_on_paths: bool, mut visit: impl FnMut(Node)) {
         let mut current = root;
         loop {
             let kind = self.node_kind(current);
             if node_facts::kind_is_text(kind) {
                 visit(current);
             }
-            if matches!(kind, NodeKind::SVGTextBox | NodeKind::SVGTextPathBox) {
+            let descend = kind == NodeKind::SVGTextBox
+                || (kind == NodeKind::SVGTextPathBox && (include_text_on_paths || current == root));
+            if descend {
                 let child = self.first_child(current);
                 if !child.is_invalid() {
                     current = child;
@@ -1586,11 +1635,28 @@ impl<'pass> SvgFormattingContext<'pass> {
             })
     }
 
+    /// The <text> element the given text content element is in, or is.
+    fn svg_text_element_of(&self, text_box: Node) -> Node {
+        let mut text_element = text_box;
+        while !self.svg_attributes(text_element).is_text_element {
+            let parent = self.parent(text_element);
+            if parent.is_invalid() || self.node_kind(parent) != NodeKind::SVGTextBox {
+                break;
+            }
+            text_element = parent;
+        }
+        text_element
+    }
+
     fn apply_svg_text_positioning(&mut self, text_box: Node, attributes: FfiSvgAttributeFacts) {
         let viewport_width = self.viewport_width;
         let viewport_height = self.viewport_height;
+        // NB: Text whose glyphs 'textLength' scales is laid out as it is without the scale, and scaled afterward. So,
+        //     an 'x' is taken to where it lands once scaled.
+        let glyph_scale = self.text_length_adjustment.glyph_scale();
         if attributes.text_x.kind != SVG_LENGTH_KIND_NONE {
-            self.current_text_position.x = self.resolve_svg_text_length(text_box, attributes.text_x, viewport_width);
+            self.current_text_position.x =
+                self.resolve_svg_text_length(text_box, attributes.text_x, viewport_width) / glyph_scale;
         }
         if attributes.text_y.kind != SVG_LENGTH_KIND_NONE {
             self.current_text_position.y = self.resolve_svg_text_length(text_box, attributes.text_y, viewport_height);
@@ -1607,7 +1673,13 @@ impl<'pass> SvgFormattingContext<'pass> {
         let shifts_along_x = has_dx && shifts(|attributes| attributes.text_dx);
         let shifts_along_y = has_dy && shifts(|attributes| attributes.text_dy);
         if shifts_along_x {
-            self.current_text_position.x += self.resolve_svg_text_length(text_box, attributes.text_dx, viewport_width);
+            let dx = self.resolve_svg_text_length(text_box, attributes.text_dx, viewport_width);
+            // NB: A 'dx' between two characters is part of the length 'textLength' scales. One that moves where the
+            //     text or a text chunk starts isn't, so it's taken to where it lands once scaled, as an 'x' is.
+            let is_scaled = glyph_scale != 1.0
+                && attributes.text_x.kind == SVG_LENGTH_KIND_NONE
+                && first_text_node != self.first_rendered_svg_text_node(self.svg_text_element_of(text_box));
+            self.current_text_position.x += if is_scaled { dx } else { dx / glyph_scale };
         }
         if shifts_along_y {
             self.current_text_position.y += self.resolve_svg_text_length(text_box, attributes.text_dy, viewport_height);
@@ -1691,14 +1763,22 @@ impl<'pass> SvgFormattingContext<'pass> {
     /// text the cascade resolves to the same font, each starting where the last one ended. Also
     /// returns the union of the runs' glyph cells, each run's measured with its own font, and the
     /// glyph cell of every code unit of the text.
-    fn shape_svg_text(&self, style: StyleValues<'_>, text: &[u16], baseline_start: FfiFloatPoint) -> ShapedSvgText {
+    fn shape_svg_text(
+        &self,
+        style: StyleValues<'_>,
+        text: &[u16],
+        baseline_start: FfiFloatPoint,
+        text_length_spacing: f32,
+    ) -> ShapedSvgText {
         let mut shaped_text = ShapedSvgText {
             runs: Vec::new(),
             advance: 0.0,
             glyph_cells: SvgCssPixelRect::default(),
             character_cells: Vec::with_capacity(text.len()),
         };
-        let letter_spacing = style.letter_spacing().to_double() as f32;
+        // NB: The space 'textLength' adds after each typographic character is laid out as letter spacing is, but isn't
+        //     part of the character's cell.
+        let letter_spacing = style.letter_spacing().to_double() as f32 + text_length_spacing;
         let word_spacing = style.word_spacing().to_double() as f32;
         Self::for_each_svg_font_run(style, text, |font, run_text| {
             let run_start_x = baseline_start.x + shaped_text.advance;
@@ -1723,7 +1803,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             shaped_text.glyph_cells.unite(float_rect_to_css_pixels(FloatRect::new(
                 run_start_x,
                 cell_top,
-                shaped.width(),
+                shaped.width() - text_length_spacing,
                 cell_height,
             )));
             append_svg_text_character_cells(
@@ -1733,6 +1813,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 run_start_x + shaped.width(),
                 cell_top,
                 cell_height,
+                text_length_spacing,
             );
             shaped_text.advance += shaped.width();
             let mut glyphs = shaped.into_glyphs();
@@ -1751,7 +1832,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn svg_text_run_advance(&self, text_box: Node, text: &[u16]) -> f32 {
         let mut advance = 0.0f32;
         let style = self.style(text_box);
-        let letter_spacing = style.letter_spacing().to_double() as f32;
+        let letter_spacing = style.letter_spacing().to_double() as f32 + self.text_length_adjustment.spacing();
         let word_spacing = style.word_spacing().to_double() as f32;
         Self::for_each_svg_font_run(style, text, |font, run_text| {
             advance += libgfx_rust::text_layout::shape_text(
@@ -1783,6 +1864,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut found_chunk_start = false;
         let mut found_first_rendered_text = false;
         let mut found_first_rendered_text_node = false;
+        let mut chunk_ends_the_text = false;
         let mut current = subtree_root;
         'walk: loop {
             let kind = self.node_kind(current);
@@ -1829,6 +1911,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
             loop {
                 if current == subtree_root {
+                    chunk_ends_the_text = true;
                     break 'walk;
                 }
                 let sibling = self.next_sibling(current);
@@ -1838,6 +1921,10 @@ impl<'pass> SvgFormattingContext<'pass> {
                 }
                 current = self.parent(current);
             }
+        }
+        // NB: 'textLength' adds no space after the last character of the text.
+        if chunk_ends_the_text && found_first_rendered_text {
+            measurement.advance -= self.text_length_adjustment.spacing();
         }
         measurement
     }
@@ -1859,6 +1946,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         //     without 'x'/'y' continues at the current text position.
         if attributes.is_text_element {
             self.current_text_position = FfiFloatPoint::default();
+            self.text_length_adjustment = self.svg_text_length_adjustment(text_box, attributes);
         }
         // https://svgwg.org/svg2-draft/text.html#TextElementXAttribute
         // If a comma- or space-separated list of n <length>s is provided, then the values represent new absolute X (Y)
@@ -1895,6 +1983,14 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
 
         let dominant_baseline_offset = self.svg_dominant_baseline_offset(self.style(text_box));
+        let glyph_scale = self.text_length_adjustment.glyph_scale();
+        let scale_glyphs = |path: libgfx_rust::path::Path| {
+            if glyph_scale == 1.0 {
+                path
+            } else {
+                path.copy_transformed([glyph_scale, 0.0, 0.0, 1.0, 0.0, 0.0])
+            }
+        };
         let mut contents = SvgTextBoxContents::default();
         // Text that follows a child element paints after that child, so it's kept apart from the text before it.
         let mut paint_parts = SvgTextPaintParts::default();
@@ -1909,7 +2005,25 @@ impl<'pass> SvgFormattingContext<'pass> {
                     x: self.current_text_position.x,
                     y: self.current_text_position.y + dominant_baseline_offset,
                 };
-                let shaped = self.shape_svg_text(self.style(text_box), &text, text_offset);
+                let mut shaped = self.shape_svg_text(
+                    self.style(text_box),
+                    &text,
+                    text_offset,
+                    self.text_length_adjustment.spacing(),
+                );
+                if glyph_scale != 1.0 {
+                    let glyph_cells = shaped.glyph_cells.to_float_rect();
+                    shaped.glyph_cells = float_rect_to_css_pixels(FloatRect::new(
+                        glyph_cells.x * glyph_scale,
+                        glyph_cells.y,
+                        glyph_cells.width * glyph_scale,
+                        glyph_cells.height,
+                    ));
+                    for cell in &mut shaped.character_cells {
+                        cell.x *= glyph_scale;
+                        cell.width *= glyph_scale;
+                    }
+                }
 
                 // https://svgwg.org/svg2-draft/text.html#TextLayoutIntroduction
                 // After each glyph is placed, the current text position is advanced by the glyph's advance
@@ -1946,13 +2060,83 @@ impl<'pass> SvgFormattingContext<'pass> {
                 break;
             }
             glyph_outlines.append_path(&path);
-            segments.push(fragment_tree::SvgTextSegment { after_child, path });
+            segments.push(fragment_tree::SvgTextSegment {
+                after_child,
+                path: scale_glyphs(path),
+            });
         }
-        contents.path = glyph_outlines;
+        contents.path = scale_glyphs(glyph_outlines);
         if !paints_as_one_path {
             contents.segments = Some(segments);
         }
+        if attributes.is_text_element {
+            self.text_length_adjustment = SvgTextLengthAdjustment::None;
+        }
         contents
+    }
+
+    /// How the given <text> element adjusts its text to its 'textLength'.
+    /// https://svgwg.org/svg2-draft/text.html#TextElementTextLengthAttribute
+    /// The author's computation of the total sum of all of the advance values that correspond to character data
+    /// within this element, including the advance value on the glyph (horizontal or vertical), the effect of
+    /// properties letter-spacing and word-spacing and adjustments due to attributes 'dx' and 'dy' on this 'text' or
+    /// 'tspan' element or any descendants. This value is used to calibrate the user agent's own calculations with
+    /// that of the author.
+    /// NB: A 'dx' on the text's first character moves where the text starts, so it's no part of the length.
+    /// AD-HOC: Text on a path isn't adjusted, since it's laid out independently.
+    fn svg_text_length_adjustment(&self, text_box: Node, attributes: FfiSvgAttributeFacts) -> SvgTextLengthAdjustment {
+        if attributes.text_length.kind == SVG_LENGTH_KIND_NONE {
+            return SvgTextLengthAdjustment::None;
+        }
+        let text_length = self.resolve_svg_text_length(text_box, attributes.text_length, self.viewport_width);
+        if text_length <= 0.0 {
+            return SvgTextLengthAdjustment::None;
+        }
+        // NB: Text with space between its characters is shaped without optional ligatures, which changes how long it
+        //     is and how many typographic characters it has. So, text that's about to get that space is measured the way
+        //     it will be shaped: with a space too small to tell.
+        let spacing_while_measuring = if attributes.text_length_adjusts_glyphs {
+            0.0
+        } else {
+            f32::MIN_POSITIVE
+        };
+        let mut natural_length = 0.0f32;
+        let mut typographic_character_count = 0usize;
+        let mut found_first_rendered_text_node = false;
+        self.for_each_svg_text_node_in(text_box, false, |node| {
+            if !self.processed_svg_text(node).is_empty() {
+                if found_first_rendered_text_node {
+                    natural_length += self.svg_text_dx_before(node);
+                }
+                found_first_rendered_text_node = true;
+            }
+            let Some(text) = self.svg_text_run_starting_at(node) else {
+                return;
+            };
+            let shaped = self.shape_svg_text(
+                self.style(self.parent(node)),
+                &text,
+                FfiFloatPoint::default(),
+                spacing_while_measuring,
+            );
+            natural_length += shaped.advance;
+            typographic_character_count += shaped
+                .character_cells
+                .iter()
+                .filter(|cell| cell.starts_typographic_character)
+                .count();
+        });
+        if attributes.text_length_adjusts_glyphs {
+            if natural_length <= 0.0 {
+                return SvgTextLengthAdjustment::None;
+            }
+            return SvgTextLengthAdjustment::SpacingAndGlyphs(text_length / natural_length);
+        }
+        // NB: The space is added between the typographic characters, so there's none to add to a single one.
+        if typographic_character_count < 2 {
+            return SvgTextLengthAdjustment::None;
+        }
+        SvgTextLengthAdjustment::Spacing((text_length - natural_length) / (typographic_character_count - 1) as f32)
     }
 
     /// The glyph outlines a <textPath> renders: its whole subtree's text, shaped from the origin
@@ -1969,7 +2153,8 @@ impl<'pass> SvgFormattingContext<'pass> {
 
         let style = self.style(text_path_box);
         let text = self.rendered_svg_text_contents(text_path_box);
-        let shaped = self.shape_svg_text(style, &text, FfiFloatPoint::default());
+        // AD-HOC: Text on a path is laid out independently, so the 'textLength' of the <text> it's in doesn't adjust it.
+        let shaped = self.shape_svg_text(style, &text, FfiFloatPoint::default(), 0.0);
 
         // https://svgwg.org/svg2-draft/text.html#TextPathElementStartOffsetAttribute
         let mut start_offset = self

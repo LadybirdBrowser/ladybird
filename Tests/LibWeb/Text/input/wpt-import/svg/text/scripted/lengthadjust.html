@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>lengthAdjust content/IDL attribute</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementLengthAdjustAttribute">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextContentElement__getComputedTextLength">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<svg>
+ <text x="0" y="215" textLength="200">Stretched text</text>
+ <text x="0" y="215" textLength="200">Stretched text</text>
+</svg>
+
+<script>
+test(() => {
+  const text = document.querySelectorAll('text')[0];
+  assert_equals(text.getAttribute('lengthAdjust'), null);
+  assert_equals(text.lengthAdjust.baseVal, SVGTextContentElement.LENGTHADJUST_SPACING);
+  assert_equals(text.textLength.baseVal.value, 200);
+  let lastLength = text.getComputedTextLength();
+  assert_between_exclusive(lastLength, 0, 200);
+
+  text.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+  assert_equals(text.lengthAdjust.baseVal, SVGTextContentElement.LENGTHADJUST_SPACINGANDGLYPHS);
+  assert_equals(text.textLength.baseVal.value, 200);
+  assert_greater_than(text.getComputedTextLength(), lastLength);
+}, 'Tests dynamic updates of the "lengthAdjust" content attribute');
+
+test(() => {
+  const text = document.querySelectorAll('text')[1];
+  assert_equals(text.getAttribute('lengthAdjust'), null);
+  assert_equals(text.lengthAdjust.baseVal, SVGTextContentElement.LENGTHADJUST_SPACING);
+  assert_equals(text.textLength.baseVal.value, 200);
+  let lastLength = text.getComputedTextLength();
+  assert_between_exclusive(lastLength, 0, 200);
+
+  text.lengthAdjust.baseVal = SVGTextContentElement.LENGTHADJUST_SPACINGANDGLYPHS;
+  assert_equals(text.getAttribute('lengthAdjust'), 'spacingAndGlyphs');
+  assert_equals(text.lengthAdjust.baseVal, SVGTextContentElement.LENGTHADJUST_SPACINGANDGLYPHS);
+  assert_equals(text.textLength.baseVal.value, 200);
+  assert_greater_than(text.getComputedTextLength(), lastLength);
+}, 'Tests dynamic updates of the "lengthAdjust" IDL attribute');
+</script>

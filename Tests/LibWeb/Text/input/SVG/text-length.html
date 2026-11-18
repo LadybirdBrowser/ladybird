@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="900" height="100"></svg>
+<script>
+    const round = value => Math.round(value * 100) / 100;
+    const describe = text => {
+        const cells = [];
+        for (let index = 0; index < text.getNumberOfChars(); ++index) {
+            const cell = text.getExtentOfChar(index);
+            cells.push(`${round(cell.x)}+${round(cell.width)}`);
+        }
+        const box = text.getBBox();
+        return `${cells.join(" ")}; length ${round(text.getComputedTextLength())}; box ${round(box.x)},${round(box.y)} ${round(box.width)}x${round(box.height)}`;
+    };
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const svg = document.querySelector("svg");
+
+        // Each glyph of Ahem is 20px wide here, so "ABCD" is 80px long.
+        const cases = [
+            ["longer", `<text x="10" y="30" textLength="200">ABCD</text>`],
+            ["longer, glyphs too", `<text x="10" y="30" textLength="200" lengthAdjust="spacingAndGlyphs">ABCD</text>`],
+            ["shorter", `<text x="10" y="30" textLength="40">ABCD</text>`],
+            ["shorter, glyphs too", `<text x="10" y="30" textLength="40" lengthAdjust="spacingAndGlyphs">ABCD</text>`],
+            ["zero", `<text x="10" y="30" textLength="0">ABCD</text>`],
+            ["negative", `<text x="10" y="30" textLength="-50">ABCD</text>`],
+            ["not a length", `<text x="10" y="30" textLength="bogus">ABCD</text>`],
+            ["percentage of the 900px-wide viewport", `<text x="10" y="30" textLength="50%">ABCD</text>`],
+            ["em", `<text x="10" y="30" textLength="10em">ABCD</text>`],
+            ["unknown lengthAdjust", `<text x="10" y="30" textLength="200" lengthAdjust="bogus">ABCD</text>`],
+            ["one character", `<text x="10" y="30" textLength="200">A</text>`],
+            ["one character, glyphs too", `<text x="10" y="30" textLength="200" lengthAdjust="spacingAndGlyphs">A</text>`],
+            ["no characters", `<text x="10" y="30" textLength="200"></text>`],
+            ["anchored in the middle", `<text x="300" y="30" textLength="200" text-anchor="middle">ABCD</text>`],
+            ["anchored at the end", `<text x="300" y="30" textLength="200" text-anchor="end">ABCD</text>`],
+            ["anchored in the middle, glyphs too", `<text x="300" y="30" textLength="200" text-anchor="middle" lengthAdjust="spacingAndGlyphs">ABCD</text>`],
+            ["across a <tspan>", `<text x="10" y="30" textLength="200">AB<tspan>CD</tspan></text>`],
+            ["across two chunks", `<text x="10" y="30" textLength="300">AB<tspan x="200">CD</tspan>EF</text>`],
+            ["across two chunks, glyphs too", `<text x="10" y="30" textLength="300" lengthAdjust="spacingAndGlyphs">AB<tspan x="200">CD</tspan>EF</text>`],
+            ["with letter-spacing", `<text x="10" y="30" textLength="200" letter-spacing="10">ABCD</text>`],
+            ["with spaces", `<text x="10" y="30" textLength="200">A B C</text>`],
+            ["two font sizes, glyphs too", `<text x="10" y="30" style="font-size: 40px" textLength="200" lengthAdjust="spacingAndGlyphs">AB<tspan style="font-size: 20px">CD</tspan></text>`],
+            ["with a dx inside", `<text x="10" y="30" textLength="200">AB<tspan dx="20">CD</tspan></text>`],
+            ["with a dx inside, glyphs too", `<text x="10" y="30" textLength="200" lengthAdjust="spacingAndGlyphs">AB<tspan dx="20">CD</tspan></text>`],
+            ["with a negative dx inside, glyphs too", `<text x="10" y="30" textLength="200" lengthAdjust="spacingAndGlyphs">AB<tspan dx="-30">CD</tspan></text>`],
+            ["with a dx on the first character", `<text x="10" y="30" textLength="200"><tspan dx="20">AB</tspan>CD</text>`],
+            ["with a dx on the first character, glyphs too", `<text x="10" y="30" textLength="200" lengthAdjust="spacingAndGlyphs"><tspan dx="20">AB</tspan>CD</text>`],
+            ["with a dx at the start of a chunk, glyphs too", `<text x="10" y="30" textLength="200" lengthAdjust="spacingAndGlyphs">AB<tspan x="300" dx="20">CD</tspan></text>`],
+            ["with a dx in nested elements, glyphs too", `<text x="10" y="30" textLength="200" lengthAdjust="spacingAndGlyphs">AB<tspan dx="100"><tspan dx="20">CD</tspan></tspan></text>`],
+            ["on a <tspan>", `<text x="10" y="30">AB<tspan textLength="100">CD</tspan>EF</text>`],
+            ["with text on a path", `<path id="path" d="M100 50H500" /><text x="10" y="30" textLength="80">AB<textPath href="#path">CD</textPath></text>`],
+        ];
+        for (const [name, markup] of cases) {
+            svg.innerHTML = markup;
+            println(`${name}: ${describe(svg.querySelector("text"))}`);
+        }
+
+        svg.innerHTML = `<text x="10" y="30">ABCD</text>`;
+        const text = svg.firstChild;
+        text.setAttribute("textLength", "200");
+        println(`textLength set: ${describe(text)}`);
+        text.setAttribute("lengthAdjust", "spacingAndGlyphs");
+        println(`lengthAdjust set: ${describe(text)}`);
+        text.textLength.baseVal.value = 140;
+        println(`textLength.baseVal.value set: ${describe(text)}`);
+        text.lengthAdjust.baseVal = SVGTextContentElement.LENGTHADJUST_SPACING;
+        println(`lengthAdjust.baseVal set: ${describe(text)}`);
+        text.removeAttribute("textLength");
+        println(`textLength removed: ${describe(text)}`);
+        done();
+    });
+</script>

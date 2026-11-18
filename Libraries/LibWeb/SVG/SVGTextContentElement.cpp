@@ -166,6 +166,41 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGTextContentElement::get_exten
     return Geometry::DOMRect::create(rect);
 }
 
+void SVGTextContentElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    // The attributes adjust the advances of the element's characters, so the text has to be laid out with their new
+    // values.
+    if (old_value != value && name.is_one_of(AttributeNames::textLength, AttributeNames::lengthAdjust))
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
+}
+
+SVGTextContentElement::ParsedTextLength SVGTextContentElement::parsed_text_length() const
+{
+    CSS::Parser::ParsingParams const parsing_params { document() };
+    ParsedTextLength parsed;
+
+    // https://svgwg.org/svg2-draft/text.html#TextElementTextLengthAttribute
+    // A negative value is an error (see Error processing).
+    auto raw_text_length = get_attribute_value(AttributeNames::textLength);
+    if (auto style_value = parse_css_type(parsing_params, raw_text_length, CSS::ValueType::LengthPercentage)) {
+        if (auto value = SVGLengthValue::from_style_value(*style_value); value.has_value() && value->kind() != SVGLengthValue::Kind::Number && value->value() >= 0)
+            parsed.text_length = value;
+    }
+    if (!parsed.text_length.has_value()) {
+        if (auto style_value = parse_css_type(parsing_params, raw_text_length, CSS::ValueType::Number)) {
+            if (auto value = SVGLengthValue::from_style_value(*style_value); value.has_value() && value->kind() == SVGLengthValue::Kind::Number && value->value() >= 0)
+                parsed.text_length = value;
+        }
+    }
+
+    // https://svgwg.org/svg2-draft/text.html#TextElementLengthAdjustAttribute
+    // lengthAdjust = "spacing | spacingAndGlyphs"
+    parsed.adjusts_glyphs = get_attribute_value(AttributeNames::lengthAdjust) == "spacingAndGlyphs"sv;
+    return parsed;
+}
+
 // https://svgwg.org/svg2-draft/text.html#__svg__SVGTextContentElement__lengthAdjust
 GC::Ref<SVGAnimatedEnumeration> SVGTextContentElement::length_adjust()
 {

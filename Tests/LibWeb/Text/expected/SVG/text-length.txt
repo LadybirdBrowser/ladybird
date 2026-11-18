@@ -1,0 +1,36 @@
+longer: 10+20 70+20 130+20 190+20; length 80; box 10,14 200x20
+longer, glyphs too: 10+50 60+50 110+50 160+50; length 200; box 10,14 200x20
+shorter: 10+20 16.67+20 23.33+20 30+20; length 80; box 10,14 40x20
+shorter, glyphs too: 10+10 20+10 30+10 40+10; length 40; box 10,14 40x20
+zero: 10+20 30+20 50+20 70+20; length 80; box 10,14 80x20
+negative: 10+20 30+20 50+20 70+20; length 80; box 10,14 80x20
+not a length: 10+20 30+20 50+20 70+20; length 80; box 10,14 80x20
+percentage of the 900px-wide viewport: 10+20 153.33+20 296.67+20 440+20; length 80; box 10,14 450x20
+em: 10+20 70+20 130+20 190+20; length 80; box 10,14 200x20
+unknown lengthAdjust: 10+20 70+20 130+20 190+20; length 80; box 10,14 200x20
+one character: 10+20; length 20; box 10,14 20x20
+one character, glyphs too: 10+200; length 200; box 10,14 200x20
+no characters: ; length 0; box 0,0 0x0
+anchored in the middle: 200+20 260+20 320+20 380+20; length 80; box 200,14 200x20
+anchored at the end: 100+20 160+20 220+20 280+20; length 80; box 100,14 200x20
+anchored in the middle, glyphs too: 200+50 250+50 300+50 350+50; length 200; box 200,14 200x20
+across a <tspan>: 10+20 70+20 130+20 190+20; length 80; box 10,14 200x20
+across two chunks: 10+20 66+20 200+20 256+20 312+20 368+20; length 120; box 10,14 378x20
+across two chunks, glyphs too: 10+50 60+50 200+50 250+50 300+50 350+50; length 300; box 10,14 390x20
+with letter-spacing: 10+30 66.67+30 123.33+30 180+30; length 120; box 10,14 200x20
+with spaces: 10+20 55+20 100+20 145+20 190+20; length 100; box 10,14 200x20
+two font sizes, glyphs too: 10+66.67 76.67+66.67 143.33+33.33 176.67+33.33; length 200; box 10,-2 200x40
+with a dx inside: 10+20 63.33+20 136.67+20 190+20; length 80; box 10,14 200x20
+with a dx inside, glyphs too: 10+40 50+40 130+40 170+40; length 160; box 10,14 200x20
+with a negative dx inside, glyphs too: 10+80 90+80 50+80 130+80; length 320; box 10,14 200x20
+with a dx on the first character: 30+20 90+20 150+20 210+20; length 80; box 30,14 200x20
+with a dx on the first character, glyphs too: 30+50 80+50 130+50 180+50; length 200; box 30,14 200x20
+with a dx at the start of a chunk, glyphs too: 10+40 50+40 320+40 360+40; length 160; box 10,14 390x20
+with a dx in nested elements, glyphs too: 10+40 50+40 130+40 170+40; length 160; box 10,14 200x20
+on a <tspan>: 10+20 30+20 50+20 70+20 90+20 110+20; length 120; box 10,14 120x20
+with text on a path: 10+20 70+20 0+20 20+20; length 80; box 10,14 130x40
+textLength set: 10+20 70+20 130+20 190+20; length 80; box 10,14 200x20
+lengthAdjust set: 10+50 60+50 110+50 160+50; length 200; box 10,14 200x20
+textLength.baseVal.value set: 10+35 45+35 80+35 115+35; length 140; box 10,14 140x20
+lengthAdjust.baseVal set: 10+20 50+20 90+20 130+20; length 80; box 10,14 140x20
+textLength removed: 10+20 30+20 50+20 70+20; length 80; box 10,14 80x20
