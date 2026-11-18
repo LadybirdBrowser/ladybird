@@ -41,11 +41,9 @@
 #    include <LibIPC/MachBootstrapListener.h>
 #    include <LibIPC/TransportBootstrapMach.h>
 #    include <LibIPC/TransportMachPort.h>
-#    include <LibThreading/Thread.h>
 #    include <LibWebView/MediaSessionPlatformBackendMacOS.h>
 #    include <LibWebView/NotificationBackendMacOS.h>
 #    include <mach/mach.h>
-#    include <sys/wait.h>
 #elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
 #    include <LibWebView/NotificationBackendFreedesktop.h>
 #endif
@@ -746,7 +744,7 @@ ErrorOr<NonnullOwnPtr<Application>> Application::create(Main::Arguments const& a
 
 #ifdef LADYBIRD_HUB_IN_OWN_PROCESS
 #    if defined(AK_OS_MACOS)
-// What the Hub gets its end of the connection from. The thread that watches for the Hub to end can outlive connecting.
+// What the Hub gets its end of the connection from. The thread that answers the Hub can outlive connecting.
 struct HubBootstrap : public AtomicRefCounted<HubBootstrap> {
     IPC::TransportBootstrapMachServer server;
 };
@@ -862,18 +860,6 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
         hub_bootstrap->server.register_child_transport(spawned_process->pid(), IPC::TransportBootstrapMachPorts { move(port_b_recv), move(port_a_send) });
     }
     auto process = spawned_process.release_value();
-
-    // NB: Until the Hub takes its ports, we hold them ourselves, so nothing would tell us of a Hub that ended before
-    //     that. Letting go of them then closes the connection, as a socket does when its peer ends.
-    auto hub_exit_watcher = Threading::Thread::construct("HubExitWatcher"sv, [hub_bootstrap, pid = process.pid()]() -> intptr_t {
-        siginfo_t info {};
-        while (waitid(P_PID, pid, &info, WEXITED | WNOWAIT) < 0 && errno == EINTR)
-            ;
-        hub_bootstrap->server.unregister_child_transport(pid);
-        return 0;
-    });
-    hub_exit_watcher->start();
-    hub_exit_watcher->detach();
 
     auto transport = make<IPC::Transport>(move(port_a_recv), move(port_b_send));
 #    else
