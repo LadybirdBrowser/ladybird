@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { font: 10px/20px Ahem; width: 50px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; direction: rtl; }
+    span { position: relative; }
+</style>
+<!-- Each line holds 80px of text in a 50px box, so text-overflow elides it on the left. The elided text still counts
+     toward the scrollable overflow where its relative offset puts it, as it does on a line elided on the right. -->
+<div id="no-offset"><span>abcdefgh</span></div>
+<div id="offset-to-the-left"><span style="left: -10px">abcdefgh</span></div>
+<div id="offset-to-the-right"><span style="left: 10px">abcdefgh</span></div>
+<div id="offset-run-before-the-cut"><span style="left: -10px">abcd</span><span>efgh</span></div>
+<div id="left-to-right" style="direction: ltr"><span style="left: 10px">abcdefgh</span></div>
+<script>
+    test(() => {
+        for (const div of document.querySelectorAll("div"))
+            println(`${div.id}: ${div.scrollWidth}`);
+    });
+</script>

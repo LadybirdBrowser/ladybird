@@ -605,6 +605,8 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
     fn hit_node_for_text_fragment(&mut self, fragment: &FragmentRecord) -> Option<NodeSlotId> {
         let node = fragment.layout_node;
         let row = self.rows.node(node)?;
+        // https://drafts.csswg.org/css-overflow-4/#ellipsing-details
+        // "The UA should dispatch any pointer event on the ellipsis to the elided element"
         if fragment.is_block_ellipsis || !node_facts::kind_is_text(row.kind()) {
             return None;
         }

@@ -475,9 +475,9 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         let range = side.lines().get(line.index as usize).map_or(0..0, |record| {
             record.first_fragment as usize..(record.first_fragment + record.fragment_count) as usize
         });
-        side.fragments()[range]
-            .iter()
-            .filter(move |fragment| !fragment.is_block_ellipsis && accepts(fragment))
+        side.fragments()[range].iter().filter(move |fragment| {
+            !fragment.is_block_ellipsis && !fragment.is_text_overflow_ellipsis && accepts(fragment)
+        })
     }
 
     /// The position in front of the <br> or preserved newline that ends `line`.

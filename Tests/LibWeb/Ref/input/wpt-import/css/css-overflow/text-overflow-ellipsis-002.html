@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Overflow: text-overflow with visibility: hidden; and visibility: visible; descendant</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#ellipsing-details">
+<link rel="match" href="../../../../expected/wpt-import/css/css-overflow/reference/text-overflow-ellipsis-002-ref.html">
+<link rel="stylesheet" href="../../fonts/ahem.css">
+<style>
+#parent {
+  background-color: green;
+  display: inline-block;
+  vertical-align: top;
+  font-family: Ahem;
+}
+#element {
+  visibility: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 4ch;
+  overflow: hidden;
+}
+</style>
+<div id="parent">
+  <div id="element"><span style="visibility: visible">ABCABCABCABC</span></div>
+</div>

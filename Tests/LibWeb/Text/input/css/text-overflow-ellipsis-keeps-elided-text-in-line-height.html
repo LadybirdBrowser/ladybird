@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { font: 20px/1 SerenitySans; width: 100px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    span { font-size: 40px; }
+</style>
+<!-- The text-overflow ellipsis only hides the elided text, so a line is as tall as all of its text, cut or not. -->
+<div id="elided-on-the-right">abcdefghijklmn<span>XY</span></div>
+<div id="elided-on-the-left" style="direction: rtl"><span>XY</span>abcdefghijklmn</div>
+<div id="clipped" style="text-overflow: clip">abcdefghijklmn<span>XY</span></div>
+<!-- An inline-block that the ellipsis hides is still aligned on its line, so it moves the text below it as much as if it
+     were shown, and a top-aligned one still doesn't. -->
+<style>
+    .ahem { font: 20px/20px Ahem; }
+    .ahem span { font-size: 20px; }
+    .ahem i { display: inline-block; width: 20px; height: 60px; }
+</style>
+<div class="ahem" id="top-aligned-elided"><span>abcdefg</span><i style="vertical-align: top"></i></div>
+<div class="ahem" id="top-aligned-clipped" style="text-overflow: clip"><span>abcdefg</span><i style="vertical-align: top"></i></div>
+<div class="ahem" id="baseline-aligned-elided"><span>abcdefg</span><i></i></div>
+<div class="ahem" id="baseline-aligned-clipped" style="text-overflow: clip"><span>abcdefg</span><i></i></div>
+<script>
+    test(() => {
+        for (const div of document.querySelectorAll("div")) {
+            const rect = div.getBoundingClientRect();
+            const textTop = div.querySelector("span")?.getBoundingClientRect().top - rect.top;
+            println(`${div.id}: ${rect.height}${div.classList.contains("ahem") ? `, text at ${textTop}` : ""}`);
+        }
+    });
+</script>
