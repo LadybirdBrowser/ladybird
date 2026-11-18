@@ -735,6 +735,17 @@ inline ModuleLatticeKey mlkem_512_key()
     return module_lattice_key_from_seed("ML-KEM-512", seed);
 }
 
+// The key pair of RFC 8032's first Ed25519 test vector.
+inline Vector<u8> ed25519_public_key()
+{
+    return { 0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7, 0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64, 0x07, 0x3a, 0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25, 0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a };
+}
+
+inline Vector<u8> ed25519_private_key()
+{
+    return { 0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c, 0xc4, 0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19, 0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60 };
+}
+
 inline Vector<CryptoHandleGolden> crypto_handle_goldens()
 {
     using Web::Crypto::HandleTag;
@@ -747,7 +758,8 @@ inline Vector<CryptoHandleGolden> crypto_handle_goldens()
     auto d = p256_private_value_one();
     auto mldsa = mldsa_44_key();
     auto mlkem = mlkem_512_key();
-    auto okp = "okpokpokpokpokpo"sv.bytes();
+    auto okp_public_key = ed25519_public_key();
+    auto okp_private_key = ed25519_private_key();
     Array<ReadonlyBytes, 8> rsa_components { modulus, exponent, exponent, modulus, modulus, exponent, exponent, modulus };
 
     Vector<CryptoHandleGolden> goldens;
@@ -762,8 +774,8 @@ inline Vector<CryptoHandleGolden> crypto_handle_goldens()
     goldens.append({ HandleTag::MLDSAPrivateKey, "private"sv, "sign"sv, alg_key_algorithm("ML-DSA-44"sv), handle_triple_buffer(6, mldsa.seed, mldsa.public_key, mldsa.expanded_key) });
     goldens.append({ HandleTag::MLKEMPublicKey, "public"sv, "encapsulateKey"sv, alg_key_algorithm("ML-KEM-512"sv), handle_single_buffer(7, mlkem.public_key) });
     goldens.append({ HandleTag::MLKEMPrivateKey, "private"sv, "decapsulateKey"sv, alg_key_algorithm("ML-KEM-512"sv), handle_triple_buffer(8, mlkem.seed, mlkem.public_key, mlkem.expanded_key) });
-    goldens.append({ HandleTag::OKPPublicKey, "public"sv, "verify"sv, alg_key_algorithm("Ed25519"sv), handle_single_buffer(9, okp) });
-    goldens.append({ HandleTag::OKPPrivateKey, "private"sv, "sign"sv, alg_key_algorithm("Ed25519"sv), handle_single_buffer(10, okp) });
+    goldens.append({ HandleTag::OKPPublicKey, "public"sv, "verify"sv, alg_key_algorithm("Ed25519"sv), handle_single_buffer(9, okp_public_key) });
+    goldens.append({ HandleTag::OKPPrivateKey, "private"sv, "sign"sv, alg_key_algorithm("Ed25519"sv), handle_single_buffer(10, okp_private_key) });
     return goldens;
 }
 

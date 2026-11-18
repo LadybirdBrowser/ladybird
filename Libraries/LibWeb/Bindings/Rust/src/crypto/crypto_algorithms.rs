@@ -15,7 +15,7 @@ use std::rc::Rc;
 use ak::{Utf16String, Utf16StringUnits};
 use libcrypto_rust::{
     Argon2Inputs, Argon2Type, CShakeKind, CryptoError, EcCurve, KeyAlgorithm, KeyHandle, KeyInfo, KeyPair, KmacKind,
-    MlDsaSize, MlKemSize, OkpCurve, RsaJwkInteger, RsaSignaturePadding, ShaHashKind,
+    MlDsaSize, MlKemSize, OkpCurve, RsaJwkInteger, RsaSignaturePadding, SecretBytes, ShaHashKind,
 };
 use libjs_rust::api::{
     ErrorKind, ErrorType, Gc, Object, PropertyKey, Realm, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
@@ -9875,26 +9875,28 @@ fn parse_octet_string(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Vec<u8>> {
     copy_bytes(vm, octets)
 }
 
-fn okp_generate_private_key(curve: OkpCurve) -> Result<Bytes, ()> {
-    libcrypto_rust::okp_generate_private_key(curve)
-        .map(Bytes::new)
-        .map_err(|_| ())
+fn okp_key_handle(vm: &Vm, curve: OkpCurve, is_private: bool, bytes: &[u8]) -> WebIdlResult<KeyHandle> {
+    libcrypto_rust::okp_key_from_raw(curve, is_private, bytes).map_err(|_| out_of_memory(vm))
 }
 
-fn okp_generate_public_key(curve: OkpCurve, private_key: &[u8]) -> Result<Bytes, ()> {
-    libcrypto_rust::okp_generate_public_key(curve, private_key)
-        .map(Bytes::new)
-        .map_err(|_| ())
+fn okp_key(vm: &Vm, curve: OkpCurve, is_private: bool, bytes: &[u8]) -> WebIdlResult<Ref<CryptoKey>> {
+    Ok(CryptoKey::create(vm, okp_key_handle(vm, curve, is_private, bytes)?))
 }
 
-fn okp_export_der(vm: &Vm, curve: OkpCurve, is_public: bool, key: &[u8]) -> WebIdlResult<Bytes> {
-    let result = libcrypto_rust::okp_export_der(curve, is_public, key).map(Bytes::new);
-    let Ok(result) = result else {
-        return vm
-            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-            .map_err(Into::into);
-    };
-    Ok(result)
+fn okp_raw_public_key(vm: &Vm, key: &CryptoKey) -> WebIdlResult<Bytes> {
+    libcrypto_rust::okp_raw_public_key(key.handle())
+        .map(Bytes::new)
+        .map_err(|_| out_of_memory(vm))
+}
+
+fn okp_raw_private_key(vm: &Vm, key: &CryptoKey) -> WebIdlResult<SecretBytes> {
+    libcrypto_rust::okp_raw_private_key(key.handle()).map_err(|_| out_of_memory(vm))
+}
+
+fn okp_export_der(vm: &Vm, key: &CryptoKey) -> WebIdlResult<Bytes> {
+    libcrypto_rust::okp_export_der(key.handle())
+        .map(Bytes::new)
+        .map_err(|_| out_of_memory(vm))
 }
 
 fn out_of_memory(vm: &Vm) -> Exception {
@@ -9927,18 +9929,12 @@ impl AlgorithmMethods for Ed25519 {
         }
 
         // 2. Generate an Ed25519 key pair, as defined in [RFC8032], section 5.1.5.
-        let maybe_private_key = okp_generate_private_key(OkpCurve::Ed25519);
-        let Ok(private_key_data) = maybe_private_key else {
-            return Err(dom_error("OperationError", b"Failed to generate private key"));
-        };
-
-        let maybe_public_key = okp_generate_public_key(OkpCurve::Ed25519, private_key_data.as_slice());
-        let Ok(public_key_data) = maybe_public_key else {
-            return Err(dom_error("OperationError", b"Failed to generate public key"));
+        let Ok(key_pair) = libcrypto_rust::okp_generate_key_pair(OkpCurve::Ed25519) else {
+            return Err(dom_error("OperationError", b"Failed to generate key pair"));
         };
 
         // 5. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-        let public_key = CryptoKey::from_okp_handle(cx.vm(), false, public_key_data.as_slice());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 6. Set the [[type]] internal slot of publicKey to "public"
         public_key.set_type(KeyType::Public);
@@ -9957,7 +9953,7 @@ impl AlgorithmMethods for Ed25519 {
         public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Verify]));
 
         // 10. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-        let private_key = CryptoKey::from_okp_handle(cx.vm(), true, private_key_data.as_slice());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 11. Set the [[type]] internal slot of privateKey to "private"
         private_key.set_type(KeyType::Private);
@@ -10035,7 +10031,7 @@ impl AlgorithmMethods for Ed25519 {
             let public_key = spki.raw_key();
 
             // 7. Let key be a new CryptoKey that represents publicKey.
-            key = CryptoKey::from_okp_handle(cx.vm(), false, public_key);
+            key = okp_key(cx.vm(), OkpCurve::Ed25519, false, public_key)?;
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -10085,7 +10081,7 @@ impl AlgorithmMethods for Ed25519 {
             let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
 
             // 8. Let key be a new CryptoKey that represents the Ed25519 private key identified by curvePrivateKey.
-            key = CryptoKey::from_okp_handle(cx.vm(), true, curve_private_key_bytes.as_slice());
+            key = okp_key(cx.vm(), OkpCurve::Ed25519, true, curve_private_key_bytes.as_slice())?;
 
             // 9. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -10197,14 +10193,15 @@ impl AlgorithmMethods for Ed25519 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
 
-                let derived_public_key = okp_generate_public_key(OkpCurve::Ed25519, private_key.as_slice())
-                    .map_err(|()| out_of_memory(cx.vm()))?;
+                let private_key = okp_key_handle(cx.vm(), OkpCurve::Ed25519, true, private_key.as_slice())?;
+                let derived_public_key =
+                    libcrypto_rust::okp_raw_public_key(&private_key).map_err(|_| out_of_memory(cx.vm()))?;
                 if derived_public_key.as_slice() != public_key.as_slice() {
                     return Err(dom_error("DataError", b"Invalid key pair"));
                 }
 
                 // 2. Let key be a new CryptoKey object that represents the Ed25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
-                key = CryptoKey::from_okp_handle(cx.vm(), true, private_key.as_slice());
+                key = CryptoKey::create(cx.vm(), private_key);
 
                 // 3. Set the [[type]] internal slot of Key to "private".
                 key.set_type(KeyType::Private);
@@ -10239,7 +10236,7 @@ impl AlgorithmMethods for Ed25519 {
                 }
 
                 // 2. Let key be a new CryptoKey object that represents the Ed25519 public key identified by interpreting jwk according to Section 2 of [RFC8037].
-                key = CryptoKey::from_okp_handle(cx.vm(), false, public_key.as_slice());
+                key = okp_key(cx.vm(), OkpCurve::Ed25519, false, public_key.as_slice())?;
 
                 // 3. Set the [[type]] internal slot of Key to "public".
                 key.set_type(KeyType::Public);
@@ -10275,7 +10272,7 @@ impl AlgorithmMethods for Ed25519 {
             }
 
             // 5. Let key be a new CryptoKey representing the key data provided in keyData.
-            key = CryptoKey::from_okp_handle(cx.vm(), false, data.as_slice());
+            key = okp_key(cx.vm(), OkpCurve::Ed25519, false, data.as_slice())?;
 
             // 6. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -10320,7 +10317,7 @@ impl AlgorithmMethods for Ed25519 {
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
             //       * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
-            let data = okp_export_der(cx.vm(), OkpCurve::Ed25519, true, key.okp_handle_bytes())?;
+            let data = okp_export_der(cx.vm(), &key)?;
 
             // 3. Let result be the result of DER-encoding data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -10343,7 +10340,7 @@ impl AlgorithmMethods for Ed25519 {
             //      Section 7 of [RFC8410], that represents the Ed25519 private key represented by the [[handle]]
             //      internal slot of key
 
-            let data = okp_export_der(cx.vm(), OkpCurve::Ed25519, false, key.okp_handle_bytes())?;
+            let data = okp_export_der(cx.vm(), &key)?;
 
             // 3. Let result be the result of DER-encoding data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -10364,22 +10361,12 @@ impl AlgorithmMethods for Ed25519 {
             jwk.crv = Some(Utf16String::from_ascii(b"Ed25519"));
 
             // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-            if key.key_type() == KeyType::Public {
-                jwk.x = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
-            } else {
-                // The "x" parameter of the "epk" field is set as follows:
-                // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
-                // and the standard base point (as u-coordinate input).
-                // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
-                let public_key = okp_generate_public_key(OkpCurve::Ed25519, key.okp_handle_bytes())
-                    .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(base64_url_bytes_encode(public_key.as_slice()));
-            }
+            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(cx.vm(), &key)?.as_slice()));
 
             // 6. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
+                jwk.d = Some(base64_url_bytes_encode(&okp_raw_private_key(cx.vm(), &key)?));
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -10410,7 +10397,7 @@ impl AlgorithmMethods for Ed25519 {
             //    slot of key.
             // 3. Let result be data.
             // 4. Return result.
-            return Ok(ExportKeyResult::Bytes(Bytes::new(key.okp_handle_bytes().to_vec())));
+            return Ok(ExportKeyResult::Bytes(okp_raw_public_key(cx.vm(), &key)?));
         }
 
         // 3. Otherwise:
@@ -10431,15 +10418,7 @@ impl AlgorithmMethods for Ed25519 {
 
         // 2. Let result be the result of performing the Ed25519 signing process, as specified in [RFC8032], Section
         //    5.1.6, with message as M, using the Ed25519 private key associated with key.
-        let private_key = key.okp_handle_bytes();
-
-        let maybe_public_key = okp_generate_public_key(OkpCurve::Ed25519, private_key);
-        if maybe_public_key.is_err() {
-            return Err(dom_error("OperationError", b"Failed to generate public key"));
-        }
-
-        let signature = libcrypto_rust::okp_sign(OkpCurve::Ed25519, key.okp_handle_bytes(), message.as_slice(), &[])
-            .map(Bytes::new);
+        let signature = libcrypto_rust::okp_sign(key.handle(), message.as_slice(), &[]).map(Bytes::new);
         let Ok(signature) = signature else {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         };
@@ -10472,13 +10451,7 @@ impl AlgorithmMethods for Ed25519 {
         // with message as M, using the Ed25519 public key associated with key.
 
         // 5. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
-        let verified = libcrypto_rust::okp_verify(
-            OkpCurve::Ed25519,
-            key.okp_handle_bytes(),
-            signature.as_slice(),
-            message.as_slice(),
-            &[],
-        );
+        let verified = libcrypto_rust::okp_verify(key.handle(), signature.as_slice(), message.as_slice(), &[]);
         let verified =
             verified.map_err(|error| Exception::Dom("OperationError", Utf16String::from_utf8(error.message())))?;
 
@@ -10524,19 +10497,13 @@ impl AlgorithmMethods for Ed448 {
         }
 
         // 2. Generate an Ed448 key pair, as defined in [RFC8032], section 5.1.5.
-        let maybe_private_key = okp_generate_private_key(OkpCurve::Ed448);
-        let Ok(private_key_data) = maybe_private_key else {
-            return Err(dom_error("OperationError", b"Failed to generate private key"));
-        };
-
-        let maybe_public_key = okp_generate_public_key(OkpCurve::Ed448, private_key_data.as_slice());
-        let Ok(public_key_data) = maybe_public_key else {
-            return Err(dom_error("OperationError", b"Failed to generate public key"));
+        let Ok(key_pair) = libcrypto_rust::okp_generate_key_pair(OkpCurve::Ed448) else {
+            return Err(dom_error("OperationError", b"Failed to generate key pair"));
         };
 
         // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
         // and representing the public key of the generated key pair.
-        let public_key = CryptoKey::from_okp_handle(cx.vm(), false, public_key_data.as_slice());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 6. Set the [[type]] internal slot of publicKey to "public"
         public_key.set_type(KeyType::Public);
@@ -10556,7 +10523,7 @@ impl AlgorithmMethods for Ed448 {
 
         // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
         // and representing the private key of the generated key pair.
-        let private_key = CryptoKey::from_okp_handle(cx.vm(), true, private_key_data.as_slice());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 11. Set the [[type]] internal slot of privateKey to "private"
         private_key.set_type(KeyType::Private);
@@ -10635,7 +10602,7 @@ impl AlgorithmMethods for Ed448 {
 
             // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
             //    and that represents publicKey.
-            key = CryptoKey::from_okp_handle(cx.vm(), false, public_key);
+            key = okp_key(cx.vm(), OkpCurve::Ed448, false, public_key)?;
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -10686,7 +10653,7 @@ impl AlgorithmMethods for Ed448 {
 
             // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
             //    and that represents the Ed448 private key identified by curvePrivateKey.
-            key = CryptoKey::from_okp_handle(cx.vm(), true, curve_private_key_bytes.as_slice());
+            key = okp_key(cx.vm(), OkpCurve::Ed448, true, curve_private_key_bytes.as_slice())?;
 
             // 9. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -10798,14 +10765,15 @@ impl AlgorithmMethods for Ed448 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
 
-                let derived_public_key = okp_generate_public_key(OkpCurve::Ed448, private_key.as_slice())
-                    .map_err(|()| out_of_memory(cx.vm()))?;
+                let private_key = okp_key_handle(cx.vm(), OkpCurve::Ed448, true, private_key.as_slice())?;
+                let derived_public_key =
+                    libcrypto_rust::okp_raw_public_key(&private_key).map_err(|_| out_of_memory(cx.vm()))?;
                 if derived_public_key.as_slice() != public_key.as_slice() {
                     return Err(dom_error("DataError", b"Invalid key pair"));
                 }
 
                 // 2. Let key be a new CryptoKey object that represents the Ed448 private key identified by interpreting jwk according to Section 2 of [RFC8037].
-                key = CryptoKey::from_okp_handle(cx.vm(), true, private_key.as_slice());
+                key = CryptoKey::create(cx.vm(), private_key);
 
                 // 3. Set the [[type]] internal slot of Key to "private".
                 key.set_type(KeyType::Private);
@@ -10840,7 +10808,7 @@ impl AlgorithmMethods for Ed448 {
                 }
 
                 // 2. Let key be a new CryptoKey object that represents the Ed448 public key identified by interpreting jwk according to Section 2 of [RFC8037].
-                key = CryptoKey::from_okp_handle(cx.vm(), false, public_key.as_slice());
+                key = okp_key(cx.vm(), OkpCurve::Ed448, false, public_key.as_slice())?;
 
                 // 3. Set the [[type]] internal slot of Key to "public".
                 key.set_type(KeyType::Public);
@@ -10878,7 +10846,7 @@ impl AlgorithmMethods for Ed448 {
             }
 
             // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
-            key = CryptoKey::from_okp_handle(cx.vm(), false, data.as_slice());
+            key = okp_key(cx.vm(), OkpCurve::Ed448, false, data.as_slice())?;
 
             // 7. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -10923,7 +10891,7 @@ impl AlgorithmMethods for Ed448 {
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
             //       * Set the algorithm object identifier to the id-Ed448 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
-            let data = okp_export_der(cx.vm(), OkpCurve::Ed448, true, key.okp_handle_bytes())?;
+            let data = okp_export_der(cx.vm(), &key)?;
 
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -10946,7 +10914,7 @@ impl AlgorithmMethods for Ed448 {
             //      Section 7 of [RFC8410], that represents the Ed448 private key represented by the [[handle]] internal
             //      slot of key
 
-            let data = okp_export_der(cx.vm(), OkpCurve::Ed448, false, key.okp_handle_bytes())?;
+            let data = okp_export_der(cx.vm(), &key)?;
 
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -10967,22 +10935,12 @@ impl AlgorithmMethods for Ed448 {
             jwk.crv = Some(Utf16String::from_ascii(b"Ed448"));
 
             // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-            if key.key_type() == KeyType::Public {
-                jwk.x = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
-            } else {
-                // The "x" parameter of the "epk" field is set as follows:
-                // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
-                // and the standard base point (as u-coordinate input).
-                // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
-                let public_key = okp_generate_public_key(OkpCurve::Ed448, key.okp_handle_bytes())
-                    .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(base64_url_bytes_encode(public_key.as_slice()));
-            }
+            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(cx.vm(), &key)?.as_slice()));
 
             // 6. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
+                jwk.d = Some(base64_url_bytes_encode(&okp_raw_private_key(cx.vm(), &key)?));
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -11010,7 +10968,7 @@ impl AlgorithmMethods for Ed448 {
             // 2. Let data be an octet string representing the Ed448 public key represented by the [[handle]] internal slot of key.
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             // 4. Return result.
-            return Ok(ExportKeyResult::Bytes(Bytes::new(key.okp_handle_bytes().to_vec())));
+            return Ok(ExportKeyResult::Bytes(okp_raw_public_key(cx.vm(), &key)?));
         }
 
         // 3. Otherwise:
@@ -11041,8 +10999,7 @@ impl AlgorithmMethods for Ed448 {
 
         // 4. Perform the Ed448 signing process, as specified in [RFC8032], Section 5.2.6,
         //    with message as M and context as C, using the Ed448 private key associated with key.
-        let signature = libcrypto_rust::okp_sign(OkpCurve::Ed448, key.okp_handle_bytes(), message.as_slice(), context)
-            .map(Bytes::new);
+        let signature = libcrypto_rust::okp_sign(key.handle(), message.as_slice(), context).map(Bytes::new);
         let Ok(signature) = signature else {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         };
@@ -11087,13 +11044,7 @@ impl AlgorithmMethods for Ed448 {
         // 6. Perform the Ed448 verification steps, as specified in [RFC8032], Section 5.2.7, using
         //    the cofactorless (unbatched) equation, [S]B = R + [k]A', on the signature,
         //    with message as M and context as C, using the Ed448 public key associated with key.
-        let verified = libcrypto_rust::okp_verify(
-            OkpCurve::Ed448,
-            key.okp_handle_bytes(),
-            signature.as_slice(),
-            message.as_slice(),
-            context,
-        );
+        let verified = libcrypto_rust::okp_verify(key.handle(), signature.as_slice(), message.as_slice(), context);
         let verified =
             verified.map_err(|error| Exception::Dom("OperationError", Utf16String::from_utf8(error.message())))?;
 
@@ -11187,11 +11138,7 @@ impl AlgorithmMethods for X25519 {
         // 7. Let secret be the result of performing the X25519 function specified in [RFC7748] Section 5 with
         //    key as the X25519 private key k and
         //    the X25519 public key represented by the [[handle]] internal slot of publicKey as the X25519 public key u.
-        let private_key = key.okp_handle_bytes();
-        let public_key_data = public_key.okp_handle_bytes();
-
-        let secret =
-            libcrypto_rust::okp_compute_coordinate(OkpCurve::X25519, private_key, public_key_data).map(Bytes::new);
+        let secret = libcrypto_rust::okp_compute_coordinate(key.handle(), public_key.handle()).map(Bytes::new);
         let Ok(secret) = secret else {
             return Err(dom_error("OperationError", b"Failed to compute secret"));
         };
@@ -11254,18 +11201,12 @@ impl AlgorithmMethods for X25519 {
 
         // 2. Generate an X25519 key pair, with the private key being 32 random bytes,
         //    and the public key being X25519(a, 9), as defined in [RFC7748], section 6.1.
-        let maybe_private_key = okp_generate_private_key(OkpCurve::X25519);
-        let Ok(private_key_data) = maybe_private_key else {
-            return Err(dom_error("OperationError", b"Failed to generate private key"));
-        };
-
-        let maybe_public_key = okp_generate_public_key(OkpCurve::X25519, private_key_data.as_slice());
-        let Ok(public_key_data) = maybe_public_key else {
-            return Err(dom_error("OperationError", b"Failed to generate public key"));
+        let Ok(key_pair) = libcrypto_rust::okp_generate_key_pair(OkpCurve::X25519) else {
+            return Err(dom_error("OperationError", b"Failed to generate key pair"));
         };
 
         // 5. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-        let public_key = CryptoKey::from_okp_handle(cx.vm(), false, public_key_data.as_slice());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 6. Set the [[type]] internal slot of publicKey to "public"
         public_key.set_type(KeyType::Public);
@@ -11284,7 +11225,7 @@ impl AlgorithmMethods for X25519 {
         public_key.set_usages(Vec::new());
 
         // 10. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-        let private_key = CryptoKey::from_okp_handle(cx.vm(), true, private_key_data.as_slice());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 11. Set the [[type]] internal slot of privateKey to "private"
         private_key.set_type(KeyType::Private);
@@ -11361,7 +11302,7 @@ impl AlgorithmMethods for X25519 {
             let public_key = spki.raw_key();
 
             // 7. Let key be a new CryptoKey that represents publicKey.
-            key = CryptoKey::from_okp_handle(cx.vm(), false, public_key);
+            key = okp_key(cx.vm(), OkpCurve::X25519, false, public_key)?;
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -11411,7 +11352,7 @@ impl AlgorithmMethods for X25519 {
             let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
 
             // 8. Let key be a new CryptoKey that represents the X25519 private key identified by curvePrivateKey.
-            key = CryptoKey::from_okp_handle(cx.vm(), true, curve_private_key_bytes.as_slice());
+            key = okp_key(cx.vm(), OkpCurve::X25519, true, curve_private_key_bytes.as_slice())?;
 
             // 9. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -11510,14 +11451,15 @@ impl AlgorithmMethods for X25519 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
 
-                let derived_public_key = okp_generate_public_key(OkpCurve::X25519, private_key.as_slice())
-                    .map_err(|()| out_of_memory(cx.vm()))?;
+                let private_key = okp_key_handle(cx.vm(), OkpCurve::X25519, true, private_key.as_slice())?;
+                let derived_public_key =
+                    libcrypto_rust::okp_raw_public_key(&private_key).map_err(|_| out_of_memory(cx.vm()))?;
                 if derived_public_key.as_slice() != public_key.as_slice() {
                     return Err(dom_error("DataError", b"Invalid key pair"));
                 }
 
                 // 2. Let key be a new CryptoKey object that represents the X25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
-                key = CryptoKey::from_okp_handle(cx.vm(), true, private_key.as_slice());
+                key = CryptoKey::create(cx.vm(), private_key);
 
                 // 3. Set the [[type]] internal slot of Key to "private".
                 key.set_type(KeyType::Private);
@@ -11553,7 +11495,7 @@ impl AlgorithmMethods for X25519 {
 
                 // 2. Let key be a new CryptoKey object that represents the X25519 public key identified by interpreting
                 //    jwk according to Section 2 of [RFC8037].
-                key = CryptoKey::from_okp_handle(cx.vm(), false, public_key.as_slice());
+                key = okp_key(cx.vm(), OkpCurve::X25519, false, public_key.as_slice())?;
 
                 // 3. Set the [[type]] internal slot of Key to "public".
                 key.set_type(KeyType::Public);
@@ -11584,7 +11526,7 @@ impl AlgorithmMethods for X25519 {
             }
 
             // 5. Let key be a new CryptoKey representing the key data provided in keyData.
-            key = CryptoKey::from_okp_handle(cx.vm(), false, data.as_slice());
+            key = okp_key(cx.vm(), OkpCurve::X25519, false, data.as_slice())?;
 
             // 6. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -11629,7 +11571,7 @@ impl AlgorithmMethods for X25519 {
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
             //       * Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
-            let data = okp_export_der(cx.vm(), OkpCurve::X25519, true, key.okp_handle_bytes())?;
+            let data = okp_export_der(cx.vm(), &key)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -11651,7 +11593,7 @@ impl AlgorithmMethods for X25519 {
             //      Section 7 of [RFC8410], that represents the X25519 private key represented by the [[handle]]
             //      internal slot of key
 
-            let data = okp_export_der(cx.vm(), OkpCurve::X25519, false, key.okp_handle_bytes())?;
+            let data = okp_export_der(cx.vm(), &key)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -11668,24 +11610,13 @@ impl AlgorithmMethods for X25519 {
             jwk.crv = Some(Utf16String::from_ascii(b"X25519"));
 
             // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-            if key.key_type() == KeyType::Public {
-                let public_key = key.okp_handle_bytes();
-                jwk.x = Some(base64_url_bytes_encode(public_key));
-            } else {
-                // The "x" parameter of the "epk" field is set as follows:
-                // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
-                // and the standard base point (as u-coordinate input).
-                // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
-                let public_key = okp_generate_public_key(OkpCurve::X25519, key.okp_handle_bytes())
-                    .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(base64_url_bytes_encode(public_key.as_slice()));
-            }
+            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(cx.vm(), &key)?.as_slice()));
 
             // 5. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                let private_key = key.okp_handle_bytes();
-                jwk.d = Some(base64_url_bytes_encode(private_key));
+                let private_key = okp_raw_private_key(cx.vm(), &key)?;
+                jwk.d = Some(base64_url_bytes_encode(&private_key));
             }
 
             // 6. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -11713,10 +11644,10 @@ impl AlgorithmMethods for X25519 {
 
             // 2. Let data be a byte sequence representing the X25519 public key represented by the [[handle]] internal
             //    slot of key.
-            let public_key = key.okp_handle_bytes();
+            let public_key = okp_raw_public_key(cx.vm(), &key)?;
 
             // 3. Let result be data.
-            ExportKeyResult::Bytes(Bytes::new(public_key.to_vec()))
+            ExportKeyResult::Bytes(public_key)
         }
         // 3. Otherwise:
         //    throw a NotSupportedError.
@@ -11785,11 +11716,7 @@ impl AlgorithmMethods for X448 {
         // 5. Let secret be the result of performing the X448 function specified in [RFC7748] Section 5
         //    with key as the X448 private key k and the X448 public key represented by the [[handle]]
         //    internal slot of publicKey as the X448 public key u.
-        let private_key = key.okp_handle_bytes();
-        let public_key_data = public_key.okp_handle_bytes();
-
-        let secret =
-            libcrypto_rust::okp_compute_coordinate(OkpCurve::X448, private_key, public_key_data).map(Bytes::new);
+        let secret = libcrypto_rust::okp_compute_coordinate(key.handle(), public_key.handle()).map(Bytes::new);
         let Ok(secret) = secret else {
             return Err(dom_error("OperationError", b"Failed to compute secret"));
         };
@@ -11850,17 +11777,12 @@ impl AlgorithmMethods for X448 {
         }
 
         // 2. Generate an X448 key pair, with the private key being 56 random bytes, and the public key being X448(a, 5), as defined in [RFC7748], section 6.2.
-        let maybe_private_key = okp_generate_private_key(OkpCurve::X448);
-        let Ok(private_key_data) = maybe_private_key else {
-            return Err(dom_error("OperationError", b"Failed to generate private key"));
-        };
-        let maybe_public_key = okp_generate_public_key(OkpCurve::X448, private_key_data.as_slice());
-        let Ok(public_key_data) = maybe_public_key else {
-            return Err(dom_error("OperationError", b"Failed to generate public key"));
+        let Ok(key_pair) = libcrypto_rust::okp_generate_key_pair(OkpCurve::X448) else {
+            return Err(dom_error("OperationError", b"Failed to generate key pair"));
         };
 
         // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML], and representing the public key of the generated key pair.
-        let public_key = CryptoKey::from_okp_handle(cx.vm(), false, public_key_data.as_slice());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 6. Set the [[type]] internal slot of publicKey to "public"
         public_key.set_type(KeyType::Public);
@@ -11879,7 +11801,7 @@ impl AlgorithmMethods for X448 {
         public_key.set_usages(Vec::new());
 
         // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML], and representing the private key of the generated key pair.
-        let private_key = CryptoKey::from_okp_handle(cx.vm(), true, private_key_data.as_slice());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 11. Set the [[type]] internal slot of privateKey to "private"
         private_key.set_type(KeyType::Private);
@@ -11930,7 +11852,7 @@ impl AlgorithmMethods for X448 {
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
             //       * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
-            let data = okp_export_der(cx.vm(), OkpCurve::X448, true, key.okp_handle_bytes())?;
+            let data = okp_export_der(cx.vm(), &key)?;
 
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -11953,7 +11875,7 @@ impl AlgorithmMethods for X448 {
             //      Section 7 of [RFC8410], that represents the X448 private key represented by the [[handle]] internal
             //      slot of key
 
-            let data = okp_export_der(cx.vm(), OkpCurve::X448, false, key.okp_handle_bytes())?;
+            let data = okp_export_der(cx.vm(), &key)?;
 
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -11971,18 +11893,12 @@ impl AlgorithmMethods for X448 {
             jwk.crv = Some(Utf16String::from_ascii(b"X448"));
 
             // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-            if key.key_type() == KeyType::Public {
-                jwk.x = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
-            } else {
-                let public_key = okp_generate_public_key(OkpCurve::X448, key.okp_handle_bytes())
-                    .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(base64_url_bytes_encode(public_key.as_slice()));
-            }
+            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(cx.vm(), &key)?.as_slice()));
 
             // 5. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(base64_url_bytes_encode(key.okp_handle_bytes()));
+                jwk.d = Some(base64_url_bytes_encode(&okp_raw_private_key(cx.vm(), &key)?));
             }
 
             // 6. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -12010,7 +11926,7 @@ impl AlgorithmMethods for X448 {
             // 2. Let data be an octet string representing the X448 public key represented by the [[handle]] internal slot of key.
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             // 4. Return result.
-            return Ok(ExportKeyResult::Bytes(Bytes::new(key.okp_handle_bytes().to_vec())));
+            return Ok(ExportKeyResult::Bytes(okp_raw_public_key(cx.vm(), &key)?));
         }
 
         // 3. Otherwise:
@@ -12066,7 +11982,7 @@ impl AlgorithmMethods for X448 {
             let public_key = spki.raw_key();
 
             // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents publicKey.
-            let key = CryptoKey::from_okp_handle(cx.vm(), false, public_key);
+            let key = okp_key(cx.vm(), OkpCurve::X448, false, public_key)?;
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -12117,7 +12033,7 @@ impl AlgorithmMethods for X448 {
             let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
 
             // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents the X448 private key identified by curvePrivateKey.
-            let key = CryptoKey::from_okp_handle(cx.vm(), true, curve_private_key_bytes.as_slice());
+            let key = okp_key(cx.vm(), OkpCurve::X448, true, curve_private_key_bytes.as_slice())?;
 
             // 9. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -12224,14 +12140,15 @@ impl AlgorithmMethods for X448 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
 
-                let derived_public_key = okp_generate_public_key(OkpCurve::X448, private_key.as_slice())
-                    .map_err(|()| out_of_memory(cx.vm()))?;
+                let private_key = okp_key_handle(cx.vm(), OkpCurve::X448, true, private_key.as_slice())?;
+                let derived_public_key =
+                    libcrypto_rust::okp_raw_public_key(&private_key).map_err(|_| out_of_memory(cx.vm()))?;
                 if derived_public_key.as_slice() != public_key.as_slice() {
                     return Err(dom_error("DataError", b"Invalid key pair"));
                 }
 
                 // 2. Let key be a new CryptoKey object that represents the X448 private key identified by interpreting jwk according to Section 2 of [RFC8037].
-                key = CryptoKey::from_okp_handle(cx.vm(), true, private_key.as_slice());
+                key = CryptoKey::create(cx.vm(), private_key);
 
                 // 3. Set the [[type]] internal slot of Key to "private".
                 key.set_type(KeyType::Private);
@@ -12266,7 +12183,7 @@ impl AlgorithmMethods for X448 {
                 }
 
                 // 2. Let key be a new CryptoKey object that represents the X448 public key identified by interpreting jwk according to Section 2 of [RFC8037].
-                key = CryptoKey::from_okp_handle(cx.vm(), false, public_key.as_slice());
+                key = okp_key(cx.vm(), OkpCurve::X448, false, public_key.as_slice())?;
 
                 // 3. Set the [[type]] internal slot of Key to "public".
                 key.set_type(KeyType::Public);
@@ -12300,7 +12217,7 @@ impl AlgorithmMethods for X448 {
             }
 
             // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
-            let key = CryptoKey::from_okp_handle(cx.vm(), false, data.as_slice());
+            let key = okp_key(cx.vm(), OkpCurve::X448, false, data.as_slice())?;
 
             // 7. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -13824,6 +13741,5 @@ impl AlgorithmMethods for MlKem {
 }
 
 pub(crate) fn public_key_for_private_key(vm: &Vm, key: Ref<CryptoKey>) -> Option<Ref<CryptoKey>> {
-    let name = key.algorithm_name();
-    libcrypto_rust::public_key_for_private_key(key.handle(), &name).map(|handle| CryptoKey::create(vm, handle))
+    libcrypto_rust::public_key_for_private_key(key.handle()).map(|handle| CryptoKey::create(vm, handle))
 }

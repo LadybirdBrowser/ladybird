@@ -10,7 +10,7 @@ use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 
 use ak::{Span, Utf16String};
-use libcrypto_rust::{HandleTag, KeyHandle};
+use libcrypto_rust::{HandleTag, KeyHandle, OkpCurve};
 use libjs_rust::api::{
     Array, CellRoot, ErrorKind, ErrorType, Gc, GcRefCell, GcWeak, IntegrityLevel, MarkedVec, Must, Object,
     PrimitiveString, PropertyKey, Trace, Value, Vm,
@@ -272,14 +272,6 @@ impl CryptoKey {
         self.handle.secret_bytes()
     }
 
-    pub(crate) fn from_okp_handle(vm: &Vm, is_private: bool, bytes: &[u8]) -> Ref<Self> {
-        Self::create(vm, KeyHandle::from_okp_bytes(is_private, bytes))
-    }
-
-    pub(crate) fn okp_handle_bytes(&self) -> &[u8] {
-        self.handle.okp_bytes()
-    }
-
     pub(crate) fn handle(&self) -> &KeyHandle {
         &self.handle
     }
@@ -509,8 +501,7 @@ impl Serializable for CryptoKey {
         //     has-public-key flag, which is true, before its public key's buffers.
         let stored = self.handle().to_stored();
         serialized.write_u8(stored.tag as u8);
-        let buffers = stored.buffers();
-        for (index, buffer) in buffers.into_iter().enumerate() {
+        for (index, buffer) in stored.buffers().iter().enumerate() {
             serialized.write_bytes(buffer);
             if index == 0 && stored.tag == HandleTag::EcPrivate {
                 serialized.write_bool(false);
@@ -603,11 +594,20 @@ impl Serializable for CryptoKey {
             }
         }
 
+        let okp_curve = [
+            ("Ed25519", OkpCurve::Ed25519),
+            ("Ed448", OkpCurve::Ed448),
+            ("X25519", OkpCurve::X25519),
+            ("X448", OkpCurve::X448),
+        ]
+        .into_iter()
+        .find_map(|(curve_name, curve)| (name == curve_name).then_some(curve));
         let Ok(handle) = KeyHandle::from_stored(
             handle_tag,
             &buffers,
             has_ec_parameters.then_some(ec_parameters.as_slice()),
             has_ec_public_key,
+            okp_curve,
         ) else {
             return Err(data_clone_error(b"Invalid CryptoKey handle components"));
         };
