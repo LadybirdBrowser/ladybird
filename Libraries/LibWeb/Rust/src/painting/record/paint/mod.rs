@@ -195,7 +195,12 @@ fn paint_box_phase<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: 
             svg::paint_path(recorder, paintable, phase);
         }
         NodeKind::SVGImageBox => svg::paint_image_element(recorder, paintable, phase),
-        NodeKind::Unset | NodeKind::BreakNode | NodeKind::GeneratedTextNode | NodeKind::Node | NodeKind::TextNode => {}
+        NodeKind::Unset
+        | NodeKind::BreakNode
+        | NodeKind::WordBreakOpportunityNode
+        | NodeKind::GeneratedTextNode
+        | NodeKind::Node
+        | NodeKind::TextNode => {}
         NodeKind::Viewport
         | NodeKind::BlockContainer
         | NodeKind::LegendBox

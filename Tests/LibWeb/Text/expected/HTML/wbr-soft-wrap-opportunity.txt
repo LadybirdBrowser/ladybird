@@ -1,0 +1,17 @@
+plain: 36x40
+in-span: 36x40
+after-span: 36x40
+before-space: 36x40
+after-space: 36x40
+keep-all: 36x40
+pre-wrap: 36x40
+display-block: 36x40
+end-padding: 36x40
+nowrap: 36x20
+pre: 36x20
+nobr: 36x20
+display-none: 36x20
+wbr-only: 36x0
+max-content: 42.1875x20
+min-content: 36.375x40
+end-padding span: 5.75..36

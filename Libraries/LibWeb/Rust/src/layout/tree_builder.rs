@@ -191,6 +191,7 @@ pub(crate) fn node_kind_for_element_box_kind(
         ElementBoxKind::NoBox => return None,
         ElementBoxKind::FromDisplay => return node_kind_for_display(display),
         ElementBoxKind::Break => NodeKind::BreakNode,
+        ElementBoxKind::WordBreakOpportunity => NodeKind::WordBreakOpportunityNode,
         ElementBoxKind::FieldSet => NodeKind::FieldSetBox,
         ElementBoxKind::Legend => NodeKind::LegendBox,
         ElementBoxKind::Audio => NodeKind::AudioBox,

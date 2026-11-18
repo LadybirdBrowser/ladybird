@@ -45,7 +45,9 @@ enum class ElementBoxKind : u8 {
     // A frame element whose parent is a frameset.
     Frame,
     FrameSet,
+    // A wbr element: a line break opportunity, whatever its display says.
+    WordBreakOpportunity,
 };
-static_assert(to_underlying(ElementBoxKind::FrameSet) == 24, "Rust's ElementBoxKind lists the same kinds in the same order");
+static_assert(to_underlying(ElementBoxKind::WordBreakOpportunity) == 25, "Rust's ElementBoxKind lists the same kinds in the same order");
 
 }

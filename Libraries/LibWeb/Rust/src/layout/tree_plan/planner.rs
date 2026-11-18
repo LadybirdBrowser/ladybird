@@ -4237,7 +4237,7 @@ fn prepare_element(
 /// Whether a box of `kind`, with `flags`, holds the boxes of its children. See `node_facts::node_can_have_children`.
 fn kind_can_have_children(kind: NodeKind, flags: u32) -> bool {
     match kind {
-        NodeKind::BreakNode => false,
+        NodeKind::BreakNode | NodeKind::WordBreakOpportunityNode => false,
         NodeKind::AudioBox | NodeKind::VideoBox => flags & NodeFlag::ReplacedBoxCanHaveChildren as u32 != 0,
         NodeKind::SVGSVGBox => true,
         kind if node_facts::kind_is_replaced_box(kind) => false,

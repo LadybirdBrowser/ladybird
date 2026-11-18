@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 3ch; font: 20px/20px monospace; }
+</style>
+<!-- Each div is too narrow for "xxyy", and wide enough for "xx" and for "yy". So a div whose wbr is a soft wrap
+     opportunity is two lines tall. -->
+<div id="plain">xx<wbr>yy</div>
+<div id="in-span">xx<span><wbr></span>yy</div>
+<div id="after-span"><span>xx</span><wbr>yy</div>
+<div id="before-space">xx<wbr> yy</div>
+<div id="after-space">xx <wbr>yy</div>
+<div id="keep-all" style="word-break: keep-all">xx<wbr>yy</div>
+<div id="pre-wrap" style="white-space: pre-wrap">xx<wbr>yy</div>
+<div id="display-block">xx<wbr style="display: block">yy</div>
+<!-- An inline box that ends right after a wbr ends on the line before the break, so its end padding counts toward the
+     width that line is aligned by. -->
+<div id="end-padding" style="text-align: right"><span style="padding-right: 6px">xx<wbr></span>yy</div>
+<!-- Text that doesn't wrap has no soft wrap opportunities, so these stay on one line. -->
+<div id="nowrap" style="white-space: nowrap">xx<wbr>yy</div>
+<div id="pre" style="white-space: pre">xx<wbr>yy</div>
+<div id="nobr"><nobr>xx<wbr>yy</nobr></div>
+<div id="display-none">xx<wbr style="display: none">yy</div>
+<!-- A wbr is no content of a line, so a line holding nothing else takes no height. -->
+<div id="wbr-only"><wbr></div>
+<div id="max-content" style="width: max-content">xx<wbr>yy</div>
+<!-- The min-content width is that of the longer side of the wbr. -->
+<div id="min-content" style="width: min-content">xxx<wbr>yy</div>
+<script>
+    test(() => {
+        for (const div of document.querySelectorAll("div")) {
+            const rect = div.getBoundingClientRect();
+            println(`${div.id}: ${rect.width}x${rect.height}`);
+        }
+        const endPadding = document.getElementById("end-padding");
+        const left = endPadding.getBoundingClientRect().left;
+        for (const rect of endPadding.firstElementChild.getClientRects())
+            println(`end-padding span: ${rect.left - left}..${rect.right - left}`);
+    });
+</script>

@@ -1224,7 +1224,24 @@ impl<'pass> InlineContentPreparer<'pass> {
                     && !facts.produces_line_box_fragment_when_empty()
                     && self.pass.text_content(self.current_node).text.is_empty())
         };
-        let event = InlineBoxEvent::leaving_innermost_box(self.inline_box_event_position(), before_item);
+        // NB: A wbr has no item, so a box that ends right after one ends with the item before the wbr instead, and its
+        //     end edges stay on the line of that item when the line breaks at the wbr.
+        let mut position = self.inline_box_event_position();
+        if !self.current_node.is_invalid()
+            && self.facts(self.current_node).is_word_break_opportunity_node()
+            && let Some(previous_item_index) = self.buffers.items.len().checked_sub(1)
+        {
+            let previous_item_position = InlineBoxEvent::position_at(previous_item_index, false);
+            if self
+                .buffers
+                .box_events
+                .last()
+                .is_none_or(|event| event.position() <= previous_item_position)
+            {
+                position = previous_item_position;
+            }
+        }
+        let event = InlineBoxEvent::leaving_innermost_box(position, before_item);
         self.buffers.box_events.push(event);
     }
 
@@ -1287,6 +1304,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             if facts.is_inline()
                 && facts.has_box_model_metrics()
                 && !facts.is_break_node()
+                && !facts.is_word_break_opportunity_node()
                 && self.style(self.next_node).display().is_flow_inside()
                 && !self.is_out_of_flow(self.next_node)
                 && !facts.is_atomic_inline()
@@ -1665,7 +1683,10 @@ impl<'pass> InlineContentPreparer<'pass> {
             && let Some(previous_text) = self.previous_text.take()
             && wraps_at_boundary
         {
-            if previous_node.is_some_and(|node| !self.facts(node).is_text_node()) {
+            if previous_node.is_some_and(|node| {
+                let facts = self.facts(node);
+                !facts.is_text_node() && !facts.is_word_break_opportunity_node()
+            }) {
                 can_break_before = text_chunker::soft_wrap_opportunity_after_atomic_inline(&full_text[chunk.start..]);
             } else {
                 let style = text_context.style;
@@ -1765,6 +1786,19 @@ impl<'pass> InlineContentPreparer<'pass> {
                     self.skip_to_next();
                     continue;
                 }
+            }
+            if facts.is_word_break_opportunity_node() {
+                // https://html.spec.whatwg.org/multipage/text-level-semantics.html#the-wbr-element
+                // "The wbr element represents a line break opportunity."
+                // NB: The wbr stands in the text before the text after it as U+200B ZERO WIDTH SPACE, which the line
+                //     breaker allows a break after, if the nearest common ancestor of the wbr and that text wraps.
+                self.previous_text = Some(&ZERO_WIDTH_SPACE);
+                self.previous_node = Some(node);
+                self.previous_text_breaks_all = false;
+                self.previous_text_regional_indicators = 0;
+                self.code_unit_before_previous_text = None;
+                self.skip_to_next();
+                continue;
             }
             if !facts.is_box() {
                 self.skip_to_next();
@@ -2996,3 +3030,6 @@ fn inline_extent_without_removed_whitespace<'item>(
 
 /// What an atomic inline stands for in the text around it when looking for soft wrap opportunities.
 static OBJECT_REPLACEMENT_CHARACTER: [u16; 1] = [0xFFFC];
+
+/// What a `<wbr>` stands for in the text before the text after it when looking for soft wrap opportunities.
+static ZERO_WIDTH_SPACE: [u16; 1] = [0x200B];
