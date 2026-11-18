@@ -32,9 +32,9 @@ use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::crypto::crypto_algorithms::{
     AesCbc, AesCtr, AesGcm, AesKw, AesOcb, AesParameterType, AlgorithmMethods, AlgorithmParams, Argon2, Argon2Params,
     Bytes, CShakeParams, ChaCha20Poly1305, EcParameterType, Ecdh, Ecdsa, Ed448, Ed25519, EncapsulatedKeyData,
-    ExportKeyResult, Hkdf, HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData, Kmac, KmacImportParams,
-    KmacKeyGenParams, KmacParams, MlDsa, MlKem, Pbkdf2, Pbkdf2Params, RsaOaep, RsaParameterType, RsaPss, RsassaPkcs1,
-    Sha, X448, X25519, normalized_key_usages, public_key_for_private_key,
+    ExportKeyResult, GeneratedKey, Hkdf, HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData, Kmac,
+    KmacImportParams, KmacKeyGenParams, KmacParams, MlDsa, MlKem, Pbkdf2, Pbkdf2Params, RsaOaep, RsaParameterType,
+    RsaPss, RsassaPkcs1, Sha, X448, X25519, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -61,6 +61,10 @@ pub(crate) enum KeyDataType {
     JsonWebKey(JsonWebKey),
 }
 
+#[allow(
+    dead_code,
+    reason = "the generated bindings name the type of generateKey()'s result, which LibWeb builds as a GeneratedKey"
+)]
 pub(crate) enum CryptoKeyOrCryptoKeyPair {
     CryptoKey(Ref<CryptoKey>),
     CryptoKeyPair(CryptoKeyPair),
@@ -811,7 +815,7 @@ impl SubtleCrypto {
                         // 9. If result is a CryptoKey object:
                         //    If the [[type]] internal slot of result is "secret" or "private" and usages is empty,
                         //    then throw a SyntaxError.
-                        CryptoKeyOrCryptoKeyPair::CryptoKey(key) => {
+                        GeneratedKey::Key(key) => {
                             if (key.key_type() == KeyType::Secret || key.key_type() == KeyType::Private)
                                 && key_usages.is_empty()
                             {
@@ -834,13 +838,11 @@ impl SubtleCrypto {
                         // 9. If result is a CryptoKeyPair object:
                         //    If the [[usages]] internal slot of the privateKey attribute of result is the empty sequence,
                         //    then throw a SyntaxError.
-                        CryptoKeyOrCryptoKeyPair::CryptoKeyPair(key_pair) => {
-                            if key_pair
-                                .private_key
-                                .expect("a generated pair has a private key")
-                                .internal_usages()
-                                .is_empty()
-                            {
+                        GeneratedKey::Pair {
+                            public_key,
+                            private_key,
+                        } => {
+                            if private_key.internal_usages().is_empty() {
                                 reject_promise(
                                     vm,
                                     promise,
@@ -854,7 +856,7 @@ impl SubtleCrypto {
                             //    perform the remaining steps.
                             // 11. Let result be the result of converting result to an ECMAScript Object in realm, as
                             //    defined by [WebIDL].
-                            let object = crypto_key_pair(vm, realm, &key_pair);
+                            let object = crypto_key_pair(vm, realm, public_key, private_key);
                             if let Err(error) = object {
                                 reject_promise_with_exception(vm, promise, error.into());
                                 return;
@@ -2081,11 +2083,7 @@ impl SubtleCrypto {
                         &CallContext::new(vm, realm),
                         &normalized_shared_key_algorithm.parameter,
                         KeyFormat::RawSecret,
-                        ImportKeyData::Bytes(
-                            encapsulated_bits
-                                .shared_key
-                                .expect("encapsulation returns a shared key"),
-                        ),
+                        ImportKeyData::Bytes(encapsulated_bits.shared_key),
                         extractable,
                         &usages,
                     );
