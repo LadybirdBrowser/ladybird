@@ -1,0 +1,5 @@
+A select with a percentage width now compresses like a text input or a
+textarea. Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5
+(Playwright’s build), all three let a flex item around a select or a
+listbox select with width: 100% shrink to its 60px container, and keep
+the select’s default width with max-width: 100%, as Ladybird now does.
