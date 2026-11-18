@@ -1,0 +1,13 @@
+A box in a vertical writing mode now exports its central baseline to a
+parent it’s orthogonal to, unless its text is sideways. Blink’s
+ComputedStyle::GetFontBaseline() picks the same: FontBaseline::kCentral
+for vertical text that isn’t sideways, and kAlphabetic otherwise.
+
+Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5 (the build
+Playwright ships), all three give each row of vertical text in the test
+(vertical-lr, vertical-rl, two lines, a nested block with a larger font,
+upright, and sideways vertical-rl) the same offsets as Ladybird does
+now, and the imported align-items-baseline-column-horz.html WPT test
+passes all five of its subtests. Only sideways vertical-lr text still
+differs: The engines put its alphabetic baseline on the descent side of
+its line, and Ladybird puts it on the ascent side of that line.
