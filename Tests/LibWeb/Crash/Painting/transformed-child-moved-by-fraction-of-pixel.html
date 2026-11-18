@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    #spacer { height: 10px; }
+    #spacer.taller { height: 10.6px; }
+    #child { height: 30px; background: green; transform: translateX(0); }
+</style>
+<div id="spacer"></div>
+<div id="moved"><div id="container"><div id="child"></div></div></div>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            spacer.classList.add("taller");
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => document.documentElement.classList.remove("test-wait"));
+            });
+        });
+    });
+</script>
+</html>

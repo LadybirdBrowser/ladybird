@@ -649,6 +649,7 @@ fn recalculated_ink_overflow(
     use crate::painting::paintable_data::PaintableFlag;
     let own = own_ink_overflow(source, state, node);
     let mut ink = own;
+    let padding = paintable_geometry::first_fragment_padding_box_rect(source, node);
     if let Some(link) = source.with_committed_fragment_link(node, |link| link.cloned()) {
         let later_fragments = source.committed_side_data(node);
         let fragments =
@@ -657,26 +658,37 @@ fn recalculated_ink_overflow(
             for child_link in source.links_in_containing_block_fragment(node, link, fragment_index as u32) {
                 let child = child_link.fragment.node;
                 let child_ink = source.stored_ink_overflow(child);
-                let mut contribution = InkOverflow {
+                let child_padding = paintable_geometry::first_fragment_padding_box_rect(source, child);
+                let mut contribution_relative_to_padding_box = InkOverflow {
                     rect: child_ink
                         .rect
-                        .translated_by(paintable_geometry::first_fragment_padding_box_rect(source, child).location()),
+                        .translated(child_padding.x - padding.x, child_padding.y - padding.y),
                     ..child_ink
                 };
-                if let Some((transform, _)) =
+                if let Some((mut transform, _)) =
                     crate::painting::visual_context::node_values::compute_transform(source, child, 1.0)
                 {
-                    contribution = mapped_ink(contribution, &transform);
-                    contribution.holds_what_a_transform_moves = true;
+                    // NB: Round out relative to the padding box, as moving the box with its descendants keeps the ink.
+                    transform.origin.x -= padding.x.to_float();
+                    transform.origin.y -= padding.y.to_float();
+                    contribution_relative_to_padding_box = mapped_ink(contribution_relative_to_padding_box, &transform);
+                    contribution_relative_to_padding_box.holds_what_a_transform_moves = true;
                 }
-                include_child(&mut ink, contribution);
+                include_child(
+                    &mut ink,
+                    InkOverflow {
+                        rect: contribution_relative_to_padding_box
+                            .rect
+                            .translated(padding.x, padding.y),
+                        ..contribution_relative_to_padding_box
+                    },
+                );
             }
         }
     }
     if let Some(clip) = overflow_clip_ranges(source, node) {
         clip_content_to_overflow_clip(&mut ink, own, &clip);
     }
-    let padding = paintable_geometry::first_fragment_padding_box_rect(source, node);
     if let Some(style) = source.node_style_if_live(node) {
         ink.contribution_unbounded |= style.position() == positioning::STICKY
             || style.transform().has_perspective
