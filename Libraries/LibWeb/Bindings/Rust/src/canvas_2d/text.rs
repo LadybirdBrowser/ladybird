@@ -7,7 +7,10 @@
 //! The text of a 2D context: shaping it across the fonts of the cascade of the font of the context, laying it out
 //! as the text preparation algorithm does, and its outlines.
 
-use libgfx_rust::font::{EmojiPresentation, FontCascadeListHandle, FontHandle};
+use libgfx_rust::font::{
+    EmojiPresentation, FontCascadeListHandle, FontHandle, code_point_ends_emoji_zwj_element,
+    code_point_extends_emoji_sequence, emoji_presentation_for_code_point,
+};
 use libgfx_rust::path::{GlyphRun, Path};
 use libgfx_rust::text_layout::{GlyphBuffer, TextType, shape_text as shape_text_in_font};
 use libgfx_rust::{AffineTransform, FloatPoint};
@@ -46,9 +49,12 @@ pub(crate) fn shape_text(
     letter_spacing: f32,
     word_spacing: f32,
 ) -> Vec<ShapedRun> {
-    const TEXT_PRESENTATION: EmojiPresentation = EmojiPresentation {
-        is_emoji: false,
-        forced: false,
+    const ZERO_WIDTH_JOINER: u32 = 0x200d;
+    // The presentation the code point at `index` has: Its default one, or the one a variation selector after it asks
+    // for.
+    let presentation_at = |index: usize, code_point: u32, length: usize| -> EmojiPresentation {
+        let next_code_point = (index + length < text.len()).then(|| code_point_at(text, index + length).0);
+        emoji_presentation_for_code_point(code_point, next_code_point)
     };
 
     let mut runs = Vec::new();
@@ -75,18 +81,41 @@ pub(crate) fn shape_text(
         });
     };
 
-    let (first_code_point, _) = code_point_at(text, 0);
-    let mut last_font = cascade.font_for_code_point(first_code_point, TEXT_PRESENTATION, None);
+    let (first_code_point, first_length) = code_point_at(text, 0);
+    let mut last_font = cascade.font_for_code_point(
+        first_code_point,
+        presentation_at(0, first_code_point, first_length),
+        None,
+    );
     let mut run_start = 0;
-    let mut index = 0;
+    let mut previous_code_point = first_code_point;
+    let mut joiner_joins_emoji = false;
+    let mut index = first_length;
     while index < text.len() {
         let (code_point, length) = code_point_at(text, index);
-        let font = cascade.font_for_code_point(code_point, TEXT_PRESENTATION, Some(&last_font));
-        if font.as_raw() != last_font.as_raw() {
-            add_run(&text[run_start..index], &last_font);
-            last_font = font;
-            run_start = index;
+        // NB: A variation selector and a joiner go with the character they follow. And the font that draws that
+        //     character draws the rest of its sequence too, as far as it has the glyphs: What extends the sequence,
+        //     and what a joiner joins to it. A joiner after a character that's no emoji joins nothing, and neither
+        //     does one before a character with a variation selector that asks for its text presentation: Those are no
+        //     part of an emoji sequence.
+        if code_point == ZERO_WIDTH_JOINER {
+            joiner_joins_emoji = code_point_ends_emoji_zwj_element(previous_code_point);
         }
+        let presentation = presentation_at(index, code_point, length);
+        let is_joined = previous_code_point == ZERO_WIDTH_JOINER
+            && joiner_joins_emoji
+            && (presentation.is_emoji || !presentation.forced);
+        let stays_in_run = matches!(code_point, 0xfe0e | 0xfe0f | ZERO_WIDTH_JOINER)
+            || ((code_point_extends_emoji_sequence(code_point) || is_joined) && last_font.contains_glyph(code_point));
+        if !stays_in_run {
+            let font = cascade.font_for_code_point(code_point, presentation, Some(&last_font));
+            if font.as_raw() != last_font.as_raw() {
+                add_run(&text[run_start..index], &last_font);
+                last_font = font;
+                run_start = index;
+            }
+        }
+        previous_code_point = code_point;
         index += length;
     }
     if run_start < text.len() {

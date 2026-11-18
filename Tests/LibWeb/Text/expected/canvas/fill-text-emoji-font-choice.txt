@@ -1,0 +1,8 @@
+With the emoji variation selector, after the text font: in color
+With the text variation selector, after the color font: not in color
+Without a variation selector, after the text font: not in color
+Without a variation selector, after the color font: in color
+A letter after an emoji and a joiner is as wide as an Ahem glyph: true
+Three emoji that joiners make one are as wide as one emoji: true
+Ahem doesn't draw a "B" by itself: true
+Nor a "B" after an "A" and a joiner: true
