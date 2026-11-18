@@ -991,12 +991,13 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if !style.vertical_align_is_keyword() {
             return alphabetic - style.vertical_align_value().to_px(metrics.line_height);
         }
-        // FIXME: middle, sub and super are defined against the parent inline box's font metrics too, but we use the
-        //        block container's instead.
         match style.vertical_align_keyword() {
             vertical_align::BASELINE => alphabetic,
             vertical_align::MIDDLE => {
-                let x_height = CssPixels::nearest_value_for_f32(self.containing_style().font_x_height());
+                // https://drafts.csswg.org/css2/#valdef-vertical-align-middle
+                // Align the vertical midpoint of the box with the baseline of the parent box plus half the x-height of
+                // the parent.
+                let x_height = CssPixels::nearest_value_for_f32(parent_style.font_x_height());
                 self.current_block_offset
                     + line_box_baseline
                     + (metrics.effective_box_block_start_offset
@@ -1013,8 +1014,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                         - metrics.block_size)
                         / 2
             }
-            vertical_align::SUB => alphabetic + self.containing_style().font_size() / 5,
-            vertical_align::SUPER => alphabetic - self.containing_style().font_size() / 3,
+            vertical_align::SUB => alphabetic + parent_style.font_size() / 5,
+            vertical_align::SUPER => alphabetic - parent_style.font_size() / 3,
             // A top- or bottom-aligned box is the root of an aligned subtree, laid out on the baseline here and
             // shifted into place once the final line box size is known. These arms therefore only see boxes that
             // form no aligned subtree: the containing block itself, whose alignment does not apply to the line box

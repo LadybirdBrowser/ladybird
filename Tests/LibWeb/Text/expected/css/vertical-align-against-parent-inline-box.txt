@@ -1,0 +1,6 @@
+middle: 60 (18, 5)
+middle-small: 30 (0, 7)
+middle-inline-block: 40 (0, 11)
+middle-in-smaller-parent: 60 (26, 5)
+super: 30 (0, 6)
+sub: 32 (0, 22)

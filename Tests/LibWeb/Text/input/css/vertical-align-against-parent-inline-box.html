@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .parent { font-size: 30px; line-height: 30px; }
+    .small { font-size: 10px; line-height: 10px; }
+    .box { font-size: 50px; line-height: 60px; }
+    .ibs { display: inline-block; width: 10px; height: 10px; }
+    .case { position: relative; }
+</style>
+<div class="case" id="middle"><span class="parent">a<span class="box" style="vertical-align: middle">y</span></span>x</div>
+<div class="case" id="middle-small"><span class="parent">a<span class="small" style="vertical-align: middle">y</span></span>x</div>
+<div class="case" id="middle-inline-block"><span style="font-size: 40px; line-height: 40px">a<span class="ibs" style="vertical-align: middle"></span></span>x</div>
+<div class="case" id="middle-in-smaller-parent"><span class="small">a<span class="box" style="vertical-align: middle">y</span></span>x</div>
+<div class="case" id="super"><span class="parent">a<span class="small" style="vertical-align: super">y</span></span>x</div>
+<div class="case" id="sub"><span class="parent">a<span class="small" style="vertical-align: sub">y</span></span>x</div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        for (const element of document.querySelectorAll(".case")) {
+            const rect = element.getBoundingClientRect();
+            const offsets = [...element.querySelectorAll("span")].map(span => span.getBoundingClientRect().top - rect.top);
+            println(`${element.id}: ${rect.height} (${offsets.join(", ")})`);
+        }
+    });
+</script>
