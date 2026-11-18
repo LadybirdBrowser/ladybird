@@ -37,12 +37,6 @@ Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers
 Optional<CacheDigest> create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers);
 LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, CacheDigest const& cache_key, CacheDigest const& vary_key);
 
-struct CacheEntryData {
-    CacheDigest cache_key;
-    CacheDigest vary_key;
-};
-Optional<CacheEntryData> cache_entry_data_for_file(LexicalPath const&);
-
 bool is_cacheable(StringView method, HeaderList const&);
 bool has_preconditions(HeaderList const& request_headers);
 bool is_cacheable(u32 status_code, HeaderList const&);
