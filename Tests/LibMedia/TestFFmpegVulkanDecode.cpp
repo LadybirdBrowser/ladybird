@@ -184,3 +184,55 @@ TEST_CASE(vp9_inter_frame_size_change_needs_another_decoder)
     for (auto const& frame : frames)
         EXPECT_EQ(frame.size, Gfx::Size<u32>(1280, 720));
 }
+
+// The file's mastering display and content light levels are only in metadata OBUs, which must survive the copy of a frame
+// made for export.
+TEST_CASE(frames_carry_the_high_dynamic_range_metadata_in_their_bitstream)
+{
+    auto decoding = open_decoding("./av1_hdr_metadata_in_webm.webm"sv, Media::CodecID::AV1);
+    if (!decoding.has_value())
+        return;
+
+    auto frame = MUST(decoding->next_frame());
+    auto const& color_metadata = frame->color_metadata();
+    EXPECT(color_metadata.content_light_level_information.has_value());
+    if (color_metadata.content_light_level_information.has_value()) {
+        EXPECT_EQ(color_metadata.content_light_level_information->maximum_content_light_level, 1005);
+        EXPECT_EQ(color_metadata.content_light_level_information->maximum_frame_average_light_level, 315);
+    }
+    EXPECT(color_metadata.mastering_display_color_volume.has_value());
+    if (color_metadata.mastering_display_color_volume.has_value())
+        EXPECT_APPROXIMATE(color_metadata.mastering_display_color_volume->maximum_luminance, 1000.0);
+}
+
+static void expect_scene_peaks_of_every_frame(StringView path, Span<ExpectedScenePeak const> expected_scene_peaks)
+{
+    ScenePeakChecker scene_peaks { expected_scene_peaks };
+    auto decoding = open_decoding(path, Media::CodecID::H265);
+    if (!decoding.has_value())
+        return;
+
+    size_t frame_count = 0;
+    while (true) {
+        auto frame_result = decoding->next_frame();
+        if (frame_result.is_error()) {
+            EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+            break;
+        }
+        auto const& frame = *frame_result.value();
+        scene_peaks.check(frame.timestamp(), frame.color_metadata().maximum_scene_luminance);
+        frame_count++;
+    }
+    EXPECT_EQ(frame_count, expected_scene_peaks.size());
+    scene_peaks.expect_every_frame_checked();
+}
+
+TEST_CASE(h265_frames_carry_their_own_hdr10_plus_scene_peaks)
+{
+    expect_scene_peaks_of_every_frame("./hevc_hdr10_plus_in_sei.mkv"sv, hevc_hdr10_plus_in_sei_scene_peaks);
+}
+
+TEST_CASE(h265_frames_carry_their_own_dolby_vision_scene_peaks)
+{
+    expect_scene_peaks_of_every_frame("./hevc_dolby_vision_rpus.mkv"sv, hevc_dolby_vision_rpus_scene_peaks);
+}

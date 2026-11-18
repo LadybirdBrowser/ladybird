@@ -88,6 +88,9 @@ public:
 
     bool has_overrun() const { return m_has_overrun; }
 
+    // The emulation prevention bytes left to skip count as well, so this is at least the count of RBSP bytes left.
+    size_t remaining_byte_count() const { return m_data.size() - m_byte_index; }
+
 private:
     void advance_to_next_byte(u8 consumed_byte)
     {

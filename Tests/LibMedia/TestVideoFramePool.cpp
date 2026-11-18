@@ -64,6 +64,7 @@ static Media::VideoFrameMetadata make_metadata()
             },
             .mastering_display_color_volume = {},
             .content_light_level_information = {},
+            .maximum_scene_luminance = {},
         },
     };
 }

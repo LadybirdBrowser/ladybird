@@ -45,6 +45,8 @@ struct ColorMetadata {
     CodingIndependentCodePoints cicp;
     Optional<MasteringDisplayColorVolume> mastering_display_color_volume;
     Optional<ContentLightLevelInformation> content_light_level_information;
+    // The brightest light in the frame's scene in cd/m².
+    Optional<float> maximum_scene_luminance;
 
     bool operator==(ColorMetadata const&) const = default;
 
@@ -61,6 +63,8 @@ struct ColorMetadata {
                 merged_information.maximum_frame_average_light_level = information->maximum_frame_average_light_level;
             content_light_level_information = merged_information;
         }
+        if (other.maximum_scene_luminance.has_value())
+            maximum_scene_luminance = other.maximum_scene_luminance;
     }
 };
 

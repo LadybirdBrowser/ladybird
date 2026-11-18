@@ -10,7 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <LibGfx/Size.h>
-#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
+#include <LibMediaCodecs/Color/ColorMetadata.h>
 #include <LibMediaCodecs/Export.h>
 #include <LibMediaCodecs/Subsampling.h>
 
@@ -61,6 +61,9 @@ public:
     // Reads the sequence header out of a series of OBUs, whether they are a coded frame or a configuration record's
     // own OBUs. Only the coded frames that begin a coded video sequence carry one.
     static MEDIACODECS_API Optional<SequenceHeader> parse_sequence_header(ReadonlyBytes obus);
+
+    // The HDR metadata of the metadata OBUs in a series of OBUs. Fields that no OBU carries are left empty.
+    static MEDIACODECS_API ColorMetadata high_dynamic_range_metadata_of_obus(ReadonlyBytes obus);
 };
 
 }
