@@ -1865,7 +1865,7 @@ RefPtr<CSS::CustomPropertyData const> Element::style_custom_property_environment
     return declarations;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::compose_style_pseudo_element_records(Layout::BegunRead const& read, u16 composed, u16 transition_steps, Array<CSS::InstalledStyle, computed_pseudo_elements.size()> const& before_change_styles)
+CSS::RequiredInvalidationAfterStyleChange Element::compose_style_pseudo_element_records(Layout::BegunRead const& read, u16 composed, u16 transition_steps, Array<CSS::InstalledStyle, computed_pseudo_elements.size()> const& before_change_styles, u16 displayed_before)
 {
     auto& style_computer = document().style_computer();
     CSS::RequiredInvalidationAfterStyleChange invalidation;
@@ -1880,6 +1880,18 @@ CSS::RequiredInvalidationAfterStyleChange Element::compose_style_pseudo_element_
         style_computer.compose_installed_engine_record(read, { *this, pseudo_element }, before_change);
         if ((transition_steps & bit) && before_change)
             invalidation |= style_computer.run_transition_step_for_installed_record(read, { *this, pseudo_element }, before_change);
+        // https://drafts.csswg.org/css-animations-2/#owning-element-section
+        // If the display property of an element is set to none and its display value would compute to none when
+        // ignoring the Transitions and Animations cascade origins, then terminate running animations with this owning
+        // element.
+        // NB: As for an element, this applies once the record holds the pseudo-element's animations and its transition
+        //     step has run, and only as its display turns to none: a transition of display that starts from there keeps
+        //     the pseudo-element displayed until it ends.
+        if ((displayed_before & bit) && installed_style(pseudo_element).display_is_none_ignoring_animations() && (has_css_defined_animations(pseudo_element) || has_existing_transitions(pseudo_element))) {
+            cancel_css_animations_and_transitions_of(pseudo_element);
+            // NB: The animations and transitions this terminated compose no more over the record.
+            style_computer.compose_installed_engine_record(read, { *this, pseudo_element }, {});
+        }
     }
     apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(read, invalidation);
     return invalidation;

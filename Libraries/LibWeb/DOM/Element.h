@@ -430,8 +430,10 @@ public:
     // Composes the style records swapped in for those of the element's pseudo-elements the `composed` mask names, a
     // bit at each kind: applies the plan each record decides, samples the animations over it, and runs the transition
     // step for those the `transition_steps` mask names, against the record each held before, which
-    // `before_change_style_records` names in the order of `computed_pseudo_elements`.
-    CSS::RequiredInvalidationAfterStyleChange compose_style_pseudo_element_records(Layout::BegunRead const& read, u16 composed, u16 transition_steps, Array<CSS::InstalledStyle, computed_pseudo_elements.size()> const& before_change_styles);
+    // `before_change_style_records` names in the order of `computed_pseudo_elements`. A pseudo-element the
+    // `displayed_before` mask names, which was displayed before its record was swapped in, ends the CSS animations and
+    // transitions it owns where the record is `display: none`.
+    CSS::RequiredInvalidationAfterStyleChange compose_style_pseudo_element_records(Layout::BegunRead const& read, u16 composed, u16 transition_steps, Array<CSS::InstalledStyle, computed_pseudo_elements.size()> const& before_change_styles, u16 displayed_before);
 
     void set_needs_layout_tree_rebuild(Layout::BegunRead const& read, SetNeedsLayoutTreeUpdateReason, CSS::LayoutTreeRebuildRoot);
 

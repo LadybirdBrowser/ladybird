@@ -355,6 +355,16 @@ void StyleEngineFFI::web_css_install_styles(StyleReactionApplication* applicatio
                     pseudo_element_before_change[i] = element->installed_style(pseudo_element);
             }
         }
+        // The pseudo-elements that are displayed before their swaps, ignoring animations: one that no longer is after
+        // them ends the animations it owns.
+        u16 pseudo_elements_displayed_before = 0;
+        if (element && element_effects.pseudo_elements_composed != 0 && element->has_css_animations_or_transitions()) {
+            for (auto pseudo_element : DOM::Element::computed_pseudo_elements) {
+                auto const& style = element->installed_style(pseudo_element);
+                if (style && !style.display_is_none_ignoring_animations())
+                    pseudo_elements_displayed_before |= static_cast<u16>(1 << to_underlying(pseudo_element));
+            }
+        }
         // The effects compare the record the element moves to with the one it moves from, which the installation pins
         // while the host applies it.
         InstalledStyle const old_style { element_effects.old_record };
@@ -396,7 +406,7 @@ void StyleEngineFFI::web_css_install_styles(StyleReactionApplication* applicatio
         // The host composes the records swapped in for the element's pseudo-elements that owe the plan of their
         // animations or the transition step, or whose element has animations, as it composes those it settles.
         if (element_effects.pseudo_elements_composed != 0) {
-            application->invalidation |= element->compose_style_pseudo_element_records(read, element_effects.pseudo_elements_composed, element_effects.pseudo_element_transition_steps, pseudo_element_before_change);
+            application->invalidation |= element->compose_style_pseudo_element_records(read, element_effects.pseudo_elements_composed, element_effects.pseudo_element_transition_steps, pseudo_element_before_change, pseudo_elements_displayed_before);
         }
         if (display_none_before.has_value()) {
             element->apply_display_none_change(*display_none_before);
