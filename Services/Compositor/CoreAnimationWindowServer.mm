@@ -5,8 +5,10 @@
  */
 
 #include <AK/HashTable.h>
+#include <AK/Math.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
+#include <AK/Vector.h>
 #include <Compositor/CoreAnimationWindowServer.h>
 #include <LibCompositing/FrameFitting.h>
 #include <LibCore/Timer.h>
@@ -530,8 +532,40 @@ static CFDataRef create_ambient_viewing_environment()
     return CFDataCreate(kCFAllocatorDefault, bytes, sizeof(bytes));
 }
 
-static void enqueue_video_surface(AVSampleBufferDisplayLayer* layer, IOSurfaceRef surface, Media::CodingIndependentCodePoints cicp, Gfx::IntSize shown_size)
+template<Unsigned T>
+static void append_big_endian(Vector<u8, 24>& bytes, T value)
 {
+    for (size_t i = sizeof(T); i > 0; i--)
+        bytes.append((value >> ((i - 1) * 8)) & 0xff);
+}
+
+// The payload of an HEVC mastering display colour volume SEI message, which lists the primaries as green, blue, red.
+static CFDataRef create_mastering_display_color_volume(Media::MasteringDisplayColorVolume const& volume)
+{
+    constexpr float chromaticity_units_per_unit = 50'000;
+    constexpr float luminance_units_per_candela_per_square_metre = 10'000;
+    Vector<u8, 24> bytes;
+    for (auto const& chromaticity : { volume.green, volume.blue, volume.red, volume.white_point }) {
+        append_big_endian(bytes, round_to<u16>(chromaticity.x * chromaticity_units_per_unit));
+        append_big_endian(bytes, round_to<u16>(chromaticity.y * chromaticity_units_per_unit));
+    }
+    append_big_endian(bytes, round_to<u32>(volume.maximum_luminance * luminance_units_per_candela_per_square_metre));
+    append_big_endian(bytes, round_to<u32>(volume.minimum_luminance * luminance_units_per_candela_per_square_metre));
+    VERIFY(bytes.size() == 24);
+    return CFDataCreate(kCFAllocatorDefault, bytes.data(), static_cast<CFIndex>(bytes.size()));
+}
+
+static CFDataRef create_content_light_level_information(Media::ContentLightLevelInformation const& information)
+{
+    Vector<u8, 24> bytes;
+    append_big_endian(bytes, information.maximum_content_light_level);
+    append_big_endian(bytes, information.maximum_frame_average_light_level);
+    return CFDataCreate(kCFAllocatorDefault, bytes.data(), static_cast<CFIndex>(bytes.size()));
+}
+
+static void enqueue_video_surface(AVSampleBufferDisplayLayer* layer, IOSurfaceRef surface, Media::ColorMetadata const& color_metadata, Gfx::IntSize shown_size)
+{
+    auto const& cicp = color_metadata.cicp;
     CVPixelBufferRef pixel_buffer = nullptr;
     if (auto result = CVPixelBufferCreateWithIOSurface(kCFAllocatorDefault, surface, nullptr, &pixel_buffer); result != kCVReturnSuccess) {
         dbgln("Failed to wrap a video surface in a pixel buffer: {}", result);
@@ -543,9 +577,22 @@ static void enqueue_video_surface(AVSampleBufferDisplayLayer* layer, IOSurfaceRe
     set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferTransferFunctionKey, CVTransferFunctionGetStringForIntegerCodePoint(to_underlying(cicp.transfer_characteristics())));
     set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferYCbCrMatrixKey, CVYCbCrMatrixGetStringForIntegerCodePoint(to_underlying(cicp.matrix_coefficients())));
     if (cicp.transfer_characteristics() == Media::TransferCharacteristics::HLG) {
-        auto const* ambient_viewing_environment = create_ambient_viewing_environment();
-        set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferAmbientViewingEnvironmentKey, ambient_viewing_environment);
-        CFRelease(ambient_viewing_environment);
+        if (auto const* ambient_viewing_environment = create_ambient_viewing_environment()) {
+            set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferAmbientViewingEnvironmentKey, ambient_viewing_environment);
+            CFRelease(ambient_viewing_environment);
+        }
+    }
+    if (auto const& volume = color_metadata.mastering_display_color_volume; volume.has_value()) {
+        if (auto const* mastering_display_color_volume = create_mastering_display_color_volume(volume.value())) {
+            set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferMasteringDisplayColorVolumeKey, mastering_display_color_volume);
+            CFRelease(mastering_display_color_volume);
+        }
+    }
+    if (auto const& information = color_metadata.content_light_level_information; information.has_value() && information->maximum_content_light_level != 0 && information->maximum_frame_average_light_level != 0) {
+        if (auto const* content_light_level_information = create_content_light_level_information(information.value())) {
+            set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferContentLightLevelInfoKey, content_light_level_information);
+            CFRelease(content_light_level_information);
+        }
     }
 
     // A decoder's surface can be larger than its picture, and the clean aperture is centred in the surface.
@@ -605,7 +652,7 @@ void CoreAnimationRemoteLayer::show_content(ShownSublayer& shown_sublayer, Remot
             auto visible_size = frame->size().to_type<int>();
             Gfx::IntSize shown_size { min(visible_size.width(), surface_size.width()), min(visible_size.height(), surface_size.height()) };
             if (auto* sample_buffer_layer = as_sample_buffer_layer(content_layer)) {
-                enqueue_video_surface(sample_buffer_layer, surface, frame->cicp(), shown_size);
+                enqueue_video_surface(sample_buffer_layer, surface, frame->color_metadata(), shown_size);
             } else {
                 content_layer.contentsRect = unit_rect_of_surface_part(content_layer, shown_size, surface_size);
                 content_layer.opaque = YES;
