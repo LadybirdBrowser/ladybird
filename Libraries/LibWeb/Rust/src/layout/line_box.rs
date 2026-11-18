@@ -70,6 +70,15 @@ pub(crate) struct LineBoxData {
     pub(crate) text_overflow_elision: Option<TextOverflowElision>,
     /// The block-level box the line holds, where the line is interrupted for one.
     pub(crate) block_level_box: Option<BlockLevelBoxOnLine>,
+<<<<<<< HEAD
+=======
+    /// Whether placing the line aligned it as the last line of its block, or a line before a forced break, by
+    /// text-align-last. Justification follows the same decision.
+    pub(crate) uses_last_line_alignment: Option<bool>,
+    /// How far placing the line moved its fragments along it. A line that isn't placed yet has its fragments where
+    /// its content put them, from the start of the line.
+    pub(crate) aligned_inline_offset: CssPixels,
+>>>>>>> 686726af (LibWeb: Put the text-overflow ellipsis on the left in RTL lines)
     pub(crate) record: inline_content::LineRecord,
 }
 
@@ -95,6 +104,11 @@ impl LineBoxData {
             inline_box_baselines: Vec::new(),
             text_overflow_elision: None,
             block_level_box: None,
+<<<<<<< HEAD
+=======
+            uses_last_line_alignment: None,
+            aligned_inline_offset: CssPixels::default(),
+>>>>>>> 686726af (LibWeb: Put the text-overflow ellipsis on the left in RTL lines)
             record: inline_content::LineRecord {
                 direction,
                 writing_mode,

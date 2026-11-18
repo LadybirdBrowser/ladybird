@@ -79,6 +79,11 @@ fn apply_text_overflow_to_line(line: &mut line_box::LineBoxData) {
         return;
     }
 
+    if line.direction == direction::RTL {
+        apply_text_overflow_to_right_to_left_line(line, available_inline_size);
+        return;
+    }
+
     let mut line_has_visible_content = false;
     for index in 0..line.fragments.len() {
         let fragment_start = line.fragments[index].inline_offset;
@@ -135,6 +140,95 @@ fn apply_text_overflow_to_line(line: &mut line_box::LineBoxData) {
         }
         line.inline_length = available_inline_size;
         line.clamp_static_position_markers_to_inline_length();
+        break;
+    }
+}
+
+// NB: The fragments of a line go from left to right, and a right-to-left line overflows its line box on the left. So the
+//     line keeps its size and its fragments keep their places, and the ellipsis only takes the place of the glyphs
+//     that are left of the line box.
+fn apply_text_overflow_to_right_to_left_line(line: &mut line_box::LineBoxData, available_inline_size: CssPixels) {
+    // NB: The line keeps its size, so nothing else tells a line that has its ellipsis from one that still overflows.
+    if line
+        .fragments
+        .iter()
+        .any(|fragment| fragment.has_text_overflow_ellipsis)
+    {
+        return;
+    }
+    // NB: A line that ended at a forced break is placed already, which moved its fragments.
+    let first_visible_position = line.aligned_inline_offset + line.inline_length - available_inline_size;
+    let mut line_has_visible_content = false;
+    for index in (0..line.fragments.len()).rev() {
+        let fragment = &line.fragments[index];
+        if fragment.inline_offset >= first_visible_position {
+            line_has_visible_content = true;
+            continue;
+        }
+        let Some(glyph_data) = &fragment.glyphs else {
+            continue;
+        };
+        let font = glyph_data.font.clone();
+        let ellipsis_inline_size = font.glyph_width(ELLIPSIS_CODE_POINT);
+        // NB: Glyph positions are in visual order whatever the direction of the text in the fragment, so keep the
+        //     glyphs that leave room for the ellipsis between them and the left edge of the line box.
+        let first_kept_position =
+            (first_visible_position - fragment.inline_offset).to_double() as f32 + ellipsis_inline_size;
+        // https://drafts.csswg.org/css-overflow-3/#text-overflow
+        // implementations must hide characters and atomic inline-level elements at the end edge of the line as
+        // necessary to fit the ellipsis, and place the ellipsis immediately adjacent to the end edge of the remaining
+        // inline content.
+        // NB: A character is a grapheme cluster, so one that has a glyph left of that position goes as a whole.
+        let mut elided_clusters: Vec<_> = glyph_data
+            .glyphs
+            .placed()
+            .filter(|placed| placed.x < first_kept_position)
+            .map(|placed| placed.cluster_start)
+            .collect();
+        elided_clusters.sort_unstable();
+        elided_clusters.dedup();
+        // The first character or atomic inline-level element on a line must be clipped rather than ellipsed.
+        if !line_has_visible_content
+            && glyph_data
+                .glyphs
+                .placed()
+                .all(|placed| elided_clusters.binary_search(&placed.cluster_start).is_ok())
+            && let Some(rightmost) = glyph_data.glyphs.placed().max_by(|a, b| a.x.total_cmp(&b.x))
+            && let Ok(position) = elided_clusters.binary_search(&rightmost.cluster_start)
+        {
+            elided_clusters.remove(position);
+        }
+        let kept: Vec<_> = glyph_data
+            .glyphs
+            .placed()
+            .filter(|placed| elided_clusters.binary_search(&placed.cluster_start).is_err())
+            .collect();
+        let leftmost_kept = kept.iter().min_by(|a, b| a.x.total_cmp(&b.x)).copied();
+        let kept_start = leftmost_kept.map_or(fragment.inline_length.to_double() as f32, |placed| placed.x);
+        let glyph_block_offset = leftmost_kept.map_or(0.0, |placed| placed.y);
+
+        let fragment = &mut line.fragments[index];
+        let glyph_data = fragment.glyphs.as_mut().unwrap();
+        glyph_data.glyphs.truncate(0);
+        for placed in kept {
+            glyph_data.glyphs.push_placed(placed);
+        }
+        glyph_data.glyphs.push_placed(libgfx_rust::text_layout::PlacedGlyph {
+            glyph: libgfx_rust::text_layout::DrawGlyph::new(
+                ellipsis_inline_size,
+                font.glyph_id_for_code_point(ELLIPSIS_CODE_POINT),
+                1,
+                true,
+            ),
+            x: kept_start - ellipsis_inline_size,
+            y: glyph_block_offset,
+            cluster_start: 0,
+            is_rtl: false,
+        });
+        fragment.has_text_overflow_ellipsis = true;
+        // NB: The fragments before this one are left of the line box, where the box that clips its overflow hides
+        //     them. They stay as they are, so they keep their part in the size of the line and in what the box can
+        //     scroll to.
         break;
     }
 }
@@ -1644,6 +1738,11 @@ impl<'context> InlineFormattingContext<'context> {
                 inline_box_baselines: Vec::new(),
                 text_overflow_elision: None,
                 block_level_box: None,
+<<<<<<< HEAD
+=======
+                uses_last_line_alignment: None,
+                aligned_inline_offset: CssPixels::default(),
+>>>>>>> 686726af (LibWeb: Put the text-overflow ellipsis on the left in RTL lines)
             };
             fragment_start = fragment_end;
             let line_item_start = item_index;

@@ -1259,6 +1259,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 }
         };
         let inline_offset = aligned_inline_offset(self.line(line_index).inline_length);
+        self.line_mut(line_index).aligned_inline_offset = inline_offset;
         let block_offset = CssPixels::default();
 
         let LineAlignment {
