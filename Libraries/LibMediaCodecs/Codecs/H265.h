@@ -13,6 +13,7 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/Vector.h>
+#include <LibMediaCodecs/Color/ColorMetadata.h>
 #include <LibMediaCodecs/Export.h>
 
 namespace Media::Codecs {
@@ -137,6 +138,15 @@ public:
     static MEDIACODECS_API bool is_random_access_point(NALUnitHeader const&);
     static MEDIACODECS_API bool is_random_access_skipped_leading(NALUnitHeader const&);
     static MEDIACODECS_API bool has_random_access_skipped_leading_pictures(NALUnitHeader const&);
+    // IDR and BLA pictures always start a coded video sequence. A CRA picture only starts one at the start of the
+    // bitstream or after an end of sequence, which its header cannot tell.
+    static MEDIACODECS_API bool begins_coded_video_sequence(NALUnitHeader const&);
+    // The picture after an end of sequence or end of bitstream NAL unit starts a coded video sequence, whatever its type.
+    static MEDIACODECS_API bool ends_coded_video_sequence(NALUnitHeader const&);
+
+    // The HDR metadata a base layer NAL unit carries, if any. The scene peak applies to the picture the NAL unit is part
+    // of, and the rest to its coded video sequence.
+    static MEDIACODECS_API ColorMetadata high_dynamic_range_metadata_of_nal_unit(ReadonlyBytes nal_unit);
 
     // Parse the fields needed for parameter-set tracking and output reordering from a complete NAL unit,
     // including its header. These do not validate the remaining syntax of the parameter set.

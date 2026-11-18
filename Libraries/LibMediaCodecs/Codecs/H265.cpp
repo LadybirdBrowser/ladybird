@@ -6,9 +6,11 @@
 
 #include <LibMediaCodecs/BitReader.h>
 #include <LibMediaCodecs/Codecs/CodecString.h>
+#include <LibMediaCodecs/Codecs/DolbyVision.h>
 #include <LibMediaCodecs/Codecs/H265.h>
 #include <LibMediaCodecs/Codecs/NALUnit.h>
 #include <LibMediaCodecs/Codecs/RBSPBitReader.h>
+#include <LibMediaCodecs/Codecs/SupplementalEnhancementInformation.h>
 
 namespace Media::Codecs {
 
@@ -24,6 +26,12 @@ static constexpr u8 LAST_RASL_NAL_UNIT_TYPE = 9;
 static constexpr u8 FIRST_BLA_NAL_UNIT_TYPE = 16;
 static constexpr u8 LAST_BLA_NAL_UNIT_TYPE = 18;
 static constexpr u8 CRA_NAL_UNIT_TYPE = 21;
+static constexpr u8 LAST_IDR_NAL_UNIT_TYPE = 20;
+static constexpr u8 END_OF_SEQUENCE_NAL_UNIT_TYPE = 36;
+static constexpr u8 END_OF_BITSTREAM_NAL_UNIT_TYPE = 37;
+static constexpr u8 PREFIX_SUPPLEMENTAL_ENHANCEMENT_INFORMATION_NAL_UNIT_TYPE = 39;
+// Dolby Vision puts its RPUs in the first of the unspecified NAL unit types.
+static constexpr u8 DOLBY_VISION_REFERENCE_PROCESSING_UNIT_NAL_UNIT_TYPE = 62;
 static constexpr u8 MAXIMUM_REORDER_FRAME_COUNT = 16;
 
 Optional<H265::Parameters> H265::parse_codec_parameters(GenericLexer& lexer)
@@ -171,6 +179,46 @@ bool H265::has_random_access_skipped_leading_pictures(NALUnitHeader const& heade
 {
     auto is_broken_link_access = header.nal_unit_type >= FIRST_BLA_NAL_UNIT_TYPE && header.nal_unit_type <= LAST_BLA_NAL_UNIT_TYPE;
     return is_broken_link_access || header.nal_unit_type == CRA_NAL_UNIT_TYPE;
+}
+
+static ColorMetadata high_dynamic_range_metadata_of_dolby_vision_nal_unit(ReadonlyBytes nal_unit)
+{
+    Vector<u8, 1024> rpu;
+    Codecs::RBSPBitReader reader { nal_unit.slice(NAL_UNIT_HEADER_SIZE) };
+    while (reader.remaining_byte_count() > 0) {
+        auto byte = reader.read_bits<u8>(8);
+        if (reader.has_overrun())
+            break;
+        if (rpu.try_append(byte).is_error())
+            return {};
+    }
+
+    ColorMetadata metadata;
+    metadata.maximum_scene_luminance = dolby_vision_maximum_scene_luminance(rpu);
+    return metadata;
+}
+
+// ITU-T H.265 (07/2024), Table 7-1: BLA_W_LP through IDR_N_LP.
+bool H265::begins_coded_video_sequence(NALUnitHeader const& header)
+{
+    return header.nuh_layer_id == 0 && header.nal_unit_type >= FIRST_BLA_NAL_UNIT_TYPE && header.nal_unit_type <= LAST_IDR_NAL_UNIT_TYPE;
+}
+
+bool H265::ends_coded_video_sequence(NALUnitHeader const& header)
+{
+    return header.nal_unit_type == END_OF_SEQUENCE_NAL_UNIT_TYPE || header.nal_unit_type == END_OF_BITSTREAM_NAL_UNIT_TYPE;
+}
+
+ColorMetadata H265::high_dynamic_range_metadata_of_nal_unit(ReadonlyBytes nal_unit)
+{
+    auto header = parse_nal_unit_header(nal_unit);
+    if (!header.has_value() || header->nuh_layer_id != 0)
+        return {};
+    if (header->nal_unit_type == PREFIX_SUPPLEMENTAL_ENHANCEMENT_INFORMATION_NAL_UNIT_TYPE)
+        return high_dynamic_range_metadata_of_sei_payload(nal_unit.slice(NAL_UNIT_HEADER_SIZE));
+    if (header->nal_unit_type == DOLBY_VISION_REFERENCE_PROCESSING_UNIT_NAL_UNIT_TYPE)
+        return high_dynamic_range_metadata_of_dolby_vision_nal_unit(nal_unit);
+    return {};
 }
 
 // ITU-T H.265 (07/2024), 7.3.3: the spec notes that the constraint flag branches do not affect the structure's

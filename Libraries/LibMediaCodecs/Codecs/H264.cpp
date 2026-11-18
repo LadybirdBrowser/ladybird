@@ -10,6 +10,7 @@
 #include <LibMediaCodecs/Codecs/H264.h>
 #include <LibMediaCodecs/Codecs/NALUnit.h>
 #include <LibMediaCodecs/Codecs/RBSPBitReader.h>
+#include <LibMediaCodecs/Codecs/SupplementalEnhancementInformation.h>
 
 namespace Media::Codecs {
 
@@ -49,6 +50,7 @@ Optional<H264::Parameters> H264::parse_configuration_record(ReadonlyBytes record
 }
 
 static constexpr size_t NAL_UNIT_HEADER_SIZE = 1;
+static constexpr u8 FORBIDDEN_ZERO_BIT_MASK = 0x80;
 static constexpr u8 NAL_UNIT_TYPE_MASK = 0x1F;
 static constexpr u8 SEQUENCE_PARAMETER_SET_NAL_UNIT_TYPE = 7;
 static constexpr u8 PICTURE_PARAMETER_SET_NAL_UNIT_TYPE = 8;
@@ -58,6 +60,8 @@ static constexpr u8 NAL_REF_IDC_MASK = 0x60;
 static constexpr u8 NAL_REF_IDC_SHIFT = 5;
 static constexpr u8 FIRST_CODED_SLICE_NAL_UNIT_TYPE = 1;
 static constexpr u8 LAST_CODED_SLICE_NAL_UNIT_TYPE = 5;
+static constexpr u8 INSTANTANEOUS_DECODING_REFRESH_NAL_UNIT_TYPE = 5;
+static constexpr u8 SUPPLEMENTAL_ENHANCEMENT_INFORMATION_NAL_UNIT_TYPE = 6;
 
 // The profiles whose sequence parameter sets carry the chroma format and scaling matrix fields.
 // ITU-T H.264 (08/2024), 7.3.2.1.1.
@@ -213,6 +217,20 @@ u8 H264::nal_ref_idc(u8 nal_unit_header)
 }
 
 // ITU-T H.264 (08/2024), Table 7-1.
+ColorMetadata H264::high_dynamic_range_metadata_of_nal_unit(ReadonlyBytes nal_unit)
+{
+    if (nal_unit.size() <= NAL_UNIT_HEADER_SIZE || (nal_unit[0] & FORBIDDEN_ZERO_BIT_MASK) != 0)
+        return {};
+    if ((nal_unit[0] & NAL_UNIT_TYPE_MASK) != SUPPLEMENTAL_ENHANCEMENT_INFORMATION_NAL_UNIT_TYPE)
+        return {};
+    return high_dynamic_range_metadata_of_sei_payload(nal_unit.slice(NAL_UNIT_HEADER_SIZE));
+}
+
+bool H264::begins_coded_video_sequence(u8 nal_unit_header)
+{
+    return (nal_unit_header & NAL_UNIT_TYPE_MASK) == INSTANTANEOUS_DECODING_REFRESH_NAL_UNIT_TYPE;
+}
+
 bool H264::is_parameter_set(u8 nal_unit_header)
 {
     auto nal_unit_type = nal_unit_header & NAL_UNIT_TYPE_MASK;
@@ -225,7 +243,9 @@ bool H264::is_parameter_set(u8 nal_unit_header)
 // ITU-T H.264 (08/2024), 7.3.2.1.1: seq_parameter_set_data().
 Optional<H264::SequenceParameterSet> H264::parse_sequence_parameter_set(ReadonlyBytes nal_unit)
 {
-    if (nal_unit.is_empty() || (nal_unit[0] & NAL_UNIT_TYPE_MASK) != SEQUENCE_PARAMETER_SET_NAL_UNIT_TYPE || (nal_unit[0] & 0x80) != 0)
+    if (nal_unit.is_empty() || (nal_unit[0] & FORBIDDEN_ZERO_BIT_MASK) != 0)
+        return {};
+    if ((nal_unit[0] & NAL_UNIT_TYPE_MASK) != SEQUENCE_PARAMETER_SET_NAL_UNIT_TYPE)
         return {};
     Codecs::RBSPBitReader reader { nal_unit.slice(NAL_UNIT_HEADER_SIZE) };
     auto profile_idc = reader.read_bits<u8>(8);
@@ -307,7 +327,9 @@ Optional<H264::SequenceParameterSet> H264::parse_sequence_parameter_set(Readonly
 // ITU-T H.264 (08/2024), 7.3.2.2: pic_parameter_set_rbsp(), through seq_parameter_set_id.
 Optional<H264::PictureParameterSet> H264::parse_picture_parameter_set(ReadonlyBytes nal_unit)
 {
-    if (nal_unit.is_empty() || (nal_unit[0] & NAL_UNIT_TYPE_MASK) != PICTURE_PARAMETER_SET_NAL_UNIT_TYPE || (nal_unit[0] & 0x80) != 0)
+    if (nal_unit.is_empty() || (nal_unit[0] & FORBIDDEN_ZERO_BIT_MASK) != 0)
+        return {};
+    if ((nal_unit[0] & NAL_UNIT_TYPE_MASK) != PICTURE_PARAMETER_SET_NAL_UNIT_TYPE)
         return {};
     Codecs::RBSPBitReader reader { nal_unit.slice(NAL_UNIT_HEADER_SIZE) };
     auto pic_parameter_set_id = reader.read_unsigned_exp_golomb();

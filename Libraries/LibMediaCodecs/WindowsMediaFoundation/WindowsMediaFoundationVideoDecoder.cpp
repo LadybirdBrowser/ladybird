@@ -43,6 +43,7 @@ struct WindowsMediaFoundationVideoDecoder::DecodedOutput {
     AK::Duration timestamp;
     AK::Duration duration;
     u64 generation { 0 };
+    ColorMetadata high_dynamic_range_metadata;
 };
 
 struct WindowsMediaFoundationVideoDecoder::Transform {
@@ -224,7 +225,7 @@ DecoderErrorOr<NonnullOwnPtr<WindowsMediaFoundationVideoDecoder>> WindowsMediaFo
     if (frame_pool_result.is_error())
         return DecoderError::format(DecoderErrorCategory::Memory, "Failed to create a video frame pool: {}", frame_pool_result.release_error());
 
-    auto decoder = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) WindowsMediaFoundationVideoDecoder(codec_id, move(transform), thread_data, frame_pool_result.release_value())));
+    auto decoder = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) WindowsMediaFoundationVideoDecoder(codec_id, codec_initialization_data, move(transform), thread_data, frame_pool_result.release_value())));
     TRY(decoder->apply_codec_configuration(codec_initialization_data));
     // Some decoders refuse every output format until they have seen input, so this is retried when they ask.
     (void)decoder->negotiate_output_format();
@@ -238,11 +239,12 @@ DecoderErrorOr<NonnullOwnPtr<WindowsMediaFoundationVideoDecoder>> WindowsMediaFo
     return decoder;
 }
 
-WindowsMediaFoundationVideoDecoder::WindowsMediaFoundationVideoDecoder(CodecID codec_id, NonnullOwnPtr<Transform> transform, NonnullRefPtr<ThreadData> thread_data, NonnullRefPtr<VideoFramePool> frame_pool)
+WindowsMediaFoundationVideoDecoder::WindowsMediaFoundationVideoDecoder(CodecID codec_id, ReadonlyBytes codec_initialization_data, NonnullOwnPtr<Transform> transform, NonnullRefPtr<ThreadData> thread_data, NonnullRefPtr<VideoFramePool> frame_pool)
     : m_codec_id(codec_id)
     , m_transform(move(transform))
     , m_thread_data(move(thread_data))
     , m_frame_pool(move(frame_pool))
+    , m_high_dynamic_range_metadata_tracker(codec_id, codec_initialization_data)
 {
 }
 
@@ -316,6 +318,7 @@ DecoderErrorOr<void> WindowsMediaFoundationVideoDecoder::receive_coded_data(Code
         TRY(apply_codec_configuration(*configuration));
 
     auto access_unit = TRY(annex_b_access_unit_for(coded_frame));
+    auto const& high_dynamic_range_metadata = m_high_dynamic_range_metadata_tracker.apply_coded_frame(coded_frame);
 
     auto sample = TRY(create_input_sample(access_unit, coded_frame.presentation_timestamp(), coded_frame.duration()));
     auto sample_time = sample_time_from_duration(coded_frame.presentation_timestamp());
@@ -324,7 +327,7 @@ DecoderErrorOr<void> WindowsMediaFoundationVideoDecoder::receive_coded_data(Code
     if (m_next_input_is_discontinuous)
         sample->SetUINT32(MFSampleExtension_Discontinuity, TRUE);
 
-    auto submitted_frame = SubmittedFrame { sample_time, coded_frame.presentation_timestamp(), coded_frame.duration(), intent };
+    auto submitted_frame = SubmittedFrame { sample_time, coded_frame.presentation_timestamp(), coded_frame.duration(), intent, high_dynamic_range_metadata };
     auto insertion_index = m_submitted_frames.size();
     while (insertion_index > 0 && m_submitted_frames[insertion_index - 1].sample_time > sample_time)
         insertion_index--;
@@ -444,6 +447,7 @@ DecoderErrorOr<void> WindowsMediaFoundationVideoDecoder::collect_available_outpu
         decoded_output.format = m_transform->output_format;
         decoded_output.timestamp = submitted_frame.timestamp;
         decoded_output.duration = submitted_frame.duration;
+        decoded_output.high_dynamic_range_metadata = submitted_frame.high_dynamic_range_metadata;
         m_thread_data->enqueue(move(decoded_output));
     }
 }
@@ -702,13 +706,16 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> WindowsMediaFoundationVideoDecoder::co
         }
     }
 
-    return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timestamp, output.duration, format.aperture_size, format.bit_depth, subsampling, container_color_metadata, acquired_slot->storage));
+    auto color_metadata = container_color_metadata;
+    color_metadata.adopt_specified_values(output.high_dynamic_range_metadata);
+    return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(output.timestamp, output.duration, format.aperture_size, format.bit_depth, subsampling, move(color_metadata), acquired_slot->storage));
 }
 
 void WindowsMediaFoundationVideoDecoder::flush()
 {
     m_transform->transform->ProcessMessage(MFT_MESSAGE_COMMAND_FLUSH, 0);
     m_submitted_frames.clear();
+    m_high_dynamic_range_metadata_tracker.forget_stream();
     m_draining = false;
     m_drained = false;
     m_next_input_is_discontinuous = true;

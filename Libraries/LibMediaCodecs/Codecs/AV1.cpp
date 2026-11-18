@@ -9,6 +9,8 @@
 #include <LibMediaCodecs/BitReader.h>
 #include <LibMediaCodecs/Codecs/AV1.h>
 #include <LibMediaCodecs/Codecs/CodecString.h>
+#include <LibMediaCodecs/Codecs/DolbyVision.h>
+#include <LibMediaCodecs/Codecs/HDR10Plus.h>
 
 namespace Media::Codecs {
 
@@ -164,6 +166,10 @@ Optional<AV1::Parameters> AV1::parse_codec_parameters(GenericLexer& lexer)
 }
 
 static constexpr u8 OBU_SEQUENCE_HEADER = 1;
+static constexpr u8 OBU_METADATA = 5;
+static constexpr u64 METADATA_TYPE_HDR_CLL = 1;
+static constexpr u64 METADATA_TYPE_HDR_MDCV = 2;
+static constexpr u64 METADATA_TYPE_ITUT_T35 = 4;
 static constexpr u8 SELECT_SCREEN_CONTENT_TOOLS = 2;
 
 static u8 bit_depth_from_configuration_record(u8 profile, bool high_bitdepth, bool twelve_bit)
@@ -313,14 +319,28 @@ static Optional<AV1::SequenceHeader> parse_sequence_header_obu(ReadonlyBytes obu
     return sequence_header;
 }
 
+struct OBU {
+    u8 type { 0 };
+    ReadonlyBytes payload;
+};
+
 // https://aomediacodec.github.io/av1-spec/#obu-syntax
-Optional<AV1::SequenceHeader> AV1::parse_sequence_header(ReadonlyBytes obus)
-{
-    auto remaining = obus;
-    while (!remaining.is_empty()) {
-        BitReader reader { remaining };
-        if (reader.read_bit()) // obu_forbidden_bit
+// Walks a series of OBUs, stopping at the first malformed one.
+class OBUIterator {
+public:
+    explicit OBUIterator(ReadonlyBytes data)
+        : m_remaining_data(data)
+    {
+    }
+
+    Optional<OBU> next()
+    {
+        if (m_has_error || m_remaining_data.is_empty())
             return {};
+
+        BitReader reader { m_remaining_data };
+        if (reader.read_bit()) // obu_forbidden_bit
+            return fail();
         auto obu_type = reader.read_bits<u8>(4);
         auto has_extension = reader.read_bit();
         auto has_size_field = reader.read_bit();
@@ -330,22 +350,109 @@ Optional<AV1::SequenceHeader> AV1::parse_sequence_header(ReadonlyBytes obus)
 
         auto payload_size = has_size_field ? reader.read_leb128() : 0;
         if (reader.has_overrun())
-            return {};
+            return fail();
 
         auto header_size = reader.bit_position() / 8;
-        auto payload = remaining.slice(header_size);
+        auto payload = m_remaining_data.slice(header_size);
         if (has_size_field) {
             if (payload_size > payload.size())
-                return {};
+                return fail();
             payload = payload.trim(payload_size);
         }
 
-        if (obu_type == OBU_SEQUENCE_HEADER)
-            return parse_sequence_header_obu(payload);
+        m_remaining_data = m_remaining_data.slice(header_size + payload.size());
+        return OBU { obu_type, payload };
+    }
 
-        remaining = remaining.slice(header_size + payload.size());
+private:
+    Optional<OBU> fail()
+    {
+        m_has_error = true;
+        return {};
+    }
+
+    ReadonlyBytes m_remaining_data;
+    bool m_has_error { false };
+};
+
+Optional<AV1::SequenceHeader> AV1::parse_sequence_header(ReadonlyBytes obus)
+{
+    OBUIterator iterator { obus };
+    for (auto obu = iterator.next(); obu.has_value(); obu = iterator.next()) {
+        if (obu->type == OBU_SEQUENCE_HEADER)
+            return parse_sequence_header_obu(obu->payload);
     }
     return {};
+}
+
+// https://aomediacodec.github.io/av1-spec/#metadata-obu-syntax
+// https://aomediacodec.github.io/av1-spec/#trailing-bits-syntax
+// The metadata read here ends on a byte boundary, so its trailing one bit starts a byte of its own.
+static Optional<ReadonlyBytes> without_byte_aligned_trailing_bits(ReadonlyBytes payload)
+{
+    constexpr u8 trailing_one_bit_byte = 0x80;
+    for (size_t size = payload.size(); size > 0; size--) {
+        if (payload[size - 1] == 0)
+            continue;
+        if (payload[size - 1] != trailing_one_bit_byte)
+            return {};
+        return payload.trim(size - 1);
+    }
+    return {};
+}
+
+static void read_high_dynamic_range_metadata_obu(ReadonlyBytes obu, ColorMetadata& metadata)
+{
+    auto payload = without_byte_aligned_trailing_bits(obu);
+    if (!payload.has_value())
+        return;
+    BitReader reader { payload.value() };
+    auto metadata_type = reader.read_leb128();
+    if (metadata_type == METADATA_TYPE_HDR_CLL) {
+        ContentLightLevelInformation information;
+        information.maximum_content_light_level = reader.read_bits<u16>(16);
+        information.maximum_frame_average_light_level = reader.read_bits<u16>(16);
+        if (!reader.has_overrun())
+            metadata.content_light_level_information = information;
+    } else if (metadata_type == METADATA_TYPE_HDR_MDCV) {
+        // The chromaticities are 0.16 fixed point, and the maximum and minimum luminances are 24.8 and 18.14.
+        constexpr float chromaticity_units_per_unit = 65'536.0f;
+        constexpr float maximum_luminance_units_per_candela_per_square_metre = 256.0f;
+        constexpr float minimum_luminance_units_per_candela_per_square_metre = 16'384.0f;
+        auto read_chromaticity = [&] {
+            Chromaticity chromaticity;
+            chromaticity.x = static_cast<float>(reader.read_bits<u16>(16)) / chromaticity_units_per_unit;
+            chromaticity.y = static_cast<float>(reader.read_bits<u16>(16)) / chromaticity_units_per_unit;
+            return chromaticity;
+        };
+        MasteringDisplayColorVolume volume;
+        volume.red = read_chromaticity();
+        volume.green = read_chromaticity();
+        volume.blue = read_chromaticity();
+        volume.white_point = read_chromaticity();
+        volume.maximum_luminance = static_cast<float>(reader.read_bits<u32>(32)) / maximum_luminance_units_per_candela_per_square_metre;
+        volume.minimum_luminance = static_cast<float>(reader.read_bits<u32>(32)) / minimum_luminance_units_per_candela_per_square_metre;
+        if (!reader.has_overrun())
+            metadata.mastering_display_color_volume = volume;
+    } else if (metadata_type == METADATA_TYPE_ITUT_T35 && !reader.has_overrun()) {
+        auto t35_message = payload->slice(reader.bit_position() / 8);
+        auto luminance = hdr10_plus_maximum_scene_luminance(t35_message);
+        if (!luminance.has_value())
+            luminance = dolby_vision_maximum_scene_luminance_of_t35(t35_message);
+        if (luminance.has_value())
+            metadata.maximum_scene_luminance = luminance;
+    }
+}
+
+ColorMetadata AV1::high_dynamic_range_metadata_of_obus(ReadonlyBytes obus)
+{
+    ColorMetadata metadata;
+    OBUIterator iterator { obus };
+    for (auto obu = iterator.next(); obu.has_value(); obu = iterator.next()) {
+        if (obu->type == OBU_METADATA)
+            read_high_dynamic_range_metadata_obu(obu->payload, metadata);
+    }
+    return metadata;
 }
 
 // https://aomediacodec.github.io/av1-isobmff/#av1codecconfigurationbox-syntax

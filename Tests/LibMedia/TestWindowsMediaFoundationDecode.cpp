@@ -45,7 +45,7 @@ struct DecodeResult {
     RefPtr<Media::VideoFrame> first_frame;
 };
 
-DecodeResult decode_all_frames(StringView path, Function<void(Media::VideoFrame const&)> check_frame = {})
+Optional<DecodeResult> decode_all_frames(StringView path, Function<void(Media::VideoFrame const&)> check_frame = {})
 {
     auto [demuxer, track] = create_demuxer_and_video_track(path);
     auto first_sample = MUST(demuxer->get_next_sample_for_track(track));
@@ -115,18 +115,18 @@ void expect_picture_has_detail(Media::VideoFrame const& frame)
 TEST_CASE(avc_in_mp4_with_reordered_frames)
 {
     auto result = decode_all_frames("./avc.mp4"sv);
-    if (!result.first_frame)
+    if (!result.has_value())
         return;
-    EXPECT_EQ(result.frame_count, 50u);
-    expect_picture_has_detail(*result.first_frame);
+    EXPECT_EQ(result->frame_count, 50u);
+    expect_picture_has_detail(*result->first_frame);
 }
 
 TEST_CASE(avc_in_matroska)
 {
     auto result = decode_all_frames("./avc_in_matroska.mkv"sv);
-    if (!result.first_frame)
+    if (!result.has_value())
         return;
-    EXPECT_EQ(result.frame_count, 50u);
+    EXPECT_EQ(result->frame_count, 50u);
 }
 
 TEST_CASE(hevc_10bit)
@@ -134,13 +134,13 @@ TEST_CASE(hevc_10bit)
     auto result = decode_all_frames("./hevc_10bit.mp4"sv, [](Media::VideoFrame const& frame) {
         EXPECT_EQ(frame.bit_depth(), 10);
     });
-    if (!result.first_frame)
+    if (!result.has_value())
         return;
-    EXPECT(result.frame_count > 0);
-    expect_picture_has_detail(*result.first_frame);
+    EXPECT(result->frame_count > 0);
+    expect_picture_has_detail(*result->first_frame);
 
     // Ten significant bits must land in the low end of each sample.
-    auto luma = result.first_frame->yuv_data()->y_data();
+    auto luma = result->first_frame->yuv_data()->y_data();
     for (size_t i = 0; i + 1 < luma.size(); i += 2)
         EXPECT((luma[i + 1] & 0xFC) == 0);
 }
@@ -201,4 +201,51 @@ TEST_CASE(flush_restarts_decoding_from_a_keyframe)
     auto frame = MUST(decoder->take_next_output(track.video_data().color_metadata));
     EXPECT_EQ(frame->timestamp(), first_sample.presentation_timestamp());
     EXPECT_EQ(decoder->take_next_output(track.video_data().color_metadata).error().category(), Media::DecoderErrorCategory::EndOfStream);
+}
+
+// The file's mastering display and content light levels are only in its SEI, not in its sample entry.
+TEST_CASE(hevc_frames_carry_the_high_dynamic_range_metadata_in_their_bitstream)
+{
+    auto result = decode_all_frames("./hevc_hdr_metadata_in_sei.mp4"sv, [](Media::VideoFrame const& frame) {
+        auto const& color_metadata = frame.color_metadata();
+        EXPECT(color_metadata.mastering_display_color_volume.has_value());
+        if (color_metadata.mastering_display_color_volume.has_value()) {
+            EXPECT_APPROXIMATE(color_metadata.mastering_display_color_volume->maximum_luminance, 1000.0);
+            EXPECT_APPROXIMATE(color_metadata.mastering_display_color_volume->red.x, 0.68);
+        }
+        EXPECT(color_metadata.content_light_level_information.has_value());
+        if (color_metadata.content_light_level_information.has_value()) {
+            EXPECT_EQ(color_metadata.content_light_level_information->maximum_content_light_level, 1000);
+            EXPECT_EQ(color_metadata.content_light_level_information->maximum_frame_average_light_level, 400);
+        }
+    });
+    if (!result.has_value())
+        return;
+    EXPECT_EQ(result->frame_count, 6u);
+}
+
+TEST_CASE(hevc_frames_carry_their_own_hdr10_plus_scene_peaks)
+{
+    ScenePeakChecker scene_peaks { hevc_hdr10_plus_in_sei_scene_peaks };
+    auto result = decode_all_frames("./hevc_hdr10_plus_in_sei.mkv"sv, [&](Media::VideoFrame const& frame) {
+        auto const& color_metadata = frame.color_metadata();
+        scene_peaks.check(frame.timestamp(), color_metadata.maximum_scene_luminance);
+        EXPECT(color_metadata.content_light_level_information.has_value());
+    });
+    if (!result.has_value())
+        return;
+    EXPECT_EQ(result->frame_count, 6u);
+    scene_peaks.expect_every_frame_checked();
+}
+
+TEST_CASE(hevc_frames_carry_their_own_dolby_vision_scene_peaks)
+{
+    ScenePeakChecker scene_peaks { hevc_dolby_vision_rpus_scene_peaks };
+    auto result = decode_all_frames("./hevc_dolby_vision_rpus.mkv"sv, [&](Media::VideoFrame const& frame) {
+        scene_peaks.check(frame.timestamp(), frame.color_metadata().maximum_scene_luminance);
+    });
+    if (!result.has_value())
+        return;
+    EXPECT_EQ(result->frame_count, 6u);
+    scene_peaks.expect_every_frame_checked();
 }

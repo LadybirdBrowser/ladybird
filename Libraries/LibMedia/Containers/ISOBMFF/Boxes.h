@@ -325,6 +325,7 @@ inline Track track_from_track_entry(TrackEntry const& track_entry, bool is_first
                 .cicp = video.cicp.value_or({}),
                 .mastering_display_color_volume = video.mastering_display_color_volume,
                 .content_light_level_information = video.content_light_level_information,
+                .maximum_scene_luminance = {},
             },
         });
     } else if (track.type() == TrackType::Audio && sample_entry->audio.has_value()) {

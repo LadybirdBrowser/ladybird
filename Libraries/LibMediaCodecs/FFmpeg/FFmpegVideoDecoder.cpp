@@ -66,7 +66,7 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create
         return DecoderError::format(DecoderErrorCategory::Memory, "Failed to create a video frame pool: {}", frame_pool_result.release_error());
 
     memory_guard.disarm();
-    return DECODER_TRY_ALLOC(try_make<FFmpegVideoDecoder>(functions, codec_context, packet, frame, frame_pool_result.release_value()));
+    return DECODER_TRY_ALLOC(try_make<FFmpegVideoDecoder>(functions, codec_id, codec_initialization_data, codec_context, packet, frame, frame_pool_result.release_value()));
 }
 
 Optional<DecoderCapabilities> FFmpegVideoDecoder::capabilities(ParsedCodec const& codec)
@@ -79,12 +79,13 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create
     return try_create(FFmpegFunctions::bundled(), codec_id, codec_initialization_data);
 }
 
-FFmpegVideoDecoder::FFmpegVideoDecoder(FFmpegFunctions const& functions, AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame, NonnullRefPtr<VideoFramePool> frame_pool)
+FFmpegVideoDecoder::FFmpegVideoDecoder(FFmpegFunctions const& functions, CodecID codec_id, ReadonlyBytes codec_initialization_data, AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame, NonnullRefPtr<VideoFramePool> frame_pool)
     : m_functions(functions)
     , m_codec_context(codec_context)
     , m_packet(packet)
     , m_frame(frame)
     , m_frame_pool(move(frame_pool))
+    , m_frames_awaiting_output(codec_id, codec_initialization_data)
 {
 }
 
@@ -142,6 +143,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(C
     }
 
     auto color_metadata = container_color_metadata;
+    color_metadata.adopt_specified_values(m_pending_frame->high_dynamic_range_metadata);
     color_metadata.cicp = coding_independent_code_points_of(m_functions, *m_codec_context, container_color_metadata.cicp);
 
     auto pixel_format = static_cast<AVPixelFormat>(m_frame->format);
@@ -247,7 +249,7 @@ void FFmpegVideoDecoder::flush()
 {
     m_functions.avcodec_flush_buffers(m_codec_context);
     m_pending_frame.clear();
-    m_frames_awaiting_output.clear();
+    m_frames_awaiting_output.flush();
 }
 
 }
