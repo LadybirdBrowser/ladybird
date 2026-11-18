@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumberFormat.h>
 #include <AK/NumericLimits.h>
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
+#include <LibCore/System.h>
 #include <LibIPC/Connection.h>
 #include <LibWebView/ProcessManager.h>
 
@@ -74,6 +76,7 @@ StringView process_name_from_type(ProcessType type)
 ProcessManager::ProcessManager()
     : on_process_added([](Process&) { })
     , on_process_exited([](Process&&, Optional<int>) { })
+    , on_process_exceeded_memory_limit([](Process&, u64) { })
     , m_process_monitor(ProcessMonitor([this](pid_t pid, Optional<int> exit_status) {
         auto child_id = m_child_ids_by_pid.get(pid);
         if (!child_id.has_value())
@@ -177,6 +180,7 @@ Optional<Process> ProcessManager::remove_process(u64 child_id)
 {
     verify_event_loop();
     cancel_forced_exit(child_id);
+    m_children_ended_for_memory_use.remove(child_id);
     auto process = m_processes.take(child_id);
     if (!process.has_value())
         return {};
@@ -248,6 +252,82 @@ void ProcessManager::update_all_process_statistics()
 {
     verify_event_loop();
     (void)update_process_statistics(m_statistics);
+}
+
+u64 ProcessManager::default_web_content_memory_limit()
+{
+#if defined(HAS_ADDRESS_SANITIZER)
+    // NB: A sanitizer multiplies the memory a helper uses, so the limit would end helpers that behave correctly.
+    return 0;
+#else
+    // A page that needs this much memory is almost always a runaway one. A machine with more memory can let a page
+    // go further before the rest of the system suffers, and a machine with little memory suffers long before one
+    // helper uses all of it.
+    auto physical_memory = Core::System::physical_memory_bytes();
+    auto limit = physical_memory > 16 * GiB ? 16 * GiB : 8 * GiB;
+    return min(limit, physical_memory / 2);
+#endif
+}
+
+void ProcessManager::set_web_content_memory_limit(u64 limit_in_bytes)
+{
+    verify_event_loop();
+    m_web_content_memory_limit = limit_in_bytes;
+    if (limit_in_bytes == 0) {
+        if (m_web_content_memory_limit_timer)
+            m_web_content_memory_limit_timer->stop();
+        return;
+    }
+
+    // NB: A runaway helper can grow by gigabytes per second, so a long interval would let it pass the limit by far.
+    static constexpr auto check_interval = AK::Duration::from_seconds(2);
+    if (!m_web_content_memory_limit_timer) {
+        m_web_content_memory_limit_timer = Core::Timer::create_repeating(check_interval, [this] {
+            end_helpers_over_memory_limit();
+        });
+    }
+    m_web_content_memory_limit_timer->start();
+}
+
+void ProcessManager::end_helpers_over_memory_limit()
+{
+    verify_event_loop();
+
+    struct HelperOverLimit {
+        u64 child_id { 0 };
+        u64 memory_usage_in_bytes { 0 };
+    };
+    Vector<HelperOverLimit> helpers_over_limit;
+    for (auto const& info : m_statistics.processes) {
+        // NB: Child ID zero is the browser itself.
+        auto child_id = m_child_ids_by_pid.get(info->pid);
+        if (!child_id.has_value() || *child_id == 0 || m_children_ended_for_memory_use.contains(*child_id))
+            continue;
+        // NB: Only WebContent has a limit for now. The other helpers serve every tab, so ending one of them would
+        //     disturb all tabs, and none of them can tell the user why it was ended.
+        if (auto process = find_child(*child_id); !process.has_value() || process->type() != ProcessType::WebContent)
+            continue;
+        auto usage = Core::Platform::process_resource_usage(*info);
+        if (usage.has_value() && usage->attributed_memory_bytes > m_web_content_memory_limit)
+            helpers_over_limit.append({ *child_id, usage->attributed_memory_bytes });
+    }
+
+    // The callback may change the process table, so each helper is looked up again.
+    for (auto const& helper : helpers_over_limit) {
+        auto process = find_child(helper.child_id);
+        if (!process.has_value())
+            continue;
+        warnln("Ending {} process {}: it uses {} of memory, and the limit is {}", process_name_from_type(process->type()), process->pid(), human_readable_size(helper.memory_usage_in_bytes), human_readable_size(m_web_content_memory_limit));
+        // NB: The exit is handled in a later task, so the process is still in the table for the callback. A helper
+        //     that could not be ended is not reported, or a later crash of it would be blamed on its memory use. It
+        //     is not remembered either, so the next check tries again.
+        if (auto result = terminate_child(helper.child_id, Core::Process::TerminationMode::Forceful); result.is_error()) {
+            warnln("Failed to end process over its memory limit: {}", result.error());
+            continue;
+        }
+        m_children_ended_for_memory_use.set(helper.child_id);
+        on_process_exceeded_memory_limit(*process, helper.memory_usage_in_bytes);
+    }
 }
 
 void ProcessManager::verify_event_loop() const
