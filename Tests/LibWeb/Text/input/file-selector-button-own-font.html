@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="include.js"></script>
+<input type="file" id="plain">
+<input type="file" id="styled" style="font: italic small-caps bold condensed 30px/50px cursive; font-feature-settings: 'smcp'; letter-spacing: 3px; word-spacing: 7px; text-transform: uppercase; text-indent: 9px; text-shadow: 1px 1px red; white-space: pre; text-align: right">
+<script>
+    test(() => {
+        const properties = ["fontFamily", "fontSize", "fontWeight", "fontStyle", "fontVariantCaps", "fontStretch", "fontFeatureSettings", "lineHeight", "letterSpacing", "wordSpacing", "textTransform", "textIndent", "textShadow", "whiteSpace", "textAlign"];
+        for (const id of ["plain", "styled"]) {
+            const style = getComputedStyle(document.getElementById(id), "::file-selector-button");
+            for (const property of properties)
+                println(`${id} ${property}: ${style[property]}`);
+        }
+    });
+</script>

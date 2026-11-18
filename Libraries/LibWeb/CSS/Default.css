@@ -742,8 +742,19 @@ input, select, button, textarea {
     appearance: auto;
 }
 
+/* NB: A file input's button uses the system font at the size of the input's font, like other buttons, rather than the
+ *     page font that an author style gives the input. Nor does it take on the input's text styling. */
 ::file-selector-button {
     appearance: auto;
+    font: medium system-ui;
+    font-size: inherit;
+    letter-spacing: initial;
+    word-spacing: initial;
+    text-transform: initial;
+    text-indent: initial;
+    text-shadow: initial;
+    text-align: center;
+    white-space: nowrap;
 }
 
 input:not([type=range i], [type=checkbox i], [type=radio i]) {
