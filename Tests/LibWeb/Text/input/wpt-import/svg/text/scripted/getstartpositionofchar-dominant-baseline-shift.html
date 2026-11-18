@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>SVG getStartPositionOfChar with dominant-baseline should return unshifted position</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextContentElement__getStartPositionOfChar">
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#propdef-dominant-baseline">
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=311553">
+<meta name="assert" content="getStartPositionOfChar and getEndPositionOfChar should return positions based on the y attribute value, not shifted by dominant-baseline.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<svg width="400" height="400" style="font-family: serif; font-size: 60px;">
+  <!-- Horizontal text: auto vs middle baseline -->
+  <text>
+    <tspan id="h-auto" x="20" y="80">T</tspan>
+  </text>
+  <text dominant-baseline="middle">
+    <tspan id="h-middle" x="20" y="80">T</tspan>
+  </text>
+
+  <!-- Horizontal text: explicit on tspan -->
+  <text>
+    <tspan id="h-explicit-auto" x="20" y="160">T</tspan>
+  </text>
+  <text>
+    <tspan id="h-explicit-middle" x="20" y="160" dominant-baseline="middle">T</tspan>
+  </text>
+
+  <!-- Vertical text: auto vs middle baseline -->
+  <text writing-mode="tb">
+    <tspan id="v-auto" x="300" y="20">T</tspan>
+  </text>
+  <text writing-mode="tb" dominant-baseline="middle">
+    <tspan id="v-middle" x="300" y="20">T</tspan>
+  </text>
+</svg>
+
+<script>
+test(() => {
+  const auto = document.getElementById('h-auto');
+  const middle = document.getElementById('h-middle');
+  assert_equals(auto.getStartPositionOfChar(0).y, middle.getStartPositionOfChar(0).y,
+    'getStartPositionOfChar().y should not depend on inherited dominant-baseline');
+  assert_equals(auto.getEndPositionOfChar(0).y, middle.getEndPositionOfChar(0).y,
+    'getEndPositionOfChar().y should not depend on inherited dominant-baseline');
+}, 'Horizontal: getStartPositionOfChar/getEndPositionOfChar not affected by inherited dominant-baseline');
+
+test(() => {
+  const auto = document.getElementById('h-explicit-auto');
+  const middle = document.getElementById('h-explicit-middle');
+  assert_equals(auto.getStartPositionOfChar(0).y, middle.getStartPositionOfChar(0).y,
+    'getStartPositionOfChar().y should not depend on explicit dominant-baseline');
+  assert_equals(auto.getEndPositionOfChar(0).y, middle.getEndPositionOfChar(0).y,
+    'getEndPositionOfChar().y should not depend on explicit dominant-baseline');
+}, 'Horizontal: getStartPositionOfChar/getEndPositionOfChar not affected by explicit dominant-baseline on tspan');
+
+test(() => {
+  const auto = document.getElementById('v-auto');
+  const middle = document.getElementById('v-middle');
+  assert_equals(auto.getStartPositionOfChar(0).x, middle.getStartPositionOfChar(0).x,
+    'getStartPositionOfChar().x should not depend on dominant-baseline in vertical text');
+  assert_equals(auto.getEndPositionOfChar(0).x, middle.getEndPositionOfChar(0).x,
+    'getEndPositionOfChar().x should not depend on dominant-baseline in vertical text');
+}, 'Vertical: getStartPositionOfChar/getEndPositionOfChar not affected by dominant-baseline');
+
+test(() => {
+  // Verify the x position is also unaffected in horizontal mode
+  const auto = document.getElementById('h-auto');
+  const middle = document.getElementById('h-middle');
+  assert_equals(auto.getStartPositionOfChar(0).x, middle.getStartPositionOfChar(0).x,
+    'getStartPositionOfChar().x should be the same regardless of dominant-baseline');
+}, 'Horizontal: x position unaffected by dominant-baseline');
+</script>

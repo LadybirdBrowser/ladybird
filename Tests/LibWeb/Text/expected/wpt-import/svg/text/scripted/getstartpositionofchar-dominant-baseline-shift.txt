@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Horizontal: getStartPositionOfChar/getEndPositionOfChar not affected by inherited dominant-baseline
+Pass	Horizontal: getStartPositionOfChar/getEndPositionOfChar not affected by explicit dominant-baseline on tspan
+Pass	Vertical: getStartPositionOfChar/getEndPositionOfChar not affected by dominant-baseline
+Pass	Horizontal: x position unaffected by dominant-baseline

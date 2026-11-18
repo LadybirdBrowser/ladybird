@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	First tspan starts at its specified x/y
+Pass	Second tspan starts at its specified x/y, not offset by inter-tspan whitespace
+Pass	Second character of multi-char tspan follows naturally without position shift
+Pass	Third tspan starts at its specified x/y

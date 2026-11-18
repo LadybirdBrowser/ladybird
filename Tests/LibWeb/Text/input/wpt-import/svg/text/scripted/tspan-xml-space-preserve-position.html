@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<title>tspan positioning with xml:space="preserve" and whitespace between tspans</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#WhiteSpace">
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=311185">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+text { font: 10px/1 Ahem; }
+</style>
+
+<svg width="200" height="200">
+  <text>
+    <tspan id="t1" x="10" y="20" xml:space="preserve">A</tspan>
+    <tspan id="t2" x="10" y="40" xml:space="preserve">BC</tspan>
+    <tspan id="t3" x="10" y="60" xml:space="preserve">D</tspan>
+  </text>
+</svg>
+
+<script>
+setup({ explicit_done: true });
+
+document.fonts.ready.then(() => {
+  test(() => {
+    const t1 = document.getElementById('t1');
+    assert_equals(t1.getStartPositionOfChar(0).x, 10, 'tspan 1 char 0 x');
+    assert_equals(t1.getStartPositionOfChar(0).y, 20, 'tspan 1 char 0 y');
+  }, 'First tspan starts at its specified x/y');
+
+  test(() => {
+    const t2 = document.getElementById('t2');
+    assert_equals(t2.getStartPositionOfChar(0).x, 10, 'tspan 2 char 0 x');
+    assert_equals(t2.getStartPositionOfChar(0).y, 40, 'tspan 2 char 0 y');
+  }, 'Second tspan starts at its specified x/y, not offset by inter-tspan whitespace');
+
+  test(() => {
+    const t2 = document.getElementById('t2');
+    const pos0 = t2.getStartPositionOfChar(0);
+    const pos1 = t2.getStartPositionOfChar(1);
+    assert_equals(pos1.x, pos0.x + 10, 'tspan 2 char 1 x');
+    assert_equals(pos1.y, 40, 'tspan 2 char 1 y');
+  }, 'Second character of multi-char tspan follows naturally without position shift');
+
+  test(() => {
+    const t3 = document.getElementById('t3');
+    assert_equals(t3.getStartPositionOfChar(0).x, 10, 'tspan 3 char 0 x');
+    assert_equals(t3.getStartPositionOfChar(0).y, 60, 'tspan 3 char 0 y');
+  }, 'Third tspan starts at its specified x/y');
+
+  done();
+});
+</script>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Character positions and extents under lengthAdjust</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#TextElementLengthAdjustAttribute">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextContentElement__getStartPositionOfChar">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextContentElement__getEndPositionOfChar">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextContentElement__getExtentOfChar">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextContentElement__getCharNumAtPosition">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<svg width="400" height="200">
+<style>
+text {
+  font: 20px/1 Ahem;
+}
+</style>
+<text id="natural" x="0" y="40">ABCD</text>
+<text id="spacing" x="0" y="80" textLength="200">ABCD</text>
+<text id="glyphs" x="0" y="120" textLength="200" lengthAdjust="spacingAndGlyphs">ABCD</text>
+</svg>
+
+<script>
+// Ahem advances one em per character, so "ABCD" at 20px is naturally 80 units wide and
+// every number below is exact. textLength="200" asks for a 2.5x stretch.
+const EPSILON = 1 / 64;
+
+promise_setup(() => document.fonts.ready);
+
+promise_test(async () => {
+  const text = document.getElementById('natural');
+  assert_equals(text.getNumberOfChars(), 4);
+  assert_approx_equals(text.getComputedTextLength(), 80, EPSILON);
+  for (let i = 0; i < 4; i++) {
+    assert_approx_equals(text.getStartPositionOfChar(i).x, i * 20, EPSILON, 'start of char ' + i);
+    assert_approx_equals(text.getExtentOfChar(i).width, 20, EPSILON, 'extent of char ' + i);
+  }
+  assert_approx_equals(text.getEndPositionOfChar(3).x, 80, EPSILON);
+}, 'control: without textLength the advances are one em each');
+
+promise_test(async () => {
+  const text = document.getElementById('spacing');
+  // 'spacing' distributes the extra 120 units into the 3 gaps, 40 each. The glyphs keep
+  // their own advance, so getComputedTextLength stays at the natural 80.
+  assert_approx_equals(text.getComputedTextLength(), 80, EPSILON);
+  for (let i = 0; i < 4; i++) {
+    assert_approx_equals(text.getStartPositionOfChar(i).x, i * 60, EPSILON, 'start of char ' + i);
+    assert_approx_equals(text.getEndPositionOfChar(i).x, i * 60 + 20, EPSILON, 'end of char ' + i);
+    assert_approx_equals(text.getExtentOfChar(i).x, i * 60, EPSILON, 'extent x of char ' + i);
+    assert_approx_equals(text.getExtentOfChar(i).width, 20, EPSILON, 'extent of char ' + i);
+  }
+  assert_approx_equals(text.getEndPositionOfChar(3).x, 200, EPSILON);
+}, 'lengthAdjust="spacing" moves the characters apart and leaves each advance alone');
+
+promise_test(async () => {
+  const text = document.getElementById('glyphs');
+  // 'spacingAndGlyphs' scales the glyphs themselves, so each advance really is 2.5x wider
+  // and the sum of the advances is the requested textLength.
+  assert_approx_equals(text.getComputedTextLength(), 200, EPSILON);
+  for (let i = 0; i < 4; i++) {
+    assert_approx_equals(text.getStartPositionOfChar(i).x, i * 50, EPSILON, 'start of char ' + i);
+    assert_approx_equals(text.getEndPositionOfChar(i).x, (i + 1) * 50, EPSILON, 'end of char ' + i);
+    assert_approx_equals(text.getExtentOfChar(i).x, i * 50, EPSILON, 'extent x of char ' + i);
+    assert_approx_equals(text.getExtentOfChar(i).width, 50, EPSILON, 'extent of char ' + i);
+  }
+}, 'lengthAdjust="spacingAndGlyphs" scales the advances, the positions and the extents');
+
+promise_test(async () => {
+  const text = document.getElementById('glyphs');
+  // The stretch is along the inline axis only, so nothing is rotated and the glyph boxes
+  // keep their height.
+  const natural = document.getElementById('natural');
+  for (let i = 0; i < 4; i++) {
+    assert_equals(text.getRotationOfChar(i), 0, 'rotation of char ' + i);
+    assert_approx_equals(text.getExtentOfChar(i).height, natural.getExtentOfChar(i).height, EPSILON, 'height of char ' + i);
+  }
+}, 'lengthAdjust="spacingAndGlyphs" does not rotate or change the height of a character');
+
+promise_test(async () => {
+  const text = document.getElementById('glyphs');
+  assert_approx_equals(text.getSubStringLength(0, 1), 50, EPSILON);
+  assert_approx_equals(text.getSubStringLength(1, 2), 100, EPSILON);
+  assert_approx_equals(text.getSubStringLength(0, 4), 200, EPSILON);
+}, 'getSubStringLength sums the scaled advances under lengthAdjust="spacingAndGlyphs"');
+
+// getCharNumAtPosition takes a point in the same space the methods above report, so the
+// stretch has to be applied to the glyph boxes it tests against too. Only points that land
+// squarely on a glyph are asked about: what happens in the gap that lengthAdjust="spacing"
+// opens up between two characters is not something the specification settles.
+function charAt(text, x) {
+  const point = document.querySelector('svg').createSVGPoint();
+  point.x = x;
+  point.y = text.getExtentOfChar(0).y + text.getExtentOfChar(0).height / 2;
+  return text.getCharNumAtPosition(point);
+}
+
+promise_test(async () => {
+  const text = document.getElementById('spacing');
+  // Characters keep their 20 unit advance and sit at 0, 60, 120 and 180.
+  assert_equals(charAt(text, 10), 0);
+  assert_equals(charAt(text, 70), 1);
+  assert_equals(charAt(text, 130), 2);
+  assert_equals(charAt(text, 190), 3);
+  assert_equals(charAt(text, -1), -1);
+  assert_equals(charAt(text, 201), -1);
+}, 'getCharNumAtPosition finds the characters where lengthAdjust="spacing" put them');
+
+promise_test(async () => {
+  const text = document.getElementById('glyphs');
+  // Characters are 50 wide and sit at 0, 50, 100 and 150.
+  assert_equals(charAt(text, 1), 0);
+  assert_equals(charAt(text, 49), 0);
+  assert_equals(charAt(text, 51), 1);
+  assert_equals(charAt(text, 99), 1);
+  assert_equals(charAt(text, 101), 2);
+  assert_equals(charAt(text, 149), 2);
+  assert_equals(charAt(text, 151), 3);
+  assert_equals(charAt(text, 199), 3);
+  assert_equals(charAt(text, -1), -1);
+  assert_equals(charAt(text, 201), -1);
+}, 'getCharNumAtPosition finds the stretched characters under lengthAdjust="spacingAndGlyphs"');
+</script>

@@ -132,10 +132,52 @@ WebIDL::ExceptionOr<float> SVGTextContentElement::get_sub_string_length(WebIDL::
     return sub_string_length(cells, charnum, nchars);
 }
 
-GC::Ref<Geometry::DOMPoint> SVGTextContentElement::get_start_position_of_char(WebIDL::UnsignedLong charnum)
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMPoint>> SVGTextContentElement::get_start_position_of_char(WebIDL::UnsignedLong charnum)
 {
-    dbgln("(STUBBED) SVGTextContentElement::get_start_position_of_char(charnum={}). Called on: {}", charnum, debug_description());
-    return Geometry::DOMPoint::create();
+    // The getStartPositionOfChar method is used to get the position of a typographic character after text layout has
+    // been performed. When getStartPositionOfChar(charnum) is called, the following steps are run:
+    auto cells = character_cells();
+
+    // 1. Let cluster be the result of finding the typographic character for the character at index charnum within the
+    //    current element.
+    // 2. If cluster is null, then throw an IndexSizeError.
+    // NB: Every addressable character here corresponds to the typographic character whose cell it carries, so only an
+    //     index past the last character finds nothing.
+    if (charnum >= cells.size())
+        return WebIDL::IndexSizeError::create("Character index out of range"_utf16);
+    auto const& cluster = cells[charnum];
+
+    // 3. Let p be the alignment point of the typographic character that correspond to the character at index charnum,
+    //    in the coordinate system of the current element.
+    // FIXME: The glyph cells of text on a path are measured before the glyphs are laid along the path, so the point
+    //        isn't on the path.
+    // 4. Return a newly created, detached SVGPoint object representing the point p.
+    return Geometry::DOMPoint::create(cluster.x, cluster.alignment_point_y);
+}
+
+// https://svgwg.org/svg2-draft/text.html#__svg__SVGTextContentElement__getEndPositionOfChar
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMPoint>> SVGTextContentElement::get_end_position_of_char(WebIDL::UnsignedLong charnum)
+{
+    // The getEndPositionOfChar method is used to get the trailing position of a typographic character after text
+    // layout has been performed. When getEndPositionOfChar(charnum) is called, the following steps are run:
+    auto cells = character_cells();
+
+    // 1. Let cluster be the result of finding the typographic character for the character at index charnum within the
+    //    current element.
+    // 2. If cluster is null, then throw an IndexSizeError.
+    if (charnum >= cells.size())
+        return WebIDL::IndexSizeError::create("Character index out of range"_utf16);
+    auto const& cluster = cells[charnum];
+
+    // 3. Let p be the alignment point of cluster that correspond to the character at index charnum, in the coordinate
+    //    system of the current element.
+    // 4. Let direction be a unit vector in the direction of the cluster's advance. [...]
+    // FIXME: Every advance is taken to run along the x axis, which holds for the left-to-right horizontal text that
+    //        layout shapes, off a path.
+    // 5. Let advance be cluster's advance.
+    // 6. Set p to p + advance · direction.
+    // 7. Return a newly created, detached SVGPoint object representing the point p.
+    return Geometry::DOMPoint::create(cluster.x + cluster.width, cluster.alignment_point_y);
 }
 
 // https://svgwg.org/svg2-draft/text.html#__svg__SVGTextContentElement__getExtentOfChar
