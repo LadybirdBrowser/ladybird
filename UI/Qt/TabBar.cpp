@@ -2566,22 +2566,39 @@ void TabBar::update_loading_ring_animation()
 
 TabBarButton* TabBar::tab_close_button(int index) const
 {
-    return static_cast<TabBarButton*>(tabButton(index, QTabBar::RightSide));
+    return tabData(index).value<TabButtons>().close;
 }
 
 void TabBar::set_tab_close_button(int index, TabBarButton* button)
 {
-    setTabButton(index, QTabBar::RightSide, button);
+    set_tab_button(index, &TabButtons::close, button);
 }
 
 TabBarButton* TabBar::tab_audio_button(int index) const
 {
-    return static_cast<TabBarButton*>(tabButton(index, QTabBar::LeftSide));
+    return tabData(index).value<TabButtons>().audio;
 }
 
 void TabBar::set_tab_audio_button(int index, TabBarButton* button)
 {
-    setTabButton(index, QTabBar::LeftSide, button);
+    set_tab_button(index, &TabButtons::audio, button);
+}
+
+void TabBar::set_tab_button(int index, TabBarButton* TabButtons::* member, TabBarButton* button)
+{
+    auto buttons = tabData(index).value<TabButtons>();
+    auto*& slot = buttons.*member;
+    if (slot) {
+        slot->hide();
+        slot->deleteLater();
+    }
+    if (button) {
+        button->setParent(this);
+        button->lower();
+    }
+    // NB: Qt elides each tab's title to position registered buttons. We position these buttons ourselves.
+    slot = button;
+    setTabData(index, QVariant::fromValue(buttons));
 }
 
 void TabBar::update_microphone_indicators()
@@ -3538,6 +3555,8 @@ Tab* TabWidget::take_tab(int index)
     disconnect(as<Tab>(widget), &Tab::loaded, this, nullptr);
     m_toolbar->release_location_edit(*as<Tab>(widget));
 
+    m_tab_bar->set_tab_close_button(index, nullptr);
+    m_tab_bar->set_tab_audio_button(index, nullptr);
     m_tab_bar->removeTab(index);
 
     if (m_tab_bar->count() > 0 && m_tab_bar->currentIndex() >= 0)
