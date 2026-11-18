@@ -8,6 +8,7 @@
 
 use super::*;
 use crate::css_pixels::{CssPixelPoint, CssPixels};
+use crate::visual_context::RectMapping;
 use libgfx_rust::{CornerRadii, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -515,16 +516,22 @@ impl AsyncScrollTree {
         let context_is_valid = |context| visual_context_tree.context_is_valid(context);
         let spatial_context_has_visual_animation =
             visual_context_tree.spatial_nodes_in_subtrees_of_transform_animations();
-        let viewport_rect_for_context = |context: ContextRef, rect| {
+        let world = scroll_state_snapshot.world_transforms(visual_context_tree);
+        // Targets come in paint order, so most of them share the spatial node of the target before them.
+        let mut last_mapping: Option<(SpatialNodeIndex, RectMapping)> = None;
+        let mut viewport_rect_for_context = |context: ContextRef, rect| {
             if *spatial_context_has_visual_animation.get(context.spatial.0 as usize)? {
                 return None;
             }
-            Some(visual_context_tree.transform_rect_to_viewport(
-                context.spatial,
-                rect,
-                scroll_state_snapshot,
-                IncludeVisualViewportTransform::Yes,
-            ))
+            let mapping = match last_mapping {
+                Some((spatial, mapping)) if spatial == context.spatial => mapping,
+                _ => {
+                    let mapping = world.viewport_rect_mapping(context.spatial, IncludeVisualViewportTransform::Yes);
+                    last_mapping = Some((context.spatial, mapping));
+                    mapping
+                }
+            };
+            Some(mapping.map_rect(rect))
         };
         self.cached_wheel_hit_test_targets
             .reserve(self.state.wheel_hit_test_targets.len());

@@ -9,7 +9,8 @@ use super::{
     VisualContextTree, should_cull_back_face,
 };
 use libgfx_rust::{
-    FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, map_rect_through_matrix, multiply_affine, translation_matrix,
+    AffineTransform, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, map_rect_through_matrix, multiply_affine,
+    translation_matrix,
 };
 
 // Homogeneous coordinates this close to the eye plane have no meaningful projection.
@@ -192,6 +193,15 @@ impl WorldTransforms {
         map_rect_through(self.to_viewport_matrix(node, include_visual_viewport_transform), rect)
     }
 
+    /// The mapping from `node`'s space to the viewport, for many rects of one node.
+    pub fn viewport_rect_mapping(
+        &self,
+        node: SpatialNodeIndex,
+        include_visual_viewport_transform: IncludeVisualViewportTransform,
+    ) -> RectMapping {
+        RectMapping::new(self.to_viewport_matrix(node, include_visual_viewport_transform))
+    }
+
     pub fn accumulated_2d_scale(
         &self,
         node: SpatialNodeIndex,
@@ -257,8 +267,28 @@ impl WorldTransforms {
 }
 
 fn map_rect_through(matrix: FloatMatrix4x4, rect: FloatRect) -> FloatRect {
-    if matrix.is_2d_affine() {
-        return matrix.extract_2d_affine().map_rect(rect);
+    RectMapping::new(matrix).map_rect(rect)
+}
+
+/// A matrix that maps rects, with the check for a 2D affine matrix done once.
+#[derive(Clone, Copy)]
+pub enum RectMapping {
+    Affine(AffineTransform),
+    Projective(FloatMatrix4x4),
+}
+
+impl RectMapping {
+    pub fn new(matrix: FloatMatrix4x4) -> Self {
+        if matrix.is_2d_affine() {
+            return Self::Affine(matrix.extract_2d_affine());
+        }
+        Self::Projective(matrix)
     }
-    map_rect_through_matrix(matrix, rect, MINIMUM_PROJECTION_W)
+
+    pub fn map_rect(&self, rect: FloatRect) -> FloatRect {
+        match self {
+            Self::Affine(affine) => affine.map_rect(rect),
+            Self::Projective(matrix) => map_rect_through_matrix(*matrix, rect, MINIMUM_PROJECTION_W),
+        }
+    }
 }
