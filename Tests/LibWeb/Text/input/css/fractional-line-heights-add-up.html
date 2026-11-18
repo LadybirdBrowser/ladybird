@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { margin: 0; }
+    .case { font: 10px/14.5px Ahem; }
+</style>
+<div class="case" id="one-line">x</div>
+<div class="case" id="two-lines">x<br>x</div>
+<div class="case" id="three-lines">x<br>x<br>x</div>
+<div class="case" id="four-lines">x<br>x<br>x<br>x</div>
+<div class="case" id="wrapped-lines" style="width: 25px">xx xx xx xx</div>
+<div class="case" id="two-lines-at-13.3px" style="line-height: 13.3px">x<br>x</div>
+<div class="case" id="two-lines-at-0.75em" style="font-size: 15px; line-height: 0.75em">x<br>x</div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        for (const element of document.querySelectorAll(".case"))
+            println(`${element.id}: ${element.getBoundingClientRect().height}`);
+    });
+</script>

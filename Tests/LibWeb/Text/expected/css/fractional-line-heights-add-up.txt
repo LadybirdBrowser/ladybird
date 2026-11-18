@@ -1,0 +1,7 @@
+one-line: 14.5
+two-lines: 29
+three-lines: 43.5
+four-lines: 58
+wrapped-lines: 58
+two-lines-at-13.3px: 26.59375
+two-lines-at-0.75em: 22.5
