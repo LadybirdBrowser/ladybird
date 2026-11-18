@@ -1074,7 +1074,7 @@ impl CipherContext {
     }
 
     /// Sets up the context to encrypt or decrypt with whichever of the cipher, key and IV are given. The key and IV must
-    /// be of the sizes the cipher takes.
+    /// be of the sizes that the cipher, or the cipher the context already has, takes.
     pub(crate) fn init(
         &mut self,
         encrypt: bool,
@@ -1082,7 +1082,28 @@ impl CipherContext {
         key: Option<&[u8]>,
         iv: Option<&[u8]>,
     ) -> Result<(), CryptoError> {
-        // SAFETY: The context, cipher and buffers are live for the call.
+        // SAFETY: The cipher is static, and the context is live.
+        let (key_length, iv_length) = unsafe {
+            match cipher {
+                Some(cipher) => (
+                    sys::EVP_CIPHER_get_key_length(cipher.0),
+                    sys::EVP_CIPHER_get_iv_length(cipher.0),
+                ),
+                None => (
+                    sys::EVP_CIPHER_CTX_get_key_length(self.as_ptr()),
+                    sys::EVP_CIPHER_CTX_get_iv_length(self.as_ptr()),
+                ),
+            }
+        };
+        let has_length = |buffer: Option<&[u8]>, length: c_int| {
+            buffer.is_none_or(|buffer| usize::try_from(length).is_ok_and(|length| buffer.len() == length))
+        };
+        if !has_length(key, key_length) || !has_length(iv, iv_length) {
+            return Err(CryptoError::Invalid(
+                "The key or IV is not of the size the cipher takes",
+            ));
+        }
+        // SAFETY: The context, cipher and buffers are live for the call, and the buffers are of the sizes OpenSSL reads.
         check(unsafe {
             sys::EVP_CipherInit_ex(
                 self.as_ptr(),
