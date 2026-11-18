@@ -1,0 +1,14 @@
+Ladybird now takes the content size suggestion of a replaced flex item
+with a percentage width or max-width from its uncompressed size. Blink
+takes the content size suggestion from
+MinMaxSizesFunc(SizeType::kContent), the item’s min-content size rather
+than its contribution, so a percentage max-width doesn’t compress it;
+Gecko’s nsFlexContainerFrame::PartiallyResolveAutoMinSize() computes it
+with ComputeSize() at an auto inline size, where a percentage max-width
+resolves against the container rather than against zero.
+
+Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5
+(Playwright’s build), all three agree with Ladybird now on the test’s
+cases, except for an image with width: 100% next to a 300px sibling,
+where Firefox shrinks it to 100x50 and Chrome and WebKit keep it at
+200x100, as Ladybird does.
