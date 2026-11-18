@@ -1520,7 +1520,10 @@ Optional<URL::Origin> LocalNavigable::active_document_top_level_origin() const
 //     initial about:blank populates its next document, and once this navigable is destroyed.
 bool LocalNavigable::active_document_has_cross_site_ancestor() const
 {
-    VERIFY(m_active_document);
+    // NB: A navigable whose document was destroyed has no active document, while the navigables of iframes removed as
+    //     that document unloaded still have theirs. Conservatively treat it as a third-party context.
+    if (!m_active_document)
+        return true;
 
     // 1. If window's navigable's parent is null, then return false.
     auto parent = this->parent();
