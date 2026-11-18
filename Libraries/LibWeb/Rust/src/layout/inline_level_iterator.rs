@@ -940,6 +940,43 @@ struct TextNodeContext<'pass> {
     produces_line_box_fragment_when_empty: bool,
     is_text_control_text: bool,
     last_known_direction: Option<u8>,
+    /// The direction of the first chunk with a strong direction from the chunk at the first index on, which is the
+    /// chunk at the second index.
+    next_known_direction: std::cell::Cell<Option<(usize, usize, Option<u8>)>>,
+    /// The direction each bracket that is open at this point in the paragraph took, if it took one.
+    open_bracket_directions: std::cell::RefCell<Vec<Option<u8>>>,
+}
+
+impl TextNodeContext<'_> {
+    /// The direction of the first chunk with a strong direction among the chunks not yet taken.
+    fn next_known_direction(&self) -> Option<u8> {
+        // NB: The answer holds until the chunk that gave it is taken, so a run of neutral chunks looks ahead once.
+        if let Some((from, until, direction)) = self.next_known_direction.get()
+            && (from..=until).contains(&self.next_chunk_index)
+        {
+            return direction;
+        }
+        let found = self
+            .chunks
+            .iter()
+            .enumerate()
+            .skip(self.next_chunk_index)
+            .find_map(|(index, chunk)| {
+                // NB: A preserved newline ends the paragraph, and the text after it has no say in this one.
+                if self.should_respect_linebreaks && chunk.has_breaking_newline {
+                    return Some((index, None));
+                }
+                matches!(
+                    chunk.text_type,
+                    line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_RTL
+                )
+                .then_some((index, Some(chunk.text_type)))
+            });
+        let (until, direction) = found.unwrap_or((usize::MAX, None));
+        self.next_known_direction
+            .set(Some((self.next_chunk_index, until, direction)));
+        direction
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -1299,17 +1336,13 @@ impl<'pass> InlineContentPreparer<'pass> {
             produces_line_box_fragment_when_empty: facts.produces_line_box_fragment_when_empty(),
             is_text_control_text: facts.is_text_control_text(),
             last_known_direction: None,
+            next_known_direction: Default::default(),
+            open_bracket_directions: Default::default(),
         });
     }
 
     fn resolve_text_direction_from_context(&self, context: &TextNodeContext<'_>) -> u8 {
-        let next_known_direction = context.chunks[context.next_chunk_index..].iter().find_map(|chunk| {
-            matches!(
-                chunk.text_type,
-                line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_RTL
-            )
-            .then_some(chunk.text_type)
-        });
+        let next_known_direction = context.next_known_direction();
         if let (Some(last), Some(next)) = (context.last_known_direction, next_known_direction)
             && last != next
         {
@@ -1323,6 +1356,37 @@ impl<'pass> InlineContentPreparer<'pass> {
             .last_known_direction
             .or(next_known_direction)
             .unwrap_or(line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT)
+    }
+
+    // https://www.unicode.org/reports/tr9/#N1
+    // A sequence of NIs takes the direction of the surrounding strong text if the text on both sides has the same
+    // direction.
+    // NB: Otherwise the sequence keeps its neutral type, which takes the direction of the fragment it lands in.
+    // FIXME: Look at the strong text in the other text nodes of the paragraph as well.
+    fn direction_of_strong_text_around(&self, context: &TextNodeContext<'_>, neutral_text: &[u16]) -> Option<u8> {
+        let next_known_direction = context.next_known_direction();
+        let direction_of_text_around = context
+            .last_known_direction
+            .filter(|last| Some(*last) == next_known_direction);
+
+        // NB: The two brackets of a pair get one direction, as in https://www.unicode.org/reports/tr9/#N0. So a
+        //     closing bracket takes what its opening bracket took: the direction of the strong text before the pair
+        //     and at the start of it, where those agree.
+        // FIXME: Look at all the strong text inside the pair, and pair brackets across text nodes.
+        let mut open_bracket_directions = context.open_bracket_directions.borrow_mut();
+        let mut direction_of_first_bracket = None;
+        for code_unit in neutral_text {
+            let direction = match u8::try_from(*code_unit) {
+                Ok(b'(' | b'[' | b'{') => {
+                    open_bracket_directions.push(direction_of_text_around);
+                    direction_of_text_around
+                }
+                Ok(b')' | b']' | b'}') => open_bracket_directions.pop().flatten(),
+                _ => continue,
+            };
+            direction_of_first_bracket.get_or_insert(direction);
+        }
+        direction_of_first_bracket.unwrap_or(direction_of_text_around)
     }
 
     /// The text node's next item, or none once it has no more and the preparer has moved past it.
@@ -1452,8 +1516,18 @@ impl<'pass> InlineContentPreparer<'pass> {
         }
         if text_type == line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT {
             text_type = self.resolve_text_direction_from_context(&text_context);
+        } else if text_type == line_box_fragment::GLYPH_TEXT_TYPE_COMMON
+            && let Some(direction) = self.direction_of_strong_text_around(
+                &text_context,
+                &text_context.text[chunk.start..chunk.start + chunk.length],
+            )
+        {
+            text_type = direction;
         }
         if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
+            // NB: The strong text before a preserved newline has no say in the paragraph after it either.
+            text_context.last_known_direction = None;
+            text_context.open_bracket_directions.borrow_mut().clear();
             self.text_node_context = Some(text_context);
             return Some(PreparedItem::newline(text_node, chunk.start));
         }
