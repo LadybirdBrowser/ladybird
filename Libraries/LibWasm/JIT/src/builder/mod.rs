@@ -13,7 +13,7 @@
 //!   from the start. Only loop headers are unsealed while their body is built: their back edges are the branches to
 //!   the loop inside it, and the loop's `end` seals them.
 //! - Reading a local first looks at a dense per-local cache of the last definition, tagged with its block. Older
-//!   definitions move into one function-wide map from (block, local) to value when the cache entry is overwritten.
+//!   definitions move into function-wide chunks of a block's locals when the cache entry is overwritten.
 //!   A read that finds neither walks the predecessors, with an explicit stack, memoizing what it finds; reads in an
 //!   unsealed loop header make incomplete phis.
 //! - Phis that turn out trivial become `Forward` nodes. Cleanup removes the rest of them, to a fixed point.
@@ -159,7 +159,15 @@ pub struct Builder {
     local_types: Vec<Type>,
     /// The last definition of each local and its block.
     current: Vec<(BlockId, Value)>,
-    definitions: Table<u64>,
+    /// The value of each local at the end of each block, where known, in chunks of `DEFINITION_CHUNK` locals of a
+    /// block: `definition_chunks` maps (block, chunk index) to where the chunk starts in `definitions`, in chunks. A
+    /// block has the chunks of the locals it knows only, and a local it does not know is NONE in its chunk.
+    ///
+    /// OPTIMIZATION: Reads memoize in every block they walk through, so most blocks end up knowing most locals. A map
+    /// from (block, local) to value took several times the memory of this, hundreds of megabytes for the largest
+    /// functions.
+    definition_chunks: Table<u64>,
+    definitions: Vec<Value>,
     /// The locals each loop writes, itself or in loops in it: keyed by (loop, local), and as a list per loop of
     /// (local, next entry) from its entry in `loop_write_heads`.
     loop_writes: Table<u64>,
@@ -254,6 +262,9 @@ fn frame_local_offset(local: u32) -> i32 {
     8 * local as i32
 }
 
+/// How many locals a chunk of `Builder::definitions` holds.
+const DEFINITION_CHUNK: u32 = 32;
+
 fn key(block: BlockId, local: u32) -> u64 {
     (u64::from(block) << 32) | u64::from(local)
 }
@@ -266,6 +277,7 @@ impl Builder {
     fn clear(&mut self) {
         self.local_types.clear();
         self.current.clear();
+        self.definition_chunks.clear();
         self.definitions.clear();
         self.loop_writes.clear();
         self.loop_write_list.clear();
@@ -631,7 +643,7 @@ impl Builder {
     fn write_local(&mut self, local: u32, value: Value) {
         let (block, previous) = self.current[local as usize];
         if block != self.current_block && block != NONE {
-            self.definitions.insert(key(block, local), previous);
+            self.define(block, local, previous);
         }
         self.current[local as usize] = (self.current_block, value);
     }
@@ -664,8 +676,24 @@ impl Builder {
         if block == self.current_block {
             self.write_local(local, value);
         } else {
-            self.definitions.insert(key(block, local), value);
+            self.define(block, local, value);
         }
+    }
+
+    fn define(&mut self, block: BlockId, local: u32, value: Value) {
+        let chunk_key = key(block, local / DEFINITION_CHUNK);
+        let start = match self.definition_chunks.get(chunk_key) {
+            Some(start) => start,
+            None => {
+                let start = u32::try_from(self.definitions.len() / DEFINITION_CHUNK as usize)
+                    .expect("the chunks of a function fit in memory");
+                self.definition_chunks.insert(chunk_key, start);
+                self.definitions
+                    .resize(self.definitions.len() + DEFINITION_CHUNK as usize, NONE);
+                start
+            }
+        };
+        self.definitions[start as usize * DEFINITION_CHUNK as usize + (local % DEFINITION_CHUNK) as usize] = value;
     }
 
     fn lookup(&self, func: &Func, block: BlockId, local: u32) -> Option<Value> {
@@ -673,7 +701,9 @@ impl Builder {
         if cached_block == block {
             return Some(func.resolve(value));
         }
-        self.definitions.get(key(block, local)).map(|value| func.resolve(value))
+        let start = self.definition_chunks.get(key(block, local / DEFINITION_CHUNK))?;
+        let value = self.definitions[start as usize * DEFINITION_CHUNK as usize + (local % DEFINITION_CHUNK) as usize];
+        (value != NONE).then(|| func.resolve(value))
     }
 
     fn read_local(&mut self, func: &mut Func, block: BlockId, local: u32) -> Value {
