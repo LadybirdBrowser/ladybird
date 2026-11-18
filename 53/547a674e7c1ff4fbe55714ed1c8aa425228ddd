@@ -1,0 +1,11 @@
+When the node before the resource selection pointer is removed, Ladybird
+now makes that node’s previous sibling the node before the pointer, at
+any point in the algorithm. Gecko does the same, in HTMLMediaElement::
+ContentWillBeRemoved(), which sets mSourcePointer to the removed child’s
+previous sibling. Blink’s HTMLMediaElement::SourceWasRemoved() and
+WebKit’s HTMLMediaElement::sourceWasRemoved() keep the next child to
+consider instead, recomputing it from the current source node when that
+child is removed. Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit
+26.5, both new tests load the appended source in all three: the one that
+swaps the sources while the element waits, and the one whose error
+listener does it. They now do in Ladybird too.
