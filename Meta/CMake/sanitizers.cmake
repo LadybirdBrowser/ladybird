@@ -45,7 +45,7 @@ if (ENABLE_UNDEFINED_SANITIZER)
         if (UNDEFINED_BEHAVIOR_IS_FATAL)
             add_cxx_compile_options(-fno-sanitize-recover=undefined)
         endif()
-        if (APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "17")
+        if (APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
             add_cxx_compile_options(-fno-sanitize=function)
         endif()
         # The LibJS runtime keeps its own class pointer where a C++ cell has its vtable pointer, so vptr checks misfire
