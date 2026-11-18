@@ -325,7 +325,11 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             self.line_count() <= 1 && !self.is_continuation,
             forced == ForcedBreak::Yes,
         );
-        self.line_mut(line_index).inline_length += indent;
+        {
+            let mut line = self.line_mut(line_index);
+            line.inline_length += indent;
+            line.indent = indent;
+        }
         self.current_line_committed_pending_margin = false;
     }
 
@@ -1667,6 +1671,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 self.line(line_index).inline_length
                     - snapshot.inline_offset
                     - self.line(line_index).fragments[fragment_index].inline_length
+            } else if self.line(line_index).direction == direction::RTL {
+                // https://drafts.csswg.org/css-text-3/#text-indent-property
+                // "The indent is treated as a margin applied to the start edge of the line box."
+                // NB: The start edge of a right-to-left line is its right end, so the content comes before the indent
+                //     from the left, even though the line's inline length counts the indent first.
+                snapshot.inline_offset - self.line(line_index).indent
             } else {
                 snapshot.inline_offset
             };

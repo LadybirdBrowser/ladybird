@@ -170,6 +170,8 @@ pub struct LineRecord {
     pub(crate) horizontal_extent: CssPixels,
     pub(crate) reusable_atomic_prefix: bool,
     pub inline_length: CssPixels,
+    /// The text-indent the line begins with, which its inline length includes.
+    pub(crate) indent: CssPixels,
     pub inline_length_before_block_ellipsis: Option<CssPixels>,
     pub block_length: CssPixels,
     pub block_start: CssPixels,
