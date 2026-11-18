@@ -19,6 +19,7 @@
 
 #include <core/SkCanvas.h>
 #include <core/SkColorFilter.h>
+#include <core/SkData.h>
 #include <core/SkImage.h>
 #include <core/SkSurface.h>
 #include <core/SkYUVAInfo.h>
@@ -302,24 +303,68 @@ static bool frame_holds_high_dynamic_range(Media::VideoFrame const& frame)
     return transfer_characteristics == Media::TransferCharacteristics::SMPTE2084 || transfer_characteristics == Media::TransferCharacteristics::HLG;
 }
 
+// SDR masters of PQ video put SDR white near 100 nits, as AVFoundation does, rather than at BT.2408's 203 nits.
+static constexpr float perceptual_quantizer_standard_dynamic_range_white_luminance = 100;
+
+static sk_sp<SkColorSpace> with_standard_dynamic_range_white_of_perceptual_quantizer(SkColorSpace const& color_space)
+{
+    skcms_TransferFunction transfer_function;
+    color_space.transferFn(&transfer_function);
+    if (skcms_TransferFunction_getType(&transfer_function) != skcms_TFType_PQ)
+        return nullptr;
+    skcms_Matrix3x3 to_xyz_d50;
+    if (!color_space.toXYZD50(&to_xyz_d50))
+        return nullptr;
+    // The PQ transfer function's a is the luminance in nits that it decodes to 1.
+    transfer_function.a = perceptual_quantizer_standard_dynamic_range_white_luminance;
+    return SkColorSpace::MakeRGB(transfer_function, to_xyz_d50);
+}
+
+// reinterpretColorSpace() copies the pixels of an image in memory, so such an image is given its new colour space by
+// wrapping the same pixels instead. The pixel data holds a reference to the image, so the pixels stay alive and
+// unchanged for as long as the new image uses them.
+static sk_sp<SkImage> reinterpreted_in_color_space(sk_sp<SkImage> image, sk_sp<SkColorSpace> color_space)
+{
+    SkPixmap pixmap;
+    if (!image->peekPixels(&pixmap))
+        return image->reinterpretColorSpace(move(color_space));
+    auto release_image = [](void const*, void* image) { static_cast<SkImage*>(image)->unref(); };
+    auto pixels = SkData::MakeWithProc(pixmap.addr(), pixmap.computeByteSize(), release_image, SkRef(image.get()));
+    if (auto reinterpreted_image = SkImages::RasterFromData(pixmap.info().makeColorSpace(color_space), move(pixels), pixmap.rowBytes()))
+        return reinterpreted_image;
+    return image->reinterpretColorSpace(move(color_space));
+}
+
 // A PQ or HLG frame holds light up to many times as bright as SDR white, which an SDR surface would clip. Such a frame
 // is drawn once through a tone map into an sRGB image instead, on the GPU when there is a context for it.
 static sk_sp<SkImage> tone_mapped_into_standard_dynamic_range(sk_sp<SkImage> image, GrDirectContext* gr_context)
 {
+    auto output_color_space = SkColorSpace::MakeSRGB();
+    // Only the tone map sees the image with SDR white moved, so a frame that cannot be tone mapped keeps its own tag.
+    auto image_to_tone_map = image;
+    if (auto const* color_space = image->colorSpace()) {
+        if (auto perceptual_quantizer_color_space = with_standard_dynamic_range_white_of_perceptual_quantizer(*color_space)) {
+            image_to_tone_map = reinterpreted_in_color_space(image, move(perceptual_quantizer_color_space));
+            // SDR masters are graded for the BT.1886 EOTF, and we show SDR video's pixels as sRGB, so encode the
+            // tone-mapped light the way an SDR master would be encoded.
+            output_color_space = SkColorSpace::MakeRGB(SkNamedTransferFn::kRec709, SkNamedGamut::kSRGB);
+        }
+    }
+
     // The headroom is in stops above SDR white.
     static constexpr float standard_dynamic_range_headroom = 0;
-    auto tone_map = skhdr::Metadata::MakeEmpty().makeToneMapColorFilter(standard_dynamic_range_headroom, image->colorSpace());
+    auto tone_map = skhdr::Metadata::MakeEmpty().makeToneMapColorFilter(standard_dynamic_range_headroom, image_to_tone_map->colorSpace());
     if (!tone_map)
         return image;
-    auto image_info = SkImageInfo::Make(image->width(), image->height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
+    auto image_info = SkImageInfo::Make(image->width(), image->height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, output_color_space);
     auto surface = gr_context ? SkSurfaces::RenderTarget(gr_context, skgpu::Budgeted::kYes, image_info) : SkSurfaces::Raster(image_info);
     if (!surface)
         return image;
     SkPaint paint;
     paint.setColorFilter(move(tone_map));
     paint.setBlendMode(SkBlendMode::kSrc);
-    surface->getCanvas()->drawImage(image.get(), 0, 0, SkSamplingOptions {}, &paint);
-    return surface->makeImageSnapshot();
+    surface->getCanvas()->drawImage(image_to_tone_map.get(), 0, 0, SkSamplingOptions {}, &paint);
+    return reinterpreted_in_color_space(surface->makeImageSnapshot(), SkColorSpace::MakeSRGB());
 }
 
 static sk_sp<SkImage> in_standard_dynamic_range(Media::VideoFrame const& frame, sk_sp<SkImage> image, GrDirectContext* gr_context)
