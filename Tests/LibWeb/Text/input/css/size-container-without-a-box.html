@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .c { container-type: inline-size; width: 400px; }
+    .pad { padding-top: 10cqw; }
+    svg { height: 5cqw; }
+    .q { color: red; }
+    @container (min-width: 300px) { .q { color: green; } }
+    .hidden { display: none; }
+    .outer { container-type: inline-size; width: 600px; }
+</style>
+<div id="a" class="hidden"><div class="c"><div class="pad"><svg></svg><span class="q">q</span></div></div></div>
+<div id="b"><div class="c"><div class="pad"><svg></svg><span class="q">q</span></div></div></div>
+<div id="c" class="c hidden"><div class="pad"><svg></svg><span class="q">q</span></div></div>
+<div class="outer"><div class="hidden"><div class="c"><div id="d" class="pad q"></div></div></div></div>
+<div class="outer"><div class="c hidden"><div id="e" class="pad q"></div></div></div>
+<div class="hidden"><div class="outer"><div class="c"><div id="f" class="pad q"></div></div></div></div>
+<div class="outer"><div class="hidden"><div id="g" class="pad"></div></div></div>
+<script>
+    function read(id) {
+        const root = document.getElementById(id);
+        const pad = root.querySelector(".pad");
+        const svg = root.querySelector("svg");
+        const q = root.querySelector(".q");
+        return `pad=${getComputedStyle(pad).paddingTop} svg=${getComputedStyle(svg).height} q=${getComputedStyle(q).color}`;
+    }
+
+    function readNested(id) {
+        const style = getComputedStyle(document.getElementById(id));
+        return `pad=${style.paddingTop} q=${style.color}`;
+    }
+
+    function frames() {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
+    asyncTest(async done => {
+        await frames();
+        println(`Ancestor hidden from the start: ${read("a")}`);
+        println(`Shown: ${read("b")}`);
+        b.classList.add("hidden");
+        println(`Hidden: ${read("b")}`);
+        b.classList.remove("hidden");
+        println(`Shown again: ${read("b")}`);
+        println(`Container itself hidden: ${read("c")}`);
+        a.classList.remove("hidden");
+        println(`Ancestor shown: ${read("a")}`);
+        c.classList.remove("hidden");
+        println(`Container shown: ${read("c")}`);
+        b.classList.add("hidden");
+        await frames();
+        println(`Hidden across frames: ${read("b")}`);
+        b.classList.remove("hidden");
+        await frames();
+        println(`Shown across frames: ${read("b")}`);
+        println(`Hidden between outer and inner container: ${readNested("d")}`);
+        println(`Inner container itself hidden: ${readNested("e")}`);
+        println(`Hidden above both containers: ${readNested("f")}`);
+        println(`Hidden below the only container: ${readNested("g")}`);
+        document.querySelector("#d").parentElement.parentElement.classList.remove("hidden");
+        println(`Hidden between, shown: ${readNested("d")}`);
+        done();
+    });
+</script>

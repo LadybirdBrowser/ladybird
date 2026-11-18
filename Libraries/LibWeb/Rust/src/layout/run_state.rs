@@ -102,16 +102,19 @@ impl HostFindings {
             FfiCommitMessageKind::StyleDependsOnSizeContainerQuery,
         ));
         for basis in bases.width_and_height() {
-            let Some(container) = basis.container() else {
-                continue;
-            };
-            self.note_message(FfiCommitMessage::new(
-                container.raw(),
-                FfiCommitMessageKind::SizeQueryContainerResolvedAgainst,
-            ));
-            if basis.container_has_no_box() {
+            if let Some(container) = basis.container() {
                 self.note_message(FfiCommitMessage::new(
                     container.raw(),
+                    FfiCommitMessageKind::SizeQueryContainerResolvedAgainst,
+                ));
+            }
+            if let Some(boxless_container) = basis.boxless_container() {
+                self.note_message(FfiCommitMessage::new(
+                    boxless_container.raw(),
+                    FfiCommitMessageKind::SizeQueryContainerResolvedAgainst,
+                ));
+                self.note_message(FfiCommitMessage::new(
+                    boxless_container.raw(),
                     FfiCommitMessageKind::ContainerQueryEvaluationNeededAfterLayout,
                 ));
             }

@@ -155,32 +155,38 @@ double Length::container_relative_length_to_px_without_rounding(ResolutionContex
         auto& subject = *context.subject_element;
         const_cast<DOM::Element&>(subject).set_style_depends_on_size_container_query();
 
-        auto query_container = get_or_compute_query_container_for_axis(context, physical_axis);
-        // A container unit asks about the container's box exactly as a size query does, so the
-        // container has to know that a resize of it is a change for something under it.
-        if (query_container)
-            const_cast<DOM::Element&>(*query_container).set_is_size_query_container();
-        if (!query_container) {
-            context.record_viewport_relative_length_resolution();
-            auto viewport_length = physical_axis == ContainerRelativeAxis::Width ? context.viewport_rect.width() : context.viewport_rect.height();
-            return viewport_length.to_double();
-        }
-
         // The container's box is read from the committed layout, without making its layout node.
-        auto const* arena = query_container->document().layout_node_arena_if_created();
-        Layout::ForcedReadScope read { query_container->document() };
-        CSSPixelSize container_size;
-        if (!arena || !Layout::RustFFI::layout_row_bound_committed_content_size(arena->host(), read, query_container->style_node_id().value(), &container_size)) {
-            // A running partial relayout pass reports layout as up to date, but a container
-            // with no paintable yet still needs the post-layout evaluation, which routes the
-            // follow-up pass to the full layout path that resolves the container's size.
-            if (!subject.document().layout_is_up_to_date() || subject.document().is_running_update_layout())
-                const_cast<DOM::Document&>(subject.document()).set_needs_container_query_evaluation_after_layout(*query_container);
-            return 0.0;
+        auto const* arena = subject.document().layout_node_arena_if_created();
+        GC::Ptr<DOM::Element const> boxless_container;
+        Optional<double> container_length;
+        for (auto query_container = get_or_compute_query_container_for_axis(context, physical_axis); query_container;
+            query_container = nearest_query_container_for_axis(*query_container, physical_axis, false)) {
+            // A container unit asks about the container's box exactly as a size query does, so the
+            // container has to know that a resize of it is a change for something under it.
+            const_cast<DOM::Element&>(*query_container).set_is_size_query_container();
+            Layout::ForcedReadScope read { subject.document() };
+            CSSPixelSize container_size;
+            if (arena && Layout::RustFFI::layout_row_bound_committed_content_size(arena->host(), read, query_container->style_node_id().value(), &container_size)) {
+                container_length = (physical_axis == ContainerRelativeAxis::Width ? container_size.width() : container_size.height()).to_double();
+                break;
+            }
+            // A container without a box, as one under an element that is not rendered has, is not eligible: Its size
+            // queries are unknown, so the unit resolves against the next eligible container out.
+            boxless_container = query_container;
         }
 
-        auto container_length = physical_axis == ContainerRelativeAxis::Width ? container_size.width() : container_size.height();
-        return container_length.to_double();
+        // A running partial relayout pass reports layout as up to date, but a container with no
+        // paintable yet still needs the post-layout evaluation, which routes the follow-up pass to
+        // the full layout path that resolves the container's size. A container below the outermost
+        // one without a box can only get one after it does.
+        if (boxless_container && (!subject.document().layout_is_up_to_date() || subject.document().is_running_update_layout()))
+            const_cast<DOM::Document&>(subject.document()).set_needs_container_query_evaluation_after_layout(*boxless_container);
+        if (container_length.has_value())
+            return *container_length;
+
+        context.record_viewport_relative_length_resolution();
+        auto viewport_length = physical_axis == ContainerRelativeAxis::Width ? context.viewport_rect.width() : context.viewport_rect.height();
+        return viewport_length.to_double();
     };
 
     auto resolve_physical_axis_length = [&](ContainerRelativeAxis physical_axis) {
