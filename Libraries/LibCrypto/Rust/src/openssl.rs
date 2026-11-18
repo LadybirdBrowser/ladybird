@@ -13,6 +13,7 @@ use core::ptr::{self, NonNull};
 
 use crate::CryptoError;
 use crate::key::SecretBytes;
+use crate::key_info::KeyAlgorithm;
 use crate::sys;
 
 fn failed<T>() -> Result<T, CryptoError> {
@@ -1123,16 +1124,6 @@ fn encoding<T>(object: *const T, i2d: unsafe extern "C" fn(*const T, *mut *mut u
     encoded
 }
 
-/// The kinds of key the parsers treat differently.
-#[derive(PartialEq, Eq)]
-pub(crate) enum KeyKind {
-    Rsa,
-    Ec,
-    MlKem,
-    MlDsa,
-    Other,
-}
-
 pub(crate) struct AlgorithmIdentifier {
     // The contents of the DER encoding of the algorithm's object identifier.
     pub(crate) oid: Vec<u8>,
@@ -1204,10 +1195,7 @@ fn has_version_zero(der: &[u8]) -> bool {
 }
 
 /// Parses the DER SubjectPublicKeyInfo at the start of `data`, which must be the encoding OpenSSL gives back for it.
-pub(crate) fn parse_subject_public_key_info(
-    data: &[u8],
-    kind_of: impl Fn(&[u8]) -> KeyKind,
-) -> Result<PublicKeyInfo, &'static str> {
+pub(crate) fn parse_subject_public_key_info(data: &[u8]) -> Result<PublicKeyInfo, &'static str> {
     let invalid = "Invalid SubjectPublicKeyInfo";
     let mut cursor = data.as_ptr();
     // SAFETY: The cursor points into `data`, of the length given; a non-null result is owned.
@@ -1246,7 +1234,7 @@ pub(crate) fn parse_subject_public_key_info(
 
     // NB: OpenSSL runs the ML-KEM encapsulation key check when it decodes the key, but Web Crypto runs it at
     //     encapsulation. So an ML-KEM key is only checked to be in DER, without parameters.
-    if kind_of(&algorithm.oid) == KeyKind::MlKem {
+    if matches!(KeyAlgorithm::from_oid(&algorithm.oid), Some(KeyAlgorithm::MlKem(_))) {
         if algorithm.has_parameters() {
             return Err("The algorithm takes no parameters");
         }
@@ -1284,10 +1272,7 @@ pub(crate) fn parse_subject_public_key_info(
 }
 
 /// Parses the DER PrivateKeyInfo at the start of `data`, which must be the encoding OpenSSL gives back for it.
-pub(crate) fn parse_private_key_info(
-    data: &[u8],
-    kind_of: impl Fn(&[u8]) -> KeyKind,
-) -> Result<PrivateKeyInfo, &'static str> {
+pub(crate) fn parse_private_key_info(data: &[u8]) -> Result<PrivateKeyInfo, &'static str> {
     let invalid = "Invalid PrivateKeyInfo";
     let mut cursor = data.as_ptr();
     // SAFETY: The cursor points into `data`, of the length given; a non-null result is owned.
@@ -1332,7 +1317,7 @@ pub(crate) fn parse_private_key_info(
     let private_key_size = usize::try_from(private_key_size).unwrap_or_default();
     // SAFETY: OpenSSL gives the private key's octets, of `private_key_size` bytes, which the structure owns.
     let raw_key = unsafe { ak::slice_from_raw_parts(private_key, private_key_size) };
-    let kind = kind_of(&algorithm.oid);
+    let kind = KeyAlgorithm::from_oid(&algorithm.oid);
 
     // https://www.rfc-editor.org/rfc/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
@@ -1340,19 +1325,19 @@ pub(crate) fn parse_private_key_info(
     // The contents of the parameters component for each algorithm MUST be absent.
     // NB: ML-KEM's parameters are absent likewise, and the outer encoding check above keeps whatever parameters were
     //     given.
-    if kind != KeyKind::Rsa && kind != KeyKind::Ec && algorithm.has_parameters() {
+    if !matches!(kind, Some(KeyAlgorithm::Rsa | KeyAlgorithm::Ec)) && algorithm.has_parameters() {
         return Err("The algorithm takes no parameters");
     }
 
     // NB: The ML-DSA and ML-KEM privateKey choices are parsed after this, since OpenSSL also takes forms that Web Crypto
     //     does not, and refuses an expandedKey that is not valid before Web Crypto can reject that form.
     let mut decoded_key = None;
-    if kind != KeyKind::MlDsa && kind != KeyKind::MlKem {
+    if !matches!(kind, Some(KeyAlgorithm::MlDsa(_) | KeyAlgorithm::MlKem(_))) {
         // SAFETY: The structure is live; a non-null result is owned.
         let key = Pkey::new(unsafe { sys::EVP_PKCS82PKEY(private_key_info.as_ptr()) })
             .map_err(|_| "Invalid or unsupported private key")?;
 
-        if kind == KeyKind::Rsa {
+        if kind == Some(KeyAlgorithm::Rsa) {
             // https://www.rfc-editor.org/rfc/rfc3279#section-2.3.1
             // The parameters field MUST have ASN.1 type NULL for this algorithm identifier.
             if algorithm.parameters_type != sys::V_ASN1_NULL {
