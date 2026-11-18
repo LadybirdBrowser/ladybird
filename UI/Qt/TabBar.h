@@ -170,6 +170,7 @@ private:
     bool is_growing_horizontal_tab(int index, QRect const& tab_rect) const;
     QRectF horizontal_tab_contents_rect(int index, QRect const& tab_rect) const;
     QRect tab_drag_card_rect(int index) const;
+    qreal tab_drag_card_radius() const;
     QPixmap render_tab_drag_pixmap(int index) const;
     void toggle_window_maximized();
     bool start_window_move();
