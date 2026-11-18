@@ -12,6 +12,7 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Size.h>
 #include <QAbstractNativeEventFilter>
+#include <QApplication>
 #include <QColor>
 #include <QCoreApplication>
 #include <QDrag>
@@ -497,9 +498,15 @@ public:
 
         // Qt sends the Show event before applying the popup's geometry to its native window. Attaching it during
         // that event can expose the window with its initial geometry.
-        auto attach_popup = [&popup] {
-            auto* parent_widget = popup.parentWidget();
-            if (!popup.isVisible() || !parent_widget)
+        // The menus that every window shares have a parent that is never shown. Its window would appear along with a
+        // child window that is pressed, so such a menu hangs from the popup that opened it.
+        // NB: Qt sends the Show event before the popup becomes the active one.
+        QPointer<QWidget> anchor = popup.parentWidget()->window();
+        if (!anchor->isVisible())
+            anchor = QApplication::activePopupWidget();
+
+        auto attach_popup = [&popup, anchor] {
+            if (!popup.isVisible() || !anchor || !anchor->isVisible())
                 return;
             auto* popup_window = appkit_window_for(popup);
             if (!popup_window)
@@ -508,7 +515,7 @@ public:
             // A window can be dragged by its content with a gesture, which would take the popup away from its anchor.
             popup_window.movable = NO;
 
-            auto* parent_window = appkit_window_for(*parent_widget->window());
+            auto* parent_window = appkit_window_for(*anchor);
             if (!parent_window || parent_window == popup_window || popup_window.parentWindow == parent_window)
                 return;
 
