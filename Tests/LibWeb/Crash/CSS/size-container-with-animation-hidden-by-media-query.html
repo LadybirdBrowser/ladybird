@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<iframe id="frame" style="width: 1200px; height: 300px" srcdoc='<!DOCTYPE html>
+<style>
+    @font-face { font-family: Test; font-display: swap; src: url("does-not-exist.woff2") format("woff2"); }
+    @property --w { syntax: "*"; inherits: false; }
+    :root { --x: 1; }
+    html { font-family: Test, sans-serif; }
+    .panel { display: none; }
+    @media (min-width: 1024px) { .panel { display: block; } }
+    .container { container-type: inline-size; }
+    .pad { padding-block: 3.5cqw; }
+    .caret { animation: blink 2s infinite; }
+    .label { --w: 500; }
+    svg { height: 2.2cqw; }
+</style>
+<div class="panel"><div class="container"><div class="pad">
+    <p>Text<span class="caret"></span></p>
+    <div><span class="label"><svg></svg>Label</span></div>
+</div></div></div>'></iframe>
+<script>
+    frame.onload = () => setTimeout(() => {
+        frame.style.width = "390px";
+        setTimeout(() => {
+            getComputedStyle(frame.contentDocument.querySelector(".panel")).display;
+            document.documentElement.classList.remove("test-wait");
+        }, 500);
+    }, 500);
+</script>
+</html>

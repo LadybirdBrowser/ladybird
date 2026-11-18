@@ -27,6 +27,9 @@ pub(super) struct SizeContainerQueryFacts {
     /// Containers a style computation asked about before they had a committed box. The layout
     /// that gives them one is where their dependents move.
     needing_evaluation_after_layout: HashSet<StyleNodeID>,
+    /// Containers asked about without a box that a full layout left without one, as one under an element that is not
+    /// rendered stays. Their dependents read nothing new until a commit gives them a box.
+    awaiting_box: HashSet<StyleNodeID>,
     /// Queried containers whose font moved since their dependents were last recorded, each with the record it held
     /// before the move. An animated container passes through its base record within every update, on its way to the
     /// record with its animated values, so only a font that differs from the one before it counts.
@@ -82,6 +85,7 @@ impl SizeContainerQueryFacts {
         self.queried_containers.remove(&node);
         self.dependents.remove(&node);
         self.needing_evaluation_after_layout.remove(&node);
+        self.awaiting_box.remove(&node);
         self.font_moves.remove(&node);
         self.availability_changed.remove(&node);
         self.available.remove(&node);
@@ -169,7 +173,18 @@ impl StyleEngine {
         &mut self,
         rows: &[crate::layout::style_snapshot::CommittedGeometry],
     ) {
-        for container in self.retained.take_layout_style_snapshot_rows(rows) {
+        let mut resized = self.retained.take_layout_style_snapshot_rows(rows);
+        // A container its dependents read without a box answers them once a commit gives it one.
+        let awaiting_box = &mut self.retained.size_container_queries.awaiting_box;
+        if !awaiting_box.is_empty() {
+            let mut recorded: HashSet<StyleNodeID> = resized.iter().copied().collect();
+            for geometry in rows {
+                if geometry.has_committed_box && awaiting_box.remove(&geometry.node) && recorded.insert(geometry.node) {
+                    resized.push(geometry.node);
+                }
+            }
+        }
+        for container in resized {
             self.record_size_container_query_dependents(container);
         }
     }
@@ -182,9 +197,21 @@ impl StyleEngine {
     }
 
     /// A layout gave the containers that had no box when they were asked about one; their
-    /// dependents are computed again against it.
+    /// dependents are computed again against it. A container the layout left without a box has
+    /// nothing new to answer, so its dependents wait for the commit that gives it one; computing
+    /// them again against no box would only ask for this evaluation again, after every layout.
     pub fn evaluate_size_containers_needing_evaluation_after_layout(&mut self) {
         let mut containers = std::mem::take(&mut self.retained.size_container_queries.needing_evaluation_after_layout);
+        containers.retain(|&container| {
+            let has_box = self
+                .retained
+                .layout_style_snapshot(container)
+                .is_some_and(|row| row.has_committed_box);
+            if !has_box {
+                self.retained.size_container_queries.awaiting_box.insert(container);
+            }
+            has_box
+        });
         let availability_changed = std::mem::take(&mut self.retained.size_container_queries.availability_changed);
         containers.extend(availability_changed.iter().copied());
         containers.extend(std::mem::take(&mut self.retained.size_container_queries.font_moves).into_keys());
