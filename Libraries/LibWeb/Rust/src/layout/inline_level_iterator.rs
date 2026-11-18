@@ -2202,24 +2202,30 @@ impl<'context> RunItemResolver<'_, 'context> {
             let tab_stop = prepared.tab_stops[self.next_tab_stop];
             self.next_tab_stop += 1;
             let tab_inline_size = tab_stop.tab_inline_size;
-            let accumulated = self.accumulated_inline_size_for_tabs;
-            let mut tab_stop_distance = if accumulated > CssPixels::default() {
-                accumulated.div_as_fraction(tab_inline_size).ceil() * tab_inline_size - accumulated
-            } else {
-                tab_inline_size
-            };
-            if tab_stop_distance.to_double() < f64::from(tab_stop.zero_advance) * 0.5 {
-                tab_stop_distance += tab_inline_size;
+            // https://drafts.csswg.org/css-text-3/#white-space-phase-2
+            // "If the tab size is zero, preserved tabs are not rendered."
+            if tab_inline_size != CssPixels::default() {
+                let accumulated = self.accumulated_inline_size_for_tabs;
+                let mut tab_stop_distance = if accumulated > CssPixels::default() {
+                    accumulated.div_as_fraction(tab_inline_size).ceil() * tab_inline_size - accumulated
+                } else {
+                    tab_inline_size
+                };
+                if tab_stop_distance.to_double() < f64::from(tab_stop.zero_advance) * 0.5 {
+                    tab_stop_distance += tab_inline_size;
+                }
+                tab_stop_distance = tab_stop_distance * tab_stop.tab_count as usize;
+                inline_offset = tab_stop_distance.to_double() as f32;
             }
-            tab_stop_distance = tab_stop_distance * tab_stop.tab_count as usize;
-            inline_offset = tab_stop_distance.to_double() as f32;
             upright_advance_after_tabs = tab_stop.upright_advance;
             tab_count = tab_stop.tab_count as usize;
         }
         let shape = prepared_item.shape();
         let mut width = shape.width();
         let mut owned_glyph_run = None;
-        if inline_offset != 0.0 || upright_advance_after_tabs.is_some() {
+        // NB: Tabs that tab-size: 0 doesn't render still get the spacer glyph, so that the code units of the item's
+        //     glyphs line up with those of its text.
+        if inline_offset != 0.0 || upright_advance_after_tabs.is_some() || tab_count > 0 {
             let mut glyphs = shaped_glyphs_from(shape, inline_offset);
             if let Some(advance) = upright_advance_after_tabs {
                 width = set_glyphs_upright(&mut glyphs, inline_offset, advance);
