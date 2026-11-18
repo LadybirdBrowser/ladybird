@@ -77,6 +77,7 @@ private:
     // ^WebView::Application
     virtual Core::EventLoop& create_platform_event_loop() override;
     virtual void create_platform_arguments(Core::ArgsParser&) override;
+    virtual Optional<pid_t> ui_process_id() const override;
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab, WebView::ViewImplementation const* related_view = nullptr) const override;
     virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab, WebView::ViewImplementation const* source_view = nullptr) const override;

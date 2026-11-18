@@ -31,6 +31,14 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(m_ui_pid, "Process of the UI, which the Hub ends with", "ui-pid", 0, "pid");
 }
 
+Optional<pid_t> Application::ui_process_id() const
+{
+    auto pid = m_ui_pid.to_number<pid_t>();
+    if (!pid.has_value() || *pid <= 0)
+        return {};
+    return pid;
+}
+
 Hub::UIInfo const* Application::ui_info() const
 {
     if (!m_ui_info.has_value() && !m_encoded_ui_info.is_empty()) {

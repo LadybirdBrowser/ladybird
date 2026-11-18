@@ -97,6 +97,9 @@ public:
     static Profile const& profile() { return *the().m_profile; }
     BrowserProcess& browser_process() { return *m_browser_process; }
     bool should_exit_after_profile_coordination() const { return m_should_exit_after_profile_coordination; }
+    // Whether the process exits because a browser is running for the profile, but does not take what we were asked to
+    // open.
+    bool browser_is_unresponsive() const { return m_browser_is_unresponsive; }
 
     static BrowserOptions const& browser_options() { return the().m_browser_options; }
     static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
@@ -420,6 +423,8 @@ protected:
     virtual NonnullOwnPtr<MicrophoneAuthorizer> create_microphone_authorizer();
 
     virtual bool should_coordinate_browser_process() const { return true; }
+    // The process that shows this browser to the user, if that is not this process.
+    virtual Optional<pid_t> ui_process_id() const { return {}; }
     virtual bool captures_browser_crashes() const { return false; }
     virtual bool should_use_os_geolocation() const { return true; }
     virtual SiteIsolationMode default_site_isolation_mode() const { return SiteIsolationMode::IFrame; }
@@ -588,6 +593,7 @@ private:
     OwnPtr<Settings> m_settings;
     OwnPtr<BrowserProcess> m_browser_process;
     bool m_should_exit_after_profile_coordination { false };
+    bool m_browser_is_unresponsive { false };
     OwnPtr<ApplicationSettingsObserver> m_settings_observer;
     OwnPtr<ApplicationPermissionManagerObserver> m_permission_manager_observer;
     RefPtr<Core::Timer> m_permission_expiry_timer;
