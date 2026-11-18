@@ -266,6 +266,11 @@ struct LocationWrapperTraits {
         return HTML::cross_origin_own_property_keys(location);
     }
 
+    static void preserve_identity(JS::HostObject& wrapper)
+    {
+        preserve_identity_of_platform_object(wrapper);
+    }
+
     static void finalize(JS::HostObject& wrapper)
     {
         finalize_platform_object(wrapper);
