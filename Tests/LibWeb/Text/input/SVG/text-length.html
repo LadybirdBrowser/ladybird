@@ -61,6 +61,9 @@
             ["with a dx on the first character, glyphs too", `<text x="10" y="30" textLength="200" lengthAdjust="spacingAndGlyphs"><tspan dx="20">AB</tspan>CD</text>`],
             ["with a dx at the start of a chunk, glyphs too", `<text x="10" y="30" textLength="200" lengthAdjust="spacingAndGlyphs">AB<tspan x="300" dx="20">CD</tspan></text>`],
             ["with a dx in nested elements, glyphs too", `<text x="10" y="30" textLength="200" lengthAdjust="spacingAndGlyphs">AB<tspan dx="100"><tspan dx="20">CD</tspan></tspan></text>`],
+            ["with a dx that takes a character back past the first", `<text x="100" y="30" textLength="160">A<tspan dx="-80">B</tspan></text>`],
+            ["with a dx that takes a character back past the first, glyphs too", `<text x="100" y="30" textLength="160" lengthAdjust="spacingAndGlyphs">A<tspan dx="-80">B</tspan></text>`],
+            ["with a dx that takes a character back onto the one before, glyphs too", `<text x="100" y="30" textLength="160" lengthAdjust="spacingAndGlyphs">AB<tspan dx="-50">C</tspan></text>`],
             ["on a <tspan>", `<text x="10" y="30">AB<tspan textLength="100">CD</tspan>EF</text>`],
             ["with text on a path", `<path id="path" d="M100 50H500" /><text x="10" y="30" textLength="80">AB<textPath href="#path">CD</textPath></text>`],
         ];

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="400" height="100"></svg>
+<script>
+    const round = value => Math.round(value * 100) / 100;
+    const describe = text => {
+        const positions = [];
+        for (let index = 0; index < text.getNumberOfChars(); ++index) {
+            const position = text.getStartPositionOfChar(index);
+            positions.push(`${round(position.x)},${round(position.y)}`);
+        }
+        return positions.join(" ");
+    };
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const svg = document.querySelector("svg");
+
+        // Each glyph of Ahem is 20px wide here.
+        // A negative dx takes a character back past the ones before it, so the chunk doesn't end where its last
+        // character does.
+        const cases = [
+            ["anchored at the start", `<text x="200" y="30">AB<tspan dx="-100">C</tspan></text>`],
+            ["anchored in the middle", `<text x="200" y="30" text-anchor="middle">AB<tspan dx="-100">C</tspan></text>`],
+            ["anchored at the end", `<text x="200" y="30" text-anchor="end">AB<tspan dx="-100">C</tspan></text>`],
+            ["anchored in the middle, moved back onto the character before", `<text x="200" y="30" text-anchor="middle">AB<tspan dx="-30">C</tspan></text>`],
+            ["anchored at the end, moved back onto the character before", `<text x="200" y="30" text-anchor="end">AB<tspan dx="-30">C</tspan></text>`],
+            ["anchored at the end, the last character moved back past the first", `<text x="200" y="30" text-anchor="end">A<tspan dx="-100">B</tspan></text>`],
+            ["anchored at the end, in a second chunk", `<text x="50" y="30" text-anchor="end">A<tspan x="300">BC<tspan dx="-100">D</tspan></tspan></text>`],
+        ];
+        for (const [name, markup] of cases) {
+            svg.innerHTML = markup;
+            println(`${name}: ${describe(svg.querySelector("text"))}`);
+        }
+        done();
+    });
+</script>

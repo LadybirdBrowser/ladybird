@@ -27,6 +27,9 @@ with a dx on the first character: 30+20 90+20 150+20 210+20; length 80; box 30,1
 with a dx on the first character, glyphs too: 30+50 80+50 130+50 180+50; length 200; box 30,14 200x20
 with a dx at the start of a chunk, glyphs too: 10+40 50+40 320+40 360+40; length 160; box 10,14 390x20
 with a dx in nested elements, glyphs too: 10+40 50+40 130+40 170+40; length 160; box 10,14 200x20
+with a dx that takes a character back past the first: 100+20 120+20; length 40; box 100,14 40x20
+with a dx that takes a character back past the first, glyphs too: 220+40 100+40; length 80; box 100,14 160x20
+with a dx that takes a character back onto the one before, glyphs too: 132+64 196+64 100+64; length 192; box 100,14 160x20
 on a <tspan>: 10+20 30+20 50+20 70+20 90+20 110+20; length 120; box 10,14 120x20
 with text on a path: 10+20 70+20 0+20 20+20; length 80; box 10,14 130x40
 textLength set: 10+20 70+20 130+20 190+20; length 80; box 10,14 200x20
