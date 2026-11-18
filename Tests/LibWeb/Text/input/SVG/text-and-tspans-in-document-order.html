@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="800" height="300">
+    <text id="interleaved" x="10" y="30">AB<tspan id="interleaved-tspan">CD</tspan>EF</text>
+    <text id="nested" x="10" y="60">A<tspan id="nested-outer" dx="10" dy="5">B<tspan id="nested-inner" dy="-5">C</tspan>D</tspan>E</text>
+    <text id="anchor-middle" x="300" y="90" text-anchor="middle">AB<tspan id="anchor-middle-tspan">CD</tspan>EF</text>
+    <text id="anchor-end-two-chunks" x="300" y="120" text-anchor="end">AB<tspan id="anchor-end-tspan" x="300">CD</tspan>EF</text>
+    <text id="chunk-in-nested-tspan" x="300" y="150" text-anchor="middle"><tspan id="chunk-outer">ABC<tspan id="chunk-inner" x="300">D</tspan></tspan>EF</text>
+    <text id="empty-tspan-with-x" x="10" y="180">A<tspan id="empty-tspan" x="100" dy="50"></tspan>B</text>
+    <text id="empty-tspan-in-chunk" x="300" y="210" text-anchor="middle">AB<tspan x="100"></tspan>CD</text>
+    <text id="hidden-tspan" x="10" y="240">A<tspan style="display: none" x="100">X</tspan>B</text>
+    <text id="other-elements" x="10" y="270">A<g>G</g><rect width="5" height="5" />B<text>T</text>C</text>
+</svg>
+<script>
+    const round = value => Math.round(value * 100) / 100;
+    const characters = element => {
+        const positions = [];
+        for (let index = 0; index < element.getNumberOfChars(); ++index) {
+            const cell = element.getExtentOfChar(index);
+            positions.push(`${round(cell.x)},${round(cell.y)}`);
+        }
+        return `${positions.length} characters, length ${round(element.getComputedTextLength())}: ${positions.join(" ")}`;
+    };
+    const box = element => {
+        const rect = element.getBBox();
+        return `${round(rect.x)},${round(rect.y)} ${round(rect.width)}x${round(rect.height)}`;
+    };
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const element of document.querySelectorAll("svg [id]")) {
+            const queries = element.getNumberOfChars ? `${characters(element)}; ` : "";
+            println(`${element.id}: ${queries}box ${box(element)}`);
+        }
+        done();
+    });
+</script>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="200" height="200">
+    <rect x="17" y="41" width="46" height="26" fill="red" />
+    <rect x="20" y="44" width="40" height="20" fill="green" />
+    <rect x="17" y="101" width="46" height="26" fill="green" />
+    <linearGradient id="gradient" gradientUnits="userSpaceOnUse" x1="20" x2="140">
+        <stop offset="0" stop-color="blue" />
+        <stop offset="1" stop-color="yellow" />
+    </linearGradient>
+    <text x="20" y="180" fill="url(#gradient)">XXXXXX</text>
+</svg>

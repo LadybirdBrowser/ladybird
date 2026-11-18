@@ -9,7 +9,7 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::recorder::{IsolatedGroupEffects, OpenRecorderGroup};
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::order_tree::ProducerKind;
 use crate::painting::record::trace::{Action, Observer, Operation};
 use crate::painting::record::{PaintPhase, PaintRecorder};
@@ -386,9 +386,24 @@ impl<O: Observer> PaintRecorder<'_, O> {
         self.recorder
             .set_ambient_inline_transform(Some(descendants_to_enclosing_space));
         let mut child = crate::painting::paint_order::first_paint_child(self.source, svg_box);
+        let mut next_text_part = if self.source.node_kind_if_live(svg_box) == Some(NodeKind::SVGTextBox) {
+            crate::painting::record::paint::svg::text_parts_before_children(self, svg_box)
+        } else {
+            None
+        };
         while let Some(current) = child {
             child = crate::painting::paint_order::next_paint_sibling(self.source, current);
             self.paint_svg_box_inside_resource(current, descendants_to_enclosing_space, true);
+            if let Some(next_text_part) = &mut next_text_part {
+                self.recorder.set_ambient_inline_transform(Some(to_enclosing_space));
+                crate::painting::record::paint::svg::paint_text_after_child(self, svg_box, current, next_text_part);
+                self.recorder
+                    .set_ambient_inline_transform(Some(descendants_to_enclosing_space));
+            }
+        }
+        if let Some(next_text_part) = next_text_part {
+            self.recorder.set_ambient_inline_transform(Some(to_enclosing_space));
+            crate::painting::record::paint::svg::paint_text_after_children(self, svg_box, next_text_part);
         }
         self.recorder.truncate_ambient_inline_clips(clip_depth);
         self.recorder.set_ambient_inline_transform(enclosing_transform);

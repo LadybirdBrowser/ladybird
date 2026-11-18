@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>SVGTextContentElement.getNumberOfChars</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextContentElement__getNumberOfChars">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<svg width="800" height="600">
+<style>
+text {
+  font: 20px/1 Ahem;
+}
+</style>
+<text id="t1" x="40" y="100">abc</text>
+<text id="t2"><tspan id="ts2" x="40" y="100">ab</tspan>c</text>
+<text id="t3"><tspan id="ts3" x="40" y="100">هيab</tspan>c</text>
+<text id="t4"><tspan id="ts4" x="40" y="100">هي<tspan>ab</tspan></tspan>c</text>
+</svg>
+
+<script>
+setup({ explicit_done: true });
+
+document.fonts.ready.then(() => {
+  test(() => {
+    const text = document.querySelector('#t1');
+    assert_equals(text.getNumberOfChars(), 3);
+  }, 'latin text');
+
+  test(() => {
+    const text = document.querySelector('#t2');
+    assert_equals(text.getNumberOfChars(), 3);
+    const tspan = document.querySelector('#ts2');
+    assert_equals(tspan.getNumberOfChars(), 2);
+  }, 'latin text and tspan');
+
+  test(() => {
+    const text = document.querySelector('#t3');
+    assert_equals(text.getNumberOfChars(), 5);
+    const tspan = document.querySelector('#ts3');
+    assert_equals(tspan.getNumberOfChars(), 4);
+  }, 'mixed-rtl text and tspan');
+
+  test(() => {
+    const text = document.querySelector('#t4');
+    assert_equals(text.getNumberOfChars(), 5);
+    const tspan = document.querySelector('#ts4');
+    assert_equals(tspan.getNumberOfChars(), 4);
+  }, 'mixed-rtl text and tested tspan');
+
+  done();
+});
+</script>

@@ -14,6 +14,10 @@
     }
 </style>
 <svg width="800" height="200">
+    <text id="link" x="10" y="30">S: <a id="link-a" href="#">LINK</a> E</text>
+    <text id="link-in-tspan" x="10" y="60">S<tspan id="link-in-tspan-tspan"><a id="link-in-tspan-a" href="#">L</a>M</tspan>E</text>
+    <text id="tspan-in-link" x="10" y="90">A<a id="tspan-in-link-a" href="#"> <tspan id="tspan-in-link-tspan">B</tspan> </a>C</text>
+    <text id="link-with-anchor" x="300" y="120" text-anchor="middle">AB<a id="link-with-anchor-a" href="#">CD</a>EF</text>
     <a id="link-around-text" href="#"><text id="text-in-link" x="10" y="150">AB</text></a>
     <text id="link-last" x="10" y="180">S:<a id="link-last-a" href="#">LINK</a></text>
 </svg>
@@ -40,7 +44,7 @@
         }
         // The link's text is what a click on it lands on.
         const svg = document.querySelector("svg").getBoundingClientRect();
-        for (const [x, y] of [[80, 170], [20, 170]]) {
+        for (const [x, y] of [[80, 170], [20, 170], [80, 20], [20, 20], [40, 50], [60, 80], [300, 110]]) {
             const hit = document.elementFromPoint(svg.x + x, svg.y + y);
             println(`elementFromPoint(${x}, ${y}): ${hit.id || hit.localName}`);
         }

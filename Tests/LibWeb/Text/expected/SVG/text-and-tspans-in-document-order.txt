@@ -1,0 +1,17 @@
+interleaved: 6 characters, length 120: 10,14 30,14 50,14 70,14 90,14 110,14; box 10,14 120x20
+interleaved-tspan: 2 characters, length 40: 50,14 70,14; box 50,14 40x20
+nested: 5 characters, length 100: 10,44 40,49 60,44 80,44 100,44; box 10,44 110x25
+nested-outer: 3 characters, length 60: 40,49 60,44 80,44; box 40,44 60x25
+nested-inner: 1 characters, length 20: 60,44; box 60,44 20x20
+anchor-middle: 6 characters, length 120: 240,74 260,74 280,74 300,74 320,74 340,74; box 240,74 120x20
+anchor-middle-tspan: 2 characters, length 40: 280,74 300,74; box 280,74 40x20
+anchor-end-two-chunks: 6 characters, length 120: 260,104 280,104 220,104 240,104 260,104 280,104; box 220,104 80x20
+anchor-end-tspan: 2 characters, length 40: 220,104 240,104; box 220,104 40x20
+chunk-in-nested-tspan: 6 characters, length 120: 270,134 290,134 310,134 270,134 290,134 310,134; box 270,134 60x20
+chunk-outer: 4 characters, length 80: 270,134 290,134 310,134 270,134; box 270,134 60x20
+chunk-inner: 1 characters, length 20: 270,134; box 270,134 20x20
+empty-tspan-with-x: 2 characters, length 40: 10,164 30,164; box 10,164 40x20
+empty-tspan: 0 characters, length 0: ; box 0,0 0x0
+empty-tspan-in-chunk: 4 characters, length 80: 260,194 280,194 300,194 320,194; box 260,194 80x20
+hidden-tspan: 2 characters, length 40: 10,224 30,224; box 10,224 40x20
+other-elements: 3 characters, length 60: 10,254 30,254 50,254; box 10,254 60x20

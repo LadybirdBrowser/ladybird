@@ -1,0 +1,24 @@
+space-before-tspan: 3 characters, length 60: 10,14 30,14 50,14; box 10,14 60x20
+space-before-tspan-child: 1 characters, length 20: 50,14; box 50,14 20x20
+space-between-tspans: 3 characters, length 60: 10,44 30,44 50,44; box 10,44 60x20
+between-first: 1 characters, length 20: 10,44; box 10,44 20x20
+between-second: 1 characters, length 20: 50,44; box 50,44 20x20
+space-in-both-tspans: 3 characters, length 60: 10,74 30,74 50,74; box 10,74 60x20
+both-first: 2 characters, length 40: 10,74 30,74; box 10,74 40x20
+both-second: 1 characters, length 20: 50,74; box 50,74 20x20
+spaces-everywhere: 5 characters, length 100: 10,104 30,104 50,104 70,104 90,104; box 10,104 100x20
+spaces-everywhere-child: 2 characters, length 40: 50,104 70,104; box 50,104 40x20
+word-per-tspan: 3 characters, length 60: 10,134 30,134 100,134; box 10,134 110x20
+word-first: 1 characters, length 20: 10,134; box 10,134 20x20
+word-second: 1 characters, length 20: 100,134; box 100,134 20x20
+space-before-chunk: 3 characters, length 60: 10,164 30,164 100,164; box 10,164 110x20
+space-before-chunk-child: 1 characters, length 20: 100,164; box 100,164 20x20
+space-across-empty-tspan: 3 characters, length 60: 10,194 30,194 50,194; box 10,194 60x20
+xml-space-preserve: 9 characters, length 180: 10,224 30,224 50,224 70,224 90,224 110,224 130,224 150,224 170,224; box 10,224 180x20
+xml-space-preserve-child: 3 characters, length 60: 70,224 90,224 110,224; box 70,224 60x20
+preserved-tspan: 9 characters, length 180: 10,254 30,254 50,254 70,254 90,254 110,254 130,254 150,254 170,254; box 10,254 180x20
+preserved-tspan-child: 5 characters, length 100: 50,254 70,254 90,254 110,254 130,254; box 50,254 100x20
+collapsing-tspan: 9 characters, length 180: 10,284 30,284 50,284 70,284 90,284 110,284 130,284 150,284 170,284; box 10,284 180x20
+collapsing-tspan-child: 3 characters, length 60: 70,284 90,284 110,284; box 70,284 60x20
+only-white-space: 0 characters, length 0: ; box 0,0 0x0
+only-white-space-child: 0 characters, length 0: ; box 0,0 0x0

@@ -1,6 +1,21 @@
+link: 9 characters, length 180: 10,14 30,14 50,14 70,14 90,14 110,14 130,14 150,14 170,14; box 10,14 180x20
+link-a: box 70,14 80x20
+link-in-tspan: 4 characters, length 80: 10,44 30,44 50,44 70,44; box 10,44 80x20
+link-in-tspan-tspan: 2 characters, length 40: 30,44 50,44; box 30,44 40x20
+link-in-tspan-a: box 30,44 20x20
+tspan-in-link: 5 characters, length 100: 10,74 30,74 50,74 70,74 90,74; box 10,74 100x20
+tspan-in-link-a: box 30,74 60x20
+tspan-in-link-tspan: 1 characters, length 20: 50,74; box 50,74 20x20
+link-with-anchor: 6 characters, length 120: 240,104 260,104 280,104 300,104 320,104 340,104; box 240,104 120x20
+link-with-anchor-a: box 280,104 40x20
 link-around-text: box 10,134 40x20
 text-in-link: 2 characters, length 40: 10,134 30,134; box 10,134 40x20
 link-last: 6 characters, length 120: 10,164 30,164 50,164 70,164 90,164 110,164; box 10,164 120x20
 link-last-a: box 50,164 80x20
 elementFromPoint(80, 170): link-last-a
 elementFromPoint(20, 170): link-last
+elementFromPoint(80, 20): link-a
+elementFromPoint(20, 20): link
+elementFromPoint(40, 50): link-in-tspan-a
+elementFromPoint(60, 80): tspan-in-link-tspan
+elementFromPoint(300, 110): link-with-anchor-a
