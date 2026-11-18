@@ -1,0 +1,52 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    .container {
+        position: relative;
+        width: 300px;
+        height: 50px;
+    }
+    .container > * {
+        position: absolute;
+        margin: 10%;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const image = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"></svg>';
+        const cases = [
+            ["img", "top: 0; left: 0"],
+            ["img", "inset: 0"],
+            ["canvas", "top: 0; left: 0"],
+            ["input type=checkbox", "top: 0; left: 0"],
+            ["input", "top: 0; left: 0; width: 20px"],
+            ["div", "top: 0; left: 0; width: 20px; height: 10px"],
+            ["img", "bottom: 0; right: 0"],
+            ["img", "top: 0; left: 0; writing-mode: vertical-lr"],
+        ];
+        for (const [tag, style] of cases) {
+            const container = document.createElement("div");
+            container.className = "container";
+            const [name, type] = tag.split(" type=");
+            const element = document.createElement(name);
+            if (type) element.type = type;
+            element.style.cssText = style;
+            if (name === "canvas") {
+                element.width = 20;
+                element.height = 10;
+            }
+            container.append(element);
+            document.body.append(container);
+            if (name === "img") {
+                await new Promise(resolve => {
+                    element.onload = resolve;
+                    element.src = image;
+                });
+            }
+            const outer = container.getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
+            println(`${tag} ${style}: ${rect.x - outer.x},${rect.y - outer.y} ${rect.width}x${rect.height}`);
+            container.remove();
+        }
+    });
+</script>

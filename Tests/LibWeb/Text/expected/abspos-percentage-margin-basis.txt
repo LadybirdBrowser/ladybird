@@ -1,0 +1,8 @@
+img top: 0; left: 0: 30,30 20x10
+img inset: 0: 30,30 20x10
+canvas top: 0; left: 0: 30,30 20x10
+input type=checkbox top: 0; left: 0: 30,30 13x13
+input top: 0; left: 0; width: 20px: 30,30 30x20
+div top: 0; left: 0; width: 20px; height: 10px: 30,30 20x10
+img bottom: 0; right: 0: 250,10 20x10
+img top: 0; left: 0; writing-mode: vertical-lr: 30,30 20x10
