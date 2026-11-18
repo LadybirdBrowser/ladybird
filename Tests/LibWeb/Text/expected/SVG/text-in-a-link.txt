@@ -1,0 +1,6 @@
+link-around-text: box 10,134 40x20
+text-in-link: 2 characters, length 40: 10,134 30,134; box 10,134 40x20
+link-last: 6 characters, length 120: 10,164 30,164 50,164 70,164 90,164 110,164; box 10,164 120x20
+link-last-a: box 50,164 80x20
+elementFromPoint(80, 170): link-last-a
+elementFromPoint(20, 170): link-last

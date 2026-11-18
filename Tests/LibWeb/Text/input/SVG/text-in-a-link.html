@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="800" height="200">
+    <a id="link-around-text" href="#"><text id="text-in-link" x="10" y="150">AB</text></a>
+    <text id="link-last" x="10" y="180">S:<a id="link-last-a" href="#">LINK</a></text>
+</svg>
+<script>
+    const round = value => Math.round(value * 100) / 100;
+    const characters = element => {
+        const positions = [];
+        for (let index = 0; index < element.getNumberOfChars(); ++index) {
+            const cell = element.getExtentOfChar(index);
+            positions.push(`${round(cell.x)},${round(cell.y)}`);
+        }
+        return `${positions.length} characters, length ${round(element.getComputedTextLength())}: ${positions.join(" ")}`;
+    };
+    const box = element => {
+        const rect = element.getBBox();
+        return `${round(rect.x)},${round(rect.y)} ${round(rect.width)}x${round(rect.height)}`;
+    };
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        for (const element of document.querySelectorAll("svg [id]")) {
+            const queries = element.getNumberOfChars ? `${characters(element)}; ` : "";
+            println(`${element.id}: ${queries}box ${box(element)}`);
+        }
+        // The link's text is what a click on it lands on.
+        const svg = document.querySelector("svg").getBoundingClientRect();
+        for (const [x, y] of [[80, 170], [20, 170]]) {
+            const hit = document.elementFromPoint(svg.x + x, svg.y + y);
+            println(`elementFromPoint(${x}, ${y}): ${hit.id || hit.localName}`);
+        }
+        done();
+    });
+</script>
