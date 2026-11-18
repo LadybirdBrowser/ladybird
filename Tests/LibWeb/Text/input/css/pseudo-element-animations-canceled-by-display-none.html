@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<style>
+    @keyframes color {
+        from { color: rgb(255, 0, 0); }
+        to { color: rgb(255, 0, 0); }
+    }
+    .target::before {
+        content: "x";
+        color: rgb(0, 128, 0);
+    }
+    .target.hidden::before { display: none; }
+    .target.restyled::before { text-decoration: underline; }
+    #animated::before { animation: color 100s; }
+    #transitioned::before { transition: color 100s steps(1, end); }
+    #transitioned.moved::before { color: rgb(0, 0, 255); }
+    #exiting::before {
+        animation: color 100s;
+        transition: display 100s allow-discrete;
+    }
+</style>
+<div id="animated" class="target"></div>
+<div id="transitioned" class="target"></div>
+<div id="exiting" class="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const dump = (label, element) => {
+            const animations = element
+                .getAnimations({ subtree: true })
+                .map(animation => animation.transitionProperty ?? animation.animationName);
+            const style = getComputedStyle(element, "::before");
+            println(`${label}: ${style.display}, ${style.color}, animations: [${animations}]`);
+        };
+
+        const animated = document.getElementById("animated");
+        dump("Animated ::before, displayed", animated);
+        animated.classList.add("hidden");
+        dump("Animated ::before, display: none", animated);
+        animated.classList.remove("hidden");
+        dump("Animated ::before, displayed again", animated);
+
+        const transitioned = document.getElementById("transitioned");
+        dump("Transitioned ::before, displayed", transitioned);
+        transitioned.classList.add("moved");
+        dump("Transitioned ::before, transition started", transitioned);
+        transitioned.classList.add("hidden");
+        dump("Transitioned ::before, display: none", transitioned);
+        transitioned.classList.remove("hidden");
+        dump("Transitioned ::before, displayed again", transitioned);
+
+        const exiting = document.getElementById("exiting");
+        dump("Exiting ::before, displayed", exiting);
+        exiting.classList.add("hidden");
+        dump("Exiting ::before, display: none", exiting);
+        exiting.classList.add("restyled");
+        dump("Exiting ::before, restyled during its display transition", exiting);
+    });
+</script>
