@@ -2070,6 +2070,25 @@ void Heap::collect_garbage_from_timer()
     collect_garbage();
 }
 
+void Heap::collect_garbage_and_return_memory_to_system()
+{
+    // NB: A collection that has to wait for a deferral to end still lets go of as much as this one would. What it
+    //     frees goes back to the system some seconds later, as after any other collection.
+    if (is_gc_deferred()) {
+        m_should_gc_when_deferral_ends = true;
+        m_should_return_memory_when_deferral_ends = true;
+        return;
+    }
+    {
+        TemporaryChange change { m_is_returning_memory_to_system, true };
+        collect_garbage();
+        finish_pending_incremental_sweep();
+    }
+    for (auto& allocator : m_all_cell_allocators)
+        allocator.block_allocator().return_freed_blocks_to_system();
+    ak_kmalloc_collect();
+}
+
 void Heap::schedule_release_of_abandoned_object_graph_memory()
 {
     // NB: A timer, since a sweep can finish in the middle of any allocation, and the allocator can't be collected from
@@ -2106,8 +2125,12 @@ void Heap::undefer_gc()
     if (m_block_sweeps_in_progress > 0)
         return;
 
-    collect_garbage();
+    {
+        TemporaryChange change { m_is_returning_memory_to_system, m_should_return_memory_when_deferral_ends };
+        collect_garbage();
+    }
     m_should_gc_when_deferral_ends = false;
+    m_should_return_memory_when_deferral_ends = false;
 }
 
 void Heap::uproot_cell(Cell* cell)

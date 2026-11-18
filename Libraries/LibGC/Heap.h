@@ -86,6 +86,11 @@ public:
     //     NO_SANITIZE_ADDRESS so that the capture buffer stays on the real stack rather than ASan's fake one.
     NEVER_INLINE void collect_garbage(CollectionType = CollectionType::CollectGarbage, bool print_report = false);
 
+    // Collects garbage and gives the memory that this frees back to the system before it returns. Otherwise the sweep
+    // happens bit by bit after a collection, and the freed memory goes back to the system some time after that. For a
+    // process that is short of memory now.
+    void collect_garbage_and_return_memory_to_system();
+
     // Collects without taking any root from the stack or the registers, so no stale or lookalike word there keeps a
     // cell alive. Only safe where every cell the stack refers to is rooted some other way, as in the outermost turn of
     // the event loop.
@@ -122,6 +127,10 @@ public:
     bool is_collecting_everything() const { return m_collecting_garbage && m_current_collection_type == CollectionType::CollectEverything; }
     // Whether a collection that marks the live cells runs, as opposed to one that only sweeps or a graph dump.
     bool is_marking_for_collection() const { return m_collecting_garbage && m_current_collection_type == CollectionType::CollectGarbage; }
+
+    // Whether collect_garbage_and_return_memory_to_system() runs, so that what hangs off the heap can let go of more
+    // than it does in other collections.
+    bool is_returning_memory_to_system() const { return m_is_returning_memory_to_system; }
 
     void set_incremental_sweep_enabled(bool enabled) { m_incremental_sweep_enabled = enabled; }
     void set_should_collect_on_every_allocation(bool);
@@ -360,12 +369,14 @@ private:
     HashTable<CrossHeapMemberBase*> m_incoming_cross_heap_members;
     HeapGroup* m_group { nullptr };
     bool m_incremental_sweep_enabled { true };
+    bool m_is_returning_memory_to_system { false };
     WeakContainer::List m_weak_containers;
 
     Vector<Ptr<Cell>> m_uprooted_cells;
 
     size_t m_gc_deferrals { 0 };
     bool m_should_gc_when_deferral_ends { false };
+    bool m_should_return_memory_when_deferral_ends { false };
 
     bool m_collecting_garbage { false };
     bool m_weak_pointers_to_dead_cells_are_cleared { false };

@@ -316,11 +316,21 @@ pub fn park_all_source_texts_now() -> usize {
 
 /// Parks the texts that nothing asked for in a while, on a thread of their own. Collections call this.
 pub fn park_idle_source_texts() {
+    park_source_texts_idle_for(IDLE_TIME_BEFORE_PARKING);
+}
+
+/// Parks every text that can be parked, whatever its age, on a thread of their own. Collections of a process that is
+/// short of memory call this.
+pub fn park_all_source_texts() {
+    park_source_texts_idle_for(Duration::ZERO);
+}
+
+fn park_source_texts_idle_for(idle_time: Duration) {
     static IS_PARKING: AtomicBool = AtomicBool::new(false);
     if IS_PARKING.swap(true, Ordering::Acquire) {
         return;
     }
-    let candidates = parking_candidates(IDLE_TIME_BEFORE_PARKING);
+    let candidates = parking_candidates(idle_time);
     if candidates.is_empty() {
         IS_PARKING.store(false, Ordering::Release);
         return;

@@ -117,6 +117,8 @@ GC_API void gc_heap_collect_garbage(GCHeap*, int collection_type, bool print_rep
 GC_API bool gc_heap_is_collecting_everything(GCHeap const*);
 // Whether the heap gathers its roots and marks the live cells for a collection now, rather than for a graph dump.
 GC_API bool gc_heap_is_marking_for_collection(GCHeap const*);
+// Whether the collection that runs is there to give memory back to the system, for a process that is short of it.
+GC_API bool gc_heap_is_returning_memory_to_system(GCHeap const*);
 GC_API void gc_heap_defer_gc(GCHeap*);
 GC_API void gc_heap_undefer_gc(GCHeap*);
 GC_API void gc_heap_deferral_state(GCHeap*, size_t** deferrals, bool** collect_when_deferrals_end);
