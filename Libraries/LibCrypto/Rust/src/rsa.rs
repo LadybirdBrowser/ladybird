@@ -12,7 +12,7 @@ use core::ffi::{CStr, c_int};
 
 use crate::key::{HandleTag, Key, KeyDecodeError, KeyHandle, KeyPair, SecretBytes, StoredKey};
 use crate::openssl::{
-    self, BigNum, ParamBuilder, Pkey, end_parameter, int_parameter, octet_string_parameter, utf8_parameter,
+    self, BigNum, Param, ParamBuilder, Pkey, end_parameter, int_parameter, octet_string_parameter, utf8_parameter,
 };
 use crate::{CryptoError, KeyAlgorithm, RsaJwkInteger, ShaHashKind, der, sys};
 
@@ -67,7 +67,7 @@ impl RsaPublicKey {
         builder.push_number(c"e", public_exponent, false)?;
         let params = builder.build()?;
         Ok(Self {
-            key: Pkey::from_data(c"RSA", sys::EVP_PKEY_PUBLIC_KEY, params.as_ptr())?,
+            key: Pkey::from_data(c"RSA", sys::EVP_PKEY_PUBLIC_KEY, &params)?,
         })
     }
 
@@ -104,7 +104,7 @@ impl RsaPrivateKey {
         }
         let params = builder.build()?;
         Ok(Self {
-            key: Pkey::from_data(c"RSA", sys::EVP_PKEY_KEYPAIR, params.as_ptr())?,
+            key: Pkey::from_data(c"RSA", sys::EVP_PKEY_KEYPAIR, &params)?,
             has_crt_components: crt_components.is_some(),
         })
     }
@@ -180,7 +180,7 @@ pub fn rsa_generate_key_pair(modulus_length: u32, exponent: &[u8]) -> Result<Key
     builder.push_uint(c"bits", modulus_length)?;
     builder.push_number(c"e", exponent, false)?;
     let params = builder.build()?;
-    let private_key = RsaPrivateKey::from_key(Pkey::generate(c"RSA", Some(params.as_ptr()))?);
+    let private_key = RsaPrivateKey::from_key(Pkey::generate(c"RSA", &params)?);
     let public_key = private_key.public_key()?;
     Ok(KeyPair {
         public_key: KeyHandle(Key::RsaPublic(public_key)),
@@ -324,7 +324,7 @@ impl RsaSignaturePadding {
 }
 
 /// The signature parameters of the padding, which point at `salt_length`.
-fn signature_parameters(hash_kind: ShaHashKind, salt_length: Option<&mut c_int>) -> Vec<sys::OSSL_PARAM> {
+fn signature_parameters(hash_kind: ShaHashKind, salt_length: Option<&mut c_int>) -> Vec<Param<'_>> {
     match salt_length {
         Some(salt_length) => vec![
             utf8_parameter(c"pad-mode", c"pss"),

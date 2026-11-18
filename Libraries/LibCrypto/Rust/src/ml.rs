@@ -167,8 +167,8 @@ impl MlPrivateKey {
 /// The private key of `parameter_set` that `seed` makes.
 // NB: The seed parameter points at the caller's buffer, and the key clears its own copy.
 fn private_key_from_seed(parameter_set: ParameterSet, seed: &[u8]) -> Result<Pkey, CryptoError> {
-    let mut params = [openssl::octet_string_parameter(c"seed", seed), openssl::end_parameter()];
-    Pkey::from_data(parameter_set.name(), sys::EVP_PKEY_KEYPAIR, params.as_mut_ptr())
+    let params = [openssl::octet_string_parameter(c"seed", seed), openssl::end_parameter()];
+    Pkey::from_data(parameter_set.name(), sys::EVP_PKEY_KEYPAIR, &params)
 }
 
 fn private_key(key: &KeyHandle) -> &MlPrivateKey {
