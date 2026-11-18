@@ -62,6 +62,10 @@ class HTMLMediaElement : public HTMLElement {
     WEB_WRAPPABLE(HTMLMediaElement, HTMLElement);
 
 public:
+    // NB: A move runs no children changed steps, so the move algorithm reports these instead.
+    void child_moved_out(DOM::Node const& child, GC::Ptr<DOM::Node> old_previous_sibling);
+    void child_moved_in();
+
     static constexpr size_t audio_tracks_offset() { return offsetof(HTMLMediaElement, m_audio_tracks); }
     static constexpr size_t video_tracks_offset() { return offsetof(HTMLMediaElement, m_video_tracks); }
     static constexpr size_t text_tracks_offset() { return offsetof(HTMLMediaElement, m_text_tracks); }

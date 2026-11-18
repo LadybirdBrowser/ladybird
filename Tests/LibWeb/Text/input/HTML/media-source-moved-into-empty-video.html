@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // A video with no src and no children hasn't started resource selection. Moving a source into it starts it.
+        const video = document.createElement("video");
+        const elsewhere = document.createElement("div");
+        const source = document.createElement("source");
+        source.src = "../../../Assets/h264-reordered-frames.mp4";
+        elsewhere.appendChild(source);
+        document.body.append(video, elsewhere);
+        println(`networkState before the move: ${video.networkState}`);
+        const loaded = new Promise(resolve => video.addEventListener("loadedmetadata", () => resolve("loaded metadata")));
+        const timedOut = new Promise(resolve => setTimeout(() => resolve("never loaded"), 2000));
+        video.moveBefore(source, null);
+        println(`after the move: ${await Promise.race([loaded, timedOut])}`);
+        done();
+    });
+</script>

@@ -1268,6 +1268,20 @@ void HTMLMediaElement::children_changed(ChildrenChangedMetadata const& metadata)
     }
 }
 
+void HTMLMediaElement::child_moved_out(DOM::Node const& child, GC::Ptr<DOM::Node> old_previous_sibling)
+{
+    if (!m_source_element_selector)
+        return;
+    m_source_element_selector->node_removed(child, old_previous_sibling);
+    m_source_element_selector->process_next_candidate();
+}
+
+void HTMLMediaElement::child_moved_in()
+{
+    if (m_source_element_selector)
+        m_source_element_selector->process_next_candidate();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#concept-media-load-algorithm
 void HTMLMediaElement::select_resource()
 {
