@@ -1,0 +1,26 @@
+In a horizontal-tb column flex container, Ladybird now measures
+baselines across the horizontal axis: an item in a vertical writing mode
+by its own baselines, any other item by one synthesized from its left
+border edge; and vertical-rl items share a group at the right edge.
+That’s what Blink does: DetermineBaselineWritingMode() in
+baseline_utils.h gives a horizontal-tb item vertical-lr in an ltr
+container, LogicalBoxFragment::SynthesizedBaseline() puts its alphabetic
+baseline on the line-under (left) edge, and DetermineBaselineGroup()
+puts vertical-rl items in the minor group, which
+FlexLayoutAlgorithm::BaselineAscent() measures from each item’s
+cross-end margin edge.
+
+Under rtl and under wrap-reverse, all three engines align a
+horizontal-tb item at the cross-start edge, as Ladybird now does, and
+none lets an item with an auto cross-axis margin take part in baseline
+alignment, as the flexbox algorithm says.
+
+Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5
+(Playwright’s build), all three agree with Ladybird now on the test’s
+rows with real or synthesized horizontal-tb baselines, an auto margin,
+rtl, and wrap-reverse. On the rows of empty vertical-lr and vertical-rl
+boxes, Chrome and WebKit agree with each other and with Ladybird, and
+Firefox synthesizes differently; on a vertical-rl item under rtl, Chrome
+and Firefox agree with Ladybird, and WebKit differs. Ladybird still
+differs from Chrome and WebKit for vertical text, which they align by
+its central baseline, and Ladybird by its alphabetic one.
