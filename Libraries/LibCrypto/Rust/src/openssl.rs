@@ -899,8 +899,8 @@ pub(crate) fn ec_public_point(nid: c_int, scalar: &[u8]) -> Result<Option<Vec<u8
     Ok(Some(encoded))
 }
 
-/// The ECDSA signature (r, s) of `digest` by `key`, each of `scalar_size` bytes.
-pub(crate) fn ecdsa_sign(key: &Pkey, digest: &[u8], scalar_size: usize) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
+/// The ECDSA signature of `digest` by `key`: r and then s, each of `scalar_size` bytes.
+pub(crate) fn ecdsa_sign(key: &Pkey, digest: &[u8], scalar_size: usize) -> Result<Vec<u8>, CryptoError> {
     let encoded = sign_digest(key, digest)?;
     let mut cursor = encoded.as_ptr();
     // SAFETY: The cursor points into `encoded`, of the length given; a non-null result is owned.
@@ -910,19 +910,20 @@ pub(crate) fn ecdsa_sign(key: &Pkey, digest: &[u8], scalar_size: usize) -> Resul
     let (mut r, mut s) = (ptr::null(), ptr::null());
     // SAFETY: The signature is live, and owns r and s.
     unsafe { sys::ECDSA_SIG_get0(signature.as_ptr(), &raw mut r, &raw mut s) };
-    let padded = |number: *const sys::BIGNUM| -> Result<Vec<u8>, CryptoError> {
-        let mut bytes = vec![0; scalar_size];
+    let mut bytes = vec![0; scalar_size * 2];
+    let (r_bytes, s_bytes) = bytes.split_at_mut(scalar_size);
+    for (number, number_bytes) in [(r, r_bytes), (s, s_bytes)] {
         // SAFETY: The number is live while the signature is, and the buffer holds `scalar_size` bytes.
-        if unsafe { sys::BN_bn2binpad(number, bytes.as_mut_ptr(), int_length(scalar_size)?) } < 0 {
+        if unsafe { sys::BN_bn2binpad(number, number_bytes.as_mut_ptr(), int_length(scalar_size)?) } < 0 {
             return failed();
         }
-        Ok(bytes)
-    };
-    Ok((padded(r)?, padded(s)?))
+    }
+    Ok(bytes)
 }
 
-/// Verifies the ECDSA signature (r, s) of `digest` with `key`.
-pub(crate) fn ecdsa_verify(key: &Pkey, digest: &[u8], r: &[u8], s: &[u8]) -> Result<bool, CryptoError> {
+/// Verifies the ECDSA signature of `digest` with `key`, which is r and then s, each of half its length.
+pub(crate) fn ecdsa_verify(key: &Pkey, digest: &[u8], signature: &[u8]) -> Result<bool, CryptoError> {
+    let (r, s) = signature.split_at(signature.len() / 2);
     // SAFETY: Making a signature takes no arguments.
     let signature = EcdsaSignature::new(unsafe { sys::ECDSA_SIG_new() })?;
     let r = BigNum::from_bytes(r, false)?;

@@ -259,18 +259,17 @@ pub fn ec_generate_key_pair(curve: EcCurve) -> Result<KeyPair, CryptoError> {
     })
 }
 
-pub fn ec_sign(key: &KeyHandle, digest: &[u8]) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
+pub fn ec_sign(key: &KeyHandle, digest: &[u8]) -> Result<Vec<u8>, CryptoError> {
     let private_key = private_key(key);
     openssl::ecdsa_sign(&private_key.key, digest, private_key.curve.scalar_size())
 }
 
-pub fn ec_verify(key: &KeyHandle, digest: &[u8], r: &[u8], s: &[u8]) -> Result<bool, CryptoError> {
+pub fn ec_verify(key: &KeyHandle, digest: &[u8], signature: &[u8]) -> Result<bool, CryptoError> {
     let public_key = public_key(key);
-    let scalar_size = public_key.curve.scalar_size();
-    if r.len() != scalar_size || s.len() != scalar_size {
+    if signature.len() != public_key.curve.scalar_size() * 2 {
         return Ok(false);
     }
-    openssl::ecdsa_verify(&public_key.key, digest, r, s)
+    openssl::ecdsa_verify(&public_key.key, digest, signature)
 }
 
 pub fn ec_public_key_scalar_size(key: &KeyHandle) -> usize {

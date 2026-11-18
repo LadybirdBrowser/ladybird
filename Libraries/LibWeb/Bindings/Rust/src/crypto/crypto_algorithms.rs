@@ -7900,7 +7900,7 @@ impl AlgorithmMethods for Ecdsa {
     }
 
     // https://w3c.github.io/webcrypto/#ecdsa-operations-sign
-    fn sign(&self, cx: &CallContext, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
+    fn sign(&self, _: &CallContext, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
         let EcParameters::SignOrVerify(normalized_algorithm) = &self.parameters else {
             unreachable!("the operation uses EC SignOrVerify parameters")
         };
@@ -7932,54 +7932,24 @@ impl AlgorithmMethods for Ecdsa {
             unreachable!("the key has an EC algorithm")
         };
 
-        let result;
-
         // 6. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        if let Some(curve) = ec_curve_from_name(named_curve) {
-            let coord_size = match curve {
-                EcCurve::P256 => 32,
-                EcCurve::P384 => 48,
-                EcCurve::P521 => 66,
-            };
-
+        let result = if ec_curve_from_name(named_curve).is_some() {
             // 1. Perform the ECDSA signing process, as specified in [RFC6090], Section 5.4.2, with M as the message,
             //    using params as the EC domain parameters, and with d as the private key.
             // 2. Let r and s be the pair of integers resulting from performing the ECDSA signing process.
-            let signature = libcrypto_rust::ec_sign(d, m.as_slice());
-            let (r_bytes, s_bytes) = match signature {
-                Ok(signature) => signature,
-                Err(message) => {
-                    return Err(Exception::Dom(
-                        "OperationError",
-                        Utf16String::from_utf8(message.message()),
-                    ));
-                }
-            };
-
             // 3. Let result be an empty byte sequence.
-            let mut result_bytes = Vec::new();
-            if result_bytes.try_reserve_exact(coord_size * 2).is_err() {
-                return cx
-                    .vm()
-                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                    .map_err(Into::into);
-            }
-            result_bytes.resize(coord_size * 2, 0);
-
             // 4. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the base point of the elliptic curve identified by params.
             // 5. Convert r to a byte sequence of length n and append it to result.
-            assert!(r_bytes.as_slice().len() <= coord_size);
-            result_bytes[..r_bytes.as_slice().len()].copy_from_slice(r_bytes.as_slice());
-
             // 6. Convert s to a byte sequence of length n and append it to result.
-            assert!(s_bytes.as_slice().len() <= coord_size);
-            result_bytes[coord_size..coord_size + s_bytes.as_slice().len()].copy_from_slice(s_bytes.as_slice());
-            result = Bytes::new(result_bytes);
+            // NB: LibCrypto gives the signature as result.
+            libcrypto_rust::ec_sign(d, m.as_slice())
+                .map(Bytes::new)
+                .map_err(operation_error)?
         } else {
             // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
             // Perform the ECDSA signature steps specified in that specification, passing in M, params and d and resulting in result.
             return Err(dom_error("DataError", b"Invalid algorithm"));
-        }
+        };
 
         // 7. Return result.
         Ok(result)
@@ -8041,23 +8011,13 @@ impl AlgorithmMethods for Ecdsa {
         let result = if ec_curve_from_name(named_curve).is_some() {
             // 1. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the
             //    base point of the elliptic curve identified by params.
-            let n = libcrypto_rust::ec_public_key_scalar_size(q);
-
             // 2. If signature does not have a length of n * 2 bytes, then return false.
-            if signature.as_slice().len() != n * 2 {
-                return Ok(false);
-            }
-
             // 3. Let r be the result of converting the first n bytes of signature to an integer.
-            let r = &signature.as_slice()[..n];
-
             // 4. Let s be the result of converting the last n bytes of signature to an integer.
-            let s = &signature.as_slice()[n..];
-
             // 5. Perform the ECDSA verifying process, as specified in [RFC6090], Section 5.4.3, with M as the received
             //    message, (r, s) as the signature and using params as the EC domain parameters, and Q as the public key.
-            let verification = libcrypto_rust::ec_verify(q, m.as_slice(), r, s);
-            verification.map_err(operation_error)?
+            // NB: LibCrypto checks the length of the signature and reads r and s from it.
+            libcrypto_rust::ec_verify(q, m.as_slice(), signature.as_slice()).map_err(operation_error)?
         } else {
             // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
             // Perform the ECDSA verification steps specified in that specification passing in M, signature, params and Q and resulting in an indication of whether or not the purported signature is valid.
