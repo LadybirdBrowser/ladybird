@@ -109,6 +109,8 @@ describe("errors", () => {
             "PT2501999792984H", // hours >= 2*53 seconds
             "PT150119987579017M", // minutes >= 2*53 seconds
             "PT9007199254740992S", // seconds >= 2*53 seconds
+            "PT" + "9".repeat(128) + "M",
+            "PT" + "9".repeat(128) + "S",
         ];
 
         for (const value of values) {
