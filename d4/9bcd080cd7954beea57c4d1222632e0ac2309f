@@ -1,0 +1,10 @@
+Ladybird now resumes a waiting resource selection from a media element
+task, and drops the selector when a new load begins. Run in Chrome
+157.0.8103.79, Firefox 151.0, and WebKit 26.5, none of the three
+engines crashes when a source is appended to, or moved into, a waiting
+video in a removed iframe’s document. Once such a video is adopted into
+a fully active document, Firefox and WebKit load the source (or the src
+set before adoption), as Ladybird now does; Chrome loads neither. And
+when a wait ends in a fetch while the task from the waiting step is
+still queued, Chrome and Firefox both keep that fetch delaying the load
+event, as Ladybird now does.
