@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container { width: 200px; font: 20px/20px Ahem; display: flow-root; }
+    .float { float: left; width: 150px; height: 40px; }
+    p { margin: 0; text-indent: 30px; }
+</style>
+<!-- The first word is too wide to fit beside the float, so the first line starts below it, and is still indented. -->
+<div class="container" id="pushed-below-float"><div class="float"></div><p><span>xxx</span> yy</p></div>
+<div class="container" id="pushed-below-float-rtl" dir="rtl"><div class="float" style="float: right"></div><p><span>xxx</span> yy</p></div>
+<div class="container" id="fits-beside-float"><div class="float" style="width: 50px"></div><p><span>xxx</span> yy</p></div>
+<div class="container" id="no-float"><p><span>xxx</span> yy</p></div>
+<script>
+    test(() => {
+        for (const container of document.querySelectorAll(".container")) {
+            const span = container.querySelector("span").getBoundingClientRect();
+            const box = container.getBoundingClientRect();
+            println(`${container.id}: first word from ${span.left - box.left} to ${span.right - box.left}, at ${span.top - box.top}`);
+        }
+    });
+</script>

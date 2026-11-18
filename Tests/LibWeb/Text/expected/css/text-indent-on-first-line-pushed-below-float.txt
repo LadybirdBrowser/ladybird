@@ -1,0 +1,4 @@
+pushed-below-float: first word from 30 to 90, at 40
+pushed-below-float-rtl: first word from 50 to 110, at 40
+fits-beside-float: first word from 80 to 140, at 0
+no-float: first word from 30 to 90, at 0
