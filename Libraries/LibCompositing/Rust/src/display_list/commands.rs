@@ -244,6 +244,7 @@ pub struct ReplayClip {
 pub struct ReplayLayer {
     pub opacity: f32,
     pub blend_mode: CompositingAndBlendingOperator,
+    pub can_draw_directly_for_lcd_text: bool,
     pub filter_bytes: *const u8,
     pub filter_bytes_size: usize,
     pub backdrop_filter_bytes: *const u8,

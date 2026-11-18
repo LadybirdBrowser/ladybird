@@ -423,6 +423,7 @@ OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_w
     auto initial_state = owner_view.initial_state_for_related_view();
     initial_state.owner_view_id = owner_view.view_id();
     initial_state.is_tab = false;
+    initial_state.scales_frames_to_fit = true;
     auto screen_size = owner_view.screen_size();
     auto& view = create_view(move(initial_state), traversable);
     return make<PictureInPictureWindowInUI>(view, owner_view.view_id(), video_size, WebView::PictureInPictureWindow::initial_size(video_size, screen_size));

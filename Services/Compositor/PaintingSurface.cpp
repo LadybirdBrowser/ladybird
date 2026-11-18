@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/FontSkia.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/SkiaUtils.h>
 #include <LibGfx/Bitmap.h>
@@ -78,7 +79,7 @@ static void release_vulkan_image(void* context)
     image->unref();
 }
 
-NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<VulkanImage> vulkan_image, Origin origin)
+NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<VulkanImage> vulkan_image, Origin origin, TextAntialiasing text_antialiasing)
 {
     IntSize size(vulkan_image->info.extent.width, vulkan_image->info.extent.height);
     GrVkImageInfo info = {
@@ -98,8 +99,9 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPt
     GrBackendRenderTarget rt = GrBackendRenderTargets::MakeVk(size.width(), size.height(), info);
     // Note, we're implicitly giving Skia a reference to vulkan_image. It will eventually be released by the callback function.
     vulkan_image->ref();
+    auto properties = Compositor::skia_text_surface_properties(SkSurfaceProps::kDefault_Flag, text_antialiasing == TextAntialiasing::LCD);
     sk_sp<SkSurface> surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), rt, origin_to_sk_origin(origin), vk_format_to_sk_color_type(vulkan_image->info.format),
-        SkColorSpace::MakeSRGB(), nullptr, release_vulkan_image, vulkan_image.ptr());
+        SkColorSpace::MakeSRGB(), &properties, release_vulkan_image, vulkan_image.ptr());
     return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr, true)));
 }
 #endif
@@ -138,12 +140,12 @@ static sk_sp<SkColorSpace> skia_color_space_of_pixels(ColorSpace const& color_sp
     return SkColorSpace::MakeSRGB();
 }
 
-NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> context, ColorSpace const& color_space)
+NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> context, ColorSpace const& color_space, TextAntialiasing text_antialiasing)
 {
-    return MUST(try_create_with_size(size, color_type, alpha_type, move(context), color_space));
+    return MUST(try_create_with_size(size, color_type, alpha_type, move(context), color_space, text_antialiasing));
 }
 
-ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::try_create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> context, ColorSpace const& color_space)
+ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::try_create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> context, ColorSpace const& color_space, TextAntialiasing text_antialiasing)
 {
     auto sk_color_type = to_skia_color_type(color_type);
     auto sk_alpha_type = to_skia_alpha_type(color_type, alpha_type);
@@ -152,8 +154,8 @@ ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::try_create_with_size(In
     if (context) {
         // NB: Dynamic MSAA lets Skia render complex antialiased paths on the GPU instead of
         //     rasterizing coverage masks on the CPU and uploading them as textures.
-        SkSurfaceProps surface_properties { SkSurfaceProps::kDynamicMSAA_Flag, kUnknown_SkPixelGeometry };
-        auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info, 0, &surface_properties);
+        auto properties = Compositor::skia_text_surface_properties(SkSurfaceProps::kDynamicMSAA_Flag, text_antialiasing == TextAntialiasing::LCD);
+        auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info, 0, &properties);
         if (surface)
             return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
         dbgln("Unable to create GPU surface for size {}x{}, falling back to CPU", size.width(), size.height());
@@ -161,19 +163,21 @@ ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::try_create_with_size(In
     }
 
     auto bitmap = TRY(Bitmap::create(color_type, alpha_type, size));
-    auto surface = SkSurfaces::WrapPixels(image_info, bitmap->begin(), bitmap->pitch());
+    auto properties = Compositor::skia_text_surface_properties(SkSurfaceProps::kDefault_Flag, text_antialiasing == TextAntialiasing::LCD);
+    auto surface = SkSurfaces::WrapPixels(image_info, bitmap->begin(), bitmap->pitch(), &properties);
     if (!surface)
         return Error::from_string_literal("Unable to create a surface for the bitmap");
     return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, bitmap)));
 }
 
-NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
+NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap, TextAntialiasing text_antialiasing)
 {
     auto color_type = to_skia_color_type(bitmap.format());
     auto alpha_type = to_skia_alpha_type(bitmap.format(), bitmap.alpha_type());
     auto size = bitmap.size();
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
-    auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.pitch());
+    auto properties = Compositor::skia_text_surface_properties(SkSurfaceProps::kDefault_Flag, text_antialiasing == TextAntialiasing::LCD);
+    auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.pitch(), &properties);
     return adopt_ref(*new PaintingSurface(make<Impl>(RefPtr<SkiaBackendContext> {}, size, surface, bitmap)));
 }
 

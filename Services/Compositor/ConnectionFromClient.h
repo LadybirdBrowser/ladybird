@@ -49,6 +49,7 @@ private:
     virtual void set_display_metadata(Web::CompositorContextId, Optional<u64>, double) override;
     virtual void set_context_visibility(Web::CompositorContextId, Compositing::ContextVisibility) override;
     virtual void set_context_presents_from_cpu_memory(Web::CompositorContextId, bool) override;
+    virtual void set_context_scales_frames_to_fit(Web::CompositorContextId, bool) override;
     virtual void crash() override;
 
     ConnectionFromWebContent* web_content_connection(i32 web_content_connection_id);

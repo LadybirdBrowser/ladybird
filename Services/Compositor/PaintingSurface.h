@@ -51,20 +51,25 @@ public:
         BottomLeft,
     };
 
+    enum class TextAntialiasing {
+        Grayscale,
+        LCD,
+    };
+
     Function<void(PaintingSurface&)> on_flush;
 
     // A surface whose pixels are in the color space, which is sRGB unless one is given.
-    static NonnullRefPtr<PaintingSurface> create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> = {}, ColorSpace const& = {});
+    static NonnullRefPtr<PaintingSurface> create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> = {}, ColorSpace const& = {}, TextAntialiasing = TextAntialiasing::Grayscale);
     // Fails when neither a GPU surface nor a bitmap of the size can be allocated.
-    static ErrorOr<NonnullRefPtr<PaintingSurface>> try_create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> = {}, ColorSpace const& = {});
-    static NonnullRefPtr<PaintingSurface> wrap_bitmap(Bitmap&);
+    static ErrorOr<NonnullRefPtr<PaintingSurface>> try_create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> = {}, ColorSpace const& = {}, TextAntialiasing = TextAntialiasing::Grayscale);
+    static NonnullRefPtr<PaintingSurface> wrap_bitmap(Bitmap&, TextAntialiasing = TextAntialiasing::Grayscale);
 
 #ifdef AK_OS_MACOS
     static NonnullRefPtr<PaintingSurface> create_from_shared_image_buffer(SharedImageBuffer&, NonnullRefPtr<SkiaBackendContext>, Origin = Origin::TopLeft);
 #endif
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
-    static NonnullRefPtr<PaintingSurface> create_from_vkimage(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<VulkanImage> vulkan_image, Origin origin);
+    static NonnullRefPtr<PaintingSurface> create_from_vkimage(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<VulkanImage> vulkan_image, Origin origin, TextAntialiasing = TextAntialiasing::Grayscale);
 #endif
 
 #ifdef USE_DIRECTX
