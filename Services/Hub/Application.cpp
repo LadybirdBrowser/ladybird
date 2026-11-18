@@ -27,6 +27,8 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
 {
     args_parser.add_option(m_encoded_ui_info, "What the UI tells the Hub to start with", "ui-info", 0, "hex");
     args_parser.add_option(m_ui_mach_server_name, "Mach server to get the connection to the UI from", "ui-mach-server", 0, "name");
+    // NB: main() reads this itself, before the arguments are parsed.
+    args_parser.add_option(m_ui_pid, "Process of the UI, which the Hub ends with", "ui-pid", 0, "pid");
 }
 
 Hub::UIInfo const* Application::ui_info() const
