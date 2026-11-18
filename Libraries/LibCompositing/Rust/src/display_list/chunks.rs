@@ -515,23 +515,23 @@ mod tests {
             [
                 record(
                     paint_scrollbar_offset,
-                    0,
+                    1,
                     ReachOutsideChunk::ScrollbarThumbFollowsScrollOffsetOf(SpatialNodeIndex(5))
                 ),
                 record(
                     compositor_scrollbar_offset,
-                    0,
+                    2,
                     ReachOutsideChunk::ScrollbarPaintedByCompositor
                 ),
-                record(own_space_clip_offset, 1, ReachOutsideChunk::InlineClipInItsOwnSpace),
+                record(own_space_clip_offset, 3, ReachOutsideChunk::InlineClipInItsOwnSpace),
                 record(
                     mask_offset,
-                    1,
+                    3,
                     ReachOutsideChunk::DeclaresMaskContentOf(EffectNodeIndex(1))
                 ),
                 record(
                     group_offset,
-                    1,
+                    3,
                     ReachOutsideChunk::DeclaresMaskContentOf(EffectNodeIndex(2))
                 ),
             ]

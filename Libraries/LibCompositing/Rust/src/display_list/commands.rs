@@ -94,6 +94,16 @@ impl DisplayListCommandType {
         )
     }
 
+    /// A top-level record of this command is the only record of its run: a canvas, video or nested context, which the
+    /// compositor can give a layer of its own between the records around it, and a scroll bar, which draws what the
+    /// frame shows of its scroller rather than what the list holds.
+    pub const fn is_alone_in_its_run(self) -> bool {
+        matches!(
+            self,
+            Self::DrawCanvas | Self::DrawVideoFrame | Self::DrawCompositedContext | Self::PaintScrollBar
+        )
+    }
+
     /// A command of the stream of a 2D canvas, which the canvas replays against its own surface in recording order,
     /// under the state that the commands before it saved, transformed, clipped and restored. Such a command draws no
     /// known rect, and the display list of a page never holds one. Its name starts with "Canvas2D", which is how the

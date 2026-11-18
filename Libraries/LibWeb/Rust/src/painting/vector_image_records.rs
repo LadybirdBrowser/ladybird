@@ -46,7 +46,10 @@ impl VectorImageRecords {
     /// `resources`.
     pub(crate) fn recorded(display_list: &RecordedDisplayList, resources: &DisplayListResources) -> Arc<Self> {
         debug_assert!(
-            display_list.command_runs.len() <= 1,
+            display_list
+                .command_runs
+                .windows(2)
+                .all(|runs| runs[0].context == runs[1].context),
             "the records of an SVG image are recorded under one visual context"
         );
         let mut records = display_list_holding_vector_image_records(display_list, &resources.vector_images).bytes;

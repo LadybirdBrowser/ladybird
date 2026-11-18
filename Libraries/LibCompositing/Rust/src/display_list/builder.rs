@@ -257,6 +257,7 @@ pub struct DisplayListBuilder {
     chunks: Vec<DisplayListChunk>,
     open_group_depth: usize,
     open_group_context: Option<ContextRef>,
+    last_record_is_alone_in_its_run: bool,
 }
 
 impl DisplayListBuilder {
@@ -321,11 +322,13 @@ impl DisplayListBuilder {
         offset: usize,
         size: usize,
     ) {
-        // Every run so far belongs to a chunk that has ended.
-        if self
+        let every_run_so_far_belongs_to_a_chunk_that_has_ended = self
             .chunks
             .last()
-            .is_some_and(|chunk| chunk.run_end as usize == self.runs.len())
+            .is_some_and(|chunk| chunk.run_end as usize == self.runs.len());
+        let record_is_alone_in_its_run = command_type.is_alone_in_its_run();
+        if every_run_so_far_belongs_to_a_chunk_that_has_ended
+            || (!self.runs.is_empty() && (record_is_alone_in_its_run || self.last_record_is_alone_in_its_run))
         {
             self.runs.push(DisplayListCommandRun {
                 offset: u32::try_from(offset).expect("display list exceeds u32"),
@@ -334,6 +337,7 @@ impl DisplayListBuilder {
             });
         }
         note_command(&mut self.runs, command_type, bounding_rect, context, offset, size);
+        self.last_record_is_alone_in_its_run = record_is_alone_in_its_run;
     }
 
     pub fn byte_size(&self) -> usize {

@@ -1164,8 +1164,8 @@ mod tests {
                     end_offset: canvas_span.begin_offset,
                 },
                 RecordSpan {
-                    begin_offset: run_end(0),
-                    end_offset: run_end(1),
+                    begin_offset: run_end(2),
+                    end_offset: run_end(3),
                 },
             ]
         );
@@ -1173,7 +1173,7 @@ mod tests {
             plan.layers[2].record_spans,
             [RecordSpan {
                 begin_offset: canvas_span.end_offset,
-                end_offset: run_end(0),
+                end_offset: run_end(2),
             }]
         );
     }
@@ -1196,7 +1196,7 @@ mod tests {
     }
 
     #[test]
-    fn records_in_the_run_of_a_canvas_are_placed_one_by_one() {
+    fn records_in_the_run_after_a_canvas_are_placed_one_by_one() {
         let tree = identity_tree();
         let root = ContextRef::default();
         let list = TestList::new()
@@ -1205,7 +1205,8 @@ mod tests {
             .with(fill(IntRect::new(150, 150, 20, 20)), root)
             .with(fill(IntRect::new(500, 400, 20, 20)), root)
             .with(fill(IntRect::new(160, 160, 20, 20)), root);
-        assert_eq!(list.builder.command_runs().len(), 1);
+        // The canvas is alone in its run.
+        assert_eq!(list.builder.command_runs().len(), 3);
         let plan = list.plan(&tree, &[]).unwrap();
         assert_eq!(kinds(&plan), ["base", "media", "painted"]);
         assert_eq!(layers_of_records(&list, &plan), [0, 1, 2, 0, 2]);
