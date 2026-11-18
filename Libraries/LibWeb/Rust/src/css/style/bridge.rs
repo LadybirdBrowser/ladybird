@@ -828,6 +828,8 @@ pub enum ElementBoxKind {
     /// A `<frame>` whose parent is a `<frameset>`.
     Frame = 23,
     FrameSet = 24,
+    /// A `<wbr>`: a line break opportunity, whatever its display says.
+    WordBreakOpportunity = 25,
 }
 
 impl ElementBoxKind {

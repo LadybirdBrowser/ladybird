@@ -443,7 +443,7 @@ pub(crate) fn node_display(style: Option<ComputedValuesView<'_>>) -> crate::css:
 
 pub(crate) fn node_can_have_children(data: &impl NodeShape) -> bool {
     match data.kind() {
-        NodeKind::BreakNode => false,
+        NodeKind::BreakNode | NodeKind::WordBreakOpportunityNode => false,
         NodeKind::AudioBox | NodeKind::VideoBox => has_flag(data, NodeFlag::ReplacedBoxCanHaveChildren),
         NodeKind::SVGSVGBox => true,
         kind if kind_is_replaced_box(kind) => false,
@@ -768,6 +768,7 @@ pub(crate) fn kind_is_box(kind: NodeKind) -> bool {
         kind,
         NodeKind::Unset
             | NodeKind::BreakNode
+            | NodeKind::WordBreakOpportunityNode
             | NodeKind::InlineNode
             | NodeKind::Node
             | NodeKind::GeneratedTextNode
@@ -1102,6 +1103,10 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(crate) fn is_break_node(&self) -> bool {
         self.data().kind.get() == NodeKind::BreakNode
+    }
+
+    pub(crate) fn is_word_break_opportunity_node(&self) -> bool {
+        self.data().kind.get() == NodeKind::WordBreakOpportunityNode
     }
 
     pub(crate) fn is_box(&self) -> bool {

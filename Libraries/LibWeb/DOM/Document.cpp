@@ -907,6 +907,7 @@ Layout::NodeArena& Document::layout_node_arena()
             switch (kind) {
             case Layout::RustFFI::NodeKind::InlineNode:
             case Layout::RustFFI::NodeKind::BreakNode:
+            case Layout::RustFFI::NodeKind::WordBreakOpportunityNode:
                 Layout::allocate_layout_node<Layout::NodeWithStyle>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
                 return;
             case Layout::RustFFI::NodeKind::TextNode:

@@ -1382,6 +1382,10 @@ CSS::ElementBoxKind Element::box_kind() const
 {
     if (local_name() == u"noscript"sv && document().is_scripting_enabled())
         return CSS::ElementBoxKind::NoBox;
+    // https://html.spec.whatwg.org/multipage/text-level-semantics.html#the-wbr-element
+    // "The wbr element represents a line break opportunity."
+    if (is_html_element() && local_name() == HTML::TagNames::wbr)
+        return CSS::ElementBoxKind::WordBreakOpportunity;
     return CSS::ElementBoxKind::FromDisplay;
 }
 

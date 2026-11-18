@@ -168,6 +168,8 @@ pub enum NodeKind {
     VideoBox = 37,
     Viewport = 38,
     FrameSetBox = 39,
+    /// A `<wbr>`, which gives the line a soft wrap opportunity.
+    WordBreakOpportunityNode = 40,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

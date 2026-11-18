@@ -140,6 +140,7 @@ StringView Node::class_name() const
         LAYOUT_NODE_KIND_NAME_CASE(TextNode)
         LAYOUT_NODE_KIND_NAME_CASE(VideoBox)
         LAYOUT_NODE_KIND_NAME_CASE(Viewport)
+        LAYOUT_NODE_KIND_NAME_CASE(WordBreakOpportunityNode)
     case RustFFI::NodeKind::Unset:
         break;
     }
