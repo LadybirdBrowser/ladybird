@@ -66,28 +66,19 @@ impl KeyAlgorithm {
 
 /// A SubjectPublicKeyInfo or PrivateKeyInfo.
 pub struct KeyInfo {
-    is_private: bool,
     algorithm: Option<KeyAlgorithm>,
     has_parameters: bool,
     named_curve: Option<EcCurve>,
-    raw_key: SecretBytes,
-    // The RSA, EC, ML-DSA or ML-KEM key of the structure, parsed while the structure is.
-    parsed_key: Option<KeyHandle>,
-    is_ml_expanded_key_form: bool,
+    material: KeyMaterial,
 }
 
-impl KeyInfo {
-    fn new(is_private: bool, algorithm: openssl::AlgorithmIdentifier, raw_key: SecretBytes) -> Self {
-        Self {
-            is_private,
-            algorithm: KeyAlgorithm::from_oid(&algorithm.oid),
-            has_parameters: algorithm.has_parameters(),
-            named_curve: algorithm.curve.as_deref().and_then(EcCurve::from_oid),
-            raw_key,
-            parsed_key: None,
-            is_ml_expanded_key_form: false,
-        }
-    }
+pub enum KeyMaterial {
+    /// The key of an RSA or EC structure, or of an ML-DSA or ML-KEM PrivateKeyInfo, which is parsed with the structure.
+    Key(KeyHandle),
+    /// The subjectPublicKey or privateKey contents of the other structures.
+    Raw(SecretBytes),
+    /// The privateKey of an ML-DSA or ML-KEM PrivateKeyInfo in the expandedKey form, which has no key.
+    MlExpandedKey,
 }
 
 /// The contents of the DER OCTET STRING at the start of `data`, and whether it takes all of `data`.
@@ -125,68 +116,62 @@ pub fn parse_octet_string(data: &[u8]) -> Result<(&[u8], bool), CryptoError> {
 /// The DER SubjectPublicKeyInfo at the start of `data`, and whether it takes all of `data`.
 pub fn parse_subject_public_key_info(data: &[u8]) -> Result<(KeyInfo, bool), CryptoError> {
     let parsed = openssl::parse_subject_public_key_info(data).map_err(CryptoError::Invalid)?;
-    let key_info = KeyInfo::new(false, parsed.algorithm, SecretBytes::new(parsed.raw_key));
-    let key_info = with_parsed_key(key_info, parsed.key, None)?;
+    let key_info = KeyInfo::new(false, parsed.algorithm, SecretBytes::new(parsed.raw_key), parsed.key)?;
     Ok((key_info, parsed.consumed == data.len()))
 }
 
 /// The DER PrivateKeyInfo at the start of `data`, and whether it takes all of `data`.
 pub fn parse_private_key_info(data: &[u8]) -> Result<(KeyInfo, bool), CryptoError> {
     let parsed = openssl::parse_private_key_info(data).map_err(CryptoError::Invalid)?;
-    let key_info = KeyInfo::new(true, parsed.algorithm, parsed.raw_key);
-    let key_info = with_parsed_key(key_info, None, parsed.key)?;
+    let key_info = KeyInfo::new(true, parsed.algorithm, parsed.raw_key, parsed.key)?;
     Ok((key_info, parsed.consumed == data.len()))
 }
 
-/// The structure with the key of its algorithm, for the algorithms whose keys are parsed with the structure.
-// NB: OpenSSL decodes the RSA and EC keys of either structure, so those keys are taken from it.
-fn with_parsed_key(
-    mut key_info: KeyInfo,
-    public_key: Option<Pkey>,
-    private_key: Option<Pkey>,
-) -> Result<KeyInfo, CryptoError> {
-    match key_info.algorithm {
-        Some(KeyAlgorithm::Rsa) => {
-            key_info.parsed_key = Some(match (public_key, private_key) {
-                (_, Some(private_key)) => rsa::from_private_key(private_key),
-                (Some(public_key), _) => rsa::from_public_key(public_key),
-                _ => unreachable!("OpenSSL decodes RSA keys"),
-            });
-        }
-        Some(KeyAlgorithm::Ec) => {
-            let curve = key_info
-                .named_curve
-                .ok_or(CryptoError::Invalid("Unsupported EC parameters"))?;
-            let key = if let Some(private_key) = private_key {
-                ec::parse_private_key_info(curve, private_key, key_info.raw_key())?
-            } else {
-                ec::parse_subject_public_key(key_info.raw_key())?
-            };
-            key_info.parsed_key = Some(key);
-        }
-        Some(algorithm @ (KeyAlgorithm::MlDsa(_) | KeyAlgorithm::MlKem(_))) if key_info.is_private => {
-            match ml::parse_private_key(algorithm, key_info.raw_key())? {
-                Some(private_key) => key_info.parsed_key = Some(private_key),
-                None => key_info.is_ml_expanded_key_form = true,
-            }
-        }
-        _ => {}
-    }
-    Ok(key_info)
-}
-
 impl KeyInfo {
-    /// The key of the structure's algorithm, which is parsed with an RSA or EC structure, or an ML-DSA or ML-KEM
-    /// PrivateKeyInfo.
-    pub fn take_key(&mut self) -> KeyHandle {
-        self.parsed_key
-            .take()
-            .expect("The structure holds a key of its algorithm")
+    // NB: OpenSSL decodes the RSA and EC keys of either structure, so those keys are taken from it.
+    fn new(
+        is_private: bool,
+        algorithm: openssl::AlgorithmIdentifier,
+        raw_key: SecretBytes,
+        key: Option<Pkey>,
+    ) -> Result<Self, CryptoError> {
+        let named_curve = algorithm.curve.as_deref().and_then(EcCurve::from_oid);
+        let has_parameters = algorithm.has_parameters();
+        let algorithm = KeyAlgorithm::from_oid(&algorithm.oid);
+        let material = match algorithm {
+            Some(KeyAlgorithm::Rsa) => {
+                let key = key.expect("OpenSSL decodes RSA keys");
+                KeyMaterial::Key(if is_private {
+                    rsa::from_private_key(key)
+                } else {
+                    rsa::from_public_key(key)
+                })
+            }
+            Some(KeyAlgorithm::Ec) => {
+                let curve = named_curve.ok_or(CryptoError::Invalid("Unsupported EC parameters"))?;
+                KeyMaterial::Key(match key {
+                    Some(private_key) if is_private => ec::parse_private_key_info(curve, private_key, &raw_key)?,
+                    _ => ec::parse_subject_public_key(&raw_key)?,
+                })
+            }
+            Some(algorithm @ (KeyAlgorithm::MlDsa(_) | KeyAlgorithm::MlKem(_))) if is_private => {
+                match ml::parse_private_key(algorithm, &raw_key)? {
+                    Some(private_key) => KeyMaterial::Key(private_key),
+                    None => KeyMaterial::MlExpandedKey,
+                }
+            }
+            _ => KeyMaterial::Raw(raw_key),
+        };
+        Ok(Self {
+            algorithm,
+            has_parameters,
+            named_curve,
+            material,
+        })
     }
 
-    /// Whether the privateKey of an ML-DSA or ML-KEM PrivateKeyInfo is in the expandedKey form, which has no key.
-    pub fn is_ml_expanded_key_form(&self) -> bool {
-        self.is_ml_expanded_key_form
+    pub fn into_material(self) -> KeyMaterial {
+        self.material
     }
 
     /// The algorithm the structure names, if it is one of those that Web Crypto supports.
@@ -202,9 +187,5 @@ impl KeyInfo {
     /// The curve the structure's parameters name, if they name P-256, P-384 or P-521.
     pub fn named_curve(&self) -> Option<EcCurve> {
         self.named_curve
-    }
-
-    pub fn raw_key(&self) -> &[u8] {
-        &self.raw_key
     }
 }

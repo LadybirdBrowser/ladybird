@@ -31,7 +31,9 @@ pub use ec::{
     ec_public_key_scalar_size, ec_sign, ec_verify,
 };
 pub use key::{HandleTag, KeyDecodeError, KeyHandle, KeyPair, SecretBytes, StoredKey};
-pub use key_info::{KeyAlgorithm, KeyInfo, parse_octet_string, parse_private_key_info, parse_subject_public_key_info};
+pub use key_info::{
+    KeyAlgorithm, KeyInfo, KeyMaterial, parse_octet_string, parse_private_key_info, parse_subject_public_key_info,
+};
 pub use ml::{
     ml_export_der, ml_seed_bytes, mldsa_generate_key_pair, mldsa_public_bytes, mldsa_read_public_key, mldsa_sign,
     mldsa_verify, mlkem_decapsulate, mlkem_encapsulate, mlkem_generate_key_pair, mlkem_public_bytes,
