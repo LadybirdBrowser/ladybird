@@ -100,7 +100,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
 endif()
 add_cxx_only_compile_options(-Wsuggest-override)
 
-add_cxx_compile_options(-Wno-expansion-to-defined)
 add_cxx_only_compile_options(-Wno-invalid-offsetof)
 add_cxx_compile_options(-Wno-maybe-uninitialized)
 add_cxx_compile_options(-Wno-shorten-64-to-32)
@@ -145,8 +144,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
 
     add_cxx_compile_options(-Wmissing-prototypes)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # Only ignore expansion-to-defined for g++, clang's implementation doesn't complain about function-like macros
-    add_cxx_compile_options(-Wno-expansion-to-defined)
     add_cxx_only_compile_options(-Wno-literal-suffix)
     add_cxx_compile_options(-Wvla)
 
