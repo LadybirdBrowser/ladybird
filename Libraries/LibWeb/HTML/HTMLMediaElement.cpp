@@ -1099,8 +1099,9 @@ public:
     {
         // 2. ⌛ Process candidate: If candidate does not have a src attribute, or if its src attribute's value is the
         //    empty string, then end the synchronous section, and jump down to the failed with elements step below.
+        auto& candidate = *m_candidate;
         Utf16String candidate_src;
-        if (auto maybe_src = m_candidate->get_attribute(HTML::AttributeNames::src); maybe_src.has_value())
+        if (auto maybe_src = candidate.get_attribute(HTML::AttributeNames::src); maybe_src.has_value())
             candidate_src = maybe_src.release_value();
 
         if (candidate_src.is_empty()) {
@@ -1112,7 +1113,7 @@ public:
         //           then end the synchronous section, and jump down to the failed with elements step below.
 
         // 4. ⌛ Let urlRecord be the result of encoding-parsing a URL given candidate's src attribute's value, relative to candidate's node document when the src attribute was last changed.
-        auto url_record = m_candidate->document().encoding_parse_url(candidate_src);
+        auto url_record = candidate.document().encoding_parse_url(candidate_src);
 
         // 5. ⌛ If urlRecord is failure, then end the synchronous section, and jump down to the failed with elements step below.
         if (!url_record.has_value()) {
@@ -1124,7 +1125,7 @@ public:
         //    the codecs parameter, for types that define that parameter), represents a type that the user agent knows it
         //    cannot render, then end the synchronous section, and jump down to the failed with elements step below.
         // NB: An empty type attribute names no type, so unlike an unparseable one, it doesn't rule the source out.
-        if (auto type = m_candidate->get_attribute(HTML::AttributeNames::type); type.has_value() && !type->is_empty()) {
+        if (auto type = candidate.get_attribute(HTML::AttributeNames::type); type.has_value() && !type->is_empty()) {
             if (m_media_element->can_play_type(*type) == Bindings::CanPlayTypeResult::Empty) {
                 failed_with_elements();
                 return;
@@ -1176,6 +1177,14 @@ public:
     void all_children_removed()
     {
         m_node_before_pointer = nullptr;
+        m_candidate = nullptr;
+    }
+
+    // If candidate is removed from the media element, or moved out of it, then set candidate to null.
+    void node_left(DOM::Node const& node)
+    {
+        if (m_candidate.ptr() == &node)
+            m_candidate = nullptr;
     }
 
 private:
@@ -1183,13 +1192,17 @@ private:
 
     void failed_with_elements()
     {
-        // 9. Failed with elements: Queue a media element task given the media element to fire an event named error at candidate.
+        // 9. Failed with elements: If candidate is not null, then queue a media element task given the media element to
+        //    fire an event named error at candidate.
+        // NB: The steps after this one run in that same task (see the FIXME below), so it's queued even when candidate
+        //     is null, and checks candidate when it runs.
         m_media_element->queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& selector, HTMLMediaElement&) {
             // A later load replaced this selector, and that selection decides what loads now.
             if (!selector.is_current())
                 return;
 
-            selector.m_candidate->dispatch_event(DOM::Event::create(HTML::relevant_global_object(*selector.m_candidate), HTML::EventNames::error));
+            if (selector.m_candidate)
+                selector.m_candidate->dispatch_event(DOM::Event::create(HTML::relevant_global_object(*selector.m_candidate), HTML::EventNames::error));
 
             // 10. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm until
             //     the algorithm says the synchronous section has ended. (Steps in synchronous sections are marked with ⌛.)
@@ -1286,7 +1299,7 @@ private:
     }
 
     GC::Ref<HTMLMediaElement> m_media_element;
-    GC::Ref<HTMLSourceElement> m_candidate;
+    GC::Ptr<HTMLSourceElement> m_candidate;
     bool m_waiting { false };
     u64 m_wait_count { 0 };
     GC::Ptr<DOM::Node> m_node_before_pointer;
@@ -1299,9 +1312,10 @@ void HTMLMediaElement::children_changed(ChildrenChangedMetadata const& metadata)
     Base::children_changed(metadata);
 
     if (m_source_element_selector) {
-        if (metadata.type == ChildrenChangedMetadata::Type::Removal)
+        if (metadata.type == ChildrenChangedMetadata::Type::Removal) {
             m_source_element_selector->node_removed(*metadata.node, metadata.old_previous_sibling);
-        else if (metadata.type == ChildrenChangedMetadata::Type::AllChildrenRemoved)
+            m_source_element_selector->node_left(*metadata.node);
+        } else if (metadata.type == ChildrenChangedMetadata::Type::AllChildrenRemoved)
             m_source_element_selector->all_children_removed();
         m_source_element_selector->process_next_candidate();
     }
@@ -1312,6 +1326,9 @@ void HTMLMediaElement::child_moved_out(DOM::Node const& child, GC::Ptr<DOM::Node
     if (!m_source_element_selector)
         return;
     m_source_element_selector->node_removed(child, old_previous_sibling);
+    // NB: A child moved within this element is still in it, so it stays the candidate.
+    if (child.parent() != this)
+        m_source_element_selector->node_left(child);
     m_source_element_selector->process_next_candidate();
 }
 

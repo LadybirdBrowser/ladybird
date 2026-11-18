@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The first source's fetch fails. While it's in flight, the source leaves the video, or moves within it. Only a
+    // candidate still in the video gets the error event, and either way, the selection goes on to the next source.
+    function run(label, change) {
+        return new Promise(resolve => {
+            const video = document.createElement("video");
+            const failing = document.createElement("source");
+            failing.src = "../../../Assets/does-not-exist.mp4";
+            const playable = document.createElement("source");
+            playable.src = "../../../Assets/h264-reordered-frames.mp4";
+            const elsewhere = document.createElement("div");
+            let errorFired = false;
+            failing.addEventListener("error", () => { errorFired = true; });
+            video.addEventListener("loadstart", () => change(video, failing, elsewhere), { once: true });
+            video.addEventListener("loadedmetadata", () => {
+                setTimeout(() => {
+                    println(`${label}: loaded metadata, error at the first source: ${errorFired}`);
+                    video.remove();
+                    elsewhere.remove();
+                    resolve();
+                }, 100);
+            });
+            video.append(failing, playable);
+            document.body.append(video, elsewhere);
+        });
+    }
+
+    asyncTest(async done => {
+        await run("moved out", (video, failing, elsewhere) => elsewhere.moveBefore(failing, null));
+        await run("removed", (video, failing) => failing.remove());
+        await run("moved within the video", (video, failing) => video.moveBefore(failing, null));
+        done();
+    });
+</script>
