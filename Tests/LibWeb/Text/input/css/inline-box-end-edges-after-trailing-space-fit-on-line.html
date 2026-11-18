@@ -4,6 +4,7 @@
     body { font: 10px/20px Ahem; }
     .w { width: 180px; }
     .p { padding: 0 16px; }
+    .aligned { width: 35px; }
 </style>
 <!-- The text is 160px wide, and 192px with both paddings, in a 180px container: Each span whose end edges are on the
      line with "bbbbbbbb" doesn't fit there, so it takes two lines, whatever white space comes before its end. -->
@@ -20,12 +21,25 @@
 <!-- These fit: Only one side has padding. -->
 <div class="w" id="start-padding-only"><span style="padding-left: 16px">aaaaaaa bbbbbbbb </span></div>
 <div class="w" id="end-padding-only"><span style="padding-right: 16px">aaaaaaa bbbbbbbb </span></div>
+<!-- Each line breaks at the space that ends a span, and the span's end edges stay on the line before the break, so
+     they count toward the width that line is aligned by. -->
+<div class="aligned" id="right-padding" style="text-align: right"><span style="padding-right: 10px">xx </span>yy</div>
+<div class="aligned" id="right-margin" style="text-align: right"><span style="margin-right: 10px">xx </span>yy</div>
+<div class="aligned" id="right-two-spaces" style="text-align: right"><span style="padding-right: 10px">xx  </span>yy</div>
+<div class="aligned" id="right-to-left" style="direction: rtl"><span style="padding-left: 10px">xx </span>yy</div>
+<div class="aligned" id="center" style="text-align: center; width: 45px"><span style="padding-right: 10px">xx </span>yy</div>
+<div class="aligned" id="nested" style="width: 45px"><span style="padding-right: 10px">x <b style="padding-right: 5px">x </b></span>yy</div>
 <script>
     test(() => {
         for (const div of document.querySelectorAll(".w")) {
             const span = div.querySelector("span");
             const rects = [...span.getClientRects()];
             println(`${div.id}: ${rects.length} line(s), widest ${Math.max(...rects.map(rect => rect.width))}px`);
+        }
+        for (const div of document.querySelectorAll(".aligned")) {
+            const left = div.getBoundingClientRect().left;
+            const rects = [...div.querySelector("span").getClientRects()];
+            println(`${div.id}: ${rects.map(rect => `${rect.left - left}..${rect.right - left}`).join(", ")}`);
         }
     });
 </script>

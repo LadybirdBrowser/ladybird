@@ -83,6 +83,8 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     unbreakable_run_inline_size_interrupted_by_float: CssPixels,
     /// The advance of the preserved white space that a line is breaking at, which hangs at the end of that line.
     hanging_whitespace_inline_size: CssPixels,
+    /// The end edges of the inline boxes that end with the white space a line is breaking at, which stay on that line.
+    end_edges_of_whitespace_at_break: CssPixels,
     /// How many lines from the first are known to hold no content, while no line is known to: Every line until the
     /// first formatted line is one past floats that held nothing.
     lines_known_to_hold_no_content: Option<usize>,
@@ -182,6 +184,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             outside_marker_line: context.parent.pending_outside_marker_line(),
             unbreakable_run_inline_size_interrupted_by_float: CssPixels::default(),
             hanging_whitespace_inline_size: CssPixels::default(),
+            end_edges_of_whitespace_at_break: CssPixels::default(),
             lines_known_to_hold_no_content: Some(0),
             text_indentation: inline_formatting_context::TextIndentation::of(style, containing_inline_size),
             direction: style.direction(),
@@ -361,6 +364,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
 
         self.keep_line_of_collapsed_whitespace_edges();
         let line_index = self.ensure_last_line_index();
+        if forced == ForcedBreak::No && !self.line(line_index).fragments.is_empty() {
+            let end_edges = std::mem::take(&mut self.end_edges_of_whitespace_at_break);
+            self.line_mut(line_index).advance_inline_length(end_edges);
+        }
         {
             let mut line = self.line_mut(line_index);
             line.has_break = true;
@@ -2019,6 +2026,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
 
     pub(crate) fn set_hanging_whitespace_inline_size(&mut self, inline_size: CssPixels) {
         self.hanging_whitespace_inline_size = inline_size;
+    }
+
+    pub(crate) fn set_end_edges_of_whitespace_at_break(&mut self, inline_size: CssPixels) {
+        self.end_edges_of_whitespace_at_break = inline_size;
     }
 
     pub(crate) fn set_unbreakable_run_inline_size_interrupted_by_float(&mut self, inline_size: CssPixels) {

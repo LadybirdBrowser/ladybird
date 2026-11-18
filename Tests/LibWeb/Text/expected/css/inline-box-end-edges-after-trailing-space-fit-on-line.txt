@@ -10,3 +10,9 @@ space-after-text-nested: 2 line(s), widest 104px
 space-after-text-pre-wrap: 2 line(s), widest 106px
 start-padding-only: 1 line(s), widest 176px
 end-padding-only: 1 line(s), widest 176px
+right-padding: 5..35
+right-margin: 5..25
+right-two-spaces: 5..35
+right-to-left: 5..35
+center: 7.5..37.5
+nested: 0..45
