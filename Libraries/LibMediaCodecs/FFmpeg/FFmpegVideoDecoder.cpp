@@ -113,7 +113,7 @@ void FFmpegVideoDecoder::signal_end_of_stream()
     VERIFY(result == 0 || result == AVERROR_EOF);
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp, [[maybe_unused]] Optional<AK::Duration> target)
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(ColorMetadata const& container_color_metadata, [[maybe_unused]] Optional<AK::Duration> target)
 {
     while (!m_pending_frame.has_value()) {
         auto result = m_functions.avcodec_receive_frame(m_codec_context, m_frame);
@@ -141,7 +141,8 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(C
         }
     }
 
-    auto cicp = coding_independent_code_points_of(m_functions, *m_codec_context, container_cicp);
+    auto color_metadata = container_color_metadata;
+    color_metadata.cicp = coding_independent_code_points_of(m_functions, *m_codec_context, container_color_metadata.cicp);
 
     auto pixel_format = static_cast<AVPixelFormat>(m_frame->format);
     auto bit_depth = [&]() -> Optional<u8> {
@@ -195,13 +196,13 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(C
     if (!acquired_slot.has_value())
         return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video frame slot is held elsewhere"sv);
 
-    auto yuv_data = DECODER_TRY_ALLOC(Gfx::YUVData::create(size, *bit_depth, subsampling, cicp,
+    auto yuv_data = DECODER_TRY_ALLOC(Gfx::YUVData::create(size, *bit_depth, subsampling, color_metadata.cicp,
         acquired_slot->bytes.slice(0, layout.y_size),
         acquired_slot->bytes.slice(layout.u_offset, layout.u_size),
         acquired_slot->bytes.slice(layout.v_offset, layout.v_size)));
     TRY(copy_pending_frame_into(yuv_data));
 
-    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(m_pending_frame->timestamp, m_pending_frame->duration, size.to_type<u32>(), *bit_depth, subsampling, cicp, acquired_slot->storage));
+    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(m_pending_frame->timestamp, m_pending_frame->duration, size.to_type<u32>(), *bit_depth, subsampling, move(color_metadata), acquired_slot->storage));
     m_pending_frame.clear();
     return frame;
 }

@@ -9,7 +9,7 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
-#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
+#include <LibMediaCodecs/Color/ColorMetadata.h>
 
 #include "DecoderError.h"
 
@@ -47,7 +47,7 @@ public:
 
     // Callers may pass the optional target parameter to indicate the timestamp past which they need output. This
     // allows reordered codecs to produce a seek-resolving frame without filling the reorder queue first.
-    virtual DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_next_output(CodingIndependentCodePoints const& container_cicp, Optional<AK::Duration> target = {}) = 0;
+    virtual DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_next_output(ColorMetadata const& container_color_metadata, Optional<AK::Duration> target = {}) = 0;
 
     virtual void flush() = 0;
 };

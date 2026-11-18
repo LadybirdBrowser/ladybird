@@ -205,7 +205,7 @@ NonnullRefPtr<VideoFrame> create_pooled_frame(VideoFramePool& pool, AK::Duration
 
     auto layout = MUST(frame_plane_layout(frame_size, bit_depth, subsampling));
     auto acquired = pool.try_acquire(layout.total_byte_count).release_value();
-    return make_ref_counted<VideoFrame>(timestamp, duration, Gfx::Size<u32>(frame_size), bit_depth, subsampling, CodingIndependentCodePoints {}, move(acquired.storage));
+    return make_ref_counted<VideoFrame>(timestamp, duration, Gfx::Size<u32>(frame_size), bit_depth, subsampling, ColorMetadata {}, move(acquired.storage));
 }
 
 // A frame as the consumer receives it, which counts its release.

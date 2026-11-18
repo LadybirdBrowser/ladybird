@@ -25,7 +25,7 @@ VideoFrame::VideoFrame(
     Gfx::Size<u32> size,
     u8 bit_depth,
     Subsampling subsampling,
-    CodingIndependentCodePoints cicp,
+    ColorMetadata color_metadata,
     NonnullRefPtr<VideoFrameStorage> storage)
     : m_id(next_frame_id())
     , m_timestamp(timestamp)
@@ -33,7 +33,7 @@ VideoFrame::VideoFrame(
     , m_size(size)
     , m_bit_depth(bit_depth)
     , m_subsampling(subsampling)
-    , m_cicp(cicp)
+    , m_color_metadata(move(color_metadata))
     , m_storage(move(storage))
 {
 }
@@ -52,7 +52,7 @@ Core::AnonymousBuffer VideoFrame::pixel_buffer() const
 
 Optional<Gfx::YUVData> VideoFrame::yuv_data() const
 {
-    auto yuv_data = yuv_data_in_buffer(pixel_buffer(), m_size.to_type<int>(), m_bit_depth, m_subsampling, m_cicp);
+    auto yuv_data = yuv_data_in_buffer(pixel_buffer(), m_size.to_type<int>(), m_bit_depth, m_subsampling, cicp());
     if (yuv_data.is_error())
         return {};
     return yuv_data.release_value();
@@ -61,7 +61,7 @@ Optional<Gfx::YUVData> VideoFrame::yuv_data() const
 ErrorOr<NonnullRefPtr<Gfx::Bitmap>> VideoFrame::to_bitmap() const
 {
     if (auto surface = this->surface())
-        return surface->read_back_bitmap(m_cicp);
+        return surface->read_back_bitmap(cicp());
     auto yuv_data = this->yuv_data();
     if (!yuv_data.has_value())
         return Error::from_string_literal("Video frame has no pixels to read");
