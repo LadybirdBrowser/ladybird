@@ -1,0 +1,46 @@
+<!DOCTYPE quirks>
+<style>
+    @font-face { font-family: Ahem; src: url("../wpt-import/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 20px/20px Ahem; }
+    .s { font-size: 50px; line-height: 60px; }
+    .t { font-size: 10px; line-height: 10px; }
+    .ib { display: inline-block; width: 10px; height: 10px; }
+    .case { position: relative; }
+</style>
+<div class="case" id="text">x</div>
+<div class="case" id="inline-block"><span class="ib"></span></div>
+<div class="case" id="image"><img style="width: 10px; height: 10px" src="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%2710%27/>"></div>
+<div class="case" id="text-then-inline-block">x<span class="ib"></span></div>
+<div class="case" id="text-in-span"><span class="t">x</span></div>
+<div class="case" id="text-in-nested-span"><span class="t"><b>x</b></span></div>
+<div class="case" id="inline-block-then-text-in-span"><span class="ib"></span><span class="t">x</span></div>
+<div class="case" id="inline-block-in-tall-span"><span class="s"><span class="ib"></span></span></div>
+<div class="case" id="inline-block-in-padded-span"><span class="s" style="padding-left: 1px"><span class="ib"></span></span></div>
+<div class="case" id="br"><br></div>
+<div class="case" id="br-then-text"><br>x</div>
+<div class="case" id="inline-block-then-br"><span class="ib"></span><br>x</div>
+<div class="case" id="text-in-span-then-br"><span class="t">x</span><br>y</div>
+<div class="case" id="br-in-span"><span class="t"><br></span></div>
+<div class="case" id="collapsed-spaces"> <span class="ib"></span> </div>
+<div class="case" id="space-between-inline-blocks"><span class="ib"></span> <span class="ib"></span></div>
+<div class="case" id="space-at-wrap" style="width: 15px"><span class="ib"></span> <span class="ib"></span></div>
+<div class="case" id="preserved-space-at-wrap" style="white-space: pre-wrap; width: 15px"><span class="ib"></span> <span class="ib"></span></div>
+<div class="case" id="nbsp"><span class="ib"></span>&nbsp;</div>
+<div class="case" id="zero-width-space">&#x200b;<span class="ib"></span></div>
+<div class="case" id="list-item" style="display: list-item; list-style: none"><span class="ib"></span></div>
+<div class="case" id="empty-span-then-text"><span class="s"></span>x</div>
+<div class="case" id="padded-empty-span" style="font-size: 10px"><span class="s" style="padding-top: 1px"></span><span class="ib"></span></div>
+<div class="case" id="bordered-empty-span"><span class="s" style="border-left: 1px solid"></span><span class="ib"></span></div>
+<div class="case" id="menu-title" style="font: 16px/normal serif; height: 15px"><span style="font: 12px/16px Ahem; padding: 0 9px">Ladybird</span></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        println(document.compatMode);
+        for (const element of document.querySelectorAll(".case")) {
+            const rect = element.getBoundingClientRect();
+            const span = element.querySelector("span");
+            println(`${element.id}: ${rect.height}${element.id === "menu-title" ? ` (span at ${span.getBoundingClientRect().top - rect.top})` : ""}`);
+        }
+    });
+</script>

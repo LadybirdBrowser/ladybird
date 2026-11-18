@@ -1,0 +1,3 @@
+two-lines-fit: height 20, atomics at 0, 10, hidden
+one-line-fits: height 10, atomics at 0, hidden, hidden
+all-lines-fit: height 30, atomics at 0, 10, 20

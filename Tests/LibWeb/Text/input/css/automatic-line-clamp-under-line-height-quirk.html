@@ -1,0 +1,38 @@
+<!DOCTYPE quirks>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../wpt-import/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+        font: 20px/20px Ahem;
+    }
+    .clamp {
+        line-clamp: auto;
+        width: 100px;
+        line-height: 60px;
+    }
+    .atomic {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+    }
+</style>
+<div class="clamp" id="two-lines-fit" style="max-height: 25px"><div class="atomic"></div><br><div class="atomic"></div><br><div class="atomic"></div></div>
+<div class="clamp" id="one-line-fits" style="max-height: 15px"><div class="atomic"></div><br><div class="atomic"></div><br><div class="atomic"></div></div>
+<div class="clamp" id="all-lines-fit" style="max-height: 35px"><div class="atomic"></div><br><div class="atomic"></div><br><div class="atomic"></div></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        for (const clamp of document.querySelectorAll(".clamp")) {
+            const top = clamp.getBoundingClientRect().top;
+            const atomics = [...clamp.querySelectorAll(".atomic")].map(atomic => {
+                const rect = atomic.getBoundingClientRect();
+                return rect.height ? `${rect.top - top}` : "hidden";
+            });
+            println(`${clamp.id}: height ${clamp.getBoundingClientRect().height}, atomics at ${atomics.join(", ")}`);
+        }
+    });
+</script>
