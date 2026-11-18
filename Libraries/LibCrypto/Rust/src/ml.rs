@@ -217,8 +217,8 @@ pub fn mldsa_read_public_key(size: MlDsaSize, bytes: &[u8]) -> Option<KeyHandle>
     (public_key.size == size).then(|| KeyHandle(Key::MlDsaPublic(public_key)))
 }
 
-pub fn mlkem_read_public_key(bytes: &[u8]) -> Option<KeyHandle> {
-    Some(KeyHandle(Key::MlKemPublic(mlkem_public_key_from_bytes(bytes))))
+pub fn mlkem_read_public_key(bytes: &[u8]) -> KeyHandle {
+    KeyHandle(Key::MlKemPublic(mlkem_public_key_from_bytes(bytes)))
 }
 
 pub fn mldsa_public_bytes(key: &KeyHandle) -> &[u8] {

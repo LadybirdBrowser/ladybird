@@ -12912,13 +12912,6 @@ impl AlgorithmMethods for MlDsa {
     }
 }
 
-fn mlkem_read_public_key(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Ref<CryptoKey>> {
-    let Some(key) = libcrypto_rust::mlkem_read_public_key(bytes) else {
-        return Err(dom_error("DataError", b"Invalid key"));
-    };
-    Ok(CryptoKey::create(vm, key))
-}
-
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct MlKem;
@@ -13094,7 +13087,7 @@ impl AlgorithmMethods for MlKem {
             };
 
             // 8. Let key be a new CryptoKey that represents publicKey.
-            key = mlkem_read_public_key(cx.vm(), &public_key)?;
+            key = CryptoKey::create(cx.vm(), libcrypto_rust::mlkem_read_public_key(&public_key));
 
             // 9. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -13212,7 +13205,7 @@ impl AlgorithmMethods for MlKem {
             };
 
             // 3. Let key be a new CryptoKey that represents the ML-KEM public key data in data.
-            key = mlkem_read_public_key(cx.vm(), data.as_slice())?;
+            key = CryptoKey::create(cx.vm(), libcrypto_rust::mlkem_read_public_key(data.as_slice()));
 
             // 4. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
