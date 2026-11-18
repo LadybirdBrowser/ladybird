@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    input {
+        font: 16px/20px SerenitySans;
+        border: 0;
+        padding: 0;
+    }
+    #plain { appearance: none; }
+    #monospace { font-family: Ahem; }
+</style>
+<input id="native">
+<input id="plain" size="2">
+<input id="monospace" size="2">
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("16px Ahem");
+        const width = id => document.getElementById(id).getBoundingClientRect().width;
+        println(`Default size in a proportional font: ${width("native")}`);
+        println(`Size 2 with appearance: none: ${width("plain")}`);
+        println(`Size 2 in a fixed-width font: ${width("monospace")}`);
+        done();
+    });
+</script>

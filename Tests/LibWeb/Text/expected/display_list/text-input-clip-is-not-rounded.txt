@@ -3,13 +3,13 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[8,11 156x13] (TextInputBox<INPUT>#input)
-      [c1 in s1] clip=[8,11 156x13] (BlockContainer<DIV>)
+    [c0 in s1] clip=[8,11 164x13] (TextInputBox<INPUT>#input)
+      [c1 in s1] clip=[8,11 164x13] (BlockContainer<DIV>)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
 FillRect@s1/c1/e0 rect=[8,11 23x13] color=rgba(101, 2, 0, 0.8) owner=BlockContainer<DIV> phase=foreground
 DrawGlyphRun@s1/c1/e0 font_id=font1 glyphs=3 rect=[8,11 23x13] glyph_bounding_rect=[8,11 26x12] translation=[8,21] color=rgb(0, 0, 0) text="abc" owner=BlockContainer<DIV> phase=foreground
-FillRoundedRectRing@s1/e0 rect=[6,9 160x17] corner_radii=[8x8,8x8,8x8,8x8] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=TextInputBox<INPUT>#input phase=outline
+FillRoundedRectRing@s1/e0 rect=[6,9 168x17] corner_radii=[8x8,8x8,8x8,8x8] top_width=2 right_width=2 bottom_width=2 left_width=2 color=rgb(61, 174, 233) owner=TextInputBox<INPUT>#input phase=outline
 
