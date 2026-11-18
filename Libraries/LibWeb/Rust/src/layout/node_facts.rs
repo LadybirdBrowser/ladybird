@@ -91,7 +91,7 @@ pub(crate) fn derived_replaced_content_facts(data: &NodeData, input: ReplacedCon
         return svg_image_facts(input);
     }
     node_style_view(data).map_or_else(Default::default, |style| {
-        replaced_content_facts(data.kind.get(), ReplacedContentStyle::of(style), input)
+        replaced_content_facts(data.kind.get(), ReplacedContentStyle::of(style, input), input)
     })
 }
 
@@ -103,6 +103,8 @@ struct ReplacedContentStyle {
     size_contained: Option<(CssPixels, CssPixels)>,
     /// The `ch` unit.
     zero_advance: CssPixels,
+    average_advance: CssPixels,
+    maximum_advance: CssPixels,
     line_height: CssPixels,
     is_horizontal: bool,
     appearance_is_none: bool,
@@ -110,7 +112,7 @@ struct ReplacedContentStyle {
 }
 
 impl ReplacedContentStyle {
-    fn of(style: ComputedValuesView<'_>) -> Self {
+    fn of(style: ComputedValuesView<'_>, input: ReplacedContentInput) -> Self {
         // https://drafts.csswg.org/css-contain-2/#containment-size
         // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect ratio.
         // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
@@ -122,6 +124,15 @@ impl ReplacedContentStyle {
             } else {
                 CssPixels::default()
             }
+        };
+        let (average_advance, maximum_advance) = match input {
+            ReplacedContentInput::Input {
+                is_text_entry: true, ..
+            } => style
+                .font()
+                .first_available_font()
+                .map_or((0.0, 0.0), |font| font.character_advances()),
+            _ => (0.0, 0.0),
         };
         Self {
             size_contained: style_has_size_containment(style).then(|| {
@@ -137,6 +148,8 @@ impl ReplacedContentStyle {
                 )
             }),
             zero_advance: CssPixels::nearest_value_for_f32(style.font_zero_advance()),
+            average_advance: CssPixels::nearest_value_for_f32(average_advance),
+            maximum_advance: CssPixels::nearest_value_for_f32(maximum_advance),
             line_height: style.line_height(),
             is_horizontal: style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
             appearance_is_none: style.appearance() == crate::css::css_enums::appearance::NONE,
@@ -160,15 +173,25 @@ impl ReplacedContentStyle {
 
     // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-text-entry-widget
     fn text_control_default_preferred_size(self, size: u32) -> (CssPixels, CssPixels) {
-        // [...] If the element has a size attribute, and parsing that attribute's value using the rules for parsing
-        // non-negative integers doesn't generate an error, return the value obtained from applying the converting a
-        // character width to pixels algorithm to the value of the attribute. Otherwise, return the value obtained from
-        // applying the converting a character width to pixels algorithm to the number 20.
-        // FIXME: Implement the specified "converting a character width to pixels" algorithm.
+        // INTEROP: Match Firefox's allowance for wide glyphs. Cap it so an unusually wide glyph
+        // (for example, a ligature) cannot make a proportional-font input excessively wide.
+        let average = self
+            .average_advance
+            .round()
+            .min(self.maximum_advance)
+            .max(self.zero_advance);
+        let allowance = if self.maximum_advance - average > CssPixels::from_integer(1) {
+            (self.maximum_advance.min(average * 2) - CssPixels::from_integer(4))
+                .max(CssPixels::default())
+                .round()
+        } else {
+            CssPixels::default()
+        };
+        let inline_size = CssPixels::nearest_value_for(f64::from(size) * average.to_double() + allowance.to_double());
         // FIXME: HTML does not yet detail the primitive appearance of text inputs. Use one line for the default
         //        preferred block size, matching the native appearance described by HTML and the behavior of other
         //        engines.
-        self.in_writing_mode(self.characters(size), self.line_height)
+        self.in_writing_mode(inline_size, self.line_height)
     }
 }
 
@@ -1554,6 +1577,8 @@ mod node_facts_tests {
         super::ReplacedContentStyle {
             size_contained: None,
             zero_advance: CssPixels::from_integer(8),
+            average_advance: CssPixels::from_integer(8),
+            maximum_advance: CssPixels::from_integer(8),
             line_height: CssPixels::from_integer(16),
             is_horizontal: true,
             appearance_is_none: false,
@@ -1604,6 +1629,26 @@ mod node_facts_tests {
         };
         let checkbox = super::replaced_content_facts(NodeKind::BlockContainer, primitive_style, checkbox_input);
         assert!(checkbox.default_preferred_width.is_none());
+    }
+
+    #[test]
+    fn a_text_entry_input_caps_the_allowance_for_wide_glyphs() {
+        let input = ReplacedContentInput::Input {
+            size: 2,
+            is_text_entry: true,
+        };
+        for (maximum_advance, expected_width) in [(11, 20), (12, 28), (100, 36)] {
+            let style = super::ReplacedContentStyle {
+                average_advance: CssPixels::from_integer(10),
+                maximum_advance: CssPixels::from_integer(maximum_advance),
+                ..horizontal_style()
+            };
+            let facts = super::replaced_content_facts(NodeKind::TextInputBox, style, input);
+            assert_eq!(
+                facts.auto_content_size.width,
+                Some(CssPixels::from_integer(expected_width))
+            );
+        }
     }
 
     #[test]
