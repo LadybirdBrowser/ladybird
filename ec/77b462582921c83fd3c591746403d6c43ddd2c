@@ -1,0 +1,33 @@
+Ladybird adjusts the text of an SVG <text> element to its textLength,
+by adding space after each typographic character but the last,
+or by scaling the text along the inline axis where lengthAdjust
+is spacingAndGlyphs. Blink does that in SvgTextLayoutAlgorithm::
+ResolveTextLength(), Gecko in SVGTextFrame::DoGlyphPositioning(), and
+WebKit in SVGTextLayoutAlgorithm::applyTextLength().
+
+For a textLength on a <text>, the new test gives the same character
+positions in Chrome 157.0.8103.79 and Firefox 151.0 for every case but
+the percentage and those with a dx: Blink resolves a percentage against
+the viewport’s width, as Ladybird does, and Gecko and WebKit against its
+diagonal. WebKit 26.5 agrees on the spacing cases, but reports unscaled
+positions under spacingAndGlyphs. A length of zero is ignored in Blink,
+WebKit, and Ladybird, and applied in Gecko.
+
+A dx on a character after the first counts toward the length in
+Ladybird, which is what SVG 2 says, and what Blink does: Chrome scales
+such a dx under spacingAndGlyphs, and takes it out of the space it adds
+otherwise. Gecko adjusts the advances alone, and keeps the dx as it is.
+WebKit 26.5 agrees with Chrome where the dx comes from a list on the
+<text> itself, but places the characters differently from both where a
+child element has the dx.
+
+The engines disagree on a textLength on a <tspan>: Blink adjusts the
+<tspan>’s text and shifts what follows, WebKit adjusts it without
+shifting what follows, and Gecko applies only the outer <text>’s
+attributes. Ladybird ignores it, as Gecko does.
+
+Under spacingAndGlyphs, Blink and WebKit scale a stroke along with the
+glyphs, since they scale at paint time. Ladybird scales the outlines and
+then strokes them, as Gecko does. Where space is added, Ladybird shapes
+the text without optional ligatures, as it does for letter-spacing,
+where Blink keeps the ligatures it shaped.
