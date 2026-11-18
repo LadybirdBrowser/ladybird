@@ -1,0 +1,15 @@
+The percentage-height calculation quirk now stops at a containing block
+whose height isn’t auto but isn’t definite, and leaves percentages
+inside it no basis. Blink does the same:
+BlockNode::UseParentPercentageResolutionBlockSizeForChildren() passes
+the parent’s percentage basis through only for an auto height, so a
+child of a box with an unresolvable percentage height gets an indefinite
+basis. Gecko reaches the same result another way: Its
+IsQuirkContainingBlockHeight() lets the search pass a block whose
+computed height is unconstrained, so the search goes on to the flex
+container, whose auto height leaves the percentage without a basis too.
+
+Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5
+(Playwright’s build), all three give the test’s six cases the same
+heights as Ladybird now (720px for the full-height block in their
+720px-tall viewport, where test-web’s is 600px).
