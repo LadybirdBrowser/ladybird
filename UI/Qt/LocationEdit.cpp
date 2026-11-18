@@ -9,9 +9,7 @@
 #include <AK/kmalloc.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/URL.h>
-#include <LibWebView/Application.h>
 #include <LibWebView/URL.h>
-#include <UI/Qt/Application.h>
 #include <UI/Qt/Autocomplete.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
@@ -19,7 +17,6 @@
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Motion.h>
 #include <UI/Qt/StringUtils.h>
-#include <UI/Qt/SuggestionProvider.h>
 #include <UI/Qt/SystemAppearance.h>
 #include <UI/Qt/Theme.h>
 
@@ -330,10 +327,11 @@ private:
     bool m_words_fit { true };
 };
 
-LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
+LocationEdit::LocationEdit(QWidget* parent, WebView::Settings& settings, NonnullOwnPtr<WebView::OmniboxSuggestionProvider> suggestion_provider)
     : NativeTextEditingLineEdit(parent)
-    , WebView::SettingsObserver(Application::settings())
-    , m_omnibox(make<SuggestionProvider>(is_private))
+    , WebView::SettingsObserver(settings)
+    , m_settings(settings)
+    , m_omnibox(AK::move(suggestion_provider))
     , m_autocomplete(new Autocomplete(this))
 {
     setObjectName("LadybirdLocationEdit");
@@ -506,7 +504,7 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
         auto ctrl_held = QApplication::keyboardModifiers() & Qt::ControlModifier;
         auto append_tld = ctrl_held ? WebView::AppendTLD::Yes : WebView::AppendTLD::No;
 
-        auto url = WebView::url_for_omnibox_destination(input, destination_kind, Application::settings().search_engine_settings().engine, append_tld);
+        auto url = WebView::url_for_omnibox_destination(input, destination_kind, m_settings.search_engine_settings().engine, append_tld);
         auto classified_input = WebView::classify_user_input(input, append_tld);
         if (destination_kind == WebView::OmniboxDestinationKind::Search
             || classified_input.classification != WebView::UserInputClassification::ExternalURL)
@@ -831,7 +829,7 @@ void LocationEdit::contextMenuEvent(QContextMenuEvent* event)
     auto qt_clipboard_text = QGuiApplication::clipboard()->text();
     auto clipboard_text = ak_string_from_qstring(qt_clipboard_text);
 
-    bool has_search_engine = Application::settings().search_engine_settings().engine.has_value();
+    bool has_search_engine = m_settings.search_engine_settings().engine.has_value();
     auto paste_and_go_text = WebView::Omnibox::text_for_paste_and_go_action(clipboard_text, has_search_engine);
     // Escape any &s so Qt doesn't treat them as mnemonics.
     paste_and_go_text = MUST(paste_and_go_text.replace("&"sv, "&&"sv, ReplaceMode::All));
@@ -1667,7 +1665,7 @@ int LocationEdit::serialized_url_position_for_display_position(int display_posit
 
 // NB: The field never shows the address of the new tab page, so that it is empty there, ready to be typed in. A website
 //     chosen as the new tab page is shown, as on any other tab.
-static bool is_new_tab_page(URL::URL const& url)
+static bool is_new_tab_page(URL::URL const& url, WebView::Settings const& settings)
 {
     if (url.scheme() != "about"sv)
         return false;
@@ -1677,13 +1675,13 @@ static bool is_new_tab_page(URL::URL const& url)
     //     off as a new tab, even when one of them is chosen as the new tab page.
     if (url.serialize_path().is_one_of("blank"sv, "srcdoc"sv))
         return false;
-    return url == Application::settings().new_tab_page_url();
+    return url == settings.new_tab_page_url();
 }
 
 QString LocationEdit::serialized_url() const
 {
     VERIFY(m_url.has_value());
-    if (is_new_tab_page(*m_url))
+    if (is_new_tab_page(*m_url, m_settings))
         return {};
     return qstring_from_ak_string(m_url->serialize());
 }
@@ -1691,7 +1689,7 @@ QString LocationEdit::serialized_url() const
 QString LocationEdit::display_url() const
 {
     VERIFY(m_url.has_value());
-    if (is_new_tab_page(*m_url))
+    if (is_new_tab_page(*m_url, m_settings))
         return {};
     if (m_shows_host_only && m_url->scheme().is_one_of("http"sv, "https"sv))
         return qstring_from_ak_string(WebView::authority_for_display(*m_url));
