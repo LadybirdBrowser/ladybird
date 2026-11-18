@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/size-container-revealed-after-hidden-ref.html">
+<style>
+    body { margin: 0; }
+    .c { container-type: inline-size; width: 400px; }
+    .h { height: 10cqw; background: green; }
+    .hidden { display: none; }
+    #skipped { content-visibility: hidden; }
+    #skipped.shown { content-visibility: visible; }
+</style>
+<div id="skipped"><div class="c"><div id="reader" class="h"></div></div></div>
+<div id="hidden" class="hidden"><div class="c"><div class="h"></div></div></div>
+<script>
+    function afterFrames(callback) {
+        requestAnimationFrame(() => requestAnimationFrame(callback));
+    }
+
+    // The reader under the skipped contents computes against a container without a box, and showing the contents
+    // gives the container one without restyling the reader. Nothing reads the style or the layout after that before
+    // the rendering update paints it.
+    afterFrames(() => {
+        getComputedStyle(reader).height;
+        afterFrames(() => {
+            skipped.classList.add("shown");
+            hidden.classList.remove("hidden");
+            afterFrames(() => document.documentElement.classList.remove("reftest-wait"));
+        });
+    });
+</script>
+</html>
