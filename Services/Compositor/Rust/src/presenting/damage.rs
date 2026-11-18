@@ -262,7 +262,11 @@ impl ContextPresenting {
         let viewport_rect = rect_of_size(viewport_size);
         let forced_damage_rect = pending_frame.forced_damage_rect.intersected(viewport_rect);
         let changes = self.live_content_changes_since_last_paint(env, viewport_size, frame.display_list, live_content);
-        self.layers.media_activity.note_updates(&changes.media_updates, env.now);
+        self.layers.media_activity.note_updates(
+            &changes.media_updates,
+            frame.display_list.storage().summary(),
+            env.now,
+        );
 
         let mut layers = self.layer_update_for(env, frame, viewport_rect, live_content);
         let shown_by_window_server = match layers.plan(&self.layers) {

@@ -645,7 +645,7 @@ impl ContextState {
                 }
             }
             // The core handles the timers of presenting.
-            ContextTimer::BackingStoreShrink | ContextTimer::SurplusStoreRetirement | ContextTimer::LayerDrop => {}
+            ContextTimer::BackingStoreShrink | ContextTimer::SurplusStoreRetirement => {}
         }
         None
     }
