@@ -1,0 +1,9 @@
+When a candidate source’s fetch fails after the source was removed
+from its media element, or moved out of it, Ladybird now fires no error
+event at it, and still fires one at a candidate moved within the
+element. Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5:
+Chrome fires none in any of the three cases, WebKit fires none for the
+removal (and has no moveBefore() for the moves), and Firefox fires one
+in all three. So Ladybird matches Chrome for the removal and the move
+out, and Firefox for the move within the element, where the spec keeps
+the source as the candidate.
