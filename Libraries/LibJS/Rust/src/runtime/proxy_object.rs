@@ -99,7 +99,7 @@ pub static PROXY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     internal_define_own_property: ProxyObject::internal_define_own_property,
     internal_has_property: ProxyObject::internal_has_property,
     internal_get: ProxyObject::internal_get,
-    is_cacheable_for_property_absence: |_| false,
+    is_cacheable_for_property_absence: false,
     internal_set: ProxyObject::internal_set,
     internal_delete: ProxyObject::internal_delete,
     internal_own_property_keys: ProxyObject::internal_own_property_keys,

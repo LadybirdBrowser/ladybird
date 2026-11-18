@@ -285,10 +285,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// Branches to `miss` unless the object `object` has no other properties
     /// than those of its shape, for the names `GetMissingProperty` entries
-    /// can be for: only objects whose class keeps the default
-    /// `ObjectMethods::is_cacheable_for_property_absence` do. Plain objects,
-    /// ECMAScript functions, arrays and String objects are told apart
-    /// without loading the hook. Clobbers `class` and the scratch register.
+    /// can be for: only objects whose class has
+    /// `ObjectMethods::is_cacheable_for_property_absence` set do. Plain
+    /// objects, ECMAScript functions, arrays and String objects are told
+    /// apart without loading it. Clobbers `class` and the scratch register.
     pub(in crate::codegen) fn branch_unless_cacheable_for_property_absence(
         &mut self,
         object: Gpr,
@@ -321,19 +321,16 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             self.masm
                 .branch_test32(Condition::NonZero, scratch, u32::from(flags), cacheable);
         }
-        if layout.default_is_cacheable_for_property_absence == 0 || layout.class_object_methods == 0 {
+        if layout.object_methods_is_cacheable_for_property_absence == 0 || layout.class_object_methods == 0 {
             self.masm.jump(miss);
         } else {
             self.masm
                 .load64(shape, &Address::new(shape, layout.class_object_methods as i32));
-            self.masm
-                .move_imm64(scratch, layout.default_is_cacheable_for_property_absence);
-            self.masm.branch64_memory(
-                Condition::NotEqual,
-                &Address::new(shape, layout.object_methods_is_cacheable_for_property_absence as i32),
+            self.masm.load8(
                 scratch,
-                miss,
+                &Address::new(shape, layout.object_methods_is_cacheable_for_property_absence as i32),
             );
+            self.masm.branch_test32(Condition::Zero, scratch, 0xff, miss);
         }
         self.masm.bind(cacheable);
     }

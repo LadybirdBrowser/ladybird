@@ -239,7 +239,9 @@ pub struct ObjectMethods {
     pub name_for_call_stack: fn(&Object) -> Utf16String,
     /// The virtual methods of NativeFunction, which only native functions have.
     pub native_function: Option<&'static NativeFunctionMethods>,
-    pub is_cacheable_for_property_absence: fn(&Object) -> bool,
+    /// Whether the absence of a property from the shape of an object of this class may be cached: false for classes
+    /// whose objects have other properties than those of their shape. JIT code reads it (see RuntimeLayout).
+    pub is_cacheable_for_property_absence: bool,
     /// Whether the absence of a property from objects of this object's shape may be cached, for objects that answer
     /// for a few names whatever their shape holds.
     pub is_cacheable_for_absence_of: fn(&Object, &Vm, &PropertyKey) -> bool,
@@ -283,7 +285,7 @@ pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     function_realm: |_| None,
     name_for_call_stack: |_| unreachable!("FunctionObject::name_for_call_stack is pure virtual"),
     native_function: None,
-    is_cacheable_for_property_absence: |_| true,
+    is_cacheable_for_property_absence: true,
     is_cacheable_for_absence_of: |object, _, _| object.is_cacheable_for_property_absence(),
     is_cacheable_for_inherited_property: |_| true,
     is_cacheable_across_realms: |_| true,
@@ -2055,7 +2057,7 @@ impl Object {
     }
 
     pub fn is_cacheable_for_property_absence(&self) -> bool {
-        (self.methods().is_cacheable_for_property_absence)(self)
+        self.methods().is_cacheable_for_property_absence
     }
 
     pub fn is_cacheable_for_absence_of(&self, vm: &Vm, property_key: &PropertyKey) -> bool {
