@@ -249,6 +249,10 @@ unsafe extern "C" {
 
     pub(crate) fn EVP_CIPHER_CTX_new() -> *mut EVP_CIPHER_CTX;
     pub(crate) fn EVP_CIPHER_CTX_free(context: *mut EVP_CIPHER_CTX);
+    pub(crate) fn EVP_CIPHER_get_key_length(cipher: *const EVP_CIPHER) -> c_int;
+    pub(crate) fn EVP_CIPHER_get_iv_length(cipher: *const EVP_CIPHER) -> c_int;
+    pub(crate) fn EVP_CIPHER_CTX_get_key_length(context: *const EVP_CIPHER_CTX) -> c_int;
+    pub(crate) fn EVP_CIPHER_CTX_get_iv_length(context: *const EVP_CIPHER_CTX) -> c_int;
     pub(crate) fn EVP_CipherInit_ex(
         context: *mut EVP_CIPHER_CTX,
         cipher: *const EVP_CIPHER,
