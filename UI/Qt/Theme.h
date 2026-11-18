@@ -32,12 +32,10 @@ struct ChromeColors {
     QColor field_focused; // Address field fill while editing
     QColor text;          // Titles, URL domain
     QColor muted;         // URL path, secondary text
-    QColor tab_title;     // Inactive tab titles
     QColor icon;          // Toolbar icons
     QColor disabled;      // Disabled controls
     QColor hover;         // Hover fills
     QColor strip_hover;   // Hover fill of controls on the tab strip
-    QColor row_title;     // Unselected tab titles in the sidebar
     QColor separator;     // Between inactive tabs
     QColor divider;       // Chrome / page edge
     QColor warning;       // Crashed tab, lookalike URL
