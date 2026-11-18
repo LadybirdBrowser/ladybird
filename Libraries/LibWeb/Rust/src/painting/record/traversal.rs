@@ -209,6 +209,11 @@ fn record_display_list_impl<O: Observer>(
             .assemble_root(root_scope, published_root.as_ref());
             let mut chunks: Vec<Arc<RecordedChunk>> = prologue.into_iter().collect();
             recorded_root.for_each_chunk(&mut |chunk| chunks.push(Arc::clone(chunk)));
+            if inputs.dims_page_for_find_in_page {
+                chunks.extend(
+                    crate::painting::record::paint::find_in_page_overlay::record_find_in_page_overlay(&mut recorder),
+                );
+            }
             if has_inspector_overlays {
                 recorder.trace_paint(
                     Operation::Named(None, "inspector-overlays"),

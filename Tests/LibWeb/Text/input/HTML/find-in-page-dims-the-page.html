@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p id="target">needle</p>
+<script>
+    promiseTest(async () => {
+        const find = query => internals.findInPage(query, false, true);
+        const dimmed = () => (internals.isDimmedForFindInPage() ? "dimmed" : "not dimmed");
+
+        find("thimble");
+        println(`After a find without matches: ${dimmed()}`);
+
+        find("needle");
+        println(`After a find with a match: ${dimmed()}`);
+
+        internals.findInPageEnd();
+        println(`After the find ended: ${dimmed()}`);
+
+        find("needle");
+        internals.mouseDown(400, 300);
+        internals.mouseUp(400, 300);
+        println(`After a find and a mouse press on the page: ${dimmed()}`);
+
+        find("needle");
+        await animationFrame();
+        target.textContent = "thread";
+        await animationFrame();
+        println(`After a find and an edit that removed the match: ${dimmed()}`);
+
+        target.textContent = "needle";
+        const frame = document.createElement("iframe");
+        frame.srcdoc = "<textarea></textarea>";
+        const frameLoaded = new Promise(resolve => (frame.onload = resolve));
+        document.body.append(frame);
+        await frameLoaded;
+        const frameRect = frame.getBoundingClientRect();
+        const pressInFrame = (x, y) => {
+            internals.mouseDown(frameRect.left + frame.clientLeft + x, frameRect.top + frame.clientTop + y);
+            internals.mouseUp(frameRect.left + frame.clientLeft + x, frameRect.top + frame.clientTop + y);
+        };
+        const textareaRect = frame.contentDocument.querySelector("textarea").getBoundingClientRect();
+
+        find("needle");
+        pressInFrame(textareaRect.right - 3, textareaRect.bottom - 3);
+        println(`After a find and a mouse press on a textarea's resize handle in an iframe: ${dimmed()}`);
+
+        find("needle");
+        pressInFrame(frame.clientWidth - 10, frame.clientHeight - 10);
+        println(`After a find and a mouse press on the page in an iframe: ${dimmed()}`);
+    });
+</script>

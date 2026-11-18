@@ -494,6 +494,10 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     }
     auto pressed_on_chrome = chrome_widget || target->is_scrollbar || scrollbar_is_in_this_document;
 
+    auto press_goes_to_nested_navigable = !next_pointer_event_is_captured() && local_nested_navigable_at(*target_layout_node, node);
+    if (!pressed_on_chrome && !scrollbar_dragged_by_compositor.has_value() && !press_goes_to_nested_navigable)
+        m_navigable->page().stop_dimming_for_find_in_page();
+
     if (button == UIEvents::MouseButton::Primary) {
         clear_mousedown_tracking();
         m_navigable->page().set_mouse_event_tracking_navigable({}, *m_navigable);

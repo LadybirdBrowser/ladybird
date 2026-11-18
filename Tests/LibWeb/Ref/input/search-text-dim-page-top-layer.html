@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-top-layer-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-310">
+<style>
+body {
+    font-size: 20px;
+    line-height: 1.5;
+}
+dialog {
+    position: fixed;
+    inset: 0;
+    width: 200px;
+    height: 60px;
+    margin: auto;
+    padding: 10px;
+    border: 2px solid black;
+    background-color: white;
+    color: black;
+}
+dialog::backdrop {
+    background-color: rgb(0 0 255 / 25%);
+}
+::search-text:current {
+    background-color: orange;
+}
+</style>
+<dialog>needle</dialog>
+<script>
+document.querySelector("dialog").showModal();
+document.activeElement.blur();
+internals.findInPage("needle", false, true);
+</script>

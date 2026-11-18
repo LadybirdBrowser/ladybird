@@ -3305,7 +3305,7 @@ void ConnectionFromClient::find_in_page(Web::PageId page_id, Utf16String query, 
     if (!page.has_value())
         return;
 
-    auto result = page->page().find_in_page({ .string = query, .case_sensitivity = case_sensitivity, .highlight_all_matches = highlight_all_matches });
+    auto result = page->page().find_in_page({ .string = query, .case_sensitivity = case_sensitivity, .highlight_all_matches = highlight_all_matches, .dim_page = true });
     async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 

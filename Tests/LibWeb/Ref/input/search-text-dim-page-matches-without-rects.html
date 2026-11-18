@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-matches-without-rects-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+.empty {
+    font-size: 0;
+}
+</style>
+<p><span class="empty">needle</span> <span class="empty">needle</span></p>
+<script>
+internals.findInPage("needle", false, true);
+</script>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-match-across-font-sizes-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-10">
+<style>
+div {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+}
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+.small {
+    font-size: 14px;
+}
+p::search-text:current {
+    background-color: orange;
+}
+</style>
+<div>
+<p>needle</p>
+<p>nee<span class="small">dl</span>e</p>
+</div>
+<script>
+internals.findInPage("needle", false, true);
+</script>

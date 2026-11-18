@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+#scroller,
+#scroller-over-dim {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 300px;
+    height: 70px;
+    overflow: hidden;
+    font-size: 20px;
+    line-height: 30px;
+}
+.dim {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background-color: rgb(26 26 26 / calc(64 / 255));
+}
+.over-dim {
+    z-index: 2;
+    visibility: hidden;
+}
+.hole {
+    visibility: visible;
+    box-shadow: 0 0 0 1px white, 0 0 1px 1px rgb(0 0 0 / 50%);
+}
+.hole,
+.hole > span {
+    border-radius: 3px;
+}
+.hole > span {
+    background-color: white;
+}
+</style>
+<div id="scroller">needle<br><br>needle<br>needle<br><br></div>
+<div class="dim"></div>
+<div id="scroller-over-dim" class="over-dim">needle<br><br><span class="hole"><span>needle</span></span><br><span class="hole"><span>needle</span></span><br><br></div>
+<script>
+document.getElementById("scroller").scrollTop = 60;
+document.getElementById("scroller-over-dim").scrollTop = 60;
+</script>

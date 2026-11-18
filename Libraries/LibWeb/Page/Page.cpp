@@ -2384,7 +2384,8 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
     }
 
     update_find_in_page_active_match(all_matches);
-    update_find_in_page_highlighted_matches(all_matches, query.highlight_all_matches);
+    update_find_in_page_highlighted_matches(all_matches, query.highlight_all_matches || query.dim_page);
+    set_find_in_page_dimmed_document(query.dim_page && !all_matches.is_empty() ? local_traversable()->active_document() : nullptr);
 
     return Page::FindInPageResult {
         .current_match_index = m_find_in_page_match_index,
@@ -2401,6 +2402,7 @@ Page::FindInPageResult Page::find_in_page(FindInPageQuery const& query)
         m_last_find_in_page_query = {};
         set_find_in_page_active_match(nullptr);
         clear_find_in_page_highlighted_matches();
+        set_find_in_page_dimmed_document(nullptr);
         return {};
     }
 
@@ -2438,6 +2440,7 @@ void Page::clear_find_in_page_active_match()
 void Page::find_in_page_end()
 {
     clear_find_in_page_highlighted_matches();
+    set_find_in_page_dimmed_document(nullptr);
     auto active_match = find_in_page_active_match();
     set_find_in_page_active_match(nullptr);
     if (!active_match || active_match->collapsed())
@@ -2501,6 +2504,40 @@ void Page::update_find_in_page_highlighted_matches(Vector<GC::Root<DOM::Range>> 
 void Page::clear_find_in_page_highlighted_matches()
 {
     update_find_in_page_highlighted_matches({}, false);
+}
+
+static void repaint_find_in_page_dim(DOM::Document& document)
+{
+    document.set_needs_to_record_display_list_keeping_hit_test_items_on_screen();
+    if (auto navigable = document.navigable())
+        navigable->set_needs_repaint();
+    document.page().client().request_frame();
+}
+
+bool Page::is_dimmed_for_find_in_page(DOM::Document const& document) const
+{
+    return m_find_in_page_dimmed_document.ptr().ptr() == &document;
+}
+
+void Page::stop_dimming_for_find_in_page()
+{
+    if (!m_find_in_page_dimmed_document)
+        return;
+    set_find_in_page_dimmed_document(nullptr);
+    clear_find_in_page_highlighted_matches();
+}
+
+void Page::set_find_in_page_dimmed_document(GC::Ptr<DOM::Document> document)
+{
+    GC::Ptr<DOM::Document> previous_document = m_find_in_page_dimmed_document.ptr();
+    if (previous_document == document)
+        return;
+    m_find_in_page_dimmed_document = document;
+
+    for (auto document_to_repaint : { previous_document, document }) {
+        if (document_to_repaint)
+            repaint_find_in_page_dim(*document_to_repaint);
+    }
 }
 
 GC::Ptr<DOM::Range> Page::find_in_page_active_match()

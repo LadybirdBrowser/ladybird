@@ -113,6 +113,7 @@ pub(crate) struct RecordingInputs {
     pub focused_text_control: Option<FocusedTextControlSelection>,
     pub focused_area_outline: Option<FocusedAreaOutline>,
     pub text_fragment_indications: Box<[crate::painting::host::FfiTextFragmentIndicationRange]>,
+    pub dims_page_for_find_in_page: bool,
     pub mark_color: Color,
     pub mark_text_color: Color,
 }

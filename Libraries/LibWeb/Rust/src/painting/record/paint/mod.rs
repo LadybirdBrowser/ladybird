@@ -13,6 +13,7 @@ pub mod border;
 pub mod border_image;
 pub mod column_rule;
 pub mod fieldset;
+pub mod find_in_page_overlay;
 pub mod form_controls;
 pub mod frameset;
 pub mod gradient_resolution;
