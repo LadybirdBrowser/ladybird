@@ -21,6 +21,7 @@
 
 extern "C" {
 void ladybird_gfx_font_snapshot(void const*, Gfx::FFI::FfiFontSnapshot*);
+void ladybird_gfx_font_character_advances(void const*, float* average, float* maximum);
 u32 ladybird_gfx_font_glyph_id(void const*, u32);
 bool ladybird_gfx_font_contains_glyph(void const*, u32);
 bool ladybird_gfx_font_is_emoji_font(void const*);
@@ -283,6 +284,22 @@ extern "C" void ladybird_gfx_font_snapshot(void const* font, Gfx::FFI::FfiFontSn
         .pixel_size = typed_font.pixel_size(),
         .point_size = typed_font.point_size(),
     };
+}
+
+extern "C" void ladybird_gfx_font_character_advances(void const* font, float* average, float* maximum)
+{
+    auto const& typed_font = *static_cast<Gfx::Font const*>(font);
+    auto const& typeface = typed_font.typeface();
+    auto* face = typeface.harfbuzz_typeface();
+    auto design_units_to_pixels = typed_font.pixel_size() / typeface.units_per_em();
+
+    // https://learn.microsoft.com/en-us/typography/opentype/spec/os2#xavgcharwidth
+    Gfx::FontTable os2 { face, Gfx::FourCC { "OS/2" } };
+    *average = os2.contains(2, 2) ? max<i16>(0, os2.i16_at(2)) * design_units_to_pixels : 0;
+
+    // https://learn.microsoft.com/en-us/typography/opentype/spec/hhea
+    Gfx::FontTable hhea { face, Gfx::FourCC { "hhea" } };
+    *maximum = hhea.contains(10, 2) ? hhea.u16_at(10) * design_units_to_pixels : 0;
 }
 
 extern "C" u32 ladybird_gfx_font_glyph_id(void const* font, u32 code_point)

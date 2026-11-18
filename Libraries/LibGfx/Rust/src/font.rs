@@ -73,6 +73,7 @@ struct FontEntry {
     id: FontId,
     raw: NonNull<c_void>,
     facts: FontFacts,
+    character_advances: std::sync::OnceLock<(f32, f32)>,
     // What the font answers about itself that text chunking asks for every character: whether it is an emoji font,
     // and whether it has a glyph for U+0020 SPACE. Each is unknown until first asked.
     is_emoji_font: LazyVerdict,
@@ -148,6 +149,7 @@ impl FontHandle {
                 pixel_size: snapshot.pixel_size,
                 point_size: snapshot.point_size,
             },
+            character_advances: std::sync::OnceLock::new(),
             is_emoji_font: LazyVerdict::default(),
             contains_space_glyph: LazyVerdict::default(),
         }))
@@ -173,6 +175,20 @@ impl FontHandle {
     #[inline]
     pub fn facts(&self) -> &FontFacts {
         &self.0.facts
+    }
+
+    /// The average and maximum horizontal advances in pixels. A missing metric is zero.
+    pub fn character_advances(&self) -> (f32, f32) {
+        unsafe extern "C" {
+            fn ladybird_gfx_font_character_advances(font: *const c_void, average: *mut f32, maximum: *mut f32);
+        }
+        *self.0.character_advances.get_or_init(|| {
+            let mut average = 0.0;
+            let mut maximum = 0.0;
+            // SAFETY: The entry owns a reference to the font, and both out-pointers address local variables.
+            unsafe { ladybird_gfx_font_character_advances(self.as_raw(), &raw mut average, &raw mut maximum) };
+            (average, maximum)
+        })
     }
 
     #[inline]

@@ -1,6 +1,6 @@
-<input> with its native appearance: 169.6875x20, the tree matches a full rebuild: true
-<input> given none: 169.6875x20, the tree matches a full rebuild: true
-<input> back: 169.6875x20, the tree matches a full rebuild: true
+<input> with its native appearance: 177.6875x20, the tree matches a full rebuild: true
+<input> given none: 177.6875x20, the tree matches a full rebuild: true
+<input> back: 177.6875x20, the tree matches a full rebuild: true
 <input type=checkbox> with its native appearance: 13x13, the tree matches a full rebuild: true
 <input type=checkbox> given none: 0x0, the tree matches a full rebuild: true
 <input type=checkbox> back: 13x13, the tree matches a full rebuild: true

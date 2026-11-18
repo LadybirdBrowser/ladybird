@@ -3,10 +3,10 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[2,182 166x16] (TextInputBox<INPUT>)
-      [c1 in s1] clip=[5,183 160x14] (BlockContainer<DIV>)
-    [c2 in s1] clip=[3,213 166x16] (TextInputBox<INPUT>)
-      [c3 in s1] clip=[6,214 160x14] (BlockContainer<DIV>)
+    [c0 in s1] clip=[2,182 174x16] (TextInputBox<INPUT>)
+      [c1 in s1] clip=[5,183 168x14] (BlockContainer<DIV>)
+    [c2 in s1] clip=[3,213 174x16] (TextInputBox<INPUT>)
+      [c3 in s1] clip=[6,214 168x14] (BlockContainer<DIV>)
   effects:
     [e0 in s0] effects=[]
 
@@ -32,11 +32,11 @@ FillRect@s1/e0 rect=[0,150 137x20] color=rgb(239, 239, 239)
 FillPath@s1/e0 path_bounding_rect=[0,150 137x20]
 FillPath@s1/e0 path_bounding_rect=[0,150 137x20]
 DrawGlyphRun@s1/e0 rect=[9,153 119x14] translation=[9,164] color=rgb(0, 0, 0)
-FillRectWithRoundedCorners@s1/e0 rect=[0,180 170x20] color=rgb(255, 255, 255)
-FillRoundedRectRing@s1/e0 rect=[0,180 170x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRectWithRoundedCorners@s1/e0 rect=[0,180 178x20] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[0,180 178x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c1/e0 rect=[5,183 32x14] translation=[5,194] color=rgb(0, 0, 0)
-FillRect@s1/e0 rect=[0,210 172x22] color=rgb(255, 255, 255)
-FillPath@s1/e0 path_bounding_rect=[0,210 172x22]
-FillPath@s1/e0 path_bounding_rect=[0,210 172x22]
+FillRect@s1/e0 rect=[0,210 180x22] color=rgb(255, 255, 255)
+FillPath@s1/e0 path_bounding_rect=[0,210 180x22]
+FillPath@s1/e0 path_bounding_rect=[0,210 180x22]
 DrawGlyphRun@s1/c3/e0 rect=[6,214 59x14] translation=[6,225] color=rgb(0, 0, 0)
 
