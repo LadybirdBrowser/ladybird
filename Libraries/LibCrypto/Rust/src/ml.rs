@@ -131,15 +131,14 @@ fn mlkem_public_key_from_bytes(bytes: &[u8]) -> MlKemPublicKey {
 }
 
 impl MlPrivateKey {
-    /// The key of `parameter_set` that `seed` makes, or a new key for an empty seed.
+    fn generate(parameter_set: ParameterSet) -> Result<Self, CryptoError> {
+        let mut seed = SecretBytes::new(vec![0; parameter_set.seed_size()]);
+        openssl::fill_with_random(&mut seed)?;
+        Self::from_seed(parameter_set, &seed)
+    }
+
     fn from_seed(parameter_set: ParameterSet, seed: &[u8]) -> Result<Self, CryptoError> {
-        let key = if seed.is_empty() {
-            let mut seed = SecretBytes::new(vec![0; parameter_set.seed_size()]);
-            openssl::fill_with_random(&mut seed)?;
-            private_key_from_seed(parameter_set, &seed)?
-        } else {
-            private_key_from_seed(parameter_set, seed)?
-        };
+        let key = private_key_from_seed(parameter_set, seed)?;
         let public_key = key.raw_public_key()?;
         Ok(Self {
             key,
@@ -178,8 +177,8 @@ fn private_key(key: &KeyHandle) -> &MlPrivateKey {
     }
 }
 
-fn generate_key_pair(parameter_set: ParameterSet, seed: &[u8]) -> Result<KeyPair, CryptoError> {
-    let private_key = MlPrivateKey::from_seed(parameter_set, seed)?;
+fn generate_key_pair(parameter_set: ParameterSet) -> Result<KeyPair, CryptoError> {
+    let private_key = MlPrivateKey::generate(parameter_set)?;
     let public_key = private_key
         .public()
         .ok_or(CryptoError::Invalid("Invalid ML-DSA key length"))?;
@@ -189,12 +188,28 @@ fn generate_key_pair(parameter_set: ParameterSet, seed: &[u8]) -> Result<KeyPair
     })
 }
 
-pub fn mldsa_generate_key_pair(size: MlDsaSize, seed: &[u8]) -> Result<KeyPair, CryptoError> {
-    generate_key_pair(ParameterSet::MlDsa(size), seed)
+pub fn mldsa_generate_key_pair(size: MlDsaSize) -> Result<KeyPair, CryptoError> {
+    generate_key_pair(ParameterSet::MlDsa(size))
 }
 
-pub fn mlkem_generate_key_pair(size: MlKemSize, seed: &[u8]) -> Result<KeyPair, CryptoError> {
-    generate_key_pair(ParameterSet::MlKem(size), seed)
+pub fn mlkem_generate_key_pair(size: MlKemSize) -> Result<KeyPair, CryptoError> {
+    generate_key_pair(ParameterSet::MlKem(size))
+}
+
+/// The ML-DSA private key of `size` that `seed`, the ξ of ML-DSA.KeyGen_internal, makes.
+pub fn mldsa_private_key_from_seed(size: MlDsaSize, seed: &[u8]) -> Result<KeyHandle, CryptoError> {
+    Ok(KeyHandle(Key::MlPrivate(MlPrivateKey::from_seed(
+        ParameterSet::MlDsa(size),
+        seed,
+    )?)))
+}
+
+/// The ML-KEM private key of `size` that `seed`, the d and z of ML-KEM.KeyGen_internal, makes.
+pub fn mlkem_private_key_from_seed(size: MlKemSize, seed: &[u8]) -> Result<KeyHandle, CryptoError> {
+    Ok(KeyHandle(Key::MlPrivate(MlPrivateKey::from_seed(
+        ParameterSet::MlKem(size),
+        seed,
+    )?)))
 }
 
 pub fn mldsa_read_public_key(size: MlDsaSize, bytes: &[u8]) -> Option<KeyHandle> {
@@ -442,9 +457,6 @@ pub(crate) fn decode_stored(tag: HandleTag, buffers: &[&[u8]]) -> Result<KeyHand
         }
         _ => return Err(invalid()),
     };
-    if buffers[0].is_empty() {
-        return Err(invalid());
-    }
     let private_key = MlPrivateKey::from_seed(parameter_set, buffers[0]).map_err(|_| invalid())?;
     if private_key.public_key != buffers[1] {
         return Err(invalid());

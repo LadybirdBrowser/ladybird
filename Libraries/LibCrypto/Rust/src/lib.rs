@@ -35,9 +35,9 @@ pub use key_info::{
     KeyAlgorithm, KeyInfo, KeyMaterial, parse_octet_string, parse_private_key_info, parse_subject_public_key_info,
 };
 pub use ml::{
-    ml_export_der, ml_seed_bytes, mldsa_generate_key_pair, mldsa_public_bytes, mldsa_read_public_key, mldsa_sign,
-    mldsa_verify, mlkem_decapsulate, mlkem_encapsulate, mlkem_generate_key_pair, mlkem_public_bytes,
-    mlkem_read_public_key,
+    ml_export_der, ml_seed_bytes, mldsa_generate_key_pair, mldsa_private_key_from_seed, mldsa_public_bytes,
+    mldsa_read_public_key, mldsa_sign, mldsa_verify, mlkem_decapsulate, mlkem_encapsulate, mlkem_generate_key_pair,
+    mlkem_private_key_from_seed, mlkem_public_bytes, mlkem_read_public_key,
 };
 pub use rsa::{
     RsaSignaturePadding, rsa_export_der, rsa_export_jwk_integer, rsa_export_public_exponent, rsa_generate_key_pair,
