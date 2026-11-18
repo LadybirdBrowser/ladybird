@@ -1,0 +1,8 @@
+dx on a <text>, x on its first child: 110,30 130,30
+dy on a <text>, y on its first child: 0,70 20,70
+dx on a <text>, y on its first child: 10,60 30,60
+dx on an element, x on its first child: 0,30 110,30 130,30
+dx on a <text>, x on its first child and on that one's: 210,30 230,30
+dx and x on a <text>, dx and x on its first child: 105,30 125,30
+dx on a <text>, x on a later child: 10,30 100,30
+anchored in the middle, dx on a <text>, x on its first child: 90,30 110,30

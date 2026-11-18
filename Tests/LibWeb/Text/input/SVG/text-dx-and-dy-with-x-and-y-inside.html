@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="400" height="100"></svg>
+<script>
+    const round = value => Math.round(value * 100) / 100;
+    const describe = text => {
+        const positions = [];
+        for (let index = 0; index < text.getNumberOfChars(); ++index) {
+            const position = text.getStartPositionOfChar(index);
+            positions.push(`${round(position.x)},${round(position.y)}`);
+        }
+        return positions.join(" ");
+    };
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const svg = document.querySelector("svg");
+
+        // Each glyph of Ahem is 20px wide here.
+        // A dx or a dy moves a character from where its x or y puts it, whichever elements the two are on.
+        const cases = [
+            ["dx on a <text>, x on its first child", `<text x="0" y="30" dx="10"><tspan x="100">A</tspan>B</text>`],
+            ["dy on a <text>, y on its first child", `<text x="0" y="30" dy="10"><tspan y="60">A</tspan>B</text>`],
+            ["dx on a <text>, y on its first child", `<text x="0" y="30" dx="10"><tspan y="60">A</tspan>B</text>`],
+            ["dx on an element, x on its first child", `<text x="0" y="30">A<tspan dx="10"><tspan x="100">B</tspan></tspan>C</text>`],
+            ["dx on a <text>, x on its first child and on that one's", `<text x="0" y="30" dx="10"><tspan x="100"><tspan x="200">A</tspan></tspan>B</text>`],
+            ["dx and x on a <text>, dx and x on its first child", `<text x="50" y="30" dx="10"><tspan x="100" dx="5">A</tspan>B</text>`],
+            ["dx on a <text>, x on a later child", `<text x="0" y="30" dx="10">A<tspan x="100">B</tspan></text>`],
+            ["anchored in the middle, dx on a <text>, x on its first child", `<text x="0" y="30" dx="10" text-anchor="middle"><tspan x="100">A</tspan>B</text>`],
+        ];
+        for (const [name, markup] of cases) {
+            svg.innerHTML = markup;
+            println(`${name}: ${describe(svg.querySelector("text"))}`);
+        }
+        done();
+    });
+</script>

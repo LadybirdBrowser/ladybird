@@ -1704,15 +1704,18 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     /// The text content element whose 'dx' or 'dy' (the attribute `shift_of` picks) shifts the first character of the
-    /// given text node, if any element's does.
+    /// given text node, if any element's does, and the element whose layout applies that shift.
     /// https://svgwg.org/svg2-draft/text.html#TextLayoutAlgorithm
     /// NB: An element's attribute positions the element's first character. Where that's the first character of an
     ///     element inside it too, which has the attribute as well, the inner element's attribute is the one that counts.
+    ///     And the shift moves the character from where its 'x' or 'y' (the attribute `position_of` picks) puts it. So,
+    ///     where an element inside the one with the shift has that attribute, the shift applies there.
     fn svg_text_shift_owner(
         &self,
         text_node: Node,
         shift_of: fn(&FfiSvgAttributeFacts) -> FfiSvgLengthValue,
-    ) -> Option<Node> {
+        position_of: fn(&FfiSvgAttributeFacts) -> FfiSvgLengthValue,
+    ) -> Option<(Node, Node)> {
         // OPTIMIZATION: Most text has no such attribute anywhere above it, which is cheap to find out.
         let mut any_element_shifts = false;
         let mut element = self.parent(text_node);
@@ -1728,13 +1731,17 @@ impl<'pass> SvgFormattingContext<'pass> {
             return None;
         }
 
+        let mut innermost_positioned_element = None;
         let mut element = self.parent(text_node);
         while self.node_kind(element) == NodeKind::SVGTextBox
             && self.first_rendered_svg_text_node(element) == Some(text_node)
         {
             let attributes = self.svg_attributes(element);
             if shift_of(&attributes).kind != SVG_LENGTH_KIND_NONE {
-                return Some(element);
+                return Some((element, innermost_positioned_element.unwrap_or(element)));
+            }
+            if innermost_positioned_element.is_none() && position_of(&attributes).kind != SVG_LENGTH_KIND_NONE {
+                innermost_positioned_element = Some(element);
             }
             if attributes.is_text_element {
                 break;
@@ -1746,10 +1753,14 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     /// How far a 'dx' shifts the first character of the given text node along the x axis.
     fn svg_text_dx_before(&self, text_node: Node) -> f32 {
-        self.svg_text_shift_owner(text_node, |attributes| attributes.text_dx)
-            .map_or(0.0, |element| {
-                self.resolve_svg_text_length(element, self.svg_attributes(element).text_dx, self.viewport_width)
-            })
+        self.svg_text_shift_owner(
+            text_node,
+            |attributes| attributes.text_dx,
+            |attributes| attributes.text_x,
+        )
+        .map_or(0.0, |(element, _)| {
+            self.resolve_svg_text_length(element, self.svg_attributes(element).text_dx, self.viewport_width)
+        })
     }
 
     /// The <text> element the given text content element is in, or is.
@@ -1778,19 +1789,27 @@ impl<'pass> SvgFormattingContext<'pass> {
         if attributes.text_y.kind != SVG_LENGTH_KIND_NONE {
             self.current_text_position.y = self.resolve_svg_text_length(text_box, attributes.text_y, viewport_height);
         }
-        let has_dx = attributes.text_dx.kind != SVG_LENGTH_KIND_NONE;
-        let has_dy = attributes.text_dy.kind != SVG_LENGTH_KIND_NONE;
-        if !has_dx && !has_dy {
+        let has_shift =
+            attributes.text_dx.kind != SVG_LENGTH_KIND_NONE || attributes.text_dy.kind != SVG_LENGTH_KIND_NONE;
+        // NB: An element with an 'x' or a 'y' applies the 'dx' or 'dy' of an element it's in to its first character.
+        let may_apply_shift_of_ancestor = !attributes.is_text_element
+            && (attributes.text_x.kind != SVG_LENGTH_KIND_NONE || attributes.text_y.kind != SVG_LENGTH_KIND_NONE);
+        if !has_shift && !may_apply_shift_of_ancestor {
             return;
         }
         let first_text_node = self.first_rendered_svg_text_node(text_box);
-        let shifts = |shift_of: fn(&FfiSvgAttributeFacts) -> FfiSvgLengthValue| {
-            first_text_node.is_none_or(|node| self.svg_text_shift_owner(node, shift_of) == Some(text_box))
+        type AttributeOf = fn(&FfiSvgAttributeFacts) -> FfiSvgLengthValue;
+        let shift_owner = |shift_of: AttributeOf, position_of: AttributeOf| match first_text_node {
+            Some(node) => self
+                .svg_text_shift_owner(node, shift_of, position_of)
+                .filter(|(_, applies_shift)| *applies_shift == text_box)
+                .map(|(owner, _)| owner),
+            None => Some(text_box),
         };
-        let shifts_along_x = has_dx && shifts(|attributes| attributes.text_dx);
-        let shifts_along_y = has_dy && shifts(|attributes| attributes.text_dy);
-        if shifts_along_x {
-            let dx = self.resolve_svg_text_length(text_box, attributes.text_dx, viewport_width);
+        let dx_owner = shift_owner(|attributes| attributes.text_dx, |attributes| attributes.text_x);
+        let dy_owner = shift_owner(|attributes| attributes.text_dy, |attributes| attributes.text_y);
+        if let Some(owner) = dx_owner {
+            let dx = self.resolve_svg_text_length(owner, self.svg_attributes(owner).text_dx, viewport_width);
             // NB: A 'dx' between two characters is part of the length 'textLength' scales. One that moves where the
             //     text or a text chunk starts isn't, so it's taken to where it lands once scaled, as an 'x' is.
             let is_scaled = glyph_scale != 1.0
@@ -1798,8 +1817,9 @@ impl<'pass> SvgFormattingContext<'pass> {
                 && first_text_node != self.first_rendered_svg_text_node(self.svg_text_element_of(text_box));
             self.current_text_position.x += if is_scaled { dx } else { dx / glyph_scale };
         }
-        if shifts_along_y {
-            self.current_text_position.y += self.resolve_svg_text_length(text_box, attributes.text_dy, viewport_height);
+        if let Some(owner) = dy_owner {
+            self.current_text_position.y +=
+                self.resolve_svg_text_length(owner, self.svg_attributes(owner).text_dy, viewport_height);
         }
     }
 
