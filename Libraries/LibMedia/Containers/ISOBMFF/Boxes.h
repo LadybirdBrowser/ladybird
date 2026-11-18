@@ -319,7 +319,7 @@ inline Track track_from_track_entry(TrackEntry const& track_entry, bool is_first
         track.set_video_data({
             .pixel_width = video.width,
             .pixel_height = video.height,
-            .cicp = video.cicp.value_or({}),
+            .color_metadata = { .cicp = video.cicp.value_or({}) },
         });
     } else if (track.type() == TrackType::Audio && sample_entry->audio.has_value()) {
         auto const& audio = sample_entry->audio.value();

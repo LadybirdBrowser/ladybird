@@ -51,7 +51,7 @@ bool VideoFrameMetadata::is_valid() const
         return false;
     if (video_frame_exceeds_limits(size.width(), size.height()))
         return false;
-    return cicp.is_valid_or_unspecified();
+    return color_metadata.cicp.is_valid_or_unspecified();
 }
 
 VideoFrameMetadata VideoFrameMetadata::for_frame(VideoFrame const& frame)
@@ -62,7 +62,7 @@ VideoFrameMetadata VideoFrameMetadata::for_frame(VideoFrame const& frame)
         .size = frame.size().to_type<int>(),
         .bit_depth = frame.bit_depth(),
         .subsampling = frame.subsampling(),
-        .cicp = frame.cicp(),
+        .color_metadata = frame.color_metadata(),
     };
 }
 
@@ -79,7 +79,7 @@ ErrorOr<void> encode(Encoder& encoder, Media::VideoFrameMetadata const& metadata
     TRY(encoder.encode(metadata.bit_depth));
     TRY(encoder.encode(metadata.subsampling.x()));
     TRY(encoder.encode(metadata.subsampling.y()));
-    TRY(encoder.encode(metadata.cicp));
+    TRY(encoder.encode(metadata.color_metadata));
     return {};
 }
 
@@ -95,7 +95,7 @@ ErrorOr<Media::VideoFrameMetadata> decode(Decoder& decoder)
         TRY(decoder.decode<bool>()),
         TRY(decoder.decode<bool>()),
     };
-    metadata.cicp = TRY(decoder.decode<Media::CodingIndependentCodePoints>());
+    metadata.color_metadata = TRY(decoder.decode<Media::ColorMetadata>());
     if (!metadata.is_valid())
         return Error::from_string_literal("Video frame metadata describes a frame that could not have been decoded");
     return metadata;

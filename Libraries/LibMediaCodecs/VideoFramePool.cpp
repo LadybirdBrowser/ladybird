@@ -257,10 +257,10 @@ ErrorOr<NonnullRefPtr<VideoFrame>> create_received_video_frame(VideoFrameMetadat
         if (metadata.subsampling != Subsampling::yuv420() || metadata.size.width() > surface_size.width() || metadata.size.height() > surface_size.height())
             return Error::from_string_literal("Video frame metadata does not match its surface");
     } else {
-        TRY(yuv_data_in_buffer(storage->pixel_buffer(), metadata.size, metadata.bit_depth, metadata.subsampling, metadata.cicp));
+        TRY(yuv_data_in_buffer(storage->pixel_buffer(), metadata.size, metadata.bit_depth, metadata.subsampling, metadata.color_metadata.cicp));
     }
 
-    return make_ref_counted<VideoFrame>(metadata.timestamp, metadata.duration, metadata.size.to_type<u32>(), metadata.bit_depth, metadata.subsampling, metadata.cicp, move(storage));
+    return make_ref_counted<VideoFrame>(metadata.timestamp, metadata.duration, metadata.size.to_type<u32>(), metadata.bit_depth, metadata.subsampling, metadata.color_metadata, move(storage));
 }
 
 }

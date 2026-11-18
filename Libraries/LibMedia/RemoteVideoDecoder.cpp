@@ -718,7 +718,7 @@ void RemoteVideoDecoder::signal_end_of_stream()
     });
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoFrame>> RemoteVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp, Optional<AK::Duration> target)
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> RemoteVideoDecoder::take_next_output(ColorMetadata const& container_color_metadata, Optional<AK::Duration> target)
 {
     // The server hears of the target with the next submission, which follows the flush that any new target comes after.
     m_output_target = target;
@@ -762,11 +762,11 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> RemoteVideoDecoder::take_next_output(C
     }
 
     auto const& frame = output->frame;
-    auto cicp = container_cicp;
-    cicp.adopt_specified_values(frame->cicp());
+    auto color_metadata = container_color_metadata;
+    color_metadata.adopt_specified_values(frame->color_metadata());
     return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(
         frame->timestamp(), frame->duration(), frame->size(),
-        frame->bit_depth(), frame->subsampling(), cicp, frame->storage()));
+        frame->bit_depth(), frame->subsampling(), move(color_metadata), frame->storage()));
 }
 
 void RemoteVideoDecoder::flush()

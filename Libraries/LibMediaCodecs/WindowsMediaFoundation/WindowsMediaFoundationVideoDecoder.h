@@ -38,7 +38,7 @@ public:
 
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) override;
     virtual void signal_end_of_stream() override;
-    virtual DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_next_output(CodingIndependentCodePoints const& container_cicp, Optional<AK::Duration> target = {}) override;
+    virtual DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_next_output(ColorMetadata const& container_color_metadata, Optional<AK::Duration> target = {}) override;
     virtual void flush() override;
 
 private:
@@ -65,7 +65,7 @@ private:
     Optional<size_t> index_of_submitted_frame(i64 sample_time) const;
     void retire_submitted_frames_through(Optional<size_t> index);
 
-    DecoderErrorOr<NonnullRefPtr<VideoFrame>> copy_output_into_frame_pool(DecodedOutput const&, CodingIndependentCodePoints const& container_cicp);
+    DecoderErrorOr<NonnullRefPtr<VideoFrame>> copy_output_into_frame_pool(DecodedOutput const&, ColorMetadata const& container_color_metadata);
 
     CodecID const m_codec_id;
     NonnullOwnPtr<Transform> m_transform;

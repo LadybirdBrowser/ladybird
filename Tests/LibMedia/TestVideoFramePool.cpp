@@ -55,11 +55,13 @@ static Media::VideoFrameMetadata make_metadata()
         .size = RESOLVED_FRAME_SIZE,
         .bit_depth = RESOLVED_FRAME_BIT_DEPTH,
         .subsampling = RESOLVED_FRAME_SUBSAMPLING,
-        .cicp = {
-            Media::ColorPrimaries::BT709,
-            Media::TransferCharacteristics::BT709,
-            Media::MatrixCoefficients::BT709,
-            Media::VideoFullRangeFlag::Full,
+        .color_metadata = {
+            .cicp = {
+                Media::ColorPrimaries::BT709,
+                Media::TransferCharacteristics::BT709,
+                Media::MatrixCoefficients::BT709,
+                Media::VideoFullRangeFlag::Full,
+            },
         },
     };
 }
@@ -375,7 +377,7 @@ TEST_CASE(received_frames_must_be_ones_a_decoder_could_produce)
     EXPECT(receive(negative_duration).is_error());
 
     auto unknown_primaries = make_metadata();
-    unknown_primaries.cicp.set_color_primaries(static_cast<Media::ColorPrimaries>(200));
+    unknown_primaries.color_metadata.cicp.set_color_primaries(static_cast<Media::ColorPrimaries>(200));
     EXPECT(receive(unknown_primaries).is_error());
 
     auto too_wide = make_metadata();

@@ -9,7 +9,7 @@
 #include <AK/Time.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/Forward.h>
-#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
+#include <LibMediaCodecs/Color/ColorMetadata.h>
 #include <LibMediaCodecs/Export.h>
 #include <LibMediaCodecs/Forward.h>
 #include <LibMediaCodecs/Subsampling.h>
@@ -27,7 +27,7 @@ struct MEDIACODECS_API VideoFrameMetadata {
     Gfx::IntSize size;
     u8 bit_depth { 0 };
     Subsampling subsampling;
-    CodingIndependentCodePoints cicp;
+    ColorMetadata color_metadata;
 };
 
 // How a frame's planes lay out within a pool slot's bytes, aligned for cache- and

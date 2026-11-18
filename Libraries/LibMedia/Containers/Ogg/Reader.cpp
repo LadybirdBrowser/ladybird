@@ -307,7 +307,7 @@ Track StreamIdentification::create_track(size_t identifier) const
     Track track { type, identifier, Track::Kind::Main, {}, {} };
     track.set_parsed_codec(ParsedCodec { codec_id });
     if (type == TrackType::Video) {
-        track.set_video_data({ .pixel_width = pixel_width, .pixel_height = pixel_height, .cicp = {} });
+        track.set_video_data({ .pixel_width = pixel_width, .pixel_height = pixel_height, .color_metadata = {} });
         return track;
     }
     auto channel_map = vorbis_channel_map(channel_count);
