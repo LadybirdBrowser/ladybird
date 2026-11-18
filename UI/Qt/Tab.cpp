@@ -37,6 +37,7 @@
 #include <UI/Qt/Popover.h>
 #include <UI/Qt/SiteSettingsPopover.h>
 #include <UI/Qt/StringUtils.h>
+#include <UI/Qt/SuggestionProvider.h>
 #include <UI/Qt/SystemAppearance.h>
 #include <UI/Qt/Theme.h>
 
@@ -227,7 +228,7 @@ void Tab::initialize(Optional<u64> hub_view_id)
     m_find_in_page->setVisible(false);
 
     // The window's toolbar holds the address field while it shows this tab.
-    m_location_edit = new LocationEdit(this, m_window->is_private());
+    m_location_edit = new LocationEdit(this, Application::settings(), make<SuggestionProvider>(m_window->is_private()));
     m_location_edit->hide();
     m_location_edit->installEventFilter(this);
 

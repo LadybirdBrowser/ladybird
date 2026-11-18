@@ -40,7 +40,7 @@ class LocationEdit final
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    LocationEdit(QWidget*, WebView::IsPrivate);
+    LocationEdit(QWidget*, WebView::Settings&, NonnullOwnPtr<WebView::OmniboxSuggestionProvider>);
 
     void set_trailing_action(QAction*);
     // The content blocker's button stands in the field, before the bookmark star.
@@ -139,6 +139,7 @@ private:
     QString display_url() const;
     void set_text_and_restart_editing(QString const& text);
 
+    WebView::Settings const& m_settings;
     WebView::Omnibox m_omnibox;
     Autocomplete* m_autocomplete { nullptr };
     QToolButton* m_leading_icon_button { nullptr };
