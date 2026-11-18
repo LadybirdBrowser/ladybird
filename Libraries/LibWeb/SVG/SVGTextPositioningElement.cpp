@@ -50,6 +50,10 @@ void SVGTextPositioningElement::attribute_changed(Utf16FlyString const& name, Op
         m_dy->synchronize();
     else if (name == AttributeNames::rotate && m_rotate)
         m_rotate->synchronize();
+
+    // The attributes position the element's characters, so the text has to be laid out with their new values.
+    if (old_value != value && name.is_one_of(AttributeNames::x, AttributeNames::y, AttributeNames::dx, AttributeNames::dy))
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
 }
 
 SVGTextPositioningElement::ParsedTextPositioning SVGTextPositioningElement::parsed_text_positioning() const

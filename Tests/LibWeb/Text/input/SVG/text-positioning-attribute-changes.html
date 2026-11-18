@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 20px Ahem;
+    }
+</style>
+<svg width="400" height="200">
+    <text x="10" y="30">AB<tspan>CD</tspan>EF</text>
+</svg>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px Ahem");
+        const text = document.querySelector("text");
+        const tspan = document.querySelector("tspan");
+        const describe = () => {
+            const cells = [];
+            for (let index = 0; index < text.getNumberOfChars(); ++index) {
+                const cell = text.getExtentOfChar(index);
+                cells.push(`${cell.x},${cell.y}`);
+            }
+            return cells.join(" ");
+        };
+
+        println(`At first: ${describe()}`);
+        text.setAttribute("x", "50");
+        println(`<text> x="50": ${describe()}`);
+        text.setAttribute("y", "60");
+        println(`<text> y="60": ${describe()}`);
+        tspan.setAttribute("x", "200");
+        println(`<tspan> x="200": ${describe()}`);
+        tspan.setAttribute("dy", "20");
+        println(`<tspan> dy="20": ${describe()}`);
+        tspan.setAttribute("dx", "10");
+        println(`<tspan> dx="10": ${describe()}`);
+        tspan.removeAttribute("x");
+        println(`<tspan> x removed: ${describe()}`);
+        text.setAttribute("dx", "5");
+        println(`<text> dx="5": ${describe()}`);
+        done();
+    });
+</script>
