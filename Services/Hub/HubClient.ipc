@@ -205,6 +205,7 @@ struct Hub::ViewState {
     bool is_loading;
     bool crash_overlay_active;
     String crash_overlay_failed_url;
+    bool crash_overlay_is_for_memory_limit;
     Optional<ByteString> crash_report_name;
     Optional<String> crash_report_website;
     double zoom_level;

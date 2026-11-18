@@ -1520,7 +1520,7 @@ void WebContentView::set_crash_overlay_visible(bool visible)
         heading_layout->setContentsMargins(0, 0, 0, 0);
         heading_layout->setSpacing(ReportReview::item_spacing);
 
-        auto* title = ReportReview::create_title(tr("This tab crashed"), heading);
+        m_crash_overlay_title = ReportReview::create_title({}, heading);
 
         m_crash_overlay_url = new CrashOverlayUrlLabel(heading);
 
@@ -1542,7 +1542,7 @@ void WebContentView::set_crash_overlay_visible(bool visible)
         m_crash_overlay_reload_shortcut->setContext(Qt::WidgetWithChildrenShortcut);
         QObject::connect(m_crash_overlay_reload_shortcut, &QShortcut::activated, m_crash_overlay_reload_button, &QPushButton::click);
 
-        heading_layout->addWidget(title);
+        heading_layout->addWidget(m_crash_overlay_title);
         heading_layout->addWidget(m_crash_overlay_url);
         heading_layout->addWidget(m_crash_overlay_message);
 
@@ -1574,7 +1574,13 @@ void WebContentView::set_crash_overlay_visible(bool visible)
     if (m_crash_report_container)
         m_crash_report_container->hide();
     m_crash_overlay_url->show();
-    m_crash_overlay_message->setText(crash_screen_message());
+    if (crash_overlay_is_for_memory_limit()) {
+        m_crash_overlay_title->setText(tr("This tab ran out of memory"));
+        m_crash_overlay_message->setText(tr("This page used too much memory, so it was stopped."));
+    } else {
+        m_crash_overlay_title->setText(tr("This tab crashed"));
+        m_crash_overlay_message->setText(crash_screen_message());
+    }
     m_crash_overlay_reload_button->show();
     m_crash_overlay_reload_shortcut->setEnabled(true);
 

@@ -4371,7 +4371,7 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
         history_log_entries(traversable().session_history()));
 }
 
-void ViewImplementation::handle_web_content_process_crash()
+void ViewImplementation::handle_web_content_process_crash(WebContentCrashReason crash_reason)
 {
     auto failed_url = url();
     if (auto browser_ui_load_url = this->browser_ui_load_url(); browser_ui_load_url.has_value())
@@ -4424,8 +4424,12 @@ void ViewImplementation::handle_web_content_process_crash()
     if (auto const& headless_mode = Application::browser_options().headless_mode; headless_mode.has_value())
         recovery_mode = *headless_mode == HeadlessMode::Test ? RecoveryMode::PrepareForNextNavigation : RecoveryMode::Restore;
 
-    if (recovery_mode == RecoveryMode::ShowOverlay)
-        dbgln("\033[31;1mWebContent process crashed!\033[0m Last page loaded: {}", failed_url);
+    if (recovery_mode == RecoveryMode::ShowOverlay) {
+        if (crash_reason == WebContentCrashReason::ExceededMemoryLimit)
+            dbgln("\033[31;1mWebContent process was ended for its memory use!\033[0m Last page loaded: {}", failed_url);
+        else
+            dbgln("\033[31;1mWebContent process crashed!\033[0m Last page loaded: {}", failed_url);
+    }
 
     reset_page_media_state();
 
@@ -4443,14 +4447,17 @@ void ViewImplementation::handle_web_content_process_crash()
     respawn_web_content_process_after_crash();
 
     // A repeatedly crashing headless page is left dormant so the next WebDriver test or explicit navigation can
-    // proceed without feeding an automatic restore loop.
-    if (recovery_mode == RecoveryMode::Restore && !crashed_repeatedly) {
+    // proceed without feeding an automatic restore loop. So is a page that was ended for its memory use, because
+    // the restored page would grow to the limit again.
+    auto restores_page = !crashed_repeatedly && crash_reason != WebContentCrashReason::ExceededMemoryLimit;
+    if (recovery_mode == RecoveryMode::Restore && restores_page) {
         recover_current_session_history_entry_with_history_operation();
     } else if (recovery_mode == RecoveryMode::ShowOverlay) {
         traversable().abandon_history_operations();
         set_crash_state(CrashState {
             .failed_url = move(failed_url),
             .navigation_to_retry = move(navigation_to_retry),
+            .exceeded_memory_limit = crash_reason == WebContentCrashReason::ExceededMemoryLimit,
         });
     } else {
         traversable().abandon_history_operations();
