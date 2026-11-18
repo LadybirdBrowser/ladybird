@@ -9,6 +9,7 @@ gn gen out --args='
     is_official_build=true
     is_component_build=true
     is_debug=false
+    symbol_level=1
     angle_build_tests=false
     angle_enable_abseil=true
     angle_enable_renderdoc=false
