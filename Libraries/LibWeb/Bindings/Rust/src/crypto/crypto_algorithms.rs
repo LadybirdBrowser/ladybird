@@ -5610,24 +5610,10 @@ impl AlgorithmMethods for RsaOaep {
         //    the recipient's RSA public key, plaintext as the message to be encrypted, M and label as the label, L, and
         //    with the hash function specified by the hash attribute of the [[algorithm]] internal slot of key as the
         //    Hash option and MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option.
-        let mut hash_kind = None;
-        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
-            hash_kind = Some(ShaHashKind::Sha1);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
-            hash_kind = Some(ShaHashKind::Sha256);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
-            hash_kind = Some(ShaHashKind::Sha384);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
-            hash_kind = Some(ShaHashKind::Sha512);
-        }
+        let hash_kind = sha_hash_kind(hash);
 
         // 4. If performing the operation results in an error, then throw an OperationError.
-        let Some(hash_kind) = hash_kind else {
-            return Err(Exception::Dom(
-                "OperationError",
-                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
-            ));
-        };
+        let hash_kind = hash_kind.map_err(|message| Exception::Dom("OperationError", message))?;
 
         // 5. Let ciphertext be the value C that results from performing the operation.
         let ciphertext =
@@ -5665,24 +5651,10 @@ impl AlgorithmMethods for RsaOaep {
         //    the recipient's RSA private key, ciphertext as the ciphertext to be decrypted, C, and label as the label,
         //    L, and with the hash function specified by the hash attribute of the [[algorithm]] internal slot of key as
         //    the Hash option and MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option.
-        let mut hash_kind = None;
-        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
-            hash_kind = Some(ShaHashKind::Sha1);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
-            hash_kind = Some(ShaHashKind::Sha256);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
-            hash_kind = Some(ShaHashKind::Sha384);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
-            hash_kind = Some(ShaHashKind::Sha512);
-        }
+        let hash_kind = sha_hash_kind(hash);
 
         // 4. If performing the operation results in an error, then throw an OperationError.
-        let Some(hash_kind) = hash_kind else {
-            return Err(Exception::Dom(
-                "OperationError",
-                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
-            ));
-        };
+        let hash_kind = hash_kind.map_err(|message| Exception::Dom("OperationError", message))?;
 
         // 5. Let plaintext the value M that results from performing the operation.
         let plaintext =
@@ -6433,24 +6405,10 @@ impl AlgorithmMethods for RsaPss {
         //    signed, M, and using the hash function specified by the hash attribute of the [[algorithm]] internal slot
         //    of key as the Hash option, MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option and the
         //    saltLength member of normalizedAlgorithm as the salt length option for the EMSA-PSS-ENCODE operation.
-        let mut hash_kind = None;
-        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
-            hash_kind = Some(ShaHashKind::Sha1);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
-            hash_kind = Some(ShaHashKind::Sha256);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
-            hash_kind = Some(ShaHashKind::Sha384);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
-            hash_kind = Some(ShaHashKind::Sha512);
-        }
+        let hash_kind = sha_hash_kind(hash);
 
         // 3. If performing the operation results in an error, then throw an OperationError.
-        let Some(hash_kind) = hash_kind else {
-            return Err(Exception::Dom(
-                "OperationError",
-                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
-            ));
-        };
+        let hash_kind = hash_kind.map_err(|message| Exception::Dom("OperationError", message))?;
 
         // 4. Let signature be the signature, S, that results from performing the operation.
         let signature = libcrypto_rust::rsa_sign(
@@ -6497,23 +6455,9 @@ impl AlgorithmMethods for RsaPss {
         //    and using the hash function specified by the hash attribute of the [[algorithm]] internal slot of key as
         //    the Hash option, MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option and the saltLength member
         //    of normalizedAlgorithm as the salt length option for the EMSA-PSS-VERIFY operation.
-        let mut hash_kind = None;
-        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
-            hash_kind = Some(ShaHashKind::Sha1);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
-            hash_kind = Some(ShaHashKind::Sha256);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
-            hash_kind = Some(ShaHashKind::Sha384);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
-            hash_kind = Some(ShaHashKind::Sha512);
-        }
+        let hash_kind = sha_hash_kind(hash);
 
-        let Some(hash_kind) = hash_kind else {
-            return Err(Exception::Dom(
-                "OperationError",
-                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
-            ));
-        };
+        let hash_kind = hash_kind.map_err(|message| Exception::Dom("OperationError", message))?;
 
         // 3. Let result be a boolean with the value true if the result of the operation was "valid signature" and the value false otherwise.
         let verified = libcrypto_rust::rsa_verify(
@@ -7144,24 +7088,10 @@ impl AlgorithmMethods for RsassaPkcs1 {
         //    the [[handle]] internal slot of key as the signer's private key and message as M and using the hash
         //    function specified in the hash attribute of the [[algorithm]] internal slot of key as the Hash option for
         //    the EMSA-PKCS1-v1_5 encoding method.
-        let mut hash_kind = None;
-        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
-            hash_kind = Some(ShaHashKind::Sha1);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
-            hash_kind = Some(ShaHashKind::Sha256);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
-            hash_kind = Some(ShaHashKind::Sha384);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
-            hash_kind = Some(ShaHashKind::Sha512);
-        }
+        let hash_kind = sha_hash_kind(hash);
 
         // 3. If performing the operation results in an error, then throw an OperationError.
-        let Some(hash_kind) = hash_kind else {
-            return Err(Exception::Dom(
-                "OperationError",
-                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
-            ));
-        };
+        let hash_kind = hash_kind.map_err(|message| Exception::Dom("OperationError", message))?;
 
         // 4. Let signature be the value S that results from performing the operation.
         let signature =
@@ -7198,23 +7128,9 @@ impl AlgorithmMethods for RsassaPkcs1 {
         //    by the [[handle]] internal slot of key as the signer's RSA public key and message as M and signature as S
         //    and using the hash function specified in the hash attribute of the [[algorithm]] internal slot of key as
         //    the Hash option for the EMSA-PKCS1-v1_5 encoding method.
-        let mut hash_kind = None;
-        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
-            hash_kind = Some(ShaHashKind::Sha1);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
-            hash_kind = Some(ShaHashKind::Sha256);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
-            hash_kind = Some(ShaHashKind::Sha384);
-        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
-            hash_kind = Some(ShaHashKind::Sha512);
-        }
+        let hash_kind = sha_hash_kind(hash);
 
-        let Some(hash_kind) = hash_kind else {
-            return Err(Exception::Dom(
-                "OperationError",
-                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
-            ));
-        };
+        let hash_kind = hash_kind.map_err(|message| Exception::Dom("OperationError", message))?;
 
         // 3. Let result be a boolean with value true if the result of the operation was "valid signature" and the value
         //    false otherwise.
