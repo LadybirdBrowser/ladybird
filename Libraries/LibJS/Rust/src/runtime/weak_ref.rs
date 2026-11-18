@@ -15,6 +15,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::runtime::abstract_operations::preserve_identity_of_value_held_weakly;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::realm::Realm;
 
@@ -52,6 +53,7 @@ impl WeakRef {
     /// A WeakRef to `value`, an object or a symbol.
     pub fn new(vm: &Vm, realm: Gc<Realm>, value: Value, prototype: Gc<Object>) -> WeakRef {
         assert!(value.is_object() || value.is_symbol());
+        preserve_identity_of_value_held_weakly(value);
         WeakRef {
             base: Object::new_with_prototype(
                 vm,

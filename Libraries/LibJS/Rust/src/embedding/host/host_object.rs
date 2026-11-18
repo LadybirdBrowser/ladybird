@@ -133,6 +133,9 @@ fn host_object_methods(table: &'static JSHostClass) -> ObjectMethods {
     if hooks.own_property_keys.is_some() {
         methods.internal_own_property_keys = own_property_keys_through_hook;
     }
+    if hooks.preserve_identity.is_some() {
+        methods.preserve_identity = Some(preserve_identity_through_hook);
+    }
     if table.has_flag(JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE) {
         methods.is_cacheable_for_property_absence = false;
     } else if table.has_flag(JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE) {
@@ -409,6 +412,14 @@ fn is_cacheable_for_inherited_property_through_hook(object: &Object) -> bool {
     let hook = hooks_of(object)
         .is_cacheable_for_inherited_property
         .expect("the class has an is_cacheable_for_inherited_property hook");
+    // SAFETY: The hook takes an object of its class.
+    unsafe { hook(lend_object_to_hook(object)) }
+}
+
+fn preserve_identity_through_hook(object: &Object) {
+    let hook = hooks_of(object)
+        .preserve_identity
+        .expect("the class has a preserve_identity hook");
     // SAFETY: The hook takes an object of its class.
     unsafe { hook(lend_object_to_hook(object)) }
 }

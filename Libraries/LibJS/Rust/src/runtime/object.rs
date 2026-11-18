@@ -257,6 +257,8 @@ pub struct ObjectMethods {
     /// [[PrivateElements]], for a class whose fields do not tell: one whose fields only cache, or one with a slot that
     /// holds nothing. None leaves it to the fields, which Object::has_internal_slots() reads.
     pub has_internal_slots: Option<bool>,
+    /// What Object::preserve_identity() runs, for the objects of an embedder that drops objects it can recreate.
+    pub preserve_identity: Option<fn(&Object)>,
 }
 
 /// [[GetPrototypeOf]].
@@ -293,6 +295,7 @@ pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     as_builtin_iterator_if_next_is_not_redefined: |_, _| None,
     error_data: error_data_of_error,
     has_internal_slots: None,
+    preserve_identity: None,
 };
 
 define_cell!(
@@ -1746,6 +1749,8 @@ impl Object {
             &name.property_key(),
             ValueAndAttributes::new(value, PropertyAttributes::new(Attribute::WRITABLE)),
         );
+        // NB: The private element is state of the object that the embedder can't recreate.
+        self.preserve_identity();
 
         // 5. Return unused.
         Ok(())
@@ -1778,6 +1783,8 @@ impl Object {
             &element.key.property_key(),
             ValueAndAttributes::new(element.value, PropertyAttributes::default()),
         );
+        // NB: The private element is state of the object that the embedder can't recreate.
+        self.preserve_identity();
 
         // 6. Return unused.
         Ok(())
@@ -2096,6 +2103,15 @@ impl Object {
 
     pub fn error_data(&self) -> Option<&ErrorData> {
         (self.methods().error_data)(self)
+    }
+
+    /// Tells the object that script made its identity outlive the references to it: it is held weakly, or has a
+    /// private element. An embedder may drop an object of its own while script holds no reference to it and create an
+    /// equal one when script asks for it again, which is unobservable only until then.
+    pub fn preserve_identity(&self) {
+        if let Some(preserve_identity) = self.methods().preserve_identity {
+            preserve_identity(self);
+        }
     }
 
     /// Whether the object has an [[ErrorData]] internal slot.

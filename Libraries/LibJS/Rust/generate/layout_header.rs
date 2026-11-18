@@ -453,6 +453,7 @@ pub fn generate() -> LayoutHeader {
         error_data,
         finalize,
         get_indexed_value,
+        preserve_identity,
     });
     check_host_object_abi_struct!(w, JSHostFunctionHooks { call, construct, finalize });
     check_host_object_abi_struct!(w, JSHostArrayHooks { set, delete_property });

@@ -153,6 +153,7 @@ pub struct JSHostObjectHooks {
     pub error_data: Option<unsafe extern "C" fn(object: *mut JSObject) -> *mut c_void>,
     pub finalize: Option<unsafe extern "C" fn(object: *mut JSObject)>,
     pub get_indexed_value: Option<unsafe extern "C" fn(object: *mut JSObject, index: u32) -> JSCompletion>,
+    pub preserve_identity: Option<unsafe extern "C" fn(object: *mut JSObject)>,
 }
 
 #[repr(C)]

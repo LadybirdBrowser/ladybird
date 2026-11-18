@@ -37,6 +37,7 @@ static EXPORTED_GC_OBJECT_HOOKS: JSHostObjectHooks = JSHostObjectHooks {
     error_data: None,
     finalize: None,
     get_indexed_value: None,
+    preserve_identity: None,
 };
 
 static EXPORTED_GC_OBJECT_CLASS: JSHostClass = JSHostClass::new(

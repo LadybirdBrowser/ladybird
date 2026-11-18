@@ -11,7 +11,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
-use crate::runtime::abstract_operations::can_be_held_weakly;
+use crate::runtime::abstract_operations::{can_be_held_weakly, preserve_identity_of_value_held_weakly};
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -126,6 +126,8 @@ impl FinalizationRegistryPrototype {
 
         // 6. Let cell be the Record { [[WeakRefTarget]]: target, [[HeldValue]]: heldValue, [[UnregisterToken]]: unregisterToken }.
         // 7. Append cell to finalizationRegistry.[[Cells]].
+        preserve_identity_of_value_held_weakly(target);
+        preserve_identity_of_value_held_weakly(unregister_token);
         finalization_registry.add_finalization_record(
             vm,
             target.as_cell(),
