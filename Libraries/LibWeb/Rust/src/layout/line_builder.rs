@@ -1755,7 +1755,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             {
                 let fragment = &mut self.line_mut(line_index).fragments[fragment_index];
                 fragment.inline_offset = new_inline_offset;
-                fragment.block_offset = new_block_offset.floor() + block_offset;
+                fragment.block_offset = new_block_offset + block_offset;
                 fragment.accumulated_vertical_shift = accumulated_vertical_shift;
                 snapshot.block_offset = fragment.block_offset;
             }
@@ -2041,15 +2041,13 @@ pub(crate) struct TextLayoutBounds {
 }
 
 impl TextLayoutBounds {
-    /// The bounds of text in a font with `ascent` and `descent`, with the line height's leading split above and
-    /// below it. A font's ascent and descent count in whole pixels, as they do for 'line-height: normal', and the
-    /// leading above the text is a whole number of pixels too. So the baseline of text whose line height is a whole
-    /// number of pixels lands on a pixel, wherever the text is.
+    /// The bounds of text in a font with `ascent` and `descent`, with half the line height's leading on each side.
+    /// A font's ascent and descent count in whole pixels, as they do for 'line-height: normal'.
     fn with_leading(ascent: f32, descent: f32, line_height: CssPixels) -> Self {
         let ascent = font_metric_in_whole_pixels(ascent);
         let descent = font_metric_in_whole_pixels(descent);
         let leading = line_height - (ascent + descent);
-        let leading_above = (leading / 2).floor();
+        let leading_above = leading / 2;
         Self {
             ascent: ascent + leading_above,
             descent: descent + (leading - leading_above),

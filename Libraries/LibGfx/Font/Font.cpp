@@ -73,6 +73,23 @@ FontPixelMetrics Font::compute_pixel_metrics() const
     metrics.descent = -font_units_to_pixels(vertical_metrics.descender + hb_ot_metrics_get_variation(m_harfbuzz_font, HB_OT_METRICS_TAG_HORIZONTAL_DESCENDER));
     metrics.line_gap = max(0.0f, font_units_to_pixels(vertical_metrics.line_gap + hb_ot_metrics_get_variation(m_harfbuzz_font, HB_OT_METRICS_TAG_HORIZONTAL_LINE_GAP)));
 
+#ifdef AK_OS_LINUX
+    if (m_typeface->system_font_identifier().has_value()) {
+        // INTEROP: Use FreeType's enclosing pixel sizes for Linux system fonts with legacy horizontal metrics.
+        // https://learn.microsoft.com/en-us/typography/opentype/spec/os2#fsselection
+        static constexpr u16 USE_TYPO_METRICS = 1 << 7;
+        auto* face = hb_font_get_face(m_harfbuzz_font);
+        FontTable os2 { face, FourCC { "OS/2" } };
+        FontTable hhea { face, FourCC { "hhea" } };
+        auto requested_typo_metrics = os2.contains(62, 2) && (os2.u16_at(62) & USE_TYPO_METRICS);
+        auto hhea_has_metrics = hhea.contains(4, 4) && (hhea.i16_at(4) != 0 || hhea.i16_at(6) != 0);
+        if (!requested_typo_metrics && hhea_has_metrics) {
+            metrics.ascent = AK::ceil(AK::round(metrics.ascent * text_shaping_resolution) / text_shaping_resolution);
+            metrics.descent = AK::ceil(AK::round(metrics.descent * text_shaping_resolution) / text_shaping_resolution);
+        }
+    }
+#endif
+
     // https://drafts.csswg.org/css-values-4/#ex
     // In the cases where it is impossible or impractical to determine the x-height, a value of 0.5em must be assumed.
     metrics.x_height = m_pixel_size / 2;
