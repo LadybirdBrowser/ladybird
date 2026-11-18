@@ -550,9 +550,7 @@ consteval JSHostClass make_host_class(u8 kind, StringView name, JSHostClass cons
     VERIFY(!(flags & JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT) || parent);
 
     return JSHostClass {
-        .abi_version = JS_HOST_ABI_VERSION,
         .kind = kind,
-        .reserved = 0,
         .flags = flags,
         .name = name.characters_without_null_termination(),
         .name_length = name.length(),
