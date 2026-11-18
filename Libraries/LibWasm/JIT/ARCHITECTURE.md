@@ -332,7 +332,7 @@ Without them, `asm/x86_64/sse.rs` emits legacy SSE sequences and bit scans, and 
 shifts use CL. This selection also covers entry, exit and host stubs. The shared encoders live in
 libjs_jit's `asm/x86_64/`; `codegen/x86_64/vector.rs` names the SIMD opcodes. SSE packed operations
 read spilled vectors through registers, since their memory operands require sixteen-byte alignment.
-Distributed C++ and Rust builds target the same v2 baseline (`ENABLE_CI_BASELINE_CPU`); native
+Distributed C++ and Rust builds target the same v2 baseline (`LADYBIRD_BASELINE_CPU_TARGET`); native
 builds still target the machine building them. After each node, a value with a slot is stored
 there; a phi in a register with a slot is stored where its block starts.
 

@@ -57,8 +57,8 @@ function(add_cxx_link_option_if_supported option)
 endfunction()
 
 # RUSTC_TARGET_CPU_FLAGS names the same CPU for rustc, so that Rust code runs on the instruction set C++ code does.
-if (ENABLE_CI_BASELINE_CPU)
-    # In CI, we want to target a common architecture so different runners can share ccache caches effectively.
+if (LADYBIRD_BASELINE_CPU_TARGET)
+    # Binaries that run on other machines, and ccache caches that different runners share, need a common architecture.
     if (APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
         add_cxx_compile_options(-mcpu=apple-m1)
         set(RUSTC_TARGET_CPU_FLAGS -Ctarget-cpu=apple-m1)
