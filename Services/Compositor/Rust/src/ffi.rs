@@ -301,6 +301,20 @@ pub extern "C" fn compositor_core_set_presents_from_cpu_memory(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn compositor_core_set_scales_frames_to_fit(
+    core: &CompositorCore,
+    context_id: u64,
+    scales_frames_to_fit: bool,
+    now_nanoseconds: i64,
+) {
+    core.set_scales_frames_to_fit(
+        CompositorContextId(context_id),
+        scales_frames_to_fit,
+        time(now_nanoseconds),
+    );
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn compositor_core_request_rendering_opportunity(
     core: &CompositorCore,
     context_id: u64,

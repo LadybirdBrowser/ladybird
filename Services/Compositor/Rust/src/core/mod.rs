@@ -535,6 +535,24 @@ impl CompositorCore {
         self.finish_entry(now);
     }
 
+    pub fn set_scales_frames_to_fit(
+        &self,
+        context_id: CompositorContextId,
+        scales_frames_to_fit: bool,
+        now: MonotonicTime,
+    ) {
+        let _entered = self.enter();
+        let Some(presenting) = self.presenting_of(context_id) else {
+            return;
+        };
+        if presenting.borrow().scales_frames_to_fit == scales_frames_to_fit {
+            return;
+        }
+        presenting.borrow_mut().scales_frames_to_fit = scales_frames_to_fit;
+        self.present_current_frame(context_id, now);
+        self.finish_entry(now);
+    }
+
     pub fn request_rendering_opportunity(
         &self,
         context_id: CompositorContextId,

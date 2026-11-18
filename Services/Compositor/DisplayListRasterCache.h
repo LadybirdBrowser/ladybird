@@ -43,6 +43,7 @@ struct TextBlobCacheKey {
     u64 font_id { 0 };
     u32 scale_bits { 0 };
     u8 font_smoothing { 0 };
+    bool uses_lcd_text { false };
     u64 glyph_hash { 0 };
 
     bool operator==(TextBlobCacheKey const&) const = default;
@@ -56,7 +57,8 @@ template<>
 struct Traits<Compositor::TextBlobCacheKey> : public DefaultTraits<Compositor::TextBlobCacheKey> {
     static unsigned hash(Compositor::TextBlobCacheKey const& key)
     {
-        return pair_int_hash(pair_int_hash(u64_hash(key.font_id ^ key.glyph_hash), key.scale_bits), key.font_smoothing);
+        auto font_options = (static_cast<unsigned>(key.font_smoothing) << 1) | key.uses_lcd_text;
+        return pair_int_hash(pair_int_hash(u64_hash(key.font_id ^ key.glyph_hash), key.scale_bits), font_options);
     }
 };
 
@@ -96,7 +98,7 @@ public:
     bool reserve_vector_image_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_recorded_space);
     // Keeps the raster that was reserved, unless it could not be made.
     sk_sp<SkImage> finish_vector_image_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_recorded_space, sk_sp<SkImage>);
-    sk_sp<SkTextBlob> text_blob(Gfx::Font const&, Compositing::FontResourceId, float scale, ReadonlySpan<Compositing::DisplayListGlyph>, u8 font_smoothing);
+    sk_sp<SkTextBlob> text_blob(Gfx::Font const&, Compositing::FontResourceId, float scale, ReadonlySpan<Compositing::DisplayListGlyph>, u8 font_smoothing, bool uses_lcd_text = false);
 
     sk_sp<SkImageFilter> layer_image_filter(Compositing::ReplayLayer const&, Function<sk_sp<SkImageFilter>()> const& create);
     sk_sp<SkImageFilter> backdrop_image_filter(Compositing::ReplayLayer const&, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create);

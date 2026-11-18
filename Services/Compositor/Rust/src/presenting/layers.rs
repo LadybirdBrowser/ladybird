@@ -128,7 +128,6 @@ pub struct ContextLayers {
     plan_active_media: Vec<LiveMedia>,
     surfaces: Vec<LayerSurface>,
     last_content_version: u64,
-    pub repaint_everything_after_dropping_layers: bool,
     // Whether the window server shows the canvases and videos of the latest frame above it.
     window_server_shows_media: bool,
     painted_layer_presentations: Vec<PaintedLayerPresentation>,
@@ -353,9 +352,6 @@ impl ContextPresenting {
     pub(super) fn commit_layer_update(&mut self, env: &PresentingEnvironment<'_>, layer_update: LayerUpdate) {
         let layers = &mut self.layers;
         layers.window_server_shows_media = layer_update.has_plan() && layer_update.shown_by_window_server;
-        if layer_update.repaints_everything {
-            layers.repaint_everything_after_dropping_layers = false;
-        }
         if !layer_update.has_plan() {
             layers.drop_layers(env);
             return;
@@ -436,6 +432,7 @@ impl ContextPresenting {
                         height: rect.height,
                     },
                     Some(surface),
+                    false,
                 ) else {
                     self.layers.surfaces = surfaces;
                     return false;
