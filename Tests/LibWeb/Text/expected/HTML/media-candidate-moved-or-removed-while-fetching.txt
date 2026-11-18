@@ -1,0 +1,3 @@
+moved out: loaded metadata, error at the first source: false
+removed: loaded metadata, error at the first source: false
+moved within the video: loaded metadata, error at the first source: true
