@@ -502,6 +502,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     }
     inputs.text_fragment_indications = text_fragment_indications.data();
     inputs.text_fragment_indication_count = text_fragment_indications.size();
+    inputs.dims_page_for_find_in_page = document.page().is_dimmed_for_find_in_page(document);
     auto mark_color_scheme = document.page().preferred_color_scheme();
     inputs.mark_color = CSS::SystemColor::mark(mark_color_scheme);
     inputs.mark_text_color = CSS::SystemColor::mark_text(mark_color_scheme);

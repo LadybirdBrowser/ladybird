@@ -511,6 +511,7 @@ public:
         Utf16String string {};
         CaseSensitivity case_sensitivity { CaseSensitivity::CaseInsensitive };
         bool highlight_all_matches { false };
+        bool dim_page { false };
     };
     struct FindInPageResult {
         size_t current_match_index { 0 };
@@ -521,6 +522,8 @@ public:
     FindInPageResult find_in_page_previous_match();
     void find_in_page_end();
     void clear_find_in_page_active_match();
+    bool is_dimmed_for_find_in_page(DOM::Document const&) const;
+    void stop_dimming_for_find_in_page();
 
     bool listen_for_dom_mutations() const { return m_listen_for_dom_mutations; }
     void set_listen_for_dom_mutations(bool listen_for_dom_mutations) { m_listen_for_dom_mutations = listen_for_dom_mutations; }
@@ -562,6 +565,7 @@ private:
     void update_find_in_page_active_match(Vector<GC::Root<DOM::Range>> const& matches);
     void update_find_in_page_highlighted_matches(Vector<GC::Root<DOM::Range>> const& matches, bool highlight_all_matches);
     void clear_find_in_page_highlighted_matches();
+    void set_find_in_page_dimmed_document(GC::Ptr<DOM::Document>);
     GC::Ptr<DOM::Range> find_in_page_active_match();
     void set_find_in_page_active_match(GC::Ptr<DOM::Range>);
 
@@ -708,6 +712,7 @@ private:
     URL::URL m_last_find_in_page_url;
     GC::Weak<DOM::Document> m_find_in_page_active_match_document;
     Vector<GC::Weak<DOM::Document>> m_find_in_page_highlighted_documents;
+    GC::Weak<DOM::Document> m_find_in_page_dimmed_document;
 
     bool m_listen_for_dom_mutations { false };
     bool m_accessibility_interested { false };

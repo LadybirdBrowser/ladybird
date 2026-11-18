@@ -856,6 +856,7 @@ pub(crate) fn debug_assert_every_live_node_is_owned(
     if let Some(root_isolation_effect) = tree.root_isolation_effect {
         effect_is_owned[root_isolation_effect.0 as usize] = true;
     }
+    effect_is_owned[super::build::FIND_IN_PAGE_DIM_EFFECT.0 as usize] = true;
     fn claim(owned: &mut [bool], index: u32, kind: &str) {
         assert!(!owned[index as usize], "{kind} {index} is claimed twice");
         owned[index as usize] = true;

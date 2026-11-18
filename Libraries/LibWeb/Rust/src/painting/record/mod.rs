@@ -384,7 +384,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &mut self,
         node: crate::layout::node_data::NodeSlotId,
         highlight: HighlightPseudoElement,
-    ) -> Arc<paint::text::SelectionStyleAnswer> {
+    ) -> Option<Arc<paint::text::SelectionStyleAnswer>> {
         let key = node.index;
         let is_current = highlight == HighlightPseudoElement::SearchTextCurrent;
         let cached = if is_current {
@@ -399,8 +399,15 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let committed = self
             .first_non_anonymous_ancestor_row(node)
             .and_then(|element_row| self.committed_highlight_pseudo_style(highlight, node, element_row));
-        let answer =
-            Self::highlight_style_answer(committed, || self.default_search_text_style(style_source, highlight));
+        // While find-in-page dims the page, a match other than the current one is a highlight only where a style makes
+        // it one.
+        let answer = if committed.is_none() && !is_current && self.inputs.dims_page_for_find_in_page {
+            None
+        } else {
+            Some(Self::highlight_style_answer(committed, || {
+                self.default_search_text_style(style_source, highlight)
+            }))
+        };
         let cache = if is_current {
             &mut self.scratch.search_text_current_style_cache
         } else {
@@ -549,26 +556,28 @@ impl<O: Observer> PaintRecorder<'_, O> {
         style_source: crate::layout::node_data::NodeSlotId,
         highlight: HighlightPseudoElement,
     ) -> paint::text::SelectionStyleAnswer {
-        if highlight == HighlightPseudoElement::SearchTextCurrent {
+        let is_current = highlight == HighlightPseudoElement::SearchTextCurrent;
+        let dims_page = self.inputs.dims_page_for_find_in_page;
+        let facts = if dims_page && !is_current {
+            Default::default()
+        } else if is_current && !dims_page {
             let background_color = self.default_selection_background(style_source, true);
-            return paint::text::SelectionStyleAnswer {
-                facts: crate::painting::host::FfiSelectionStyleFacts {
-                    background_color,
-                    wash_color: background_color,
-                    ..Default::default()
-                },
-                shadows: Vec::new(),
-                decoration_metrics: None,
-            };
-        }
-        let background_color = libgfx_rust::Color::from_rgb(255, 255, 0);
-        paint::text::SelectionStyleAnswer {
-            facts: crate::painting::host::FfiSelectionStyleFacts {
+            crate::painting::host::FfiSelectionStyleFacts {
+                background_color,
+                wash_color: background_color,
+                ..Default::default()
+            }
+        } else {
+            let background_color = libgfx_rust::Color::from_rgb(255, 255, 0);
+            crate::painting::host::FfiSelectionStyleFacts {
                 background_color,
                 text_color: Some(libgfx_rust::Color::from_rgb(0, 0, 0)).into(),
                 wash_color: background_color,
                 ..Default::default()
-            },
+            }
+        };
+        paint::text::SelectionStyleAnswer {
+            facts,
             shadows: Vec::new(),
             decoration_metrics: None,
         }

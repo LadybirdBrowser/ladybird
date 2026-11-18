@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-scroller-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-8">
+<style>
+#scroller,
+#scroller-over-dim {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 300px;
+    height: 70px;
+    overflow: hidden;
+    font-size: 20px;
+    line-height: 30px;
+}
+#scroller::search-text:current {
+    background-color: orange;
+}
+</style>
+<div id="scroller"><br>needle<br>needle<br>needle</div>
+<script>
+document.getElementById("scroller").scrollTop = 15;
+internals.findInPage("needle", false, true);
+</script>

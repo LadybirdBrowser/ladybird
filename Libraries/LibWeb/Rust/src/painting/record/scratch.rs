@@ -39,8 +39,8 @@ pub(crate) struct RecordingScratch {
     /// The records of each pattern tile, and whether they draw a placeholder for an SVG image.
     pub(super) pattern_tile_records: HashMap<PatternTileKey, (Arc<Vec<u8>>, bool)>,
     pub(super) selection_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
-    pub(super) search_text_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
-    pub(super) search_text_current_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
+    pub(super) search_text_style_cache: HashMap<u32, Option<Arc<SelectionStyleAnswer>>>,
+    pub(super) search_text_current_style_cache: HashMap<u32, Option<Arc<SelectionStyleAnswer>>>,
     pub(super) spelling_error_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
     pub(super) custom_highlight_style_cache:
         HashMap<(u32, crate::css::style::index::StyleAtomID), Option<Arc<SelectionStyleAnswer>>>,
