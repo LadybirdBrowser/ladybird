@@ -1374,6 +1374,8 @@ mod native {
         exception_sites: HashSet<u64>,
         /// The compiles the compile threads have yet to finish, and where they send them.
         pending: HashSet<CompileKey>,
+        /// The loop of each function (by module and index) that has an OSR compile pending.
+        pending_loops: HashMap<(usize, u32), u32>,
         finished: Option<(Sender<Finished>, Receiver<Finished>)>,
         /// How many modules gained code since the store last looked for modules that died.
         new_code: usize,
@@ -1523,7 +1525,22 @@ mod native {
                 self.finish(key, code);
                 return self.compile(key, Compile::InBackground);
             }
+            // OPTIMIZATION: An OSR compile compiles all of its function, so a frame that goes through many loops of a
+            //               large function while the first of them compiles would otherwise have the function
+            //               compiled once per loop, all at once, on every compile thread. Its other loops wait for
+            //               that compile, and the frame asks again at the loop it is in by then.
+            if let Some(pc) = key.osr
+                && self
+                    .pending_loops
+                    .get(&(key.module, key.function))
+                    .is_some_and(|pending| *pending != pc)
+            {
+                return CompileState::Pending;
+            }
             if self.pending.insert(key) {
+                if let Some(pc) = key.osr {
+                    self.pending_loops.insert((key.module, key.function), pc);
+                }
                 self.submit(key);
             }
             CompileState::Pending
@@ -1564,6 +1581,9 @@ mod native {
             }
             for Finished { key, code, .. } in finished {
                 self.pending.remove(&key);
+                if key.osr.is_some() {
+                    self.pending_loops.remove(&(key.module, key.function));
+                }
                 self.finish(key, code);
             }
         }
