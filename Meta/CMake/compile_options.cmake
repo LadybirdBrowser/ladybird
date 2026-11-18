@@ -110,7 +110,7 @@ add_cxx_only_compile_options(-Wno-user-defined-literals)
 
 add_cxx_compile_options(-Werror)
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "18")
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_cxx_compile_options(-Wpadded-bitfield)
 endif()
 
