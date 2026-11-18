@@ -1018,6 +1018,16 @@ thread_local! {
     static SHAPING_CACHE: std::cell::RefCell<ShapingCache> = std::cell::RefCell::new(ShapingCache::default());
 }
 
+/// Lets go of every shaped text the calling thread keeps, for a process that is short of memory.
+pub fn clear_shaping_cache() {
+    // NB: A thread that is in the middle of using a shape from the cache keeps it borrowed, and keeps its cache.
+    SHAPING_CACHE.with(|cache| {
+        if let Ok(mut cache) = cache.try_borrow_mut() {
+            *cache = ShapingCache::default();
+        }
+    });
+}
+
 fn shape_text_uncached(font: &FontHandle, text: &[u16], params: ShapeParams) -> CachedShape {
     unsafe extern "C" fn emit(
         sink: *mut c_void,

@@ -733,6 +733,11 @@ impl Heap {
         capi::gc_heap_is_marking_for_collection(self.handle())
     }
 
+    /// Whether the collection that runs is there to give memory back to the system, for a process that is short of it.
+    pub fn is_returning_memory_to_system(&self) -> bool {
+        capi::gc_heap_is_returning_memory_to_system(self.handle())
+    }
+
     pub fn should_collect_on_every_allocation(&self) -> bool {
         capi::gc_heap_should_collect_on_every_allocation(self.handle())
     }

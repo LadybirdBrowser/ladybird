@@ -150,6 +150,35 @@ void ConnectionFromClient::die()
     Core::Process::terminate_immediately(0);
 }
 
+// What the main thread and each worker thread give up when the process is short of memory.
+static void release_memory_of_this_thread()
+{
+    Web::Fetch::Fetching::clear_http_memory_cache();
+    // NB: This comes last, so that what the steps before it let go of goes back to the system as well.
+    GC::Heap::the().collect_garbage_and_return_memory_to_system();
+}
+
+// The browser asks for this when the process is near its memory limit, or when its tabs were hidden for a while. The
+// process gives up everything it can work without. What it gives up may cost time to make again.
+void ConnectionFromClient::release_memory()
+{
+    // NB: The browser asks for more than one reason, and one release serves all requests that wait for it.
+    static bool is_pending = false;
+    if (is_pending)
+        return;
+    is_pending = true;
+
+    Web::CSS::StyleScope::release_kept_data();
+    Web::CSS::StyleScope::release_shaped_texts();
+
+    WebWorker::post_to_worker_threads(release_memory_of_this_thread);
+    // NB: This is deferred so that garbage collection runs with as little on the stack as possible.
+    Core::deferred_invoke([] {
+        is_pending = false;
+        release_memory_of_this_thread();
+    });
+}
+
 void ConnectionFromClient::set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation)
 {
     auto* font_provider = MUST(Compositing::install_font_service(move(handle), move(catalog), catalog_size, generation));
