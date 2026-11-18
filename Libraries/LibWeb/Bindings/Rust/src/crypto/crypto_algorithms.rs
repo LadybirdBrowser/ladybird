@@ -5543,18 +5543,14 @@ fn parse_jwk_rsa_key(jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<KeyHand
         .ok_or_else(|| dom_error("DataError", b"Invalid key"))
 }
 
-fn rsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult<Bytes> {
-    let result = libcrypto_rust::rsa_export_der(key.handle(), is_public).map(Bytes::new);
-    let Ok(result) = result else {
-        return vm
-            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-            .map_err(Into::into);
-    };
-    Ok(result)
+fn rsa_export_der(key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult<Bytes> {
+    libcrypto_rust::rsa_export_der(key.handle(), is_public)
+        .map(Bytes::new)
+        .map_err(operation_error)
 }
 
-fn rsa_export_jwk_integer(vm: &Vm, key: Ref<CryptoKey>, component: RsaJwkInteger) -> WebIdlResult<Utf16String> {
-    let bytes = libcrypto_rust::rsa_export_jwk_integer(key.handle(), component).map_err(|_| out_of_memory(vm))?;
+fn rsa_export_jwk_integer(key: Ref<CryptoKey>, component: RsaJwkInteger) -> WebIdlResult<Utf16String> {
+    let bytes = libcrypto_rust::rsa_export_jwk_integer(key.handle(), component).map_err(operation_error)?;
     Ok(base64_url_bytes_encode(&bytes))
 }
 
@@ -6112,7 +6108,7 @@ impl AlgorithmMethods for RsaOaep {
         // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
         // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
         let (modulus_length, public_exponent) =
-            libcrypto_rust::rsa_read_key_metadata(key.handle()).map_err(|_| out_of_memory(cx.vm()))?;
+            libcrypto_rust::rsa_read_key_metadata(key.handle()).map_err(operation_error)?;
 
         // 7. Set the hash attribute of algorithm to the hash member of normalizedAlgorithm.
         let hash_name = normalized_algorithm.hash.name.clone();
@@ -6136,9 +6132,7 @@ impl AlgorithmMethods for RsaOaep {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
-        let vm = cx.vm();
-
+    fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. Let key be the key to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
@@ -6159,7 +6153,7 @@ impl AlgorithmMethods for RsaOaep {
             //    * Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined
             //      in [RFC3447], Appendix A.1.1, that represents the RSA public key represented by the [[handle]]
             //      internal slot of key
-            let data = rsa_export_der(vm, key, true)?;
+            let data = rsa_export_der(key, true)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -6184,7 +6178,7 @@ impl AlgorithmMethods for RsaOaep {
             // Note: [RFC5208] specifies that the encoding of this field should be BER encoded in Section 5 (as a "for
             //       example"). However, to avoid requiring WebCrypto implementations support BER-encoding and
             //       BER-decoding, only DER encodings are produced or accepted.
-            let data = rsa_export_der(vm, key, false)?;
+            let data = rsa_export_der(key, false)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -6232,18 +6226,18 @@ impl AlgorithmMethods for RsaOaep {
 
             // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms
             //    [JWA], Section 6.3.1.
-            jwk.n = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Modulus)?);
-            jwk.e = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PublicExponent)?);
+            jwk.n = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Modulus)?);
+            jwk.e = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PublicExponent)?);
 
             // 6. If the [[type]] internal slot of key is "private":
             //    1. Set the attributes named d, p, q, dp, dq, and qi of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.2.
             if key.key_type() == KeyType::Private {
-                jwk.d = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PrivateExponent)?);
-                jwk.p = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime1)?);
-                jwk.q = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime2)?);
-                jwk.dp = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent1)?);
-                jwk.dq = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent2)?);
-                jwk.qi = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Coefficient)?);
+                jwk.d = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PrivateExponent)?);
+                jwk.p = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime1)?);
+                jwk.q = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime2)?);
+                jwk.dp = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent1)?);
+                jwk.dq = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent2)?);
+                jwk.qi = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Coefficient)?);
 
                 // 2. If the underlying RSA private key represented by the [[handle]] internal slot of key is
                 //    represented by more than two primes, set the attribute named oth of jwk according to the
@@ -6828,7 +6822,7 @@ impl AlgorithmMethods for RsaPss {
         // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
         // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
         let (modulus_length, public_exponent) =
-            libcrypto_rust::rsa_read_key_metadata(key.handle()).map_err(|_| out_of_memory(cx.vm()))?;
+            libcrypto_rust::rsa_read_key_metadata(key.handle()).map_err(operation_error)?;
 
         // 7. Set the hash attribute of algorithm to the hash member of normalizedAlgorithm.
         let hash_name = normalized_algorithm.hash.name.clone();
@@ -6852,9 +6846,7 @@ impl AlgorithmMethods for RsaPss {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
-        let vm = cx.vm();
-
+    fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. Let key be the key to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
@@ -6875,7 +6867,7 @@ impl AlgorithmMethods for RsaPss {
             //    * Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined
             //      in [RFC3447], Appendix A.1.1, that represents the RSA public key represented by the [[handle]]
             //      internal slot of key
-            let data = rsa_export_der(vm, key, true)?;
+            let data = rsa_export_der(key, true)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -6900,7 +6892,7 @@ impl AlgorithmMethods for RsaPss {
             // Note: [RFC5208] specifies that the encoding of this field should be BER encoded in Section 5 (as a "for
             //       example"). However, to avoid requiring WebCrypto implementations support BER-encoding and
             //       BER-decoding, only DER encodings are produced or accepted.
-            let data = rsa_export_der(vm, key, false)?;
+            let data = rsa_export_der(key, false)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -6947,19 +6939,19 @@ impl AlgorithmMethods for RsaPss {
             }
 
             // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
-            jwk.n = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Modulus)?);
-            jwk.e = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PublicExponent)?);
+            jwk.n = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Modulus)?);
+            jwk.e = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PublicExponent)?);
 
             // 6. If the [[type]] internal slot of key is "private":
             if key.key_type() == KeyType::Private {
                 // 1. Set the attributes named d, p, q, dp, dq, and qi of jwk according to the corresponding definitions
                 //    in JSON Web Algorithms [JWA], Section 6.3.2.
-                jwk.d = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PrivateExponent)?);
-                jwk.p = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime1)?);
-                jwk.q = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime2)?);
-                jwk.dp = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent1)?);
-                jwk.dq = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent2)?);
-                jwk.qi = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Coefficient)?);
+                jwk.d = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PrivateExponent)?);
+                jwk.p = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime1)?);
+                jwk.q = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime2)?);
+                jwk.dp = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent1)?);
+                jwk.dq = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent2)?);
+                jwk.qi = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Coefficient)?);
 
                 // 2. If the underlying RSA private key represented by the [[handle]] internal slot of key is represented by more than two primes,
                 //    set the attribute named oth of jwk according to the corresponding definition in JSON Web Algorithms [JWA], Section 6.3.2.7
@@ -7533,7 +7525,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
         // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
         // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
         let (modulus_length, public_exponent) =
-            libcrypto_rust::rsa_read_key_metadata(key.handle()).map_err(|_| out_of_memory(cx.vm()))?;
+            libcrypto_rust::rsa_read_key_metadata(key.handle()).map_err(operation_error)?;
 
         // 7. Set the hash attribute of algorithm to the hash member of normalizedAlgorithm.
         let hash_name = normalized_algorithm.hash.name.clone();
@@ -7557,9 +7549,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
-        let vm = cx.vm();
-
+    fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. Let key be the key to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
@@ -7580,7 +7570,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             //    * Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined
             //      in [RFC3447], Appendix A.1.1, that represents the RSA public key represented by the [[handle]]
             //      internal slot of key
-            let data = rsa_export_der(vm, key, true)?;
+            let data = rsa_export_der(key, true)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -7605,7 +7595,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             // Note: [RFC5208] specifies that the encoding of this field should be BER encoded in Section 5 (as a "for
             //       example"). However, to avoid requiring WebCrypto implementations support BER-encoding and
             //       BER-decoding, only DER encodings are produced or accepted.
-            let data = rsa_export_der(vm, key, false)?;
+            let data = rsa_export_der(key, false)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -7653,19 +7643,19 @@ impl AlgorithmMethods for RsassaPkcs1 {
             }
 
             // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
-            jwk.n = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Modulus)?);
-            jwk.e = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PublicExponent)?);
+            jwk.n = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Modulus)?);
+            jwk.e = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PublicExponent)?);
 
             // 6. If the [[type]] internal slot of key is "private":
             if key.key_type() == KeyType::Private {
                 // 1. Set the attributes named d, p, q, dp, dq, and qi of jwk according to the corresponding definitions
                 //    in JSON Web Algorithms [JWA], Section 6.3.2.
-                jwk.d = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PrivateExponent)?);
-                jwk.p = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime1)?);
-                jwk.q = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime2)?);
-                jwk.dp = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent1)?);
-                jwk.dq = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent2)?);
-                jwk.qi = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Coefficient)?);
+                jwk.d = Some(rsa_export_jwk_integer(key, RsaJwkInteger::PrivateExponent)?);
+                jwk.p = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime1)?);
+                jwk.q = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Prime2)?);
+                jwk.dp = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent1)?);
+                jwk.dq = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Exponent2)?);
+                jwk.qi = Some(rsa_export_jwk_integer(key, RsaJwkInteger::Coefficient)?);
 
                 // 2. If the underlying RSA private key represented by the [[handle]] internal slot of key is represented by more than two primes,
                 //    set the attribute named oth of jwk according to the corresponding definition in JSON Web Algorithms [JWA], Section 6.3.2.7
@@ -7999,13 +7989,9 @@ impl AlgorithmMethods for Ecdsa {
         let hash_kind =
             sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
 
-        let digest = libcrypto_rust::sha_digest(hash_kind, message.as_slice()).map(Bytes::new);
-        let Ok(digest) = digest else {
-            return cx
-                .vm()
-                .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                .map_err(Into::into);
-        };
+        let digest = libcrypto_rust::sha_digest(hash_kind, message.as_slice())
+            .map(Bytes::new)
+            .map_err(operation_error)?;
         let m = digest;
 
         // 4. Let d be the ECDSA private key associated with key.
@@ -8086,7 +8072,7 @@ impl AlgorithmMethods for Ecdsa {
     // https://w3c.github.io/webcrypto/#ecdsa-operations-verify
     fn verify(
         &self,
-        cx: &CallContext,
+        _: &CallContext,
         _: &AlgorithmParams,
         key: Ref<CryptoKey>,
         signature: &Bytes,
@@ -8108,13 +8094,9 @@ impl AlgorithmMethods for Ecdsa {
         let hash_kind =
             sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
 
-        let digest = libcrypto_rust::sha_digest(hash_kind, message.as_slice()).map(Bytes::new);
-        let Ok(digest) = digest else {
-            return cx
-                .vm()
-                .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-                .map_err(Into::into);
-        };
+        let digest = libcrypto_rust::sha_digest(hash_kind, message.as_slice())
+            .map(Bytes::new)
+            .map_err(operation_error)?;
         let m = digest;
 
         // 4. Let Q be the ECDSA public key associated with key.
@@ -9875,34 +9857,36 @@ fn parse_octet_string(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Vec<u8>> {
     copy_bytes(vm, octets)
 }
 
-fn okp_key_handle(vm: &Vm, curve: OkpCurve, is_private: bool, bytes: &[u8]) -> WebIdlResult<KeyHandle> {
-    libcrypto_rust::okp_key_from_raw(curve, is_private, bytes).map_err(|_| out_of_memory(vm))
+fn okp_key_handle(curve: OkpCurve, is_private: bool, bytes: &[u8]) -> WebIdlResult<KeyHandle> {
+    libcrypto_rust::okp_key_from_raw(curve, is_private, bytes).map_err(data_error)
 }
 
 fn okp_key(vm: &Vm, curve: OkpCurve, is_private: bool, bytes: &[u8]) -> WebIdlResult<Ref<CryptoKey>> {
-    Ok(CryptoKey::create(vm, okp_key_handle(vm, curve, is_private, bytes)?))
+    Ok(CryptoKey::create(vm, okp_key_handle(curve, is_private, bytes)?))
 }
 
-fn okp_raw_public_key(vm: &Vm, key: &CryptoKey) -> WebIdlResult<Bytes> {
+fn okp_raw_public_key(key: &CryptoKey) -> WebIdlResult<Bytes> {
     libcrypto_rust::okp_raw_public_key(key.handle())
         .map(Bytes::new)
-        .map_err(|_| out_of_memory(vm))
+        .map_err(operation_error)
 }
 
-fn okp_raw_private_key(vm: &Vm, key: &CryptoKey) -> WebIdlResult<SecretBytes> {
-    libcrypto_rust::okp_raw_private_key(key.handle()).map_err(|_| out_of_memory(vm))
+fn okp_raw_private_key(key: &CryptoKey) -> WebIdlResult<SecretBytes> {
+    libcrypto_rust::okp_raw_private_key(key.handle()).map_err(operation_error)
 }
 
-fn okp_export_der(vm: &Vm, key: &CryptoKey) -> WebIdlResult<Bytes> {
+fn okp_export_der(key: &CryptoKey) -> WebIdlResult<Bytes> {
     libcrypto_rust::okp_export_der(key.handle())
         .map(Bytes::new)
-        .map_err(|_| out_of_memory(vm))
+        .map_err(operation_error)
 }
 
-fn out_of_memory(vm: &Vm) -> Exception {
-    vm.throw_completion::<()>(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-        .expect_err("creating an out-of-memory exception throws")
-        .into()
+fn operation_error(error: CryptoError) -> Exception {
+    Exception::Dom("OperationError", Utf16String::from_utf8(error.message()))
+}
+
+fn data_error(error: CryptoError) -> Exception {
+    Exception::Dom("DataError", Utf16String::from_utf8(error.message()))
 }
 
 #[derive(Clone, Trace)]
@@ -10193,9 +10177,8 @@ impl AlgorithmMethods for Ed25519 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
 
-                let private_key = okp_key_handle(cx.vm(), OkpCurve::Ed25519, true, private_key.as_slice())?;
-                let derived_public_key =
-                    libcrypto_rust::okp_raw_public_key(&private_key).map_err(|_| out_of_memory(cx.vm()))?;
+                let private_key = okp_key_handle(OkpCurve::Ed25519, true, private_key.as_slice())?;
+                let derived_public_key = libcrypto_rust::okp_raw_public_key(&private_key).map_err(data_error)?;
                 if derived_public_key.as_slice() != public_key.as_slice() {
                     return Err(dom_error("DataError", b"Invalid key pair"));
                 }
@@ -10299,7 +10282,7 @@ impl AlgorithmMethods for Ed25519 {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
@@ -10317,7 +10300,7 @@ impl AlgorithmMethods for Ed25519 {
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
             //       * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
-            let data = okp_export_der(cx.vm(), &key)?;
+            let data = okp_export_der(&key)?;
 
             // 3. Let result be the result of DER-encoding data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -10340,7 +10323,7 @@ impl AlgorithmMethods for Ed25519 {
             //      Section 7 of [RFC8410], that represents the Ed25519 private key represented by the [[handle]]
             //      internal slot of key
 
-            let data = okp_export_der(cx.vm(), &key)?;
+            let data = okp_export_der(&key)?;
 
             // 3. Let result be the result of DER-encoding data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -10361,12 +10344,12 @@ impl AlgorithmMethods for Ed25519 {
             jwk.crv = Some(Utf16String::from_ascii(b"Ed25519"));
 
             // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(cx.vm(), &key)?.as_slice()));
+            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(&key)?.as_slice()));
 
             // 6. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(base64_url_bytes_encode(&okp_raw_private_key(cx.vm(), &key)?));
+                jwk.d = Some(base64_url_bytes_encode(&okp_raw_private_key(&key)?));
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -10397,7 +10380,7 @@ impl AlgorithmMethods for Ed25519 {
             //    slot of key.
             // 3. Let result be data.
             // 4. Return result.
-            return Ok(ExportKeyResult::Bytes(okp_raw_public_key(cx.vm(), &key)?));
+            return Ok(ExportKeyResult::Bytes(okp_raw_public_key(&key)?));
         }
 
         // 3. Otherwise:
@@ -10452,8 +10435,7 @@ impl AlgorithmMethods for Ed25519 {
 
         // 5. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
         let verified = libcrypto_rust::okp_verify(key.handle(), signature.as_slice(), message.as_slice(), &[]);
-        let verified =
-            verified.map_err(|error| Exception::Dom("OperationError", Utf16String::from_utf8(error.message())))?;
+        let verified = verified.map_err(operation_error)?;
 
         // 6. Return result.
         Ok(verified)
@@ -10765,9 +10747,8 @@ impl AlgorithmMethods for Ed448 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
 
-                let private_key = okp_key_handle(cx.vm(), OkpCurve::Ed448, true, private_key.as_slice())?;
-                let derived_public_key =
-                    libcrypto_rust::okp_raw_public_key(&private_key).map_err(|_| out_of_memory(cx.vm()))?;
+                let private_key = okp_key_handle(OkpCurve::Ed448, true, private_key.as_slice())?;
+                let derived_public_key = libcrypto_rust::okp_raw_public_key(&private_key).map_err(data_error)?;
                 if derived_public_key.as_slice() != public_key.as_slice() {
                     return Err(dom_error("DataError", b"Invalid key pair"));
                 }
@@ -10873,7 +10854,7 @@ impl AlgorithmMethods for Ed448 {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
@@ -10891,7 +10872,7 @@ impl AlgorithmMethods for Ed448 {
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
             //       * Set the algorithm object identifier to the id-Ed448 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
-            let data = okp_export_der(cx.vm(), &key)?;
+            let data = okp_export_der(&key)?;
 
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -10914,7 +10895,7 @@ impl AlgorithmMethods for Ed448 {
             //      Section 7 of [RFC8410], that represents the Ed448 private key represented by the [[handle]] internal
             //      slot of key
 
-            let data = okp_export_der(cx.vm(), &key)?;
+            let data = okp_export_der(&key)?;
 
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -10935,12 +10916,12 @@ impl AlgorithmMethods for Ed448 {
             jwk.crv = Some(Utf16String::from_ascii(b"Ed448"));
 
             // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(cx.vm(), &key)?.as_slice()));
+            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(&key)?.as_slice()));
 
             // 6. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(base64_url_bytes_encode(&okp_raw_private_key(cx.vm(), &key)?));
+                jwk.d = Some(base64_url_bytes_encode(&okp_raw_private_key(&key)?));
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -10968,7 +10949,7 @@ impl AlgorithmMethods for Ed448 {
             // 2. Let data be an octet string representing the Ed448 public key represented by the [[handle]] internal slot of key.
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             // 4. Return result.
-            return Ok(ExportKeyResult::Bytes(okp_raw_public_key(cx.vm(), &key)?));
+            return Ok(ExportKeyResult::Bytes(okp_raw_public_key(&key)?));
         }
 
         // 3. Otherwise:
@@ -11045,8 +11026,7 @@ impl AlgorithmMethods for Ed448 {
         //    the cofactorless (unbatched) equation, [S]B = R + [k]A', on the signature,
         //    with message as M and context as C, using the Ed448 public key associated with key.
         let verified = libcrypto_rust::okp_verify(key.handle(), signature.as_slice(), message.as_slice(), context);
-        let verified =
-            verified.map_err(|error| Exception::Dom("OperationError", Utf16String::from_utf8(error.message())))?;
+        let verified = verified.map_err(operation_error)?;
 
         // 7. Let result be a boolean with the value true if the signature is valid
         //    and the value false otherwise.
@@ -11451,9 +11431,8 @@ impl AlgorithmMethods for X25519 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
 
-                let private_key = okp_key_handle(cx.vm(), OkpCurve::X25519, true, private_key.as_slice())?;
-                let derived_public_key =
-                    libcrypto_rust::okp_raw_public_key(&private_key).map_err(|_| out_of_memory(cx.vm()))?;
+                let private_key = okp_key_handle(OkpCurve::X25519, true, private_key.as_slice())?;
+                let derived_public_key = libcrypto_rust::okp_raw_public_key(&private_key).map_err(data_error)?;
                 if derived_public_key.as_slice() != public_key.as_slice() {
                     return Err(dom_error("DataError", b"Invalid key pair"));
                 }
@@ -11552,7 +11531,7 @@ impl AlgorithmMethods for X25519 {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // NB: This is a parameter to the function.
         // 1. Let key be the CryptoKey to be exported.
 
@@ -11571,7 +11550,7 @@ impl AlgorithmMethods for X25519 {
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
             //       * Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
-            let data = okp_export_der(cx.vm(), &key)?;
+            let data = okp_export_der(&key)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -11593,7 +11572,7 @@ impl AlgorithmMethods for X25519 {
             //      Section 7 of [RFC8410], that represents the X25519 private key represented by the [[handle]]
             //      internal slot of key
 
-            let data = okp_export_der(cx.vm(), &key)?;
+            let data = okp_export_der(&key)?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -11610,12 +11589,12 @@ impl AlgorithmMethods for X25519 {
             jwk.crv = Some(Utf16String::from_ascii(b"X25519"));
 
             // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(cx.vm(), &key)?.as_slice()));
+            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(&key)?.as_slice()));
 
             // 5. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                let private_key = okp_raw_private_key(cx.vm(), &key)?;
+                let private_key = okp_raw_private_key(&key)?;
                 jwk.d = Some(base64_url_bytes_encode(&private_key));
             }
 
@@ -11644,7 +11623,7 @@ impl AlgorithmMethods for X25519 {
 
             // 2. Let data be a byte sequence representing the X25519 public key represented by the [[handle]] internal
             //    slot of key.
-            let public_key = okp_raw_public_key(cx.vm(), &key)?;
+            let public_key = okp_raw_public_key(&key)?;
 
             // 3. Let result be data.
             ExportKeyResult::Bytes(public_key)
@@ -11834,7 +11813,7 @@ impl AlgorithmMethods for X448 {
         clippy::field_reassign_with_default,
         reason = "the algorithm sets JWK members in separate steps"
     )]
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
@@ -11852,7 +11831,7 @@ impl AlgorithmMethods for X448 {
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
             //       * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
-            let data = okp_export_der(cx.vm(), &key)?;
+            let data = okp_export_der(&key)?;
 
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -11875,7 +11854,7 @@ impl AlgorithmMethods for X448 {
             //      Section 7 of [RFC8410], that represents the X448 private key represented by the [[handle]] internal
             //      slot of key
 
-            let data = okp_export_der(cx.vm(), &key)?;
+            let data = okp_export_der(&key)?;
 
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             return Ok(ExportKeyResult::Bytes(data));
@@ -11893,12 +11872,12 @@ impl AlgorithmMethods for X448 {
             jwk.crv = Some(Utf16String::from_ascii(b"X448"));
 
             // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(cx.vm(), &key)?.as_slice()));
+            jwk.x = Some(base64_url_bytes_encode(okp_raw_public_key(&key)?.as_slice()));
 
             // 5. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(base64_url_bytes_encode(&okp_raw_private_key(cx.vm(), &key)?));
+                jwk.d = Some(base64_url_bytes_encode(&okp_raw_private_key(&key)?));
             }
 
             // 6. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -11926,7 +11905,7 @@ impl AlgorithmMethods for X448 {
             // 2. Let data be an octet string representing the X448 public key represented by the [[handle]] internal slot of key.
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
             // 4. Return result.
-            return Ok(ExportKeyResult::Bytes(okp_raw_public_key(cx.vm(), &key)?));
+            return Ok(ExportKeyResult::Bytes(okp_raw_public_key(&key)?));
         }
 
         // 3. Otherwise:
@@ -12140,9 +12119,8 @@ impl AlgorithmMethods for X448 {
                     return Err(dom_error("DataError", b"Invalid key length"));
                 }
 
-                let private_key = okp_key_handle(cx.vm(), OkpCurve::X448, true, private_key.as_slice())?;
-                let derived_public_key =
-                    libcrypto_rust::okp_raw_public_key(&private_key).map_err(|_| out_of_memory(cx.vm()))?;
+                let private_key = okp_key_handle(OkpCurve::X448, true, private_key.as_slice())?;
+                let derived_public_key = libcrypto_rust::okp_raw_public_key(&private_key).map_err(data_error)?;
                 if derived_public_key.as_slice() != public_key.as_slice() {
                     return Err(dom_error("DataError", b"Invalid key pair"));
                 }
@@ -12276,10 +12254,10 @@ fn generate_mldsa_key_pair_from_seed(name: &Utf16String, seed: &Bytes) -> Result
     unreachable!("the name identifies an ML-DSA parameter set")
 }
 
-fn ml_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool, algorithm: KeyAlgorithm) -> WebIdlResult<Bytes> {
+fn ml_export_der(key: Ref<CryptoKey>, is_public: bool, algorithm: KeyAlgorithm) -> WebIdlResult<Bytes> {
     libcrypto_rust::ml_export_der(key.handle(), is_public, algorithm)
         .map(Bytes::new)
-        .map_err(|_| out_of_memory(vm))
+        .map_err(operation_error)
 }
 
 #[derive(Clone, Trace)]
@@ -12914,7 +12892,7 @@ impl AlgorithmMethods for MlDsa {
                 return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
             };
 
-            let data = ml_export_der(vm, key, true, algorithm_oid)?;
+            let data = ml_export_der(key, true, algorithm_oid)?;
 
             // 4. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -12969,7 +12947,7 @@ impl AlgorithmMethods for MlDsa {
                 return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
             };
 
-            let data = ml_export_der(vm, key, false, algorithm_oid)?;
+            let data = ml_export_der(key, false, algorithm_oid)?;
 
             // 4. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -12998,7 +12976,7 @@ impl AlgorithmMethods for MlDsa {
             // 2. Let data be a byte sequence containing the ξ seed variable of the key represented by the [[handle]] internal slot of key.
             // Note: The ξ value is the seed from which the key was generated or imported, as used by
             //       ML-DSA.KeyGen_internal in Section 6.1 of [FIPS-204].
-            let seed = libcrypto_rust::ml_seed_bytes(handle).map_err(|_| out_of_memory(vm))?;
+            let seed = libcrypto_rust::ml_seed_bytes(handle).map_err(operation_error)?;
             let data = Bytes::new(seed);
 
             // 3. Let result be data.
@@ -13024,7 +13002,7 @@ impl AlgorithmMethods for MlDsa {
             // 6. -> If the [[type]] internal slot of key is "private":
             //       Set the priv attribute of jwk to the base64url encoded seed represented by the [[handle]] internal slot of key.
             if key.key_type() == KeyType::Private {
-                let seed = libcrypto_rust::ml_seed_bytes(handle).map_err(|_| out_of_memory(vm))?;
+                let seed = libcrypto_rust::ml_seed_bytes(handle).map_err(operation_error)?;
                 jwk.r#priv = Some(base64_url_bytes_encode(&seed));
             }
 
@@ -13471,9 +13449,7 @@ impl AlgorithmMethods for MlKem {
     }
 
     // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-export-key
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
-        let vm = cx.vm();
-
+    fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be
@@ -13512,7 +13488,7 @@ impl AlgorithmMethods for MlKem {
                 return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
             };
 
-            let data = ml_export_der(vm, key, true, algorithm_oid)?;
+            let data = ml_export_der(key, true, algorithm_oid)?;
 
             // 4. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -13567,7 +13543,7 @@ impl AlgorithmMethods for MlKem {
                 return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
             };
 
-            let data = ml_export_der(vm, key, false, algorithm_oid)?;
+            let data = ml_export_der(key, false, algorithm_oid)?;
 
             // 4. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
@@ -13596,7 +13572,7 @@ impl AlgorithmMethods for MlKem {
             //    key represented by the [[handle]] internal slot of key.
             // Note: The d and z values are the seed from which the key was generated or imported, as used by
             //       ML-KEM.KeyGen_internal in Section 6.1 of [FIPS-203].
-            let seed = libcrypto_rust::ml_seed_bytes(handle).map_err(|_| out_of_memory(vm))?;
+            let seed = libcrypto_rust::ml_seed_bytes(handle).map_err(operation_error)?;
             let data = Bytes::new(seed);
 
             // 3. Let result be data.
