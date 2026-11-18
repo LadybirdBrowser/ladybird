@@ -55,14 +55,20 @@ JS::ThrowCompletionOr<bool> ordinary_define_own_property_and_preserve_wrapper_if
     return result;
 }
 
+void preserve_identity_of_platform_object(JS::HostObject& wrapper)
+{
+    if (!wrapper_realm(wrapper).host_defined())
+        return;
+    if (auto* wrappable = wrappable_of(wrapper))
+        preserve_wrapper(*wrappable, wrapper);
+}
+
 static JS::ThrowCompletionOr<bool> ordinary_set_prototype_of_and_preserve_wrapper_if_needed(JS::HostObject& wrapper, JS::Object* prototype)
 {
     auto* old_prototype = wrapper.shape().prototype();
     auto result = TRY(wrapper.ordinary_set_prototype_of(prototype));
-    if (result && old_prototype != wrapper.shape().prototype() && wrapper_realm(wrapper).host_defined()) {
-        if (auto* wrappable = wrappable_of(wrapper))
-            preserve_wrapper(*wrappable, wrapper);
-    }
+    if (result && old_prototype != wrapper.shape().prototype())
+        preserve_identity_of_platform_object(wrapper);
     return result;
 }
 
@@ -70,10 +76,8 @@ static JS::ThrowCompletionOr<bool> ordinary_prevent_extensions_and_preserve_wrap
 {
     auto was_extensible = wrapper.extensible();
     auto result = TRY(wrapper.ordinary_prevent_extensions());
-    if (result && was_extensible && !wrapper.extensible() && wrapper_realm(wrapper).host_defined()) {
-        if (auto* wrappable = wrappable_of(wrapper))
-            preserve_wrapper(*wrappable, wrapper);
-    }
+    if (result && was_extensible && !wrapper.extensible())
+        preserve_identity_of_platform_object(wrapper);
     return result;
 }
 
@@ -375,6 +379,11 @@ struct PlatformObjectTraits {
         return ordinary_define_own_property_and_preserve_wrapper_if_needed(wrapper, property_name, property_descriptor, precomputed_get_own_property);
     }
 
+    static void preserve_identity(JS::HostObject& wrapper)
+    {
+        preserve_identity_of_platform_object(wrapper);
+    }
+
     static void finalize(JS::HostObject& wrapper)
     {
         finalize_platform_object(wrapper);
@@ -397,6 +406,11 @@ struct GlobalPlatformObjectTraits {
     static JS::ThrowCompletionOr<bool> define_own_property(JS::HostObject& wrapper, JS::PropertyKey const& property_name, JS::PropertyDescriptor& property_descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
     {
         return ordinary_define_own_property_and_preserve_wrapper_if_needed(wrapper, property_name, property_descriptor, precomputed_get_own_property);
+    }
+
+    static void preserve_identity(JS::HostObject& wrapper)
+    {
+        preserve_identity_of_platform_object(wrapper);
     }
 
     static void finalize(JS::HostObject& wrapper)
@@ -603,6 +617,11 @@ struct LegacyPlatformObjectTraits {
             || !legacy_info->has_legacy_override_built_ins_interface_extended_attribute)
             return true;
         return is<DOM::Document>(wrappable_of(wrapper)) && host_defined_wrapper_world(wrapper_realm(wrapper)).is_main_world();
+    }
+
+    static void preserve_identity(JS::HostObject& wrapper)
+    {
+        preserve_identity_of_platform_object(wrapper);
     }
 
     static void finalize(JS::HostObject& wrapper)

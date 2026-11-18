@@ -3,7 +3,7 @@
 <body></body>
 <script>
     // Regression test: a live HTMLFormControlsCollection captures its form in the filter, so the form implementation
-    // must stay alive while the collection is reachable. The JS wrapper for the form may be collected separately.
+    // must stay alive while the collection is reachable, and so must its wrapper, which a WeakRef holds.
     // Previously the form was garbage-collected out from under the live collection, leaving a dangling pointer in the
     // filter (a use-after-free). See issue #9948.
     asyncTest(done => {
@@ -16,12 +16,12 @@
         form.remove();
         form = null;
 
-        setTimeout(() => {
-            internals.gc();
+        setTimeout(async () => {
+            await internals.gcAsync();
             // Churn the heap to dislodge any stale references, then collect again.
             for (let i = 0; i < 10000; ++i)
                 document.body.appendChild(document.createElement("div"));
-            internals.gc();
+            await internals.gcAsync();
 
             println(`form wrapper alive while collection is held: ${weakForm.deref() !== undefined}`);
             println(`collection.length: ${collection.length}`);
