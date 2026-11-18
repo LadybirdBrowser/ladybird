@@ -1,0 +1,8 @@
+In Ladybird, getStartPositionOfChar() returns the current text position
+that a character was placed at, and getEndPositionOfChar() returns that
+position moved along by the character’s advance. Blink answers both from
+SvgTextQuery, WebKit from SVGTextQuery, and Gecko from SVGTextFrame::
+GetStartPositionOfChar() and GetEndPositionOfChar(). In Chrome
+157.0.8103.79, Firefox 151.0, and WebKit 26.5, the y of a start position
+is the y the text was positioned at, whatever its dominant-baseline is:
+The shift the baseline gives the glyph is no part of it.
