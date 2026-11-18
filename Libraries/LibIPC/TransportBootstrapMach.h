@@ -9,6 +9,7 @@
 #include <AK/HashMap.h>
 #include <AK/Platform.h>
 #include <AK/StringView.h>
+#include <AK/Time.h>
 #include <AK/Variant.h>
 
 #if !defined(AK_OS_MACH)
@@ -28,7 +29,7 @@ struct TransportBootstrapMachPorts {
 };
 
 ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_mach_server(StringView server_name);
-ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_server_port(Core::MachPort const& server_port);
+ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_server_port(Core::MachPort const& server_port, AK::Duration reply_timeout = AK::Duration::from_seconds(5));
 
 class TransportBootstrapMachServer {
     AK_MAKE_NONCOPYABLE(TransportBootstrapMachServer);
