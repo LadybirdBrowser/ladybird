@@ -68,8 +68,6 @@
 
 namespace Ladybird {
 
-static constexpr auto AUDIO_STATE_BUTTON_POSITION = QTabBar::LeftSide;
-static constexpr auto TAB_CLOSE_BUTTON_POSITION = QTabBar::RightSide;
 static constexpr int LADYBIRD_MENU_WIDTH = 280;
 static constexpr int WINDOW_RESIZE_BORDER_WIDTH = 6;
 static constexpr int WINDOW_RESIZE_CORNER_WIDTH = WINDOW_RESIZE_BORDER_WIDTH * 2;
@@ -1250,8 +1248,8 @@ void BrowserWindow::discard_tab(Tab& tab)
     // NB: The tab bar only hides a tab button that another takes the place of, and the old one refers to the old tab.
     uninitialize_tab(&tab);
     auto* tab_bar = m_tabs_container->tab_bar();
-    if (auto* close_button = tab_bar->tabButton(index, TAB_CLOSE_BUTTON_POSITION)) {
-        tab_bar->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, nullptr);
+    if (auto* close_button = tab_bar->tab_close_button(index)) {
+        tab_bar->set_tab_close_button(index, nullptr);
         close_button->deleteLater();
     }
 
@@ -1425,7 +1423,7 @@ void BrowserWindow::initialize_tab_buttons(Tab* tab)
     m_tabs_container->set_tab_icon(index, tab->tab_icon());
 
     // A pinned tab has no close button.
-    m_tabs_container->tab_bar()->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, tab->is_pinned() ? nullptr : create_tab_close_button(*tab));
+    m_tabs_container->tab_bar()->set_tab_close_button(index, tab->is_pinned() ? nullptr : create_tab_close_button(*tab));
     m_tabs_container->update_tab_button_visibility();
     update_tab_audio_button(*tab);
 }
@@ -1437,12 +1435,12 @@ void BrowserWindow::update_tab_close_button(Tab& tab)
         return;
 
     auto* tab_bar = m_tabs_container->tab_bar();
-    auto* close_button = tab_bar->tabButton(index, TAB_CLOSE_BUTTON_POSITION);
+    auto* close_button = tab_bar->tab_close_button(index);
     if (tab.is_pinned() && close_button) {
-        tab_bar->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, nullptr);
+        tab_bar->set_tab_close_button(index, nullptr);
         close_button->deleteLater();
     } else if (!tab.is_pinned() && !close_button) {
-        tab_bar->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, create_tab_close_button(tab));
+        tab_bar->set_tab_close_button(index, create_tab_close_button(tab));
     }
     m_tabs_container->update_tab_button_visibility();
 }
@@ -1450,15 +1448,11 @@ void BrowserWindow::update_tab_close_button(Tab& tab)
 void BrowserWindow::update_tab_button_icons()
 {
     for (int index = 0; index < m_tabs_container->count(); ++index) {
-        if (auto* button = m_tabs_container->tab_bar()->tabButton(index, TAB_CLOSE_BUTTON_POSITION)) {
-            if (auto* tab_bar_button = qobject_cast<TabBarButton*>(button))
-                tab_bar_button->setIcon(create_chrome_icon(ChromeIcon::TabClose, Theme::chrome_palette(*this)));
-        }
+        if (auto* button = m_tabs_container->tab_bar()->tab_close_button(index))
+            button->setIcon(create_chrome_icon(ChromeIcon::TabClose, Theme::chrome_palette(*this)));
 
-        if (auto* button = m_tabs_container->tab_bar()->tabButton(index, AUDIO_STATE_BUTTON_POSITION)) {
-            if (auto* tab_bar_button = qobject_cast<TabBarButton*>(button))
-                tab_bar_button->setIcon(icon_for_page_mute_state(*m_tabs_container->tab(index)));
-        }
+        if (auto* button = m_tabs_container->tab_bar()->tab_audio_button(index))
+            button->setIcon(icon_for_page_mute_state(*m_tabs_container->tab(index)));
     }
 }
 
@@ -1611,24 +1605,24 @@ void BrowserWindow::update_tab_audio_button(Tab& tab)
     auto* tab_bar = m_tabs_container->tab_bar();
     auto shows_playing_audio = tab.is_loaded() && tab.view().tab_indicator_visible(WebView::TabIndicator::PlayingAudio);
 
+    auto* button = tab_bar->tab_audio_button(index);
     if (!tab.is_loaded() || (!shows_playing_audio && tab.view().page_mute_state() == Web::HTML::MuteState::Unmuted)) {
         // The tab bar only hides the button it lets go of.
-        if (auto* button = tab_bar->tabButton(index, AUDIO_STATE_BUTTON_POSITION)) {
+        if (button) {
             button->deleteLater();
-            tab_bar->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, nullptr);
+            tab_bar->set_tab_audio_button(index, nullptr);
             m_tabs_container->update_tab_button_visibility();
         }
         return;
     }
 
-    auto* button = qobject_cast<TabBarButton*>(tab_bar->tabButton(index, AUDIO_STATE_BUTTON_POSITION));
     if (!button) {
         button = new TabBarButton(icon_for_page_mute_state(tab), TabBarButton::Role::Audio);
         button->setObjectName("LadybirdAudioState");
         connect(button, &QPushButton::clicked, this, [&tab]() {
             tab.view().toggle_page_mute_state();
         });
-        tab_bar->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, button);
+        tab_bar->set_tab_audio_button(index, button);
         m_tabs_container->update_tab_button_visibility();
     }
     button->setIcon(icon_for_page_mute_state(tab));
