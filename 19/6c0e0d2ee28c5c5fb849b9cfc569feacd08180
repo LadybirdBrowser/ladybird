@@ -1,0 +1,16 @@
+Ladybird now treats a moveBefore() out of or into a media element as a
+removal or an insertion there. Blink does the same: Its state-preserving
+move still runs HTMLSourceElement::RemovedFrom() and InsertedInto(),
+which call HTMLMediaElement::SourceWasRemoved() and SourceWasAdded().
+So does Gecko: Its nsINode::MoveBefore() calls RemoveChildNode() and
+InsertChildBefore() with notifications, which reach the media element’s
+ContentWillBeRemoved() and its source handling.
+
+Run in Chrome 157.0.8103.79 and Firefox 151.0, the new test loads the
+source in both of its cases, as Ladybird now does too. WebKit 26.5 has
+no moveBefore(), so it can’t run the test.
+
+Moving a source into a video that has no src, and hasn’t started
+resource selection, now starts it in Ladybird, as the spec’s source
+moving steps ask. Run in Chrome 157.0.8103.79 and Firefox 151.0, both
+load the source; WebKit 26.5 has no moveBefore().
