@@ -1,0 +1,27 @@
+When the page has no handler for an action, Ladybird applies it
+to the active document’s controlled media, and never rewinds on
+stop. Chromium does the same for play, pause, and seeking, in
+MediaSessionImpl::Resume(), Suspend(), and Seek(), and so does Gecko,
+in ContentPlaybackController. Ladybird’s stop pauses and then ends
+the session, as Chromium’s MediaSessionImpl::Stop() does, and as Gecko
+does by unregistering the stopped media (ContentMediaController::
+PauseOrStopMedia()); WebKit only pauses. WebKit sends the
+command to its selected media element, in HTMLMediaElement::
+didReceiveRemoteControlCommand().
+
+Ladybird’s default play resumes only the media its default pause paused,
+like Gecko’s ContentMediaController. Without an offset in the action,
+Ladybird seeks by 15 seconds, WebKit’s default interval for relative
+skips (RemoteCommandListenerCocoa); Chromium and Gecko apply only the
+interval the command carries.
+
+Ladybird grants user activation before it runs the page’s handler,
+or the default. Blink grants it for every action but pause and
+stop (MediaSession::DidReceiveAction()), and WebKit runs both
+with a user-gesture indicator, while Gecko’s MediaSession::
+DispatchNotifyHandler() grants none.
+
+These comparisons come from reading each engine’s source, at Chromium
+8658d682eac5, WebKit 047a16c96ccd, and Gecko 06fa2674be3d: What an
+engine hands the OS media controls isn’t observable from page script, so
+it couldn’t be compared by running them.
