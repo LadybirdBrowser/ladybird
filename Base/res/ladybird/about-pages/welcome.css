@@ -54,6 +54,10 @@ h2 {
     font-size: 12px;
 }
 
+.description {
+    margin-top: 2px;
+}
+
 fieldset {
     display: flex;
     flex-direction: column;

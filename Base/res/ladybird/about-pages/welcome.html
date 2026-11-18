@@ -46,8 +46,10 @@ SPDX-License-Identifier: BSD-2-Clause
                     ></div>
                     <div id="search-suggestions" class="switch-card hidden">
                         <div>
-                            <span id="search-suggestions-title">Show search suggestions</span>
-                            <p id="search-suggestions-description" class="muted small"></p>
+                            <label for="search-suggestions-enabled">
+                                <span id="search-suggestions-title">Show search suggestions</span>
+                                <p id="search-suggestions-description" class="muted small description"></p>
+                            </label>
                         </div>
                         <input
                             id="search-suggestions-enabled"
@@ -127,12 +129,12 @@ SPDX-License-Identifier: BSD-2-Clause
                 <section class="switch-list">
                     <div class="switch-row">
                         <div>
-                            <h2 id="ad-blocking-title">
-                                <label for="enable-content-blocking">Block ads, trackers and more</label>
-                            </h2>
-                            <p class="muted small">
-                                Pages load faster. If a site breaks, turn it off for that site from the address bar.
-                            </p>
+                            <label for="enable-content-blocking">
+                                <h2 id="ad-blocking-title">Block ads, trackers and more</h2>
+                                <p class="muted small description">
+                                    Pages load faster. If a site breaks, turn it off for that site from the address bar.
+                                </p>
+                            </label>
                         </div>
                         <input
                             id="enable-content-blocking"
@@ -143,10 +145,12 @@ SPDX-License-Identifier: BSD-2-Clause
                     </div>
                     <div class="switch-row">
                         <div>
-                            <h2 id="update-checks-title">
-                                <label for="enable-update-checks">Check for updates</label>
-                            </h2>
-                            <p class="muted small">Ladybird tells you when a newer version is available.</p>
+                            <label for="enable-update-checks">
+                                <h2 id="update-checks-title">Check for updates</h2>
+                                <p class="muted small description">
+                                    Ladybird tells you when a newer version is available.
+                                </p>
+                            </label>
                         </div>
                         <input id="enable-update-checks" type="checkbox" switch aria-labelledby="update-checks-title" />
                     </div>
