@@ -216,7 +216,7 @@ void RequestServerSiteBindings::send(Site const& site) const
     if (!instance)
         return;
 
-    (void)instance->control_client().send_sync_but_allow_failure<Messages::RequestServerControl::BindClientToSite>(*client_id, site.top_level_site, site.frame_site);
+    (void)send_sync_to_helper<Messages::RequestServerControl::BindClientToSite>(instance->control_client(), *client_id, site.top_level_site, site.frame_site);
 }
 
 }
