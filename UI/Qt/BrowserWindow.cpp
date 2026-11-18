@@ -1245,14 +1245,7 @@ void BrowserWindow::discard_tab(Tab& tab)
             other_tab->did_replace_tab(tab, *discarded_tab);
     }
 
-    // NB: The tab bar only hides a tab button that another takes the place of, and the old one refers to the old tab.
     uninitialize_tab(&tab);
-    auto* tab_bar = m_tabs_container->tab_bar();
-    if (auto* close_button = tab_bar->tab_close_button(index)) {
-        tab_bar->set_tab_close_button(index, nullptr);
-        close_button->deleteLater();
-    }
-
     m_tabs_container->replace_tab(index, discarded_tab);
     initialize_tab(discarded_tab);
     tab_title_changed(index, discarded_tab->title());
@@ -1434,14 +1427,7 @@ void BrowserWindow::update_tab_close_button(Tab& tab)
     if (index < 0)
         return;
 
-    auto* tab_bar = m_tabs_container->tab_bar();
-    auto* close_button = tab_bar->tab_close_button(index);
-    if (tab.is_pinned() && close_button) {
-        tab_bar->set_tab_close_button(index, nullptr);
-        close_button->deleteLater();
-    } else if (!tab.is_pinned() && !close_button) {
-        tab_bar->set_tab_close_button(index, create_tab_close_button(tab));
-    }
+    m_tabs_container->tab_bar()->set_tab_close_button(index, tab.is_pinned() ? nullptr : create_tab_close_button(tab));
     m_tabs_container->update_tab_button_visibility();
 }
 
@@ -1607,9 +1593,7 @@ void BrowserWindow::update_tab_audio_button(Tab& tab)
 
     auto* button = tab_bar->tab_audio_button(index);
     if (!tab.is_loaded() || (!shows_playing_audio && tab.view().page_mute_state() == Web::HTML::MuteState::Unmuted)) {
-        // The tab bar only hides the button it lets go of.
         if (button) {
-            button->deleteLater();
             tab_bar->set_tab_audio_button(index, nullptr);
             m_tabs_container->update_tab_button_visibility();
         }

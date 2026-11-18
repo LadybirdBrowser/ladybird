@@ -230,6 +230,11 @@ private:
     void set_hovered_tab_index(int);
     qreal loading_ring_opacity(int index) const;
     void ensure_tab_visible(int index);
+    struct TabButtons {
+        TabBarButton* close { nullptr };
+        TabBarButton* audio { nullptr };
+    };
+    void set_tab_button(int index, TabBarButton* TabButtons::*, TabBarButton*);
     void update_tab_button_geometry();
     TabMicrophoneIndicator* microphone_indicator(int index) const;
     int horizontal_tab_min_width(int index) const;
@@ -282,8 +287,6 @@ private:
     int m_settled_tab_count { 0 };
 
     QVariantAnimation* m_loading_ring_animation { nullptr };
-    // NB: QTabBar has room for only two widgets on each tab, the speaker and the close button, so the tab bar keeps the
-    //     microphone indicators itself.
     HashMap<Tab const*, TabMicrophoneIndicator*> m_microphone_indicators;
     QIcon m_fallback_tab_icon;
     QHash<QString, QStaticText> m_tab_title_texts;
