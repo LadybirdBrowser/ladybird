@@ -1,0 +1,14 @@
+When a source’s error listener sets the media element’s src, Ladybird
+now abandons the old selection, and loads only that src. Run on the new
+test, Chrome 157.0.8103.79 and Firefox 151.0 both do the same.
+
+When the listener instead adopts the element into a document that isn’t
+fully active, Ladybird now waits until the element is back in a fully
+active document, then goes on to the next source, which loads. Both
+engines load that source once the element is back, too. Firefox goes on
+asynchronously: If the element comes back from the next task, it does
+just what Ladybird does, but after 100ms, it has already fired error at
+the next source in the inactive document, and loads it again once the
+element is back. Chrome fires that error too, but then loads the source,
+since its HTMLMediaElement::AttachToNewFrame() restarts the load on
+every adoption into another document.
