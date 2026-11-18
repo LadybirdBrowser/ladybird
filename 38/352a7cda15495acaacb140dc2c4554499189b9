@@ -1,0 +1,18 @@
+Ladybird ends the automatic height of a block formatting context root at
+the bottom margin edge of its last in-flow child, with the margins that
+collapse there, and then extends it to the floats inside it. CSS 2 names
+the “bottommost” child there instead, and a search of the csswg-drafts
+issues turned up none about that wording.
+
+Blink’s BlockLayoutAlgorithm::FinishLayout() starts from the block
+offset after the last in-flow child, adds the sum of the end margin
+strut for a new formatting context, and extends the size to what
+ExclusionSpace::ClearanceOffsetIncludingInitialLetter() answers.
+WebKit’s RenderBlockFlow::layoutBlockChild() sets the logical height
+of the block past each child in turn, so it ends up past the last
+one. Gecko’s nsBlockFrame::ComputeFinalSize() takes mBCoord, the block
+coordinate that the reflow state reached, plus the margin that isn’t
+carried out of the block.
+
+In Chrome 157.0.8103.79, Firefox 151.0 and WebKit 26.5, the test’s
+27 cases come out the same.
