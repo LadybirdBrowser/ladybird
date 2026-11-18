@@ -320,6 +320,30 @@ static sk_sp<SkColorSpace> with_standard_dynamic_range_white_of_perceptual_quant
     return SkColorSpace::MakeRGB(transfer_function, to_xyz_d50);
 }
 
+static skhdr::Metadata high_dynamic_range_metadata_of(Media::ColorMetadata const& color_metadata)
+{
+    auto metadata = skhdr::Metadata::MakeEmpty();
+    if (auto const& volume = color_metadata.mastering_display_color_volume; volume.has_value()) {
+        metadata.setMasteringDisplayColorVolume({
+            .fDisplayPrimaries = {
+                volume->red.x,
+                volume->red.y,
+                volume->green.x,
+                volume->green.y,
+                volume->blue.x,
+                volume->blue.y,
+                volume->white_point.x,
+                volume->white_point.y,
+            },
+            .fMaximumDisplayMasteringLuminance = volume->maximum_luminance,
+            .fMinimumDisplayMasteringLuminance = volume->minimum_luminance,
+        });
+    }
+    if (auto const& information = color_metadata.content_light_level_information; information.has_value() && information->maximum_content_light_level != 0)
+        metadata.setContentLightLevelInformation(skhdr::ContentLightLevelInformation::MakeUint16(information->maximum_content_light_level, information->maximum_frame_average_light_level));
+    return metadata;
+}
+
 // reinterpretColorSpace() copies the pixels of an image in memory, so such an image is given its new colour space by
 // wrapping the same pixels instead. The pixel data holds a reference to the image, so the pixels stay alive and
 // unchanged for as long as the new image uses them.
@@ -337,7 +361,7 @@ static sk_sp<SkImage> reinterpreted_in_color_space(sk_sp<SkImage> image, sk_sp<S
 
 // A PQ or HLG frame holds light up to many times as bright as SDR white, which an SDR surface would clip. Such a frame
 // is drawn once through a tone map into an sRGB image instead, on the GPU when there is a context for it.
-static sk_sp<SkImage> tone_mapped_into_standard_dynamic_range(sk_sp<SkImage> image, GrDirectContext* gr_context)
+static sk_sp<SkImage> tone_mapped_into_standard_dynamic_range(Media::ColorMetadata const& color_metadata, sk_sp<SkImage> image, GrDirectContext* gr_context)
 {
     auto output_color_space = SkColorSpace::MakeSRGB();
     // Only the tone map sees the image with SDR white moved, so a frame that cannot be tone mapped keeps its own tag.
@@ -353,7 +377,7 @@ static sk_sp<SkImage> tone_mapped_into_standard_dynamic_range(sk_sp<SkImage> ima
 
     // The headroom is in stops above SDR white.
     static constexpr float standard_dynamic_range_headroom = 0;
-    auto tone_map = skhdr::Metadata::MakeEmpty().makeToneMapColorFilter(standard_dynamic_range_headroom, image_to_tone_map->colorSpace());
+    auto tone_map = high_dynamic_range_metadata_of(color_metadata).makeToneMapColorFilter(standard_dynamic_range_headroom, image_to_tone_map->colorSpace());
     if (!tone_map)
         return image;
     auto image_info = SkImageInfo::Make(image->width(), image->height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, output_color_space);
@@ -371,7 +395,7 @@ static sk_sp<SkImage> in_standard_dynamic_range(Media::VideoFrame const& frame, 
 {
     if (!image || !frame_holds_high_dynamic_range(frame))
         return image;
-    return tone_mapped_into_standard_dynamic_range(move(image), gr_context);
+    return tone_mapped_into_standard_dynamic_range(frame.color_metadata(), move(image), gr_context);
 }
 
 static Gfx::ColorSpace color_space_of(Media::VideoFrame const& frame)
@@ -468,7 +492,7 @@ ErrorOr<BitmapInColorSpace> bitmap_from_video_frame(Media::VideoFrame const& fra
     if (!frame_holds_high_dynamic_range(frame))
         return BitmapInColorSpace { move(bitmap), color_space_of(frame) };
 
-    auto image = tone_mapped_into_standard_dynamic_range(Gfx::sk_image_adopting_bitmap(bitmap, color_space_of(frame)), nullptr);
+    auto image = tone_mapped_into_standard_dynamic_range(frame.color_metadata(), Gfx::sk_image_adopting_bitmap(bitmap, color_space_of(frame)), nullptr);
     auto tone_mapped_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, bitmap->size()));
     auto surface = Gfx::PaintingSurface::wrap_bitmap(*tone_mapped_bitmap);
     SkPaint paint;
