@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The first source has no src, and its error listener sets src on the video. That load replaces the selection
+    // among the source elements, so the next source is never tried.
+    asyncTest(done => {
+        const video = document.createElement("video");
+        const first = document.createElement("source");
+        const next = document.createElement("source");
+        next.src = "../../../Assets/solid-blue-160x120.webm";
+        video.append(first, next);
+        first.addEventListener("error", () => {
+            video.src = "../../../Assets/h264-reordered-frames.mp4";
+        });
+        const loaded = [];
+        video.addEventListener("loadedmetadata", () => {
+            loaded.push(video.currentSrc.split("/").pop());
+            setTimeout(() => {
+                println(`loaded metadata: ${loaded.join(", ")}`);
+                done();
+            }, 500);
+        });
+        document.body.appendChild(video);
+    });
+</script>

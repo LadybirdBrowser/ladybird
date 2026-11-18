@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The first source has no src, and its error listener adopts the video into a document that isn't fully active.
+    // The selection waits there, and once the video is adopted back, it goes on to the next source, which loads. The
+    // next source's URL is absolute, since one relative to the other document's about:blank URL would fail to parse.
+    async function run(label, delay) {
+        const inactive = document.implementation.createHTMLDocument();
+        const video = document.createElement("video");
+        const first = document.createElement("source");
+        const next = document.createElement("source");
+        next.src = new URL("../../../Assets/h264-reordered-frames.mp4", location.href).href;
+        video.append(first, next);
+        const firstFailed = new Promise(resolve => first.addEventListener("error", () => {
+            inactive.body.appendChild(video);
+            resolve();
+        }, { once: true }));
+        next.addEventListener("error", () => println(`${label}: error at the next source`));
+        document.body.appendChild(video);
+        await firstFailed;
+
+        // The task that fired the error goes on once the listener returns, so adopt the video back from a later task.
+        await new Promise(resolve => setTimeout(resolve, delay));
+        const loaded = new Promise(resolve => video.addEventListener("loadedmetadata", resolve));
+        document.body.appendChild(video);
+        await loaded;
+        println(`${label}: loaded metadata: ${video.currentSrc.split("/").pop()}`);
+        video.remove();
+    }
+
+    asyncTest(async done => {
+        await run("adopted back from the next task", 0);
+        await run("adopted back after 100ms", 100);
+        done();
+    });
+</script>
