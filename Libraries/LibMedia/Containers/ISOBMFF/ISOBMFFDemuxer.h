@@ -51,7 +51,7 @@ private:
         NonnullRefPtr<MediaStreamCursor> cursor;
         SampleIterator iterator;
         Optional<Sample> pending_sample;
-        Optional<AK::Duration> last_timestamp;
+        Optional<AK::Duration> last_keyframe_decode_timestamp;
         Optional<u32> description_index;
     };
     struct Durations : public AtomicRefCounted<Durations> {
