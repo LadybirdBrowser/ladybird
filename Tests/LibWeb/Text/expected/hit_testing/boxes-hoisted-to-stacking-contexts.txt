@@ -1,0 +1,12 @@
+a box its stacking context contains: inside [inside contains-its-box body html]
+beside that stacking context: body [body html]
+a fixed box outside its stacking context: fixed-outside [fixed-outside body html]
+an absolutely positioned box outside a context that is not its containing block: absolute-outside [absolute-outside body html]
+a fixed box outside the two contexts around it: nested-fixed-outside [nested-fixed-outside body html]
+a fixed box outside a context with many positioned boxes: crowded-fixed-outside [crowded-fixed-outside body html]
+a painted child of a box with many: row-20 [row-20 many body html]
+an unpainted child of a box with many: row-21 [row-21 many body html]
+the float among many children is 30 by 30
+a float among many children: float [float row-42 many body html]
+beside the float, on a child it overlaps: row-42 [row-42 many body html]
+beside a box with many children: body [body html]

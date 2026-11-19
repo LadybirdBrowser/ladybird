@@ -56,9 +56,7 @@ impl PaintScope {
 
     /// Whether every box the scope paints has the owner on its containing block chain, so that what the owner
     /// gathers along that chain covers the whole scope. A walk below the owner only meets boxes laid out against it
-    /// when the owner forms the containing block of its children: an inline box or a table row does not. A stacking
-    /// context also paints the positioned descendants hoisted to it, and those are laid out against it only when
-    /// it establishes both positioning containing blocks.
+    /// when the owner forms the containing block of its children: an inline box or a table row does not.
     pub(crate) fn paints_only_what_its_owner_contains(self, arena: &impl PaintRead) -> bool {
         let Some(row) = arena.node(self.owner) else {
             return false;
@@ -71,8 +69,60 @@ impl PaintScope {
         }
         self.kind != PaintScopeKind::PaintedAsStackingContext
             || !arena.paintable_data(self.owner).establishes_stacking_context
+            || self.owner_contains_the_boxes_hoisted_to_its_stacking_context(arena)
+    }
+
+    /// A stacking context also paints the positioned descendants hoisted to it, and those are laid out against its
+    /// owner when each of the few it has is, or when the owner establishes both positioning containing blocks.
+    pub(crate) fn owner_contains_the_boxes_hoisted_to_its_stacking_context(self, arena: &impl PaintRead) -> bool {
+        contains_the_few_boxes_hoisted_to_its_stacking_context(arena, self.owner)
             || style_queries::establishes_positioning_containing_blocks(arena, self.owner) == (true, true)
     }
+}
+
+fn contains_the_few_boxes_hoisted_to_its_stacking_context(arena: &impl PaintRead, owner: NodeSlotId) -> bool {
+    const MOST_HOISTED_BOXES_WALKED: usize = 8;
+    let mut contexts_to_walk = SmallVec::<[NodeSlotId; MOST_HOISTED_BOXES_WALKED]>::new();
+    contexts_to_walk.push(owner);
+    let mut hoisted_boxes_walked = 0;
+    while let Some(context) = contexts_to_walk.pop() {
+        let Some(entries) = arena.stacking_context_entries(context) else {
+            continue;
+        };
+        let hoisted_boxes = entries
+            .child_contexts_with_nonzero_z_index
+            .iter()
+            .map(|entry| entry.slot)
+            .chain(entries.stack_level_zero_boxes.iter().copied());
+        for hoisted in hoisted_boxes {
+            hoisted_boxes_walked += 1;
+            if hoisted_boxes_walked > MOST_HOISTED_BOXES_WALKED
+                || !arena.paintable_row_is_populated(hoisted)
+                || !is_on_containing_block_chain_near(arena, owner, hoisted)
+            {
+                return false;
+            }
+            if arena.paintable_data(hoisted).establishes_stacking_context {
+                contexts_to_walk.push(hoisted);
+            }
+        }
+    }
+    true
+}
+
+fn is_on_containing_block_chain_near(arena: &impl PaintRead, ancestor: NodeSlotId, descendant: NodeSlotId) -> bool {
+    const LONGEST_CHAIN_WALKED: usize = 8;
+    let mut containing_block = arena.paintable_data(descendant).containing_block;
+    for _ in 0..LONGEST_CHAIN_WALKED {
+        if containing_block == ancestor {
+            return true;
+        }
+        if containing_block.is_invalid() || !arena.paintable_row_is_populated(containing_block) {
+            return false;
+        }
+        containing_block = arena.paintable_data(containing_block).containing_block;
+    }
+    false
 }
 
 /// A producer of the scope's owner in paint order. A box phase is up to three producers of the
