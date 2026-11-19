@@ -93,7 +93,11 @@ widows: 2
 word-break: normal
 word-spacing: 0px
 writing-mode: horizontal-tb
+-webkit-box-align: stretch
+-webkit-box-flex: 0
+-webkit-box-ordinal-group: 1
 -webkit-box-orient: horizontal
+-webkit-box-pack: start
 align-content: normal
 align-items: normal
 align-self: auto

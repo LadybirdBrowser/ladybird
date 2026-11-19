@@ -105,13 +105,35 @@
     "legacy-alias-for": "border-top-right-radius"
   },
   "-webkit-box-align": {
-    "legacy-alias-for": "align-items"
+    "style-group": "AlignmentValues",
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "stretch",
+    "requires-computation": "never",
+    "valid-types": [
+      "webkit-box-align"
+    ]
   },
   "-webkit-box-flex": {
-    "legacy-alias-for": "flex-grow"
+    "style-group": "AlignmentValues",
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "number [-∞,∞]"
+    ]
   },
   "-webkit-box-ordinal-group": {
-    "legacy-alias-for": "order"
+    "style-group": "AlignmentValues",
+    "affects-stacking-context": true,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "1",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "integer [1,∞]"
+    ]
   },
   "-webkit-box-orient": {
     "style-group": "AlignmentValues",
@@ -125,7 +147,14 @@
     ]
   },
   "-webkit-box-pack": {
-    "legacy-alias-for": "justify-content"
+    "style-group": "AlignmentValues",
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "start",
+    "requires-computation": "never",
+    "valid-types": [
+      "webkit-box-pack"
+    ]
   },
   "-webkit-box-shadow": {
     "legacy-alias-for": "box-shadow"

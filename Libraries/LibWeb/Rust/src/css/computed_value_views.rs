@@ -672,11 +672,15 @@ scalar_accessors! {
     }
     alignment: {
         webkit_box_orient: u8 => webkit_box_orient,
+        webkit_box_align: u8 => webkit_box_align,
+        webkit_box_pack: u8 => webkit_box_pack,
         flex_direction: u8 => flex_direction,
         flex_wrap: u8 => flex_wrap,
         flex_grow: f64 => flex_grow,
         flex_shrink: f64 => flex_shrink,
         order: i32 => order,
+        webkit_box_ordinal_group: i32 => webkit_box_ordinal_group,
+        webkit_box_flex: f64 => webkit_box_flex,
         align_items: u8 => align_items,
         align_self: u8 => align_self,
         align_items_is_last_baseline: bool => align_items_is_last_baseline,

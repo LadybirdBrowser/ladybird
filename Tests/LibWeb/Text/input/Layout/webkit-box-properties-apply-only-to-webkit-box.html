@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .flex, .box { font: 20px/1 serif; }
+    .flex { display: flex; width: 300px; height: 60px; }
+    .box { display: -webkit-box; width: 300px; height: 60px; }
+    .flex > div, .box > div { width: 50px; }
+</style>
+<!-- -webkit-box-align, -webkit-box-pack, -webkit-box-flex and -webkit-box-ordinal-group are properties of their own:
+     They lay out a -webkit-box, but not a flex container. And align-items, justify-content, flex-grow and order lay out
+     a flex container, but not a -webkit-box. -->
+<div class="flex" style="-webkit-box-align: end"><div id="flex-with-box-align">a</div></div>
+<div class="flex" style="-webkit-box-pack: end"><div id="flex-with-box-pack">a</div></div>
+<div class="flex" style="-webkit-box-pack: end; justify-content: center"><div id="flex-with-box-pack-and-justify-content">a</div></div>
+<div class="flex"><div id="flex-item-with-box-flex" style="-webkit-box-flex: 1">a</div></div>
+<div class="flex"><div id="flex-item-with-box-ordinal-group" style="-webkit-box-ordinal-group: 2">a</div><div>b</div></div>
+<div class="box" style="-webkit-box-align: end"><div id="box-with-box-align">a</div></div>
+<div class="box" style="align-items: end"><div id="box-with-align-items">a</div></div>
+<div class="box" style="-webkit-box-pack: end"><div id="box-with-box-pack">a</div></div>
+<div class="box" style="-webkit-box-pack: justify"><div>a</div><div id="box-with-box-pack-justify">b</div></div>
+<div class="box" style="justify-content: end"><div id="box-with-justify-content">a</div></div>
+<div class="box"><div id="box-item-with-box-flex" style="-webkit-box-flex: 1">a</div></div>
+<div class="box"><div id="box-item-with-flex-grow" style="flex-grow: 1">a</div></div>
+<div class="box" style="width: 500px"><div id="box-item-with-negative-box-flex" style="width: 100px; -webkit-box-flex: -1">a</div><div style="width: 100px; -webkit-box-flex: 2">b</div></div>
+<div class="box" style="width: 150px"><div id="shrinking-box-item-with-negative-box-flex" style="width: 100px; -webkit-box-flex: -1">a</div><div style="width: 100px; -webkit-box-flex: 1">b</div></div>
+<div class="box"><div id="box-item-with-box-ordinal-group" style="-webkit-box-ordinal-group: 2">a</div><div>b</div></div>
+<div class="box"><div id="box-item-with-order" style="order: 2">a</div><div>b</div></div>
+<div class="box"><div id="box-item-with-both-orderings" style="-webkit-box-ordinal-group: 2; order: -1">a</div><div>b</div></div>
+<script>
+    function run(report) {
+        for (const element of document.querySelectorAll("[id]:not(#out)")) {
+            const rect = element.getBoundingClientRect();
+            report(`${element.id}: ${rect.width}x${rect.height} at ${rect.left - element.parentElement.getBoundingClientRect().left},${rect.top - element.parentElement.getBoundingClientRect().top}`);
+        }
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>

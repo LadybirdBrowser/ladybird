@@ -5772,6 +5772,8 @@ impl AlignmentValues {
 
         Self {
             webkit_box_orient: crate::css::css_enums::webkit_box_orient::HORIZONTAL,
+            webkit_box_align: crate::css::css_enums::webkit_box_align::STRETCH,
+            webkit_box_pack: crate::css::css_enums::webkit_box_pack::START,
             flex_direction: flex_direction::ROW,
             flex_wrap: flex_wrap::NOWRAP,
             flex_basis: ComputedFlexBasis {
@@ -5780,7 +5782,9 @@ impl AlignmentValues {
             },
             flex_grow: 0.0,
             flex_shrink: 1.0,
+            webkit_box_flex: 0.0,
             order: 0,
+            webkit_box_ordinal_group: 1,
             align_content: align_content::NORMAL,
             align_items: align_items::STRETCH,
             align_self: align_self::AUTO,
@@ -6676,12 +6680,16 @@ fn alignment_overflow(data: &RetainedStyleValueData) -> u8 {
 pub(crate) fn rust_build_alignment_group(
     group_index: usize,
     webkit_box_orient: &RetainedStyleValueData,
+    webkit_box_align: &RetainedStyleValueData,
+    webkit_box_pack: &RetainedStyleValueData,
     flex_direction: &RetainedStyleValueData,
     flex_wrap: &RetainedStyleValueData,
     flex_basis: &RetainedStyleValueData,
     flex_grow: f64,
     flex_shrink: f64,
+    webkit_box_flex: f64,
     order: i32,
+    webkit_box_ordinal_group: i32,
     align_content: &RetainedStyleValueData,
     align_items: &RetainedStyleValueData,
     align_self: &RetainedStyleValueData,
@@ -6707,12 +6715,16 @@ pub(crate) fn rust_build_alignment_group(
         };
         let built = AlignmentValues {
             webkit_box_orient: keyword_code(webkit_box_orient, crate::css::css_enums::keyword_to_webkit_box_orient)?,
+            webkit_box_align: keyword_code(webkit_box_align, crate::css::css_enums::keyword_to_webkit_box_align)?,
+            webkit_box_pack: keyword_code(webkit_box_pack, crate::css::css_enums::keyword_to_webkit_box_pack)?,
             flex_direction: keyword_code(flex_direction, crate::css::css_enums::keyword_to_flex_direction)?,
             flex_wrap: keyword_code(flex_wrap, crate::css::css_enums::keyword_to_flex_wrap)?,
             flex_basis: ComputedFlexBasis::from_data(flex_basis),
             flex_grow,
             flex_shrink,
+            webkit_box_flex,
             order,
+            webkit_box_ordinal_group,
             align_content: alignment_code(align_content, css_enums::keyword_to_align_content, true)?,
             align_items: alignment_code(align_items, css_enums::keyword_to_align_items, false)?,
             align_self: alignment_code(align_self, css_enums::keyword_to_align_self, false)?,

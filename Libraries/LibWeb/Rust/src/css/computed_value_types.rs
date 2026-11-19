@@ -79,12 +79,16 @@ pub struct ComputedGap {
 #[derive(Clone, PartialEq)]
 pub struct AlignmentValues {
     pub webkit_box_orient: u8,
+    pub webkit_box_align: u8,
+    pub webkit_box_pack: u8,
     pub flex_direction: u8,
     pub flex_wrap: u8,
     pub flex_basis: ComputedFlexBasis,
     pub flex_grow: f64,
     pub flex_shrink: f64,
+    pub webkit_box_flex: f64,
     pub order: i32,
+    pub webkit_box_ordinal_group: i32,
     pub align_content: u8,
     pub align_items: u8,
     pub align_self: u8,

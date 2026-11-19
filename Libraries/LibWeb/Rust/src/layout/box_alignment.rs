@@ -193,6 +193,18 @@ impl SelfKeyword {
         (keyword, OverflowSafety::of(style.align_self_overflow()))
     }
 
+    /// The alignment that the -webkit-box-align of a legacy webkit box styled `style` gives its items.
+    pub(crate) fn webkit_box_align_of(style: ComputedValuesView<'_>) -> Self {
+        match style.webkit_box_align() {
+            webkit_box_align::STRETCH => Self::Stretch,
+            webkit_box_align::START => Self::FlexStart,
+            webkit_box_align::END => Self::FlexEnd,
+            webkit_box_align::CENTER => Self::Center,
+            webkit_box_align::BASELINE => Self::Baseline,
+            _ => unreachable!("invalid -webkit-box-align value"),
+        }
+    }
+
     pub(crate) fn align_items_of(style: ComputedValuesView<'_>) -> (Self, OverflowSafety) {
         let keyword = match style.align_items() {
             align_items::NORMAL => Self::Normal,
@@ -287,6 +299,17 @@ pub(crate) enum ContentKeyword {
 }
 
 impl ContentKeyword {
+    /// The distribution that the -webkit-box-pack of a legacy webkit box styled `style` gives its items.
+    pub(crate) fn webkit_box_pack_of(style: ComputedValuesView<'_>) -> Self {
+        match style.webkit_box_pack() {
+            webkit_box_pack::START => Self::FlexStart,
+            webkit_box_pack::END => Self::FlexEnd,
+            webkit_box_pack::CENTER => Self::Center,
+            webkit_box_pack::JUSTIFY => Self::SpaceBetween,
+            _ => unreachable!("invalid -webkit-box-pack value"),
+        }
+    }
+
     pub(crate) fn justify_content_of(style: ComputedValuesView<'_>) -> (Self, OverflowSafety) {
         let keyword = match style.justify_content() {
             justify_content::NORMAL => Self::Normal,

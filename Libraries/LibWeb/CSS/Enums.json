@@ -1301,9 +1301,22 @@
     "hidden",
     "visible"
   ],
+  "webkit-box-align": [
+    "stretch",
+    "start",
+    "end",
+    "center",
+    "baseline"
+  ],
   "webkit-box-orient": [
     "horizontal",
     "vertical"
+  ],
+  "webkit-box-pack": [
+    "start",
+    "end",
+    "center",
+    "justify"
   ],
   "white-space": [
     "normal",

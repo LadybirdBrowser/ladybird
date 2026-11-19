@@ -438,16 +438,26 @@ fn build_alignment_group(values: &LonghandSource, parent: GroupShares<'_>) -> *c
     let number = |property: u16| required_number(values.value(property).expect("the table holds the flex factor"));
     let flex_grow = number(property_id::FLEX_GROW);
     let flex_shrink = number(property_id::FLEX_SHRINK);
+    let webkit_box_flex = number(property_id::_WEBKIT_BOX_FLEX);
     let order = required_integer(values.value(property_id::ORDER).expect("the table holds order"));
+    let webkit_box_ordinal_group = required_integer(
+        values
+            .value(property_id::_WEBKIT_BOX_ORDINAL_GROUP)
+            .expect("the table holds the ordinal group"),
+    );
     rust_build_alignment_group(
         group_index::ALIGNMENT,
         values.handle(property_id::_WEBKIT_BOX_ORIENT),
+        values.handle(property_id::_WEBKIT_BOX_ALIGN),
+        values.handle(property_id::_WEBKIT_BOX_PACK),
         values.handle(property_id::FLEX_DIRECTION),
         values.handle(property_id::FLEX_WRAP),
         values.handle(property_id::FLEX_BASIS),
         flex_grow,
         flex_shrink,
+        webkit_box_flex,
         order,
+        webkit_box_ordinal_group,
         values.handle(property_id::ALIGN_CONTENT),
         values.handle(property_id::ALIGN_ITEMS),
         values.handle(property_id::ALIGN_SELF),

@@ -1,0 +1,38 @@
+-webkit-box-align: initial stretch
+  stretch: specified stretch, computed stretch
+  start: specified start, computed start
+  end: specified end, computed end
+  center: specified center, computed center
+  baseline: specified baseline, computed baseline
+  flex-start: invalid
+  normal: invalid
+-webkit-box-pack: initial start
+  start: specified start, computed start
+  end: specified end, computed end
+  center: specified center, computed center
+  justify: specified justify, computed justify
+  space-between: invalid
+  flex-end: invalid
+  normal: invalid
+-webkit-box-flex: initial 0
+  0: specified 0, computed 0
+  2.5: specified 2.5, computed 2.5
+  -1: specified -1, computed -1
+  1px: invalid
+  calc(1 + 1): specified calc(2), computed 2
+-webkit-box-ordinal-group: initial 1
+  0: invalid
+  1: specified 1, computed 1
+  2: specified 2, computed 2
+  -1: invalid
+  1.5: invalid
+  calc(2): specified calc(2), computed 2
+-webkit-box-align: end leaves align-items normal
+align-items leaves -webkit-box-align stretch, cssText "align-items: center;"
+-webkit-box-pack: end leaves justify-content normal
+justify-content leaves -webkit-box-pack start, cssText "justify-content: center;"
+-webkit-box-flex: 1 leaves flex-grow 0
+flex-grow leaves -webkit-box-flex 0, cssText "flex-grow: 3;"
+-webkit-box-ordinal-group: 2 leaves order 0
+order leaves -webkit-box-ordinal-group 1, cssText "order: 3;"
+-webkit-box-align is not inherited: stretch

@@ -7,17 +7,30 @@
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::node_painting;
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::style_queries;
 use std::cmp::Ordering;
 
 pub(crate) fn order_for_painting(arena: &impl PaintRead, slot: NodeSlotId) -> i32 {
     // Absolutely positioned children of flex/grid containers have order: 0 for painting.
     // https://drafts.csswg.org/css-display-3/#order-modified-document-order
-    if style_queries::is_flex_or_grid_item(arena, slot) {
-        arena.node_style_if_live(slot).map_or(0, |style| style.order())
+    if !style_queries::is_flex_or_grid_item(arena, slot) {
+        return 0;
+    }
+    let Some(style) = arena.node_style_if_live(slot) else {
+        return 0;
+    };
+    // AD-HOC: The items of a legacy webkit box are ordered by their -webkit-box-ordinal-group, and order doesn't
+    //         apply, matching other engines.
+    let parent_is_legacy_webkit_box = arena
+        .node(slot)
+        .and_then(|row| arena.node_style_if_live(row.parent()))
+        .is_some_and(|parent_style| parent_style.display().is_webkit_box_inside());
+    // NB: The ordinal groups start at 1, so the initial one gives the key of a box that isn't an item, as order: 0 does.
+    if parent_is_legacy_webkit_box {
+        style.webkit_box_ordinal_group().saturating_sub(1)
     } else {
-        0
+        style.order()
     }
 }
 
