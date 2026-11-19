@@ -49,7 +49,7 @@ function renderSearchEngines() {
     searchEngines.replaceChildren();
     for (const name of names) {
         const tile = document.createElement("label");
-        tile.className = "search-engine";
+        tile.className = "search-engine choice-card";
 
         const radio = document.createElement("input");
         radio.type = "radio";
