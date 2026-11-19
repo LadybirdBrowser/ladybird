@@ -1254,6 +1254,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             }
             return true;
         }
+        // https://drafts.csswg.org/css-forms-1/#valdef-field-sizing-fixed
+        // For element with default preferred size, the UA must set the intrinsic size to the default preferred size
+        // defined by the host language for that element.
+        // NB: A form control without its native appearance has a default preferred size where its native box had a
+        //     natural size, and is sized from it the same way.
+        if facts.default_preferred_width().is_some() {
+            return true;
+        }
         false
     }
 
@@ -2410,6 +2418,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                     .cells
                     .update_cells(|cells| cells.has_definite_block_size = true);
             }
+            // NB: A text input without its native appearance is sized from its default preferred size, and still
+            //     centers its content in a block size its min-height or max-height clamps.
+            self.make_form_control_content_box_definite(sized_cells, available_space, constraints, None);
             return None;
         }
 
@@ -3151,6 +3162,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         }
         let auto_size = self.auto_content_size(node);
         if let Some(width) = auto_size.width {
+            return answered_from_style(width);
+        }
+        // https://drafts.csswg.org/css-forms-1/#valdef-field-sizing-fixed
+        // For element with default preferred size, the UA must set the intrinsic size to the default preferred size
+        // defined by the host language for that element.
+        // NB: That holds for a text entry widget without its native appearance too, so a long value doesn't widen it.
+        if let Some(width) = facts.default_preferred_width() {
             return answered_from_style(width);
         }
         if facts.is_replaced_box() && facts.has_preferred_aspect_ratio() && auto_size.height.is_some() {

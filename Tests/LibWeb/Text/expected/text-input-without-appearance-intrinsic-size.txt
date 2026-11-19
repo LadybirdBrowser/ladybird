@@ -1,0 +1,14 @@
+default width is narrower than the container: true
+grid: the container's width
+grid, size=5: the container's width
+flex row: the default width
+flex row, flex: 1: the container's width
+width: min-content: the default width
+width: fit-content: the default width
+float: the default width
+password in grid: the container's width
+search in grid: the container's width
+abspos between insets: the container's width
+abspos with one inset: the default width
+display: block: the default width
+field-sizing: content: wider than the default width
