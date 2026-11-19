@@ -1,0 +1,20 @@
+Ladybird advances each tab of a run from where the tab before it ends,
+and takes the stop after the next one where the next is less than 0.5ch
+away. WebKit’s FontCascade::tabWidth() and Blink’s Font::TabWidth()
+compute each tab’s width from that tab’s own position, and so does
+Gecko’s AdvanceToNextTab(), with a minimum advance of 0.5ch from
+GetMinTabAdvanceAppUnits(). WebKit and Gecko take 0.5ch as the
+threshold, as the spec does; Blink takes half the advance of a space.
+
+In Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5, two tabs
+after no text, after one character, and after seven characters all
+end at 16 spaces (with tab-size: 8), and three tabs at 24. Under
+tab-size: 2px, three tabs end at 8px in Chrome, 18px in Firefox,
+and 12px in WebKit; Ladybird gives 12px, as WebKit does, and as the
+spec’s rule for each tab gives.
+
+In Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5, a range around
+each tab of a run spans from where the character before the tab ends to
+the tab’s own stop — as “a\t\tX” under tab-size: 8 gives its tabs 1 to
+8 and 8 to 16 spaces. Ladybird gives each tab a spacer glyph of its own,
+so its ranges come out the same.
