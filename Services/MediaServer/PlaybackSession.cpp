@@ -37,6 +37,9 @@ PlaybackSession::PlaybackSession(ConnectionFromClient& connection, u64 id, Audio
     m_manager->on_buffered_ranges_change = [this] {
         report_media_stream_scan_states();
     };
+    m_manager->on_seek_decided = [this](Media::SeekDecision decision) {
+        m_connection.async_playback_session_seek_decided(m_id, m_applied_seek_request_id, decision);
+    };
     m_manager->on_error = [this](Media::DecoderError&& error) {
         m_connection.async_playback_session_error(m_id, move(error));
     };

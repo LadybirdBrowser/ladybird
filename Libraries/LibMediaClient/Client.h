@@ -100,6 +100,7 @@ private:
     virtual void playback_session_media_source_added(u64 session_id, Optional<u64> stream_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<UnixDateTime> start_time_realtime, AK::Duration earliest_possible_position, Media::DemuxerScanState scan_state) override;
     virtual void playback_session_media_stream_source_failed(u64 session_id, u64 stream_id, Media::DecoderError error) override;
     virtual void playback_session_duration_changed(u64 session_id, AK::Duration duration) override;
+    virtual void playback_session_seek_decided(u64 session_id, u64 seek_request_id, Media::SeekDecision decision) override;
     virtual void playback_session_state_changed(u64 session_id, u64 applied_seek_request_id, Media::PlaybackState state, bool is_playing, Media::AvailableData available_data, bool playback_state_is_settled, AK::Duration current_time) override;
     virtual void playback_session_media_stream_scan_state_changed(u64 session_id, u64 stream_id, Media::DemuxerScanState scan_state) override;
     virtual void playback_session_error(u64 session_id, Media::DecoderError error) override;

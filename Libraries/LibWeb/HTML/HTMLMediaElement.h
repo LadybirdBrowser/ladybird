@@ -21,6 +21,7 @@
 #include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/SeekMode.h>
 #include <LibMedia/VideoSinkHandle.h>
 #include <LibMediaClient/Forward.h>
 #include <LibWeb/DOM/Document.h>
@@ -312,6 +313,7 @@ private:
     void on_video_track_added(Media::Track const&);
     void on_metadata_parsed(SourceType);
     void on_playback_manager_state_change();
+    void on_playback_manager_seek_decided(Media::SeekDecision);
     void upon_current_playback_position_possibly_changed();
     void start_or_stop_playback_position_update_timer();
     void play_element();

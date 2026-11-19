@@ -287,6 +287,7 @@ void HTMLMediaElement::finalize()
 
     if (m_playback_manager) {
         m_playback_manager->on_playback_state_change = nullptr;
+        m_playback_manager->on_seek_decided = nullptr;
         m_playback_manager->on_playback_state_settled_change = nullptr;
         m_playback_manager->on_buffered_ranges_change = nullptr;
         m_playback_manager->on_seekable_ranges_change = nullptr;
@@ -2517,6 +2518,9 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();
     });
+    m_playback_manager->on_seek_decided = GC::weak_callback(*this, [](auto& self, Media::SeekDecision decision) {
+        self.on_playback_manager_seek_decided(decision);
+    });
     m_playback_manager->on_playback_state_settled_change = GC::weak_callback(*this, [](auto& self) {
         self.update_pending_activity();
     });
@@ -2600,6 +2604,9 @@ void HTMLMediaElement::set_up_playback_manager_for_local(GC::Ref<GC::Function<vo
 
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();
+    });
+    m_playback_manager->on_seek_decided = GC::weak_callback(*this, [](auto& self, Media::SeekDecision decision) {
+        self.on_playback_manager_seek_decided(decision);
     });
     m_playback_manager->on_playback_state_settled_change = GC::weak_callback(*this, [](auto& self) {
         self.update_pending_activity();
@@ -2799,6 +2806,7 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     // this; the error and emptied events, fired by the algorithms that invoke this one, can be used instead.
     if (m_playback_manager) {
         m_playback_manager->on_playback_state_change = nullptr;
+        m_playback_manager->on_seek_decided = nullptr;
         m_playback_manager->on_playback_state_settled_change = nullptr;
     }
     release_active_video_sink();
@@ -2994,6 +3002,12 @@ void HTMLMediaElement::update_ready_state()
     if (!m_playback_manager)
         return;
 
+    // AD-HOC: The playback manager reports a seek's target as the current position before the seek has been decided,
+    //         but the seek only sets the current playback position, which informs the ready state after queuing the
+    //         seeking event.
+    if (m_playback_manager->state() == Media::PlaybackState::BeginningSeek)
+        return;
+
     // -> If the HTMLMediaElement's readyState attribute is HAVE_NOTHING:
     if (m_ready_state == ReadyState::HaveNothing) {
         // 1. Abort these steps.
@@ -3133,7 +3147,7 @@ void HTMLMediaElement::on_playback_manager_state_change()
 
     VERIFY(m_playback_manager);
     auto state = m_playback_manager->state();
-    if (seeking() && state != Media::PlaybackState::Seeking)
+    if (seeking() && !first_is_one_of(state, Media::PlaybackState::BeginningSeek, Media::PlaybackState::Seeking))
         finish_seeking_element();
 
     start_or_stop_playback_position_update_timer();
@@ -3281,83 +3295,19 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     // NOTE: We implement the async nature of seeking through PlaybackManager, and the steps here are implemented as options
     //       that define how PlaybackManager's seeking behaves.
 
-    auto new_playback_position = playback_position;
-
-    // 6. If the new playback position is later than the end of the media resource, then let it be the end of the media resource instead.
-    new_playback_position = min(new_playback_position, m_duration);
-
-    // 7. If the new playback position is less than the earliest possible position, let it be that position instead.
-    new_playback_position = max(new_playback_position, earliest_possible_position());
-
-    // 8. If the (possibly now changed) new playback position is not in one of the ranges given in the seekable attribute,
-    auto time_ranges = seekable();
-    if (!time_ranges->in_range(new_playback_position)) {
-        // then let it be the position in one of the ranges given in the seekable attribute that is the nearest to the new
-        // playback position.
-
-        // If there are no ranges given in the seekable attribute, then set the seeking IDL attribute to false and return.
-        if (time_ranges->length() == 0) {
-            set_seeking(false);
-            return;
-        }
-
-        double nearest_point;
-        Optional<double> other_nearest_point = {};
-        double distance = INFINITY;
-        for (size_t i = 0; i < time_ranges->length(); i++) {
-            for (double point : { MUST(time_ranges->start(i)), MUST(time_ranges->end(i)) }) {
-                auto point_distance = abs(new_playback_position - point);
-                if (point_distance < distance) {
-                    nearest_point = point;
-                    other_nearest_point = {};
-                    distance = point_distance;
-                } else if (point_distance == distance) {
-                    other_nearest_point = point;
-                }
-            }
-        }
-
-        // If two positions both satisfy that constraint (i.e. the new playback position is exactly in the middle between two ranges
-        // in the seekable attribute), then use the position that is closest to the current playback position.
-        if (other_nearest_point.has_value()) {
-            auto current_position = current_playback_position();
-            auto nearest_point_distance = abs(current_position - nearest_point);
-            auto other_nearest_point_distance = abs(current_position - other_nearest_point.value());
-            if (nearest_point_distance < other_nearest_point_distance) {
-                new_playback_position = nearest_point;
-            } else {
-                new_playback_position = other_nearest_point.value();
-            }
-        } else {
-            new_playback_position = nearest_point;
-        }
-    }
-
-    // 9. If the approximate-for-speed flag is set, adjust the new playback position to a value that will allow for playback to resume
-    //    promptly. If new playback position before this step is before current playback position, then the adjusted new playback position
-    //    must also be before the current playback position. Similarly, if the new playback position before this step is after current
-    //    playback position, then the adjusted new playback position must also be after the current playback position.
-    auto manager_seek_mode = Media::SeekMode::Accurate;
-    if (seek_mode == MediaSeekMode::ApproximateForSpeed) {
-        if (new_playback_position < current_playback_position())
-            manager_seek_mode = Media::SeekMode::FastBefore;
-        else if (new_playback_position > current_playback_position())
-            manager_seek_mode = Media::SeekMode::FastAfter;
-    }
+    // NB: Steps 5 through 9 are handled by PlaybackManager.
 
     // 10. Queue a media element task given the media element to fire an event named seeking at the element.
-    queue_a_media_element_task(GC::create_function(GC::Heap::the(), [](HTMLMediaElement& self) {
-        self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::seeking));
-    }));
+    // NB: This happens once the playback manager has decided whether the seek goes ahead, in
+    //     on_playback_manager_seek_decided().
 
     // 11. Set the current playback position to the new playback position.
     if (m_playback_manager) {
-        AK::Duration new_playback_position_as_duration;
-        if (new_playback_position == m_duration)
-            new_playback_position_as_duration = m_playback_manager->duration();
-        else
-            new_playback_position_as_duration = AK::Duration::from_seconds_f64(new_playback_position);
-        m_playback_manager->seek(new_playback_position_as_duration, manager_seek_mode);
+        auto timestamp = AK::Duration::from_seconds_f64(playback_position);
+        auto manager_seek_mode = Media::SeekMode::Accurate;
+        if (seek_mode == MediaSeekMode::ApproximateForSpeed)
+            manager_seek_mode = Media::SeekMode::ApproximateForSpeed;
+        m_playback_manager->seek(timestamp, manager_seek_mode);
     }
 
     // AD-HOC: Set the official playback position to the requested position, as the currentTime setter would. Doing it
@@ -3384,6 +3334,28 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-seek
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-seek
+void HTMLMediaElement::on_playback_manager_seek_decided(Media::SeekDecision decision)
+{
+    // NB: The playback manager runs steps 6 through 9, and reports whether step 8 returned.
+    switch (decision) {
+    case Media::SeekDecision::Skip:
+        // 8. ... If there are no ranges given in the seekable attribute, then set the seeking IDL attribute to false and
+        //    return.
+        set_seeking(false);
+        // NB: The official playback position was set to the requested position, but the playback position didn't move.
+        set_official_playback_position(current_playback_position());
+        return;
+    case Media::SeekDecision::Seek:
+        // 10. Queue a media element task given the media element to fire an event named seeking at the element.
+        queue_a_media_element_task(GC::create_function(GC::Heap::the(), [](HTMLMediaElement& self) {
+            self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::seeking));
+        }));
+        return;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 void HTMLMediaElement::finish_seeking_element()
 {
     // 14. ⌛ Set the seeking IDL attribute to false.
