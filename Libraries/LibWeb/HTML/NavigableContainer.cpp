@@ -638,6 +638,7 @@ ReplicatedContainerState NavigableContainer::replicated_container_state()
     state.document_upgrade_insecure_navigations_set = document_policy_container->upgrade_insecure_navigations_set();
     state.document_csp_list = document_policy_container->csp_list.serialize();
     state.used_color_scheme = m_used_color_scheme;
+    state.document_cache_mode_while_loading = document().cache_mode_while_loading();
     return state;
 }
 

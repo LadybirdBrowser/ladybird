@@ -27,6 +27,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedContainerState const
     TRY(encoder.encode(state.document_upgrade_insecure_navigations_set));
     TRY(encoder.encode(state.document_csp_list));
     TRY(encoder.encode(to_underlying(state.used_color_scheme)));
+    TRY(encoder.encode(to_underlying(state.document_cache_mode_while_loading)));
     return {};
 }
 
@@ -36,6 +37,16 @@ static ErrorOr<Web::CSS::PreferredColorScheme> decode_used_color_scheme(Decoder&
     auto value = static_cast<Web::CSS::PreferredColorScheme>(TRY(decoder.decode<UnderlyingType<Web::CSS::PreferredColorScheme>>()));
     if (value != Web::CSS::PreferredColorScheme::Light && value != Web::CSS::PreferredColorScheme::Dark)
         return Error::from_string_literal("Invalid used color scheme");
+    return value;
+}
+
+// A document loads with the default cache mode, or after a navigation that bypassed the HTTP cache or used it without
+// revalidation.
+static ErrorOr<HTTP::CacheMode> decode_document_cache_mode_while_loading(Decoder& decoder)
+{
+    auto value = static_cast<HTTP::CacheMode>(TRY(decoder.decode<UnderlyingType<HTTP::CacheMode>>()));
+    if (value != HTTP::CacheMode::Default && value != HTTP::CacheMode::Reload && value != HTTP::CacheMode::ForceCache)
+        return Error::from_string_literal("Invalid document cache mode");
     return value;
 }
 
@@ -56,6 +67,7 @@ ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder& decoder)
         .document_upgrade_insecure_navigations_set = TRY(decoder.decode<Web::UpgradeInsecureRequests::UpgradeInsecureNavigationsSet>()),
         .document_csp_list = TRY(decoder.decode<Vector<Web::ContentSecurityPolicy::SerializedPolicy>>()),
         .used_color_scheme = TRY(decode_used_color_scheme(decoder)),
+        .document_cache_mode_while_loading = TRY(decode_document_cache_mode_while_loading(decoder)),
     };
 }
 
