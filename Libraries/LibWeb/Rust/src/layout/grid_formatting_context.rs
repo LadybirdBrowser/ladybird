@@ -3263,7 +3263,16 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         let opposite = axis.opposite();
         let available = self.item_available_space(item);
-        let constraints = self.track_sizing_constraints();
+        // NB: The columns are sized before the rows, so while the rows are sized, a percentage of the item's width
+        //     resolves against its grid area, and its percentage minimum and maximum widths are definite.
+        let opposite_axis_is_sized = !axis.is_column();
+        let constraints = if opposite_axis_is_sized {
+            self.grid_area_constraints(item)
+        } else {
+            self.track_sizing_constraints()
+        };
+        let limit_is_definite =
+            |size: &ComputedSize| size.is_length() || (opposite_axis_is_sized && size.is_length_percentage());
         let inner_size = |property: SizingProperty| {
             self.sizing().calculate_inner_size_for_property(
                 sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
@@ -3274,12 +3283,12 @@ impl<'pass> GridFormattingContext<'pass> {
             )
         };
         let mut opposite_axis_size = inner_size(opposite.select(SizingProperty::Width, SizingProperty::Height));
-        if self.maximum_size(item, opposite).is_length() {
+        if limit_is_definite(self.maximum_size(item, opposite)) {
             opposite_axis_size = opposite_axis_size.min(inner_size(
                 opposite.select(SizingProperty::MaxWidth, SizingProperty::MaxHeight),
             ));
         }
-        if self.minimum_size(item, opposite).is_length() {
+        if limit_is_definite(self.minimum_size(item, opposite)) {
             opposite_axis_size = opposite_axis_size.max(inner_size(
                 opposite.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
             ));
@@ -3416,11 +3425,11 @@ impl<'pass> GridFormattingContext<'pass> {
         // result from assuming the item’s used minimum size as its preferred size; else the item’s minimum
         // contribution is its min-content contribution. Because the minimum contribution often depends on
         // the size of the item’s content, it is considered a type of intrinsic size contribution.
-        // NB: The height of a non-replaced item with a preferred aspect ratio is reported as not auto because it
+        // NB: The height of an item with a preferred aspect ratio, replaced or not, is reported as not auto because it
         //     transfers from the item's width, but it still behaves as auto here.
         let facts = self.item_facts(item);
         let automatic_size_with_aspect_ratio =
-            self.preferred_size(item, axis).is_auto() && facts.has_preferred_aspect_ratio() && !facts.is_replaced_box();
+            self.preferred_size(item, axis).is_auto() && facts.has_preferred_aspect_ratio();
         if !preferred_behaves_as_auto && !automatic_size_with_aspect_ratio {
             return min_content_contribution();
         }
