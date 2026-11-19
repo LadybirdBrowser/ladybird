@@ -126,6 +126,7 @@ public:
 
     double current_playback_position() const;
     void set_official_playback_position(double);
+    double earliest_possible_position() const;
 
     double duration() const;
     JS::Object* get_start_date(JS::Object& relevant_global_object) const;
