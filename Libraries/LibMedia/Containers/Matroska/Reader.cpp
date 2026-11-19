@@ -41,7 +41,7 @@ DecoderErrorOr<Reader> Reader::from_stream(NonnullRefPtr<MediaStreamCursor> cons
 }
 
 // Returns the position of the first element that is read from this master element.
-DecoderErrorOr<size_t> Reader::parse_master_element(Streamer& streamer, [[maybe_unused]] StringView element_name, Function<DecoderErrorOr<ElementIterationDecision>(u64)> element_consumer)
+DecoderErrorOr<size_t> Reader::parse_master_element(Streamer& streamer, StringView element_name, Function<DecoderErrorOr<ElementIterationDecision>(u64)> element_consumer)
 {
     auto element_data_size = TRY(streamer.read_element_size());
     dbgln_if(MATROSKA_DEBUG, "{} has {} octets of data.", element_name, element_data_size);
@@ -52,7 +52,13 @@ DecoderErrorOr<size_t> Reader::parse_master_element(Streamer& streamer, [[maybe_
     if (element_data_size.has_value())
         element_data_end = first_element_position + element_data_size.value();
 
-    while (!element_data_end.has_value() || streamer.position() < element_data_end.value()) {
+    while (true) {
+        if (element_data_end.has_value()) {
+            if (streamer.position() > element_data_end.value())
+                return DecoderError::format(DecoderErrorCategory::Corrupted, "Read past the end of the {}", element_name);
+            if (streamer.position() == element_data_end.value())
+                break;
+        }
         dbgln_if(MATROSKA_TRACE_DEBUG, "====== Reading  element ======");
         auto element_position = streamer.position();
         auto element_id = TRY(streamer.read_element_id());
