@@ -9,11 +9,13 @@
 #include <LibGfx/SharedImageBuffer.h>
 #include <UI/Qt/WaylandPageSurface.h>
 #include <UI/Qt/WaylandRegistry.h>
+#include <UI/Qt/WaylandWindow.h>
 
 #include <QGuiApplication>
 #include <QImage>
+#include <QPlatformSurfaceEvent>
+#include <QTimer>
 #include <QWindow>
-#include <qpa/qplatformwindow_p.h>
 
 #include <libdrm/drm_fourcc.h>
 #include <sys/mman.h>
@@ -89,7 +91,7 @@ WaylandPageSurface::~WaylandPageSurface()
     on_backing_store_released = nullptr;
     on_ready_to_present = nullptr;
     destroy_subsurface();
-    QObject::disconnect(m_parent_surface_created_connection);
+
     for (auto& buffer : m_buffers) {
         if (buffer->state != BufferState::Creating) {
             destroy_buffer(*buffer);
@@ -100,6 +102,7 @@ WaylandPageSurface::~WaylandPageSurface()
         buffer->shared_image_buffer = nullptr;
         (void)buffer.leak_ptr();
     }
+
     for (auto* buffer : m_overlay_buffers)
         wl_buffer_destroy(buffer);
     wp_viewport_destroy(m_overlay_viewport);
@@ -108,20 +111,58 @@ WaylandPageSurface::~WaylandPageSurface()
     wl_surface_destroy(m_surface);
 }
 
-bool WaylandPageSurface::ensure_subsurface(QWindow& parent)
+bool WaylandPageSurface::eventFilter(QObject* watched, QEvent* event)
 {
-    auto* wayland_window = parent.nativeInterface<QNativeInterface::Private::QWaylandWindow>();
-    auto* parent_surface = wayland_window ? wayland_window->surface() : nullptr;
-    if (!parent_surface) {
-        destroy_subsurface();
-        if (wayland_window)
-            wait_for_parent_surface(*wayland_window);
+    if (watched != m_parent)
+        return false;
+
+    if (event->type() == QEvent::PlatformSurface) {
+        if (static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
+            destroy_subsurface();
+            return false;
+        }
+    } else if (event->type() != QEvent::Show && event->type() != QEvent::Expose) {
         return false;
     }
-    if (m_subsurface && m_parent == &parent && m_parent_surface == parent_surface)
+
+    // Qt can replace the wl_surface without recreating the platform window. Recheck after the native window has
+    // processed the event, so a page can attach its last frame again even if it has nothing new to present.
+    QTimer::singleShot(0, this, [this] {
+        if (!m_parent || !m_parent->isVisible())
+            return;
+
+        auto* parent_surface = wayland_surface_for_window(*m_parent);
+        if (is_attached_to(parent_surface))
+            return;
+
+        destroy_subsurface();
+
+        if (parent_surface && on_ready_to_present)
+            on_ready_to_present();
+    });
+
+    return false;
+}
+
+bool WaylandPageSurface::ensure_subsurface(QWindow& parent)
+{
+    auto* parent_surface = wayland_surface_for_window(parent);
+    if (m_parent == &parent && is_attached_to(parent_surface))
         return true;
 
     destroy_subsurface();
+
+    if (m_parent != &parent) {
+        if (m_parent)
+            m_parent->removeEventFilter(this);
+
+        m_parent = &parent;
+        parent.installEventFilter(this);
+    }
+
+    if (!parent_surface)
+        return false;
+
     m_subsurface = wl_subcompositor_get_subsurface(m_globals.subcompositor, m_surface, parent_surface);
     // NB: A desynchronized subsurface shows each frame as soon as it is committed, without waiting for the browser
     //     window to commit too.
@@ -132,29 +173,20 @@ bool WaylandPageSurface::ensure_subsurface(QWindow& parent)
     // NB: A new subsurface goes on top of its siblings, so the overlay is above the page. It stays synchronized, so
     //     that what it shows and where it shows it change together.
     m_overlay_subsurface = wl_subcompositor_get_subsurface(m_globals.subcompositor, m_overlay_surface, parent_surface);
-    m_parent = &parent;
     m_parent_surface = parent_surface;
-    m_parent_surface_destroyed_connection = QObject::connect(wayland_window, &QNativeInterface::Private::QWaylandWindow::surfaceDestroyed, [this, wayland_window] {
-        destroy_subsurface();
-        wait_for_parent_surface(*wayland_window);
-    });
+    m_parent_surface_id = wl_proxy_get_id(reinterpret_cast<wl_proxy*>(parent_surface));
     return true;
 }
 
-// NB: Qt destroys the window's surface while the window is hidden, and creates a new one when it is shown again.
-void WaylandPageSurface::wait_for_parent_surface(QNativeInterface::Private::QWaylandWindow& wayland_window)
+bool WaylandPageSurface::is_attached_to(wl_surface* parent_surface) const
 {
-    QObject::disconnect(m_parent_surface_created_connection);
-    m_parent_surface_created_connection = QObject::connect(&wayland_window, &QNativeInterface::Private::QWaylandWindow::surfaceCreated, [this] {
-        QObject::disconnect(m_parent_surface_created_connection);
-        if (on_ready_to_present)
-            on_ready_to_present();
-    });
+    // A replacement proxy can reuse the address of the old one.
+    return parent_surface && parent_surface == m_parent_surface
+        && wl_proxy_get_id(reinterpret_cast<wl_proxy*>(parent_surface)) == m_parent_surface_id;
 }
 
 void WaylandPageSurface::destroy_subsurface()
 {
-    QObject::disconnect(m_parent_surface_destroyed_connection);
     if (m_subsurface) {
         wl_subsurface_destroy(m_subsurface);
         m_subsurface = nullptr;
@@ -163,8 +195,8 @@ void WaylandPageSurface::destroy_subsurface()
         wl_subsurface_destroy(m_overlay_subsurface);
         m_overlay_subsurface = nullptr;
     }
-    m_parent = nullptr;
     m_parent_surface = nullptr;
+    m_parent_surface_id = 0;
     m_position.clear();
     hide();
     hide_overlay();

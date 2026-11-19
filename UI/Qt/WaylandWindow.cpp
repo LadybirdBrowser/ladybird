@@ -7,11 +7,21 @@
 #include <UI/Qt/WaylandWindow.h>
 
 #include <QGuiApplication>
+#include <QWindow>
 
 #include <string.h>
 #include <wayland-client.h>
 
 namespace Ladybird {
+
+wl_surface* wayland_surface_for_window(QWindow const& window)
+{
+    if (!window.handle() || !qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>())
+        return nullptr;
+
+    // Since Qt 6.10, the Wayland backend returns its wl_surface as the window ID.
+    return reinterpret_cast<wl_surface*>(window.winId());
+}
 
 bool wayland_compositor_moves_dragged_windows()
 {
