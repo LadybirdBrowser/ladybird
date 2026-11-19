@@ -84,20 +84,23 @@ pub fn should_invert(color: Color, role: ForceDarkRole, settings: &ForceDarkSett
     brightness(color) < threshold
 }
 
-// Grays landing between these two snap down to the lower one, so the near-blacks an inverted page produces come out
-// as one dark surface color instead of a spread of almost-identical values.
+// Grays landing between these two snap to the dark surface color, so the near-blacks an inverted page produces come
+// out as one surface instead of a spread of almost-identical values.
 const GRAY_BRIGHTNESS_THRESHOLD: f32 = 32.0 / 255.0;
-const GRAY_ADJUSTED_BRIGHTNESS: f32 = 18.0 / 255.0;
+const GRAY_BAND_FLOOR: f32 = 18.0 / 255.0;
 
-// Lightness inversion is L -> LIGHTNESS_LIFT - L, clamped to 1.0. The value is twice the Oklab lightness of sRGB
-// mid-gray, which makes mid-gray invert to itself and lands white inside the gray band above.
-const LIGHTNESS_LIFT: f32 = 1.20;
+// Lightness inversion is L -> LIGHTNESS_LIFT - L, clamped to 1.0. The value is one plus the Oklab lightness of the dark
+// surface gray, so white inverts onto the dark surface by itself and the grays above it keep their spacing. Snapping
+// white up to the surface instead would crush it against the light grays that land just above the gray band.
+const LIGHTNESS_LIFT: f32 = 1.2264;
 
 // The contrast floor selection colors are raised to, against the dark surface color; Chrome's
 // color_utils::kMinimumVisibleContrastRatio.
 const MINIMUM_VISIBLE_CONTRAST_RATIO: f64 = 3.0;
 const MINIMUM_READABLE_CONTRAST_RATIO: f64 = 4.5;
-const DARK_SURFACE: Color = Color::from_rgb(18, 18, 18);
+// NB: This is the dark Canvas system color, so that a page darkened here lands on the same surface as a page that is
+//     dark on its own.
+const DARK_SURFACE: Color = Color::from_rgb(28, 28, 30);
 
 fn srgb_channel_to_linear(c: f32) -> f32 {
     if c <= 0.04045 {
@@ -159,9 +162,13 @@ pub fn adjust_gray(color: Color) -> Color {
 
     const EPSILON: f32 = 1.0 / 255.0;
     let is_gray = (r - g).abs() <= EPSILON && (r - b).abs() <= EPSILON;
-    if is_gray && r < GRAY_BRIGHTNESS_THRESHOLD && r > GRAY_ADJUSTED_BRIGHTNESS {
-        let level = (GRAY_ADJUSTED_BRIGHTNESS * 255.0).round() as u8;
-        return Color::from_rgba(level, level, level, color.alpha());
+    if is_gray && r < GRAY_BRIGHTNESS_THRESHOLD && r > GRAY_BAND_FLOOR {
+        return Color::from_rgba(
+            DARK_SURFACE.red(),
+            DARK_SURFACE.green(),
+            DARK_SURFACE.blue(),
+            color.alpha(),
+        );
     }
     color
 }
@@ -685,19 +692,18 @@ mod tests {
 
     #[test]
     fn white_lands_on_the_dark_surface_value() {
-        // White inverts to just inside adjust_gray's band and snaps to the surface value. Pinning the exact result
+        // White inverts to the surface gray, inside adjust_gray's band, and snaps to the surface value. Pinning the exact result
         // matters: a lift landing white below the band crushes it toward black, and brightness > 0 wouldn't notice.
-        assert_eq!(invert_lightness(WHITE), Color::from_rgb(18, 18, 18));
+        assert_eq!(invert_lightness(WHITE), DARK_SURFACE);
     }
 
     #[test]
-    fn mid_gray_is_a_fixed_point() {
-        // The lift is chosen so that sRGB mid-gray inverts to itself, making the inversion a reflection about the
-        // midpoint rather than a slide toward one end.
+    fn mid_gray_stays_near_the_middle() {
+        // The lift slides the inversion a little toward light, so mid-gray comes out slightly lighter, not far off.
         let inverted = invert_lightness(Color::from_rgb(128, 128, 128));
         assert!(
-            inverted.red().abs_diff(128) <= 1,
-            "mid-gray should invert to itself, got {}",
+            inverted.red().abs_diff(136) <= 1,
+            "mid-gray should invert to about 136, got {}",
             inverted.red()
         );
     }
@@ -735,7 +741,7 @@ mod tests {
 
     #[test]
     fn adjust_gray_snaps_near_black_grays_to_the_dark_surface_value() {
-        assert_eq!(adjust_gray(Color::from_rgb(20, 20, 20)), Color::from_rgb(18, 18, 18));
+        assert_eq!(adjust_gray(Color::from_rgb(20, 20, 20)), DARK_SURFACE);
         // Not a gray: left alone even though it is dark.
         let dark_blue = Color::from_rgb(0, 0, 40);
         assert_eq!(adjust_gray(dark_blue), dark_blue);

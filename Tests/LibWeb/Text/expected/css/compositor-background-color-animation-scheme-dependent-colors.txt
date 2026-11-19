@@ -5,7 +5,7 @@ light-dark-font-relative:
   background-color-animation keyframes=[rgba(200, 0, 0, 0), rgb(0, 0, 255)]
   compositor background-color frame
 system:
-  background-color-animation keyframes=[rgb(18, 18, 18), rgb(255, 255, 255)]
+  background-color-animation keyframes=[rgb(28, 28, 30), rgb(255, 255, 255)]
   compositor background-color frame
 scripted-light-dark-font-relative:
   background-color-animation keyframes=[rgba(200, 0, 0, 0), rgb(0, 0, 255)]

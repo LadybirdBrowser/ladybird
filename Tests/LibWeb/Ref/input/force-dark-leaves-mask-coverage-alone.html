@@ -2,7 +2,7 @@
 <html class="reftest-wait">
 <link rel="match" href="../expected/force-dark-leaves-mask-coverage-alone-ref.html">
 <style>
-    body { margin: 0; background: #808080; }
+    body { margin: 0; background: #848484; }
 </style>
 <svg width="120" height="120" viewBox="-10 -10 120 120">
     <mask id="mask">
@@ -10,10 +10,10 @@
         <rect x="0" y="0" width="50" height="100" fill="black" />
     </mask>
     <rect x="-10" y="-10" width="120" height="120" fill="white" />
-    <rect x="10" y="10" width="80" height="80" fill="#808080" mask="url(#mask)" />
+    <rect x="10" y="10" width="80" height="80" fill="#848484" mask="url(#mask)" />
 </svg>
 <script>
-    // Every color here is a fixed point of the filter: white clears the foreground threshold, and #808080 is the
+    // Every color here is a fixed point of the filter: white clears the foreground threshold, and #848484 is the
     // lightness the inversion maps onto itself. The only way the page can change is if force-dark reaches the mask,
     // where the black half is coverage rather than color, and inverting it would reveal the left half of the box.
     if (window.internals)
