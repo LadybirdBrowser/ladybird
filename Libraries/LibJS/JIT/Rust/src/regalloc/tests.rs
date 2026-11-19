@@ -698,8 +698,9 @@ fn exits_find_constants_registers_and_spilled_values() {
     }
     .write(&mut scratch.sites, &mut scratch.artifact)
     .unwrap();
-    let layout = scratch.artifact.finish(&Tail::default()).unwrap();
-    let artifact = Artifact::new(scratch.artifact.words(), &layout);
+    let mut words = ak::Column::new(crate::artifact::MAX_WORDS, c"test");
+    let layout = scratch.artifact.finish(&Tail::default(), &mut words).unwrap();
+    let artifact = Artifact::new(&words, &layout);
     let argument = find_node(&graph, |node| node.op == Op::LoadSlot { slot: a(0).raw() });
     let Some(Location::Register(argument_register)) = allocation.node(argument).output else {
         panic!("the argument is in a register");

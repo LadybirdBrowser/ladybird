@@ -9,10 +9,8 @@
 use core::ops::ControlFlow;
 use core::ptr::NonNull;
 
-use libjs_jit::code::CompiledCode;
-
 use super::code::{CompileState, FRUITLESS_LOOP_CHECKS_AFTER_INSTALL, JitCode, SnapshotExecutable};
-use super::compile_queue::CompileResult;
+use super::compile_queue::{CompileResult, Compiled};
 use super::data_memory::DataMemory;
 use super::executable_memory::ExecutableMemory;
 use super::snapshot::{CapturedSnapshot, capture_snapshot};
@@ -353,7 +351,7 @@ fn should_install(vm: &Vm, result: &CompileResult) -> bool {
 fn install(
     vm: &Vm,
     executable: Gc<Executable>,
-    compiled: CompiledCode,
+    compiled: Compiled,
     memory: ExecutableMemory,
     snapshot: SnapshotExecutables,
     defer_gc: &DeferGc<'_>,
@@ -483,7 +481,7 @@ fn compile(
             let name = super::describe_executable(&executable);
             ExecutableMemory::allocate(
                 vm.jit.code_allocator(),
-                &[code.as_slice()],
+                &[&code[..]],
                 &[name.as_str()],
                 vm.jit.options.perf_map,
             )
@@ -593,7 +591,7 @@ fn install_compile_results(vm: &Vm, results: Vec<(u64, CompileResult)>, defer_gc
             .map(|(compile, _)| compile)
     };
     let codes: Vec<&[u8]> = installed()
-        .map(|(_, result)| result.as_ref().expect("the compile succeeded").code.as_slice())
+        .map(|(_, result)| &result.as_ref().expect("the compile succeeded").code[..])
         .collect();
     let names: Vec<String> = installed()
         .map(|(job, _)| super::describe_executable(&job.executable))
