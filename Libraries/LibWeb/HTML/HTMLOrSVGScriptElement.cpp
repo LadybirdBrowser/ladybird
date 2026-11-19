@@ -117,10 +117,6 @@ void HTMLOrSVGScriptElement::execute_script()
         return;
     }
 
-    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
-    // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
-    VERIFY(document->ready_to_run_scripts());
-
     // 3. Unblock rendering on el.
     element.unblock_rendering();
 
