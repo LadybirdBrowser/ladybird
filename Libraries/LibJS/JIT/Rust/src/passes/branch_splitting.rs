@@ -329,7 +329,8 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators) -> Result<bool, Col
             if !dominators.is_reachable(block_id) || block_id == split.block || block_id == split.branch_block {
                 continue;
             }
-            let block = graph.block(block_id).clone();
+            // NB: The blocks stay as they are while the inputs of their nodes change.
+            let block = &graph.blocks[block_index];
             for phi in &block.phis {
                 for (input_index, predecessor) in block.predecessors.iter().enumerate() {
                     if let Some(side) = side_of(dominators, &split, *predecessor) {
