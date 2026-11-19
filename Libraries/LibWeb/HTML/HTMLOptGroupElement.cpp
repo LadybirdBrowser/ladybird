@@ -29,16 +29,6 @@ void HTMLOptGroupElement::inserted()
         static_cast<HTMLSelectElement&>(*parent()).update_selectedness();
 }
 
-void HTMLOptGroupElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
-{
-    Base::removed_from(is_subtree_root, old_ancestor, old_root);
-
-    // The optgroup HTML element removing steps, given removedNode and oldParent, are:
-    // 1. If oldParent is a select element and removedNode has an option child, then run oldParent's selectedness setting algorithm.
-    if (old_ancestor && is<HTMLSelectElement>(*old_ancestor) && first_child_of_type<HTMLOptionElement>())
-        static_cast<HTMLSelectElement&>(*old_ancestor).update_selectedness();
-}
-
 void HTMLOptGroupElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);

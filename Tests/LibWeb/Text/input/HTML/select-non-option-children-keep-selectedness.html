@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<select id="select"><option>a</option><option>b</option></select>
+<script>
+    test(() => {
+        // With no option selected, the selectedness setting algorithm would select the first one again. It only runs when
+        // the list of options gains or loses an option, so a child that can't change the list leaves none selected.
+        function check(description, mutate) {
+            select.selectedIndex = -1;
+            mutate();
+            println(`${description}: ${select.selectedIndex}`);
+        }
+
+        check("Append text", () => select.append("\n"));
+        check("Append comment", () => select.append(document.createComment("comment")));
+        check("Change text", () => select.lastChild.previousSibling.data = "text");
+        check("Remove comment", () => select.lastChild.remove());
+        check("Remove text", () => select.lastChild.remove());
+        check("Append fragment of text and comment", () => {
+            const fragment = document.createDocumentFragment();
+            fragment.append("text", document.createComment("comment"));
+            select.append(fragment);
+        });
+        check("Append fragment with option", () => {
+            const fragment = document.createDocumentFragment();
+            fragment.append("text", new Option("e"));
+            select.append(fragment);
+        });
+        check("Append div", () => select.append(document.createElement("div")));
+        check("Remove div", () => select.lastChild.remove());
+        check("Append empty optgroup", () => select.append(document.createElement("optgroup")));
+        check("Remove empty optgroup", () => select.lastChild.remove());
+        check("Append datalist with option", () => {
+            const datalist = document.createElement("datalist");
+            datalist.append(new Option("f"));
+            select.append(datalist);
+        });
+        check("Remove datalist with option", () => select.lastChild.remove());
+        check("Append hr with option", () => {
+            const hr = document.createElement("hr");
+            hr.append(new Option("g"));
+            select.append(hr);
+        });
+        check("Remove hr with option", () => select.lastChild.remove());
+        check("Append optgroup in optgroup with option", () => {
+            const outer = document.createElement("optgroup");
+            const inner = document.createElement("optgroup");
+            inner.append(new Option("h"));
+            outer.append(inner);
+            select.append(outer);
+        });
+        check("Remove optgroup in optgroup with option", () => select.lastChild.remove());
+        check("Append optgroup with option", () => {
+            const group = document.createElement("optgroup");
+            group.append(new Option("i"));
+            select.append(group);
+        });
+        check("Remove optgroup with option", () => select.lastChild.remove());
+        check("Append option", () => select.append(new Option("c")));
+        check("Append div with option", () => {
+            const div = document.createElement("div");
+            div.append(new Option("d"));
+            select.append(div);
+        });
+        check("Remove div with option", () => select.lastChild.remove());
+    });
+</script>
