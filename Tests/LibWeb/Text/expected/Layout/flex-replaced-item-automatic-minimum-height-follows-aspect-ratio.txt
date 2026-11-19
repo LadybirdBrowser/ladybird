@@ -1,0 +1,9 @@
+aspect-ratio: 300x225
+aspect-ratio-min-height-zero: 300x128.578125
+natural-ratio: 300x75
+auto-and-ratio: 300x75
+aspect-ratio-without-natural-size: 300x225
+aspect-ratio-fixed-width: 200x150
+aspect-ratio-max-height: 300x200
+square-aspect-ratio: 300x300
+aspect-ratio-fixed-height: 300x225

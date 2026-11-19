@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .card { display: inline-flex; flex-direction: column; width: 300px; height: 300px; vertical-align: top; }
+    .card > img { display: block; }
+    .rest { height: 100%; }
+</style>
+<!-- The automatic minimum height of an image in a column flex container is its min-content height, which follows its
+     aspect-ratio rather than its natural ratio. So it doesn't shrink below the height its width and aspect-ratio give. -->
+<div class="card"><img id="aspect-ratio" style="aspect-ratio: 4 / 3" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='100'/%3E"><div class="rest"></div></div>
+<div class="card"><img id="aspect-ratio-min-height-zero" style="aspect-ratio: 4 / 3; min-height: 0" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='100'/%3E"><div class="rest"></div></div>
+<div class="card"><img id="natural-ratio" style="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='100'/%3E"><div class="rest"></div></div>
+<div class="card"><img id="auto-and-ratio" style="aspect-ratio: auto 4 / 3" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='100'/%3E"><div class="rest"></div></div>
+<div class="card"><img id="aspect-ratio-without-natural-size" style="aspect-ratio: 4 / 3" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100'/%3E"><div class="rest"></div></div>
+<div class="card"><img id="aspect-ratio-fixed-width" style="aspect-ratio: 4 / 3; width: 200px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='100'/%3E"><div class="rest"></div></div>
+<div class="card"><img id="aspect-ratio-max-height" style="aspect-ratio: 4 / 3; max-height: 200px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='100'/%3E"><div class="rest"></div></div>
+<div class="card"><img id="square-aspect-ratio" style="aspect-ratio: 1" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='100'/%3E"><div class="rest"></div></div>
+<div class="card"><img id="aspect-ratio-fixed-height" style="aspect-ratio: 4 / 3; height: 250px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='100'/%3E"><div class="rest"></div></div>
+<script>
+    function run(report) {
+        for (const element of document.querySelectorAll("[id]:not(#out)")) {
+            const rect = element.getBoundingClientRect();
+            report(`${element.id}: ${rect.width}x${rect.height}`);
+        }
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>
