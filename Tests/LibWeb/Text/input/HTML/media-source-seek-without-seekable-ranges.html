@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // A seek while nothing is seekable sets the seeking attribute and then clears it, without firing any events or
+    // moving the playback position. A later seek that succeeds queues its events on the same task source, so any
+    // events from the first seek would be logged before them.
+    asyncTest(done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        for (const eventName of ["seeking", "timeupdate", "seeked"]) {
+            video.addEventListener(eventName, () => {
+                println(`${eventName} event, seeking ${video.seeking}, currentTime ${video.currentTime}`);
+            });
+        }
+
+        function clusterOffsetOf(data) {
+            const clusterID = [0x1f, 0x43, 0xb6, 0x75];
+            for (let i = 0; i + clusterID.length <= data.length; i++) {
+                if (clusterID.every((byte, offset) => data[i + offset] === byte))
+                    return i;
+            }
+            return data.length;
+        }
+
+        function append(sourceBuffer, bytes) {
+            return new Promise(resolve => {
+                sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                sourceBuffer.appendBuffer(bytes);
+            });
+        }
+
+        function waitUntilNotSeeking() {
+            return new Promise(resolve => {
+                function check() {
+                    if (video.seeking) {
+                        setTimeout(check, 0);
+                        return;
+                    }
+                    resolve();
+                }
+                check();
+            });
+        }
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9"');
+            const response = await fetch("../../../Assets/vp9-frame-rate-change.webm");
+            const data = new Uint8Array(await response.arrayBuffer());
+            const clusterOffset = clusterOffsetOf(data);
+            await append(sourceBuffer, data.subarray(0, clusterOffset));
+            if (video.readyState < HTMLMediaElement.HAVE_METADATA)
+                await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+            // With an unbounded duration, nothing buffered and no live seekable range, nothing is seekable.
+            mediaSource.duration = Infinity;
+            println(`seekable ranges: ${video.seekable.length}`);
+
+            video.currentTime = 12;
+            println(`after setting currentTime: seeking ${video.seeking}`);
+            await waitUntilNotSeeking();
+            println(`after the seek is skipped: currentTime ${video.currentTime}`);
+
+            await append(sourceBuffer, data.subarray(clusterOffset));
+            println(`seekable ranges after appending media: ${video.seekable.length}`);
+            video.currentTime = 1;
+            await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+            done();
+        });
+    });
+</script>
