@@ -57,6 +57,16 @@ if (APPLE OR LINUX)
     )
 endif()
 
+# Only Linux reads the system's settings from the desktop's settings portal.
+if (LINUX AND NOT ANDROID)
+    list(APPEND TEST_SOURCES
+        TestSystemAppearance.cpp
+    )
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
+    target_link_libraries(TestUIQt PRIVATE PkgConfig::GIO)
+endif()
+
 target_sources(TestUIQt PRIVATE ${TEST_SOURCES})
 set_property(SOURCE TestProcessManagerWindow.cpp APPEND PROPERTY COMPILE_DEFINITIONS TEST_RESOURCE_ROOT="${LADYBIRD_SOURCE_DIR}/Base/res")
 

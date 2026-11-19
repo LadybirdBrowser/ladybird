@@ -2933,6 +2933,17 @@ void Application::set_preferred_motion(Web::CSS::PreferredMotion motion)
     });
 }
 
+void Application::platform_motion_preference_changed()
+{
+    // Only Auto follows the platform.
+    if (m_motion != Web::CSS::PreferredMotion::Auto)
+        return;
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        view.set_preferred_motion(m_motion);
+        return IterationDecision::Continue;
+    });
+}
+
 void Application::set_user_agent_string(String user_agent)
 {
     m_user_agent_string = move(user_agent);

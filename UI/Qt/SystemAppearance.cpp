@@ -144,9 +144,23 @@ bool SystemAppearance::query_system_prefers_dark() const
 static constexpr auto PORTAL_BUS_NAME = "org.freedesktop.portal.Desktop";
 static constexpr auto PORTAL_OBJECT_PATH = "/org/freedesktop/portal/desktop";
 static constexpr auto SETTINGS_INTERFACE = "org.freedesktop.portal.Settings";
-static constexpr auto APPEARANCE_NAMESPACE = "org.freedesktop.appearance";
+static constexpr auto APPEARANCE_NAMESPACE = "org.freedesktop.appearance"sv;
 static constexpr auto COLOR_SCHEME_KEY = "color-scheme"sv;
 static constexpr auto ACCENT_COLOR_KEY = "accent-color"sv;
+static constexpr auto REDUCED_MOTION_KEY = "reduced-motion"sv;
+// Portals older than the reduced-motion setting serve their desktop's own settings: GNOME's serve its interface
+// settings, and KDE's those of kdeglobals.
+static constexpr auto GNOME_INTERFACE_NAMESPACE = "org.gnome.desktop.interface"sv;
+static constexpr auto ENABLE_ANIMATIONS_KEY = "enable-animations"sv;
+static constexpr auto KDE_GLOBALS_NAMESPACE = "org.kde.kdeglobals.KDE"sv;
+static constexpr auto ANIMATION_DURATION_FACTOR_KEY = "AnimationDurationFactor"sv;
+
+// The motion settings the portal reports: its own reduced-motion setting, and where a portal has none, GNOME's switch
+// for animations and KDE's animation speed, where 0 is "Instant". Either of those turned all the way down asks for less
+// motion.
+static Optional<bool> s_portal_prefers_reduced_motion;
+static Optional<bool> s_portal_enables_animations;
+static Optional<double> s_portal_animation_duration_factor;
 
 // The accent color is three sRGB components from 0 to 1. Any component out of that range means that there is none.
 static Optional<QColor> accent_color_from_variant(GVariant* value)
@@ -180,17 +194,48 @@ static Optional<bool> prefers_dark_from_variant(GVariant* value)
     }
 }
 
-void SystemAppearance::apply_portal_setting(StringView key, GVariant* value)
+// KDE's portal reports the settings of kdeglobals as it reads them from the file, so the factor can come as a string.
+static Optional<double> animation_duration_factor_from_variant(GVariant* value)
 {
-    if (key == COLOR_SCHEME_KEY) {
+    if (g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE))
+        return g_variant_get_double(value);
+    if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
+        gsize length = 0;
+        auto const* characters = g_variant_get_string(value, &length);
+        return StringView { characters, length }.to_number<double>();
+    }
+    return {};
+}
+
+void SystemAppearance::apply_portal_setting(StringView namespace_, StringView key, GVariant* value)
+{
+    if (namespace_ == APPEARANCE_NAMESPACE && key == COLOR_SCHEME_KEY) {
         s_portal_prefers_dark = prefers_dark_from_variant(value);
         update();
-    } else if (key == ACCENT_COLOR_KEY) {
+    } else if (namespace_ == APPEARANCE_NAMESPACE && key == ACCENT_COLOR_KEY) {
         auto accent = accent_color_from_variant(value);
         if (accent == Theme::desktop_accent())
             return;
         Theme::set_desktop_accent(move(accent));
         notify_widgets_of_palette_change();
+    } else if ((namespace_ == APPEARANCE_NAMESPACE && key == REDUCED_MOTION_KEY) || (namespace_ == GNOME_INTERFACE_NAMESPACE && key == ENABLE_ANIMATIONS_KEY) || (namespace_ == KDE_GLOBALS_NAMESPACE && key == ANIMATION_DURATION_FACTOR_KEY)) {
+        auto prefers_reduced_motion = SystemAppearance::prefers_reduced_motion();
+        if (key == REDUCED_MOTION_KEY) {
+            // The setting is 1 for reduced motion. Any other value means no preference.
+            if (g_variant_is_of_type(value, G_VARIANT_TYPE_UINT32))
+                s_portal_prefers_reduced_motion = g_variant_get_uint32(value) == 1;
+            else
+                s_portal_prefers_reduced_motion = {};
+        } else if (key == ENABLE_ANIMATIONS_KEY) {
+            if (g_variant_is_of_type(value, G_VARIANT_TYPE_BOOLEAN))
+                s_portal_enables_animations = g_variant_get_boolean(value);
+            else
+                s_portal_enables_animations = {};
+        } else {
+            s_portal_animation_duration_factor = animation_duration_factor_from_variant(value);
+        }
+        if (SystemAppearance::prefers_reduced_motion() != prefers_reduced_motion)
+            emit reduced_motion_changed();
     }
 }
 
@@ -199,6 +244,7 @@ void SystemAppearance::apply_portal_setting(StringView key, GVariant* value)
 struct PortalSettingRead {
     AK_ALLOC_WITH_KMALLOC;
 
+    char* namespace_ { nullptr };
     char* key { nullptr };
     bool is_deprecated_read { false };
 };
@@ -207,6 +253,11 @@ static void read_portal_setting(GDBusConnection*, PortalSettingRead*);
 
 // The settings that changed since we asked for them, whose first read could otherwise undo the change.
 static HashTable<ByteString> s_portal_settings_changed;
+
+static ByteString portal_setting_name(StringView namespace_, StringView key)
+{
+    return ByteString::formatted("{}.{}", namespace_, key);
+}
 
 static void did_read_portal_setting(GObject* source, GAsyncResult* result, gpointer user_data)
 {
@@ -226,12 +277,14 @@ static void did_read_portal_setting(GObject* source, GAsyncResult* result, gpoin
             g_variant_unref(value);
             value = inner_value;
         }
+        StringView namespace_ { read->namespace_, strlen(read->namespace_) };
         StringView key { read->key, strlen(read->key) };
-        if (!s_portal_settings_changed.contains(ByteString { key }))
-            SystemAppearance::the().apply_portal_setting(key, value);
+        if (!s_portal_settings_changed.contains(portal_setting_name(namespace_, key)))
+            SystemAppearance::the().apply_portal_setting(namespace_, key, value);
         g_variant_unref(value);
         g_variant_unref(reply);
     }
+    g_free(read->namespace_);
     g_free(read->key);
     delete read;
 }
@@ -239,36 +292,49 @@ static void did_read_portal_setting(GObject* source, GAsyncResult* result, gpoin
 static void read_portal_setting(GDBusConnection* connection, PortalSettingRead* read)
 {
     g_dbus_connection_call(connection, PORTAL_BUS_NAME, PORTAL_OBJECT_PATH, SETTINGS_INTERFACE,
-        read->is_deprecated_read ? "Read" : "ReadOne", g_variant_new("(ss)", APPEARANCE_NAMESPACE, read->key),
+        read->is_deprecated_read ? "Read" : "ReadOne", g_variant_new("(ss)", read->namespace_, read->key),
         G_VARIANT_TYPE("(v)"), G_DBUS_CALL_FLAGS_NONE, -1, nullptr, did_read_portal_setting, read);
 }
 
-static void read_portal_setting(GDBusConnection* connection, StringView key)
+static void read_portal_setting(GDBusConnection* connection, StringView namespace_, StringView key)
 {
-    read_portal_setting(connection, new PortalSettingRead { .key = g_strndup(key.characters_without_null_termination(), key.length()) });
+    read_portal_setting(connection, new PortalSettingRead {
+                                        .namespace_ = g_strndup(namespace_.characters_without_null_termination(), namespace_.length()),
+                                        .key = g_strndup(key.characters_without_null_termination(), key.length()),
+                                    });
 }
 
 static void portal_setting_changed(GDBusConnection*, char const*, char const*, char const*, char const*, GVariant* parameters, gpointer)
 {
+    char const* namespace_ = nullptr;
     char const* key = nullptr;
     GVariant* value = nullptr;
-    g_variant_get(parameters, "(&s&sv)", nullptr, &key, &value);
+    g_variant_get(parameters, "(&s&sv)", &namespace_, &key, &value);
+    StringView namespace_view { namespace_, strlen(namespace_) };
     StringView key_view { key, strlen(key) };
-    s_portal_settings_changed.set(ByteString { key_view });
-    SystemAppearance::the().apply_portal_setting(key_view, value);
+    s_portal_settings_changed.set(portal_setting_name(namespace_view, key_view));
+    SystemAppearance::the().apply_portal_setting(namespace_view, key_view, value);
     g_variant_unref(value);
 }
 
+// NB: The connection is kept for the lifetime of the process, as the subscription below needs it.
+static GDBusConnection* s_session_bus;
+
 static void did_get_session_bus(GObject*, GAsyncResult* result, gpointer)
 {
-    // NB: The connection is kept for the lifetime of the process, as the subscription below needs it.
     auto* connection = g_bus_get_finish(result, nullptr);
     if (!connection)
         return;
+    s_session_bus = connection;
+    // The signal's first argument is the namespace, and the settings we read are in several, so every change arrives,
+    // and apply_portal_setting() picks out the ones we read.
     g_dbus_connection_signal_subscribe(connection, PORTAL_BUS_NAME, SETTINGS_INTERFACE, "SettingChanged", PORTAL_OBJECT_PATH,
-        APPEARANCE_NAMESPACE, G_DBUS_SIGNAL_FLAGS_NONE, portal_setting_changed, nullptr, nullptr);
-    read_portal_setting(connection, COLOR_SCHEME_KEY);
-    read_portal_setting(connection, ACCENT_COLOR_KEY);
+        nullptr, G_DBUS_SIGNAL_FLAGS_NONE, portal_setting_changed, nullptr, nullptr);
+    read_portal_setting(connection, APPEARANCE_NAMESPACE, COLOR_SCHEME_KEY);
+    read_portal_setting(connection, APPEARANCE_NAMESPACE, ACCENT_COLOR_KEY);
+    read_portal_setting(connection, APPEARANCE_NAMESPACE, REDUCED_MOTION_KEY);
+    read_portal_setting(connection, GNOME_INTERFACE_NAMESPACE, ENABLE_ANIMATIONS_KEY);
+    read_portal_setting(connection, KDE_GLOBALS_NAMESPACE, ANIMATION_DURATION_FACTOR_KEY);
 }
 
 // NB: Qt's palette does not follow the accent color of desktops such as GNOME, and Qt's color scheme reports the
@@ -277,6 +343,13 @@ static void did_get_session_bus(GObject*, GAsyncResult* result, gpointer)
 void SystemAppearance::observe_platform_changes()
 {
     g_bus_get(G_BUS_TYPE_SESSION, nullptr, did_get_session_bus, nullptr);
+
+    // KDE's portals report no change to the animation speed, which is set in another application. So where the portal
+    // has no reduced-motion setting, the speed is read again whenever we become the active application.
+    QObject::connect(qGuiApp, &QGuiApplication::applicationStateChanged, this, [](Qt::ApplicationState state) {
+        if (state == Qt::ApplicationActive && s_session_bus && !s_portal_prefers_reduced_motion.has_value())
+            read_portal_setting(s_session_bus, KDE_GLOBALS_NAMESPACE, ANIMATION_DURATION_FACTOR_KEY);
+    });
 }
 #    else
 void SystemAppearance::observe_platform_changes()
@@ -284,11 +357,22 @@ void SystemAppearance::observe_platform_changes()
 }
 #    endif
 
+#    if defined(AK_OS_LINUX)
+bool SystemAppearance::prefers_reduced_motion()
+{
+    if (s_portal_prefers_reduced_motion.has_value())
+        return *s_portal_prefers_reduced_motion;
+    if (s_portal_enables_animations == false)
+        return true;
+    return s_portal_animation_duration_factor.has_value() && *s_portal_animation_duration_factor <= 0;
+}
+#    else
 bool SystemAppearance::prefers_reduced_motion()
 {
     // FIXME: Ask the platform.
     return false;
 }
+#    endif
 #endif
 
 }

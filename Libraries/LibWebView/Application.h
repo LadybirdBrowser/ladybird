@@ -153,6 +153,10 @@ public:
     virtual bool platform_scrollbar_track_press_jumps() const { return false; }
     // Tells the compositor of a change to what platform_scrollbar_track_press_jumps() returns.
     void platform_scrollbar_track_press_behavior_changed();
+    // Returns true if the platform's settings ask for less motion, which pages see while the motion preference is Auto.
+    virtual bool platform_prefers_reduced_motion() const { return false; }
+    // Tells every page of a change to what platform_prefers_reduced_motion() returns.
+    void platform_motion_preference_changed();
     // The languages the user prefers, as the platform lists them (BCP 47 tags, most preferred first).
     virtual Vector<String> platform_preferred_languages() const { return {}; }
     // The GPU the platform presents on, which the compositor paints on too, so that it can share its frames without a copy.

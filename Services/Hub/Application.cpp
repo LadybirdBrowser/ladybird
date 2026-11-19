@@ -71,9 +71,12 @@ bool Application::ui_has_translator() const
 void Application::set_ui_info(Hub::UIInfo info)
 {
     auto scrollbar_track_press_jumps_changed = !m_ui_info.has_value() || m_ui_info->scrollbar_track_press_jumps != info.scrollbar_track_press_jumps;
+    auto prefers_reduced_motion_changed = !m_ui_info.has_value() || m_ui_info->prefers_reduced_motion != info.prefers_reduced_motion;
     m_ui_info = move(info);
     if (scrollbar_track_press_jumps_changed)
         platform_scrollbar_track_press_behavior_changed();
+    if (prefers_reduced_motion_changed)
+        platform_motion_preference_changed();
 }
 
 View& Application::create_view(View::InitialState initial_state, Optional<WebView::CanonicalTraversable&> traversable)
@@ -572,6 +575,15 @@ bool Application::platform_scrollbar_track_press_jumps() const
     if (auto const* info = ui_info())
         return info->scrollbar_track_press_jumps;
     return WebView::Application::platform_scrollbar_track_press_jumps();
+}
+
+bool Application::platform_prefers_reduced_motion() const
+{
+    if (m_host)
+        return m_host->platform_prefers_reduced_motion();
+    if (auto const* info = ui_info())
+        return info->prefers_reduced_motion;
+    return WebView::Application::platform_prefers_reduced_motion();
 }
 
 Vector<String> Application::platform_preferred_languages() const
