@@ -714,7 +714,7 @@ impl Console {
             LogLevel::Warn => "\x1b[32;1m(js warn)\x1b[0m",
             _ => "\x1b[32;1m(js)\x1b[0m",
         };
-        eprintln!("{prefix} {}", output.to_utf8());
+        eprintln!("{prefix} {}", crate::terminal::escape_for_terminal(&output.to_utf8()));
     }
 
     pub fn report_exception(

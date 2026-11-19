@@ -19,11 +19,10 @@ WorkerDebugConsoleClient::WorkerDebugConsoleClient(JS::Console& console)
 {
 }
 
+// The terminal isn't the page's to clear, so this only ends the groups.
 void WorkerDebugConsoleClient::clear()
 {
-    dbgln("\033[3J\033[H\033[2J");
     m_group_stack_depth = 0;
-    fflush(stdout);
 }
 
 void WorkerDebugConsoleClient::end_group()
@@ -43,10 +42,10 @@ JS::ThrowCompletionOr<JS::Value> WorkerDebugConsoleClient::printer(JS::Console::
         auto trace = arguments.get<JS::Console::Trace>();
         StringBuilder builder;
         if (!trace.label.is_empty())
-            builder.appendff("{}\033[36;1m{}\033[0m\n", indent, trace.label);
+            builder.appendff("{}\033[36;1m{}\033[0m\n", indent, JS::Console::escape_for_terminal(trace.label.utf16_view()));
 
         for (auto& frame : trace.stack)
-            builder.appendff("{}-> {}\n", indent, frame.function_name);
+            builder.appendff("{}-> {}\n", indent, JS::Console::escape_for_terminal(frame.function_name.utf16_view()));
 
         dbgln("{}", builder.string_view());
         return JS::js_undefined();
@@ -54,7 +53,7 @@ JS::ThrowCompletionOr<JS::Value> WorkerDebugConsoleClient::printer(JS::Console::
 
     if (log_level == JS::Console::LogLevel::Group || log_level == JS::Console::LogLevel::GroupCollapsed) {
         auto group = arguments.get<JS::Console::Group>();
-        dbgln("{}\033[36;1m{}\033[0m", indent, group.label);
+        dbgln("{}\033[36;1m{}\033[0m", indent, JS::Console::escape_for_terminal(group.label.utf16_view()));
         m_group_stack_depth++;
         return JS::js_undefined();
     }

@@ -41,12 +41,12 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
         if (name.is_accessor() || message.is_accessor()) {
             // The result is not going to be useful, let's just print the value. This affects DOMExceptions, for example.
             if (auto exception = Bindings::dom_exception_report_details(object); exception.has_value()) {
-                dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}: {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", exception->name, exception->message);
+                dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", JS::Console::escape_for_terminal(ByteString::formatted("{}: {}", exception->name, exception->message)));
             } else {
-                dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", JS::Value(&object));
+                dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", JS::Console::escape_for_terminal(ByteString::formatted("{}", JS::Value(&object))));
             }
         } else {
-            dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m [{}] {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", name, message);
+            dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", JS::Console::escape_for_terminal(ByteString::formatted("[{}] {}", name, message)));
         }
         if (auto const* error_data = object.error_data()) {
             Utf16String exception_name;
@@ -58,12 +58,13 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
                 exception_name = name.to_utf16_string_without_side_effects();
                 exception_message = message.to_utf16_string_without_side_effects();
             }
-            dbgln("{}", error_data->stack_string(JS::CompactTraceback::Yes));
+            auto stack = error_data->stack_string(JS::CompactTraceback::Yes);
+            dbgln("{}", JS::Console::escape_for_terminal(stack.utf16_view()));
             console.report_exception(exception_name, exception_message, *error_data, error_in_promise == ErrorInPromise::Yes);
             return;
         }
     } else {
-        dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", value);
+        dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", JS::Console::escape_for_terminal(ByteString::formatted("{}", value)));
     }
 
     auto utf16_message = value.to_utf16_string_without_side_effects();
@@ -182,8 +183,8 @@ void report_an_exception(JS::Object& global, JS::Value exception, Optional<Error
         }
         // 3. Otherwise, the user agent may report exception to a developer console.
         else if (has_precomputed_error_info) {
-            dbgln("\033[31;1mUnhandled JavaScript exception:\033[0m {}", error_info.message);
-            dbgln("    at {}:{}:{}", error_info.filename, error_info.lineno, error_info.colno);
+            dbgln("\033[31;1mUnhandled JavaScript exception:\033[0m {}", JS::Console::escape_for_terminal(error_info.message.utf16_view()));
+            dbgln("    at {}:{}:{}", JS::Console::escape_for_terminal(error_info.filename.utf16_view()), error_info.lineno, error_info.colno);
             realm.intrinsics().console_object()->console().report_exception("Error"_utf16, error_info.message, error_info.filename, error_info.lineno, error_info.colno, false);
         } else {
             report_exception_to_console(exception, realm, ErrorInPromise::No);

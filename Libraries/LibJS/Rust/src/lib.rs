@@ -152,6 +152,7 @@ pub mod source_range;
 pub mod source_text;
 #[cfg(not(test))]
 pub mod standard_output;
+pub mod terminal;
 pub mod token;
 pub mod tokenize;
 #[cfg(not(test))]
