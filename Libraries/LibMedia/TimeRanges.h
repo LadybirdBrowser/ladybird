@@ -119,6 +119,12 @@ struct AK::Formatter<Media::TimeRanges> : StandardFormatter {
 namespace IPC {
 
 template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::TimeRanges::Range const&);
+
+template<>
+MEDIA_API ErrorOr<Media::TimeRanges::Range> decode(Decoder&);
+
+template<>
 MEDIA_API ErrorOr<void> encode(Encoder&, Media::TrackBufferedRanges const&);
 
 template<>
