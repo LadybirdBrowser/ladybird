@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<iframe id="frame" srcdoc="<p>child"></iframe>
+<script>
+    // The iframe's new document becomes its active document a task before scripts may run for it.
+    // Keep a task queued so that we look at the iframe in between.
+    const initialDocument = frame.contentDocument;
+    let loaded = false;
+    window.onload = () => { loaded = true; };
+    window.onmessage = () => {
+        const newDocument = frame.contentDocument;
+        if (newDocument && newDocument !== initialDocument) {
+            const script = newDocument.createElement("script");
+            script.textContent = "1";
+            newDocument.appendChild(script);
+            return;
+        }
+        if (!loaded)
+            postMessage("poll");
+    };
+    postMessage("poll");
+</script>
