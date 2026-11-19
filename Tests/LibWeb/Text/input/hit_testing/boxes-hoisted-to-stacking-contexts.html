@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .context { position: relative; z-index: 1; width: 40px; height: 40px; }
+    .marker { width: 20px; height: 20px; }
+    #inside { position: absolute; left: 10px; top: 10px; }
+    #fixed-outside { position: fixed; left: 300px; top: 20px; }
+    #translucent { opacity: 0.9; width: 40px; height: 40px; }
+    #absolute-outside { position: absolute; left: 300px; top: 80px; }
+    #inner { opacity: 0.9; width: 20px; height: 20px; }
+    #nested-fixed-outside { position: fixed; left: 300px; top: 140px; }
+    .crowd { position: absolute; left: 0; top: 0; width: 2px; height: 2px; }
+    #crowded-fixed-outside { position: fixed; left: 300px; top: 200px; }
+    #many { position: relative; width: 200px; margin-top: 20px; }
+    #many > div { height: 4px; }
+    #many > .painted { background: green; }
+    #many > #float { float: left; width: 30px; height: 30px; }
+</style>
+<div class="context" id="contains-its-box"><div class="marker" id="inside"></div></div>
+<div class="context" id="holds-a-fixed-box"><div class="marker" id="fixed-outside"></div></div>
+<div id="translucent"><div class="marker" id="absolute-outside"></div></div>
+<div class="context" id="outer"><div id="inner"><div class="marker" id="nested-fixed-outside"></div></div></div>
+<div class="context" id="crowded"></div>
+<div id="many"></div>
+<script>
+    function describe(element) {
+        return element ? element.id || element.localName : "null";
+    }
+    function probe(label, x, y) {
+        const all = document.elementsFromPoint(x, y).map(describe).join(" ");
+        println(`${label}: ${describe(document.elementFromPoint(x, y))} [${all}]`);
+    }
+    test(() => {
+        const crowded = document.getElementById("crowded");
+        for (let index = 0; index < 12; ++index) {
+            const box = document.createElement("div");
+            box.className = "crowd";
+            crowded.appendChild(box);
+        }
+        const crowdedFixed = document.createElement("div");
+        crowdedFixed.className = "marker";
+        crowdedFixed.id = "crowded-fixed-outside";
+        crowded.appendChild(crowdedFixed);
+
+        const many = document.getElementById("many");
+        for (let index = 0; index < 60; ++index) {
+            const row = document.createElement("div");
+            row.id = `row-${index}`;
+            if (index % 2 === 0)
+                row.className = "painted";
+            many.appendChild(row);
+        }
+        const float = document.createElement("div");
+        float.id = "float";
+        many.insertBefore(float, document.getElementById("row-40"));
+
+        probe("a box its stacking context contains", 15, 15);
+        probe("beside that stacking context", 100, 15);
+        probe("a fixed box outside its stacking context", 310, 30);
+        probe("an absolutely positioned box outside a context that is not its containing block", 310, 90);
+        probe("a fixed box outside the two contexts around it", 310, 150);
+        probe("a fixed box outside a context with many positioned boxes", 310, 210);
+
+        const manyTop = many.getBoundingClientRect().top;
+        probe("a painted child of a box with many", 100, manyTop + 4 * 20 + 2);
+        probe("an unpainted child of a box with many", 100, manyTop + 4 * 21 + 2);
+        const floatRect = float.getBoundingClientRect();
+        println(`the float among many children is ${floatRect.width} by ${floatRect.height}`);
+        probe("a float among many children", floatRect.left + 10, floatRect.top + 10);
+        probe("beside the float, on a child it overlaps", floatRect.right + 10, floatRect.top + 10);
+        probe("beside a box with many children", 250, manyTop + 4 * 20 + 2);
+    });
+</script>
