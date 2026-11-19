@@ -2343,10 +2343,6 @@ void WebContentPage::request_history_operation(Web::HTML::CrossProcessId operati
         async_complete_history_operation(operation_id, {}, traversable().session_history().size());
         return;
     }
-    if (auto const* resume = parameters.get_pointer<Web::ResumeTraverseHistoryOperationParameters>(); resume && !traversable().session_history().get_the_used_step(resume->target_step).has_value()) {
-        client().did_misbehave("request_history_operation"sv, "resumed traversal to a step before every used step"sv);
-        return;
-    }
     traversable().enqueue_history_operation(operation_id, move(parameters), *this);
 }
 
@@ -3105,8 +3101,8 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
     if (navigable->tracked_load_navigation_id() != navigable->active_document_load().navigation_id)
         return;
 
-    // NB: The document a traversal is fetching a replacement for does not finish the traversal's load.
-    if (navigable->is_top_level_traversable() && traversable().has_unactivated_traversal_load())
+    // NB: The document a history operation is fetching a replacement for does not finish the operation's load.
+    if (navigable->is_top_level_traversable() && traversable().has_unactivated_load())
         return;
 
     navigable->clear_active_document_load();

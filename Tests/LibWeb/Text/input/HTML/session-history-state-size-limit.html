@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const small = new ArrayBuffer(1024 * 1024);
+        const large = new ArrayBuffer(16 * 1024 * 1024 + 1);
+
+        function check(name, callback) {
+            try {
+                callback();
+                println(`${name}: stored`);
+            } catch (e) {
+                println(`${name}: ${e.name}`);
+            }
+        }
+
+        check("pushState() with 1 MiB", () => history.pushState(small, "", "#small"));
+        check("pushState() with more than 16 MiB", () => history.pushState(large, "", "#large"));
+        check("replaceState() with more than 16 MiB", () => history.replaceState(large, ""));
+        check("updateCurrentEntry() with 1 MiB", () => navigation.updateCurrentEntry({ state: small }));
+        check("updateCurrentEntry() with more than 16 MiB", () => navigation.updateCurrentEntry({ state: large }));
+
+        let result;
+        try {
+            result = navigation.navigate("#navigated", { state: large });
+        } catch (e) {
+            println(`FAIL: navigate() threw ${e.name} instead of rejecting its promises`);
+        }
+        if (result) {
+            const outcomes = await Promise.allSettled([result.committed, result.finished]);
+            const describe = outcome => outcome.status === "rejected" ? outcome.reason.name : "fulfilled";
+            println(`navigate() with more than 16 MiB: committed ${describe(outcomes[0])}, finished ${describe(outcomes[1])}`);
+        }
+
+        println(`history.state is the 1 MiB state: ${history.state instanceof ArrayBuffer && history.state.byteLength === small.byteLength}`);
+        println(`location.hash: ${location.hash}`);
+        done();
+    });
+</script>

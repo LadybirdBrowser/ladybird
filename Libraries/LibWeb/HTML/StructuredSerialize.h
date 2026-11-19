@@ -66,6 +66,8 @@ WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&
 WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
 WEB_API StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS::Value);
 
+WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_session_history_state(JS::VM&, JS::Value);
+
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&);
 

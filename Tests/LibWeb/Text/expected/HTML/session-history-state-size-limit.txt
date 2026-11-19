@@ -1,0 +1,8 @@
+pushState() with 1 MiB: stored
+pushState() with more than 16 MiB: QuotaExceededError
+replaceState() with more than 16 MiB: QuotaExceededError
+updateCurrentEntry() with 1 MiB: stored
+updateCurrentEntry() with more than 16 MiB: QuotaExceededError
+navigate() with more than 16 MiB: committed QuotaExceededError, finished QuotaExceededError
+history.state is the 1 MiB state: true
+location.hash: #small

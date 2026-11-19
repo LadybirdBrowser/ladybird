@@ -220,6 +220,46 @@ static void clear_forward_session_history_entries(Vector<NonnullRefPtr<Canonical
     }
 }
 
+// AD-HOC: The back counterpart of clearing the forward session history, which removes every step before step.
+// See: https://github.com/whatwg/html/issues/8620#issuecomment-1352745250
+static void clear_back_session_history_entries(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>& entries, i32 step)
+{
+    // 1. Let entryLists be the ordered set « traversable's session history entries ».
+    Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>*> entry_lists { &entries };
+
+    // 2. For each entryList of entryLists:
+    while (!entry_lists.is_empty()) {
+        auto* entry_list = entry_lists.take_first();
+
+        // 1. Let shownEntry be the last session history entry of entryList that has a step less than or equal to
+        //    step, if any.
+        RefPtr<CanonicalSessionHistoryEntry> shown_entry;
+        for (auto& entry : *entry_list) {
+            if (entry->step <= step)
+                shown_entry = entry;
+        }
+
+        // 2. Remove every session history entry other than shownEntry from entryList that has a step less than step.
+        entry_list->remove_all_matching([&](auto const& entry) {
+            return entry != shown_entry && entry->step < step;
+        });
+
+        // 3. If shownEntry is non-null, then set shownEntry's step to step.
+        if (shown_entry)
+            shown_entry->step = step;
+
+        // 4. For each entry of entryList:
+        for (auto& entry : *entry_list) {
+            // 1. For each nestedHistory of entry's document state's nested histories, append
+            //    nestedHistory's entries list to entryLists.
+            for (auto& nested_history : entry->document_state->nested_histories) {
+                if (!entry_lists.contains_slow(&nested_history.entries))
+                    entry_lists.append(&nested_history.entries);
+            }
+        }
+    }
+}
+
 bool TraversableSessionHistory::initialize_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
 {
     if (entries.is_empty() || current_used_step_index >= used_steps.size())
@@ -360,6 +400,11 @@ i32 TraversableSessionHistory::push_session_history_entry(CanonicalNavigable con
     // NB: targetEntries is a list of this session history.
     const_cast<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>&>(*target_entries).append(move(entry));
 
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-history-interface:implementation-defined
+    // Cap the session history to 50 steps. See: https://github.com/whatwg/html/issues/8620
+    if (auto steps = used_steps(); steps.size() > 50)
+        clear_back_session_history_entries(m_entries, steps[steps.size() - 50]);
+
     return target_step;
 }
 
@@ -412,7 +457,7 @@ size_t TraversableSessionHistory::current_top_level_entry_index() const
 
 size_t TraversableSessionHistory::current_used_step_index() const
 {
-    return used_steps().find_first_index(get_the_used_step(m_current_session_history_step).value()).value();
+    return used_steps().find_first_index(get_the_used_step(m_current_session_history_step)).value();
 }
 
 Vector<DocumentStateLocalFileRoot> TraversableSessionHistory::local_file_roots_of_document_states() const
@@ -543,13 +588,17 @@ CanonicalSessionHistoryEntry* TraversableSessionHistory::top_level_entry_for_ste
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step
-Optional<i32> TraversableSessionHistory::get_the_used_step(i32 step) const
+i32 TraversableSessionHistory::get_the_used_step(i32 step) const
 {
     // 1. Let steps be the result of getting all used history steps within traversable.
+    auto steps = used_steps();
+
     // 2. Return the greatest item in steps that is less than or equal to step.
-    Optional<i32> used_step;
-    for (auto candidate : used_steps()) {
-        if (candidate <= step && (!used_step.has_value() || candidate > *used_step))
+    // AD-HOC: Or the least item in steps, as clearing the back session history can remove every step up to step.
+    //         See: https://github.com/whatwg/html/issues/8620
+    auto used_step = steps.first();
+    for (auto candidate : steps) {
+        if (candidate <= step)
             used_step = candidate;
     }
     return used_step;
