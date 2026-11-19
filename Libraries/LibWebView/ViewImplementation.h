@@ -845,7 +845,7 @@ protected:
     void ignore_pending_permission_prompts();
     void set_title(Utf16String);
     void set_favicon(Optional<Gfx::Bitmap const&>);
-    void did_change_title_or_favicon();
+    bool shows_background_activity() const;
     void finish_discard_request();
     void stop_counting_as_owned_view();
     void start_being_hidden();
@@ -1329,7 +1329,10 @@ protected:
     // NB: A view starts out hidden, until the UI shows it.
     Optional<MonotonicTime> m_hidden_since { MonotonicTime::now() };
     Optional<MonotonicTime> m_stopped_playing_audio_time;
-    bool m_changed_title_or_favicon_while_hidden { false };
+    Optional<MonotonicTime> m_finished_loading_time;
+    bool m_changed_title_while_hidden { false };
+    bool m_changed_favicon_while_hidden { false };
+    RefPtr<Gfx::Bitmap const> m_favicon;
     bool m_pinned { false };
     // NB: The current tab of a minimized window is hidden, but the user sees it again as soon as they bring the window
     //     back.
