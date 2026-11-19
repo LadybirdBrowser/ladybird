@@ -2520,12 +2520,15 @@ fn slow_paths_save_no_more_registers_than_the_saves_area_holds() {
         let words = slow_path_calls::slow_path_saved_registers::<M>().len();
         for register in target_registers::<M>().0.allocatable_gprs.iter() {
             let allocation = crate::regalloc::NodeAllocation {
-                inputs: crate::inline_vec::InlineVec::from_elem(Location::Register(register), 1),
+                moves_before: &[],
+                inputs: &[Location::Register(register)],
+                temps: &[],
                 output: Some(Location::Register(register)),
-                ..Default::default()
+                spill_slot: None,
+                exit_values: &[],
             };
             assert!(
-                slow_path_calls::slow_path_saved_registers_of::<M>(&allocation).len() <= words,
+                slow_path_calls::slow_path_saved_registers_of::<M>(allocation).len() <= words,
                 "an output in register {register} that an input is in too"
             );
         }

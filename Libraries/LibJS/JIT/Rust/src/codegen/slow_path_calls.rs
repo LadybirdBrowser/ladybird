@@ -41,7 +41,7 @@ pub(super) fn slow_path_saved_registers<M: PortableMacroAssembler>() -> GprSet {
 /// the order of their words in the saves area: those that may hold values,
 /// except its output register, which is last if an input is there too, since
 /// passing the other inputs to the slow path may clobber it.
-pub(super) fn slow_path_saved_registers_of<M: PortableMacroAssembler>(allocation: &NodeAllocation) -> Vec<Gpr> {
+pub(super) fn slow_path_saved_registers_of<M: PortableMacroAssembler>(allocation: NodeAllocation) -> Vec<Gpr> {
     let output = match allocation.output {
         Some(Location::Register(register)) => Some(Gpr(register)),
         _ => None,

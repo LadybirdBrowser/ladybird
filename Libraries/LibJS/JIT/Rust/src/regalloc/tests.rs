@@ -204,9 +204,8 @@ fn many_simultaneously_live_values_are_spilled() {
     // Ten values are live at once, but there are only six registers.
     assert!(allocation.spill_slot_count >= 4);
     let reloads = allocation
-        .nodes
+        .moves()
         .iter()
-        .flat_map(|node| &node.moves_before)
         .filter(|m| matches!(m.from, Location::Stack(_)))
         .count();
     assert!(reloads >= 4);
@@ -304,7 +303,7 @@ fn swapping_loop_phis_go_through_a_temp_slot() {
     let back_edge = graph.blocks[header].predecessors[1];
     // NB: The back edge's block starts with the phis in their registers,
     //     like the merge it is, so the swap goes through a temp slot.
-    let moves = &allocation.block_end_moves[back_edge.index()];
+    let moves = allocation.block_end_moves(back_edge);
     assert_eq!(moves.len(), 3, "{moves:?}");
     assert!(moves.iter().any(|m| matches!(m.to, Location::Stack(_))), "{moves:?}");
     // The loop header starts with the registers of the block entering the
@@ -414,8 +413,8 @@ fn loop_phis_share_spill_slots_with_their_inputs() {
     for phi in &graph.blocks[header].phis {
         let input = graph.node(*phi).inputs[back_edge];
         let (phi_slot, input_slot) = (
-            allocation.nodes[phi.index()].spill_slot,
-            allocation.nodes[input.index()].spill_slot,
+            allocation.node(*phi).spill_slot,
+            allocation.node(input).spill_slot,
         );
         if let (Some(phi_slot), Some(input_slot)) = (phi_slot, input_slot) {
             assert_eq!(phi_slot, input_slot, "{}", dump_allocation(&graph, &allocation));
@@ -426,7 +425,7 @@ fn loop_phis_share_spill_slots_with_their_inputs() {
             .node(*phi)
             .inputs
             .iter()
-            .all(|input| allocation.nodes[input.index()].spill_slot == phi_slot)
+            .all(|input| allocation.node(*input).spill_slot == phi_slot)
         {
             assert_eq!(phi_spill_store(&graph, &allocation, *phi), None);
             filled += 1;
@@ -518,7 +517,8 @@ fn loops_leave_the_values_they_only_carry_through_in_their_stack_slots() {
         .find(|predecessor| predecessor.index() > header)
         .unwrap();
     assert!(
-        allocation.block_end_moves[back_edge.index()]
+        allocation
+            .block_end_moves(back_edge)
             .iter()
             .all(|m| !matches!(m.from, Location::Stack(_)) && !matches!(m.to, Location::Stack(_))),
         "{}",
@@ -572,7 +572,7 @@ fn int32_operations_write_over_their_first_input_where_it_dies() {
         .map(|(index, _)| index)
         .collect::<Vec<_>>();
     assert_eq!(xors.len(), 2, "{}", dump_allocation(&graph, &allocation));
-    let second = &allocation.nodes[xors[1]];
+    let second = allocation.node(NodeId::from_index(xors[1]));
     assert_eq!(
         second.output,
         Some(second.inputs[0]),
@@ -671,7 +671,10 @@ fn float64_operations_write_over_their_first_input_where_it_dies() {
         .map(|(index, _)| index)
         .collect::<Vec<_>>();
     assert_eq!(binaries.len(), 2, "{}", dump_allocation(&graph, &allocation));
-    let (first, second) = (&allocation.nodes[binaries[0]], &allocation.nodes[binaries[1]]);
+    let (first, second) = (
+        allocation.node(NodeId::from_index(binaries[0])),
+        allocation.node(NodeId::from_index(binaries[1])),
+    );
     assert_ne!(
         first.output,
         Some(first.inputs[0]),
@@ -775,16 +778,16 @@ fn the_verifier_finds_values_in_the_wrong_place() {
     // Forgetting to spill a value that is live across a call loses it.
     let argument = find_node(&graph, |node| node.op == Op::LoadSlot { slot: a(0).raw() });
     let mut broken = allocate_with(&graph, &registers);
-    broken.nodes[argument.index()].spill_slot = None;
+    broken.set_spill_slot(argument, None);
     assert!(verify(&graph, &registers, &broken).is_err());
 
     // Reading an input from a register that holds something else.
     let call = find_node(&graph, |node| matches!(node.op, Op::CallSlowPath { .. }));
     let mut broken = allocation;
-    let Location::Register(register) = broken.nodes[call.index()].inputs[2] else {
+    let Location::Register(register) = broken.node(call).inputs[2] else {
         panic!("the argument is in a register");
     };
-    broken.nodes[call.index()].inputs[2] = Location::Register((register + 1) % 6);
+    broken.set_input(call, 2, Location::Register((register + 1) % 6));
     assert!(verify(&graph, &registers, &broken).is_err());
 }
 
@@ -824,7 +827,11 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
 
     // Another frame slot holds another value.
     let mut broken = allocate_with(&graph, &registers);
-    broken.nodes[returned.index()].moves_before[0].from = Location::Frame(r(5).raw());
+    let wrong_move = Move {
+        from: Location::Frame(r(5).raw()),
+        ..broken.node(returned).moves_before[0]
+    };
+    broken.set_move_before(returned, 0, wrong_move);
     assert!(verify(&graph, &registers, &broken).is_err());
 
     // A store to the slot, which nothing may do, makes it hold another value.
@@ -848,11 +855,8 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
         .unwrap();
     stored.blocks[block].body.push(store);
     let mut allocation = allocation;
-    allocation.nodes.push(NodeAllocation::default());
-    allocation.nodes.push(NodeAllocation {
-        inputs: [Location::Constant(value::UNDEFINED)].into_iter().collect(),
-        ..NodeAllocation::default()
-    });
+    allocation.push_node(&[], None);
+    allocation.push_node(&[Location::Constant(value::UNDEFINED)], None);
     let errors = verify(&stored, &registers, &allocation).unwrap_err();
     assert!(errors.contains("nothing writes"), "{errors}");
 }
@@ -1251,7 +1255,7 @@ fn float64_values_get_floating_point_registers() {
     let allocation = allocate_and_verify(&graph);
     let mut floats = 0;
     for (index, node) in graph.nodes.iter().enumerate() {
-        let output = allocation.nodes[index].output;
+        let output = allocation.node(NodeId::from_index(index)).output;
         match (node.repr, output) {
             (Some(Repr::Float64), Some(Location::Register(register))) => {
                 assert!(register >= FPR_BASE, "v{index} is a float64 in r{register}");

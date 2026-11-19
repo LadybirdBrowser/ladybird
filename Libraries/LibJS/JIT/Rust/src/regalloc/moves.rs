@@ -6,37 +6,54 @@
 
 //! Sequentializing parallel moves.
 
+use ak::Column;
+use ak::ColumnFull;
+
 use super::Location;
 use super::Move;
 
-/// Orders a set of moves that happen in parallel (every source is read
-/// before any destination is written) into a sequence with the same effect.
+/// Orders the moves `pending`, which happen in parallel (every source is read
+/// before any destination is written), into a sequence with the same effect, which it adds to `result`.
 /// Destinations must be distinct and must not be constants. Cycles are broken
-/// through `temp`, which must not appear in `moves`.
-pub fn resolve_parallel_moves(moves: &[Move], temp: Location) -> Vec<Move> {
-    let mut pending = moves.iter().copied().filter(|m| m.from != m.to).collect::<Vec<_>>();
+/// through `temp`, which must not appear in the moves. No move is left in `pending`.
+pub fn resolve_parallel_moves(
+    pending: &mut Column<Move>,
+    temp: Location,
+    result: &mut Column<Move>,
+) -> Result<(), ColumnFull> {
+    let mut kept = 0;
+    for index in 0..pending.len() {
+        let pending_move = pending[index];
+        if pending_move.from != pending_move.to {
+            pending[kept] = pending_move;
+            kept += 1;
+        }
+    }
+    pending.truncate(kept);
     debug_assert!(pending.iter().all(|m| !matches!(m.to, Location::Constant(_))));
     debug_assert!(pending.iter().all(|m| m.from != temp && m.to != temp));
-    let mut result = Vec::with_capacity(pending.len());
     while !pending.is_empty() {
         let ready = pending
             .iter()
             .position(|candidate| pending.iter().all(|other| other.from != candidate.to));
         if let Some(index) = ready {
-            result.push(pending.remove(index));
+            result.try_push(pending[index])?;
+            // NB: The moves that are left stay in their order.
+            pending.copy_within(index + 1.., index);
+            pending.truncate(pending.len() - 1);
             continue;
         }
         // Every destination is still needed as a source, so the moves form
         // cycles. Save one destination's value and read it from the temp.
         let saved = pending[0].to;
-        result.push(Move { from: saved, to: temp });
-        for pending_move in &mut pending {
+        result.try_push(Move { from: saved, to: temp })?;
+        for pending_move in pending.iter_mut() {
             if pending_move.from == saved {
                 pending_move.from = temp;
             }
         }
     }
-    result
+    Ok(())
 }
 
 #[cfg(test)]
@@ -56,6 +73,16 @@ mod tests {
         state
     }
 
+    /// The sequence that `moves`, which happen in parallel, are put in.
+    fn resolve(moves: &[Move], temp: Location) -> Vec<Move> {
+        let mut pending = Column::new(64, c"test");
+        let mut result = Column::new(64, c"test");
+        pending.try_extend_from_slice(moves).unwrap();
+        resolve_parallel_moves(&mut pending, temp, &mut result).unwrap();
+        assert!(pending.is_empty());
+        result.to_vec()
+    }
+
     fn check(moves: &[Move]) {
         let temp = Location::Stack(99);
         let locations = moves
@@ -71,7 +98,7 @@ mod tests {
             .into_iter()
             .collect::<Vec<_>>();
         let before = initial.iter().copied().collect::<HashMap<_, _>>();
-        let after = simulate(&initial, &resolve_parallel_moves(moves, temp));
+        let after = simulate(&initial, &resolve(moves, temp));
         for m in moves {
             let expected = match m.from {
                 Location::Constant(bits) => u32::try_from(bits).unwrap(),
@@ -105,6 +132,6 @@ mod tests {
             m(Register(4), Register(3)),
         ]);
         // Self moves disappear.
-        assert!(resolve_parallel_moves(&[m(Register(1), Register(1))], Stack(9)).is_empty());
+        assert!(resolve(&[m(Register(1), Register(1))], Stack(9)).is_empty());
     }
 }

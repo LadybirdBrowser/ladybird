@@ -256,7 +256,7 @@ impl Verifier<'_> {
             return;
         };
         let expected_count = self.graph.frame_state_values(frame_state).count();
-        let exit_values = &self.allocation.node(node).exit_values;
+        let exit_values = self.allocation.node(node).exit_values;
         if expected_count != exit_values.len() {
             self.error(format!(
                 "{context}: exit has {} values, frame state {}",
@@ -292,7 +292,7 @@ impl Verifier<'_> {
         for node in &block_data.body {
             self.simulate_node(&mut state, *node);
         }
-        let end_moves = &self.allocation.block_end_moves[block.index()];
+        let end_moves = self.allocation.block_end_moves(block);
         self.apply_moves(&mut state, end_moves, &format!("end of b{}", block.0));
         self.simulate_node(&mut state, self.graph.control_id(block));
         state
@@ -304,7 +304,7 @@ impl Verifier<'_> {
         let context = format!("v{}", node_id.0);
         debug_assert!(node.op != Op::Phi);
 
-        self.apply_moves(state, &allocation.moves_before, &context);
+        self.apply_moves(state, allocation.moves_before, &context);
         if let Op::StoreSlot { slot } = node.op
             && self.graph.is_unwritten_slot(slot)
         {
@@ -322,7 +322,7 @@ impl Verifier<'_> {
                 lowering.temps
             ));
         }
-        for (index, (input, location)) in node.inputs.iter().zip(&allocation.inputs).enumerate() {
+        for (index, (input, location)) in node.inputs.iter().zip(allocation.inputs).enumerate() {
             if let Location::Constant(bits) = location {
                 if self.graph.constant_value(*input) != Some(*bits) {
                     self.error(format!("{context}: input {index} is not the constant {bits:#x}"));
@@ -346,7 +346,7 @@ impl Verifier<'_> {
 
         // A node may exit at any point after reading its inputs, including
         // after it wrote its temps and its output: exit values must survive both.
-        for temp in &allocation.temps {
+        for temp in allocation.temps {
             self.check_location(Location::Register(*temp), &context);
             if allocation.inputs.contains(&Location::Register(*temp)) {
                 self.error(format!("{context}: temp r{temp} is also an input"));
