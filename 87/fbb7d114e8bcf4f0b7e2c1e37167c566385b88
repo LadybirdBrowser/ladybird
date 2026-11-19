@@ -1,0 +1,27 @@
+Ladybird hides whole glyph clusters at a line’s visual end edge, and
+draws the ellipsis as a fragment of its own in the block’s style.
+In Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5, an Arabic
+or Hebrew line that overflows a left-to-right box keeps its visually
+leftmost text and ends in an ellipsis at the right; in a right-to-left
+box, it keeps its rightmost text, with the ellipsis at the left. The
+ellipsis takes the block’s color and font size in all three, even after
+a span of another color or size.
+
+Where the block’s first font has no glyph for U+2026, as with a face
+whose unicode-range leaves it out, Chrome and Firefox draw three
+periods, and WebKit falls back to another font’s U+2026. Ladybird draws
+three periods, as Blink’s LineTruncator::ComputeEllipsisText() and
+Gecko’s gfxFontGroup::MakeEllipsisTextRun() choose to.
+
+Where text-overflow elides a line, Chrome and Firefox count the elided
+text toward the scrollable overflow where its relative offset puts
+it, on either side of the line, and so does Ladybird; WebKit leaves
+the offset out. So in a 50px box, 80px of right-to-left text shifted
+10px to the left gives a scrollWidth of 90 in Chrome, Firefox, and
+Ladybird, and 80 in WebKit.
+
+A one-line box of 20px text that text-overflow: ellipsis cuts before
+40px text is 40px tall in Chrome 157.0.8103.79, Firefox 151.0, and
+WebKit 26.5, whether the line is cut on its right or, in a right-to-left
+box, on its left, and with text-overflow: clip too. Ladybird now gives
+40px in each case, as all three do.
