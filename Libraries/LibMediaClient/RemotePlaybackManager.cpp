@@ -79,9 +79,10 @@ void RemotePlaybackManager::set_duration(AK::Duration duration)
 AK::Duration RemotePlaybackManager::current_time() const
 {
     AK::Duration time;
-    switch (m_state) {
+    switch (state()) {
     case Media::PlaybackState::Ended:
         return m_timeline.duration;
+    case Media::PlaybackState::BeginningSeek:
     case Media::PlaybackState::Seeking:
         time = m_seek_timestamp;
         break;
@@ -99,7 +100,7 @@ Media::VideoSinkHandle RemotePlaybackManager::reserve_video_sink_handle(Media::T
 {
     auto handle = Media::allocate_video_sink_handle();
     m_video_sinks.set(handle, VideoSink { track });
-    bool resume_ended_playback = m_state != Media::PlaybackState::Ended;
+    bool resume_ended_playback = state() != Media::PlaybackState::Ended;
     advance_seek_request_id();
     if (can_send())
         m_client->async_reserve_video_sink(m_session_id, m_latest_seek_request_id, track, handle, resume_ended_playback);
@@ -131,7 +132,7 @@ void RemotePlaybackManager::set_video_resize_handler(Media::VideoSinkHandle hand
 void RemotePlaybackManager::enable_an_audio_track(Media::Track const& track)
 {
     // Once the end has been observed here, the element is paused at the duration, so the server must not resume.
-    bool resume_ended_playback = m_state != Media::PlaybackState::Ended;
+    bool resume_ended_playback = state() != Media::PlaybackState::Ended;
     m_enabled_audio_tracks.set(track);
     advance_seek_request_id();
     if (can_send())
@@ -182,16 +183,24 @@ void RemotePlaybackManager::seek(AK::Duration timestamp, Media::SeekMode mode)
 {
     m_seek_timestamp = timestamp;
     advance_seek_request_id();
+    m_request_id_of_latest_seek = m_latest_seek_request_id;
     for (auto& [id, source_buffer] : m_source_buffers)
         source_buffer->invalidate_evictable_bytes({});
-    dbgln_if(PLAYBACK_MANAGER_DEBUG, "RemotePlaybackManager({}): Requesting seek {} to {} ({}) in {}", m_session_id, m_latest_seek_request_id, timestamp, mode, m_state);
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "RemotePlaybackManager({}): Requesting seek {} to {} ({}) in {}", m_session_id, m_latest_seek_request_id, timestamp, mode, state());
     if (can_send())
         m_client->async_seek(m_session_id, m_latest_seek_request_id, timestamp, mode);
-    if (m_state == Media::PlaybackState::Seeking)
-        return;
-    m_state = Media::PlaybackState::Seeking;
-    m_available_data = Media::AvailableData::Current;
-    dispatch_state_change();
+    auto previous_state = state();
+    m_seek_is_beginning = true;
+    if (state() != previous_state)
+        dispatch_state_change();
+}
+
+Media::PlaybackState RemotePlaybackManager::state() const
+{
+    // The server only reports a seek's state once it has decided that the seek goes ahead.
+    if (m_seek_is_beginning && m_state != Media::PlaybackState::Seeking)
+        return Media::PlaybackState::BeginningSeek;
+    return m_state;
 }
 
 void RemotePlaybackManager::set_volume(double volume)
@@ -398,13 +407,24 @@ void RemotePlaybackManager::duration_changed(Badge<Client>, AK::Duration duratio
     dispatch_seekable_ranges_change();
 }
 
+void RemotePlaybackManager::seek_decided(Badge<Client>, u64 seek_request_id, Media::SeekDecision decision)
+{
+    if (seek_request_id != m_request_id_of_latest_seek)
+        return;
+    // The server never left the state it was in for a skipped seek.
+    if (decision == Media::SeekDecision::Skip)
+        m_seek_is_beginning = false;
+    if (on_seek_decided)
+        on_seek_decided(decision);
+}
+
 void RemotePlaybackManager::state_changed(Badge<Client>, u64 applied_seek_request_id, Media::PlaybackState state, bool is_playing, Media::AvailableData available_data, bool server_playback_state_is_settled, AK::Duration current_time)
 {
     if (applied_seek_request_id != m_latest_seek_request_id) {
         dbgln_if(PLAYBACK_MANAGER_DEBUG, "RemotePlaybackManager({}): Dropping {} reported after seek {}, latest is {}", m_session_id, state, applied_seek_request_id, m_latest_seek_request_id);
         return;
     }
-    dbgln_if(PLAYBACK_MANAGER_DEBUG, "RemotePlaybackManager({}): Server reports {} playing={} available={} settled={} time={} (mirror was {})", m_session_id, state, is_playing, to_underlying(available_data), server_playback_state_is_settled, current_time, m_state);
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "RemotePlaybackManager({}): Server reports {} playing={} available={} settled={} time={} (mirror was {})", m_session_id, state, is_playing, to_underlying(available_data), server_playback_state_is_settled, current_time, this->state());
     if (state == Media::PlaybackState::Seeking)
         m_seek_timestamp = current_time;
     auto was_settled = playback_state_is_settled();
@@ -413,10 +433,11 @@ void RemotePlaybackManager::state_changed(Badge<Client>, u64 applied_seek_reques
     m_is_playing = is_playing;
     m_available_data = available_data;
     dispatch_playback_state_settled_change_if_changed(was_settled);
-    if (m_state == state)
-        return;
+    auto previous_state = this->state();
+    m_seek_is_beginning = false;
     m_state = state;
-    dispatch_state_change();
+    if (this->state() != previous_state)
+        dispatch_state_change();
 }
 
 void RemotePlaybackManager::media_stream_scan_state_changed(Badge<Client>, u64 stream_id, Media::DemuxerScanState scan_state)
