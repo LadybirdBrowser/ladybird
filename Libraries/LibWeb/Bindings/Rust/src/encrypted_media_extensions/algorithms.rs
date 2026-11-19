@@ -12,7 +12,7 @@ use libwebcommon_rust::mime_sniff::mime_type::MimeType;
 use super::encrypted_media_extensions::{CapabilitiesType, ConsentConfiguration, ConsentStatus, MediaKeyRestrictions};
 use super::key_system::{ClearKeySystem, KeySystem};
 use super::media_key_system_access::{
-    MediaKeySystemConfiguration, MediaKeySystemMediaCapability, MediaKeysRequirement,
+    MediaKeySessionType, MediaKeySystemConfiguration, MediaKeySystemMediaCapability, MediaKeysRequirement,
 };
 
 pub(crate) fn supports_container(_container: &str) -> bool {
@@ -153,24 +153,22 @@ pub(crate) fn get_supported_capabilities_for_audio_video_type(
 }
 
 // https://w3c.github.io/encrypted-media/#dfn-is-persistent-session-type
-pub(crate) fn is_persistent_session_type(session_type: &Utf16String) -> bool {
+pub(crate) fn is_persistent_session_type(session_type: MediaKeySessionType) -> bool {
     // 1. Let the session type be the specified MediaKeySessionType value.
 
     // 2. Follow the steps for the value of session type from the following list:
-
-    // * "temporary"
-    if *session_type == "temporary" {
-        // Return false.
-        return false;
+    match session_type {
+        // * "temporary"
+        MediaKeySessionType::Temporary => {
+            // Return false.
+            false
+        }
+        // * "persistent-license"
+        MediaKeySessionType::PersistentLicense => {
+            // Return true.
+            true
+        }
     }
-
-    // * "persistent-license"
-    if *session_type == "persistent-license" {
-        // Return true.
-        return true;
-    }
-
-    unreachable!("the session type is a MediaKeySessionType value")
 }
 
 // https://w3c.github.io/encrypted-media/#get-consent-status
@@ -295,6 +293,10 @@ pub(crate) fn get_supported_configuration_and_consent(
     // 13. For each value in session types:
     for session_type in &session_types {
         // 1. Let session type be the value.
+        // AD-HOC: sessionTypes is a sequence of DOMString, but Is persistent session type? takes a MediaKeySessionType
+        //         value. A session type that is not one is not supported, so the candidate configuration is not either.
+        //         See https://github.com/w3c/encrypted-media/issues/447
+        let session_type = MediaKeySessionType::from_string(session_type)?;
 
         // 2. If accumulated configuration's persistentState value is "not-allowed" and the Is persistent session type? algorithm
         //    returns true for session type return NotSupported.
