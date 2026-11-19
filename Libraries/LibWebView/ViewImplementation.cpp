@@ -1593,11 +1593,19 @@ void ViewImplementation::update_interface_color_scheme()
     });
 }
 
+// Pages can't read the platform's settings, so Auto reaches them as what the platform asks for.
+static Web::CSS::PreferredContrast contrast_for_pages(Web::CSS::PreferredContrast contrast)
+{
+    if (contrast != Web::CSS::PreferredContrast::Auto)
+        return contrast;
+    return Application::the().platform_prefers_more_contrast() ? Web::CSS::PreferredContrast::More : Web::CSS::PreferredContrast::NoPreference;
+}
+
 void ViewImplementation::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
 {
     m_preferred_contrast = contrast;
     traversable().for_each_hosting_page([&](WebContentPage& page) {
-        page.async_set_preferred_contrast(contrast);
+        page.async_set_preferred_contrast(contrast_for_pages(contrast));
     });
 }
 
@@ -1651,7 +1659,7 @@ void ViewImplementation::send_preferences_to_page(WebContentPage& page)
 {
     send_system_theme_to_page(page);
     page.async_set_preferred_color_scheme(preferred_color_scheme_for_page(page));
-    page.async_set_preferred_contrast(m_preferred_contrast);
+    page.async_set_preferred_contrast(contrast_for_pages(m_preferred_contrast));
     page.async_set_preferred_motion(motion_for_pages(m_preferred_motion));
     page.async_set_preferred_languages(Application::settings().languages());
     page.async_set_zoom_level(m_zoom_level);
