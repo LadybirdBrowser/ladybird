@@ -11,9 +11,10 @@ use core::ffi::c_void;
 use core::ops::ControlFlow;
 use std::collections::HashMap;
 
+use libjs_jit::artifact::{Artifact, FrameView, Layout, Patch, SiteView};
 use libjs_jit::bytecode::{EnvironmentCoordinate, decode_instruction};
+use libjs_jit::code::ExitKind;
 pub use libjs_jit::code::INLINED_CALL_SITE_BIT;
-use libjs_jit::code::{ExitKind, Site};
 use libjs_runtime_macros::Trace;
 
 use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
@@ -137,6 +138,15 @@ pub enum InlinedFunction {
     Builtin(Gc<NativeJavaScriptBackedFunction>),
 }
 
+/// A word of the tables of installed code (see `libjs_jit::artifact`).
+pub type TableWord = u32;
+
+/// A site of installed code.
+pub type Site<'a> = SiteView<'a, TableWord>;
+
+/// The interpreter state of one frame at a site of installed code.
+pub type FrameState<'a> = FrameView<'a, TableWord>;
+
 /// Installed machine code for one executable, with what exits need to rebuild interpreter frames. While JIT code runs
 /// frames of its executable, it stays attached to the executable (in its slot of the JIT entry table, where
 /// `libjs_jit_exit()` finds it through the frame's executable), even once discarded.
@@ -151,28 +161,16 @@ pub struct JitCode {
     interpreted_frame_count_to_forget_at: Cell<usize>,
     memory: ExecutableMemory,
     entry: JitEntry,
-    sites: Vec<Site>,
+    /// The tables of the code that the runtime reads once the code is installed, which have `layout`.
+    tables: Box<[TableWord]>,
+    layout: Layout,
     /// The cells the code compares against or uses. The executable the code is attached to keeps them alive, so they
     /// keep their addresses for as long as the code may run.
     embedded_cells: Vec<Gc<CellHeader>>,
     snapshot_executables: Vec<SnapshotExecutable>,
-    /// Where a frame running in the interpreter at `pc` can continue in this code (see `osr_entry()`).
-    osr_entries: Vec<(u32, JitEntry)>,
-    /// The loop back edges from where a frame running in the interpreter reaches one of the `osr_entries` without
-    /// leaving the loop it is in.
-    osr_loop_back_edges: Vec<u32>,
-    /// The loop back edges in the loops around those of the `osr_entries`, from where a frame running in the
-    /// interpreter may reach one of them on a later iteration.
-    osr_outer_loop_back_edges: Vec<u32>,
-    /// The pcs of the `Catch` of the exception handlers that have no catch entry only because they never caught an
-    /// exception before the compile.
-    uncaught_handlers: Vec<u32>,
     /// Identifies the code among all code the VM installed, for the dependencies it registers (see
     /// `super::dependencies`).
     id: u64,
-    /// The bytes that invalidate the code at each offset of it: jumps to the exits of its `AssumeValid` nodes, which
-    /// are no-ops until then.
-    invalidation_patches: Vec<(u32, Vec<u8>)>,
     invalidated: Cell<bool>,
     /// See `libjs_jit::code::CompiledCode::site_index_frame_offset`.
     site_index_frame_offset: i32,
@@ -188,55 +186,52 @@ pub struct JitCode {
 }
 
 /// An object created for a frame running JIT code, standing for the object its code never allocated at `allocation`
-/// (see `libjs_jit::code::VirtualObjectDescriptor`).
+/// (see `libjs_jit::artifact::ObjectView`).
 struct MaterializedObject {
     frame: *const ExecutionContext,
     allocation: u32,
     object: Gc<Object>,
 }
 
+/// The entry point at `offset` of the code in `memory`.
+fn entry_at(memory: &ExecutableMemory, offset: u32) -> JitEntry {
+    assert!((offset as usize) < memory.size());
+    // SAFETY: The code has an entry point with the JitEntry calling convention at the offset.
+    unsafe { core::mem::transmute::<*const u8, JitEntry>(memory.address().add(offset as usize)) }
+}
+
 impl JitCode {
-    #[allow(clippy::too_many_arguments)]
+    /// Code in `memory` with its entry point at `entry_offset`, and with `tables`, which have `layout`.
     pub fn new(
         memory: ExecutableMemory,
         entry_offset: u32,
-        osr_entry_offsets: &[(u32, u32)],
-        osr_loop_back_edges: Vec<u32>,
-        sites: Vec<Site>,
+        tables: Box<[TableWord]>,
+        layout: Layout,
         embedded_cells: Vec<Gc<CellHeader>>,
         snapshot_executables: Vec<SnapshotExecutable>,
         _defer_gc: &DeferGc<'_>,
     ) -> Self {
-        let entry_at = |offset: u32| {
-            assert!((offset as usize) < memory.size());
-            // SAFETY: The code has an entry point with the JitEntry calling convention at the offset.
-            unsafe { core::mem::transmute::<*const u8, JitEntry>(memory.address().add(offset as usize)) }
-        };
-        let entry = entry_at(entry_offset);
-        let osr_entries = osr_entry_offsets
-            .iter()
-            .map(|&(pc, offset)| (pc, entry_at(offset)))
-            .collect();
+        let entry = entry_at(&memory, entry_offset);
         Self {
             exit_count: Cell::new(0),
             interpreted_frames: RefCell::new(HashMap::new()),
             interpreted_frame_count_to_forget_at: Cell::new(MIN_INTERPRETED_FRAME_COUNT_TO_FORGET_AT),
             memory,
             entry,
-            sites,
+            tables,
+            layout,
             embedded_cells,
             snapshot_executables,
-            osr_entries,
-            osr_loop_back_edges,
-            osr_outer_loop_back_edges: Vec::new(),
-            uncaught_handlers: Vec::new(),
             id: 0,
-            invalidation_patches: Vec::new(),
             invalidated: Cell::new(false),
             site_index_frame_offset: 0,
             register_dump_frame_offset: 0,
             materialized_objects: RefCell::new(Vec::new()),
         }
+    }
+
+    fn artifact(&self) -> Artifact<'_, TableWord> {
+        Artifact::new(&self.tables, &self.layout)
     }
 
     /// Gives the code where its frames keep the index of a site and the register dump the runtime reads.
@@ -289,25 +284,15 @@ impl JitCode {
             .retain(|materialized| materialized.frame != frame);
     }
 
-    /// Gives the code its id among all code the VM installed, and the bytes that invalidate it.
-    pub fn set_invalidation(&mut self, id: u64, invalidation_patches: Vec<(u32, Vec<u8>)>) {
+    /// Gives the code its id among all code the VM installed.
+    pub fn set_id(&mut self, id: u64) {
         self.id = id;
-        self.invalidation_patches = invalidation_patches;
-    }
-
-    /// Gives the code the loop back edges in the loops around those of its on-stack replacement entries.
-    pub fn set_osr_outer_loop_back_edges(&mut self, osr_outer_loop_back_edges: Vec<u32>) {
-        self.osr_outer_loop_back_edges = osr_outer_loop_back_edges;
-    }
-
-    pub fn set_uncaught_handlers(&mut self, uncaught_handlers: Vec<u32>) {
-        self.uncaught_handlers = uncaught_handlers;
     }
 
     /// Whether the handler whose `Catch` is at `pc` has no catch entry only because it never caught an exception
     /// before the compile, so that a compile now would give it one.
     pub fn compiled_before_handler_caught(&self, pc: u32) -> bool {
-        self.uncaught_handlers.contains(&pc)
+        self.artifact().uncaught_handlers().contains(pc)
     }
 
     pub fn id(&self) -> u64 {
@@ -325,7 +310,9 @@ impl JitCode {
         if self.invalidated.replace(true) {
             return;
         }
-        self.memory.patch(&self.invalidation_patches);
+        // NB: The patches are jumps to the exits of the `AssumeValid` nodes of the code, which are no-ops until then.
+        let patches = self.artifact().invalidation_patches().collect::<Vec<Patch>>();
+        self.memory.patch(&patches);
     }
 
     pub fn entry(&self) -> JitEntry {
@@ -336,31 +323,25 @@ impl JitCode {
     /// loop back edge, the resume entry at a continuation of a generator's suspension, or the catch entry after the
     /// `Catch` of an exception handler.
     pub fn osr_entry(&self, pc: u32) -> Option<JitEntry> {
-        self.osr_entries
-            .iter()
-            .find(|(entry_pc, _)| *entry_pc == pc)
-            .map(|(_, entry)| *entry)
+        self.artifact()
+            .osr_entry(pc)
+            .map(|offset| entry_at(&self.memory, offset))
     }
 
     /// Whether a frame running in the interpreter at the loop back edge `pc` reaches an on-stack replacement entry
     /// without leaving the loop it is in.
     pub fn reaches_osr_entry_from(&self, pc: u32) -> bool {
-        self.osr_loop_back_edges.contains(&pc)
+        self.artifact().osr_loop_back_edges().contains(pc)
     }
 
     /// Whether a frame running in the interpreter at the loop back edge `pc` may reach an on-stack replacement entry
     /// on a later iteration of a loop it is in.
     pub fn may_reach_osr_entry_from(&self, pc: u32) -> bool {
-        self.osr_outer_loop_back_edges.contains(&pc)
+        self.artifact().osr_outer_loop_back_edges().contains(pc)
     }
 
-    pub fn site(&self, index: u32) -> &Site {
-        &self.sites[index as usize]
-    }
-
-    /// Takes the sites of code that died, so that they can be dropped elsewhere.
-    pub fn take_sites(&mut self) -> Vec<Site> {
-        core::mem::take(&mut self.sites)
+    pub fn site(&self, index: u32) -> Site<'_> {
+        self.artifact().site(index)
     }
 
     pub fn snapshot_executable(&self, index: u32) -> &SnapshotExecutable {
@@ -559,18 +540,13 @@ impl Executable {
         let Some(table) = vm.jit.entry_table.as_ref() else {
             return;
         };
-        let Some(mut code) = table.free(
+        let Some(code) = table.free(
             self.head.jit_entry_slot.get(),
             core::ptr::from_ref(&self.head) as u64,
             sweep,
         ) else {
             return;
         };
-        // OPTIMIZATION: The compile threads allocated the sites, so one of them frees them, outside the collection
-        //               this runs in.
-        if let Some(queue) = vm.jit.started_compile_queue() {
-            queue.drop_sites(code.take_sites());
-        }
         drop(code);
     }
 

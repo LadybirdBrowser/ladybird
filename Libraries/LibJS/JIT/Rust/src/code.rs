@@ -9,7 +9,6 @@
 
 use crate::artifact::Artifact;
 use crate::artifact::Layout;
-use crate::artifact::SiteView;
 use crate::snapshot::CellId;
 
 /// Compiled machine code for one executable, not yet installed.
@@ -47,11 +46,6 @@ impl CompiledCode {
     /// What the runtime reads to install the code, to enter it, and to translate its state into interpreter frames.
     pub fn artifact(&self) -> Artifact<'_> {
         Artifact::new(&self.words, &self.layout)
-    }
-
-    /// The sites of the code, by index, as values that own their parts.
-    pub fn sites(&self) -> Vec<Site> {
-        self.artifact().sites().map(Site::from_view).collect()
     }
 }
 
@@ -201,52 +195,6 @@ pub enum Dependency {
     StableShape(CellId),
 }
 
-/// A point of compiled code where the runtime may translate its state into
-/// interpreter frames (see `SiteKind`): the frame states there, and where
-/// their values are.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Site {
-    pub kind: SiteKind,
-    /// The frames there, innermost first: the frames of the inlined calls
-    /// the site is in, and the compiled function's frame.
-    pub frames: Box<[FrameState]>,
-    /// The objects the compiled code never allocated, which the frames'
-    /// values refer to (as `ValueLocation::VirtualObject`).
-    pub objects: Box<[VirtualObjectDescriptor]>,
-    /// For a `SiteKind::Call`: the room for the frames of the inlined calls
-    /// that the call leaves below its callee's frame (see `Op::CallDirect`).
-    pub inlined_frame_bytes: u32,
-}
-
-impl Site {
-    fn from_view(site: SiteView<'_>) -> Self {
-        Self {
-            kind: site.kind(),
-            frames: site
-                .frames()
-                .map(|frame| FrameState {
-                    executable: frame.executable(),
-                    pc: frame.pc(),
-                    mode: frame.mode(),
-                    values: frame.values().collect(),
-                    in_frame: frame.in_frame().iter().collect(),
-                    passed_argument_count: frame.passed_argument_count(),
-                    legacy_arguments: frame.legacy_arguments(),
-                })
-                .collect(),
-            objects: site
-                .objects()
-                .map(|object| VirtualObjectDescriptor {
-                    kind: object.kind(),
-                    allocation: object.allocation(),
-                    properties: object.properties().collect(),
-                })
-                .collect(),
-            inlined_frame_bytes: site.inlined_frame_bytes(),
-        }
-    }
-}
-
 /// What a site of compiled code is. The runtime translates the state of
 /// compiled code at any of them into interpreter frames the same way.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -274,21 +222,8 @@ pub enum SiteKind {
     Call,
 }
 
-/// An object the compiled code never allocated, which an exit creates as
-/// `kind` says. Each one is created once per exit, before any is given its
-/// properties, so objects may refer to each other.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VirtualObjectDescriptor {
-    pub kind: VirtualObjectDescriptorKind,
-    /// The node index of the allocation the object stands for, which is the
-    /// same at every site of the code: the runtime may have created the
-    /// object at another site of the same frame already, and then uses that.
-    pub allocation: u32,
-    /// The values `kind` describes.
-    pub properties: Box<[ValueLocation]>,
-}
-
-/// What kind of object a `VirtualObjectDescriptor` describes.
+/// What kind of object the runtime creates for one that compiled code never allocated (see
+/// `artifact::ObjectView`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VirtualObjectDescriptorKind {
     /// A plain object of `shape`, with the values of its properties in
@@ -320,34 +255,10 @@ pub enum ResumeMode {
     ResumeAfter { dst: u32 },
 }
 
-/// The slot of `FrameState::values` that holds the function object of a frame
+/// The slot among the values of a frame (see `artifact::FrameView::values()`) that holds the function object of a frame
 /// of an inlined closure, whose frames run the closure that was called
 /// rather than the function object of the snapshot. It is in no frame slot.
 pub const CALLEE_SLOT: u32 = u32::MAX - 1;
-
-/// The interpreter state of one frame at an exit.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FrameState {
-    /// Index into `Snapshot::executables`.
-    pub executable: u32,
-    pub pc: u32,
-    pub mode: ResumeMode,
-    /// The value of each frame slot that differs from what the frame already
-    /// holds, in slot order.
-    pub values: Box<[(u32, ValueLocation)]>,
-    /// The live slots whose value the frame already holds (see
-    /// `ir::FrameState::in_frame`), in slot order. Exits clear the registers
-    /// and locals listed in neither, except a `ResumeAfter` destination,
-    /// which exits never write either.
-    pub in_frame: Box<[u32]>,
-    /// See `ir::FrameState::passed_argument_count`.
-    pub passed_argument_count: Option<u32>,
-    /// The argument slots that the legacy `arguments` of the frame's
-    /// function shows (see `ir::FrameState::legacy_arguments`). Objects the
-    /// code never allocated among them are only created when code reads them
-    /// (see `ir::Op::AssumeLegacyArgumentsUnread`).
-    pub legacy_arguments: core::ops::Range<u32>,
-}
 
 /// Where an exit finds a value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -366,7 +277,7 @@ pub enum ValueLocation {
     /// the runtime creates it from the frame's arguments like
     /// `CreateArguments` does, mapped or unmapped, once per exit.
     ArgumentsObject { mapped: bool },
-    /// The object at this index of `Site::objects`.
+    /// The object at this index among those of the site (see `artifact::SiteView::object()`).
     VirtualObject(u32),
 }
 
