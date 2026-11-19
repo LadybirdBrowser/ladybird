@@ -254,6 +254,9 @@ public:
     void on_devtools_disabled();
 
     void set_window_rect(Optional<Web::DevicePixels> x, Optional<Web::DevicePixels> y, Optional<Web::DevicePixels> width, Optional<Web::DevicePixels> height);
+    // Returns the rect made no larger than the bounds, and moved to be inside them.
+    static QRect rect_fitted_into(QRect, QRect const& bounds);
+    void place_popup_window(Web::HTML::WebViewHints const&, QScreen const& opener_screen);
 
 public slots:
     void tab_title_changed(int index, QString const&);
