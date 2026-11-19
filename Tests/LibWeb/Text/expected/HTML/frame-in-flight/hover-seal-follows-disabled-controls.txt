@@ -1,5 +1,6 @@
 enabled: commit
 disabled: clock
+disabled control under the pointer: clock, cursor Move
 enabled again: commit
 another disabled arrived: clock
 it left: commit

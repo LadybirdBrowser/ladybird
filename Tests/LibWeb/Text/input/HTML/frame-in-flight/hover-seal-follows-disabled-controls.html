@@ -5,13 +5,12 @@
     body { margin: 0; }
     div { width: 100px; height: 100px; }
     textarea { display: block; width: 100px; height: 100px; margin: 0; padding: 0; border: 0; }
+    #control { cursor: move; }
 </style>
 <div id="target"></div>
 <textarea id="control"></textarea>
 <script>
-    // A disabled control under the pointer takes no mouse event, which only the style engine tells, and has the lane
-    // follow the pointer wherever it goes: the seal follows the state of a control beside the element hovered, as it comes
-    // and goes, and as a control that holds it arrives and leaves.
+    // Check which frame handles hover over the control and its sibling as disabled controls come and go.
     asyncTest(async done => {
         const run = async name => {
             println(`${name}: ${await hoverSeal(50, 50)}`);
@@ -22,6 +21,8 @@
         await run("enabled");
         control.disabled = true;
         await run("disabled");
+        const presenter = await hoverSeal(50, 150);
+        println(`disabled control under the pointer: ${presenter}, cursor ${internals.currentCursor()}`);
         control.disabled = false;
         await run("enabled again");
         const another = document.createElement("textarea");

@@ -13,7 +13,7 @@ use super::bridge::{
     FfiDocumentStyleComputationInputs, FfiStyleDelta, FfiStyleInvalidationField, element_adjustment_fact,
 };
 use super::fast_hash::FastMap as HashMap;
-use super::input_types::{STYLE_REACTION_RECOMPUTE_STYLE, StateFact};
+use super::input_types::STYLE_REACTION_RECOMPUTE_STYLE;
 use super::layout_style::DerivedStyleRecord;
 use super::tree::StyleNodeID;
 use crate::css::computed_value_views::ComputedValuesView;
@@ -114,25 +114,17 @@ impl StyleEngine {
         facts
     }
 
-    /// Whether a hover needs the style engine to restyle an element or reject a disabled control.
+    /// Whether a hover under `root` needs the live style engine.
     pub(crate) fn hover_needs_style_state(&mut self, root: StyleNodeID) -> bool {
         self.hover_seal_needs_style_state(root)
     }
 
-    /// The element a mouse move aimed at `node`, an element, is dispatched to, as the host dispatches it: none where
-    /// the node is gone, or where the move would be aimed at a disabled form control or anything under one, which the
-    /// host dispatches no event to.
+    /// A mouse move can target any live element in the projection.
     pub(crate) fn element_for_hover_dispatch(&self, node: StyleNodeID) -> Option<StyleNodeID> {
         if node.element_index().is_none() || !self.projection.is_live(node) {
             return None;
         }
-        let disabled =
-            std::iter::successors(Some(node), |&ancestor| self.projection.parent(ancestor)).any(|ancestor| {
-                self.projection
-                    .written_facts(ancestor)
-                    .is_some_and(|facts| facts.states().contains(StateFact::Disabled))
-            });
-        (!disabled).then_some(node)
+        Some(node)
     }
 
     /// The link around `element` in the engine of this hover's fork. See

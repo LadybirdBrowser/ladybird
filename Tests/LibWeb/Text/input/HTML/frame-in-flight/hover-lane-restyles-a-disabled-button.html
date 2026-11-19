@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    button {
+        width: 100px;
+        height: 100px;
+    }
+    button:hover {
+        width: 300px;
+    }
+</style>
+<button id="target" disabled></button>
+<script>
+    asyncTest(async done => {
+        await whileLaneHovers(() => {
+            internals.injectHoverPointer(50, 50);
+            println(`Disabled button width on hover: ${internals.presentedBorderBox(target)?.width}`);
+        });
+        done();
+    });
+</script>

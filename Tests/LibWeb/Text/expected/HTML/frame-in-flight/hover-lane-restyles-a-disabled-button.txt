@@ -1,0 +1,1 @@
+Disabled button width on hover: 300

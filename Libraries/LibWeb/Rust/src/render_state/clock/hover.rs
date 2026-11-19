@@ -1631,8 +1631,7 @@ impl Lane {
     }
 
     /// The element the host dispatches a move at `node`, hit in `paintable`, to: the generator of a pseudo-element's
-    /// box, and the nearest element for a text node. None where the host dispatches nothing, under a disabled form
-    /// control.
+    /// box, and the nearest element for a text node.
     fn element_for_dispatch(
         &self,
         state: &mut RenderState,
