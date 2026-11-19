@@ -580,6 +580,17 @@ GC::Ref<TimeRanges> HTMLMediaElement::seekable() const
     return time_ranges;
 }
 
+// https://html.spec.whatwg.org/multipage/media.html#earliest-possible-position
+double HTMLMediaElement::earliest_possible_position() const
+{
+    // The earliest possible position is not explicitly exposed in the API; it corresponds to the start time of the
+    // first range in the seekable attribute's TimeRanges object, if any, or the current playback position otherwise.
+    auto ranges = seekable();
+    if (ranges->length() > 0)
+        return MUST(ranges->start(0));
+    return current_playback_position();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-navigator-canplaytype
 Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(Utf16View type) const
 {
@@ -2378,8 +2389,9 @@ void HTMLMediaElement::on_metadata_parsed(SourceType source_type)
     m_timeline_offset = m_playback_manager->start_time_realtime();
 
     // 3. Set the current playback position and the official playback position to the earliest possible position.
-    // NB: The current playback position is read live from the freshly-created playback manager, which is at 0.
-    set_official_playback_position(0);
+    // NB: The current playback position is read live from the freshly-created playback manager, which starts at the
+    //     earliest possible position.
+    set_official_playback_position(m_playback_manager->earliest_possible_position().to_seconds_f64());
 
     // 4. Update the duration attribute with the time of the last frame of the resource, if known, on the media timeline established above. If it is
     //    not known (e.g. a stream that is in principle infinite), update the duration attribute to the value positive Infinity.
@@ -3153,8 +3165,11 @@ void HTMLMediaElement::play_element()
     // AD-HOC: Ignore the loop attribute here, so that playback restarts from the beginning if it was specified after
     //         playback ended.
     //         See https://github.com/whatwg/html/issues/4487
-    if (has_ended_playback(IgnoreLoopAttribute::Yes) && direction_of_playback() == PlaybackDirection::Forwards)
+    if (has_ended_playback(IgnoreLoopAttribute::Yes) && direction_of_playback() == PlaybackDirection::Forwards) {
+        // AD-HOC: Seek to zero instead of the earliest possible position. Seeking clamps to the earliest possible
+        //         position already, and it cannot be less than zero.
         seek_element(0);
+    }
 
     // 3. If the media element's paused attribute is true, then:
     if (paused()) {
@@ -3272,7 +3287,7 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     new_playback_position = min(new_playback_position, m_duration);
 
     // 7. If the new playback position is less than the earliest possible position, let it be that position instead.
-    new_playback_position = max(new_playback_position, 0);
+    new_playback_position = max(new_playback_position, earliest_possible_position());
 
     // 8. If the (possibly now changed) new playback position is not in one of the ranges given in the seekable attribute,
     auto time_ranges = seekable();
@@ -3710,7 +3725,7 @@ bool HTMLMediaElement::has_ended_playback(IgnoreLoopAttribute ignore_loop_attrib
     // Or:
     if (
         // The current playback position is the earliest possible position, and
-        current_playback_position() == 0 &&
+        current_playback_position() == earliest_possible_position() &&
 
         // The direction of playback is backwards.
         direction_of_playback() == PlaybackDirection::Backwards) {
@@ -3753,6 +3768,8 @@ void HTMLMediaElement::reached_end_of_media_playback()
             m_prevent_next_loop_while_paused = false;
         }
 
+        // AD-HOC: Use zero here in place of the earliest possible position. Seeking clamps to the earliest possible
+        //         position already, and it cannot be less than zero.
         seek_element(0);
         // FIXME: Tell PlaybackManager that we're looping to allow data providers to decode frames ahead when looping
         //        and remove any delay in displaying the first frame again.
