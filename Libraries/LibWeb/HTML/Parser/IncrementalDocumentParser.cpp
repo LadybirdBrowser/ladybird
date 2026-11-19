@@ -295,7 +295,9 @@ void IncrementalDocumentParser::feed_parser()
             // Every byte of a UTF-16 stream is encoding-sensitive, and step 1 of the change-the-encoding algorithm
             // refuses to move away from UTF-16BE/LE anyway, so there is no declaration left to hold bytes for.
             if (!current_encoding->is_one_of_ignoring_ascii_case("UTF-16BE"sv, "UTF-16LE"sv)) {
-                auto prefix_length = encoding_independent_prefix_length(undecoded_bytes);
+                // Only the bytes this round can decode need checking, so a large body isn't checked again from the
+                // start of what's left each round.
+                auto prefix_length = encoding_independent_prefix_length(undecoded_bytes.trim(maximum_bytes_to_process_at_once));
 
                 // Step 5 of the change-the-encoding algorithm only swaps the decoder for bytes that read the same
                 // in both encodings, so converting an encoding-sensitive byte commits any declaration behind it to
