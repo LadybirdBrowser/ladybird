@@ -169,8 +169,8 @@ pub(crate) mod test_support {
             decode_all(&self.bytes).unwrap()
         }
 
-        pub fn cfg(&self) -> Cfg {
-            Cfg::new(&self.instructions(), &self.handlers, &test_layout()).unwrap()
+        pub fn cfg(&self) -> Cfg<'static> {
+            Cfg::new(&self.instructions(), &self.handlers, &test_layout(), crate::test_zone()).unwrap()
         }
     }
 

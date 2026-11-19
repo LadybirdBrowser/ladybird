@@ -44,6 +44,7 @@ use crate::bytecode::OpCode;
 use crate::bytecode::cfg::BlockIndex;
 use crate::bytecode::cfg::Loop;
 use crate::ir::BlockId;
+use ak::ZoneVec;
 
 /// Whether instructions with this opcode are loop back edges, which count
 /// loop iterations in the interpreter.
@@ -74,7 +75,7 @@ pub(crate) fn is_loop_back_edge(opcode: OpCode) -> bool {
     )
 }
 
-impl GraphBuilder<'_, '_> {
+impl<'a> GraphBuilder<'a, '_> {
     /// Whether the instruction with the given index is a back edge that an on-stack replacement entry can be built at.
     pub(super) fn can_build_osr_entry(&self, index: usize) -> bool {
         let pc = self.function.instructions[index].pc;
@@ -94,6 +95,7 @@ impl GraphBuilder<'_, '_> {
     /// started.
     pub(super) fn build_osr_entries(&mut self) -> Result<(), CompileFailure> {
         debug_assert!(!self.function.is_virtual());
+        let mut targets = ZoneVec::new_in(self.work);
         for index in 0..self.function.instructions.len() {
             let pc = self.function.instructions[index].pc;
             if (self.snapshot.options.osr_pc != Some(pc) && !self.snapshot.options.stress.osr_at_every_loop)
@@ -118,7 +120,7 @@ impl GraphBuilder<'_, '_> {
                 .cfg
                 .block_for_pc(pc)
                 .filter(|block| opcode != OpCode::JumpLoop && self.function.cfg.blocks[*block].start_pc == pc);
-            let mut targets = Vec::new();
+            targets.clear();
             if let Some(own_block) = own_block {
                 self.end_with_jump(own_block)?;
                 targets.push(own_block);
@@ -240,14 +242,16 @@ impl GraphBuilder<'_, '_> {
     /// Starts an entry block into a frame that is running at the instruction with the given index: a block without
     /// predecessors that loads every slot live there from the frame, whose memory holds them all.
     fn start_entry_block(&mut self, index: usize) -> BlockId {
-        let block = self.start_new_block(Vec::new());
+        let block = self.start_new_block(&[]);
         self.frame = self.dead_frame();
         self.function.instruction_index = index;
         self.function.pc = self.function.instructions[index].pc;
         self.function.eager_frame_state = None;
-        for slot in self.function.liveness.live_in(index).iter() {
+        let live = self.live_in(index);
+        for slot in live.iter() {
             self.load_slot(slot);
         }
+        self.release_slot_set(live);
         block
     }
 
@@ -287,7 +291,7 @@ impl GraphBuilder<'_, '_> {
     /// other back edges of the loops around that loop, from where a frame may
     /// reach the entry on a later iteration.
     fn record_osr_loop_back_edges(&mut self, pc: u32) {
-        let cfg = &self.function.cfg;
+        let cfg = self.function.cfg;
         let Some(back_edge_block) = cfg.block_for_pc(pc) else {
             return;
         };
@@ -302,14 +306,14 @@ impl GraphBuilder<'_, '_> {
         else {
             return;
         };
-        let back_edges_in = |current_loop: &Loop| {
+        let instructions = self.function.instructions;
+        let back_edges_in = |current_loop: &'a Loop<'a>| {
             current_loop
                 .blocks
                 .iter()
-                .flat_map(|&block| &self.function.instructions[cfg.blocks[block].instructions.clone()])
+                .flat_map(|&block| &instructions[cfg.blocks[block].instructions.clone()])
                 .filter(|instruction| is_loop_back_edge(instruction.instruction.opcode()))
                 .map(|instruction| instruction.pc)
-                .collect::<Vec<_>>()
         };
         for back_edge_pc in back_edges_in(entered_loop) {
             if !self.graph.osr_loop_back_edges.contains(&back_edge_pc) {

@@ -143,15 +143,16 @@ fn run_stages<M: asm::PortableMacroAssembler>(
     let Scratch { zone, work, tables } = scratch;
     // NB: Nothing of the compile before this one is in use (see `Scratch`).
     work.reset();
-    let mut attempts = builder::Attempts::new(snapshot, has_run, work);
-    let mut graph = loop {
-        // NB: This drops the graph of the compile before this one, and a graph that the builder gave up.
-        zone.reset();
-        if let Some(graph) = attempts.build(zone)? {
-            break graph;
+    let mut graph = {
+        let attempts = builder::Attempts::new(snapshot, has_run, work);
+        loop {
+            // NB: This drops the graph of the compile before this one, and a graph that the builder gave up.
+            zone.reset();
+            if let Some(graph) = attempts.build(zone)? {
+                break graph;
+            }
         }
     };
-    drop(attempts);
     // NB: The builder is done, and nothing of the graph is in its work data.
     work.reset();
     let executable = &snapshot.executables[0];

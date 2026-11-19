@@ -1695,7 +1695,7 @@ pub struct Graph<'z> {
     /// wherever its code runs: the arguments and the `this` value register, unless an instruction writes them. Nothing
     /// stores to them (the verifier enforces this), so the register allocator reloads what was loaded from them from
     /// there (see `regalloc::frame_home()`).
-    pub unwritten_slots: crate::bitset::BitSet,
+    pub unwritten_slots: crate::bitset::ZoneBitSet<'z>,
 }
 
 impl<'z> Graph<'z> {
@@ -1721,7 +1721,7 @@ impl<'z> Graph<'z> {
             speculatively_hoisted: ZoneVec::new_in(zone),
             legacy_arguments: 0..0,
             legacy_arguments_guards: ZoneVec::new_in(zone),
-            unwritten_slots: crate::bitset::BitSet::default(),
+            unwritten_slots: crate::bitset::ZoneBitSet::new_in(0, zone),
         }
     }
 

@@ -21,7 +21,9 @@ use super::FrameLayout;
 use super::RESERVED_REGISTER_COUNT;
 use super::cfg::BasicBlock;
 use super::cfg::Cfg;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
+use ak::Zone;
+use ak::ZoneVec;
 
 /// The live set after every this many instructions of a block, counted from its end, is kept, and the sets of the
 /// instructions in between are computed again from it when asked for.
@@ -31,45 +33,47 @@ const CHECKPOINT_INTERVAL: usize = 64;
 const NO_BLOCK: u32 = u32::MAX;
 
 #[derive(Debug, Clone)]
-pub struct Liveness {
-    transfers: Transfers,
+pub struct Liveness<'w> {
+    transfers: Transfers<'w>,
     /// The block of each instruction, or `NO_BLOCK`.
-    block_of_instruction: Vec<u32>,
+    block_of_instruction: ZoneVec<'w, u32>,
     /// For each instruction, the index into `checkpoints` of the nearest one at or after it in its block, which holds
     /// the instruction index and the slots live out of it.
-    checkpoint_of_instruction: Vec<u32>,
-    checkpoints: Vec<(usize, BitSet)>,
+    checkpoint_of_instruction: ZoneVec<'w, u32>,
+    checkpoints: ZoneVec<'w, (usize, ZoneBitSet<'w>)>,
 }
 
 /// What turns the slots live out of an instruction into those live into it.
 #[derive(Debug, Clone)]
-struct Transfers {
-    always_live: BitSet,
-    block_live_in: Vec<BitSet>,
+struct Transfers<'w> {
+    always_live: ZoneBitSet<'w>,
+    block_live_in: ZoneVec<'w, ZoneBitSet<'w>>,
     /// The exception handler of each block.
-    exception_handlers: Vec<Option<usize>>,
+    exception_handlers: ZoneVec<'w, Option<usize>>,
     /// The slots each instruction writes and then reads: those of instruction `i` are at
     /// `slots[slot_starts[i].0..slot_starts[i].1]` and `slots[slot_starts[i].1..slot_starts[i + 1].0]`.
-    slots: Vec<u32>,
-    slot_starts: Vec<(u32, u32)>,
+    slots: ZoneVec<'w, u32>,
+    slot_starts: ZoneVec<'w, (u32, u32)>,
 }
 
-impl Liveness {
+impl<'w> Liveness<'w> {
+    /// The liveness of the slots of `instructions`, with its data in `work`.
     pub fn compute(
         instructions: &[DecodedInstruction],
-        cfg: &Cfg,
+        cfg: &Cfg<'_>,
         layout: &FrameLayout,
         has_legacy_arguments: bool,
+        work: &'w Zone,
     ) -> Self {
         let slot_count = layout.tracked_slot_count();
-        let mut always_live = BitSet::new(slot_count);
+        let mut always_live = ZoneBitSet::new_in(slot_count, work);
         always_live.insert_range(0..(RESERVED_REGISTER_COUNT.min(layout.registers_and_locals_count) as usize));
         if has_legacy_arguments {
             always_live.insert_range(layout.registers_and_locals_count as usize..slot_count);
         }
 
-        let mut slots = Vec::new();
-        let mut slot_starts = Vec::with_capacity(instructions.len() + 1);
+        let mut slots = ZoneVec::new_in(work);
+        let mut slot_starts = ZoneVec::with_capacity_in(instructions.len() + 1, work);
         for instruction in instructions {
             let start = slots.len() as u32;
             for_each_written_slot(instruction, layout, |slot| slots.push(slot as u32));
@@ -80,11 +84,11 @@ impl Liveness {
         slot_starts.push((slots.len() as u32, slots.len() as u32));
 
         // Upward exposed uses and definitions of each block.
-        let mut block_uses = Vec::with_capacity(cfg.blocks.len());
-        let mut block_definitions = Vec::with_capacity(cfg.blocks.len());
+        let mut block_uses = ZoneVec::with_capacity_in(cfg.blocks.len(), work);
+        let mut block_definitions = ZoneVec::with_capacity_in(cfg.blocks.len(), work);
         for block in &cfg.blocks {
-            let mut uses = BitSet::new(slot_count);
-            let mut definitions = BitSet::new(slot_count);
+            let mut uses = ZoneBitSet::new_in(slot_count, work);
+            let mut definitions = ZoneBitSet::new_in(slot_count, work);
             for index in block.instructions.clone().rev() {
                 let (written, read) = instruction_slots(&slots, &slot_starts, index);
                 for slot in written {
@@ -101,20 +105,22 @@ impl Liveness {
 
         // Iterate to a fixed point, visiting blocks in post order so that most
         // successors are processed before their predecessors.
-        let mut block_live_in = vec![always_live.clone(); cfg.blocks.len()];
-        let post_order = cfg
-            .reverse_post_order
-            .iter()
-            .rev()
-            .copied()
-            .chain((0..cfg.blocks.len()).filter(|block| cfg.blocks[*block].rpo_number.is_none()))
-            .collect::<Vec<_>>();
+        let mut block_live_in = ZoneVec::from_elem_in(always_live.clone(), cfg.blocks.len(), work);
+        let post_order = ZoneVec::from_iter_in(
+            cfg.reverse_post_order
+                .iter()
+                .rev()
+                .copied()
+                .chain((0..cfg.blocks.len()).filter(|block| cfg.blocks[*block].rpo_number.is_none())),
+            work,
+        );
+        let mut live_in = ZoneBitSet::new_in(slot_count, work);
         let mut changed = true;
         while changed {
             changed = false;
             for &block_index in &post_order {
                 let block = &cfg.blocks[block_index];
-                let mut live_in = block_live_out(block, &block_live_in, &always_live);
+                block_live_out(block, &block_live_in, &always_live, &mut live_in);
                 live_in.subtract(&block_definitions[block_index]);
                 live_in.union_with(&block_uses[block_index]);
                 if let Some(handler) = block.exception_handler {
@@ -130,15 +136,16 @@ impl Liveness {
         let transfers = Transfers {
             always_live,
             block_live_in,
-            exception_handlers: cfg.blocks.iter().map(|block| block.exception_handler).collect(),
+            exception_handlers: ZoneVec::from_iter_in(cfg.blocks.iter().map(|block| block.exception_handler), work),
             slots,
             slot_starts,
         };
-        let mut block_of_instruction = vec![NO_BLOCK; instructions.len()];
-        let mut checkpoint_of_instruction = vec![0; instructions.len()];
-        let mut checkpoints = Vec::new();
+        let mut block_of_instruction = ZoneVec::from_elem_in(NO_BLOCK, instructions.len(), work);
+        let mut checkpoint_of_instruction = ZoneVec::from_elem_in(0, instructions.len(), work);
+        let mut checkpoints = ZoneVec::new_in(work);
+        let mut live = live_in;
         for (block_index, block) in cfg.blocks.iter().enumerate() {
-            let mut live = block_live_out(block, &transfers.block_live_in, &transfers.always_live);
+            block_live_out(block, &transfers.block_live_in, &transfers.always_live, &mut live);
             for (offset, index) in block.instructions.clone().rev().enumerate() {
                 block_of_instruction[index] = block_index as u32;
                 if offset % CHECKPOINT_INTERVAL == 0 {
@@ -156,44 +163,46 @@ impl Liveness {
         }
     }
 
-    /// Slots live before the instruction with the given index executes.
-    pub fn live_in(&self, instruction_index: usize) -> BitSet {
-        let mut live = self.live_out(instruction_index);
+    /// Makes `live` the slots live before the instruction with the given index executes. `live` keeps its memory where
+    /// they fit.
+    pub fn live_in(&self, instruction_index: usize, live: &mut ZoneBitSet<'w>) {
+        self.live_out(instruction_index, live);
         let block = self.block_of_instruction[instruction_index];
         if block != NO_BLOCK {
-            self.transfers.transfer(instruction_index, block as usize, &mut live);
+            self.transfers.transfer(instruction_index, block as usize, live);
         }
-        live
     }
 
-    /// Slots live after the instruction with the given index executes,
-    /// including slots live into its exception handler.
-    pub fn live_out(&self, instruction_index: usize) -> BitSet {
+    /// Makes `live` the slots live after the instruction with the given index executes, including slots live into its
+    /// exception handler. `live` keeps its memory where they fit.
+    pub fn live_out(&self, instruction_index: usize, live: &mut ZoneBitSet<'w>) {
         let block = self.block_of_instruction[instruction_index];
         if block == NO_BLOCK {
-            return BitSet::new(self.transfers.always_live.capacity());
+            // NB: The set of always live slots has the capacity of every set.
+            live.clone_from(&self.transfers.always_live);
+            live.clear();
+            return;
         }
         let (checkpoint_index, checkpoint) =
             &self.checkpoints[self.checkpoint_of_instruction[instruction_index] as usize];
-        let mut live = checkpoint.clone();
+        live.clone_from(checkpoint);
         if instruction_index < *checkpoint_index {
             for index in (instruction_index + 1..=*checkpoint_index).rev() {
-                self.transfers.transfer_slots(index, &mut live);
+                self.transfers.transfer_slots(index, live);
             }
-            self.transfers.add_slots_live_throughout(block as usize, &mut live);
+            self.transfers.add_slots_live_throughout(block as usize, live);
         }
-        live
     }
 }
 
-impl Transfers {
+impl<'w> Transfers<'w> {
     /// Turns the slots live out of an instruction into those live into it.
-    fn transfer(&self, index: usize, block: usize, live: &mut BitSet) {
+    fn transfer(&self, index: usize, block: usize, live: &mut ZoneBitSet<'w>) {
         self.transfer_slots(index, live);
         self.add_slots_live_throughout(block, live);
     }
 
-    fn transfer_slots(&self, index: usize, live: &mut BitSet) {
+    fn transfer_slots(&self, index: usize, live: &mut ZoneBitSet<'w>) {
         let (written, read) = instruction_slots(&self.slots, &self.slot_starts, index);
         for slot in written {
             live.remove(*slot as usize);
@@ -205,7 +214,7 @@ impl Transfers {
 
     /// Adds the slots live into and out of every instruction of the block: those always live and those live into its
     /// exception handler. Transfers of several instructions in a row need to add them only once, at the end.
-    fn add_slots_live_throughout(&self, block: usize, live: &mut BitSet) {
+    fn add_slots_live_throughout(&self, block: usize, live: &mut ZoneBitSet<'w>) {
         if let Some(handler) = self.exception_handlers[block] {
             live.union_with(&self.block_live_in[handler]);
         }
@@ -222,12 +231,17 @@ fn instruction_slots<'a>(slots: &'a [u32], slot_starts: &[(u32, u32)], index: us
     )
 }
 
-fn block_live_out(block: &BasicBlock, block_live_in: &[BitSet], always_live: &BitSet) -> BitSet {
-    let mut live_out = always_live.clone();
+/// Makes `live_out` the slots live out of `block`.
+fn block_live_out<'w>(
+    block: &BasicBlock<'_>,
+    block_live_in: &[ZoneBitSet<'w>],
+    always_live: &ZoneBitSet<'w>,
+    live_out: &mut ZoneBitSet<'w>,
+) {
+    live_out.clone_from(always_live);
     for successor in block.successors.iter().chain(&block.exception_handler) {
         live_out.union_with(&block_live_in[*successor]);
     }
-    live_out
 }
 
 fn for_each_read_slot(instruction: &DecodedInstruction, layout: &FrameLayout, mut callback: impl FnMut(usize)) {
@@ -258,7 +272,7 @@ mod tests {
     use crate::bytecode::Operand;
 
     struct Analysis {
-        liveness: Liveness,
+        liveness: Liveness<'static>,
         layout: FrameLayout,
     }
 
@@ -268,21 +282,25 @@ mod tests {
             let instructions = program.instructions();
             let cfg = program.cfg();
             Self {
-                liveness: Liveness::compute(&instructions, &cfg, &layout, false),
+                liveness: Liveness::compute(&instructions, &cfg, &layout, false, crate::test_zone()),
                 layout,
             }
         }
 
         /// The live in set of an instruction, without the always live reserved registers.
         fn live_in(&self, index: usize) -> Vec<Operand> {
-            self.operands(&self.liveness.live_in(index))
+            let mut live = ZoneBitSet::new_in(0, crate::test_zone());
+            self.liveness.live_in(index, &mut live);
+            self.operands(&live)
         }
 
         fn live_out(&self, index: usize) -> Vec<Operand> {
-            self.operands(&self.liveness.live_out(index))
+            let mut live = ZoneBitSet::new_in(0, crate::test_zone());
+            self.liveness.live_out(index, &mut live);
+            self.operands(&live)
         }
 
-        fn operands(&self, set: &BitSet) -> Vec<Operand> {
+        fn operands(&self, set: &ZoneBitSet<'_>) -> Vec<Operand> {
             for reserved in 0..RESERVED_REGISTER_COUNT as usize {
                 assert!(set.contains(reserved), "reserved register {reserved} is not live");
             }
@@ -341,7 +359,7 @@ mod tests {
         });
         let analysis = Analysis::new(&program);
         let instructions = program.instructions();
-        let mut live = BitSet::new(analysis.layout.tracked_slot_count());
+        let mut live = ZoneBitSet::new_in(analysis.layout.tracked_slot_count(), crate::test_zone());
         live.insert_range(0..RESERVED_REGISTER_COUNT as usize);
         for index in (0..instructions.len()).rev() {
             assert_eq!(

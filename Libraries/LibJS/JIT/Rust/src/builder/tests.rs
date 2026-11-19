@@ -90,8 +90,10 @@ fn executable_analyses_are_lazy_and_borrowed_by_independent_walks() {
         decoded,
         decoded_function(&snapshot, executable, &cache).unwrap()
     ));
-    let mut first = Function::new(&snapshot, 0, decoded, false).unwrap();
-    let second = Function::new(&snapshot, 0, decoded, false).unwrap();
+    let mut first = Function::new(&snapshot, 0, decoded, false, crate::test_zone()).unwrap();
+    first.start_walk();
+    let mut second = Function::new(&snapshot, 0, decoded, false, crate::test_zone()).unwrap();
+    second.start_walk();
     assert!(std::ptr::eq(first.cfg, second.cfg));
     assert!(std::ptr::eq(first.liveness, second.liveness));
     assert_eq!(first.instructions.as_ptr(), second.instructions.as_ptr());
@@ -108,15 +110,20 @@ fn cached_liveness_keeps_legacy_arguments_only_for_inlined_walks() {
         let executable = &snapshot.executables[0];
         let cache = OnceCell::new();
         let decoded = decoded_function(&snapshot, executable, &cache).unwrap();
-        let first = Function::new(&snapshot, 0, decoded, first_mode).unwrap();
-        let second = Function::new(&snapshot, 0, decoded, !first_mode).unwrap();
+        let first = Function::new(&snapshot, 0, decoded, first_mode, crate::test_zone()).unwrap();
+        let second = Function::new(&snapshot, 0, decoded, !first_mode, crate::test_zone()).unwrap();
+        let live_in = |function: &Function<'_>, slot| {
+            let mut live = crate::bitset::ZoneBitSet::new_in(0, crate::test_zone());
+            function.liveness.live_in(0, &mut live);
+            live.contains(slot)
+        };
         assert!(std::ptr::eq(first.cfg, second.cfg));
         let argument_slot = layout
             .tracked_index(Operand::from_raw(layout.arguments_base()))
             .unwrap();
-        assert_eq!(first.liveness.live_in(0).contains(argument_slot), first_mode);
-        assert_eq!(second.liveness.live_in(0).contains(argument_slot), !first_mode);
-        let repeated = Function::new(&snapshot, 0, decoded, first_mode).unwrap();
+        assert_eq!(live_in(&first, argument_slot), first_mode);
+        assert_eq!(live_in(&second, argument_slot), !first_mode);
+        let repeated = Function::new(&snapshot, 0, decoded, first_mode, crate::test_zone()).unwrap();
         assert!(std::ptr::eq(first.liveness, repeated.liveness));
     }
 }
@@ -344,36 +351,40 @@ fn writes_to_constant_operands_go_to_the_frame() {
 
 #[test]
 fn loop_headers_inside_a_loop_body_add_their_phis_to_it() {
-    use crate::bitset::BitSet;
+    use crate::bitset::ZoneBitSet;
     use crate::bytecode::cfg::Cfg;
     use crate::bytecode::cfg::Loop;
 
+    let zone = crate::test_zone();
     // Loop 1's header lies in loop 0's body, but loop 1 extends outside it,
     // as `finally` dispatch can make happen. Loop 1 assigns slot 7.
     let assigned = |slots: &[usize]| {
-        let mut set = BitSet::new(10);
+        let mut set = ZoneBitSet::new_in(10, zone);
         slots.iter().for_each(|slot| set.insert(*slot));
         set
     };
     let cfg = Cfg {
-        blocks: Vec::new(),
-        reverse_post_order: Vec::new(),
-        loops: vec![
-            Loop {
-                header: 1,
-                back_edge_sources: vec![3],
-                blocks: vec![1, 2, 3],
-                assigned_slots: assigned(&[5]),
-            },
-            Loop {
-                header: 2,
-                back_edge_sources: vec![4],
-                blocks: vec![0, 2, 4],
-                assigned_slots: assigned(&[7]),
-            },
-        ],
+        blocks: ZoneVec::new_in(zone),
+        reverse_post_order: ZoneVec::new_in(zone),
+        loops: ZoneVec::from_iter_in(
+            [
+                Loop {
+                    header: 1,
+                    back_edge_sources: ZoneVec::from_slice_in(&[3], zone),
+                    blocks: ZoneVec::from_slice_in(&[1, 2, 3], zone),
+                    assigned_slots: assigned(&[5]),
+                },
+                Loop {
+                    header: 2,
+                    back_edge_sources: ZoneVec::from_slice_in(&[4], zone),
+                    blocks: ZoneVec::from_slice_in(&[0, 2, 4], zone),
+                    assigned_slots: assigned(&[7]),
+                },
+            ],
+            zone,
+        ),
     };
-    let slots = loop_phi_slots(&cfg);
+    let slots = loop_phi_slots(&cfg, zone);
     assert_eq!(slots[0].iter().collect::<Vec<_>>(), [5, 7]);
     assert_eq!(slots[1].iter().collect::<Vec<_>>(), [7]);
 }

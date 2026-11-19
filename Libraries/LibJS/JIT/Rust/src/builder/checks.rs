@@ -234,7 +234,7 @@ impl GraphBuilder<'_, '_> {
 
     /// A new block after `source`, which branches to it.
     pub(super) fn add_block_after(&mut self, source: BlockId) -> BlockId {
-        let block = self.start_new_block(vec![source]);
+        let block = self.start_new_block(&[source]);
         self.block = source;
         block
     }
@@ -250,7 +250,7 @@ impl GraphBuilder<'_, '_> {
     /// continues. Phis of the new block take their inputs in the order of
     /// `predecessors`.
     pub(super) fn join_blocks(&mut self, predecessors: Vec<BlockId>) -> BlockId {
-        let join = self.start_new_block(predecessors.clone());
+        let join = self.start_new_block(&predecessors);
         for block in predecessors {
             self.block = block;
             self.set_control(Op::Jump { target: join }, &[]);

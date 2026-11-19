@@ -23,13 +23,15 @@ use super::FrameLayout;
 use super::OpCode;
 use super::Operand;
 use super::THIS_VALUE_REGISTER;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
+use ak::Zone;
+use ak::ZoneVec;
 use std::ops::Range;
 
 pub type BlockIndex = usize;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BasicBlock {
+pub struct BasicBlock<'w> {
     /// Byte offset of the first instruction.
     pub start_pc: u32,
     /// Byte offset one past the last instruction.
@@ -37,20 +39,20 @@ pub struct BasicBlock {
     /// Indices into the decoded instruction list.
     pub instructions: Range<usize>,
     /// Normal control flow successors, without duplicates.
-    pub successors: Vec<BlockIndex>,
+    pub successors: ZoneVec<'w, BlockIndex>,
     /// The block that receives exceptions thrown by instructions in this block.
     pub exception_handler: Option<BlockIndex>,
     /// Normal control flow predecessors, without duplicates.
-    pub predecessors: Vec<BlockIndex>,
+    pub predecessors: ZoneVec<'w, BlockIndex>,
     /// Blocks whose exceptions are handled by this block.
-    pub exception_predecessors: Vec<BlockIndex>,
+    pub exception_predecessors: ZoneVec<'w, BlockIndex>,
     /// Position in `Cfg::reverse_post_order`, or `None` if unreachable.
     pub rpo_number: Option<u32>,
     /// Index into `Cfg::loops` if this block is a loop header.
     pub loop_index: Option<usize>,
 }
 
-impl BasicBlock {
+impl BasicBlock<'_> {
     pub fn predecessor_count(&self) -> usize {
         self.predecessors.len()
     }
@@ -62,16 +64,16 @@ impl BasicBlock {
 
 /// A loop: a header (the target of one or more back edges) and its body.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Loop {
+pub struct Loop<'w> {
     pub header: BlockIndex,
     /// Sources of the back edges to the header.
-    pub back_edge_sources: Vec<BlockIndex>,
+    pub back_edge_sources: ZoneVec<'w, BlockIndex>,
     /// Blocks of the loop, including the header and nested loops, in increasing order.
-    pub blocks: Vec<BlockIndex>,
+    pub blocks: ZoneVec<'w, BlockIndex>,
     /// Tracked slots (see `FrameLayout::tracked_index()`) written by any
     /// instruction in the loop, with the this value register where a
     /// `ResolveThisBinding` writes it without naming it.
-    pub assigned_slots: BitSet,
+    pub assigned_slots: ZoneBitSet<'w>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,24 +85,26 @@ pub enum CfgError {
 }
 
 #[derive(Debug, Clone)]
-pub struct Cfg {
+pub struct Cfg<'w> {
     /// Blocks in bytecode order. Block 0 is the entry.
-    pub blocks: Vec<BasicBlock>,
+    pub blocks: ZoneVec<'w, BasicBlock<'w>>,
     /// Reachable blocks in reverse post order, starting with the entry.
-    pub reverse_post_order: Vec<BlockIndex>,
-    pub loops: Vec<Loop>,
+    pub reverse_post_order: ZoneVec<'w, BlockIndex>,
+    pub loops: ZoneVec<'w, Loop<'w>>,
 }
 
-impl Cfg {
+impl<'w> Cfg<'w> {
+    /// The control flow graph of `instructions`, with its data in `work`.
     pub fn new(
         instructions: &[DecodedInstruction],
         exception_handlers: &[ExceptionHandler],
         layout: &FrameLayout,
+        work: &'w Zone,
     ) -> Result<Self, CfgError> {
         let mut cfg = Self {
-            blocks: Vec::new(),
-            reverse_post_order: Vec::new(),
-            loops: Vec::new(),
+            blocks: ZoneVec::new_in(work),
+            reverse_post_order: ZoneVec::new_in(work),
+            loops: ZoneVec::new_in(work),
         };
         if instructions.is_empty() {
             return Ok(cfg);
@@ -134,7 +138,8 @@ impl Cfg {
                 .ok()
         };
 
-        let mut is_leader = vec![false; instructions.len()];
+        let zone = self.blocks.zone();
+        let mut is_leader = ZoneVec::from_elem_in(false, instructions.len(), zone);
         is_leader[0] = true;
         for (index, instruction) in instructions.iter().enumerate() {
             let mut result = Ok(());
@@ -184,10 +189,10 @@ impl Cfg {
                 start_pc: instructions[start].pc,
                 end_pc: instructions[index - 1].next_pc(),
                 instructions: start..index,
-                successors: Vec::new(),
+                successors: ZoneVec::new_in(zone),
                 exception_handler: None,
-                predecessors: Vec::new(),
-                exception_predecessors: Vec::new(),
+                predecessors: ZoneVec::new_in(zone),
+                exception_predecessors: ZoneVec::new_in(zone),
                 rpo_number: None,
                 loop_index: None,
             });
@@ -201,17 +206,19 @@ impl Cfg {
         instructions: &[DecodedInstruction],
         exception_handlers: &[ExceptionHandler],
     ) -> Result<(), CfgError> {
+        let zone = self.blocks.zone();
+        let mut successors = ZoneVec::new_in(zone);
         for block_index in 0..self.blocks.len() {
             let block = &self.blocks[block_index];
             let last = &instructions[block.instructions.end - 1];
-            let mut successors = Vec::new();
+            successors.clear();
             last.instruction
                 .for_each_jump_target(|target| successors.push(target.0));
             if last.instruction.opcode().can_fall_through() && block_index + 1 < self.blocks.len() {
                 successors.push(last.next_pc());
             }
-            let mut successor_blocks = Vec::with_capacity(successors.len());
-            for target in successors {
+            let mut successor_blocks = ZoneVec::with_capacity_in(successors.len(), zone);
+            for &target in &successors {
                 let successor = self
                     .block_for_pc(target)
                     .ok_or(CfgError::InvalidJumpTarget { pc: last.pc, target })?;
@@ -252,18 +259,18 @@ impl Cfg {
 
     /// Computes the reverse post order with a depth first search from the
     /// entry and returns the back edges (edges to a block on the DFS stack).
-    fn compute_reverse_post_order(&mut self) -> Vec<(BlockIndex, BlockIndex)> {
+    fn compute_reverse_post_order(&mut self) -> ZoneVec<'w, (BlockIndex, BlockIndex)> {
         #[derive(Clone, Copy, PartialEq, Eq)]
         enum State {
             Unvisited,
             OnStack,
             Done,
         }
-        let mut state = vec![State::Unvisited; self.blocks.len()];
-        let mut post_order = Vec::with_capacity(self.blocks.len());
-        let mut back_edges = Vec::new();
+        let zone = self.blocks.zone();
+        let mut state = ZoneVec::from_elem_in(State::Unvisited, self.blocks.len(), zone);
+        let mut back_edges = ZoneVec::new_in(zone);
         // Each stack entry is a block and the index of the next successor to visit.
-        let mut stack = vec![(0, 0)];
+        let mut stack = ZoneVec::from_slice_in(&[(0, 0)], zone);
         state[0] = State::OnStack;
         while let Some((block, next_successor)) = stack.last_mut() {
             let block = *block;
@@ -280,12 +287,13 @@ impl Cfg {
                 },
                 None => {
                     state[block] = State::Done;
-                    post_order.push(block);
+                    self.reverse_post_order.push(block);
                     stack.pop();
                 }
             }
         }
-        self.reverse_post_order = post_order.into_iter().rev().collect();
+        // NB: The list holds the post order up to here.
+        self.reverse_post_order.reverse();
         for (rpo_number, block) in self.reverse_post_order.iter().enumerate() {
             self.blocks[*block].rpo_number = Some(u32::try_from(rpo_number).expect("block count fits in u32"));
         }
@@ -296,30 +304,33 @@ impl Cfg {
         &mut self,
         instructions: &[DecodedInstruction],
         layout: &FrameLayout,
-        mut back_edges: Vec<(BlockIndex, BlockIndex)>,
+        mut back_edges: ZoneVec<'w, (BlockIndex, BlockIndex)>,
     ) {
+        let zone = self.blocks.zone();
         back_edges.sort_by_key(|(source, header)| (self.blocks[*header].rpo_number, *source));
-        let mut loops: Vec<Loop> = Vec::new();
-        for (source, header) in back_edges {
+        let mut loops: ZoneVec<'w, Loop<'w>> = ZoneVec::new_in(zone);
+        for &(source, header) in &back_edges {
             if let Some(existing) = loops.last_mut().filter(|existing| existing.header == header) {
                 existing.back_edge_sources.push(source);
             } else {
                 loops.push(Loop {
                     header,
-                    back_edge_sources: vec![source],
-                    blocks: Vec::new(),
-                    assigned_slots: BitSet::new(layout.tracked_slot_count()),
+                    back_edge_sources: ZoneVec::from_slice_in(&[source], zone),
+                    blocks: ZoneVec::new_in(zone),
+                    assigned_slots: ZoneBitSet::new_in(layout.tracked_slot_count(), zone),
                 });
             }
         }
 
         let this_register = layout.tracked_index(Operand::from_raw(THIS_VALUE_REGISTER));
+        let mut in_loop = ZoneVec::from_elem_in(false, self.blocks.len(), zone);
+        let mut worklist = ZoneVec::new_in(zone);
         for (loop_index, current_loop) in loops.iter_mut().enumerate() {
             // The natural loop: the header plus every reachable block that
             // reaches a back edge source without passing through the header.
-            let mut in_loop = vec![false; self.blocks.len()];
+            in_loop.fill(false);
             in_loop[current_loop.header] = true;
-            let mut worklist = current_loop.back_edge_sources.clone();
+            worklist.assign(&current_loop.back_edge_sources);
             while let Some(block) = worklist.pop() {
                 if in_loop[block] || self.blocks[block].rpo_number.is_none() {
                     continue;
@@ -328,7 +339,9 @@ impl Cfg {
                 let block = &self.blocks[block];
                 worklist.extend(block.predecessors.iter().chain(&block.exception_predecessors));
             }
-            current_loop.blocks = (0..self.blocks.len()).filter(|block| in_loop[*block]).collect();
+            current_loop
+                .blocks
+                .extend((0..self.blocks.len()).filter(|block| in_loop[*block]));
 
             for block in &current_loop.blocks {
                 for instruction in &instructions[self.blocks[*block].instructions.clone()] {
@@ -547,7 +560,7 @@ mod tests {
             ]
         });
         let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
-        let error = Cfg::new(&instructions, &[], &test_layout()).unwrap_err();
+        let error = Cfg::new(&instructions, &[], &test_layout(), crate::test_zone()).unwrap_err();
         assert!(matches!(error, CfgError::InvalidJumpTarget { pc: 0, .. }));
     }
 }

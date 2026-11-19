@@ -642,14 +642,16 @@ impl<'z> GraphBuilder<'_, 'z> {
 
     /// A register other than `operands` that is dead after the current
     /// instruction: nothing reads it before writing it again.
-    fn dead_register(&self, operands: &[Operand]) -> Option<Operand> {
+    fn dead_register(&mut self, operands: &[Operand]) -> Option<Operand> {
         let layout = self.function.layout;
-        let live = self.function.liveness.live_out(self.function.instruction_index);
-        (crate::bytecode::RESERVED_REGISTER_COUNT..layout.number_of_registers)
+        let live = self.live_out(self.function.instruction_index);
+        let register = (crate::bytecode::RESERVED_REGISTER_COUNT..layout.number_of_registers)
             .map(Operand::from_raw)
             .find(|register| {
                 !operands.contains(register) && layout.tracked_index(*register).is_some_and(|slot| !live.contains(slot))
-            })
+            });
+        self.release_slot_set(live);
+        register
     }
 
     /// Builds `dst = base[property]` for a string or symbol key from the

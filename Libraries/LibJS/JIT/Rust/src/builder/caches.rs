@@ -373,13 +373,14 @@ impl GraphBuilder<'_, '_> {
             debug_assert_eq!(self.frame.slots, frame.slots, "cases do not change frame slots");
             self.set_control(Op::Jump { target: join }, &[]);
             self.graph.blocks[join.index()].predecessors.push(self.block);
-            case_shapes.push(std::mem::take(&mut self.frame.fresh_shapes));
+            case_shapes.push(self.frame.fresh_shapes.take());
         }
         self.order.push(join);
         self.block = join;
         self.frame = frame;
         // NB: Cases may change shapes, like additions do.
-        self.frame.fresh_shapes = super::AbstractFrame::common_fresh_shapes(case_shapes.iter().map(Vec::as_slice));
+        self.frame
+            .set_common_fresh_shapes(case_shapes.iter().map(|shapes| shapes.as_slice()));
 
         let results = results.into_iter().collect::<Option<Vec<_>>>()?;
         if results.iter().all(|result| *result == results[0]) {

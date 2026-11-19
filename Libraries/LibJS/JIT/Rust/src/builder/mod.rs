@@ -54,7 +54,7 @@ pub use speculation::OperationInput;
 pub(crate) use osr::is_loop_back_edge;
 
 use crate::CompileFailure;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::bytecode::DecodedInstruction;
 use crate::bytecode::FrameLayout;
 use crate::bytecode::Instruction;
@@ -71,7 +71,6 @@ use crate::bytecode::liveness::Liveness;
 use crate::code::ExitKind;
 use crate::code::Repr;
 use crate::code::ResumeMode;
-use crate::fast_hash::HashMap;
 use crate::ir::Block;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
@@ -89,6 +88,7 @@ use crate::snapshot::ExecutableSnapshot;
 use crate::snapshot::Intrinsic;
 use crate::snapshot::RuntimeInfo;
 use crate::snapshot::Snapshot;
+use crate::zone_map::ZoneMap;
 use ak::Zone;
 use ak::ZoneVec;
 pub(crate) use slow_paths::is_ssa_slow_path_output;
@@ -118,7 +118,7 @@ pub fn build_graph_with_feedback<'z>(
     has_run: &dyn Fn(u32) -> bool,
     zone: &'z Zone,
 ) -> Result<Graph<'z>, CompileFailure> {
-    let mut attempts = Attempts::new(snapshot, has_run, zone);
+    let attempts = Attempts::new(snapshot, has_run, zone);
     loop {
         if let Some(graph) = attempts.build(zone)? {
             return Ok(graph);
@@ -169,9 +169,9 @@ pub struct Attempts<'a> {
     has_run: &'a dyn Fn(u32) -> bool,
     /// Where the builds keep their own data. It holds the data of all the builds until its owner resets it.
     work: &'a Zone,
-    decoded: Vec<OnceCell<Result<DecodedFunction, CompileFailure>>>,
+    decoded: Vec<OnceCell<Result<DecodedFunction<'a>, CompileFailure>>>,
     virtualized_inlined_arguments: Cell<bool>,
-    next: Attempt,
+    next: Cell<Attempt>,
 }
 
 /// What a build of `Attempts` does differently from the first one.
@@ -191,13 +191,14 @@ impl<'a> Attempts<'a> {
             work,
             decoded: (0..snapshot.executables.len()).map(|_| OnceCell::new()).collect(),
             virtualized_inlined_arguments: Cell::new(false),
-            next: Attempt::First,
+            next: Cell::new(Attempt::First),
         }
     }
 
     /// Builds a graph in `zone`. Returns `None` for a graph that cannot be used: the caller then drops what is in
-    /// `zone` and calls this again, which builds the graph in another way.
-    pub fn build<'z>(&mut self, zone: &'z Zone) -> Result<Option<Graph<'z>>, CompileFailure> {
+    /// `zone` and calls this again, which builds the graph in another way. The builds keep the decoded functions, whose
+    /// analyses are in the work zone, borrowed for as long as the attempts live.
+    pub fn build<'z>(&'a self, zone: &'z Zone) -> Result<Option<Graph<'z>>, CompileFailure> {
         let build = |virtualize_arguments, virtualize_inlined_arguments, build_osr_entries| {
             GraphBuilder::new(
                 self.snapshot,
@@ -214,11 +215,11 @@ impl<'a> Attempts<'a> {
             )?
             .build()
         };
-        let graph = match self.next {
+        let graph = match self.next.get() {
             Attempt::First => match build(true, true, true) {
                 Ok(graph) if !arguments::uses_virtual_arguments(&graph) => return Ok(Some(graph)),
                 _ if self.virtualized_inlined_arguments.get() => {
-                    self.next = Attempt::WithoutVirtualArgumentsOfInlinedCallees;
+                    self.next.set(Attempt::WithoutVirtualArgumentsOfInlinedCallees);
                     return Ok(None);
                 }
                 result => result?,
@@ -236,18 +237,18 @@ impl<'a> Attempts<'a> {
                     return Ok(Some(graph));
                 }
                 // Something needs the arguments object itself.
-                self.next = Attempt::WithoutVirtualArguments;
+                self.next.set(Attempt::WithoutVirtualArguments);
                 return Ok(None);
             }
             Attempt::WithoutVirtualArguments => return build(false, false, true).map(Some),
         };
         // NB: The graph uses the virtual arguments object of the compiled function.
-        self.next = if graph.osr_entries.is_empty() {
+        self.next.set(if graph.osr_entries.is_empty() {
             // Something needs the arguments object itself.
             Attempt::WithoutVirtualArguments
         } else {
             Attempt::WithoutOsrEntries
-        };
+        });
         Ok(None)
     }
 }
@@ -278,11 +279,11 @@ const MAX_FRESH_SHAPES: usize = 16;
 /// The builder's view of the frame's registers, locals and arguments,
 /// indexed by `FrameLayout::tracked_index()`, and of the fields of its
 /// execution context.
-#[derive(Debug, Clone)]
-struct AbstractFrame {
+#[derive(Debug)]
+struct AbstractFrame<'a> {
     /// Every slot holds a value. Slots that are not live hold `undefined` where the walk does not know their values
     /// (at entries and merges), as in sync, so that nothing ever stores them, though frame memory may hold anything.
-    slots: Vec<SlotState>,
+    slots: ZoneVec<'a, SlotState>,
     /// For each `FrameField` (in the order of `FrameField::ALL`), the value
     /// the field holds on this path, once loaded or set (see
     /// `GraphBuilder::frame_field()`).
@@ -290,22 +291,40 @@ struct AbstractFrame {
     /// The shapes of objects the code allocated, by their allocation nodes,
     /// as far as this path knows them: each object's shape since its last
     /// addition, until something runs that may change shapes otherwise.
-    fresh_shapes: Vec<(NodeId, CellId)>,
+    fresh_shapes: ZoneVec<'a, (NodeId, CellId)>,
 }
 
-impl AbstractFrame {
-    /// A frame whose slots all hold `value` in sync and whose fields are not loaded yet.
-    fn filled(slot_count: usize, value: NodeId) -> Self {
+impl Clone for AbstractFrame<'_> {
+    fn clone(&self) -> Self {
         Self {
-            slots: vec![
+            slots: self.slots.clone(),
+            fields: self.fields,
+            fresh_shapes: self.fresh_shapes.clone(),
+        }
+    }
+
+    fn clone_from(&mut self, other: &Self) {
+        // NB: This keeps the memory of the lists where the copies fit.
+        self.slots.assign(&other.slots);
+        self.fields = other.fields;
+        self.fresh_shapes.assign(&other.fresh_shapes);
+    }
+}
+
+impl<'a> AbstractFrame<'a> {
+    /// A frame whose slots all hold `value` in sync and whose fields are not loaded yet, with its lists in `work`.
+    fn filled(slot_count: usize, value: NodeId, work: &'a Zone) -> Self {
+        Self {
+            slots: ZoneVec::from_elem_in(
                 SlotState {
                     node: value,
                     in_sync: true,
-                };
-                slot_count
-            ],
+                },
+                slot_count,
+                work,
+            ),
             fields: [None; FrameField::ALL.len()],
-            fresh_shapes: Vec::new(),
+            fresh_shapes: ZoneVec::new_in(work),
         }
     }
 
@@ -317,17 +336,17 @@ impl AbstractFrame {
         self.fields[field as usize] = Some(value);
     }
 
-    /// The shapes every one of `frames` (their `fresh_shapes`) knows its
-    /// objects have.
-    fn common_fresh_shapes<'f>(mut frames: impl Iterator<Item = &'f [(NodeId, CellId)]>) -> Vec<(NodeId, CellId)> {
+    /// Makes `fresh_shapes` the shapes every one of `frames` (their
+    /// `fresh_shapes`) knows its objects have.
+    fn set_common_fresh_shapes<'f>(&mut self, mut frames: impl Iterator<Item = &'f [(NodeId, CellId)]>) {
+        self.fresh_shapes.clear();
         let Some(first) = frames.next() else {
-            return Vec::new();
+            return;
         };
-        let mut shapes = first.to_vec();
+        self.fresh_shapes.extend_from_slice(first);
         for other in frames {
-            shapes.retain(|shape| other.contains(shape));
+            self.fresh_shapes.retain(|shape| other.contains(shape));
         }
-        shapes
     }
 
     /// Forgets the environments, which an instruction may change.
@@ -358,18 +377,22 @@ fn replaces_environments(opcode: OpCode) -> bool {
 
 /// Whether each loop has an instruction that may replace an environment
 /// (see `replaces_environments()`), nested loops included.
-fn loops_replacing_environments(cfg: &Cfg, instructions: &[DecodedInstruction]) -> Vec<bool> {
-    cfg.loops
-        .iter()
-        .map(|current_loop| {
+fn loops_replacing_environments<'w>(
+    cfg: &Cfg<'_>,
+    instructions: &[DecodedInstruction],
+    work: &'w Zone,
+) -> ZoneVec<'w, bool> {
+    ZoneVec::from_iter_in(
+        cfg.loops.iter().map(|current_loop| {
             current_loop.blocks.iter().any(|block| {
                 cfg.blocks[*block]
                     .instructions
                     .clone()
                     .any(|index| replaces_environments(instructions[index].instruction.opcode()))
             })
-        })
-        .collect()
+        }),
+        work,
+    )
 }
 
 /// What ends the instruction currently being built.
@@ -380,8 +403,8 @@ enum Flow {
     Ended,
 }
 
-fn written_constants(instructions: &[DecodedInstruction], layout: &FrameLayout) -> BitSet {
-    let mut written = BitSet::new(layout.number_of_constants as usize);
+fn written_constants<'w>(instructions: &[DecodedInstruction], layout: &FrameLayout, work: &'w Zone) -> ZoneBitSet<'w> {
+    let mut written = ZoneBitSet::new_in(layout.number_of_constants as usize, work);
     let constants = layout.constants_base()..layout.arguments_base();
     for instruction in instructions {
         instruction.instruction.for_each_operand(|operand, role| {
@@ -397,19 +420,19 @@ fn written_constants(instructions: &[DecodedInstruction], layout: &FrameLayout) 
 /// and those any loop whose header lies in its body assigns, since that
 /// header gives them new values. Without irreducible control flow (as
 /// `finally` dispatch can create), those loops are nested in it anyway.
-fn loop_phi_slots(cfg: &Cfg) -> Vec<BitSet> {
-    let mut slots = cfg
-        .loops
-        .iter()
-        .map(|current_loop| current_loop.assigned_slots.clone())
-        .collect::<Vec<_>>();
+fn loop_phi_slots<'w>(cfg: &Cfg<'w>, work: &'w Zone) -> ZoneVec<'w, ZoneBitSet<'w>> {
+    let mut slots = ZoneVec::from_iter_in(
+        cfg.loops.iter().map(|current_loop| current_loop.assigned_slots.clone()),
+        work,
+    );
+    let mut other_slots = ZoneBitSet::new_in(0, work);
     let mut changed = true;
     while changed {
         changed = false;
         for (index, current_loop) in cfg.loops.iter().enumerate() {
             for (other_index, other) in cfg.loops.iter().enumerate() {
                 if other_index != index && current_loop.blocks.contains(&other.header) {
-                    let other_slots = slots[other_index].clone();
+                    other_slots.clone_from(&slots[other_index]);
                     changed |= slots[index].union_with(&other_slots);
                 }
             }
@@ -420,16 +443,17 @@ fn loop_phi_slots(cfg: &Cfg) -> Vec<BitSet> {
 
 /// Bytecode decoding and analyses shared by every walk of an executable.
 /// Analyses are lazy: an inlining budget rejection only needs decoding.
-struct DecodedFunction {
+/// The analyses are in the work zone of the builds.
+struct DecodedFunction<'w> {
     instructions: Vec<DecodedInstruction>,
-    analysis: OnceCell<Result<FunctionAnalysis, CompileFailure>>,
+    analysis: OnceCell<Result<FunctionAnalysis<'w>, CompileFailure>>,
 }
 
-fn decoded_function<'a>(
+fn decoded_function<'c, 'w>(
     snapshot: &Snapshot,
     executable: &ExecutableSnapshot,
-    cache: &'a OnceCell<Result<DecodedFunction, CompileFailure>>,
-) -> Result<&'a DecodedFunction, CompileFailure> {
+    cache: &'c OnceCell<Result<DecodedFunction<'w>, CompileFailure>>,
+) -> Result<&'c DecodedFunction<'w>, CompileFailure> {
     cache
         .get_or_init(|| {
             let bytecode = &snapshot[executable.bytecode];
@@ -452,13 +476,13 @@ fn decoded_function<'a>(
         .map_err(|error| *error)
 }
 
-struct FunctionAnalysis {
-    cfg: Cfg,
+struct FunctionAnalysis<'w> {
+    cfg: Cfg<'w>,
     /// Liveness without and with arguments observable through `f.arguments`.
-    liveness: [OnceCell<Liveness>; 2],
-    loop_phi_slots: Vec<BitSet>,
-    loops_replacing_environments: Vec<bool>,
-    written_constants: BitSet,
+    liveness: [OnceCell<Liveness<'w>>; 2],
+    loop_phi_slots: ZoneVec<'w, ZoneBitSet<'w>>,
+    loops_replacing_environments: ZoneVec<'w, bool>,
+    written_constants: ZoneBitSet<'w>,
     writes_arguments: bool,
     may_write_parameter_bindings: bool,
 }
@@ -472,36 +496,38 @@ struct Function<'a> {
     executable: &'a ExecutableSnapshot,
     layout: FrameLayout,
     instructions: &'a [DecodedInstruction],
-    cfg: &'a Cfg,
-    liveness: &'a Liveness,
+    cfg: &'a Cfg<'a>,
+    liveness: &'a Liveness<'a>,
+    // NB: The lists of the walk below have an element for each bytecode block once the walk starts (see
+    //     `start_walk()`), and none before.
     /// The IR block of each bytecode block, created when first referenced.
-    ir_blocks: Vec<Option<BlockId>>,
+    ir_blocks: ZoneVec<'a, Option<BlockId>>,
     /// Forward edges into each bytecode block not yet started: the IR
     /// predecessor and the abstract frame at its end.
-    incoming: Vec<Vec<(BlockId, AbstractFrame)>>,
+    incoming: ZoneVec<'a, ZoneVec<'a, (BlockId, AbstractFrame<'a>)>>,
     /// Whether each bytecode block was started.
-    started: Vec<bool>,
+    started: ZoneVec<'a, bool>,
     /// The abstract frame at the start of each loop header that was started,
     /// which every back edge must reconcile with.
-    loop_header_frames: Vec<Option<AbstractFrame>>,
+    loop_header_frames: ZoneVec<'a, Option<AbstractFrame<'a>>>,
     /// For each loop, the slots that get phis at its header.
-    loop_phi_slots: &'a [BitSet],
+    loop_phi_slots: &'a [ZoneBitSet<'a>],
     /// For each loop, whether it may replace an environment.
     loops_replacing_environments: &'a [bool],
     /// The loop headers that on-stack replacement entries lead to over back
     /// edges, which are built even if no forward edge reaches them.
-    osr_loop_headers: Vec<bool>,
+    osr_loop_headers: ZoneVec<'a, bool>,
     /// Constant slots some instruction writes. The interpreter keeps a copy of
     /// the constants in the frame, and writes to a constant operand change that
     /// copy, so such slots live in frame memory.
-    written_constants: &'a BitSet,
+    written_constants: &'a ZoneBitSet<'a>,
     /// Index of the instruction being built.
     instruction_index: usize,
     pc: u32,
     /// The frame state shared by every eager exit of the current instruction.
     eager_frame_state: Option<FrameStateId>,
     /// How this executable was called, if it is an inlined callee.
-    inline: Option<inlining::InlineCall>,
+    inline: Option<inlining::InlineCall<'a>>,
     /// Whether some instruction writes an argument slot.
     writes_arguments: bool,
     /// How many of the next instructions the instruction being built built
@@ -513,12 +539,14 @@ struct Function<'a> {
 }
 
 impl<'a> Function<'a> {
-    /// The state for a walk over executable `index` of `snapshot`, which `decoded` is the instructions of.
+    /// The state for a walk over executable `index` of `snapshot`, which `decoded` is the instructions of, with its
+    /// data in `work`.
     fn new(
         snapshot: &'a Snapshot,
         index: u32,
-        decoded: &'a DecodedFunction,
+        decoded: &'a DecodedFunction<'a>,
         has_legacy_arguments: bool,
+        work: &'a Zone,
     ) -> Result<Self, CompileFailure> {
         let executable = &snapshot.executables[index as usize];
         let layout = executable.layout;
@@ -527,13 +555,14 @@ impl<'a> Function<'a> {
             .analysis
             .get_or_init(|| {
                 let handlers = &snapshot[executable.exception_handlers];
-                let cfg = Cfg::new(instructions, handlers, &layout).map_err(|_| CompileFailure::InvalidBytecode {
-                    pc: 0,
-                    reason: "invalid control flow",
-                })?;
-                let loop_phi_slots = loop_phi_slots(&cfg);
-                let loops_replacing_environments = loops_replacing_environments(&cfg, instructions);
-                let written_constants = written_constants(instructions, &layout);
+                let cfg =
+                    Cfg::new(instructions, handlers, &layout, work).map_err(|_| CompileFailure::InvalidBytecode {
+                        pc: 0,
+                        reason: "invalid control flow",
+                    })?;
+                let loop_phi_slots = loop_phi_slots(&cfg, work);
+                let loops_replacing_environments = loops_replacing_environments(&cfg, instructions, work);
+                let written_constants = written_constants(instructions, &layout, work);
                 let may_write_parameter_bindings = instructions
                     .iter()
                     .any(|decoded| arguments::may_write_parameter_bindings(decoded.instruction.opcode()));
@@ -556,8 +585,7 @@ impl<'a> Function<'a> {
             .as_ref()
             .map_err(|error| *error)?;
         let liveness = analysis.liveness[usize::from(has_legacy_arguments)]
-            .get_or_init(|| Liveness::compute(instructions, &analysis.cfg, &layout, has_legacy_arguments));
-        let block_count = analysis.cfg.blocks.len();
+            .get_or_init(|| Liveness::compute(instructions, &analysis.cfg, &layout, has_legacy_arguments, work));
         Ok(Self {
             snapshot,
             index,
@@ -566,13 +594,13 @@ impl<'a> Function<'a> {
             instructions,
             cfg: &analysis.cfg,
             liveness,
-            ir_blocks: vec![None; block_count],
-            incoming: vec![Vec::new(); block_count],
-            started: vec![false; block_count],
-            loop_header_frames: vec![None; block_count],
+            ir_blocks: ZoneVec::new_in(work),
+            incoming: ZoneVec::new_in(work),
+            started: ZoneVec::new_in(work),
+            loop_header_frames: ZoneVec::new_in(work),
             loop_phi_slots: &analysis.loop_phi_slots,
             loops_replacing_environments: &analysis.loops_replacing_environments,
-            osr_loop_headers: vec![false; block_count],
+            osr_loop_headers: ZoneVec::new_in(work),
             written_constants: &analysis.written_constants,
             instruction_index: 0,
             pc: 0,
@@ -582,6 +610,18 @@ impl<'a> Function<'a> {
             skipped_instructions: 0,
             may_write_parameter_bindings: analysis.may_write_parameter_bindings,
         })
+    }
+
+    /// Gives the lists of the walk an element for each bytecode block. A function that is not walked, like a callee
+    /// that is not inlined after all, takes no memory for them.
+    fn start_walk(&mut self) {
+        let block_count = self.cfg.blocks.len();
+        self.ir_blocks.resize(block_count, None);
+        let work = self.ir_blocks.zone();
+        self.incoming.resize(block_count, ZoneVec::new_in(work));
+        self.started.resize(block_count, false);
+        self.loop_header_frames.resize(block_count, None);
+        self.osr_loop_headers.resize(block_count, false);
     }
 
     /// Whether this is the frame of an inlined call, whose slots are only
@@ -601,21 +641,21 @@ struct GraphBuilder<'a, 'z> {
     runtime: &'a RuntimeInfo,
     has_run: &'a dyn Fn(u32) -> bool,
 
-    decoded: &'a [OnceCell<Result<DecodedFunction, CompileFailure>>],
+    decoded: &'a [OnceCell<Result<DecodedFunction<'a>, CompileFailure>>],
     graph: Graph<'z>,
     /// Where the builder keeps its own data. Nothing of the graph is there.
     work: &'a Zone,
     /// The blocks in linear order, as they are started.
     order: ZoneVec<'a, BlockId>,
     /// The constant node of each value and representation.
-    constants: HashMap<(u64, Repr), NodeId>,
+    constants: ZoneMap<'a, (u64, Repr), NodeId>,
 
     block: BlockId,
-    frame: AbstractFrame,
+    frame: AbstractFrame<'a>,
     /// The executable being walked.
     function: Function<'a>,
     /// The executables whose walks are suspended at an inlined call, outermost first.
-    callers: Vec<Function<'a>>,
+    callers: ZoneVec<'a, Function<'a>>,
     /// Bytecode instructions inlined so far, for the inlining budget.
     inlined_instructions: usize,
     /// Where `CreateArguments` may build a virtual arguments object.
@@ -623,24 +663,28 @@ struct GraphBuilder<'a, 'z> {
     /// Whether to build on-stack replacement entries (see `arguments`).
     build_osr_entries: bool,
     /// The intrinsics among the constants, by value.
-    intrinsics: HashMap<u64, Intrinsic>,
+    intrinsics: ZoneMap<'a, u64, Intrinsic>,
     /// The functions among the constants that calls may inline, by value:
     /// their indices in `Snapshot::executables`.
-    inlinable_functions: HashMap<u64, u32>,
+    inlinable_functions: ZoneMap<'a, u64, u32>,
     /// The functions among the constants that calls may call directly, by
     /// value.
-    direct_call_functions: HashMap<u64, crate::snapshot::DirectCallTarget>,
+    direct_call_functions: ZoneMap<'a, u64, crate::snapshot::DirectCallTarget>,
     /// How `instanceof` runs with the functions the code uses as constants
     /// on its right-hand side (see `GlobalValueSnapshot::has_instance`), by
     /// their bits.
-    has_instance: HashMap<u64, crate::snapshot::OrdinaryHasInstanceSnapshot>,
+    has_instance: ZoneMap<'a, u64, crate::snapshot::OrdinaryHasInstanceSnapshot>,
+    /// Sets of slots that are free to use again (see `live_in()`).
+    free_slot_sets: ZoneVec<'a, ZoneBitSet<'a>>,
+    /// Lists of slots that are free to use again (see `slot_list()`).
+    free_slot_lists: ZoneVec<'a, ZoneVec<'a, usize>>,
 }
 
 impl<'a, 'z> GraphBuilder<'a, 'z> {
     fn new(
         snapshot: &'a Snapshot,
         has_run: &'a dyn Fn(u32) -> bool,
-        decoded: &'a [OnceCell<Result<DecodedFunction, CompileFailure>>],
+        decoded: &'a [OnceCell<Result<DecodedFunction<'a>, CompileFailure>>],
         virtualize_arguments: ArgumentsVirtualization<'a>,
         build_osr_entries: bool,
         zone: &'z Zone,
@@ -658,7 +702,8 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             .instructions
             .iter()
             .any(|instruction| instruction.instruction.opcode() == OpCode::GetArgument);
-        let function = Function::new(snapshot, 0, decoded_root, reads_argument_slots)?;
+        let mut function = Function::new(snapshot, 0, decoded_root, reads_argument_slots, work)?;
+        function.start_walk();
         let arguments_base = function.layout.arguments_base();
         let legacy_arguments = if executable.supports_legacy_arguments {
             arguments_base..arguments_base + function.layout.number_of_arguments
@@ -676,26 +721,28 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             },
             work,
             order: ZoneVec::new_in(work),
-            constants: HashMap::default(),
+            constants: ZoneMap::new_in(work),
             block: BlockId(0),
             // NB: Replaced by the frame of the first block built.
-            frame: AbstractFrame::filled(0, NodeId(0)),
+            frame: AbstractFrame::filled(0, NodeId(0), work),
             function,
-            callers: Vec::new(),
+            callers: ZoneVec::new_in(work),
             inlined_instructions: 0,
             virtualize_arguments,
             build_osr_entries,
-            intrinsics: HashMap::default(),
-            inlinable_functions: HashMap::default(),
-            direct_call_functions: HashMap::default(),
-            has_instance: HashMap::default(),
+            intrinsics: ZoneMap::new_in(work),
+            inlinable_functions: ZoneMap::new_in(work),
+            direct_call_functions: ZoneMap::new_in(work),
+            has_instance: ZoneMap::new_in(work),
+            free_slot_sets: ZoneVec::new_in(work),
+            free_slot_lists: ZoneVec::new_in(work),
         })
     }
 
     fn build(mut self) -> Result<Graph<'z>, CompileFailure> {
         // NB: The entry block has no predecessors and jumps to the first bytecode
         //     block, which may be a loop header.
-        let entry = self.start_new_block(Vec::new());
+        let entry = self.start_new_block(&[]);
         // OPTIMIZATION: The code of top-level code that a loop triggered the compile of is only entered inside, so
         //               what only its start reaches is left out, like a large literal that ran before the loop.
         let builds_entry_at_osr_pc = self.snapshot.options.osr_pc.is_some_and(|pc| {
@@ -757,9 +804,12 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// The slots (as operands) that hold the values the compiled function starts with wherever it runs: the arguments
     /// and the this value register, unless instructions of the function write them. The frame's initialization
     /// changes the other registers and the locals, and the runtime the other reserved registers.
-    fn slots_kept_from_start(&self) -> BitSet {
+    fn slots_kept_from_start(&self) -> ZoneBitSet<'z> {
         let layout = self.function.layout;
-        let mut kept = BitSet::new(layout.arguments_base() as usize + layout.number_of_arguments as usize);
+        let mut kept = ZoneBitSet::new_in(
+            layout.arguments_base() as usize + layout.number_of_arguments as usize,
+            self.graph.zone,
+        );
         kept.insert_range(layout.arguments_base() as usize..kept.capacity());
         if THIS_VALUE_REGISTER < layout.registers_and_locals_count {
             kept.insert(THIS_VALUE_REGISTER as usize);
@@ -781,15 +831,55 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// slots live there are loaded from frame memory (loads nothing uses go away in dead code elimination).
     fn load_entry_slots(&mut self) {
         self.frame = self.dead_frame();
-        for slot in self.function.liveness.live_in(0).iter() {
+        let live = self.live_in(0);
+        for slot in live.iter() {
             self.load_slot(slot);
         }
+        self.release_slot_set(live);
     }
 
     /// A frame whose slots are all dead: they hold `undefined` (see `AbstractFrame::slots`).
-    fn dead_frame(&mut self) -> AbstractFrame {
+    fn dead_frame(&mut self) -> AbstractFrame<'a> {
         let undefined = self.constant(value::UNDEFINED);
-        AbstractFrame::filled(self.function.layout.tracked_slot_count(), undefined)
+        AbstractFrame::filled(self.function.layout.tracked_slot_count(), undefined, self.work)
+    }
+
+    /// The slots live before the instruction with the given index of the function being walked executes, in a set to
+    /// give back with `release_slot_set()` once it is not needed any more.
+    fn live_in(&mut self, instruction_index: usize) -> ZoneBitSet<'a> {
+        let mut live = self.slot_set();
+        self.function.liveness.live_in(instruction_index, &mut live);
+        live
+    }
+
+    /// Like `live_in()`, for the slots live after the instruction.
+    fn live_out(&mut self, instruction_index: usize) -> ZoneBitSet<'a> {
+        let mut live = self.slot_set();
+        self.function.liveness.live_out(instruction_index, &mut live);
+        live
+    }
+
+    fn slot_set(&mut self) -> ZoneBitSet<'a> {
+        self.free_slot_sets
+            .pop()
+            .unwrap_or_else(|| ZoneBitSet::new_in(0, self.work))
+    }
+
+    /// Gives back a set that `live_in()` or `live_out()` gave, for them to use again.
+    fn release_slot_set(&mut self, set: ZoneBitSet<'a>) {
+        self.free_slot_sets.push(set);
+    }
+
+    /// An empty list of slots, to give back with `release_slot_list()` once it is not needed any more.
+    fn slot_list(&mut self) -> ZoneVec<'a, usize> {
+        let mut list = self.free_slot_lists.pop().unwrap_or_else(|| ZoneVec::new_in(self.work));
+        list.clear();
+        list
+    }
+
+    /// Gives back a list that `slot_list()` gave, for it to use again.
+    fn release_slot_list(&mut self, list: ZoneVec<'a, usize>) {
+        self.free_slot_lists.push(list);
     }
 
     /// Loads a slot from frame memory, which then holds its value in sync.
@@ -833,9 +923,9 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
 
     /// Creates a block, appends it to the linear order and makes it current.
     /// The caller sets the abstract frame.
-    fn start_new_block(&mut self, predecessors: Vec<BlockId>) -> BlockId {
+    fn start_new_block(&mut self, predecessors: &[BlockId]) -> BlockId {
         let block = self.graph.add_block(Block {
-            predecessors: self.graph.list(&predecessors),
+            predecessors: self.graph.list(predecessors),
             ..self.graph.new_block()
         });
         self.order.push(block);
@@ -846,7 +936,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// Starts the IR block of a bytecode block, merging the abstract frames of
     /// its forward predecessors. Returns false if no built block reaches it.
     fn start_bytecode_block(&mut self, block_index: BlockIndex) -> bool {
-        let incoming = std::mem::take(&mut self.function.incoming[block_index]);
+        let incoming = self.function.incoming[block_index].take();
         // NB: A loop whose forward entry was never built can still be
         //     running when compiled code is entered at a back edge inside it.
         let only_back_edges = incoming.is_empty() && self.function.osr_loop_headers[block_index];
@@ -889,12 +979,16 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// header has a phi for each live slot the loop assigns, whose back edges add their inputs (see
     /// `reconcile_back_edge()`). So does a loop header that on-stack replacement entries reach over back edges, for
     /// every live slot: the values there come from different entries.
-    fn merge(&mut self, block_index: BlockIndex, incoming: Vec<(BlockId, AbstractFrame)>) -> AbstractFrame {
-        let bytecode_block = &self.function.cfg.blocks[block_index];
-        let live = self.function.liveness.live_in(bytecode_block.instructions.start);
-        let assigned_in_loop = bytecode_block
-            .loop_index
-            .map(|loop_index| self.function.loop_phi_slots[loop_index].clone());
+    fn merge(
+        &mut self,
+        block_index: BlockIndex,
+        incoming: ZoneVec<'a, (BlockId, AbstractFrame<'a>)>,
+    ) -> AbstractFrame<'a> {
+        let cfg = self.function.cfg;
+        let bytecode_block = &cfg.blocks[block_index];
+        let live = self.live_in(bytecode_block.instructions.start);
+        let loop_phi_slots = self.function.loop_phi_slots;
+        let assigned_in_loop = bytecode_block.loop_index.map(|loop_index| &loop_phi_slots[loop_index]);
         let is_loop_header = bytecode_block.is_loop_header();
 
         let mut merged = self.dead_frame();
@@ -909,8 +1003,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         let osr_loop_header = self.function.osr_loop_headers[block_index];
         // NB: Loops may change the shapes their headers would know.
         if !is_loop_header {
-            merged.fresh_shapes =
-                AbstractFrame::common_fresh_shapes(incoming.iter().map(|(_, frame)| frame.fresh_shapes.as_slice()));
+            merged.set_common_fresh_shapes(incoming.iter().map(|(_, frame)| frame.fresh_shapes.as_slice()));
         }
         for field in FrameField::ALL {
             let first = incoming.first().and_then(|(_, frame)| frame.field(field));
@@ -922,11 +1015,12 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 merged.set_field(field, value);
             }
         }
+        let mut values = ZoneVec::with_capacity_in(incoming.len(), self.work);
+        let mut inputs = ZoneVec::with_capacity_in(incoming.len(), self.work);
         for slot in live.iter() {
-            let assigned = assigned_in_loop
-                .as_ref()
-                .is_some_and(|assigned| assigned.contains(slot));
-            let values = incoming.iter().map(|(_, frame)| frame.slots[slot]).collect::<Vec<_>>();
+            let assigned = assigned_in_loop.is_some_and(|assigned| assigned.contains(slot));
+            values.clear();
+            values.extend(incoming.iter().map(|(_, frame)| frame.slots[slot]));
             // NB: Back edges keep frame memory in sync with the values of the slots the loop does not assign, and
             //     the phis of the others get values memory need not hold.
             let in_sync = values.iter().all(|value| value.in_sync) && !(is_loop_header && assigned);
@@ -956,16 +1050,17 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 None if reloads => self.emit(Op::LoadSlot { slot: operand.raw() }, &[], Some(Repr::Tagged)),
                 None => {
                     // NB: Phis start out tagged; representation selection unboxes them later.
-                    let inputs = incoming
-                        .iter()
-                        .zip(&values)
-                        .map(|((predecessor, _), value)| self.tagged_at_end_of(*predecessor, value.node))
-                        .collect::<Vec<_>>();
+                    inputs.clear();
+                    for ((predecessor, _), value) in incoming.iter().zip(&values) {
+                        let input = self.tagged_at_end_of(*predecessor, value.node);
+                        inputs.push(input);
+                    }
                     self.add_phi(&inputs)
                 }
             };
             merged.slots[slot] = SlotState { node, in_sync };
         }
+        self.release_slot_set(live);
         merged
     }
 
@@ -1054,7 +1149,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     fn end_with_branch(
         &mut self,
         make_op: impl FnOnce(BlockId, BlockId) -> Op<'z>,
-        inputs: Vec<NodeId>,
+        inputs: &[NodeId],
         if_true: BlockIndex,
         if_false: BlockIndex,
     ) -> Result<(), CompileFailure> {
@@ -1070,10 +1165,10 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         });
         self.order.push(true_edge);
         self.order.push(false_edge);
-        self.set_control(make_op(true_edge, false_edge), &inputs);
+        self.set_control(make_op(true_edge, false_edge), inputs);
         for (edge, target) in [(true_edge, if_true), (false_edge, if_false)] {
             self.block = edge;
-            self.frame = frame.clone();
+            self.frame.clone_from(&frame);
             self.end_with_jump(target)?;
         }
         Ok(())
@@ -1083,14 +1178,25 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// one at the start of the loop header `target`, and adds the inputs of
     /// the header's phis for this back edge.
     fn reconcile_back_edge(&mut self, target: BlockIndex) -> Result<(), CompileFailure> {
-        let header = self.function.ir_blocks[target].expect("started loop headers have an IR block");
+        // NB: The frame goes back to its place below.
         let header_frame = self.function.loop_header_frames[target]
-            .clone()
+            .take()
             .expect("the loop header was started");
-        let live = self
-            .function
-            .liveness
-            .live_in(self.function.cfg.blocks[target].instructions.start);
+        let live = self.live_in(self.function.cfg.blocks[target].instructions.start);
+        let result = self.reconcile_back_edge_with(target, &header_frame, &live);
+        self.release_slot_set(live);
+        self.function.loop_header_frames[target] = Some(header_frame);
+        result
+    }
+
+    /// `reconcile_back_edge()` with the header's abstract frame `header_frame` and the slots `live` into it.
+    fn reconcile_back_edge_with(
+        &mut self,
+        target: BlockIndex,
+        header_frame: &AbstractFrame<'a>,
+        live: &ZoneBitSet<'a>,
+    ) -> Result<(), CompileFailure> {
+        let header = self.function.ir_blocks[target].expect("started loop headers have an IR block");
         for slot in live.iter() {
             let header_value = header_frame.slots[slot];
             let current = self.frame.slots[slot];
@@ -1333,11 +1439,12 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 node: value,
                 in_sync: true,
             })
-            && self
-                .function
-                .liveness
-                .live_in(self.function.instruction_index)
-                .contains(slot);
+            && {
+                let live = self.live_in(self.function.instruction_index);
+                let live_slot = live.contains(slot);
+                self.release_slot_set(live);
+                live_slot
+            };
         if !unchanged {
             if writes_memory {
                 self.emit(Op::StoreSlot { slot: operand.raw() }, &[value], None);
@@ -1366,10 +1473,9 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         if let Some(frame_state) = self.function.eager_frame_state {
             return frame_state;
         }
-        let frame_state = self.new_frame_state(
-            &self.function.liveness.live_in(self.function.instruction_index),
-            ResumeMode::ResumeAt,
-        );
+        let live = self.live_in(self.function.instruction_index);
+        let frame_state = self.new_frame_state(&live, ResumeMode::ResumeAt);
+        self.release_slot_set(live);
         let frame_state = self.graph.add_frame_state(frame_state);
         self.function.eager_frame_state = Some(frame_state);
         frame_state
@@ -1392,18 +1498,17 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             return Ok(Flow::Ended);
         }
 
-        let instruction = self.function.instructions[self.function.instruction_index]
-            .instruction
-            .clone();
+        let instructions = self.function.instructions;
+        let instruction = &instructions[self.function.instruction_index].instruction;
         if osr::is_loop_back_edge(instruction.opcode()) {
             self.emit_checked(Op::CheckInterrupt, &[], None);
         }
         if replaces_environments(instruction.opcode()) {
             self.frame.forget_environments();
         }
-        match self.try_build_natively(&instruction)? {
+        match self.try_build_natively(instruction)? {
             Some(flow) => Ok(flow),
-            None => self.build_by_handling(&instruction),
+            None => self.build_by_handling(instruction),
         }
     }
 
@@ -1581,11 +1686,10 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 {
                     return Ok(Some(flow));
                 }
-                let elements = elements
-                    .iter()
-                    .copied()
-                    .map(allocation::ArrayElement::Operand)
-                    .collect::<Vec<_>>();
+                let elements = ZoneVec::from_iter_in(
+                    elements.iter().copied().map(allocation::ArrayElement::Operand),
+                    self.work,
+                );
                 if !self.try_build_new_array(dst, &elements)? {
                     return Ok(None);
                 }
@@ -1612,11 +1716,10 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 }
             }
             Instruction::NewPrimitiveArray { dst, ref elements, .. } => {
-                let elements = elements
-                    .iter()
-                    .copied()
-                    .map(allocation::ArrayElement::Constant)
-                    .collect::<Vec<_>>();
+                let elements = ZoneVec::from_iter_in(
+                    elements.iter().copied().map(allocation::ArrayElement::Constant),
+                    self.work,
+                );
                 if !self.try_build_new_array(dst, &elements)? {
                     return Ok(None);
                 }
@@ -1860,9 +1963,11 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         if let Some(continuation) = continuation {
             let block = self.block_for_label(continuation)?;
             let start = self.function.cfg.blocks[block].instructions.start;
-            for slot in self.function.liveness.live_in(start).iter() {
+            let live = self.live_in(start);
+            for slot in live.iter() {
                 self.sync_slot(slot);
             }
+            self.release_slot_set(live);
         }
         // NB: Like the interpreter's Yield and Await, an empty value yields
         //     `undefined`.
@@ -1947,7 +2052,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 if_true,
                 if_false,
             },
-            vec![value],
+            &[value],
             if_true,
             if_false,
         )
@@ -1984,7 +2089,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         );
         for (edge, target) in [(true_edge, if_true), (false_edge, if_false)] {
             self.block = edge;
-            self.frame = frame.clone();
+            self.frame.clone_from(&frame);
             self.end_with_jump(target)?;
         }
         self.block = fallback;
@@ -1996,7 +2101,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 if_true,
                 if_false,
             },
-            vec![boolean],
+            &[boolean],
             if_true,
             if_false,
         )
@@ -2076,30 +2181,28 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         forwarded: Option<Operand>,
     ) -> Result<Flow, CompileFailure> {
         let opcode = instruction.opcode();
-        let input_nodes = inputs
-            .iter()
-            .map(|operand| self.read(*operand))
-            .collect::<Result<Vec<_>, _>>()?;
-        let input_slots = inputs
-            .iter()
-            .filter_map(|operand| self.function.layout.tracked_index(*operand))
-            .collect::<Vec<_>>();
-        let live_in = self.function.liveness.live_in(self.function.instruction_index);
+        let mut input_nodes = ZoneVec::with_capacity_in(inputs.len(), self.work);
+        for operand in inputs {
+            let node = self.read(*operand)?;
+            input_nodes.push(node);
+        }
+        let layout = self.function.layout;
+        let is_input_slot = |slot: &usize| {
+            inputs
+                .iter()
+                .any(|operand| layout.tracked_index(*operand) == Some(*slot))
+        };
+        let live_in = self.live_in(self.function.instruction_index);
         // NB: A virtual arguments object stays virtual unless the slow path reads
         //     it; codegen creates it if the slow path leaves the compiled code.
-        let mut read_slots = Vec::new();
-        let mut written_slots = Vec::new();
+        let mut read_slots = self.slot_list();
+        let mut written_slots = self.slot_list();
         instruction.for_each_operand(|operand, role| {
             if role.is_read() && Some(operand) != forwarded {
-                read_slots.extend(
-                    self.function
-                        .layout
-                        .tracked_index(operand)
-                        .filter(|slot| !input_slots.contains(slot)),
-                );
+                read_slots.extend(layout.tracked_index(operand).filter(|slot| !is_input_slot(slot)));
             }
             if role.is_written() {
-                written_slots.extend(self.function.layout.tracked_index(operand));
+                written_slots.extend(layout.tracked_index(operand));
             }
         });
         // NB: The slow path reads its operands from the frame, and a slot it
@@ -2111,16 +2214,9 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         //     frame state gives the destination its old value where the call
         //     does not continue (see `ir::FrameState::in_frame`).
         let value_is_result = !input_nodes.is_empty() && matches!(op, Op::CallDirect { .. } | Op::CallNative { .. });
-        let operand_slots = read_slots
-            .iter()
-            .copied()
-            .chain(
-                written_slots
-                    .iter()
-                    .copied()
-                    .filter(|slot| live_in.contains(*slot) && !value_is_result),
-            )
-            .collect::<Vec<_>>();
+        let is_operand_slot = |slot: &usize| {
+            read_slots.contains(slot) || (written_slots.contains(slot) && live_in.contains(*slot) && !value_is_result)
+        };
         // NB: Calls in inlined callees run in the published frames of the
         //     inlined calls (see `SiteKind::Publish`), which take all their
         //     operands as inputs. Nothing else reads the frames of inlined
@@ -2132,26 +2228,26 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 reason: "reads the frame of an inlined callee",
             });
         }
-        let out_of_sync = (0..self.frame.slots.len())
-            .filter(|slot| {
-                let SlotState { node, in_sync } = self.frame.slots[*slot];
-                let needed = if writes_only_operands {
-                    operand_slots.contains(slot)
-                } else {
-                    info.reads_whole_frame || live_in.contains(*slot)
-                };
-                !in_sync
-                    && needed
-                    && (!self.is_virtual_arguments(node) || info.reads_whole_frame || read_slots.contains(slot))
-            })
-            .collect::<Vec<_>>();
-        for slot in out_of_sync {
-            self.sync_slot(slot);
+        // NB: Syncing a slot changes no other slot, so each one can be synced as soon as it is found to need it.
+        for slot in 0..self.frame.slots.len() {
+            let SlotState { node, in_sync } = self.frame.slots[slot];
+            let needed = if writes_only_operands {
+                is_operand_slot(&slot)
+            } else {
+                info.reads_whole_frame || live_in.contains(slot)
+            };
+            if !in_sync
+                && needed
+                && (!self.is_virtual_arguments(node) || info.reads_whole_frame || read_slots.contains(&slot))
+            {
+                self.sync_slot(slot);
+            }
         }
+        self.release_slot_set(live_in);
+        self.release_slot_list(read_slots);
 
-        let mut targets = Vec::new();
-        instruction.for_each_jump_target(|label| targets.push(label));
-        let is_conditional_jump = !targets.is_empty();
+        let mut is_conditional_jump = false;
+        instruction.for_each_jump_target(|_| is_conditional_jump = true);
         let repr = if is_conditional_jump {
             Some(Repr::Int32)
         } else {
@@ -2169,15 +2265,19 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         //     continue, they hold what it wrote, or their old values, which the frame holds too (see above), so its
         //     frame state lists them as held by the frame. Where it continues, they are loaded from there. Written
         //     constants live in frame memory, where the slow path writes them.
-        let frame_outputs = if value_is_result { Vec::new() } else { written_slots };
+        if value_is_result {
+            written_slots.clear();
+        }
+        let frame_outputs = written_slots;
         for slot in &frame_outputs {
             self.frame.slots[*slot].in_sync = true;
         }
         let frame_state = self.resume_after_frame_state(destination.map_or(Operand::INVALID, Operand::raw));
         self.graph.nodes[node.index()].frame_state = Some(frame_state);
-        for slot in frame_outputs {
+        for &slot in &frame_outputs {
             self.load_slot(slot);
         }
+        self.release_slot_list(frame_outputs);
         if value_is_result && let Some(destination) = destination {
             self.write(destination, node)?;
         }
@@ -2207,7 +2307,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                         if_true,
                         if_false,
                     },
-                    vec![node],
+                    &[node],
                     if_true,
                     if_false,
                 )?;

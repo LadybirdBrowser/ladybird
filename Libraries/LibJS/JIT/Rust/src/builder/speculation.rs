@@ -775,7 +775,7 @@ impl GraphBuilder<'_, '_> {
                         if_true,
                         if_false,
                     },
-                    vec![result],
+                    &[result],
                     if_true,
                     if_false,
                 )?;
