@@ -26,7 +26,7 @@ use crate::bitset::BitSet;
 use crate::code::Repr;
 use crate::fast_hash::HashMap;
 use crate::ir::BlockId;
-use crate::ir::FrameState;
+use crate::ir::FrameStateId;
 use crate::ir::Graph;
 use crate::ir::Node;
 use crate::ir::NodeId;
@@ -37,11 +37,11 @@ use crate::ir::value;
 struct Unboxed {
     repr: Repr,
     /// Boxes a value of the representation.
-    box_op: Op,
+    box_op: Op<'static>,
     /// The unboxed bits of a tagged constant of the representation.
     constant: fn(u64) -> Option<u64>,
     /// Unboxes a tagged value, if it is of the representation.
-    check_op: Option<Op>,
+    check_op: Option<Op<'static>>,
     /// Whether a user of a phi benefits from it being unboxed.
     wants_unboxed: fn(&Op) -> bool,
     /// Whether int32 values become values of the representation through
@@ -171,7 +171,7 @@ fn checkable_inputs(
     graph: &Graph,
     unboxed: &Unboxed,
     checked: &BitSet,
-) -> HashMap<NodeId, (BlockId, Vec<Option<FrameState>>)> {
+) -> HashMap<NodeId, (BlockId, Vec<Option<edit::EnteringValues>>)> {
     let mut checkable = HashMap::default();
     for (index, block) in graph.blocks.iter().enumerate() {
         let block_id = BlockId::from_index(index);
@@ -201,7 +201,7 @@ fn checkable_inputs(
                     checkable
                         .then(|| {
                             entering[entry]
-                                .get_or_insert_with(|| edit::frame_state_entering(graph, block_id, *predecessor))
+                                .get_or_insert_with(|| edit::values_entering(graph, block_id, *predecessor))
                                 .clone()
                         })
                         .flatten()
@@ -290,9 +290,8 @@ fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed) {
     for phi in candidates.iter() {
         let phi_id = NodeId::from_index(phi);
         let (block, states) = &checkable[&phi_id];
-        let inputs = graph.nodes[phi]
-            .inputs
-            .clone()
+        let phi_inputs = graph.nodes[phi].inputs.to_vec();
+        let inputs = phi_inputs
             .into_iter()
             .enumerate()
             .map(
@@ -310,18 +309,18 @@ fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed) {
                     },
                     None => {
                         let predecessor = graph.block(*block).predecessors[index];
-                        let state = states[index]
-                            .clone()
+                        let (template, values) = states[index]
+                            .as_ref()
                             .expect("candidate phis only have unboxable inputs");
                         *checks
                             .entry((predecessor, input))
-                            .or_insert_with(|| check_at_end(graph, unboxed, predecessor, input, state))
+                            .or_insert_with(|| check_at_end(graph, unboxed, predecessor, input, *template, values))
                     }
                 },
             )
-            .collect();
+            .collect::<Vec<_>>();
         let node = &mut graph.nodes[phi];
-        node.inputs = inputs;
+        node.inputs.assign(&inputs);
         node.repr = Some(unboxed.repr);
     }
 
@@ -367,14 +366,16 @@ fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed) {
 }
 
 /// Adds a check that unboxes `value` at the end of `predecessor`, exiting
-/// with `state` where it fails.
+/// with the frame state `template` with `values` where it fails.
 fn check_at_end(
     graph: &mut Graph,
     unboxed: &Unboxed,
     predecessor: BlockId,
     value: NodeId,
-    state: FrameState,
+    template: FrameStateId,
+    values: &[(u32, NodeId)],
 ) -> NodeId {
+    let state = edit::frame_state_with_values(graph, template, values);
     let pc = state.pc;
     let frame_state = Some(graph.add_frame_state(state));
     let check = graph.add_node(Node {
@@ -382,7 +383,7 @@ fn check_at_end(
             .check_op
             .clone()
             .expect("only checked representations check inputs"),
-        inputs: vec![value],
+        inputs: graph.list(&[value]),
         repr: Some(unboxed.repr),
         frame_state,
         pc,
@@ -409,12 +410,12 @@ fn convert_int32(graph: &mut Graph, integer: NodeId) -> NodeId {
                 .map(|position| (index, position + 1))
         })
         .expect("values are in blocks");
-    let converted = graph.add_node(Node::new(
+    let converted = graph.add(
         Op::Int32ToFloat64,
-        vec![integer],
+        &[integer],
         Some(Repr::Float64),
         graph.node(integer).pc,
-    ));
+    );
     graph.blocks[block].body.insert(position, converted);
     converted
 }
@@ -426,12 +427,7 @@ fn box_phi(graph: &mut Graph, unboxed: &Unboxed, phi: NodeId) -> NodeId {
         .iter()
         .position(|block| block.phis.contains(&phi))
         .expect("phis are in blocks");
-    let boxed = graph.add_node(Node::new(
-        unboxed.box_op.clone(),
-        vec![phi],
-        Some(Repr::Tagged),
-        graph.node(phi).pc,
-    ));
+    let boxed = graph.add(unboxed.box_op.clone(), &[phi], Some(Repr::Tagged), graph.node(phi).pc);
     graph.blocks[block].body.insert(0, boxed);
     boxed
 }

@@ -58,7 +58,6 @@ use crate::ir::BlockId;
 use crate::ir::FrameState;
 use crate::ir::FrameStateId;
 use crate::ir::Graph;
-use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::VirtualObjectKind;
@@ -430,7 +429,7 @@ fn resolve_legacy_arguments_guards(graph: &mut Graph) {
         placed.insert(node.index());
     }
     let mut removed = BitSet::new(graph.nodes.len());
-    for (guard, nodes) in std::mem::take(&mut graph.legacy_arguments_guards) {
+    for (guard, nodes) in graph.legacy_arguments_guards.take() {
         let needed = nodes
             .iter()
             .any(|node| placed.contains(node.index()) && graph.defers_legacy_argument_objects(*node));
@@ -477,7 +476,7 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
 
     for block_index in 0..block_count {
         let block = BlockId::from_index(block_index);
-        let predecessors = graph.block(block).predecessors.clone();
+        let predecessors = graph.block(block).predecessors.to_vec();
         let forward = predecessors
             .iter()
             .filter(|predecessor| predecessor.index() < block_index)
@@ -521,7 +520,7 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
                         .filter(|value| is_replaced(*value))
                         .filter_map(|value| analysis.root(value)),
                 );
-                let phi = graph.add_node(Node::new(Op::Phi, values, Some(Repr::Tagged), 0));
+                let phi = graph.add(Op::Phi, &values, Some(Repr::Tagged), 0);
                 graph.blocks[block_index].phis.push(phi);
                 if has_back_edges {
                     pending_phis.push((phi, block, key));
@@ -538,8 +537,10 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
             .copied()
             .collect::<Vec<_>>();
         for node in nodes {
-            let data = graph.node(node).clone();
-            if let Some(frame_state) = data.frame_state {
+            let data = graph.node(node);
+            let (node_op, node_inputs, node_repr, node_frame_state) =
+                (data.op.clone(), data.inputs.to_vec(), data.repr, data.frame_state);
+            if let Some(frame_state) = node_frame_state {
                 let new_frame_state = virtualize_frame_state(
                     graph,
                     analysis,
@@ -548,10 +549,10 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
                     (&properties, &shapes),
                     frame_state,
                 );
-                graph.nodes[node.index()].frame_state = new_frame_state.or(data.frame_state);
+                graph.nodes[node.index()].frame_state = new_frame_state.or(node_frame_state);
             }
-            let object = data.inputs.first().copied().filter(|object| is_replaced(*object));
-            match data.op {
+            let object = node_inputs.first().copied().filter(|object| is_replaced(*object));
+            match node_op {
                 Op::AllocateObject {
                     shape, property_count, ..
                 } if is_replaced(node) => {
@@ -573,7 +574,7 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
                     let root = analysis
                         .root(object.expect("checked"))
                         .expect("replaced objects have roots");
-                    properties.insert((root, offset), replacements.resolve(data.inputs[1]));
+                    properties.insert((root, offset), replacements.resolve(node_inputs[1]));
                     shapes.insert(root, (shape, property_count));
                     removed.insert(node.index());
                 }
@@ -581,7 +582,7 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
                     let root = analysis
                         .root(object.expect("checked"))
                         .expect("replaced objects have roots");
-                    properties.insert((root, offset), replacements.resolve(data.inputs[1]));
+                    properties.insert((root, offset), replacements.resolve(node_inputs[1]));
                     removed.insert(node.index());
                 }
                 Op::LoadNamed { offset, .. } if object.is_some() => {
@@ -596,8 +597,8 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
                     if object.is_some() =>
                 {
                     // NB: What a removed check refined is the object itself.
-                    if data.op.refined_input().is_some() && data.repr.is_some() {
-                        replacements.replace(node, data.inputs[0]);
+                    if node_op.refined_input().is_some() && node_repr.is_some() {
+                        replacements.replace(node, node_inputs[0]);
                     }
                     removed.insert(node.index());
                 }
@@ -609,7 +610,7 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
     }
 
     for (phi, block, key) in pending_phis {
-        let predecessors = graph.block(block).predecessors.clone();
+        let predecessors = graph.block(block).predecessors.to_vec();
         for (index, predecessor) in predecessors.iter().enumerate() {
             if predecessor.index() < block.index() {
                 continue;
@@ -678,12 +679,12 @@ fn virtualize_frame_state(
         } else {
             VirtualObjectKind::Object { shape }
         };
-        let object = graph.add_node(Node::new(
+        let object = graph.add(
             Op::VirtualObject { kind, allocation: root },
-            Vec::new(),
+            &[],
             Some(Repr::Tagged),
             graph.node(root).pc,
-        ));
+        );
         objects.insert(root, object);
         object
     };
@@ -712,8 +713,8 @@ fn virtualize_frame_state(
                 .inputs
                 .iter()
                 .map(|input| replacements.resolve(*input))
-                .collect();
-            graph.nodes[object.index()].inputs = inputs;
+                .collect::<Vec<_>>();
+            graph.nodes[object.index()].inputs.assign(&inputs);
             continue;
         }
         let (_, property_count) = shapes[&root];
@@ -726,7 +727,7 @@ fn virtualize_frame_state(
                 virtual_object(graph, &mut objects, property)
             })
             .collect::<Vec<_>>();
-        graph.nodes[object.index()].inputs = inputs;
+        graph.nodes[object.index()].inputs.assign(&inputs);
     }
     parent
 }

@@ -68,6 +68,15 @@ impl From<ak::ColumnFull> for CompileFailure {
     }
 }
 
+/// The zone of the thread of a test, for the graphs that the test makes. It lives as long as the thread.
+#[cfg(test)]
+pub(crate) fn test_zone() -> &'static ak::Zone {
+    thread_local! {
+        static ZONE: &'static ak::Zone = Box::leak(Box::new(ak::Zone::new(1 << 30, c"test")));
+    }
+    ZONE.with(|zone| *zone)
+}
+
 /// Compiles `snapshot.executables[0]` for the host architecture with the memory of `scratch`, into `compiled` in
 /// place of what it holds. After a failure, `compiled` holds no complete code.
 pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch, compiled: &mut CompiledCode) -> Result<(), CompileFailure> {
@@ -108,25 +117,40 @@ fn compile_into<M: asm::PortableMacroAssembler>(
     scratch: &mut Scratch,
     compiled: &mut CompiledCode,
 ) -> Result<(), CompileFailure> {
+    let result = run_stages::<M>(snapshot, has_run, scratch, compiled);
+    scratch.end_compile();
+    result
+}
+
+/// The stages of `compile_into()`, which leave their data in `scratch`.
+fn run_stages<M: asm::PortableMacroAssembler>(
+    snapshot: &Snapshot,
+    has_run: &dyn Fn(u32) -> bool,
+    scratch: &mut Scratch,
+    compiled: &mut CompiledCode,
+) -> Result<(), CompileFailure> {
     compiled.clear();
     if !snapshot.is_complete() {
         return Err(CompileFailure::TooLarge);
     }
-    let mut graph = builder::build_graph_with_feedback(snapshot, has_run)?;
+    let Scratch { zone, tables } = scratch;
+    // NB: Nothing of the compile before this one is in use (see `Scratch`), and its graph is gone.
+    zone.reset();
+    let mut graph = builder::build_graph_with_feedback(snapshot, has_run, zone)?;
     let executable = &snapshot.executables[0];
     let pass_dumps = if snapshot.options.dump_passes {
         Some(passes::optimize_with_dumps(
             &mut graph,
             &executable.layout,
             snapshot.options.verify_ir,
-            &mut scratch.dominators,
+            &mut tables.dominators,
         )?)
     } else {
         passes::optimize(
             &mut graph,
             &executable.layout,
             snapshot.options.verify_ir,
-            &mut scratch.dominators,
+            &mut tables.dominators,
         )?;
         None
     };
@@ -134,18 +158,18 @@ fn compile_into<M: asm::PortableMacroAssembler>(
     if snapshot.options.stress.few_registers {
         registers.allocatable_gprs = registers.few_registers(STRESS_EXTRA_REGISTERS);
     }
-    regalloc::allocate(&graph, &registers, &mut scratch.regalloc, &mut scratch.dominators)?;
+    regalloc::allocate(&graph, &registers, &mut tables.regalloc, &mut tables.dominators)?;
     if snapshot.options.verify_ir
-        && let Err(errors) = regalloc::verify(&graph, &registers, &scratch.regalloc.allocation)
+        && let Err(errors) = regalloc::verify(&graph, &registers, &tables.regalloc.allocation)
     {
         panic!(
             "invalid register allocation:\n{errors}\n{}",
-            regalloc::dump_allocation(&graph, &scratch.regalloc.allocation)
+            regalloc::dump_allocation(&graph, &tables.regalloc.allocation)
         );
     }
-    let mut generated = codegen::generate::<M>(&graph, snapshot, snapshot.options.verify_ir, scratch)?;
+    let mut generated = codegen::generate::<M>(&graph, snapshot, snapshot.options.verify_ir, tables)?;
     generated.osr_entries.sort_unstable();
-    let layout = scratch.artifact.finish(
+    let layout = tables.artifact.finish(
         &Tail {
             osr_entries: &generated.osr_entries,
             osr_loop_back_edges: &graph.osr_loop_back_edges,
@@ -164,7 +188,7 @@ fn compile_into<M: asm::PortableMacroAssembler>(
         let mut text = pass_dumps.unwrap_or_default();
         if snapshot.options.dump_ir {
             text.push_str(&ir::dump(&graph, &executable.layout));
-            text.push_str(&regalloc::dump_allocation(&graph, &scratch.regalloc.allocation));
+            text.push_str(&regalloc::dump_allocation(&graph, &tables.regalloc.allocation));
         }
         if snapshot.options.dump_asm {
             text.push_str(&codegen::dump_code(

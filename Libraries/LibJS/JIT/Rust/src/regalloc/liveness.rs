@@ -118,11 +118,11 @@ pub(super) fn state_predecessor(graph: &Graph, block: BlockId) -> Option<BlockId
 }
 
 /// The input of each phi of `successor` that flows in from `block`.
-pub(super) fn phi_inputs_from(
-    graph: &Graph,
+pub(super) fn phi_inputs_from<'g>(
+    graph: &'g Graph<'g>,
     block: BlockId,
     successor: BlockId,
-) -> impl Iterator<Item = (NodeId, NodeId)> + '_ {
+) -> impl Iterator<Item = (NodeId, NodeId)> + 'g {
     let successor_block = graph.block(successor);
     let index = if successor_block.phis.is_empty() {
         0
@@ -562,33 +562,33 @@ impl ValueLiveness {
 mod tests {
     use super::*;
     use crate::code::{Repr, ResumeMode};
-    use crate::ir::{Block, FrameState, Node};
+    use crate::ir::{Block, FrameState};
 
     #[test]
     fn shared_frames_and_duplicate_uses_have_one_last_use_per_value() {
         let mut graph = Graph::default();
         graph.add_block(Block::default());
-        let value = graph.add_node(Node::new(Op::LoadSlot { slot: 0 }, vec![], Some(Repr::Tagged), 0));
+        let value = graph.add(Op::LoadSlot { slot: 0 }, &[], Some(Repr::Tagged), 0);
         graph.blocks[0].body.push(value);
         let frame = graph.add_frame_state(FrameState {
             executable: 0,
             pc: 0,
             mode: ResumeMode::ResumeAt,
-            values: vec![(0, value), (1, value)],
-            in_frame: vec![],
+            values: ak::ZoneVec::from_slice_in(&[(0, value), (1, value)], crate::test_zone()),
+            in_frame: ak::ZoneVec::new_in(crate::test_zone()),
             parent: None,
             passed_argument_count: None,
             legacy_arguments: 0..0,
         });
         let mut checks = Vec::new();
         for _ in 0..2 {
-            let check = graph.add_node(Node::new(Op::CheckObject, vec![value], Some(Repr::Tagged), 0));
+            let check = graph.add(Op::CheckObject, &[value], Some(Repr::Tagged), 0);
             graph.nodes[check.index()].frame_state = Some(frame);
             graph.blocks[0].body.push(check);
             checks.push(check);
         }
-        let constant = graph.add_node(Node::new(Op::Constant(0), vec![], Some(Repr::Tagged), 0));
-        let returned = graph.add_node(Node::new(Op::Return, vec![constant], None, 0));
+        let constant = graph.add(Op::Constant(0), &[], Some(Repr::Tagged), 0);
+        let returned = graph.add(Op::Return, &[constant], None, 0);
         graph.blocks[0].control = Some(returned);
         let mut liveness = ValueLiveness::new();
         liveness.compute(&graph).unwrap();
@@ -606,29 +606,24 @@ mod tests {
         for index in 0..block_count {
             let mut block = Block::default();
             let value = if index == 0 {
-                graph.add_node(Node::new(Op::LoadSlot { slot: 0 }, vec![], Some(Repr::Tagged), 0))
+                graph.add(Op::LoadSlot { slot: 0 }, &[], Some(Repr::Tagged), 0)
             } else {
                 block.predecessors.push(BlockId::from_index(index - 1));
-                graph.add_node(Node::new(
-                    Op::CheckObject,
-                    vec![values[index - 1]],
-                    Some(Repr::Tagged),
-                    0,
-                ))
+                graph.add(Op::CheckObject, &[values[index - 1]], Some(Repr::Tagged), 0)
             };
             values.push(value);
             block.body.push(value);
             block.control = Some(if index + 1 == block_count {
-                graph.add_node(Node::new(Op::Return, vec![value], None, 0))
+                graph.add(Op::Return, &[value], None, 0)
             } else {
-                graph.add_node(Node::new(
+                graph.add(
                     Op::Jump {
                         target: BlockId::from_index(index + 1),
                     },
-                    vec![],
+                    &[],
                     None,
                     0,
-                ))
+                )
             });
             graph.add_block(block);
         }

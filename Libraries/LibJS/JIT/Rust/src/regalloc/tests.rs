@@ -711,7 +711,7 @@ fn exits_find_constants_registers_and_spilled_values() {
     let allocation = allocate_and_verify(&graph);
     let exit = find_node(&graph, |node| matches!(node.op, Op::Exit { .. }));
     let mut scratch = crate::scratch::Scratch::new();
-    scratch.sites.begin(&graph).unwrap();
+    scratch.tables.sites.begin(&graph).unwrap();
     SiteSource {
         graph: &graph,
         allocation: &allocation,
@@ -720,10 +720,10 @@ fn exits_find_constants_registers_and_spilled_values() {
         stack_slot_offset: &|slot| -8 * (i32::try_from(slot).unwrap() + 1),
         saves: &[],
     }
-    .write(&mut scratch.sites, &mut scratch.artifact)
+    .write(&mut scratch.tables.sites, &mut scratch.tables.artifact)
     .unwrap();
     let mut words = ak::Column::new(crate::artifact::MAX_WORDS, c"test");
-    let layout = scratch.artifact.finish(&Tail::default(), &mut words).unwrap();
+    let layout = scratch.tables.artifact.finish(&Tail::default(), &mut words).unwrap();
     let artifact = Artifact::new(&words, &layout);
     let argument = find_node(&graph, |node| node.op == Op::LoadSlot { slot: a(0).raw() });
     let Some(Location::Register(argument_register)) = allocation.node(argument).output else {
@@ -834,18 +834,8 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
 
     // A store to the slot, which nothing may do, makes it hold another value.
     let mut stored = graph.clone();
-    let undefined = stored.add_node(crate::ir::Node::new(
-        Op::Constant(value::UNDEFINED),
-        vec![],
-        Some(Repr::Tagged),
-        0,
-    ));
-    let store = stored.add_node(crate::ir::Node::new(
-        Op::StoreSlot { slot: a(0).raw() },
-        vec![undefined],
-        None,
-        0,
-    ));
+    let undefined = stored.add(Op::Constant(value::UNDEFINED), &[], Some(Repr::Tagged), 0);
+    let store = stored.add(Op::StoreSlot { slot: a(0).raw() }, &[undefined], None, 0);
     let block = stored
         .blocks
         .iter()
@@ -1248,7 +1238,7 @@ fn float64_values_get_floating_point_registers() {
         target_builtin: Some(13),
         ..Default::default()
     }]);
-    let mut graph = crate::builder::build_graph_with_feedback(&snapshot, &|_| true).unwrap();
+    let mut graph = crate::builder::build_graph_with_feedback(&snapshot, &|_| true, crate::test_zone()).unwrap();
     crate::passes::optimize(
         &mut graph,
         &snapshot.executables[0].layout,

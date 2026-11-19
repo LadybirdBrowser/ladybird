@@ -32,7 +32,7 @@ use crate::snapshot::ShapeSnapshot;
 /// `NewObject` without an object shape cache.
 const NO_OBJECT_SHAPE_CACHE: u32 = u32::MAX;
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     fn object_shape_cache(&self, cache: u32) -> Option<&ObjectShapeCacheSnapshot> {
         self.snapshot[self.function.executable.object_shape_caches]
             .get(cache as usize)
@@ -65,7 +65,7 @@ impl GraphBuilder<'_> {
                 property_count,
                 reserve: property_count,
             },
-            Vec::new(),
+            &[],
             Some(Repr::Tagged),
         );
         self.write(dst, object)?;
@@ -94,7 +94,7 @@ impl GraphBuilder<'_> {
             return Ok(false);
         };
         let value = self.read(src)?;
-        self.emit(Op::InitializeNamed { offset }, vec![object, value], None);
+        self.emit(Op::InitializeNamed { offset }, &[object, value], None);
         Ok(true)
     }
 
@@ -117,7 +117,7 @@ pub(super) enum ArrayElement {
     Constant(u64),
 }
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// Whether compiled code allocates arrays of `count` elements.
     pub(super) fn can_allocate_array(&self, count: usize) -> bool {
         // NB: The runtime always allocates arrays; the codegen tests of slow
@@ -155,16 +155,16 @@ impl GraphBuilder<'_> {
             self.embed(shape);
         }
         let count = u32::try_from(values.len()).expect("array literals have fewer than 2^32 elements");
-        let array = self.emit(Op::AllocateArray { count }, Vec::new(), Some(Repr::Tagged));
+        let array = self.emit(Op::AllocateArray { count }, &[], Some(Repr::Tagged));
         for (index, value) in (0u32..).zip(values) {
-            self.emit(Op::InitializeElement { index }, vec![array, value], None);
+            self.emit(Op::InitializeElement { index }, &[array, value], None);
         }
         self.write(dst, array)?;
         Ok(true)
     }
 }
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// Builds `NewFunction` of the compiled function or an inlined one as an
     /// `AllocateFunction`, if it has a closure template and creates no
     /// method. Returns false, having built nothing, otherwise.
@@ -206,7 +206,7 @@ impl GraphBuilder<'_> {
                 sample,
                 legacy_caller,
             },
-            vec![environment, private_environment],
+            &[environment, private_environment],
             Some(Repr::Tagged),
         );
         self.write(dst, function)?;
@@ -214,7 +214,7 @@ impl GraphBuilder<'_> {
     }
 }
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// Builds `CreateLexicalEnvironment` of the compiled function as an
     /// `AllocateEnvironment` that becomes the frame's lexical environment, if
     /// its shape cache has a template for environments with `capacity`
@@ -244,10 +244,10 @@ impl GraphBuilder<'_> {
         let parent = self.read(parent)?;
         let environment = self.emit(
             Op::AllocateEnvironment { shape_cache, capacity },
-            vec![parent],
+            &[parent],
             Some(Repr::Tagged),
         );
-        let address = self.emit(Op::SetLexicalEnvironment, vec![environment], Some(Repr::Pointer));
+        let address = self.emit(Op::SetLexicalEnvironment, &[environment], Some(Repr::Pointer));
         self.frame.set_field(FrameField::LexicalEnvironment, address);
         self.write(dst, environment)?;
         Ok(true)
@@ -297,7 +297,7 @@ mod tests {
         })
     }
 
-    fn ops(graph: &crate::ir::Graph) -> Vec<Op> {
+    fn ops<'z>(graph: &crate::ir::Graph<'z>) -> Vec<Op<'z>> {
         graph
             .blocks
             .iter()
@@ -329,7 +329,7 @@ mod tests {
             shape: EMPTY_SHAPE,
             property_count: 0,
         });
-        let graph = crate::builder::build_graph(&snapshot).unwrap();
+        let graph = crate::builder::build_graph(&snapshot, crate::test_zone()).unwrap();
         assert_eq!(
             ops(&graph),
             vec![
@@ -389,7 +389,7 @@ mod tests {
         };
         // NB: Cache 1 has no template.
         snapshot.executables[0].lexical_environment_templates = snapshot.add(&[Some(template), None]);
-        let graph = crate::builder::build_graph(&snapshot).unwrap();
+        let graph = crate::builder::build_graph(&snapshot, crate::test_zone()).unwrap();
         let ops = graph
             .blocks
             .iter()
@@ -431,7 +431,7 @@ mod tests {
             shape: EMPTY_SHAPE,
             property_count: 0,
         });
-        let graph = crate::builder::build_graph(&snapshot).unwrap();
+        let graph = crate::builder::build_graph(&snapshot, crate::test_zone()).unwrap();
         let ops = ops(&graph);
         assert_eq!(
             ops.iter()

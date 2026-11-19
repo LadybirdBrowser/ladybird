@@ -230,7 +230,7 @@ impl OpInfo {
     }
 }
 
-impl Op {
+impl Op<'_> {
     /// What the compiler knows about the op.
     pub fn info(&self) -> OpInfo {
         use Inputs as I;

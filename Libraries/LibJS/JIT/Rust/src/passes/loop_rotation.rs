@@ -19,6 +19,7 @@
 //! edges bring its values to those phis.
 
 use ak::ColumnFull;
+use ak::ZoneVec;
 
 use super::dominators::Dominators;
 use super::edit;
@@ -27,7 +28,6 @@ use crate::ir::Block;
 use crate::ir::BlockId;
 use crate::ir::FrameStateId;
 use crate::ir::Graph;
-use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
 
@@ -159,13 +159,14 @@ fn rotate(graph: &mut Graph, test: BlockId, region: &BitSet, sources: &[BlockId]
             bytecode_start: data.bytecode_start,
             is_cold: data.is_cold,
             start_frame_state: data.start_frame_state,
-            ..Block::default()
+            ..graph.new_block()
         });
         block_copy[block.index()] = Some(copy);
     }
     let copied = |block: BlockId, block_copy: &[Option<BlockId>]| block_copy[block.index()].expect("in the region");
     let test_copy = copied(test, &block_copy);
-    for phi in graph.block(test).phis.clone() {
+    let phis = graph.block(test).phis.to_vec();
+    for phi in phis {
         let inputs = graph
             .node(phi)
             .inputs
@@ -178,7 +179,7 @@ fn rotate(graph: &mut Graph, test: BlockId, region: &BitSet, sources: &[BlockId]
             inputs[0]
         } else {
             let data = graph.node(phi);
-            let copy = graph.add_node(Node::new(Op::Phi, inputs, data.repr, data.pc));
+            let copy = graph.add(Op::Phi, &inputs, data.repr, data.pc);
             graph.blocks[test_copy.index()].phis.push(copy);
             copy
         });
@@ -186,12 +187,15 @@ fn rotate(graph: &mut Graph, test: BlockId, region: &BitSet, sources: &[BlockId]
     let mut copies = Vec::new();
     for &block in &blocks {
         let copy = copied(block, &block_copy);
-        let data = graph.block(block).clone();
-        let phis = if block == test { Vec::new() } else { data.phis.clone() };
+        let data = graph.block(block);
+        let phis = if block == test { Vec::new() } else { data.phis.to_vec() };
+        let body = data.body.to_vec();
+        let control = data.control;
+        let predecessors = data.predecessors.to_vec();
         for (node, is_phi) in phis
             .iter()
             .map(|node| (*node, true))
-            .chain(data.body.iter().chain(&data.control).map(|node| (*node, false)))
+            .chain(body.iter().chain(&control).map(|node| (*node, false)))
         {
             let new = graph.add_node(graph.node(node).clone());
             node_copy.resize(graph.nodes.len(), None);
@@ -200,18 +204,16 @@ fn rotate(graph: &mut Graph, test: BlockId, region: &BitSet, sources: &[BlockId]
             let copy_data = &mut graph.blocks[copy.index()];
             if is_phi {
                 copy_data.phis.push(new);
-            } else if Some(node) == data.control {
+            } else if Some(node) == control {
                 copy_data.control = Some(new);
             } else {
                 copy_data.body.push(new);
             }
         }
         if block != test {
-            graph.blocks[copy.index()].predecessors = data
-                .predecessors
-                .iter()
-                .map(|predecessor| copied(*predecessor, &block_copy))
-                .collect();
+            let copy_predecessors = &mut graph.blocks[copy.index()].predecessors;
+            copy_predecessors.clear();
+            copy_predecessors.extend(predecessors.iter().map(|predecessor| copied(*predecessor, &block_copy)));
         }
     }
     let map =
@@ -228,16 +230,22 @@ fn rotate(graph: &mut Graph, test: BlockId, region: &BitSet, sources: &[BlockId]
                 copied_parent = Some(copy);
                 continue;
             }
-            let mut state = graph.frame_state(*id).clone();
-            for (_, value) in &mut state.values {
-                *value = map(*value, &node_copy);
-            }
-            if copied_parent.is_some() {
-                state.parent = copied_parent;
-            }
-            let copy = if state == *graph.frame_state(*id) {
+            let original = graph.frame_state(*id);
+            let values = original
+                .values
+                .iter()
+                .map(|(slot, value)| (*slot, map(*value, &node_copy)))
+                .collect::<Vec<_>>();
+            let parent = if copied_parent.is_some() {
+                copied_parent
+            } else {
+                original.parent
+            };
+            let copy = if original.values == values && original.parent == parent {
                 *id
             } else {
+                let mut state = edit::frame_state_with_values(graph, *id, &values);
+                state.parent = parent;
                 graph.add_frame_state(state)
             };
             frame_state_copy[id.index()] = Some(copy);
@@ -246,13 +254,9 @@ fn rotate(graph: &mut Graph, test: BlockId, region: &BitSet, sources: &[BlockId]
         copied_parent.expect("the chain is not empty")
     };
     for &copy in &copies {
-        let inputs = graph
-            .node(copy)
-            .inputs
-            .iter()
-            .map(|input| map(*input, &node_copy))
-            .collect();
-        graph.nodes[copy.index()].inputs = inputs;
+        for input in &mut graph.nodes[copy.index()].inputs {
+            *input = map(*input, &node_copy);
+        }
         if let Some(frame_state) = graph.node(copy).frame_state {
             graph.nodes[copy.index()].frame_state = Some(copy_frame_state(graph, frame_state));
         }
@@ -293,7 +297,8 @@ fn rotate(graph: &mut Graph, test: BlockId, region: &BitSet, sources: &[BlockId]
                 .count();
             let position = positions[already];
             graph.blocks[successor.index()].predecessors.push(copy);
-            for phi in graph.block(successor).phis.clone() {
+            let phis = graph.block(successor).phis.to_vec();
+            for phi in phis {
                 let input = map(graph.node(phi).inputs[position], &node_copy);
                 graph.nodes[phi.index()].inputs.push(input);
             }
@@ -312,25 +317,30 @@ fn rotate(graph: &mut Graph, test: BlockId, region: &BitSet, sources: &[BlockId]
     graph.blocks[test.index()].is_loop_header = false;
 
     // The predecessors that entered the test enter its copy instead, and the test keeps the others.
-    let predecessors = graph.block(test).predecessors.clone();
+    let predecessors = graph.block(test).predecessors.to_vec();
     for (predecessor, entering) in predecessors.iter().zip(&entering) {
         if *entering {
             graph.replace_successor(*predecessor, test, test_copy);
         }
     }
-    graph.blocks[test_copy.index()].predecessors = predecessors
+    let test_copy_predecessors = predecessors
         .iter()
         .zip(&entering)
         .filter(|(_, entering)| **entering)
         .map(|(predecessor, _)| *predecessor)
-        .collect();
-    graph.blocks[test.index()].predecessors = predecessors
+        .collect::<Vec<_>>();
+    graph.blocks[test_copy.index()]
+        .predecessors
+        .assign(&test_copy_predecessors);
+    let test_predecessors = predecessors
         .iter()
         .zip(&entering)
         .filter(|(_, entering)| !**entering)
         .map(|(predecessor, _)| *predecessor)
-        .collect();
-    for phi in graph.block(test).phis.clone() {
+        .collect::<Vec<_>>();
+    graph.blocks[test.index()].predecessors.assign(&test_predecessors);
+    let phis = graph.block(test).phis.to_vec();
+    for phi in phis {
         let inputs = graph
             .node(phi)
             .inputs
@@ -338,16 +348,19 @@ fn rotate(graph: &mut Graph, test: BlockId, region: &BitSet, sources: &[BlockId]
             .zip(&entering)
             .filter(|(_, entering)| !**entering)
             .map(|(input, _)| *input)
-            .collect();
-        graph.nodes[phi.index()].inputs = inputs;
+            .collect::<Vec<_>>();
+        graph.nodes[phi.index()].inputs.assign(&inputs);
     }
-    for (guard, nodes) in graph.legacy_arguments_guards.clone() {
+    let zone = graph.zone;
+    for index in 0..graph.legacy_arguments_guards.len() {
+        let (guard, nodes) = &graph.legacy_arguments_guards[index];
         if let Some(copy) = node_copy.get(guard.index()).copied().flatten() {
-            let nodes = nodes.iter().map(|node| map(*node, &node_copy)).collect();
+            let nodes = ZoneVec::from_iter_in(nodes.iter().map(|node| map(*node, &node_copy)), zone);
             graph.legacy_arguments_guards.push((copy, nodes));
         }
     }
-    for node in graph.slow_paths_initializing_frame.clone() {
+    for index in 0..graph.slow_paths_initializing_frame.len() {
+        let node = graph.slow_paths_initializing_frame[index];
         if let Some(copy) = node_copy.get(node.index()).copied().flatten() {
             graph.slow_paths_initializing_frame.push(copy);
         }

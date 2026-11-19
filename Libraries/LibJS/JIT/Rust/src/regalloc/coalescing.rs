@@ -55,7 +55,7 @@ pub(super) struct Coalescing {
 }
 
 struct Interference<'a> {
-    graph: &'a Graph,
+    graph: &'a Graph<'a>,
     liveness: &'a ValueLiveness,
     definitions: &'a [Definition],
     deaths: &'a Lists<(usize, u32)>,

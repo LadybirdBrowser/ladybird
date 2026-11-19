@@ -30,7 +30,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// Builds an instruction whose handling is `Handling::Expanded`.
     pub(super) fn build_expanded(
         &mut self,
@@ -154,7 +154,7 @@ impl GraphBuilder<'_> {
         let (next, cold) = self.branch_with_cold_side(condition, inputs, !throws_when);
         self.block = cold;
         self.emit_call_slow_path(slow_path_inputs, frame_state, None);
-        self.set_control(Op::Unreachable, Vec::new());
+        self.set_control(Op::Unreachable, &[]);
         self.block = next;
         Ok(Flow::Continue)
     }
@@ -165,7 +165,7 @@ impl GraphBuilder<'_> {
     /// there before, or if the value is known to be uninitialized.
     pub(super) fn check_initialized(&mut self, value: NodeId) -> Result<NodeId, CompileFailure> {
         if self.graph.constant_value(value) != Some(value::EMPTY) && self.may_speculate(ExitKind::Uninitialized) {
-            return Ok(self.emit_checked(Op::CheckInitialized, vec![value], None));
+            return Ok(self.emit_checked(Op::CheckInitialized, &[value], None));
         }
         let empty = self.constant(value::EMPTY);
         let condition = BranchCondition::TaggedEquals { equal: true };
@@ -189,7 +189,7 @@ impl GraphBuilder<'_> {
         self.block = cold;
         let converted = self.emit_call_slow_path(slow_path_inputs, frame_state, Some(Repr::Tagged));
         self.join_blocks(vec![hot, cold]);
-        let result = self.add_phi(vec![value, converted]);
+        let result = self.add_phi(&[value, converted]);
         self.write(dst, result)?;
         Ok(Flow::Continue)
     }
@@ -227,7 +227,7 @@ impl GraphBuilder<'_> {
         // NB: The slow path's value is the this value it resolved.
         let resolved = self.emit_call_slow_path(Vec::new(), frame_state, Some(Repr::Tagged));
         self.join_blocks(vec![hot, cold]);
-        let result = self.add_phi(vec![this_value, resolved]);
+        let result = self.add_phi(&[this_value, resolved]);
         self.frame.slots[slot] = SlotState { node: result, in_sync };
         Ok(Flow::Continue)
     }
@@ -253,7 +253,7 @@ impl GraphBuilder<'_> {
         let join = self.start_new_block(predecessors.clone());
         for block in predecessors {
             self.block = block;
-            self.set_control(Op::Jump { target: join }, Vec::new());
+            self.set_control(Op::Jump { target: join }, &[]);
         }
         self.block = join;
         join
@@ -297,7 +297,7 @@ impl GraphBuilder<'_> {
                 pc: self.function.pc,
                 saves_registers: true,
             },
-            inputs,
+            &inputs,
             repr,
         );
         self.graph.nodes[node.index()].frame_state = Some(frame_state);
@@ -409,7 +409,7 @@ impl GraphBuilder<'_> {
     /// where it is `holds` reaches (see `Op::Refine`).
     pub(super) fn refine(&mut self, condition: BranchCondition, holds: bool, inputs: Vec<NodeId>) -> NodeId {
         let repr = self.graph.node(inputs[0]).repr;
-        self.emit(Op::Refine { condition, holds }, inputs, repr)
+        self.emit(Op::Refine { condition, holds }, &inputs, repr)
     }
 
     /// Ends the current block as one of several paths that completed the
@@ -439,7 +439,7 @@ impl GraphBuilder<'_> {
                 if_true,
                 if_false,
             },
-            inputs,
+            &inputs,
         );
         (hot, cold)
     }
@@ -456,7 +456,7 @@ impl GraphBuilder<'_> {
                 if_true,
                 if_false,
             },
-            inputs,
+            &inputs,
         );
         (if_true, if_false)
     }
@@ -496,7 +496,7 @@ impl GraphBuilder<'_> {
         let frame_state = self.eager_frame_state();
         let (hot, cold) = self.branch_with_cold_side(condition, vec![value, empty], false);
         self.block = cold;
-        let exit = self.set_control(Op::Exit { kind }, Vec::new());
+        let exit = self.set_control(Op::Exit { kind }, &[]);
         self.graph.nodes[exit.index()].frame_state = Some(frame_state);
         self.block = hot;
         self.refine(condition, false, vec![value, empty])
@@ -588,7 +588,7 @@ impl GraphBuilder<'_> {
                     return inputs[0];
                 }
                 let repr = self.graph.node(value).repr;
-                let phi = self.add_phi(inputs);
+                let phi = self.add_phi(&inputs);
                 self.graph.nodes[phi.index()].repr = repr;
                 phi
             })
@@ -602,7 +602,7 @@ impl GraphBuilder<'_> {
         if let Some(kind) = slow_paths.exits {
             for edge in &slow_paths.cold {
                 self.block = *edge;
-                let exit = self.set_control(Op::Exit { kind }, Vec::new());
+                let exit = self.set_control(Op::Exit { kind }, &[]);
                 self.graph.nodes[exit.index()].frame_state = Some(slow_paths.frame_state);
             }
             return None;
@@ -621,7 +621,7 @@ impl GraphBuilder<'_> {
         let mut outputs = vec![call];
         for index in 1..slow_paths.output_count {
             let index = u8::try_from(index).expect("slow paths have few outputs");
-            outputs.push(self.emit(Op::SlowPathOutput { index }, vec![call], Some(Repr::Tagged)));
+            outputs.push(self.emit(Op::SlowPathOutput { index }, &[call], Some(Repr::Tagged)));
         }
         Some((slow, outputs))
     }

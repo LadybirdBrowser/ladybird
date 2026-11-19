@@ -31,7 +31,7 @@ use crate::snapshot::keyed_feedback_bits::TYPED_ARRAY_SHIFT;
 
 const PACKED_AND_HOLEY: u32 = PACKED | HOLEY;
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// The bits of the keyed feedback of `instruction`, if it has a slot.
     pub(super) fn keyed_feedback_bits(&self, instruction: &Instruction) -> Option<u32> {
         let slot = instruction.feedback_slots().keyed?;
@@ -98,12 +98,12 @@ impl GraphBuilder<'_> {
     /// checked offset: with a constant index, the bounds check folds away,
     /// and the check of the offset is all that keeps them behind it.
     pub(super) fn element_storage_and_bound(&mut self, kind: ElementsKind, address: NodeId) -> (NodeId, NodeId) {
-        let count = |builder: &mut Self, op| builder.emit(op, vec![address], Some(Repr::Int32));
+        let count = |builder: &mut Self, op| builder.emit(op, &[address], Some(Repr::Int32));
         match kind {
             ElementsKind::Packed | ElementsKind::Holey => {
                 let length = count(self, Op::LoadElementsLength);
                 let capacity = count(self, Op::LoadElementsCapacity);
-                let bound = self.emit(Op::Uint32Min, vec![length, capacity], Some(Repr::Int32));
+                let bound = self.emit(Op::Uint32Min, &[length, capacity], Some(Repr::Int32));
                 (address, bound)
             }
             ElementsKind::TypedArray(_) => {
@@ -118,14 +118,14 @@ impl GraphBuilder<'_> {
                         .fixed_length
                 });
                 let offset =
-                    |builder: &mut Self| builder.emit(Op::LoadTypedArrayDataOffset, vec![address], Some(Repr::Pointer));
+                    |builder: &mut Self| builder.emit(Op::LoadTypedArrayDataOffset, &[address], Some(Repr::Pointer));
                 let data = |builder: &mut Self, offset| {
-                    builder.emit(Op::TypedArrayDataAddress, vec![offset], Some(Repr::Pointer))
+                    builder.emit(Op::TypedArrayDataAddress, &[offset], Some(Repr::Pointer))
                 };
                 match fixed_length {
                     Some(length) if self.may_speculate(ExitKind::OutOfBounds) => {
                         let offset = offset(self);
-                        let offset = self.emit_checked(Op::CheckTypedArrayStorage, vec![offset], Some(Repr::Pointer));
+                        let offset = self.emit_checked(Op::CheckTypedArrayStorage, &[offset], Some(Repr::Pointer));
                         (data(self, offset), self.int32_constant(length as i32))
                     }
                     _ => {
@@ -141,13 +141,9 @@ impl GraphBuilder<'_> {
     /// The element at `index` of the elements of `kind` with the `storage`
     /// that `element_storage_and_bound()` gave, with doubles boxed.
     pub(super) fn load_element(&mut self, kind: ElementsKind, storage: NodeId, index: NodeId) -> NodeId {
-        let element = self.emit(
-            Op::LoadElementAt { kind },
-            vec![storage, index],
-            Some(kind.loaded_repr()),
-        );
+        let element = self.emit(Op::LoadElementAt { kind }, &[storage, index], Some(kind.loaded_repr()));
         match kind.loaded_repr() {
-            Repr::Float64 => self.emit(Op::BoxFloat64, vec![element], Some(Repr::Tagged)),
+            Repr::Float64 => self.emit(Op::BoxFloat64, &[element], Some(Repr::Tagged)),
             _ => element,
         }
     }
@@ -155,7 +151,7 @@ impl GraphBuilder<'_> {
     /// Stores `value` at the checked `index` of the elements of `kind` with
     /// the `storage` that `element_storage_and_bound()` gave.
     pub(super) fn store_element(&mut self, kind: ElementsKind, storage: NodeId, index: NodeId, value: NodeId) {
-        self.emit(Op::StoreElementAt { kind }, vec![storage, index, value], None);
+        self.emit(Op::StoreElementAt { kind }, &[storage, index, value], None);
     }
 
     /// The storage of the checked object (see
@@ -171,10 +167,10 @@ impl GraphBuilder<'_> {
         let object = self.read(base)?;
         let index = self.read_value(property)?;
         let index = self.int32(index);
-        let object = self.emit_checked(Op::CheckElements { kind }, vec![object], None);
+        let object = self.emit_checked(Op::CheckElements { kind }, &[object], None);
         let address = self.cell_address(object);
         let (storage, bound) = self.element_storage_and_bound(kind, address);
-        let index = self.emit_checked(Op::CheckBounds, vec![index, bound], Some(Repr::Int32));
+        let index = self.emit_checked(Op::CheckBounds, &[index, bound], Some(Repr::Int32));
         Ok((storage, index))
     }
 
@@ -194,7 +190,7 @@ impl GraphBuilder<'_> {
         let (storage, index) = self.element_access(kind, base, property)?;
         let mut value = self.load_element(kind, storage, index);
         if kind == ElementsKind::Holey {
-            value = self.emit_checked(Op::CheckNotHole, vec![value], Some(Repr::Tagged));
+            value = self.emit_checked(Op::CheckNotHole, &[value], Some(Repr::Tagged));
         }
         self.write(dst, value)?;
         Ok(true)
@@ -216,7 +212,7 @@ impl GraphBuilder<'_> {
         let value = self.read_value(src)?;
         let value = match (kind.stored_repr(), self.graph.node(value).repr) {
             (Repr::Int32, Some(Repr::Int32)) => value,
-            (Repr::Float64, Some(Repr::Int32)) => self.emit(Op::Int32ToFloat64, vec![value], Some(Repr::Float64)),
+            (Repr::Float64, Some(Repr::Int32)) => self.emit(Op::Int32ToFloat64, &[value], Some(Repr::Float64)),
             (Repr::Int32, _) if self.may_speculate(ExitKind::BadType) => {
                 let number = self.number(value);
                 let conversion = if kind == ElementsKind::TypedArray(TypedArrayElement::Uint8Clamped) {
@@ -224,7 +220,7 @@ impl GraphBuilder<'_> {
                 } else {
                     Op::Float64ToInt32
                 };
-                self.emit(conversion, vec![number], Some(Repr::Int32))
+                self.emit(conversion, &[number], Some(Repr::Int32))
             }
             (Repr::Float64, _) if self.may_speculate(ExitKind::BadType) => self.number(value),
             (Repr::Tagged, _) => self.tagged(value),
@@ -233,8 +229,8 @@ impl GraphBuilder<'_> {
         let (storage, index) = self.element_access(kind, base, property)?;
         // NB: Holes are filled by the slow path.
         if kind == ElementsKind::Holey {
-            let old = self.emit(Op::LoadElementAt { kind }, vec![storage, index], Some(Repr::Tagged));
-            self.emit_checked(Op::CheckNotHole, vec![old], Some(Repr::Tagged));
+            let old = self.emit(Op::LoadElementAt { kind }, &[storage, index], Some(Repr::Tagged));
+            self.emit_checked(Op::CheckNotHole, &[old], Some(Repr::Tagged));
         }
         self.store_element(kind, storage, index, value);
         Ok(true)

@@ -15,10 +15,10 @@ use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
 
-fn node(graph: &mut Graph, op: Op, inputs: Vec<NodeId>, repr: Option<Repr>) -> NodeId {
+fn node<'z>(graph: &mut Graph<'z>, op: Op<'z>, inputs: Vec<NodeId>, repr: Option<Repr>) -> NodeId {
     graph.add_node(Node {
         op,
-        inputs,
+        inputs: graph.list(&inputs),
         repr,
         frame_state: None,
         pc: 0,
@@ -27,11 +27,11 @@ fn node(graph: &mut Graph, op: Op, inputs: Vec<NodeId>, repr: Option<Repr>) -> N
 
 /// A diamond: b0 branches to b1 and b2, which join in b3 with a phi of the
 /// values they load.
-fn diamond() -> (Graph, NodeId) {
+fn diamond() -> (Graph<'static>, NodeId) {
     let mut graph = Graph::default();
     for predecessors in [vec![], vec![BlockId(0)], vec![BlockId(0)], vec![BlockId(1), BlockId(2)]] {
         graph.add_block(Block {
-            predecessors,
+            predecessors: graph.list(&predecessors),
             ..Block::default()
         });
     }
@@ -88,7 +88,7 @@ fn verifier_rejects_uses_of_values_from_blocks_that_do_not_dominate() {
     // The return uses b1's load, which b2 does not see.
     let load = graph.blocks[1].body[0];
     let ret = graph.blocks[3].control.unwrap();
-    graph.nodes[ret.index()].inputs = vec![load];
+    graph.nodes[ret.index()].inputs.assign(&[load]);
     let errors = verify(&graph).unwrap_err();
     assert!(errors.contains("not defined before it"), "{errors}");
 }
@@ -146,7 +146,7 @@ fn verifier_rejects_blocks_no_entry_reaches() {
     let (mut graph, _) = diamond();
     // b4 is a loop of its own that nothing enters.
     let block = graph.add_block(Block {
-        predecessors: vec![BlockId(4)],
+        predecessors: ak::ZoneVec::from_slice_in(&[BlockId(4)], crate::test_zone()),
         is_loop_header: true,
         ..Block::default()
     });
@@ -174,8 +174,8 @@ fn verifier_rejects_slow_path_outputs_away_from_their_call() {
         executable: 0,
         pc: 0,
         mode: crate::code::ResumeMode::ResumeAt,
-        values: Vec::new(),
-        in_frame: Vec::new(),
+        values: ak::ZoneVec::new_in(crate::test_zone()),
+        in_frame: ak::ZoneVec::new_in(crate::test_zone()),
         parent: None,
         passed_argument_count: None,
         legacy_arguments: 0..0,
@@ -212,15 +212,15 @@ fn simplification_removes_number_checks_of_numeric_constants() {
             executable: 0,
             pc: 0,
             mode: crate::code::ResumeMode::ResumeAt,
-            values: Vec::new(),
-            in_frame: Vec::new(),
+            values: ak::ZoneVec::new_in(crate::test_zone()),
+            in_frame: ak::ZoneVec::new_in(crate::test_zone()),
             parent: None,
             passed_argument_count: None,
             legacy_arguments: 0..0,
         }));
         let boxed = node(&mut graph, Op::BoxFloat64, vec![check], Some(Repr::Tagged));
         let ret = node(&mut graph, Op::Return, vec![boxed], None);
-        graph.blocks[0].body = vec![check, boxed];
+        graph.blocks[0].body.assign(&[check, boxed]);
         graph.blocks[0].control = Some(ret);
         verify(&graph).unwrap();
 
@@ -242,7 +242,7 @@ fn simplification_removes_int32_checks_that_number_checks_convert() {
     let mut graph = Graph::default();
     for predecessors in [vec![], vec![BlockId(0)], vec![BlockId(0)]] {
         graph.add_block(Block {
-            predecessors,
+            predecessors: graph.list(&predecessors),
             ..Block::default()
         });
     }
@@ -250,8 +250,8 @@ fn simplification_removes_int32_checks_that_number_checks_convert() {
         executable: 0,
         pc: 0,
         mode: crate::code::ResumeMode::ResumeAt,
-        values: Vec::new(),
-        in_frame: Vec::new(),
+        values: ak::ZoneVec::new_in(crate::test_zone()),
+        in_frame: ak::ZoneVec::new_in(crate::test_zone()),
         parent: None,
         passed_argument_count: None,
         legacy_arguments: 0..0,
@@ -271,7 +271,7 @@ fn simplification_removes_int32_checks_that_number_checks_convert() {
         vec![boxed],
         None,
     );
-    graph.blocks[0].body = vec![boxed_double, check, boxed];
+    graph.blocks[0].body.assign(&[boxed_double, check, boxed]);
     graph.blocks[0].control = Some(branch);
     // The number check sees the boxing through a refinement, which
     // simplification does not replace.
@@ -288,7 +288,7 @@ fn simplification_removes_int32_checks_that_number_checks_convert() {
     graph.nodes[number.index()].frame_state = Some(frame_state);
     let result = node(&mut graph, Op::BoxFloat64, vec![number], Some(Repr::Tagged));
     let ret = node(&mut graph, Op::Return, vec![result], None);
-    graph.blocks[1].body = vec![refined, number, result];
+    graph.blocks[1].body.assign(&[refined, number, result]);
     graph.blocks[1].control = Some(ret);
     let other_ret = node(&mut graph, Op::Return, vec![boxed], None);
     graph.blocks[2].control = Some(other_ret);
@@ -310,7 +310,7 @@ fn element_counts_move_out_of_loops_that_only_store_elements() {
     let mut graph = Graph::default();
     for predecessors in [vec![], vec![BlockId(0), BlockId(1)], vec![BlockId(1)]] {
         graph.add_block(Block {
-            predecessors,
+            predecessors: graph.list(&predecessors),
             ..Block::default()
         });
     }
@@ -358,7 +358,7 @@ fn loads_of_slots_that_nothing_writes_move_out_of_loops_that_call() {
     let mut graph = Graph::default();
     for predecessors in [vec![], vec![BlockId(0), BlockId(1)], vec![BlockId(1)]] {
         graph.add_block(Block {
-            predecessors,
+            predecessors: graph.list(&predecessors),
             ..Block::default()
         });
     }
@@ -382,8 +382,8 @@ fn loads_of_slots_that_nothing_writes_move_out_of_loops_that_call() {
         executable: 0,
         pc: 0,
         mode: crate::code::ResumeMode::ResumeAt,
-        values: Vec::new(),
-        in_frame: Vec::new(),
+        values: ak::ZoneVec::new_in(crate::test_zone()),
+        in_frame: ak::ZoneVec::new_in(crate::test_zone()),
         parent: None,
         passed_argument_count: None,
         legacy_arguments: 0..0,
@@ -469,8 +469,8 @@ fn typed_array_storage_offsets_are_reused_across_stores_but_not_calls() {
         executable: 0,
         pc: 0,
         mode: crate::code::ResumeMode::ResumeAt,
-        values: Vec::new(),
-        in_frame: Vec::new(),
+        values: ak::ZoneVec::new_in(crate::test_zone()),
+        in_frame: ak::ZoneVec::new_in(crate::test_zone()),
         parent: None,
         passed_argument_count: None,
         legacy_arguments: 0..0,
@@ -503,7 +503,7 @@ fn typed_array_storage_metadata_moves_out_of_loops_that_only_store_elements() {
     let mut graph = Graph::default();
     for predecessors in [vec![], vec![BlockId(0), BlockId(1)], vec![BlockId(1)]] {
         graph.add_block(Block {
-            predecessors,
+            predecessors: graph.list(&predecessors),
             ..Block::default()
         });
     }
@@ -566,7 +566,7 @@ fn branches_on_known_kinds_fold() {
         vec![BlockId(1)],
     ] {
         graph.add_block(Block {
-            predecessors,
+            predecessors: graph.list(&predecessors),
             ..Block::default()
         });
     }
@@ -612,7 +612,7 @@ fn branches_on_whether_values_of_known_kinds_are_empty_fold() {
     let mut graph = Graph::default();
     for predecessors in [vec![], vec![BlockId(0)], vec![BlockId(0)]] {
         graph.add_block(Block {
-            predecessors,
+            predecessors: graph.list(&predecessors),
             ..Block::default()
         });
     }
@@ -620,8 +620,8 @@ fn branches_on_whether_values_of_known_kinds_are_empty_fold() {
         executable: 0,
         pc: 0,
         mode: crate::code::ResumeMode::ResumeAt,
-        values: Vec::new(),
-        in_frame: Vec::new(),
+        values: ak::ZoneVec::new_in(crate::test_zone()),
+        in_frame: ak::ZoneVec::new_in(crate::test_zone()),
         parent: None,
         passed_argument_count: None,
         legacy_arguments: 0..0,
@@ -645,7 +645,7 @@ fn branches_on_whether_values_of_known_kinds_are_empty_fold() {
         vec![value, empty],
         None,
     );
-    graph.blocks[0].body = vec![value, check];
+    graph.blocks[0].body.assign(&[value, check]);
     graph.blocks[0].control = Some(branch);
     for block in [1, 2] {
         let ret = node(&mut graph, Op::Return, vec![value], None);
@@ -677,7 +677,7 @@ fn check_elimination_keeps_checks_that_a_later_entry_reaches_blocks_before_it() 
         vec![BlockId(0), BlockId(2)],
     ] {
         graph.add_block(Block {
-            predecessors,
+            predecessors: graph.list(&predecessors),
             ..Block::default()
         });
     }
@@ -688,8 +688,8 @@ fn check_elimination_keeps_checks_that_a_later_entry_reaches_blocks_before_it() 
         executable: 0,
         pc: 0,
         mode: crate::code::ResumeMode::ResumeAt,
-        values: Vec::new(),
-        in_frame: Vec::new(),
+        values: ak::ZoneVec::new_in(crate::test_zone()),
+        in_frame: ak::ZoneVec::new_in(crate::test_zone()),
         parent: None,
         passed_argument_count: None,
         legacy_arguments: 0..0,
@@ -730,7 +730,7 @@ fn simplification_removes_integer_double_round_trips() {
         let integer = node(&mut graph, Op::Float64ToInt32, vec![double], Some(Repr::Int32));
         let boxed = node(&mut graph, Op::BoxInt32, vec![integer], Some(Repr::Tagged));
         let ret = node(&mut graph, Op::Return, vec![boxed], None);
-        graph.blocks[0].body = vec![double, integer, boxed];
+        graph.blocks[0].body.assign(&[double, integer, boxed]);
         graph.blocks[0].control = Some(ret);
         verify(&graph).unwrap();
 
@@ -752,7 +752,7 @@ fn simplification_tests_the_truthiness_of_boxed_int32_values_unboxed() {
     graph.add_block(Block::default());
     for _ in 1..4 {
         graph.add_block(Block {
-            predecessors: vec![BlockId(0)],
+            predecessors: ak::ZoneVec::from_slice_in(&[BlockId(0)], crate::test_zone()),
             ..Block::default()
         });
     }
@@ -770,7 +770,7 @@ fn simplification_tests_the_truthiness_of_boxed_int32_values_unboxed() {
         vec![boxed],
         None,
     );
-    graph.blocks[0].body = vec![array, address, unboxed, boxed];
+    graph.blocks[0].body.assign(&[array, address, unboxed, boxed]);
     graph.blocks[0].control = Some(branch);
     for block in 1..4 {
         let ret = node(&mut graph, Op::Return, vec![array], None);
@@ -803,7 +803,7 @@ fn simplification_keeps_double_integer_round_trips() {
     let converted = node(&mut graph, Op::Int32ToFloat64, vec![integer], Some(Repr::Float64));
     let boxed = node(&mut graph, Op::BoxFloat64, vec![converted], Some(Repr::Tagged));
     let ret = node(&mut graph, Op::Return, vec![boxed], None);
-    graph.blocks[0].body = vec![load, double, integer, converted, boxed];
+    graph.blocks[0].body.assign(&[load, double, integer, converted, boxed]);
     graph.blocks[0].control = Some(ret);
     verify(&graph).unwrap();
 
@@ -837,7 +837,7 @@ fn simplification_converts_constant_doubles_to_integers() {
         let integer = node(&mut graph, op.clone(), vec![double], Some(Repr::Int32));
         let boxed = node(&mut graph, Op::BoxInt32, vec![integer], Some(Repr::Tagged));
         let ret = node(&mut graph, Op::Return, vec![boxed], None);
-        graph.blocks[0].body = vec![integer, boxed];
+        graph.blocks[0].body.assign(&[integer, boxed]);
         graph.blocks[0].control = Some(ret);
         verify(&graph).unwrap();
 
@@ -880,8 +880,8 @@ fn constant_bounds_checks_only_fold_when_the_unsigned_index_is_in_bounds() {
             executable: 0,
             pc: 0,
             mode: crate::code::ResumeMode::ResumeAt,
-            values: Vec::new(),
-            in_frame: Vec::new(),
+            values: ak::ZoneVec::new_in(crate::test_zone()),
+            in_frame: ak::ZoneVec::new_in(crate::test_zone()),
             parent: None,
             passed_argument_count: None,
             legacy_arguments: 0..0,
@@ -933,7 +933,7 @@ fn frame_writes_after_slow_paths_that_may_initialize_the_frame_check_first() {
         None,
     );
     let ret = node(&mut graph, Op::Return, vec![call], None);
-    graph.blocks[0].body = vec![initialize, call, store];
+    graph.blocks[0].body.assign(&[initialize, call, store]);
     graph.blocks[0].control = Some(ret);
 
     super::frame_initialization::run(&mut graph, &layout);
@@ -957,7 +957,7 @@ fn hoisted_checks_gate_exits_by_the_loop_headers_executable() {
         let mut graph = Graph::default();
         for predecessors in [vec![], vec![BlockId(0), BlockId(1)], vec![BlockId(1)]] {
             graph.add_block(Block {
-                predecessors,
+                predecessors: graph.list(&predecessors),
                 ..Block::default()
             });
         }
@@ -970,8 +970,8 @@ fn hoisted_checks_gate_exits_by_the_loop_headers_executable() {
             executable: 0,
             pc: 10,
             mode: ResumeMode::ResumeAfter { dst: 5 },
-            values: vec![(0, object)],
-            in_frame: vec![],
+            values: ak::ZoneVec::from_slice_in(&[(0, object)], crate::test_zone()),
+            in_frame: ak::ZoneVec::new_in(crate::test_zone()),
             parent: None,
             passed_argument_count: None,
             legacy_arguments: 0..0,
@@ -980,8 +980,8 @@ fn hoisted_checks_gate_exits_by_the_loop_headers_executable() {
             executable: 1,
             pc: 77,
             mode: ResumeMode::ResumeAt,
-            values: vec![(0, object)],
-            in_frame: vec![],
+            values: ak::ZoneVec::from_slice_in(&[(0, object)], crate::test_zone()),
+            in_frame: ak::ZoneVec::new_in(crate::test_zone()),
             parent: Some(parent),
             passed_argument_count: None,
             legacy_arguments: 0..0,
@@ -1021,7 +1021,7 @@ fn control_flow_cleanup_preserves_duplicate_edges_and_phi_input_order() {
     let mut graph = Graph::default();
     graph.add_block(Block::default());
     graph.add_block(Block {
-        predecessors: vec![BlockId(0); 3],
+        predecessors: ak::ZoneVec::from_elem_in(BlockId(0), 3, crate::test_zone()),
         ..Block::default()
     });
     let values = (0..3)
@@ -1073,7 +1073,7 @@ fn overflow_checks_removed_by_bounds_checks_check_the_counters_of_their_counts()
             vec![BlockId(3)],
         ] {
             graph.add_block(Block {
-                predecessors,
+                predecessors: graph.list(&predecessors),
                 ..Block::default()
             });
         }
@@ -1083,8 +1083,8 @@ fn overflow_checks_removed_by_bounds_checks_check_the_counters_of_their_counts()
             executable: 0,
             pc: 7,
             mode: ResumeMode::ResumeAt,
-            values: Vec::new(),
-            in_frame: Vec::new(),
+            values: ak::ZoneVec::new_in(crate::test_zone()),
+            in_frame: ak::ZoneVec::new_in(crate::test_zone()),
             parent: None,
             passed_argument_count: None,
             legacy_arguments: 0..0,
@@ -1095,7 +1095,7 @@ fn overflow_checks_removed_by_bounds_checks_check_the_counters_of_their_counts()
         let int32 = |graph: &mut Graph, value: i32| {
             node(graph, Op::Constant(u64::from(value as u32)), vec![], Some(Repr::Int32))
         };
-        let checked = |graph: &mut Graph, op: Op, inputs: Vec<NodeId>| {
+        let checked = |graph: &mut Graph<'static>, op: Op<'static>, inputs: Vec<NodeId>| {
             let id = node(graph, op, inputs, Some(Repr::Int32));
             graph.nodes[id.index()].frame_state = Some(state);
             id

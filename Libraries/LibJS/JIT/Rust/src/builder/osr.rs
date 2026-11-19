@@ -74,7 +74,7 @@ pub(crate) fn is_loop_back_edge(opcode: OpCode) -> bool {
     )
 }
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// Whether the instruction with the given index is a back edge that an on-stack replacement entry can be built at.
     pub(super) fn can_build_osr_entry(&self, index: usize) -> bool {
         let pc = self.function.instructions[index].pc;

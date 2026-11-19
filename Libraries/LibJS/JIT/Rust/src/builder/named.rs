@@ -25,7 +25,7 @@ use crate::ir::Comparison;
 use crate::ir::NodeId;
 use crate::ir::Op;
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// Builds `GetById` (`Handling::Expanded`): the property the cache has
     /// for the value (see `Op::ProbePropertyCache`).
     pub(super) fn build_get_by_id(&mut self, instruction: &Instruction) -> Result<Flow, CompileFailure> {
@@ -71,7 +71,7 @@ impl GraphBuilder<'_> {
                 cache,
                 property,
             },
-            vec![object, value],
+            &[object, value],
             Some(Repr::Bool),
         );
         self.branch_to_slow_path(&mut slow_paths, BranchCondition::Bool, vec![stored], true);
@@ -141,7 +141,7 @@ impl GraphBuilder<'_> {
                 cache,
                 property,
             },
-            vec![object],
+            &[object],
             Some(Repr::Tagged),
         );
         self.branch_if_empty(slow_paths, property)
@@ -168,14 +168,14 @@ impl GraphBuilder<'_> {
                     let (magical, named) = builder.branch_both_ways(BranchCondition::MagicalLength, vec![address]);
                     builder.block = magical;
                     let array = builder.refine(BranchCondition::MagicalLength, true, vec![address]);
-                    let length = builder.emit(Op::LoadElementsLength, vec![array], Some(Repr::Int32));
+                    let length = builder.emit(Op::LoadElementsLength, &[array], Some(Repr::Int32));
                     builder.end_with_length(slow_paths, length);
                     builder.block = named;
                     let length = builder.probe_property_cache(slow_paths, value, cache, u32::MAX);
                     builder.end_hot_path(slow_paths, vec![length]);
                 } else {
-                    let address = builder.emit(Op::StringAddress, vec![value], Some(Repr::Pointer));
-                    let length = builder.emit(Op::StringLength, vec![address], Some(Repr::Int32));
+                    let address = builder.emit(Op::StringAddress, &[value], Some(Repr::Pointer));
+                    let length = builder.emit(Op::StringLength, &[address], Some(Repr::Int32));
                     builder.end_with_length(slow_paths, length);
                 }
             },
@@ -196,7 +196,7 @@ impl GraphBuilder<'_> {
             vec![length, zero],
             true,
         );
-        let length = self.emit(Op::BoxInt32, vec![length], Some(Repr::Tagged));
+        let length = self.emit(Op::BoxInt32, &[length], Some(Repr::Tagged));
         self.end_hot_path(slow_paths, vec![length]);
     }
 }

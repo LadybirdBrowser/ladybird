@@ -89,20 +89,20 @@ mod tests {
     fn unused_cycles_of_pure_values_are_removed() {
         let mut graph = Graph::default();
         graph.add_block(Block::default());
-        let constant = graph.add_node(crate::ir::Node::new(Op::Constant(1), vec![], Some(Repr::Int32), 0));
-        let phi = graph.add_node(crate::ir::Node::new(Op::Phi, vec![], Some(Repr::Int32), 0));
-        let add = graph.add_node(crate::ir::Node::new(
+        let constant = graph.add(Op::Constant(1), &[], Some(Repr::Int32), 0);
+        let phi = graph.add(Op::Phi, &[], Some(Repr::Int32), 0);
+        let add = graph.add(
             Op::Int32Binary {
                 op: BinaryOp::BitwiseOr,
             },
-            vec![phi, constant],
+            &[phi, constant],
             Some(Repr::Int32),
             0,
-        ));
-        graph.nodes[phi.index()].inputs = vec![phi, add];
+        );
+        graph.nodes[phi.index()].inputs.assign(&[phi, add]);
         graph.blocks[0].phis.push(phi);
         graph.blocks[0].body.push(add);
-        let returned = graph.add_node(crate::ir::Node::new(Op::Return, vec![constant], None, 0));
+        let returned = graph.add(Op::Return, &[constant], None, 0);
         graph.blocks[0].control = Some(returned);
         remove_dead_nodes(&mut graph);
         assert!(graph.blocks[0].phis.is_empty());
@@ -114,44 +114,34 @@ mod tests {
     fn shared_frame_states_keep_nested_virtual_object_properties_alive() {
         let mut graph = Graph::default();
         graph.add_block(Block::default());
-        let constant = graph.add_node(crate::ir::Node::new(Op::Constant(1), vec![], Some(Repr::Int32), 0));
-        let boxed = graph.add_node(crate::ir::Node::new(
-            Op::BoxInt32,
-            vec![constant],
-            Some(Repr::Tagged),
-            0,
-        ));
-        let object = graph.add_node(crate::ir::Node::new(
+        let constant = graph.add(Op::Constant(1), &[], Some(Repr::Int32), 0);
+        let boxed = graph.add(Op::BoxInt32, &[constant], Some(Repr::Tagged), 0);
+        let object = graph.add(
             Op::VirtualObject {
                 kind: crate::ir::VirtualObjectKind::Object { shape: CellId(1) },
                 allocation: NodeId(0),
             },
-            vec![boxed],
+            &[boxed],
             Some(Repr::Tagged),
             0,
-        ));
+        );
         let frame = graph.add_frame_state(FrameState {
             executable: 0,
             pc: 0,
             mode: ResumeMode::ResumeAt,
-            values: vec![(0, object)],
-            in_frame: vec![],
+            values: ak::ZoneVec::from_slice_in(&[(0, object)], crate::test_zone()),
+            in_frame: ak::ZoneVec::new_in(crate::test_zone()),
             parent: None,
             passed_argument_count: None,
             legacy_arguments: 0..0,
         });
         graph.blocks[0].body.push(boxed);
         for _ in 0..2 {
-            let check = graph.add_node(crate::ir::Node::new(
-                Op::CheckObject,
-                vec![boxed],
-                Some(Repr::Tagged),
-                0,
-            ));
+            let check = graph.add(Op::CheckObject, &[boxed], Some(Repr::Tagged), 0);
             graph.nodes[check.index()].frame_state = Some(frame);
             graph.blocks[0].body.push(check);
         }
-        let returned = graph.add_node(crate::ir::Node::new(Op::Return, vec![constant], None, 0));
+        let returned = graph.add(Op::Return, &[constant], None, 0);
         graph.blocks[0].control = Some(returned);
         remove_dead_nodes(&mut graph);
         assert!(graph.blocks[0].body.contains(&boxed));

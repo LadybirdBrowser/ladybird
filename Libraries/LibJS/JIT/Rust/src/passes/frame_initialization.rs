@@ -74,7 +74,7 @@ impl State {
 
     /// The node to put before a node with `need`, if any, and the state
     /// after both.
-    fn satisfy(self, need: &Need) -> (Option<Op>, State) {
+    fn satisfy(self, need: &Need) -> (Option<Op<'static>>, State) {
         const INITIALIZED: State = State {
             published: Holds::Yes,
             initialized: Holds::Yes,
@@ -234,8 +234,8 @@ pub fn run(graph: &mut Graph, layout: &FrameLayout) {
     // Insert from the back so earlier indices stay valid.
     insertions.sort_by_key(|(block, index, _)| (*block, *index));
     for (block, index, op) in insertions.into_iter().rev() {
-        let node = graph.add_node(Node::new(op, Vec::new(), None, entry_pc));
+        let node = graph.add(op, &[], None, entry_pc);
         graph.blocks[block].body.insert(index, node);
     }
-    graph.slow_paths_initializing_frame = slow_paths;
+    graph.slow_paths_initializing_frame.assign(&slow_paths);
 }
