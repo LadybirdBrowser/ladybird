@@ -579,11 +579,19 @@ public:
         if (m_dock_menu)
             return;
 
+        // NB: AppKit lists the application's windows in the dock menu by itself.
         m_dock_menu = new QMenu(m_menu_bar);
-        QObject::connect(m_dock_menu, &QMenu::aboutToShow, this, [this] {
-            rebuild_dock_menu();
+
+        auto* new_window_action = m_dock_menu->addAction("New Window");
+        QObject::connect(new_window_action, &QAction::triggered, m_dock_menu, [] {
+            Application::the().open_new_window(WebView::IsPrivate::No);
         });
-        rebuild_dock_menu();
+
+        auto* new_private_window_action = m_dock_menu->addAction("New Private Window");
+        QObject::connect(new_private_window_action, &QAction::triggered, m_dock_menu, [] {
+            Application::the().open_new_window(WebView::IsPrivate::Yes);
+        });
+
         m_dock_menu->setAsDockMenu();
     }
 #endif
@@ -607,56 +615,6 @@ public:
 
 private:
     friend Application;
-
-#if defined(AK_OS_MACOS)
-    void rebuild_dock_menu()
-    {
-        m_dock_menu->clear();
-
-        auto* new_window_action = m_dock_menu->addAction("New Window");
-        QObject::connect(new_window_action, &QAction::triggered, m_dock_menu, [] {
-            Application::the().open_new_window(WebView::IsPrivate::No);
-        });
-
-        auto* new_private_window_action = m_dock_menu->addAction("New Private Window");
-        QObject::connect(new_private_window_action, &QAction::triggered, m_dock_menu, [] {
-            Application::the().open_new_window(WebView::IsPrivate::Yes);
-        });
-
-        bool added_window_separator = false;
-        for (auto* widget : QApplication::topLevelWidgets()) {
-            auto* window = as_if<BrowserWindow>(widget);
-            if (!window)
-                continue;
-
-            if (!added_window_separator) {
-                m_dock_menu->addSeparator();
-                added_window_separator = true;
-            }
-
-            auto title = window->windowTitle();
-            title.replace("&", "&&");
-            auto* action = m_dock_menu->addAction(title);
-            action->setCheckable(true);
-            action->setChecked(window == Application::the().active_window_if_any());
-
-            QPointer<BrowserWindow> window_pointer = window;
-            QObject::connect(action, &QAction::triggered, m_dock_menu, [window = window_pointer] {
-                if (!window)
-                    return;
-
-                if (window->isMinimized())
-                    window->showNormal();
-                else
-                    window->show();
-
-                window->raise();
-                window->activateWindow();
-                Application::the().set_active_window(*window);
-            });
-        }
-    }
-#endif
 
     // The application actions require a QWidget owner, which we don't have at the time of creation. We use this dummy
     // widget instead, which we also can't properly parent as it would need a QWidget owner as well.
