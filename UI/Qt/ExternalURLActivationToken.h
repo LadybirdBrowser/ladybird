@@ -9,9 +9,10 @@
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/StringView.h>
 
 namespace Ladybird {
 
-void request_external_url_activation_token(Function<void(Optional<String>)>);
+void request_external_url_activation_token(StringView desktop_id, Function<void(Optional<String>)>);
 
 }
