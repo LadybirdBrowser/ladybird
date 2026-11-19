@@ -54,6 +54,8 @@ if (BUILD_BROWSER_TESTS_ONLY)
 endif()
 
 ladybird_test_suite(LibWebView)
+# TestHelperProcessPaths looks for these where the browser would.
+add_dependencies(TestLibWebView Compositor ImageDecoder RequestServer SystemProbe WebContent)
 
 set(TEST_SOURCES
     TestAccessibilityTreeManager.cpp
@@ -70,6 +72,7 @@ set(TEST_SOURCES
     TestFaviconStore.cpp
     TestForceDarkSettings.cpp
     TestHelperProcessEnvironment.cpp
+    TestHelperProcessPaths.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp
     TestLingeringIndicator.cpp
