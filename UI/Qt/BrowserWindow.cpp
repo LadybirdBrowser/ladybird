@@ -938,10 +938,9 @@ void BrowserWindow::initialize_tab_view(Tab* tab)
             WindowConfiguration configuration {
                 .x = hints.screen_x.has_value() ? hints.screen_x : cascaded_configuration.x,
                 .y = hints.screen_y.has_value() ? hints.screen_y : cascaded_configuration.y,
-                .width = hints.width,
-                .height = hints.height,
             };
-            Application::the().new_window({}, configuration, IsPopupWindow::Yes, m_is_private, hub_view_id);
+            auto& window = Application::the().new_window({}, configuration, IsPopupWindow::Yes, m_is_private, hub_view_id);
+            window.place_popup_window(hints, *screen());
             return;
         }
         create_new_tab(activate_tab, hub_view_id);
@@ -1650,6 +1649,49 @@ void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web:
         height = 600;
 
     setGeometry(x.value().value(), y.value().value(), width.value().value(), height.value().value());
+}
+
+QRect BrowserWindow::rect_fitted_into(QRect rect, QRect const& bounds)
+{
+    rect.setSize(rect.size().boundedTo(bounds.size()));
+    rect.moveLeft(clamp(rect.left(), bounds.left(), bounds.right() - rect.width() + 1));
+    rect.moveTop(clamp(rect.top(), bounds.top(), bounds.bottom() - rect.height() + 1));
+    return rect;
+}
+
+void BrowserWindow::place_popup_window(Web::HTML::WebViewHints const& hints, QScreen const& opener_screen)
+{
+    // NB: The window must be shown, as Qt does not lay out a hidden window, so the size of the tab bar and toolbar is not
+    //     known before that.
+    VERIFY(isVisible());
+
+    // A page asks for the position of the window's frame, as that is the position it sees.
+    auto position = pos();
+    if (hints.screen_x.has_value())
+        position.setX(hints.screen_x->value());
+    if (hints.screen_y.has_value())
+        position.setY(hints.screen_y->value());
+
+    // NB: A Wayland compositor decides where a window goes and does not tell where that is. The window is then taken to
+    //     be on the screen of the window it was opened from.
+    static bool const is_wayland = QGuiApplication::platformName().startsWith(QStringLiteral("wayland"));
+    auto const* target_screen = is_wayland ? nullptr : QGuiApplication::screenAt(position);
+    if (!target_screen)
+        target_screen = &opener_screen;
+    auto available_geometry = target_screen->availableGeometry();
+
+    // A page asks for the size of its viewport, so the window is larger than that by the size of what is around the
+    // viewport. A size of 0 leaves the size of the window as it is.
+    auto size_around_viewport = size() - view().size();
+    auto frame_size = frameGeometry().size() - size();
+    auto window_size = size();
+    if (hints.width.has_value() && hints.width->value() > 0)
+        window_size.setWidth(min(hints.width->value(), available_geometry.width()) + size_around_viewport.width());
+    if (hints.height.has_value() && hints.height->value() > 0)
+        window_size.setHeight(min(hints.height->value(), available_geometry.height()) + size_around_viewport.height());
+    resize(window_size.boundedTo(available_geometry.size() - frame_size));
+
+    move(rect_fitted_into({ position, frameGeometry().size() }, available_geometry).topLeft());
 }
 
 void BrowserWindow::enter_fullscreen()
