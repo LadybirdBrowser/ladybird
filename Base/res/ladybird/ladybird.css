@@ -437,8 +437,7 @@ input[type="checkbox"][switch]:checked::before {
         0 0 0 3px var(--focus-ring);
 }
 
-/* A choice of where tabs go, each option a card with a small picture of the window, outlined in the choice blue and
-   lightly filled when chosen. The cards share the row equally, however many there are. */
+/* The tab layout cards share the row equally, however many there are. */
 .tab-options {
     display: grid;
     grid-auto-flow: column;
@@ -448,38 +447,13 @@ input[type="checkbox"][switch]:checked::before {
 
 .tab-option {
     display: flex;
-    margin: 0;
     flex-direction: column;
     gap: 8px;
     padding: 10px;
-    border-radius: 10px;
-    box-shadow: inset 0 0 0 1px var(--separator);
-    cursor: pointer;
-}
-
-.tab-option:not(:has(input:checked)):hover {
-    background: var(--control);
-}
-
-.tab-option:has(input:checked) {
-    background: var(--choice-fill);
-    box-shadow: inset 0 0 0 1.5px var(--choice);
-}
-
-.tab-option:has(input:focus-visible) {
-    box-shadow:
-        inset 0 0 0 1.5px var(--choice),
-        0 0 0 3px var(--focus-ring);
 }
 
 .tab-option-label {
     padding: 0 2px;
-}
-
-.tab-option input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
 }
 
 .tab-preview {
@@ -588,6 +562,9 @@ input[type="checkbox"][switch]:checked::before {
     border-radius: 50%;
     background: var(--swatch);
     box-shadow: inset 0 0 0 1px var(--edge);
+}
+
+.color-swatch:has(> input:enabled) {
     cursor: pointer;
 }
 
@@ -596,7 +573,7 @@ input[type="checkbox"][switch]:checked::before {
     background: conic-gradient(#ff3b30, #ff9500, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff2d55, #ff3b30);
 }
 
-.color-swatch:not(:has(input:checked, input:focus-visible)):hover {
+.color-swatch:not(:has(input:checked, input:focus-visible, input:disabled)):hover {
     box-shadow:
         inset 0 0 0 1px var(--edge),
         0 0 0 2px var(--page),
