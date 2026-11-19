@@ -294,7 +294,7 @@ Vector<Media::CombinedScanState> RemotePlaybackManager::enabled_source_scan_stat
 
 Media::BufferedRanges RemotePlaybackManager::buffered_time_ranges() const
 {
-    return Media::DemuxerScanState::buffered_ranges_of_sources(enabled_source_scan_states());
+    return Media::PlaybackManager::buffered_time_ranges_of_sources(enabled_source_scan_states(), m_timeline);
 }
 
 Optional<Media::TimeRanges::Range> RemotePlaybackManager::seekable_time_ranges() const

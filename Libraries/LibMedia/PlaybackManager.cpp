@@ -911,6 +911,17 @@ Optional<TimeRanges::Range> PlaybackManager::seekable_time_range(TimeRanges cons
     return TimeRanges::Range { start, timeline.duration };
 }
 
+BufferedRanges PlaybackManager::buffered_time_ranges_of_sources(ReadonlySpan<CombinedScanState> enabled_sources, MediaTimeline const& timeline)
+{
+    auto buffered = DemuxerScanState::buffered_ranges_of_sources(enabled_sources);
+    // Demuxers may report data from the start of the resource as buffered from zero, before the earliest possible
+    // position.
+    auto seekable = seekable_time_range(buffered.time_ranges, timeline);
+    if (seekable.has_value())
+        buffered.time_ranges = buffered.time_ranges.intersection(TimeRanges { seekable.value() });
+    return buffered;
+}
+
 Vector<CombinedScanState, 2> PlaybackManager::enabled_source_scan_states() const
 {
     Vector<CombinedScanState, 2> enabled_sources;
@@ -923,7 +934,7 @@ Vector<CombinedScanState, 2> PlaybackManager::enabled_source_scan_states() const
 
 BufferedRanges PlaybackManager::buffered_time_ranges() const
 {
-    return DemuxerScanState::buffered_ranges_of_sources(enabled_source_scan_states());
+    return buffered_time_ranges_of_sources(enabled_source_scan_states(), m_timeline);
 }
 
 Optional<TimeRanges::Range> PlaybackManager::seekable_time_ranges() const
