@@ -72,6 +72,7 @@ public:
     AK::Duration current_time() const;
 
     Optional<AK::UnixDateTime> start_time_realtime() const { return m_start_time_realtime; }
+    AK::Duration earliest_possible_position() const { return m_timeline.earliest_possible_position; }
 
     auto const& video_tracks() const { return m_video_tracks; }
     auto const& audio_tracks() const { return m_audio_tracks; }
