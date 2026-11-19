@@ -331,7 +331,8 @@ static CanUnloadState can_unload_state(WebView::ProcessTabSnapshot const& tab)
         Description { DiscardBlockers::UserEdits, QT_TRANSLATE_NOOP("QObject", "You typed into the page") },
         Description { DiscardBlockers::Downloading, QT_TRANSLATE_NOOP("QObject", "It's downloading a file") },
         Description { DiscardBlockers::AwaitingPermissionPrompt, QT_TRANSLATE_NOOP("QObject", "It's waiting for you to answer a permission request") },
-        Description { DiscardBlockers::ChangedTitleOrFaviconWhileHidden, QT_TRANSLATE_NOOP("QObject", "It changed its title or icon while hidden") },
+        Description { DiscardBlockers::ChangedTitleWhileHidden, QT_TRANSLATE_NOOP("QObject", "It changed its title while hidden") },
+        Description { DiscardBlockers::ChangedFaviconWhileHidden, QT_TRANSLATE_NOOP("QObject", "It changed its icon while hidden") },
         Description { DiscardBlockers::MayShowNotifications, QT_TRANSLATE_NOOP("QObject", "The site may show notifications") },
     };
     QStringList lines { QObject::tr("Stays loaded:") };

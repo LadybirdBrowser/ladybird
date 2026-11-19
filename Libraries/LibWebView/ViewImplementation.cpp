@@ -435,22 +435,41 @@ void ViewImplementation::set_title(Utf16String title)
 
     m_title = move(title);
     Application::the().media_session_coordinator().set_fallback_title(view_id(), m_title.to_utf8());
-    did_change_title_or_favicon();
+    if (shows_background_activity())
+        m_changed_title_while_hidden = true;
 
     if (on_title_change)
         on_title_change(m_title);
 }
 
-// NB: A page shows its title and favicon as it loads, which is no work it does in the background.
-void ViewImplementation::did_change_title_or_favicon()
+// A page sets its title and favicon as it starts up, often from script after it loaded, or once its favicon arrived.
+// That is no work it does for the user in the background, so only what it changes after that counts.
+static constexpr auto time_to_settle_after_loading = AK::Duration::from_seconds(60);
+
+// Whether a change to the title or favicon shows the user what the page does while they don't look at it.
+bool ViewImplementation::shows_background_activity() const
 {
-    if (m_top_level_traversable && !is_loading() && traversable().system_visibility_state() == Web::HTML::VisibilityState::Hidden)
-        m_changed_title_or_favicon_while_hidden = true;
+    if (!m_top_level_traversable || traversable().system_visibility_state() != Web::HTML::VisibilityState::Hidden)
+        return false;
+    return m_finished_loading_time.has_value() && MonotonicTime::now() - *m_finished_loading_time >= time_to_settle_after_loading;
+}
+
+static bool have_same_pixels(Gfx::Bitmap const* a, Gfx::Bitmap const* b)
+{
+    if (!a || !b)
+        return a == b;
+    if (a->size() != b->size() || a->format() != b->format() || a->pitch() != b->pitch())
+        return false;
+    return __builtin_memcmp(a->scanline_u8(0), b->scanline_u8(0), a->data_size()) == 0;
 }
 
 void ViewImplementation::set_favicon(Optional<Gfx::Bitmap const&> favicon)
 {
-    did_change_title_or_favicon();
+    // NB: A page may set the favicon it already has again, which changes nothing the user sees.
+    auto const* new_favicon = favicon.has_value() ? &favicon.value() : nullptr;
+    if (shows_background_activity() && !have_same_pixels(m_favicon.ptr(), new_favicon))
+        m_changed_favicon_while_hidden = true;
+    m_favicon = new_favicon;
     if (on_favicon_change)
         on_favicon_change(favicon);
 }
@@ -622,7 +641,8 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 void ViewImplementation::start_being_hidden()
 {
     m_hidden_since = MonotonicTime::now();
-    m_changed_title_or_favicon_while_hidden = false;
+    m_changed_title_while_hidden = false;
+    m_changed_favicon_while_hidden = false;
 }
 
 void ViewImplementation::set_current_tab_of_window(bool current_tab_of_window)
@@ -705,8 +725,10 @@ DiscardBlockers ViewImplementation::discard_blockers(DiscardReason reason, Monot
     if (reason == DiscardReason::Inactivity) {
         // A tab that changes what it shows in the tab strip, such as the count of unread messages in its title, does
         // work for the user in the background. So does one that may show them notifications.
-        if (m_changed_title_or_favicon_while_hidden)
-            blockers |= DiscardBlockers::ChangedTitleOrFaviconWhileHidden;
+        if (m_changed_title_while_hidden)
+            blockers |= DiscardBlockers::ChangedTitleWhileHidden;
+        if (m_changed_favicon_while_hidden)
+            blockers |= DiscardBlockers::ChangedFaviconWhileHidden;
         if (auto origin = permission_origin(); !origin.is_opaque()) {
             if (session().permission_manager->effective_state(Web::Permissions::PermissionName::Notifications, origin) == Web::Permissions::EffectiveState::Granted)
                 blockers |= DiscardBlockers::MayShowNotifications;
@@ -3692,6 +3714,10 @@ void ViewImplementation::set_loading_state(bool is_loading)
     if (m_is_loading == is_loading)
         return;
     m_is_loading = is_loading;
+    if (is_loading)
+        m_finished_loading_time.clear();
+    else
+        m_finished_loading_time = MonotonicTime::now();
     if (on_loading_state_change)
         on_loading_state_change(is_loading);
 }

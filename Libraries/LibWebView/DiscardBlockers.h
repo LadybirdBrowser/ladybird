@@ -31,8 +31,9 @@ enum class DiscardBlockers : u32 {
     Downloading = 1 << 14,
     AwaitingPermissionPrompt = 1 << 15,
     // Only a tab hidden for long is kept for these, as they're work the tab does for the user in the background.
-    ChangedTitleOrFaviconWhileHidden = 1 << 16,
-    MayShowNotifications = 1 << 17,
+    ChangedTitleWhileHidden = 1 << 16,
+    ChangedFaviconWhileHidden = 1 << 17,
+    MayShowNotifications = 1 << 18,
 };
 
 AK_ENUM_BITWISE_OPERATORS(DiscardBlockers);
