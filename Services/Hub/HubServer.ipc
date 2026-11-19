@@ -82,6 +82,9 @@ struct WebView::ProcessPageSnapshot {
 struct WebView::ProcessTabSnapshot {
     Utf16String title;
     WebView::ProcessPageSnapshot page;
+    WebView::DiscardBlockers discard_blockers_under_memory_pressure;
+    Optional<WebView::DiscardBlockers> discard_blockers_after_inactivity;
+    Optional<i64> seconds_until_discarded_after_inactivity;
 }
 
 [ExistingCpp]

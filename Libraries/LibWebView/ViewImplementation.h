@@ -73,6 +73,7 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/ContentBlocking.h>
 #include <LibWebView/ContextMenuRequest.h>
+#include <LibWebView/DiscardBlockers.h>
 #include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/HistoryVisitTransition.h>
@@ -239,6 +240,7 @@ public:
         Inactivity,
     };
     bool may_be_discarded(DiscardReason, AK::Duration minimum_time_hidden, MonotonicTime now) const;
+    DiscardBlockers discard_blockers(DiscardReason, MonotonicTime now) const;
     // Whether discarding the view would let a process exit, which is how its memory comes back.
     bool discarding_ends_a_process() const;
     void set_pinned(bool pinned);
@@ -833,7 +835,7 @@ protected:
 
     explicit ViewImplementation(IsPrivate = IsPrivate::No);
 
-    void set_owner_view(ViewImplementation const& owner_view) { m_owner_view_id = owner_view.view_id(); }
+    void set_owner_view(ViewImplementation& owner_view);
 
     void did_update_url();
     void settle_permission_prompt(PermissionPromptRequest const&, Web::Permissions::PromptOutcome);
@@ -844,6 +846,7 @@ protected:
     void set_favicon(Optional<Gfx::Bitmap const&>);
     void did_change_title_or_favicon();
     void finish_discard_request();
+    void stop_counting_as_owned_view();
     void start_being_hidden();
     Optional<URL::URL const&> browser_ui_load_url() const;
     void update_displayed_url();
@@ -1292,6 +1295,9 @@ protected:
     //        is required to be globally unique for Firefox DevTools.
     u64 m_view_id { 0 };
     Optional<u64> m_owner_view_id;
+    // NB: Counted so that whether this view owns another is known without looking at every view.
+    size_t m_owned_view_count { 0 };
+    bool m_counts_as_owned_view { false };
     WeakPtr<CanonicalDocument const> m_owner_document;
 
     HashMap<u64, NavigationListener> m_navigation_listeners;

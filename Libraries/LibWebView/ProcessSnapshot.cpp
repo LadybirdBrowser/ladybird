@@ -27,6 +27,7 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
     HashMap<u64, ProcessPage> process_pages;
     HashMap<u64, Vector<ProcessTabSnapshot>> process_tabs;
     HashMap<u64, Vector<ProcessFrameSnapshot>> process_frames;
+    auto now = MonotonicTime::now();
     // NB: The Application is only asked once there is a view, so that a ProcessManager without one can be described.
     bool did_look_up_active_view = false;
     Optional<ViewImplementation&> active_view;
@@ -52,14 +53,26 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
         };
         auto top_level_child_id = view.page().client().child_id();
         add_page(top_level_child_id, view.url(), ProcessPageKind::TopLevel);
-        process_tabs.ensure(top_level_child_id).append(ProcessTabSnapshot {
+        ProcessTabSnapshot tab {
             .title = view.title(),
             .page = {
                 .view_id = view.view_id(),
                 .url = view.url(),
                 .kind = ProcessPageKind::TopLevel,
             },
-        });
+            .discard_blockers_under_memory_pressure = view.discard_blockers(ViewImplementation::DiscardReason::MemoryPressure, now),
+            .discard_blockers_after_inactivity = {},
+            .seconds_until_discarded_after_inactivity = {},
+        };
+        if (auto minutes = Application::settings().tab_settings().discard_hidden_tabs_after_minutes; minutes != 0) {
+            auto blockers = view.discard_blockers(ViewImplementation::DiscardReason::Inactivity, now);
+            tab.discard_blockers_after_inactivity = blockers;
+            if (blockers == DiscardBlockers::None && view.hidden_since().has_value()) {
+                auto remaining = AK::Duration::from_seconds(static_cast<i64>(minutes) * 60) - (now - *view.hidden_since());
+                tab.seconds_until_discarded_after_inactivity = max<i64>(0, remaining.to_seconds());
+            }
+        }
+        process_tabs.ensure(top_level_child_id).append(move(tab));
         view.traversable().for_each_in_subtree([&](auto const& navigable) {
             if (navigable.has_remote_host() && navigable.replicated_state().has_value()) {
                 auto child_id = navigable.remote_host().client().child_id();

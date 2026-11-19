@@ -1205,10 +1205,10 @@ bool BrowserWindow::close_tab(int index, SessionStore::KeepForReopening keep_for
 // Closing the tab's view closes its pages, and so lets the processes that hosted them exit if they host nothing else.
 void BrowserWindow::discard_tab(Tab& tab)
 {
-    // NB: The Hub decides which tabs to discard. The user may have selected or pinned the tab while the request
-    //     was on its way, which the Hub learns of soon after, and a tab that a session can't restore can't be
-    //     discarded. A tab that reviews a report would lose the report, which only its page holds, and one with an
-    //     unfinished edit of its address would lose the edit.
+    // NB: The Hub decides which tabs to discard. The user may have selected or pinned the tab while the request was on
+    //     its way, or its window may have stopped keeping its history, which the Hub learns of soon after. A tab that
+    //     reviews a report would lose the report, which only its page holds, and one with an unfinished edit of its
+    //     address would lose the edit.
     auto index = tab_index(&tab);
     if (index < 0 || &tab == m_current_tab || tab.is_pinned() || tab.is_in_report_review() || tab.location_edit_with_parked_editing())
         return;

@@ -93,9 +93,27 @@ Optional<ViewImplementation&> ViewImplementation::tab_view()
     return find_view_by_id(*m_owner_view_id);
 }
 
+void ViewImplementation::set_owner_view(ViewImplementation& owner_view)
+{
+    VERIFY(!m_owner_view_id.has_value());
+    m_owner_view_id = owner_view.view_id();
+    ++owner_view.m_owned_view_count;
+    m_counts_as_owned_view = true;
+}
+
+void ViewImplementation::stop_counting_as_owned_view()
+{
+    if (!exchange(m_counts_as_owned_view, false))
+        return;
+    if (auto owner = find_view_by_id(*m_owner_view_id); owner.has_value())
+        --owner->m_owned_view_count;
+}
+
 void ViewImplementation::did_leave_owners_tab(Badge<PictureInPictureWindow>)
 {
     m_owner_document = nullptr;
+    // NB: A window that left its owner's tab is hidden until its page closes, so the user doesn't see it anymore.
+    stop_counting_as_owned_view();
 
     // Whether a process may capture audio depends on the tabs its pages are part of.
     traversable().for_each_hosting_page([](WebContentPage& page) {
@@ -129,6 +147,7 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
 
 ViewImplementation::~ViewImplementation()
 {
+    stop_counting_as_owned_view();
     Application::the().media_session_coordinator().remove_view(view_id());
     // The frontend may be torn down already, so clearing the ongoing navigation must not report a URL change to it, nor
     // cancelling the view's location requests or closing the view's page (which revokes its audio playback and capture)
@@ -622,60 +641,74 @@ static constexpr auto time_silent_before_discarding = AK::Duration::from_seconds
 
 bool ViewImplementation::may_be_discarded(DiscardReason reason, AK::Duration minimum_time_hidden, MonotonicTime now) const
 {
-    if (!supports_discarding() || m_discard_requested || !m_top_level_traversable)
+    if (m_discard_requested || !m_hidden_since.has_value() || now - *m_hidden_since < minimum_time_hidden)
         return false;
-    if (traversable().system_visibility_state() != Web::HTML::VisibilityState::Hidden || !m_hidden_since.has_value() || now - *m_hidden_since < minimum_time_hidden)
-        return false;
+    return discard_blockers(reason, now) == DiscardBlockers::None;
+}
+
+DiscardBlockers ViewImplementation::discard_blockers(DiscardReason reason, MonotonicTime now) const
+{
+    if (!supports_discarding() || !m_top_level_traversable)
+        return DiscardBlockers::NotATab;
+
+    auto blockers = DiscardBlockers::None;
+    // NB: The UI brings a discarded tab back from the session history it keeps for the tab, which it only keeps for the
+    //     tabs that report it.
+    if (!m_reports_session_history)
+        blockers |= DiscardBlockers::NotRestorable;
+    if (traversable().system_visibility_state() != Web::HTML::VisibilityState::Hidden)
+        blockers |= DiscardBlockers::Visible;
 
     // The user keeps a pinned tab at hand, and sees a window's current tab whenever they look at the window.
-    if (m_pinned || m_current_tab_of_window)
-        return false;
+    if (m_pinned)
+        blockers |= DiscardBlockers::Pinned;
+    if (m_current_tab_of_window)
+        blockers |= DiscardBlockers::CurrentTabOfWindow;
 
     // NB: A tab that hasn't loaded yet has nothing to restore, and a crashed tab shows the user what happened to it.
-    if (is_loading() || m_crash_state.has_value())
-        return false;
+    if (is_loading())
+        blockers |= DiscardBlockers::Loading;
+    if (m_crash_state.has_value())
+        blockers |= DiscardBlockers::Crashed;
 
     // A tab that the user hears, or that listens or follows them, would stop doing it.
-    if (is_playing_audio() || is_capturing_audio() || m_tab_indicators.is_active(TabIndicator::UsingLocation))
-        return false;
-    if (m_stopped_playing_audio_time.has_value() && now - *m_stopped_playing_audio_time < time_silent_before_discarding)
-        return false;
+    if (is_playing_audio())
+        blockers |= DiscardBlockers::PlayingAudio;
+    else if (m_stopped_playing_audio_time.has_value() && now - *m_stopped_playing_audio_time < time_silent_before_discarding)
+        blockers |= DiscardBlockers::RecentlyPlayedAudio;
+    if (is_capturing_audio())
+        blockers |= DiscardBlockers::CapturingAudio;
+    if (m_tab_indicators.is_active(TabIndicator::UsingLocation))
+        blockers |= DiscardBlockers::UsingLocation;
 
     // A view that this one owns, such as a Picture-in-Picture window, shows the user what the tab does.
-    auto owns_a_view = false;
-    for_each_view([&](ViewImplementation& view) {
-        if (view.owner_view_id() != m_view_id)
-            return IterationDecision::Continue;
-        owns_a_view = true;
-        return IterationDecision::Break;
-    });
-    if (owns_a_view || m_devtools_connected)
-        return false;
+    if (m_owned_view_count > 0)
+        blockers |= DiscardBlockers::OwnsAView;
+    if (m_devtools_connected)
+        blockers |= DiscardBlockers::DevToolsConnected;
 
     // NB: A page asks to be checked before it's unloaded when it holds something the user would lose, such as what they
     //     typed into a form.
     if (needs_beforeunload_check())
-        return false;
+        blockers |= DiscardBlockers::AsksBeforeUnloading;
 
     if (reason == DiscardReason::Inactivity) {
         // A tab that changes what it shows in the tab strip, such as the count of unread messages in its title, does
         // work for the user in the background. So does one that may show them notifications.
         if (m_changed_title_or_favicon_while_hidden)
-            return false;
+            blockers |= DiscardBlockers::ChangedTitleOrFaviconWhileHidden;
         if (auto origin = permission_origin(); !origin.is_opaque()) {
             if (session().permission_manager->effective_state(Web::Permissions::PermissionName::Notifications, origin) == Web::Permissions::EffectiveState::Granted)
-                return false;
+                blockers |= DiscardBlockers::MayShowNotifications;
         } else {
             // NB: A file: page's grant goes away with the page, so it would not even come back with the tab.
-            auto may_show_notifications = false;
             traversable().for_each_hosting_page([&](WebContentPage& page) {
-                may_show_notifications |= page.hosts_a_local_file_document_that_may_use(Web::Permissions::PermissionName::Notifications);
+                if (page.hosts_a_local_file_document_that_may_use(Web::Permissions::PermissionName::Notifications))
+                    blockers |= DiscardBlockers::MayShowNotifications;
             });
-            if (may_show_notifications)
-                return false;
         }
     }
-    return true;
+    return blockers;
 }
 
 // The user should find the tab as they left it, so the processes hosting it first save where the user was in each of

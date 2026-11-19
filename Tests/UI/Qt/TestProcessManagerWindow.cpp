@@ -61,9 +61,9 @@ TEST_CASE(palette_changes_do_not_reenter_style_updates)
 
     auto* processes = window.findChild<QTreeWidget*>();
     EXPECT(processes);
-    EXPECT_EQ(processes->columnCount(), 4);
+    EXPECT_EQ(processes->columnCount(), 5);
     EXPECT(processes->headerItem()->textAlignment(0) & Qt::AlignLeft);
-    for (int column = 1; column < 4; ++column)
+    for (int column = 1; column < 5; ++column)
         EXPECT(processes->headerItem()->textAlignment(column) & Qt::AlignRight);
 }
 
