@@ -104,6 +104,8 @@ public:
     BufferedRanges buffered_time_ranges() const;
     // This is never more than one range, and that range may start and end at the same time.
     Optional<TimeRanges::Range> seekable_time_ranges() const;
+    // The range a live stream's player says can be sought to, besides the buffered ranges.
+    void set_live_seekable_range(Optional<TimeRanges::Range>);
     // Whether the playback state can only change through further input, such as more data or a seek.
     bool playback_state_is_settled() const { return m_playback_state_is_settled; }
     // Called after data is added, so that the playback state is known to be unsettled before the addition is reported

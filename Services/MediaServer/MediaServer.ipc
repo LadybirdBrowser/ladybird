@@ -6,6 +6,7 @@
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/MediaSupport.h>
 #include <LibMedia/SeekMode.h>
+#include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoSinkHandle.h>
 
@@ -39,6 +40,7 @@ endpoint MediaServer
     set_playback_rate(u64 session_id, float rate) =|
     set_audio_group(u64 session_id, Audio::PlaybackGroupId audio_group) =|
     set_duration(u64 session_id, AK::Duration duration) =|
+    set_live_seekable_range(u64 session_id, Optional<Media::TimeRanges::Range> range) =|
     set_audio_track_enabled(u64 session_id, u64 seek_request_id, Media::Track track, bool enabled, bool resume_ended_playback) =|
     reserve_video_sink(u64 session_id, u64 seek_request_id, Media::Track track, Media::VideoSinkHandle handle, bool resume_ended_playback) =|
     disable_video_sink(u64 session_id, u64 seek_request_id, Media::VideoSinkHandle handle) =|
