@@ -17,6 +17,7 @@ use crate::bytecode::Operand;
 use crate::bytecode::test_support::*;
 use crate::code::CompiledCode;
 use crate::code::ExitKind;
+use crate::code::Site;
 use crate::code::ValueLocation;
 use crate::compile_for;
 use crate::snapshot::FunctionFrameFields;
@@ -937,7 +938,7 @@ impl Machine {
                 .iter()
                 .map(|executable| executable.cell.0)
                 .collect();
-            state.exits = compiled.sites.clone();
+            state.exits = compiled.sites();
             state.exits_taken.clear();
         }
         let code = crate::asm::executable_code::ExecutableCode::new(&compiled.code);
@@ -980,8 +981,12 @@ fn compile_program_with(
         .iter()
         .map(|index| program.offsets[*index])
         .collect::<Vec<_>>();
-    let compiled = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|pc| !never_ran_pcs.contains(&pc))
-        .unwrap_or_else(|failure| panic!("compilation failed: {failure:?}"));
+    let compiled = compile_for::<crate::asm::MacroAssembler>(
+        &snapshot,
+        &|pc| !never_ran_pcs.contains(&pc),
+        &mut crate::scratch::Scratch::new(),
+    )
+    .unwrap_or_else(|failure| panic!("compilation failed: {failure:?}"));
     (snapshot, compiled)
 }
 
@@ -1177,8 +1182,9 @@ mod execution {
             let (snapshot, compiled) = compile_program_with(program, test_layout(), never_ran, |snapshot| {
                 snapshot.options.osr_pc = Some(back_edge_pc(program));
             });
-            assert_eq!(compiled.osr_entries.len(), 1);
-            let (pc, offset) = compiled.osr_entries[0];
+            let osr_entries = compiled.artifact().osr_entries().collect::<Vec<_>>();
+            assert_eq!(osr_entries.len(), 1);
+            let (pc, offset) = osr_entries[0];
             assert_eq!(pc, program.offsets[back_edge]);
             // The interpreter ran Enter and five iterations of the loop.
             let mut machine = Machine::new(test_layout(), &[value::int32(10)]);
@@ -1230,8 +1236,9 @@ mod execution {
         let (snapshot, compiled) = compile_program_with(&program, test_layout(), &[], |snapshot| {
             snapshot.options.osr_pc = Some(back_edge_pc(&program));
         });
-        assert_eq!(compiled.osr_entries.len(), 1);
-        let (pc, offset) = compiled.osr_entries[0];
+        let osr_entries = compiled.artifact().osr_entries().collect::<Vec<_>>();
+        assert_eq!(osr_entries.len(), 1);
+        let (pc, offset) = osr_entries[0];
         assert_eq!(pc, program.offsets[7]);
         // The interpreter ran five iterations.
         let mut machine = Machine::new(test_layout(), &[value::int32(10)]);
@@ -1279,7 +1286,7 @@ mod execution {
         let (_, compiled) = compile_program_with(&program, test_layout(), &[], |snapshot| {
             snapshot.options.osr_pc = Some(back_edge_pc(&program));
         });
-        assert_eq!(compiled.osr_entries.len(), 1);
+        assert_eq!(compiled.artifact().osr_entries().len(), 1);
     }
 
     #[test]
@@ -1336,8 +1343,9 @@ mod execution {
             snapshot.options.osr_pc = Some(back_edge_pc(&program));
             snapshot.options.verify_ir = true;
         });
-        assert_eq!(compiled.osr_entries.len(), 1);
-        let (pc, offset) = compiled.osr_entries[0];
+        let osr_entries = compiled.artifact().osr_entries().collect::<Vec<_>>();
+        assert_eq!(osr_entries.len(), 1);
+        let (pc, offset) = osr_entries[0];
         assert_eq!(pc, program.offsets[8]);
         // The interpreter ran five iterations of the inner loop.
         let mut machine = Machine::new(test_layout(), &[value::int32(10)]);
@@ -1613,7 +1621,7 @@ mod execution {
             ]
         });
         let (_, compiled) = compile_program(&program, test_layout(), &[5]);
-        assert!(compiled.sites.iter().any(|site| {
+        assert!(compiled.sites().iter().any(|site| {
             site.frames[0]
                 .values
                 .iter()
@@ -2241,7 +2249,9 @@ fn jumps_skip_blocks_that_only_jump_on() {
     });
     let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
     snapshot.runtime = runtime();
-    let compiled = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let compiled =
+        compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
     let listing = crate::asm::disassembler::listing_with_data(
         crate::asm::Architecture::X86_64,
         &compiled.code,
@@ -2278,8 +2288,12 @@ fn prologues_check_the_stack_limit_before_they_move_the_stack_pointer() {
     let program = assemble(|_| vec![Instruction::Enter, Instruction::Return { value: a(0) }]);
     let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
     snapshot.runtime = runtime();
-    let x86_64 = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true).unwrap();
-    let aarch64 = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let x86_64 =
+        compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
+    let aarch64 =
+        compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
     for (architecture, compiled, is_branch, writes_stack) in [
         (
             crate::asm::Architecture::X86_64,
@@ -2357,7 +2371,12 @@ fn aarch64_code_disassembles() {
     let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
     snapshot.runtime = runtime();
     let never_ran = program.offsets[5];
-    let compiled = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|pc| pc != never_ran).unwrap();
+    let compiled = compile_for::<crate::asm::aarch64::MacroAssembler>(
+        &snapshot,
+        &|pc| pc != never_ran,
+        &mut crate::scratch::Scratch::new(),
+    )
+    .unwrap();
     let lines = crate::asm::disassembler::aarch64(&compiled.code[..compiled.data_offset as usize]);
     let text = lines.join("\n");
     // The prologue links the frame right after the stack limit check, slow paths and helpers are called through
@@ -2370,13 +2389,18 @@ fn aarch64_code_disassembles() {
     assert!(text.contains("blr"), "{text}");
     assert!(text.contains("ret"), "{text}");
     // NB: The slow paths of JumpLessThan and NewArray leave through sites.
-    let kinds = compiled.sites.iter().map(|site| site.kind).collect::<Vec<_>>();
+    let kinds = compiled.sites().iter().map(|site| site.kind).collect::<Vec<_>>();
     assert_eq!(
         kinds,
         [SiteKind::Exit(ExitKind::NoFeedback), SiteKind::Leave, SiteKind::Leave]
     );
 
-    let compiled = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|pc| pc != never_ran).unwrap();
+    let compiled = compile_for::<crate::asm::x86_64::MacroAssembler>(
+        &snapshot,
+        &|pc| pc != never_ran,
+        &mut crate::scratch::Scratch::new(),
+    )
+    .unwrap();
     let lines = crate::asm::disassembler::x86_64(&compiled.code[..compiled.data_offset as usize]);
     let check = lines
         .iter()
@@ -2386,8 +2410,18 @@ fn aarch64_code_disassembles() {
 
     // The dump names exits, slow paths and the shared tails on both architectures.
     snapshot.options.dump_asm = true;
-    let x86_64 = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|pc| pc != never_ran).unwrap();
-    let aarch64 = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|pc| pc != never_ran).unwrap();
+    let x86_64 = compile_for::<crate::asm::x86_64::MacroAssembler>(
+        &snapshot,
+        &|pc| pc != never_ran,
+        &mut crate::scratch::Scratch::new(),
+    )
+    .unwrap();
+    let aarch64 = compile_for::<crate::asm::aarch64::MacroAssembler>(
+        &snapshot,
+        &|pc| pc != never_ran,
+        &mut crate::scratch::Scratch::new(),
+    )
+    .unwrap();
     for dump in [x86_64.dump.unwrap(), aarch64.dump.unwrap()] {
         assert!(dump.contains("Exit NoFeedback [fs"), "{dump}");
         assert!(dump.contains("exit #0 (NoFeedback) of v"), "{dump}");
@@ -2437,8 +2471,12 @@ fn slow_paths_share_initialization_of_large_frames() {
         .collect();
     snapshot.executables[0].feedback.arith = vec![1 | 1 << 1 | 1 << 2 | 1 << 3];
     snapshot.options.dump_asm = true;
-    let aarch64 = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true).unwrap();
-    let x86_64 = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let aarch64 =
+        compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
+    let x86_64 =
+        compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
     for compiled in [aarch64, x86_64] {
         assert!(
             compiled.code.len() < 64 * 1024,
@@ -2498,7 +2536,9 @@ fn x86_64_shifts_find_their_amount_in_cl() {
     let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
     snapshot.runtime = runtime();
     snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::INT32; 2];
-    let compiled = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let compiled =
+        compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
     let text = crate::asm::disassembler::x86_64(&compiled.code[..compiled.data_offset as usize]).join("\n");
     // NB: The macro assembler shifts amounts in other registers in a scratch register, saving RCX in another.
     assert!(text.contains(", cl"), "{text}");
@@ -2512,7 +2552,8 @@ fn dumps_ir_and_code_on_request() {
     snapshot.runtime = runtime();
     snapshot.options.dump_ir = true;
     snapshot.options.dump_asm = true;
-    let compiled = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let compiled =
+        compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new()).unwrap();
     let dump = compiled.dump.unwrap();
     assert!(dump.contains("LoadSlot a0"), "{dump}");
     assert!(dump.contains("prologue:"), "{dump}");
@@ -2535,7 +2576,8 @@ fn missing_slow_paths_fail_compilation_cleanly() {
     });
     let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
     snapshot.runtime = runtime();
-    let failure = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true).unwrap_err();
+    let failure = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+        .unwrap_err();
     assert_eq!(
         failure,
         CompileFailure::MissingRuntimeHelper {
@@ -2624,7 +2666,7 @@ mod property_access {
         let taken = machine.state.borrow().exits_taken.clone();
         taken
             .iter()
-            .map(|index| match compiled.sites[*index as usize].kind {
+            .map(|index| match compiled.sites()[*index as usize].kind {
                 SiteKind::Exit(kind) => kind,
                 kind => panic!("{kind:?} is no exit"),
             })
@@ -2652,7 +2694,7 @@ mod property_access {
         let hit = Object::new(&shape, &[0, value::int32(5)]);
         let (result, _, compiled) = run_with_caches(&program, caches(), hit.value(), None);
         assert_eq!(result, returned(value::int32(15)));
-        assert_eq!(compiled.embedded_cells, [shape.id()]);
+        assert!(compiled.artifact().embedded_cells().eq([shape.id()]));
 
         let miss = Object::new(&other_shape, &[0, value::int32(5)]);
         let (result, machine, compiled) = run_with_caches(&program, caches(), miss.value(), None);
@@ -2714,7 +2756,7 @@ mod property_access {
 
         let (result, _, compiled) = run_with_caches(&program, vec![cache(vec![entry])], receiver.value(), None);
         assert_eq!(result, returned(value::int32(42)));
-        assert_eq!(compiled.embedded_cells.len(), 3);
+        assert_eq!(compiled.artifact().embedded_cells().len(), 3);
 
         // A changed dictionary generation means the shape changed in place.
         let changed_receiver_shape = Cell::new([8, 0, 0]);
@@ -3021,13 +3063,17 @@ fn aarch64_property_access_disassembles() {
         cache(vec![prototype_entry]),
         cache(vec![own(ChangeOwnProperty, 0x3000, 2)]),
     ];
-    let compiled = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let compiled =
+        compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
     let text = crate::asm::disassembler::aarch64(&compiled.code[..compiled.data_offset as usize]).join("\n");
     assert!(text.contains("ldrb"), "{text}");
     // Object check, shape switch and two loads; object, shape, chain and
     // holder load checks; object, shape and store checks.
-    assert_eq!(compiled.sites.len(), 11, "{text}");
-    let compiled = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    assert_eq!(compiled.sites().len(), 11, "{text}");
+    let compiled =
+        compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
     assert!(!crate::asm::disassembler::x86_64(&compiled.code[..compiled.data_offset as usize]).is_empty());
 }
 
@@ -3110,7 +3156,9 @@ mod inlining {
             });
         }
         configure(&mut snapshot);
-        let compiled = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true).unwrap();
+        let compiled =
+            compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+                .unwrap();
         let mut machine = Machine::new(test_layout(), &[callee_value(boxed(&function_object))]);
         prepare(&mut machine);
         let result = machine.run(&snapshot, &compiled);
@@ -3124,7 +3172,7 @@ mod inlining {
         // Compiled code published the callee's frame for its Exp, linked to
         // the caller like an interpreter inline call and uninitialized, and
         // popped it again.
-        assert!(!compiled.sites.iter().any(|site| site.kind == SiteKind::Publish));
+        assert!(!compiled.sites().iter().any(|site| site.kind == SiteKind::Publish));
         assert_eq!(machine.vm[0], machine.frame.as_ptr() as u64);
         assert_eq!(machine.vm[3], machine.interpreter_stack.as_ptr() as u64);
         let pushed = &machine.interpreter_stack;
@@ -3185,7 +3233,7 @@ mod inlining {
         assert!(machine.state.borrow().exits_taken.is_empty(), "leaves are no exits");
         assert!(
             compiled
-                .sites
+                .sites()
                 .iter()
                 .any(|site| site.kind == SiteKind::Leave && site.frames.len() > 1)
         );
@@ -3223,7 +3271,7 @@ mod inlining {
         );
         assert_eq!(result, returned(value::int32(25)));
         assert_eq!(machine.vm[3], machine.interpreter_stack.as_ptr() as u64);
-        assert!(!compiled.sites.iter().any(|site| site.kind == SiteKind::Publish));
+        assert!(!compiled.sites().iter().any(|site| site.kind == SiteKind::Publish));
 
         // The slow path of an Add of undefined runs in the callee's frame,
         // which compiled code publishes, and continues after popping it: 10
@@ -3236,7 +3284,7 @@ mod inlining {
         assert_eq!(machine.vm[0], machine.frame.as_ptr() as u64);
         assert_eq!(machine.vm[3], machine.interpreter_stack.as_ptr() as u64);
         // NB: Compiled code publishes the frames, not the runtime.
-        assert!(!compiled.sites.iter().any(|site| site.kind == SiteKind::Publish));
+        assert!(!compiled.sites().iter().any(|site| site.kind == SiteKind::Publish));
 
         // A slow path that does not continue leaves the interpreter in the
         // callee's frame.
@@ -3266,7 +3314,7 @@ mod inlining {
         assert_eq!(result.status, RESUME);
         let state = machine.state.borrow();
         assert_eq!(
-            compiled.sites[state.exits_taken[0] as usize].kind,
+            compiled.sites()[state.exits_taken[0] as usize].kind,
             SiteKind::Exit(ExitKind::BadCallTarget)
         );
         assert_eq!(state.exit_frames[0].len(), 1);
@@ -3417,7 +3465,7 @@ mod virtual_arguments {
             assert_eq!(result.status, RESUME);
             let state = machine.state.borrow();
             assert_eq!(
-                compiled.sites[state.exits_taken[0] as usize].kind,
+                compiled.sites()[state.exits_taken[0] as usize].kind,
                 SiteKind::Exit(ExitKind::ArgumentsIndex)
             );
             let (_, _, _, values) = &state.exit_frames[0][0];
@@ -3654,10 +3702,20 @@ mod direct_calls {
     fn direct_calls_store_constant_frame_fields_16_bytes_at_a_time() {
         let callee = Callee::new();
         let (snapshot, _) = compile_caller(callee.target(true, true));
-        let compiled = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+        let compiled = compile_for::<crate::asm::aarch64::MacroAssembler>(
+            &snapshot,
+            &|_| true,
+            &mut crate::scratch::Scratch::new(),
+        )
+        .unwrap();
         let text = crate::asm::disassembler::aarch64(&compiled.code[..compiled.data_offset as usize]).join("\n");
         assert!(text.contains("str q0, [x"), "{text}");
-        let compiled = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+        let compiled = compile_for::<crate::asm::x86_64::MacroAssembler>(
+            &snapshot,
+            &|_| true,
+            &mut crate::scratch::Scratch::new(),
+        )
+        .unwrap();
         let text = crate::asm::disassembler::x86_64(&compiled.code[..compiled.data_offset as usize]).join("\n");
         assert!(text.contains("movups xmmword ptr ["), "{text}");
     }
@@ -3672,7 +3730,13 @@ mod direct_calls {
             REALM,
             GLOBAL_THIS,
         ] {
-            assert!(compiled.embedded_cells.contains(&CellId(cell)), "{cell:#x}");
+            assert!(
+                compiled
+                    .artifact()
+                    .embedded_cells()
+                    .any(|embedded| embedded == CellId(cell)),
+                "{cell:#x}"
+            );
         }
     }
 
@@ -3862,7 +3926,12 @@ mod direct_calls {
                     allocation.local_end_offset = 16;
                     allocation.local_cell_size_offset = 24;
                 });
-                assert!(compiled.embedded_cells.contains(&CellId(0xcafe)));
+                assert!(
+                    compiled
+                        .artifact()
+                        .embedded_cells()
+                        .any(|embedded| embedded == CellId(0xcafe))
+                );
                 let mut machine = Machine::new(
                     caller_layout(),
                     &[callee.function_value(), value::int32(7), value::TRUE],
@@ -4614,7 +4683,9 @@ fn aarch64_direct_calls_disassemble() {
         direct_call: Some(target),
         ..CallFeedbackSnapshot::default()
     }];
-    let compiled = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let compiled =
+        compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
     let text = crate::asm::disassembler::aarch64(&compiled.code[..compiled.data_offset as usize]).join("\n");
     // The callee's entry, the runtime's finish helper, and the generic path.
     assert!(text.matches("blr").count() >= 3, "{text}");
@@ -4647,7 +4718,9 @@ fn aarch64_inlined_calls_disassemble() {
     });
     let mut snapshot = snapshot_with_callee(&caller, &callee, function(true, false));
     snapshot.runtime = runtime();
-    let compiled = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let compiled =
+        compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
     let text = crate::asm::disassembler::aarch64(&compiled.code[..compiled.data_offset as usize]).join("\n");
     // The slow path, the exit stub and the leave stub are the only calls:
     // the callee's frame is published and popped inline.

@@ -343,9 +343,9 @@ pub fn tier_up_check(vm: &Vm, encoded_pc: u64) -> i64 {
 fn should_install(vm: &Vm, result: &CompileResult) -> bool {
     result.as_ref().is_ok_and(|compiled| {
         compiled
-            .dependencies
-            .iter()
-            .all(|dependency| super::dependencies::holds(vm, dependency))
+            .artifact()
+            .dependencies()
+            .all(|dependency| super::dependencies::holds(vm, &dependency))
     }) && !vm.debugging_enabled()
 }
 
@@ -357,9 +357,9 @@ fn install(
     snapshot: SnapshotExecutables,
     defer_gc: &DeferGc<'_>,
 ) {
-    let embedded_cells = compiled
-        .embedded_cells
-        .iter()
+    let artifact = compiled.artifact();
+    let embedded_cells = artifact
+        .embedded_cells()
         .map(|cell| {
             // SAFETY: The snapshot kept every cell it captured alive, and the code embeds only those.
             unsafe { Gc::from_non_null(NonNull::new(cell.0 as *mut CellHeader).expect("embedded cells are not null")) }
@@ -369,18 +369,23 @@ fn install(
     let mut code = JitCode::new(
         memory,
         compiled.entry_offset,
-        &compiled.osr_entries,
-        compiled.osr_loop_back_edges,
-        compiled.sites,
+        &artifact.osr_entries().collect::<Vec<_>>(),
+        artifact.osr_loop_back_edges().iter().collect(),
+        compiled.sites(),
         embedded_cells,
         snapshot,
         defer_gc,
     );
-    code.set_invalidation(id, compiled.invalidation_patches);
+    let invalidation_patches = artifact
+        .invalidation_patches()
+        .map(|patch| (patch.offset, patch.bytes().to_vec()))
+        .collect();
+    code.set_invalidation(id, invalidation_patches);
     code.set_frame_offsets(compiled.site_index_frame_offset, compiled.register_dump_frame_offset);
-    code.set_osr_outer_loop_back_edges(compiled.osr_outer_loop_back_edges);
-    code.set_uncaught_handlers(compiled.uncaught_handlers);
-    vm.jit.dependents.register(vm, executable, id, &compiled.dependencies);
+    code.set_osr_outer_loop_back_edges(artifact.osr_outer_loop_back_edges().iter().collect());
+    code.set_uncaught_handlers(artifact.uncaught_handlers().iter().collect());
+    let dependencies = artifact.dependencies().collect::<Vec<_>>();
+    vm.jit.dependents.register(vm, executable, id, &dependencies);
     // NB: A callee's tier-up check may install the code while its caller still runs in the interpreter, possibly
     //     past the loop the code has an on-stack replacement entry at.
     vm.for_each_live_execution_context(|frame| {
@@ -478,7 +483,7 @@ fn compile(
     } = capture_snapshot(vm, executable, function, realm, osr_pc, &defer_gc);
     if sync {
         // NB: Nothing collects garbage while compiling on this thread, so the snapshot's cells stay alive.
-        let result = libjs_jit::compile(&snapshot);
+        let result = super::compile_queue::compile(&snapshot);
         let memory = should_install(vm, &result).then(|| {
             let code = &result.as_ref().expect("the compile succeeded").code;
             let name = super::describe_executable(&executable);
