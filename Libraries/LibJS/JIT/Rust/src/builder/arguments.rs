@@ -56,6 +56,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
 use crate::snapshot::Intrinsic;
+use ak::ZoneVec;
 
 /// Whether an instruction with `opcode` may write a binding of the function's
 /// environment (where a mapped arguments object's parameters live), or create
@@ -147,7 +148,7 @@ pub(super) fn uses_virtual_arguments(graph: &Graph) -> bool {
     })
 }
 
-impl GraphBuilder<'_, '_> {
+impl<'a> GraphBuilder<'a, '_> {
     /// Whether `node` is the virtual arguments object.
     pub(super) fn is_virtual_arguments(&self, node: NodeId) -> bool {
         self.graph
@@ -225,14 +226,15 @@ impl GraphBuilder<'_, '_> {
     /// The values the call of the inlined callee being built passed it, all
     /// of them, as arguments of a call it inlines, and their count; `None`
     /// outside inlined callees.
-    pub(super) fn inlined_call_arguments(&self) -> Option<(Vec<InlineValue>, u32)> {
+    pub(super) fn inlined_call_arguments(&self) -> Option<(ZoneVec<'a, InlineValue>, u32)> {
         let count = self.function.inline.as_ref()?.passed_argument_count;
-        let values = (0..count)
-            .map(|argument| {
+        let values = ZoneVec::from_iter_in(
+            (0..count).map(|argument| {
                 let node = self.inlined_call_argument(argument).expect("the call passed it");
                 InlineValue::Node(node)
-            })
-            .collect();
+            }),
+            self.work,
+        );
         Some((values, count))
     }
 
@@ -443,11 +445,15 @@ impl GraphBuilder<'_, '_> {
         let in_one_block = block.is_some()
             && block == self.function.cfg.block_for_pc(append.pc)
             && block == self.function.cfg.block_for_pc(call_pc);
-        let array_dies = self
-            .function
-            .layout
-            .tracked_index(array)
-            .is_some_and(|slot| !self.function.liveness.live_out(index + 2).contains(slot));
+        let array_dies = match self.function.layout.tracked_index(array) {
+            Some(slot) => {
+                let live = self.live_out(index + 2);
+                let dies = !live.contains(slot);
+                self.release_slot_set(live);
+                dies
+            }
+            None => false,
+        };
         if dst != array
             || self.function.is_virtual()
             || arguments != array

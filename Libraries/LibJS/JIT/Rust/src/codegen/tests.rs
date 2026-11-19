@@ -2005,13 +2005,17 @@ mod execution {
                     assert_eq!(machine.program_counter(), pc, "seed {seed}");
                     // Every slot the interpreter can still read must be right.
                     let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
-                    let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout).unwrap();
-                    let liveness = crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout, false);
+                    let work = crate::test_work();
+                    let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout, &work).unwrap();
+                    let liveness =
+                        crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout, false, &work);
                     let index = instructions
                         .iter()
                         .position(|instruction| instruction.pc == pc)
                         .unwrap();
-                    for slot in liveness.live_in(index).iter() {
+                    let mut live = crate::bitset::ZoneBitSet::new_in(0, &work);
+                    liveness.live_in(index, &mut live);
+                    for slot in live.iter() {
                         let operand = layout.operand_for_tracked_index(slot);
                         assert_eq!(
                             machine.slot(operand),
@@ -2174,14 +2178,17 @@ mod execution {
                     ) => {
                         assert_eq!(resumed_pc, *pc, "seed {seed}: resumed exit");
                         let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
-                        let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout).unwrap();
+                        let work = crate::test_work();
+                        let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout, &work).unwrap();
                         let liveness =
-                            crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout, false);
+                            crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout, false, &work);
                         let index = instructions
                             .iter()
                             .position(|instruction| instruction.pc == *pc)
                             .unwrap();
-                        for slot in liveness.live_in(index).iter() {
+                        let mut live = crate::bitset::ZoneBitSet::new_in(0, &work);
+                        liveness.live_in(index, &mut live);
+                        for slot in live.iter() {
                             let slot = layout.operand_for_tracked_index(slot).raw() as usize;
                             assert_eq!(resumed_slots[slot], slots[slot], "seed {seed}: slot {slot} at pc {pc}");
                         }
@@ -2203,13 +2210,17 @@ mod execution {
                     assert_eq!(result.status, RESUME, "seed {seed}");
                     assert_eq!(machine.program_counter(), pc, "seed {seed}");
                     let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
-                    let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout).unwrap();
-                    let liveness = crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout, false);
+                    let work = crate::test_work();
+                    let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout, &work).unwrap();
+                    let liveness =
+                        crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout, false, &work);
                     let index = instructions
                         .iter()
                         .position(|instruction| instruction.pc == pc)
                         .unwrap();
-                    for slot in liveness.live_in(index).iter() {
+                    let mut live = crate::bitset::ZoneBitSet::new_in(0, &work);
+                    liveness.live_in(index, &mut live);
+                    for slot in live.iter() {
                         let operand = layout.operand_for_tracked_index(slot);
                         assert_eq!(
                             machine.slot(operand),
