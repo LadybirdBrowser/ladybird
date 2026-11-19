@@ -188,6 +188,7 @@ private:
     HorizontalTabEndRoom horizontal_tab_end_room(int index) const;
     void schedule_tab_preview(int index);
     void show_tab_preview();
+    void show_tab_preview_popup(int index);
     void hide_tab_preview();
     void stop_following_previewed_tab_frames();
     QPoint tab_preview_position_for(int index, QSize const& popup_size) const;
