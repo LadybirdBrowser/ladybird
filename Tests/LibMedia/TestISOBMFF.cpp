@@ -801,6 +801,30 @@ TEST_CASE(seeks_by_pts_and_skips_seeks_that_do_not_improve_position)
     EXPECT_EQ(demuxer->select_fast_seek_target_for_track(track, target, Media::SeekMode::FastAfter), AK::Duration::from_seconds(6));
 }
 
+TEST_CASE(keeps_its_position_while_reading_the_targets_group_of_pictures)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(seek_test_file());
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    auto target = AK::Duration::from_seconds(2);
+
+    // The second sample is presented after the target, but the samples presented before it have yet to be read.
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 0);
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).presentation_timestamp(), AK::Duration::from_seconds(3));
+    EXPECT_EQ(MUST(demuxer->seek_to_most_recent_keyframe(track, target)), Media::DemuxerSeekResult::KeptCurrentPosition);
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 2);
+
+    // Reading the next keyframe leaves the target's group of pictures.
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 3);
+    EXPECT(MUST(demuxer->get_next_sample_for_track(track)).is_keyframe());
+    EXPECT_EQ(MUST(demuxer->seek_to_most_recent_keyframe(track, target)), Media::DemuxerSeekResult::MovedPosition);
+
+    // The keyframe a seek moves to counts as read before it is.
+    EXPECT_EQ(MUST(demuxer->seek_to_most_recent_keyframe(track, target)), Media::DemuxerSeekResult::KeptCurrentPosition);
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 0);
+}
+
 TEST_CASE(seeks_across_movie_and_fragment_samples_in_both_directions)
 {
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(seek_test_file(true));

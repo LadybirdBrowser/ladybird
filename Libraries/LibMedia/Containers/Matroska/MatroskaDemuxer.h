@@ -61,6 +61,7 @@ private:
         Optional<Block> block;
         SampleIterator::Frames frames;
         size_t frame_index { 0 };
+        Optional<AK::Duration> last_keyframe_timestamp;
         bool needs_codec_configuration { true };
 
         TrackStatus(SampleIterator&& iterator)
