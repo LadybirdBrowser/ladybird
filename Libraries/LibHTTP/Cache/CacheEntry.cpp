@@ -156,13 +156,10 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         m_path = path_for_cache_entry(m_disk_cache.cache_directory(), m_cache_key, m_vary_key);
         m_temporary_path = LexicalPath::join(m_disk_cache.cache_directory().string(), ByteString::formatted("{}.tmp", m_path->basename()));
 
-        auto freshness_lifetime = calculate_freshness_lifetime(status_code, response_headers, m_current_time_offset_for_testing);
-        auto current_age = calculate_age(response_headers, m_request_time, m_response_time, m_current_time_offset_for_testing);
-
-        // We can cache already-expired responses if there are other cache directives that allow us to revalidate the
-        // response on subsequent requests. For example, `Cache-Control: max-age=0, must-revalidate`.
-        if (cache_lifetime_status(request_headers, response_headers, freshness_lifetime, current_age) == CacheLifetimeStatus::Expired)
-            return Error::from_string_literal("Response has already expired");
+        // NB: We store a response that is already stale too, even one that has no validator to revalidate it with. A
+        //     request whose cache mode is "force-cache" or "only-if-cached" uses a stored response "not paying attention
+        //     to staleness". A history traversal is such a request, and it can only show the page as it was if the
+        //     response is here.
 
         (void)FileSystem::remove(m_temporary_path->string(), FileSystem::RecursionMode::Disallowed);
         auto unbuffered_file = TRY(Core::File::open(m_temporary_path->string(), Core::File::OpenMode::Write | Core::File::OpenMode::MustBeNew));
