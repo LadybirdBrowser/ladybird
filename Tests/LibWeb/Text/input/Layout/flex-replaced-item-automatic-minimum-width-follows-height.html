@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .row { display: flex; width: 100px; margin-bottom: 4px; font: 16px monospace; }
+</style>
+<!-- The automatic minimum width of an image in a flex container is its min-content width, which is its definite height
+     through its aspect ratio, whatever its own width. So it doesn't shrink to a smaller natural width. -->
+<div class="row"><img id="square" style="width: 60px; height: 60px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E"><div>xxxxxxxx</div></div>
+<div class="row"><img id="wide" style="width: 60px; height: 60px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='20'/%3E"><div>xxxxxxxx</div></div>
+<div class="row"><img id="tall" style="width: 60px; height: 60px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='30'/%3E"><div>xxxxxxxx</div></div>
+<div class="row"><img id="tall-max-width" style="width: 60px; height: 60px; max-width: 30px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='30'/%3E"><div>xxxxxxxx</div></div>
+<div class="row"><img id="tall-height-only" style="height: 60px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='30'/%3E"><div>xxxxxxxx</div></div>
+<div class="row"><img id="tall-aspect-ratio" style="width: 60px; height: 60px; aspect-ratio: 1 / 2" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='30'/%3E"><div>xxxxxxxx</div></div>
+<div class="row"><img id="tall-border-box" style="width: 60px; height: 60px; padding: 5px; box-sizing: border-box" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='30'/%3E"><div>xxxxxxxx</div></div>
+<div class="row"><img id="larger-natural-size" style="width: 60px; height: 60px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200'/%3E"><div>xxxxxxxx</div></div>
+<div class="row" style="flex-direction: column; height: 30px"><img id="column-wide" style="width: 60px; height: 60px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='20'/%3E"><div>x</div></div>
+<script>
+    function run(report) {
+        for (const element of document.querySelectorAll("img")) {
+            const rect = element.getBoundingClientRect();
+            report(`${element.id}: ${rect.width}x${rect.height}`);
+        }
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>

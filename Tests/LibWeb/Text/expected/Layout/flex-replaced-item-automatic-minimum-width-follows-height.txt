@@ -1,0 +1,9 @@
+square: 60x60
+wide: 60x60
+tall: 40x60
+tall-max-width: 30x60
+tall-height-only: 40x60
+tall-aspect-ratio: 30x60
+tall-border-box: 43.328125x60
+larger-natural-size: 60x60
+column-wide: 60x40
