@@ -37,7 +37,7 @@ namespace Ladybird {
 
 QString task_manager_site_label(URL::URL const&);
 
-// The Task Manager lists the browser's own processes, then each site with the processes that show it, then the spare
+// The Task Manager lists the browser's own processes, then each site and privacy group, then the spare
 // processes kept ready for the next site.
 class ProcessManagerWindow final : public QDialog {
 public:
