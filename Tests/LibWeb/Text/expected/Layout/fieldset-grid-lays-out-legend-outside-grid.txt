@@ -1,0 +1,13 @@
+grid: 300x40; legend "Size" 42.0625x20 at 0,0; span "A" 150x20 at 0,20; span "B" 150x20 at 150,20
+inline-grid: 300x40; legend "Size" 42.0625x20 at 0,0; span "A" 150x20 at 0,20; span "B" 150x20 at 150,20
+gap-and-padding: 310x80; legend "Size" 42.0625x20 at 5,0; span "A" 145x20 at 5,25; span "B" 145x20 at 160,25; span "C" 145x20 at 5,55
+areas: 300x40; legend "Size" 42.0625x20 at 0,0; span "A" 150x20 at 150,20; span "B" 150x20 at 0,20
+auto-flow-column: 300x40; legend "Size" 42.0625x20 at 0,0; span "A" 50x20 at 0,20; span "B" 50x20 at 50,20
+aligned-content: 300x100; legend "Size" 42.0625x20 at 0,0; span "A" 150x20 at 0,80; span "B" 150x20 at 150,80
+floated-legend: 300x40; legend "Size" 150x20 at 0,0; span "A" 150x20 at 150,0; span "B" 150x20 at 0,20
+legend-not-first: 300x40; span "A" 150x20 at 0,20; legend "Size" 42.0625x20 at 0,0; span "B" 150x20 at 150,20
+no-legend: 300x20; span "A" 150x20 at 0,0; span "B" 150x20 at 150,0
+grid-lanes-zero-fit-tolerance: 300x130; legend "Size" 42.0625x20 at 0,0; div "" 100x100 at 0,20; div "" 100x90 at 100,20; div "" 100x20 at 100,110
+grid-lanes-normal-fit-tolerance: 300x140; legend "Size" 42.0625x20 at 0,0; div "" 100x100 at 0,20; div "" 100x90 at 100,20; div "" 100x20 at 0,120
+template-changed: 300x40; legend "Size" 42.0625x20 at 0,0; span "A" 100x20 at 0,20; span "B" 200x20 at 100,20
+flex-direction-changed: 300x60; legend "Size" 42.0625x20 at 0,0; span "A" 300x20 at 0,20; span "B" 300x20 at 0,40

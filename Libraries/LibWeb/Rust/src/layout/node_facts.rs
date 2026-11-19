@@ -628,7 +628,8 @@ pub(crate) fn node_is_fieldset_content_wrapper(data: &NodeData, style: Option<Co
         && data.generated_for.get() == 0
         && style.is_some_and(|style| {
             let display = style.display();
-            display.is_block_outside() && (display.is_flow_root_inside() || display.is_flex_inside())
+            display.is_block_outside()
+                && (display.is_flow_root_inside() || display.is_flex_inside() || display.is_grid_inside())
         })
 }
 

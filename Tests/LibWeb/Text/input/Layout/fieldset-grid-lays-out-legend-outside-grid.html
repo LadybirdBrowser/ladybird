@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px/1 serif; }
+    fieldset { display: grid; grid-template-columns: 1fr 1fr; width: 300px; margin: 0 0 30px; padding: 0; border: none; }
+    legend { padding: 0; }
+</style>
+<!-- A grid fieldset lays out its rendered legend above the grid, and its anonymous fieldset content box is the grid
+     container, with the fieldset's grid template. -->
+<fieldset id="grid"><legend>Size</legend><span>A</span><span>B</span></fieldset>
+<fieldset id="inline-grid" style="display: inline-grid"><legend>Size</legend><span>A</span><span>B</span></fieldset>
+<fieldset id="gap-and-padding" style="gap: 10px; padding: 5px"><legend>Size</legend><span>A</span><span>B</span><span>C</span></fieldset>
+<fieldset id="areas" style="grid-template-areas: 'a b'"><legend>Size</legend><span style="grid-area: b">A</span><span style="grid-area: a">B</span></fieldset>
+<fieldset id="auto-flow-column" style="grid-template-columns: none; grid-template-rows: 20px; grid-auto-flow: column; grid-auto-columns: 50px"><legend>Size</legend><span>A</span><span>B</span></fieldset>
+<fieldset id="aligned-content" style="height: 100px; align-content: end"><legend>Size</legend><span>A</span><span>B</span></fieldset>
+<fieldset id="floated-legend"><legend style="float: left">Size</legend><span>A</span><span>B</span></fieldset>
+<fieldset id="legend-not-first"><span>A</span><legend>Size</legend><span>B</span></fieldset>
+<fieldset id="no-legend"><span>A</span><span>B</span></fieldset>
+<fieldset id="grid-lanes-zero-fit-tolerance" style="display: grid-lanes; grid-template-columns: 100px 100px; fit-tolerance: 0"><legend>Size</legend><div style="height: 100px"></div><div style="height: 90px"></div><div style="height: 20px"></div></fieldset>
+<fieldset id="grid-lanes-normal-fit-tolerance" style="display: grid-lanes; grid-template-columns: 100px 100px"><legend>Size</legend><div style="height: 100px"></div><div style="height: 90px"></div><div style="height: 20px"></div></fieldset>
+<fieldset id="template-changed"><legend>Size</legend><span>A</span><span>B</span></fieldset>
+<fieldset id="flex-direction-changed" style="display: flex"><legend>Size</legend><span>A</span><span>B</span></fieldset>
+<script>
+    function run(report) {
+        document.getElementById("template-changed").style.gridTemplateColumns = "1fr 2fr";
+        document.getElementById("flex-direction-changed").style.flexDirection = "column";
+        for (const fieldset of document.querySelectorAll("fieldset")) {
+            const origin = fieldset.getBoundingClientRect();
+            const children = [...fieldset.children].map(child => {
+                const rect = child.getBoundingClientRect();
+                return `${child.localName} "${child.textContent}" ${rect.width}x${rect.height} at ${rect.left - origin.left},${rect.top - origin.top}`;
+            });
+            report(`${fieldset.id}: ${origin.width}x${origin.height}; ${children.join("; ")}`);
+        }
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>
