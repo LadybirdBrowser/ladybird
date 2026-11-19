@@ -2723,13 +2723,26 @@ static void create_navigation_params_by_fetching(
     }
 
     // 8. Otherwise, if entry's document state's ever populated is true, then set request's history-navigation flag.
-    else if (document_state.ever_populated)
+    else if (document_state.ever_populated) {
         request->set_history_navigation(true);
 
-    // AD-HOC: While a document loads bypassing the HTTP cache, so do the documents of its child navigables.
-    if (request->cache_mode() == HTTP::CacheMode::Default) {
-        if (auto container_document = navigable->container_document(); container_document && container_document->is_loading_bypassing_cache())
-            request->set_cache_mode(HTTP::CacheMode::Reload);
+        // INTEROP: The specs don't define HTTP cache behavior for history traversals. But RFC 9111 says that a history
+        //          mechanism shows the representation as it was when it was retrieved, and that freshness doesn't apply
+        //          to it, and every major engine uses a stored response here without revalidating it. Use the
+        //          "force-cache" cache mode, with which Fetch "uses any response in the HTTP cache matching the
+        //          request, not paying attention to staleness. If there was no response, it creates a normal request
+        //          and updates the HTTP cache with the response."
+        //          https://httpwg.org/specs/rfc9111.html#history.lists
+        request->set_cache_mode(HTTP::CacheMode::ForceCache);
+    }
+
+    // AD-HOC: While a document loads bypassing the HTTP cache, or using it without revalidation, so do the documents
+    //         of its child navigables. Bypassing the cache wins over a history traversal of the child navigable too.
+    if (auto container_document = navigable->container_document()) {
+        auto container_cache_mode = container_document->cache_mode_while_loading();
+        if (request->cache_mode() == HTTP::CacheMode::Default
+            || (request->cache_mode() == HTTP::CacheMode::ForceCache && container_cache_mode == HTTP::CacheMode::Reload))
+            request->set_cache_mode(container_cache_mode);
     }
 
     // 9. If sourceSnapshotParams's has transient activation is true, then set request's user-activation to true.

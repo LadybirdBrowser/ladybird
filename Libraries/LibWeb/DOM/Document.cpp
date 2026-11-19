@@ -632,7 +632,15 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             || navigation_params.request->text_directive_user_activation();
         navigation_params.request->set_text_directive_user_activation(false);
         document->m_browsing_context_group_has_remote_contexts = navigation_params.request->browsing_context_group_has_multiple_contexts();
-        document->m_navigation_bypassed_cache = navigation_params.request->cache_mode() == HTTP::CacheMode::Reload;
+        if (auto cache_mode = navigation_params.request->cache_mode(); cache_mode == HTTP::CacheMode::Reload || cache_mode == HTTP::CacheMode::ForceCache)
+            document->m_navigation_cache_mode = cache_mode;
+    }
+
+    // AD-HOC: A document that is not fetched, such as the one of a srcdoc iframe, loads the way its container document
+    //         does. Its requests use the same cache mode while it loads.
+    if (!navigation_params.request) {
+        if (auto container_document = navigation_params.navigable->container_document())
+            document->m_navigation_cache_mode = container_document->cache_mode_while_loading();
     }
 
     // NOTE: Step 16 is treated as the else branch of step 15. Otherwise, redirectCount is undefined when the fetch
@@ -6592,6 +6600,10 @@ void Document::abort()
     //    then make document unsalvageable given document and "fetch".
     bool canceled_fetch = HTML::stop_body_delivery(m_ongoing_navigation_fetch);
     m_ongoing_navigation_fetch = Empty {};
+
+    // NB: An aborted document may never become completely loaded. Its load is over, so the requests it makes from now
+    //     on must not use the cache mode of its navigation anymore.
+    m_navigation_cache_mode = HTTP::CacheMode::Default;
 
     auto cancel_fetch = [&](GC::Ptr<Fetch::Infrastructure::FetchController> controller) {
         if (!controller || controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
