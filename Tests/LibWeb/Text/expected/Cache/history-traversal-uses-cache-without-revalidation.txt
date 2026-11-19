@@ -1,5 +1,24 @@
-loaded document with subresource
+Case: no-cache with a validator
+loaded document with subresource and revalidated subresource and srcdoc subresource
 loaded other document
-loaded document with subresource
+loaded document with subresource and revalidated subresource and srcdoc subresource
 Requests the server saw for the document: 1
 Requests the server saw for the subresource: 1
+Requests the server saw for the subresource fetched with Cache-Control: no-cache: 2
+Requests the server saw for the subresource of the srcdoc iframe: 1
+Case: no freshness information and no validator
+loaded document with subresource and revalidated subresource and srcdoc subresource
+loaded other document
+loaded document with subresource and revalidated subresource and srcdoc subresource
+Requests the server saw for the document: 1
+Requests the server saw for the subresource: 1
+Requests the server saw for the subresource fetched with Cache-Control: no-cache: 2
+Requests the server saw for the subresource of the srcdoc iframe: 1
+Case: max-age=0 without a validator
+loaded document with subresource and revalidated subresource and srcdoc subresource
+loaded other document
+loaded document with subresource and revalidated subresource and srcdoc subresource
+Requests the server saw for the document: 1
+Requests the server saw for the subresource: 1
+Requests the server saw for the subresource fetched with Cache-Control: no-cache: 2
+Requests the server saw for the subresource of the srcdoc iframe: 1
