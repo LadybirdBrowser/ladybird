@@ -331,11 +331,11 @@ impl Verifier<'_> {
             }
             // NB: Slow path calls, and calls that store their operands, read
             //     them from where they are.
-            let reads_input_anywhere = lowering.inputs[index] == InputConstraint::Anywhere;
+            let reads_input_anywhere = lowering.inputs.get(index) == InputConstraint::Anywhere;
             if !matches!(location, Location::Register(_)) && !reads_input_anywhere {
                 self.error(format!("{context}: input {index} is not in a register"));
             }
-            if let InputConstraint::Fixed(register) = self.registers.resolve(lowering.inputs[index], false)
+            if let InputConstraint::Fixed(register) = self.registers.resolve(lowering.inputs.get(index), false)
                 && *location != Location::Register(self.registers.fixed(register))
             {
                 self.error(format!("{context}: input {index} is not in its fixed register"));

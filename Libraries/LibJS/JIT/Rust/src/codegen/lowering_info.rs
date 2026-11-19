@@ -18,7 +18,6 @@ use super::slow_path_call;
 use crate::asm::Gpr;
 use crate::asm::PortableMacroAssembler;
 use crate::code::Repr;
-use crate::inline_vec::InlineVec;
 use crate::ir::BinaryOp;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
@@ -57,6 +56,88 @@ pub enum InputConstraint {
     ShiftAmount,
 }
 
+/// Where a node finds each of its inputs. It is a plain value, whatever the number of inputs: the first inputs each
+/// have their own constraint, and one rule gives the constraints of all the inputs after them.
+#[derive(Debug, Clone, Copy)]
+pub struct InputConstraints {
+    /// How many inputs the node has.
+    len: usize,
+    first: [InputConstraint; Self::FIRST_COUNT],
+    rest: RestConstraint,
+}
+
+/// Where a node finds its inputs after the first ones.
+#[derive(Debug, Clone, Copy)]
+enum RestConstraint {
+    /// Each of them as this says.
+    Each(InputConstraint),
+    /// Each of them in the argument register after that of the input before it.
+    NextArgument,
+}
+
+impl InputConstraints {
+    /// How many of the first inputs have their own constraint.
+    const FIRST_COUNT: usize = 4;
+
+    /// The constraints of `len` inputs that the node finds each as `constraint` says.
+    fn all(constraint: InputConstraint, len: usize) -> Self {
+        Self {
+            len,
+            first: [constraint; Self::FIRST_COUNT],
+            rest: RestConstraint::Each(constraint),
+        }
+    }
+
+    /// The constraints of `len` inputs that the node finds in the argument registers after the first one, in order.
+    fn arguments_after_the_first(len: usize) -> Self {
+        Self {
+            len,
+            first: core::array::from_fn(|index| InputConstraint::Fixed(FixedRegister::Argument(index as u8 + 1))),
+            rest: RestConstraint::NextArgument,
+        }
+    }
+
+    /// How many inputs have a constraint.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// Where the node finds input `index`.
+    pub fn get(&self, index: usize) -> InputConstraint {
+        assert!(index < self.len, "the node has an input {index}");
+        match (self.first.get(index), self.rest) {
+            (Some(constraint), _) => *constraint,
+            (None, RestConstraint::Each(constraint)) => constraint,
+            (None, RestConstraint::NextArgument) => InputConstraint::Fixed(FixedRegister::Argument(index as u8 + 1)),
+        }
+    }
+
+    /// Makes the node find input `index`, one of the first inputs, as `constraint` says.
+    fn set(&mut self, index: usize, constraint: InputConstraint) {
+        assert!(index < self.len, "the node has an input {index}");
+        self.first[index] = constraint;
+    }
+
+    /// Makes the node find each input from `index` on as `constraint` says.
+    fn set_from(&mut self, index: usize, constraint: InputConstraint) {
+        self.first[index..].fill(constraint);
+        self.rest = RestConstraint::Each(constraint);
+    }
+}
+
+// NB: Two values are equal if they say the same about each input.
+impl PartialEq for InputConstraints {
+    fn eq(&self, other: &Self) -> bool {
+        self.len == other.len && (0..self.len).all(|index| self.get(index) == other.get(index))
+    }
+}
+
+impl Eq for InputConstraints {}
+
 /// Where a node puts its value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputConstraint {
@@ -91,7 +172,7 @@ pub enum Record {
 /// What the lowering of a node needs (see `lowering_info()`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoweringInfo {
-    pub inputs: InlineVec<InputConstraint, 4>,
+    pub inputs: InputConstraints,
     pub output: OutputConstraint,
     /// How many general purpose registers it computes with, besides its inputs and its output, which no input is in.
     pub temps: u8,
@@ -114,7 +195,7 @@ impl LoweringInfo {
     /// Takes its inputs in registers, from which it computes its value (if it has one) in a register, and nothing else.
     fn plain(node: &Node) -> Self {
         Self {
-            inputs: InlineVec::from_elem(InputConstraint::Register, node.inputs.len()),
+            inputs: InputConstraints::all(InputConstraint::Register, node.inputs.len()),
             output: if node.repr.is_some() {
                 OutputConstraint::Register
             } else {
@@ -150,13 +231,13 @@ impl LoweringInfo {
 
     /// Takes input `index` as an immediate if it is a constant.
     fn with_immediate(mut self, index: usize) -> Self {
-        self.inputs[index] = InputConstraint::RegisterOrConstant;
+        self.inputs.set(index, InputConstraint::RegisterOrConstant);
         self
     }
 
     /// Shifts by input `index`, which it takes as an immediate if it is a constant.
     fn with_shift_amount(mut self, index: usize) -> Self {
-        self.inputs[index] = InputConstraint::ShiftAmount;
+        self.inputs.set(index, InputConstraint::ShiftAmount);
         self
     }
 
@@ -164,9 +245,7 @@ impl LoweringInfo {
     /// its value.
     fn runtime_call(node: &Node) -> Self {
         Self {
-            inputs: (0..node.inputs.len())
-                .map(|index| InputConstraint::Fixed(FixedRegister::Argument(index as u8 + 1)))
-                .collect(),
+            inputs: InputConstraints::arguments_after_the_first(node.inputs.len()),
             output: OutputConstraint::Return,
             ..Self::plain(node)
         }
@@ -191,7 +270,7 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
         Op::AppendEnvironmentBinding => plain.with_temps(1),
         Op::BoxCell | Op::SetLexicalEnvironment | Op::LeavePrivateEnvironment | Op::IsCallable => plain,
         Op::ToBoolean => LoweringInfo {
-            inputs: InlineVec::from_elem(InputConstraint::Fixed(FixedRegister::Argument(0)), 1),
+            inputs: InputConstraints::all(InputConstraint::Fixed(FixedRegister::Argument(0)), 1),
             output: OutputConstraint::Return,
             ..plain
         },
@@ -202,9 +281,7 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
         // NB: The inserted values go on the native stack.
         Op::CallArraySplice => {
             let mut info = LoweringInfo::runtime_call(node);
-            for input in info.inputs.iter_mut().skip(3) {
-                *input = InputConstraint::RegisterOrConstant;
-            }
+            info.inputs.set_from(3, InputConstraint::RegisterOrConstant);
             info
         }
         Op::Generic { opcode, .. } => LoweringInfo {
@@ -228,7 +305,7 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
             inlined_frame_bytes,
             ..
         } => LoweringInfo {
-            inputs: InlineVec::from_elem(InputConstraint::Anywhere, node.inputs.len()),
+            inputs: InputConstraints::all(InputConstraint::Anywhere, node.inputs.len()),
             output: OutputConstraint::Return,
             publishes_frames: *inlined_frame_bytes == 0,
             may_leave_from_inlined_callee: true,
@@ -332,7 +409,7 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
         // The environment and a value.
         Op::AllocateEnvironment { .. } => plain.with_temps(2).saving_registers(),
         Op::SliceArguments => LoweringInfo {
-            inputs: InlineVec::from_elem(InputConstraint::Fixed(FixedRegister::Argument(2)), 1),
+            inputs: InputConstraints::all(InputConstraint::Fixed(FixedRegister::Argument(2)), 1),
             output: OutputConstraint::Return,
             ..plain
         },
@@ -358,7 +435,7 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
         Op::Branch { condition, .. } => branch_lowering_info(*condition, plain),
         Op::BranchTruthy { .. } | Op::BranchOnPc { .. } | Op::ShapeSwitch { .. } => plain,
         Op::Return => LoweringInfo {
-            inputs: InlineVec::from_elem(InputConstraint::Fixed(FixedRegister::Return), 1),
+            inputs: InputConstraints::all(InputConstraint::Fixed(FixedRegister::Return), 1),
             ..plain
         },
         Op::Exit { .. } | Op::Unreachable => plain,
@@ -369,7 +446,7 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
             ..
         } => {
             let info = LoweringInfo {
-                inputs: InlineVec::from_elem(InputConstraint::Anywhere, node.inputs.len()),
+                inputs: InputConstraints::all(InputConstraint::Anywhere, node.inputs.len()),
                 // NB: A call's value is moved into the return register once its
                 //     slow path continued, where a conditional jump's control
                 //     word is.
@@ -432,7 +509,7 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
         Op::LoadPropertyIteratorKeyCount | Op::LoadPropertyIteratorKey => plain,
         // NB: The output comes from where the slow path call left it.
         Op::SlowPathOutput { .. } => LoweringInfo {
-            inputs: InlineVec::from_elem(InputConstraint::Anywhere, 1),
+            inputs: InputConstraints::all(InputConstraint::Anywhere, 1),
             ..plain
         },
         // The object, its shape and the cache entry.
