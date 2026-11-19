@@ -381,7 +381,14 @@ impl<'pass> FlexContainerConstants<'pass> {
             flex_start_is_low: !is_direction_reverse,
             ..AxisDirections::of(!main_axis_writing_mode_start_is_reverse, main_axis_line_left_is_low)
         };
-        let (justify_content, justify_content_safety) = ContentKeyword::justify_content_of(*style);
+        // AD-HOC: A legacy webkit box distributes its items along the main axis as its -webkit-box-pack says, and
+        //         ignores justify-content, matching other engines. The compat spec makes -webkit-box-pack an alias of
+        //         justify-content, which it notes isn't web-compatible: https://github.com/whatwg/compat/issues/87
+        let (justify_content, justify_content_safety) = if is_legacy_webkit_box {
+            (ContentKeyword::webkit_box_pack_of(*style), OverflowSafety::Unsafe)
+        } else {
+            ContentKeyword::justify_content_of(*style)
+        };
         let (align_content, align_content_safety) = ContentKeyword::align_content_of(*style);
         let (main_gap, cross_gap) = if is_row_layout {
             (style.column_gap(), style.row_gap())
@@ -553,6 +560,17 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn is_legacy_webkit_box(&self) -> bool {
         self.container.is_legacy_webkit_box
+    }
+
+    /// The order of an item styled `style` in order-modified document order.
+    fn order_of_item(&self, style: StyleValues<'_>) -> i32 {
+        // AD-HOC: The items of a legacy webkit box are ordered by their -webkit-box-ordinal-group, and order doesn't
+        //         apply, matching other engines.
+        if self.is_legacy_webkit_box() {
+            style.webkit_box_ordinal_group()
+        } else {
+            style.order()
+        }
     }
 
     fn used_flex_wrap(&self) -> u8 {
@@ -1116,12 +1134,14 @@ impl<'pass> FlexFormattingContext<'pass> {
         };
         let select_cross = |horizontal, vertical| select_main(vertical, horizontal);
         let preferred_cross_size = select_cross(style.width(), style.height());
-        // AD-HOC: Items in a legacy webkit box resolve their flex shrink factor from `-webkit-box-flex`, which we
-        //         implement as an alias for `flex-grow`; `flex-shrink` does not apply, matching other engines.
-        let flex_shrink_factor = if self.is_legacy_webkit_box() {
-            style.flex_grow()
+        // AD-HOC: Items in a legacy webkit box resolve both their flex grow and flex shrink factors from
+        //         -webkit-box-flex, and flex-grow and flex-shrink don't apply, matching other engines. A negative
+        //         -webkit-box-flex, which the property accepts, flexes the item as zero would.
+        let (flex_grow_factor, flex_shrink_factor) = if self.is_legacy_webkit_box() {
+            let factor = style.webkit_box_flex().max(0.0);
+            (factor, factor)
         } else {
-            style.flex_shrink()
+            (style.flex_grow(), style.flex_shrink())
         };
         // NB: A flex or grid button has no anonymous button content box, so it does not center its content.
         let uses_button_layout =
@@ -1144,7 +1164,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             max_cross_size: select_cross(style.max_width(), style.max_height()),
             flex_basis: style.flex_basis(),
             flex_basis_is_content: style.flex_basis_is_content(),
-            flex_grow_factor: style.flex_grow(),
+            flex_grow_factor,
             flex_shrink_factor,
             is_replaced_box: facts.is_replaced_box(),
             is_table_wrapper,
@@ -1184,7 +1204,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     );
                     let cells = self.keep_item_for_its_run(child);
                     let (inputs, alignment_facts) = self.resolve_item_inputs(child);
-                    let order = inputs.style.order();
+                    let order = self.order_of_item(inputs.style);
                     items_have_different_orders |= *order_of_first_item.get_or_insert(order) != order;
                     self.flex_items.push(FlexItem::new(child, alignment_facts, &inputs));
                     self.items_to_fork.take();
@@ -1201,11 +1221,8 @@ impl<'pass> FlexFormattingContext<'pass> {
         if items_have_different_orders {
             let mut order_modified_document_order: Vec<usize> = (first_new_item..self.flex_items.len()).collect();
             order_modified_document_order.sort_by(|&left, &right| {
-                self.flex_item_details[left]
-                    .inputs
-                    .style
-                    .order()
-                    .cmp(&self.flex_item_details[right].inputs.style.order())
+                self.order_of_item(self.flex_item_details[left].inputs.style)
+                    .cmp(&self.order_of_item(self.flex_item_details[right].inputs.style))
             });
             fn reorder<T: Copy>(items: &mut Vec<T>, first_new_item: usize, order: &[usize]) {
                 let reordered: Vec<T> = order.iter().map(|&index| items[index]).collect();
@@ -2246,11 +2263,13 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     /// The alignment along the cross axis of a box styled `style`.
     fn cross_alignment_of(&self, style: StyleValues<'_>) -> SelfAlignment {
-        // AD-HOC: The items of a legacy webkit box align as its -webkit-box-align, an alias of align-items, says,
-        //         whatever their align-self and its safety are, matching other engines.
+        // AD-HOC: The items of a legacy webkit box align as its -webkit-box-align says, whatever their align-self and
+        //         its safety are, and the box's align-items doesn't apply, matching other engines.
         let (keyword, safety) = if self.is_legacy_webkit_box() {
-            let (keyword, _) = SelfKeyword::align_items_of(*self.container.style);
-            (keyword, OverflowSafety::Unsafe)
+            (
+                SelfKeyword::webkit_box_align_of(*self.container.style),
+                OverflowSafety::Unsafe,
+            )
         } else {
             SelfKeyword::align_self_of(*style, Some(*self.container.style))
         };
@@ -3516,7 +3535,10 @@ impl<'pass> FlexFormattingContext<'pass> {
         // of a flex container are the content edges of the flex container.
 
         let style = self.style(node);
-        let is_last_baseline = if style.align_self() == align_self::AUTO {
+        // NB: The items of a legacy webkit box align as its -webkit-box-align says, which has no last baseline.
+        let is_last_baseline = if self.is_legacy_webkit_box() {
+            false
+        } else if style.align_self() == align_self::AUTO {
             self.container.style.align_items_is_last_baseline()
         } else {
             style.align_self_is_last_baseline()
@@ -3631,7 +3653,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     main_size_property: crate::css::serialize::serialize_computed_size(main_size_property),
                     main_min_size_property: crate::css::serialize::serialize_computed_size(main_min_size_property),
                     main_max_size_property: crate::css::serialize::serialize_computed_size(main_max_size_property),
-                    flex_grow: style.flex_grow(),
+                    flex_grow: self.flex_item_details[index].inputs.flex_grow_factor,
                     flex_shrink: self.flex_item_details[index].inputs.flex_shrink_factor,
                 });
             }

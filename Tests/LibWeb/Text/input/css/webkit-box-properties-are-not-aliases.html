@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    // -webkit-box-align, -webkit-box-pack, -webkit-box-flex and -webkit-box-ordinal-group are properties of their own, not
+    // aliases of align-items, justify-content, flex-grow and order.
+    function run(report) {
+        const target = document.getElementById("target");
+        const values = {
+            "-webkit-box-align": ["stretch", "start", "end", "center", "baseline", "flex-start", "normal"],
+            "-webkit-box-pack": ["start", "end", "center", "justify", "space-between", "flex-end", "normal"],
+            "-webkit-box-flex": ["0", "2.5", "-1", "1px", "calc(1 + 1)"],
+            "-webkit-box-ordinal-group": ["0", "1", "2", "-1", "1.5", "calc(2)"],
+        };
+        for (const [property, list] of Object.entries(values)) {
+            report(`${property}: initial ${getComputedStyle(target).getPropertyValue(property)}`);
+            for (const value of list) {
+                target.style.cssText = "";
+                target.style.setProperty(property, value);
+                const specified = target.style.getPropertyValue(property);
+                report(`  ${value}: ${specified === "" ? "invalid" : `specified ${specified}, computed ${getComputedStyle(target).getPropertyValue(property)}`}`);
+            }
+        }
+        const pairs = [["-webkit-box-align", "end", "align-items"], ["-webkit-box-pack", "end", "justify-content"],
+            ["-webkit-box-flex", "1", "flex-grow"], ["-webkit-box-ordinal-group", "2", "order"]];
+        for (const [property, value, modern] of pairs) {
+            target.style.cssText = `${property}: ${value}`;
+            report(`${property}: ${value} leaves ${modern} ${getComputedStyle(target).getPropertyValue(modern)}`);
+            target.style.cssText = `${modern}: 3`;
+            target.style.setProperty(modern, modern === "align-items" || modern === "justify-content" ? "center" : "3");
+            report(`${modern} leaves ${property} ${getComputedStyle(target).getPropertyValue(property)}, cssText "${target.style.cssText}"`);
+        }
+        document.body.style.setProperty("-webkit-box-align", "end");
+        report(`-webkit-box-align is not inherited: ${getComputedStyle(target).getPropertyValue("-webkit-box-align")}`);
+    }
+</script>
+<script>
+    if (window.test)
+        test(() => run(println));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>
