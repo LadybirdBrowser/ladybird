@@ -210,7 +210,7 @@ impl GraphBuilder<'_, '_> {
                 BranchCondition::BindingMutable {
                     index: coordinate.index,
                 },
-                vec![environment],
+                &[environment],
                 true,
             );
         }
@@ -225,7 +225,7 @@ impl GraphBuilder<'_, '_> {
         self.branch_to_slow_path(
             &mut slow_paths,
             BranchCondition::TaggedEquals { equal: false },
-            vec![binding, empty],
+            &[binding, empty],
             true,
         );
         self.emit(
@@ -275,7 +275,7 @@ impl GraphBuilder<'_, '_> {
         self.branch_to_slow_path(
             &mut slow_paths,
             BranchCondition::NextBindingOfShape { name, flags },
-            vec![environment],
+            &[environment],
             true,
         );
         self.emit(Op::AppendEnvironmentBinding, &[environment], None);

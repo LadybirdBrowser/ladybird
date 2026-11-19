@@ -117,7 +117,7 @@ fn values_live_across_calls_are_spilled_at_their_definition() {
                 callee: r(5),
                 this_value: r(5),
                 argument_count: 1,
-                arguments: vec![r(6)],
+                arguments: crate::test_zone().alloc_slice_copy(&[r(6)]),
             },
             Instruction::Mov { dst: a(0), src: r(7) },
             Instruction::Return { value: r(6) },
@@ -155,7 +155,7 @@ fn values_loaded_from_unwritten_slots_are_reloaded_from_the_frame() {
                 callee: r(5),
                 this_value: r(5),
                 argument_count: 1,
-                arguments: vec![r(6)],
+                arguments: crate::test_zone().alloc_slice_copy(&[r(6)]),
             },
             Instruction::Return { value: r(6) },
         ]
@@ -468,7 +468,7 @@ fn loops_leave_the_values_they_only_carry_through_in_their_stack_slots() {
                 callee: r(15),
                 this_value: r(15),
                 argument_count: 0,
-                arguments: vec![],
+                arguments: &[],
             },
             xor(5, r(10), r(5), r(6)),
             xor(6, r(12), r(7), r(11)),
@@ -762,7 +762,7 @@ fn the_verifier_finds_values_in_the_wrong_place() {
                 callee: r(5),
                 this_value: r(5),
                 argument_count: 1,
-                arguments: vec![r(6)],
+                arguments: crate::test_zone().alloc_slice_copy(&[r(6)]),
             },
             Instruction::Mov { dst: a(0), src: r(7) },
             Instruction::Return { value: r(6) },
@@ -800,7 +800,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
                 callee: r(5),
                 this_value: r(5),
                 argument_count: 1,
-                arguments: vec![r(6)],
+                arguments: crate::test_zone().alloc_slice_copy(&[r(6)]),
             },
             Instruction::Return { value: r(6) },
         ]
@@ -872,7 +872,7 @@ impl Random {
 /// An instruction whose jump targets are instruction indices.
 #[derive(Clone)]
 enum Item {
-    Plain(Instruction),
+    Plain(Instruction<'static>),
     Jump(usize),
     JumpIf(Operand, usize, usize),
     JumpTrue(Operand, usize),
@@ -925,7 +925,7 @@ impl ProgramGenerator {
         }
     }
 
-    fn plain(&mut self) -> Instruction {
+    fn plain(&mut self) -> Instruction<'static> {
         if self.property_access && self.random.chance(30) {
             let cache = u32::try_from(self.random.below(2)).unwrap();
             return if self.random.chance(60) {
@@ -981,7 +981,7 @@ impl ProgramGenerator {
                     callee: self.readable(),
                     this_value: self.readable(),
                     argument_count: u32::try_from(argument_count).unwrap(),
-                    arguments: (0..argument_count).map(|_| self.readable()).collect(),
+                    arguments: crate::test_zone().alloc_slice_from_iter((0..argument_count).map(|_| self.readable())),
                 }
             }
             _ => Instruction::ToBoolean {
@@ -1227,7 +1227,7 @@ fn float64_values_get_floating_point_registers() {
                 callee: r(6),
                 this_value: r(7),
                 argument_count: 1,
-                arguments: vec![a(0)],
+                arguments: crate::test_zone().alloc_slice_copy(&[a(0)]),
             },
             Instruction::Return { value: r(5) },
         ]

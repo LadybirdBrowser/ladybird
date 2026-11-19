@@ -32,6 +32,7 @@ use crate::snapshot::Intrinsic;
 use crate::snapshot::PropertyCacheEntrySnapshot;
 use crate::snapshot::PropertyCacheEntryType;
 use crate::snapshot::PropertyCacheKind;
+use ak::ZoneVec;
 
 /// Where the property an entry describes is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -231,11 +232,11 @@ impl CacheEntry {
     }
 }
 
-impl GraphBuilder<'_, '_> {
+impl<'a> GraphBuilder<'a, '_> {
     /// The entries of property lookup cache `cache` in their guard and
     /// action form, if the cache is monomorphic or polymorphic and compiled
     /// code can apply every entry.
-    pub(super) fn cache_entries(&self, cache: u32) -> Option<Vec<CacheEntry>> {
+    pub(super) fn cache_entries(&self, cache: u32) -> Option<&'a [CacheEntry]> {
         let cache = self.snapshot[self.function.executable.property_caches].get(cache as usize)?;
         if !matches!(
             cache.kind,
@@ -244,13 +245,18 @@ impl GraphBuilder<'_, '_> {
         {
             return None;
         }
-        self.snapshot[cache.entries].iter().map(CacheEntry::of).collect()
+        let snapshots = &self.snapshot[cache.entries];
+        let mut entries = ZoneVec::with_capacity_in(snapshots.len(), self.work);
+        for entry in snapshots {
+            entries.push(CacheEntry::of(entry)?);
+        }
+        Some(entries.into_slice())
     }
 
     /// The entry of megamorphic property lookup cache `cache` for the shape
     /// the code knows the object in `object` has (see
     /// `AbstractFrame::fresh_shapes`), if the snapshot captured one.
-    pub(super) fn megamorphic_entries_for_known_shape(&self, cache: u32, object: Operand) -> Option<Vec<CacheEntry>> {
+    pub(super) fn megamorphic_entries_for_known_shape(&self, cache: u32, object: Operand) -> Option<&'a [CacheEntry]> {
         let cache = self.snapshot[self.function.executable.property_caches].get(cache as usize)?;
         if cache.kind != PropertyCacheKind::Megamorphic {
             return None;
@@ -260,7 +266,7 @@ impl GraphBuilder<'_, '_> {
             .iter()
             .filter_map(CacheEntry::of)
             .find(|entry| entry.shape.shape == shape)?;
-        Some(vec![entry])
+        Some(self.work.alloc_slice_copy(&[entry]))
     }
 
     /// The shape guard of an entry. Records whether the shape was stable,
@@ -284,7 +290,8 @@ impl GraphBuilder<'_, '_> {
         apply: impl FnMut(&mut Self, &CacheEntry, NodeId) -> Option<NodeId>,
     ) -> Option<NodeId> {
         let entries = self.entries_for_known_shape(object, entries);
-        let shapes = entries.iter().map(|entry| self.shape_guard(entry)).collect::<Vec<_>>();
+        let work = self.work;
+        let shapes = ZoneVec::from_iter_in(entries.iter().map(|entry| self.shape_guard(entry)), work);
         // NB: The action applies the first entry's, so entries that differ in whether the property holds data do not
         //     share one.
         let one_action = entries.iter().all(|entry| {
@@ -341,7 +348,7 @@ impl GraphBuilder<'_, '_> {
         let source = self.block;
         let frame = self.frame.clone();
         let frame_state = self.eager_frame_state();
-        let mut cases = Vec::with_capacity(shapes.len());
+        let mut cases = ZoneVec::with_capacity_in(shapes.len(), self.work);
         for shape in shapes {
             let block = self.graph.add_block(Block {
                 predecessors: self.graph.list(&[source]),
@@ -363,13 +370,17 @@ impl GraphBuilder<'_, '_> {
         self.graph.nodes[switch.index()].frame_state = Some(frame_state);
 
         let join = self.graph.add_block(self.graph.new_block());
-        let mut results = Vec::new();
-        let mut case_shapes = Vec::with_capacity(cases.len());
+        let mut results = ZoneVec::with_capacity_in(cases.len(), self.work);
+        let mut every_case_has_a_result = true;
+        let mut case_shapes = ZoneVec::with_capacity_in(cases.len(), self.work);
         for (index, (shape, block)) in cases.iter().enumerate() {
             self.block = *block;
-            self.frame = frame.clone();
-            let refined = self.refine(BranchCondition::Shape(*shape), true, vec![object, address]);
-            results.push(case(self, index, refined));
+            self.frame.clone_from(&frame);
+            let refined = self.refine(BranchCondition::Shape(*shape), true, &[object, address]);
+            match case(self, index, refined) {
+                Some(result) => results.push(result),
+                None => every_case_has_a_result = false,
+            }
             debug_assert_eq!(self.frame.slots, frame.slots, "cases do not change frame slots");
             self.set_control(Op::Jump { target: join }, &[]);
             self.graph.blocks[join.index()].predecessors.push(self.block);
@@ -382,7 +393,9 @@ impl GraphBuilder<'_, '_> {
         self.frame
             .set_common_fresh_shapes(case_shapes.iter().map(|shapes| shapes.as_slice()));
 
-        let results = results.into_iter().collect::<Option<Vec<_>>>()?;
+        if !every_case_has_a_result {
+            return None;
+        }
         if results.iter().all(|result| *result == results[0]) {
             return Some(results[0]);
         }

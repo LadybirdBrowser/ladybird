@@ -374,18 +374,18 @@ fn run_compiled_program(
 }
 
 /// Runs `instruction`, which writes `r(5)` from the arguments, and returns `r(5)`.
-fn run_instruction(instruction: Instruction, arguments: &[u64]) -> u64 {
+fn run_instruction(instruction: Instruction<'static>, arguments: &[u64]) -> u64 {
     run_instruction_with(GENERAL_FEEDBACK, instruction, arguments).0
 }
 
 /// Like `run_instruction()`, with arithmetic feedback `feedback`, and
 /// `EXITED` if the code exits. Also returns the number of calls of the
 /// fake comparison and jump slow paths.
-fn run_instruction_with(feedback: u8, instruction: Instruction, arguments: &[u64]) -> (u64, u64) {
+fn run_instruction_with(feedback: u8, instruction: Instruction<'static>, arguments: &[u64]) -> (u64, u64) {
     compile_instruction(feedback, instruction)(arguments)
 }
 
-fn compile_instruction(feedback: u8, instruction: Instruction) -> impl Fn(&[u64]) -> (u64, u64) {
+fn compile_instruction(feedback: u8, instruction: Instruction<'static>) -> impl Fn(&[u64]) -> (u64, u64) {
     let program = assemble(|_| {
         vec![
             Instruction::Enter,
@@ -585,7 +585,7 @@ fn double_operation(op: BinaryOp, lhs: f64, rhs: f64) -> f64 {
     }
 }
 
-fn binary_instruction(op: BinaryOp, lhs: OperationInput, rhs: OperationInput) -> Instruction {
+fn binary_instruction(op: BinaryOp, lhs: OperationInput, rhs: OperationInput) -> Instruction<'static> {
     use OperationInput::Int32;
     use OperationInput::Operand as Slot;
     let dst = r(5);
@@ -959,7 +959,7 @@ fn slow_paths_preserve_registers() {
             Instruction::NewArray {
                 dst: l(0),
                 element_count: 3,
-                elements: vec![r(5), r(6), r(7)],
+                elements: crate::test_zone().alloc_slice_copy(&[r(5), r(6), r(7)]),
             },
             Instruction::Return { value: l(0) },
         ]
@@ -1037,7 +1037,12 @@ const COMPARISONS: [Comparison; 8] = [
     Comparison::LooselyInequals,
 ];
 
-fn compare_instruction(comparison: Comparison, dst: Operand, lhs: Operand, rhs: OperationInput) -> Instruction {
+fn compare_instruction(
+    comparison: Comparison,
+    dst: Operand,
+    lhs: Operand,
+    rhs: OperationInput,
+) -> Instruction<'static> {
     use OperationInput::Int32;
     use OperationInput::Operand as Slot;
     macro_rules! pick {
@@ -1081,7 +1086,7 @@ fn compare_jump_instruction(
     is_loop: bool,
     true_target: crate::bytecode::Label,
     false_target: crate::bytecode::Label,
-) -> Instruction {
+) -> Instruction<'static> {
     use OperationInput::Int32;
     use OperationInput::Operand as Slot;
     macro_rules! pick {
@@ -1185,11 +1190,12 @@ fn boolean(result: Option<bool>) -> u64 {
 #[test]
 fn comparisons() {
     let values = values();
-    let check = |(result, slow_calls), instruction: &Instruction, lhs: u64, rhs: u64, expected: Option<bool>| {
-        let context = format!("{instruction:?} {lhs:#x} {rhs:#x}: got {result:#x}");
-        assert_eq!(result, boolean(expected), "{context}");
-        assert_eq!(slow_calls, u64::from(expected.is_none()), "{context}");
-    };
+    let check =
+        |(result, slow_calls), instruction: &Instruction<'static>, lhs: u64, rhs: u64, expected: Option<bool>| {
+            let context = format!("{instruction:?} {lhs:#x} {rhs:#x}: got {result:#x}");
+            assert_eq!(result, boolean(expected), "{context}");
+            assert_eq!(slow_calls, u64::from(expected.is_none()), "{context}");
+        };
     for comparison in COMPARISONS {
         let instruction = compare_instruction(comparison, r(5), argument(0), OperationInput::Operand(argument(1)));
         let run = compile_instruction(GENERAL_FEEDBACK, instruction.clone());
@@ -2064,7 +2070,7 @@ impl FakeEnvironment {
 /// returns the result and how often a slow path that counts ran. `exits` are
 /// the exits taken before, by the index of their instruction.
 fn run_with_environments(
-    instructions: Vec<Instruction>,
+    instructions: Vec<Instruction<'static>>,
     arguments: &[u64],
     lexical: &FakeEnvironment,
     variable: &FakeEnvironment,
@@ -2374,7 +2380,7 @@ impl FakeGlobals {
         }
     }
 
-    fn run(&self, instruction: Instruction, arguments: &[u64]) -> (JitResult, u64) {
+    fn run(&self, instruction: Instruction<'static>, arguments: &[u64]) -> (JitResult, u64) {
         let program = assemble(|_| {
             vec![
                 Instruction::Enter,
@@ -2466,7 +2472,7 @@ fn global_variables() {
 /// environment has the serial number `serial`.
 fn run_with_global_cache(
     globals: &FakeGlobals,
-    instruction: &Instruction,
+    instruction: &Instruction<'static>,
     arguments: &[u64],
     cache: crate::snapshot::GlobalCacheSnapshot,
     serial: u64,
@@ -2787,7 +2793,7 @@ fn modulo_of_random_int32_values() {
 #[test]
 fn checks_take_the_slow_path_only_when_they_fail() {
     let object = u64::from(value::OBJECT_TAG) << 48 | 0x1000;
-    let slow_paths = |instruction: Instruction, argument: u64| {
+    let slow_paths = |instruction: Instruction<'static>, argument: u64| {
         let program = assemble(|_| {
             vec![
                 Instruction::Enter,
@@ -3079,13 +3085,13 @@ impl FakeCachedObject {
         self.entry[2] = new_shape.as_ptr() as u64;
     }
 
-    fn run(&self, instruction: Instruction, arguments: &[u64]) -> (JitResult, u64) {
+    fn run(&self, instruction: Instruction<'static>, arguments: &[u64]) -> (JitResult, u64) {
         self.run_with_prototypes(instruction, arguments, PrimitivePrototypes::default())
     }
 
     fn run_with_prototypes(
         &self,
-        instruction: Instruction,
+        instruction: Instruction<'static>,
         arguments: &[u64],
         prototypes: PrimitivePrototypes,
     ) -> (JitResult, u64) {
@@ -3641,14 +3647,14 @@ fn get_by_value_of_string_characters() {
 
 /// A `Call` of the callee in `argument(0)` with `this_value` and
 /// `arguments`, into `r(5)`.
-fn builtin_call(this_value: Operand, arguments: Vec<Operand>) -> Instruction {
+fn builtin_call(this_value: Operand, arguments: Vec<Operand>) -> Instruction<'static> {
     Instruction::Call {
         call_feedback: 0,
         dst: r(5),
         callee: argument(0),
         this_value,
         argument_count: arguments.len() as u32,
-        arguments,
+        arguments: crate::test_zone().alloc_slice_copy(&arguments),
     }
 }
 

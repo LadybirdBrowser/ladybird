@@ -18,6 +18,7 @@ use flapc::metadata::SlowPathAbi as FlapSlowPathAbi;
 use flapc::metadata::SlowPathLayout;
 use flapc::metadata::field_type_info;
 use flapc::metadata::user_fields;
+use flapc::rust_bytecode::ArrayFields;
 use flapc::rust_bytecode::InstructionSet;
 use flapc::rust_bytecode::count_field_name;
 use flapc::rust_bytecode::generate_encode_method;
@@ -127,12 +128,12 @@ fn generate_decode_function(mut w: impl Write, ops: &[InstructionDefinition]) ->
     )?;
     writeln!(
         w,
-        "/// The caller has checked that the whole instruction lies within `bytes`."
+        "/// The caller has checked that the whole instruction lies within `bytes`. The arrays of the instruction are in `zone`."
     )?;
     writeln!(w, "#[allow(unused_variables)]")?;
     writeln!(
         w,
-        "fn decode_fields(opcode: u8, bytes: &[u8], at: usize, length: usize) -> Result<Instruction, DecodeErrorKind> {{"
+        "fn decode_fields<'a>(opcode: u8, bytes: &[u8], at: usize, length: usize, zone: &'a Zone) -> Result<Instruction<'a>, DecodeErrorKind> {{"
     )?;
     writeln!(w, "    match opcode {{")?;
     for (i, op) in ops.iter().enumerate() {
@@ -159,7 +160,7 @@ fn generate_decode_function(mut w: impl Write, ops: &[InstructionDefinition]) ->
             );
             writeln!(
                 w,
-                "            let {name} = (0..{name}_len).map(|index| {element}).collect::<Vec<_>>();"
+                "            let {name} = &*zone.alloc_slice_from_iter((0..{name}_len).map(|index| {element}));"
             )?;
         }
         if fields.is_empty() {
@@ -227,7 +228,7 @@ fn generate_for_each_operand_method(mut w: impl Write, ops: &[InstructionDefinit
                 )?,
                 (true, false) => writeln!(
                     w,
-                    "                for operand in {name} {{ visitor(*operand, {role}); }}"
+                    "                for operand in *{name} {{ visitor(*operand, {role}); }}"
                 )?,
                 (false, true) => writeln!(
                     w,
@@ -276,7 +277,7 @@ fn generate_for_each_jump_target_method(mut w: impl Write, ops: &[InstructionDef
                     w,
                     "                for label in {name}.iter().flatten() {{ visitor(*label); }}"
                 )?,
-                (true, false) => writeln!(w, "                for label in {name} {{ visitor(*label); }}")?,
+                (true, false) => writeln!(w, "                for label in *{name} {{ visitor(*label); }}")?,
                 (false, true) => writeln!(w, "                if let Some(label) = {name} {{ visitor(*label); }}")?,
                 (false, false) => writeln!(w, "                visitor(*{name});")?,
             }
@@ -345,14 +346,16 @@ fn generate_slow_path_layout_function(
     Ok(())
 }
 
+/// The field types that name a feedback slot, with the field of `FeedbackSlots` for each.
+const FEEDBACK_KINDS: [(&str, &str); 5] = [
+    ("ArithFeedbackIndex", "arith"),
+    ("ValueFeedbackIndex", "value"),
+    ("CallFeedbackIndex", "call"),
+    ("KeyedFeedbackIndex", "keyed"),
+    ("ProfiledPropertyLookupCacheIndex", "cache_value"),
+];
+
 fn generate_feedback_slots_method(mut w: impl Write, ops: &[InstructionDefinition]) -> GeneratorResult {
-    const KINDS: [(&str, &str); 5] = [
-        ("ArithFeedbackIndex", "arith"),
-        ("ValueFeedbackIndex", "value"),
-        ("CallFeedbackIndex", "call"),
-        ("KeyedFeedbackIndex", "keyed"),
-        ("ProfiledPropertyLookupCacheIndex", "cache_value"),
-    ];
     writeln!(
         w,
         "    /// The interpreter feedback slots this instruction records into."
@@ -363,7 +366,7 @@ fn generate_feedback_slots_method(mut w: impl Write, ops: &[InstructionDefinitio
         let feedback_fields = user_fields(op)
             .into_iter()
             .filter_map(|field| {
-                KINDS
+                FEEDBACK_KINDS
                     .iter()
                     .find(|(ty, _)| *ty == field.ty)
                     .map(|(_, kind)| (rust_field_name(&field.name), *kind))
@@ -399,6 +402,53 @@ fn generate_feedback_slots_method(mut w: impl Write, ops: &[InstructionDefinitio
     Ok(())
 }
 
+fn generate_feedback_slots_from_bytes_function(mut w: impl Write, ops: &[InstructionDefinition]) -> GeneratorResult {
+    writeln!(
+        w,
+        "/// The interpreter feedback slots that the instruction with `opcode` at `bytes[at..]` records into. Reads"
+    )?;
+    writeln!(
+        w,
+        "/// nothing else of the instruction. The caller has checked that the whole instruction lies within `bytes`."
+    )?;
+    writeln!(
+        w,
+        "fn feedback_slots_from_bytes(opcode: u8, bytes: &[u8], at: usize) -> FeedbackSlots {{"
+    )?;
+    writeln!(w, "    match opcode {{")?;
+    for (i, op) in ops.iter().enumerate() {
+        // NB: Every kind of feedback slot index, cache indices too, takes two bytes in the bytecode.
+        let slots = user_fields(op)
+            .into_iter()
+            .filter_map(|field| {
+                FEEDBACK_KINDS.iter().find(|(ty, _)| *ty == field.ty).map(|(_, kind)| {
+                    assert_eq!(
+                        field_type_info(&field.ty).size,
+                        2,
+                        "feedback slot indices take two bytes"
+                    );
+                    let offset = op.layout.field_offsets[&field.name];
+                    format!("{kind}: Some({READER}read_u16(bytes, at + {offset}))")
+                })
+            })
+            .collect::<Vec<_>>();
+        if slots.is_empty() {
+            continue;
+        }
+        writeln!(
+            w,
+            "        {i} => FeedbackSlots {{ {}, ..FeedbackSlots::default() }}, // {}",
+            slots.join(", "),
+            op.name
+        )?;
+    }
+    writeln!(w, "        _ => FeedbackSlots::default(),")?;
+    writeln!(w, "    }}")?;
+    writeln!(w, "}}")?;
+    writeln!(w)?;
+    Ok(())
+}
+
 fn generate_rust_code(mut w: impl Write, ops: &[InstructionDefinition], record_form_only: bool) -> GeneratorResult {
     writeln!(w, "// @generated from Libraries/LibJS/Interpreter/interpreter.flap")?;
     writeln!(w, "// Do not edit manually.")?;
@@ -407,12 +457,13 @@ fn generate_rust_code(mut w: impl Write, ops: &[InstructionDefinition], record_f
     generate_opcode_enum(&mut w, ops)?;
     generate_num_opcodes_const(&mut w, ops)?;
     generate_opcode_impl(&mut w, ops)?;
-    generate_instruction_enum(&mut w, ops, "Debug, Clone, PartialEq, Eq")?;
+    generate_instruction_enum(&mut w, ops, "Debug, Clone, Copy, PartialEq, Eq", ArrayFields::Borrowed)?;
     generate_instruction_length_from_bytes(&mut w, ops, "DecodeErrorKind")?;
     generate_decode_function(&mut w, ops)?;
+    generate_feedback_slots_from_bytes_function(&mut w, ops)?;
     generate_slow_path_layout_function(&mut w, ops, record_form_only)?;
 
-    writeln!(w, "impl Instruction {{")?;
+    writeln!(w, "impl Instruction<'_> {{")?;
     generate_opcode_method(&mut w, ops)?;
     generate_is_terminator_method(&mut w, ops)?;
     generate_for_each_operand_method(&mut w, ops)?;
@@ -424,8 +475,8 @@ fn generate_rust_code(mut w: impl Write, ops: &[InstructionDefinition], record_f
     // The encoder lets the unit tests build instruction streams from typed instructions.
     writeln!(w, "#[cfg(test)]")?;
     writeln!(w, "#[allow(dead_code)]")?;
-    writeln!(w, "impl Instruction {{")?;
-    generate_encode_method(&mut w, ops, "encode_with", "TestEncoder<'_>")?;
+    writeln!(w, "impl Instruction<'_> {{")?;
+    generate_encode_method(&mut w, ops, "encode_with", "TestEncoder<'_>", ArrayFields::Borrowed)?;
     generate_encoded_size_method(&mut w, ops)?;
     writeln!(
         w,

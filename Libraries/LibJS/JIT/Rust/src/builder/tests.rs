@@ -84,11 +84,11 @@ fn executable_analyses_are_lazy_and_borrowed_by_independent_walks() {
     let snapshot = snapshot_for(&program, test_layout());
     let executable = &snapshot.executables[0];
     let cache = OnceCell::new();
-    let decoded = decoded_function(&snapshot, executable, &cache).unwrap();
+    let decoded = decoded_function(&snapshot, executable, &cache, crate::test_zone()).unwrap();
     assert!(decoded.analysis.get().is_none());
     assert!(std::ptr::eq(
         decoded,
-        decoded_function(&snapshot, executable, &cache).unwrap()
+        decoded_function(&snapshot, executable, &cache, crate::test_zone()).unwrap()
     ));
     let mut first = Function::new(&snapshot, 0, decoded, false, crate::test_zone()).unwrap();
     first.start_walk();
@@ -109,7 +109,7 @@ fn cached_liveness_keeps_legacy_arguments_only_for_inlined_walks() {
         let snapshot = snapshot_for(&program, layout);
         let executable = &snapshot.executables[0];
         let cache = OnceCell::new();
-        let decoded = decoded_function(&snapshot, executable, &cache).unwrap();
+        let decoded = decoded_function(&snapshot, executable, &cache, crate::test_zone()).unwrap();
         let first = Function::new(&snapshot, 0, decoded, first_mode, crate::test_zone()).unwrap();
         let second = Function::new(&snapshot, 0, decoded, !first_mode, crate::test_zone()).unwrap();
         let live_in = |function: &Function<'_>, slot| {
@@ -759,7 +759,7 @@ fn calls_write_back_their_arguments_and_values_survive_them() {
                 callee: r(5),
                 this_value: r(5),
                 argument_count: 1,
-                arguments: vec![r(6)],
+                arguments: crate::test_zone().alloc_slice_copy(&[r(6)]),
             },
             Instruction::Mov { dst: l(0), src: r(7) },
             Instruction::Return { value: r(6) },
@@ -865,7 +865,7 @@ pub(crate) mod property_access {
     use crate::snapshot::PropertyCacheKind;
     use crate::snapshot::PropertyCacheSnapshot;
 
-    pub(crate) fn get_by_id(dst: Operand, base: Operand, cache: u32) -> Instruction {
+    pub(crate) fn get_by_id(dst: Operand, base: Operand, cache: u32) -> Instruction<'static> {
         Instruction::GetById {
             dst,
             base,
@@ -874,7 +874,7 @@ pub(crate) mod property_access {
         }
     }
 
-    pub(crate) fn put_by_id(base: Operand, src: Operand, cache: u32) -> Instruction {
+    pub(crate) fn put_by_id(base: Operand, src: Operand, cache: u32) -> Instruction<'static> {
         Instruction::PutById {
             base,
             property: PropertyKeyTableIndex(0),
@@ -1355,7 +1355,7 @@ pub(crate) mod property_access {
         assert!(!text.contains("CheckValue"), "{text}");
     }
 
-    fn get_by_value(dst: Operand, base: Operand, property: Operand) -> Instruction {
+    fn get_by_value(dst: Operand, base: Operand, property: Operand) -> Instruction<'static> {
         Instruction::GetByValue {
             keyed_feedback: 0,
             dst,
@@ -1707,14 +1707,19 @@ pub(crate) mod inlining {
     pub(crate) const REALM: u64 = 0x8000;
     pub(crate) const ENVIRONMENT: u64 = 0x9000;
 
-    pub(crate) fn call(dst: Operand, callee: Operand, this_value: Operand, arguments: Vec<Operand>) -> Instruction {
+    pub(crate) fn call(
+        dst: Operand,
+        callee: Operand,
+        this_value: Operand,
+        arguments: Vec<Operand>,
+    ) -> Instruction<'static> {
         Instruction::Call {
             call_feedback: 0,
             dst,
             callee,
             this_value,
             argument_count: u32::try_from(arguments.len()).unwrap(),
-            arguments,
+            arguments: crate::test_zone().alloc_slice_copy(&arguments),
         }
     }
 
@@ -2592,7 +2597,7 @@ mod arguments {
     use crate::snapshot::Intrinsic;
     use crate::snapshot::PropertyCacheEntryType;
 
-    fn create_arguments(mapped: bool) -> Instruction {
+    fn create_arguments(mapped: bool) -> Instruction<'static> {
         Instruction::CreateArguments {
             dst: Some(l(0)),
             kind: u8::from(!mapped),
@@ -2685,7 +2690,7 @@ mod arguments {
                 Instruction::NewArray {
                     dst: r(7),
                     element_count: 0,
-                    elements: Vec::new(),
+                    elements: &[],
                 },
                 Instruction::ArrayAppend {
                     dst: r(7),

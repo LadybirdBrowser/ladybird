@@ -118,7 +118,7 @@ pub fn build_graph_with_feedback<'z>(
     has_run: &dyn Fn(u32) -> bool,
     zone: &'z Zone,
 ) -> Result<Graph<'z>, CompileFailure> {
-    let attempts = Attempts::new(snapshot, has_run, zone);
+    let mut attempts = Attempts::new(snapshot, has_run, zone);
     loop {
         if let Some(graph) = attempts.build(zone)? {
             return Ok(graph);
@@ -131,10 +131,9 @@ pub fn build_graph_with_feedback<'z>(
 /// of its slots recorded something. Instructions without feedback count as
 /// having run. Instructions that never ran are compiled as unconditional exits.
 pub fn has_run(snapshot: &Snapshot, executable: &ExecutableSnapshot, pc: u32) -> bool {
-    let Ok(instruction) = crate::bytecode::decode_instruction(&snapshot[executable.bytecode], pc) else {
+    let Some(slots) = crate::bytecode::feedback_slots_at(&snapshot[executable.bytecode], pc) else {
         return true;
     };
-    let slots = instruction.instruction.feedback_slots();
     let feedback = &executable.feedback;
     let slot = |slot: Option<u16>| slot.map(usize::from);
     let recorded = [
@@ -169,9 +168,9 @@ pub struct Attempts<'a> {
     has_run: &'a dyn Fn(u32) -> bool,
     /// Where the builds keep their own data. It holds the data of all the builds until its owner resets it.
     work: &'a Zone,
-    decoded: Vec<OnceCell<Result<DecodedFunction<'a>, CompileFailure>>>,
-    virtualized_inlined_arguments: Cell<bool>,
-    next: Cell<Attempt>,
+    decoded: &'a [OnceCell<Result<DecodedFunction<'a>, CompileFailure>>],
+    virtualized_inlined_arguments: &'a Cell<bool>,
+    next: Attempt,
 }
 
 /// What a build of `Attempts` does differently from the first one.
@@ -189,25 +188,25 @@ impl<'a> Attempts<'a> {
             snapshot,
             has_run,
             work,
-            decoded: (0..snapshot.executables.len()).map(|_| OnceCell::new()).collect(),
-            virtualized_inlined_arguments: Cell::new(false),
-            next: Cell::new(Attempt::First),
+            decoded: work.alloc_slice_from_iter((0..snapshot.executables.len()).map(|_| OnceCell::new())),
+            virtualized_inlined_arguments: work.alloc(Cell::new(false)),
+            next: Attempt::First,
         }
     }
 
     /// Builds a graph in `zone`. Returns `None` for a graph that cannot be used: the caller then drops what is in
-    /// `zone` and calls this again, which builds the graph in another way. The builds keep the decoded functions, whose
-    /// analyses are in the work zone, borrowed for as long as the attempts live.
-    pub fn build<'z>(&'a self, zone: &'z Zone) -> Result<Option<Graph<'z>>, CompileFailure> {
+    /// `zone` and calls this again, which builds the graph in another way. The builds keep the decoded functions and
+    /// their analyses, which are in the work zone.
+    pub fn build<'z>(&mut self, zone: &'z Zone) -> Result<Option<Graph<'z>>, CompileFailure> {
         let build = |virtualize_arguments, virtualize_inlined_arguments, build_osr_entries| {
             GraphBuilder::new(
                 self.snapshot,
                 self.has_run,
-                &self.decoded,
+                self.decoded,
                 ArgumentsVirtualization {
                     compiled_function: virtualize_arguments,
                     inlined_callees: virtualize_inlined_arguments,
-                    inlined_callees_virtualized: &self.virtualized_inlined_arguments,
+                    inlined_callees_virtualized: self.virtualized_inlined_arguments,
                 },
                 build_osr_entries,
                 zone,
@@ -215,11 +214,11 @@ impl<'a> Attempts<'a> {
             )?
             .build()
         };
-        let graph = match self.next.get() {
+        let graph = match self.next {
             Attempt::First => match build(true, true, true) {
                 Ok(graph) if !arguments::uses_virtual_arguments(&graph) => return Ok(Some(graph)),
                 _ if self.virtualized_inlined_arguments.get() => {
-                    self.next.set(Attempt::WithoutVirtualArgumentsOfInlinedCallees);
+                    self.next = Attempt::WithoutVirtualArgumentsOfInlinedCallees;
                     return Ok(None);
                 }
                 result => result?,
@@ -237,18 +236,18 @@ impl<'a> Attempts<'a> {
                     return Ok(Some(graph));
                 }
                 // Something needs the arguments object itself.
-                self.next.set(Attempt::WithoutVirtualArguments);
+                self.next = Attempt::WithoutVirtualArguments;
                 return Ok(None);
             }
             Attempt::WithoutVirtualArguments => return build(false, false, true).map(Some),
         };
         // NB: The graph uses the virtual arguments object of the compiled function.
-        self.next.set(if graph.osr_entries.is_empty() {
+        self.next = if graph.osr_entries.is_empty() {
             // Something needs the arguments object itself.
             Attempt::WithoutVirtualArguments
         } else {
             Attempt::WithoutOsrEntries
-        });
+        };
         Ok(None)
     }
 }
@@ -445,7 +444,7 @@ fn loop_phi_slots<'w>(cfg: &Cfg<'w>, work: &'w Zone) -> ZoneVec<'w, ZoneBitSet<'
 /// Analyses are lazy: an inlining budget rejection only needs decoding.
 /// The analyses are in the work zone of the builds.
 struct DecodedFunction<'w> {
-    instructions: Vec<DecodedInstruction>,
+    instructions: &'w [DecodedInstruction<'w>],
     analysis: OnceCell<Result<FunctionAnalysis<'w>, CompileFailure>>,
 }
 
@@ -453,11 +452,12 @@ fn decoded_function<'c, 'w>(
     snapshot: &Snapshot,
     executable: &ExecutableSnapshot,
     cache: &'c OnceCell<Result<DecodedFunction<'w>, CompileFailure>>,
+    work: &'w Zone,
 ) -> Result<&'c DecodedFunction<'w>, CompileFailure> {
     cache
         .get_or_init(|| {
             let bytecode = &snapshot[executable.bytecode];
-            let instructions = decode_all(bytecode).map_err(|error| CompileFailure::InvalidBytecode {
+            let instructions = decode_all(bytecode, work).map_err(|error| CompileFailure::InvalidBytecode {
                 pc: error.pc,
                 reason: "undecodable instruction",
             })?;
@@ -495,7 +495,7 @@ struct Function<'a> {
     index: u32,
     executable: &'a ExecutableSnapshot,
     layout: FrameLayout,
-    instructions: &'a [DecodedInstruction],
+    instructions: &'a [DecodedInstruction<'a>],
     cfg: &'a Cfg<'a>,
     liveness: &'a Liveness<'a>,
     // NB: The lists of the walk below have an element for each bytecode block once the walk starts (see
@@ -550,7 +550,7 @@ impl<'a> Function<'a> {
     ) -> Result<Self, CompileFailure> {
         let executable = &snapshot.executables[index as usize];
         let layout = executable.layout;
-        let instructions = decoded.instructions.as_slice();
+        let instructions = decoded.instructions;
         let analysis = decoded
             .analysis
             .get_or_init(|| {
@@ -678,6 +678,8 @@ struct GraphBuilder<'a, 'z> {
     free_slot_sets: ZoneVec<'a, ZoneBitSet<'a>>,
     /// Lists of slots that are free to use again (see `slot_list()`).
     free_slot_lists: ZoneVec<'a, ZoneVec<'a, usize>>,
+    /// Lists of nodes that are free to use again (see `node_list()`).
+    free_node_lists: ZoneVec<'a, ZoneVec<'a, NodeId>>,
 }
 
 impl<'a, 'z> GraphBuilder<'a, 'z> {
@@ -694,7 +696,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             pc: 0,
             reason: "no executable",
         })?;
-        let decoded_root = decoded_function(snapshot, executable, &decoded[0])?;
+        let decoded_root = decoded_function(snapshot, executable, &decoded[0], work)?;
         // NB: `GetArgument` reads the argument slots from frame memory, which only the slots it keeps live hold the
         //     current values of: a dead slot may be in sync with `undefined` instead (see `dead_frame()`). Inlined
         //     callees that read their passed arguments keep them live the same way (see `inlinable_callee()`).
@@ -736,6 +738,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             has_instance: ZoneMap::new_in(work),
             free_slot_sets: ZoneVec::new_in(work),
             free_slot_lists: ZoneVec::new_in(work),
+            free_node_lists: ZoneVec::new_in(work),
         })
     }
 
@@ -880,6 +883,18 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// Gives back a list that `slot_list()` gave, for it to use again.
     fn release_slot_list(&mut self, list: ZoneVec<'a, usize>) {
         self.free_slot_lists.push(list);
+    }
+
+    /// An empty list of nodes, to give back with `release_node_list()` once it is not needed any more.
+    fn node_list(&mut self) -> ZoneVec<'a, NodeId> {
+        let mut list = self.free_node_lists.pop().unwrap_or_else(|| ZoneVec::new_in(self.work));
+        list.clear();
+        list
+    }
+
+    /// Gives back a list that `node_list()` gave, for it to use again.
+    fn release_node_list(&mut self, list: ZoneVec<'a, NodeId>) {
+        self.free_node_lists.push(list);
     }
 
     /// Loads a slot from frame memory, which then holds its value in sync.
@@ -1680,7 +1695,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                     return Ok(None);
                 }
             }
-            Instruction::NewArray { dst, ref elements, .. } => {
+            Instruction::NewArray { dst, elements, .. } => {
                 if elements.is_empty()
                     && let Some(flow) = self.try_build_spread_forwarding(dst)?
                 {
@@ -1715,7 +1730,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                     return Ok(None);
                 }
             }
-            Instruction::NewPrimitiveArray { dst, ref elements, .. } => {
+            Instruction::NewPrimitiveArray { dst, elements, .. } => {
                 let elements = ZoneVec::from_iter_in(
                     elements.iter().copied().map(allocation::ArrayElement::Constant),
                     self.work,
@@ -2003,13 +2018,13 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     ) -> Result<Flow, CompileFailure> {
         let source = self.read(completion)?;
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
-        let object = self.branch_to_slow_path(&mut slow_paths, BranchCondition::Object, vec![source], true);
+        let object = self.branch_to_slow_path(&mut slow_paths, BranchCondition::Object, &[source], true);
         let object = self.cell_address(object);
-        let generator = self.branch_to_slow_path(&mut slow_paths, BranchCondition::GeneratorObject, vec![object], true);
+        let generator = self.branch_to_slow_path(&mut slow_paths, BranchCondition::GeneratorObject, &[object], true);
         let completion_type = self.emit(Op::LoadGeneratorCompletionType, &[generator], Some(Repr::Int32));
         let completion_type = self.emit(Op::BoxInt32, &[completion_type], Some(Repr::Tagged));
         let value = self.emit(Op::LoadGeneratorCompletionValue, &[generator], Some(Repr::Tagged));
-        let outputs = self.join_paths(slow_paths, vec![completion_type, value], |_, outputs| outputs);
+        let outputs = self.join_paths(slow_paths, &[completion_type, value], |_, _| {});
         self.write(type_dst, outputs[0])?;
         self.write(value_dst, outputs[1])?;
         Ok(Flow::Continue)
@@ -2126,8 +2141,8 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
 
         self.block = fallback;
         let boolean = self.emit(Op::ToBoolean, &[value], Some(Repr::Bool));
-        let (fallback_true_block, fallback_false_block) = self.branch_both_ways(BranchCondition::Bool, vec![boolean]);
-        self.join_blocks(vec![true_block, false_block, fallback_true_block, fallback_false_block]);
+        let (fallback_true_block, fallback_false_block) = self.branch_both_ways(BranchCondition::Bool, &[boolean]);
+        self.join_blocks(&[true_block, false_block, fallback_true_block, fallback_false_block]);
         self.frame = frame;
 
         let (truthy, falsy) = if negate {

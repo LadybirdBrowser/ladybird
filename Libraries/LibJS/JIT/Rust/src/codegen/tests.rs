@@ -181,16 +181,20 @@ fn continuation_after(vm: *mut u64, pc: u32) -> i64 {
     {
         return control;
     }
-    let next_pc = decode_instruction(&state.bytecodes[running_executable(vm)], pc)
+    let next_pc = decode_instruction(&state.bytecodes[running_executable(vm)], pc, crate::test_zone())
         .unwrap()
         .next_pc();
     (CONTINUATION_BIT | u64::from(next_pc)) as i64
 }
 
-fn decoded(vm: *mut u64, pc: u32) -> Instruction {
-    decode_instruction(&test_state(vm).borrow().bytecodes[running_executable(vm)], pc)
-        .unwrap()
-        .instruction
+fn decoded(vm: *mut u64, pc: u32) -> Instruction<'static> {
+    decode_instruction(
+        &test_state(vm).borrow().bytecodes[running_executable(vm)],
+        pc,
+        crate::test_zone(),
+    )
+    .unwrap()
+    .instruction
 }
 
 fn int(value: u64) -> i32 {
@@ -203,7 +207,7 @@ fn is_int32(bits: u64) -> bool {
 }
 
 #[cfg(target_arch = "x86_64")]
-fn add(dst: Operand, lhs: Operand, rhs: Operand) -> Instruction {
+fn add(dst: Operand, lhs: Operand, rhs: Operand) -> Instruction<'static> {
     Instruction::Add {
         arith_feedback: 0,
         dst,
@@ -247,9 +251,13 @@ struct SlowPathResult {
 
 #[jit_abi]
 extern "C" fn add_values(vm: *mut u64, pc: u32, dst: *mut u64, lhs: u64, rhs: u64, length: u32) -> i64 {
-    let next_pc = decode_instruction(&test_state(vm).borrow().bytecodes[running_executable(vm)], pc)
-        .unwrap()
-        .next_pc();
+    let next_pc = decode_instruction(
+        &test_state(vm).borrow().bytecodes[running_executable(vm)],
+        pc,
+        crate::test_zone(),
+    )
+    .unwrap()
+    .next_pc();
     assert_eq!(pc + length, next_pc);
     let control = continuation_after(vm, pc);
     if control >= 0 && control as u64 & CONTINUATION_BIT != 0 {
@@ -384,7 +392,7 @@ extern "C" fn jit_call(vm: *mut u64, frame: *mut u64, pc: u32) -> i64 {
     // SAFETY: The frame is the fake frame of the running test.
     unsafe {
         let mut result = int(*frame.add(slot(callee)));
-        for argument in arguments {
+        for &argument in arguments {
             result = result.wrapping_add(int(*frame.add(slot(argument))));
         }
         *frame.add(slot(dst)) = value::int32(result);
@@ -1004,7 +1012,7 @@ fn compile_program_with(
 /// The pc of the (only) loop back edge of `program`, which on-stack
 /// replacement entries start at.
 fn back_edge_pc(program: &Program) -> u32 {
-    crate::bytecode::decode_all(&program.bytes)
+    crate::bytecode::decode_all(&program.bytes, crate::test_zone())
         .unwrap()
         .iter()
         .find(|decoded| crate::builder::is_loop_back_edge(decoded.instruction.opcode()))
@@ -1046,7 +1054,7 @@ mod execution {
     use super::*;
 
     /// A generic instruction whose fake slow path adds.
-    fn add(dst: Operand, lhs: Operand, rhs: Operand) -> Instruction {
+    fn add(dst: Operand, lhs: Operand, rhs: Operand) -> Instruction<'static> {
         Instruction::Exp {
             arith_feedback: 0,
             dst,
@@ -1472,7 +1480,7 @@ mod execution {
                     callee: c(1),
                     this_value: c(0),
                     argument_count: 2,
-                    arguments: vec![r(6), c(1)],
+                    arguments: crate::test_zone().alloc_slice_copy(&[r(6), c(1)]),
                 },
                 // r6 still holds the argument, which lived across the call.
                 Instruction::IsCallable { dst: l(1), value: r(6) },
@@ -1495,7 +1503,7 @@ mod execution {
                 Instruction::NewArray {
                     dst: r(6),
                     element_count: 3,
-                    elements: vec![r(5), c(1), a(0)],
+                    elements: crate::test_zone().alloc_slice_copy(&[r(5), c(1), a(0)]),
                 },
                 Instruction::Return { value: r(6) },
             ]
@@ -1705,7 +1713,7 @@ mod execution {
             instructions.push(Instruction::NewArray {
                 dst: register(15),
                 element_count: 10,
-                elements: (5..15).map(register).collect(),
+                elements: crate::test_zone().alloc_slice_from_iter((5..15).map(register)),
             });
             instructions.push(Instruction::Return { value: register(15) });
             instructions
@@ -1830,7 +1838,7 @@ mod execution {
             if never_ran.contains(&pc) {
                 return ReferenceEnd::Exited { pc, slots };
             }
-            let decoded = decode_instruction(&program.bytes, pc).unwrap();
+            let decoded = decode_instruction(&program.bytes, pc, crate::test_zone()).unwrap();
             let read = |slots: &[u64], operand: Operand| slots[operand.raw() as usize];
             let mut next_pc = decoded.next_pc();
             match decoded.instruction {
@@ -1878,7 +1886,7 @@ mod execution {
                     dst, callee, arguments, ..
                 } => {
                     let mut result = int(read(&slots, callee));
-                    for argument in arguments {
+                    for &argument in arguments {
                         result = result.wrapping_add(int(read(&slots, argument)));
                     }
                     slots[dst.raw() as usize] = value::int32(result);
@@ -2004,7 +2012,7 @@ mod execution {
                     assert_eq!(result.status, RESUME, "seed {seed}");
                     assert_eq!(machine.program_counter(), pc, "seed {seed}");
                     // Every slot the interpreter can still read must be right.
-                    let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
+                    let instructions = crate::bytecode::decode_all(&program.bytes, crate::test_zone()).unwrap();
                     let work = crate::test_work();
                     let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout, &work).unwrap();
                     let liveness =
@@ -2177,7 +2185,7 @@ mod execution {
                         },
                     ) => {
                         assert_eq!(resumed_pc, *pc, "seed {seed}: resumed exit");
-                        let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
+                        let instructions = crate::bytecode::decode_all(&program.bytes, crate::test_zone()).unwrap();
                         let work = crate::test_work();
                         let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout, &work).unwrap();
                         let liveness =
@@ -2209,7 +2217,7 @@ mod execution {
                     exits += 1;
                     assert_eq!(result.status, RESUME, "seed {seed}");
                     assert_eq!(machine.program_counter(), pc, "seed {seed}");
-                    let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
+                    let instructions = crate::bytecode::decode_all(&program.bytes, crate::test_zone()).unwrap();
                     let work = crate::test_work();
                     let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout, &work).unwrap();
                     let liveness =
@@ -2388,7 +2396,7 @@ fn aarch64_code_disassembles() {
             Instruction::NewArray {
                 dst: r(6),
                 element_count: 2,
-                elements: vec![l(0), a(0)],
+                elements: crate::test_zone().alloc_slice_copy(&[l(0), a(0)]),
             },
             Instruction::JumpIf {
                 condition: r(6),
@@ -2898,7 +2906,7 @@ mod property_access {
                             callee: r(6),
                             this_value: a(0),
                             argument_count: 1,
-                            arguments: vec![c(1)],
+                            arguments: crate::test_zone().alloc_slice_copy(&[c(1)]),
                         },
                         Instruction::Return { value: r(5) },
                     ]
@@ -3017,7 +3025,7 @@ mod property_access {
                     callee: c(0),
                     this_value: c(0),
                     argument_count: 0,
-                    arguments: Vec::new(),
+                    arguments: &[],
                 },
                 get_by_id(r(7), a(0), 1),
                 add(l(0), r(5), r(7)),
@@ -3283,7 +3291,7 @@ mod inlining {
     }
 
     /// `function plus(v) { return v + other; }`, with `other` from `src`.
-    fn plus(src: Instruction) -> Program {
+    fn plus(src: Instruction<'static>) -> Program {
         assemble(|_| {
             vec![
                 Instruction::Enter,

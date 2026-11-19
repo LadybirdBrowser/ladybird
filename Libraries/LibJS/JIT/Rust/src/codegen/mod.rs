@@ -116,6 +116,7 @@ use crate::snapshot::ExecutableSnapshot;
 use crate::snapshot::RuntimeInfo;
 use crate::snapshot::Snapshot;
 use crate::snapshot::StressOptions;
+use ak::Zone;
 use sites::SiteSource;
 
 /// Bit 32 of a slow path control word marks a continuation in the same frame.
@@ -274,6 +275,8 @@ struct Codegen<'a, M: PortableMacroAssembler> {
     allocation: &'a Allocation,
     /// What the graph was built from. Executable 0 is the compiled function.
     snapshot: &'a Snapshot,
+    /// Where the instructions that code generation decodes again keep their arrays.
+    work: &'a Zone,
     /// The runtime info of the snapshot.
     runtime: &'a RuntimeInfo,
     stress: StressOptions,
@@ -425,6 +428,7 @@ pub fn generate<M: PortableMacroAssembler>(
     snapshot: &Snapshot,
     verify: bool,
     tables: &mut Tables,
+    work: &Zone,
 ) -> Result<GeneratedCode, CompileFailure> {
     let Tables {
         artifact,
@@ -450,6 +454,7 @@ pub fn generate<M: PortableMacroAssembler>(
         graph,
         allocation,
         snapshot,
+        work,
         runtime: &snapshot.runtime,
         stress: snapshot.options.stress,
         pinned,
@@ -703,7 +708,7 @@ fn checked_i32(value: u64) -> Result<i32, CompileFailure> {
     i32::try_from(value).map_err(|_| CompileFailure::CodeGeneration)
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<'a, M: PortableMacroAssembler> Codegen<'a, M> {
     // Frame layout.
 
     /// Sizes the locals area and decides which callee-saved registers to save.
@@ -936,9 +941,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     }
 
     /// The instruction at `pc` of executable `executable`.
-    fn decoded(&self, executable: u32, pc: u32) -> Result<DecodedInstruction, CompileFailure> {
+    fn decoded(&self, executable: u32, pc: u32) -> Result<DecodedInstruction<'a>, CompileFailure> {
         let bytecode = &self.snapshot[self.snapshot.executables[executable as usize].bytecode];
-        decode_instruction(bytecode, pc).map_err(|_| CompileFailure::InvalidBytecode {
+        decode_instruction(bytecode, pc, self.work).map_err(|_| CompileFailure::InvalidBytecode {
             pc,
             reason: "undecodable instruction",
         })
@@ -2748,9 +2753,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let is_js_call = slow_path_call(opcode) == Some(SlowPathCall::JitCall);
         if is_js_call {
             let decoded = self.decoded(executable, pc)?;
-            let call_operands = crate::builder::js_call_operands(&decoded.instruction);
-            operands = call_operands.inputs;
-            outputs = call_operands.outputs.into_iter().map(|(_, operand)| operand).collect();
+            let call_operands = crate::builder::js_call_operands(decoded.instruction);
+            call_operands.for_each_input(|operand| operands.push(operand));
+            call_operands.for_each_output(|_, operand| outputs.push(operand));
         } else {
             let layout = slow_path_layout(opcode);
             for field in layout.fields {

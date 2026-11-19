@@ -136,18 +136,19 @@ impl GraphBuilder<'_, '_> {
         if !self.can_allocate_array(elements.len()) {
             return Ok(false);
         }
-        let values = elements
-            .iter()
-            .map(|element| match element {
-                ArrayElement::Operand(operand) => self.read(*operand),
-                ArrayElement::Constant(bits) => Ok(self.constant(*bits)),
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut values = self.node_list();
+        for element in elements {
+            values.push(match element {
+                ArrayElement::Operand(operand) => self.read(*operand)?,
+                ArrayElement::Constant(bits) => self.constant(*bits),
+            });
+        }
         // NB: Holes (the empty value) make the elements holey, not packed.
         if values
             .iter()
             .any(|value| self.graph.constant_value(*value) == Some(crate::ir::value::EMPTY))
         {
+            self.release_node_list(values);
             return Ok(false);
         }
         let shape = self.runtime.array_allocation.shape;
@@ -156,9 +157,10 @@ impl GraphBuilder<'_, '_> {
         }
         let count = u32::try_from(values.len()).expect("array literals have fewer than 2^32 elements");
         let array = self.emit(Op::AllocateArray { count }, &[], Some(Repr::Tagged));
-        for (index, value) in (0u32..).zip(values) {
+        for (index, value) in (0u32..).zip(values.iter().copied()) {
             self.emit(Op::InitializeElement { index }, &[array, value], None);
         }
+        self.release_node_list(values);
         self.write(dst, array)?;
         Ok(true)
     }

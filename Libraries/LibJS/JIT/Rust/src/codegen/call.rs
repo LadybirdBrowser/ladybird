@@ -78,14 +78,14 @@ enum CallOperand {
 
 /// What `emit_js_call()` worked out about a `Call` instruction before
 /// emitting it.
-struct JsCall {
+struct JsCall<'a> {
     executable: u32,
     pc: u32,
     next_pc: u32,
     dst: Operand,
     callee: Operand,
     this_value: Operand,
-    arguments: Vec<Operand>,
+    arguments: &'a [Operand],
     /// The registers of the operands, for a `CallDirect` node that has them
     /// as inputs.
     input_registers: Option<Vec<Gpr>>,
@@ -189,7 +189,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             })
             .ok_or(invalid("direct call without a target"))?;
         if self.stores_operands(node) {
-            let operands = crate::builder::js_call_operands(&decoded.instruction).inputs;
+            let mut operands = Vec::new();
+            crate::builder::js_call_operands(decoded.instruction).for_each_input(|operand| operands.push(operand));
             self.emit_store_operand_inputs(node, &operands, registers)?;
         }
         self.emit_js_call(executable, pc, Some((target, node)), None)
@@ -268,29 +269,16 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let next_pc = decoded.next_pc();
         let (dst, callee, new_target, arguments) = match decoded.instruction {
             Instruction::CallConstruct {
-                dst,
-                callee,
-                ref arguments,
-                ..
-            } => (
-                dst,
-                CallOperand::Slot(callee),
-                CallOperand::Slot(callee),
-                arguments.clone(),
-            ),
+                dst, callee, arguments, ..
+            } => (dst, CallOperand::Slot(callee), CallOperand::Slot(callee), arguments),
             Instruction::SuperCall {
                 dst,
                 super_constructor,
-                ref arguments,
+                arguments,
                 ..
-            } => (
-                dst,
-                CallOperand::Slot(super_constructor),
-                CallOperand::Empty,
-                arguments.clone(),
-            ),
+            } => (dst, CallOperand::Slot(super_constructor), CallOperand::Empty, arguments),
             Instruction::SuperCallWithForwardedArguments { dst, .. } => {
-                (dst, CallOperand::Undefined, CallOperand::Empty, Vec::new())
+                (dst, CallOperand::Undefined, CallOperand::Empty, &[][..])
             }
             _ => {
                 return Err(CompileFailure::InvalidBytecode {
@@ -299,7 +287,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 });
             }
         };
-        let arguments = arguments.into_iter().map(CallOperand::Slot).collect::<Vec<_>>();
+        let arguments = arguments.iter().copied().map(CallOperand::Slot).collect::<Vec<_>>();
         self.emit_call_stub_call(
             callee,
             new_target,
@@ -1142,7 +1130,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let invalid = |reason| CompileFailure::InvalidBytecode { pc, reason };
         let snapshot = &self.snapshot.executables[executable as usize];
         let decoded = self.decoded(executable, pc)?;
-        let stored_operands = crate::builder::js_call_operands(&decoded.instruction).inputs;
+        let mut stored_operands = Vec::new();
+        crate::builder::js_call_operands(decoded.instruction).for_each_input(|operand| stored_operands.push(operand));
         let next_pc = decoded.next_pc();
         let Instruction::Call {
             call_feedback,

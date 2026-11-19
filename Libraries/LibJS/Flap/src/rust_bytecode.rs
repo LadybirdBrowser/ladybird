@@ -265,14 +265,31 @@ pub fn generate_instruction_length_from_bytes(
     Ok(())
 }
 
+/// How the `Instruction` enum holds the trailing array of an instruction.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ArrayFields {
+    /// A `Vec` of the elements: `Instruction` owns them.
+    Owned,
+    /// A slice of the elements: `Instruction<'a>` borrows them for `'a`.
+    Borrowed,
+}
+
 /// Emit the `Instruction` enum with one variant per opcode. `derives` is the
 /// list of traits to derive, for example `"Debug, Clone"`.
-pub fn generate_instruction_enum(mut w: impl Write, ops: &[InstructionDefinition], derives: &str) -> GeneratorResult {
+pub fn generate_instruction_enum(
+    mut w: impl Write,
+    ops: &[InstructionDefinition],
+    derives: &str,
+    arrays: ArrayFields,
+) -> GeneratorResult {
     writeln!(w, "/// A bytecode instruction with typed fields.")?;
     writeln!(w, "///")?;
     writeln!(w, "/// Each variant corresponds to one instruction definition.")?;
     writeln!(w, "#[derive({derives})]")?;
-    writeln!(w, "pub enum Instruction {{")?;
+    match arrays {
+        ArrayFields::Owned => writeln!(w, "pub enum Instruction {{")?,
+        ArrayFields::Borrowed => writeln!(w, "pub enum Instruction<'a> {{")?,
+    }
     for op in ops {
         let fields = user_fields(op);
         if fields.is_empty() {
@@ -282,8 +299,10 @@ pub fn generate_instruction_enum(mut w: impl Write, ops: &[InstructionDefinition
             for f in &fields {
                 let info = field_type_info(&f.ty);
                 let r_name = rust_field_name(&f.name);
-                if f.is_array {
+                if f.is_array && arrays == ArrayFields::Owned {
                     writeln!(w, "        {}: Vec<{}>,", r_name, info.rust_type)?;
+                } else if f.is_array {
+                    writeln!(w, "        {}: &'a [{}],", r_name, info.rust_type)?;
                 } else {
                     writeln!(w, "        {}: {},", r_name, info.rust_type)?;
                 }
@@ -439,6 +458,7 @@ pub fn generate_encode_method(
     ops: &[InstructionDefinition],
     method_name: &str,
     encoder_type: &str,
+    arrays: ArrayFields,
 ) -> GeneratorResult {
     writeln!(
         w,
@@ -461,6 +481,12 @@ pub fn generate_encode_method(
                 op.name,
                 bindings.join(", ")
             )?;
+            if arrays == ArrayFields::Borrowed {
+                for f in fields.iter().filter(|f| f.is_array) {
+                    let name = rust_field_name(&f.name);
+                    writeln!(w, "                let {name} = *{name};")?;
+                }
+            }
         }
 
         generate_encode_body(&mut w, op)?;

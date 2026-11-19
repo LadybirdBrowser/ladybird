@@ -7,6 +7,7 @@
 //! Snapshots of executables for compile jobs, captured on the main thread straight from the runtime's structures.
 //! A snapshot refers to cells only by address; the cells it captured are kept alive by whoever owns the job.
 
+use ak::Zone;
 use core::num::NonZeroU64;
 use libjs_abi::Builtin;
 use std::collections::HashMap;
@@ -1415,7 +1416,7 @@ impl SnapshotBuilder<'_> {
         let loads = &executable
             .jit_state()
             .captured_binding_accesses
-            .get_or_init(|| captured_binding_accesses(&executable))
+            .get_or_init(|| captured_binding_accesses(&executable, self.snapshot.scratch()))
             .loads;
         let exit_sites = executable.jit_exit_sites();
         let changed: Vec<EnvironmentCoordinate> = loads
@@ -1473,7 +1474,7 @@ fn mutable_bindings(
     let stores = &executable
         .jit_state()
         .captured_binding_accesses
-        .get_or_init(|| captured_binding_accesses(&executable))
+        .get_or_init(|| captured_binding_accesses(&executable, snapshot.scratch()))
         .stores;
     let bindings = snapshot.begin();
     for &coordinate in stores {
@@ -1498,8 +1499,8 @@ fn mutable_bindings(
 }
 
 /// The loads and stores of bindings of environments in `executable`, or none if its code may change its lexical
-/// environment, so that they are not the environments of its closure.
-fn captured_binding_accesses(executable: &Executable) -> CapturedBindingAccesses {
+/// environment, so that they are not the environments of its closure. `zone` holds nothing after this.
+fn captured_binding_accesses(executable: &Executable, zone: &mut Zone) -> CapturedBindingAccesses {
     let bytecode = executable.bytecode();
     let Ok(end) = u32::try_from(bytecode.len()) else {
         return CapturedBindingAccesses::default();
@@ -1507,35 +1508,41 @@ fn captured_binding_accesses(executable: &Executable) -> CapturedBindingAccesses
     let mut loads = Vec::new();
     let mut stores = Vec::new();
     let mut pc = 0;
-    // NB: This reads the instructions one at a time: a list of all of them would be a large block of the heap.
+    // NB: This reads the instructions one at a time: a list of all of them would be a large block of the heap. The
+    //     arrays of the instructions go in the zone, which drops each one when the next instruction is read. The
+    //     zone is one that captures share: a zone of its own would take memory from the system for each walk.
     while pc < end {
-        let Ok(decoded) = decode_instruction(bytecode, pc) else {
+        let next_pc = zone.scope(|zone| {
+            let decoded = decode_instruction(bytecode, pc, zone).ok()?;
+            let changes_environment = matches!(
+                decoded.instruction.opcode(),
+                OpCode::SetLexicalEnvironment
+                    | OpCode::CreateLexicalEnvironment
+                    | OpCode::CreateVariableEnvironment
+                    | OpCode::EnterObjectEnvironment
+                    | OpCode::NewClass
+                    | OpCode::CallDirectEval
+                    | OpCode::CallDirectEvalWithArgumentArray
+                    | OpCode::Debugger
+            );
+            if changes_environment {
+                return None;
+            }
+            match decoded.instruction {
+                Instruction::GetBinding { cache: coordinate, .. }
+                | Instruction::GetInitializedBinding { cache: coordinate, .. }
+                | Instruction::GetCalleeAndThisFromEnvironment { cache: coordinate, .. } => {
+                    loads.push((coordinate, decoded.pc));
+                }
+                Instruction::SetLexicalBinding { cache: coordinate, .. } => stores.push(coordinate),
+                _ => {}
+            }
+            Some(decoded.next_pc())
+        });
+        let Some(next_pc) = next_pc else {
             return CapturedBindingAccesses::default();
         };
-        pc = decoded.next_pc();
-        let changes_environment = matches!(
-            decoded.instruction.opcode(),
-            OpCode::SetLexicalEnvironment
-                | OpCode::CreateLexicalEnvironment
-                | OpCode::CreateVariableEnvironment
-                | OpCode::EnterObjectEnvironment
-                | OpCode::NewClass
-                | OpCode::CallDirectEval
-                | OpCode::CallDirectEvalWithArgumentArray
-                | OpCode::Debugger
-        );
-        if changes_environment {
-            return CapturedBindingAccesses::default();
-        }
-        match decoded.instruction {
-            Instruction::GetBinding { cache: coordinate, .. }
-            | Instruction::GetInitializedBinding { cache: coordinate, .. }
-            | Instruction::GetCalleeAndThisFromEnvironment { cache: coordinate, .. } => {
-                loads.push((coordinate, decoded.pc));
-            }
-            Instruction::SetLexicalBinding { cache: coordinate, .. } => stores.push(coordinate),
-            _ => {}
-        }
+        pc = next_pc;
     }
     CapturedBindingAccesses {
         loads: loads.into_boxed_slice(),
