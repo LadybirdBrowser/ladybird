@@ -82,7 +82,7 @@ case "${ID}" in
             pulseaudio \
             python3 \
             python3-venv \
-            qt6-base-private-dev \
+            qt6-base-dev \
             qt6-positioning-dev \
             qt6-tools-dev-tools \
             tar \
@@ -129,7 +129,7 @@ case "${ID}" in
             pulseaudio \
             pulseaudio-libs-devel \
             python3 \
-            qt6-qtbase-private-devel \
+            qt6-qtbase-devel \
             qt6-qtpositioning-devel \
             qt6-qttools-devel \
             qt6-qtwayland-devel \
