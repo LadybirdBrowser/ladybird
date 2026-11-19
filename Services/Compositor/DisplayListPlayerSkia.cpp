@@ -467,9 +467,10 @@ sk_sp<SkColorFilter> force_dark_image_color_filter()
     // be an exit-time destructor. The filter takes no uniforms, so one instance serves every draw.
     static auto* filter = [] {
         auto result = SkRuntimeEffect::MakeForColorFilter(SkString(R"(
-            const float LIGHTNESS_LIFT = 1.20;
+            const float LIGHTNESS_LIFT = 1.2264;
             const float GRAY_BRIGHTNESS_THRESHOLD = 32.0 / 255.0;
-            const float GRAY_ADJUSTED_BRIGHTNESS = 18.0 / 255.0;
+            const float GRAY_BAND_FLOOR = 18.0 / 255.0;
+            const float3 DARK_SURFACE = float3(28.0, 28.0, 30.0) / 255.0;
 
             float3 to_linear(float3 c) {
                 return mix(c / 12.92, pow((c + 0.055) / 1.055, float3(2.4)), step(float3(0.04045), c));
@@ -516,8 +517,8 @@ sk_sp<SkColorFilter> force_dark_image_color_filter()
                 // Grays landing in the band snap to one dark surface color, rather than a spread of near-blacks.
                 float epsilon = 1.0 / 255.0;
                 if (abs(inverted.r - inverted.g) <= epsilon && abs(inverted.r - inverted.b) <= epsilon
-                    && inverted.r < GRAY_BRIGHTNESS_THRESHOLD && inverted.r > GRAY_ADJUSTED_BRIGHTNESS) {
-                    inverted = float3(GRAY_ADJUSTED_BRIGHTNESS);
+                    && inverted.r < GRAY_BRIGHTNESS_THRESHOLD && inverted.r > GRAY_BAND_FLOOR) {
+                    inverted = DARK_SURFACE;
                 }
 
                 return half4(half3(inverted) * color.a, color.a);

@@ -549,8 +549,9 @@ fn button_text(dark: bool) -> Rgba {
     if dark { rgb(255, 255, 255) } else { rgb(0, 0, 0) }
 }
 
+// NB: The dark canvas is the page color of Ladybird's own pages, --page in ladybird.css.
 fn canvas(dark: bool) -> Rgba {
-    if dark { rgb(18, 18, 18) } else { rgb(255, 255, 255) }
+    if dark { rgb(28, 28, 30) } else { rgb(255, 255, 255) }
 }
 
 fn canvas_text(dark: bool) -> Rgba {
@@ -2403,7 +2404,7 @@ mod tests {
         };
         assert_eq!(
             to_color(&keyword_value(keyword::CANVAS), &dark_input),
-            Some(rgb(18, 18, 18))
+            Some(rgb(28, 28, 30))
         );
         assert_eq!(to_color(&keyword_value(keyword::AUTO), &EMPTY_INPUT), None);
 
@@ -2494,7 +2495,7 @@ mod tests {
             system_color_for_keyword(keyword::CANVAS, false),
             Some(rgb(255, 255, 255))
         );
-        assert_eq!(system_color_for_keyword(keyword::CANVAS, true), Some(rgb(18, 18, 18)));
+        assert_eq!(system_color_for_keyword(keyword::CANVAS, true), Some(rgb(28, 28, 30)));
         assert_eq!(
             system_color_for_keyword(keyword::SCROLLBAR, false),
             Some(rgb(255, 255, 255))
