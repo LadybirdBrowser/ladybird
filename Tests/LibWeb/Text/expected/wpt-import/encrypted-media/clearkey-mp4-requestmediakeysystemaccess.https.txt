@@ -1,0 +1,64 @@
+Harness status: OK
+
+Found 58 tests
+
+42 Pass
+16 Fail
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Empty Key System should result in TypeError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Unsupported Key System should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Key System ending in "." should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Capitalized Key System should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Non-ASCII Key System should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Root domain of Key System alone should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Root domain of Key System, with dot should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Domain of Key System along should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Domain of Key System, with dot should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Child of Key System should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Prefixed Key System should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Missing characters in middle of Key System name should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Missing characters at end of Key System name should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Leading space in Key System name should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Extra space in Key System name should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Trailing space in Key System name should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Leading dot in Key System name should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Extra dot in middle of Key System name should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Trailing dot in Key System name should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Key System name is case sensitive should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Empty supportedConfigurations should result in TypeError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Empty configuration should result in NotSupportedError
+Pass	Basic supported configuration
+Pass	Partially supported configuration
+Pass	Supported audio codec
+Pass	ContentType formatting must be preserved
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Unsupported audio codec ('audio/webm; codecs=fake') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Unsupported video codec () should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Mismatched audio container/codec ('audio/webm; codecs=mp4a','audio/webm; codecs=mp4a.40.2') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Video codec specified in audio field ('video/mp4;codecs="avc1.4d401e"') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Audio codec specified in video field ('audio/mp4;codecs="mp4a.40.2"') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Mismatched audio container/codec ('audio/webm; codecs=avc1','audio/webm; codecs=avc1.42e01e') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Mismatched audio container/codec ('audio/mp4; codecs=vorbis') should result in NotSupportedError
+Pass	Two configurations, one supported
+Pass	Two configurations, both supported
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Audio MIME type does not support video codecs (webm) ('audio/webm; codecs="vp8,vorbis"','audio/webm; codecs="vorbis, vp8"','audio/webm; codecs="vp8"') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Audio MIME type does not support video codecs (mp4) ('audio/mp4; codecs="avc1"','audio/mp4; codecs="avc1.4d401e"') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Video MIME type does not support audio codecs (webm) ('video/webm; codecs="vp8,vorbis"','video/webm; codecs="vorbis, vp8"','video/webm; codecs="vorbis"') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Video MIME type does not support audio codecs (mp4) ('video/mp4; codecs="mp4a"','video/mp4; codecs="mp4a.40.2"') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: WebM audio does not support AVC1/AAC ('audio/webm; codecs="aac"','audio/webm; codecs="avc1"','audio/webm; codecs="vp8,aac"') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: WebM video does not support AVC1/AAC ('video/webm; codecs="aac"','video/webm; codecs="avc1"','video/webm; codecs="vp8,aac"') should result in NotSupportedError
+Pass	Leading space in contentType
+Pass	Space before ; in contentType
+Pass	Trailing space in contentType
+Pass	Space at start of codecs parameter
+Pass	Space at end of codecs parameter
+Pass	Video/
+Pass	Codecs=
+Pass	Upper case MIME type
+Pass	CODECS=
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Unrecognized foo with webm ('video/webm; foo="bar"') should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: Unrecognized foo with mp4 ('video/mp4; foo="bar"') should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: Unrecognized foo with codecs ('video/mp4;codecs="avc1.4d401e"; foo="bar"') should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: contentType: 'fake' should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: contentType: 'audio/fake' should result in NotSupportedError
+Pass	org.w3.clearkey, requestMediaKeySystemAccess: contentType: 'video/fake' should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: contentType: 'video/mp4;codecs="AVC1.4D401E"' should result in NotSupportedError
+Fail	org.w3.clearkey, requestMediaKeySystemAccess: contentType: 'video/mp4;codecs=",avc1.4d401e"' should result in NotSupportedError

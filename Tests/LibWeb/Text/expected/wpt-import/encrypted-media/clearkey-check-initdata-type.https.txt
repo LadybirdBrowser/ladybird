@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	org.w3.clearkey support for "webm".
+Pass	org.w3.clearkey support for "cenc".
+Pass	org.w3.clearkey support for "keyids".
