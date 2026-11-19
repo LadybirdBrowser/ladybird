@@ -20,6 +20,7 @@ pub mod waiter_list;
 #[cfg(all(windows, target_arch = "x86_64"))]
 pub mod windows_code_memory;
 mod word_chunk;
+mod zone;
 
 pub use column::{Column, ColumnFull};
 pub use generic_lexer::GenericLexer;
@@ -28,6 +29,7 @@ pub use scope_guard::ScopeGuard;
 pub use slice::{Span, SpanMut, slice_from_raw_parts, slice_from_raw_parts_mut};
 pub use string_conversions::{UnsignedInteger, parse_ascii_digits};
 pub use word_chunk::WordChunk;
+pub use zone::{Zone, ZoneVec, ZoneVecIntoIter};
 
 use core::mem::MaybeUninit;
 use std::num::NonZeroUsize;
