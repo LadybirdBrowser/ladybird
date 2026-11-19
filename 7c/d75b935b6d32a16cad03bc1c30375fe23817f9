@@ -1,0 +1,8 @@
+Ladybird puts an empty inline box after preserved white space at the
+end of a line after that white space. In Chrome 157.0.8103.79, Firefox
+151.0, and WebKit 26.5, with Ahem at 20px in a 60px box, the span of “xx
+<span></span>yy” is at 60px under pre-wrap and break-spaces, and at 40px
+under pre-line, in all three. With two spaces, it’s at 80px in Chrome
+and WebKit and at 60px in Firefox; in a right-to-left block, it’s at 0
+in Chrome and WebKit and at 60px in Firefox. Ladybird gives 80px and 0
+there, as Chrome and WebKit do.
