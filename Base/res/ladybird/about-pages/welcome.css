@@ -6,21 +6,23 @@
 
 body {
     min-height: 100vh;
-    box-sizing: border-box;
+    max-width: none;
+    padding: 0;
 }
 
 form {
     display: flex;
     flex-direction: column;
+    box-sizing: content-box;
     max-width: 560px;
     margin: 0 auto;
     padding: 32px 24px 28px;
 }
 
 header {
-    display: flex;
     flex-direction: column;
-    align-items: center;
+    gap: 0;
+    margin-bottom: 0;
     text-align: center;
 }
 
@@ -30,10 +32,8 @@ header {
     color: var(--brand);
 }
 
-h1 {
+header h1 {
     margin-top: 18px;
-    font-size: 22px;
-    font-weight: 600;
     line-height: 28px;
 }
 
@@ -91,9 +91,6 @@ section {
     justify-content: center;
     height: 40px;
     padding: 0 8px;
-    border-radius: 10px;
-    box-shadow: inset 0 0 0 1px var(--separator);
-    cursor: pointer;
 }
 
 .search-engine span {
@@ -102,42 +99,26 @@ section {
     white-space: nowrap;
 }
 
-.search-engine input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-}
-
-/* A search engine is a card like the choices of where tabs go. */
-.search-engine:has(input:checked) {
-    background: var(--choice-fill);
-    box-shadow: inset 0 0 0 1.5px var(--choice);
-}
-
-.search-engine:has(input:focus-visible) {
-    box-shadow:
-        inset 0 0 0 1.5px var(--choice),
-        0 0 0 3px var(--focus-ring);
+.switch-card,
+.switch-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
 }
 
 .switch-card {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
+    --row-fill-radius: 10px;
+
     padding: 12px 14px;
-    border-radius: 10px;
+    border-radius: var(--row-fill-radius);
     box-shadow: inset 0 0 0 1px var(--separator);
 }
 
-.switch-card > div {
-    display: flex;
+.control-row > label {
     flex: 1;
-    flex-direction: column;
-    gap: 2px;
 }
 
-.switch-card input[switch] {
+.control-row input[switch] {
     flex-shrink: 0;
 }
 
@@ -149,25 +130,13 @@ section {
 }
 
 .switch-row {
-    display: flex;
-    align-items: center;
-    gap: 16px;
+    --row-fill-inset: 4px -8px;
+
     padding: 12px 0;
 }
 
 .switch-row + .switch-row {
     border-top: 1px solid var(--separator);
-}
-
-.switch-row > div {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.switch-row input[switch] {
-    flex-shrink: 0;
 }
 
 footer {

@@ -104,59 +104,8 @@
                 margin-bottom: 0;
             }
 
-            /* Every row whose label names a control acts as one control: a click anywhere on it reaches the control, as
-               the label's hit area is stretched over the whole row, under the row's controls, and the row shows a
-               rounded fill under the pointer. The fill reaches a little past the row's sides but stays clear of the
-               lines between rows, and is held back while the pointer is over a button of its own beside the control,
-               such as an Exceptions… button. A row whose control is disabled is dimmed and does nothing. */
-            .card-group.inline-container {
+            .card-group.control-row {
                 --row-fill-inset: 4px -10px;
-            }
-
-            .input-field-container {
-                --row-fill-inset: -6px -10px;
-            }
-
-            :is(.inline-container, .input-field-container):has(> label[for]) {
-                position: relative;
-                isolation: isolate;
-            }
-
-            :is(.inline-container, .input-field-container) > label[for] {
-                cursor: pointer;
-            }
-
-            :is(.inline-container, .input-field-container) > label[for]::after {
-                content: "";
-                position: absolute;
-                inset: 0;
-            }
-
-            :is(.inline-container, .input-field-container):has(> label[for]) > :not(label) {
-                position: relative;
-                z-index: 1;
-            }
-
-            :is(.inline-container, .input-field-container):has(:is(input, select, textarea):disabled, > button:disabled)
-                > label[for] {
-                opacity: 0.5;
-                cursor: default;
-            }
-
-            :is(.inline-container, .input-field-container):has(> label[for]):not(
-                    :has(
-                        :is(input, select, textarea):disabled,
-                        > button:disabled,
-                        .setting-controls > button:hover,
-                        .input-reset-button:hover
-                    )
-                ):hover::before {
-                content: "";
-                position: absolute;
-                inset: var(--row-fill-inset);
-                z-index: -1;
-                border-radius: 8px;
-                background-color: var(--control);
             }
 
             .button-container {
@@ -169,6 +118,8 @@
             }
 
             .input-field-container {
+                --row-fill-inset: -6px -10px;
+
                 display: flex;
                 align-items: center;
                 justify-content: flex-start;
@@ -888,31 +839,8 @@
                 visibility: visible;
             }
 
-            /* The checkbox's label is stretched over the whole row, under the checkbox and the Remove button, so a click
-               anywhere else on the row toggles the list, and the whole row is filled under the pointer, except while
-               the pointer is over its Remove button. */
             .filter-list-row {
-                position: relative;
-                isolation: isolate;
-            }
-
-            .filter-list-row > label {
-                cursor: pointer;
-            }
-
-            .filter-list-row > label::after {
-                content: "";
-                position: absolute;
-                inset: 0;
-            }
-
-            .filter-list-row > :not(label) {
-                position: relative;
-                z-index: 1;
-            }
-
-            .filter-list-row:not(:has(button:hover)):hover {
-                background: var(--control);
+                --row-fill-radius: 0;
             }
 
             .filter-list-row input[type="checkbox"] {
@@ -1117,7 +1045,7 @@
                                 <label><input type="radio" name="website-color-scheme" value="dark" />Dark</label>
                             </div>
                         </div>
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="enable-force-dark">
                                 Force dark mode
                                 <p class="description">
@@ -1126,13 +1054,15 @@
                             </label>
                             <div class="setting-controls">
                                 <input id="enable-force-dark" type="checkbox" switch />
-                                <button id="force-dark-settings" class="secondary-button" hidden>Overrides…</button>
+                                <button id="force-dark-settings" class="secondary-button row-action" hidden>
+                                    Overrides…
+                                </button>
                             </div>
                         </div>
                         <div id="tab-layout-group" class="card-group">
                             <span id="tab-layout-title">Layout</span>
                             <div class="tab-options" role="radiogroup" aria-labelledby="tab-layout-title">
-                                <label class="tab-option">
+                                <label class="tab-option choice-card">
                                     <input type="radio" name="tab-layout" value="horizontal" />
                                     <span class="tab-preview horizontal-preview" aria-hidden="true">
                                         <span class="preview-strip"><i class="active"></i><i></i><i></i></span>
@@ -1140,7 +1070,7 @@
                                     </span>
                                     <span class="tab-option-label">Tabs on top</span>
                                 </label>
-                                <label class="tab-option">
+                                <label class="tab-option choice-card">
                                     <input type="radio" name="tab-layout" value="vertical" />
                                     <span class="tab-preview vertical-preview" aria-hidden="true">
                                         <span class="preview-sidebar"><i></i><i class="active"></i><i></i></span>
@@ -1150,7 +1080,7 @@
                                     </span>
                                     <span class="tab-option-label">Tabs on the side</span>
                                 </label>
-                                <label class="tab-option">
+                                <label class="tab-option choice-card">
                                     <input type="radio" name="tab-layout" value="sidebar" />
                                     <span class="tab-preview vertical-preview" aria-hidden="true">
                                         <span class="preview-sidebar"><b></b><i></i><i class="active"></i><i></i></span>
@@ -1160,24 +1090,24 @@
                                 </label>
                             </div>
                         </div>
-                        <div class="card-group inline-container hidden">
+                        <div class="card-group inline-container control-row hidden">
                             <label for="vertical-tabs-expand-on-hover">
                                 Expand vertical tabs on hover when collapsed
                             </label>
                             <input id="vertical-tabs-expand-on-hover" type="checkbox" switch />
                         </div>
-                        <div class="card-group inline-container hidden">
+                        <div class="card-group inline-container control-row hidden">
                             <label for="vertical-tabs-position">Sidebar position</label>
                             <select id="vertical-tabs-position">
                                 <option value="left">Left</option>
                                 <option value="right">Right</option>
                             </select>
                         </div>
-                        <div class="card-group inline-container" id="show-menu-bar-group">
+                        <div class="card-group inline-container control-row" id="show-menu-bar-group">
                             <label for="show-menu-bar">Show system menu bar</label>
                             <input id="show-menu-bar" type="checkbox" switch />
                         </div>
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="show-bookmarks-bar">Show bookmarks bar</label>
                             <select id="show-bookmarks-bar">
                                 <option value="always">Always</option>
@@ -1185,11 +1115,13 @@
                                 <option value="onHover">Only when hovering the navigation toolbar</option>
                             </select>
                         </div>
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="default-zoom-level">Default page zoom</label>
                             <div class="setting-controls">
                                 <select id="default-zoom-level"></select>
-                                <button id="zoom-settings" class="secondary-button" hidden>Overrides…</button>
+                                <button id="zoom-settings" class="secondary-button row-action" hidden>
+                                    Overrides…
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1213,7 +1145,7 @@
                                 <button id="search-settings" class="link-button">Custom search engines…</button>
                             </div>
                         </div>
-                        <div class="card-group inline-container search-suggestions-row">
+                        <div class="card-group inline-container control-row search-suggestions-row">
                             <label for="search-suggestions-enabled">
                                 Show search suggestions
                                 <p id="search-suggestions-description" class="description"></p>
@@ -1233,17 +1165,17 @@
                 <h3 class="card-title">Startup</h3>
                 <div class="card">
                     <div class="card-body">
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="restore-previous-session">Restore previous windows and tabs</label>
                             <input id="restore-previous-session" type="checkbox" switch />
                         </div>
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="new-tab-page-url">New tab page URL</label>
                             <div class="input-with-reset">
                                 <input id="new-tab-page-url" type="url" spellcheck="false" />
                                 <button
                                     id="new-tab-page-url-reset"
-                                    class="input-reset-button hidden"
+                                    class="input-reset-button row-action hidden"
                                     title="Restore default"
                                 >
                                     &times;
@@ -1256,7 +1188,7 @@
                 <h3 class="card-title">Browsing</h3>
                 <div class="card">
                     <div class="card-body">
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="languages-settings">
                                 Website languages
                                 <p class="description">
@@ -1265,7 +1197,7 @@
                             </label>
                             <button id="languages-settings" class="secondary-button">Edit…</button>
                         </div>
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="enable-autoscroll">
                                 Use autoscrolling
                                 <p class="description">
@@ -1274,7 +1206,7 @@
                             </label>
                             <input id="enable-autoscroll" type="checkbox" switch />
                         </div>
-                        <div class="card-group inline-container" id="enable-primary-paste-group">
+                        <div class="card-group inline-container control-row" id="enable-primary-paste-group">
                             <label for="enable-primary-paste">
                                 Paste with the middle mouse button
                                 <p class="description">
@@ -1292,7 +1224,7 @@
                 <div class="card">
                     <div class="card-body">
                         <p id="browsing-data-total-size" class="card-group"></p>
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="browsing-data-settings">Clear browsing data</label>
                             <button id="browsing-data-settings" class="secondary-button">Clear…</button>
                         </div>
@@ -1302,7 +1234,7 @@
                 <h3 class="card-title">Websites</h3>
                 <div class="card">
                     <div class="card-body">
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="global-privacy-control-toggle">
                                 Global Privacy Control
                                 <p class="description">Tell websites not to sell or share your data.</p>
@@ -1320,14 +1252,14 @@
                 </p>
 
                 <div class="card card-body">
-                    <div class="card-group inline-container">
+                    <div class="card-group inline-container control-row">
                         <label for="allow-services-network-access">
                             Allow automatic service connections
                             <p class="description">Let individually enabled services connect in the background.</p>
                         </label>
                         <input id="allow-services-network-access" type="checkbox" switch />
                     </div>
-                    <div class="card-group inline-container">
+                    <div class="card-group inline-container control-row">
                         <label for="filter-list-updates">
                             Filter list updates
                             <p class="description">
@@ -1336,7 +1268,7 @@
                         </label>
                         <input id="filter-list-updates" type="checkbox" switch />
                     </div>
-                    <div class="card-group inline-container">
+                    <div class="card-group inline-container control-row">
                         <label for="update-checks">
                             Update checks
                             <p class="description">
@@ -1354,7 +1286,7 @@
             <div class="tab-panel" id="tab-permissions" data-title="Permissions">
                 <div class="card">
                     <div class="card-body">
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="autoplay-policy">
                                 Autoplay
                                 <p class="description">Sites can play audio and video on their own.</p>
@@ -1368,37 +1300,43 @@
                                     <option value="block-audio">Block audio</option>
                                     <option value="block-audio-and-video">Block audio and video</option>
                                 </select>
-                                <button id="autoplay-settings" class="secondary-button">Exceptions…</button>
+                                <button id="autoplay-settings" class="secondary-button row-action">Exceptions…</button>
                             </div>
                         </div>
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="geolocation-policy">
                                 Location
                                 <p class="description">Sites can ask to know your location.</p>
                             </label>
                             <div class="setting-controls">
                                 <input id="geolocation-policy" type="checkbox" switch />
-                                <button id="geolocation-settings" class="secondary-button">Exceptions…</button>
+                                <button id="geolocation-settings" class="secondary-button row-action">
+                                    Exceptions…
+                                </button>
                             </div>
                         </div>
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="microphone-policy">
                                 Microphone
                                 <p class="description">Sites can ask to use your microphone.</p>
                             </label>
                             <div class="setting-controls">
                                 <input id="microphone-policy" type="checkbox" switch />
-                                <button id="microphone-settings" class="secondary-button">Exceptions…</button>
+                                <button id="microphone-settings" class="secondary-button row-action">
+                                    Exceptions…
+                                </button>
                             </div>
                         </div>
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="notifications-policy">
                                 Notifications
                                 <p class="description">Sites can ask to send you notifications.</p>
                             </label>
                             <div class="setting-controls">
                                 <input id="notifications-policy" type="checkbox" switch />
-                                <button id="notifications-settings" class="secondary-button">Exceptions…</button>
+                                <button id="notifications-settings" class="secondary-button row-action">
+                                    Exceptions…
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1406,18 +1344,18 @@
             </div>
             <div class="tab-panel" id="tab-blocking" data-title="Content blocking">
                 <div class="card card-body">
-                    <div class="card-group inline-container">
+                    <div class="card-group inline-container control-row">
                         <label for="enable-content-blocking">Block ads, trackers and more</label>
                         <input id="enable-content-blocking" type="checkbox" switch />
                     </div>
                     <template id="filter-list-row">
-                        <div class="filter-list-row">
+                        <div class="filter-list-row control-row">
                             <input type="checkbox" />
                             <label class="item-name">
                                 <span class="label"></span>
                                 <span class="description"></span>
                             </label>
-                            <button class="link-button">Remove</button>
+                            <button class="link-button row-action">Remove</button>
                         </div>
                     </template>
                     <div class="card-group list-section">
@@ -1497,7 +1435,7 @@
             <div class="tab-panel" id="tab-feedback" data-title="Feedback">
                 <div class="card">
                     <div class="card-body">
-                        <div id="show-feedback-button-group" class="card-group inline-container hidden">
+                        <div id="show-feedback-button-group" class="card-group inline-container control-row hidden">
                             <label for="show-feedback-button">Show Feedback button in toolbar</label>
                             <input id="show-feedback-button" type="checkbox" switch />
                         </div>
@@ -1528,7 +1466,7 @@
                             <span id="crash-reports-waiting" class="description"></span>
                             <button id="review-crash-reports" class="secondary-button">Review reports</button>
                         </div>
-                        <div class="card-group inline-container">
+                        <div class="card-group inline-container control-row">
                             <label for="open-crash-reports">Open the folder containing saved crash reports.</label>
                             <button id="open-crash-reports" class="secondary-button">Open folder</button>
                         </div>
@@ -1546,7 +1484,7 @@
                         </span>
                         <p id="dns-proxy-note" class="description hidden"></p>
 
-                        <div class="card-group inline-container" id="dns-settings-container">
+                        <div class="card-group inline-container control-row" id="dns-settings-container">
                             <label for="dns-upstream">DNS provider</label>
                             <select id="dns-upstream">
                                 <option value="system">System DNS</option>
@@ -1554,22 +1492,22 @@
                             </select>
                         </div>
                         <div id="custom-dns-settings" class="hidden">
-                            <div class="card-group inline-container">
+                            <div class="card-group inline-container control-row">
                                 <label for="dns-type">Type</label>
                                 <select id="dns-type">
                                     <option value="udp">UDP</option>
                                     <option value="tls">TLS</option>
                                 </select>
                             </div>
-                            <div class="card-group inline-container">
+                            <div class="card-group inline-container control-row">
                                 <label for="dnssec-toggle">Validate DNSSEC locally</label>
                                 <input id="dnssec-toggle" type="checkbox" switch />
                             </div>
-                            <div class="card-group inline-container">
+                            <div class="card-group inline-container control-row">
                                 <label for="dns-server">DNS server (IP or hostname)</label>
                                 <input id="dns-server" type="text" spellcheck="false" />
                             </div>
-                            <div class="card-group inline-container">
+                            <div class="card-group inline-container control-row">
                                 <label for="dns-port">Port</label>
                                 <input id="dns-port" type="text" placeholder="53" spellcheck="false" />
                             </div>
@@ -1708,7 +1646,7 @@
                 <button id="browsing-data-settings-close" class="close-button dialog-button">&times;</button>
             </div>
             <div class="dialog-body" style="height: auto">
-                <div class="input-field-container">
+                <div class="input-field-container control-row">
                     <label for="clear-browsing-data-time-range">Remove&nbsp;browsing&nbsp;data&nbsp;from:</label>
                     <select id="clear-browsing-data-time-range">
                         <option value="lastHour">Last hour</option>
@@ -1717,28 +1655,28 @@
                         <option value="all" selected>All time</option>
                     </select>
                 </div>
-                <div class="input-field-container">
+                <div class="input-field-container control-row">
                     <input id="clear-browsing-data-cached-files" type="checkbox" value="" checked />
                     <label for="clear-browsing-data-cached-files">
                         Cached files<span id="clear-browsing-data-cached-files-size"></span>
                         <p class="description">Remove items that help pages load faster</p>
                     </label>
                 </div>
-                <div class="input-field-container">
+                <div class="input-field-container control-row">
                     <input id="clear-browsing-data-history" type="checkbox" value="" checked />
                     <label for="clear-browsing-data-history">
                         Browsing history
                         <p class="description">Remove visited pages from history and address bar suggestions</p>
                     </label>
                 </div>
-                <div class="input-field-container">
+                <div class="input-field-container control-row">
                     <input id="clear-browsing-data-download-history" type="checkbox" value="" checked />
                     <label for="clear-browsing-data-download-history">
                         Download history
                         <p class="description">Remove records of downloaded files, but keep the files themselves</p>
                     </label>
                 </div>
-                <div class="input-field-container">
+                <div class="input-field-container control-row">
                     <input id="clear-browsing-data-site-data" type="checkbox" value="" checked />
                     <label for="clear-browsing-data-site-data">
                         Cookies and site data<span id="clear-browsing-data-site-data-size"></span>

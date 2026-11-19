@@ -69,6 +69,7 @@ function createRow(variable) {
     row.classList.add("card-group");
     row.classList.add("config-row");
     row.classList.add("inline-container");
+    row.classList.add("control-row");
     row.dataset.filterText = `${variable.title} ${variable.description}`.toLowerCase();
 
     const title = document.createElement("p");
