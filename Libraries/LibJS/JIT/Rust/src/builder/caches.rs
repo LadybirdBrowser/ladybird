@@ -231,7 +231,7 @@ impl CacheEntry {
     }
 }
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// The entries of property lookup cache `cache` in their guard and
     /// action form, if the cache is monomorphic or polymorphic and compiled
     /// code can apply every entry.
@@ -344,18 +344,25 @@ impl GraphBuilder<'_> {
         let mut cases = Vec::with_capacity(shapes.len());
         for shape in shapes {
             let block = self.graph.add_block(Block {
-                predecessors: vec![source],
-                ..Block::default()
+                predecessors: self.graph.list(&[source]),
+                ..self.graph.new_block()
             });
             self.order.push(block);
             self.embed(shape.shape);
             cases.push((*shape, block));
         }
         let address = self.cell_address(object);
-        let switch = self.set_control(Op::ShapeSwitch { cases: cases.clone() }, vec![object, address]);
+        let zone = self.graph.zone;
+        let switch = self.set_control(
+            Op::ShapeSwitch {
+                shapes: zone.alloc_slice_from_iter(cases.iter().map(|(shape, _)| *shape)),
+                targets: zone.alloc_slice_from_iter(cases.iter().map(|(_, block)| *block)),
+            },
+            &[object, address],
+        );
         self.graph.nodes[switch.index()].frame_state = Some(frame_state);
 
-        let join = self.graph.add_block(Block::default());
+        let join = self.graph.add_block(self.graph.new_block());
         let mut results = Vec::new();
         let mut case_shapes = Vec::with_capacity(cases.len());
         for (index, (shape, block)) in cases.iter().enumerate() {
@@ -364,7 +371,7 @@ impl GraphBuilder<'_> {
             let refined = self.refine(BranchCondition::Shape(*shape), true, vec![object, address]);
             results.push(case(self, index, refined));
             debug_assert_eq!(self.frame.slots, frame.slots, "cases do not change frame slots");
-            self.set_control(Op::Jump { target: join }, Vec::new());
+            self.set_control(Op::Jump { target: join }, &[]);
             self.graph.blocks[join.index()].predecessors.push(self.block);
             case_shapes.push(std::mem::take(&mut self.frame.fresh_shapes));
         }
@@ -378,6 +385,6 @@ impl GraphBuilder<'_> {
         if results.iter().all(|result| *result == results[0]) {
             return Some(results[0]);
         }
-        Some(self.add_phi(results))
+        Some(self.add_phi(&results))
     }
 }

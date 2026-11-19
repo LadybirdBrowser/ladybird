@@ -63,7 +63,7 @@ pub(super) struct KeyCheck {
 /// Cache entries of a keyed access for one key, and the check of the key.
 type KeyedEntries = (Vec<CacheEntry>, Option<KeyCheck>);
 
-impl GraphBuilder<'_> {
+impl<'z> GraphBuilder<'_, 'z> {
     /// The speculation gate: whether the current instruction may speculate
     /// in a way that exits with `kind`. A speculation that already failed at
     /// the same place is never made again.
@@ -85,7 +85,7 @@ impl GraphBuilder<'_> {
     /// Emits a node that may exit with the current instruction's eager frame
     /// state. The value of a check is the input it refines (see
     /// `Op::refined_input()`).
-    pub(super) fn emit_checked(&mut self, op: Op, inputs: Vec<NodeId>, repr: Option<Repr>) -> NodeId {
+    pub(super) fn emit_checked(&mut self, op: Op<'z>, inputs: &[NodeId], repr: Option<Repr>) -> NodeId {
         let repr = repr.or_else(|| self.graph.node(inputs[op.refined_input()?]).repr);
         let frame_state = self.eager_frame_state();
         let node = self.emit(op, inputs, repr);
@@ -102,7 +102,7 @@ impl GraphBuilder<'_> {
         ) {
             return value;
         }
-        self.emit_checked(Op::CheckObject, vec![value], None)
+        self.emit_checked(Op::CheckObject, &[value], None)
     }
 
     /// `object`, refined: known to have one of `shapes`, or the code exits.
@@ -113,9 +113,9 @@ impl GraphBuilder<'_> {
         let address = self.cell_address(object);
         self.emit_checked(
             Op::CheckShape {
-                shapes: shapes.to_vec(),
+                shapes: self.graph.zone.alloc_slice_copy(shapes),
             },
-            vec![object, address],
+            &[object, address],
             None,
         )
     }
@@ -129,7 +129,7 @@ impl GraphBuilder<'_> {
             self.assume(Dependency::WatchpointSetValid(validity));
             return;
         }
-        self.emit_checked(Op::CheckPrototypeChainValid { validity }, Vec::new(), None);
+        self.emit_checked(Op::CheckPrototypeChainValid { validity }, &[], None);
     }
 
     /// Makes the code depend on no `[[IsHTMLDDA]]` object existing, if none
@@ -147,7 +147,7 @@ impl GraphBuilder<'_> {
     /// the current instruction on.
     pub(super) fn assume(&mut self, dependency: Dependency) {
         self.graph.depend_on(dependency);
-        self.emit_checked(Op::AssumeValid, Vec::new(), None);
+        self.emit_checked(Op::AssumeValid, &[], None);
     }
 
     pub(super) fn load_named(&mut self, object: NodeId, offset: u32) -> NodeId {
@@ -160,9 +160,9 @@ impl GraphBuilder<'_> {
         let address = self.cell_address(object);
         let op = Op::LoadNamed { offset, holds_data };
         if holds_data {
-            return self.emit(op, vec![object, address], Some(Repr::Tagged));
+            return self.emit(op, &[object, address], Some(Repr::Tagged));
         }
-        self.emit_checked(op, vec![object, address], Some(Repr::Tagged))
+        self.emit_checked(op, &[object, address], Some(Repr::Tagged))
     }
 
     pub(super) fn store_named(&mut self, object: NodeId, offset: u32, value: NodeId) {
@@ -175,17 +175,17 @@ impl GraphBuilder<'_> {
         let address = self.cell_address(object);
         let op = Op::StoreNamed { offset, holds_data };
         if holds_data {
-            self.emit(op, vec![object, value, address], None);
+            self.emit(op, &[object, value, address], None);
             return;
         }
-        self.emit_checked(op, vec![object, value, address], None);
+        self.emit_checked(op, &[object, value, address], None);
     }
 
     /// Loads the property a `Get` entry describes, from the object itself or
     /// from the prototype holding it.
     pub(super) fn load_entry(&mut self, object: NodeId, entry: &CacheEntry) -> NodeId {
         if let Action::GetMissing { prototype_chain } = entry.action {
-            self.emit_checked(Op::CheckPropertyAbsenceCacheable, vec![object], None);
+            self.emit_checked(Op::CheckPropertyAbsenceCacheable, &[object], None);
             if let Some((validity, valid)) = prototype_chain {
                 self.check_prototype_chain(validity, valid);
             }
@@ -244,7 +244,7 @@ impl GraphBuilder<'_> {
                 expected,
                 kind: ExitKind::UnexpectedValue,
             },
-            vec![loaded],
+            &[loaded],
             None,
         );
         constant
@@ -327,11 +327,11 @@ impl GraphBuilder<'_> {
             return Ok(false);
         }
         let object = self.read(base)?;
-        let array = self.emit_checked(Op::CheckArray, vec![object], Some(Repr::Tagged));
+        let array = self.emit_checked(Op::CheckArray, &[object], Some(Repr::Tagged));
         let address = self.cell_address(array);
-        let length = self.emit(Op::LoadElementsLength, vec![address], Some(Repr::Int32));
-        let length = self.emit_checked(Op::CheckNonNegativeInt32, vec![length], Some(Repr::Int32));
-        let boxed = self.emit(Op::BoxInt32, vec![length], Some(Repr::Tagged));
+        let length = self.emit(Op::LoadElementsLength, &[address], Some(Repr::Int32));
+        let length = self.emit_checked(Op::CheckNonNegativeInt32, &[length], Some(Repr::Int32));
+        let boxed = self.emit(Op::BoxInt32, &[length], Some(Repr::Tagged));
         self.write(dst, boxed)?;
         Ok(true)
     }
@@ -382,9 +382,9 @@ impl GraphBuilder<'_> {
         self.exit_instead_of_slow_path(&mut slow_paths);
         let (object, checked_getter) = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
         debug_assert!(checked_getter.is_none(), "all entries have the same checked getter");
-        let typed_array = self.emit_checked(Op::CheckTypedArray, vec![object], Some(Repr::Tagged));
+        let typed_array = self.emit_checked(Op::CheckTypedArray, &[object], Some(Repr::Tagged));
         let address = self.cell_address(typed_array);
-        let length = self.emit(Op::LoadTypedArrayLength, vec![address], Some(Repr::Int32));
+        let length = self.emit(Op::LoadTypedArrayLength, &[address], Some(Repr::Int32));
         let zero = self.int32_constant(0);
         let length = self.branch_to_slow_path(
             &mut slow_paths,
@@ -392,7 +392,7 @@ impl GraphBuilder<'_> {
             vec![length, zero],
             true,
         );
-        let length = self.emit(Op::BoxInt32, vec![length], Some(Repr::Tagged));
+        let length = self.emit(Op::BoxInt32, &[length], Some(Repr::Tagged));
         let result = self.join_slow_paths(slow_paths, Some(length));
         self.write(dst, result.expect("GetLength has a value"))?;
         Ok(true)
@@ -477,7 +477,7 @@ impl GraphBuilder<'_> {
             part,
             target,
         };
-        let node = self.emit(op, inputs, Some(Repr::Tagged));
+        let node = self.emit(op, &inputs, Some(Repr::Tagged));
         let frame_state = self.resume_after_frame_state(dst);
         self.graph.nodes[node.index()].frame_state = Some(frame_state);
         node
@@ -588,14 +588,14 @@ impl GraphBuilder<'_> {
             self.embed(function);
             self.emit_checked(
                 Op::CheckAccessorFunction { offset, part, function },
-                vec![holder, address],
+                &[holder, address],
                 None,
             );
             return Ok((object, None));
         }
         let function = self.emit_checked(
             Op::LoadAccessorFunction { offset, part },
-            vec![holder, address],
+            &[holder, address],
             Some(Repr::Tagged),
         );
         Ok((object, Some(function)))
@@ -730,7 +730,7 @@ impl GraphBuilder<'_> {
                 expected: check.expected,
                 kind: ExitKind::UnexpectedValue,
             },
-            vec![check.key],
+            &[check.key],
             None,
         );
     }

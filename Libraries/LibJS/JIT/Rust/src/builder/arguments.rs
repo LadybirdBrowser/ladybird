@@ -147,7 +147,7 @@ pub(super) fn uses_virtual_arguments(graph: &Graph) -> bool {
     })
 }
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// Whether `node` is the virtual arguments object.
     pub(super) fn is_virtual_arguments(&self, node: NodeId) -> bool {
         self.graph
@@ -260,7 +260,7 @@ impl GraphBuilder<'_> {
             self.write(dst, count)?;
             return Ok(true);
         }
-        let count = self.emit(Op::ArgumentCount, Vec::new(), Some(Repr::Tagged));
+        let count = self.emit(Op::ArgumentCount, &[], Some(Repr::Tagged));
         self.write(dst, count)?;
         Ok(true)
     }
@@ -291,7 +291,7 @@ impl GraphBuilder<'_> {
         }
         let index = self.read(property)?;
         let arguments_base = self.function.layout.arguments_base();
-        let argument = self.emit_checked(Op::LoadArgument { arguments_base }, vec![index], Some(Repr::Tagged));
+        let argument = self.emit_checked(Op::LoadArgument { arguments_base }, &[index], Some(Repr::Tagged));
         self.write(dst, argument)?;
         Ok(true)
     }
@@ -324,7 +324,7 @@ impl GraphBuilder<'_> {
         }
         let index = self.read(index)?;
         let arguments_base = self.function.layout.arguments_base();
-        let argument = self.emit_checked(Op::LoadArgument { arguments_base }, vec![index], Some(Repr::Tagged));
+        let argument = self.emit_checked(Op::LoadArgument { arguments_base }, &[index], Some(Repr::Tagged));
         self.write(dst, argument)?;
         Ok(true)
     }
@@ -386,7 +386,7 @@ impl GraphBuilder<'_> {
         if let Some(slice) = slice_check {
             self.check_callee(*this_value, slice)?;
         }
-        let array = self.emit_checked(Op::SliceArguments, vec![start], Some(Repr::Tagged));
+        let array = self.emit_checked(Op::SliceArguments, &[start], Some(Repr::Tagged));
         self.write(*dst, array)?;
         Ok(Some(super::Flow::Continue))
     }

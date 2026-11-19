@@ -159,14 +159,16 @@ mod tests {
     fn hash_collisions_do_not_make_different_nodes_equivalent() {
         let mut graph = Graph::default();
         graph.add_block(Block::default());
-        let a = graph.add_node(Node::new(Op::Constant(1), vec![], Some(Repr::Int32), 0));
-        let b = graph.add_node(Node::new(Op::Constant(2), vec![], Some(Repr::Int32), 0));
-        let first = graph.add_node(Node::new(Op::BoxInt32, vec![a], Some(Repr::Tagged), 0));
-        let different_input = graph.add_node(Node::new(Op::BoxInt32, vec![b], Some(Repr::Tagged), 0));
-        let different_operation = graph.add_node(Node::new(Op::Int32ToFloat64, vec![a], Some(Repr::Float64), 0));
-        let duplicate = graph.add_node(Node::new(Op::BoxInt32, vec![a], Some(Repr::Tagged), 0));
-        let returned = graph.add_node(Node::new(Op::Return, vec![duplicate], None, 0));
-        graph.blocks[0].body = vec![first, different_input, different_operation, duplicate];
+        let a = graph.add(Op::Constant(1), &[], Some(Repr::Int32), 0);
+        let b = graph.add(Op::Constant(2), &[], Some(Repr::Int32), 0);
+        let first = graph.add(Op::BoxInt32, &[a], Some(Repr::Tagged), 0);
+        let different_input = graph.add(Op::BoxInt32, &[b], Some(Repr::Tagged), 0);
+        let different_operation = graph.add(Op::Int32ToFloat64, &[a], Some(Repr::Float64), 0);
+        let duplicate = graph.add(Op::BoxInt32, &[a], Some(Repr::Tagged), 0);
+        let returned = graph.add(Op::Return, &[duplicate], None, 0);
+        graph.blocks[0]
+            .body
+            .assign(&[first, different_input, different_operation, duplicate]);
         graph.blocks[0].control = Some(returned);
         run_with_hash(&mut graph, &mut Dominators::new(), |_, _| 0).unwrap();
         assert_eq!(graph.blocks[0].body, [first, different_input, different_operation]);

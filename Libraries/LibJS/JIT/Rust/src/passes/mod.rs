@@ -213,7 +213,8 @@ fn run_passes(
     //     On-stack replacement entries run once per entry, so they are cold
     //     code too, which keeps the blocks they lead to from starting with
     //     their register state.
-    for (_, block) in graph.osr_entries.clone() {
+    let osr_entries = graph.osr_entries.to_vec();
+    for (_, block) in osr_entries {
         graph.blocks[block.index()].is_cold = true;
     }
     edit::move_cold_blocks_last(graph);

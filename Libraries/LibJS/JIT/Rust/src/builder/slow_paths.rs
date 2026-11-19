@@ -57,7 +57,7 @@ pub(crate) fn js_call_operands(instruction: &Instruction) -> SlowPathOperands {
     SlowPathOperands { inputs, outputs }
 }
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// The operands of the slow path of the instruction being built.
     pub(super) fn slow_path_operands(&self) -> Result<SlowPathOperands, CompileFailure> {
         let opcode = self.function.instructions[self.function.instruction_index]
@@ -159,7 +159,7 @@ impl GraphBuilder<'_> {
                 pc: self.function.pc,
                 saves_registers: false,
             },
-            inputs,
+            &inputs,
             repr,
         );
 
@@ -192,7 +192,7 @@ impl GraphBuilder<'_> {
                 node
             } else {
                 let index = u8::try_from(index).expect("slow paths have few outputs");
-                self.emit(Op::SlowPathOutput { index }, vec![node], Some(Repr::Tagged))
+                self.emit(Op::SlowPathOutput { index }, &[node], Some(Repr::Tagged))
             };
             self.write(operand, value)?;
         }

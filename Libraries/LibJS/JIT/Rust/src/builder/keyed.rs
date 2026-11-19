@@ -63,7 +63,7 @@ struct KeyPaths {
     named: Option<(BlockId, NodeId)>,
 }
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// What the keyed feedback of `instruction` saw, or everything if it saw
     /// nothing.
     fn keyed_access_bits(&self, instruction: &Instruction) -> u32 {
@@ -125,7 +125,7 @@ impl GraphBuilder<'_> {
             paths.named = Some((self.block, key));
             return Some(paths);
         };
-        let index = self.emit(Op::UnboxInt32, vec![integer], Some(Repr::Int32));
+        let index = self.emit(Op::UnboxInt32, &[integer], Some(Repr::Int32));
         paths.indexed = Some((self.block, index));
         Some(paths)
     }
@@ -158,14 +158,14 @@ impl GraphBuilder<'_> {
         index: NodeId,
         value: NodeId,
     ) -> NodeId {
-        let length = self.emit(Op::LoadElementsLength, vec![address], Some(Repr::Int32));
+        let length = self.emit(Op::LoadElementsLength, &[address], Some(Repr::Int32));
         let (inside, outside) = self.branch_both_ways(BranchCondition::IndexInBounds, vec![index, length]);
         self.block = outside;
         let next = BranchCondition::Int32(Comparison::StrictlyEquals);
         let next_index = self.branch_to_slow_path(slow_paths, next, vec![index, length], true);
-        let array = self.emit_checked(Op::CheckAppendableArray, vec![object], None);
+        let array = self.emit_checked(Op::CheckAppendableArray, &[object], None);
         let array_address = self.cell_address(array);
-        let capacity = self.emit(Op::LoadElementsCapacity, vec![array_address], Some(Repr::Int32));
+        let capacity = self.emit(Op::LoadElementsCapacity, &[array_address], Some(Repr::Int32));
         // NB: Lengths above i32::MAX are negative as int32 values, which an
         //     unsigned comparison keeps from passing as room for an element.
         //     Appends without room grow the elements through the runtime,
@@ -178,20 +178,20 @@ impl GraphBuilder<'_> {
         let nonnegative = BranchCondition::Int32(Comparison::GreaterThanEquals);
         self.branch_to_slow_path(slow_paths, nonnegative, vec![next_index, zero], true);
         self.graph.blocks[self.block.index()].is_cold = true;
-        self.emit(Op::CallArrayPush, vec![array, value], Some(Repr::Tagged));
+        self.emit(Op::CallArrayPush, &[array, value], Some(Repr::Tagged));
         self.end_hot_path(slow_paths, Vec::new());
         self.block = hot;
         let next_index = self.refine(room, true, vec![next_index, capacity]);
         self.emit(
             Op::AppendElement,
-            vec![array_address, next_index, value],
+            &[array_address, next_index, value],
             Some(Repr::Int32),
         );
         self.end_hot_path(slow_paths, Vec::new());
 
         self.block = inside;
         let index = self.refine(BranchCondition::IndexInBounds, true, vec![index, length]);
-        let capacity = self.emit(Op::LoadElementsCapacity, vec![address], Some(Repr::Int32));
+        let capacity = self.emit(Op::LoadElementsCapacity, &[address], Some(Repr::Int32));
         self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, vec![index, capacity], true)
     }
 
@@ -318,7 +318,7 @@ impl GraphBuilder<'_> {
             let executable = self.function.index;
             let value = self.emit(
                 Op::ProbeKeyedCache { executable, cache },
-                vec![object, key],
+                &[object, key],
                 Some(Repr::Tagged),
             );
             let value = self.branch_if_empty(&mut slow_paths, value);
@@ -417,7 +417,7 @@ impl GraphBuilder<'_> {
             let executable = self.function.index;
             let stored = self.emit(
                 Op::ProbeKeyedStore { executable, cache },
-                vec![object, key, value],
+                &[object, key, value],
                 Some(Repr::Bool),
             );
             self.branch_to_slow_path(&mut slow_paths, BranchCondition::Bool, vec![stored], true);
@@ -436,10 +436,10 @@ impl GraphBuilder<'_> {
     fn store_holey_element(&mut self, slow_paths: &mut SlowPaths, address: NodeId, index: NodeId, value: NodeId) {
         let kind = ElementsKind::Holey;
         let in_bounds = BranchCondition::IndexInBounds;
-        let length = self.emit(Op::LoadElementsLength, vec![address], Some(Repr::Int32));
+        let length = self.emit(Op::LoadElementsLength, &[address], Some(Repr::Int32));
         let index = self.branch_to_slow_path(slow_paths, in_bounds, vec![index, length], true);
         // NB: Elements made with a length, like `new Array(length)`, have no room yet, and grow as they get filled.
-        let capacity = self.emit(Op::LoadElementsCapacity, vec![address], Some(Repr::Int32));
+        let capacity = self.emit(Op::LoadElementsCapacity, &[address], Some(Repr::Int32));
         let (room, no_room) = self.branch_with_cold_side(in_bounds, vec![index, capacity], true);
         self.block = no_room;
         // NB: Lengths above i32::MAX let negative int32 keys, which are no indices, pass as below the length.
@@ -449,12 +449,12 @@ impl GraphBuilder<'_> {
         self.graph.blocks[self.block.index()].is_cold = true;
         let array = self.branch_to_slow_path(slow_paths, BranchCondition::HoleFillableArray, vec![address], true);
         self.graph.blocks[self.block.index()].is_cold = true;
-        self.emit(Op::CallStoreHoleyElement, vec![array, element_index, value], None);
+        self.emit(Op::CallStoreHoleyElement, &[array, element_index, value], None);
         self.end_hot_path(slow_paths, Vec::new());
 
         self.block = room;
         let index = self.refine(in_bounds, true, vec![index, capacity]);
-        let old = self.emit(Op::LoadElementAt { kind }, vec![address, index], Some(Repr::Tagged));
+        let old = self.emit(Op::LoadElementAt { kind }, &[address, index], Some(Repr::Tagged));
         let empty = self.constant(value::EMPTY);
         let (hole, element) = self.branch_both_ways(BranchCondition::TaggedEquals { equal: true }, vec![old, empty]);
 
@@ -466,12 +466,12 @@ impl GraphBuilder<'_> {
         let one = self.int32_constant(1);
         let last = self.emit(
             Op::Int32WrappingBinary { op: BinaryOp::Sub },
-            vec![length, one],
+            &[length, one],
             Some(Repr::Int32),
         );
         let (before_last, at_last) = self.branch_with_cold_side(in_bounds, vec![index, last], true);
         self.block = at_last;
-        self.emit(Op::CallStoreHoleyElement, vec![array, index, value], None);
+        self.emit(Op::CallStoreHoleyElement, &[array, index, value], None);
         self.end_hot_path(slow_paths, Vec::new());
         self.block = before_last;
         let index_before_last = self.refine(in_bounds, true, vec![index, last]);
@@ -497,7 +497,7 @@ impl GraphBuilder<'_> {
                 } else {
                     Op::Float64ToInt32
                 };
-                self.emit(conversion, vec![number], Some(Repr::Int32))
+                self.emit(conversion, &[number], Some(Repr::Int32))
             }
             (Repr::Float64, None) => self.float64_of_number(slow_paths, value),
             _ => self.tagged(value),
@@ -589,6 +589,6 @@ impl GraphBuilder<'_> {
     fn probe_has_property(&mut self, own: bool, object: Operand, key: Operand) -> Result<NodeId, CompileFailure> {
         let object = self.read(object)?;
         let key = self.read(key)?;
-        Ok(self.emit(Op::ProbeHasProperty { own }, vec![object, key], Some(Repr::Tagged)))
+        Ok(self.emit(Op::ProbeHasProperty { own }, &[object, key], Some(Repr::Tagged)))
     }
 }

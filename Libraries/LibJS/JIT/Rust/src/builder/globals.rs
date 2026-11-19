@@ -68,7 +68,7 @@ struct Globals {
     environment_serial: u64,
 }
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// What global variable cache `cache` found, with the globals of the
     /// executable's realm, if code may access the variable directly.
     fn global_cache(&self, cache: u32) -> Option<(Globals, GlobalCacheSnapshot)> {
@@ -111,11 +111,7 @@ impl GraphBuilder<'_> {
                 }
                 let environment = globals.declarative_environment;
                 self.embed(environment);
-                let loaded = self.emit_checked(
-                    Op::LoadGlobalBinding { environment, index },
-                    Vec::new(),
-                    Some(Repr::Tagged),
-                );
+                let loaded = self.emit_checked(Op::LoadGlobalBinding { environment, index }, &[], Some(Repr::Tagged));
                 match value {
                     Some(value) => self.speculate_binding_value(loaded, value),
                     None => loaded,
@@ -175,7 +171,7 @@ impl GraphBuilder<'_> {
                 let environment = globals.declarative_environment;
                 self.embed(environment);
                 let value = self.read(src)?;
-                self.emit_checked(Op::StoreGlobalBinding { environment, index }, vec![value], None);
+                self.emit_checked(Op::StoreGlobalBinding { environment, index }, &[value], None);
             }
             GlobalCacheSnapshot::Property {
                 shape,
@@ -241,11 +237,7 @@ impl GraphBuilder<'_> {
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
         let realm = self.frame_field(FrameField::Realm)?;
         let executable = self.frame_field(FrameField::Executable)?;
-        let value = self.emit(
-            Op::ProbeGlobalCache { cache },
-            vec![realm, executable],
-            Some(Repr::Tagged),
-        );
+        let value = self.emit(Op::ProbeGlobalCache { cache }, &[realm, executable], Some(Repr::Tagged));
         let value = self.branch_if_empty(&mut slow_paths, value);
         let result = self.join_slow_paths(slow_paths, Some(value));
         self.write(dst, result.expect("GetGlobal has a value"))?;
@@ -265,7 +257,7 @@ impl GraphBuilder<'_> {
         let executable = self.frame_field(FrameField::Executable)?;
         let stored = self.emit(
             Op::ProbeGlobalStore { cache },
-            vec![value, realm, executable],
+            &[value, realm, executable],
             Some(Repr::Bool),
         );
         self.branch_to_slow_path(&mut slow_paths, BranchCondition::Bool, vec![stored], true);
@@ -303,8 +295,8 @@ impl GraphBuilder<'_> {
         );
         let prototype = self.load_named(function, has_instance.prototype_offset);
         let value = self.read(lhs)?;
-        let result = self.emit_checked(Op::HasInPrototypeChain, vec![value, prototype], Some(Repr::Bool));
-        let boxed = self.emit(Op::BoxBool, vec![result], Some(Repr::Tagged));
+        let result = self.emit_checked(Op::HasInPrototypeChain, &[value, prototype], Some(Repr::Bool));
+        let boxed = self.emit(Op::BoxBool, &[result], Some(Repr::Tagged));
         self.write(dst, boxed)?;
         Ok(true)
     }
@@ -368,7 +360,7 @@ impl GraphBuilder<'_> {
                 expected: value.bits,
                 kind: ExitKind::UnexpectedValue,
             },
-            vec![loaded],
+            &[loaded],
             None,
         );
         self.global_constant(value)

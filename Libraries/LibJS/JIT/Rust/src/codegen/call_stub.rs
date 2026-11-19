@@ -101,7 +101,9 @@ pub fn generate_construct_stub<M: PortableMacroAssembler>(
 /// Generates the code of the call stub, or with `construct` of the construct
 /// stub (see `Codegen::emit_call_stub()`).
 fn generate_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo, construct: bool) -> Result<Vec<u8>, CompileFailure> {
-    let graph = Graph::default();
+    // NB: A stub has no graph to build: the graph stays empty, so its zone gives out nothing and takes no memory.
+    let zone = ak::Zone::new(0, c"JIT stub graph");
+    let graph = Graph::new_in(&zone);
     let allocation = Allocation::default();
     // NB: A stub is code for no executable. It reads no list of the runtime info.
     let snapshot = Snapshot::new();

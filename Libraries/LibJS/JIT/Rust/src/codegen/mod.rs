@@ -109,7 +109,7 @@ use crate::regalloc::Location;
 use crate::regalloc::Move;
 use crate::regalloc::RegisterMask;
 use crate::regalloc::RegisterSet;
-use crate::scratch::Scratch;
+use crate::scratch::Tables;
 use crate::snapshot::COMPRESSED_POINTER_SHIFT;
 use crate::snapshot::CellId;
 use crate::snapshot::ExecutableSnapshot;
@@ -270,7 +270,7 @@ struct Locals {
 
 struct Codegen<'a, M: PortableMacroAssembler> {
     masm: M,
-    graph: &'a Graph,
+    graph: &'a Graph<'a>,
     allocation: &'a Allocation,
     /// What the graph was built from. Executable 0 is the compiled function.
     snapshot: &'a Snapshot,
@@ -416,22 +416,22 @@ struct LeaveStub {
     leave_arguments: Vec<(u32, bool)>,
 }
 
-/// Generates code for `graph` with the register allocation in `scratch`, whose registers came from
-/// `target_registers::<M>()`, and writes the sites of the code into the
-/// tables of `scratch`. With `verify` (and in debug builds), checks that
+/// Generates code for `graph` with the register allocation in `tables`, whose registers came from
+/// `target_registers::<M>()`, and writes the sites of the code into
+/// `tables`. With `verify` (and in debug builds), checks that
 /// every lowering matches its `lowering_info()`.
 pub fn generate<M: PortableMacroAssembler>(
     graph: &Graph,
     snapshot: &Snapshot,
     verify: bool,
-    scratch: &mut Scratch,
+    tables: &mut Tables,
 ) -> Result<GeneratedCode, CompileFailure> {
-    let Scratch {
+    let Tables {
         artifact,
         sites,
         regalloc,
         ..
-    } = scratch;
+    } = tables;
     let allocation = &regalloc.allocation;
     let (_, pinned) = target_registers::<M>();
     let (gpr_dump_count, fpr_dump_count) = register_dump_counts::<M>();
@@ -1810,10 +1810,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.masm.store64(&slot, self.input(node_id, 1));
             }
             Op::AddNamed { offset, shape, .. } => self.emit_add_named(node_id, *offset, *shape)?,
-            Op::ShapeSwitch { cases } => {
+            Op::ShapeSwitch { shapes, targets } => {
                 let exit = self.exit_site(node_id);
                 self.emit_load_compressed_shape_of(node_id, self.pinned.scratch, 1);
-                for (shape, block) in cases {
+                for (shape, block) in shapes.iter().zip(*targets) {
                     let label = self.label(*block);
                     self.emit_branch_on_shape(*shape, label, exit);
                 }

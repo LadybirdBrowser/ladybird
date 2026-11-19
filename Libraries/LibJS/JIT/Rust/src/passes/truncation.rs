@@ -162,7 +162,7 @@ fn compare_uint32_bits(graph: &mut Graph) {
             data.op = Op::Int32Compare {
                 comparison: comparison.unsigned(),
             };
-            data.inputs = inputs.to_vec();
+            data.inputs.assign(&inputs);
         }
     }
 }

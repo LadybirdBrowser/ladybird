@@ -26,7 +26,6 @@ use crate::ir::BlockId;
 use crate::ir::BranchCondition;
 use crate::ir::Comparison;
 use crate::ir::Graph;
-use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
@@ -171,12 +170,7 @@ fn build_int32_term(
         Int32Term::Binary(op, lhs, rhs) => {
             let (lhs, position) = build_int32_term(graph, constants, lhs, block, position, pc);
             let (rhs, position) = build_int32_term(graph, constants, rhs, block, position, pc);
-            let node = graph.add_node(Node::new(
-                Op::Int32WrappingBinary { op: *op },
-                vec![lhs, rhs],
-                Some(Repr::Int32),
-                pc,
-            ));
+            let node = graph.add(Op::Int32WrappingBinary { op: *op }, &[lhs, rhs], Some(Repr::Int32), pc);
             graph.blocks[block.index()].body.insert(position, node);
             (node, position + 1)
         }
@@ -527,19 +521,13 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
                 let mut operands = Vec::new();
                 for (input, double) in inputs.iter().zip(doubles) {
                     operands.push(double.unwrap_or_else(|| {
-                        let conversion =
-                            graph.add_node(Node::new(Op::Int32ToFloat64, vec![*input], Some(Repr::Float64), pc));
+                        let conversion = graph.add(Op::Int32ToFloat64, &[*input], Some(Repr::Float64), pc);
                         graph.blocks[block.index()].body.insert(index - 1, conversion);
                         index += 1;
                         conversion
                     }));
                 }
-                let compare = graph.add_node(Node::new(
-                    Op::Float64Compare { comparison },
-                    operands,
-                    Some(Repr::Bool),
-                    pc,
-                ));
+                let compare = graph.add(Op::Float64Compare { comparison }, &operands, Some(Repr::Bool), pc);
                 graph.blocks[block.index()].body.insert(index - 1, compare);
                 index += 1;
                 Some(compare)
@@ -557,7 +545,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
                     return Some(double);
                 }
                 let pc = graph.node(node).pc;
-                let conversion = graph.add_node(Node::new(Op::Int32ToFloat64, vec![integer], Some(Repr::Float64), pc));
+                let conversion = graph.add(Op::Int32ToFloat64, &[integer], Some(Repr::Float64), pc);
                 graph.blocks[block.index()].body.insert(index - 1, conversion);
                 index += 1;
                 Some(conversion)
@@ -578,7 +566,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
                 let double = boxing.inputs[0];
                 let data = &mut graph.nodes[node.index()];
                 data.op = Op::CheckFloat64Int32;
-                data.inputs = vec![double];
+                data.inputs.assign(&[double]);
                 continue;
             }
             // NB: Int32 operations take constant right-hand sides as
@@ -588,7 +576,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
                 && int32_of(graph, inputs[0]).is_some()
                 && int32_of(graph, inputs[1]).is_none()
             {
-                graph.nodes[node.index()].inputs = vec![inputs[1], inputs[0]];
+                graph.nodes[node.index()].inputs.assign(&[inputs[1], inputs[0]]);
             }
         }
 
@@ -667,7 +655,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
         if let Some((op, inputs)) = new_op {
             let data = &mut graph.nodes[control.index()];
             data.op = op;
-            data.inputs = inputs;
+            data.inputs.assign(&inputs);
             changed_control_flow = true;
         }
     }

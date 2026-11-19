@@ -79,7 +79,6 @@ use crate::ir::FrameField;
 use crate::ir::FrameStateId;
 use crate::ir::Graph;
 use crate::ir::Locations;
-use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::SuspendKind;
@@ -90,19 +89,24 @@ use crate::snapshot::ExecutableSnapshot;
 use crate::snapshot::Intrinsic;
 use crate::snapshot::RuntimeInfo;
 use crate::snapshot::Snapshot;
+use ak::Zone;
 pub(crate) use slow_paths::is_ssa_slow_path_output;
 pub(crate) use slow_paths::js_call_operands;
 use std::cell::Cell;
 use std::cell::OnceCell;
 
 /// Builds the IR for `snapshot.executables[0]`.
-pub fn build_graph(snapshot: &Snapshot) -> Result<Graph, CompileFailure> {
-    build_graph_with_feedback(snapshot, &|pc| {
-        snapshot
-            .executables
-            .first()
-            .is_none_or(|executable| has_run(snapshot, executable, pc))
-    })
+pub fn build_graph<'z>(snapshot: &Snapshot, zone: &'z Zone) -> Result<Graph<'z>, CompileFailure> {
+    build_graph_with_feedback(
+        snapshot,
+        &|pc| {
+            snapshot
+                .executables
+                .first()
+                .is_none_or(|executable| has_run(snapshot, executable, pc))
+        },
+        zone,
+    )
 }
 
 /// Whether the instruction at `pc` ever ran in the interpreter, as far as the
@@ -138,7 +142,11 @@ pub fn has_run(snapshot: &Snapshot, executable: &ExecutableSnapshot, pc: u32) ->
 
 /// Like `build_graph()`, with the "did this instruction ever run" oracle
 /// given by the caller.
-pub fn build_graph_with_feedback(snapshot: &Snapshot, has_run: &dyn Fn(u32) -> bool) -> Result<Graph, CompileFailure> {
+pub fn build_graph_with_feedback<'z>(
+    snapshot: &Snapshot,
+    has_run: &dyn Fn(u32) -> bool,
+    zone: &'z Zone,
+) -> Result<Graph<'z>, CompileFailure> {
     let decoded = (0..snapshot.executables.len())
         .map(|_| OnceCell::new())
         .collect::<Vec<_>>();
@@ -154,6 +162,7 @@ pub fn build_graph_with_feedback(snapshot: &Snapshot, has_run: &dyn Fn(u32) -> b
                 inlined_callees_virtualized: &virtualized_inlined_arguments,
             },
             build_osr_entries,
+            zone,
         )?
         .build()
     };
@@ -522,13 +531,13 @@ impl<'a> Function<'a> {
     }
 }
 
-struct GraphBuilder<'a> {
+struct GraphBuilder<'a, 'z> {
     snapshot: &'a Snapshot,
     runtime: &'a RuntimeInfo,
     has_run: &'a dyn Fn(u32) -> bool,
 
     decoded: &'a [OnceCell<Result<DecodedFunction, CompileFailure>>],
-    graph: Graph,
+    graph: Graph<'z>,
     /// The blocks in linear order, as they are started.
     order: Vec<BlockId>,
     /// The constant node of each value and representation.
@@ -560,13 +569,14 @@ struct GraphBuilder<'a> {
     has_instance: HashMap<u64, crate::snapshot::OrdinaryHasInstanceSnapshot>,
 }
 
-impl<'a> GraphBuilder<'a> {
+impl<'a, 'z> GraphBuilder<'a, 'z> {
     fn new(
         snapshot: &'a Snapshot,
         has_run: &'a dyn Fn(u32) -> bool,
         decoded: &'a [OnceCell<Result<DecodedFunction, CompileFailure>>],
         virtualize_arguments: ArgumentsVirtualization<'a>,
         build_osr_entries: bool,
+        zone: &'z Zone,
     ) -> Result<Self, CompileFailure> {
         let executable = snapshot.executables.first().ok_or(CompileFailure::InvalidBytecode {
             pc: 0,
@@ -594,7 +604,7 @@ impl<'a> GraphBuilder<'a> {
             decoded,
             graph: Graph {
                 legacy_arguments,
-                ..Graph::default()
+                ..Graph::new_in(zone)
             },
             order: Vec::new(),
             constants: HashMap::default(),
@@ -613,7 +623,7 @@ impl<'a> GraphBuilder<'a> {
         })
     }
 
-    fn build(mut self) -> Result<Graph, CompileFailure> {
+    fn build(mut self) -> Result<Graph<'z>, CompileFailure> {
         // NB: The entry block has no predecessors and jumps to the first bytecode
         //     block, which may be a loop header.
         let entry = self.start_new_block(Vec::new());
@@ -628,7 +638,7 @@ impl<'a> GraphBuilder<'a> {
             index.is_some_and(|index| self.can_build_osr_entry(index))
         });
         if self.snapshot.options.runs_once && self.build_osr_entries && builds_entry_at_osr_pc {
-            self.set_control(Op::Unreachable, Vec::new());
+            self.set_control(Op::Unreachable, &[]);
         } else {
             self.load_entry_slots();
             self.enter_function(entry);
@@ -716,7 +726,7 @@ impl<'a> GraphBuilder<'a> {
     /// Loads a slot from frame memory, which then holds its value in sync.
     fn load_slot(&mut self, slot: usize) -> NodeId {
         let operand = self.function.layout.operand_for_tracked_index(slot);
-        let node = self.emit(Op::LoadSlot { slot: operand.raw() }, Vec::new(), Some(Repr::Tagged));
+        let node = self.emit(Op::LoadSlot { slot: operand.raw() }, &[], Some(Repr::Tagged));
         self.frame.slots[slot] = SlotState { node, in_sync: true };
         node
     }
@@ -727,7 +737,7 @@ impl<'a> GraphBuilder<'a> {
         let first_block = self.ir_block(0);
         self.function.incoming[0].push((from, self.frame.clone()));
         self.block = from;
-        self.set_control(Op::Jump { target: first_block }, Vec::new());
+        self.set_control(Op::Jump { target: first_block }, &[]);
     }
 
     /// Builds the blocks of the function being walked, in reverse post order.
@@ -747,7 +757,7 @@ impl<'a> GraphBuilder<'a> {
         if let Some(block) = self.function.ir_blocks[block_index] {
             return block;
         }
-        let block = self.graph.add_block(Block::default());
+        let block = self.graph.add_block(self.graph.new_block());
         self.function.ir_blocks[block_index] = Some(block);
         block
     }
@@ -756,8 +766,8 @@ impl<'a> GraphBuilder<'a> {
     /// The caller sets the abstract frame.
     fn start_new_block(&mut self, predecessors: Vec<BlockId>) -> BlockId {
         let block = self.graph.add_block(Block {
-            predecessors,
-            ..Block::default()
+            predecessors: self.graph.list(&predecessors),
+            ..self.graph.new_block()
         });
         self.order.push(block);
         self.block = block;
@@ -783,7 +793,10 @@ impl<'a> GraphBuilder<'a> {
         self.block = block;
         {
             let block = &mut self.graph.blocks[block.index()];
-            block.predecessors = incoming.iter().map(|(predecessor, _)| *predecessor).collect();
+            block.predecessors.clear();
+            block
+                .predecessors
+                .extend(incoming.iter().map(|(predecessor, _)| *predecessor));
             block.bytecode_start = Some(self.function.instructions[first_instruction].pc);
             block.is_loop_header = is_loop_header;
         }
@@ -871,15 +884,15 @@ impl<'a> GraphBuilder<'a> {
                 });
             let node = match shared {
                 Some(node) => node,
-                None if reloads => self.emit(Op::LoadSlot { slot: operand.raw() }, Vec::new(), Some(Repr::Tagged)),
+                None if reloads => self.emit(Op::LoadSlot { slot: operand.raw() }, &[], Some(Repr::Tagged)),
                 None => {
                     // NB: Phis start out tagged; representation selection unboxes them later.
                     let inputs = incoming
                         .iter()
                         .zip(&values)
                         .map(|((predecessor, _), value)| self.tagged_at_end_of(*predecessor, value.node))
-                        .collect();
-                    self.add_phi(inputs)
+                        .collect::<Vec<_>>();
+                    self.add_phi(&inputs)
                 }
             };
             merged.slots[slot] = SlotState { node, in_sync };
@@ -887,18 +900,22 @@ impl<'a> GraphBuilder<'a> {
         merged
     }
 
-    fn add_phi(&mut self, inputs: Vec<NodeId>) -> NodeId {
-        let phi = self
-            .graph
-            .add_node(Node::new(Op::Phi, inputs, Some(Repr::Tagged), self.function.pc));
+    fn add_phi(&mut self, inputs: &[NodeId]) -> NodeId {
+        let phi = self.graph.add(Op::Phi, inputs, Some(Repr::Tagged), self.function.pc);
         self.graph.blocks[self.block.index()].phis.push(phi);
         phi
     }
 
     /// Adds a node to the body of a block whose control node is already set.
-    fn append_to_finished_block(&mut self, block: BlockId, op: Op, inputs: Vec<NodeId>, repr: Option<Repr>) -> NodeId {
+    fn append_to_finished_block(
+        &mut self,
+        block: BlockId,
+        op: Op<'z>,
+        inputs: &[NodeId],
+        repr: Option<Repr>,
+    ) -> NodeId {
         let pc = self.graph.control(block).pc;
-        let node = self.graph.add_node(Node::new(op, inputs, repr, pc));
+        let node = self.graph.add(op, inputs, repr, pc);
         self.graph.blocks[block.index()].body.push(node);
         node
     }
@@ -959,7 +976,7 @@ impl<'a> GraphBuilder<'a> {
         } else {
             self.function.incoming[target].push((self.block, self.frame.clone()));
         }
-        self.set_control(Op::Jump { target: target_block }, Vec::new());
+        self.set_control(Op::Jump { target: target_block }, &[]);
         Ok(())
     }
 
@@ -967,7 +984,7 @@ impl<'a> GraphBuilder<'a> {
     /// a fresh block for each successor.
     fn end_with_branch(
         &mut self,
-        make_op: impl FnOnce(BlockId, BlockId) -> Op,
+        make_op: impl FnOnce(BlockId, BlockId) -> Op<'z>,
         inputs: Vec<NodeId>,
         if_true: BlockIndex,
         if_false: BlockIndex,
@@ -975,16 +992,16 @@ impl<'a> GraphBuilder<'a> {
         let source = self.block;
         let frame = self.frame.clone();
         let true_edge = self.graph.add_block(Block {
-            predecessors: vec![source],
-            ..Block::default()
+            predecessors: self.graph.list(&[source]),
+            ..self.graph.new_block()
         });
         let false_edge = self.graph.add_block(Block {
-            predecessors: vec![source],
-            ..Block::default()
+            predecessors: self.graph.list(&[source]),
+            ..self.graph.new_block()
         });
         self.order.push(true_edge);
         self.order.push(false_edge);
-        self.set_control(make_op(true_edge, false_edge), inputs);
+        self.set_control(make_op(true_edge, false_edge), &inputs);
         for (edge, target) in [(true_edge, if_true), (false_edge, if_false)] {
             self.block = edge;
             self.frame = frame.clone();
@@ -1051,9 +1068,9 @@ impl<'a> GraphBuilder<'a> {
 
     // Nodes.
 
-    fn emit(&mut self, op: Op, inputs: Vec<NodeId>, repr: Option<Repr>) -> NodeId {
+    fn emit(&mut self, op: Op<'z>, inputs: &[NodeId], repr: Option<Repr>) -> NodeId {
         debug_assert!(!op.is_control());
-        let node = self.graph.add_node(Node::new(op, inputs, repr, self.function.pc));
+        let node = self.graph.add(op, inputs, repr, self.function.pc);
         self.graph.blocks[self.block.index()].body.push(node);
         self.note_shape_changes(node);
         node
@@ -1097,9 +1114,9 @@ impl<'a> GraphBuilder<'a> {
             .map(|(_, shape)| *shape)
     }
 
-    fn set_control(&mut self, op: Op, inputs: Vec<NodeId>) -> NodeId {
+    fn set_control(&mut self, op: Op<'z>, inputs: &[NodeId]) -> NodeId {
         debug_assert!(op.is_control());
-        let node = self.graph.add_node(Node::new(op, inputs, None, self.function.pc));
+        let node = self.graph.add(op, inputs, None, self.function.pc);
         let block = &mut self.graph.blocks[self.block.index()];
         assert!(block.control.is_none(), "a block has one control node");
         block.control = Some(node);
@@ -1114,9 +1131,7 @@ impl<'a> GraphBuilder<'a> {
         if let Some(node) = self.constants.get(&(bits, repr)) {
             return *node;
         }
-        let node = self
-            .graph
-            .add_node(Node::new(Op::Constant(bits), Vec::new(), Some(repr), 0));
+        let node = self.graph.add(Op::Constant(bits), &[], Some(repr), 0);
         self.constants.insert((bits, repr), node);
         node
     }
@@ -1128,7 +1143,7 @@ impl<'a> GraphBuilder<'a> {
                 self.runtime.heap_region_base + (bits & self.runtime.heap_region_offset_mask),
                 Repr::Pointer,
             ),
-            None => self.emit(Op::CellAddress, vec![value], Some(Repr::Pointer)),
+            None => self.emit(Op::CellAddress, &[value], Some(Repr::Pointer)),
         }
     }
 
@@ -1148,9 +1163,9 @@ impl<'a> GraphBuilder<'a> {
             return self.constant(value::int32((bits as u32).cast_signed()));
         }
         if block == self.block {
-            return self.emit(Op::BoxInt32, vec![value], Some(Repr::Tagged));
+            return self.emit(Op::BoxInt32, &[value], Some(Repr::Tagged));
         }
-        self.append_to_finished_block(block, Op::BoxInt32, vec![value], Some(Repr::Tagged))
+        self.append_to_finished_block(block, Op::BoxInt32, &[value], Some(Repr::Tagged))
     }
 
     fn constant(&mut self, bits: u64) -> NodeId {
@@ -1215,7 +1230,7 @@ impl<'a> GraphBuilder<'a> {
                 let index = (operand.raw() - self.function.layout.constants_base()) as usize;
                 if index < self.function.written_constants.capacity() && self.function.written_constants.contains(index)
                 {
-                    return Ok(self.emit(Op::LoadSlot { slot: operand.raw() }, Vec::new(), Some(Repr::Tagged)));
+                    return Ok(self.emit(Op::LoadSlot { slot: operand.raw() }, &[], Some(Repr::Tagged)));
                 }
                 let bits = *self.snapshot[self.function.executable.constants].get(index).ok_or(
                     CompileFailure::InvalidBytecode {
@@ -1237,7 +1252,7 @@ impl<'a> GraphBuilder<'a> {
         }
         let Some(slot) = self.function.layout.tracked_index(operand) else {
             // NB: A written constant lives in frame memory.
-            self.emit(Op::StoreSlot { slot: operand.raw() }, vec![value], None);
+            self.emit(Op::StoreSlot { slot: operand.raw() }, &[value], None);
             return Ok(());
         };
         // NB: Inlined frames have no memory to be out of sync with.
@@ -1256,7 +1271,7 @@ impl<'a> GraphBuilder<'a> {
                 .contains(slot);
         if !unchanged {
             if writes_memory {
-                self.emit(Op::StoreSlot { slot: operand.raw() }, vec![value], None);
+                self.emit(Op::StoreSlot { slot: operand.raw() }, &[value], None);
             }
             self.frame.slots[slot] = SlotState {
                 node: value,
@@ -1271,7 +1286,7 @@ impl<'a> GraphBuilder<'a> {
         let SlotState { node, in_sync } = self.frame.slots[slot];
         if !in_sync {
             let operand = self.function.layout.operand_for_tracked_index(slot);
-            self.emit(Op::StoreSlot { slot: operand.raw() }, vec![node], None);
+            self.emit(Op::StoreSlot { slot: operand.raw() }, &[node], None);
             self.frame.slots[slot].in_sync = true;
         }
     }
@@ -1302,7 +1317,7 @@ impl<'a> GraphBuilder<'a> {
                 Op::Exit {
                     kind: ExitKind::NoFeedback,
                 },
-                Vec::new(),
+                &[],
             );
             self.graph.nodes[exit.index()].frame_state = Some(frame_state);
             return Ok(Flow::Ended);
@@ -1312,7 +1327,7 @@ impl<'a> GraphBuilder<'a> {
             .instruction
             .clone();
         if osr::is_loop_back_edge(instruction.opcode()) {
-            self.emit_checked(Op::CheckInterrupt, Vec::new(), None);
+            self.emit_checked(Op::CheckInterrupt, &[], None);
         }
         if replaces_environments(instruction.opcode()) {
             self.frame.forget_environments();
@@ -1332,7 +1347,7 @@ impl<'a> GraphBuilder<'a> {
             Instruction::Enter => {
                 // NB: Inlined frames are set up by the caller.
                 if !self.function.is_virtual() {
-                    self.emit(Op::InitializeFrame, Vec::new(), None);
+                    self.emit(Op::InitializeFrame, &[], None);
                 }
                 let empty = self.constant(value::EMPTY);
                 for slot in RESERVED_REGISTER_COUNT as usize..self.function.layout.registers_and_locals_count as usize {
@@ -1415,9 +1430,9 @@ impl<'a> GraphBuilder<'a> {
                 let value = if self.graph.is_known_non_empty(value, arguments) {
                     value
                 } else {
-                    self.emit(Op::EmptyToUndefined, vec![value], Some(Repr::Tagged))
+                    self.emit(Op::EmptyToUndefined, &[value], Some(Repr::Tagged))
                 };
-                self.set_control(Op::Return, vec![value]);
+                self.set_control(Op::Return, &[value]);
                 return Ok(Some(Flow::Ended));
             }
             Instruction::End { value } => {
@@ -1428,7 +1443,7 @@ impl<'a> GraphBuilder<'a> {
                 if self.function.is_virtual() {
                     return Ok(Some(self.build_inline_return(value, false)?));
                 }
-                self.set_control(Op::Return, vec![value]);
+                self.set_control(Op::Return, &[value]);
                 return Ok(Some(Flow::Ended));
             }
             Instruction::Yield {
@@ -1457,27 +1472,27 @@ impl<'a> GraphBuilder<'a> {
             }
             Instruction::GetLexicalEnvironment { dst } => {
                 let address = self.frame_field(FrameField::LexicalEnvironment)?;
-                let environment = self.emit(Op::BoxCell, vec![address], Some(Repr::Tagged));
+                let environment = self.emit(Op::BoxCell, &[address], Some(Repr::Tagged));
                 self.write(dst, environment)?;
             }
             Instruction::SetLexicalEnvironment { environment } => {
                 let environment = self.read(environment)?;
-                let address = self.emit(Op::SetLexicalEnvironment, vec![environment], Some(Repr::Pointer));
+                let address = self.emit(Op::SetLexicalEnvironment, &[environment], Some(Repr::Pointer));
                 self.frame.set_field(FrameField::LexicalEnvironment, address);
             }
             Instruction::LeavePrivateEnvironment => {
-                self.emit(Op::LeavePrivateEnvironment, Vec::new(), None);
+                self.emit(Op::LeavePrivateEnvironment, &[], None);
             }
             Instruction::IsCallable { dst, value } => {
                 let value = self.read(value)?;
-                let result = self.emit(Op::IsCallable, vec![value], Some(Repr::Tagged));
+                let result = self.emit(Op::IsCallable, &[value], Some(Repr::Tagged));
                 self.write(dst, result)?;
             }
             Instruction::GetArgumentCount { dst } => {
                 // NB: An inlined callee was passed as many arguments as its call passed.
                 let count = match &self.function.inline {
                     Some(call) => self.constant(value::int32(call.passed_argument_count.cast_signed())),
-                    None => self.emit(Op::ArgumentCount, Vec::new(), Some(Repr::Tagged)),
+                    None => self.emit(Op::ArgumentCount, &[], Some(Repr::Tagged)),
                 };
                 self.write(dst, count)?;
             }
@@ -1654,7 +1669,7 @@ impl<'a> GraphBuilder<'a> {
             Instruction::Typeof { dst, src } if self.runtime.layout.typeof_strings.number != 0 => {
                 let value = self.read(src)?;
                 self.assume_no_htmldda_objects();
-                let result = self.emit(Op::Typeof, vec![value], Some(Repr::Tagged));
+                let result = self.emit(Op::Typeof, &[value], Some(Repr::Tagged));
                 self.write(dst, result)?;
             }
             Instruction::InstanceOf { dst, lhs, rhs } => {
@@ -1673,7 +1688,7 @@ impl<'a> GraphBuilder<'a> {
             {
                 let value = self.read(dst)?;
                 self.assume_no_htmldda_objects();
-                let result = self.emit(Op::Typeof, vec![value], Some(Repr::Tagged));
+                let result = self.emit(Op::Typeof, &[value], Some(Repr::Tagged));
                 self.write(dst, result)?;
             }
             Instruction::SetGlobal { src, cache, .. } => {
@@ -1787,17 +1802,17 @@ impl<'a> GraphBuilder<'a> {
         let value = if self.graph.is_known_non_empty(value, arguments) {
             value
         } else {
-            self.emit(Op::EmptyToUndefined, vec![value], Some(Repr::Tagged))
+            self.emit(Op::EmptyToUndefined, &[value], Some(Repr::Tagged))
         };
         self.emit(
             Op::Suspend {
                 continuation: continuation.map(|label| label.0),
                 kind,
             },
-            Vec::new(),
+            &[],
             None,
         );
-        self.set_control(Op::Return, vec![value]);
+        self.set_control(Op::Return, &[value]);
         Ok(Flow::Ended)
     }
 
@@ -1817,9 +1832,9 @@ impl<'a> GraphBuilder<'a> {
         let object = self.branch_to_slow_path(&mut slow_paths, BranchCondition::Object, vec![source], true);
         let object = self.cell_address(object);
         let generator = self.branch_to_slow_path(&mut slow_paths, BranchCondition::GeneratorObject, vec![object], true);
-        let completion_type = self.emit(Op::LoadGeneratorCompletionType, vec![generator], Some(Repr::Int32));
-        let completion_type = self.emit(Op::BoxInt32, vec![completion_type], Some(Repr::Tagged));
-        let value = self.emit(Op::LoadGeneratorCompletionValue, vec![generator], Some(Repr::Tagged));
+        let completion_type = self.emit(Op::LoadGeneratorCompletionType, &[generator], Some(Repr::Int32));
+        let completion_type = self.emit(Op::BoxInt32, &[completion_type], Some(Repr::Tagged));
+        let value = self.emit(Op::LoadGeneratorCompletionValue, &[generator], Some(Repr::Tagged));
         let outputs = self.join_paths(slow_paths, vec![completion_type, value], |_, outputs| outputs);
         self.write(type_dst, outputs[0])?;
         self.write(value_dst, outputs[1])?;
@@ -1883,8 +1898,8 @@ impl<'a> GraphBuilder<'a> {
         let frame = self.frame.clone();
         let [true_edge, false_edge, fallback] = [(); 3].map(|()| {
             let block = self.graph.add_block(Block {
-                predecessors: vec![source],
-                ..Block::default()
+                predecessors: self.graph.list(&[source]),
+                ..self.graph.new_block()
             });
             self.order.push(block);
             block
@@ -1896,7 +1911,7 @@ impl<'a> GraphBuilder<'a> {
                 if_false: false_edge,
                 fallback,
             },
-            vec![value],
+            &[value],
         );
         for (edge, target) in [(true_edge, if_true), (false_edge, if_false)] {
             self.block = edge;
@@ -1905,7 +1920,7 @@ impl<'a> GraphBuilder<'a> {
         }
         self.block = fallback;
         self.frame = frame;
-        let boolean = self.emit(Op::ToBoolean, vec![value], Some(Repr::Bool));
+        let boolean = self.emit(Op::ToBoolean, &[value], Some(Repr::Bool));
         self.end_with_branch(
             |if_true, if_false| Op::Branch {
                 condition: BranchCondition::Bool,
@@ -1932,11 +1947,11 @@ impl<'a> GraphBuilder<'a> {
                 if_false: false_block,
                 fallback,
             },
-            vec![value],
+            &[value],
         );
 
         self.block = fallback;
-        let boolean = self.emit(Op::ToBoolean, vec![value], Some(Repr::Bool));
+        let boolean = self.emit(Op::ToBoolean, &[value], Some(Repr::Bool));
         let (fallback_true_block, fallback_false_block) = self.branch_both_ways(BranchCondition::Bool, vec![boolean]);
         self.join_blocks(vec![true_block, false_block, fallback_true_block, fallback_false_block]);
         self.frame = frame;
@@ -1948,7 +1963,7 @@ impl<'a> GraphBuilder<'a> {
         };
         let truthy = self.constant(truthy);
         let falsy = self.constant(falsy);
-        let result = self.add_phi(vec![truthy, falsy, truthy, falsy]);
+        let result = self.add_phi(&[truthy, falsy, truthy, falsy]);
         self.write(dst, result)
     }
 
@@ -1972,7 +1987,7 @@ impl<'a> GraphBuilder<'a> {
         &mut self,
         instruction: &Instruction,
         info: GenericInfo,
-        op: Op,
+        op: Op<'z>,
     ) -> Result<Flow, CompileFailure> {
         self.build_generic_node_with_inputs(instruction, info, op, &[], None)
     }
@@ -1987,7 +2002,7 @@ impl<'a> GraphBuilder<'a> {
         &mut self,
         instruction: &Instruction,
         info: GenericInfo,
-        op: Op,
+        op: Op<'z>,
         inputs: &[Operand],
         forwarded: Option<Operand>,
     ) -> Result<Flow, CompileFailure> {
@@ -2073,7 +2088,7 @@ impl<'a> GraphBuilder<'a> {
         } else {
             value_is_result.then_some(Repr::Tagged)
         };
-        let node = self.emit(op, input_nodes, repr);
+        let node = self.emit(op, &input_nodes, repr);
 
         let mut destination = None;
         instruction.for_each_operand(|operand, role| {
@@ -2131,7 +2146,7 @@ impl<'a> GraphBuilder<'a> {
             return Ok(Flow::Ended);
         }
         if !instruction.opcode().can_fall_through() {
-            self.set_control(Op::Unreachable, Vec::new());
+            self.set_control(Op::Unreachable, &[]);
             return Ok(Flow::Ended);
         }
         Ok(Flow::Continue)

@@ -62,11 +62,22 @@ struct Decisions {
     replacements: Replacements,
     removed: BitSet,
     /// Control nodes to replace, with what.
-    controls: Vec<(NodeId, Op)>,
+    controls: Vec<(NodeId, NewControl)>,
     /// Shape checks that become `AssumeValid` nodes.
     assumptions: Vec<NodeId>,
     /// The stable shapes the code relies on staying stable.
     stable_shapes: Vec<CellId>,
+}
+
+/// What a control node is replaced with.
+enum NewControl {
+    Jump {
+        target: BlockId,
+    },
+    /// A shape switch with fewer cases, each a shape and its target.
+    ShapeSwitch {
+        cases: Vec<(ShapeCheck, BlockId)>,
+    },
 }
 
 impl Decisions {
@@ -156,10 +167,16 @@ pub fn run(graph: &mut Graph) {
         graph.depend_on(Dependency::StableShape(shape));
     }
     let changed_control_flow = !decisions.controls.is_empty();
-    for (node, op) in decisions.controls {
-        match op {
-            Op::Jump { target } => edit::make_jump(graph, node, target),
-            op => graph.nodes[node.index()].op = op,
+    for (node, control) in decisions.controls {
+        match control {
+            NewControl::Jump { target } => edit::make_jump(graph, node, target),
+            NewControl::ShapeSwitch { cases } => {
+                let zone = graph.zone;
+                graph.nodes[node.index()].op = Op::ShapeSwitch {
+                    shapes: zone.alloc_slice_from_iter(cases.iter().map(|(shape, _)| *shape)),
+                    targets: zone.alloc_slice_from_iter(cases.iter().map(|(_, target)| *target)),
+                };
+            }
         }
     }
     if changed_control_flow {
@@ -271,7 +288,7 @@ fn visit_block(
         let value = decisions.value(graph, graph.node(control).inputs[0]);
         if let Some(holds) = facts.decides(graph, value, condition) {
             let target = if holds { if_true } else { if_false };
-            decisions.controls.push((control, Op::Jump { target }));
+            decisions.controls.push((control, NewControl::Jump { target }));
             return vec![(target, facts)];
         }
         let mut passed = facts.clone();
@@ -301,13 +318,13 @@ fn visit_block(
             && facts.value_kind(inputs[0]).is_some()
         {
             let target = if equal { if_false } else { if_true };
-            decisions.controls.push((control, Op::Jump { target }));
+            decisions.controls.push((control, NewControl::Jump { target }));
             return vec![(target, facts)];
         }
         if let Some(key) = BranchKey::of(graph, condition, &inputs) {
             if let Some(holds) = facts.branch_outcome(&key) {
                 let target = if holds { if_true } else { if_false };
-                decisions.controls.push((control, Op::Jump { target }));
+                decisions.controls.push((control, NewControl::Jump { target }));
                 return vec![(target, facts)];
             }
             let mut passed = facts.clone();
@@ -328,7 +345,7 @@ fn visit_block(
             return vec![(if_true, passed), (if_false, facts)];
         }
     }
-    let Op::ShapeSwitch { cases } = graph.node(control).op.clone() else {
+    let Op::ShapeSwitch { shapes, targets } = graph.node(control).op else {
         let successors = graph.successors(block);
         let Some((last, others)) = successors.split_last() else {
             return Vec::new();
@@ -346,20 +363,21 @@ fn visit_block(
         .shapes(object)
         .filter(|_| !facts.is_unvalidated(object))
         .map(<[ShapeCheck]>::to_vec);
-    let possible = cases
+    let possible = shapes
         .iter()
-        .filter(|(shape, _)| known.as_ref().is_none_or(|known| known.contains(shape)))
         .copied()
+        .zip(targets.iter().copied())
+        .filter(|(shape, _)| known.as_ref().is_none_or(|known| known.contains(shape)))
         .collect::<Vec<_>>();
     let covers_known = known
         .as_ref()
         .is_some_and(|known| known.iter().all(|shape| possible.iter().any(|(case, _)| case == shape)));
     match possible.as_slice() {
-        [(_, target)] if covers_known => decisions.controls.push((control, Op::Jump { target: *target })),
-        _ if possible.len() < cases.len() && !possible.is_empty() => {
+        [(_, target)] if covers_known => decisions.controls.push((control, NewControl::Jump { target: *target })),
+        _ if possible.len() < shapes.len() && !possible.is_empty() => {
             decisions.controls.push((
                 control,
-                Op::ShapeSwitch {
+                NewControl::ShapeSwitch {
                     cases: possible.clone(),
                 },
             ));
@@ -435,7 +453,7 @@ fn visit_node(
             remove = removable && (is_object_constant || facts.is_object(value));
             facts.set_object(value);
         }
-        Op::CheckShape { ref shapes } => {
+        Op::CheckShape { shapes } => {
             let object = input(0);
             remove = removable
                 && facts

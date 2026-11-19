@@ -41,20 +41,21 @@ pub(crate) fn snapshot_for(program: &Program, layout: FrameLayout) -> Snapshot {
 
 /// Builds the graph of `program` with `test_layout()`. The instructions with
 /// the indices in `never_ran` are treated as never having run.
-pub(crate) fn build_with_layout(program: &Program, layout: FrameLayout, never_ran: &[usize]) -> Graph {
+pub(crate) fn build_with_layout(program: &Program, layout: FrameLayout, never_ran: &[usize]) -> Graph<'static> {
     let snapshot = snapshot_for(program, layout);
     let never_ran_pcs = never_ran
         .iter()
         .map(|index| program.offsets[*index])
         .collect::<Vec<_>>();
-    let mut graph = build_graph_with_feedback(&snapshot, &|pc| !never_ran_pcs.contains(&pc)).unwrap();
+    let mut graph =
+        build_graph_with_feedback(&snapshot, &|pc| !never_ran_pcs.contains(&pc), crate::test_zone()).unwrap();
     crate::passes::optimize(&mut graph, &layout, true, &mut Dominators::new()).unwrap();
     graph
 }
 
 /// Builds and optimizes the graph of `snapshot`, like compilation does.
-pub(crate) fn optimized_graph(snapshot: &Snapshot) -> Graph {
-    let mut graph = build_graph(snapshot).unwrap();
+pub(crate) fn optimized_graph(snapshot: &Snapshot) -> Graph<'static> {
+    let mut graph = build_graph(snapshot, crate::test_zone()).unwrap();
     crate::passes::optimize(
         &mut graph,
         &snapshot.executables[0].layout,
@@ -65,7 +66,7 @@ pub(crate) fn optimized_graph(snapshot: &Snapshot) -> Graph {
     graph
 }
 
-pub(crate) fn build(program: &Program) -> Graph {
+pub(crate) fn build(program: &Program) -> Graph<'static> {
     build_with_layout(program, test_layout(), &[])
 }
 
@@ -410,7 +411,7 @@ fn unsupported_instructions_fail_cleanly() {
         ]
     });
     let snapshot = snapshot_for(&program, test_layout());
-    let failure = build_graph(&snapshot).unwrap_err();
+    let failure = build_graph(&snapshot, crate::test_zone()).unwrap_err();
     assert!(matches!(
         failure,
         CompileFailure::UnsupportedInstruction {
@@ -1852,7 +1853,7 @@ pub(crate) mod inlining {
                 })
                 .collect();
             snapshot.executables[0].property_caches = add_caches(&mut snapshot, &[cache(entries)]);
-            let graph = build_graph(&snapshot).unwrap();
+            let graph = build_graph(&snapshot, crate::test_zone()).unwrap();
             let frames = graph
                 .frame_states
                 .iter()

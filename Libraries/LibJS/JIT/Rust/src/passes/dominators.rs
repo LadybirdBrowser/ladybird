@@ -292,7 +292,7 @@ fn intersect(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::{Block, BranchCondition, Node, Op};
+    use crate::ir::{Block, BranchCondition, Op};
 
     #[test]
     fn cyclic_graphs_with_multiple_entries_match_dominator_sets() {
@@ -311,16 +311,16 @@ mod tests {
                     BlockId::from_index(2 + (random >> 32) as usize % (count - 2))
                 };
                 let (a, b) = (target(), target());
-                let control = graph.add_node(Node::new(
+                let control = graph.add(
                     Op::Branch {
                         condition: BranchCondition::Bool,
                         if_true: a,
                         if_false: b,
                     },
-                    vec![],
+                    &[],
                     None,
                     0,
-                ));
+                );
                 graph.blocks[block].control = Some(control);
                 for successor in [a, b] {
                     graph.blocks[successor.index()]

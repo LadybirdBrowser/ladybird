@@ -545,7 +545,7 @@ pub fn allocate(
 }
 
 struct Allocator<'a> {
-    graph: &'a Graph,
+    graph: &'a Graph<'a>,
     registers: &'a RegisterSet,
     liveness: &'a ValueLiveness,
     allocation: &'a mut Allocation,

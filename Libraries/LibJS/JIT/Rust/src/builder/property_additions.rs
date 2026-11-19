@@ -27,7 +27,7 @@ use crate::bytecode::Operand;
 use crate::code::ExitKind;
 use crate::ir::Op;
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// Builds `base.property = src` as `AddNamed` and `StoreNamed` nodes, if
     /// its property cache saw additions (and writes of existing own data
     /// properties) on shapes that are no dictionaries, and its object is an
@@ -110,7 +110,7 @@ impl GraphBuilder<'_> {
                                 shape,
                                 property_count: offset + 1,
                             },
-                            vec![object, value, address],
+                            &[object, value, address],
                             None,
                         );
                     }

@@ -132,7 +132,7 @@ fn find_split(graph: &Graph, dominators: &Dominators, block: BlockId) -> Option<
         }
     }
     let moved: Vec<NodeId> = if branch_block == block {
-        data.body.clone()
+        data.body.to_vec()
     } else {
         data.body.iter().chain(&branch_data.body).copied().collect()
     };
@@ -284,8 +284,8 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators) -> Result<bool, Col
             continue;
         };
 
-        let block_phis = graph.block(split.block).phis.clone();
-        let predecessors = graph.block(split.block).predecessors.clone();
+        let block_phis = graph.block(split.block).phis.to_vec();
+        let predecessors = graph.block(split.block).predecessors.to_vec();
         let mut renames: [Vec<(NodeId, NodeId)>; 2] = std::array::from_fn(|side| {
             let predecessor = split.sides[side].0;
             let index = predecessors
@@ -318,8 +318,8 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators) -> Result<bool, Col
                 copies.push(copy);
             }
             let body = &mut graph.blocks[target.index()].body;
-            copies.append(body);
-            *body = copies;
+            copies.extend_from_slice(body);
+            body.assign(&copies);
         }
         let rename = |side: usize, value: NodeId| renamed(&renames[side], value);
 
@@ -357,7 +357,7 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators) -> Result<bool, Col
         for side in 0..2 {
             let (predecessor, target) = split.sides[side];
             graph.replace_successor(predecessor, split.block, target);
-            graph.blocks[target.index()].predecessors = vec![predecessor];
+            graph.blocks[target.index()].predecessors.assign(&[predecessor]);
         }
         graph.blocks[split.block.index()].predecessors.clear();
         for phi in block_phis {

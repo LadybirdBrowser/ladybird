@@ -15,10 +15,8 @@ use crate::ir::BlockId;
 use crate::ir::FrameState;
 use crate::ir::FrameStateId;
 use crate::ir::Graph;
-use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
-use crate::ir::Successors;
 
 /// Values to replace by other values, as a pass decides them.
 pub struct Replacements {
@@ -155,7 +153,7 @@ impl Constants {
         *self
             .nodes
             .entry((bits, repr))
-            .or_insert_with(|| graph.add_node(Node::new(Op::Constant(bits), Vec::new(), Some(repr), 0)))
+            .or_insert_with(|| graph.add(Op::Constant(bits), &[], Some(repr), 0))
     }
 }
 
@@ -198,7 +196,7 @@ pub fn clean_up_control_flow(graph: &mut Graph) {
     // Keep the predecessor entries (and their phi inputs) of reachable
     // blocks that still branch here, as many times as they do.
     let mut remaining_edges = (0..block_count)
-        .map(|block| graph.successors(BlockId::from_index(block)))
+        .map(|block| graph.successors(BlockId::from_index(block)).to_vec())
         .collect::<Vec<_>>();
     for block in 0..block_count {
         if !reachable[block] {
@@ -215,15 +213,7 @@ pub fn clean_up_control_flow(graph: &mut Graph) {
                 let Some(index) = successors.iter().position(|successor| successor.index() == block) else {
                     return false;
                 };
-                match successors {
-                    Successors::Inline { blocks, count } => {
-                        *count -= 1;
-                        blocks[index] = blocks[usize::from(*count)];
-                    }
-                    Successors::Cases(blocks) => {
-                        blocks.swap_remove(index);
-                    }
-                }
+                successors.swap_remove(index);
                 true
             })
             .collect::<InlineVec<bool, 4>>();
@@ -322,7 +312,17 @@ pub fn fold_branches_to_one_target(graph: &mut Graph) -> bool {
 /// start of the bytecode block `block` with the values flowing into it from
 /// there, if `block` has a start frame state (see
 /// `Block::start_frame_state`).
-pub fn frame_state_entering(graph: &Graph, block: BlockId, predecessor: BlockId) -> Option<FrameState> {
+pub fn frame_state_entering<'z>(graph: &Graph<'z>, block: BlockId, predecessor: BlockId) -> Option<FrameState<'z>> {
+    let (template, values) = values_entering(graph, block, predecessor)?;
+    Some(frame_state_with_values(graph, template, &values))
+}
+
+/// The values of a frame state, with the frame state it is made from (see `values_entering()`).
+pub type EnteringValues = (FrameStateId, Vec<(u32, NodeId)>);
+
+/// The values of the frame state of `frame_state_entering()`, with the start frame state of `block` that it is made
+/// from.
+pub fn values_entering(graph: &Graph, block: BlockId, predecessor: BlockId) -> Option<EnteringValues> {
     let data = graph.block(block);
     let template = data.start_frame_state?;
     let entry_index = data
@@ -331,8 +331,8 @@ pub fn frame_state_entering(graph: &Graph, block: BlockId, predecessor: BlockId)
         .position(|block| *block == predecessor)
         .expect("the predecessor enters the block");
     let phis = &data.phis;
-    let mut state: FrameState = graph.frame_state(template).clone();
-    for (_, value) in &mut state.values {
+    let mut values = graph.frame_state(template).values.to_vec();
+    for (_, value) in &mut values {
         if phis.contains(value) {
             *value = graph.node(*value).inputs[entry_index];
         } else if data.body.contains(value) {
@@ -340,7 +340,26 @@ pub fn frame_state_entering(graph: &Graph, block: BlockId, predecessor: BlockId)
             return None;
         }
     }
-    Some(state)
+    Some((template, values))
+}
+
+/// The frame state `template` with `values` in place of its values.
+pub fn frame_state_with_values<'z>(
+    graph: &Graph<'z>,
+    template: FrameStateId,
+    values: &[(u32, NodeId)],
+) -> FrameState<'z> {
+    let template = graph.frame_state(template);
+    FrameState {
+        executable: template.executable,
+        pc: template.pc,
+        mode: template.mode,
+        values: graph.list(values),
+        in_frame: template.in_frame.clone(),
+        parent: template.parent,
+        passed_argument_count: template.passed_argument_count,
+        legacy_arguments: template.legacy_arguments.clone(),
+    }
 }
 
 /// Moves the cold blocks after all other blocks, keeping the order of
@@ -419,16 +438,15 @@ pub fn remove_unused_frame_states(graph: &mut Graph) {
         }
     }
     let remap = |id: FrameStateId| new_index[id.index()].expect("used frame states only refer to used ones");
-    let old = std::mem::take(&mut graph.frame_states);
-    graph.frame_states = old
-        .into_iter()
-        .zip(&used)
-        .filter(|(_, used)| **used)
-        .map(|(mut frame_state, _)| {
+    let mut index = 0;
+    graph.frame_states.retain_mut(|frame_state| {
+        let used = used[index];
+        index += 1;
+        if used {
             frame_state.parent = frame_state.parent.map(remap);
-            frame_state
-        })
-        .collect();
+        }
+        used
+    });
     for block in &graph.blocks {
         for node in block.nodes() {
             let node = &mut graph.nodes[node.index()];
@@ -445,7 +463,7 @@ mod tests {
     fn replacements_allocate_lazily_and_follow_updated_chains() {
         let mut graph = Graph::default();
         for _ in 0..4 {
-            graph.add_node(Node::new(Op::Constant(0), vec![], Some(Repr::Tagged), 0));
+            graph.add(Op::Constant(0), &[], Some(Repr::Tagged), 0);
         }
         let mut replacements = Replacements::new(&graph);
         assert_eq!(replacements.map.capacity(), 0);
@@ -456,7 +474,7 @@ mod tests {
         assert_eq!(replacements.resolve(NodeId(0)), NodeId(2));
         replacements.replace(NodeId(1), NodeId(3));
         assert_eq!(replacements.resolve(NodeId(0)), NodeId(3));
-        let added = graph.add_node(Node::new(Op::Constant(0), vec![], Some(Repr::Tagged), 0));
+        let added = graph.add(Op::Constant(0), &[], Some(Repr::Tagged), 0);
         replacements.replace(added, NodeId(0));
         assert_eq!(replacements.resolve(added), NodeId(3));
         assert!(!replacements.is_empty());

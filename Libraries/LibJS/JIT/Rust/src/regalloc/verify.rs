@@ -42,7 +42,7 @@ enum Content {
 type State = BTreeMap<Location, Content>;
 
 struct Verifier<'a> {
-    graph: &'a Graph,
+    graph: &'a Graph<'a>,
     registers: &'a RegisterSet,
     allocation: &'a Allocation,
     /// Whether to report errors; off while the block states are still
@@ -171,7 +171,8 @@ impl Verifier<'_> {
     }
 
     fn check_phi_inputs(&mut self, block: BlockId, exit_states: &[Option<State>]) {
-        for predecessor in self.graph.block(block).predecessors.clone() {
+        let predecessors = self.graph.block(block).predecessors.to_vec();
+        for predecessor in predecessors {
             let Some(exit) = &exit_states[predecessor.index()] else {
                 continue;
             };

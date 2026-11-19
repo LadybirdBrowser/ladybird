@@ -113,7 +113,7 @@ impl Range {
 }
 
 struct Ranges<'a> {
-    graph: &'a Graph,
+    graph: &'a Graph<'a>,
     dominators: &'a Dominators,
     /// The block of each phi.
     phi_blocks: &'a HashMap<NodeId, BlockId>,
@@ -162,7 +162,7 @@ impl Ranges<'_> {
         }
         match node.op {
             Op::Phi if self.is_merge(value) => {
-                let inputs = node.inputs.clone();
+                let inputs = node.inputs.to_vec();
                 let mut range: Option<Range> = None;
                 for input in inputs {
                     let input = self.of(input)?;
@@ -684,7 +684,7 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnF
         let (frame_state, pc) = (graph.node(value).frame_state, graph.node(value).pc);
         let guard = graph.add_node(Node {
             op: Op::CheckBounds,
-            inputs: vec![value, count],
+            inputs: graph.list(&[value, count]),
             repr: Some(Repr::Int32),
             frame_state,
             pc,
@@ -708,12 +708,12 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnF
             value
         } else {
             let offset = constants.get_typed(graph, u64::from((offset as i32).cast_unsigned()), Repr::Int32);
-            let sum = graph.add_node(Node::new(
+            let sum = graph.add(
                 Op::Int32WrappingBinary { op: BinaryOp::Add },
-                vec![value, offset],
+                &[value, offset],
                 Some(Repr::Int32),
                 graph.node(shift).pc,
-            ));
+            );
             let body = &mut graph.blocks[block.index()].body;
             let position = body
                 .iter()

@@ -932,7 +932,7 @@ mod tests {
         ] {
             graph.add_node(crate::ir::Node {
                 op: crate::ir::Op::LoadSlot { slot: 0 },
-                inputs: Vec::new(),
+                inputs: ak::ZoneVec::new_in(crate::test_zone()),
                 repr: Some(repr),
                 frame_state: None,
                 pc: 0,

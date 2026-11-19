@@ -36,7 +36,6 @@ use crate::ir::BlockId;
 use crate::ir::FrameStateId;
 use crate::ir::Graph;
 use crate::ir::Locations;
-use crate::ir::Node;
 use crate::ir::Op;
 
 struct Loop {
@@ -56,7 +55,7 @@ fn add_preheaders(graph: &mut Graph, dominators: &Dominators) -> bool {
     let count = graph.blocks.len();
     let mut order = Vec::new();
     for header in (0..count).map(BlockId::from_index) {
-        let predecessors = graph.block(header).predecessors.clone();
+        let predecessors = graph.block(header).predecessors.to_vec();
         let (back_edge_sources, entries): (Vec<BlockId>, Vec<BlockId>) = predecessors
             .iter()
             .partition(|predecessor| dominators.dominates(header, **predecessor));
@@ -72,13 +71,14 @@ fn add_preheaders(graph: &mut Graph, dominators: &Dominators) -> bool {
             continue;
         }
         let preheader = graph.add_block(Block {
-            predecessors: entries.clone(),
-            ..Block::default()
+            predecessors: graph.list(&entries),
+            ..graph.new_block()
         });
         for entry in &entries {
             graph.replace_successor(*entry, header, preheader);
         }
-        for phi in graph.block(header).phis.clone() {
+        let phis = graph.block(header).phis.to_vec();
+        for phi in phis {
             let (back_inputs, entry_inputs): (Vec<_>, Vec<_>) = predecessors
                 .iter()
                 .copied()
@@ -88,28 +88,21 @@ fn add_preheaders(graph: &mut Graph, dominators: &Dominators) -> bool {
             let entering = if entry_inputs.iter().all(|input| *input == entry_inputs[0]) {
                 entry_inputs[0]
             } else {
-                let merged = graph.add_node(Node::new(
-                    Op::Phi,
-                    entry_inputs,
-                    graph.node(phi).repr,
-                    graph.node(phi).pc,
-                ));
+                let merged = graph.add(Op::Phi, &entry_inputs, graph.node(phi).repr, graph.node(phi).pc);
                 graph.blocks[preheader.index()].phis.push(merged);
                 merged
             };
-            let inputs = std::iter::once(entering)
-                .chain(back_inputs.into_iter().map(|(_, input)| input))
-                .collect();
-            graph.nodes[phi.index()].inputs = inputs;
+            let inputs = &mut graph.nodes[phi.index()].inputs;
+            inputs.clear();
+            inputs.push(entering);
+            inputs.extend(back_inputs.into_iter().map(|(_, input)| input));
         }
-        let jump = graph.add_node(Node::new(
-            Op::Jump { target: header },
-            Vec::new(),
-            None,
-            graph.control(header).pc,
-        ));
+        let jump = graph.add(Op::Jump { target: header }, &[], None, graph.control(header).pc);
         graph.blocks[preheader.index()].control = Some(jump);
-        graph.blocks[header.index()].predecessors = std::iter::once(preheader).chain(back_edge_sources).collect();
+        let header_predecessors = &mut graph.blocks[header.index()].predecessors;
+        header_predecessors.clear();
+        header_predecessors.push(preheader);
+        header_predecessors.extend(back_edge_sources);
         order.push(preheader);
         order.push(header);
     }
@@ -205,7 +198,8 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnF
             let block_id = BlockId::from_index(block);
             let runs_every_iteration = dominators.runs_every_iteration(block_id, &loop_.back_edge_sources);
             let is_cold = graph.block(block_id).is_cold;
-            for node in graph.block(block_id).body.clone() {
+            let body = graph.block(block_id).body.to_vec();
+            for node in body {
                 let data = graph.node(node);
                 let mut properties = data.op.properties();
                 // OPTIMIZATION: Nothing writes these slots, so their loads leave even loops that call, like the

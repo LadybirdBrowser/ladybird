@@ -22,7 +22,6 @@ use crate::ir::BlockId;
 use crate::ir::BranchCondition;
 use crate::ir::Comparison;
 use crate::ir::Graph;
-use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
 
@@ -80,7 +79,7 @@ fn thread_boolean_phis(graph: &mut Graph, uses: &[u32]) {
             continue;
         };
         let block_id = BlockId::from_index(block);
-        let predecessors = data.predecessors.clone();
+        let predecessors = data.predecessors.to_vec();
         let jumps_here = |predecessor: &BlockId| {
             graph.control(*predecessor).op == Op::Jump { target: block_id } && predecessor.index() < block
         };
@@ -95,7 +94,7 @@ fn thread_boolean_phis(graph: &mut Graph, uses: &[u32]) {
             continue;
         }
         let pc = graph.node(control).pc;
-        let inputs = graph.node(phi).inputs.clone();
+        let inputs = graph.node(phi).inputs.to_vec();
         for (predecessor, input) in predecessors.into_iter().zip(inputs) {
             let truth = (graph.node(input).repr == Some(Repr::Bool))
                 .then(|| graph.constant_value(input))
@@ -110,11 +109,11 @@ fn thread_boolean_phis(graph: &mut Graph, uses: &[u32]) {
             let is_cold = graph.block(predecessor).is_cold;
             let edges = [if_true, if_false].map(|target| {
                 let edge = graph.add_block(Block {
-                    predecessors: vec![predecessor],
+                    predecessors: graph.list(&[predecessor]),
                     is_cold,
-                    ..Block::default()
+                    ..graph.new_block()
                 });
-                let jump = graph.add_node(Node::new(Op::Jump { target }, Vec::new(), None, pc));
+                let jump = graph.add(Op::Jump { target }, &[], None, pc);
                 graph.blocks[edge.index()].control = Some(jump);
                 add_predecessor(graph, target, edge, block_id);
                 edge
@@ -125,7 +124,7 @@ fn thread_boolean_phis(graph: &mut Graph, uses: &[u32]) {
                 if_true: edges[0],
                 if_false: edges[1],
             };
-            data.inputs = vec![input];
+            data.inputs.assign(&[input]);
             new_blocks[predecessor.index()].extend(edges);
         }
         // NB: Nothing reaches the block anymore.

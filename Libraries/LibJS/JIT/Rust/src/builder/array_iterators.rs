@@ -25,7 +25,7 @@ use crate::ir::value;
 /// The `hint` of a `GetIterator` for synchronous iteration.
 const SYNC_HINT: u8 = 0;
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// The builtin `%ArrayIteratorPrototype%.next` of the realm of the
     /// compiled code, if `%ArrayIteratorPrototype%` held it when the
     /// snapshot was taken.
@@ -96,7 +96,7 @@ impl GraphBuilder<'_> {
 
         let started = self.start_next_case(&mut slow_paths);
         debug_assert!(started, "values that fail the checks go on to the next case");
-        let array = self.emit(Op::OpenArrayIteration, vec![iterable], Some(Repr::Tagged));
+        let array = self.emit(Op::OpenArrayIteration, &[iterable], Some(Repr::Tagged));
         let array = self.branch_if_empty(&mut slow_paths, array);
         let outputs = self.join_paths(slow_paths, vec![first_index, array, not_done], |_, outputs| outputs);
         self.write(dst_iterator_object, outputs[0])?;
@@ -150,8 +150,8 @@ impl GraphBuilder<'_> {
         let array = self.branch_to_slow_path(&mut slow_paths, BranchCondition::ElementsKind(kind), vec![array], true);
         let array = self.cell_address(array);
         let array = self.branch_to_slow_path(&mut slow_paths, BranchCondition::MagicalLength, vec![array], true);
-        let index = self.emit(Op::UnboxInt32, vec![index], Some(Repr::Int32));
-        let length = self.emit(Op::LoadElementsLength, vec![array], Some(Repr::Int32));
+        let index = self.emit(Op::UnboxInt32, &[index], Some(Repr::Int32));
+        let length = self.emit(Op::LoadElementsLength, &[array], Some(Repr::Int32));
         let (inside, outside) = self.branch_both_ways(BranchCondition::IndexInBounds, vec![index, length]);
 
         // NB: The done operand keeps the iteration done, also if the array
@@ -164,12 +164,8 @@ impl GraphBuilder<'_> {
         let element = self.load_array_iteration_element(&mut slow_paths, kind, array, index);
         // NB: The index is below the capacity, so the next one is an int32 too.
         let one = self.int32_constant(1);
-        let next_index = self.emit_checked(
-            Op::Int32Binary { op: BinaryOp::Add },
-            vec![index, one],
-            Some(Repr::Int32),
-        );
-        let next_index = self.emit(Op::BoxInt32, vec![next_index], Some(Repr::Tagged));
+        let next_index = self.emit_checked(Op::Int32Binary { op: BinaryOp::Add }, &[index, one], Some(Repr::Int32));
+        let next_index = self.emit(Op::BoxInt32, &[next_index], Some(Repr::Tagged));
         self.end_hot_path(&mut slow_paths, vec![element, not_done, next_index, iterator_is_done]);
 
         // Array iterators. NB: Without them, the other values take the slow
@@ -192,7 +188,7 @@ impl GraphBuilder<'_> {
         let object = self.branch_to_slow_path(&mut slow_paths, BranchCondition::ArrayIterator, vec![object], true);
 
         // NB: Done iterators no longer have an array.
-        let array = self.emit(Op::LoadArrayIteratorArray, vec![object], Some(Repr::Tagged));
+        let array = self.emit(Op::LoadArrayIteratorArray, &[object], Some(Repr::Tagged));
         let (exhausted, live) = self.branch_both_ways(BranchCondition::Undefined, vec![array]);
         self.block = exhausted;
         self.end_hot_path(&mut slow_paths, vec![undefined, done, iterator, done]);
@@ -204,25 +200,21 @@ impl GraphBuilder<'_> {
         // NB: Array iterators iterate array-likes up to their `length`,
         //     which only arrays keep as the size of their elements.
         let array = self.branch_to_slow_path(&mut slow_paths, BranchCondition::MagicalLength, vec![array], true);
-        let index = self.emit(Op::LoadArrayIteratorIndex, vec![object], Some(Repr::Int32));
-        let length = self.emit(Op::LoadElementsLength, vec![array], Some(Repr::Int32));
+        let index = self.emit(Op::LoadArrayIteratorIndex, &[object], Some(Repr::Int32));
+        let length = self.emit(Op::LoadElementsLength, &[array], Some(Repr::Int32));
         let (inside, outside) = self.branch_both_ways(BranchCondition::IndexInBounds, vec![index, length]);
 
         // NB: The array has no element at the index, so the iterator is done.
         self.block = outside;
-        self.emit(Op::FinishArrayIterator, vec![object], None);
+        self.emit(Op::FinishArrayIterator, &[object], None);
         self.end_hot_path(&mut slow_paths, vec![undefined, done, iterator, done]);
 
         self.block = inside;
         let index = self.refine(BranchCondition::IndexInBounds, true, vec![index, length]);
         let element = self.load_array_iteration_element(&mut slow_paths, kind, array, index);
         let one = self.int32_constant(1);
-        let next_index = self.emit_checked(
-            Op::Int32Binary { op: BinaryOp::Add },
-            vec![index, one],
-            Some(Repr::Int32),
-        );
-        self.emit(Op::StoreArrayIteratorIndex, vec![object, next_index], None);
+        let next_index = self.emit_checked(Op::Int32Binary { op: BinaryOp::Add }, &[index, one], Some(Repr::Int32));
+        self.emit(Op::StoreArrayIteratorIndex, &[object, next_index], None);
         let outputs = self.join_paths(
             slow_paths,
             vec![element, not_done, iterator, iterator_is_done],
@@ -244,7 +236,7 @@ impl GraphBuilder<'_> {
         // NB: Holey elements below the length may be past the capacity.
         //     Elements are accessed through the array (see
         //     `element_storage_and_bound()`).
-        let capacity = self.emit(Op::LoadElementsCapacity, vec![array], Some(Repr::Int32));
+        let capacity = self.emit(Op::LoadElementsCapacity, &[array], Some(Repr::Int32));
         let index = self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, vec![index, capacity], true);
         let element = self.load_element(kind, array, index);
         self.branch_if_empty(slow_paths, element)

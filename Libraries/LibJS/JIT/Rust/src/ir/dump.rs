@@ -280,9 +280,10 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
             with_inputs(&format!("StoreNamed +{offset}")) + if *holds_data { " data" } else { "" }
         }
         Op::AddNamed { offset, shape, .. } => with_inputs(&format!("AddNamed +{offset} to {:#x}", shape.0)),
-        Op::ShapeSwitch { cases } => {
-            let cases = cases
+        Op::ShapeSwitch { shapes, targets } => {
+            let cases = shapes
                 .iter()
+                .zip(*targets)
                 .map(|(shape, block)| format!("{} -> {}", shapes_text(std::iter::once(shape)), block_name(*block)))
                 .collect::<Vec<_>>();
             format!("{} [{}]", with_inputs("ShapeSwitch"), cases.join(", "))

@@ -419,7 +419,7 @@ impl InlinedCallSite {
     }
 }
 
-impl<'a> GraphBuilder<'a> {
+impl<'a, 'z> GraphBuilder<'a, 'z> {
     pub(super) fn boxed_object(&self, cell: CellId) -> u64 {
         (u64::from(value::OBJECT_TAG) << 48) | (cell.0 & self.runtime.heap_region_offset_mask)
     }
@@ -430,15 +430,15 @@ impl<'a> GraphBuilder<'a> {
     /// frame memory. The destination of a `ResumeAfter` has the value it had
     /// before the instruction, which is what the frame needs if the
     /// instruction did not write it (see `ir::FrameState`).
-    pub(super) fn new_frame_state(&self, live: &BitSet, mode: ResumeMode) -> FrameState {
+    pub(super) fn new_frame_state(&self, live: &BitSet, mode: ResumeMode) -> FrameState<'z> {
         let values = self.frame_state_values(live);
         let in_frame = self.frame_state_in_frame(live);
         FrameState {
             executable: self.function.index,
             pc: self.function.pc,
             mode,
-            values,
-            in_frame,
+            values: self.graph.list(&values),
+            in_frame: self.graph.list(&in_frame),
             parent: self.parent_frame_state(),
             passed_argument_count: None,
             legacy_arguments: self.legacy_argument_slots(),
@@ -592,8 +592,9 @@ impl<'a> GraphBuilder<'a> {
             ..self.new_frame_state(&self.function.liveness.live_out(last), ResumeMode::ResumeAt)
         };
         let frame_state = self.graph.add_frame_state(frame_state);
-        let guard = self.emit(Op::AssumeLegacyArgumentsUnread, Vec::new(), None);
+        let guard = self.emit(Op::AssumeLegacyArgumentsUnread, &[], None);
         self.graph.nodes[guard.index()].frame_state = Some(frame_state);
+        let nodes = self.graph.list(&nodes);
         self.graph.legacy_arguments_guards.push((guard, nodes));
     }
 
@@ -851,7 +852,7 @@ impl<'a> GraphBuilder<'a> {
                 Op::CheckClosure {
                     shared_data: target.function.shared_data,
                 },
-                vec![value],
+                &[value],
                 None,
             );
             return Ok(());
@@ -899,7 +900,7 @@ impl<'a> GraphBuilder<'a> {
     fn build_call_without_inlined_frames(
         &mut self,
         instruction: &Instruction,
-        op: Op,
+        op: Op<'z>,
         inputs: &[Operand],
     ) -> Result<Flow, CompileFailure> {
         let input_nodes = inputs
@@ -913,7 +914,7 @@ impl<'a> GraphBuilder<'a> {
             }
         });
         let destination = destination.expect("a call writes its destination");
-        let node = self.emit(op, input_nodes, Some(Repr::Tagged));
+        let node = self.emit(op, &input_nodes, Some(Repr::Tagged));
         // NB: Resuming after the call, the frame's destination holds the
         //     result already.
         let frame_state = self.resume_after_frame_state(destination.raw());
@@ -1227,13 +1228,13 @@ impl<'a> GraphBuilder<'a> {
                 .filter(|(predecessor, _)| edges.contains(predecessor))
                 .map(|(_, input)| *input)
                 .collect::<Vec<_>>();
-            self.graph.nodes[callee_phi.index()].inputs = kept_inputs;
-            self.graph.blocks[join.index()].predecessors = edges.to_vec();
+            self.graph.nodes[callee_phi.index()].inputs.assign(&kept_inputs);
+            self.graph.blocks[join.index()].predecessors.assign(edges);
             return join;
         }
         let block = self.graph.add_block(Block {
-            predecessors: edges.to_vec(),
-            ..Block::default()
+            predecessors: self.graph.list(edges),
+            ..self.graph.new_block()
         });
         self.order.push(block);
         for predecessor in edges {
@@ -1387,7 +1388,7 @@ impl<'a> GraphBuilder<'a> {
             let function = if functions.iter().all(|function| *function == functions[0]) {
                 functions[0]
             } else {
-                self.add_phi(functions)
+                self.add_phi(&functions)
             };
             self.frame.slots[callee_slot] = SlotState {
                 node: function,
@@ -1401,7 +1402,7 @@ impl<'a> GraphBuilder<'a> {
         let result = if values.iter().all(|value| *value == values[0]) {
             values[0]
         } else {
-            self.add_phi(values)
+            self.add_phi(&values)
         };
         self.frame.fresh_shapes = AbstractFrame::common_fresh_shapes(case_shapes.iter().map(Vec::as_slice));
         self.write(*dst, result)?;
@@ -1715,7 +1716,7 @@ impl<'a> GraphBuilder<'a> {
                     expected,
                     kind: ExitKind::UnexpectedValue,
                 },
-                vec![super_constructor_value],
+                &[super_constructor_value],
                 None,
             );
         }
@@ -1770,7 +1771,7 @@ impl<'a> GraphBuilder<'a> {
             Op::Exit {
                 kind: ExitKind::BadCallTarget,
             },
-            Vec::new(),
+            &[],
         );
         self.graph.nodes[exit.index()].frame_state = Some(frame_state);
         Ok(Some(Flow::Ended))
@@ -1859,7 +1860,7 @@ impl<'a> GraphBuilder<'a> {
                             shape,
                             property_count: offset + 1,
                         },
-                        vec![object, value, address],
+                        &[object, value, address],
                         None,
                     );
                 }
@@ -2032,7 +2033,7 @@ impl<'a> GraphBuilder<'a> {
                 property_count,
                 reserve: construct.reserve.max(property_count),
             },
-            Vec::new(),
+            &[],
             Some(Repr::Tagged),
         );
         // 10.2.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
@@ -2040,7 +2041,7 @@ impl<'a> GraphBuilder<'a> {
         // NB: The fields have literal values, so this cannot throw, and `this` has their shape already.
         for &(offset, value) in fields {
             let value = self.constant(value);
-            self.emit(Op::InitializeNamed { offset }, vec![this, value], None);
+            self.emit(Op::InitializeNamed { offset }, &[this, value], None);
         }
         this
     }
@@ -2054,7 +2055,7 @@ impl<'a> GraphBuilder<'a> {
             InlineValue::FrameArgument(index) => {
                 let index = self.constant(value::int32(index.cast_signed()));
                 let arguments_base = self.function.layout.arguments_base();
-                Ok(self.emit_checked(Op::LoadArgument { arguments_base }, vec![index], Some(Repr::Tagged)))
+                Ok(self.emit_checked(Op::LoadArgument { arguments_base }, &[index], Some(Repr::Tagged)))
             }
         }
     }
@@ -2300,7 +2301,7 @@ impl<'a> GraphBuilder<'a> {
                 Op::CheckClosure {
                     shared_data: function.shared_data,
                 },
-                vec![closure],
+                &[closure],
                 None,
             );
         }
@@ -2326,13 +2327,13 @@ impl<'a> GraphBuilder<'a> {
             .iter()
             .any(|argument| matches!(argument, InlineValue::FrameArgument(_)))
         {
-            let count = self.emit(Op::ArgumentCount, Vec::new(), Some(Repr::Tagged));
+            let count = self.emit(Op::ArgumentCount, &[], Some(Repr::Tagged));
             self.emit_checked(
                 Op::CheckValue {
                     expected: value::int32(passed_argument_count.cast_signed()),
                     kind: ExitKind::UnexpectedValue,
                 },
-                vec![count],
+                &[count],
                 None,
             );
         }
@@ -2434,7 +2435,7 @@ impl<'a> GraphBuilder<'a> {
         let result = if values.iter().all(|value| *value == values[0]) {
             values[0]
         } else {
-            self.add_phi(values)
+            self.add_phi(&values)
         };
         self.write(*dst, result)?;
         Ok(Some(Flow::Continue))
@@ -2466,13 +2467,13 @@ impl<'a> GraphBuilder<'a> {
             match self.graph.constant_value(value) {
                 Some(value::EMPTY) => self.constant(value::UNDEFINED),
                 Some(_) => value,
-                None => self.emit(Op::EmptyToUndefined, vec![value], Some(Repr::Tagged)),
+                None => self.emit(Op::EmptyToUndefined, &[value], Some(Repr::Tagged)),
             }
         };
         let continuation = match self.function.inline.as_ref().and_then(|call| call.continuation) {
             Some(continuation) => continuation,
             None => {
-                let continuation = self.graph.add_block(Block::default());
+                let continuation = self.graph.add_block(self.graph.new_block());
                 self.function
                     .inline
                     .as_mut()
@@ -2488,7 +2489,7 @@ impl<'a> GraphBuilder<'a> {
             Some(shapes) => shapes.retain(|shape| fresh_shapes.contains(shape)),
             None => call.return_fresh_shapes = Some(fresh_shapes.clone()),
         }
-        self.set_control(Op::Jump { target: continuation }, Vec::new());
+        self.set_control(Op::Jump { target: continuation }, &[]);
         self.graph.blocks[continuation.index()].predecessors.push(self.block);
         Ok(Flow::Ended)
     }

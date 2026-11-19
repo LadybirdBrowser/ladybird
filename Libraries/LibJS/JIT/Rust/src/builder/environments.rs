@@ -31,7 +31,7 @@ const INVALID_HOPS: u32 = 0xFFFF_FFFE;
 /// `JS::EnvironmentMode::Lexical`.
 const ENVIRONMENT_MODE_LEXICAL: u8 = 0;
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// `field` of the running execution context. Inlined callees need no
     /// function environment and never change their environments, so their
     /// execution contexts are constants.
@@ -42,7 +42,7 @@ impl GraphBuilder<'_> {
             if let Some(value) = self.frame.field(field) {
                 return Ok(value);
             }
-            let value = self.emit(Op::LoadFrameField { field }, Vec::new(), Some(Repr::Pointer));
+            let value = self.emit(Op::LoadFrameField { field }, &[], Some(Repr::Pointer));
             self.frame.set_field(field, value);
             return Ok(value);
         }
@@ -61,11 +61,7 @@ impl GraphBuilder<'_> {
                     return Ok(self.graph.node(closure).inputs[usize::from(private)]);
                 }
                 let address = self.cell_address(closure);
-                return Ok(self.emit(
-                    Op::LoadFunctionEnvironment { private },
-                    vec![address],
-                    Some(Repr::Pointer),
-                ));
+                return Ok(self.emit(Op::LoadFunctionEnvironment { private }, &[address], Some(Repr::Pointer)));
             }
         }
         let executable = self.function.executable;
@@ -140,7 +136,7 @@ impl GraphBuilder<'_> {
         }
         let mut environment = self.frame_field(field)?;
         for _ in 0..coordinate.hops {
-            environment = self.emit(Op::LoadOuterEnvironment, vec![environment], Some(Repr::Pointer));
+            environment = self.emit(Op::LoadOuterEnvironment, &[environment], Some(Repr::Pointer));
         }
         Ok(Some(environment))
     }
@@ -163,7 +159,7 @@ impl GraphBuilder<'_> {
             Op::LoadEnvironmentBinding {
                 index: coordinate.index,
             },
-            vec![environment],
+            &[environment],
             Some(Repr::Tagged),
         );
         // NB: Reading an uninitialized binding of a declarative environment
@@ -222,7 +218,7 @@ impl GraphBuilder<'_> {
             Op::LoadEnvironmentBinding {
                 index: coordinate.index,
             },
-            vec![environment],
+            &[environment],
             Some(Repr::Tagged),
         );
         let empty = self.constant(value::EMPTY);
@@ -236,7 +232,7 @@ impl GraphBuilder<'_> {
             Op::StoreEnvironmentBinding {
                 index: coordinate.index,
             },
-            vec![environment, value],
+            &[environment, value],
             None,
         );
         self.join_slow_paths(slow_paths, None);
@@ -282,7 +278,7 @@ impl GraphBuilder<'_> {
             vec![environment],
             true,
         );
-        self.emit(Op::AppendEnvironmentBinding, vec![environment], None);
+        self.emit(Op::AppendEnvironmentBinding, &[environment], None);
         self.join_slow_paths(slow_paths, None);
         Ok(Some(Flow::Continue))
     }
@@ -304,7 +300,7 @@ impl GraphBuilder<'_> {
             Op::StoreEnvironmentBinding {
                 index: coordinate.index,
             },
-            vec![environment, value],
+            &[environment, value],
             None,
         );
         Ok(Some(Flow::Continue))

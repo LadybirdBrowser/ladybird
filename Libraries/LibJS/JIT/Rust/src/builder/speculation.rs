@@ -235,7 +235,7 @@ impl Operation {
     }
 }
 
-impl GraphBuilder<'_> {
+impl GraphBuilder<'_, '_> {
     /// The arithmetic feedback of the instruction being built.
     fn arith_feedback(&self, instruction: &Instruction) -> Option<u8> {
         let slot = instruction.feedback_slots().arith?;
@@ -340,11 +340,7 @@ impl GraphBuilder<'_> {
                     Outcome::Value(_) => {
                         let [result] = self.join_hot_paths_with(paths, |builder, outputs| {
                             let truth = builder.constant(value::TRUE);
-                            vec![builder.emit(
-                                Op::TaggedEquals { equal: true },
-                                vec![outputs[0], truth],
-                                Some(Repr::Bool),
-                            )]
+                            vec![builder.emit(Op::TaggedEquals { equal: true }, &[outputs[0], truth], Some(Repr::Bool))]
                         })[..] else {
                             unreachable!("comparisons have one value")
                         };
@@ -357,7 +353,7 @@ impl GraphBuilder<'_> {
                                 Op::Int32Compare {
                                     comparison: Comparison::StrictlyEquals,
                                 },
-                                vec![outputs[0], true_pc],
+                                &[outputs[0], true_pc],
                                 Some(Repr::Bool),
                             )]
                         })[..] else {
@@ -392,16 +388,16 @@ impl GraphBuilder<'_> {
         outputs
             .into_iter()
             .map(|output| {
-                let number = self.emit(Op::CheckNumber, vec![output], Some(Repr::Float64));
+                let number = self.emit(Op::CheckNumber, &[output], Some(Repr::Float64));
                 self.graph.nodes[number.index()].frame_state = Some(frame_state);
-                self.emit(Op::BoxFloat64, vec![number], Some(Repr::Tagged))
+                self.emit(Op::BoxFloat64, &[number], Some(Repr::Tagged))
             })
             .collect()
     }
 
     fn box_number_result(&mut self, value: NodeId) -> NodeId {
         if self.graph.node(value).repr == Some(Repr::Float64) {
-            self.emit(Op::BoxFloat64, vec![value], Some(Repr::Tagged))
+            self.emit(Op::BoxFloat64, &[value], Some(Repr::Tagged))
         } else {
             self.tagged(value)
         }
@@ -416,7 +412,7 @@ impl GraphBuilder<'_> {
             return self.int32_to_float64(integer);
         }
         let value = self.tagged(value);
-        self.emit_checked(Op::CheckNumber, vec![value], Some(Repr::Float64))
+        self.emit_checked(Op::CheckNumber, &[value], Some(Repr::Float64))
     }
 
     /// Builds numeric instructions that saw doubles with number guards,
@@ -450,16 +446,16 @@ impl GraphBuilder<'_> {
                 let lhs = self.number(lhs);
                 let rhs = self.number(rhs);
                 let result = if op.is_bitwise() {
-                    let lhs = self.emit(Op::Float64ToInt32, vec![lhs], Some(Repr::Int32));
-                    let rhs = self.emit(Op::Float64ToInt32, vec![rhs], Some(Repr::Int32));
+                    let lhs = self.emit(Op::Float64ToInt32, &[lhs], Some(Repr::Int32));
+                    let rhs = self.emit(Op::Float64ToInt32, &[rhs], Some(Repr::Int32));
                     if op == BinaryOp::UnsignedRightShift {
-                        let bits = self.emit(Op::Uint32ShiftRight, vec![lhs, rhs], Some(Repr::Int32));
-                        self.emit(Op::Uint32ToFloat64, vec![bits], Some(Repr::Float64))
+                        let bits = self.emit(Op::Uint32ShiftRight, &[lhs, rhs], Some(Repr::Int32));
+                        self.emit(Op::Uint32ToFloat64, &[bits], Some(Repr::Float64))
                     } else {
                         self.int32_binary(op, lhs, rhs)
                     }
                 } else {
-                    self.emit(Op::Float64Binary { op }, vec![lhs, rhs], Some(Repr::Float64))
+                    self.emit(Op::Float64Binary { op }, &[lhs, rhs], Some(Repr::Float64))
                 };
                 let result = self.box_number_result(result);
                 self.write(dst, result)?;
@@ -473,11 +469,11 @@ impl GraphBuilder<'_> {
                         Op::Float64Unary {
                             op: Float64UnaryOp::Negate,
                         },
-                        vec![number],
+                        &[number],
                         Some(Repr::Float64),
                     ),
                     UnaryOp::ToInt32 | UnaryOp::BitwiseNot => {
-                        let integer = self.emit(Op::Float64ToInt32, vec![number], Some(Repr::Int32));
+                        let integer = self.emit(Op::Float64ToInt32, &[number], Some(Repr::Int32));
                         if op == UnaryOp::BitwiseNot {
                             let all_ones = self.int32_constant(-1);
                             self.int32_binary(BinaryOp::BitwiseXor, integer, all_ones)
@@ -495,7 +491,7 @@ impl GraphBuilder<'_> {
                 let one = self.typed_constant(1f64.to_bits(), Repr::Float64);
                 let result = self.emit(
                     Op::Float64Binary { op: op.binary_op() },
-                    vec![number, one],
+                    &[number, one],
                     Some(Repr::Float64),
                 );
                 if let Some(dst) = old_value {
@@ -514,7 +510,7 @@ impl GraphBuilder<'_> {
                 let (lhs, rhs) = (self.read_value(lhs)?, self.read_input(rhs)?);
                 let lhs = self.number(lhs);
                 let rhs = self.number(rhs);
-                let result = self.emit(Op::Float64Compare { comparison }, vec![lhs, rhs], Some(Repr::Bool));
+                let result = self.emit(Op::Float64Compare { comparison }, &[lhs, rhs], Some(Repr::Bool));
                 return self.finish_comparison(result, outcome).map(Some);
             }
         }
@@ -539,7 +535,7 @@ impl GraphBuilder<'_> {
             (_, Some(Repr::Int32)) => value,
             (Op::BoxInt32, _) => node.inputs[0],
             (Op::Constant(bits), _) if let Some(integer) = value::as_int32(*bits) => self.int32_constant(integer),
-            _ => self.emit_checked(Op::CheckInt32, vec![value], Some(Repr::Int32)),
+            _ => self.emit_checked(Op::CheckInt32, &[value], Some(Repr::Int32)),
         }
     }
 
@@ -565,7 +561,7 @@ impl GraphBuilder<'_> {
     /// `lhs op rhs` of two `Repr::Int32` values, which exits where the
     /// result is not an int32.
     pub(super) fn int32_binary(&mut self, op: BinaryOp, lhs: NodeId, rhs: NodeId) -> NodeId {
-        let node = self.emit(Op::Int32Binary { op }, vec![lhs, rhs], Some(Repr::Int32));
+        let node = self.emit(Op::Int32Binary { op }, &[lhs, rhs], Some(Repr::Int32));
         if op.int32_can_overflow() {
             let frame_state = self.eager_frame_state();
             self.graph.nodes[node.index()].frame_state = Some(frame_state);
@@ -648,7 +644,7 @@ impl GraphBuilder<'_> {
                 }
                 let lhs = self.read_int32(OperationInput::Operand(lhs))?;
                 let rhs = self.read_int32(rhs)?;
-                let result = self.emit(Op::Int32Compare { comparison }, vec![lhs, rhs], Some(Repr::Bool));
+                let result = self.emit(Op::Int32Compare { comparison }, &[lhs, rhs], Some(Repr::Bool));
                 return self.finish_comparison(result, outcome).map(Some);
             }
         }
@@ -692,7 +688,7 @@ impl GraphBuilder<'_> {
             // 1. If SameType(x, y) is true, then
             //    a. Return IsStrictlyEqual(x, y).
             // NB: Objects are strictly equal only by identity.
-            let result = self.emit(Op::TaggedEquals { equal }, vec![lhs, rhs], Some(Repr::Bool));
+            let result = self.emit(Op::TaggedEquals { equal }, &[lhs, rhs], Some(Repr::Bool));
             return self.finish_comparison(result, outcome).map(Some);
         }
         let lhs = self.read(lhs)?;
@@ -713,9 +709,9 @@ impl GraphBuilder<'_> {
             if feedback == 0 || feedback & !identity_kinds != 0 || !self.may_speculate(ExitKind::BadType) {
                 return Ok(None);
             }
-            self.emit_checked(Op::CheckIdentityComparable, vec![lhs, rhs], None)
+            self.emit_checked(Op::CheckIdentityComparable, &[lhs, rhs], None)
         };
-        let result = self.emit(Op::TaggedEquals { equal }, vec![lhs, rhs], Some(Repr::Bool));
+        let result = self.emit(Op::TaggedEquals { equal }, &[lhs, rhs], Some(Repr::Bool));
         self.finish_comparison(result, outcome).map(Some)
     }
 
@@ -762,7 +758,7 @@ impl GraphBuilder<'_> {
             return Ok(None);
         };
         self.assume_no_htmldda_objects();
-        let result = self.emit(Op::TypeofIs { kind, equal }, vec![value], Some(Repr::Bool));
+        let result = self.emit(Op::TypeofIs { kind, equal }, &[value], Some(Repr::Bool));
         self.finish_comparison(result, outcome).map(Some)
     }
 
@@ -786,7 +782,7 @@ impl GraphBuilder<'_> {
                 Ok(Flow::Ended)
             }
             Outcome::Value(dst) => {
-                let boolean = self.emit(Op::BoxBool, vec![result], Some(Repr::Tagged));
+                let boolean = self.emit(Op::BoxBool, &[result], Some(Repr::Tagged));
                 self.write(dst, boolean)?;
                 Ok(Flow::Continue)
             }
@@ -838,7 +834,7 @@ impl GraphBuilder<'_> {
             return self.int32_constant(integer);
         }
         let refined = self.branch_to_next_case(paths, BranchCondition::Int32Value, vec![value], true);
-        self.emit(Op::UnboxInt32, vec![refined], Some(Repr::Int32))
+        self.emit(Op::UnboxInt32, &[refined], Some(Repr::Int32))
     }
 
     /// `value` as a `Repr::Float64`, where it is a number: tests send other
@@ -897,14 +893,14 @@ impl GraphBuilder<'_> {
         };
         if !doubles {
             let refined = self.branch_to_next_case(paths, integer, vec![value], true);
-            return self.emit(Op::UnboxInt32, vec![refined], Some(Repr::Int32));
+            return self.emit(Op::UnboxInt32, &[refined], Some(Repr::Int32));
         }
         self.on_integer_or_double(
             integer,
             value,
             Repr::Int32,
             |_, integer| integer,
-            |builder, number| builder.emit(Op::Float64ToInt32, vec![number], Some(Repr::Int32)),
+            |builder, number| builder.emit(Op::Float64ToInt32, &[number], Some(Repr::Int32)),
             |builder, condition, inputs| builder.branch_to_next_case(paths, condition, inputs, true),
         )
     }
@@ -948,8 +944,8 @@ impl GraphBuilder<'_> {
             return value;
         }
         let boolean = node.inputs[0];
-        let integer = self.emit(Op::BoolToInt32, vec![boolean], Some(Repr::Int32));
-        self.emit(Op::BoxInt32, vec![integer], Some(Repr::Tagged))
+        let integer = self.emit(Op::BoolToInt32, &[boolean], Some(Repr::Int32));
+        self.emit(Op::BoxInt32, &[integer], Some(Repr::Tagged))
     }
 
     // The paths of each kind of operation.
@@ -985,9 +981,9 @@ impl GraphBuilder<'_> {
             let lhs = self.int32_of_operand_on_path(&mut paths, lhs, doubles, booleans);
             let rhs = self.int32_of_operand_on_path(&mut paths, rhs, doubles, booleans);
             let result = if op == BinaryOp::UnsignedRightShift && !int32_results {
-                let bits = self.emit(Op::Uint32ShiftRight, vec![lhs, rhs], Some(Repr::Int32));
-                let number = self.emit(Op::Uint32ToFloat64, vec![bits], Some(Repr::Float64));
-                self.emit(Op::BoxFloat64, vec![number], Some(Repr::Tagged))
+                let bits = self.emit(Op::Uint32ShiftRight, &[lhs, rhs], Some(Repr::Int32));
+                let number = self.emit(Op::Uint32ToFloat64, &[bits], Some(Repr::Float64));
+                self.emit(Op::BoxFloat64, &[number], Some(Repr::Tagged))
             } else {
                 let result = self.int32_binary(op, lhs, rhs);
                 self.tagged(result)
@@ -1029,8 +1025,8 @@ impl GraphBuilder<'_> {
                 self.float64_on_path(&mut paths, lhs),
                 self.float64_on_path(&mut paths, rhs),
             );
-            let result = self.emit(Op::Float64Binary { op }, vec![lhs, rhs], Some(Repr::Float64));
-            let result = self.emit(Op::BoxFloat64, vec![result], Some(Repr::Tagged));
+            let result = self.emit(Op::Float64Binary { op }, &[lhs, rhs], Some(Repr::Float64));
+            let result = self.emit(Op::BoxFloat64, &[result], Some(Repr::Tagged));
             self.end_hot_path(&mut paths, vec![result]);
             started = true;
         }
@@ -1092,12 +1088,12 @@ impl GraphBuilder<'_> {
 
         self.block = other;
         let integer = self.int32_on_path(paths, value);
-        let converted = self.emit(Op::IntegerToString, vec![integer], Some(Repr::Tagged));
+        let converted = self.emit(Op::IntegerToString, &[integer], Some(Repr::Tagged));
         let converted = self.test_not_empty(paths, converted);
         let converted_end = self.block;
 
         self.join_blocks(vec![string_end, converted_end]);
-        self.add_phi(vec![string, converted])
+        self.add_phi(&[string, converted])
     }
 
     /// `value`, which is the empty value where only the slow path can make
@@ -1113,11 +1109,7 @@ impl GraphBuilder<'_> {
     }
 
     fn finish_concatenation(&mut self, paths: &mut SlowPaths, lhs: NodeId, rhs: NodeId) {
-        let result = self.emit(
-            Op::ConcatenateStrings { key: false },
-            vec![lhs, rhs],
-            Some(Repr::Tagged),
-        );
+        let result = self.emit(Op::ConcatenateStrings { key: false }, &[lhs, rhs], Some(Repr::Tagged));
         let result = self.test_not_empty(paths, result);
         self.end_hot_path(paths, vec![result]);
     }
@@ -1178,10 +1170,10 @@ impl GraphBuilder<'_> {
                         Op::Float64Unary {
                             op: Float64UnaryOp::Negate,
                         },
-                        vec![number],
+                        &[number],
                         Some(Repr::Float64),
                     );
-                    let result = self.emit(Op::BoxFloat64, vec![result], Some(Repr::Tagged));
+                    let result = self.emit(Op::BoxFloat64, &[result], Some(Repr::Tagged));
                     self.end_hot_path(&mut paths, vec![result]);
                 }
             }
@@ -1236,10 +1228,10 @@ impl GraphBuilder<'_> {
             let one = self.typed_constant(1f64.to_bits(), Repr::Float64);
             let result = self.emit(
                 Op::Float64Binary { op: op.binary_op() },
-                vec![number, one],
+                &[number, one],
                 Some(Repr::Float64),
             );
-            let result = self.emit(Op::BoxFloat64, vec![result], Some(Repr::Tagged));
+            let result = self.emit(Op::BoxFloat64, &[result], Some(Repr::Tagged));
             self.end_hot_path(&mut paths, values(result));
         }
         Ok(Some(paths))
@@ -1303,7 +1295,7 @@ impl GraphBuilder<'_> {
         let mut started = false;
         if int32s || strict_with_int32 {
             let (lhs, rhs) = (self.int32_on_path(&mut paths, lhs), self.int32_on_path(&mut paths, rhs));
-            let result = self.emit(Op::Int32Compare { comparison }, vec![lhs, rhs], Some(Repr::Bool));
+            let result = self.emit(Op::Int32Compare { comparison }, &[lhs, rhs], Some(Repr::Bool));
             self.end_hot_path(&mut paths, vec![result]);
             started = true;
         }
@@ -1312,7 +1304,7 @@ impl GraphBuilder<'_> {
                 self.float64_on_path(&mut paths, lhs),
                 self.float64_on_path(&mut paths, rhs),
             );
-            let result = self.emit(Op::Float64Compare { comparison }, vec![lhs, rhs], Some(Repr::Bool));
+            let result = self.emit(Op::Float64Compare { comparison }, &[lhs, rhs], Some(Repr::Bool));
             self.end_hot_path(&mut paths, vec![result]);
             started = true;
         }
@@ -1323,10 +1315,10 @@ impl GraphBuilder<'_> {
             let (lhs, rhs) = (self.tagged(lhs), self.tagged(rhs));
             let lhs = self.branch_to_next_case(&mut paths, BranchCondition::String, vec![lhs], true);
             let rhs = self.branch_to_next_case(&mut paths, BranchCondition::String, vec![rhs], true);
-            let result = self.emit(Op::StringsEqual, vec![lhs, rhs], Some(Repr::Tagged));
+            let result = self.emit(Op::StringsEqual, &[lhs, rhs], Some(Repr::Tagged));
             let result = self.test_not_empty(&mut paths, result);
             let truth = self.constant(value::TRUE);
-            let result = self.emit(Op::TaggedEquals { equal }, vec![result, truth], Some(Repr::Bool));
+            let result = self.emit(Op::TaggedEquals { equal }, &[result, truth], Some(Repr::Bool));
             self.end_hot_path(&mut paths, vec![result]);
         }
         if strict_with_int32 && self.start_next_case(&mut paths) {
