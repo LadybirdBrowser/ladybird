@@ -11,6 +11,7 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/ProcessSnapshot.h>
+#include <LibWebView/TabDiscarder.h>
 #include <LibWebView/ViewImplementation.h>
 
 namespace WebView {
@@ -64,11 +65,12 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
             .discard_blockers_after_inactivity = {},
             .seconds_until_discarded_after_inactivity = {},
         };
-        if (auto minutes = Application::settings().tab_settings().discard_hidden_tabs_after_minutes; minutes != 0) {
+        if (auto minimum_time_hidden = TabDiscarder::minimum_time_hidden_after_inactivity(); minimum_time_hidden.has_value()) {
             auto blockers = view.discard_blockers(ViewImplementation::DiscardReason::Inactivity, now);
             tab.discard_blockers_after_inactivity = blockers;
-            if (blockers == DiscardBlockers::None && view.hidden_since().has_value()) {
-                auto remaining = AK::Duration::from_seconds(static_cast<i64>(minutes) * 60) - (now - *view.hidden_since());
+            // NB: A tab that the UI was asked to discard already isn't counted down again until the user has seen it.
+            if (blockers == DiscardBlockers::None && view.hidden_since().has_value() && !view.discard_requested()) {
+                auto remaining = *minimum_time_hidden - (now - *view.hidden_since());
                 tab.seconds_until_discarded_after_inactivity = max<i64>(0, remaining.to_seconds());
             }
         }

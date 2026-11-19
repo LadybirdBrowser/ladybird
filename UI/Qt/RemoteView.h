@@ -236,6 +236,7 @@ public:
     ErrorOr<void> restore_session_history_from_snapshot(WebView::SessionHistorySnapshot);
     Optional<u64> keep_state_for_discarding();
     void restore_state_of_discarded_tab(u64 discarded_tab_state_id);
+    void decline_discard() { HubConnection::the().async_view_decline_discard(view_id()); }
     // NB: A tab may go away after the connection to the Hub, which takes the state along with it then.
     static void forget_state_of_discarded_tab(u64 discarded_tab_state_id)
     {

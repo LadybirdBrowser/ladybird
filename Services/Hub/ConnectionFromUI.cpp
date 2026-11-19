@@ -825,6 +825,12 @@ void ConnectionFromUI::view_restore_state_of_discarded_tab(u64 view_id, u64 disc
     view->push_state_to_ui();
 }
 
+void ConnectionFromUI::view_decline_discard(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        view->did_decline_discard();
+}
+
 void ConnectionFromUI::forget_state_of_discarded_tab(u64 discarded_tab_state_id)
 {
     WebView::ViewImplementation::forget_state_of_discarded_tab(discarded_tab_state_id);

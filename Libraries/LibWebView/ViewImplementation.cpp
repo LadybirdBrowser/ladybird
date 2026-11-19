@@ -39,6 +39,7 @@
 #include <LibWebView/PageTranslation.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/SessionHistory.h>
+#include <LibWebView/TabDiscarder.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -128,6 +129,8 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
     , m_view_id(s_view_count++)
 {
     all_views().set(m_view_id, this);
+    // NB: A view starts out hidden.
+    TabDiscarder::did_hide_a_tab();
 
     m_page_translation = make<PageTranslation>(*this);
 
@@ -641,6 +644,7 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 void ViewImplementation::start_being_hidden()
 {
     m_hidden_since = MonotonicTime::now();
+    TabDiscarder::did_hide_a_tab();
     m_changed_title_while_hidden = false;
     m_changed_favicon_while_hidden = false;
 }
@@ -804,6 +808,19 @@ void ViewImplementation::did_save_session_history_entry_states(Badge<WebContentP
         finish_discard_request();
 }
 
+// NB: The UI keeps the tab for something that only it knows of, which may take a while to end. The tab is asked about
+//     again once it was hidden as long again, so that the UI isn't asked about it at each check meanwhile.
+void ViewImplementation::did_decline_discard()
+{
+    if (!m_discard_requested)
+        return;
+    m_discard_requested = false;
+    if (m_hidden_since.has_value()) {
+        m_hidden_since = MonotonicTime::now();
+        TabDiscarder::did_hide_a_tab();
+    }
+}
+
 void ViewImplementation::finish_discard_request()
 {
     if (m_save_session_history_entry_states_timer)
@@ -829,8 +846,10 @@ void ViewImplementation::report_permission_presence()
 void ViewImplementation::set_pinned(bool pinned)
 {
     m_pinned = pinned;
-    if (pinned)
+    if (pinned && m_discard_requested) {
         m_discard_requested = false;
+        TabDiscarder::did_hide_a_tab();
+    }
 }
 
 URL::Origin ViewImplementation::permission_origin() const
@@ -4544,6 +4563,7 @@ Optional<u64> ViewImplementation::keep_state_for_discarding()
         return {};
     if (traversable().system_visibility_state() != Web::HTML::VisibilityState::Hidden || discard_blockers(m_discard_reason, MonotonicTime::now()) != DiscardBlockers::None) {
         m_discard_requested = false;
+        TabDiscarder::did_hide_a_tab();
         return {};
     }
 

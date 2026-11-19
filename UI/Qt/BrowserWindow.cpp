@@ -1210,10 +1210,14 @@ void BrowserWindow::discard_tab(Tab& tab)
     //     reviews a report would lose the report, which only its page holds, and one with an unfinished edit of its
     //     address would lose the edit.
     auto index = tab_index(&tab);
-    if (index < 0 || &tab == m_current_tab || tab.is_pinned() || tab.is_in_report_review() || tab.location_edit_with_parked_editing())
+    if (index < 0 || &tab == m_current_tab || tab.is_pinned() || tab.is_in_report_review() || tab.location_edit_with_parked_editing()) {
+        tab.view().decline_discard();
         return;
+    }
     if (!tab.is_loaded() || !tab.session_tab_id().has_value()) {
         dbgln("Unable to discard tab {}", tab.url());
+        if (tab.is_loaded())
+            tab.view().decline_discard();
         return;
     }
 
