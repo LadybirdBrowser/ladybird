@@ -171,15 +171,10 @@ impl StyleEngine {
         }
     }
 
-    /// Whether a hover under `root` needs the style engine: whether an element in its shadow-including subtree is a
-    /// disabled control, or may come to match, or stop matching, a compound testing `:hover`. Reads only the elements
-    /// a transaction moved the keys of those compounds of.
+    /// Whether hovering under `root` may change which elements match a compound selector containing `:hover`.
+    /// When those compounds are unchanged, revisit only elements whose relevant keys changed.
     pub(in super::super) fn hover_seal_needs_style_state(&mut self, root: StyleNodeID) -> bool {
-        let projection = &self.retained.projection;
-        let tree = self.tree();
-        let under_root =
-            |node: &StyleNodeID| tree.is_live(*node) && projection.is_in_shadow_including_subtree_of(*node, root);
-        if projection.written_disabled().iter().any(under_root) || !self.update_hover_carriers() {
+        if !self.update_hover_carriers() {
             return true;
         }
         let projection = &self.retained.projection;

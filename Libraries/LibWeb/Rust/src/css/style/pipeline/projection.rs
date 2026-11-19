@@ -795,8 +795,6 @@ pub(in crate::css::style) struct Projection {
     host_fact_sets: Arc<HostFactSets>,
     /// A slotted text node's slot. Text nodes have no rows, and a slotted one is rare.
     text_assigned_slots: crate::cow_map::CowMap<StyleNodeID, StyleNodeID>,
-    /// The elements whose facts say they are disabled, as the host last published them.
-    disabled: crate::cow_map::CowSet<StyleNodeID>,
     /// The elements whose rows the host's publications wrote since the last barrier.
     written: WrittenRows,
     /// Each write since the last barrier, which whether a written row changes the committed
@@ -927,7 +925,6 @@ impl Projection {
             bytes += texts.values().map(|text| size_of_val::<[u16]>(text)).sum::<usize>();
         }
         bytes += self.text_assigned_slots.heap_size();
-        bytes += self.disabled.heap_size();
         if let Some(watched_keys) = &self.watched_keys {
             bytes += sizer.arc_shallow(watched_keys) + crate::heap_size::set_bytes(&watched_keys.keys);
         }
@@ -1345,7 +1342,6 @@ impl Projection {
             catalogs,
             host_fact_sets,
             text_assigned_slots,
-            disabled,
             written,
             links_written,
             relations_written,
@@ -1360,7 +1356,6 @@ impl Projection {
         self.catalogs = catalogs;
         self.host_fact_sets = host_fact_sets;
         self.text_assigned_slots = text_assigned_slots;
-        self.disabled = disabled;
         for node in written {
             self.note_written(node, node.element_slot());
             self.pending_change_scan.writes.push(node);
@@ -1397,12 +1392,6 @@ impl Projection {
     }
 
     // -- Reads ---------------------------------------------------------------------------------
-
-    /// The elements whose facts as written say they are disabled.
-    #[must_use]
-    pub(in crate::css::style) fn written_disabled(&self) -> &crate::cow_map::CowSet<StyleNodeID> {
-        &self.disabled
-    }
 
     /// One past the greatest element slot the projection holds a row for.
     #[must_use]
