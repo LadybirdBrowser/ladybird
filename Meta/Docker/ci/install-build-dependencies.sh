@@ -63,6 +63,7 @@ case "${ID}" in
             file \
             fonts-liberation2 \
             git \
+            glslang-tools \
             libclang-rt-"${LLVM_VERSION}"-dev \
             libdrm-dev \
             libegl1-mesa-dev \
@@ -71,6 +72,7 @@ case "${ID}" in
             libpulse-dev \
             libstdc++-"${GCC_VERSION}"-dev \
             libtool \
+            libwayland-dev \
             libxcb-icccm4-dev \
             lld-"${LLVM_VERSION}" \
             llvm-"${LLVM_VERSION}" \
