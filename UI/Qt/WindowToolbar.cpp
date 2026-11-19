@@ -510,7 +510,10 @@ private:
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing, true);
         auto palette = Theme::chrome_palette(*this);
-        auto center = QRectF(rect()).center();
+        // NB: The arrow is drawn around the middle of the icon grid at 7.5, half a unit above and left of the middle of
+        //     the icon, so the ring is centered on it there.
+        auto grid_offset = 0.5 * iconSize().width() / CHROME_ICON_CANVAS_SIZE;
+        auto center = QRectF(icon_rect()).center() - QPointF(grid_offset, grid_offset);
         auto ring_is_fading = m_ring_fade.state() == QAbstractAnimation::Running;
         if (m_downloading || ring_is_fading) {
             painter.save();
