@@ -5,9 +5,9 @@ set(CMAKE_AUTOUIC ON)
 if (LINUX AND NOT ANDROID)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)
-    # NB: Without the Wayland client library, a tab dragged out of a window does not take a window along with it.
+    # Without the Wayland client library, a tab dragged out of a window does not take a window along with it.
     pkg_check_modules(WAYLAND_CLIENT IMPORTED_TARGET wayland-client)
-    # NB: Without the Wayland scanner, the browser cannot ask the Wayland compositor which GPU it presents on.
+    # The Wayland scanner is used for external activation and direct page presentation.
     pkg_check_modules(WAYLAND_SCANNER wayland-scanner)
     pkg_check_modules(XCB_ICCCM REQUIRED IMPORTED_TARGET xcb-icccm)
 endif()
@@ -102,9 +102,18 @@ if (LINUX AND NOT ANDROID)
         target_link_libraries(ladybird_impl PRIVATE PkgConfig::WAYLAND_CLIENT)
         target_compile_definitions(ladybird_impl PUBLIC LADYBIRD_HAS_WAYLAND_CLIENT)
     endif()
-    if (WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER_FOUND AND USE_VULKAN_DMABUF_IMAGES)
+
+    if (WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER_FOUND)
         pkg_get_variable(WAYLAND_SCANNER_EXECUTABLE wayland-scanner wayland_scanner)
-        foreach(protocol linux-dmabuf-v1 viewporter)
+
+        # xdg-activation-v1.xml comes from the wayland-protocols:
+        # https://github.com/wayland-mirror/wayland-protocols/blob/1.41/staging/xdg-activation/xdg-activation-v1.xml
+        set(wayland_protocols xdg-activation-v1)
+        if (USE_VULKAN_DMABUF_IMAGES)
+            list(APPEND wayland_protocols linux-dmabuf-v1 viewporter)
+        endif()
+
+        foreach(protocol IN LISTS wayland_protocols)
             set(protocol_xml "${CMAKE_CURRENT_SOURCE_DIR}/Protocols/${protocol}.xml")
             set(protocol_header "${CMAKE_CURRENT_BINARY_DIR}/${protocol}-client-protocol.h")
             set(protocol_code "${CMAKE_CURRENT_BINARY_DIR}/${protocol}-protocol.c")
@@ -122,15 +131,19 @@ if (LINUX AND NOT ANDROID)
             )
             target_sources(ladybird_impl PRIVATE "${protocol_header}" "${protocol_code}")
         endforeach()
+
+        target_sources(ladybird_impl PRIVATE WaylandRegistry.cpp WaylandRegistry.h)
+        target_include_directories(ladybird_impl PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+        target_compile_definitions(ladybird_impl PRIVATE LADYBIRD_HAS_WAYLAND_ACTIVATION)
+    endif()
+
+    if (WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER_FOUND AND USE_VULKAN_DMABUF_IMAGES)
         target_sources(ladybird_impl PRIVATE
             WaylandGpu.cpp
             WaylandGpu.h
             WaylandPageSurface.cpp
             WaylandPageSurface.h
-            WaylandRegistry.cpp
-            WaylandRegistry.h
         )
-        target_include_directories(ladybird_impl PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
         target_compile_definitions(ladybird_impl PUBLIC LADYBIRD_HAS_WAYLAND_GPU_QUERY)
     else()
         message(WARNING "Building without the Wayland page surface. Pages on Wayland will use a fallback that can fall "

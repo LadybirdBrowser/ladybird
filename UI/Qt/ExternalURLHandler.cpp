@@ -158,7 +158,11 @@ public:
     virtual void launch(URL::URL const& url, LaunchCallback callback) const override
     {
         NonnullRefPtr protected_this { *this };
-        request_external_url_activation_token([protected_this = move(protected_this), url, callback = move(callback)](Optional<String> activation_token) mutable {
+
+        auto const* desktop_id_ptr = g_app_info_get_id(m_app_info);
+        auto desktop_id = desktop_id_ptr ? StringView { desktop_id_ptr, strlen(desktop_id_ptr) } : StringView {};
+
+        request_external_url_activation_token(desktop_id, [protected_this = move(protected_this), url, callback = move(callback)](Optional<String> activation_token) mutable {
             callback(protected_this->launch(url, activation_token));
         });
     }
