@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Classic script queueing a microtask then throwing an exception
+Pass	Classic script queueing a microtask
+Pass	Module script queueing a microtask then throwing an exception
+Pass	Module script queueing a microtask

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<head>
+<link rel=author title="Aleks Totic" href="mailto:atotic@chromium.org">
+<link rel=help href="https://html.spec.whatwg.org/#clean-up-after-running-script">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="resources/common.js"></script>
+</head>
+<body style="height:2000px;">
+<script>
+/*
+promise 1, promise 2 execute immediately after script tag
+promise 1 child executes immediately after promise 2.
+
+Relevant specs:
+
+https://html.spec.whatwg.org/#clean-up-after-running-script
+If the JavaScript execution context stack is now empty, perform a microtask checkpoint.
+
+https://html.spec.whatwg.org/#perform-a-microtask-checkpoint
+"perform a microtask checkpoint" runs in a loop until all microtasks have been delivered.
+*/
+
+var test = async_test("Microtask immediately after script");
+
+var events = [];
+
+Promise.resolve()
+.then(function() {
+    events.push("promise 1");
+    return Promise.resolve();
+})
+.then(function() {
+    test.step(function() {
+        events.push("promise 1 child");
+        assert_array_equals(events, ["promise 1", "promise 2", "promise 1 child"]);
+        test.done();
+    });
+});
+Promise.resolve()
+.then(function() {
+    events.push("promise 2");
+});
+
+// Set up events that must be executed after Promise.
+window.setTimeout(function() {
+    events.push('timeout');
+}, 0);
+window.addEventListener('scroll', function() {
+    events.push('scroll');
+});
+window.scrollBy(0,10);
+
+</script>
+</body>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<head>
+<link rel=help href="https://html.spec.whatwg.org/#parsing-main-incdata">
+<link rel=help href="https://html.spec.whatwg.org/#perform-a-microtask-checkpoint">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+let classicScriptRan = false;
+let moduleScriptRan = false;
+let asyncScriptRan = false;
+let deferSCriptRan = false;
+
+new MutationObserver((mutations, observer) => {
+  mutations.forEach(({ addedNodes }) => {
+    addedNodes.forEach(node => {
+      if (node.nodeType == 1 && node.tagName == "SCRIPT") {
+        node.setAttribute("type", "text/plain");
+      }
+    });
+  });
+}).observe(document.body, { childList: true, subtree: true });
+
+let test = async_test("Microtask before prepare-the-script-element steps");
+window.onload = test.step_func_done(function(e) {
+  assert_false(classicScriptRan, "Classic script should not run");
+  assert_false(moduleScriptRan, "Module script should not run");
+  assert_false(asyncScriptRan, "Async script should not run");
+  assert_false(deferSCriptRan, "Defer script should not run");
+});
+
+</script>
+<script>classicScriptRan = true;</script>
+<script type="module">moduleScriptRan = true;</script>
+<script src="resources/async.js" async></script>
+<script src="resources/defer.js" defer></script>
+</body>

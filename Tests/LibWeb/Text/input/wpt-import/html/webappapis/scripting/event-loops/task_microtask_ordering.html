@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<title>Task and Microtask Ordering </title>
+<link rel=author title="Joshua Bell" href="mailto:jsbell@google.com">
+<link rel=help href="https://html.spec.whatwg.org/multipage/#event-loops">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="resources/common.js"></script>
+
+<div class="outer">
+  <div class="inner"></div>
+</div>
+
+<script>
+
+// Based on: https://jakearchibald.com/2015/tasks-microtasks-queues-and-schedules/
+
+log_test(function(t, log) {
+    log('script start');
+
+    setTimeout(function() {
+        log('setTimeout');
+    }, 0);
+
+    Promise.resolve().then(function() {
+        log('promise1');
+    }).then(function() {
+        log('promise2');
+    });
+
+    log('script end');
+}, [
+    'script start',
+    'script end',
+    'promise1',
+    'promise2',
+    'setTimeout'
+], 'Basic task and microtask ordering');
+
+log_test(function(t, log) {
+    // Let's get hold of those elements
+    var outer = document.querySelector('.outer');
+    var inner = document.querySelector('.inner');
+
+    // Let's listen for attribute changes on the
+    // outer element
+    new MutationObserver(function() {
+        log('mutate');
+    }).observe(outer, {
+        attributes: true
+    });
+
+    // Here's a click listener...
+    function onClick() {
+        log('click');
+
+        setTimeout(function() {
+            log('timeout');
+        }, 0);
+
+        Promise.resolve().then(function() {
+            log('promise');
+        });
+
+        outer.setAttribute('data-random', Math.random());
+    }
+
+    // ...which we'll attach to both elements
+    inner.addEventListener('click', onClick);
+    outer.addEventListener('click', onClick);
+
+    // Note that this will behave differently than a real click,
+    // since the dispatch is synchronous and microtasks will not
+    // run between event bubbling steps.
+    inner.click();
+}, [
+    'click',
+    'click',
+    'promise',
+    'mutate',
+    'promise',
+    'timeout',
+    'timeout'
+], 'Level 1 bossfight (synthetic click)');
+
+</script>
