@@ -1601,11 +1601,19 @@ void ViewImplementation::set_preferred_contrast(Web::CSS::PreferredContrast cont
     });
 }
 
+// Pages can't read the platform's settings, so Auto reaches them as what the platform asks for.
+static Web::CSS::PreferredMotion motion_for_pages(Web::CSS::PreferredMotion motion)
+{
+    if (motion != Web::CSS::PreferredMotion::Auto)
+        return motion;
+    return Application::the().platform_prefers_reduced_motion() ? Web::CSS::PreferredMotion::Reduce : Web::CSS::PreferredMotion::NoPreference;
+}
+
 void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
 {
     m_preferred_motion = motion;
     traversable().for_each_hosting_page([&](WebContentPage& page) {
-        page.async_set_preferred_motion(motion);
+        page.async_set_preferred_motion(motion_for_pages(motion));
     });
 }
 
@@ -1644,7 +1652,7 @@ void ViewImplementation::send_preferences_to_page(WebContentPage& page)
     send_system_theme_to_page(page);
     page.async_set_preferred_color_scheme(preferred_color_scheme_for_page(page));
     page.async_set_preferred_contrast(m_preferred_contrast);
-    page.async_set_preferred_motion(m_preferred_motion);
+    page.async_set_preferred_motion(motion_for_pages(m_preferred_motion));
     page.async_set_preferred_languages(Application::settings().languages());
     page.async_set_zoom_level(m_zoom_level);
     send_browsing_behavior(page);

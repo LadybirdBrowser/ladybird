@@ -719,6 +719,12 @@ ErrorOr<NonnullOwnPtr<Application>> Application::create(Main::Arguments const& a
     auto transports = TRY(IPC::TransportHandle::create_pair());
     application->m_connection_from_ui = Hub::ConnectionFromUI::construct(TRY(transports.first.create_transport()));
     application->m_hub_connection = adopt_ref(*new HubConnection(TRY(transports.second.create_transport())));
+
+    // The Hub reads the platform's preferences from us when it needs them, but open pages only learn of a change once
+    // the Hub sends the preference again.
+    QObject::connect(&SystemAppearance::the(), &SystemAppearance::reduced_motion_changed, [] {
+        hub().platform_motion_preference_changed();
+    });
 #endif
     return application;
 }
@@ -767,6 +773,7 @@ Hub::UIInfo Application::current_ui_info() const
     info.reports_scroll_momentum = platform_reports_scroll_momentum();
     info.scrolls_elastically = platform_scrolls_elastically();
     info.scrollbar_track_press_jumps = platform_scrollbar_track_press_jumps();
+    info.prefers_reduced_motion = platform_prefers_reduced_motion();
     info.preferred_languages = platform_preferred_languages();
     info.presentation_gpu_device = platform_presentation_gpu_device();
     info.presentation_drm_format_modifiers = platform_presentation_drm_format_modifiers();
@@ -996,6 +1003,9 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     };
     QObject::connect(&SystemAppearance::the(), &SystemAppearance::changed, send_ui_info);
     QObject::connect(&SystemAppearance::the(), &SystemAppearance::interface_appearance_changed, send_ui_info);
+    QObject::connect(&SystemAppearance::the(), &SystemAppearance::reduced_motion_changed, send_ui_info);
+    // The Hub may have started with what we told it before a change that came in the meantime.
+    send_ui_info();
     s_browser_has_started = true;
     return {};
 }
@@ -1309,6 +1319,11 @@ bool Application::platform_scrollbar_track_press_jumps() const
 #else
     return false;
 #endif
+}
+
+bool Application::platform_prefers_reduced_motion() const
+{
+    return SystemAppearance::prefers_reduced_motion();
 }
 
 Vector<String> Application::platform_preferred_languages() const

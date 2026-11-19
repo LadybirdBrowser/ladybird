@@ -35,6 +35,17 @@ void SystemAppearance::observe_platform_changes()
                                                                  // The defaults are updated after the notification is posted.
                                                                  QMetaObject::invokeMethod(this, [this] { update(); }, Qt::QueuedConnection);
                                                              }];
+    // The notification comes for a change to any of the display options, such as the contrast.
+    __block auto prefers_reduced_motion = SystemAppearance::prefers_reduced_motion();
+    [[[NSWorkspace sharedWorkspace] notificationCenter] addObserverForName:NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification
+                                                                    object:nil
+                                                                     queue:[NSOperationQueue mainQueue]
+                                                                usingBlock:^(NSNotification*) {
+                                                                    if (SystemAppearance::prefers_reduced_motion() == prefers_reduced_motion)
+                                                                        return;
+                                                                    prefers_reduced_motion = !prefers_reduced_motion;
+                                                                    emit reduced_motion_changed();
+                                                                }];
 }
 
 }
