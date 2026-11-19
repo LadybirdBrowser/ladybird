@@ -63,6 +63,7 @@ public:
 
     // Shared with the proxies of a playback manager in another process, so that both report the same ranges.
     static Optional<TimeRanges::Range> seekable_time_range(TimeRanges const& buffered, MediaTimeline const&);
+    static BufferedRanges buffered_time_ranges_of_sources(ReadonlySpan<CombinedScanState> enabled_sources, MediaTimeline const&);
 
     static NonnullOwnPtr<PlaybackManager> create(NonnullRefPtr<AudioOutputFactory>);
     ~PlaybackManager();
