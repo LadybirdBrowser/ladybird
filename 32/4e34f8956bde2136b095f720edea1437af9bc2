@@ -1,0 +1,8 @@
+Ladybird keeps the text that fits before the block ellipsis of a line
+that -webkit-line-clamp clamps, also where text-overflow: ellipsis
+had cut that line. In Chrome 157.0.8103.79, Firefox 151.0, and WebKit
+26.5, a 10.1ch box clamped to two lines, holding three copies of
+“supercalifragilisticexpialidocious” under text-overflow: ellipsis,
+shows “supercali” and an ellipsis on its second line, and a one-line
+clamp of “abcdefghijklmnop qr” in a 100px box shows “abcdefg” and
+an ellipsis, in all three.
