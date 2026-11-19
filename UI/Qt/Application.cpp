@@ -1573,12 +1573,8 @@ static WindowConfiguration window_configuration_for(SessionWindowGeometry const&
     auto* screen = QGuiApplication::screenAt(rect.center());
     if (!screen)
         screen = QGuiApplication::primaryScreen();
-    if (screen) {
-        auto available = screen->availableGeometry();
-        rect.setSize(rect.size().boundedTo(available.size()));
-        rect.moveLeft(clamp(rect.left(), available.left(), available.right() - rect.width() + 1));
-        rect.moveTop(clamp(rect.top(), available.top(), available.bottom() - rect.height() + 1));
-    }
+    if (screen)
+        rect = BrowserWindow::rect_fitted_into(rect, screen->availableGeometry());
 
     return {
         .x = Web::DevicePixels { rect.x() },
