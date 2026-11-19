@@ -1,0 +1,10 @@
+flex: 82.75x50
+inline-flex: 82.75x50
+column-flex: 82.75x50
+grid: 82.75x50
+block: 82.75x50
+half-width: 82.75x50
+calc-width: 82.75x50
+aspect-ratio: 50x50
+border-box-padding: 76.203125x50
+percentage-height: 100x200
