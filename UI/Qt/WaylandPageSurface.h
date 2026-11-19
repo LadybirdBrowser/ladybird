@@ -14,7 +14,7 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/LinuxDmaBufHandle.h>
 
-#include <QMetaObject>
+#include <QObject>
 #include <QPoint>
 #include <QPointer>
 #include <QRect>
@@ -24,12 +24,6 @@
 
 class QImage;
 class QWindow;
-
-namespace QNativeInterface::Private {
-
-struct QWaylandWindow;
-
-}
 
 struct wl_buffer;
 struct wl_compositor;
@@ -46,12 +40,12 @@ namespace Ladybird {
 
 // A Wayland subsurface of the browser window that shows the page's frames by attaching the dma-bufs the Compositor
 // painted them into, so that the compositor of the desktop composites, or even scans out, the frames as they are.
-class WaylandPageSurface {
+class WaylandPageSurface : public QObject {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
     static OwnPtr<WaylandPageSurface> create();
-    ~WaylandPageSurface();
+    virtual ~WaylandPageSurface() override;
 
     struct Frame {
         Gfx::SharedImageBuffer const& shared_image_buffer;
@@ -153,12 +147,14 @@ private:
 
     explicit WaylandPageSurface(Globals);
 
+    virtual bool eventFilter(QObject*, QEvent*) override;
+
     Buffer* buffer_for(Frame const&);
     void destroy_buffer(Buffer&);
     void retire_buffer(size_t index);
     static bool forget_buffer_nobody_waits_for(Buffer&);
     bool ensure_subsurface(QWindow& parent);
-    void wait_for_parent_surface(QNativeInterface::Private::QWaylandWindow&);
+    bool is_attached_to(wl_surface*) const;
     void destroy_subsurface();
 
     static void buffer_created(void*, zwp_linux_buffer_params_v1*, wl_buffer*);
@@ -170,10 +166,11 @@ private:
     wl_surface* m_surface { nullptr };
     wp_viewport* m_viewport { nullptr };
     wl_subsurface* m_subsurface { nullptr };
+
     QPointer<QWindow> m_parent;
     wl_surface* m_parent_surface { nullptr };
-    QMetaObject::Connection m_parent_surface_destroyed_connection;
-    QMetaObject::Connection m_parent_surface_created_connection;
+    u32 m_parent_surface_id { 0 };
+
     Optional<QPoint> m_position;
     bool m_position_needs_parent_commit { false };
     Buffer const* m_presented_buffer { nullptr };
