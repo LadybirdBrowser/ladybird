@@ -111,6 +111,8 @@ static constexpr int HORIZONTAL_TAB_STRIP_WHEEL_SCROLL_STEP = 112;
 // After the pointer leaves the tab bar, the tabs keep their locked widths for this long.
 static constexpr int TAB_WIDTH_UNLOCK_DELAY_MS = 300;
 static constexpr qreal ATTENTION_DOT_RADIUS = 3.5;
+// A tab that hasn't loaded, such as one discarded to save memory, loads its page once it's selected.
+static constexpr qreal UNLOADED_TAB_FAVICON_OPACITY = 0.5;
 // While the strip scrolls, its ends fade into the strip over this width.
 static constexpr int HORIZONTAL_TAB_STRIP_FADE_WIDTH = 28;
 // Below this content width, a horizontal tab shows its favicon alone.
@@ -1266,6 +1268,7 @@ void TabBar::paintEvent(QPaintEvent*)
         auto* tab_for_index = m_tab_widget ? m_tab_widget->tab(index) : nullptr;
         auto needs_attention = tab_for_index && tab_for_index->needs_attention() && !is_selected;
         auto favicon_shrink = tab_for_index ? tab_for_index->loading_favicon_shrink() : 0;
+        auto favicon_opacity = tab_for_index && !tab_for_index->is_loaded() ? UNLOADED_TAB_FAVICON_OPACITY : 1.0;
         auto paint_icon = [&](QRect const& icon_rect) {
             if (ring_opacity > 0) {
                 painter.save();
@@ -1278,6 +1281,8 @@ void TabBar::paintEvent(QPaintEvent*)
             auto overhang = (CHROME_ICON_CANVAS_SIZE - TAB_ICON_SIZE) / 2;
             auto const& shown_icon = icon.isNull() ? m_fallback_tab_icon : icon;
             auto shown_rect = icon.isNull() ? icon_rect.adjusted(-overhang, -overhang, overhang, overhang) : icon_rect;
+            painter.save();
+            painter.setOpacity(favicon_opacity);
             if (favicon_shrink > 0) {
                 // While the tab loads, the favicon shrinks to fit inside the ring, so a square favicon never touches it.
                 auto scale = 1 - ((1 - (static_cast<qreal>(LOADING_FAVICON_SIZE) / TAB_ICON_SIZE)) * favicon_shrink);
@@ -1291,6 +1296,7 @@ void TabBar::paintEvent(QPaintEvent*)
             } else {
                 shown_icon.paint(&painter, shown_rect);
             }
+            painter.restore();
 
             // A tab with news has a dot on its favicon's corner, cut out of the strip around it.
             if (needs_attention) {
