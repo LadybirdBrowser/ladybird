@@ -412,7 +412,7 @@ impl StyleJob {
             .filter_map(|row| crate::css::transition::DecidedTransitionStep::of_row(&mut *engine, row))
             .collect();
         decided_transition_steps.sort_unstable_by_key(crate::css::transition::DecidedTransitionStep::node);
-        let installation_for_host = engine.take_installation();
+        let mut installation_for_host = engine.take_installation();
         // The render side knows what it publishes: the host swaps the installation's records in without echoing them.
         installation_for_host.note_held_by_the_host(engine);
         let installed_styles = engine.computed_group_sets.publish_installed_styles();

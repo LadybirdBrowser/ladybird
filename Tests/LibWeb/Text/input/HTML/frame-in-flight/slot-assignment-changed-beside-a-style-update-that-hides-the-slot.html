@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<script>
+    // A style update that hides a slot's container clears the styles of the elements it found assigned to that slot,
+    // as the tree was when the update flew. An element assigned to the slot beside it keeps its style, and one assigned
+    // away from the slot gets its style back.
+    async function check(name, slotAssignment, startsInHiddenSlot, reassign) {
+        const host = document.createElement("x-host");
+        host.innerHTML = `<div slot="${startsInHiddenSlot ? "a" : "b"}"><div>x</div></div>`;
+        document.body.append(host);
+        const slotted = host.firstElementChild;
+        const inner = slotted.firstElementChild;
+        const root = host.attachShadow({ mode: "open", slotAssignment });
+        root.innerHTML = `<div><slot name="a"></slot></div><slot name="b"></slot>`;
+        const wrapper = root.firstElementChild;
+        const [hiddenSlot, shownSlot] = root.querySelectorAll("slot");
+        if (slotAssignment === "manual")
+            (startsInHiddenSlot ? hiddenSlot : shownSlot).assign(slotted);
+        await twoFramesLanded();
+        void inner.offsetTop;
+
+        await whileRecordingInFlight(() => {
+            wrapper.style.display = "none";
+        }, () => {
+            reassign(slotted, hiddenSlot, shownSlot);
+        }, "style");
+        await twoFramesLanded();
+        wrapper.style.display = "";
+
+        println(`${name}: offsetParent: ${inner.offsetParent.localName}, display: ${getComputedStyle(slotted).display}`);
+        host.remove();
+    }
+
+    asyncTest(async done => {
+        await check("into the hidden slot, slot attribute", "named", false, slotted => {
+            slotted.slot = "a";
+        });
+        await check("into the hidden slot, slot name", "named", false, (slotted, hiddenSlot, shownSlot) => {
+            shownSlot.name = "c";
+            hiddenSlot.name = "b";
+        });
+        await check("into the hidden slot, manual assignment", "manual", false, (slotted, hiddenSlot) => {
+            hiddenSlot.assign(slotted);
+        });
+        await check("out of the hidden slot, slot attribute", "named", true, slotted => {
+            slotted.slot = "b";
+        });
+        await check("out of the hidden slot, slot name", "named", true, (slotted, hiddenSlot, shownSlot) => {
+            hiddenSlot.name = "c";
+            shownSlot.name = "a";
+        });
+        await check("out of the hidden slot, manual assignment", "manual", true, (slotted, hiddenSlot, shownSlot) => {
+            shownSlot.assign(slotted);
+        });
+        done();
+    });
+</script>

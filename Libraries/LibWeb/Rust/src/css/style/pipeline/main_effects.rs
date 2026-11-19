@@ -43,6 +43,10 @@ pub struct InstalledElementEffects {
     /// last, by index among the swaps of the installation.
     pub(crate) swaps_begin: u32,
     pub(crate) swaps_end: u32,
+    /// The descendants whose styles the element's effects clear, from the first to one past the last, by index among
+    /// the cleared descendants of the installation.
+    pub(crate) cleared_descendants_begin: u32,
+    pub(crate) cleared_descendants_end: u32,
 }
 
 // SAFETY: The pointer only borrows the immutable record the installation pins until the host ended the transaction.
@@ -388,6 +392,8 @@ impl RetainedState {
             pseudo_element_transition_steps: facts.pseudo_elements.transition_steps,
             swaps_begin: 0,
             swaps_end: 0,
+            cleared_descendants_begin: 0,
+            cleared_descendants_end: 0,
         }
     }
 
@@ -506,7 +512,7 @@ mod tests {
 
         add_class(&mut engine, nodes[1], "hidden");
         run_style_update(&mut engine, nodes[0]);
-        let installation = engine.take_installation();
+        let mut installation = engine.take_installation();
         assert!(
             installation
                 .effects_of(nodes[1])
