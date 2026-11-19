@@ -662,7 +662,14 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& request_headers, Hea
     if (freshness_lifetime > current_age)
         return CacheLifetimeStatus::Fresh;
 
-    if (request_cache_control.has_value()) {
+    // https://httpwg.org/specs/rfc9111.html#cache-response-directive.must-revalidate
+    // The must-revalidate response directive indicates that once the response has become stale, a cache MUST NOT reuse
+    // that response to satisfy another request until it has been successfully validated by the origin
+    //
+    // NB: A max-stale request directive does not permit reuse of such a response either, so check this first.
+    bool has_must_revalidate = response_cache_control.has_value() && contains_cache_control_directive(*response_cache_control, "must-revalidate"sv);
+
+    if (request_cache_control.has_value() && !has_must_revalidate) {
         // https://httpwg.org/specs/rfc9111.html#cache-request-directive.max-stale
         // The max-stale request directive indicates that the client will accept a response that has exceeded its
         // freshness lifetime. If a value is present, then the client is willing to accept a response that has exceeded
@@ -680,16 +687,12 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& request_headers, Hea
     if (!response_cache_control.has_value())
         return revalidation_status(CacheLifetimeStatus::MustRevalidate);
 
-    // https://httpwg.org/specs/rfc9111.html#cache-response-directive.must-revalidate
-    // The must-revalidate response directive indicates that once the response has become stale, a cache MUST NOT reuse
-    // that response to satisfy another request until it has been successfully validated by the origin
-    //
-    // NB: This takes precedence over stale-while-revalidate, as per
+    // NB: must-revalidate takes precedence over stale-while-revalidate, as per
     //     https://httpwg.org/specs/rfc9111.html#serving.stale.responses:
     //     A cache MUST NOT generate a stale response if it is prohibited by an explicit in-protocol directive (e.g., by
     //     a no-cache response directive, a must-revalidate response directive, or an applicable s-maxage or
     //     proxy-revalidate response directive; see Section 5.2.2).
-    if (contains_cache_control_directive(*response_cache_control, "must-revalidate"sv))
+    if (has_must_revalidate)
         return revalidation_status(CacheLifetimeStatus::MustRevalidate);
 
     // https://httpwg.org/specs/rfc5861.html#n-the-stale-while-revalidate-cache-control-extension
