@@ -564,6 +564,7 @@ void PlaybackManager::reserve_video_sink_handle(Track const& track, VideoSinkHan
     video_sink_registrations().set(handle, this);
     apply_track_change_to_ended_state(resume_ended_playback);
     update_pipeline_state();
+    dispatch_buffered_ranges_change();
 }
 
 void PlaybackManager::set_host_hooks(HostHooks hooks)
@@ -889,7 +890,7 @@ CombinedScanState PlaybackManager::scan_state_for_enabled_tracks(Demuxer const& 
         }
         for (auto const& data : m_video_track_datas) {
             if (data.demuxer.ptr() == &demuxer && data.track.identifier() == identifier)
-                return data.video_sink != nullptr;
+                return data.handle.has_value();
         }
         return false;
     });
@@ -898,7 +899,7 @@ CombinedScanState PlaybackManager::scan_state_for_enabled_tracks(Demuxer const& 
 bool PlaybackManager::source_has_enabled_track(Demuxer const& demuxer) const
 {
     for (auto const& track_data : m_video_track_datas) {
-        if (track_data.demuxer.ptr() == &demuxer && track_data.video_sink != nullptr)
+        if (track_data.demuxer.ptr() == &demuxer && track_data.handle.has_value())
             return true;
     }
     for (auto const& track_data : m_audio_track_datas) {
