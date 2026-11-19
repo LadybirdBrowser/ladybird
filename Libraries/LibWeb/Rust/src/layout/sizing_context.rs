@@ -3741,10 +3741,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 IntrinsicSizeCacheKind::MinContentInline,
             );
         }
-        if facts.is_replaced_box() {
+        // https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
+        // NB: A replaced box's min-content block size is its max-content block size, which follows its preferred
+        //     aspect ratio where it has one, rather than its natural ratio.
+        if facts.is_replaced_box() && !facts.has_preferred_aspect_ratio() {
             let auto_size = self.auto_content_size(node);
             if let Some(height) = auto_size.height {
-                return auto_size.aspect_ratio.map_or(height, |ratio| ratio.divide(inline_size));
+                return height;
             }
         }
         // For block containers, tables, and inline boxes, this is equivalent to the max-content block size.
