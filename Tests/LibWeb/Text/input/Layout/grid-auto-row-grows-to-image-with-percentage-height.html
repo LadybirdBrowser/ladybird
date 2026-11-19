@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .grid { display: grid; width: 100px; height: 100px; margin-bottom: 4px; }
+    img { display: block; }
+</style>
+<!-- An image's percentage height in a grid resolves against its grid area, so it behaves as auto while an auto row is
+     sized, and the row grows to fit the image. The image's width only follows that height once the row is sized. -->
+<div class="grid"><img id="width-and-height" style="width: 100%; height: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450'/%3E"></div>
+<div class="grid"><img id="height-only" style="height: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450'/%3E"></div>
+<div class="grid"><img id="half-height" style="height: 50%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450'/%3E"></div>
+<div class="grid" style="grid-template-rows: 100px"><img id="fixed-row" style="height: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450'/%3E"></div>
+<div class="grid"><img id="without-natural-size" style="width: 100%; height: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 450'/%3E"></div>
+<div class="grid" style="place-items: center; overflow: hidden"><img id="centered" style="width: 100%; height: 100%; object-fit: cover" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450'/%3E"></div>
+<div class="grid" style="grid-template-rows: min-content"><img id="min-content-row" style="height: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450'/%3E"></div>
+<div class="grid" style="grid-template-rows: 1fr"><img id="flexible-row" style="height: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450'/%3E"></div>
+<div class="grid" style="height: auto"><img id="auto-height-grid" style="width: 100%; height: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450'/%3E"></div>
+<script>
+    function run(report) {
+        for (const element of document.querySelectorAll("[id]:not(#out)")) {
+            const rect = element.getBoundingClientRect();
+            report(`${element.id}: ${rect.width}x${rect.height}, row ${getComputedStyle(element.parentElement).gridTemplateRows}`);
+        }
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>

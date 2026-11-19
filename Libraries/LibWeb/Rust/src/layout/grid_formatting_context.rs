@@ -2660,6 +2660,13 @@ impl<'pass> GridFormattingContext<'pass> {
     /// INTEROP: Like other engines, we resolve them against the item's grid area in a subgrid without the extra margins
     ///          the subgrid gives it, which is the part of the area that lies between the subgrid's own lines.
     fn percentage_basis_size(&self, item: GridItem, axis: Axis) -> CssPixels {
+        CssPixels::default()
+            .max(self.containing_block_size(item, axis) - self.subgrid_edge_extra_margins_of(item, axis))
+    }
+
+    /// The extra margins that stand in for the edges of a subgrid around `item`, which its grid area includes but its
+    /// percentage basis doesn't.
+    fn subgrid_edge_extra_margins_of(&self, item: GridItem, axis: Axis) -> CssPixels {
         let mut extra_margins = axis.select(
             item.extra_margin_left + item.extra_margin_right,
             item.extra_margin_top + item.extra_margin_bottom,
@@ -2675,7 +2682,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 extra_margins += gap_extra_margin;
             }
         }
-        CssPixels::default().max(self.containing_block_size(item, axis) - extra_margins)
+        extra_margins
     }
 
     fn item_available_space(&self, item: GridItem) -> AvailableSpace {
@@ -2758,15 +2765,16 @@ impl<'pass> GridFormattingContext<'pass> {
         mut constraints: ContainingBlockConstraints,
     ) -> ContainingBlockConstraints {
         let facts = self.item_facts(item);
+        // NB: A percentage height of an item with a preferred aspect ratio, replaced or not, resolves against its grid
+        //     area, not the grid container, so its row's size is its basis here.
         if constraints.percentage_basis_block_size.is_none()
-            || (facts.has_preferred_aspect_ratio()
-                && !facts.is_replaced_box()
-                && !self.is_grid_lanes_stacking_axis(Axis::Row))
+            || (facts.has_preferred_aspect_ratio() && !self.is_grid_lanes_stacking_axis(Axis::Row))
         {
             constraints.percentage_basis_block_size = if self.use_row_sizes_for_column_percentages {
-                Some(self.containing_block_size(item, Axis::Row))
+                Some(self.percentage_basis_size(item, Axis::Row))
             } else {
                 self.fixed_track_span_size(item, Axis::Row)
+                    .map(|size| CssPixels::default().max(size - self.subgrid_edge_extra_margins_of(item, Axis::Row)))
             };
         }
         constraints.quirks_mode_percentage_basis_block_size =
@@ -3343,8 +3351,15 @@ impl<'pass> GridFormattingContext<'pass> {
         // the size suggestion is capped by those sizes; for this purpose, any indefinite percentages in these sizes are resolved
         // against zero (and considered definite).
         // FIXME: "compressible replaced element" includes more elements than is_replaced_box().
+        // AD-HOC: Only in the inline axis. A replaced box's percentage block size with nothing to resolve against
+        //         behaves as auto instead, as it does for its min-content contribution, for web compatibility. So an
+        //         image with height: 100% in an auto row keeps its content size as its minimum, and the row grows to
+        //         fit it, as in other engines.
         let preferred_size = self.preferred_size(item, axis);
-        if self.item_facts(item).is_replaced_box() && (preferred_size.is_percentage() || maximum_size.is_percentage()) {
+        if self.item_facts(item).is_replaced_box()
+            && axis.is_column()
+            && (preferred_size.is_percentage() || maximum_size.is_percentage())
+        {
             // NOTE: Implements "for this purpose, any indefinite percentages in these sizes are resolved
             //       against zero (and considered definite)." part.
             result = CssPixels::default();
@@ -4706,6 +4721,17 @@ impl<'pass> GridFormattingContext<'pass> {
             }
         } else if use_replaced {
             if axis.is_column() {
+                // NB: The rows aren't sized yet when the column pass resolves the item's width, so a percentage height
+                //     resolves against the block size the column pass assumes for the item's rows, as its column
+                //     contributions did, rather than against rows that are still empty.
+                let available = AvailableSpace {
+                    block_size: constraints
+                        .percentage_basis_block_size
+                        .map_or(AvailableSize::Indefinite, |basis| {
+                            AvailableSize::definite(clamp_to_max_dimension_value(basis))
+                        }),
+                    ..available
+                };
                 self.sizing().compute_inline_size_for_replaced_element(
                     sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                     available,
