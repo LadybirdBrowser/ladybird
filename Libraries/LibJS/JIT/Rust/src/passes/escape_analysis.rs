@@ -63,6 +63,7 @@ use crate::ir::Op;
 use crate::ir::VirtualObjectKind;
 use crate::ir::value;
 use crate::snapshot::CellId;
+use ak::Zone;
 
 /// The shape and property count each object has at some point, which
 /// `AddNamed` nodes change.
@@ -396,7 +397,7 @@ fn frame_state_values(graph: &Graph, frame_state: FrameStateId) -> Vec<NodeId> {
 /// The value of each property of each replaced object at one point.
 type Properties = HashMap<(NodeId, u32), NodeId>;
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, _work: &Zone) {
     let placed = placed_nodes(graph);
     let mut escaping = Vec::new();
     loop {

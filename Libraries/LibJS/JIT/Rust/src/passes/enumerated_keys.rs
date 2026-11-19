@@ -13,8 +13,9 @@
 
 use crate::ir::Graph;
 use crate::ir::Op;
+use ak::Zone;
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, _work: &Zone) {
     for block in 0..graph.blocks.len() {
         for index in 0..graph.blocks[block].body.len() {
             let node = graph.blocks[block].body[index];

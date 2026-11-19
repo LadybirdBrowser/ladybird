@@ -19,6 +19,7 @@
 //! edges bring its values to those phis.
 
 use ak::ColumnFull;
+use ak::Zone;
 use ak::ZoneVec;
 
 use super::dominators::Dominators;
@@ -34,7 +35,7 @@ use crate::ir::Op;
 /// How many nodes the blocks of a test that gets copied may have at most.
 const MAX_COPIED_NODES: usize = 64;
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
     if graph.osr_entries.is_empty() {
         return Ok(());
     }

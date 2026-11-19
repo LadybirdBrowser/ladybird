@@ -39,6 +39,7 @@ pub mod verify;
 mod tests;
 
 use ak::ColumnFull;
+use ak::Zone;
 
 use crate::bytecode::FrameLayout;
 use crate::ir::Graph;
@@ -53,10 +54,23 @@ struct Pass {
 /// How a pass is run.
 #[derive(Clone, Copy)]
 enum Run {
-    Plain(fn(&mut Graph)),
+    Plain(fn(&mut Graph, &Zone)),
     /// The pass computes the dominators of the graph into the tables it gets. It fails if the graph is too large
     /// for them.
-    WithDominators(fn(&mut Graph, &mut Dominators) -> Result<(), ColumnFull>),
+    WithDominators(fn(&mut Graph, &mut Dominators, &Zone) -> Result<(), ColumnFull>),
+}
+
+impl Run {
+    /// Runs the pass. It keeps its own data in `work`, which holds none of it when this returns.
+    fn run(self, graph: &mut Graph, dominators: &mut Dominators, work: &mut Zone) -> Result<(), ColumnFull> {
+        work.scope(|work| match self {
+            Run::Plain(run) => {
+                run(graph, work);
+                Ok(())
+            }
+            Run::WithDominators(run) => run(graph, dominators, work),
+        })
+    }
 }
 
 /// The passes, in the order they run.
@@ -67,7 +81,7 @@ const PASSES: &[Pass] = &[
     },
     Pass {
         name: "trivial phi removal",
-        run: Run::Plain(edit::remove_trivial_phis),
+        run: Run::Plain(|graph, _| edit::remove_trivial_phis(graph)),
     },
     Pass {
         name: "truncation",
@@ -155,8 +169,9 @@ pub fn optimize(
     layout: &FrameLayout,
     verify: bool,
     dominators: &mut Dominators,
+    work: &mut Zone,
 ) -> Result<(), ColumnFull> {
-    run_passes(graph, layout, verify, dominators, &mut |_, _| {})
+    run_passes(graph, layout, verify, dominators, work, &mut |_, _| {})
 }
 
 /// `optimize()`, returning the graph as text after building it and after
@@ -166,9 +181,10 @@ pub fn optimize_with_dumps(
     layout: &FrameLayout,
     verify: bool,
     dominators: &mut Dominators,
+    work: &mut Zone,
 ) -> Result<String, ColumnFull> {
     let mut text = String::new();
-    run_passes(graph, layout, verify, dominators, &mut |graph, after| {
+    run_passes(graph, layout, verify, dominators, work, &mut |graph, after| {
         text.push_str(&format!("=== after {after}\n"));
         text.push_str(&crate::ir::dump(graph, layout));
     })?;
@@ -180,6 +196,7 @@ fn run_passes(
     layout: &FrameLayout,
     verify: bool,
     dominators: &mut Dominators,
+    work: &mut Zone,
     observe: &mut dyn FnMut(&Graph, &str),
 ) -> Result<(), ColumnFull> {
     let verify = verify || cfg!(debug_assertions) || cfg!(test);
@@ -190,19 +207,16 @@ fn run_passes(
     check(graph, layout, verify, dominators, "graph building");
     observe(graph, "graph building");
     for pass in PASSES {
-        match pass.run {
-            Run::Plain(run) => run(graph),
-            Run::WithDominators(run) => run(graph, dominators)?,
-        }
+        pass.run.run(graph, dominators, work)?;
         check(graph, layout, verify, dominators, pass.name);
         observe(graph, pass.name);
     }
     // NB: Nodes that took different refinements of one value compute the
     //     same once the refinements are gone, and nothing moves anymore.
     edit::remove_refinements(graph);
-    gvn::run(graph, dominators)?;
+    Run::WithDominators(gvn::run).run(graph, dominators, work)?;
     // NB: Checks that merged took their frame states along, which may have been the last uses of what those refer to.
-    dce::run(graph);
+    Run::Plain(dce::run).run(graph, dominators, work)?;
     check(graph, layout, verify, dominators, "refinement removal");
     observe(graph, "refinement removal");
     frame_initialization::run(graph, layout);

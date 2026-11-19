@@ -14,6 +14,7 @@ use super::edit;
 use crate::bitset::BitSet;
 use crate::ir::Graph;
 use crate::ir::Op;
+use ak::Zone;
 
 /// Whether a node can be dropped when its value is unused.
 fn is_removable(op: &Op) -> bool {
@@ -29,7 +30,7 @@ fn is_removable(op: &Op) -> bool {
         && !properties.runs_code
 }
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, _work: &Zone) {
     remove_dead_nodes(graph);
     // NB: Branches whose edges did the same are left jumping where they go,
     //     which leaves what only they used dead.

@@ -21,6 +21,9 @@ pub struct Scratch {
     /// Where the graph of a compile is, with all the lists of its nodes, blocks and frame states. A compile starts
     /// with a zone that holds nothing.
     pub(crate) zone: Zone,
+    /// Where the stages of a compile keep the data that only they use. The stage that is done leaves nothing in it
+    /// for the next one: the driver drops the data of the builder, and of each pass, when it ends.
+    pub(crate) work: Zone,
     pub(crate) tables: Tables,
 }
 
@@ -40,15 +43,16 @@ impl Default for Scratch {
     }
 }
 
-/// The most bytes that the zone of a graph gives out. It is address space, which costs nothing before it is used, and
-/// it is far above what a graph of the largest function that the builder accepts takes.
-const GRAPH_ZONE_LIMIT: usize = 1 << 34;
+/// The most bytes that a zone of a compile gives out. It is address space, which costs nothing before it is used, and
+/// it is far above what the largest function that the builder accepts takes.
+const ZONE_LIMIT: usize = 1 << 34;
 
 impl Scratch {
     /// A scratch, which takes no memory before a compile uses it.
     pub fn new() -> Self {
         Self {
-            zone: Zone::new(GRAPH_ZONE_LIMIT, c"JIT graph"),
+            zone: Zone::new(ZONE_LIMIT, c"JIT graph"),
+            work: Zone::new(ZONE_LIMIT, c"JIT work"),
             tables: Tables {
                 artifact: ArtifactWriter::new(),
                 sites: SiteScratch::new(),
@@ -58,17 +62,21 @@ impl Scratch {
         }
     }
 
-    /// Drops the data of the compile that ended. The zone keeps its memory, so that the next compile of the thread
+    /// Drops the data of the compile that ended. The zones keep their memory, so that the next compile of the thread
     /// does not take it from the system again: a thread that has no compile for a while gives it back (see
     /// `release_memory()`).
     pub(crate) fn end_compile(&mut self) {
-        self.zone.reset();
+        for zone in [&mut self.zone, &mut self.work] {
+            zone.reset();
+        }
     }
 
     /// Gives the memory of the scratch back to the system. The next compile takes memory again.
     pub fn release_memory(&mut self) {
-        self.zone.reset();
-        self.zone.trim(0);
+        for zone in [&mut self.zone, &mut self.work] {
+            zone.reset();
+            zone.trim(0);
+        }
         self.tables.artifact.release_memory();
         self.tables.sites.release_memory();
         self.tables.regalloc.release_memory();

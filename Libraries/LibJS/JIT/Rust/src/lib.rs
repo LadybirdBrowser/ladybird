@@ -77,6 +77,12 @@ pub(crate) fn test_zone() -> &'static ak::Zone {
     ZONE.with(|zone| *zone)
 }
 
+/// A zone for the work data of the passes that a test runs.
+#[cfg(test)]
+pub(crate) fn test_work() -> ak::Zone {
+    ak::Zone::new(1 << 30, c"test")
+}
+
 /// Compiles `snapshot.executables[0]` for the host architecture with the memory of `scratch`, into `compiled` in
 /// place of what it holds. After a failure, `compiled` holds no complete code.
 pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch, compiled: &mut CompiledCode) -> Result<(), CompileFailure> {
@@ -133,10 +139,20 @@ fn run_stages<M: asm::PortableMacroAssembler>(
     if !snapshot.is_complete() {
         return Err(CompileFailure::TooLarge);
     }
-    let Scratch { zone, tables } = scratch;
-    // NB: Nothing of the compile before this one is in use (see `Scratch`), and its graph is gone.
-    zone.reset();
-    let mut graph = builder::build_graph_with_feedback(snapshot, has_run, zone)?;
+    let Scratch { zone, work, tables } = scratch;
+    // NB: Nothing of the compile before this one is in use (see `Scratch`).
+    work.reset();
+    let mut attempts = builder::Attempts::new(snapshot, has_run, work);
+    let mut graph = loop {
+        // NB: This drops the graph of the compile before this one, and a graph that the builder gave up.
+        zone.reset();
+        if let Some(graph) = attempts.build(zone)? {
+            break graph;
+        }
+    };
+    drop(attempts);
+    // NB: The builder is done, and nothing of the graph is in its work data.
+    work.reset();
     let executable = &snapshot.executables[0];
     let pass_dumps = if snapshot.options.dump_passes {
         Some(passes::optimize_with_dumps(
@@ -144,6 +160,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
             &executable.layout,
             snapshot.options.verify_ir,
             &mut tables.dominators,
+            work,
         )?)
     } else {
         passes::optimize(
@@ -151,6 +168,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
             &executable.layout,
             snapshot.options.verify_ir,
             &mut tables.dominators,
+            work,
         )?;
         None
     };

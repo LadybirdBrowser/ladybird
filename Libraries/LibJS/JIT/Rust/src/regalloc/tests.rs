@@ -1244,6 +1244,7 @@ fn float64_values_get_floating_point_registers() {
         &snapshot.executables[0].layout,
         true,
         &mut Dominators::new(),
+        &mut crate::test_work(),
     )
     .unwrap();
     let allocation = allocate_and_verify(&graph);

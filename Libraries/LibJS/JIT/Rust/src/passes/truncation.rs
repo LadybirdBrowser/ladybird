@@ -39,6 +39,7 @@ use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::TypedArrayElement;
+use ak::Zone;
 
 /// The operations that wrap where their users only read the low 32 bits.
 fn can_wrap(op: &Op) -> bool {
@@ -167,7 +168,7 @@ fn compare_uint32_bits(graph: &mut Graph) {
     }
 }
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, _work: &Zone) {
     compare_uint32_bits(graph);
     let count = graph.nodes.len();
     let mut wrapping = BitSet::new(count);

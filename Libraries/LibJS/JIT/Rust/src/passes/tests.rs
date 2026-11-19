@@ -224,7 +224,7 @@ fn simplification_removes_number_checks_of_numeric_constants() {
         graph.blocks[0].control = Some(ret);
         verify(&graph).unwrap();
 
-        super::simplify::run(&mut graph);
+        super::simplify::run(&mut graph, crate::test_zone());
         verify(&graph).unwrap();
         assert_eq!(!graph.blocks[0].body.contains(&check), expected.is_some());
         let input = graph.node(boxed).inputs[0];
@@ -294,7 +294,7 @@ fn simplification_removes_int32_checks_that_number_checks_convert() {
     graph.blocks[2].control = Some(other_ret);
     verify(&graph).unwrap();
 
-    super::simplify::run(&mut graph);
+    super::simplify::run(&mut graph, crate::test_zone());
     verify(&graph).unwrap();
     assert!(!graph.blocks[0].body.contains(&check));
     assert_eq!(graph.node(result).inputs, vec![double]);
@@ -346,7 +346,7 @@ fn element_counts_move_out_of_loops_that_only_store_elements() {
     graph.blocks[2].control = Some(ret);
     verify(&graph).unwrap();
 
-    super::licm::run(&mut graph, &mut Dominators::new()).unwrap();
+    super::licm::run(&mut graph, &mut Dominators::new(), crate::test_zone()).unwrap();
     assert!(graph.blocks[0].body.contains(&length), "{:?}", graph.blocks);
     assert_eq!(graph.blocks[1].body, vec![store]);
 }
@@ -405,7 +405,7 @@ fn loads_of_slots_that_nothing_writes_move_out_of_loops_that_call() {
     graph.blocks[2].control = Some(ret);
     verify(&graph).unwrap();
 
-    super::licm::run(&mut graph, &mut Dominators::new()).unwrap();
+    super::licm::run(&mut graph, &mut Dominators::new(), crate::test_zone()).unwrap();
     assert_eq!(graph.blocks[0].body, vec![unwritten], "{:?}", graph.blocks);
     assert_eq!(graph.blocks[1].body, vec![written, call]);
     verify(&graph).unwrap();
@@ -490,7 +490,7 @@ fn typed_array_storage_offsets_are_reused_across_stores_but_not_calls() {
     let ret = node(&mut graph, Op::Return, vec![object], None);
     graph.blocks[0].control = Some(ret);
     verify(&graph).unwrap();
-    super::check_elimination::run(&mut graph);
+    super::check_elimination::run(&mut graph, crate::test_zone());
     assert!(!graph.blocks[0].body.contains(&second));
     assert_eq!(graph.node(second_data).inputs[0], first);
     assert!(graph.blocks[0].body.contains(&third));
@@ -545,7 +545,7 @@ fn typed_array_storage_metadata_moves_out_of_loops_that_only_store_elements() {
     let ret = node(&mut graph, Op::Return, vec![object], None);
     graph.blocks[2].control = Some(ret);
     verify(&graph).unwrap();
-    super::licm::run(&mut graph, &mut Dominators::new()).unwrap();
+    super::licm::run(&mut graph, &mut Dominators::new(), crate::test_zone()).unwrap();
     for metadata in [length, offset, data] {
         assert!(graph.blocks[0].body.contains(&metadata));
     }
@@ -594,7 +594,7 @@ fn branches_on_known_kinds_fold() {
     }
     verify(&graph).unwrap();
 
-    super::check_elimination::run(&mut graph);
+    super::check_elimination::run(&mut graph, crate::test_zone());
     let branches = graph
         .blocks
         .iter()
@@ -653,7 +653,7 @@ fn branches_on_whether_values_of_known_kinds_are_empty_fold() {
     }
     verify(&graph).unwrap();
 
-    super::check_elimination::run(&mut graph);
+    super::check_elimination::run(&mut graph, crate::test_zone());
     let control = graph.blocks[0].control.unwrap();
     assert!(
         matches!(graph.node(control).op, Op::Jump { target: BlockId(1) }),
@@ -715,7 +715,7 @@ fn check_elimination_keeps_checks_that_a_later_entry_reaches_blocks_before_it() 
     graph.blocks[4].control = Some(ret);
     verify(&graph).unwrap();
 
-    super::check_elimination::run(&mut graph);
+    super::check_elimination::run(&mut graph, crate::test_zone());
     verify(&graph).unwrap();
     assert_eq!(graph.blocks[4].body, vec![second]);
 }
@@ -734,7 +734,7 @@ fn simplification_removes_integer_double_round_trips() {
         graph.blocks[0].control = Some(ret);
         verify(&graph).unwrap();
 
-        super::simplify::run(&mut graph);
+        super::simplify::run(&mut graph, crate::test_zone());
         verify(&graph).unwrap();
         assert!(!graph.blocks[0].body.contains(&integer));
         assert_eq!(
@@ -778,7 +778,7 @@ fn simplification_tests_the_truthiness_of_boxed_int32_values_unboxed() {
     }
     verify(&graph).unwrap();
 
-    super::simplify::run(&mut graph);
+    super::simplify::run(&mut graph, crate::test_zone());
     verify(&graph).unwrap();
     let branch = graph.blocks[0].control.unwrap();
     assert_eq!(
@@ -807,7 +807,7 @@ fn simplification_keeps_double_integer_round_trips() {
     graph.blocks[0].control = Some(ret);
     verify(&graph).unwrap();
 
-    super::simplify::run(&mut graph);
+    super::simplify::run(&mut graph, crate::test_zone());
     verify(&graph).unwrap();
     assert_eq!(graph.node(converted).inputs, vec![integer]);
     assert!(graph.blocks[0].body.contains(&integer));
@@ -841,7 +841,7 @@ fn simplification_converts_constant_doubles_to_integers() {
         graph.blocks[0].control = Some(ret);
         verify(&graph).unwrap();
 
-        super::simplify::run(&mut graph);
+        super::simplify::run(&mut graph, crate::test_zone());
         verify(&graph).unwrap();
         assert_eq!(
             graph.constant_value(graph.node(ret).inputs[0]),
@@ -891,7 +891,7 @@ fn constant_bounds_checks_only_fold_when_the_unsigned_index_is_in_bounds() {
         graph.blocks[0].body.extend([check, boxed]);
         graph.blocks[0].control = Some(ret);
         verify(&graph).unwrap();
-        super::simplify::run(&mut graph);
+        super::simplify::run(&mut graph, crate::test_zone());
         assert_eq!(graph.blocks[0].body.contains(&check), !folds);
         verify(&graph).unwrap();
     }
@@ -1007,7 +1007,7 @@ fn hoisted_checks_gate_exits_by_the_loop_headers_executable() {
         graph.blocks[2].control = Some(ret);
         graph.exit_sites.push((failed_executable, 77, ExitKind::NotObject));
         verify(&graph).unwrap();
-        super::licm::run(&mut graph, &mut Dominators::new()).unwrap();
+        super::licm::run(&mut graph, &mut Dominators::new(), crate::test_zone()).unwrap();
         verify(&graph).unwrap();
         assert_eq!(graph.blocks[0].body.contains(&check), failed_executable == 0);
         let recovery = graph.frame_state(graph.node(check).frame_state.unwrap());
@@ -1168,7 +1168,7 @@ fn overflow_checks_removed_by_bounds_checks_check_the_counters_of_their_counts()
         graph.blocks[5].control = Some(ret);
 
         verify(&graph).unwrap();
-        super::bounds_check_elimination::run(&mut graph, &mut Dominators::new()).unwrap();
+        super::bounds_check_elimination::run(&mut graph, &mut Dominators::new(), crate::test_zone()).unwrap();
         verify(&graph).unwrap();
 
         let guarded = graph.blocks[1].body.iter().any(|node| {

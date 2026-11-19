@@ -26,6 +26,7 @@
 //! nothing else uses, without which the loop would not count anything.
 
 use ak::ColumnFull;
+use ak::Zone;
 
 use super::dominators::Dominators;
 use crate::bitset::BitSet;
@@ -229,7 +230,7 @@ fn has_loop_around(graph: &Graph, loop_: &Loop) -> bool {
     false
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
     if !graph.nodes.iter().any(|node| matches!(node.op, Op::CheckInterrupt)) {
         return Ok(());
     }

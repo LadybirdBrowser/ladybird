@@ -29,6 +29,7 @@ use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
+use ak::Zone;
 
 /// The truthiness of a constant, where it does not depend on the heap.
 fn constant_truthiness(bits: u64, repr: Repr) -> Option<bool> {
@@ -318,14 +319,14 @@ fn constant_number(graph: &Graph, node: NodeId) -> Option<f64> {
     }
 }
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, _work: &Zone) {
     simplify(graph, true);
 }
 
 /// Simplification after check elimination, which keeps every int32 check of
 /// a double: check elimination may have relied on what one established, like
 /// the int32 that an unboxing in a branch it decided takes.
-pub fn run_after_check_elimination(graph: &mut Graph) {
+pub fn run_after_check_elimination(graph: &mut Graph, _work: &Zone) {
     simplify(graph, false);
 }
 
