@@ -242,7 +242,7 @@ public:
     // Whether discarding the view would let a process exit, which is how its memory comes back.
     bool discarding_ends_a_process() const;
     void set_pinned(bool pinned);
-    void set_current_tab_of_window(bool current_tab_of_window) { m_current_tab_of_window = current_tab_of_window; }
+    void set_current_tab_of_window(bool current_tab_of_window);
     // When the user last stopped seeing the view, if they don't see it now.
     Optional<MonotonicTime> hidden_since() const { return m_hidden_since; }
     void request_discard();
@@ -844,6 +844,7 @@ protected:
     void set_favicon(Optional<Gfx::Bitmap const&>);
     void did_change_title_or_favicon();
     void finish_discard_request();
+    void start_being_hidden();
     Optional<URL::URL const&> browser_ui_load_url() const;
     void update_displayed_url();
     void did_start_navigation();

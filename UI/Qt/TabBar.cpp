@@ -2046,7 +2046,6 @@ HorizontalTabEndRoom TabBar::horizontal_tab_end_room(int index) const
 
 void TabBar::did_replace_tab(Tab const& old_tab, Tab& new_tab)
 {
-    // NB: The previewed tab isn't one of these, as only a loaded tab has a preview, and the UI doesn't discard it.
     for (auto* tab : { &m_previously_selected_tab, &m_pressed_tab }) {
         if (*tab == &old_tab)
             *tab = &new_tab;

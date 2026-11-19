@@ -15,7 +15,7 @@
 namespace WebView {
 
 // Discards the tabs that the user doesn't see, and wouldn't miss for now, when the system is about to run out of
-// memory.
+// memory, or once they were hidden for as long as the user's settings allow.
 class WEBVIEW_API TabDiscarder {
     AK_MAKE_NONCOPYABLE(TabDiscarder);
     AK_MAKE_NONMOVABLE(TabDiscarder);

@@ -956,6 +956,7 @@
                 <button id="tab-button-browsing" class="tab-button" data-tab="browsing" role="tab">
                     Startup and browsing
                 </button>
+                <button id="tab-button-memory" class="tab-button" data-tab="memory" role="tab">Memory</button>
                 <button id="tab-button-privacy" class="tab-button" data-tab="privacy" role="tab">
                     Privacy and security
                 </button>
@@ -1214,6 +1215,31 @@
                                 </p>
                             </label>
                             <input id="enable-primary-paste" type="checkbox" switch />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-memory" data-title="Memory">
+                <h3 class="card-title">Tabs</h3>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-group inline-container control-row">
+                            <label for="discard-hidden-tabs-after">
+                                Unload tabs you haven’t looked at
+                                <p class="description">
+                                    Free the memory of tabs in the background. A tab reloads when you return to it. Tabs
+                                    that play sound, download, or have unsaved changes stay loaded.
+                                </p>
+                            </label>
+                            <select id="discard-hidden-tabs-after">
+                                <option value="0">Never</option>
+                                <option value="30">After 30 minutes</option>
+                                <option value="60">After 1 hour</option>
+                                <option value="120">After 2 hours</option>
+                                <option value="240">After 4 hours</option>
+                                <option value="480">After 8 hours</option>
+                            </select>
                         </div>
                     </div>
                 </div>
