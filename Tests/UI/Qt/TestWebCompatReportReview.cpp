@@ -7,10 +7,13 @@
 #include <AK/Vector.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
+#include <LibWebView/Settings.h>
+#include <UI/Qt/Theme.h>
 #include <UI/Qt/WebCompatReportReview.h>
 
 #include <QAbstractButton>
 #include <QCheckBox>
+#include <QCoreApplication>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -237,4 +240,40 @@ TEST_CASE(a_screenshot_is_shrunk_to_fit_a_report)
     auto decoded = QImage::fromData(encoded->bytes().data(), encoded->size(), "PNG");
     EXPECT(static_cast<size_t>(decoded.width()) * decoded.height() <= WebCompatReport::maximum_screenshot_pixels);
     EXPECT(decoded.width() > 3000);
+}
+
+// The offscreen platform keeps Qt's light palette whatever color scheme is asked for, as some platform themes do.
+TEST_CASE(the_review_takes_the_dark_interface_theme_even_where_qt_keeps_a_light_palette)
+{
+    Ladybird::Theme::set_interface_theme(WebView::ThemePreference::Dark);
+    WebCompatReportReview review { test_page(), test_screenshot(), nullptr };
+    review.show();
+
+    auto const& website = child<QLabel>(review, "WebCompatReportWebsite");
+    EXPECT(review.palette().color(QPalette::Window).lightness() < 128);
+    EXPECT(website.palette().color(website.foregroundRole()).lightness() > 128);
+
+    // A switch of the interface theme restyles every widget, which takes the review back to Qt's palette.
+    Ladybird::Theme::set_interface_theme(WebView::ThemePreference::Light);
+    QEvent palette_change(QEvent::PaletteChange);
+    QCoreApplication::sendEvent(&review, &palette_change);
+    EXPECT(review.palette().color(QPalette::Window).lightness() > 128);
+    EXPECT(website.palette().color(website.foregroundRole()).lightness() < 128);
+
+    Ladybird::Theme::set_interface_theme(WebView::ThemePreference::System);
+}
+
+// A review is shown over the page in an overlay that has the interface theme's colors already.
+TEST_CASE(a_review_inside_a_dark_overlay_keeps_its_labels_light_where_qt_keeps_a_light_palette)
+{
+    Ladybird::Theme::set_interface_theme(WebView::ThemePreference::Dark);
+    QWidget overlay;
+    overlay.setPalette(Ladybird::Theme::interface_palette(overlay.palette()));
+    auto* review = new WebCompatReportReview { test_page(), test_screenshot(), &overlay };
+    overlay.show();
+
+    auto const& website = child<QLabel>(*review, "WebCompatReportWebsite");
+    EXPECT(website.palette().color(website.foregroundRole()).lightness() > 128);
+
+    Ladybird::Theme::set_interface_theme(WebView::ThemePreference::System);
 }

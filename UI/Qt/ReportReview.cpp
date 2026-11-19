@@ -8,6 +8,7 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/ReportReview.h>
 #include <UI/Qt/StringUtils.h>
+#include <UI/Qt/Theme.h>
 
 #include <QApplication>
 #include <QFontDatabase>
@@ -121,6 +122,11 @@ void set_details(QFormLayout& form, ReadonlySpan<WebView::ReportDetail> details,
         auto* value = create_label(qstring_from_ak_string(detail.value), parent);
         if (detail.is_code)
             value->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+        // The review may be styled already, and its style sheet would hold these to the application's palette.
+        if (parent) {
+            label->setPalette(parent->palette());
+            value->setPalette(parent->palette());
+        }
         form.addRow(label, value);
     }
 }
@@ -154,12 +160,33 @@ ReportTextPage create_report_text_page(QWidget* parent)
 // for its own.
 void apply_style(QWidget& review, ReadonlySpan<QWidget*> fields)
 {
+    // The review starts again from the palette it inherits, so it sees every switch between light and dark. Its style
+    // sheet comes off first, as Qt puts back the palette a widget had when its style sheet was applied. And a widget
+    // that a style sheet styles takes the application's palette rather than its parent's, so each one is given the
+    // review's.
+    review.setStyleSheet({});
+    review.setPalette(QPalette {});
+    // Every role is set explicitly, as a widget that a style sheet styles resolves the roles left unset against the
+    // application's palette, which may have the other appearance.
+    auto palette = Theme::interface_palette(review.palette());
+    palette.setResolveMask(~QPalette::ResolveMask { 0 });
+    review.setPalette(palette);
+    for (auto* widget : review.findChildren<QWidget*>())
+        widget->setPalette(palette);
+
     for (auto* field : fields) {
         auto field_palette = field->palette();
         field_palette.setColor(QPalette::PlaceholderText, ChromeStyle::report_review_placeholder_text(review.palette()));
         field->setPalette(field_palette);
     }
     review.setStyleSheet(ChromeStyle::report_review_style_sheet(review.palette()));
+
+    // A widget with a style sheet of its own, such as a disclosure, keeps the palette Qt saved for it when it was first
+    // styled, and gets that back as the review's style sheet is applied.
+    for (auto* widget : review.findChildren<QWidget*>()) {
+        if (!widget->styleSheet().isEmpty())
+            widget->setPalette(palette);
+    }
 }
 
 // Tab moves through every control of the review and wraps around within it. The platform's own focus chain would skip
