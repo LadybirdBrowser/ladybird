@@ -1,0 +1,3 @@
+with the mouse over nothing: link null, cursor Arrow
+the pen hovers the link: true
+the cursor changed once the link is where the mouse was: false

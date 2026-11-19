@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px monospace; }
+    a { position: absolute; left: 300px; top: 100px; }
+</style>
+<a id="link" href="https://example.com/">link text</a>
+<script>
+    // The hover follows a frame between two tasks. A frame under load may take a few rendering updates to land.
+    async function frames(count) {
+        for (let frame = 0; frame < count; ++frame) {
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            internals.synchronizeCompositor();
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+
+    asyncTest(async done => {
+        internals.mouseMove(20, 10);
+        await frames(4);
+        println(`with the mouse over nothing: link ${internals.hoveredLink()}, cursor ${internals.currentCursor()}`);
+
+        const pen = { pointerType: "pen", pointerId: 20 };
+        await internals.mouseEventThroughUIProcess("mousemove", 320, 110, { pointer: pen });
+        await frames(4);
+        println(`the pen hovers the link: ${link.matches(":hover")}`);
+        const cursorWhileThePenHovers = internals.currentCursor();
+
+        link.style.left = "0";
+        link.style.top = "0";
+        await frames(4);
+        println(`the cursor changed once the link is where the mouse was: ${internals.currentCursor() !== cursorWhileThePenHovers}`);
+        done();
+    });
+</script>

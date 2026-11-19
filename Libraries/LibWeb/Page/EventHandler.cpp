@@ -1540,11 +1540,28 @@ bool EventHandler::update_hover_where_the_pointer_rests(HTML::HoverUpdatePoint h
     auto target = target_for_mouse_position(*m_last_known_mouse_visual_viewport_position, visual_animation_sample_time_nanoseconds);
     auto node = target.has_value() ? target->dom_node() : nullptr;
     auto* target_layout_node = target.has_value() ? target->layout_node(read) : nullptr;
-    if (node && target_layout_node && node.ptr() == document->hovered_node() && !Painting::is_navigable_container_viewport_paintable(*target_layout_node)) {
+    if (node && target_layout_node && !Painting::is_navigable_container_viewport_paintable(*target_layout_node)) {
+        bool const hit_node_is_hovered = node.ptr() == document->hovered_node();
         Layout::Node* layout_node = nullptr;
-        if (parent_element_for_event_dispatch(*target_layout_node, node, layout_node))
-            update_cursor(read, target_layout_node, *node, target->chrome_widget, target->is_text_fragment);
-        return false;
+        bool const events_go_to_an_element = parent_element_for_event_dispatch(*target_layout_node, node, layout_node);
+        if (hit_node_is_hovered) {
+            if (events_go_to_an_element)
+                update_cursor(read, target_layout_node, *node, target->chrome_widget, target->is_text_fragment);
+            return false;
+        }
+        bool const full_update_would_hit_test_and_find_what_the_mouse_hovers_again = events_go_to_an_element
+            && m_effective_legacy_mouse_pointer_type == PointerType::Mouse
+            && m_effective_legacy_mouse_pointer_position == node
+            && m_native_mouse_hover_target == node
+            && !m_mousedown_target
+            && !m_nested_navigable_under_pointer;
+        if (full_update_would_hit_test_and_find_what_the_mouse_hovers_again) {
+            if (!m_navigable->leave_hover_update_to_end_of_user_scroll()) {
+                update_cursor(read, target_layout_node, *node, target->chrome_widget, target->is_text_fragment);
+                report_hovered_link_to_client(node);
+            }
+            return false;
+        }
     }
     update_hover_at_last_known_mouse_position(visual_animation_sample_time_nanoseconds);
     return false;
