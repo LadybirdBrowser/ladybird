@@ -16,6 +16,7 @@
 #include <LibIPC/Transport.h>
 #include <LibSandbox/ConnectBroker.h>
 #include <LibURL/URL.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ProcessType.h>
@@ -51,6 +52,9 @@ public:
     static ErrorOr<Core::Process> spawn_without_transport(ProcessType, Core::ProcessSpawnOptions const&);
 
     ProcessType type() const { return m_type; }
+
+    IsPrivate is_private() const { return m_is_private; }
+    void set_is_private(IsPrivate is_private) { m_is_private = is_private; }
 
     Optional<Utf16String> const& title() const { return m_title; }
     void set_title(Optional<Utf16String> title) { m_title = move(title); }
@@ -120,6 +124,7 @@ private:
     Optional<Core::Process> m_process;
     u64 m_child_id { 0 };
     ProcessType m_type;
+    IsPrivate m_is_private { IsPrivate::No };
     Optional<Utf16String> m_title;
     Optional<URL::URL> m_site_url;
     Optional<u64> m_owner_child_id;

@@ -12,6 +12,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ProcessType.h>
@@ -46,6 +47,7 @@ struct ProcessSnapshot {
     u64 child_id { 0 };
     pid_t pid { 0 };
     ProcessType type { ProcessType::Browser };
+    IsPrivate is_private { IsPrivate::No };
     Optional<Utf16String> title;
     Optional<URL::URL> site_url;
     Optional<u64> owner_child_id;
