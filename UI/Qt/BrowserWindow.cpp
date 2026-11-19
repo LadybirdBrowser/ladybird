@@ -1656,9 +1656,10 @@ void BrowserWindow::enter_fullscreen()
 {
     m_tabs_container->set_tab_bar_visible(false);
 
-    // NB: Only the full-screen state changes, so the window comes back maximized if it was. And a window the user
-    //     already made full screen stays so after the page leaves full screen.
+    // The window comes back in the state it had: A window the user already made full screen stays so after the page
+    // leaves full screen, and a maximized one is maximized again.
     m_window_was_fullscreen_before_page = isFullScreen();
+    m_window_was_maximized_before_page = isMaximized();
     setWindowState(windowState() | Qt::WindowFullScreen);
 
     m_tabs_container->update_bookmarks_bar_visibility();
@@ -1671,8 +1672,14 @@ void BrowserWindow::exit_fullscreen()
 
     m_tabs_container->set_tab_bar_visible(true);
 
-    if (!m_window_was_fullscreen_before_page)
-        setWindowState(windowState() & ~Qt::WindowFullScreen);
+    // A full-screen window is no longer maximized, so it has to ask to be maximized again. On macOS, the window is
+    // zoomed again as it leaves full screen, and asking for the normal state would then unzoom it.
+    if (!m_window_was_fullscreen_before_page) {
+        auto state = windowState() & ~Qt::WindowFullScreen;
+        if (m_window_was_maximized_before_page)
+            state |= Qt::WindowMaximized;
+        setWindowState(state);
+    }
 
     m_tabs_container->update_bookmarks_bar_visibility();
 }
