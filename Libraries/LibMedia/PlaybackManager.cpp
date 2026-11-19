@@ -453,19 +453,19 @@ void PlaybackManager::check_for_demuxed_duration_change(AK::Duration duration)
 {
     if (m_duration_is_set_by_owner)
         return;
-    if (m_duration == duration)
+    if (m_timeline.duration == duration)
         return;
-    m_duration = duration;
+    m_timeline.duration = duration;
     if (on_duration_change)
-        on_duration_change(m_duration);
+        on_duration_change(m_timeline.duration);
 }
 
 void PlaybackManager::set_duration(AK::Duration duration)
 {
     m_duration_is_set_by_owner = true;
-    if (m_duration == duration)
+    if (m_timeline.duration == duration)
         return;
-    m_duration = duration;
+    m_timeline.duration = duration;
     dispatch_buffered_ranges_change();
 }
 
@@ -802,14 +802,61 @@ AvailableData PlaybackManager::available_data()
     return m_handler->available_data();
 }
 
-BufferedRanges PlaybackManager::buffered_time_ranges() const
+// https://w3c.github.io/media-source/#htmlmediaelement-extensions-seekable
+// NB: The spec defines these ranges for a media element with a MediaSource attached; they apply to every source alike.
+Optional<TimeRanges::Range> PlaybackManager::seekable_time_range(TimeRanges const& buffered, MediaTimeline const& timeline)
 {
-    Vector<CombinedScanState, 2> active_sources;
+    // -> If recent duration equals positive Infinity:
+    if (timeline.duration == AK::Duration::max()) {
+        // 1. If recent live seekable range is not empty:
+        if (timeline.live_seekable_range.has_value()) {
+            // 1. Let union ranges be the union of recent live seekable range and the HTMLMediaElement's buffered
+            //    attribute.
+            // 2. Return a single range with a start time equal to the earliest start time in union ranges and an end
+            //    time equal to the highest end time in union ranges and abort these steps.
+            auto union_start = timeline.live_seekable_range->start;
+            auto union_end = timeline.live_seekable_range->end;
+            if (!buffered.is_empty()) {
+                union_start = min(union_start, buffered[0].start);
+                union_end = max(union_end, buffered.highest_end_time());
+            }
+            return TimeRanges::Range { union_start, union_end };
+        }
+
+        // 2. If the HTMLMediaElement's buffered attribute returns an empty TimeRanges object, then return an empty
+        //    TimeRanges object and abort these steps.
+        if (buffered.is_empty())
+            return {};
+
+        // 3. Return a single range with a start time of 0 and an end time equal to the highest end time reported by the
+        //    HTMLMediaElement's buffered attribute.
+        return TimeRanges::Range { AK::Duration::zero(), buffered.highest_end_time() };
+    }
+
+    // -> Otherwise:
+    //    Return a single range with a start time of 0 and an end time equal to recent duration.
+    return TimeRanges::Range { AK::Duration::zero(), timeline.duration };
+}
+
+Vector<CombinedScanState, 2> PlaybackManager::enabled_source_scan_states() const
+{
+    Vector<CombinedScanState, 2> enabled_sources;
     for (auto const& demuxer : m_demuxers) {
         if (source_has_enabled_track(demuxer))
-            active_sources.append(scan_state_for_enabled_tracks(demuxer));
+            enabled_sources.append(scan_state_for_enabled_tracks(demuxer));
     }
-    return DemuxerScanState::buffered_ranges_of_sources(active_sources);
+    return enabled_sources;
+}
+
+BufferedRanges PlaybackManager::buffered_time_ranges() const
+{
+    return DemuxerScanState::buffered_ranges_of_sources(enabled_source_scan_states());
+}
+
+Optional<TimeRanges::Range> PlaybackManager::seekable_time_ranges() const
+{
+    auto buffered = DemuxerScanState::buffered_ranges_of_sources(enabled_source_scan_states());
+    return seekable_time_range(buffered.time_ranges, m_timeline);
 }
 
 CombinedScanState PlaybackManager::scan_state_for_enabled_tracks(Demuxer const& demuxer) const

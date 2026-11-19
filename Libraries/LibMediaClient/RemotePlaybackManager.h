@@ -24,6 +24,7 @@
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/MediaTime.h>
+#include <LibMedia/MediaTimeline.h>
 #include <LibMedia/PlaybackStates/AvailableData.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/SeekMode.h>
@@ -52,7 +53,7 @@ public:
     u64 session_id() const { return m_session_id; }
     Client* client() { return m_client.ptr(); }
 
-    AK::Duration duration() const { return m_duration; }
+    AK::Duration duration() const { return m_timeline.duration; }
     void set_duration(AK::Duration);
     AK::Duration current_time() const;
 
@@ -89,8 +90,7 @@ public:
     // Whether the playback state can only change through further input, such as more data or a seek.
     bool playback_state_is_settled() const;
     Media::BufferedRanges buffered_time_ranges() const;
-    // The range playback can seek to, if any. AK::Duration::max() as the duration means it's unbounded, as a live
-    // stream's is. NB: This is never more than one range, and that range may start and end at the same time.
+    // This is never more than one range, and that range may start and end at the same time.
     Optional<Media::TimeRanges::Range> seekable_time_ranges() const;
     // The range a live stream's player says can be sought to, besides the buffered ranges.
     void set_live_seekable_range(Optional<Media::TimeRanges::Range>);
@@ -158,14 +158,14 @@ private:
     void dispatch_seekable_ranges_change() const;
     bool source_has_enabled_track(ReadonlySpan<Media::Track> audio_tracks, ReadonlySpan<Media::Track> video_tracks) const;
     Media::CombinedScanState scan_state_for_enabled_tracks(Media::DemuxerScanState const&, ReadonlySpan<Media::Track> audio_tracks, ReadonlySpan<Media::Track> video_tracks) const;
+    Vector<Media::CombinedScanState> enabled_source_scan_states() const;
 
     RefPtr<Client> m_client;
     u64 m_session_id { 0 };
 
     Optional<Media::MediaTimeReader> m_time_reader;
-    AK::Duration m_duration;
+    Media::MediaTimeline m_timeline;
     bool m_duration_is_set_by_owner { false };
-    Optional<Media::TimeRanges::Range> m_live_seekable_range;
     Optional<AK::UnixDateTime> m_start_time_realtime;
     bool m_is_in_error_state { false };
     Vector<Media::Track> m_audio_tracks;
