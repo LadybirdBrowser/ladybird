@@ -1916,6 +1916,10 @@ static void publish_element_replaced_content_input(DOM::Element& element, StyleE
             set_image_natural_size_input(style_engine, node, *input);
             return;
         }
+        if (input->type_state() == HTML::HTMLInputElement::TypeAttributeState::Range) {
+            set_replaced_content_input(style_engine, node, Kind::RangeInput, 0, 0);
+            return;
+        }
         auto kind = Kind::Input;
         switch (input->type_state()) {
         case HTML::HTMLInputElement::TypeAttributeState::Text:

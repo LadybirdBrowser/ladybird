@@ -31,6 +31,8 @@ pub enum ReplacedContentInput {
     /// An `<input>`'s `size`, and whether its type makes it a text entry widget, whose default
     /// preferred size is that many `ch` by one line.
     Input { size: u32, is_text_entry: bool },
+    /// An `<input>` in the Range state, a slider.
+    RangeInput,
     /// A `<canvas>`'s `width` and `height`, its natural size in CSS pixels.
     Canvas { width: u32, height: u32 },
     /// The natural size of what an element has loaded, such as a video's or an image's.
@@ -70,6 +72,7 @@ impl ReplacedContentInput {
                 size: values[0],
                 is_text_entry: kind == Kind::TextEntryInput as u8,
             },
+            kind if kind == Kind::RangeInput as u8 => Self::RangeInput,
             kind if kind == Kind::Canvas as u8 => Self::Canvas {
                 width: values[0],
                 height: values[1],

@@ -109,6 +109,7 @@ struct ReplacedContentStyle {
     is_horizontal: bool,
     appearance_is_none: bool,
     field_sizing_is_content: bool,
+    zoom: f32,
 }
 
 impl ReplacedContentStyle {
@@ -154,7 +155,15 @@ impl ReplacedContentStyle {
             is_horizontal: style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
             appearance_is_none: style.appearance() == crate::css::css_enums::appearance::NONE,
             field_sizing_is_content: style_sizes_field_to_content(style),
+            zoom: style.effective_zoom(),
         }
+    }
+
+    // AD-HOC: A slider has no in-flow content to size itself from, so it gets a default content-box size of 129px by
+    //         16px in its writing mode, which zoom scales.
+    fn slider_size(self) -> (CssPixels, CssPixels) {
+        let zoomed = |length: i64| CssPixels::from_integer(length).scaled(f64::from(self.zoom));
+        self.in_writing_mode(zoomed(129), zoomed(16))
     }
 
     /// `count` characters, the `ch` unit.
@@ -235,6 +244,15 @@ fn replaced_content_facts(
             facts.default_preferred_height = Some(height);
         }
     }
+    if matches!(input, ReplacedContentInput::RangeInput) {
+        facts.is_slider = true;
+        // NB: A slider without its native appearance keeps the size of one.
+        if style.appearance_is_none {
+            let (width, height) = style.slider_size();
+            facts.default_preferred_width = Some(width);
+            facts.default_preferred_height = Some(height);
+        }
+    }
     facts
 }
 
@@ -245,6 +263,8 @@ pub(crate) struct ReplacedContentFacts {
     pub(crate) default_preferred_width: Option<CssPixels>,
     pub(crate) default_preferred_height: Option<CssPixels>,
     pub(crate) text_entry_content_is_ordinary_box: bool,
+    /// Whether the box is a slider's, with or without its native appearance.
+    pub(crate) is_slider: bool,
     /// The default object size of an SVG `<image>`, which applies once something has decoded. The SVG formatting
     /// context reads it as it is: it is no preferred size the sizing of an ordinary replaced box would take.
     pub(crate) svg_image_default_object_size: CssPixelSize,
@@ -315,9 +335,7 @@ fn auto_content_size(
         NodeKind::RadioButton => {
             ReplacedIntrinsicSize::of_size((CssPixels::from_integer(12), CssPixels::from_integer(12)))
         }
-        // AD-HOC: A slider has no in-flow content to size itself from, so provide a default content-box size for when
-        //         its `width` or `height` is `auto`: 20ch by 16px.
-        NodeKind::RangeInputBox => ReplacedIntrinsicSize::of_size((style.characters(20), CssPixels::from_integer(16))),
+        NodeKind::RangeInputBox => ReplacedIntrinsicSize::of_size(style.slider_size()),
         NodeKind::TextAreaBox => {
             let ReplacedContentInput::TextArea { cols, rows } = input else {
                 panic!("a textarea publishes its cols and rows as it arrives");
@@ -986,9 +1004,8 @@ impl<'pass> NodeFacts<'pass> {
             let size = &mut facts.auto_content_size;
             let zoomed = |length: Option<CssPixels>| length.map(|length| length.scaled(f64::from(zoom)));
             match self.data().kind.get() {
-                // NB: These dimensions are derived from font metrics that already include zoom.
-                NodeKind::TextAreaBox | NodeKind::TextInputBox => {}
-                NodeKind::RangeInputBox => size.height = zoomed(size.height),
+                // NB: These dimensions are derived from font metrics that already include zoom, or zoomed already.
+                NodeKind::TextAreaBox | NodeKind::TextInputBox | NodeKind::RangeInputBox => {}
                 _ => {
                     size.width = zoomed(size.width);
                     size.height = zoomed(size.height);
@@ -1064,9 +1081,17 @@ impl<'pass> NodeFacts<'pass> {
 
     /// https://drafts.csswg.org/css-sizing-3/#min-content-zero
     /// A box whose cyclic percentage width resolves against zero for its min-content contribution: a replaced box, or a
-    /// compressible text control (a text entry input or a textarea).
+    /// compressible form control (a text entry input, a slider, or a textarea).
     pub(crate) fn resolves_cyclic_percentages_like_replaced_box(&self) -> bool {
-        self.is_replaced_box() || self.is_text_input() || self.data().kind.get() == NodeKind::TextAreaBox
+        self.is_replaced_box()
+            || self.is_text_input()
+            || self.is_slider()
+            || self.data().kind.get() == NodeKind::TextAreaBox
+    }
+
+    /// Whether the box is a range input's, with or without its native appearance.
+    pub(crate) fn is_slider(&self) -> bool {
+        self.is_range_input_box() || self.replaced_content().is_slider
     }
 
     pub(crate) fn is_range_input_box(&self) -> bool {
@@ -1582,6 +1607,7 @@ mod node_facts_tests {
             is_horizontal: true,
             appearance_is_none: false,
             field_sizing_is_content: false,
+            zoom: 1.0,
         }
     }
 

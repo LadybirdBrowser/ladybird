@@ -890,6 +890,8 @@ pub enum FfiReplacedContentInputKind {
     NaturalSize = 5,
     /// An SVG `<image>` whose image has decoded: its natural size, as `NaturalSize`.
     DecodedSvgImage = 6,
+    /// An `<input>` in the Range state, which has no values.
+    RangeInput = 7,
 }
 
 /// The bits of a replaced content input's `present`, for the kinds whose values can be missing.

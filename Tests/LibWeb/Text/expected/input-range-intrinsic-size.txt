@@ -1,0 +1,17 @@
+default: 129x16
+display: block: 129x16
+vertical-lr: 16x129
+in a vertical-lr container: 16x129
+grid item: 296x16
+grid item, justify-self: start: 129x16
+column flex item: 296x16
+row flex item: 129x46
+abspos between insets: 300x50
+zoom: 2: 258x32
+aspect-ratio: 1: 129x129
+width: 50%: 150x16
+height: 40px: 129x40
+appearance: none: 129x16
+appearance: none, display: block: 129x16
+appearance: none, grid item: 296x16
+appearance: none, abspos between insets: 300x50

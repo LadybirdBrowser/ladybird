@@ -2224,9 +2224,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let facts = self.facts(node);
         let box_is_sized_as_replaced_element =
             self.box_is_sized_as_replaced_element(sized, available_space, constraints);
-        let mut makes_block_size_definite = sized.metrics().has_definite_inline_size()
-            && facts.has_preferred_aspect_ratio()
-            && box_is_sized_as_replaced_element;
+        // NB: A slider's block size follows from its intrinsic size, with no layout of its content, so its internal
+        //     track resolves a percentage block size against it, and centers in it.
+        let mut makes_block_size_definite = box_is_sized_as_replaced_element
+            && ((sized.metrics().has_definite_inline_size() && facts.has_preferred_aspect_ratio())
+                || facts.is_slider());
         // NB: Replaced sizing resolves a calc-size() itself.
         let mut block_size = if box_is_sized_as_replaced_element {
             self.compute_block_size_for_replaced_element(sized, available_space, constraints)
@@ -2412,8 +2414,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             let block_size_is_definite_from_aspect_ratio = sized_cells.cells.has_definite_inline_size()
                 && facts.has_preferred_aspect_ratio()
                 && block_size_is_automatic;
+            // NB: A slider's automatic block size follows from its intrinsic size, with no layout of its content, so
+            //     its internal track resolves a percentage block size against it, and centers in it.
+            let block_size_is_definite_from_slider_size = facts.is_slider() && block_size_is_automatic;
 
-            if native_control_block_size_constraint_is_active || block_size_is_definite_from_aspect_ratio {
+            if native_control_block_size_constraint_is_active
+                || block_size_is_definite_from_aspect_ratio
+                || block_size_is_definite_from_slider_size
+            {
                 sized_cells
                     .cells
                     .update_cells(|cells| cells.has_definite_block_size = true);

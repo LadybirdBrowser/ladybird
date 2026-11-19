@@ -151,8 +151,6 @@ option, optgroup {
 /* Custom <input type="range"> styles */
 input[type=range] {
     display: inline-block;
-    width: 129px;
-    height: 16px;
     margin: 2px;
 
     &::slider-track {
