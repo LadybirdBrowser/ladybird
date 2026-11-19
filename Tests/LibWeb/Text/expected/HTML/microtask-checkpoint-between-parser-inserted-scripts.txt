@@ -1,0 +1,3 @@
+first script ran
+microtask queued by the first script
+observer changed the second script to text/plain

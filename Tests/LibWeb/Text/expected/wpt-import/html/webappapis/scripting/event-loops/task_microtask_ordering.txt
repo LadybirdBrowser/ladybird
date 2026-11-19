@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Basic task and microtask ordering
+Pass	Level 1 bossfight (synthetic click)

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        // The readystatechange and progress events for a chunk of the response body fire in the same task. A microtask
+        // queued by the first listener runs as soon as that listener returns, before the second one.
+        const log = [];
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", "data:text/plain," + "x".repeat(1000));
+        xhr.onreadystatechange = () => {
+            if (xhr.readyState !== XMLHttpRequest.LOADING || log.length)
+                return;
+            log.push("readystatechange");
+            Promise.resolve().then(() => log.push("microtask queued by readystatechange"));
+        };
+        xhr.onprogress = () => {
+            if (log.includes("progress"))
+                return;
+            log.push("progress");
+        };
+        xhr.onload = () => {
+            for (const entry of log)
+                println(entry);
+            done();
+        };
+        xhr.send();
+    });
+</script>

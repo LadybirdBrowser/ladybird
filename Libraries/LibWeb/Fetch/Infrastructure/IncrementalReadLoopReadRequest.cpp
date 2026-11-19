@@ -37,11 +37,13 @@ void IncrementalReadLoopReadRequest::on_chunk(JS::Value chunk)
             : MUST(uint8_array->viewed_array_buffer()->copy_to_byte_buffer(uint8_array->byte_offset(), JS::typed_array_byte_length(record)));
         // 2. Set continueAlgorithm to these steps:
         continue_algorithm = GC::create_function<void()>(GC::Heap::the(), GC::captures(move(bytes), m_body, m_reader, m_task_destination, m_process_body_chunk, m_process_end_of_body, m_process_body_error), [](ByteBuffer& bytes, auto& body, auto& reader, auto& task_destination, auto& process_body_chunk, auto& process_end_of_body, auto& process_body_error) {
-            HTML::TemporaryExecutionContext execution_context { reader->closed_promise_realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             // 1. Run processBodyChunk given bytes.
+            // NB: Like any task, this runs with an empty JavaScript execution context stack. So, the HTML parser, which
+            //     processBodyChunk can run, performs its microtask checkpoints between the scripts it runs.
             process_body_chunk->function()(move(bytes));
 
             // 2. Perform the incrementally-read loop given reader, taskDestination, processBodyChunk, processEndOfBody, and processBodyError.
+            HTML::TemporaryExecutionContext execution_context { reader->closed_promise_realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             body->incrementally_read_loop(reader, task_destination, process_body_chunk, process_end_of_body, process_body_error);
         });
     }
