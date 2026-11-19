@@ -2736,8 +2736,9 @@ static void create_navigation_params_by_fetching(
 
     // AD-HOC: While a document loads bypassing the HTTP cache, or using it without revalidation, so do the documents
     //         of its child navigables. Bypassing the cache wins over a history traversal of the child navigable too.
-    if (auto container_document = navigable->container_document()) {
-        auto container_cache_mode = container_document->cache_mode_while_loading();
+    //         The container state carries the mode when the container document is in another process.
+    if (navigable->parent()) {
+        auto container_cache_mode = navigable->container_state().document_cache_mode_while_loading;
         if (request->cache_mode() == HTTP::CacheMode::Default
             || (request->cache_mode() == HTTP::CacheMode::ForceCache && container_cache_mode == HTTP::CacheMode::Reload))
             request->set_cache_mode(container_cache_mode);

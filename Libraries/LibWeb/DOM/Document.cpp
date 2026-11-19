@@ -633,13 +633,10 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         document->m_browsing_context_group_has_remote_contexts = navigation_params.request->browsing_context_group_has_multiple_contexts();
         if (auto cache_mode = navigation_params.request->cache_mode(); cache_mode == HTTP::CacheMode::Reload || cache_mode == HTTP::CacheMode::ForceCache)
             document->m_navigation_cache_mode = cache_mode;
-    }
-
-    // AD-HOC: A document that is not fetched, such as the one of a srcdoc iframe, loads the way its container document
-    //         does. Its requests use the same cache mode while it loads.
-    if (!navigation_params.request) {
-        if (auto container_document = navigation_params.navigable->container_document())
-            document->m_navigation_cache_mode = container_document->cache_mode_while_loading();
+    } else if (navigation_params.navigable->parent()) {
+        // AD-HOC: A document that is not fetched, such as the one of a srcdoc iframe, loads the way its container
+        //         document does. Its requests use the same cache mode while it loads.
+        document->m_navigation_cache_mode = navigation_params.navigable->container_state().document_cache_mode_while_loading;
     }
 
     // NOTE: Step 16 is treated as the else branch of step 15. Otherwise, redirectCount is undefined when the fetch
@@ -5110,8 +5107,14 @@ void Document::completely_finish_loading()
     //         loading before they are activated. The timestamp must still be recorded so
     //         that activate_history_entry can detect this and re-trigger the container
     //         notification steps.
-    if (!m_completely_loaded_time.has_value())
+    if (!m_completely_loaded_time.has_value()) {
         m_completely_loaded_time = AK::UnixDateTime::now();
+
+        // NB: The requests of this document no longer use the cache mode of its navigation, and neither do the
+        //     navigations of its child navigables, which a process that hosts one reads from its container's state.
+        if (m_navigation_cache_mode != HTTP::CacheMode::Default)
+            report_container_state_of_child_navigables();
+    }
 
     GC::RootVector time_containers_to_begin { exchange(m_smil_time_containers_to_begin, {}) };
     for (auto& time_container : time_containers_to_begin)
@@ -6590,6 +6593,16 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
     // NB: This is handled by destruction_state.
 }
 
+void Document::report_container_state_of_child_navigables()
+{
+    // NB: Navigable containers in shadow trees have child navigables too.
+    for_each_shadow_including_descendant([&](Node& node) {
+        if (auto* container = as_if<HTML::NavigableContainer>(node); container && container->content_navigable())
+            page().client().page_did_change_navigable_container_state(container->content_navigable()->id(), container->replicated_container_state());
+        return TraversalDecision::Continue;
+    });
+}
+
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#abort-a-document
 void Document::abort()
 {
@@ -6605,7 +6618,8 @@ void Document::abort()
 
     // NB: An aborted document may never become completely loaded. Its load is over, so the requests it makes from now
     //     on must not use the cache mode of its navigation anymore.
-    m_navigation_cache_mode = HTTP::CacheMode::Default;
+    if (exchange(m_navigation_cache_mode, HTTP::CacheMode::Default) != HTTP::CacheMode::Default && !is_completely_loaded())
+        report_container_state_of_child_navigables();
 
     auto cancel_fetch = [&](GC::Ptr<Fetch::Infrastructure::FetchController> controller) {
         if (!controller || controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
