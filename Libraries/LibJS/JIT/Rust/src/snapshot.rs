@@ -10,7 +10,16 @@
 //! identified by `CellId`, which is only ever compared. The main thread keeps
 //! every referenced cell alive until the compiled code is installed or the
 //! compile job is abandoned.
+//!
+//! A snapshot is tables. Every type in it is a plain value, and where one has a list of something, it has a `List`:
+//! rows that are next to each other in the one block of memory that holds all the lists of the snapshot. So a
+//! snapshot owns no heap block, however much it holds. Its memory serves the next snapshot (see
+//! `Snapshot::clear()`), and all of it can go back to the system when no compile is running.
 
+use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut, Index, IndexMut};
+
+use ak::{Column, RowBlock};
 use std::sync::Arc;
 
 use crate::ir::Float64Function;
@@ -52,30 +61,30 @@ impl CellId {
 /// each with at most `LIBJS_JIT=inline-max-size=N` bytecode instructions. The
 /// graph builder applies the inlining budget. Each function object is added
 /// once, so the same index can be the target of several slots.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ExecutableSnapshot {
     /// A copy of the assembled bytecode, exactly as the interpreter runs it.
-    pub bytecode: Vec<u8>,
+    pub bytecode: List<u8>,
     /// The address of the executable's own bytecode on the main thread
     /// (`Executable::bytecode.data()`). Slow paths receive pointers to
     /// instructions in it, which the code embeds as immediates.
     pub bytecode_address: u64,
     pub layout: FrameLayout,
     /// NaN-boxed constant values, in constant slot order.
-    pub constants: Vec<u64>,
-    pub exception_handlers: Vec<ExceptionHandler>,
+    pub constants: List<u64>,
+    pub exception_handlers: List<ExceptionHandler>,
     /// Places where speculation already failed. The compiler never repeats a
     /// speculation of the same kind at the same pc.
-    pub exit_sites: Vec<(u32, ExitKind)>,
+    pub exit_sites: List<(u32, ExitKind)>,
     /// For the compiled executable only: places in builtins written in
     /// JavaScript (by their executable's cell) where its code exited while
     /// running them inlined. Code inlining a builtin consults these instead
     /// of the builtin's `exit_sites`, which come from all its callers.
-    pub builtin_exit_sites: Vec<(CellId, u32, ExitKind)>,
+    pub builtin_exit_sites: List<(CellId, u32, ExitKind)>,
     pub feedback: FeedbackSnapshot,
     /// The interpreter's property lookup caches, indexed like
     /// `Executable::property_lookup_caches`.
-    pub property_caches: Vec<PropertyCacheSnapshot>,
+    pub property_caches: List<PropertyCacheSnapshot>,
     /// The `Executable` cell itself.
     pub cell: CellId,
     /// The function object of an inlining candidate; `None` for index 0.
@@ -92,11 +101,11 @@ pub struct ExecutableSnapshot {
     /// Object values of captured bindings at compile time. Each load must
     /// check the value before using it as a constant, since bindings and
     /// the environments of other closures sharing the executable may differ.
-    pub captured_bindings: Vec<(EnvironmentCoordinate, GlobalValueSnapshot)>,
+    pub captured_bindings: List<(EnvironmentCoordinate, GlobalValueSnapshot)>,
     /// The captured bindings that stores of the executable store to, which
     /// are mutable in every environment of their scope, so that the stores
     /// need not check that.
-    pub mutable_bindings: Vec<EnvironmentCoordinate>,
+    pub mutable_bindings: List<EnvironmentCoordinate>,
     /// Whether `function` is a builtin written in JavaScript. Its frames are
     /// set up like those of other builtins: with the environments of their
     /// caller's frame, and without a script or module.
@@ -123,23 +132,23 @@ pub struct ExecutableSnapshot {
     /// The shapes object literals reached before (`NewObject` with a cache
     /// index creates its object with that shape if there is one), indexed
     /// like `Executable::object_shape_caches`.
-    pub object_shape_caches: Vec<Option<ObjectShapeCacheSnapshot>>,
+    pub object_shape_caches: List<Option<ObjectShapeCacheSnapshot>>,
     /// For the compiled function only: the closures its `NewFunction`
     /// instructions create, indexed by `shared_function_data_index`, if JIT
     /// code can create them by copying (see `FunctionAllocationInfo`).
-    pub closure_templates: Vec<Option<ClosureTemplateSnapshot>>,
+    pub closure_templates: List<Option<ClosureTemplateSnapshot>>,
     /// For the compiled function only: how JIT code allocates the
     /// environments of its `CreateLexicalEnvironment` instructions itself,
     /// indexed by their environment shape cache, if it can.
-    pub lexical_environment_templates: Vec<Option<LexicalEnvironmentTemplateSnapshot>>,
+    pub lexical_environment_templates: List<Option<LexicalEnvironmentTemplateSnapshot>>,
     /// The environments of direct calls (see `DirectCallTarget::environment`).
-    pub environment_templates: Vec<EnvironmentTemplateSnapshot>,
+    pub environment_templates: List<EnvironmentTemplateSnapshot>,
     /// For the compiled function only: its identifier table, as the words of
     /// its `Utf16FlyString`s, which the executable keeps alive.
-    pub identifiers: Vec<u64>,
+    pub identifiers: List<u64>,
     /// The property key table, as the words of the `Utf16FlyString`s of its
     /// string keys (which the executable keeps alive), or 0 for symbols.
-    pub property_key_names: Vec<u64>,
+    pub property_key_names: List<u64>,
     /// The global variables of the executable's realm that its `GetGlobal`
     /// and `SetGlobal` instructions access, if code may access them directly.
     pub globals: Option<GlobalsSnapshot>,
@@ -155,7 +164,7 @@ pub struct ExecutableSnapshot {
     /// fields give `this`, by property offset, in the order
     /// InitializeInstanceElements defines them. `this` is created with the
     /// shape it has after that (see `ConstructTarget::this_shape`).
-    pub literal_instance_fields: Option<Vec<(u32, u64)>>,
+    pub literal_instance_fields: Option<List<(u32, u64)>>,
     /// For a derived constructor with instance elements among the inlining
     /// candidates whose constructs JIT code can inline: its fields, if they
     /// can be added to `this` like literal fields of a base constructor,
@@ -169,15 +178,15 @@ pub struct ExecutableSnapshot {
 /// and allows extensions, in order, the property offset of each field, its
 /// value, and the shape `this` gets if the field adds the property (the
 /// same one as an earlier field otherwise).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct DerivedInstanceFields {
     pub shape: CellId,
-    pub fields: Vec<(u32, u64, Option<CellId>)>,
+    pub fields: List<(u32, u64, Option<CellId>)>,
 }
 
 /// The global object and the global declarative environment of a realm, and
 /// what the global variable caches of an executable running in it know.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct GlobalsSnapshot {
     pub object: CellId,
     /// The declarative environment record of the global environment, which
@@ -189,7 +198,7 @@ pub struct GlobalsSnapshot {
     pub environment_serial: u64,
     /// Indexed like `Executable::global_variable_caches`: what each cache
     /// found, if it still applies.
-    pub caches: Vec<Option<GlobalCacheSnapshot>>,
+    pub caches: List<Option<GlobalCacheSnapshot>>,
 }
 
 /// What a global variable cache found.
@@ -271,26 +280,26 @@ pub struct OrdinaryHasInstanceSnapshot {
 
 /// A function object like the closures of one `NewFunction` instruction,
 /// apart from their environments.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ClosureTemplateSnapshot {
     /// The function object itself. Code that copies it embeds it, which
     /// keeps everything it refers to alive.
     pub sample: CellId,
     /// Its bytes (see `FunctionAllocationInfo`).
-    pub words: Vec<u64>,
+    pub words: List<u64>,
     /// The index in `Snapshot::executables` of the closures' executable, if
     /// calls of them can be inlined.
     pub inline_executable: Option<u32>,
 }
 
 /// An `ObjectShapeCache` that has a shape.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ObjectShapeCacheSnapshot {
     pub shape: ShapeSnapshot,
     /// Where `InitObjectLiteralProperty` with each `property_slot` stores
     /// its value in objects of `shape`, as far as the cache knows. A slot
     /// without an offset here has none known.
-    pub property_offsets: Vec<u32>,
+    pub property_offsets: List<u32>,
 }
 
 /// A shape objects can be created with. Code that does so embeds it and must
@@ -450,19 +459,19 @@ impl ExecutableSnapshot {
 /// A copy of the interpreter feedback of one executable, indexed by the
 /// feedback slot indices in the bytecode. The bits mean the same as in
 /// `Libraries/LibJS/Rust/src/layout/feedback.rs`.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct FeedbackSnapshot {
     /// `ArithFeedback` bits.
-    pub arith: Vec<u8>,
+    pub arith: List<u8>,
     /// `ValueFeedback` bits.
-    pub value: Vec<u16>,
+    pub value: List<u16>,
     /// The `ValueFeedback` bits of the sites of the property lookup caches, indexed like the caches.
-    pub cache_value: Vec<u16>,
-    pub call: Vec<CallFeedbackSnapshot>,
-    pub keyed: Vec<KeyedFeedbackSnapshot>,
+    pub cache_value: List<u16>,
+    pub call: List<CallFeedbackSnapshot>,
+    pub keyed: List<KeyedFeedbackSnapshot>,
     /// The bound arguments of the bound functions that call sites forwarded
     /// to, as NaN-boxed values (see `ForwardedCallSnapshot::bound_arguments_start`).
-    pub bound_arguments: Vec<u64>,
+    pub bound_arguments: List<u64>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -615,11 +624,11 @@ pub struct DirectCallTarget {
 /// pointer to its binding values (which follow `words`, if
 /// `inline_binding_values`) at `binding_values_offset` and its parent at
 /// `outer_offset`. Code that allocates it embeds `shape`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LexicalEnvironmentTemplateSnapshot {
     pub allocator: u64,
     pub cell_size: u32,
-    pub words: Vec<u64>,
+    pub words: List<u64>,
     pub binding_count: u32,
     pub inline_binding_values: bool,
     pub binding_values_offset: u32,
@@ -636,11 +645,11 @@ pub struct LexicalEnvironmentTemplateSnapshot {
 /// after `words`, at `binding_values_offset`, and the `this` value the call
 /// binds at `this_value_offset` if `binds_this`. The binding values need no
 /// initialization: the environment has none yet.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EnvironmentTemplateSnapshot {
     pub allocator: u64,
     pub cell_size: u32,
-    pub words: Vec<u64>,
+    pub words: List<u64>,
     /// Whether the environment has room for binding values in its cell.
     pub inline_binding_values: bool,
     pub binding_values_offset: u32,
@@ -648,7 +657,7 @@ pub struct EnvironmentTemplateSnapshot {
     pub this_value_offset: u32,
     /// The cells `words` refer to besides the function, which code that
     /// allocates the environment embeds: its shape and outer environment.
-    pub cells: Vec<CellId>,
+    pub cells: List<CellId>,
 }
 
 /// The words of an ECMAScript function's `[[ScriptOrModule]]`,
@@ -726,11 +735,11 @@ pub enum PropertyCacheKind {
     Megamorphic,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PropertyCacheSnapshot {
     pub kind: PropertyCacheKind,
     /// The non-empty entries.
-    pub entries: Vec<PropertyCacheEntrySnapshot>,
+    pub entries: List<PropertyCacheEntrySnapshot>,
 }
 
 /// `PropertyLookupCache::Entry::Type`.
@@ -1427,10 +1436,10 @@ pub struct DynamicCallLayout {
 /// `undefined` (for any property count), with room for `reserve` properties
 /// inline if a size class has room for them. It may collect garbage, like
 /// any call.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ObjectAllocationInfo {
     /// By ascending `inline_capacity`.
-    pub size_classes: Vec<ObjectSizeClass>,
+    pub size_classes: List<ObjectSizeClass>,
     pub empty_object_inline_capacity: u32,
     pub heap: u64,
     pub heap_allocated_bytes_offset: u32,
@@ -1445,7 +1454,7 @@ pub struct ObjectAllocationInfo {
     pub local_end_offset: u32,
     pub local_cell_size_offset: u32,
     /// The bytes every new plain object starts with, as u64 words.
-    pub template: Vec<u64>,
+    pub template: List<u64>,
     pub shape_offset: u32,
     pub named_properties_offset: u32,
     /// Where the inline named storage of the objects of other classes starts.
@@ -1461,13 +1470,13 @@ pub struct ObjectAllocationInfo {
 impl ObjectAllocationInfo {
     /// The size class JIT code allocates plain objects whose shape has
     /// `property_count` properties in, or `None` if it must take the slow path.
-    pub fn size_class_for(&self, property_count: u32) -> Option<&ObjectSizeClass> {
+    pub fn size_class_for<'a>(&self, snapshot: &'a Snapshot, property_count: u32) -> Option<&'a ObjectSizeClass> {
         let inline_values = if property_count == 0 {
             self.empty_object_inline_capacity
         } else {
             property_count
         };
-        self.size_classes
+        snapshot[self.size_classes]
             .iter()
             .find(|size_class| size_class.inline_capacity >= inline_values)
     }
@@ -1489,13 +1498,13 @@ impl ObjectAllocationInfo {
 /// `PrimitiveString* slow_path(VM*, PrimitiveString* lhs, PrimitiveString* rhs)`
 /// instead, which returns the rope string; if `slow_path` is 0, the
 /// interpreter's slow path concatenates the strings.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct RopeAllocationInfo {
     /// The `GC::CellAllocator` of rope strings.
     pub allocator: u64,
     pub cell_size: u32,
     /// The bytes every new rope string starts with, as u64 words.
-    pub template: Vec<u64>,
+    pub template: List<u64>,
     pub lhs_offset: u32,
     pub rhs_offset: u32,
     pub length_offset: u32,
@@ -1529,15 +1538,15 @@ pub struct RopeAllocationInfo {
 /// If `allocator` is 0, there is no fast path. Slow path:
 /// `Array* libjs_jit_allocate_array(VM*, u32 count)` returns an array of
 /// `count` packed `undefined` elements.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ArrayAllocationInfo {
     pub allocator: u64,
     pub cell_size: u32,
-    pub template: Vec<u64>,
+    pub template: List<u64>,
     pub shape: CellId,
     /// By ascending capacity.
-    pub storage_size_classes: Vec<StorageSizeClass>,
-    pub storage_template: Vec<u64>,
+    pub storage_size_classes: List<StorageSizeClass>,
+    pub storage_template: List<u64>,
     pub storage_values_offset: u32,
     pub storage_capacity_offset: u32,
     pub slow_path: u64,
@@ -1753,13 +1762,280 @@ pub struct StressOptions {
     pub few_registers: bool,
 }
 
+/// A list of rows of type `T` of a snapshot. The snapshot gives its rows: `&snapshot[list]`. A list is only good for
+/// the snapshot it was added to.
+pub type List<T> = ak::RowList<T>;
+
+/// A list of a snapshot that is being written row by row (see `SnapshotWriter::begin()`).
+#[must_use]
+pub struct ListStart<T> {
+    rows: PhantomData<fn() -> T>,
+}
+
+/// A type that snapshots have lists of.
+pub trait Row: Copy + Send + Sync + 'static {
+    #[doc(hidden)]
+    const INDEX: usize;
+    #[doc(hidden)]
+    fn open(lists: &OpenLists) -> &Column<Self>;
+    #[doc(hidden)]
+    fn open_mut(lists: &mut OpenLists) -> &mut Column<Self>;
+}
+
+/// How many bytes of rows a list that is written row by row holds at most.
+const MAX_OPEN_LIST_BYTES: usize = 16 * 1024 * 1024;
+
+macro_rules! rows {
+    ($($name:ident: $row:ty,)*) => {
+        #[allow(non_camel_case_types)]
+        enum RowIndex {
+            $($name,)*
+        }
+
+        const ROW_TYPE_COUNT: usize = [$(RowIndex::$name,)*].len();
+
+        /// For each type of row, the rows of the list that is being written row by row, if one is. A snapshot is
+        /// one block of lists, so the rows of a list have to be next to each other, and lists of other types get
+        /// written while the list gets its rows. So the rows wait here until the list ends.
+        ///
+        /// This is memory that comes straight from the system, and it keeps that memory: one of these serves
+        /// capture after capture, and its memory goes back to the system as a whole when it is dropped.
+        #[derive(Debug)]
+        pub struct OpenLists {
+            $($name: Column<$row>,)*
+            /// Whether a list of each type is being written.
+            open: [bool; ROW_TYPE_COUNT],
+        }
+
+        impl OpenLists {
+            pub fn new() -> Self {
+                Self {
+                    $($name: Column::new(MAX_OPEN_LIST_BYTES / size_of::<$row>(), c"JIT snapshot open lists"),)*
+                    open: [false; ROW_TYPE_COUNT],
+                }
+            }
+
+            /// Drops the lists that are being written.
+            fn reset(&mut self) {
+                $(self.$name.clear();)*
+                self.open = [false; ROW_TYPE_COUNT];
+            }
+        }
+
+        impl Default for OpenLists {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+
+        $(
+            impl Row for $row {
+                const INDEX: usize = RowIndex::$name as usize;
+
+                fn open(lists: &OpenLists) -> &Column<Self> {
+                    &lists.$name
+                }
+
+                fn open_mut(lists: &mut OpenLists) -> &mut Column<Self> {
+                    &mut lists.$name
+                }
+            }
+        )*
+    };
+}
+
+rows! {
+    bytes: u8,
+    halves: u16,
+    offsets: u32,
+    words: u64,
+    cells: CellId,
+    exception_handlers: ExceptionHandler,
+    exit_sites: (u32, ExitKind),
+    builtin_exit_sites: (CellId, u32, ExitKind),
+    property_caches: PropertyCacheSnapshot,
+    property_cache_entries: PropertyCacheEntrySnapshot,
+    call_feedback: CallFeedbackSnapshot,
+    keyed_feedback: KeyedFeedbackSnapshot,
+    captured_bindings: (EnvironmentCoordinate, GlobalValueSnapshot),
+    mutable_bindings: EnvironmentCoordinate,
+    object_shape_caches: Option<ObjectShapeCacheSnapshot>,
+    closure_templates: Option<ClosureTemplateSnapshot>,
+    lexical_environment_templates: Option<LexicalEnvironmentTemplateSnapshot>,
+    environment_templates: EnvironmentTemplateSnapshot,
+    global_caches: Option<GlobalCacheSnapshot>,
+    literal_fields: (u32, u64),
+    derived_fields: (u32, u64, Option<CellId>),
+    object_size_classes: ObjectSizeClass,
+    storage_size_classes: StorageSizeClass,
+}
+
 /// The input of one compile job.
-#[derive(Debug, Clone, Default)]
+///
+/// The thread of the VM writes it and a compile thread reads it. All its lists are in one block of memory, list
+/// after list, and its executables are in a second one. Both come straight from the system and go back there as a
+/// whole. A snapshot that was cleared keeps its memory for what is written next, so a snapshot that is used again
+/// and again takes nothing from the system and nothing from the heap.
+#[derive(Debug)]
 pub struct Snapshot {
     /// Index 0 is the function being compiled; the rest are inlining candidates.
-    pub executables: Vec<ExecutableSnapshot>,
+    pub executables: Column<ExecutableSnapshot>,
+    rows: RowBlock,
     pub runtime: RuntimeInfo,
     pub options: CompileOptions,
+    /// Whether a row had no room (see `is_complete()`).
+    overflowed: bool,
+}
+
+impl Snapshot {
+    const MAX_EXECUTABLES: usize = 1 << 16;
+    /// How many bytes of rows the lists of a snapshot hold at most. A capture that needs more gives a snapshot that
+    /// is not complete (see `is_complete()`).
+    const MAX_ROW_BYTES: usize = 64 * 1024 * 1024;
+    /// How many bytes of rows and how many executables a snapshot keeps the memory for when it serves the next
+    /// capture: the first step its memory grows by.
+    const SPARE_ROW_BYTES: usize = 64 * 1024;
+    const SPARE_EXECUTABLES: usize = 64 * 1024 / size_of::<ExecutableSnapshot>();
+
+    pub fn new() -> Self {
+        Self {
+            executables: Column::new(Self::MAX_EXECUTABLES, c"JIT snapshot executables"),
+            rows: RowBlock::new(Self::MAX_ROW_BYTES, c"JIT snapshot rows"),
+            runtime: RuntimeInfo::default(),
+            options: CompileOptions::default(),
+            overflowed: false,
+        }
+    }
+
+    /// Makes this a snapshot of nothing, which keeps its memory. The lists of the snapshot are lists of no snapshot
+    /// after this.
+    pub fn clear(&mut self) {
+        self.executables.clear();
+        self.rows.clear();
+        self.runtime = RuntimeInfo::default();
+        self.options = CompileOptions::default();
+        self.overflowed = false;
+    }
+
+    /// Gives memory back to the system: what is above the needs of a usual snapshot.
+    pub fn trim(&mut self) {
+        self.executables.trim(Self::SPARE_EXECUTABLES);
+        self.rows.trim(Self::SPARE_ROW_BYTES);
+    }
+
+    /// Whether the snapshot holds all that was written into it. One that does not is too large to compile, and has
+    /// lists that miss rows.
+    pub fn is_complete(&self) -> bool {
+        !self.overflowed
+    }
+
+    /// Adds an executable, and returns its index.
+    pub fn add_executable(&mut self, executable: ExecutableSnapshot) -> u32 {
+        let index = self.executables.len() as u32;
+        if self.executables.try_push(executable).is_err() {
+            self.overflowed = true;
+        }
+        index
+    }
+
+    /// Adds `rows` as a list.
+    pub fn add<T: Row>(&mut self, rows: &[T]) -> List<T> {
+        self.rows.try_add(rows).unwrap_or_else(|_| {
+            self.overflowed = true;
+            List::empty()
+        })
+    }
+}
+
+impl Default for Snapshot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Row> Index<List<T>> for Snapshot {
+    type Output = [T];
+
+    fn index(&self, list: List<T>) -> &[T] {
+        self.rows.rows(list)
+    }
+}
+
+impl<T: Row> IndexMut<List<T>> for Snapshot {
+    fn index_mut(&mut self, list: List<T>) -> &mut [T] {
+        self.rows.rows_mut(list)
+    }
+}
+
+/// A snapshot that is being captured, with what writes its lists row by row: `begin()`, `push()` and `end()`. A list
+/// that is ready is added in one go, with `Snapshot::add()`.
+pub struct SnapshotWriter {
+    snapshot: Box<Snapshot>,
+    lists: OpenLists,
+}
+
+impl SnapshotWriter {
+    /// Writes into `snapshot`, with the memory of `lists` for the lists that are written row by row.
+    pub fn new(snapshot: Box<Snapshot>, mut lists: OpenLists) -> Self {
+        lists.reset();
+        Self { snapshot, lists }
+    }
+
+    /// The snapshot as it is now, and the memory for lists that are written row by row, for the next capture.
+    pub fn finish(self) -> (Box<Snapshot>, OpenLists) {
+        (self.snapshot, self.lists)
+    }
+
+    /// Starts a list, which gets the rows that `push()` adds until `end()`. Only one list of a type of row can be
+    /// written at a time.
+    pub fn begin<T: Row>(&mut self) -> ListStart<T> {
+        // NB: Rows of two lists that mix would be wrong input for the compiler, so this is checked in every build.
+        assert!(!self.lists.open[T::INDEX], "another list of this type is being written");
+        self.lists.open[T::INDEX] = true;
+        ListStart { rows: PhantomData }
+    }
+
+    /// Adds a row to the list of its type that is being written.
+    pub fn push<T: Row>(&mut self, row: T) {
+        assert!(self.lists.open[T::INDEX], "no list of this type is being written");
+        if T::open_mut(&mut self.lists).try_push(row).is_err() {
+            self.snapshot.overflowed = true;
+        }
+    }
+
+    /// The rows that the list that is being written has so far.
+    pub fn rows_of<T: Row>(&self, _list: &ListStart<T>) -> &[T] {
+        T::open(&self.lists)
+    }
+
+    /// Drops the rows of the list that is being written.
+    pub fn drop_rows<T: Row>(&mut self, _list: &ListStart<T>) {
+        T::open_mut(&mut self.lists).clear();
+    }
+
+    /// Ends the list that is being written, and adds it to the snapshot.
+    pub fn end<T: Row>(&mut self, _list: ListStart<T>) -> List<T> {
+        assert!(self.lists.open[T::INDEX], "no list of this type is being written");
+        self.lists.open[T::INDEX] = false;
+        let rows = T::open_mut(&mut self.lists);
+        let list = self.snapshot.add(rows);
+        rows.clear();
+        list
+    }
+}
+
+impl Deref for SnapshotWriter {
+    type Target = Snapshot;
+
+    fn deref(&self) -> &Snapshot {
+        &self.snapshot
+    }
+}
+
+impl DerefMut for SnapshotWriter {
+    fn deref_mut(&mut self) -> &mut Snapshot {
+        &mut self.snapshot
+    }
 }
 
 /// The VM's strings of the results of `typeof`, as values.

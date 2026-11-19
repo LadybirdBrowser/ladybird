@@ -35,7 +35,11 @@ impl GraphBuilder<'_> {
     /// The bits of the keyed feedback of `instruction`, if it has a slot.
     pub(super) fn keyed_feedback_bits(&self, instruction: &Instruction) -> Option<u32> {
         let slot = instruction.feedback_slots().keyed?;
-        Some(self.function.executable.feedback.keyed.get(usize::from(slot))?.bits)
+        Some(
+            self.snapshot[self.function.executable.feedback.keyed]
+                .get(usize::from(slot))?
+                .bits,
+        )
     }
 
     /// The typed array element kinds keyed feedback `bits` saw.

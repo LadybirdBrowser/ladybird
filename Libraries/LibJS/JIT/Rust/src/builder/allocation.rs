@@ -34,9 +34,7 @@ const NO_OBJECT_SHAPE_CACHE: u32 = u32::MAX;
 
 impl GraphBuilder<'_> {
     fn object_shape_cache(&self, cache: u32) -> Option<&ObjectShapeCacheSnapshot> {
-        self.function
-            .executable
-            .object_shape_caches
+        self.snapshot[self.function.executable.object_shape_caches]
             .get(cache as usize)
             .and_then(Option::as_ref)
     }
@@ -87,7 +85,11 @@ impl GraphBuilder<'_> {
         let object = self.read(object)?;
         let Some(offset) = self
             .literal_allocated_with_cache_shape(object, shape_cache_index)
-            .and_then(|cached| cached.property_offsets.get(property_slot as usize).copied())
+            .and_then(|cached| {
+                self.snapshot[cached.property_offsets]
+                    .get(property_slot as usize)
+                    .copied()
+            })
         else {
             return Ok(false);
         };
@@ -175,10 +177,7 @@ impl GraphBuilder<'_> {
         if has_home_object {
             return Ok(false);
         }
-        let Some((sample, inline_executable)) = self
-            .function
-            .executable
-            .closure_templates
+        let Some((sample, inline_executable)) = self.snapshot[self.function.executable.closure_templates]
             .get(shared_function_data_index as usize)
             .and_then(Option::as_ref)
             .map(|closure| (closure.sample, closure.inline_executable))
@@ -230,10 +229,7 @@ impl GraphBuilder<'_> {
         if self.function.is_virtual() {
             return Ok(false);
         }
-        let Some(template) = self
-            .function
-            .executable
-            .lexical_environment_templates
+        let Some(template) = self.snapshot[self.function.executable.lexical_environment_templates]
             .get(shape_cache as usize)
             .and_then(Option::as_ref)
         else {
@@ -321,13 +317,14 @@ mod tests {
         let program = literal_program();
         let mut snapshot = snapshot_for(&program, test_layout());
         snapshot.runtime.object_allocation.slow_path = 1;
-        snapshot.executables[0].object_shape_caches = vec![Some(ObjectShapeCacheSnapshot {
+        let property_offsets = snapshot.add(&[1, 0]);
+        snapshot.executables[0].object_shape_caches = snapshot.add(&[Some(ObjectShapeCacheSnapshot {
             shape: ShapeSnapshot {
                 shape: LITERAL_SHAPE,
                 property_count: 2,
             },
-            property_offsets: vec![1, 0],
-        })];
+            property_offsets,
+        })]);
         snapshot.executables[0].new_object_shape = Some(ShapeSnapshot {
             shape: EMPTY_SHAPE,
             property_count: 0,
@@ -383,7 +380,7 @@ mod tests {
         let template = crate::snapshot::LexicalEnvironmentTemplateSnapshot {
             allocator: 0x5000,
             cell_size: 88,
-            words: vec![0; 9],
+            words: snapshot.add(&[0; 9]),
             binding_count: 2,
             inline_binding_values: true,
             binding_values_offset: 48,
@@ -391,7 +388,7 @@ mod tests {
             shape: Some(SHAPE),
         };
         // NB: Cache 1 has no template.
-        snapshot.executables[0].lexical_environment_templates = vec![Some(template), None];
+        snapshot.executables[0].lexical_environment_templates = snapshot.add(&[Some(template), None]);
         let graph = crate::builder::build_graph(&snapshot).unwrap();
         let ops = graph
             .blocks
@@ -429,7 +426,7 @@ mod tests {
         let program = literal_program();
         let mut snapshot = snapshot_for(&program, test_layout());
         snapshot.runtime.object_allocation.slow_path = 1;
-        snapshot.executables[0].object_shape_caches = vec![None];
+        snapshot.executables[0].object_shape_caches = snapshot.add(&[None]);
         snapshot.executables[0].new_object_shape = Some(ShapeSnapshot {
             shape: EMPTY_SHAPE,
             property_count: 0,

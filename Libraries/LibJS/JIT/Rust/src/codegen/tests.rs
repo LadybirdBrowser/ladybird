@@ -930,12 +930,12 @@ impl Machine {
             state.bytecodes = snapshot
                 .executables
                 .iter()
-                .map(|executable| executable.bytecode.clone())
+                .map(|executable| snapshot[executable.bytecode].to_vec())
                 .collect();
             state.constants = snapshot
                 .executables
                 .iter()
-                .map(|executable| executable.constants.clone())
+                .map(|executable| snapshot[executable.constants].to_vec())
                 .collect();
             state.layouts = snapshot
                 .executables
@@ -985,7 +985,7 @@ fn compile_program_with(
 ) -> (Snapshot, CompiledCode) {
     let mut snapshot = crate::builder::tests::snapshot_for(program, layout);
     snapshot.runtime = runtime();
-    snapshot.executables[0].feedback.arith = vec![NUMBERS_AND_STRINGS_FEEDBACK];
+    snapshot.executables[0].feedback.arith = snapshot.add(&[NUMBERS_AND_STRINGS_FEEDBACK]);
     configure(&mut snapshot);
     let never_ran_pcs = never_ran
         .iter()
@@ -1198,7 +1198,7 @@ mod execution {
             assert_eq!(pc, program.offsets[back_edge]);
             // The interpreter ran Enter and five iterations of the loop.
             let mut machine = Machine::new(test_layout(), &[value::int32(10)]);
-            for (index, constant) in snapshot.executables[0].constants.iter().enumerate() {
+            for (index, constant) in snapshot[snapshot.executables[0].constants].iter().enumerate() {
                 machine.frame[FRAME_HEADER_WORDS + c(index as u32).raw() as usize] = *constant;
             }
             for index in crate::bytecode::RESERVED_REGISTER_COUNT..test_layout().registers_and_locals_count {
@@ -1252,7 +1252,7 @@ mod execution {
         assert_eq!(pc, program.offsets[7]);
         // The interpreter ran five iterations.
         let mut machine = Machine::new(test_layout(), &[value::int32(10)]);
-        for (index, constant) in snapshot.executables[0].constants.iter().enumerate() {
+        for (index, constant) in snapshot[snapshot.executables[0].constants].iter().enumerate() {
             machine.frame[FRAME_HEADER_WORDS + c(index as u32).raw() as usize] = *constant;
         }
         for index in crate::bytecode::RESERVED_REGISTER_COUNT..test_layout().registers_and_locals_count {
@@ -1359,7 +1359,7 @@ mod execution {
         assert_eq!(pc, program.offsets[8]);
         // The interpreter ran five iterations of the inner loop.
         let mut machine = Machine::new(test_layout(), &[value::int32(10)]);
-        for (index, constant) in snapshot.executables[0].constants.iter().enumerate() {
+        for (index, constant) in snapshot[snapshot.executables[0].constants].iter().enumerate() {
             machine.frame[FRAME_HEADER_WORDS + c(index as u32).raw() as usize] = *constant;
         }
         for index in crate::bytecode::RESERVED_REGISTER_COUNT..test_layout().registers_and_locals_count {
@@ -1670,7 +1670,7 @@ mod execution {
             (value::int32(1), value::FALSE),
         ] {
             let (snapshot, compiled) = compile_program_with(&program, test_layout(), &[], |snapshot| {
-                fake_heap::use_in(&mut snapshot.runtime)
+                fake_heap::use_in(&mut snapshot.runtime);
             });
             let mut machine = Machine::new(test_layout(), &[argument]);
             machine.frame[1] = lexical_environment.as_ptr() as u64;
@@ -1985,7 +1985,12 @@ mod execution {
             let mut machine = Machine::new(layout, &arguments);
             let environment = [0u64; 2];
             machine.frame[1] = environment.as_ptr() as u64;
-            let expected = run_reference(&program, &machine, &snapshot.executables[0].constants, &never_ran_pcs);
+            let expected = run_reference(
+                &program,
+                &machine,
+                &snapshot[snapshot.executables[0].constants],
+                &never_ran_pcs,
+            );
             if expected == ReferenceEnd::OutOfFuel {
                 continue;
             }
@@ -2026,6 +2031,7 @@ mod execution {
 
     #[test]
     fn random_programs_with_property_access_match_a_reference_interpreter() {
+        use crate::builder::tests::property_access::add_caches;
         use crate::builder::tests::property_access::cache;
         use crate::builder::tests::property_access::own;
         use crate::regalloc::tests::ProgramGenerator;
@@ -2091,7 +2097,7 @@ mod execution {
             let arguments = [argument(), argument()];
 
             let (snapshot, compiled) = compile_program_with(&program, layout, &[], |snapshot| {
-                snapshot.executables[0].property_caches = caches.clone();
+                snapshot.executables[0].property_caches = add_caches(snapshot, &caches);
             });
             let mut machine = Machine::new(layout, &arguments);
             let environment = [0u64; 2];
@@ -2105,8 +2111,13 @@ mod execution {
                 // know, so code relying on stale shape facts would misbehave.
                 call_toggles: toggles.then(|| (shape(0), shape(2))),
             };
-            let expected =
-                run_reference_with_heap(&program, &machine, &snapshot.executables[0].constants, &[], &mut heap);
+            let expected = run_reference_with_heap(
+                &program,
+                &machine,
+                &snapshot[snapshot.executables[0].constants],
+                &[],
+                &mut heap,
+            );
             if expected == ReferenceEnd::OutOfFuel {
                 continue;
             }
@@ -2146,7 +2157,7 @@ mod execution {
                     &program,
                     &machine,
                     machine.program_counter(),
-                    &snapshot.executables[0].constants,
+                    &snapshot[snapshot.executables[0].constants],
                     &[],
                     &mut resumed_heap,
                 );
@@ -2475,10 +2486,11 @@ fn slow_paths_share_initialization_of_large_frames() {
     });
     let mut snapshot = crate::builder::tests::snapshot_for(&program, layout);
     snapshot.runtime = runtime();
-    snapshot.executables[0].constants = (0..layout.number_of_constants)
+    let constants = (0..layout.number_of_constants)
         .map(|index| 0x1234_5678_9abc_0000 | u64::from(index))
-        .collect();
-    snapshot.executables[0].feedback.arith = vec![1 | 1 << 1 | 1 << 2 | 1 << 3];
+        .collect::<Vec<_>>();
+    snapshot.executables[0].constants = snapshot.add(&constants);
+    snapshot.executables[0].feedback.arith = snapshot.add(&[1 | 1 << 1 | 1 << 2 | 1 << 3]);
     snapshot.options.dump_asm = true;
     let aarch64 =
         compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
@@ -2544,7 +2556,7 @@ fn x86_64_shifts_find_their_amount_in_cl() {
     });
     let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
     snapshot.runtime = runtime();
-    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::INT32; 2];
+    snapshot.executables[0].feedback.arith = snapshot.add(&[crate::snapshot::arith_feedback::INT32; 2]);
     let compiled =
         compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
             .unwrap();
@@ -2601,6 +2613,8 @@ fn missing_slow_paths_fail_compilation_cleanly() {
 #[cfg(target_arch = "x86_64")]
 mod property_access {
     use super::*;
+    use crate::builder::tests::property_access::PropertyCache;
+    use crate::builder::tests::property_access::add_caches;
     use crate::builder::tests::property_access::cache;
     use crate::builder::tests::property_access::get_by_id;
     use crate::builder::tests::property_access::own;
@@ -2610,7 +2624,6 @@ mod property_access {
     use crate::snapshot::PropertyCacheEntryType::ChangeOwnProperty;
     use crate::snapshot::PropertyCacheEntryType::GetOwnProperty;
     use crate::snapshot::PropertyCacheEntryType::GetPropertyInPrototypeChain;
-    use crate::snapshot::PropertyCacheSnapshot;
 
     /// A fake cell, in the low fake heap so that objects can have it as
     /// their compressed shape.
@@ -2657,13 +2670,13 @@ mod property_access {
 
     fn run_with_caches(
         program: &Program,
-        caches: Vec<PropertyCacheSnapshot>,
+        caches: Vec<PropertyCache>,
         argument: u64,
         call_writes: Option<(*mut u64, u64)>,
     ) -> (JitResult, Machine, CompiledCode) {
         let layout = test_layout();
         let (snapshot, compiled) = compile_program_with(program, layout, &[], |snapshot| {
-            snapshot.executables[0].property_caches = caches;
+            snapshot.executables[0].property_caches = add_caches(snapshot, &caches);
         });
         let mut machine = Machine::new(layout, &[argument]);
         machine.state.borrow_mut().call_writes = call_writes;
@@ -2883,7 +2896,7 @@ mod property_access {
                 entry.prototype_property_intrinsic = Some(Intrinsic::ArrayPrototypePush);
                 let layout = test_layout();
                 let (snapshot, compiled) = compile_program_with(&program, layout, &[], |snapshot| {
-                    snapshot.executables[0].property_caches = vec![cache(vec![entry])];
+                    snapshot.executables[0].property_caches = add_caches(snapshot, &[cache(vec![entry])]);
                     let runtime = &mut snapshot.runtime;
                     runtime.array_push = grow as *const () as u64;
                     runtime.array_prototype = CellId(self.array_prototype.address());
@@ -3043,6 +3056,7 @@ mod property_access {
 
 #[test]
 fn aarch64_property_access_disassembles() {
+    use crate::builder::tests::property_access::add_caches;
     use crate::builder::tests::property_access::cache;
     use crate::builder::tests::property_access::get_by_id;
     use crate::builder::tests::property_access::own;
@@ -3067,11 +3081,14 @@ fn aarch64_property_access_disassembles() {
     prototype_entry.prototype_chain_validity = Some(CellId(0x2_0000_2000));
     prototype_entry.shape_dictionary_generation = 9;
     prototype_entry.shape_is_dictionary = true;
-    snapshot.executables[0].property_caches = vec![
-        cache(vec![own(GetOwnProperty, 0x1000, 1), own(GetOwnProperty, 0x2000, 4)]),
-        cache(vec![prototype_entry]),
-        cache(vec![own(ChangeOwnProperty, 0x3000, 2)]),
-    ];
+    snapshot.executables[0].property_caches = add_caches(
+        &mut snapshot,
+        &[
+            cache(vec![own(GetOwnProperty, 0x1000, 1), own(GetOwnProperty, 0x2000, 4)]),
+            cache(vec![prototype_entry]),
+            cache(vec![own(ChangeOwnProperty, 0x3000, 2)]),
+        ],
+    );
     let compiled =
         compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
             .unwrap();
@@ -3155,8 +3172,9 @@ mod inlining {
         function.function = CellId(function_object.as_ptr() as u64);
         let mut snapshot = snapshot_with_callee(caller, callee, function);
         snapshot.runtime = runtime();
-        for executable in &mut snapshot.executables {
-            executable.feedback.arith = vec![NUMBERS_AND_STRINGS_FEEDBACK];
+        let arith = snapshot.add(&[NUMBERS_AND_STRINGS_FEEDBACK]);
+        for executable in snapshot.executables.iter_mut() {
+            executable.feedback.arith = arith;
             // NB: The words of a function its frames start with are constants in code.
             executable.function_fields = Some(FunctionFrameFields {
                 script_or_module: FUNCTION_WORDS[2],
@@ -3275,7 +3293,10 @@ mod inlining {
             &caller(),
             &callee,
             |function| function,
-            |snapshot| snapshot.executables[1].constants[0] = value::int32(5),
+            |snapshot| {
+                let constants = snapshot.executables[1].constants;
+                snapshot[constants][0] = value::int32(5);
+            },
             |_| {},
         );
         assert_eq!(result, returned(value::int32(25)));
@@ -3337,7 +3358,7 @@ mod inlining {
             &caller(),
             &twice(),
             |function| function,
-            |snapshot| snapshot.executables[1].feedback.arith = vec![0],
+            |snapshot| snapshot.executables[1].feedback.arith = snapshot.add(&[0]),
             |_| {},
         );
         assert_eq!(result.status, RESUME);
@@ -3681,11 +3702,11 @@ mod direct_calls {
 
     fn compile_caller(target: DirectCallTarget) -> (Snapshot, CompiledCode) {
         compile_program_with(&caller(), caller_layout(), &[], |snapshot| {
-            snapshot.executables[0].feedback.call = vec![CallFeedbackSnapshot {
+            snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
                 target: Some(target.function.function),
                 direct_call: Some(target),
                 ..CallFeedbackSnapshot::default()
-            }];
+            }]);
         })
     }
 
@@ -3902,27 +3923,29 @@ mod direct_calls {
                     FreeCell::NeverAllocated => vec![0, address, address + 14 * 8, 14 * 8],
                     FreeCell::None => vec![0, 0, 0, 14 * 8],
                 };
-                let template = crate::snapshot::EnvironmentTemplateSnapshot {
-                    allocator: free_list.as_mut_ptr() as u64,
+                let allocator = free_list.as_mut_ptr() as u64;
+                let template = |snapshot: &mut Snapshot| crate::snapshot::EnvironmentTemplateSnapshot {
+                    allocator,
                     cell_size: 14 * 8,
-                    words: (0..12).map(|index| 0x1000 + index).collect(),
+                    words: snapshot.add(&(0..12).map(|index| 0x1000 + index).collect::<Vec<_>>()),
                     inline_binding_values: true,
                     binding_values_offset: 48,
                     binds_this: true,
                     this_value_offset: 72,
-                    cells: vec![CellId(0xcafe)],
+                    cells: snapshot.add(&[CellId(0xcafe)]),
                 };
                 let target = DirectCallTarget {
                     environment: Some(0),
                     ..callee.target(true, true)
                 };
                 let (snapshot, compiled) = compile_program_with(&caller(), caller_layout(), &[], |snapshot| {
-                    snapshot.executables[0].feedback.call = vec![CallFeedbackSnapshot {
+                    snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
                         target: Some(target.function.function),
                         direct_call: Some(target),
                         ..CallFeedbackSnapshot::default()
-                    }];
-                    snapshot.executables[0].environment_templates = vec![template.clone()];
+                    }]);
+                    let template = template(snapshot);
+                    snapshot.executables[0].environment_templates = snapshot.add(&[template]);
                     let allocation = &mut snapshot.runtime.object_allocation;
                     allocation.heap = heap.as_mut_ptr() as u64;
                     allocation.heap_allocated_bytes_offset = 0;
@@ -4139,12 +4162,12 @@ mod direct_calls {
         fn run_dynamic(callee: &mut DynamicCallee, arguments: &[u64], through_call: bool) -> (JitResult, Machine) {
             let (snapshot, compiled) = compile_program_with(&caller(), caller_layout(), &[], |snapshot| {
                 dynamic_runtime(&mut snapshot.runtime, &callee);
-                snapshot.executables[0].feedback.call = vec![CallFeedbackSnapshot {
+                snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
                     target: Some(CellId(CALL_FUNCTION)),
                     flags: if through_call { 0 } else { 1 },
                     target_intrinsic: through_call.then_some(crate::snapshot::Intrinsic::FunctionPrototypeCall),
                     ..CallFeedbackSnapshot::default()
-                }];
+                }]);
             });
             let mut machine = Machine::new(caller_layout(), arguments);
             let stack = callee.callee.interpreter_stack.as_mut_ptr() as u64;
@@ -4304,11 +4327,11 @@ mod direct_calls {
                     snapshot.runtime.dynamic_calls.prepare_call_environment =
                         prepare_call_environment as *const () as u64;
                     install_call_stub(&mut snapshot.runtime);
-                    snapshot.executables[0].feedback.call = vec![CallFeedbackSnapshot {
+                    snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
                         target: Some(CellId(CALL_FUNCTION)),
                         flags: 1,
                         ..CallFeedbackSnapshot::default()
-                    }];
+                    }]);
                 });
                 let mut machine = Machine::new(caller_layout(), &arguments);
                 let stack = callee.callee.interpreter_stack.as_mut_ptr() as u64;
@@ -4427,11 +4450,11 @@ mod direct_calls {
                     allocation.local_end_offset = 16;
                     allocation.local_cell_size_offset = 24;
                     install_call_stub(&mut snapshot.runtime);
-                    snapshot.executables[0].feedback.call = vec![CallFeedbackSnapshot {
+                    snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
                         target: Some(CellId(CALL_FUNCTION)),
                         flags: 1,
                         ..CallFeedbackSnapshot::default()
-                    }];
+                    }]);
                 });
                 let mut machine = Machine::new(caller_layout(), &arguments);
                 let stack = callee.callee.interpreter_stack.as_mut_ptr() as u64;
@@ -4600,12 +4623,12 @@ mod direct_calls {
                     layout.native_function_table_entry_size = 16;
                     layout.native_function_table_entry_function = 0;
                     install_call_stub(&mut snapshot.runtime);
-                    snapshot.executables[0].feedback.call = vec![CallFeedbackSnapshot {
+                    snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
                         target: Some(CellId(CALL_FUNCTION)),
                         flags: if through_call { 0 } else { 1 },
                         target_intrinsic: through_call.then_some(crate::snapshot::Intrinsic::FunctionPrototypeCall),
                         ..CallFeedbackSnapshot::default()
-                    }];
+                    }]);
                 });
                 let mut machine = Machine::new(caller_layout(), &arguments);
                 let stack = callee.callee.interpreter_stack.as_mut_ptr() as u64;
@@ -4687,11 +4710,11 @@ fn aarch64_direct_calls_disassemble() {
         environment: None,
         closures: false,
     };
-    snapshot.executables[0].feedback.call = vec![CallFeedbackSnapshot {
+    snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
         target: Some(target.function.function),
         direct_call: Some(target),
         ..CallFeedbackSnapshot::default()
-    }];
+    }]);
     let compiled =
         compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
             .unwrap();

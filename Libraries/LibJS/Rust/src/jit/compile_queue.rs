@@ -5,7 +5,8 @@
  */
 
 //! A VM's share of the compile threads of the process. Only snapshots go to them and only compile results come back: the
-//! compiler never sees the heap.
+//! compiler never sees the heap. Snapshots and results keep their memory, which serves one compile after the other
+//! (see `Spare`).
 
 use core::ops::Deref;
 use std::cell::{Cell, RefCell};
@@ -18,12 +19,17 @@ use libjs_jit::CompileFailure;
 use libjs_jit::code::CompiledCode;
 use libjs_jit::compile_pool::{CompilePool, CompilePoolClient};
 use libjs_jit::scratch::Scratch;
-use libjs_jit::snapshot::Snapshot;
+use libjs_jit::snapshot::{OpenLists, Snapshot};
 
 pub type CompileResult = Result<Compiled, CompileFailure>;
 
 /// How many results of compiles that nothing uses now keep their memory for the next compiles.
 const SPARE_RESULTS: usize = 32;
+
+/// How many snapshots that nothing uses now keep their memory for the next compiles. Nearly always, fewer snapshots
+/// than this wait for a compile at one time, so the memory of a snapshot seldom comes from the system or goes back
+/// there while compiles run.
+const SPARE_SNAPSHOTS: usize = 16;
 
 /// How many bytes of code and words of tables such a result keeps the memory for when a compile takes it: the first
 /// step a column grows by. The thread that compiles gives the rest back to the system, so that the thread of a VM,
@@ -32,16 +38,26 @@ const SPARE_RESULTS: usize = 32;
 const SPARE_CODE_BYTES: usize = 64 * 1024;
 const SPARE_TABLE_WORDS: usize = 8 * 1024;
 
-/// The results that nothing uses now. A compile thread writes the code and the tables of a compile into one, and the
-/// thread of the VM that asked for the compile brings it back.
+/// How many threads that capture snapshots at one time find the memory of an earlier capture for the lists they
+/// write row by row.
+const SPARE_OPEN_LISTS: usize = 2;
+
+/// The snapshots and the results that nothing uses now, and the memory that captures write with. The thread of a VM
+/// writes the input of a compile into a snapshot, and the compile thread that read it brings it back. A compile
+/// thread writes the code and the tables of a compile into a result, and the thread of the VM that asked for the
+/// compile brings it back.
 struct Spare {
+    snapshots: [Option<Box<Snapshot>>; SPARE_SNAPSHOTS],
+    open_lists: [Option<OpenLists>; SPARE_OPEN_LISTS],
     results: [Option<CompiledCode>; SPARE_RESULTS],
     /// How many compile threads had a task since they last were idle. The last of them to go idle gives the memory
-    /// of the results back to the system.
+    /// of the snapshots and of the results back to the system.
     active_thread_count: usize,
 }
 
 static SPARE: Mutex<Spare> = Mutex::new(Spare {
+    snapshots: [const { None }; SPARE_SNAPSHOTS],
+    open_lists: [const { None }; SPARE_OPEN_LISTS],
     results: [const { None }; SPARE_RESULTS],
     active_thread_count: 0,
 });
@@ -65,12 +81,27 @@ fn note_thread_is_active() {
     }
 }
 
-/// The task of a compile thread for a result that came back while all of them were idle (see `Compiled::drop()`),
-/// which counted the thread as active already.
-fn stay_active_for_late_result() {
+/// The task of a compile thread for spare memory that came back while all of them were idle (see
+/// `release_spare_memory_later()`), which counted the thread as active already.
+fn stay_active_for_late_memory() {
     if THREAD_IS_ACTIVE.replace(true) {
         spare().active_thread_count -= 1;
     }
+}
+
+/// Makes sure that a compile thread gives the spare memory back to the system, after something came back into
+/// `spare`. If the compile threads are idle, none of them is going to do that. This makes one of them go idle again,
+/// so that the thread of a VM does not pay for it. Without compile threads, the memory stays for the next compile.
+fn release_spare_memory_later(mut spare: MutexGuard<'static, Spare>) {
+    if spare.active_thread_count > 0 {
+        return;
+    }
+    let Some(pool) = POOL.get() else {
+        return;
+    };
+    spare.active_thread_count += 1;
+    drop(spare);
+    pool.run_unowned(Box::new(stay_active_for_late_memory));
 }
 
 /// Notes that this compile thread went idle.
@@ -83,10 +114,51 @@ fn note_thread_is_idle() {
     if spare.active_thread_count > 0 {
         return;
     }
+    let snapshots = core::mem::replace(&mut spare.snapshots, [const { None }; SPARE_SNAPSHOTS]);
+    let open_lists = core::mem::replace(&mut spare.open_lists, [const { None }; SPARE_OPEN_LISTS]);
     let results = core::mem::replace(&mut spare.results, [const { None }; SPARE_RESULTS]);
     drop(spare);
-    // NB: The memory goes back to the system here, with the lock released.
+    // NB: The memory is given back here, with the lock released.
+    drop(snapshots);
+    drop(open_lists);
     drop(results);
+}
+
+/// A snapshot of nothing, to capture into. It has the memory of an earlier snapshot if one is spare.
+pub fn spare_snapshot() -> Box<Snapshot> {
+    let snapshot = spare().snapshots.iter_mut().find_map(Option::take);
+    snapshot.unwrap_or_default()
+}
+
+/// The memory for the lists that a capture writes row by row. It is the memory of an earlier capture if that is
+/// spare.
+pub fn spare_open_lists() -> OpenLists {
+    let lists = spare().open_lists.iter_mut().find_map(Option::take);
+    lists.unwrap_or_default()
+}
+
+/// Takes back the memory for the lists that a capture wrote row by row, for a later capture.
+pub fn give_back_open_lists(lists: OpenLists) {
+    let mut spare = spare();
+    // NB: With no place left, the memory goes back to the system here.
+    let Some(place) = spare.open_lists.iter_mut().find(|place| place.is_none()) else {
+        return;
+    };
+    *place = Some(lists);
+    release_spare_memory_later(spare);
+}
+
+/// Takes back a snapshot that nothing reads anymore, for a later capture.
+pub fn give_back_snapshot(mut snapshot: Box<Snapshot>) {
+    snapshot.clear();
+    snapshot.trim();
+    let mut spare = spare();
+    // NB: With no place left, the memory of the snapshot goes back to the system here.
+    let Some(place) = spare.snapshots.iter_mut().find(|place| place.is_none()) else {
+        return;
+    };
+    *place = Some(snapshot);
+    release_spare_memory_later(spare);
 }
 
 /// The code of a finished compile, on its way to where it is installed. The code and its tables are in memory that is
@@ -131,18 +203,7 @@ impl Drop for Compiled {
             return;
         };
         *place = Some(code);
-        if spare.active_thread_count > 0 {
-            return;
-        }
-        // NB: The compile threads are idle, so none of them is going to give the memory of this result back. This
-        //     makes one of them go idle again, so that the thread of a VM does not pay for that. Without compile
-        //     threads, the result stays for the next compile on this thread.
-        let Some(pool) = POOL.get() else {
-            return;
-        };
-        spare.active_thread_count += 1;
-        drop(spare);
-        pool.run_unowned(Box::new(stay_active_for_late_result));
+        release_spare_memory_later(spare);
     }
 }
 
@@ -207,6 +268,7 @@ impl CompileQueue {
                 let _scratch = ak::ScratchHeapScope::enter();
                 compile(&snapshot)
             };
+            give_back_snapshot(snapshot);
             // NB: A VM that went away has no use for the result, and the thread goes on with other VMs' jobs.
             if result_sender.send((id, result)).is_ok() {
                 results_pending.store(true, Ordering::Release);

@@ -73,7 +73,7 @@ impl GraphBuilder<'_> {
     /// executable's realm, if code may access the variable directly.
     fn global_cache(&self, cache: u32) -> Option<(Globals, GlobalCacheSnapshot)> {
         let snapshot = self.function.executable.globals.as_ref()?;
-        let global = (*snapshot.caches.get(cache as usize)?)?;
+        let global = (*self.snapshot[snapshot.caches].get(cache as usize)?)?;
         let globals = Globals {
             object: snapshot.object,
             declarative_environment: snapshot.declarative_environment,

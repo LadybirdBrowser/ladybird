@@ -128,7 +128,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             let running = self.frame_field(self.runtime.offsets.execution_context_executable);
             self.masm.load64(dst, &running);
         } else {
-            self.masm.move_imm64(dst, self.executables[executable as usize].cell.0);
+            self.masm
+                .move_imm64(dst, self.snapshot.executables[executable as usize].cell.0);
         }
         self.masm.load64(
             dst,
@@ -163,8 +164,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_load_compressed_cell(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
         self.property_cache_address(entry, executable, cache_index)?;
         self.masm.load64(entry, &Address::new(entry, 0));
-        let was_megamorphic = self.executables[executable as usize]
-            .property_caches
+        let was_megamorphic = self.snapshot[self.snapshot.executables[executable as usize].property_caches]
             .get(cache_index as usize)
             .is_some_and(|cache| cache.kind == PropertyCacheKind::Megamorphic);
         if was_megamorphic {
@@ -366,7 +366,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
         let base = self.input(node, 0);
         self.masm.shr64_imm(scratch, base, value::TAG_SHIFT);
-        let snapshot = &self.executables[executable as usize];
+        let snapshot = &self.snapshot.executables[executable as usize];
         let prototypes = [
             (value::STRING_TAG, snapshot.string_prototype),
             (value::INT32_TAG, snapshot.number_prototype),
@@ -467,12 +467,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// shapes than their hash tables hold, so their accesses also look in
     /// the VM's keyed caches.
     fn megamorphic_cache_name(&self, executable: u32, cache_index: u32, property: u32) -> Option<u64> {
-        let snapshot = &self.executables[executable as usize];
-        snapshot
-            .property_caches
+        let snapshot = &self.snapshot.executables[executable as usize];
+        self.snapshot[snapshot.property_caches]
             .get(cache_index as usize)
             .filter(|cache| cache.kind == PropertyCacheKind::Megamorphic)
-            .and_then(|_| snapshot.property_key_names.get(property as usize).copied())
+            .and_then(|_| {
+                self.snapshot[snapshot.property_key_names]
+                    .get(property as usize)
+                    .copied()
+            })
             .filter(|name| *name != 0)
     }
 
@@ -964,7 +967,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.masm.store64(&self.local_address(record + 8), source);
                 self.masm
                     .load_effective_address(arguments[3], &self.local_address(record));
-                let instruction = self.executables[executable as usize]
+                let instruction = self.snapshot.executables[executable as usize]
                     .bytecode_address
                     .checked_add(u64::from(pc))
                     .ok_or(CompileFailure::InvalidBytecode {

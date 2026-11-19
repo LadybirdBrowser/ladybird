@@ -75,7 +75,12 @@ impl GraphBuilder<'_> {
             return Ok(false);
         };
         let reserve = reserve.max(added_count);
-        if self.runtime.object_allocation.size_class_for(reserve).is_none() {
+        if self
+            .runtime
+            .object_allocation
+            .size_class_for(self.snapshot, reserve)
+            .is_none()
+        {
             return Ok(false);
         }
         let value = self.read(src)?;

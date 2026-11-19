@@ -95,7 +95,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let compiled_code_writes_headers = saved.len() >= 5
             && chain[..pushed].iter().all(|id| {
                 let frame_state = self.graph.frame_state(*id);
-                let arguments_base = self.executables[frame_state.executable as usize]
+                let arguments_base = self.snapshot.executables[frame_state.executable as usize]
                     .layout
                     .arguments_base();
                 frame_state.values.iter().all(|(slot, value)| {
@@ -292,7 +292,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 let (caller, _) = &frames[level + 1];
                 let (callee, values) = &frames[level];
                 let call = self.decoded(caller.executable, caller.pc)?;
-                let callee_function = self.executables[callee.executable as usize]
+                let callee_function = self.snapshot.executables[callee.executable as usize]
                     .function
                     .map(|function| function.function);
                 let (argument_count, construct) = match call.instruction {
@@ -371,7 +371,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             if level + 1 == frames.len() {
                 continue;
             }
-            let arguments_base = self.executables[frames[level].0.executable as usize]
+            let arguments_base = self.snapshot.executables[frames[level].0.executable as usize]
                 .layout
                 .arguments_base();
             for &(slot, location, repr) in &frames[level].1 {
