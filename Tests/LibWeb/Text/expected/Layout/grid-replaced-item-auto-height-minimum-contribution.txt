@@ -1,0 +1,6 @@
+aspect-ratio-grid: 276x207, rows 207px
+fixed-height-grid: 276x207, rows 207px
+fixed-height-grid-start-aligned: 69x207, rows 207px
+fixed-height-grid-half-max-height: 276x103.5, rows 207px
+fixed-height-grid-fixed-max-height: 276x150, rows 207px
+fixed-height-grid-two-rows: 276x187, rows 187px 20px
