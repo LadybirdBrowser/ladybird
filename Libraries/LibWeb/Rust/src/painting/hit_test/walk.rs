@@ -106,6 +106,8 @@ struct WhatThePointMisses<'walk, 'a, R: PaintRead> {
 }
 
 impl<R: PaintRead> PlanLeavesOut for WhatThePointMisses<'_, '_, R> {
+    const LEAVES_OUT_THE_SAME_CHILD_SCOPES_IN_EVERY_PHASE: bool = true;
+
     fn leaves_out_child_scope(&mut self, child: PaintScope, child_inputs: PaintOrderInputs) -> bool {
         self.walk.point_misses_child_scope(child, child_inputs, self.owner)
     }
@@ -115,6 +117,19 @@ impl<R: PaintRead> PlanLeavesOut for WhatThePointMisses<'_, '_, R> {
             && self
                 .walk
                 .point_misses_line(line_root, line_index, self.owner.absolute_content_origin)
+    }
+
+    fn paint_children_kept_by_an_earlier_phase(&mut self, owner: NodeSlotId) -> Option<&[NodeSlotId]> {
+        self.walk
+            .paint_children_the_point_may_be_over
+            .get(&owner)
+            .map(|children| children.as_slice())
+    }
+
+    fn keep_paint_children_for_later_phases(&mut self, owner: NodeSlotId, children_in_tree_order: &[NodeSlotId]) {
+        self.walk
+            .paint_children_the_point_may_be_over
+            .insert(owner, SmallVec::from_slice(children_in_tree_order));
     }
 }
 
@@ -158,6 +173,7 @@ struct PointWalk<'a, R: PaintRead> {
     local_points_ignoring_clips: FastMap<SpatialNodeIndex, Option<FloatPoint>>,
     last_local_point_ignoring_clips: Option<(SpatialNodeIndex, Option<FloatPoint>)>,
     hits_of_producer_in_paint_order: Vec<PointHit>,
+    paint_children_the_point_may_be_over: FastMap<NodeSlotId, SmallVec<[NodeSlotId; 8]>>,
     /// What lies under the point, topmost first as the walk met it.
     hits: Vec<PointHit>,
     /// The 3D rendering context the topmost hit is in, whose planes paint sorted by depth: the walk goes on until
@@ -537,6 +553,7 @@ fn walk_for<'a, R: PaintRead>(
         local_points_ignoring_clips: FastMap::default(),
         last_local_point_ignoring_clips: None,
         hits_of_producer_in_paint_order: Vec::new(),
+        paint_children_the_point_may_be_over: FastMap::default(),
         hits: Vec::new(),
         sorting_group_of_topmost_hit: None,
         walk_left_the_sorting_group: false,

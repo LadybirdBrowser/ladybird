@@ -385,8 +385,16 @@ impl PaintScopePlan {
 }
 
 pub(crate) trait PlanLeavesOut {
+    const LEAVES_OUT_THE_SAME_CHILD_SCOPES_IN_EVERY_PHASE: bool = false;
+
     fn leaves_out_child_scope(&mut self, child: PaintScope, child_inputs: PaintOrderInputs) -> bool;
     fn leaves_out_line(&mut self, line_root: NodeSlotId, line_index: u32) -> bool;
+
+    fn paint_children_kept_by_an_earlier_phase(&mut self, _owner: NodeSlotId) -> Option<&[NodeSlotId]> {
+        None
+    }
+
+    fn keep_paint_children_for_later_phases(&mut self, _owner: NodeSlotId, _children_in_tree_order: &[NodeSlotId]) {}
 }
 
 struct LeavesOutNothing;
@@ -400,6 +408,8 @@ impl PlanLeavesOut for LeavesOutNothing {
         false
     }
 }
+
+const FEWEST_PAINT_CHILDREN_WORTH_KEEPING_FOR_LATER_PHASES: usize = 32;
 
 struct PaintOrderBuilder<'a, R: PaintRead, LeavesOut: PlanLeavesOut> {
     layout_arena: &'a R,
@@ -758,16 +768,43 @@ impl<R: PaintRead, LeavesOut: PlanLeavesOut> PaintOrderBuilder<'_, R, LeavesOut>
         matches: impl Fn(&Self, NodeSlotId) -> bool,
     ) {
         let begin = self.items.len();
-        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
-        while let Some(child) = next_child {
-            next_child = crate::painting::paint_order::next_paint_sibling_of_paint_child(self.layout_arena, child);
-            if !matches(self, child) || self.descendant_phase_is_empty(child, phase) {
-                continue;
+        let scope_of = |child| PaintScope {
+            owner: child,
+            kind: PaintScopeKind::Descendants(phase),
+        };
+        let children_kept_by_an_earlier_phase = self
+            .leaves_out
+            .paint_children_kept_by_an_earlier_phase(paintable)
+            .map(SmallVec::<[NodeSlotId; 8]>::from_slice);
+        if let Some(children) = children_kept_by_an_earlier_phase {
+            for child in children {
+                if matches(self, child) && !self.descendant_phase_is_empty(child, phase) {
+                    self.append_child_scope(scope_of(child));
+                }
             }
-            self.append_child_scope(PaintScope {
-                owner: child,
-                kind: PaintScopeKind::Descendants(phase),
-            });
+        } else {
+            let mut children_with_no_scope_left_out = SmallVec::<[NodeSlotId; 8]>::new();
+            let mut child_count = 0;
+            let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
+            while let Some(child) = next_child {
+                next_child = crate::painting::paint_order::next_paint_sibling_of_paint_child(self.layout_arena, child);
+                child_count += 1;
+                let has_a_scope_in_this_phase = matches(self, child) && !self.descendant_phase_is_empty(child, phase);
+                let item_count_before = self.items.len();
+                if has_a_scope_in_this_phase {
+                    self.append_child_scope(scope_of(child));
+                }
+                let scope_was_left_out = has_a_scope_in_this_phase && self.items.len() == item_count_before;
+                if LeavesOut::LEAVES_OUT_THE_SAME_CHILD_SCOPES_IN_EVERY_PHASE && !scope_was_left_out {
+                    children_with_no_scope_left_out.push(child);
+                }
+            }
+            if LeavesOut::LEAVES_OUT_THE_SAME_CHILD_SCOPES_IN_EVERY_PHASE
+                && child_count >= FEWEST_PAINT_CHILDREN_WORTH_KEEPING_FOR_LATER_PHASES
+            {
+                self.leaves_out
+                    .keep_paint_children_for_later_phases(paintable, &children_with_no_scope_left_out);
+            }
         }
         let display = style_queries::display(self.layout_arena, paintable);
         if display.is_flex_inside() || display.is_grid_inside() {
