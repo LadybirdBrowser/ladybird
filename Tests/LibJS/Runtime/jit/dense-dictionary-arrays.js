@@ -162,3 +162,35 @@ test("repeated sparse stores past holey elements that stay dense keep them dense
     expect(values[values.length - 1]).toBe(values.length - 1);
     if (jit.enabled) expect(elementsKindSeen(values, 1025).includes("elements=Holey")).toBeTrue();
 });
+
+test("stores that each leave few holes but make holey elements sparse make them a dictionary", () => {
+    const keys = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+    const palette = {};
+    for (const key of keys) palette[key] = `#${key}`;
+    expect(Object.keys(palette)).toEqual(keys.map(String));
+    for (const key of keys) expect(palette[key]).toBe(`#${key}`);
+    expect(0 in palette).toBeFalse();
+    expect(150 in palette).toBeFalse();
+    if (jit.enabled) expect(elementsKindSeen(palette, 950).includes("elements=Other")).toBeTrue();
+
+    // Holey elements with few holes, or with many holes but at least an eighth filled, stay dense as they grow.
+    const values = [];
+    for (let i = 1; i < 1000; ++i) values[i] = i;
+    const strided = [];
+    for (let i = 0; i < 2000; i += 2) strided[i] = i;
+    const queue = [];
+    let head = 0;
+    for (let i = 0; i < 2000; ++i) {
+        queue.push(i);
+        if (i % 2) delete queue[head++];
+    }
+    for (const [elements, hole, last] of [
+        [values, 0, 999],
+        [strided, 1, 1998],
+        [queue, 0, 1999],
+    ]) {
+        expect(hole in elements).toBeFalse();
+        expect(elements[last]).toBe(last);
+        if (jit.enabled) expect(elementsKindSeen(elements, last).includes("elements=Holey")).toBeTrue();
+    }
+});
