@@ -1,0 +1,6 @@
+Ladybird puts the text-indent of a right-to-left line at its right end.
+In Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5, with a 40px
+indent in a 300px right-to-left block, the first word of the first line
+ends at 260px; with text-align: left, the line’s content starts at the
+left edge; with a negative indent of 20px, the first word ends at 320px;
+and with hanging, the first line ends at 300px.
