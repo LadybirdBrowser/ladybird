@@ -1051,17 +1051,17 @@ TEST_CASE(buffered_time_ranges_full_file)
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
     auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
 
-    // The video track starts later and the audio track ends later.
+    // The video track starts later, but data from the first cluster is playable from zero. The audio track ends later.
     auto ranges = wait_for_buffered_ranges(loop, *demuxer, [](auto const& ranges) { return !ranges.is_empty(); });
     EXPECT_EQ(ranges.size(), 1u);
-    EXPECT_EQ(ranges[0].start, AK::Duration::from_milliseconds(11));
+    EXPECT_EQ(ranges[0].start, AK::Duration::zero());
     EXPECT_EQ(ranges[0].end, AK::Duration::from_microseconds(1021500));
 }
 
 TEST_CASE(buffered_time_ranges_incremental_thirds)
 {
     auto file_data = load_test_file_data("./vp9_in_webm.webm"sv);
-    auto start = AK::Duration::from_milliseconds(11);
+    auto start = AK::Duration::zero();
     size_t one_third = file_data.size() / 3;
     size_t two_thirds = one_third * 2;
 
@@ -1217,8 +1217,8 @@ TEST_CASE(buffered_time_ranges_cues_only_tail_does_not_reach_end_of_stream)
 
 TEST_CASE(buffered_time_ranges_intersect_tracks)
 {
-    // vp9_in_webm.webm contains a VP9 video track (11ms-1011ms) and an Opus audio track (0.5ms-1021.5ms). The
-    // source's ranges start where both tracks have data, and since both reach the end of the stream, the video
+    // vp9_in_webm.webm contains a VP9 video track (11ms-1011ms) and an Opus audio track (0.5ms-1021.5ms). Both tracks
+    // have data from the first cluster, so both start at zero, and since both reach the end of the stream, the video
     // track does not cut off the audio track that runs longer.
     auto file_data = load_test_file_data("./vp9_in_webm.webm"sv);
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
@@ -1235,7 +1235,7 @@ TEST_CASE(buffered_time_ranges_intersect_tracks)
     EXPECT_EQ(ranges.size(), 1u);
     if (ranges.is_empty())
         return;
-    EXPECT_EQ(ranges[0].start, AK::Duration::from_milliseconds(11));
+    EXPECT_EQ(ranges[0].start, AK::Duration::zero());
     EXPECT_EQ(ranges[0].end, AK::Duration::from_microseconds(1021500));
 }
 

@@ -1637,8 +1637,14 @@ Vector<BufferedRangesScan> Reader::buffered_time_ranges_by_track(NonnullRefPtr<M
         BufferedRangesScan scan;
         scan.track_identifier = track_number;
         for (auto const& cached_range : m_buffered_ranges) {
-            if (auto interval = cached_range.track_intervals.get(track_number); interval.has_value())
-                scan.time_ranges.add_range(max(AK::Duration::zero(), interval.value().start), interval.value().end);
+            auto interval = cached_range.track_intervals.get(track_number);
+            if (!interval.has_value())
+                continue;
+            // Data from the first cluster onward is playable from the start of the timeline.
+            auto start = max(AK::Duration::zero(), interval.value().start);
+            if (cached_range.start <= m_first_cluster_position)
+                start = AK::Duration::zero();
+            scan.time_ranges.add_range(start, interval.value().end);
         }
         scan.last_byte_range_has_samples = !m_buffered_ranges.is_empty() && m_buffered_ranges.last().track_intervals.contains(track_number);
         scans.append(move(scan));
