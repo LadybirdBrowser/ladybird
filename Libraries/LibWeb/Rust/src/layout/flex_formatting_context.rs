@@ -2435,24 +2435,6 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
 
         if self.flex_item_details[index].inputs.preferred_aspect_ratio.is_some() {
-            let inputs = self.flex_item_details[index].inputs;
-            // AD-HOC: For a replaced box whose only sizing information is a natural aspect ratio (e.g an SVG with a
-            //         viewBox but no natural width or height) and an indefinite flex basis, we stretch-fit the cross size
-            //         to the flex container instead of transferring the used main size through the aspect ratio.
-            let replaced_with_only_natural_ratio = inputs.is_replaced_box
-                && !(inputs.auto_content_size.width.is_some() && inputs.auto_content_size.height.is_some());
-            if replaced_with_only_natural_ratio
-                && !self.flex_items[index].used_flex_basis_is_definite
-                && self.has_definite_cross_size_used(&self.container_cells)
-            {
-                self.set_hypothetical_cross_size(
-                    index,
-                    self.inner_cross_size_used(&self.container_cells),
-                    clamp_min,
-                    clamp_max,
-                );
-                return;
-            }
             // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
             // When a box has a preferred aspect ratio, its automatic sizes are calculated the same as for a
             // replaced element with a natural aspect ratio and no natural size in that axis, see e.g. CSS2 § 10

@@ -1,0 +1,12 @@
+square: 40x40
+wide: 40x20
+tall: 40x80
+natural-size: 40x40
+square-without-max-width: 100x100
+wide-without-max-width: 100x50
+square-stretched: 40x100
+square-max-height: 40x40
+column-square-max-height: 40x40
+column-square-max-width: 40x40
+square-min-width: 120x120
+square-auto-height-container: 40x40
