@@ -715,6 +715,7 @@ private:
     OwnPtr<IPC::HandleBrokerServer> m_handle_broker_server;
 #endif
     OwnPtr<ProcessManager> m_process_manager;
+    OwnPtr<TabDiscarder> m_tab_discarder;
 
     Web::CSS::PreferredColorScheme m_color_scheme { Web::CSS::PreferredColorScheme::Auto };
     Web::CSS::PreferredContrast m_contrast { Web::CSS::PreferredContrast::Auto };

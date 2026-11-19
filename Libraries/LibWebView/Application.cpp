@@ -72,6 +72,7 @@
 #include <LibWebView/SpellChecker.h>
 #include <LibWebView/StorageAreaRegistry.h>
 #include <LibWebView/SystemProbeClient.h>
+#include <LibWebView/TabDiscarder.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/Translator.h>
 #include <LibWebView/URL.h>
@@ -1896,6 +1897,10 @@ ErrorOr<void> Application::launch_services()
             client->did_exceed_memory_limit();
     };
     m_process_manager->set_web_content_memory_limit(m_browser_options.web_content_memory_limit_in_bytes.value_or(ProcessManager::default_web_content_memory_limit()));
+
+    // NB: A tab that WebDriver drives, or that runs without a UI, must stay as it is.
+    if (!m_browser_options.headless_mode.has_value() && !m_browser_options.webdriver_browser_endpoint.has_value())
+        m_tab_discarder = make<TabDiscarder>();
 
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
         auto database_path = profile().paths().data;
