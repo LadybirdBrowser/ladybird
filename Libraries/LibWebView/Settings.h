@@ -99,6 +99,9 @@ struct TabSettings {
     // buttons, and there is no toolbar row. The sidebar is then always on the left.
     bool everything_in_sidebar { false };
     Optional<u16> vertical_tabs_expanded_width;
+    // A tab that was hidden for this many minutes is discarded, unless it does something the user would notice. Zero
+    // means that tabs are kept however long they are hidden.
+    u32 discard_hidden_tabs_after_minutes { 120 };
 };
 
 struct SearchEngineSettings {

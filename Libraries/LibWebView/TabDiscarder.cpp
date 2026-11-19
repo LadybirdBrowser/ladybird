@@ -6,6 +6,7 @@
 
 #include <LibCore/Platform/MemoryPressure.h>
 #include <LibCore/Timer.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/TabDiscarder.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -50,6 +51,22 @@ void TabDiscarder::check_tabs()
             dbgln("Discarding tab {}, as the system is about to run out of memory", view->url());
             view->request_discard();
         }
+    }
+
+    auto minutes = Application::settings().tab_settings().discard_hidden_tabs_after_minutes;
+    if (minutes == 0)
+        return;
+    auto minimum_time_hidden = AK::Duration::from_seconds(static_cast<i64>(minutes) * 60);
+
+    Vector<ViewImplementation&> inactive_views;
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        if (view.may_be_discarded(ViewImplementation::DiscardReason::Inactivity, minimum_time_hidden, now))
+            inactive_views.append(view);
+        return IterationDecision::Continue;
+    });
+    for (auto& view : inactive_views) {
+        dbgln("Discarding tab {}, as it was hidden for {} min", view.url(), minutes);
+        view.request_discard();
     }
 }
 

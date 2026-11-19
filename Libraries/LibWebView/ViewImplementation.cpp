@@ -596,8 +596,24 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
         m_hidden_since.clear();
         m_discard_requested = false;
     } else {
-        m_hidden_since = MonotonicTime::now();
-        m_changed_title_or_favicon_while_hidden = false;
+        start_being_hidden();
+    }
+}
+
+void ViewImplementation::start_being_hidden()
+{
+    m_hidden_since = MonotonicTime::now();
+    m_changed_title_or_favicon_while_hidden = false;
+}
+
+void ViewImplementation::set_current_tab_of_window(bool current_tab_of_window)
+{
+    m_current_tab_of_window = current_tab_of_window;
+    if (current_tab_of_window) {
+        m_hidden_since.clear();
+        m_discard_requested = false;
+    } else if (m_top_level_traversable && traversable().system_visibility_state() == Web::HTML::VisibilityState::Hidden && !m_hidden_since.has_value()) {
+        start_being_hidden();
     }
 }
 

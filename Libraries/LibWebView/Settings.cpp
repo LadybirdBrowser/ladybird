@@ -61,6 +61,7 @@ static constexpr auto VERTICAL_TABS_EXPAND_ON_HOVER_KEY = "verticalTabsExpandOnH
 static constexpr auto VERTICAL_TABS_POSITION_KEY = "verticalTabsPosition"sv;
 static constexpr auto VERTICAL_TABS_EXPANDED_WIDTH_KEY = "verticalTabsExpandedWidth"sv;
 static constexpr auto EVERYTHING_IN_SIDEBAR_KEY = "everythingInSidebar"sv;
+static constexpr auto DISCARD_HIDDEN_TABS_AFTER_MINUTES_KEY = "discardHiddenTabsAfterMinutes"sv;
 
 static constexpr auto BROWSING_BEHAVIOR_KEY = "browsingBehavior"sv;
 static constexpr auto ENABLE_AUTOSCROLL_KEY = "enableAutoscroll"sv;
@@ -840,6 +841,7 @@ JsonValue Settings::serialize_json() const
     if (m_tab_settings.vertical_tabs_expanded_width.has_value())
         tab_settings.set(VERTICAL_TABS_EXPANDED_WIDTH_KEY, *m_tab_settings.vertical_tabs_expanded_width);
     tab_settings.set(EVERYTHING_IN_SIDEBAR_KEY, m_tab_settings.everything_in_sidebar);
+    tab_settings.set(DISCARD_HIDDEN_TABS_AFTER_MINUTES_KEY, m_tab_settings.discard_hidden_tabs_after_minutes);
     settings.set(TAB_SETTINGS_KEY, move(tab_settings));
 
     JsonObject browsing_behavior;
@@ -1261,6 +1263,8 @@ TabSettings Settings::parse_tab_settings(JsonValue const& settings)
         tab_settings.vertical_tabs_expanded_width = *vertical_tabs_expanded_width;
     if (auto everything_in_sidebar = settings.as_object().get_bool(EVERYTHING_IN_SIDEBAR_KEY); everything_in_sidebar.has_value())
         tab_settings.everything_in_sidebar = *everything_in_sidebar;
+    if (auto minutes = settings.as_object().get_integer<u32>(DISCARD_HIDDEN_TABS_AFTER_MINUTES_KEY); minutes.has_value())
+        tab_settings.discard_hidden_tabs_after_minutes = *minutes;
 
     return tab_settings;
 }
