@@ -80,6 +80,8 @@ QIcon favicon_from_png(ReadonlyBytes, int logical_size);
 QIcon create_chrome_icon(ChromeIcon, QPalette const&, ChromeStyle::WindowActivity = ChromeStyle::WindowActivity::Active, int logical_size = CHROME_ICON_CANVAS_SIZE);
 // The site settings icon with its two knobs moved toward each other's place, by a travel from 0 to 1.
 QIcon create_site_settings_icon(QPalette const&, qreal knob_travel);
+// The reload icon partway through turning into the stop icon, by a progress from 0 to 1.
+QIcon create_reload_to_stop_icon(QPalette const&, ChromeStyle::WindowActivity, qreal progress, int logical_size);
 // The translate button's icon, in the accent color once the page is translated.
 QIcon create_translate_icon(QPalette const&, bool page_is_translated);
 // The icon in one color, whatever its state.
