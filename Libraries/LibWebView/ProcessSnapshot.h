@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWebView/BrowsingSession.h>
+#include <LibWebView/DiscardBlockers.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ProcessType.h>
@@ -35,6 +36,12 @@ struct ProcessPageSnapshot {
 struct ProcessTabSnapshot {
     Utf16String title;
     ProcessPageSnapshot page;
+    // What keeps the tab loaded when the system is about to run out of memory, and once it was hidden for as long as
+    // the user's settings allow, if they allow it.
+    DiscardBlockers discard_blockers_under_memory_pressure { DiscardBlockers::None };
+    Optional<DiscardBlockers> discard_blockers_after_inactivity;
+    // How long until the tab is discarded for being hidden, if nothing keeps it.
+    Optional<i64> seconds_until_discarded_after_inactivity;
 };
 
 // A frame whose document a WebContent process hosts for a tab another process displays.

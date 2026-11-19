@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
 #include <AK/kmalloc.h>
@@ -73,6 +74,7 @@ enum Column {
     CPU,
     Memory,
     PID,
+    CanUnload,
 };
 
 enum class RowKind {
@@ -279,6 +281,104 @@ public:
     }
 };
 
+static QString duration_text(i64 seconds)
+{
+    if (seconds < 60)
+        return QObject::tr("less than a minute");
+    auto minutes = seconds / 60;
+    if (minutes < 60)
+        return QObject::tr("%1 min").arg(minutes);
+    return QObject::tr("%1 h %2 min").arg(minutes / 60).arg(minutes % 60);
+}
+
+struct CanUnloadState {
+    bool can_unload { false };
+    QString explanation;
+};
+
+// Whether a tab can be unloaded to save memory, and when it will be, or what keeps it loaded.
+static CanUnloadState can_unload_state(WebView::ProcessTabSnapshot const& tab)
+{
+    using WebView::DiscardBlockers;
+    auto blockers = tab.discard_blockers_after_inactivity.value_or(tab.discard_blockers_under_memory_pressure);
+
+    if (blockers == DiscardBlockers::None) {
+        if (!tab.discard_blockers_after_inactivity.has_value())
+            return { true, QObject::tr("Only when the system is about to run out of memory") };
+        if (tab.seconds_until_discarded_after_inactivity.has_value())
+            return { true, QObject::tr("Unloads in %1 if it stays hidden").arg(duration_text(*tab.seconds_until_discarded_after_inactivity)) };
+        return { true, {} };
+    }
+
+    struct Description {
+        DiscardBlockers blocker;
+        char const* text;
+    };
+    static constexpr Array descriptions {
+        Description { DiscardBlockers::NotATab, QT_TRANSLATE_NOOP("QObject", "It isn't a tab") },
+        Description { DiscardBlockers::NotRestorable, QT_TRANSLATE_NOOP("QObject", "Its window doesn't keep its history") },
+        Description { DiscardBlockers::Visible, QT_TRANSLATE_NOOP("QObject", "It's visible") },
+        Description { DiscardBlockers::Pinned, QT_TRANSLATE_NOOP("QObject", "It's pinned") },
+        Description { DiscardBlockers::CurrentTabOfWindow, QT_TRANSLATE_NOOP("QObject", "It's the current tab of its window") },
+        Description { DiscardBlockers::Loading, QT_TRANSLATE_NOOP("QObject", "It's loading") },
+        Description { DiscardBlockers::Crashed, QT_TRANSLATE_NOOP("QObject", "It crashed") },
+        Description { DiscardBlockers::PlayingAudio, QT_TRANSLATE_NOOP("QObject", "It's playing sound") },
+        Description { DiscardBlockers::RecentlyPlayedAudio, QT_TRANSLATE_NOOP("QObject", "It played sound in the last minute") },
+        Description { DiscardBlockers::CapturingAudio, QT_TRANSLATE_NOOP("QObject", "It's using the microphone") },
+        Description { DiscardBlockers::UsingLocation, QT_TRANSLATE_NOOP("QObject", "It's using your location") },
+        Description { DiscardBlockers::OwnsAView, QT_TRANSLATE_NOOP("QObject", "It has a Picture-in-Picture window") },
+        Description { DiscardBlockers::DevToolsConnected, QT_TRANSLATE_NOOP("QObject", "DevTools are open for it") },
+        Description { DiscardBlockers::AsksBeforeUnloading, QT_TRANSLATE_NOOP("QObject", "The page asks to be checked before it's unloaded") },
+        Description { DiscardBlockers::ChangedTitleOrFaviconWhileHidden, QT_TRANSLATE_NOOP("QObject", "It changed its title or icon while hidden") },
+        Description { DiscardBlockers::MayShowNotifications, QT_TRANSLATE_NOOP("QObject", "The site may show notifications") },
+    };
+    QStringList lines { QObject::tr("Stays loaded:") };
+    for (auto const& description : descriptions) {
+        if (has_flag(blockers, description.blocker))
+            lines.append(QStringLiteral("• ") + QObject::tr(description.text));
+    }
+    // NB: A tab that only inactivity keeps loaded can still be unloaded, as one is when the timer is off.
+    auto can_unload_under_memory_pressure = tab.discard_blockers_after_inactivity.has_value() && tab.discard_blockers_under_memory_pressure == DiscardBlockers::None;
+    if (can_unload_under_memory_pressure)
+        lines.append(QObject::tr("It can still be unloaded when the system is about to run out of memory."));
+    return { can_unload_under_memory_pressure, lines.join('\n') };
+}
+
+// A row for several tabs, such as a site's, says whether all, some, or none of them can be unloaded, and why for each.
+static void set_can_unload(QTreeWidgetItem& item, Vector<WebView::ProcessTabSnapshot const*> const& tabs)
+{
+    if (tabs.is_empty())
+        return;
+
+    size_t unloadable_count = 0;
+    QStringList explanations;
+    for (auto const* tab : tabs) {
+        auto state = can_unload_state(*tab);
+        if (state.can_unload)
+            ++unloadable_count;
+        if (tabs.size() == 1) {
+            explanations.append(state.explanation);
+            continue;
+        }
+        auto title = tab->title.is_empty() ? QObject::tr("Untitled") : qstring_from_utf16_string(tab->title);
+        explanations.append(state.explanation.isEmpty() ? title : title + QStringLiteral("\n") + state.explanation);
+    }
+
+    // NB: Rows sort by how much of them can be unloaded, after the rows of processes that show no tab.
+    item.setTextAlignment(CanUnload, Qt::AlignRight | Qt::AlignVCenter);
+    if (unloadable_count == tabs.size()) {
+        item.setText(CanUnload, QObject::tr("Yes"));
+        item.setData(CanUnload, Qt::UserRole, 3);
+    } else if (unloadable_count == 0) {
+        item.setText(CanUnload, QObject::tr("No"));
+        item.setData(CanUnload, Qt::UserRole, 1);
+    } else {
+        item.setText(CanUnload, QObject::tr("Some"));
+        item.setData(CanUnload, Qt::UserRole, 2);
+    }
+    item.setToolTip(CanUnload, explanations.join(QStringLiteral("\n\n")));
+}
+
 // A frame's URL without what follows its path, which on the frames this names most often is a long tracking query.
 static QString frame_name(URL::URL const& url)
 {
@@ -406,7 +506,7 @@ ProcessManagerWindow::ProcessManagerWindow(Source source)
     process_tree->on_context_menu = [this](auto const& position) { show_context_menu(position); };
     m_processes = process_tree;
     m_processes->setHeader(new ProcessHeader(m_processes));
-    m_processes->setHeaderLabels({ tr("Name"), tr("CPU"), tr("Memory"), tr("PID") });
+    m_processes->setHeaderLabels({ tr("Name"), tr("CPU"), tr("Memory"), tr("PID"), tr("Can unload") });
     m_processes->headerItem()->setTextAlignment(Name, Qt::AlignLeft | Qt::AlignVCenter);
     m_processes->setIconSize(QSize(16, 16));
     m_processes->setAccessibleName(tr("Processes"));
@@ -423,7 +523,7 @@ ProcessManagerWindow::ProcessManagerWindow(Source source)
     m_processes->header()->setFixedHeight(30);
     m_processes->header()->setStretchLastSection(false);
     m_processes->header()->setSectionResizeMode(Name, QHeaderView::Stretch);
-    for (auto column : { CPU, Memory, PID }) {
+    for (auto column : { CPU, Memory, PID, CanUnload }) {
         m_processes->header()->setSectionResizeMode(column, QHeaderView::Interactive);
         m_processes->setColumnWidth(column, column == Memory ? 122 : 102);
         m_processes->headerItem()->setTextAlignment(column, Qt::AlignRight | Qt::AlignVCenter);
@@ -781,6 +881,7 @@ void ProcessManagerWindow::refresh()
         item->setData(PID, Qt::UserRole, static_cast<qlonglong>(process.pid));
         item->setData(PID, ChildIDRole, static_cast<qulonglong>(process.child_id));
         set_numbers(*item, process.cpu_percent, process.memory_usage_bytes);
+        Vector<WebView::ProcessTabSnapshot const*> process_tabs;
         for (auto const& tab : process.tabs) {
             auto title = tab.title.is_empty() ? tr("Untitled") : qstring_from_utf16_string(tab.title);
             auto* tab_item = new QTreeWidgetItem(item, { title });
@@ -788,7 +889,10 @@ void ProcessManagerWindow::refresh()
             tab_item->setFlags(Qt::ItemIsEnabled);
             tab_item->setToolTip(Name, title);
             tab_item->setIcon(Name, favicon_for(tab.page));
+            set_can_unload(*tab_item, { &tab });
+            process_tabs.append(&tab);
         }
+        set_can_unload(*item, process_tabs);
         size_t sandboxed_frame_count = 0;
         for (auto const& frame : process.frames) {
             auto* frame_item = new QTreeWidgetItem(item, { frame_name(frame.url) });
@@ -878,6 +982,12 @@ void ProcessManagerWindow::refresh()
                 note.append(site.frame_count == 1 ? tr("1 embedded frame") : tr("%1 embedded frames").arg(site.frame_count));
             item->setData(Name, NoteRole, note.join(QStringLiteral(" · ")));
             set_numbers(*item, site.cpu, site.memory);
+            Vector<WebView::ProcessTabSnapshot const*> site_tabs;
+            for (auto const* process : site.processes) {
+                for (auto const& tab : process->tabs)
+                    site_tabs.append(&tab);
+            }
+            set_can_unload(*item, site_tabs);
             site_items.append(item);
 
             Vector<QTreeWidgetItem*> process_items;
