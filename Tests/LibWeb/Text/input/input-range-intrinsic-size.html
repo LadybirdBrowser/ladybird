@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            ["default", "", ""],
+            ["display: block", "width: 300px", "display: block"],
+            ["vertical-lr", "", "writing-mode: vertical-lr"],
+            ["in a vertical-lr container", "writing-mode: vertical-lr; height: 300px", ""],
+            ["grid item", "display: grid; width: 300px", ""],
+            ["grid item, justify-self: start", "display: grid; width: 300px", "justify-self: start"],
+            ["column flex item", "display: flex; flex-direction: column; width: 300px", ""],
+            ["row flex item", "display: flex; width: 300px; height: 50px", ""],
+            ["abspos between insets", "position: relative; width: 300px; height: 50px", "position: absolute; inset: 0; margin: 0"],
+            ["zoom: 2", "zoom: 2", ""],
+            ["aspect-ratio: 1", "", "aspect-ratio: 1"],
+            ["width: 50%", "width: 300px", "width: 50%"],
+            ["height: 40px", "", "height: 40px"],
+            ["appearance: none", "", "appearance: none"],
+            ["appearance: none, display: block", "width: 300px", "appearance: none; display: block"],
+            ["appearance: none, grid item", "display: grid; width: 300px", "appearance: none"],
+            ["appearance: none, abspos between insets", "position: relative; width: 300px; height: 50px", "appearance: none; position: absolute; inset: 0; margin: 0"],
+        ];
+        for (const [name, containerStyle, inputStyle] of cases) {
+            const container = document.createElement("div");
+            container.style.cssText = containerStyle;
+            const input = document.createElement("input");
+            input.type = "range";
+            input.style.cssText = inputStyle;
+            container.append(input);
+            document.body.append(container);
+            const rect = input.getBoundingClientRect();
+            println(`${name}: ${rect.width}x${rect.height}`);
+            container.remove();
+        }
+    });
+</script>
