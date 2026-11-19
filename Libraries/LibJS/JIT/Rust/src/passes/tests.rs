@@ -490,7 +490,7 @@ fn typed_array_storage_offsets_are_reused_across_stores_but_not_calls() {
     let ret = node(&mut graph, Op::Return, vec![object], None);
     graph.blocks[0].control = Some(ret);
     verify(&graph).unwrap();
-    super::check_elimination::run(&mut graph, crate::test_zone());
+    super::check_elimination::run(&mut graph, crate::test_zone(), &mut crate::test_steps());
     assert!(!graph.blocks[0].body.contains(&second));
     assert_eq!(graph.node(second_data).inputs[0], first);
     assert!(graph.blocks[0].body.contains(&third));
@@ -594,7 +594,7 @@ fn branches_on_known_kinds_fold() {
     }
     verify(&graph).unwrap();
 
-    super::check_elimination::run(&mut graph, crate::test_zone());
+    super::check_elimination::run(&mut graph, crate::test_zone(), &mut crate::test_steps());
     let branches = graph
         .blocks
         .iter()
@@ -602,6 +602,65 @@ fn branches_on_known_kinds_fold() {
         .filter(|control| matches!(graph.node(*control).op, Op::Branch { .. }))
         .count();
     assert_eq!(branches, 1, "{:?}", graph.blocks);
+}
+
+/// The zones of check elimination hold about as much as the facts in use, not every copy of a list that the visits
+/// of blocks made.
+#[test]
+fn check_elimination_keeps_the_facts_in_use() {
+    // NB: Each block of the chain knows the kind of one more value, so the lists of its facts copy all those before.
+    let bytes = |count: u32| {
+        let mut graph = Graph::default();
+        for index in 0..count {
+            let predecessors = if index == 0 {
+                vec![]
+            } else {
+                vec![BlockId(2 * index - 2)]
+            };
+            graph.add_block(Block {
+                predecessors: graph.list(&predecessors),
+                ..Block::default()
+            });
+            graph.add_block(Block {
+                predecessors: graph.list(&[BlockId(2 * index)]),
+                ..Block::default()
+            });
+        }
+        graph.add_block(Block {
+            predecessors: graph.list(&[BlockId(2 * count - 2)]),
+            ..Block::default()
+        });
+        let mut value = NodeId(0);
+        for index in 0..count {
+            value = node(&mut graph, Op::LoadSlot { slot: index }, vec![], Some(Repr::Tagged));
+            let branch = node(
+                &mut graph,
+                Op::Branch {
+                    condition: BranchCondition::String,
+                    if_true: BlockId(2 * index + 2),
+                    if_false: BlockId(2 * index + 1),
+                },
+                vec![value],
+                None,
+            );
+            graph.blocks[2 * index as usize].body.push(value);
+            graph.blocks[2 * index as usize].control = Some(branch);
+            let ret = node(&mut graph, Op::Return, vec![value], None);
+            graph.blocks[2 * index as usize + 1].control = Some(ret);
+        }
+        let ret = node(&mut graph, Op::Return, vec![value], None);
+        graph.blocks[2 * count as usize].control = Some(ret);
+        verify(&graph).unwrap();
+        let work = crate::test_work();
+        let mut steps = crate::test_steps();
+        super::check_elimination::run(&mut graph, &work, &mut steps);
+        work.used() + steps[0].used() + steps[1].used()
+    };
+    let (small, large) = (bytes(1000), bytes(4000));
+    assert!(
+        large < 8 * small,
+        "{small} bytes for 1000 blocks, {large} bytes for 4000 blocks"
+    );
 }
 
 /// A value that passed an int32 check is no empty value, so a branch on
@@ -653,7 +712,7 @@ fn branches_on_whether_values_of_known_kinds_are_empty_fold() {
     }
     verify(&graph).unwrap();
 
-    super::check_elimination::run(&mut graph, crate::test_zone());
+    super::check_elimination::run(&mut graph, crate::test_zone(), &mut crate::test_steps());
     let control = graph.blocks[0].control.unwrap();
     assert!(
         matches!(graph.node(control).op, Op::Jump { target: BlockId(1) }),
@@ -715,7 +774,7 @@ fn check_elimination_keeps_checks_that_a_later_entry_reaches_blocks_before_it() 
     graph.blocks[4].control = Some(ret);
     verify(&graph).unwrap();
 
-    super::check_elimination::run(&mut graph, crate::test_zone());
+    super::check_elimination::run(&mut graph, crate::test_zone(), &mut crate::test_steps());
     verify(&graph).unwrap();
     assert_eq!(graph.blocks[4].body, vec![second]);
 }
@@ -1042,7 +1101,7 @@ fn control_flow_cleanup_preserves_duplicate_edges_and_phi_input_order() {
     graph.blocks[1].phis.push(phi);
     let returned = node(&mut graph, Op::Return, vec![phi], None);
     graph.blocks[1].control = Some(returned);
-    super::edit::clean_up_control_flow(&mut graph);
+    super::edit::clean_up_control_flow(&mut graph, crate::test_zone());
     assert_eq!(graph.blocks[1].predecessors, [BlockId(0), BlockId(0)]);
     assert_eq!(graph.node(phi).inputs, values[..2]);
 }

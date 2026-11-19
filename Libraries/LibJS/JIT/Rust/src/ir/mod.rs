@@ -1628,7 +1628,7 @@ pub struct FrameState<'z> {
 
 /// The memory of all the lists of a graph is in one zone (see `ak::Zone`): a graph makes no block of the heap, and
 /// all of it goes away when its zone is reset.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Graph<'z> {
     /// Where the lists of the graph are, and where its nodes, blocks and frame states get their lists.
     pub zone: &'z Zone,
@@ -1725,6 +1725,98 @@ impl<'z> Graph<'z> {
         }
     }
 
+    /// A copy of the graph, whose lists are in `zone`.
+    pub fn clone_in<'c>(&self, zone: &'c Zone) -> Graph<'c>
+    where
+        'z: 'c,
+    {
+        let Graph {
+            zone: _,
+            nodes,
+            blocks,
+            frame_states,
+            embedded_cells,
+            dependencies,
+            stable_shapes,
+            typed_array_constants,
+            direct_call_targets,
+            materialized_frame_bytes,
+            osr_entries,
+            osr_loop_back_edges,
+            osr_outer_loop_back_edges,
+            uncaught_handlers,
+            slow_paths_initializing_frame,
+            exit_sites,
+            speculatively_hoisted,
+            legacy_arguments,
+            legacy_arguments_guards,
+            unwritten_slots,
+        } = self;
+        let list = |values: &[NodeId]| ZoneVec::from_slice_in(values, zone);
+        let mut unwritten = crate::bitset::ZoneBitSet::new_in(unwritten_slots.capacity(), zone);
+        unwritten.union_with(unwritten_slots);
+        Graph {
+            zone,
+            nodes: ZoneVec::from_iter_in(
+                nodes.iter().map(|node| Node {
+                    op: node.op.clone(),
+                    inputs: list(&node.inputs),
+                    repr: node.repr,
+                    frame_state: node.frame_state,
+                    pc: node.pc,
+                }),
+                zone,
+            ),
+            blocks: ZoneVec::from_iter_in(
+                blocks.iter().map(|block| Block {
+                    predecessors: ZoneVec::from_slice_in(&block.predecessors, zone),
+                    phis: list(&block.phis),
+                    body: list(&block.body),
+                    control: block.control,
+                    bytecode_start: block.bytecode_start,
+                    is_loop_header: block.is_loop_header,
+                    is_cold: block.is_cold,
+                    start_frame_state: block.start_frame_state,
+                }),
+                zone,
+            ),
+            frame_states: ZoneVec::from_iter_in(
+                frame_states.iter().map(|frame_state| FrameState {
+                    executable: frame_state.executable,
+                    pc: frame_state.pc,
+                    mode: frame_state.mode,
+                    values: ZoneVec::from_slice_in(&frame_state.values, zone),
+                    in_frame: ZoneVec::from_slice_in(&frame_state.in_frame, zone),
+                    parent: frame_state.parent,
+                    passed_argument_count: frame_state.passed_argument_count,
+                    legacy_arguments: frame_state.legacy_arguments.clone(),
+                }),
+                zone,
+            ),
+            embedded_cells: ZoneVec::from_slice_in(embedded_cells, zone),
+            dependencies: ZoneVec::from_slice_in(dependencies, zone),
+            stable_shapes: ZoneVec::from_slice_in(stable_shapes, zone),
+            typed_array_constants: ZoneVec::from_slice_in(typed_array_constants, zone),
+            direct_call_targets: ZoneVec::from_slice_in(direct_call_targets, zone),
+            materialized_frame_bytes: *materialized_frame_bytes,
+            osr_entries: ZoneVec::from_slice_in(osr_entries, zone),
+            osr_loop_back_edges: ZoneVec::from_slice_in(osr_loop_back_edges, zone),
+            osr_outer_loop_back_edges: ZoneVec::from_slice_in(osr_outer_loop_back_edges, zone),
+            uncaught_handlers: ZoneVec::from_slice_in(uncaught_handlers, zone),
+            slow_paths_initializing_frame: list(slow_paths_initializing_frame),
+            exit_sites: ZoneVec::from_slice_in(exit_sites, zone),
+            speculatively_hoisted: list(speculatively_hoisted),
+            legacy_arguments: legacy_arguments.clone(),
+            legacy_arguments_guards: ZoneVec::from_iter_in(
+                legacy_arguments_guards
+                    .iter()
+                    .map(|(guard, nodes)| (*guard, list(nodes))),
+                zone,
+            ),
+            unwritten_slots: unwritten,
+        }
+    }
+
     /// A list of `values` in the memory of the graph.
     pub fn list<T: Clone>(&self, values: &[T]) -> ZoneVec<'z, T> {
         ZoneVec::from_slice_in(values, self.zone)
@@ -1787,12 +1879,8 @@ impl<'z> Graph<'z> {
     }
 
     /// A frame state and its callers' frame states, innermost first.
-    pub fn frame_state_chain(&self, id: FrameStateId) -> Vec<FrameStateId> {
-        let mut chain = vec![id];
-        while let Some(parent) = self.frame_state(*chain.last().expect("the chain is not empty")).parent {
-            chain.push(parent);
-        }
-        chain
+    pub fn frame_state_chain(&self, id: FrameStateId) -> impl Iterator<Item = FrameStateId> + Clone + '_ {
+        std::iter::successors(Some(id), |id| self.frame_state(*id).parent)
     }
 
     /// The values `node` uses: its inputs, then the values of its frame
@@ -1813,24 +1901,21 @@ impl<'z> Graph<'z> {
         &self,
         node: NodeId,
         frames: impl Fn(&FrameState<'z>) -> bool,
-    ) -> Vec<NodeId> {
+    ) -> impl Iterator<Item = NodeId> {
         let data = self.node(node);
-        let Some(frame_state) = data.frame_state.filter(|_| data.op.properties().runs_code) else {
-            return Vec::new();
-        };
-        let mut values = Vec::new();
-        for id in self.frame_state_chain(frame_state) {
-            let frame_state = self.frame_state(id);
-            if !frames(frame_state) {
-                continue;
-            }
-            for (slot, value) in &frame_state.values {
-                if frame_state.legacy_arguments.contains(slot) {
-                    values.push(*value);
-                }
-            }
-        }
-        values
+        let frame_state = data.frame_state.filter(|_| data.op.properties().runs_code);
+        frame_state
+            .into_iter()
+            .flat_map(|frame_state| self.frame_state_chain(frame_state))
+            .map(|id| self.frame_state(id))
+            .filter(move |frame_state| frames(frame_state))
+            .flat_map(|frame_state| {
+                frame_state
+                    .values
+                    .iter()
+                    .filter(|(slot, _)| frame_state.legacy_arguments.contains(slot))
+                    .map(|(_, value)| *value)
+            })
     }
 
     /// Whether code that `node` runs may read objects the code never
@@ -1839,7 +1924,6 @@ impl<'z> Graph<'z> {
     /// node's site (see `Op::AssumeLegacyArgumentsUnread`).
     pub fn defers_legacy_argument_objects(&self, node: NodeId) -> bool {
         self.legacy_argument_values_read_by(node, |_| true)
-            .into_iter()
             .any(|value| matches!(self.node(value).op, Op::VirtualObject { .. }))
     }
 
@@ -1884,7 +1968,7 @@ impl<'z> Graph<'z> {
     }
 
     fn chain_values(&self, id: FrameStateId) -> impl Iterator<Item = (u32, NodeId)> + '_ {
-        std::iter::successors(Some(id), |id| self.frame_state(*id).parent)
+        self.frame_state_chain(id)
             .flat_map(|id| self.frame_state(id).values.iter().copied())
     }
 

@@ -137,6 +137,33 @@ impl BitSet {
     }
 }
 
+/// A set of small integers that is fixed in size: a `BitSet` or a `ZoneBitSet`.
+pub trait IndexSet {
+    /// The exclusive upper bound of the integers this set can hold.
+    fn capacity(&self) -> usize;
+    fn contains(&self, index: usize) -> bool;
+}
+
+impl IndexSet for BitSet {
+    fn capacity(&self) -> usize {
+        BitSet::capacity(self)
+    }
+
+    fn contains(&self, index: usize) -> bool {
+        BitSet::contains(self, index)
+    }
+}
+
+impl IndexSet for ZoneBitSet<'_> {
+    fn capacity(&self) -> usize {
+        ZoneBitSet::capacity(self)
+    }
+
+    fn contains(&self, index: usize) -> bool {
+        ZoneBitSet::contains(self, index)
+    }
+}
+
 impl std::fmt::Debug for BitSet {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.debug_set().entries(self.iter()).finish()

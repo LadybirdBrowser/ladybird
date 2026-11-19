@@ -30,11 +30,11 @@ fn is_removable(op: &Op) -> bool {
         && !properties.runs_code
 }
 
-pub fn run(graph: &mut Graph, _work: &Zone) {
+pub fn run(graph: &mut Graph, work: &Zone) {
     remove_dead_nodes(graph);
     // NB: Branches whose edges did the same are left jumping where they go,
     //     which leaves what only they used dead.
-    if edit::fold_branches_to_one_target(graph) {
+    if edit::fold_branches_to_one_target(graph, work) {
         remove_dead_nodes(graph);
     }
 }

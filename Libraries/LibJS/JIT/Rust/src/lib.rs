@@ -103,6 +103,12 @@ pub(crate) fn test_work() -> ak::Zone {
     ak::Zone::new(1 << 30, c"test")
 }
 
+/// The zones for the steps of the passes that a test runs (see `Scratch::steps`).
+#[cfg(test)]
+pub(crate) fn test_steps() -> [ak::Zone; 2] {
+    [test_work(), test_work()]
+}
+
 /// Compiles `snapshot.executables[0]` for the host architecture with the memory of `scratch`, into `compiled` in
 /// place of what it holds. After a failure, `compiled` holds no complete code.
 pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch, compiled: &mut CompiledCode) -> Result<(), CompileFailure> {
@@ -161,7 +167,12 @@ fn run_stages<M: asm::PortableMacroAssembler>(
     if !snapshot.is_complete() {
         return Err(CompileFailure::TooLarge);
     }
-    let Scratch { zone, work, tables } = scratch;
+    let Scratch {
+        zone,
+        work,
+        steps,
+        tables,
+    } = scratch;
     // NB: Nothing of the compile before this one is in use (see `Scratch`).
     work.reset();
     let mut graph = {
@@ -184,6 +195,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
             snapshot.options.verify_ir,
             &mut tables.dominators,
             work,
+            steps,
         )?)
     } else {
         passes::optimize(
@@ -192,6 +204,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
             snapshot.options.verify_ir,
             &mut tables.dominators,
             work,
+            steps,
         )?;
         None
     };

@@ -135,8 +135,8 @@ fn uint32_operand(graph: &Graph, value: NodeId, float64: bool) -> Option<Uint32O
 
 /// Makes comparisons of uint32 values unsigned int32 comparisons of their
 /// bits.
-fn compare_uint32_bits(graph: &mut Graph) {
-    let mut constants = Constants::new(graph);
+fn compare_uint32_bits(graph: &mut Graph, work: &Zone) {
+    let mut constants = Constants::new(graph, work);
     for block in 0..graph.blocks.len() {
         for index in 0..graph.blocks[block].body.len() {
             let node = graph.blocks[block].body[index];
@@ -168,8 +168,8 @@ fn compare_uint32_bits(graph: &mut Graph) {
     }
 }
 
-pub fn run(graph: &mut Graph, _work: &Zone) {
-    compare_uint32_bits(graph);
+pub fn run(graph: &mut Graph, work: &Zone) {
+    compare_uint32_bits(graph, work);
     let count = graph.nodes.len();
     let mut wrapping = BitSet::new(count);
     let mut users: Vec<Vec<(NodeId, usize)>> = vec![Vec::new(); count];

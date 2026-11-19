@@ -33,64 +33,297 @@ use crate::ir::NodeProperties;
 use crate::ir::Op;
 use crate::ir::ShapeCheck;
 use crate::snapshot::CellId;
-use std::collections::BTreeSet;
-use std::rc::Rc;
+use crate::zone_map::ZoneMap;
+use ak::Zone;
+use ak::ZoneVec;
 
-/// Sparse facts in key order. Copy-on-write clones and filtering walk one
-/// contiguous allocation instead of separately allocated tree nodes.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct FactMap<K, V>(Vec<(K, V)>);
+/// A list of facts in a zone, which facts at several points may share: FROZEN, a list that nothing changes anymore,
+/// or OWNED, a list that only one `Facts` sees and changes in place. A change of a frozen list changes a copy of it.
+#[derive(Debug)]
+enum Part<'w, T> {
+    Frozen(&'w [T]),
+    Owned(ZoneVec<'w, T>),
+}
 
-impl<K, V> Default for FactMap<K, V> {
-    fn default() -> Self {
-        Self(Vec::new())
+impl<'w, T: Copy> Part<'w, T> {
+    fn new() -> Self {
+        Part::Frozen(&[])
+    }
+
+    fn as_slice(&self) -> &[T] {
+        match self {
+            Part::Frozen(values) => values,
+            Part::Owned(values) => values,
+        }
+    }
+
+    /// The list, to change it: a copy in `zone` if it is frozen.
+    fn make_mut(&mut self, zone: &'w Zone) -> &mut ZoneVec<'w, T> {
+        if let Part::Frozen(values) = *self {
+            *self = Part::Owned(ZoneVec::from_slice_in(values, zone));
+        }
+        match self {
+            Part::Owned(values) => values,
+            Part::Frozen(_) => unreachable!("the list was copied"),
+        }
+    }
+
+    /// Freezes the list, and returns another handle of it.
+    fn share(&mut self) -> Self {
+        let values: &'w [T] = match core::mem::replace(self, Part::new()) {
+            Part::Frozen(values) => values,
+            Part::Owned(values) => values.into_slice(),
+        };
+        *self = Part::Frozen(values);
+        Part::Frozen(values)
+    }
+
+    /// Whether both are handles of one frozen list. Owned lists are never the same as another.
+    fn is_same(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Part::Frozen(values), Part::Frozen(other)) => core::ptr::eq(*values, *other),
+            _ => false,
+        }
+    }
+
+    fn take(&mut self) -> Self {
+        core::mem::replace(self, Part::new())
+    }
+
+    fn clear(&mut self) {
+        match self {
+            Part::Owned(values) => values.clear(),
+            Part::Frozen(_) => *self = Part::new(),
+        }
+    }
+
+    /// A copy of the list in the zone of `moved`, with `convert` applied to each value. A frozen list that was moved
+    /// before is not copied again: its copy is in `moved`, so the lists that facts share stay shared.
+    fn move_to<'n, U: Copy>(&self, moved: &mut MovedLists<'n, U>, convert: impl FnMut(&T) -> U) -> Part<'n, U> {
+        match self {
+            Part::Frozen(values) => Part::Frozen(moved.copy(values, convert)),
+            Part::Owned(values) => Part::Owned(ZoneVec::from_iter_in(values.iter().map(convert), moved.zone)),
+        }
+    }
+
+    /// `move_to()` of a list whose values stay as they are, which copies them in one piece.
+    fn move_copied<'n>(&self, moved: &mut MovedLists<'n, T>) -> Part<'n, T> {
+        match self {
+            Part::Frozen(values) => Part::Frozen(moved.copy_as_is(values)),
+            Part::Owned(values) => Part::Owned(ZoneVec::from_slice_in(values, moved.zone)),
+        }
     }
 }
 
-impl<K: Ord, V> FactMap<K, V> {
+/// The copies of the frozen lists of one type that a move of facts made, by the address and the length of each list
+/// they copy.
+struct MovedLists<'n, U> {
+    zone: &'n Zone,
+    copies: ZoneMap<'n, (usize, usize), &'n [U]>,
+}
+
+impl<'n, U: Copy> MovedLists<'n, U> {
+    fn new_in(zone: &'n Zone) -> Self {
+        Self {
+            zone,
+            copies: ZoneMap::new_in(zone),
+        }
+    }
+
+    /// The copy of `values` in the zone, with `convert` applied to each value: the one made before, if any.
+    fn copy<T>(&mut self, values: &[T], convert: impl FnMut(&T) -> U) -> &'n [U] {
+        if values.is_empty() {
+            return &[];
+        }
+        let key = (values.as_ptr() as usize, values.len());
+        if let Some(copy) = self.copies.get(&key) {
+            return copy;
+        }
+        let copy: &'n [U] = self.zone.alloc_slice_from_iter(values.iter().map(convert));
+        self.copies.insert(key, copy);
+        copy
+    }
+
+    /// `copy()` of values that stay as they are.
+    fn copy_as_is(&mut self, values: &[U]) -> &'n [U] {
+        if values.is_empty() {
+            return &[];
+        }
+        let key = (values.as_ptr() as usize, values.len());
+        if let Some(copy) = self.copies.get(&key) {
+            return copy;
+        }
+        let copy: &'n [U] = self.zone.alloc_slice_copy(values);
+        self.copies.insert(key, copy);
+        copy
+    }
+}
+
+/// What a move of facts to another zone copied so far, so that the copies of the lists that the facts share are shared
+/// too (see `Facts::move_to()`).
+pub(super) struct Moved<'n> {
+    zone: &'n Zone,
+    kinds: MovedLists<'n, (NodeId, Kinds)>,
+    checked_values: MovedLists<'n, (NodeId, u64)>,
+    elements: MovedLists<'n, (NodeId, ElementsKind)>,
+    shapes: MovedLists<'n, (NodeId, &'n [ShapeCheck])>,
+    shape_lists: MovedLists<'n, ShapeCheck>,
+    nodes: MovedLists<'n, NodeId>,
+    cells: MovedLists<'n, CellId>,
+    contents: MovedLists<'n, (Location, NodeId)>,
+    refinements: MovedLists<'n, (NodeId, NodeId)>,
+    branch_outcomes: MovedLists<'n, (BranchKey, bool)>,
+}
+
+impl<'n> Moved<'n> {
+    /// Nothing moved yet, to `zone`, which also holds what this keeps.
+    pub fn new_in(zone: &'n Zone) -> Self {
+        Self {
+            zone,
+            kinds: MovedLists::new_in(zone),
+            checked_values: MovedLists::new_in(zone),
+            elements: MovedLists::new_in(zone),
+            shapes: MovedLists::new_in(zone),
+            shape_lists: MovedLists::new_in(zone),
+            nodes: MovedLists::new_in(zone),
+            cells: MovedLists::new_in(zone),
+            contents: MovedLists::new_in(zone),
+            refinements: MovedLists::new_in(zone),
+            branch_outcomes: MovedLists::new_in(zone),
+        }
+    }
+}
+
+/// Sparse facts in key order. Copies and filtering walk one contiguous list
+/// instead of separately allocated tree nodes.
+#[derive(Debug)]
+struct FactMap<'w, K, V>(Part<'w, (K, V)>);
+
+impl<'w, K: Ord + Copy, V: Copy> FactMap<'w, K, V> {
+    fn new() -> Self {
+        Self(Part::new())
+    }
+
+    fn as_slice(&self) -> &[(K, V)] {
+        self.0.as_slice()
+    }
+
+    fn find(&self, key: &K) -> Result<usize, usize> {
+        self.as_slice().binary_search_by(|(known, _)| known.cmp(key))
+    }
+
     fn get(&self, key: &K) -> Option<&V> {
-        self.0
-            .binary_search_by(|(known, _)| known.cmp(key))
-            .ok()
-            .map(|index| &self.0[index].1)
+        self.find(key).ok().map(|index| &self.as_slice()[index].1)
     }
 
     fn contains_key(&self, key: &K) -> bool {
         self.get(key).is_some()
     }
 
-    fn insert(&mut self, key: K, value: V) {
+    fn insert(&mut self, zone: &'w Zone, key: K, value: V) {
+        let entries = self.0.make_mut(zone);
         // Definitions usually arrive in increasing node order.
-        if self.0.last().is_none_or(|(last, _)| *last < key) {
-            self.0.push((key, value));
+        if entries.last().is_none_or(|(last, _)| *last < key) {
+            entries.push((key, value));
             return;
         }
-        match self.0.binary_search_by(|(known, _)| known.cmp(&key)) {
-            Ok(index) => self.0[index].1 = value,
-            Err(index) => self.0.insert(index, (key, value)),
+        match entries.binary_search_by(|(known, _)| known.cmp(&key)) {
+            Ok(index) => entries[index].1 = value,
+            Err(index) => entries.insert(index, (key, value)),
         }
     }
 
-    fn remove(&mut self, key: &K) {
-        if let Ok(index) = self.0.binary_search_by(|(known, _)| known.cmp(key)) {
-            self.0.remove(index);
+    fn remove(&mut self, zone: &'w Zone, key: &K) {
+        if let Ok(index) = self.find(key) {
+            self.0.make_mut(zone).remove(index);
         }
     }
 
     fn keys(&self) -> impl Iterator<Item = &K> {
-        self.0.iter().map(|(key, _)| key)
+        self.as_slice().iter().map(|(key, _)| key)
     }
 
-    fn retain(&mut self, mut keep: impl FnMut(&K, &mut V) -> bool) {
-        self.0.retain_mut(|(key, value)| keep(key, value));
+    fn retain(&mut self, zone: &'w Zone, mut keep: impl FnMut(&K, &mut V) -> bool) {
+        self.0.make_mut(zone).retain_mut(|(key, value)| keep(key, value));
     }
 
     fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.as_slice().is_empty()
     }
 
     fn clear(&mut self) {
         self.0.clear();
+    }
+
+    fn share(&mut self) -> Self {
+        Self(self.0.share())
+    }
+}
+
+impl<K: PartialEq + Copy, V: PartialEq + Copy> PartialEq for FactMap<'_, K, V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.is_same(&other.0) || self.0.as_slice() == other.0.as_slice()
+    }
+}
+
+/// A sparse set of facts in key order (see `FactMap`).
+#[derive(Debug)]
+struct FactSet<'w, K>(Part<'w, K>);
+
+impl<'w, K: Ord + Copy> FactSet<'w, K> {
+    fn new() -> Self {
+        Self(Part::new())
+    }
+
+    fn as_slice(&self) -> &[K] {
+        self.0.as_slice()
+    }
+
+    fn contains(&self, key: &K) -> bool {
+        self.as_slice().binary_search(key).is_ok()
+    }
+
+    fn insert(&mut self, zone: &'w Zone, key: K) {
+        if let Err(index) = self.as_slice().binary_search(&key) {
+            self.0.make_mut(zone).insert(index, key);
+        }
+    }
+
+    fn remove(&mut self, zone: &'w Zone, key: &K) {
+        if let Ok(index) = self.as_slice().binary_search(key) {
+            self.0.make_mut(zone).remove(index);
+        }
+    }
+
+    /// The elements, in key order.
+    fn iter(&self) -> impl Iterator<Item = &K> {
+        self.as_slice().iter()
+    }
+
+    fn retain(&mut self, zone: &'w Zone, keep: impl FnMut(&K) -> bool) {
+        self.0.make_mut(zone).retain(keep);
+    }
+
+    fn is_empty(&self) -> bool {
+        self.as_slice().is_empty()
+    }
+
+    fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    fn take(&mut self) -> Self {
+        Self(self.0.take())
+    }
+
+    fn share(&mut self) -> Self {
+        Self(self.0.share())
+    }
+}
+
+impl<K: PartialEq + Copy> PartialEq for FactSet<'_, K> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.is_same(&other.0) || self.0.as_slice() == other.0.as_slice()
     }
 }
 
@@ -293,32 +526,35 @@ impl Location {
     }
 }
 
-/// What is known at one point of the program.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(super) struct Facts {
+/// What is known at one point of the program. Its lists are in a work zone, and the facts at other points may share
+/// them (see `share()`).
+#[derive(Debug)]
+pub(super) struct Facts<'w> {
+    /// Where changed lists go.
+    zone: &'w Zone,
     /// The kinds values may be (immutable), where that is not every kind.
-    kinds: Rc<FactMap<NodeId, Kinds>>,
+    kinds: FactMap<'w, NodeId, Kinds>,
     /// Values known to have passed a check against a constant, with that
     /// constant (immutable).
-    checked_values: Rc<BTreeSet<(NodeId, u64)>>,
+    checked_values: FactSet<'w, (NodeId, u64)>,
     /// Objects known to have elements of a kind (killed by writes of element
     /// counts, except for typed arrays, which keep their kind).
-    elements: Rc<FactMap<NodeId, ElementsKind>>,
+    elements: FactMap<'w, NodeId, ElementsKind>,
     /// For objects, the shapes they may have (killed by writes of shapes,
     /// except for stable shapes, which are dependency facts).
-    shapes: Rc<FactMap<NodeId, Vec<ShapeCheck>>>,
+    shapes: FactMap<'w, NodeId, &'w [ShapeCheck]>,
     /// Objects whose shapes are known from before other code ran, which
     /// still hold only if the code is still valid (see `Op::AssumeValid`).
-    unvalidated: Rc<BTreeSet<NodeId>>,
+    unvalidated: FactSet<'w, NodeId>,
     /// Prototype chains known to be valid (killed by writes of shapes).
-    valid_prototype_chains: Rc<BTreeSet<CellId>>,
+    valid_prototype_chains: FactSet<'w, CellId>,
     /// The known contents of locations, killed by writes of their
     /// locations (see `Location::locations()`).
-    contents: Rc<FactMap<Location, NodeId>>,
+    contents: FactMap<'w, Location, NodeId>,
     /// Objects compiled code allocated that nothing but accesses of their
     /// properties has seen yet, so nothing else that runs can change their
     /// shapes or properties.
-    unexposed: Rc<BTreeSet<NodeId>>,
+    unexposed: FactSet<'w, NodeId>,
     /// Whether the code is known to be valid (see `Op::AssumeValid`): no
     /// other code ran since an `AssumeValid`.
     code_valid: bool,
@@ -326,13 +562,128 @@ pub(super) struct Facts {
     /// every path here, or the value itself where it is what it is known to
     /// be by its definition: what replaces a check that is known to pass,
     /// so that the nodes using it stay behind the check that passed.
-    refinements: Rc<FactMap<NodeId, NodeId>>,
+    refinements: FactMap<'w, NodeId, NodeId>,
     /// Whether branches on conditions of the values they test alone (see
     /// `BranchKey`) held, where they went the same way on every path here.
-    branch_outcomes: Rc<FactMap<BranchKey, bool>>,
+    branch_outcomes: FactMap<'w, BranchKey, bool>,
 }
 
-impl Facts {
+impl PartialEq for Facts<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let Facts {
+            zone: _,
+            kinds,
+            checked_values,
+            elements,
+            shapes,
+            unvalidated,
+            valid_prototype_chains,
+            contents,
+            unexposed,
+            code_valid,
+            refinements,
+            branch_outcomes,
+        } = self;
+        *kinds == other.kinds
+            && *checked_values == other.checked_values
+            && *elements == other.elements
+            && *shapes == other.shapes
+            && *unvalidated == other.unvalidated
+            && *valid_prototype_chains == other.valid_prototype_chains
+            && *contents == other.contents
+            && *unexposed == other.unexposed
+            && *code_valid == other.code_valid
+            && *refinements == other.refinements
+            && *branch_outcomes == other.branch_outcomes
+    }
+}
+
+impl<'w> Facts<'w> {
+    /// Knowing nothing, with the lists that change in `zone`.
+    pub fn new_in(zone: &'w Zone) -> Self {
+        Self {
+            zone,
+            kinds: FactMap::new(),
+            checked_values: FactSet::new(),
+            elements: FactMap::new(),
+            shapes: FactMap::new(),
+            unvalidated: FactSet::new(),
+            valid_prototype_chains: FactSet::new(),
+            contents: FactMap::new(),
+            unexposed: FactSet::new(),
+            code_valid: false,
+            refinements: FactMap::new(),
+            branch_outcomes: FactMap::new(),
+        }
+    }
+
+    /// The same facts, for another point. Both share the lists they have now, which a change of either copies first.
+    pub fn share(&mut self) -> Self {
+        let Facts {
+            zone,
+            kinds,
+            checked_values,
+            elements,
+            shapes,
+            unvalidated,
+            valid_prototype_chains,
+            contents,
+            unexposed,
+            code_valid,
+            refinements,
+            branch_outcomes,
+        } = self;
+        Self {
+            zone,
+            kinds: kinds.share(),
+            checked_values: checked_values.share(),
+            elements: elements.share(),
+            shapes: shapes.share(),
+            unvalidated: unvalidated.share(),
+            valid_prototype_chains: valid_prototype_chains.share(),
+            contents: contents.share(),
+            unexposed: unexposed.share(),
+            code_valid: *code_valid,
+            refinements: refinements.share(),
+            branch_outcomes: branch_outcomes.share(),
+        }
+    }
+
+    /// The same facts, in the zone of `moved`, with lists that are shared where these are.
+    pub fn move_to<'n>(&self, moved: &mut Moved<'n>) -> Facts<'n> {
+        let Facts {
+            zone: _,
+            kinds,
+            checked_values,
+            elements,
+            shapes,
+            unvalidated,
+            valid_prototype_chains,
+            contents,
+            unexposed,
+            code_valid,
+            refinements,
+            branch_outcomes,
+        } = self;
+        let shape_lists = &mut moved.shape_lists;
+        Facts {
+            zone: moved.zone,
+            kinds: FactMap(kinds.0.move_copied(&mut moved.kinds)),
+            checked_values: FactSet(checked_values.0.move_copied(&mut moved.checked_values)),
+            elements: FactMap(elements.0.move_copied(&mut moved.elements)),
+            shapes: FactMap(shapes.0.move_to(&mut moved.shapes, |(value, shapes)| {
+                (*value, shape_lists.copy(shapes, |shape| *shape))
+            })),
+            unvalidated: FactSet(unvalidated.0.move_copied(&mut moved.nodes)),
+            valid_prototype_chains: FactSet(valid_prototype_chains.0.move_copied(&mut moved.cells)),
+            contents: FactMap(contents.0.move_copied(&mut moved.contents)),
+            unexposed: FactSet(unexposed.0.move_copied(&mut moved.nodes)),
+            code_valid: *code_valid,
+            refinements: FactMap(refinements.0.move_copied(&mut moved.refinements)),
+            branch_outcomes: FactMap(branch_outcomes.0.move_copied(&mut moved.branch_outcomes)),
+        }
+    }
+
     pub fn value_kind(&self, value: NodeId) -> Option<ValueKind> {
         self.kinds.get(&value)?.kind()
     }
@@ -363,9 +714,9 @@ impl Facts {
             return;
         }
         if narrowed == Kinds::ALL {
-            Rc::make_mut(&mut self.kinds).remove(&value);
+            self.kinds.remove(self.zone, &value);
         } else {
-            Rc::make_mut(&mut self.kinds).insert(value, narrowed);
+            self.kinds.insert(self.zone, value, narrowed);
         }
     }
 
@@ -384,7 +735,7 @@ impl Facts {
     /// Records whether a branch like the one `key` names held.
     pub fn set_branch_outcome(&mut self, key: BranchKey, holds: bool) {
         if self.branch_outcome(&key) != Some(holds) {
-            Rc::make_mut(&mut self.branch_outcomes).insert(key, holds);
+            self.branch_outcomes.insert(self.zone, key, holds);
         }
     }
 
@@ -395,7 +746,14 @@ impl Facts {
 
     /// Records that the phi `phi` is of a kind one of its inputs is, given
     /// as each input with the facts where it comes from.
-    pub fn set_phi_kinds<'a>(&mut self, graph: &Graph, phi: NodeId, inputs: impl Iterator<Item = (&'a Facts, NodeId)>) {
+    pub fn set_phi_kinds<'a>(
+        &mut self,
+        graph: &Graph,
+        phi: NodeId,
+        inputs: impl Iterator<Item = (&'a Facts<'w>, NodeId)>,
+    ) where
+        'w: 'a,
+    {
         let kinds = inputs.fold(Kinds(0), |kinds, (facts, input)| {
             kinds.union(facts.kinds_in(graph, input))
         });
@@ -456,9 +814,7 @@ impl Facts {
     }
 
     pub fn set_checked_value(&mut self, value: NodeId, expected: u64) {
-        if !self.is_checked_value(value, expected) {
-            Rc::make_mut(&mut self.checked_values).insert((value, expected));
-        }
+        self.checked_values.insert(self.zone, (value, expected));
     }
 
     pub fn elements_kind(&self, value: NodeId) -> Option<ElementsKind> {
@@ -467,12 +823,12 @@ impl Facts {
 
     pub fn set_elements_kind(&mut self, value: NodeId, kind: ElementsKind) {
         if self.elements_kind(value) != Some(kind) {
-            Rc::make_mut(&mut self.elements).insert(value, kind);
+            self.elements.insert(self.zone, value, kind);
         }
     }
 
-    pub fn shapes(&self, value: NodeId) -> Option<&[ShapeCheck]> {
-        self.shapes.get(&value).map(Vec::as_slice)
+    pub fn shapes(&self, value: NodeId) -> Option<&'w [ShapeCheck]> {
+        self.shapes.get(&value).copied()
     }
 
     /// Whether what is known about the shapes of `value` holds only if the
@@ -482,22 +838,21 @@ impl Facts {
     }
 
     /// The code is known to be valid: what is known about shapes holds.
-    /// Returns the shapes from `stable_shapes` that relies on. (A merge with
-    /// a path that ran no other code since it checked them can bring other
-    /// shapes, which need nothing.)
-    pub fn validate(&mut self, stable_shapes: &[CellId]) -> Vec<CellId> {
+    /// Adds the shapes from `stable_shapes` that relies on to `relied`, those
+    /// it does not hold yet. (A merge with a path that ran no other code
+    /// since it checked them can bring other shapes, which need nothing.)
+    pub fn validate(&mut self, stable_shapes: &[CellId], relied: &mut ZoneVec<'_, CellId>) {
         if self.unvalidated.is_empty() {
-            return Vec::new();
+            return;
         }
-        let mut shapes = Vec::new();
-        for value in std::mem::take(Rc::make_mut(&mut self.unvalidated)) {
-            for check in self.shapes.get(&value).into_iter().flatten() {
-                if stable_shapes.contains(&check.shape) && !shapes.contains(&check.shape) {
-                    shapes.push(check.shape);
+        let unvalidated = self.unvalidated.take();
+        for value in unvalidated.iter() {
+            for check in self.shapes(*value).into_iter().flatten() {
+                if stable_shapes.contains(&check.shape) && !relied.contains(&check.shape) {
+                    relied.push(check.shape);
                 }
             }
         }
-        shapes
     }
 
     /// Records that `value` has one of `shapes`, narrowing what was known
@@ -505,16 +860,18 @@ impl Facts {
     pub fn set_shapes(&mut self, value: NodeId, shapes: &[ShapeCheck]) {
         let unvalidated = self.unvalidated.contains(&value);
         if unvalidated {
-            Rc::make_mut(&mut self.unvalidated).remove(&value);
+            self.unvalidated.remove(self.zone, &value);
         }
         if self.shapes(value) == Some(shapes) {
             return;
         }
-        let narrowed = match self.shapes.get(&value) {
-            Some(known) if !unvalidated => shapes.iter().filter(|shape| known.contains(shape)).copied().collect(),
-            _ => shapes.to_vec(),
+        let narrowed: &'w [ShapeCheck] = match self.shapes(value) {
+            Some(known) if !unvalidated => self
+                .zone
+                .alloc_slice_from_iter(shapes.iter().filter(|shape| known.contains(shape)).copied()),
+            _ => self.zone.alloc_slice_copy(shapes),
         };
-        Rc::make_mut(&mut self.shapes).insert(value, narrowed);
+        self.shapes.insert(self.zone, value, narrowed);
     }
 
     pub fn is_prototype_chain_valid(&self, validity: CellId) -> bool {
@@ -522,9 +879,7 @@ impl Facts {
     }
 
     pub fn set_prototype_chain_valid(&mut self, validity: CellId) {
-        if !self.is_prototype_chain_valid(validity) {
-            Rc::make_mut(&mut self.valid_prototype_chains).insert(validity);
-        }
+        self.valid_prototype_chains.insert(self.zone, validity);
     }
 
     pub fn contents(&self, location: Location) -> Option<NodeId> {
@@ -533,7 +888,7 @@ impl Facts {
 
     pub fn set_contents(&mut self, location: Location, value: NodeId) {
         if self.contents(location) != Some(value) {
-            Rc::make_mut(&mut self.contents).insert(location, value);
+            self.contents.insert(self.zone, location, value);
         }
     }
 
@@ -543,11 +898,12 @@ impl Facts {
         if self.shapes.is_empty() {
             return;
         }
-        match self.shapes.get(&object).cloned() {
+        match self.shapes(object) {
             Some(known) => {
-                Rc::make_mut(&mut self.shapes).retain(|_, shapes| !shapes.iter().any(|shape| known.contains(shape)));
+                self.shapes
+                    .retain(self.zone, |_, shapes| !shapes.iter().any(|shape| known.contains(shape)));
             }
-            None => Rc::make_mut(&mut self.shapes).clear(),
+            None => self.shapes.clear(),
         }
     }
 
@@ -560,8 +916,10 @@ impl Facts {
         {
             return;
         }
-        Rc::make_mut(&mut self.contents)
-            .retain(|location, _| !matches!(location, Location::Named { offset: known, .. } if *known == offset));
+        self.contents.retain(
+            self.zone,
+            |location, _| !matches!(location, Location::Named { offset: known, .. } if *known == offset),
+        );
     }
 
     /// A store to binding `index` of some environment, which may be any
@@ -570,7 +928,7 @@ impl Facts {
         if !self.contents.keys().any(|location| matches!(location, Location::GlobalBinding { index: known, .. } | Location::Binding { index: known, .. } if *known == index)) {
             return;
         }
-        Rc::make_mut(&mut self.contents).retain(|location, _| match location {
+        self.contents.retain(self.zone, |location, _| match location {
             Location::GlobalBinding { index: known, .. } | Location::Binding { index: known, .. } => *known != index,
             _ => true,
         });
@@ -581,16 +939,12 @@ impl Facts {
     }
 
     pub fn set_unexposed(&mut self, object: NodeId) {
-        if !self.unexposed.contains(&object) {
-            Rc::make_mut(&mut self.unexposed).insert(object);
-        }
+        self.unexposed.insert(self.zone, object);
     }
 
     /// Something other than accesses of its properties sees `object`.
     pub fn expose(&mut self, object: NodeId) {
-        if self.unexposed.contains(&object) {
-            Rc::make_mut(&mut self.unexposed).remove(&object);
-        }
+        self.unexposed.remove(self.zone, &object);
     }
 
     pub fn refinement(&self, value: NodeId) -> Option<NodeId> {
@@ -599,16 +953,14 @@ impl Facts {
 
     pub fn set_refinement(&mut self, value: NodeId, refinement: NodeId) {
         if self.refinement(value) != Some(refinement) {
-            Rc::make_mut(&mut self.refinements).insert(value, refinement);
+            self.refinements.insert(self.zone, value, refinement);
         }
     }
 
     /// A branch establishes facts about `value`, which only the branch's
     /// refinement of it can stand for.
     pub fn forget_refinement(&mut self, value: NodeId) {
-        if self.refinements.contains_key(&value) {
-            Rc::make_mut(&mut self.refinements).remove(&value);
-        }
+        self.refinements.remove(self.zone, &value);
     }
 
     pub fn is_code_valid(&self) -> bool {
@@ -631,55 +983,63 @@ impl Facts {
         if writes.is_empty() {
             return;
         }
+        let zone = self.zone;
         let unexposed = &self.unexposed;
         let killed = |location: &Location| {
             location.locations().intersects(writes)
                 && !location.object().is_some_and(|object| unexposed.contains(&object))
         };
         if self.contents.keys().any(killed) {
-            Rc::make_mut(&mut self.contents).retain(|location, _| !killed(location));
+            self.contents.retain(zone, |location, _| !killed(location));
         }
         if writes.intersects(Locations::ELEMENT_COUNTS) && !self.elements.is_empty() {
-            Rc::make_mut(&mut self.elements).retain(|_, kind| matches!(kind, ElementsKind::TypedArray(_)));
+            self.elements
+                .retain(zone, |_, kind| matches!(kind, ElementsKind::TypedArray(_)));
         }
         if writes.intersects(Locations::SHAPES) && !self.shapes.is_empty() {
-            let mut kept_stable = Vec::new();
-            Rc::make_mut(&mut self.shapes).retain(|value, shapes| {
-                if unexposed.contains(value) {
-                    return true;
-                }
-                let stable = shapes
+            let is_stable = |shapes: &[ShapeCheck]| {
+                shapes
                     .iter()
-                    .all(|check| check.dictionary_generation.is_none() && stable_shapes.contains(&check.shape));
-                if stable {
-                    kept_stable.push(*value);
+                    .all(|check| check.dictionary_generation.is_none() && stable_shapes.contains(&check.shape))
+            };
+            let mut killed_any = false;
+            for (value, shapes) in self.shapes.as_slice() {
+                if unexposed.contains(value) {
+                    continue;
                 }
-                stable
-            });
-            if !kept_stable.is_empty() {
-                Rc::make_mut(&mut self.unvalidated).extend(kept_stable);
+                if is_stable(shapes) {
+                    self.unvalidated.insert(zone, *value);
+                } else {
+                    killed_any = true;
+                }
+            }
+            if killed_any {
+                self.shapes
+                    .retain(zone, |value, shapes| unexposed.contains(value) || is_stable(shapes));
             }
         }
         if writes.intersects(Locations::SHAPES) {
             let shapes = &self.shapes;
             if self.unvalidated.iter().any(|value| !shapes.contains_key(value)) {
-                Rc::make_mut(&mut self.unvalidated).retain(|value| shapes.contains_key(value));
+                self.unvalidated.retain(zone, |value| shapes.contains_key(value));
             }
         }
         if writes.intersects(Locations::SHAPES) && !self.valid_prototype_chains.is_empty() {
-            Rc::make_mut(&mut self.valid_prototype_chains).clear();
+            self.valid_prototype_chains.clear();
         }
     }
 
-    /// What holds at a merge of paths where `facts` hold.
-    pub fn merge(mut facts: impl Iterator<Item = Facts>) -> Facts {
+    /// What holds at a merge of paths where `facts` hold. Facts that know
+    /// nothing, in `zone`, if there are none.
+    pub fn merge(zone: &'w Zone, mut facts: impl Iterator<Item = Facts<'w>>) -> Facts<'w> {
         let Some(first) = facts.next() else {
-            return Facts::default();
+            return Facts::new_in(zone);
         };
         let mut merged = first;
+        let zone = merged.zone;
         for other in facts {
-            narrow_unless_shared(&mut merged.kinds, &other.kinds, |kinds| {
-                kinds.retain(|value, kinds| {
+            narrow_unless_shared(&mut merged.kinds.0, &other.kinds.0, zone, |kinds| {
+                kinds.retain_mut(|(value, kinds)| {
                     let Some(other) = other.kinds.get(value) else {
                         return false;
                     };
@@ -687,44 +1047,56 @@ impl Facts {
                     true
                 });
             });
-            narrow_unless_shared(&mut merged.checked_values, &other.checked_values, |values| {
+            narrow_unless_shared(&mut merged.checked_values.0, &other.checked_values.0, zone, |values| {
                 values.retain(|value| other.checked_values.contains(value));
             });
-            narrow_unless_shared(&mut merged.elements, &other.elements, |elements| {
-                elements.retain(|value, kind| other.elements.get(value) == Some(kind));
+            narrow_unless_shared(&mut merged.elements.0, &other.elements.0, zone, |elements| {
+                elements.retain(|(value, kind)| other.elements.get(value) == Some(kind));
             });
             narrow_unless_shared(
-                &mut merged.valid_prototype_chains,
-                &other.valid_prototype_chains,
+                &mut merged.valid_prototype_chains.0,
+                &other.valid_prototype_chains.0,
+                zone,
                 |chains| {
                     chains.retain(|cell| other.valid_prototype_chains.contains(cell));
                 },
             );
-            narrow_unless_shared(&mut merged.contents, &other.contents, |contents| {
-                contents.retain(|location, value| other.contents.get(location) == Some(value));
+            narrow_unless_shared(&mut merged.contents.0, &other.contents.0, zone, |contents| {
+                contents.retain(|(location, value)| other.contents.get(location) == Some(value));
             });
-            narrow_unless_shared(&mut merged.unexposed, &other.unexposed, |unexposed| {
+            narrow_unless_shared(&mut merged.unexposed.0, &other.unexposed.0, zone, |unexposed| {
                 unexposed.retain(|object| other.unexposed.contains(object));
             });
-            narrow_unless_shared(&mut merged.unvalidated, &other.unvalidated, |unvalidated| {
-                unvalidated.extend(other.unvalidated.iter().copied());
-            });
+            if !merged.unvalidated.0.is_same(&other.unvalidated.0) {
+                for value in other.unvalidated.iter() {
+                    merged.unvalidated.insert(zone, *value);
+                }
+            }
             merged.code_valid &= other.code_valid;
-            narrow_unless_shared(&mut merged.branch_outcomes, &other.branch_outcomes, |outcomes| {
-                outcomes.retain(|key, holds| other.branch_outcomes.get(key) == Some(holds));
+            narrow_unless_shared(
+                &mut merged.branch_outcomes.0,
+                &other.branch_outcomes.0,
+                zone,
+                |outcomes| {
+                    outcomes.retain(|(key, holds)| other.branch_outcomes.get(key) == Some(holds));
+                },
+            );
+            narrow_unless_shared(&mut merged.refinements.0, &other.refinements.0, zone, |refinements| {
+                refinements.retain(|(key, value)| other.refinements.get(key) == Some(value));
             });
-            narrow_unless_shared(&mut merged.refinements, &other.refinements, |refinements| {
-                refinements.retain(|key, value| other.refinements.get(key) == Some(value));
-            });
-            narrow_unless_shared(&mut merged.shapes, &other.shapes, |shapes| {
-                shapes.retain(|value, shapes| {
+            narrow_unless_shared(&mut merged.shapes.0, &other.shapes.0, zone, |shapes| {
+                shapes.retain_mut(|(value, shapes)| {
                     let Some(other_shapes) = other.shapes.get(value) else {
                         return false;
                     };
-                    for shape in other_shapes {
-                        if !shapes.contains(shape) {
-                            shapes.push(*shape);
+                    if other_shapes.iter().any(|shape| !shapes.contains(shape)) {
+                        let mut united = ZoneVec::from_slice_in(shapes, zone);
+                        for shape in *other_shapes {
+                            if !united.contains(shape) {
+                                united.push(*shape);
+                            }
                         }
+                        *shapes = united.into_slice();
                     }
                     true
                 });
@@ -732,7 +1104,7 @@ impl Facts {
         }
         let shapes = &merged.shapes;
         if merged.unvalidated.iter().any(|value| !shapes.contains_key(value)) {
-            Rc::make_mut(&mut merged.unvalidated).retain(|value| shapes.contains_key(value));
+            merged.unvalidated.retain(zone, |value| shapes.contains_key(value));
         }
         merged
     }
@@ -740,9 +1112,14 @@ impl Facts {
 
 /// Merges `other` into the facts `merged` with `merge`, unless both are the
 /// same facts, which then hold on both paths as they are.
-fn narrow_unless_shared<T: Clone>(merged: &mut Rc<T>, other: &Rc<T>, merge: impl FnOnce(&mut T)) {
-    if !Rc::ptr_eq(merged, other) {
-        merge(Rc::make_mut(merged));
+fn narrow_unless_shared<'w, T: Copy>(
+    merged: &mut Part<'w, T>,
+    other: &Part<'w, T>,
+    zone: &'w Zone,
+    merge: impl FnOnce(&mut ZoneVec<'w, T>),
+) {
+    if !merged.is_same(other) {
+        merge(merged.make_mut(zone));
     }
 }
 
@@ -773,23 +1150,32 @@ mod tests {
         Location::Named { object, offset }
     }
 
+    fn facts() -> Facts<'static> {
+        Facts::new_in(crate::test_zone())
+    }
+
+    /// Where the elements of a part are.
+    fn storage<T: Copy>(part: &Part<'_, T>) -> *const T {
+        part.as_slice().as_ptr()
+    }
+
     #[test]
     fn merges_intersect_knowledge_and_union_shape_sets() {
         let (a, b, c) = (NodeId(1), NodeId(2), NodeId(3));
-        let mut left = Facts::default();
+        let mut left = facts();
         left.set_object(a);
         left.set_object(b);
         left.set_value_kind(c, ValueKind::Int32);
         left.set_shapes(a, &[shape(10)]);
         left.set_shapes(b, &[shape(20)]);
         left.set_contents(named(a, 0), c);
-        let mut right = Facts::default();
+        let mut right = facts();
         right.set_object(a);
         right.set_value_kind(c, ValueKind::Double);
         right.set_shapes(a, &[shape(11)]);
         right.set_contents(named(a, 0), c);
 
-        let merged = Facts::merge([left, right].into_iter());
+        let merged = Facts::merge(crate::test_zone(), [left, right].into_iter());
         assert!(merged.is_object(a));
         assert!(!merged.is_object(b));
         assert_eq!(merged.value_kind(c), Some(ValueKind::Number));
@@ -800,57 +1186,62 @@ mod tests {
 
     #[test]
     fn fact_maps_keep_order_through_updates_and_filtering() {
-        let mut facts = FactMap::default();
+        let zone = crate::test_zone();
+        let mut facts = FactMap::new();
         for (key, value) in [(3, 30), (1, 10), (2, 20), (3, 31), (4, 40)] {
-            facts.insert(key, value);
+            facts.insert(zone, key, value);
         }
-        assert_eq!(facts.0, [(1, 10), (2, 20), (3, 31), (4, 40)]);
-        facts.remove(&2);
-        facts.remove(&9);
-        facts.retain(|key, value| {
+        assert_eq!(facts.as_slice(), [(1, 10), (2, 20), (3, 31), (4, 40)]);
+        facts.remove(zone, &2);
+        facts.remove(zone, &9);
+        facts.retain(zone, |key, value| {
             *value += 1;
             *key != 3
         });
-        assert_eq!(facts.0, [(1, 11), (4, 41)]);
+        assert_eq!(facts.as_slice(), [(1, 11), (4, 41)]);
         assert_eq!(facts.get(&4), Some(&41));
         assert_eq!(facts.get(&2), None);
-        assert_eq!(facts.clone(), facts);
+        assert_eq!(facts.share(), facts);
     }
 
     #[test]
     fn unchanged_facts_keep_shared_storage() {
         let value = NodeId(1);
-        let mut facts = Facts::default();
+        let mut facts = facts();
         facts.set_object(value);
         facts.set_shapes(value, &[shape(1)]);
         facts.set_contents(named(value, 0), value);
-        let shared = facts.clone();
+        let shared = facts.share();
         facts.set_object(value);
         facts.set_shapes(value, &[shape(1)]);
         facts.set_contents(named(value, 0), value);
-        assert!(Rc::ptr_eq(&facts.kinds, &shared.kinds));
-        assert!(Rc::ptr_eq(&facts.shapes, &shared.shapes));
-        assert!(Rc::ptr_eq(&facts.contents, &shared.contents));
+        assert!(facts.kinds.0.is_same(&shared.kinds.0));
+        assert!(facts.shapes.0.is_same(&shared.shapes.0));
+        assert!(facts.contents.0.is_same(&shared.contents.0));
+        // A change copies the part, which is no longer the same.
+        facts.set_contents(named(value, 1), value);
+        assert!(!facts.contents.0.is_same(&shared.contents.0));
+        assert_eq!(shared.contents(named(value, 1)), None);
     }
 
     #[test]
     fn merging_consumes_unique_storage() {
         let value = NodeId(1);
-        let mut first = Facts::default();
+        let mut first = facts();
         first.set_object(value);
-        let storage = Rc::as_ptr(&first.kinds);
-        let mut second = Facts::default();
+        let first_storage = storage(&first.kinds.0);
+        let mut second = facts();
         second.set_object(value);
-        let merged = Facts::merge([first, second].into_iter());
-        assert_eq!(Rc::as_ptr(&merged.kinds), storage);
+        let merged = Facts::merge(crate::test_zone(), [first, second].into_iter());
+        assert_eq!(storage(&merged.kinds.0), first_storage);
         assert!(merged.is_object(value));
     }
 
     #[test]
     fn shape_writes_remove_unvalidated_values_without_shapes() {
         let value = NodeId(1);
-        let mut facts = Facts::default();
-        facts.unvalidated = Rc::new([value].into_iter().collect());
+        let mut facts = facts();
+        facts.unvalidated.insert(crate::test_zone(), value);
         let write = NodeProperties {
             writes: Locations::SHAPES,
             ..crate::ir::Op::Unreachable.properties()
@@ -862,7 +1253,7 @@ mod tests {
     #[test]
     fn narrowing_and_killing() {
         let (a, b, count) = (NodeId(1), NodeId(2), NodeId(3));
-        let mut facts = Facts::default();
+        let mut facts = facts();
         facts.set_shapes(a, &[shape(1), shape(2)]);
         facts.set_shapes(a, &[shape(2), shape(3)]);
         assert_eq!(facts.shapes(a), Some(&[shape(2)][..]));
@@ -907,7 +1298,7 @@ mod tests {
             environment: CellId(7),
             index: 0,
         };
-        let mut facts = Facts::default();
+        let mut facts = facts();
         facts.set_contents(binding(first, 0), value);
         facts.set_contents(binding(second, 1), value);
         facts.set_contents(global, value);
@@ -939,7 +1330,7 @@ mod tests {
             });
         }
         let value = NodeId(1);
-        let mut facts = Facts::default();
+        let mut facts = facts();
         assert_eq!(facts.decides(&graph, value, BranchCondition::Object), None);
         facts.set_passed(value, BranchCondition::Int32Value);
         assert_eq!(facts.decides(&graph, value, BranchCondition::Int32Value), Some(true));

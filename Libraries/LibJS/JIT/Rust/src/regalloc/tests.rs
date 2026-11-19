@@ -819,7 +819,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
     );
 
     // A frame slot that the code may write is no home.
-    let mut written = graph.clone();
+    let mut written = graph.clone_in(crate::test_zone());
     written.unwritten_slots = crate::bitset::ZoneBitSet::new_in(0, written.zone);
     assert!(verify(&written, &registers, &allocation).is_err());
 
@@ -833,7 +833,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
     assert!(verify(&graph, &registers, &broken).is_err());
 
     // A store to the slot, which nothing may do, makes it hold another value.
-    let mut stored = graph.clone();
+    let mut stored = graph.clone_in(crate::test_zone());
     let undefined = stored.add(Op::Constant(value::UNDEFINED), &[], Some(Repr::Tagged), 0);
     let store = stored.add(Op::StoreSlot { slot: a(0).raw() }, &[undefined], None, 0);
     let block = stored
@@ -1101,7 +1101,7 @@ fn make_cold(graph: &mut Graph, blocks: &[BlockId]) {
     for block in blocks {
         graph.blocks[block.index()].is_cold = true;
     }
-    crate::passes::edit::move_cold_blocks_last(graph);
+    crate::passes::edit::move_cold_blocks_last(graph, crate::test_zone());
     if let Err(errors) = crate::passes::verify::verify(graph) {
         panic!("{errors}\n{}", crate::ir::dump(graph, &test_layout()));
     }
@@ -1173,7 +1173,7 @@ fn random_structured_programs_with_cold_blocks_allocate_correctly() {
         for block in &cold {
             graph.blocks[block.index()].is_cold = true;
         }
-        crate::passes::edit::move_cold_blocks_last(&mut graph);
+        crate::passes::edit::move_cold_blocks_last(&mut graph, crate::test_zone());
         if let Err(errors) = crate::passes::verify::verify(&graph) {
             panic!("seed {seed}: {errors}\n{}", crate::ir::dump(&graph, &layout));
         }
@@ -1245,6 +1245,7 @@ fn float64_values_get_floating_point_registers() {
         true,
         &mut Dominators::new(),
         &mut crate::test_work(),
+        &mut crate::test_steps(),
     )
     .unwrap();
     let allocation = allocate_and_verify(&graph);

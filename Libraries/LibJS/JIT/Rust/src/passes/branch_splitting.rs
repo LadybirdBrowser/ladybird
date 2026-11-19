@@ -192,9 +192,9 @@ fn frame_state_sides(
                 .values
                 .iter()
                 .any(|(_, value)| phis.contains(value.index()));
-            let chain_holds = graph.frame_state_chain(frame_state)[1..].iter().any(|id| {
+            let chain_holds = graph.frame_state_chain(frame_state).skip(1).any(|id| {
                 graph
-                    .frame_state(*id)
+                    .frame_state(id)
                     .values
                     .iter()
                     .any(|(_, value)| phis.contains(value.index()))
@@ -202,8 +202,7 @@ fn frame_state_sides(
             let all_count = graph.frame_state_values(frame_state).count();
             let chain_count: usize = graph
                 .frame_state_chain(frame_state)
-                .iter()
-                .map(|id| graph.frame_state(*id).values.len())
+                .map(|id| graph.frame_state(id).values.len())
                 .sum();
             // NB: Virtual objects add values past those of the chain's frames.
             let virtual_holds = all_count != chain_count
@@ -235,7 +234,7 @@ fn renamed(renames: &[(NodeId, NodeId)], value: NodeId) -> NodeId {
 
 /// Splits one block, if any has the shape of `Split` and all uses of its
 /// phis are on one side of its branch. Returns whether it split one.
-fn split_one(graph: &mut Graph, dominators: &mut Dominators) -> Result<bool, ColumnFull> {
+fn split_one(graph: &mut Graph, dominators: &mut Dominators, step: &Zone) -> Result<bool, ColumnFull> {
     dominators.compute(graph)?;
     let dominators = &*dominators;
     for index in 0..graph.blocks.len() {
@@ -364,15 +363,22 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators) -> Result<bool, Col
         for phi in block_phis {
             graph.nodes[phi.index()].inputs.clear();
         }
-        super::edit::clean_up_control_flow(graph);
+        super::edit::clean_up_control_flow(graph, step);
         return Ok(true);
     }
     Ok(false)
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
+pub fn run(
+    graph: &mut Graph,
+    dominators: &mut Dominators,
+    _work: &Zone,
+    steps: &mut [Zone; 2],
+) -> Result<(), ColumnFull> {
+    let [step, _] = steps;
     for _ in 0..graph.blocks.len() {
-        if !split_one(graph, dominators)? {
+        // NB: Each split cleans up the control flow, with data as large as the graph, which goes when the split ends.
+        if !step.scope(|step| split_one(graph, dominators, step))? {
             break;
         }
     }

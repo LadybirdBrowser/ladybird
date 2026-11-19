@@ -55,6 +55,7 @@ pub(crate) fn build_with_layout(program: &Program, layout: FrameLayout, never_ra
         true,
         &mut Dominators::new(),
         &mut crate::test_work(),
+        &mut crate::test_steps(),
     )
     .unwrap();
     graph
@@ -69,6 +70,7 @@ pub(crate) fn optimized_graph(snapshot: &Snapshot) -> Graph<'static> {
         true,
         &mut Dominators::new(),
         &mut crate::test_work(),
+        &mut crate::test_steps(),
     )
     .unwrap();
     graph
