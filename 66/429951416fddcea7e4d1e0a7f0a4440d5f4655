@@ -1,0 +1,15 @@
+Ladybird counts the end edges of an inline box on the line where
+its last content is, when white space ends that content. In Chrome
+157.0.8103.79, Firefox 151.0, and WebKit 26.5, a span with 16px side
+padding around “aaaaaaa bbbbbbbb ” that doesn’t fit its box takes two
+lines in Chrome and Firefox and one in WebKit, whose line breaker leaves
+the padding out as Ladybird used to. With a 24px right border, Chrome
+and Firefox break; with a 24px right margin, only Chrome breaks, and
+Ladybird now breaks there too. Under white-space: pre-wrap, Firefox and
+WebKit break and Chrome doesn’t; Ladybird breaks.
+
+Under white-space: break-spaces, the white space that ends a run keeps
+its advance in the run’s measurement. A min-content inline-block holding
+“ alpha  beta \n gamma ” in 10px Ahem is 60px by 100px in Chrome and
+WebKit (70px by 60px in Firefox), and 120px by 60px in a 120px box in
+all three; Ladybird now gives the same as Chrome and WebKit.
