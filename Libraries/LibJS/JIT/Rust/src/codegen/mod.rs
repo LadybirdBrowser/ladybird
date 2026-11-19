@@ -430,6 +430,7 @@ pub fn generate<M: PortableMacroAssembler>(
         artifact,
         sites,
         regalloc,
+        ..
     } = scratch;
     let allocation = &regalloc.allocation;
     let (_, pinned) = target_registers::<M>();

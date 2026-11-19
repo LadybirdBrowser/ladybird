@@ -12,6 +12,8 @@
 //! its own path rather than phis of both. A for-in loop's body then reads
 //! the key the cache holds, not a phi that also holds `undefined`.
 
+use ak::ColumnFull;
+
 use super::dominators::Dominators;
 use crate::bitset::BitSet;
 use crate::ir::BlockId;
@@ -232,10 +234,11 @@ fn renamed(renames: &[(NodeId, NodeId)], value: NodeId) -> NodeId {
 
 /// Splits one block, if any has the shape of `Split` and all uses of its
 /// phis are on one side of its branch. Returns whether it split one.
-fn split_one(graph: &mut Graph) -> bool {
-    let dominators = Dominators::compute(graph);
+fn split_one(graph: &mut Graph, dominators: &mut Dominators) -> Result<bool, ColumnFull> {
+    dominators.compute(graph)?;
+    let dominators = &*dominators;
     for index in 0..graph.blocks.len() {
-        let Some(split) = find_split(graph, &dominators, BlockId::from_index(index)) else {
+        let Some(split) = find_split(graph, dominators, BlockId::from_index(index)) else {
             continue;
         };
         let mut phis = BitSet::new(graph.nodes.len());
@@ -254,13 +257,13 @@ fn split_one(graph: &mut Graph) -> bool {
             }
             for phi in &block.phis {
                 for (predecessor, input) in block.predecessors.iter().zip(&graph.node(*phi).inputs) {
-                    if phis.contains(input.index()) && side_of(&dominators, &split, *predecessor).is_none() {
+                    if phis.contains(input.index()) && side_of(dominators, &split, *predecessor).is_none() {
                         uses_ok = false;
                         break 'blocks;
                     }
                 }
             }
-            let side = side_of(&dominators, &split, block_id);
+            let side = side_of(dominators, &split, block_id);
             for node in block.body.iter().chain(block.control.iter()) {
                 if graph
                     .node(*node)
@@ -277,7 +280,7 @@ fn split_one(graph: &mut Graph) -> bool {
         if !uses_ok {
             continue;
         }
-        let Some(frame_state_sides) = frame_state_sides(graph, &dominators, &split, &phis) else {
+        let Some(frame_state_sides) = frame_state_sides(graph, dominators, &split, &phis) else {
             continue;
         };
 
@@ -329,13 +332,13 @@ fn split_one(graph: &mut Graph) -> bool {
             let block = graph.block(block_id).clone();
             for phi in &block.phis {
                 for (input_index, predecessor) in block.predecessors.iter().enumerate() {
-                    if let Some(side) = side_of(&dominators, &split, *predecessor) {
+                    if let Some(side) = side_of(dominators, &split, *predecessor) {
                         let input = graph.nodes[phi.index()].inputs[input_index];
                         graph.nodes[phi.index()].inputs[input_index] = rename(side, input);
                     }
                 }
             }
-            if let Some(side) = side_of(&dominators, &split, block_id) {
+            if let Some(side) = side_of(dominators, &split, block_id) {
                 for node in block.body.iter().chain(block.control.iter()) {
                     for input in &mut graph.nodes[node.index()].inputs {
                         *input = rename(side, *input);
@@ -360,15 +363,16 @@ fn split_one(graph: &mut Graph) -> bool {
             graph.nodes[phi.index()].inputs.clear();
         }
         super::edit::clean_up_control_flow(graph);
-        return true;
+        return Ok(true);
     }
-    false
+    Ok(false)
 }
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
     for _ in 0..graph.blocks.len() {
-        if !split_one(graph) {
+        if !split_one(graph, dominators)? {
             break;
         }
     }
+    Ok(())
 }

@@ -66,7 +66,8 @@ fn diamond() -> (Graph, NodeId) {
 #[test]
 fn dominators_of_a_diamond() {
     let (graph, _) = diamond();
-    let dominators = Dominators::compute(&graph);
+    let mut dominators = Dominators::new();
+    dominators.compute(&graph).unwrap();
     assert_eq!(dominators.idom(BlockId(0)), None);
     assert_eq!(dominators.idom(BlockId(1)), Some(BlockId(0)));
     assert_eq!(dominators.idom(BlockId(3)), Some(BlockId(0)));
@@ -345,7 +346,7 @@ fn element_counts_move_out_of_loops_that_only_store_elements() {
     graph.blocks[2].control = Some(ret);
     verify(&graph).unwrap();
 
-    super::licm::run(&mut graph);
+    super::licm::run(&mut graph, &mut Dominators::new()).unwrap();
     assert!(graph.blocks[0].body.contains(&length), "{:?}", graph.blocks);
     assert_eq!(graph.blocks[1].body, vec![store]);
 }
@@ -404,7 +405,7 @@ fn loads_of_slots_that_nothing_writes_move_out_of_loops_that_call() {
     graph.blocks[2].control = Some(ret);
     verify(&graph).unwrap();
 
-    super::licm::run(&mut graph);
+    super::licm::run(&mut graph, &mut Dominators::new()).unwrap();
     assert_eq!(graph.blocks[0].body, vec![unwritten], "{:?}", graph.blocks);
     assert_eq!(graph.blocks[1].body, vec![written, call]);
     verify(&graph).unwrap();
@@ -544,7 +545,7 @@ fn typed_array_storage_metadata_moves_out_of_loops_that_only_store_elements() {
     let ret = node(&mut graph, Op::Return, vec![object], None);
     graph.blocks[2].control = Some(ret);
     verify(&graph).unwrap();
-    super::licm::run(&mut graph);
+    super::licm::run(&mut graph, &mut Dominators::new()).unwrap();
     for metadata in [length, offset, data] {
         assert!(graph.blocks[0].body.contains(&metadata));
     }
@@ -1006,7 +1007,7 @@ fn hoisted_checks_gate_exits_by_the_loop_headers_executable() {
         graph.blocks[2].control = Some(ret);
         graph.exit_sites.push((failed_executable, 77, ExitKind::NotObject));
         verify(&graph).unwrap();
-        super::licm::run(&mut graph);
+        super::licm::run(&mut graph, &mut Dominators::new()).unwrap();
         verify(&graph).unwrap();
         assert_eq!(graph.blocks[0].body.contains(&check), failed_executable == 0);
         let recovery = graph.frame_state(graph.node(check).frame_state.unwrap());
@@ -1167,7 +1168,7 @@ fn overflow_checks_removed_by_bounds_checks_check_the_counters_of_their_counts()
         graph.blocks[5].control = Some(ret);
 
         verify(&graph).unwrap();
-        super::bounds_check_elimination::run(&mut graph);
+        super::bounds_check_elimination::run(&mut graph, &mut Dominators::new()).unwrap();
         verify(&graph).unwrap();
 
         let guarded = graph.blocks[1].body.iter().any(|node| {

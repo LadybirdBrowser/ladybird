@@ -69,6 +69,7 @@ use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use crate::passes::dominators::Dominators;
 use crate::tables::Lists;
 use crate::tables::Run;
 use crate::tables::release;
@@ -421,6 +422,7 @@ pub struct Regalloc {
     pub allocation: Allocation,
     liveness: ValueLiveness,
     coalescing: Coalescing,
+    loops: Loops,
     /// The register each value is in, if any.
     value_registers: Column<Option<u8>>,
     /// The register contents at the end of each finished block: `REGISTER_COUNT` values for each block.
@@ -440,6 +442,7 @@ impl Regalloc {
             allocation: Allocation::new(),
             liveness: ValueLiveness::new(),
             coalescing: Coalescing::new(),
+            loops: Loops::new(),
             value_registers: Column::new(Allocation::MAX_NODES, c"JIT allocator work"),
             end_contents: Column::new(
                 Allocation::MAX_NODES * REGISTER_COUNT,
@@ -456,6 +459,7 @@ impl Regalloc {
         self.allocation.release_memory();
         self.liveness.release_memory();
         self.coalescing.release_memory();
+        self.loops.release_memory();
         release(&mut self.value_registers);
         release(&mut self.end_contents);
         release(&mut self.finished);
@@ -486,14 +490,21 @@ pub fn frame_home(graph: &Graph, value: NodeId) -> Option<u32> {
 }
 
 /// Assigns locations to the values of `graph`, into `regalloc.allocation`. The verifier checks the
-/// result where the IR is verified (see `verify()`).
-pub fn allocate(graph: &Graph, registers: &RegisterSet, regalloc: &mut Regalloc) -> Result<(), CompileFailure> {
+/// result where the IR is verified (see `verify()`). `dominators` are tables to compute the dominators of the graph
+/// in.
+pub fn allocate(
+    graph: &Graph,
+    registers: &RegisterSet,
+    regalloc: &mut Regalloc,
+    dominators: &mut Dominators,
+) -> Result<(), CompileFailure> {
     assert!(registers.allocatable_gprs.0 >> FPR_BASE == 0);
     assert!(!registers.allocatable_gprs.contains(registers.scratch_gpr));
     let Regalloc {
         allocation,
         liveness,
         coalescing,
+        loops,
         value_registers,
         end_contents,
         finished,
@@ -502,7 +513,7 @@ pub fn allocate(graph: &Graph, registers: &RegisterSet, regalloc: &mut Regalloc)
     } = regalloc;
     liveness.compute(graph)?;
     coalescing.compute(graph, liveness)?;
-    let loops = Loops::compute(graph, liveness);
+    loops.compute(graph, liveness, dominators)?;
     allocation.begin(graph.nodes.len(), graph.blocks.len())?;
     reset(value_registers, graph.nodes.len(), None)?;
     reset(end_contents, graph.blocks.len() * REGISTER_COUNT, None)?;
@@ -545,7 +556,7 @@ struct Allocator<'a> {
     slot_classes: &'a [u32],
     class_slots: &'a mut Column<Option<u32>>,
     parallel_moves: &'a mut Column<Move>,
-    loops: Loops,
+    loops: &'a Loops,
 }
 
 impl Allocator<'_> {
@@ -696,7 +707,7 @@ impl Allocator<'_> {
     fn loop_leaves_in_stack(&self, block: BlockId, value: NodeId) -> bool {
         self.loops
             .headed_by(block)
-            .is_some_and(|loop_| loop_.carries_through(value.index()))
+            .is_some_and(|loop_| self.loops.carries_through(loop_, value))
             && self.liveness.needs_spill(value)
     }
 

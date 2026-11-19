@@ -10,111 +10,189 @@
 //! immediate dominator, and neither has a block reached from several
 //! entries.
 
+use ak::Column;
+use ak::ColumnFull;
+
 use crate::bitset::BitSet;
 use crate::ir::BlockId;
 use crate::ir::Graph;
+use crate::tables::Lists;
+use crate::tables::pop;
+use crate::tables::release;
+use crate::tables::reset;
 
+/// The dominator tree of a graph, in tables that serve one graph after the other: `compute()` makes no block of the
+/// heap.
 pub struct Dominators {
     /// The immediate dominator of each block, if it has one.
-    idom: Vec<Option<BlockId>>,
+    idom: Column<Option<BlockId>>,
     /// Whether each block is reachable from an entry.
-    reachable: Vec<bool>,
+    reachable: Column<bool>,
     /// When a depth first walk of the dominator tree enters and leaves each reachable block. A block dominates those
     /// it enters and leaves while it is entered.
-    tree_intervals: Vec<(u32, u32)>,
+    tree_intervals: Column<(u32, u32)>,
+    /// The children of each block in the dominator tree, in linear order.
+    children: Lists<BlockId>,
+    /// The reachable blocks in reverse postorder.
+    order: Column<BlockId>,
+    /// The place of each reachable block in `order`, plus one.
+    ranks: Column<u32>,
+    /// Whether each block has an immediate dominator or the virtual root above every entry as its dominator so far.
+    processed: Column<bool>,
+    /// The blocks that a walk still has to enter or leave, and whether it is to leave them.
+    pending: Column<(BlockId, bool)>,
 }
 
 impl Dominators {
-    /// Computes the dominators with the iterative algorithm of Cooper,
-    /// Harvey and Kennedy, visiting blocks in reverse postorder.
-    pub fn compute(graph: &Graph) -> Self {
-        let count = graph.blocks.len();
-        let mut reachable = vec![false; count];
-        let mut postorder = Vec::with_capacity(count);
-        enum Step {
-            Enter(BlockId),
-            Leave(BlockId),
+    // NB: The tables do not hold the dominators of a graph with more blocks.
+    const MAX_BLOCKS: usize = 1 << 24;
+
+    /// Tables that take no memory before a graph uses them.
+    pub fn new() -> Self {
+        fn by_block<T: Copy>() -> Column<T> {
+            Column::new(Dominators::MAX_BLOCKS, c"JIT dominators")
         }
-        let mut pending = graph.entries().map(Step::Enter).collect::<Vec<_>>();
-        while let Some(step) = pending.pop() {
-            let block = match step {
-                Step::Enter(block) => block,
-                Step::Leave(block) => {
-                    postorder.push(block);
-                    continue;
-                }
-            };
-            if reachable[block.index()] {
+        Self {
+            idom: by_block(),
+            reachable: by_block(),
+            tree_intervals: by_block(),
+            children: Lists::new(Self::MAX_BLOCKS, Self::MAX_BLOCKS, c"JIT dominators"),
+            order: by_block(),
+            ranks: by_block(),
+            processed: by_block(),
+            // NB: A block waits to be left one time, and to be entered one time for each edge into it.
+            pending: Column::new(Self::MAX_BLOCKS * 16, c"JIT dominators"),
+        }
+    }
+
+    /// Drops the tables and gives their memory back to the system.
+    pub fn release_memory(&mut self) {
+        release(&mut self.idom);
+        release(&mut self.reachable);
+        release(&mut self.tree_intervals);
+        self.children.release_memory();
+        release(&mut self.order);
+        release(&mut self.ranks);
+        release(&mut self.processed);
+        release(&mut self.pending);
+    }
+
+    /// Computes the dominators of `graph` with the iterative algorithm of Cooper,
+    /// Harvey and Kennedy, visiting blocks in reverse postorder. The tables then hold the dominators of `graph` as
+    /// it is now, and nothing of an earlier graph.
+    pub fn compute(&mut self, graph: &Graph) -> Result<(), ColumnFull> {
+        let count = graph.blocks.len();
+        reset(&mut self.reachable, count, false)?;
+        self.order.clear();
+        self.pending.clear();
+        for entry in graph.entries() {
+            self.pending.try_push((entry, false))?;
+        }
+        while let Some((block, leaving)) = pop(&mut self.pending) {
+            if leaving {
+                self.order.try_push(block)?;
                 continue;
             }
-            reachable[block.index()] = true;
-            pending.push(Step::Leave(block));
-            pending.extend(graph.successors(block).iter().copied().map(Step::Enter));
+            if self.reachable[block.index()] {
+                continue;
+            }
+            self.reachable[block.index()] = true;
+            self.pending.try_push((block, true))?;
+            let mut pushed = Ok(());
+            graph.control(block).op.for_each_successor(|successor| {
+                if pushed.is_ok() {
+                    pushed = self.pending.try_push((successor, false));
+                }
+            });
+            pushed?;
         }
-        postorder.reverse();
+        self.order.reverse();
         // NB: Rank zero is the virtual root. Walking to an immediate
         //     dominator decreases the rank, avoiding ancestor-depth scans.
-        let mut ranks = vec![0; count];
-        for (index, block) in postorder.iter().enumerate() {
-            ranks[block.index()] = index + 1;
+        reset(&mut self.ranks, count, 0)?;
+        for (index, block) in self.order.iter().enumerate() {
+            self.ranks[block.index()] = index as u32 + 1;
         }
 
         // NB: `None` with `processed` set means "dominated by the virtual root".
-        let mut idom: Vec<Option<BlockId>> = vec![None; count];
-        let mut processed = vec![false; count];
+        reset(&mut self.idom, count, None)?;
+        reset(&mut self.processed, count, false)?;
         let mut changed = true;
         while changed {
             changed = false;
-            for block in postorder.iter().map(|block| block.index()) {
+            for block in self.order.iter().map(|block| block.index()) {
                 let predecessors = &graph.blocks[block].predecessors;
                 let new_idom = if predecessors.is_empty() {
                     None
                 } else {
-                    let mut candidates = predecessors.iter().filter(|predecessor| processed[predecessor.index()]);
+                    let mut candidates = predecessors
+                        .iter()
+                        .filter(|predecessor| self.processed[predecessor.index()]);
                     let Some(first) = candidates.next() else {
                         continue;
                     };
                     let mut new_idom = Some(*first);
                     for predecessor in candidates {
-                        new_idom = intersect(&idom, &ranks, new_idom, Some(*predecessor));
+                        new_idom = intersect(&self.idom, &self.ranks, new_idom, Some(*predecessor));
                     }
                     new_idom
                 };
-                if !processed[block] || idom[block] != new_idom {
-                    processed[block] = true;
-                    idom[block] = new_idom;
+                if !self.processed[block] || self.idom[block] != new_idom {
+                    self.processed[block] = true;
+                    self.idom[block] = new_idom;
                     changed = true;
                 }
             }
         }
-        let mut dominators = Self {
-            idom,
-            reachable,
-            tree_intervals: Vec::new(),
-        };
-        dominators.tree_intervals = dominators.compute_tree_intervals();
-        dominators
+        self.compute_children()?;
+        self.compute_tree_intervals()
     }
 
-    fn compute_tree_intervals(&self) -> Vec<(u32, u32)> {
-        let children = self.children();
-        let mut intervals = vec![(0, 0); self.idom.len()];
+    fn compute_children(&mut self) -> Result<(), ColumnFull> {
+        let count = self.idom.len();
+        self.children.begin_counts(count)?;
+        for block in 0..count {
+            if let Some(idom) = self.idom[block]
+                && self.reachable[block]
+            {
+                self.children.count(idom.index());
+            }
+        }
+        self.children.end_counts(BlockId(0))?;
+        for block in 0..count {
+            if let Some(idom) = self.idom[block]
+                && self.reachable[block]
+            {
+                self.children.fill(idom.index(), BlockId::from_index(block));
+            }
+        }
+        self.children.end_fill();
+        Ok(())
+    }
+
+    fn compute_tree_intervals(&mut self) -> Result<(), ColumnFull> {
+        let count = self.idom.len();
+        reset(&mut self.tree_intervals, count, (0, 0))?;
         let mut time = 0;
-        let mut pending = (0..self.idom.len())
-            .filter(|block| self.reachable[*block] && self.idom[*block].is_none())
-            .map(|block| (block, false))
-            .collect::<Vec<_>>();
-        while let Some((block, leaving)) = pending.pop() {
+        self.pending.clear();
+        for block in 0..count {
+            if self.reachable[block] && self.idom[block].is_none() {
+                self.pending.try_push((BlockId::from_index(block), false))?;
+            }
+        }
+        while let Some((block, leaving)) = pop(&mut self.pending) {
             time += 1;
             if leaving {
-                intervals[block].1 = time;
+                self.tree_intervals[block.index()].1 = time;
                 continue;
             }
-            intervals[block].0 = time;
-            pending.push((block, true));
-            pending.extend(children[block].iter().map(|child| (child.index(), false)));
+            self.tree_intervals[block.index()].0 = time;
+            self.pending.try_push((block, true))?;
+            for child in self.children.get(block.index()) {
+                self.pending.try_push((*child, false))?;
+            }
         }
-        intervals
+        Ok(())
     }
 
     pub fn idom(&self, block: BlockId) -> Option<BlockId> {
@@ -180,43 +258,15 @@ impl Dominators {
         false
     }
 
-    /// The children of each block in the dominator tree, in linear order.
-    pub fn children(&self) -> Children {
-        let mut offsets = vec![0; self.idom.len() + 1];
-        for (block, idom) in self.idom.iter().enumerate() {
-            if let Some(idom) = idom
-                && self.reachable[block]
-            {
-                offsets[idom.index() + 1] += 1;
-            }
-        }
-        for index in 1..offsets.len() {
-            offsets[index] += offsets[index - 1];
-        }
-        let mut blocks = vec![BlockId(0); *offsets.last().unwrap()];
-        let mut next = offsets.clone();
-        for (block, idom) in self.idom.iter().enumerate() {
-            if let Some(idom) = idom
-                && self.reachable[block]
-            {
-                blocks[next[idom.index()]] = BlockId::from_index(block);
-                next[idom.index()] += 1;
-            }
-        }
-        Children { offsets, blocks }
+    /// The children of `block` in the dominator tree, in linear order.
+    pub fn children(&self, block: BlockId) -> &[BlockId] {
+        self.children.get(block.index())
     }
 }
 
-pub struct Children {
-    offsets: Vec<usize>,
-    blocks: Vec<BlockId>,
-}
-
-impl std::ops::Index<usize> for Children {
-    type Output = [BlockId];
-
-    fn index(&self, block: usize) -> &Self::Output {
-        &self.blocks[self.offsets[block]..self.offsets[block + 1]]
+impl Default for Dominators {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -224,7 +274,7 @@ impl std::ops::Index<usize> for Children {
 /// virtual root above every entry.
 fn intersect(
     idom: &[Option<BlockId>],
-    ranks: &[usize],
+    ranks: &[u32],
     mut a: Option<BlockId>,
     mut b: Option<BlockId>,
 ) -> Option<BlockId> {
@@ -246,6 +296,7 @@ mod tests {
 
     #[test]
     fn cyclic_graphs_with_multiple_entries_match_dominator_sets() {
+        let mut dominators = Dominators::new();
         for seed in 1..33u64 {
             let mut random = seed;
             let mut graph = Graph::default();
@@ -277,7 +328,8 @@ mod tests {
                         .push(BlockId::from_index(block));
                 }
             }
-            let dominators = Dominators::compute(&graph);
+            // NB: The tables of one graph serve the next one.
+            dominators.compute(&graph).unwrap();
             // NB: Independently solve the defining set equations: each
             //     block dominates itself and inherits the intersection of
             //     its predecessors' dominators.
@@ -310,7 +362,6 @@ mod tests {
                     break;
                 }
             }
-            let children = dominators.children();
             for (block, expected) in sets.iter().enumerate() {
                 let block = BlockId::from_index(block);
                 if !dominators.is_reachable(block) {
@@ -324,11 +375,12 @@ mod tests {
                     );
                 }
                 if let Some(parent) = dominators.idom(block) {
-                    assert!(children[parent.index()].contains(&block));
+                    assert!(dominators.children(parent).contains(&block));
                 }
             }
             for block in 0..count {
-                assert!(children[block].windows(2).all(|pair| pair[0].index() < pair[1].index()));
+                let children = dominators.children(BlockId::from_index(block));
+                assert!(children.windows(2).all(|pair| pair[0].index() < pair[1].index()));
             }
         }
     }

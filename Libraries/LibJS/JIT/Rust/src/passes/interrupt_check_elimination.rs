@@ -25,6 +25,8 @@
 //! exits on overflow: only the check's frame state keeps a counter alive that
 //! nothing else uses, without which the loop would not count anything.
 
+use ak::ColumnFull;
+
 use super::dominators::Dominators;
 use crate::bitset::BitSet;
 use crate::ir::BinaryOp;
@@ -227,11 +229,12 @@ fn has_loop_around(graph: &Graph, loop_: &Loop) -> bool {
     false
 }
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
     if !graph.nodes.iter().any(|node| matches!(node.op, Op::CheckInterrupt)) {
-        return;
+        return Ok(());
     }
-    let dominators = Dominators::compute(graph);
+    dominators.compute(graph)?;
+    let dominators = &*dominators;
     let mut loops = Vec::new();
     for index in 0..graph.blocks.len() {
         let header = BlockId::from_index(index);
@@ -254,7 +257,7 @@ pub fn run(graph: &mut Graph) {
             .block(loop_.header)
             .phis
             .iter()
-            .filter_map(|phi| trip_of(graph, &dominators, loop_, *phi))
+            .filter_map(|phi| trip_of(graph, dominators, loop_, *phi))
             .max();
         let may_lose_check = match best_trip {
             Some(Trip::Short) => true,
@@ -271,4 +274,5 @@ pub fn run(graph: &mut Graph) {
                 .retain(|node| !matches!(nodes[node.index()].op, Op::CheckInterrupt));
         }
     }
+    Ok(())
 }

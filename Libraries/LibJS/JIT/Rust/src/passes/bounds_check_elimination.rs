@@ -43,6 +43,8 @@
 //! accesses (and the branches on an index being in bounds) that dominate
 //! the operation: an index is below the elements' count there.
 
+use ak::ColumnFull;
+
 use super::dominators::Dominators;
 use super::edit::Constants;
 use super::edit::Replacements;
@@ -512,7 +514,7 @@ fn entering_counters(
     entering
 }
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
     let mut phi_blocks = HashMap::default();
     let mut checks = Vec::new();
     let mut shifts = Vec::new();
@@ -566,13 +568,14 @@ pub fn run(graph: &mut Graph) {
     checks.retain(|check| graph.int32_constant(graph.node(*check).inputs[1]).is_some());
     arithmetic.retain(|(node, ..)| graph.node(*node).inputs.iter().all(|input| may_have_range(*input)));
     if checks.is_empty() && shifts.is_empty() && arithmetic.is_empty() {
-        return;
+        return Ok(());
     }
-    let dominators = Dominators::compute(graph);
-    let entering = entering_counters(graph, &dominators, &phi_blocks);
+    dominators.compute(graph)?;
+    let dominators = &*dominators;
+    let entering = entering_counters(graph, dominators, &phi_blocks);
     let mut ranges = Ranges {
         graph,
-        dominators: &dominators,
+        dominators,
         phi_blocks: &phi_blocks,
         assumed: &entering,
         known: HashMap::default(),
@@ -643,7 +646,7 @@ pub fn run(graph: &mut Graph) {
         })
         .collect::<Vec<_>>();
     if passing.is_empty() && scaled.is_empty() && exact.is_empty() {
-        return;
+        return Ok(());
     }
     // NB: Only the entering counters that the removed checks, the
     //     rewritten shifts and the operations that stop checking for overflow
@@ -731,4 +734,5 @@ pub fn run(graph: &mut Graph) {
         graph.nodes[guard.index()].inputs[0] = value;
     }
     super::edit::remove_nodes(graph, &removed);
+    Ok(())
 }

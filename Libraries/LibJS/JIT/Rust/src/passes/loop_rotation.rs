@@ -18,6 +18,8 @@
 //! test makes only reach the blocks it leads to through their phis, since it dominates none of them, so the copy's
 //! edges bring its values to those phis.
 
+use ak::ColumnFull;
+
 use super::dominators::Dominators;
 use super::edit;
 use crate::bitset::BitSet;
@@ -32,15 +34,15 @@ use crate::ir::Op;
 /// How many nodes the blocks of a test that gets copied may have at most.
 const MAX_COPIED_NODES: usize = 64;
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
     if graph.osr_entries.is_empty() {
-        return;
+        return Ok(());
     }
     let mut rotated = false;
     // NB: Each rotation makes one irreducible loop reducible; a graph has fewer such loops than blocks.
     for _ in 0..graph.blocks.len() {
-        let dominators = Dominators::compute(graph);
-        let Some((test, region, sources)) = find_rotatable_test(graph, &dominators) else {
+        dominators.compute(graph)?;
+        let Some((test, region, sources)) = find_rotatable_test(graph, dominators) else {
             break;
         };
         rotate(graph, test, &region, &sources);
@@ -50,6 +52,7 @@ pub fn run(graph: &mut Graph) {
         lay_out_in_reverse_post_order(graph);
         edit::remove_trivial_phis(graph);
     }
+    Ok(())
 }
 
 /// The blocks a depth-first walk from the entries reaches each block from over a retreating edge: an edge to a block

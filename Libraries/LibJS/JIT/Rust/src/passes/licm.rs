@@ -25,6 +25,8 @@
 //! exited there, so a speculation that fails costs one exit, and keeps the
 //! other checks moving.
 
+use ak::ColumnFull;
+
 use super::dominators::Dominators;
 use super::edit;
 use crate::bitset::BitSet;
@@ -149,7 +151,7 @@ fn find_loops(graph: &Graph, dominators: &Dominators) -> Vec<Loop> {
     loops
 }
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
     // NB: Loops have a back edge from a later block or the block itself.
     let has_loops = graph.blocks.iter().enumerate().any(|(index, block)| {
         block
@@ -158,19 +160,20 @@ pub fn run(graph: &mut Graph) {
             .any(|predecessor| predecessor.index() >= index)
     });
     if !has_loops {
-        return;
+        return Ok(());
     }
-    let mut dominators = Dominators::compute(graph);
-    if add_preheaders(graph, &dominators) {
+    dominators.compute(graph)?;
+    if add_preheaders(graph, dominators) {
         // NB: The phis of headers that merged their entries in a preheader
         //     only take the value the preheader brings where the loop leaves
         //     it as it is, which is then invariant in the loop.
         edit::remove_trivial_phis(graph);
-        dominators = Dominators::compute(graph);
+        dominators.compute(graph)?;
     }
-    let loops = find_loops(graph, &dominators);
+    let dominators = &*dominators;
+    let loops = find_loops(graph, dominators);
     if loops.is_empty() {
-        return;
+        return Ok(());
     }
     let mut block_of = vec![None; graph.nodes.len()];
     for (index, block) in graph.blocks.iter().enumerate() {
@@ -259,4 +262,5 @@ pub fn run(graph: &mut Graph) {
         }
         graph.blocks[loop_.preheader.index()].body.extend(hoisted);
     }
+    Ok(())
 }
