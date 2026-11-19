@@ -109,7 +109,11 @@ ErrorOr<void> encode(Encoder& encoder, JsonValue const& value)
 template<>
 ErrorOr<void> encode(Encoder& encoder, AK::Duration const& value)
 {
-    return encoder.encode(value.to_nanoseconds());
+    auto seconds = value.to_floored_seconds();
+    auto nanoseconds = (value - AK::Duration::from_seconds(seconds)).to_nanoseconds();
+    TRY(encoder.encode(seconds));
+    TRY(encoder.encode(static_cast<u32>(nanoseconds)));
+    return {};
 }
 
 template<>

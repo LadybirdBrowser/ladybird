@@ -168,6 +168,45 @@ TEST_CASE(sizes_are_bounded_before_contents_and_only_within_the_value)
     EXPECT_EQ(MUST(decoder.decode<String>()), "123456789"sv);
 }
 
+TEST_CASE(durations_round_trip_exactly)
+{
+    Array durations {
+        AK::Duration::min(),
+        AK::Duration::from_nanoseconds(-1'500'000'001),
+        AK::Duration::zero(),
+        AK::Duration::from_nanoseconds(1'500'000'001),
+        AK::Duration::from_seconds((NumericLimits<i64>::max() / 1'000'000'000) + 1),
+        AK::Duration::max(),
+    };
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder { buffer };
+    for (auto duration : durations)
+        MUST(encoder.encode(duration));
+    auto bytes = buffer.take_data();
+
+    FixedMemoryStream stream { bytes.span() };
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+    for (auto duration : durations)
+        EXPECT_EQ(MUST(decoder.decode<AK::Duration>()), duration);
+}
+
+TEST_CASE(decode_duration_refuses_a_nanosecond_part_of_a_second_or_more)
+{
+    Vector<u8> bytes;
+    i64 seconds = 1;
+    u32 nanoseconds = 1'000'000'000;
+    bytes.append(reinterpret_cast<u8 const*>(&seconds), sizeof(seconds));
+    bytes.append(reinterpret_cast<u8 const*>(&nanoseconds), sizeof(nanoseconds));
+    EXPECT(decode_bytes<AK::Duration>(bytes).is_error());
+
+    nanoseconds = 999'999'999;
+    bytes.clear();
+    bytes.append(reinterpret_cast<u8 const*>(&seconds), sizeof(seconds));
+    bytes.append(reinterpret_cast<u8 const*>(&nanoseconds), sizeof(nanoseconds));
+    EXPECT_EQ(MUST(decode_bytes<AK::Duration>(bytes)), AK::Duration::from_nanoseconds(1'999'999'999));
+}
+
 TEST_CASE(decode_utf16_string_with_latin1_storage)
 {
     auto latin1_string = [](ReadonlyBytes code_units) {

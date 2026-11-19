@@ -93,8 +93,12 @@ ErrorOr<JsonValue> decode(Decoder& decoder)
 template<>
 ErrorOr<AK::Duration> decode(Decoder& decoder)
 {
-    auto nanoseconds = TRY(decoder.decode<i64>());
-    return AK::Duration::from_nanoseconds(nanoseconds);
+    auto seconds = TRY(decoder.decode<i64>());
+    auto nanoseconds = TRY(decoder.decode<u32>());
+    auto duration = AK::Duration::maybe_from_seconds_and_nanoseconds(seconds, nanoseconds);
+    if (!duration.has_value())
+        return Error::from_string_literal("IPC: Invalid duration");
+    return duration.release_value();
 }
 
 template<>
