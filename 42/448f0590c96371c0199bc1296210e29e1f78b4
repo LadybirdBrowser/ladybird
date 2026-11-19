@@ -1,0 +1,5 @@
+Ladybird indents the first line with content, after any line boxes
+beside floats that held nothing. In Chrome 157.0.8103.79, Firefox 151.0,
+and WebKit 26.5, a paragraph whose first word doesn’t fit beside a 150px
+float in a 200px box starts below the float, with its 30px indent, in a
+left-to-right block at the left and in a right-to-left one at the right.
