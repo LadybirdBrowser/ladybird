@@ -187,6 +187,7 @@ public:
     Optional<PresentedBackingStores> take_presented_backing_stores();
     void release_presented_bitmap(i32 bitmap_id);
     void fail_renderer_owned_downloads();
+    bool has_renderer_owned_downloads() const { return !m_renderer_owned_downloads.is_empty(); }
     void reset_state_for_testing();
 
 private:

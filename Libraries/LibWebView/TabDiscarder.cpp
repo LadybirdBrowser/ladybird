@@ -49,7 +49,7 @@ void TabDiscarder::check_tabs()
         });
         if (auto* view = least_recently_seen_ending_a_process ? least_recently_seen_ending_a_process : least_recently_seen) {
             dbgln("Discarding tab {}, as the system is about to run out of memory", view->url());
-            view->request_discard();
+            view->request_discard(ViewImplementation::DiscardReason::MemoryPressure);
         }
     }
 
@@ -66,7 +66,7 @@ void TabDiscarder::check_tabs()
     });
     for (auto& view : inactive_views) {
         dbgln("Discarding tab {}, as it was hidden for {} min", view.url(), minutes);
-        view.request_discard();
+        view.request_discard(ViewImplementation::DiscardReason::Inactivity);
     }
 }
 

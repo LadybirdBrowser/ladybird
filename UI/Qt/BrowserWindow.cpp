@@ -1217,13 +1217,18 @@ void BrowserWindow::discard_tab(Tab& tab)
         return;
     }
 
+    // NB: The Hub has the final say, as the tab may have started to do something the user would miss since it asked.
+    auto discarded_tab_state_id = tab.view().keep_state_for_discarding();
+    if (!discarded_tab_state_id.has_value())
+        return;
+
     DeferredTab deferred_tab {
         .session_tab_id = *tab.session_tab_id(),
         .url = tab.url(),
         .title = tab.title(),
         .favicon = tab.favicon(),
         .history = tab.view().session_history_snapshot(),
-        .discarded_tab_state_id = tab.view().keep_state_for_discarding(),
+        .discarded_tab_state_id = discarded_tab_state_id,
     };
     auto* discarded_tab = new Tab(this, AK::move(deferred_tab));
     discarded_tab->set_needs_attention(tab.needs_attention());

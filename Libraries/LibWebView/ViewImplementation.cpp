@@ -693,6 +693,15 @@ DiscardBlockers ViewImplementation::discard_blockers(DiscardReason reason, Monot
     if (had_user_edits())
         blockers |= DiscardBlockers::UserEdits;
 
+    // A download that a page of the tab makes itself, such as one of a blob, fails when the page's process exits. And
+    // a permission prompt would go away unanswered.
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        if (page.has_renderer_owned_downloads())
+            blockers |= DiscardBlockers::Downloading;
+    });
+    if (!m_pending_permission_prompts.is_empty())
+        blockers |= DiscardBlockers::AwaitingPermissionPrompt;
+
     if (reason == DiscardReason::Inactivity) {
         // A tab that changes what it shows in the tab strip, such as the count of unread messages in its title, does
         // work for the user in the background. So does one that may show them notifications.
@@ -739,9 +748,10 @@ bool ViewImplementation::discarding_ends_a_process() const
     return ends_a_process;
 }
 
-void ViewImplementation::request_discard()
+void ViewImplementation::request_discard(DiscardReason reason)
 {
     m_discard_requested = true;
+    m_discard_reason = reason;
 
     m_pages_saving_session_history_entry_states.clear();
     traversable().for_each_hosting_page([&](WebContentPage& page) {
@@ -4500,8 +4510,17 @@ static HashMap<u64, DiscardedTabState>& discarded_tab_states()
     return *states;
 }
 
-u64 ViewImplementation::keep_state_for_discarding()
+Optional<u64> ViewImplementation::keep_state_for_discarding()
 {
+    // NB: The tab may have started to do something the user would miss, such as playing audio, while its pages saved
+    //     its history. It then stays loaded, and may be discarded later.
+    if (!m_discard_requested)
+        return {};
+    if (traversable().system_visibility_state() != Web::HTML::VisibilityState::Hidden || discard_blockers(m_discard_reason, MonotonicTime::now()) != DiscardBlockers::None) {
+        m_discard_requested = false;
+        return {};
+    }
+
     static u64 s_next_discarded_tab_state_id = 1;
     auto discarded_tab_state_id = s_next_discarded_tab_state_id++;
 
