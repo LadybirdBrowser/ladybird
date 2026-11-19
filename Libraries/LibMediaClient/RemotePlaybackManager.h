@@ -58,6 +58,7 @@ public:
     AK::Duration current_time() const;
 
     Optional<AK::UnixDateTime> start_time_realtime() const { return m_start_time_realtime; }
+    AK::Duration earliest_possible_position() const { return m_timeline.earliest_possible_position; }
 
     Vector<Media::Track> const& video_tracks() const { return m_video_tracks; }
     Vector<Media::Track> const& audio_tracks() const { return m_audio_tracks; }
@@ -114,7 +115,7 @@ public:
 
     void connection_lost(Badge<Client>) { handle_connection_lost(); }
     void clock_changed(Badge<Client>, Media::MediaTimeReader);
-    void media_source_added(Badge<Client>, Optional<u64> stream_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<AK::UnixDateTime> start_time_realtime, Media::DemuxerScanState);
+    void media_source_added(Badge<Client>, Optional<u64> stream_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<AK::UnixDateTime> start_time_realtime, AK::Duration earliest_possible_position, Media::DemuxerScanState);
     void media_stream_source_failed(Badge<Client>, u64 stream_id, Media::DecoderError);
     void duration_changed(Badge<Client>, AK::Duration);
     void state_changed(Badge<Client>, u64 applied_seek_request_id, Media::PlaybackState, bool is_playing, Media::AvailableData, bool server_playback_state_is_settled, AK::Duration current_time);

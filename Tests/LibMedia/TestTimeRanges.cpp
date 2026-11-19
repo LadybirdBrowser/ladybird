@@ -582,3 +582,13 @@ TEST_CASE(seekable_range_follows_the_duration_and_the_live_seekable_range)
     buffered = TimeRanges { { ms(8000), ms(25000) } };
     EXPECT_EQ(Media::PlaybackManager::seekable_time_range(buffered, timeline), (TimeRanges::Range { ms(5000), ms(25000) }));
 }
+
+TEST_CASE(seekable_range_starts_at_the_earliest_possible_position)
+{
+    Media::MediaTimeline timeline { .duration = ms(12000), .live_seekable_range = {}, .earliest_possible_position = ms(10000) };
+    auto buffered = TimeRanges { { ms(0), ms(12000) } };
+    EXPECT_EQ(Media::PlaybackManager::seekable_time_range(buffered, timeline), (TimeRanges::Range { ms(10000), ms(12000) }));
+
+    timeline.duration = AK::Duration::max();
+    EXPECT_EQ(Media::PlaybackManager::seekable_time_range(buffered, timeline), (TimeRanges::Range { ms(10000), ms(12000) }));
+}

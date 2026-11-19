@@ -362,7 +362,7 @@ void RemotePlaybackManager::clock_changed(Badge<Client>, Media::MediaTimeReader 
     m_time_reader = move(time_reader);
 }
 
-void RemotePlaybackManager::media_source_added(Badge<Client>, Optional<u64> stream_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<AK::UnixDateTime> start_time_realtime, Media::DemuxerScanState scan_state)
+void RemotePlaybackManager::media_source_added(Badge<Client>, Optional<u64> stream_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<AK::UnixDateTime> start_time_realtime, AK::Duration earliest_possible_position, Media::DemuxerScanState scan_state)
 {
     m_audio_tracks.extend(audio_tracks);
     m_video_tracks.extend(video_tracks);
@@ -371,6 +371,7 @@ void RemotePlaybackManager::media_source_added(Badge<Client>, Optional<u64> stre
     if (!m_preferred_video_track.has_value())
         m_preferred_video_track = preferred_video_track;
     m_start_time_realtime = start_time_realtime;
+    m_timeline.earliest_possible_position = earliest_possible_position;
 
     // Sources the server added on its own, such as a source buffer's track buffers, have no promise here.
     if (!stream_id.has_value())

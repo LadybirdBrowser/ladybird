@@ -16,6 +16,7 @@ struct MediaTimeline {
     // AK::Duration::max() means the duration is unbounded, as a live stream's is.
     AK::Duration duration;
     Optional<TimeRanges::Range> live_seekable_range;
+    AK::Duration earliest_possible_position;
 };
 
 }

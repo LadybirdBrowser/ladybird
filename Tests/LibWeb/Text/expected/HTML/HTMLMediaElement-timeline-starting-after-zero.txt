@@ -1,0 +1,10 @@
+../../../Assets/h264-starting-at-10s-fragmented.mp4
+  currentTime at metadata: 10
+  seekable: [10, 12]
+  buffered: [10, 12]
+  currentTime after seeking to 1: 10
+../../../Assets/vp9-starting-at-10s.webm
+  currentTime at metadata: 10
+  seekable: [10, 12]
+  buffered: [10, 12]
+  currentTime after seeking to 1: 10
