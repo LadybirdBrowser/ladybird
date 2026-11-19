@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .box { display: -webkit-box; width: 300px; margin-bottom: 8px; font: 20px/1 serif; }
+    img { display: block; max-width: 100%; height: auto; }
+</style>
+<!-- An item of a horizontal -webkit-box with an automatic width gets its fit-content width, so it's never wider than the
+     box unless its content can't fit: Its text wraps, and an image with max-width: 100% scales down. -->
+<div class="box"><div id="text">aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn</div></div>
+<div class="box"><picture id="image-in-picture"><img width="1000" height="500" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='500'/%3E"></picture></div>
+<div class="box"><div id="short-text">aaaa</div></div>
+<div class="box"><div id="fixed-width" style="width: 400px">aaaa</div></div>
+<div class="box"><div id="min-width" style="min-width: 350px">aaaa</div></div>
+<div class="box"><div id="nowrap" style="white-space: nowrap">aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj</div></div>
+<div class="box" style="padding: 0 10px"><div id="with-margins" style="margin: 0 5px">aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj</div></div>
+<div class="box" style="-webkit-box-pack: center"><div id="packed-center">aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj</div></div>
+<div class="box"><div id="first-of-two">aaaa bbbb cccc dddd eeee ffff gggg hhhh</div><div id="second-of-two">iiii jjjj kkkk llll mmmm nnnn oooo</div></div>
+<div style="width: 300px"><div class="box" style="display: -webkit-inline-box; width: auto"><div id="in-inline-box">aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj</div></div></div>
+<script>
+    function run(report) {
+        for (const element of document.querySelectorAll("[id]:not(#out)")) {
+            const rect = element.getBoundingClientRect();
+            report(`${element.id}: ${rect.width}x${rect.height} at ${rect.left}`);
+        }
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>

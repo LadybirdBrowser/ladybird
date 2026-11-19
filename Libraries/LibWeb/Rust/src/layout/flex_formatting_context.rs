@@ -562,6 +562,15 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.container.is_legacy_webkit_box
     }
 
+    fn item_of_legacy_webkit_box_fits_its_content(&self, index: usize) -> bool {
+        let inputs = &self.flex_item_details[index].inputs;
+        self.is_legacy_webkit_box()
+            && self.is_row_layout()
+            && !inputs.flex_basis_is_content
+            && inputs.flex_basis.is_auto()
+            && inputs.preferred_main_size.is_auto()
+    }
+
     /// The order of an item styled `style` in order-modified document order.
     fn order_of_item(&self, style: StyleValues<'_>) -> i32 {
         // AD-HOC: The items of a legacy webkit box are ordered by their -webkit-box-ordinal-group, and order doesn't
@@ -1527,6 +1536,12 @@ impl<'pass> FlexFormattingContext<'pass> {
                     min_cross,
                     max_cross,
                 )
+            }
+            // AD-HOC: An item of a horizontal legacy webkit box whose flex basis and width are auto gets a flex base
+            //         size of its fit-content width rather than its max-content width, so it's never wider than the
+            //         box unless its content can't fit, matching other engines.
+            UsedFlexBasis::Content if self.item_of_legacy_webkit_box_fits_its_content(index) => {
+                self.calculate_fit_content_main_size(index)
             }
             // C. If the used flex basis is content or depends on its available space,
             //    and the flex container is being sized under a min-content or max-content constraint
