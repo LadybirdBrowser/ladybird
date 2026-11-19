@@ -221,6 +221,7 @@ endpoint WebContentServer routed by Web::PageId page_id
 
     set_listen_for_dom_mutations(Web::PageId page_id, bool listen_for_dom_mutations) =|
     set_has_devtools_client(Web::PageId page_id, bool has_devtools_client) =|
+    save_session_history_entry_states(Web::PageId page_id) =|
     start_sending_console_output(Web::PageId page_id, bool messages, bool errors) =|
     get_dom_node_inner_html(Web::PageId page_id, Web::UniqueNodeID node_id) =|
     get_dom_node_outer_html(Web::PageId page_id, Web::UniqueNodeID node_id) =|

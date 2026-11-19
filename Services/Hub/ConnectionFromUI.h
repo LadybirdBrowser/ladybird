@@ -90,6 +90,9 @@ private:
     virtual Messages::HubServer::ViewSessionHistoryTraversalItemsResponse view_session_history_traversal_items(u64 view_id, i32 direction) override;
     virtual Messages::HubServer::ViewSessionHistorySnapshotResponse view_session_history_snapshot(u64 view_id) override;
     virtual Messages::HubServer::ViewRestoreSessionHistoryFromSnapshotResponse view_restore_session_history_from_snapshot(u64 view_id, WebView::SessionHistorySnapshot snapshot) override;
+    virtual Messages::HubServer::ViewKeepStateForDiscardingResponse view_keep_state_for_discarding(u64 view_id) override;
+    virtual void view_restore_state_of_discarded_tab(u64 view_id, u64 discarded_tab_state_id) override;
+    virtual void forget_state_of_discarded_tab(u64 discarded_tab_state_id) override;
     virtual Messages::HubServer::ViewHistoryStepAtDeltaResponse view_history_step_at_delta(u64 view_id, i32 delta) override;
     virtual Messages::HubServer::ViewLookUpSelectedTextAtResponse view_look_up_selected_text_at(u64 view_id, Gfx::IntPoint position) override;
     virtual Messages::HubServer::ViewPageDescriptionResponse view_page_description(u64 view_id) override;
@@ -162,6 +165,8 @@ private:
     virtual void view_set_window_position(u64 view_id, Gfx::IntPoint position) override;
     virtual void view_set_window_size(u64 view_id, Gfx::IntSize size) override;
     virtual void view_set_system_visibility_state(u64 view_id, Web::HTML::VisibilityState visibility_state) override;
+    virtual void view_set_pinned(u64 view_id, bool pinned) override;
+    virtual void view_set_current_tab_of_window(u64 view_id, bool current_tab_of_window) override;
     virtual void view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory) override;
     virtual void view_set_hosts_remote_layer(u64 view_id, bool hosts_remote_layer) override;
     virtual void view_set_wants_frame_notifications(u64 view_id, bool wants_frame_notifications) override;

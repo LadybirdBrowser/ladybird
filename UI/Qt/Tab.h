@@ -67,6 +67,9 @@ struct DeferredTab {
     URL::URL url;
     QString title;
     QIcon favicon;
+    // The history of a discarded tab, which it restores once it is selected, and the state the Hub keeps for it.
+    Optional<WebView::SessionHistorySnapshot> history;
+    Optional<u64> discarded_tab_state_id;
 };
 
 class Popover;
@@ -136,6 +139,7 @@ public:
     // A tab in the background whose title changes after it has loaded has news, until it is selected.
     bool needs_attention() const { return m_needs_attention; }
     void clear_attention() { m_needs_attention = false; }
+    void set_needs_attention(bool needs_attention) { m_needs_attention = needs_attention; }
     QString title() const;
 
     QMenu* context_menu() const { return m_context_menu; }
@@ -147,6 +151,9 @@ public:
     void update_hover_label();
 
     void enter_report_review(Tab* tab_to_activate_on_close, Optional<QString> title = {});
+    bool is_in_report_review() const { return m_report_review_navigation_listener.has_value(); }
+    // Another tab stands in for one that was discarded, and takes its place wherever this tab refers to it.
+    void did_replace_tab(Tab const& old_tab, Tab& new_tab);
 
     bool is_pinned() const { return m_is_pinned; }
     // BrowserWindow pins and unpins tabs, since it keeps each window's pinned tabs at the start of its strip.

@@ -776,6 +776,8 @@ Tab& BrowserWindow::create_restored_tab(RestoredSessionTab const& restored, int 
             .url = restored.url,
             .title = entry.has_value() && entry->title.has_value() ? qstring_from_ak_string(*entry->title) : qstring_from_ak_string(restored.url.serialize()),
             .favicon = entry.has_value() && entry->favicon_png.has_value() ? favicon_from_png(entry->favicon_png->bytes(), TAB_ICON_SIZE) : QIcon {},
+            .history = {},
+            .discarded_tab_state_id = {},
         };
         auto* tab = new Tab(this, AK::move(deferred_tab));
         tab->set_pinned(restored.pinned);
@@ -1082,6 +1084,7 @@ void BrowserWindow::set_current_tab(Tab* tab)
     if (m_current_tab) {
         m_current_tab->close_popovers();
         m_current_tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
+        m_current_tab->view().set_current_tab_of_window(false);
     }
 
     m_current_tab = tab;
@@ -1090,6 +1093,7 @@ void BrowserWindow::set_current_tab(Tab* tab)
     if (m_current_tab) {
         m_current_tab->clear_attention();
         m_current_tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Visible);
+        m_current_tab->view().set_current_tab_of_window(true);
 
         if (auto session_tab_id = m_current_tab->session_tab_id(); session_tab_id.has_value())
             session().active_tab_changed(*session_tab_id);
@@ -1195,6 +1199,58 @@ bool BrowserWindow::close_tab(int index, SessionStore::KeepForReopening keep_for
         close();
 
     return true;
+}
+
+// A discarded tab stands in the tab strip as one that a restored session hasn't loaded yet, which it is replaced with.
+// Closing the tab's view closes its pages, and so lets the processes that hosted them exit if they host nothing else.
+void BrowserWindow::discard_tab(Tab& tab)
+{
+    // NB: The Hub decides which tabs to discard. The user may have selected or pinned the tab while the request was on
+    //     its way, which the Hub learns of soon after, and a tab that a session can't restore can't be discarded.
+    //     A tab that reviews a report would lose the report, which only its page holds, and one with an unfinished edit
+    //     of its address would lose the edit.
+    auto index = tab_index(&tab);
+    if (index < 0 || &tab == m_current_tab || tab.is_pinned() || tab.is_in_report_review() || tab.location_edit_with_parked_editing())
+        return;
+    if (!tab.is_loaded() || !tab.session_tab_id().has_value()) {
+        dbgln("Unable to discard tab {}", tab.url());
+        return;
+    }
+
+    DeferredTab deferred_tab {
+        .session_tab_id = *tab.session_tab_id(),
+        .url = tab.url(),
+        .title = tab.title(),
+        .favicon = tab.favicon(),
+        .history = tab.view().session_history_snapshot(),
+        .discarded_tab_state_id = tab.view().keep_state_for_discarding(),
+    };
+    auto* discarded_tab = new Tab(this, AK::move(deferred_tab));
+    discarded_tab->set_needs_attention(tab.needs_attention());
+    // NB: The tab that stands in for the discarded one takes its place among the tabs that the window and other tabs
+    //     refer to, such as the background tabs opened from the current tab, which new ones open after.
+    for (auto& background_tab : m_background_tabs_from_current_tab) {
+        if (background_tab == &tab)
+            background_tab = discarded_tab;
+    }
+    for (int i = 0; i < m_tabs_container->count(); ++i) {
+        if (auto* other_tab = m_tabs_container->tab(i))
+            other_tab->did_replace_tab(tab, *discarded_tab);
+    }
+
+    // NB: The tab bar only hides a tab button that another takes the place of, and the old one refers to the old tab.
+    uninitialize_tab(&tab);
+    auto* tab_bar = m_tabs_container->tab_bar();
+    if (auto* close_button = tab_bar->tabButton(index, TAB_CLOSE_BUTTON_POSITION)) {
+        tab_bar->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, nullptr);
+        close_button->deleteLater();
+    }
+
+    m_tabs_container->replace_tab(index, discarded_tab);
+    initialize_tab(discarded_tab);
+    tab_title_changed(index, discarded_tab->title());
+    tab_favicon_changed(index, discarded_tab->favicon());
+    tab.deleteLater();
 }
 
 void BrowserWindow::move_tab(int old_index, int new_index)

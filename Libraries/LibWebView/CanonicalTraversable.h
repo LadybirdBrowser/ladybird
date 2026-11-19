@@ -99,6 +99,7 @@ public:
     CanonicalNavigable& insert(NonnullRefPtr<WebContentPage> reporting_page, CanonicalNavigable& parent, CanonicalDocument& container_document, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState, NonnullRefPtr<CanonicalSessionHistoryEntry> active_session_history_entry, NonnullRefPtr<CanonicalDocument>);
     void adopt_nested_history_for_created_child(CanonicalNavigable const& parent, CanonicalDocument const& container_document, Web::HTML::CrossProcessId child_navigable_id);
     Optional<CanonicalNavigable&> find(Web::HTML::CrossProcessId navigable_id);
+    void save_session_history_entry_persisted_state(Badge<WebContentPage>, CanonicalNavigable& navigable, Web::HTML::SessionHistoryEntryPersistedState const& persisted_state) { update_session_history_entry_persisted_state(navigable, persisted_state); }
     Optional<CanonicalNavigable const&> find(Web::HTML::CrossProcessId navigable_id) const;
     void remove(CanonicalNavigable&);
     void remove_page(WebContentPage&);

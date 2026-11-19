@@ -91,6 +91,8 @@ public:
     void set_window_position(Gfx::IntPoint position) { HubConnection::the().async_view_set_window_position(view_id(), position); }
     void set_window_size(Gfx::IntSize size) { HubConnection::the().async_view_set_window_size(view_id(), size); }
     void set_system_visibility_state(Web::HTML::VisibilityState visibility_state) { HubConnection::the().async_view_set_system_visibility_state(view_id(), move(visibility_state)); }
+    void set_pinned(bool pinned) { HubConnection::the().async_view_set_pinned(view_id(), pinned); }
+    void set_current_tab_of_window(bool current_tab_of_window) { HubConnection::the().async_view_set_current_tab_of_window(view_id(), current_tab_of_window); }
     void set_presents_from_cpu_memory(bool presents_from_cpu_memory) { HubConnection::the().async_view_set_presents_from_cpu_memory(view_id(), presents_from_cpu_memory); }
     void set_hosts_remote_layer(bool hosts_remote_layer) { HubConnection::the().async_view_set_hosts_remote_layer(view_id(), hosts_remote_layer); }
     void set_wants_frame_notifications(bool wants_frame_notifications) { HubConnection::the().async_view_set_wants_frame_notifications(view_id(), wants_frame_notifications); }
@@ -232,6 +234,14 @@ public:
     Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
     WebView::SessionHistorySnapshot session_history_snapshot() const;
     ErrorOr<void> restore_session_history_from_snapshot(WebView::SessionHistorySnapshot);
+    Optional<u64> keep_state_for_discarding();
+    void restore_state_of_discarded_tab(u64 discarded_tab_state_id);
+    // NB: A tab may go away after the connection to the Hub, which takes the state along with it then.
+    static void forget_state_of_discarded_tab(u64 discarded_tab_state_id)
+    {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_forget_state_of_discarded_tab(discarded_tab_state_id);
+    }
     void exit_fullscreen() { HubConnection::the().async_view_exit_fullscreen(view_id()); }
     void deny_fullscreen_window() { HubConnection::the().async_view_deny_fullscreen_window(view_id()); }
     void set_is_fullscreen(Web::ViewportIsFullscreen is_fullscreen) { HubConnection::the().async_view_set_is_fullscreen(view_id(), is_fullscreen); }
@@ -350,6 +360,8 @@ public:
     Function<void(Web::HTML::ActivateTab, Web::HTML::WebViewHints, u64 view_id)> on_open_new_view;
     decltype(Hub::View::on_activate_tab) on_activate_tab;
     decltype(Hub::View::on_close) on_close;
+    // The Hub asks to discard the tab of the view, which the tab may decline.
+    Function<void()> on_discard;
     decltype(Hub::View::on_link_hover) on_link_hover;
     decltype(Hub::View::on_link_unhover) on_link_unhover;
     decltype(Hub::View::on_title_change) on_title_change;

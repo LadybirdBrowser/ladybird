@@ -2044,6 +2044,26 @@ HorizontalTabEndRoom TabBar::horizontal_tab_end_room(int index) const
     return { start->left + ((settled.left - start->left) * p), start->right + ((settled.right - start->right) * p) };
 }
 
+void TabBar::did_replace_tab(Tab const& old_tab, Tab& new_tab)
+{
+    // NB: The previewed tab isn't one of these, as only a loaded tab has a preview, and the UI doesn't discard it.
+    for (auto* tab : { &m_previously_selected_tab, &m_pressed_tab }) {
+        if (*tab == &old_tab)
+            *tab = &new_tab;
+    }
+
+    // The tab that stands in for the old one is where the old one was, so the next change of the strip doesn't animate
+    // it as a new tab.
+    auto move_entry = [&](auto& map) {
+        if (auto value = map.take(&old_tab); value.has_value())
+            map.set(&new_tab, value.release_value());
+    };
+    move_entry(m_settled_tab_rects);
+    move_entry(m_settled_tab_end_rooms);
+    move_entry(m_layout_animation_start_rects);
+    move_entry(m_layout_animation_start_end_rooms);
+}
+
 void TabBar::prepare_for_tab_removal(int index)
 {
     m_closing_tab.clear();
@@ -3368,6 +3388,38 @@ void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
 
     // A tab moved here from another window can already be loading.
     m_tab_bar->update_loading_ring_animation();
+}
+
+Tab* TabWidget::replace_tab(int index, Tab* widget)
+{
+    auto* old_widget = as_if<Tab>(m_stacked_widget->widget(index));
+    if (!old_widget)
+        return nullptr;
+
+    update_all_tabs_entries_soon();
+
+    m_stacked_widget->removeWidget(old_widget);
+    if (old_widget->is_loaded())
+        old_widget->view().removeEventFilter(this);
+    disconnect(old_widget, &Tab::loaded, this, nullptr);
+    m_toolbar->release_location_edit(*old_widget);
+
+    if (widget->is_loaded()) {
+        widget->view().installEventFilter(this);
+    } else {
+        auto did_load = [this, widget] {
+            widget->view().installEventFilter(this);
+        };
+        connect(widget, &Tab::loaded, this, did_load, Qt::SingleShotConnection);
+    }
+    m_stacked_widget->insertWidget(index, widget);
+    if (m_tab_bar->currentIndex() >= 0)
+        m_stacked_widget->setCurrentIndex(m_tab_bar->currentIndex());
+    m_tab_bar->did_replace_tab(*old_widget, *widget);
+
+    m_tab_bar->update();
+    m_tab_bar->update_loading_ring_animation();
+    return old_widget;
 }
 
 void TabWidget::remove_tab(int index)

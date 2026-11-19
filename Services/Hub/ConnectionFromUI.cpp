@@ -806,6 +806,30 @@ Messages::HubServer::ViewRestoreSessionHistoryFromSnapshotResponse ConnectionFro
     return view && !view->restore_session_history_from_snapshot(move(snapshot)).is_error();
 }
 
+Messages::HubServer::ViewKeepStateForDiscardingResponse ConnectionFromUI::view_keep_state_for_discarding(u64 view_id)
+{
+    auto* view = find_view(view_id);
+    if (!view)
+        return Optional<u64> {};
+    return view->keep_state_for_discarding();
+}
+
+void ConnectionFromUI::view_restore_state_of_discarded_tab(u64 view_id, u64 discarded_tab_state_id)
+{
+    auto* view = find_view(view_id);
+    if (!view) {
+        WebView::ViewImplementation::forget_state_of_discarded_tab(discarded_tab_state_id);
+        return;
+    }
+    view->restore_state_of_discarded_tab(discarded_tab_state_id);
+    view->push_state_to_ui();
+}
+
+void ConnectionFromUI::forget_state_of_discarded_tab(u64 discarded_tab_state_id)
+{
+    WebView::ViewImplementation::forget_state_of_discarded_tab(discarded_tab_state_id);
+}
+
 Messages::HubServer::ViewHistoryStepAtDeltaResponse ConnectionFromUI::view_history_step_at_delta(u64 view_id, i32 delta)
 {
     auto* view = find_view(view_id);
@@ -980,6 +1004,18 @@ void ConnectionFromUI::view_commit_synchronized_resize(u64 view_id, u64 token)
         view->commit_synchronized_resize(token);
     else
         async_view_did_commit_synchronized_resize(view_id, token);
+}
+
+void ConnectionFromUI::view_set_pinned(u64 view_id, bool pinned)
+{
+    if (auto* view = find_view(view_id))
+        view->set_pinned(pinned);
+}
+
+void ConnectionFromUI::view_set_current_tab_of_window(u64 view_id, bool current_tab_of_window)
+{
+    if (auto* view = find_view(view_id))
+        view->set_current_tab_of_window(current_tab_of_window);
 }
 
 void ConnectionFromUI::view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory)

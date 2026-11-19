@@ -159,6 +159,9 @@ endpoint HubServer
     view_session_history_traversal_items(u64 view_id, i32 direction) => (Vector<WebView::ViewImplementation::SessionHistoryTraversalItem> items)
     view_session_history_snapshot(u64 view_id) => (Optional<WebView::SessionHistorySnapshot> snapshot)
     view_restore_session_history_from_snapshot(u64 view_id, WebView::SessionHistorySnapshot snapshot) => (bool restored)
+    view_keep_state_for_discarding(u64 view_id) => (Optional<u64> discarded_tab_state_id)
+    view_restore_state_of_discarded_tab(u64 view_id, u64 discarded_tab_state_id) =|
+    forget_state_of_discarded_tab(u64 discarded_tab_state_id) =|
     view_history_step_at_delta(u64 view_id, i32 delta) => (Optional<i32> step)
     view_look_up_selected_text_at(u64 view_id, Gfx::IntPoint position) => (bool looked_up)
     view_page_description(u64 view_id) => (URL::URL url, String user_agent, Gfx::IntSize viewport_size, double device_pixel_ratio, double zoom_level)
@@ -243,6 +246,8 @@ endpoint HubServer
     view_set_window_position(u64 view_id, Gfx::IntPoint position) =|
     view_set_window_size(u64 view_id, Gfx::IntSize size) =|
     view_set_system_visibility_state(u64 view_id, Web::HTML::VisibilityState visibility_state) =|
+    view_set_pinned(u64 view_id, bool pinned) =|
+    view_set_current_tab_of_window(u64 view_id, bool current_tab_of_window) =|
     view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory) =|
     view_set_hosts_remote_layer(u64 view_id, bool hosts_remote_layer) =|
     // The UI hears of the first frame shown in a new remote layer, and of every frame while it wants to.

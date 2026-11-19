@@ -97,6 +97,7 @@ public:
     void set_pinned_tabs_in_rows(bool);
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     void refresh_tab_layout();
+    void did_replace_tab(Tab const& old_tab, Tab& new_tab);
     // After a tab is closed with a click, the tabs keep their width until the pointer leaves the tab bar, so the next
     // close button lands under the pointer.
     void lock_tab_widths();
@@ -309,6 +310,8 @@ public:
     void insert_tab(int index, Tab* widget, QString const& label);
     void remove_tab(int index);
     Tab* take_tab(int index);
+    // Another tab stands in for the one at the index, which keeps its place in the tab bar rather than closing.
+    Tab* replace_tab(int index, Tab* widget);
 
     int count() const { return m_tab_bar->count(); }
 

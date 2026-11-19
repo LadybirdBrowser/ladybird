@@ -1438,6 +1438,25 @@ void WebContentPage::did_change_needs_beforeunload_check(bool needs_beforeunload
     m_needs_beforeunload_check = needs_beforeunload_check;
 }
 
+void WebContentPage::did_save_session_history_entry_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryPersistedState persisted_state)
+{
+    if (!has_traversable())
+        return;
+    // NB: A page saves the state of the documents it hosts alone.
+    auto navigable = hosted_navigable(navigable_id);
+    if (!navigable.has_value() || !hosts_active_document_of(*navigable))
+        return;
+    traversable().save_session_history_entry_persisted_state({}, *navigable, persisted_state);
+}
+
+void WebContentPage::did_save_session_history_entry_states()
+{
+    if (!has_traversable())
+        return;
+    if (auto view = traversable().view(); view.has_value())
+        view->did_save_session_history_entry_states({}, *this);
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#transient-activation-duration
 static constexpr auto transient_activation_duration = AK::Duration::from_seconds(5);
 
@@ -1767,6 +1786,11 @@ bool WebContentPage::document_may_use(Web::HTML::CrossProcessId document_id, Web
         return m_file_permission_grants.find_first_index_if([&](auto const& grant) { return grant.document_id == document_id && grant.name == name; }).has_value();
     }
     return manager.effective_state(name, *top_level_origin) == Web::Permissions::EffectiveState::Granted;
+}
+
+bool WebContentPage::hosts_a_local_file_document_that_may_use(Web::Permissions::PermissionName name) const
+{
+    return any_of(m_file_permission_grants, [&](auto const& grant) { return grant.name == name && document_may_use(grant.document_id, name); });
 }
 
 void WebContentPage::did_request_geolocation_position(u64 request_id, Web::HTML::CrossProcessId document_id)

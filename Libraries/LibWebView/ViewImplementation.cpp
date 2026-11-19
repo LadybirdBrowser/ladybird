@@ -141,8 +141,10 @@ ViewImplementation::~ViewImplementation()
     // location in every view that shows the site, and this one is on its way out.
     all_views().remove(m_view_id);
     session().permission_manager->remove_view(view_id());
-    if (m_top_level_traversable)
+    if (m_top_level_traversable) {
         m_top_level_traversable->clear_ongoing_navigation();
+        update_state_of_discarded_tab();
+    }
     cancel_all_native_geolocation_requests();
 
     if (!m_window_handle.is_empty() && !m_owner_view_id.has_value())
@@ -414,13 +416,22 @@ void ViewImplementation::set_title(Utf16String title)
 
     m_title = move(title);
     Application::the().media_session_coordinator().set_fallback_title(view_id(), m_title.to_utf8());
+    did_change_title_or_favicon();
 
     if (on_title_change)
         on_title_change(m_title);
 }
 
+// NB: A page shows its title and favicon as it loads, which is no work it does in the background.
+void ViewImplementation::did_change_title_or_favicon()
+{
+    if (m_top_level_traversable && !is_loading() && traversable().system_visibility_state() == Web::HTML::VisibilityState::Hidden)
+        m_changed_title_or_favicon_while_hidden = true;
+}
+
 void ViewImplementation::set_favicon(Optional<Gfx::Bitmap const&> favicon)
 {
+    did_change_title_or_favicon();
     if (on_favicon_change)
         on_favicon_change(favicon);
 }
@@ -580,6 +591,123 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
     traversable().set_system_visibility_state(visibility_state);
     Application::the().update_compositor_context_visibility(page().compositor_context_id(), visibility_state);
     report_permission_presence();
+
+    if (visibility_state == Web::HTML::VisibilityState::Visible) {
+        m_hidden_since.clear();
+        m_discard_requested = false;
+    } else {
+        m_hidden_since = MonotonicTime::now();
+        m_changed_title_or_favicon_while_hidden = false;
+    }
+}
+
+// The user would notice that a tab stopped playing sound, so a tab that just did is likely to play more.
+static constexpr auto time_silent_before_discarding = AK::Duration::from_seconds(60);
+
+bool ViewImplementation::may_be_discarded(DiscardReason reason, AK::Duration minimum_time_hidden, MonotonicTime now) const
+{
+    if (!supports_discarding() || m_discard_requested || !m_top_level_traversable)
+        return false;
+    if (traversable().system_visibility_state() != Web::HTML::VisibilityState::Hidden || !m_hidden_since.has_value() || now - *m_hidden_since < minimum_time_hidden)
+        return false;
+
+    // The user keeps a pinned tab at hand, and sees a window's current tab whenever they look at the window.
+    if (m_pinned || m_current_tab_of_window)
+        return false;
+
+    // NB: A tab that hasn't loaded yet has nothing to restore, and a crashed tab shows the user what happened to it.
+    if (is_loading() || m_crash_state.has_value())
+        return false;
+
+    // A tab that the user hears, or that listens or follows them, would stop doing it.
+    if (is_playing_audio() || is_capturing_audio() || m_tab_indicators.is_active(TabIndicator::UsingLocation))
+        return false;
+    if (m_stopped_playing_audio_time.has_value() && now - *m_stopped_playing_audio_time < time_silent_before_discarding)
+        return false;
+
+    // A view that this one owns, such as a Picture-in-Picture window, shows the user what the tab does.
+    auto owns_a_view = false;
+    for_each_view([&](ViewImplementation& view) {
+        if (view.owner_view_id() != m_view_id)
+            return IterationDecision::Continue;
+        owns_a_view = true;
+        return IterationDecision::Break;
+    });
+    if (owns_a_view || m_devtools_connected)
+        return false;
+
+    // NB: A page asks to be checked before it's unloaded when it holds something the user would lose, such as what they
+    //     typed into a form.
+    if (needs_beforeunload_check())
+        return false;
+
+    if (reason == DiscardReason::Inactivity) {
+        // A tab that changes what it shows in the tab strip, such as the count of unread messages in its title, does
+        // work for the user in the background. So does one that may show them notifications.
+        if (m_changed_title_or_favicon_while_hidden)
+            return false;
+        if (auto origin = permission_origin(); !origin.is_opaque()) {
+            if (session().permission_manager->effective_state(Web::Permissions::PermissionName::Notifications, origin) == Web::Permissions::EffectiveState::Granted)
+                return false;
+        } else {
+            // NB: A file: page's grant goes away with the page, so it would not even come back with the tab.
+            auto may_show_notifications = false;
+            traversable().for_each_hosting_page([&](WebContentPage& page) {
+                may_show_notifications |= page.hosts_a_local_file_document_that_may_use(Web::Permissions::PermissionName::Notifications);
+            });
+            if (may_show_notifications)
+                return false;
+        }
+    }
+    return true;
+}
+
+// The user should find the tab as they left it, so the processes hosting it first save where the user was in each of
+// its documents to its session history. A process that doesn't answer in time leaves its documents as they were saved.
+static constexpr auto time_to_save_session_history_entry_states = AK::Duration::from_seconds(1);
+
+void ViewImplementation::request_discard()
+{
+    m_discard_requested = true;
+
+    m_pages_saving_session_history_entry_states.clear();
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        auto is_saving = any_of(m_pages_saving_session_history_entry_states, [&](auto const& saving_page) { return saving_page.ptr() == &page; });
+        if (!page.is_open() || is_saving)
+            return;
+        m_pages_saving_session_history_entry_states.append(page);
+        page.async_save_session_history_entry_states();
+    });
+    if (m_pages_saving_session_history_entry_states.is_empty()) {
+        finish_discard_request();
+        return;
+    }
+
+    if (!m_save_session_history_entry_states_timer) {
+        m_save_session_history_entry_states_timer = Core::Timer::create_single_shot(time_to_save_session_history_entry_states, [this] {
+            finish_discard_request();
+        });
+    }
+    m_save_session_history_entry_states_timer->restart();
+}
+
+void ViewImplementation::did_save_session_history_entry_states(Badge<WebContentPage>, WebContentPage& page)
+{
+    if (!m_pages_saving_session_history_entry_states.remove_first_matching([&](auto const& saving_page) { return saving_page.ptr() == &page; }))
+        return;
+    if (m_pages_saving_session_history_entry_states.is_empty())
+        finish_discard_request();
+}
+
+void ViewImplementation::finish_discard_request()
+{
+    if (m_save_session_history_entry_states_timer)
+        m_save_session_history_entry_states_timer->stop();
+    m_pages_saving_session_history_entry_states.clear();
+
+    // NB: The user may have come back to the tab in the meantime.
+    if (m_discard_requested && traversable().system_visibility_state() == Web::HTML::VisibilityState::Hidden)
+        did_request_discard();
 }
 
 // One-time grants last only while some view shows their site, so each view tells the permission manager what it shows.
@@ -589,6 +717,15 @@ void ViewImplementation::report_permission_presence()
         return;
     auto visible = traversable().system_visibility_state() == Web::HTML::VisibilityState::Visible;
     session().permission_manager->set_view_presence(view_id(), permission_origin(), visible);
+}
+
+// NB: The Hub may have asked the UI to discard the tab before the UI learned of the pin, which the UI then declined. The
+//     tab is asked about again once it is unpinned.
+void ViewImplementation::set_pinned(bool pinned)
+{
+    m_pinned = pinned;
+    if (pinned)
+        m_discard_requested = false;
 }
 
 URL::Origin ViewImplementation::permission_origin() const
@@ -3022,7 +3159,12 @@ void ViewImplementation::insert_clipboard_item(Web::Clipboard::SystemClipboardIt
 
 void ViewImplementation::toggle_page_mute_state()
 {
-    m_mute_state = Web::HTML::invert_mute_state(m_mute_state);
+    set_page_mute_state(Web::HTML::invert_mute_state(m_mute_state));
+}
+
+void ViewImplementation::set_page_mute_state(Web::HTML::MuteState mute_state)
+{
+    m_mute_state = mute_state;
     traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.client().set_audio_playback_mute_state(page.id(), m_mute_state);
     });
@@ -3035,7 +3177,10 @@ void ViewImplementation::update_audibility()
         if (page.audibility() == Audio::Audibility::Audible)
             audible = true;
     });
-    m_tab_indicators.set_active(TabIndicator::PlayingAudio, audible, MonotonicTime::now());
+    auto now = MonotonicTime::now();
+    if (!audible && is_playing_audio())
+        m_stopped_playing_audio_time = now;
+    m_tab_indicators.set_active(TabIndicator::PlayingAudio, audible, now);
 }
 
 void ViewImplementation::update_microphone_capture()
@@ -4253,6 +4398,57 @@ ErrorOr<void> ViewImplementation::restore_session_history_from_snapshot(SessionH
     reconstruct_current_session_history_entry_with_history_operation("restored-session-history-from-ui-snapshot"sv);
     update_navigation_action_state();
     return {};
+}
+
+namespace {
+
+struct DiscardedTabState {
+    // NB: sessionStorage lasts as long as the tab, so a page must find it again when the tab is loaded again.
+    NonnullOwnPtr<StorageJar> session_storage;
+    Web::HTML::MuteState mute_state { Web::HTML::MuteState::Unmuted };
+};
+
+}
+
+static HashMap<u64, DiscardedTabState>& discarded_tab_states()
+{
+    static NeverDestroyed<HashMap<u64, DiscardedTabState>> states;
+    return *states;
+}
+
+u64 ViewImplementation::keep_state_for_discarding()
+{
+    static u64 s_next_discarded_tab_state_id = 1;
+    auto discarded_tab_state_id = s_next_discarded_tab_state_id++;
+
+    auto session_storage = StorageJar::create();
+    session_storage->clone_from(traversable().session_storage());
+    discarded_tab_states().set(discarded_tab_state_id, { .session_storage = move(session_storage), .mute_state = m_mute_state });
+    m_discarded_tab_state_id = discarded_tab_state_id;
+    return discarded_tab_state_id;
+}
+
+// NB: The pages of the tab may still write to its sessionStorage until the view closes, which the state must keep too.
+void ViewImplementation::update_state_of_discarded_tab()
+{
+    if (!m_discarded_tab_state_id.has_value())
+        return;
+    if (auto state = discarded_tab_states().get(*m_discarded_tab_state_id); state.has_value())
+        state.value().session_storage->clone_from(traversable().session_storage());
+}
+
+void ViewImplementation::restore_state_of_discarded_tab(u64 discarded_tab_state_id)
+{
+    auto state = discarded_tab_states().take(discarded_tab_state_id);
+    if (!state.has_value())
+        return;
+    traversable().session_storage().clone_from(*state->session_storage);
+    set_page_mute_state(state->mute_state);
+}
+
+void ViewImplementation::forget_state_of_discarded_tab(u64 discarded_tab_state_id)
+{
+    discarded_tab_states().remove(discarded_tab_state_id);
 }
 
 bool ViewImplementation::capture_session_history_snapshot_for_testing(Badge<WebContentPage>)
