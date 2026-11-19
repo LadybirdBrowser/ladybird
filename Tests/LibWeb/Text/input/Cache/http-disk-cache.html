@@ -14,6 +14,7 @@
     const ACCESS_CONTROL_ALLOW_HEADERS = [
         "Cache-Control",
         "If-Modified-Since",
+        "Pragma",
         "Range",
         TEST_CACHE_ENABLED_HEADER,
         TEST_CACHE_REQUEST_TIME_OFFSET,
@@ -264,6 +265,28 @@
             });
             expectCacheStatus(url, response, "read-from-cache");
         })();
+
+        // Requests with a force-cache directive do not receive stale responses if they have a no-cache directive.
+        for (const [name, value] of [["Cache-Control", "no-cache"], ["Pragma", "no-cache"]]) {
+            url = await createRequest(`/cache-test/cache-mode/force-cache-with-${name.toLowerCase()}-no-cache`, {
+                headers: {
+                    Age: "2",
+                    "Cache-Control": "max-age=5",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                cache: "force-cache",
+                headers: {
+                    [name]: value,
+                    [TEST_CACHE_REQUEST_TIME_OFFSET]: "5",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+        }
 
         // Responses with only a max-age directive are cached.
         await (async () => {
