@@ -7,16 +7,20 @@
 //! The output of a compile job: machine code and the metadata the runtime
 //! needs to install it and to exit from it into the interpreter.
 
+use ak::Column;
+
 use crate::artifact::Artifact;
 use crate::artifact::Layout;
+use crate::artifact::MAX_WORDS;
 use crate::snapshot::CellId;
 
-/// Compiled machine code for one executable, not yet installed.
-#[derive(Debug, Clone, Default)]
+/// Compiled machine code for one executable, not yet installed. The code and its tables are in memory that comes
+/// straight from the system, and that serves the next compile into this, so they are no blocks of the heap.
+#[derive(Debug)]
 pub struct CompiledCode {
     /// Position independent code, apart from absolute helper addresses,
     /// followed by the constants it loads.
-    pub code: Vec<u8>,
+    pub code: Column<u8>,
     /// Where the instructions end and the constants begin.
     pub data_offset: u32,
     /// Offset of the entry point within `code`.
@@ -33,7 +37,7 @@ pub struct CompiledCode {
     /// which holds the values of a publication while its slow path runs.
     pub register_dump_frame_offset: i32,
     /// The tables of the code (see `artifact()`), which have `layout`.
-    pub words: Vec<u32>,
+    pub words: Column<u32>,
     pub layout: Layout,
     /// The debug dumps `CompileOptions` asked for, as text to print.
     pub dump: Option<String>,
@@ -42,7 +46,47 @@ pub struct CompiledCode {
     pub coverage: Vec<String>,
 }
 
+impl Default for CompiledCode {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CompiledCode {
+    /// The most bytes the code of one compile can have. A compile that needs more fails.
+    const MAX_CODE_BYTES: usize = 1 << 27;
+
+    /// What a compile writes its code into (see `compile()`). It takes no memory before then.
+    pub fn new() -> Self {
+        Self {
+            code: Column::new(Self::MAX_CODE_BYTES, c"JIT compiled code"),
+            data_offset: 0,
+            entry_offset: 0,
+            site_index_frame_offset: 0,
+            register_dump_frame_offset: 0,
+            words: Column::new(MAX_WORDS, c"JIT compiled tables"),
+            layout: Layout::default(),
+            dump: None,
+            coverage: Vec::new(),
+        }
+    }
+
+    /// Drops the code. This keeps its memory for the next compile.
+    pub fn clear(&mut self) {
+        self.code.clear();
+        self.words.clear();
+        self.layout = Layout::default();
+        self.dump = None;
+        self.coverage = Vec::new();
+    }
+
+    /// Gives memory back to the system: all that is past the code and its tables, and past the room for
+    /// `code_bytes` bytes of code and for `words` words of tables.
+    pub fn trim(&mut self, code_bytes: usize, words: usize) {
+        self.code.trim(code_bytes);
+        self.words.trim(words);
+    }
+
     /// What the runtime reads to install the code, to enter it, and to translate its state into interpreter frames.
     pub fn artifact(&self) -> Artifact<'_> {
         Artifact::new(&self.words, &self.layout)

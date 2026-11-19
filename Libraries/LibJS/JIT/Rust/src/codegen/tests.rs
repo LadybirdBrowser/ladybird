@@ -947,7 +947,7 @@ impl Machine {
                 .iter()
                 .map(|executable| executable.cell.0)
                 .collect();
-            state.tables.clone_from(&compiled.words);
+            state.tables = compiled.words.to_vec();
             state.layout = compiled.layout;
             state.exits_taken.clear();
         }

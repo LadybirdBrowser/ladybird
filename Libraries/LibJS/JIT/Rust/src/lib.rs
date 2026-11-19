@@ -67,9 +67,10 @@ impl From<ak::ColumnFull> for CompileFailure {
     }
 }
 
-/// Compiles `snapshot.executables[0]` for the host architecture, with the memory of `scratch`.
-pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch) -> Result<CompiledCode, CompileFailure> {
-    compile_for::<asm::MacroAssembler>(
+/// Compiles `snapshot.executables[0]` for the host architecture with the memory of `scratch`, into `compiled` in
+/// place of what it holds. After a failure, `compiled` holds no complete code.
+pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch, compiled: &mut CompiledCode) -> Result<(), CompileFailure> {
+    compile_into::<asm::MacroAssembler>(
         snapshot,
         &|pc| {
             snapshot
@@ -78,6 +79,7 @@ pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch) -> Result<CompiledCod
                 .is_none_or(|executable| builder::has_run(executable, pc))
         },
         scratch,
+        compiled,
     )
 }
 
@@ -85,13 +87,27 @@ pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch) -> Result<CompiledCod
 /// besides the ones calls use.
 const STRESS_EXTRA_REGISTERS: u32 = 2;
 
-/// Compiles `snapshot.executables[0]` with the macro assembler `M`. The
+/// Compiles `snapshot.executables[0]` with the macro assembler `M`, into memory of the code's own. The
 /// instructions for which `has_run(pc)` is false become unconditional exits.
 pub fn compile_for<M: asm::PortableMacroAssembler>(
     snapshot: &Snapshot,
     has_run: &dyn Fn(u32) -> bool,
     scratch: &mut Scratch,
 ) -> Result<CompiledCode, CompileFailure> {
+    let mut compiled = CompiledCode::new();
+    compile_into::<M>(snapshot, has_run, scratch, &mut compiled)?;
+    Ok(compiled)
+}
+
+/// Compiles `snapshot.executables[0]` with the macro assembler `M`, like `compile()`. The instructions for which
+/// `has_run(pc)` is false become unconditional exits.
+fn compile_into<M: asm::PortableMacroAssembler>(
+    snapshot: &Snapshot,
+    has_run: &dyn Fn(u32) -> bool,
+    scratch: &mut Scratch,
+    compiled: &mut CompiledCode,
+) -> Result<(), CompileFailure> {
+    compiled.clear();
     let mut graph = builder::build_graph_with_feedback(snapshot, has_run)?;
     let executable = &snapshot.executables[0];
     let pass_dumps = if snapshot.options.dump_passes {
@@ -127,16 +143,19 @@ pub fn compile_for<M: asm::PortableMacroAssembler>(
         scratch,
     )?;
     generated.osr_entries.sort_unstable();
-    let layout = scratch.artifact.finish(&Tail {
-        osr_entries: &generated.osr_entries,
-        osr_loop_back_edges: &graph.osr_loop_back_edges,
-        osr_outer_loop_back_edges: &graph.osr_outer_loop_back_edges,
-        uncaught_handlers: &graph.uncaught_handlers,
-        invalidation_patches: &generated.invalidation_patches,
-        embedded_cells: &graph.embedded_cells,
-        dependencies: &graph.dependencies,
-    })?;
-    let words = scratch.artifact.words();
+    let layout = scratch.artifact.finish(
+        &Tail {
+            osr_entries: &generated.osr_entries,
+            osr_loop_back_edges: &graph.osr_loop_back_edges,
+            osr_outer_loop_back_edges: &graph.osr_outer_loop_back_edges,
+            uncaught_handlers: &graph.uncaught_handlers,
+            invalidation_patches: &generated.invalidation_patches,
+            embedded_cells: &graph.embedded_cells,
+            dependencies: &graph.dependencies,
+        },
+        &mut compiled.words,
+    )?;
+    compiled.code.try_extend_from_slice(&generated.code)?;
 
     let mut dump = None;
     if snapshot.options.dump_ir || snapshot.options.dump_asm || pass_dumps.is_some() {
@@ -152,26 +171,23 @@ pub fn compile_for<M: asm::PortableMacroAssembler>(
                 &snapshot.runtime,
                 M::ARCHITECTURE,
                 &generated,
-                Artifact::new(words, &layout),
+                Artifact::new(&compiled.words, &layout),
             ));
         }
         dump = Some(text);
     }
-    Ok(CompiledCode {
-        data_offset: generated.data_offset,
-        code: generated.code,
-        entry_offset: generated.entry_offset,
-        site_index_frame_offset: generated.site_index_frame_offset,
-        register_dump_frame_offset: generated.register_dump_frame_offset,
-        words: words.to_vec(),
-        layout,
-        coverage: if snapshot.options.coverage {
-            coverage::coverage_keys(&graph)
-        } else {
-            Vec::new()
-        },
-        dump,
-    })
+    compiled.data_offset = generated.data_offset;
+    compiled.entry_offset = generated.entry_offset;
+    compiled.site_index_frame_offset = generated.site_index_frame_offset;
+    compiled.register_dump_frame_offset = generated.register_dump_frame_offset;
+    compiled.layout = layout;
+    compiled.dump = dump;
+    compiled.coverage = if snapshot.options.coverage {
+        coverage::coverage_keys(&graph)
+    } else {
+        Vec::new()
+    };
+    Ok(())
 }
 
 // Compile jobs move between threads.
@@ -190,12 +206,17 @@ mod tests {
     fn compile_jobs_can_move_between_threads() {
         let snapshot = Snapshot::default();
         let mut scratch = Scratch::new();
-        let result = std::thread::spawn(move || compile(&snapshot, &mut scratch))
-            .join()
-            .unwrap();
+        let mut compiled = CompiledCode::new();
+        let (result, compiled) = std::thread::spawn(move || {
+            let result = compile(&snapshot, &mut scratch, &mut compiled);
+            (result, compiled)
+        })
+        .join()
+        .unwrap();
         assert!(matches!(
             result.unwrap_err(),
             CompileFailure::InvalidBytecode { pc: 0, .. }
         ));
+        assert!(compiled.code.is_empty());
     }
 }

@@ -241,9 +241,10 @@ pub struct ArtifactWriter {
     objects: Column<u32>,
     locations: Column<u32>,
     wide: Column<u32>,
-    /// The tables as one array, once the code is complete.
-    words: Column<u32>,
 }
+
+/// The most words the tables of one compile can have (see `ArtifactWriter::finish()`).
+pub const MAX_WORDS: usize = 1 << 25;
 
 impl Default for ArtifactWriter {
     fn default() -> Self {
@@ -260,7 +261,6 @@ impl ArtifactWriter {
     const MAX_OBJECTS: usize = 1 << 18;
     const MAX_LOCATIONS: usize = 1 << 24;
     const MAX_WIDE_VALUES: usize = 1 << 20;
-    const MAX_WORDS: usize = 1 << 25;
 
     pub fn new() -> Self {
         Self {
@@ -271,7 +271,6 @@ impl ArtifactWriter {
             objects: Column::new(Self::MAX_OBJECTS * OBJECT_WORDS, c"JIT objects"),
             locations: Column::new(Self::MAX_LOCATIONS, c"JIT locations"),
             wide: Column::new(Self::MAX_WIDE_VALUES * WIDE_WORDS, c"JIT wide values"),
-            words: Column::new(Self::MAX_WORDS, c"JIT tables"),
         }
     }
 
@@ -284,7 +283,6 @@ impl ArtifactWriter {
         self.objects.clear();
         self.locations.clear();
         self.wide.clear();
-        self.words.clear();
     }
 
     /// Gives the memory of the writer back to the system. It takes memory again when it writes.
@@ -297,7 +295,6 @@ impl ArtifactWriter {
         self.objects.trim(0);
         self.locations.trim(0);
         self.wide.trim(0);
-        self.words.trim(0);
     }
 
     /// Adds a frame with values in `slots` and with `in_frame` (see `FrameView::in_frame()`), both in any order.
@@ -451,8 +448,9 @@ impl ArtifactWriter {
         Ok(count_of(index))
     }
 
-    /// Completes the tables with `tail`, as one array (see `words()`) with the layout this returns.
-    pub fn finish(&mut self, tail: &Tail<'_>) -> Result<Layout, CompileFailure> {
+    /// Completes the tables with `tail`, and writes them as one array into `words` in place of what it holds, with
+    /// the layout this returns.
+    pub fn finish(&mut self, tail: &Tail<'_>, words: &mut Column<u32>) -> Result<Layout, CompileFailure> {
         let Self {
             sites,
             frames,
@@ -461,7 +459,6 @@ impl ArtifactWriter {
             objects,
             locations,
             wide,
-            words,
         } = self;
         words.clear();
         let mut layout = Layout::default();
@@ -544,11 +541,6 @@ impl ArtifactWriter {
         end(Section::Dependencies, words);
         assert_eq!(next_section, SECTION_COUNT);
         Ok(layout)
-    }
-
-    /// The tables that `finish()` completed.
-    pub fn words(&self) -> &[u32] {
-        &self.words
     }
 }
 
