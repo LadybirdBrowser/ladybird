@@ -877,7 +877,7 @@ impl Allocator<'_> {
         let constrained_inputs = node.inputs.len().min(constraints.inputs.len());
         let constraint_of = |allocator: &Self, index: usize| {
             allocator.registers.resolve(
-                constraints.inputs[index],
+                constraints.inputs.get(index),
                 allocator.graph.constant_value(node.inputs[index]).is_some(),
             )
         };
