@@ -319,18 +319,18 @@ fn constant_number(graph: &Graph, node: NodeId) -> Option<f64> {
     }
 }
 
-pub fn run(graph: &mut Graph, _work: &Zone) {
-    simplify(graph, true);
+pub fn run(graph: &mut Graph, work: &Zone) {
+    simplify(graph, true, work);
 }
 
 /// Simplification after check elimination, which keeps every int32 check of
 /// a double: check elimination may have relied on what one established, like
 /// the int32 that an unboxing in a branch it decided takes.
-pub fn run_after_check_elimination(graph: &mut Graph, _work: &Zone) {
-    simplify(graph, false);
+pub fn run_after_check_elimination(graph: &mut Graph, work: &Zone) {
+    simplify(graph, false, work);
 }
 
-fn simplify(graph: &mut Graph, dissolve_checks: bool) {
+fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
     let dissolvable = if dissolve_checks {
         dissolvable_checks(graph)
     } else {
@@ -342,8 +342,8 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
             .then(|| checked_double(graph, value))
             .flatten()
     };
-    let mut constants = Constants::new(graph);
-    let mut replacements = Replacements::new(graph);
+    let mut constants = Constants::new(graph, work);
+    let mut replacements = Replacements::new(graph, work);
     let mut removed = BitSet::new(graph.nodes.len());
     let mut changed_control_flow = false;
     for block in 0..graph.blocks.len() {
@@ -668,7 +668,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
     //     still uses stays, and frame states take the doubles of the others.
     if dissolvable.is_empty() {
         if changed_control_flow {
-            edit::clean_up_control_flow(graph);
+            edit::clean_up_control_flow(graph, work);
         }
         return;
     }
@@ -683,7 +683,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
             }
         }
     }
-    let mut replacements = Replacements::new(graph);
+    let mut replacements = Replacements::new(graph, work);
     let mut removed = BitSet::new(graph.nodes.len());
     for check in dissolvable.iter() {
         let check = NodeId::from_index(check);
@@ -694,6 +694,6 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool) {
     replacements.apply(graph);
     edit::remove_nodes(graph, &removed);
     if changed_control_flow {
-        edit::clean_up_control_flow(graph);
+        edit::clean_up_control_flow(graph, work);
     }
 }

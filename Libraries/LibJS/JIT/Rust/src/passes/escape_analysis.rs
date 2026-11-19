@@ -47,12 +47,10 @@
 use super::edit;
 use super::edit::Constants;
 use super::edit::Replacements;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::code::ExitKind;
 use crate::code::Repr;
 use crate::codegen::lowering_info::lowering_info;
-use crate::fast_hash::HashMap;
-use crate::fast_hash::HashSet;
 use crate::ir::Block;
 use crate::ir::BlockId;
 use crate::ir::FrameState;
@@ -63,40 +61,43 @@ use crate::ir::Op;
 use crate::ir::VirtualObjectKind;
 use crate::ir::value;
 use crate::snapshot::CellId;
+use crate::zone_map::ZoneMap;
+use crate::zone_map::ZoneSet;
 use ak::Zone;
+use ak::ZoneVec;
 
 /// The shape and property count each object has at some point, which
 /// `AddNamed` nodes change.
-type Shapes = HashMap<NodeId, (CellId, u32)>;
+type Shapes<'w> = ZoneMap<'w, NodeId, (CellId, u32)>;
 
 /// The analysis of one graph.
-struct Analysis {
+struct Analysis<'w> {
     /// The allocations that may be replaced.
-    candidates: HashSet<NodeId>,
+    candidates: ZoneSet<'w, NodeId>,
     /// The candidates that are closures.
-    closures: HashSet<NodeId>,
+    closures: ZoneSet<'w, NodeId>,
     /// For every value that is a candidate or stands for one (a candidate
     /// with empty values made undefined, or its cell address): the candidate.
-    roots: HashMap<NodeId, NodeId>,
-    escaped: BitSet,
+    roots: ZoneMap<'w, NodeId, NodeId>,
+    escaped: ZoneBitSet<'w>,
     /// Whether an object that does not escape is stored into another one.
     has_nested_objects: bool,
 }
 
-impl Analysis {
+impl Analysis<'_> {
     fn root(&self, value: NodeId) -> Option<NodeId> {
         self.roots.get(&value).copied()
     }
 }
 
-fn placed_nodes(graph: &Graph) -> Vec<NodeId> {
-    graph.blocks.iter().flat_map(Block::nodes).collect()
+fn placed_nodes<'w>(graph: &Graph, work: &'w Zone) -> ZoneVec<'w, NodeId> {
+    ZoneVec::from_iter_in(graph.blocks.iter().flat_map(Block::nodes), work)
 }
 
-fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
-    let mut candidates = HashSet::default();
-    let mut closures = HashSet::default();
-    let mut roots = HashMap::default();
+fn analyze<'w>(graph: &Graph, work: &'w Zone, placed: &[NodeId], escaping: &[NodeId]) -> Analysis<'w> {
+    let mut candidates = ZoneSet::new_in(work);
+    let mut closures = ZoneSet::new_in(work);
+    let mut roots = ZoneMap::new_in(work);
     for node in placed {
         match graph.node(*node).op {
             Op::AllocateObject { .. } => {}
@@ -108,7 +109,7 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
         candidates.insert(*node);
         roots.insert(*node, *node);
     }
-    let mut escaped = BitSet::new(graph.nodes.len());
+    let mut escaped = ZoneBitSet::new_in(graph.nodes.len(), work);
     for object in escaping {
         escaped.insert(object.index());
     }
@@ -146,17 +147,21 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
     //     the code never allocated then, after nodes that guard against that
     //     (see `Op::AssumeLegacyArgumentsUnread`), except where code read
     //     them before: there, and after other nodes, they stay allocated.
-    let guarded = graph
-        .legacy_arguments_guards
-        .iter()
-        .flat_map(|(_, nodes)| nodes.iter().copied())
-        .collect::<HashSet<_>>();
-    let read_before = graph
-        .exit_sites
-        .iter()
-        .filter(|(_, _, kind)| *kind == ExitKind::LegacyArgumentsRead)
-        .map(|(executable, pc, _)| (*executable, *pc))
-        .collect::<HashSet<_>>();
+    let guarded = ZoneSet::from_iter_in(
+        graph
+            .legacy_arguments_guards
+            .iter()
+            .flat_map(|(_, nodes)| nodes.iter().copied()),
+        work,
+    );
+    let read_before = ZoneSet::from_iter_in(
+        graph
+            .exit_sites
+            .iter()
+            .filter(|(_, _, kind)| *kind == ExitKind::LegacyArgumentsRead)
+            .map(|(executable, pc, _)| (*executable, *pc)),
+        work,
+    );
     for node in placed {
         let allocated_in = |frame_state: &FrameState| {
             !guarded.contains(node) || read_before.contains(&(frame_state.executable, frame_state.pc))
@@ -168,7 +173,7 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
         }
     }
 
-    let shapes_before = shapes_before_uses(graph, &candidates, &roots, &mut escaped);
+    let shapes_before = shapes_before_uses(graph, work, &candidates, &roots, &mut escaped);
 
     // NB: Only closures escape from frame states.
     for node in placed.iter().filter(|_| !closures.is_empty()) {
@@ -203,7 +208,7 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
     }
 
     // Values stored into candidates: (value's candidate, the candidate it is stored into).
-    let mut stored_into = Vec::new();
+    let mut stored_into = ZoneVec::new_in(work);
     for node in placed {
         let data = graph.node(*node);
         for (index, input) in data.inputs.iter().enumerate() {
@@ -253,13 +258,13 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
         }
     }
     // Loads of properties of candidates, as (candidate, offset).
-    let loaded = placed
-        .iter()
-        .filter_map(|node| match graph.node(*node).op {
+    let loaded = ZoneVec::from_iter_in(
+        placed.iter().filter_map(|node| match graph.node(*node).op {
             Op::LoadNamed { offset, .. } => roots.get(&graph.node(*node).inputs[0]).map(|root| (*root, offset)),
             _ => None,
-        })
-        .collect::<Vec<_>>();
+        }),
+        work,
+    );
     // An object stored into one that escapes escapes too. So does one stored
     // into a property that is loaded, which makes its value another value
     // standing for the object.
@@ -292,20 +297,34 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
 /// Merges the shapes objects have at the ends of a block's predecessors:
 /// objects whose shapes differ between paths escape, and objects missing on
 /// a path are not defined after the merge.
-fn merge_shapes<'a>(mut exits: impl Iterator<Item = &'a Shapes>, escaped: &mut BitSet) -> Shapes {
+fn merge_shapes<'a, 'w: 'a>(
+    mut exits: impl Iterator<Item = &'a Shapes<'w>> + Clone,
+    escaped: &mut ZoneBitSet,
+    work: &'w Zone,
+) -> Shapes<'w> {
     let Some(first) = exits.next() else {
-        return Shapes::default();
+        return Shapes::new_in(work);
     };
-    let mut merged = first.clone();
-    for exit in exits {
-        merged.retain(|object, shape| match exit.get(object) {
-            Some(other) if other == shape => true,
-            Some(_) => {
-                escaped.insert(object.index());
-                false
+    let mut merged = Shapes::with_capacity_in(first.len(), work);
+    for (object, shape) in first.iter() {
+        let mut kept = true;
+        for exit in exits.clone() {
+            match exit.get(object) {
+                Some(other) if other == shape => {}
+                Some(_) => {
+                    escaped.insert(object.index());
+                    kept = false;
+                    break;
+                }
+                None => {
+                    kept = false;
+                    break;
+                }
             }
-            None => false,
-        });
+        }
+        if kept {
+            merged.insert(*object, *shape);
+        }
     }
     merged
 }
@@ -313,32 +332,33 @@ fn merge_shapes<'a>(mut exits: impl Iterator<Item = &'a Shapes>, escaped: &mut B
 /// The shape and property count each object candidate has where each node
 /// uses it, or its frame state refers to it, as (node, candidate). Objects
 /// whose shapes differ between paths joining, or around a loop, escape.
-fn shapes_before_uses(
+fn shapes_before_uses<'w>(
     graph: &Graph,
-    candidates: &HashSet<NodeId>,
-    roots: &HashMap<NodeId, NodeId>,
-    escaped: &mut BitSet,
-) -> HashMap<(NodeId, NodeId), (CellId, u32)> {
-    let mut before = HashMap::default();
+    work: &'w Zone,
+    candidates: &ZoneSet<NodeId>,
+    roots: &ZoneMap<NodeId, NodeId>,
+    escaped: &mut ZoneBitSet,
+) -> ZoneMap<'w, (NodeId, NodeId), (CellId, u32)> {
+    let mut before = ZoneMap::new_in(work);
     let block_count = graph.blocks.len();
-    let mut entries: Vec<Shapes> = vec![Shapes::default(); block_count];
-    let mut exits: Vec<Option<Shapes>> = vec![None; block_count];
+    let mut entries: ZoneVec<Shapes> = ZoneVec::from_iter_in((0..block_count).map(|_| Shapes::new_in(work)), work);
+    let mut exits: ZoneVec<Option<Shapes>> = ZoneVec::from_iter_in((0..block_count).map(|_| None), work);
     for (index, block) in graph.blocks.iter().enumerate() {
         let forward = block
             .predecessors
             .iter()
             .filter(|predecessor| predecessor.index() < index)
             .filter_map(|predecessor| exits[predecessor.index()].as_ref());
-        let mut shapes = merge_shapes(forward, escaped);
+        let mut shapes = merge_shapes(forward, escaped, work);
         entries[index] = shapes.clone();
         for node in block.nodes() {
             let data = graph.node(node);
             let referred = data
                 .frame_state
-                .map(|frame_state| frame_state_values(graph, frame_state))
-                .unwrap_or_default();
-            for value in data.inputs.iter().chain(&referred) {
-                if let Some(root) = roots.get(value)
+                .into_iter()
+                .flat_map(|frame_state| frame_state_values(graph, frame_state));
+            for value in data.inputs.iter().copied().chain(referred) {
+                if let Some(root) = roots.get(&value)
                     && let Some(shape) = shapes.get(root)
                 {
                     before.insert((node, *root), *shape);
@@ -375,7 +395,7 @@ fn shapes_before_uses(
             let Some(exit) = exits[predecessor.index()].as_ref() else {
                 continue;
             };
-            for (object, shape) in &entries[index] {
+            for (object, shape) in entries[index].iter() {
                 if exit.get(object).is_some_and(|other| other != shape) {
                     escaped.insert(object.index());
                 }
@@ -386,50 +406,61 @@ fn shapes_before_uses(
 }
 
 /// The values the frame states in the chain `frame_state` starts refer to.
-fn frame_state_values(graph: &Graph, frame_state: FrameStateId) -> Vec<NodeId> {
+fn frame_state_values<'g>(graph: &'g Graph, frame_state: FrameStateId) -> impl Iterator<Item = NodeId> + 'g {
     graph
         .frame_state_chain(frame_state)
-        .into_iter()
         .flat_map(|id| graph.frame_state(id).values.iter().map(|(_, value)| *value))
-        .collect()
 }
 
 /// The value of each property of each replaced object at one point.
-type Properties = HashMap<(NodeId, u32), NodeId>;
+type Properties<'w> = ZoneMap<'w, (NodeId, u32), NodeId>;
 
-pub fn run(graph: &mut Graph, _work: &Zone) {
-    let placed = placed_nodes(graph);
-    let mut escaping = Vec::new();
+pub fn run(graph: &mut Graph, work: &Zone, steps: &mut [Zone; 2]) {
+    let [step, _] = steps;
+    let placed = placed_nodes(graph, work);
+    let mut escaping = ZoneVec::new_in(work);
     loop {
-        let analysis = analyze(graph, &placed, &escaping);
-        // NB: Only objects stored into others can be values of phis of
-        //     properties.
-        if !analysis.has_nested_objects {
-            replace_objects(graph, &analysis).expect("objects not stored into others merge in no phi of properties");
+        // NB: Each trial makes an analysis and a copy of the graph, which go when it ends.
+        let done = step.scope(|step| {
+            let analysis = analyze(graph, step, &placed, &escaping);
+            // NB: Only objects stored into others can be values of phis of
+            //     properties.
+            if !analysis.has_nested_objects {
+                replace_objects(graph, &analysis, step)
+                    .expect("objects not stored into others merge in no phi of properties");
+                return true;
+            }
+            // NB: A trial leaves the graph half edited where it fails, so it edits a copy, and the graph gets the
+            //     same edits where it works.
+            let mut copy = graph.clone_in(step);
+            match replace_objects(&mut copy, &analysis, step) {
+                Ok(()) => {
+                    replace_objects(graph, &analysis, step).expect("the edits of a copy of the graph worked");
+                    true
+                }
+                Err(objects) => {
+                    escaping.extend_from_slice(objects);
+                    false
+                }
+            }
+        });
+        if done {
             break;
         }
-        let mut copy = graph.clone();
-        match replace_objects(&mut copy, &analysis) {
-            Ok(()) => {
-                *graph = copy;
-                break;
-            }
-            Err(objects) => escaping.extend(objects),
-        }
     }
-    resolve_legacy_arguments_guards(graph);
+    resolve_legacy_arguments_guards(graph, work);
 }
 
 /// Makes the `AssumeLegacyArgumentsUnread` nodes after nodes whose code may
 /// read objects the code never allocated through legacy `arguments` (see
 /// `Graph::defers_legacy_argument_objects()`) `AssumeValid` nodes, and
 /// removes the others.
-fn resolve_legacy_arguments_guards(graph: &mut Graph) {
-    let mut placed = BitSet::new(graph.nodes.len());
-    for node in placed_nodes(graph) {
+fn resolve_legacy_arguments_guards(graph: &mut Graph, work: &Zone) {
+    let mut placed = ZoneBitSet::new_in(graph.nodes.len(), work);
+    for node in placed_nodes(graph, work) {
         placed.insert(node.index());
     }
-    let mut removed = BitSet::new(graph.nodes.len());
+    let mut removed = ZoneBitSet::new_in(graph.nodes.len(), work);
     for (guard, nodes) in graph.legacy_arguments_guards.take() {
         let needed = nodes
             .iter()
@@ -443,17 +474,27 @@ fn resolve_legacy_arguments_guards(graph: &mut Graph) {
     edit::remove_nodes(graph, &removed);
 }
 
+/// Lists that `virtualize_frame_state()` uses for each frame state, which it
+/// empties when it is done with them.
+struct Scratch<'w> {
+    /// A frame state chain, innermost frame first.
+    chain: ZoneVec<'w, FrameStateId>,
+    /// The virtual object of each replaced object, made once for a point.
+    objects: ZoneMap<'w, NodeId, NodeId>,
+    /// The virtual objects whose inputs are their properties.
+    filled: ZoneVec<'w, NodeId>,
+    inputs: ZoneVec<'w, NodeId>,
+}
+
 /// Replaces the objects of `analysis` that do not escape. Fails with the
 /// replaced objects that would be the values of phis of properties where
 /// paths merge, which must escape instead, leaving `graph` half edited.
-fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<NodeId>> {
-    let replaced = analysis
+fn replace_objects<'w>(graph: &mut Graph, analysis: &Analysis, work: &'w Zone) -> Result<(), &'w [NodeId]> {
+    if analysis
         .candidates
         .iter()
-        .filter(|candidate| !analysis.escaped.contains(candidate.index()))
-        .copied()
-        .collect::<Vec<_>>();
-    if replaced.is_empty() {
+        .all(|candidate| analysis.escaped.contains(candidate.index()))
+    {
         return Ok(());
     }
     let is_replaced = |value: NodeId| {
@@ -462,54 +503,71 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
             .is_some_and(|root| !analysis.escaped.contains(root.index()))
     };
 
-    let mut constants = Constants::new(graph);
+    let mut constants = Constants::new(graph, work);
     let undefined = constants.get(graph, value::UNDEFINED);
-    let mut replacements = Replacements::new(graph);
-    let mut removed = BitSet::new(graph.nodes.len());
+    let mut replacements = Replacements::new(graph, work);
+    let mut removed = ZoneBitSet::new_in(graph.nodes.len(), work);
     let block_count = graph.blocks.len();
-    let mut exit_properties: Vec<Option<Properties>> = vec![None; block_count];
-    let mut exit_shapes: Vec<Option<Shapes>> = vec![None; block_count];
+    let mut exit_properties: ZoneVec<Option<Properties>> = ZoneVec::from_iter_in((0..block_count).map(|_| None), work);
+    let mut exit_shapes: ZoneVec<Option<Shapes>> = ZoneVec::from_iter_in((0..block_count).map(|_| None), work);
     // Loop header phis whose inputs along back edges are filled in last:
     // (phi, block, property).
-    let mut pending_phis: Vec<(NodeId, BlockId, (NodeId, u32))> = Vec::new();
+    let mut pending_phis: ZoneVec<(NodeId, BlockId, (NodeId, u32))> = ZoneVec::new_in(work);
     // Replaced objects that would be values of those phis.
-    let mut conflicts: Vec<NodeId> = Vec::new();
+    let mut conflicts: ZoneVec<NodeId> = ZoneVec::new_in(work);
+    let mut predecessors = ZoneVec::new_in(work);
+    let mut values = ZoneVec::new_in(work);
+    let mut nodes = ZoneVec::new_in(work);
+    let mut scratch = Scratch {
+        chain: ZoneVec::new_in(work),
+        objects: ZoneMap::new_in(work),
+        filled: ZoneVec::new_in(work),
+        inputs: ZoneVec::new_in(work),
+    };
 
     for block_index in 0..block_count {
         let block = BlockId::from_index(block_index);
-        let predecessors = graph.block(block).predecessors.to_vec();
-        let forward = predecessors
+        predecessors.assign(&graph.block(block).predecessors);
+        let mut forward = predecessors
             .iter()
             .filter(|predecessor| predecessor.index() < block_index)
-            .copied()
-            .collect::<Vec<_>>();
-        let mut properties = Properties::default();
+            .copied();
+        let first = forward.next();
+        let forward_count = forward.count() + usize::from(first.is_some());
+        let mut properties = Properties::new_in(work);
         // NB: Replaced objects have the same shape on every path.
-        let mut shapes = forward
-            .first()
+        let mut shapes = first
             .and_then(|first| exit_shapes[first.index()].clone())
-            .unwrap_or_default();
-        if let Some(first) = forward.first() {
-            let has_back_edges = forward.len() < predecessors.len();
-            let first_properties = exit_properties[first.index()].clone().unwrap_or_default();
-            for (key, first_value) in first_properties {
-                let values = predecessors
-                    .iter()
-                    .map(|predecessor| {
-                        if predecessor.index() < block_index {
-                            exit_properties[predecessor.index()]
-                                .as_ref()
-                                .and_then(|exit| exit.get(&key).copied())
-                        } else {
-                            Some(first_value)
+            .unwrap_or_else(|| Shapes::new_in(work));
+        if let Some(first) = first
+            && let Some(first_properties) = exit_properties[first.index()].as_ref()
+        {
+            let has_back_edges = forward_count < predecessors.len();
+            for (key, first_value) in first_properties.iter() {
+                let (key, first_value) = (*key, *first_value);
+                values.clear();
+                let mut defined = true;
+                for predecessor in &predecessors {
+                    let value = if predecessor.index() < block_index {
+                        exit_properties[predecessor.index()]
+                            .as_ref()
+                            .and_then(|exit| exit.get(&key).copied())
+                    } else {
+                        Some(first_value)
+                    };
+                    match value {
+                        Some(value) => values.push(value),
+                        None => {
+                            defined = false;
+                            break;
                         }
-                    })
-                    .collect::<Option<Vec<_>>>();
+                    }
+                }
                 // NB: An object missing on a path is not defined there, so
                 //     nothing after the merge uses it.
-                let Some(values) = values else {
+                if !defined {
                     continue;
-                };
+                }
                 if !has_back_edges && values.iter().all(|value| *value == first_value) {
                     properties.insert(key, first_value);
                     continue;
@@ -530,29 +588,38 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
             }
         }
 
-        let nodes = graph
-            .block(block)
-            .body
-            .iter()
-            .chain(&graph.block(block).control)
-            .copied()
-            .collect::<Vec<_>>();
-        for node in nodes {
+        nodes.clear();
+        nodes.extend(
+            graph
+                .block(block)
+                .body
+                .iter()
+                .chain(&graph.block(block).control)
+                .copied(),
+        );
+        for node in &nodes {
+            let node = *node;
             let data = graph.node(node);
-            let (node_op, node_inputs, node_repr, node_frame_state) =
-                (data.op.clone(), data.inputs.to_vec(), data.repr, data.frame_state);
+            let (node_op, first_input, second_input, node_repr, node_frame_state) = (
+                data.op.clone(),
+                data.inputs.first().copied(),
+                data.inputs.get(1).copied(),
+                data.repr,
+                data.frame_state,
+            );
+            let second_input = || second_input.expect("stores have a value");
             if let Some(frame_state) = node_frame_state {
                 let new_frame_state = virtualize_frame_state(
                     graph,
                     analysis,
-                    &is_replaced,
-                    &replacements,
+                    (&is_replaced, &replacements),
                     (&properties, &shapes),
                     frame_state,
+                    &mut scratch,
                 );
                 graph.nodes[node.index()].frame_state = new_frame_state.or(node_frame_state);
             }
-            let object = node_inputs.first().copied().filter(|object| is_replaced(*object));
+            let object = first_input.filter(|object| is_replaced(*object));
             match node_op {
                 Op::AllocateObject {
                     shape, property_count, ..
@@ -575,7 +642,7 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
                     let root = analysis
                         .root(object.expect("checked"))
                         .expect("replaced objects have roots");
-                    properties.insert((root, offset), replacements.resolve(node_inputs[1]));
+                    properties.insert((root, offset), replacements.resolve(second_input()));
                     shapes.insert(root, (shape, property_count));
                     removed.insert(node.index());
                 }
@@ -583,7 +650,7 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
                     let root = analysis
                         .root(object.expect("checked"))
                         .expect("replaced objects have roots");
-                    properties.insert((root, offset), replacements.resolve(node_inputs[1]));
+                    properties.insert((root, offset), replacements.resolve(second_input()));
                     removed.insert(node.index());
                 }
                 Op::LoadNamed { offset, .. } if object.is_some() => {
@@ -599,7 +666,7 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
                 {
                     // NB: What a removed check refined is the object itself.
                     if node_op.refined_input().is_some() && node_repr.is_some() {
-                        replacements.replace(node, node_inputs[0]);
+                        replacements.replace(node, object.expect("checked"));
                     }
                     removed.insert(node.index());
                 }
@@ -610,8 +677,8 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
         exit_shapes[block_index] = Some(shapes);
     }
 
-    for (phi, block, key) in pending_phis {
-        let predecessors = graph.block(block).predecessors.to_vec();
+    for (phi, block, key) in pending_phis.drain_all() {
+        predecessors.assign(&graph.block(block).predecessors);
         for (index, predecessor) in predecessors.iter().enumerate() {
             if predecessor.index() < block.index() {
                 continue;
@@ -633,11 +700,11 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
     if !conflicts.is_empty() {
         conflicts.sort_unstable();
         conflicts.dedup();
-        return Err(conflicts);
+        return Err(conflicts.into_slice());
     }
     replacements.apply(graph);
     edit::remove_nodes(graph, &removed);
-    edit::remove_trivial_phis(graph);
+    edit::remove_trivial_phis(graph, work);
     Ok(())
 }
 
@@ -647,15 +714,14 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
 fn virtualize_frame_state(
     graph: &mut Graph,
     analysis: &Analysis,
-    is_replaced: &dyn Fn(NodeId) -> bool,
-    replacements: &Replacements,
+    (is_replaced, replacements): (&dyn Fn(NodeId) -> bool, &Replacements),
     (properties, shapes): (&Properties, &Shapes),
     frame_state: FrameStateId,
+    scratch: &mut Scratch,
 ) -> Option<FrameStateId> {
-    let chain = graph.frame_state_chain(frame_state);
-    let refers_to_replaced = chain.iter().any(|id| {
+    let refers_to_replaced = graph.frame_state_chain(frame_state).any(|id| {
         graph
-            .frame_state(*id)
+            .frame_state(id)
             .values
             .iter()
             .any(|(_, value)| is_replaced(replacements.resolve(*value)))
@@ -663,9 +729,18 @@ fn virtualize_frame_state(
     if !refers_to_replaced {
         return None;
     }
+    let Scratch {
+        chain,
+        objects,
+        filled,
+        inputs,
+    } = scratch;
+    chain.clear();
+    chain.extend(graph.frame_state_chain(frame_state));
+    objects.clear();
+    filled.clear();
     // The virtual object of each replaced object, made once for this point.
-    let mut objects: HashMap<NodeId, NodeId> = HashMap::default();
-    let virtual_object = |graph: &mut Graph, objects: &mut HashMap<NodeId, NodeId>, value: NodeId| -> NodeId {
+    let virtual_object = |graph: &mut Graph, objects: &mut ZoneMap<NodeId, NodeId>, value: NodeId| -> NodeId {
         let value = replacements.resolve(value);
         if !is_replaced(value) {
             return value;
@@ -674,7 +749,7 @@ fn virtualize_frame_state(
         if let Some(object) = objects.get(&root) {
             return *object;
         }
-        let (shape, _) = shapes[&root];
+        let (shape, _) = *shapes.get(&root).expect("replaced objects have shapes");
         let kind = if analysis.closures.contains(&root) {
             VirtualObjectKind::Closure { sample: shape }
         } else {
@@ -693,42 +768,39 @@ fn virtualize_frame_state(
     for id in chain.iter().rev() {
         let mut copy = graph.frame_state(*id).clone();
         for (_, value) in &mut copy.values {
-            *value = virtual_object(graph, &mut objects, *value);
+            *value = virtual_object(graph, objects, *value);
         }
         copy.parent = parent;
         parent = Some(graph.add_frame_state(copy));
     }
     // The properties of the virtual objects, which may be virtual objects
     // themselves.
-    let mut filled = Vec::new();
-    while let Some((root, object)) = objects
-        .iter()
-        .map(|(root, object)| (*root, *object))
-        .find(|(_, object)| !filled.contains(object))
-    {
+    loop {
+        let Some((root, object)) = objects
+            .iter()
+            .map(|(root, object)| (*root, *object))
+            .find(|(_, object)| !filled.contains(object))
+        else {
+            break;
+        };
         filled.push(object);
+        inputs.clear();
         // NB: The environments of a closure are what its allocation had.
         if analysis.closures.contains(&root) {
-            let inputs = graph
-                .node(root)
-                .inputs
-                .iter()
-                .map(|input| replacements.resolve(*input))
-                .collect::<Vec<_>>();
-            graph.nodes[object.index()].inputs.assign(&inputs);
+            inputs.extend(graph.node(root).inputs.iter().map(|input| replacements.resolve(*input)));
+            graph.nodes[object.index()].inputs.assign(inputs);
             continue;
         }
-        let (_, property_count) = shapes[&root];
-        let inputs = (0..property_count)
-            .map(|offset| {
-                let property = properties
-                    .get(&(root, offset))
-                    .copied()
-                    .expect("replaced objects have every property");
-                virtual_object(graph, &mut objects, property)
-            })
-            .collect::<Vec<_>>();
-        graph.nodes[object.index()].inputs.assign(&inputs);
+        let (_, property_count) = *shapes.get(&root).expect("replaced objects have shapes");
+        for offset in 0..property_count {
+            let property = properties
+                .get(&(root, offset))
+                .copied()
+                .expect("replaced objects have every property");
+            let value = virtual_object(graph, objects, property);
+            inputs.push(value);
+        }
+        graph.nodes[object.index()].inputs.assign(inputs);
     }
     parent
 }

@@ -41,12 +41,12 @@ use super::facts::BranchKey;
 use super::facts::ElementCount;
 use super::facts::Facts;
 use super::facts::Location;
+use super::facts::Moved;
 use super::facts::ValueKind;
 use super::facts::elements_kind_implies;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::bytecode::OpCode;
 use crate::code::Dependency;
-use crate::inline_vec::InlineVec;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
 use crate::ir::ElementsKind;
@@ -57,31 +57,48 @@ use crate::ir::ShapeCheck;
 use crate::ir::value;
 use crate::snapshot::CellId;
 use ak::Zone;
+use ak::ZoneVec;
 
 /// What the analysis decided for the nodes of one visit of the graph.
-struct Decisions {
-    replacements: Replacements,
-    removed: BitSet,
+struct Decisions<'w> {
+    replacements: Replacements<'w>,
+    removed: ZoneBitSet<'w>,
     /// Control nodes to replace, with what.
-    controls: Vec<(NodeId, NewControl)>,
+    controls: ZoneVec<'w, (NodeId, NewControl<'w>)>,
     /// Shape checks that become `AssumeValid` nodes.
-    assumptions: Vec<NodeId>,
+    assumptions: ZoneVec<'w, NodeId>,
     /// The stable shapes the code relies on staying stable.
-    stable_shapes: Vec<CellId>,
+    stable_shapes: ZoneVec<'w, CellId>,
+    /// The inputs of the node being visited, as the analysis knows them.
+    inputs: ZoneVec<'w, NodeId>,
+    /// The cases of the shape switch being visited that can match.
+    possible: ZoneVec<'w, (ShapeCheck, BlockId)>,
 }
 
+/// Facts flowing along edges, each with the block the edge leads to.
+type Edges<'w> = ZoneVec<'w, (BlockId, Facts<'w>)>;
+
 /// What a control node is replaced with.
-enum NewControl {
+enum NewControl<'w> {
     Jump {
         target: BlockId,
     },
     /// A shape switch with fewer cases, each a shape and its target.
     ShapeSwitch {
-        cases: Vec<(ShapeCheck, BlockId)>,
+        cases: &'w [(ShapeCheck, BlockId)],
     },
 }
 
-impl Decisions {
+impl Decisions<'_> {
+    /// Forgets the decisions of the last visit.
+    fn clear(&mut self) {
+        self.replacements.clear();
+        self.removed.clear();
+        self.controls.clear();
+        self.assumptions.clear();
+        self.stable_shapes.clear();
+    }
+
     /// The value the analysis knows `value` as: what it is replaced by, and
     /// the value it refines (facts are about values, whatever refines them).
     fn value(&self, graph: &Graph, value: NodeId) -> NodeId {
@@ -97,78 +114,127 @@ impl Decisions {
     }
 }
 
-pub fn run(graph: &mut Graph, _work: &Zone) {
-    let mut constants = Constants::new(graph);
-    let block_count = graph.blocks.len();
-    // The facts flowing along each edge, from the latest visit of its source.
-    let mut edge_facts: Vec<Vec<(BlockId, Facts)>> = vec![Vec::new(); block_count];
-    // NB: Only blocks with predecessors later in the order can see other
-    //     facts in another visit: they decide when the visits are done.
-    let mut entry_facts: Vec<Option<Facts>> = vec![None; block_count];
-    let revisited = (0..block_count)
-        .map(|block| {
-            graph.blocks[block]
-                .predecessors
+/// The edges out of a block, each with the slot of the facts along it in the `Store`.
+type EdgeSlots<'w> = ZoneVec<'w, (BlockId, u32)>;
+
+/// The facts that the visits of blocks hand on to later ones, in a step zone. Each is in a slot, which the tables of
+/// `Round` name, so that a move of the facts in use copies those and nothing else.
+struct Store<'f> {
+    zone: &'f Zone,
+    /// The facts of each slot, or none for a slot that is free.
+    facts: ZoneVec<'f, Option<Facts<'f>>>,
+    /// The facts along the edges into the block being visited, which is empty between visits.
+    incoming: Edges<'f>,
+    /// The facts along the edges out of the block being visited, which is empty between visits.
+    outgoing: Edges<'f>,
+}
+
+impl<'f> Store<'f> {
+    fn new_in(zone: &'f Zone) -> Self {
+        Self {
+            zone,
+            facts: ZoneVec::new_in(zone),
+            incoming: ZoneVec::new_in(zone),
+            outgoing: ZoneVec::new_in(zone),
+        }
+    }
+
+    /// Puts `facts` in a slot that `free` lists, or in a new one, and returns the slot.
+    fn put(&mut self, facts: Facts<'f>, free: &mut ZoneVec<u32>) -> u32 {
+        if let Some(slot) = free.pop() {
+            self.facts[slot as usize] = Some(facts);
+            return slot;
+        }
+        self.facts.push(Some(facts));
+        u32::try_from(self.facts.len() - 1).expect("the facts in use fit in 2^32 slots")
+    }
+
+    /// Takes the facts of `slot`, which becomes free.
+    fn take(&mut self, slot: u32, free: &mut ZoneVec<u32>) -> Facts<'f> {
+        free.push(slot);
+        self.facts[slot as usize].take().expect("a slot in use holds facts")
+    }
+
+    fn get(&self, slot: u32) -> &Facts<'f> {
+        self.facts[slot as usize].as_ref().expect("a slot in use holds facts")
+    }
+
+    fn get_mut(&mut self, slot: u32) -> &mut Facts<'f> {
+        self.facts[slot as usize].as_mut().expect("a slot in use holds facts")
+    }
+
+    /// The same facts in the same slots, in `zone`, with lists that are shared where they are here.
+    fn move_to(self, zone: &Zone) -> Store<'_> {
+        debug_assert!(self.incoming.is_empty() && self.outgoing.is_empty());
+        let mut moved = Moved::new_in(zone);
+        let facts = ZoneVec::from_iter_in(
+            self.facts
                 .iter()
-                .any(|predecessor| predecessor.index() >= block)
-        })
-        .collect::<Vec<_>>();
-    let decisions = loop {
-        let mut decisions = Decisions {
-            replacements: Replacements::new(graph),
-            removed: BitSet::new(graph.nodes.len()),
-            controls: Vec::new(),
-            assumptions: Vec::new(),
-            stable_shapes: Vec::new(),
-        };
-        let mut changed = false;
-        let mut visited = vec![false; block_count];
-        let mut skipped = Vec::new();
-        for block in 0..block_count {
-            let block_id = BlockId::from_index(block);
-            let Some(facts) = facts_at_entry(graph, block_id, &mut edge_facts, &visited, &revisited, &decisions) else {
-                // No visited predecessor reaches this block.
-                edge_facts[block].clear();
-                skipped.push(block_id);
-                continue;
-            };
-            visited[block] = true;
-            if revisited[block] && entry_facts[block].as_ref() != Some(&facts) {
-                changed = true;
-                entry_facts[block] = Some(facts.clone());
-            }
-            edge_facts[block] = visit_block(graph, &mut constants, block_id, facts, &mut decisions);
+                .map(|facts| facts.as_ref().map(|facts| facts.move_to(&mut moved))),
+            zone,
+        );
+        Store {
+            zone,
+            facts,
+            incoming: ZoneVec::new_in(zone),
+            outgoing: ZoneVec::new_in(zone),
         }
-        // NB: A block that only back edges lead to (code after an entry that
-        //     comes later in the order, such as an on-stack replacement
-        //     entry) is skipped until they bring facts, which they did if a
-        //     predecessor visited later has facts along its edge. What can
-        //     be reached from it then saw other facts along the other paths
-        //     in this round.
-        changed |= skipped.iter().any(|block| {
-            graph.block(*block).predecessors.iter().any(|predecessor| {
-                edge_facts[predecessor.index()]
-                    .iter()
-                    .any(|(target, _)| target == block)
-            })
-        });
-        if !changed {
-            break decisions;
-        }
+    }
+}
+
+/// How many bytes a step zone of the pass may hold before the facts still in use move to the other one: twice what
+/// they took right after the last move, and at least 1 MiB, so that the zone holds at most about three times the facts
+/// in use, and the facts of small functions never move.
+fn move_limit(kept: usize) -> usize {
+    (2 * kept).max(1 << 20)
+}
+
+pub fn run(graph: &mut Graph, work: &Zone, steps: &mut [Zone; 2]) {
+    let mut constants = Constants::new(graph, work);
+    // NB: The visits add no nodes to blocks, only constants.
+    let mut decisions = Decisions {
+        replacements: Replacements::new(graph, work),
+        removed: ZoneBitSet::new_in(graph.nodes.len(), work),
+        controls: ZoneVec::new_in(work),
+        assumptions: ZoneVec::new_in(work),
+        stable_shapes: ZoneVec::new_in(work),
+        inputs: ZoneVec::new_in(work),
+        possible: ZoneVec::new_in(work),
     };
+    let mut round = Round::new(graph, &mut constants, &mut decisions, work);
+    // NB: The facts of each block copy lists of the facts before it, which a zone takes back only all at once. So
+    //     the visits stop when the store of the facts holds much more than after the last move, the facts in use
+    //     move to the other step zone, and the zone they leave is reset.
+    let [zone, other] = steps;
+    let mut store = Store::new_in(zone);
+    let mut kept = 0;
+    loop {
+        if round.run(&mut store, move_limit(kept)) {
+            break;
+        }
+        let mut moved = store.move_to(other);
+        kept = other.used();
+        zone.reset();
+        if round.run(&mut moved, move_limit(kept)) {
+            break;
+        }
+        store = moved.move_to(zone);
+        kept = zone.used();
+        other.reset();
+    }
 
     decisions.replacements.apply(graph);
     edit::remove_nodes(graph, &decisions.removed);
-    for node in decisions.assumptions {
+    for node in decisions.assumptions.drain_all() {
         graph.nodes[node.index()].op = Op::AssumeValid;
         graph.nodes[node.index()].inputs.clear();
         graph.nodes[node.index()].repr = None;
     }
-    for shape in decisions.stable_shapes {
+    for shape in decisions.stable_shapes.drain_all() {
         graph.depend_on(Dependency::StableShape(shape));
     }
     let changed_control_flow = !decisions.controls.is_empty();
-    for (node, control) in decisions.controls {
+    for (node, control) in decisions.controls.drain_all() {
         match control {
             NewControl::Jump { target } => edit::make_jump(graph, node, target),
             NewControl::ShapeSwitch { cases } => {
@@ -181,7 +247,164 @@ pub fn run(graph: &mut Graph, _work: &Zone) {
         }
     }
     if changed_control_flow {
-        edit::clean_up_control_flow(graph);
+        edit::clean_up_control_flow(graph, work);
+    }
+}
+
+/// The rounds of visits of the blocks, until the facts stop changing, with what lasts from one visit to the next
+/// apart from the facts themselves: the slots of the facts in the `Store`, which can move to another zone between
+/// two visits.
+struct Round<'a, 'g, 'w> {
+    graph: &'a mut Graph<'g>,
+    constants: &'a mut Constants<'w>,
+    decisions: &'a mut Decisions<'w>,
+    /// Whether each block has predecessors later in the order. Only those can see other facts in another round:
+    /// they decide when the rounds are done.
+    revisited: ZoneVec<'w, bool>,
+    visited: ZoneVec<'w, bool>,
+    skipped: ZoneVec<'w, BlockId>,
+    /// For each block, the edges out of it from its latest visit that no block took the facts of yet.
+    edges: ZoneVec<'w, EdgeSlots<'w>>,
+    /// For each block that `revisited` holds for, the slot of its facts at entry from its latest visit, if any.
+    entry_facts: ZoneVec<'w, Option<u32>>,
+    /// The slots of the store that are free.
+    free: ZoneVec<'w, u32>,
+    /// Whether the facts changed in this round.
+    changed: bool,
+    /// The block to visit next in this round.
+    next: usize,
+}
+
+impl<'a, 'g, 'w> Round<'a, 'g, 'w> {
+    fn new(
+        graph: &'a mut Graph<'g>,
+        constants: &'a mut Constants<'w>,
+        decisions: &'a mut Decisions<'w>,
+        work: &'w Zone,
+    ) -> Self {
+        let block_count = graph.blocks.len();
+        let revisited = ZoneVec::from_iter_in(
+            (0..block_count).map(|block| {
+                graph.blocks[block]
+                    .predecessors
+                    .iter()
+                    .any(|predecessor| predecessor.index() >= block)
+            }),
+            work,
+        );
+        let mut round = Self {
+            graph,
+            constants,
+            decisions,
+            revisited,
+            visited: ZoneVec::from_elem_in(false, block_count, work),
+            skipped: ZoneVec::new_in(work),
+            edges: ZoneVec::from_iter_in((0..block_count).map(|_| ZoneVec::new_in(work)), work),
+            entry_facts: ZoneVec::from_elem_in(None, block_count, work),
+            free: ZoneVec::new_in(work),
+            changed: false,
+            next: 0,
+        };
+        round.start();
+        round
+    }
+
+    /// Starts a round.
+    fn start(&mut self) {
+        self.decisions.clear();
+        self.changed = false;
+        self.visited.fill(false);
+        self.skipped.clear();
+        self.next = 0;
+    }
+
+    /// Visits blocks until the facts stop changing, and returns true, or until `store` holds more than `limit` bytes
+    /// before a visit, and returns false. It goes on where it stopped when it is called again.
+    fn run(&mut self, store: &mut Store, limit: usize) -> bool {
+        loop {
+            if self.next == self.graph.blocks.len() {
+                // NB: A block that only back edges lead to (code after an entry that comes later in the order,
+                //     such as an on-stack replacement entry) is skipped until they bring facts, which they did if
+                //     a predecessor visited later has facts along its edge. What can be reached from it then saw
+                //     other facts along the other paths in this round.
+                let edges = &self.edges;
+                let graph = &*self.graph;
+                self.changed |= self.skipped.iter().any(|block| {
+                    graph
+                        .block(*block)
+                        .predecessors
+                        .iter()
+                        .any(|predecessor| edges[predecessor.index()].iter().any(|(target, _)| target == block))
+                });
+                if !self.changed {
+                    return true;
+                }
+                self.start();
+                continue;
+            }
+            if store.zone.used() > limit {
+                return false;
+            }
+            self.visit(store, self.next);
+            self.next += 1;
+        }
+    }
+
+    /// Frees the slots of the edges out of `block`.
+    fn clear_edges(&mut self, store: &mut Store, block: usize) {
+        for (_, slot) in self.edges[block].drain_all() {
+            store.take(slot, &mut self.free);
+        }
+    }
+
+    /// Visits `block`, with the facts along the edges into it, and hands on the facts along the edges out of it.
+    fn visit(&mut self, store: &mut Store, block: usize) {
+        let block_id = BlockId::from_index(block);
+        let mut incoming = store.incoming.take();
+        let facts = facts_at_entry(
+            self.graph,
+            block_id,
+            (&mut self.edges, store, &mut self.free, &mut incoming),
+            &self.visited,
+            &self.revisited,
+            self.decisions,
+        );
+        store.incoming = incoming;
+        let Some(mut facts) = facts else {
+            // No visited predecessor reaches this block.
+            self.clear_edges(store, block);
+            self.skipped.push(block_id);
+            return;
+        };
+        self.visited[block] = true;
+        if self.revisited[block] {
+            match self.entry_facts[block] {
+                Some(slot) if *store.get(slot) == facts => {}
+                Some(slot) => {
+                    self.changed = true;
+                    *store.get_mut(slot) = facts.share();
+                }
+                None => {
+                    self.changed = true;
+                    self.entry_facts[block] = Some(store.put(facts.share(), &mut self.free));
+                }
+            }
+        }
+        self.clear_edges(store, block);
+        let mut outgoing = store.outgoing.take();
+        visit_block(
+            self.graph,
+            self.constants,
+            block_id,
+            facts,
+            self.decisions,
+            &mut outgoing,
+        );
+        for (target, facts) in outgoing.drain_all() {
+            let slot = store.put(facts, &mut self.free);
+            self.edges[block].push((target, slot));
+        }
+        store.outgoing = outgoing;
     }
 }
 
@@ -194,32 +417,41 @@ pub fn run(graph: &mut Graph, _work: &Zone) {
 ///
 /// A phi of a block that no back edge leads to is of a kind one of its
 /// inputs is, where it comes from.
-fn facts_at_entry(
+///
+/// It takes the facts of the edges into the block out of `store`, whose
+/// slots `edges` names, and frees their slots in `free`. `incoming` is a list
+/// for the facts along the edges into the block, which is empty and stays
+/// empty.
+fn facts_at_entry<'f>(
     graph: &Graph,
     block: BlockId,
-    edge_facts: &mut [Vec<(BlockId, Facts)>],
+    (edges, store, free, incoming): (&mut [EdgeSlots], &mut Store<'f>, &mut ZoneVec<u32>, &mut Edges<'f>),
     visited: &[bool],
     revisited: &[bool],
     decisions: &Decisions,
-) -> Option<Facts> {
+) -> Option<Facts<'f>> {
+    let zone = store.zone;
     let predecessors = &graph.block(block).predecessors;
     if predecessors.is_empty() {
-        let mut facts = Facts::default();
+        let mut facts = Facts::new_in(zone);
         facts.assume_code_valid();
         return Some(facts);
     }
-    let mut incoming = Vec::new();
     for predecessor in predecessors {
         let is_back_edge = predecessor.index() >= block.index();
         if !is_back_edge && !visited[predecessor.index()] {
             continue;
         }
-        let edges = &mut edge_facts[predecessor.index()];
-        incoming.extend(
-            edges
-                .extract_if(.., |(target, _)| *target == block)
-                .map(|(_, facts)| (*predecessor, facts)),
-        );
+        let edges = &mut edges[predecessor.index()];
+        let mut index = 0;
+        while index < edges.len() {
+            if edges[index].0 == block {
+                let (_, slot) = edges.remove(index);
+                incoming.push((*predecessor, store.take(slot, free)));
+            } else {
+                index += 1;
+            }
+        }
     }
     let phis = &graph.block(block).phis;
     // NB: Each predecessor brings the facts along its one edge here.
@@ -233,10 +465,10 @@ fn facts_at_entry(
         return match incoming.len() {
             0 => None,
             1 => incoming.pop().map(|(_, facts)| facts),
-            _ => Some(Facts::merge(incoming.into_iter().map(|(_, facts)| facts))),
+            _ => Some(Facts::merge(zone, incoming.drain_all().map(|(_, facts)| facts))),
         };
     }
-    let mut facts = Facts::merge(incoming.iter().map(|(_, facts)| facts.clone()));
+    let mut facts = Facts::merge(zone, incoming.iter_mut().map(|(_, facts)| facts.share()));
     for phi in phis {
         let inputs = graph
             .node(*phi)
@@ -252,18 +484,20 @@ fn facts_at_entry(
             });
         facts.set_phi_kinds(graph, *phi, inputs);
     }
+    incoming.clear();
     Some(facts)
 }
 
-/// Applies the nodes of `block` to `facts`, recording decisions, and returns
-/// the facts flowing along each of its outgoing edges.
-fn visit_block(
+/// Applies the nodes of `block` to `facts`, recording decisions, and adds
+/// the facts flowing along each of its outgoing edges to `edges`.
+fn visit_block<'f>(
     graph: &mut Graph,
     constants: &mut Constants,
     block: BlockId,
-    mut facts: Facts,
+    mut facts: Facts<'f>,
     decisions: &mut Decisions,
-) -> Vec<(BlockId, Facts)> {
+    edges: &mut Edges<'f>,
+) {
     // NB: A phi makes another value of the objects it merges, which anything
     //     may see.
     for phi in &graph.block(block).phis {
@@ -290,109 +524,134 @@ fn visit_block(
         if let Some(holds) = facts.decides(graph, value, condition) {
             let target = if holds { if_true } else { if_false };
             decisions.controls.push((control, NewControl::Jump { target }));
-            return vec![(target, facts)];
+            edges.push((target, facts));
+            return;
         }
-        let mut passed = facts.clone();
+        let mut passed = facts.share();
         passed.forget_refinement(value);
         passed.set_passed(value, condition);
         facts.set_failed(value, condition);
-        return vec![(if_true, passed), (if_false, facts)];
+        edges.push((if_true, passed));
+        edges.push((if_false, facts));
+        return;
     }
     // A branch on values alone goes the way a branch on the same values
     // went before.
-    if let Op::Branch {
-        condition,
-        if_true,
-        if_false,
-    } = graph.node(control).op
-    {
-        let inputs = graph
-            .node(control)
-            .inputs
-            .iter()
-            .map(|input| decisions.value(graph, *input))
-            .collect::<InlineVec<NodeId, 2>>();
-        // NB: A value of a known kind is no empty value (like a binding that
-        //     is initialized, which a store of it checks).
-        if let BranchCondition::TaggedEquals { equal } = condition
-            && graph.constant_value(inputs[1]) == Some(value::EMPTY)
-            && facts.value_kind(inputs[0]).is_some()
-        {
-            let target = if equal { if_false } else { if_true };
-            decisions.controls.push((control, NewControl::Jump { target }));
-            return vec![(target, facts)];
-        }
-        if let Some(key) = BranchKey::of(graph, condition, &inputs) {
-            if let Some(holds) = facts.branch_outcome(&key) {
-                let target = if holds { if_true } else { if_false };
-                decisions.controls.push((control, NewControl::Jump { target }));
-                return vec![(target, facts)];
-            }
-            let mut passed = facts.clone();
-            passed.set_branch_outcome(key, true);
-            facts.set_branch_outcome(key, false);
-            // Strings that are the empty value where only the slow path makes
-            // them are strings where they are not.
-            if let BranchCondition::TaggedEquals { equal } = condition
-                && graph.constant_value(inputs[1]) == Some(value::EMPTY)
-                && matches!(
-                    graph.node(inputs[0]).op,
-                    Op::ConcatenateStrings { .. } | Op::IntegerToString
-                )
-            {
-                let not_empty = if equal { &mut facts } else { &mut passed };
-                not_empty.set_value_kind(inputs[0], ValueKind::String);
-            }
-            return vec![(if_true, passed), (if_false, facts)];
-        }
+    if let Op::Branch { .. } = graph.node(control).op {
+        let mut inputs = decisions.inputs.take();
+        inputs.clear();
+        inputs.extend(
+            graph
+                .node(control)
+                .inputs
+                .iter()
+                .map(|input| decisions.value(graph, *input)),
+        );
+        let undecided = visit_value_branch(graph, control, &inputs, facts, decisions, edges);
+        decisions.inputs = inputs;
+        let Some(undecided) = undecided else {
+            return;
+        };
+        facts = undecided;
     }
     let Op::ShapeSwitch { shapes, targets } = graph.node(control).op else {
         let successors = graph.successors(block);
         let Some((last, others)) = successors.split_last() else {
-            return Vec::new();
+            return;
         };
-        let mut edges = others
-            .iter()
-            .map(|successor| (*successor, facts.clone()))
-            .collect::<Vec<_>>();
+        for successor in others {
+            edges.push((*successor, facts.share()));
+        }
         edges.push((*last, facts));
-        return edges;
+        return;
     };
     let object = decisions.value(graph, graph.node(control).inputs[0]);
     // NB: Shapes known only while the code is valid would need a check.
-    let known = facts
-        .shapes(object)
-        .filter(|_| !facts.is_unvalidated(object))
-        .map(<[ShapeCheck]>::to_vec);
-    let possible = shapes
-        .iter()
-        .copied()
-        .zip(targets.iter().copied())
-        .filter(|(shape, _)| known.as_ref().is_none_or(|known| known.contains(shape)))
-        .collect::<Vec<_>>();
-    let covers_known = known
-        .as_ref()
-        .is_some_and(|known| known.iter().all(|shape| possible.iter().any(|(case, _)| case == shape)));
+    let known = facts.shapes(object).filter(|_| !facts.is_unvalidated(object));
+    let mut possible = decisions.possible.take();
+    possible.clear();
+    possible.extend(
+        shapes
+            .iter()
+            .copied()
+            .zip(targets.iter().copied())
+            .filter(|(shape, _)| known.is_none_or(|known| known.contains(shape))),
+    );
+    let covers_known =
+        known.is_some_and(|known| known.iter().all(|shape| possible.iter().any(|(case, _)| case == shape)));
     match possible.as_slice() {
         [(_, target)] if covers_known => decisions.controls.push((control, NewControl::Jump { target: *target })),
         _ if possible.len() < shapes.len() && !possible.is_empty() => {
-            decisions.controls.push((
-                control,
-                NewControl::ShapeSwitch {
-                    cases: possible.clone(),
-                },
-            ));
+            let cases = possible.zone().alloc_slice_copy(&possible);
+            decisions.controls.push((control, NewControl::ShapeSwitch { cases }));
         }
         _ => {}
     }
-    possible
-        .iter()
-        .map(|(shape, target)| {
-            let mut case_facts = facts.clone();
-            case_facts.set_shapes(object, &[*shape]);
-            (*target, case_facts)
-        })
-        .collect()
+    for (shape, target) in &possible {
+        let mut case_facts = facts.share();
+        case_facts.set_shapes(object, &[*shape]);
+        edges.push((*target, case_facts));
+    }
+    decisions.possible = possible;
+}
+
+/// The edges of the branch `control` on values alone, its `inputs` as the
+/// analysis knows them: it goes the way a branch on the same values went
+/// before. Gives `facts` back where it is no such branch.
+fn visit_value_branch<'f>(
+    graph: &Graph,
+    control: NodeId,
+    inputs: &[NodeId],
+    mut facts: Facts<'f>,
+    decisions: &mut Decisions,
+    edges: &mut Edges<'f>,
+) -> Option<Facts<'f>> {
+    let Op::Branch {
+        condition,
+        if_true,
+        if_false,
+    } = graph.node(control).op
+    else {
+        return Some(facts);
+    };
+    // NB: A value of a known kind is no empty value (like a binding that
+    //     is initialized, which a store of it checks).
+    if let BranchCondition::TaggedEquals { equal } = condition
+        && graph.constant_value(inputs[1]) == Some(value::EMPTY)
+        && facts.value_kind(inputs[0]).is_some()
+    {
+        let target = if equal { if_false } else { if_true };
+        decisions.controls.push((control, NewControl::Jump { target }));
+        edges.push((target, facts));
+        return None;
+    }
+    let Some(key) = BranchKey::of(graph, condition, inputs) else {
+        return Some(facts);
+    };
+    if let Some(holds) = facts.branch_outcome(&key) {
+        let target = if holds { if_true } else { if_false };
+        decisions.controls.push((control, NewControl::Jump { target }));
+        edges.push((target, facts));
+        return None;
+    }
+    let mut passed = facts.share();
+    passed.set_branch_outcome(key, true);
+    facts.set_branch_outcome(key, false);
+    // Strings that are the empty value where only the slow path makes
+    // them are strings where they are not.
+    if let BranchCondition::TaggedEquals { equal } = condition
+        && graph.constant_value(inputs[1]) == Some(value::EMPTY)
+        && matches!(
+            graph.node(inputs[0]).op,
+            Op::ConcatenateStrings { .. } | Op::IntegerToString
+        )
+    {
+        let not_empty = if equal { &mut facts } else { &mut passed };
+        not_empty.set_value_kind(inputs[0], ValueKind::String);
+    }
+    edges.push((if_true, passed));
+    edges.push((if_false, facts));
+    None
 }
 
 /// Whether input `index` of a node with `op` is an object whose properties
@@ -417,12 +676,29 @@ fn visit_node(
     facts: &mut Facts,
     decisions: &mut Decisions,
 ) {
+    let mut inputs = decisions.inputs.take();
+    inputs.clear();
+    inputs.extend(
+        graph
+            .node(node_id)
+            .inputs
+            .iter()
+            .map(|input| decisions.value(graph, *input)),
+    );
+    visit_node_with_inputs(graph, constants, node_id, &inputs, facts, decisions);
+    decisions.inputs = inputs;
+}
+
+/// `visit_node()`, with the inputs of the node as the analysis knows them.
+fn visit_node_with_inputs(
+    graph: &mut Graph,
+    constants: &mut Constants,
+    node_id: NodeId,
+    inputs: &[NodeId],
+    facts: &mut Facts,
+    decisions: &mut Decisions,
+) {
     let node = graph.node(node_id);
-    let inputs = node
-        .inputs
-        .iter()
-        .map(|input| decisions.value(graph, *input))
-        .collect::<InlineVec<_, 4>>();
     let input = |index: usize| inputs[index];
     for (index, input) in inputs.iter().enumerate() {
         if facts.is_unexposed(*input) && !accesses_properties(&node.op, index) {
@@ -710,11 +986,7 @@ fn new_object(facts: &mut Facts, object: NodeId) {
 /// The code is known to be valid from here on, which what is known about
 /// shapes relies on.
 fn validate(facts: &mut Facts, stable_shapes: &[CellId], decisions: &mut Decisions) {
-    for shape in facts.validate(stable_shapes) {
-        if !decisions.stable_shapes.contains(&shape) {
-            decisions.stable_shapes.push(shape);
-        }
-    }
+    facts.validate(stable_shapes, &mut decisions.stable_shapes);
 }
 
 /// A load of `location` by `node`: replaced by what the location is known

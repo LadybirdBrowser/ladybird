@@ -576,8 +576,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             || self
                 .graph
                 .frame_state_chain(parent)
-                .iter()
-                .any(|id| !self.graph.frame_state(*id).legacy_arguments.is_empty());
+                .any(|id| !self.graph.frame_state(id).legacy_arguments.is_empty());
         if !has_legacy_arguments {
             return;
         }

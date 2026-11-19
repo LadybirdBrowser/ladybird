@@ -36,7 +36,7 @@ pub fn coverage_keys(graph: &Graph) -> Vec<String> {
         .frame_states
         .iter()
         .enumerate()
-        .map(|(index, _)| graph.frame_state_chain(crate::ir::FrameStateId(index as u32)).len())
+        .map(|(index, _)| graph.frame_state_chain(crate::ir::FrameStateId(index as u32)).count())
         .max()
         .unwrap_or(0);
     if inlined_depth > 1 {

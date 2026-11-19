@@ -1972,7 +1972,7 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, M> {
             .map(|frame_state| {
                 // NB: Only the compiled function's own frame, the outermost
                 //     one, keeps an arguments object virtual.
-                let root = *self
+                let root = self
                     .graph
                     .frame_state_chain(frame_state)
                     .last()
@@ -3385,7 +3385,7 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, M> {
     /// in, and the pc and block of its catch entry, if it has one.
     fn catch_entry_of(&self, node: NodeId) -> Result<Option<(u32, u32, u32, BlockId)>, CompileFailure> {
         let frame_state = self.graph.node(node).frame_state.expect("leaves have a frame state");
-        let root = *self
+        let root = self
             .graph
             .frame_state_chain(frame_state)
             .last()

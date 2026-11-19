@@ -515,7 +515,7 @@ fn entering_counters(
     entering
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), ColumnFull> {
     let mut phi_blocks = HashMap::default();
     let mut checks = Vec::new();
     let mut shifts = Vec::new();
@@ -672,13 +672,13 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Resu
         .map(|(value, range)| (*value, range.max + 1))
         .collect::<Vec<_>>();
 
-    let mut replacements = Replacements::new(graph);
+    let mut replacements = Replacements::new(graph, work);
     let mut removed = BitSet::new(graph.nodes.len());
     for check in passing {
         replacements.replace(check, graph.node(check).inputs[0]);
         removed.insert(check.index());
     }
-    let mut constants = Constants::new(graph);
+    let mut constants = Constants::new(graph, work);
     let mut guard_nodes = Vec::new();
     for (value, bound) in guards {
         let count = constants.get_typed(graph, u64::from((bound as i32).cast_unsigned()), Repr::Int32);

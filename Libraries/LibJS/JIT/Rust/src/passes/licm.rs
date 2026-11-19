@@ -145,7 +145,7 @@ fn find_loops(graph: &Graph, dominators: &Dominators) -> Vec<Loop> {
     loops
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), ColumnFull> {
     // NB: Loops have a back edge from a later block or the block itself.
     let has_loops = graph.blocks.iter().enumerate().any(|(index, block)| {
         block
@@ -161,7 +161,7 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Resu
         // NB: The phis of headers that merged their entries in a preheader
         //     only take the value the preheader brings where the loop leaves
         //     it as it is, which is then invariant in the loop.
-        edit::remove_trivial_phis(graph);
+        edit::remove_trivial_phis(graph, work);
         dominators.compute(graph)?;
     }
     let dominators = &*dominators;
@@ -239,7 +239,7 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Resu
                         continue;
                     }
                     let state = *exit_state.get_or_insert_with(|| {
-                        let state = edit::frame_state_entering(graph, loop_.header, loop_.preheader)?;
+                        let state = edit::frame_state_entering(graph, loop_.header, loop_.preheader, work)?;
                         Some(graph.add_frame_state(state))
                     });
                     let Some(state) = state else {

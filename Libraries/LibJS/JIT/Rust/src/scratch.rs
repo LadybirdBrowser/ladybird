@@ -24,6 +24,13 @@ pub struct Scratch {
     /// Where the stages of a compile keep the data that only they use. The stage that is done leaves nothing in it
     /// for the next one: the driver drops the data of the builder, and of each pass, when it ends.
     pub(crate) work: Zone,
+    /// Where a stage that repeats a step keeps the data of one step, which the step drops when it ends. A stage
+    /// keeps what lasts from one step to the next in `work`. So a stage whose steps each make data as large as the
+    /// graph takes the memory of one step, not of all of them. A stage whose steps hand data on to later steps
+    /// keeps that data in one of the two zones; when that zone holds much more than the data still in use, the
+    /// stage moves the data in use to the other zone and resets the first (see `check_elimination`). The driver
+    /// empties both after each stage.
+    pub(crate) steps: [Zone; 2],
     pub(crate) tables: Tables,
 }
 
@@ -53,6 +60,7 @@ impl Scratch {
         Self {
             zone: Zone::new(ZONE_LIMIT, c"JIT graph"),
             work: Zone::new(ZONE_LIMIT, c"JIT work"),
+            steps: [Zone::new(ZONE_LIMIT, c"JIT step"), Zone::new(ZONE_LIMIT, c"JIT step 2")],
             tables: Tables {
                 artifact: ArtifactWriter::new(),
                 sites: SiteScratch::new(),
@@ -66,14 +74,16 @@ impl Scratch {
     /// does not take it from the system again: a thread that has no compile for a while gives it back (see
     /// `release_memory()`).
     pub(crate) fn end_compile(&mut self) {
-        for zone in [&mut self.zone, &mut self.work] {
+        let [step, other_step] = &mut self.steps;
+        for zone in [&mut self.zone, &mut self.work, step, other_step] {
             zone.reset();
         }
     }
 
     /// Gives the memory of the scratch back to the system. The next compile takes memory again.
     pub fn release_memory(&mut self) {
-        for zone in [&mut self.zone, &mut self.work] {
+        let [step, other_step] = &mut self.steps;
+        for zone in [&mut self.zone, &mut self.work, step, other_step] {
             zone.reset();
             zone.trim(0);
         }

@@ -41,8 +41,8 @@ fn is_numbered(op: &Op) -> bool {
         && !op.is_control()
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
-    run_with_hash(graph, dominators, |node, replacements| {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), ColumnFull> {
+    run_with_hash(graph, dominators, work, |node, replacements| {
         let mut hash = FastHasher::default();
         discriminant(&node.op).hash(&mut hash);
         node.inputs.len().hash(&mut hash);
@@ -56,6 +56,7 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Resu
 fn run_with_hash(
     graph: &mut Graph,
     dominators: &mut Dominators,
+    work: &Zone,
     hash: impl Fn(&Node, &Replacements) -> u64,
 ) -> Result<(), ColumnFull> {
     if graph
@@ -70,7 +71,7 @@ fn run_with_hash(
         return Ok(());
     }
     dominators.compute(graph)?;
-    let mut replacements = Replacements::new(graph);
+    let mut replacements = Replacements::new(graph, work);
     let mut removed = BitSet::new(graph.nodes.len());
     // NB: Hash borrowed inputs instead of allocating keys. Candidates with
     //     the same hash form a chain through `previous`; equality is checked
@@ -171,7 +172,7 @@ mod tests {
             .body
             .assign(&[first, different_input, different_operation, duplicate]);
         graph.blocks[0].control = Some(returned);
-        run_with_hash(&mut graph, &mut Dominators::new(), |_, _| 0).unwrap();
+        run_with_hash(&mut graph, &mut Dominators::new(), crate::test_zone(), |_, _| 0).unwrap();
         assert_eq!(graph.blocks[0].body, [first, different_input, different_operation]);
         assert_eq!(graph.node(returned).inputs, [first]);
     }

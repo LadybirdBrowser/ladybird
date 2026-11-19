@@ -22,9 +22,8 @@
 use super::edit;
 use super::edit::Constants;
 use super::edit::Replacements;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::code::Repr;
-use crate::fast_hash::HashMap;
 use crate::ir::BlockId;
 use crate::ir::FrameStateId;
 use crate::ir::Graph;
@@ -32,7 +31,9 @@ use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
+use crate::zone_map::ZoneMap;
 use ak::Zone;
+use ak::ZoneVec;
 
 /// An unboxed representation phis can take.
 struct Unboxed {
@@ -86,15 +87,15 @@ const UNBOXED: [Unboxed; 3] = [
     },
 ];
 
-pub fn run(graph: &mut Graph, _work: &Zone) {
+pub fn run(graph: &mut Graph, work: &Zone) {
     for unboxed in &UNBOXED {
-        unbox_phis(graph, unboxed);
+        unbox_phis(graph, unboxed, work);
     }
 }
 
 /// Whether `node` is among the phis being unboxed. Nodes added by the pass
 /// are not.
-fn is_candidate(candidates: &BitSet, node: NodeId) -> bool {
+fn is_candidate(candidates: &ZoneBitSet, node: NodeId) -> bool {
     node.index() < candidates.capacity() && candidates.contains(node.index())
 }
 
@@ -107,7 +108,7 @@ enum UnboxedInput {
     Converted(NodeId),
 }
 
-fn unboxed_input(graph: &Graph, unboxed: &Unboxed, input: NodeId, candidates: &BitSet) -> Option<UnboxedInput> {
+fn unboxed_input(graph: &Graph, unboxed: &Unboxed, input: NodeId, candidates: &ZoneBitSet) -> Option<UnboxedInput> {
     let node = graph.node(input);
     match node.op {
         ref op if *op == unboxed.box_op => Some(UnboxedInput::Value(node.inputs[0])),
@@ -120,7 +121,7 @@ fn unboxed_input(graph: &Graph, unboxed: &Unboxed, input: NodeId, candidates: &B
 }
 
 /// Marks the phis of `phis` connected to marked ones through their inputs.
-fn spread_over_phis(graph: &Graph, phis: &BitSet, marked: &mut BitSet) {
+fn spread_over_phis(graph: &Graph, phis: &ZoneBitSet, marked: &mut ZoneBitSet) {
     let mut changed = true;
     while changed {
         changed = false;
@@ -144,8 +145,8 @@ fn spread_over_phis(graph: &Graph, phis: &BitSet, marked: &mut BitSet) {
 /// (like loop invariant values carried around loops entered at their header
 /// and at an on-stack replacement entry), at worst exits before the check
 /// would, once.
-fn checked_phis(graph: &Graph, unboxed: &Unboxed, phis: &BitSet) -> BitSet {
-    let mut checked = BitSet::new(graph.nodes.len());
+fn checked_phis<'w>(graph: &Graph, unboxed: &Unboxed, phis: &ZoneBitSet, work: &'w Zone) -> ZoneBitSet<'w> {
+    let mut checked = ZoneBitSet::new_in(graph.nodes.len(), work);
     let Some(check) = &unboxed.check_op else {
         return checked;
     };
@@ -168,12 +169,14 @@ fn checked_phis(graph: &Graph, unboxed: &Unboxed, phis: &BitSet) -> BitSet {
 /// block that the check never exited at before. Exits start that block over.
 /// Only the values of `checked` phis, which the code checks elsewhere, are
 /// checked where they enter.
-fn checkable_inputs(
+fn checkable_inputs<'w>(
     graph: &Graph,
     unboxed: &Unboxed,
-    checked: &BitSet,
-) -> HashMap<NodeId, (BlockId, Vec<Option<edit::EnteringValues>>)> {
-    let mut checkable = HashMap::default();
+    checked: &ZoneBitSet,
+    work: &'w Zone,
+) -> ZoneMap<'w, NodeId, (BlockId, &'w [Option<edit::EnteringValues<'w>>])> {
+    let mut checkable = ZoneMap::new_in(work);
+    let mut entering = ZoneVec::new_in(work);
     for (index, block) in graph.blocks.iter().enumerate() {
         let block_id = BlockId::from_index(index);
         let gated = match (unboxed.check_op.as_ref(), block.start_frame_state) {
@@ -187,51 +190,50 @@ fn checkable_inputs(
         };
         // OPTIMIZATION: The frame state entering the block from a predecessor is the same for every phi, and blocks of
         //               large functions can have hundreds of phis with as many values in that frame state.
-        let mut entering = vec![None; block.predecessors.len()];
+        entering.clear();
+        entering.resize(block.predecessors.len(), None);
         for phi in &block.phis {
-            let inputs = block
-                .predecessors
-                .iter()
-                .zip(&graph.node(*phi).inputs)
-                .enumerate()
-                .map(|(entry, (predecessor, input))| {
-                    let checkable = !gated
-                        && checked.contains(phi.index())
-                        && graph.node(*input).repr == Some(Repr::Tagged)
-                        && graph.control(*predecessor).op == (Op::Jump { target: block_id });
-                    checkable
-                        .then(|| {
-                            entering[entry]
-                                .get_or_insert_with(|| edit::values_entering(graph, block_id, *predecessor))
-                                .clone()
-                        })
-                        .flatten()
-                })
-                .collect();
-            checkable.insert(*phi, (block_id, inputs));
+            let inputs =
+                work.alloc_slice_from_iter(block.predecessors.iter().zip(&graph.node(*phi).inputs).enumerate().map(
+                    |(entry, (predecessor, input))| {
+                        let checkable = !gated
+                            && checked.contains(phi.index())
+                            && graph.node(*input).repr == Some(Repr::Tagged)
+                            && graph.control(*predecessor).op == (Op::Jump { target: block_id });
+                        checkable
+                            .then(|| {
+                                *entering[entry]
+                                    .get_or_insert_with(|| edit::values_entering(graph, block_id, *predecessor, work))
+                            })
+                            .flatten()
+                    },
+                ));
+            checkable.insert(*phi, (block_id, &*inputs));
         }
     }
     checkable
 }
 
-fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed) {
-    let phis = graph
-        .blocks
-        .iter()
-        .flat_map(|block| block.phis.iter().copied())
-        .filter(|phi| graph.node(*phi).repr == Some(Repr::Tagged))
-        .collect::<Vec<_>>();
+fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed, work: &Zone) {
+    let phis = ZoneVec::from_iter_in(
+        graph
+            .blocks
+            .iter()
+            .flat_map(|block| block.phis.iter().copied())
+            .filter(|phi| graph.node(*phi).repr == Some(Repr::Tagged)),
+        work,
+    );
     if phis.is_empty() {
         return;
     }
     let count = graph.nodes.len();
-    let mut candidates = BitSet::new(count);
+    let mut candidates = ZoneBitSet::new_in(count, work);
     for phi in &phis {
         candidates.insert(phi.index());
     }
     // NB: Phis that benefit from being unboxed: those of boxed values, and
     //     those that users unbox.
-    let mut benefiting = BitSet::new(count);
+    let mut benefiting = ZoneBitSet::new_in(count, work);
     for phi in candidates.iter() {
         if graph.nodes[phi]
             .inputs
@@ -255,8 +257,8 @@ fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed) {
     if benefiting.is_empty() {
         return;
     }
-    let checked = checked_phis(graph, unboxed, &candidates);
-    let checkable = checkable_inputs(graph, unboxed, &checked);
+    let checked = checked_phis(graph, unboxed, &candidates, work);
+    let checkable = checkable_inputs(graph, unboxed, &checked, work);
     // Drop phis with an input that cannot be unboxed until none is left.
     let mut changed = true;
     while changed {
@@ -264,7 +266,8 @@ fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed) {
         for phi in &phis {
             if candidates.contains(phi.index())
                 && graph.node(*phi).inputs.iter().enumerate().any(|(index, input)| {
-                    unboxed_input(graph, unboxed, *input, &candidates).is_none() && checkable[phi].1[index].is_none()
+                    unboxed_input(graph, unboxed, *input, &candidates).is_none()
+                        && checkable.get(phi).expect("phis are checkable").1[index].is_none()
                 })
             {
                 candidates.remove(phi.index());
@@ -274,7 +277,7 @@ fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed) {
     }
 
     // Keep the phis connected to something that benefits.
-    let mut useful = BitSet::new(count);
+    let mut useful = ZoneBitSet::new_in(count, work);
     for phi in benefiting.iter().filter(|phi| candidates.contains(*phi)) {
         useful.insert(phi);
     }
@@ -285,41 +288,39 @@ fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed) {
     }
 
     // Unbox the phis in place.
-    let mut constants = Constants::new(graph);
-    let mut conversions = HashMap::default();
-    let mut checks = HashMap::default();
+    let mut constants = Constants::new(graph, work);
+    let mut conversions = ZoneMap::new_in(work);
+    let mut checks = ZoneMap::new_in(work);
+    let mut phi_inputs = ZoneVec::new_in(work);
+    let mut inputs = ZoneVec::new_in(work);
     for phi in candidates.iter() {
         let phi_id = NodeId::from_index(phi);
-        let (block, states) = &checkable[&phi_id];
-        let phi_inputs = graph.nodes[phi].inputs.to_vec();
-        let inputs = phi_inputs
-            .into_iter()
-            .enumerate()
-            .map(
-                |(index, input)| match unboxed_input(graph, unboxed, input, &candidates) {
-                    Some(UnboxedInput::Value(value)) => value,
-                    Some(UnboxedInput::Constant(bits)) => constants.get_typed(graph, bits, unboxed.repr),
-                    Some(UnboxedInput::Converted(integer)) => match graph.constant_value(integer) {
-                        Some(bits) => {
-                            let number = f64::from((bits as u32).cast_signed());
-                            constants.get_typed(graph, number.to_bits(), unboxed.repr)
-                        }
-                        None => *conversions
-                            .entry(integer)
-                            .or_insert_with(|| convert_int32(graph, integer)),
-                    },
-                    None => {
-                        let predecessor = graph.block(*block).predecessors[index];
-                        let (template, values) = states[index]
-                            .as_ref()
-                            .expect("candidate phis only have unboxable inputs");
-                        *checks
-                            .entry((predecessor, input))
-                            .or_insert_with(|| check_at_end(graph, unboxed, predecessor, input, *template, values))
+        let (block, states) = *checkable.get(&phi_id).expect("phis are checkable");
+        phi_inputs.assign(&graph.nodes[phi].inputs);
+        inputs.clear();
+        for (index, input) in phi_inputs.iter().copied().enumerate() {
+            let value = match unboxed_input(graph, unboxed, input, &candidates) {
+                Some(UnboxedInput::Value(value)) => value,
+                Some(UnboxedInput::Constant(bits)) => constants.get_typed(graph, bits, unboxed.repr),
+                Some(UnboxedInput::Converted(integer)) => match graph.constant_value(integer) {
+                    Some(bits) => {
+                        let number = f64::from((bits as u32).cast_signed());
+                        constants.get_typed(graph, number.to_bits(), unboxed.repr)
                     }
+                    None => *conversions
+                        .entry(integer)
+                        .or_insert_with(|| convert_int32(graph, integer)),
                 },
-            )
-            .collect::<Vec<_>>();
+                None => {
+                    let predecessor = graph.block(block).predecessors[index];
+                    let (template, values) = states[index].expect("candidate phis only have unboxable inputs");
+                    *checks
+                        .entry((predecessor, input))
+                        .or_insert_with(|| check_at_end(graph, unboxed, predecessor, input, template, values))
+                }
+            };
+            inputs.push(value);
+        }
         let node = &mut graph.nodes[phi];
         node.inputs.assign(&inputs);
         node.repr = Some(unboxed.repr);
@@ -327,19 +328,22 @@ fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed) {
 
     // Unboxing checks of the phis are the phis themselves; other users that
     // need a tagged value get one boxing per phi.
-    let mut replacements = Replacements::new(graph);
-    let mut removed = BitSet::new(graph.nodes.len());
-    let mut boxes = HashMap::default();
+    let mut replacements = Replacements::new(graph, work);
+    let mut removed = ZoneBitSet::new_in(graph.nodes.len(), work);
+    let mut boxes = ZoneMap::new_in(work);
+    let mut nodes = ZoneVec::new_in(work);
     for block in 0..graph.blocks.len() {
         let block_data = &graph.blocks[block];
-        let nodes = block_data
-            .phis
-            .iter()
-            .chain(&block_data.body)
-            .chain(&block_data.control)
-            .copied()
-            .collect::<Vec<_>>();
-        for user in nodes {
+        nodes.clear();
+        nodes.extend(
+            block_data
+                .phis
+                .iter()
+                .chain(&block_data.body)
+                .chain(&block_data.control)
+                .copied(),
+        );
+        for user in nodes.iter().copied() {
             let user_node = graph.node(user);
             if unboxed.check_op.as_ref() == Some(&user_node.op) && is_candidate(&candidates, user_node.inputs[0]) {
                 replacements.replace(user, user_node.inputs[0]);

@@ -898,7 +898,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             _ => return None,
         };
         let frame_state = self.graph.node(node).frame_state.expect("calls have a frame state");
-        let chain = self.graph.frame_state_chain(frame_state);
+        let chain = self.graph.frame_state_chain(frame_state).collect::<Vec<_>>();
         let outer = *chain.last().expect("a frame state chain has a frame state");
         let index = u32::try_from(self.sites.len()).expect("site count fits in u32");
         self.sites.push((node, SiteKind::Call));

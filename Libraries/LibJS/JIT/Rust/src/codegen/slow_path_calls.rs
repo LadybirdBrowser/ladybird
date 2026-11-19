@@ -88,7 +88,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .node(node)
             .frame_state
             .expect("publishing nodes have a frame state");
-        let chain = self.graph.frame_state_chain(frame_state);
+        let chain = self.graph.frame_state_chain(frame_state).collect::<Vec<_>>();
         let pushed = chain.len() - 1;
         // NB: Compiled code writes the headers itself, unless a value they
         //     need is one it cannot write (a virtual object).
@@ -268,7 +268,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .frame_state
             .expect("fast paths have a frame state");
         // NB: Frame state values are listed innermost frame first.
-        let chain = self.graph.frame_state_chain(frame_state);
+        let chain = self.graph.frame_state_chain(frame_state).collect::<Vec<_>>();
         let mut locations = self.allocation.node(node).exit_values.iter().copied();
         let mut frames = Vec::new();
         for id in &chain {
