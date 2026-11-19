@@ -162,6 +162,7 @@ enum class WithColorElement : u8 {
     WithTwoByteMasteringLuminance,
     WithOnlyMasteringLuminances,
     WithOutOfRangeMasteringChromaticity,
+    WithNineByteMaximumContentLightLevel,
 };
 
 ByteBuffer make_matroska_with_av1_track(WithColorElement with_color_element, Function<void(ByteBuffer&)> const& append_cluster_contents = {})
@@ -195,7 +196,10 @@ ByteBuffer make_matroska_with_av1_track(WithColorElement with_color_element, Fun
         finish_ebml_master(data, color);
     } else if (with_color_element != WithColorElement::No) {
         auto color = begin_ebml_master(data, Media::Matroska::COLOR_ENTRY_ID);
-        append_ebml_uint(data, Media::Matroska::MAX_CLL_ID, 1005);
+        if (with_color_element == WithColorElement::WithNineByteMaximumContentLightLevel)
+            append_ebml_binary(data, Media::Matroska::MAX_CLL_ID, Array<u8, 9> { 0, 0, 0, 0, 0, 0, 0, 0x03, 0xed });
+        else
+            append_ebml_uint(data, Media::Matroska::MAX_CLL_ID, 1005);
         append_ebml_uint(data, Media::Matroska::MAX_FALL_ID, 315);
         auto mastering_metadata = begin_ebml_master(data, Media::Matroska::MASTERING_METADATA_ID);
         if (with_color_element != WithColorElement::WithOnlyMasteringLuminances) {
@@ -1358,6 +1362,23 @@ TEST_CASE(mastering_metadata_with_a_float_of_an_invalid_size_is_left_out)
     auto const& color_metadata = track.video_data().color_metadata;
     EXPECT(!color_metadata.mastering_display_color_volume.has_value());
     EXPECT(color_metadata.content_light_level_information.has_value());
+}
+
+TEST_CASE(light_level_integer_too_large_to_read_is_skipped)
+{
+    auto data = make_matroska_with_av1_track(WithColorElement::WithNineByteMaximumContentLightLevel);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto track_entry = MUST(reader.track_for_track_number(1));
+
+    auto track = Media::Matroska::track_from_track_entry(*track_entry, true);
+    auto const& color_metadata = track.video_data().color_metadata;
+    EXPECT(color_metadata.mastering_display_color_volume.has_value());
+    EXPECT(color_metadata.content_light_level_information.has_value());
+    if (color_metadata.content_light_level_information.has_value()) {
+        EXPECT_EQ(color_metadata.content_light_level_information->maximum_content_light_level, 0);
+        EXPECT_EQ(color_metadata.content_light_level_information->maximum_frame_average_light_level, 315);
+    }
 }
 
 // HDR10+ with one processing window whose brightest component is 364.1 cd/m².
