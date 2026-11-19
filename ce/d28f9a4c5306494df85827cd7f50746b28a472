@@ -1,0 +1,9 @@
+Where a line breaks at the space that ends a span, Chrome, Firefox, and
+WebKit keep the span’s end padding or margin on that line, and align
+the line by its width with them. Right-aligned in a 35px box, a span
+around “xx ” with 10px of right padding, followed by “yy”, covers 5px
+to 35px of its first line in all three, and so it does in Ladybird.
+Centered, in right-to-left text, and after two spaces, all three agree
+with Ladybird too. A span around “x <b>x </b>” with padding on both
+elements fits one line of a 45px box in Chrome, WebKit, and Ladybird,
+and takes two in Firefox.
