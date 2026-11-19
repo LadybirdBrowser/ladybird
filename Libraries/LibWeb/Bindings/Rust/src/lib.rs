@@ -142,6 +142,16 @@ pub(crate) mod encoding;
     clippy::unnecessary_wraps,
     reason = "the bindings call every attribute and operation as one that can throw"
 )]
+pub(crate) mod encrypted_media_extensions;
+#[cfg(not(test))]
+#[cfg_attr(
+    not(web_idl_bindings),
+    allow(dead_code, reason = "only the generated bindings use the interfaces")
+)]
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the bindings call every attribute and operation as one that can throw"
+)]
 pub(crate) mod event_timing;
 #[cfg(not(test))]
 pub(crate) mod fetch;

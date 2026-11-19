@@ -15,7 +15,7 @@
 #include <LibMediaCodecs/DecoderCapabilities.h>
 #include <LibWeb/Bindings/MediaCapabilities.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/EncryptedMediaExtensions/EncryptedMediaExtensions.h>
+#include <LibWeb/EncryptedMediaExtensions/MediaKeySystemAccess.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::MediaCapabilitiesAPI {

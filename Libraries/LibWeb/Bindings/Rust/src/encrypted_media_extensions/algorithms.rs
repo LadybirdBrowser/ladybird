@@ -1,73 +1,92 @@
 /*
  * Copyright (c) 2025, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/EncryptedMediaExtensions/Algorithms.h>
-#include <LibWebCommon/MimeSniff/MimeType.h>
+use ak::Utf16String;
+use liburl_rust::origin::Origin;
+use libwebcommon_rust::mime_sniff::mime_type::MimeType;
 
-namespace Web::EncryptedMediaExtensions {
+use super::encrypted_media_extensions::{CapabilitiesType, ConsentConfiguration, ConsentStatus, MediaKeyRestrictions};
+use super::key_system::{ClearKeySystem, KeySystem};
+use super::media_key_system_access::{
+    MediaKeySystemConfiguration, MediaKeySystemMediaCapability, MediaKeysRequirement,
+};
 
-bool supports_container([[maybe_unused]] Utf16String const& container)
-{
+pub(crate) fn supports_container(_container: &str) -> bool {
     // FIXME: Check FFmpeg?
-    return true;
+    true
 }
 
 // https://w3c.github.io/encrypted-media/#get-supported-capabilities-for-audio-video-type
-Optional<Vector<MediaKeySystemMediaCapability>> get_supported_capabilities_for_audio_video_type(KeySystem const& implementation, CapabilitiesType type, Vector<MediaKeySystemMediaCapability> requested_capabilities, MediaKeySystemConfiguration config, MediaKeyRestrictions restrictions)
-{
+pub(crate) fn get_supported_capabilities_for_audio_video_type(
+    implementation: &dyn KeySystem,
+    r#type: CapabilitiesType,
+    requested_capabilities: Vec<MediaKeySystemMediaCapability>,
+    config: MediaKeySystemConfiguration,
+    restrictions: &MediaKeyRestrictions,
+) -> Option<Vec<MediaKeySystemMediaCapability>> {
     // 1. Let local accumulated configuration be a local copy of accumulated configuration.
-    MediaKeySystemConfiguration accumulated_configuration = config;
+    let mut accumulated_configuration = config;
 
     // 2. Let supported media capabilities be an empty sequence of MediaKeySystemMediaCapability dictionaries.
-    Vector<MediaKeySystemMediaCapability> supported_media_capabilities;
+    let mut supported_media_capabilities = Vec::new();
 
     // 3. For each requested media capability in requested media capabilities:
-    for (auto& capability : requested_capabilities) {
+    for capability in requested_capabilities {
         // 1. Let content type be requested media capability's contentType member.
-        auto const& content_type = capability.content_type;
+        let content_type = &capability.content_type;
 
         // 2. Let encryption scheme be requested media capability’s encryptionScheme member.
-        auto const& encryption_scheme = capability.encryption_scheme;
+        let encryption_scheme = capability.encryption_scheme.as_ref();
 
         // 3. Let robustness be requested media capability's robustness member.
-        auto const& robustness = capability.robustness;
+        let robustness = &capability.robustness;
 
         // 4. If content type is the empty string, return null.
-        if (content_type.is_empty())
-            return {};
+        if content_type.is_empty() {
+            return None;
+        }
 
         // 5. Let mimeType be the result of running parse a MIME type with content type.
-        auto mime_type = MimeSniff::MimeType::parse(content_type);
+        let content_type = char::decode_utf16(content_type.to_utf16().iter().copied())
+            .map(|code_point| code_point.unwrap_or(char::REPLACEMENT_CHARACTER))
+            .collect::<Vec<_>>();
+        let mime_type = MimeType::parse(&content_type);
 
         // 6. If mimeType is failure or is unrecognized, continue to the next iteration.
-        if (!mime_type.has_value())
+        let Some(mime_type) = mime_type else {
             continue;
+        };
 
         // 7. Let container be the container type specified by mimeType.
-        auto const& container = Utf16String::from_utf8(mime_type->essence());
+        let essence = mime_type.essence();
+        let container = format!("{}/{}", essence.type_, essence.subtype);
 
         // 8. If the user agent does not support container, continue to the next iteration.
         //    The case-sensitivity of string comparisons is determined by the appropriate RFC.
-        if (!supports_container(container))
+        if !supports_container(&container) {
             continue;
+        }
 
         // 9. Let parameters be the "codecs" and "profiles" RFC 6381 [RFC6381] parameters, if any, of mimeType.
-        auto parameters = mime_type->parameters();
+        let mut parameters = mime_type.parameters();
 
         // FIXME: 10. If the user agent does not recognize one or more parameters, or
         //            if any parameters are not valid per the relevant specification, continue to the next iteration.
 
         // 11. Let media types be the set of codecs and codec constraints specified by parameters.
         //     The case-sensitivity of string comparisons is determined by the appropriate RFC or other specification.
-        auto media_types = Utf16String::from_utf8(parameters.get("codecs"sv).value_or({}));
+        let media_types = parameters
+            .find(|(name, _)| *name == "codecs")
+            .map_or("", |(_, value)| value);
 
         // 12. If media types is empty:
-        if (media_types.is_empty()) {
+        if media_types.is_empty() {
             // FIXME: If container normatively implies a specific set of codecs and codec constraints:
-            if (false) {
+            if false {
                 // Let parameters be that set.
             }
             // Otherwise:
@@ -78,247 +97,284 @@ Optional<Vector<MediaKeySystemMediaCapability>> get_supported_capabilities_for_a
         }
 
         // 13. If mimeType is not strictly an audio/video type, continue to the next iteration.
-        if (!mime_type->is_audio_or_video())
+        if !essence.is_audio_or_video() {
             continue;
+        }
 
         // 14. If encryption scheme is non-null and is not recognized or not supported by implementation,
         //     continue to the next iteration.
-        if (encryption_scheme.has_value() && !implementation.supports_encryption_scheme(*encryption_scheme))
+        if encryption_scheme
+            .is_some_and(|encryption_scheme| !implementation.supports_encryption_scheme(encryption_scheme))
+        {
             continue;
+        }
 
         // 15. If robustness is not the empty string and contains an unrecognized value or a value not supported
         //     by implementation, continue to the next iteration. String comparison is case-sensitive.
-        if (!robustness.is_empty() && !implementation.supports_robustness(robustness))
+        if !robustness.is_empty() && !implementation.supports_robustness(robustness) {
             continue;
+        }
 
         // 16. If the user agent and implementation definitely support playback of encrypted media data for
         //     the combination of container, media types, encryption scheme, robustness and
         //     local accumulated configuration in combination with restrictions:
-        if (implementation.definitely_supports_playback(container, media_types, encryption_scheme, robustness, accumulated_configuration, restrictions)) {
+        if implementation.definitely_supports_playback(
+            &container,
+            media_types,
+            encryption_scheme,
+            robustness,
+            &accumulated_configuration,
+            restrictions,
+        ) {
             // 1. Add requested media capability to supported media capabilities.
-            supported_media_capabilities.append(move(capability));
+            supported_media_capabilities.push(capability.clone());
 
             // 2. If audio/video type is Video:
-            if (type == CapabilitiesType::Video) {
+            if r#type == CapabilitiesType::Video {
                 // Add requested media capability to the videoCapabilities member of local accumulated configuration.
-                accumulated_configuration.video_capabilities.append(capability);
+                accumulated_configuration.video_capabilities.push(capability.clone());
             }
 
             // If audio/video type is Audio:
-            if (type == CapabilitiesType::Audio) {
+            if r#type == CapabilitiesType::Audio {
                 // Add requested media capability to the audioCapabilities member of local accumulated configuration.
-                accumulated_configuration.audio_capabilities.append(capability);
+                accumulated_configuration.audio_capabilities.push(capability.clone());
             }
         }
     }
 
     // 4. If supported media capabilities is empty, return null.
-    if (supported_media_capabilities.is_empty())
-        return {};
+    if supported_media_capabilities.is_empty() {
+        return None;
+    }
 
     // 5. Return supported media capabilities.
-    return supported_media_capabilities;
+    Some(supported_media_capabilities)
 }
 
 // https://w3c.github.io/encrypted-media/#dfn-is-persistent-session-type
-bool is_persistent_session_type(Utf16String const& session_type)
-{
+pub(crate) fn is_persistent_session_type(session_type: &Utf16String) -> bool {
     // 1. Let the session type be the specified MediaKeySessionType value.
 
     // 2. Follow the steps for the value of session type from the following list:
 
     // * "temporary"
-    if (session_type == "temporary"sv) {
+    if *session_type == "temporary" {
         // Return false.
         return false;
     }
 
     // * "persistent-license"
-    if (session_type == "persistent-license"sv) {
+    if *session_type == "persistent-license" {
         // Return true.
         return true;
     }
 
-    VERIFY_NOT_REACHED();
+    unreachable!("the session type is a MediaKeySessionType value")
 }
 
 // https://w3c.github.io/encrypted-media/#get-consent-status
-ConsentStatus get_consent_status(MediaKeySystemConfiguration const& accumulated_configuration, MediaKeyRestrictions& restrictions, URL::Origin const& origin)
-{
+pub(crate) fn get_consent_status(
+    _accumulated_configuration: &MediaKeySystemConfiguration,
+    _restrictions: &mut MediaKeyRestrictions,
+    _origin: &Origin,
+) -> ConsentStatus {
     // FIXME: Implement this
-    (void)accumulated_configuration;
-    (void)restrictions;
-    (void)origin;
+    eprintln!("get_consent_status: Not implemented, returning Allowed by default");
 
-    dbgln("get_consent_status: Not implemented, returning Allowed by default");
-
-    return ConsentStatus::Allowed;
+    ConsentStatus::Allowed
 }
 
 // https://w3c.github.io/encrypted-media/#get-supported-configuration-and-consent
-Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem const& implementation, MediaKeySystemConfiguration const& candidate_configuration, MediaKeyRestrictions& restrictions, URL::Origin const& origin)
-{
+pub(crate) fn get_supported_configuration_and_consent(
+    implementation: &dyn KeySystem,
+    candidate_configuration: &MediaKeySystemConfiguration,
+    restrictions: &mut MediaKeyRestrictions,
+    origin: &Origin,
+) -> Option<ConsentConfiguration> {
     // 1. Let accumulated configuration be a new MediaKeySystemConfiguration dictionary.
-    MediaKeySystemConfiguration accumulated_configuration;
-
     // 2. Set the label member of accumulated configuration to equal the label member of candidate configuration.
-    accumulated_configuration.label = candidate_configuration.label;
+    let mut accumulated_configuration = MediaKeySystemConfiguration {
+        label: candidate_configuration.label.clone(),
+        ..Default::default()
+    };
 
     // 3. If the initDataTypes member of candidate configuration is non-empty, run the following steps:
-    if (!candidate_configuration.init_data_types.is_empty()) {
+    if !candidate_configuration.init_data_types.is_empty() {
         // 1. Let supported types be an empty sequence of DOMStrings.
-        Vector<Utf16String> supported_types;
+        let mut supported_types = Vec::new();
 
         // 2. For each value in candidate configuration's initDataTypes member:
-        for (auto const& init_data_type : candidate_configuration.init_data_types) {
+        for init_data_type in &candidate_configuration.init_data_types {
             // 1. Let initDataType be the value.
 
             // 2. If the implementation supports generating requests based on initDataType, add initDataType to supported types.
             // String comparison is case-sensitive. The empty string is never supported.
-            if (implementation.supports_init_data_type(init_data_type))
-                supported_types.append(init_data_type);
+            if implementation.supports_init_data_type(init_data_type) {
+                supported_types.push(init_data_type.clone());
+            }
         }
 
         // 3. If supported types is empty, return NotSupported.
-        if (supported_types.is_empty())
-            return {};
+        if supported_types.is_empty() {
+            return None;
+        }
 
         // 4. Set the initDataTypes member of accumulated configuration to supported types.
-        accumulated_configuration.init_data_types = move(supported_types);
+        accumulated_configuration.init_data_types = supported_types;
     }
 
     // 4. Let distinctive identifier requirement be the value of candidate configuration's distinctiveIdentifier member.
-    auto distinctive_identifier_requirement = candidate_configuration.distinctive_identifier;
+    let mut distinctive_identifier_requirement = candidate_configuration.distinctive_identifier;
 
     // 5. If distinctive identifier requirement is "optional" and Distinctive Identifiers are not allowed according to restrictions,
     //    set distinctive identifier requirement to "not-allowed".
-    if (distinctive_identifier_requirement == MediaKeysRequirement::Optional && !restrictions.distinctive_identifiers)
+    if distinctive_identifier_requirement == MediaKeysRequirement::Optional && !restrictions.distinctive_identifiers {
         distinctive_identifier_requirement = MediaKeysRequirement::NotAllowed;
+    }
 
     // 6. Follow the steps for distinctive identifier requirement from the following list:
-    switch (distinctive_identifier_requirement) {
-    case MediaKeysRequirement::Required:
-        // FIXME: If the implementation does not support use of Distinctive Identifier(s) in combination
-        //        with accumulated configuration and restrictions, return NotSupported.
-        break;
-    case MediaKeysRequirement::Optional:
-        // Continue with the following steps.
-        break;
-    case MediaKeysRequirement::NotAllowed:
-        // FIXME: If the implementation requires use of Distinctive Identifier(s) or Distinctive Permanent Identifier(s)
-        //        in combination with accumulated configuration and restrictions, return NotSupported.
-        break;
+    match distinctive_identifier_requirement {
+        MediaKeysRequirement::Required => {
+            // FIXME: If the implementation does not support use of Distinctive Identifier(s) in combination
+            //        with accumulated configuration and restrictions, return NotSupported.
+        }
+        MediaKeysRequirement::Optional => {
+            // Continue with the following steps.
+        }
+        MediaKeysRequirement::NotAllowed => {
+            // FIXME: If the implementation requires use of Distinctive Identifier(s) or Distinctive Permanent Identifier(s)
+            //        in combination with accumulated configuration and restrictions, return NotSupported.
+        }
     }
 
     // 7. Set the distinctiveIdentifier member of accumulated configuration to equal distinctive identifier requirement.
     accumulated_configuration.distinctive_identifier = distinctive_identifier_requirement;
 
     // 8. Let persistent state requirement be equal to the value of candidate configuration's persistentState member.
-    auto persistent_state_requirement = candidate_configuration.persistent_state;
+    let mut persistent_state_requirement = candidate_configuration.persistent_state;
 
     // 9. If persistent state requirement is "optional" and persisting state is not allowed according to restrictions,
     //    set persistent state requirement to "not-allowed".
-    if (persistent_state_requirement == MediaKeysRequirement::Optional && !restrictions.persist_state)
+    if persistent_state_requirement == MediaKeysRequirement::Optional && !restrictions.persist_state {
         persistent_state_requirement = MediaKeysRequirement::NotAllowed;
+    }
 
     // 10. Follow the steps for persistent state requirement from the following list:
-    switch (persistent_state_requirement) {
-    case MediaKeysRequirement::Required:
-        // FIXME: If the implementation does not support persisting state in combination with accumulated configuration
-        //        and restrictions, return NotSupported.
-        break;
-    case MediaKeysRequirement::Optional:
-        // Continue with the following steps.
-        break;
-    case MediaKeysRequirement::NotAllowed:
-        // FIXME: If the implementation requires persisting state in combination with accumulated configuration
-        //        and restrictions, return NotSupported.
-        break;
+    match persistent_state_requirement {
+        MediaKeysRequirement::Required => {
+            // FIXME: If the implementation does not support persisting state in combination with accumulated configuration
+            //        and restrictions, return NotSupported.
+        }
+        MediaKeysRequirement::Optional => {
+            // Continue with the following steps.
+        }
+        MediaKeysRequirement::NotAllowed => {
+            // FIXME: If the implementation requires persisting state in combination with accumulated configuration
+            //        and restrictions, return NotSupported.
+        }
     }
 
     // 12. Set the persistentState member of accumulated configuration to equal the value of persistent state requirement.
     accumulated_configuration.persistent_state = persistent_state_requirement;
 
-    Vector<Utf16String> session_types;
     // 1. Follow the steps for the first matching condition from the following list:
-
-    // * If the sessionTypes member is present in candidate configuration
-    if (candidate_configuration.session_types.has_value()) {
-        // Let session types be candidate configuration's sessionTypes member.
-        session_types = *candidate_configuration.session_types;
-    }
-    // * Otherwise
-    else {
-        // Let session types be [ "temporary" ].
-        session_types.append("temporary"_utf16);
-    }
+    let session_types = match &candidate_configuration.session_types {
+        // * If the sessionTypes member is present in candidate configuration
+        Some(session_types) => {
+            // Let session types be candidate configuration's sessionTypes member.
+            session_types.clone()
+        }
+        // * Otherwise
+        None => {
+            // Let session types be [ "temporary" ].
+            vec![Utf16String::from_ascii(b"temporary")]
+        }
+    };
 
     // 13. For each value in session types:
-    for (auto const& session_type : session_types) {
+    for session_type in &session_types {
         // 1. Let session type be the value.
 
         // 2. If accumulated configuration's persistentState value is "not-allowed" and the Is persistent session type? algorithm
         //    returns true for session type return NotSupported.
-        if (accumulated_configuration.persistent_state == MediaKeysRequirement::NotAllowed && is_persistent_session_type(session_type))
-            return {};
+        if accumulated_configuration.persistent_state == MediaKeysRequirement::NotAllowed
+            && is_persistent_session_type(session_type)
+        {
+            return None;
+        }
 
         // 3. FIXME: If the implementation does not support session type in combination with accumulated configuration and restrictions for other reasons, return NotSupported.
 
         // 4. If accumulated configuration's persistentState value is "optional" and the result of running the Is persistent session type? algorithm
         //    on session type is true, change accumulated configuration's persistentState value to "required".
-        if (accumulated_configuration.persistent_state == MediaKeysRequirement::Optional && is_persistent_session_type(session_type))
+        if accumulated_configuration.persistent_state == MediaKeysRequirement::Optional
+            && is_persistent_session_type(session_type)
+        {
             accumulated_configuration.persistent_state = MediaKeysRequirement::Required;
+        }
     }
 
     // 14. Set the sessionTypes member of accumulated configuration to session types.
-    accumulated_configuration.session_types = move(session_types);
+    accumulated_configuration.session_types = Some(session_types);
 
     // 15. If the videoCapabilities and audioCapabilities members in candidate configuration are both empty, return NotSupported.
-    if (candidate_configuration.video_capabilities.is_empty() && candidate_configuration.audio_capabilities.is_empty())
-        return {};
+    if candidate_configuration.video_capabilities.is_empty() && candidate_configuration.audio_capabilities.is_empty() {
+        return None;
+    }
 
     // 16. If the videoCapabilities member in candidate configuration is non-empty:
-    if (!candidate_configuration.video_capabilities.is_empty()) {
+    if !candidate_configuration.video_capabilities.is_empty() {
         // 1. Let video capabilities be the result of executing the Get Supported Capabilities for Audio/Video Type algorithm
         //    on Video, candidate configuration's videoCapabilities member, accumulated configuration, and restrictions.
-        auto video_capabilities = get_supported_capabilities_for_audio_video_type(implementation, CapabilitiesType::Video, candidate_configuration.video_capabilities, accumulated_configuration, restrictions);
+        let video_capabilities = get_supported_capabilities_for_audio_video_type(
+            implementation,
+            CapabilitiesType::Video,
+            candidate_configuration.video_capabilities.clone(),
+            accumulated_configuration.clone(),
+            restrictions,
+        );
 
         // 2. If video capabilities is null, return NotSupported.
-        if (!video_capabilities.has_value())
-            return {};
+        let video_capabilities = video_capabilities?;
 
         // 3. Set the videoCapabilities member of accumulated configuration to video capabilities.
-        accumulated_configuration.video_capabilities = *video_capabilities;
+        accumulated_configuration.video_capabilities = video_capabilities;
     }
     // Otherwise:
     else {
         // 1. Set the videoCapabilities member of accumulated configuration to an empty sequence.
-        accumulated_configuration.video_capabilities = Vector<MediaKeySystemMediaCapability> {};
+        accumulated_configuration.video_capabilities = Vec::new();
     }
 
     // 1. If the audioCapabilities member in candidate configuration is non-empty:
-    if (!candidate_configuration.audio_capabilities.is_empty()) {
+    if !candidate_configuration.audio_capabilities.is_empty() {
         // 1. Let audio capabilities be the result of executing the Get Supported Capabilities for Audio/Video Type algorithm
         //    on Audio, candidate configuration's audioCapabilities member, accumulated configuration, and restrictions.
-        auto audio_capabilities = get_supported_capabilities_for_audio_video_type(implementation, CapabilitiesType::Audio, candidate_configuration.audio_capabilities, accumulated_configuration, restrictions);
+        let audio_capabilities = get_supported_capabilities_for_audio_video_type(
+            implementation,
+            CapabilitiesType::Audio,
+            candidate_configuration.audio_capabilities.clone(),
+            accumulated_configuration.clone(),
+            restrictions,
+        );
 
         // 2. If audio capabilities is null, return NotSupported.
-        if (!audio_capabilities.has_value())
-            return {};
+        let audio_capabilities = audio_capabilities?;
 
         // 3. Set the audioCapabilities member of accumulated configuration to audio capabilities.
-        accumulated_configuration.audio_capabilities = *audio_capabilities;
+        accumulated_configuration.audio_capabilities = audio_capabilities;
     }
     // Otherwise:
     else {
         // 1. Set the audioCapabilities member of accumulated configuration to an empty sequence.
-        accumulated_configuration.audio_capabilities = Vector<MediaKeySystemMediaCapability> {};
+        accumulated_configuration.audio_capabilities = Vec::new();
     }
 
     // 18. If accumulated configuration's distinctiveIdentifier value is "optional", follow the steps for the first matching condition from the following list:
-    if (accumulated_configuration.distinctive_identifier == MediaKeysRequirement::Optional) {
+    if accumulated_configuration.distinctive_identifier == MediaKeysRequirement::Optional {
         // FIXME: 1. If the implementation requires use of Distinctive Identifier(s) or Distinctive Permanent Identifier(s) for any of the combinations in accumulated configuration:
-        if (false) {
+        if false {
             // 1. Change accumulated configuration's distinctiveIdentifier value to "required".
             accumulated_configuration.distinctive_identifier = MediaKeysRequirement::Required;
         }
@@ -330,9 +386,9 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
     }
 
     // 19. If accumulated configuration's persistentState value is "optional", follow the steps for the first matching condition from the following list:
-    if (accumulated_configuration.persistent_state == MediaKeysRequirement::Optional) {
+    if accumulated_configuration.persistent_state == MediaKeysRequirement::Optional {
         // FIXME: 1. If the implementation requires persisting state for any of the combinations in accumulated configuration
-        if (false) {
+        if false {
             // 1. Change accumulated configuration's persistentState value to "required".
             accumulated_configuration.persistent_state = MediaKeysRequirement::Required;
         }
@@ -352,71 +408,84 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
 
     // 22. Let consent status and updated restrictions be the result of running the Get Consent Status algorithm
     //     on accumulated configuration, restrictions and origin and follow the steps for the value of consent status from the following list:
-    auto consent_status = get_consent_status(accumulated_configuration, restrictions, origin);
-    switch (consent_status) {
-    case ConsentStatus::ConsentDenied:
-        // Return ConsentDenied and updated restrictions.
-        return {};
-    case ConsentStatus::InformUser:
-        // FIXME: Inform the user that accumulated configuration is in use in the origin including, specifically,
-        //        the information that Distinctive Identifier(s) and/or Distinctive Permanent Identifier(s) as
-        //        appropriate will be used if the distinctiveIdentifier member of accumulated configuration is "required".
-        //        Continue to the next step.
-        break;
-    case ConsentStatus::Allowed:
-        // Continue to the next step.
-        break;
-    }
-
-    // 23. Return accumulated configuration.
-    return ConsentConfiguration { consent_status, accumulated_configuration };
-}
-
-// https://w3c.github.io/encrypted-media/#get-supported-configuration
-Optional<ConsentConfiguration> get_supported_configuration(KeySystem const& implementation, MediaKeySystemConfiguration const& candidate_configuration, URL::Origin const& origin)
-{
-    // 1. Let supported configuration be ConsentDenied.
-    Optional<ConsentConfiguration> supported_configuration = ConsentConfiguration { ConsentStatus::ConsentDenied, {} };
-
-    // 2. Initialize restrictions to indicate that no configurations have had user consent denied.
-    MediaKeyRestrictions restrictions;
-
-    size_t loop_count = 0;
-
-    // 3. Repeat the following step while supported configuration is ConsentDenied:
-    while (supported_configuration.has_value() && supported_configuration->status == ConsentStatus::ConsentDenied) {
-        // 1. Let supported configuration and, if provided, restrictions be the result of executing
-        //    the Get Supported Configuration and Consent algorithm with implementation, candidate configuration, restrictions and origin.
-        supported_configuration = get_supported_configuration_and_consent(implementation, candidate_configuration, restrictions, origin);
-
-        // AD-HOC: While this is being implemented, we use this to avoid a possible infinite loop
-        if (loop_count++ > 5) {
-            break;
+    let consent_status = get_consent_status(&accumulated_configuration, restrictions, origin);
+    match consent_status {
+        ConsentStatus::ConsentDenied => {
+            // Return ConsentDenied and updated restrictions.
+            return None;
+        }
+        ConsentStatus::InformUser => {
+            // FIXME: Inform the user that accumulated configuration is in use in the origin including, specifically,
+            //        the information that Distinctive Identifier(s) and/or Distinctive Permanent Identifier(s) as
+            //        appropriate will be used if the distinctiveIdentifier member of accumulated configuration is "required".
+            //        Continue to the next step.
+        }
+        ConsentStatus::Allowed => {
+            // Continue to the next step.
         }
     }
 
+    // 23. Return accumulated configuration.
+    Some(ConsentConfiguration {
+        status: consent_status,
+        configuration: Some(accumulated_configuration),
+    })
+}
+
+// https://w3c.github.io/encrypted-media/#get-supported-configuration
+pub(crate) fn get_supported_configuration(
+    implementation: &dyn KeySystem,
+    candidate_configuration: &MediaKeySystemConfiguration,
+    origin: &Origin,
+) -> Option<ConsentConfiguration> {
+    // 1. Let supported configuration be ConsentDenied.
+    let mut supported_configuration = Some(ConsentConfiguration {
+        status: ConsentStatus::ConsentDenied,
+        configuration: None,
+    });
+
+    // 2. Initialize restrictions to indicate that no configurations have had user consent denied.
+    let mut restrictions = MediaKeyRestrictions::default();
+
+    let mut loop_count = 0;
+
+    // 3. Repeat the following step while supported configuration is ConsentDenied:
+    while supported_configuration
+        .as_ref()
+        .is_some_and(|supported_configuration| supported_configuration.status == ConsentStatus::ConsentDenied)
+    {
+        // 1. Let supported configuration and, if provided, restrictions be the result of executing
+        //    the Get Supported Configuration and Consent algorithm with implementation, candidate configuration, restrictions and origin.
+        supported_configuration =
+            get_supported_configuration_and_consent(implementation, candidate_configuration, &mut restrictions, origin);
+
+        // AD-HOC: While this is being implemented, we use this to avoid a possible infinite loop
+        if loop_count > 5 {
+            break;
+        }
+        loop_count += 1;
+    }
+
     // 4. Return supported configuration.
-    return supported_configuration;
+    supported_configuration
 }
 
 // https://w3c.github.io/encrypted-media/#dfn-common-key-systems
-bool is_supported_key_system(Utf16String const& key_system)
-{
-    constexpr Array<Utf16View, 1> supported_key_systems = {
+pub(crate) fn is_supported_key_system(key_system: &Utf16String) -> bool {
+    const SUPPORTED_KEY_SYSTEMS: [&str; 1] = [
         // https://w3c.github.io/encrypted-media/#clear-key
-        "org.w3.clearkey"sv,
-    };
+        "org.w3.clearkey",
+    ];
 
-    return supported_key_systems.contains_slow(key_system);
+    SUPPORTED_KEY_SYSTEMS
+        .iter()
+        .any(|supported_key_system| *key_system == *supported_key_system)
 }
 
-NonnullOwnPtr<KeySystem> key_system_from_string(Utf16String const& key_system)
-{
-    if (key_system == "org.w3.clearkey"_utf16) {
-        return adopt_own(*new ClearKeySystem());
+pub(crate) fn key_system_from_string(key_system: &Utf16String) -> Box<dyn KeySystem> {
+    if *key_system == "org.w3.clearkey" {
+        return Box::new(ClearKeySystem);
     }
 
-    VERIFY_NOT_REACHED();
-}
-
+    unreachable!("the key system is supported")
 }
