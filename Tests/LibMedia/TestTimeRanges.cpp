@@ -592,3 +592,19 @@ TEST_CASE(seekable_range_starts_at_the_earliest_possible_position)
     timeline.duration = AK::Duration::max();
     EXPECT_EQ(Media::PlaybackManager::seekable_time_range(buffered, timeline), (TimeRanges::Range { ms(10000), ms(12000) }));
 }
+
+TEST_CASE(buffered_ranges_are_clamped_to_the_seekable_range)
+{
+    Array<Media::CombinedScanState, 1> sources;
+    sources[0].time_ranges = TimeRanges { { ms(0), ms(10500) }, { ms(11000), ms(12000) } };
+    sources[0].duration = ms(12000);
+
+    Media::MediaTimeline timeline { .duration = ms(12000), .live_seekable_range = {}, .earliest_possible_position = ms(10000) };
+    auto report = Media::PlaybackManager::buffered_time_ranges_of_sources(sources, timeline);
+    EXPECT_EQ(report.time_ranges, (TimeRanges { { ms(10000), ms(10500) }, { ms(11000), ms(12000) } }));
+
+    // A source with its earliest possible position at zero, as a MediaSource's is, reports its ranges as they are.
+    timeline.earliest_possible_position = {};
+    report = Media::PlaybackManager::buffered_time_ranges_of_sources(sources, timeline);
+    EXPECT_EQ(report.time_ranges, sources[0].time_ranges);
+}
