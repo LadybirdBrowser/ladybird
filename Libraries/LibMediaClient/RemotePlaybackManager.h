@@ -164,7 +164,7 @@ private:
 
     Optional<Media::MediaTimeReader> m_time_reader;
     AK::Duration m_duration;
-    bool m_duration_was_provided { false };
+    bool m_duration_is_set_by_owner { false };
     Optional<Media::TimeRanges::Range> m_live_seekable_range;
     Optional<AK::UnixDateTime> m_start_time_realtime;
     bool m_is_in_error_state { false };

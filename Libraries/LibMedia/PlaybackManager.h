@@ -275,7 +275,7 @@ private:
     Optional<Track> m_preferred_audio_track;
 
     AK::Duration m_duration;
-    bool m_duration_was_provided { false };
+    bool m_duration_is_set_by_owner { false };
     Optional<AK::UnixDateTime> m_start_time_realtime;
 
     PipelineStatus m_audio_sink_status { PipelineStatus::HaveData };

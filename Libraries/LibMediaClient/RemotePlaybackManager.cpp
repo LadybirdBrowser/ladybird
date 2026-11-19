@@ -68,7 +68,7 @@ bool RemotePlaybackManager::can_send() const
 
 void RemotePlaybackManager::set_duration(AK::Duration duration)
 {
-    m_duration_was_provided = true;
+    m_duration_is_set_by_owner = true;
     m_duration = duration;
     if (can_send())
         m_client->async_set_duration(m_session_id, duration);
@@ -412,8 +412,8 @@ void RemotePlaybackManager::media_stream_source_failed(Badge<Client>, u64 stream
 
 void RemotePlaybackManager::duration_changed(Badge<Client>, AK::Duration duration)
 {
-    // A demuxed duration reported before the server saw the provided one must not replace it.
-    if (m_duration_was_provided)
+    // A demuxed duration reported before the server saw the owner's must not replace it.
+    if (m_duration_is_set_by_owner)
         return;
     m_duration = duration;
     if (on_duration_change)
