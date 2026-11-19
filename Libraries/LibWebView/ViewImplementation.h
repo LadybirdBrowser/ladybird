@@ -247,7 +247,10 @@ public:
     void set_current_tab_of_window(bool current_tab_of_window);
     // When the user last stopped seeing the view, if they don't see it now.
     Optional<MonotonicTime> hidden_since() const { return m_hidden_since; }
+    bool discard_requested() const { return m_discard_requested; }
     void request_discard(DiscardReason);
+    // The UI may keep a tab that the Hub asked it to discard, such as one with an unfinished edit of its address.
+    void did_decline_discard();
     void did_save_session_history_entry_states(Badge<WebContentPage>, WebContentPage&);
 
     // Whether the view shows its frames from CPU memory for now, so that the Compositor shares them there rather than

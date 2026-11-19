@@ -92,6 +92,7 @@ private:
     virtual Messages::HubServer::ViewRestoreSessionHistoryFromSnapshotResponse view_restore_session_history_from_snapshot(u64 view_id, WebView::SessionHistorySnapshot snapshot) override;
     virtual Messages::HubServer::ViewKeepStateForDiscardingResponse view_keep_state_for_discarding(u64 view_id) override;
     virtual void view_restore_state_of_discarded_tab(u64 view_id, u64 discarded_tab_state_id) override;
+    virtual void view_decline_discard(u64 view_id) override;
     virtual void forget_state_of_discarded_tab(u64 discarded_tab_state_id) override;
     virtual Messages::HubServer::ViewHistoryStepAtDeltaResponse view_history_step_at_delta(u64 view_id, i32 delta) override;
     virtual Messages::HubServer::ViewLookUpSelectedTextAtResponse view_look_up_selected_text_at(u64 view_id, Gfx::IntPoint position) override;

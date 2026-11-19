@@ -164,6 +164,7 @@ endpoint HubServer
     view_restore_session_history_from_snapshot(u64 view_id, WebView::SessionHistorySnapshot snapshot) => (bool restored)
     view_keep_state_for_discarding(u64 view_id) => (Optional<u64> discarded_tab_state_id)
     view_restore_state_of_discarded_tab(u64 view_id, u64 discarded_tab_state_id) =|
+    view_decline_discard(u64 view_id) =|
     forget_state_of_discarded_tab(u64 discarded_tab_state_id) =|
     view_history_step_at_delta(u64 view_id, i32 delta) => (Optional<i32> step)
     view_look_up_selected_text_at(u64 view_id, Gfx::IntPoint position) => (bool looked_up)

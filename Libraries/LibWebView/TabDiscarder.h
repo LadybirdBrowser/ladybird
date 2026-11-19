@@ -8,6 +8,8 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
+#include <AK/Time.h>
 #include <AK/kmalloc.h>
 #include <LibCore/Forward.h>
 #include <LibWebView/Export.h>
@@ -25,6 +27,12 @@ public:
 
     TabDiscarder();
     ~TabDiscarder();
+
+    // NB: Only a hidden tab may be discarded, so the tabs are checked only while there is one.
+    static void did_hide_a_tab();
+
+    // How long a tab must stay hidden before it is discarded, if hidden tabs are discarded at all.
+    static Optional<AK::Duration> minimum_time_hidden_after_inactivity();
 
 private:
     void check_tabs();
