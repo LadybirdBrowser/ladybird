@@ -581,7 +581,12 @@ void DecodedAudioProducer::ThreadData::handle_seek()
             }
 
             m_current_halting_status = PipelineStatus::Pending;
-            m_frame_awaiting_decoder_replacement.clear();
+            // A seek makes the drain pointless, and the demuxer has already given us the frame and its configuration, so
+            // start over with a new decoder and have the demuxer provide the configuration again.
+            if (m_frame_awaiting_decoder_replacement.has_value()) {
+                m_frame_awaiting_decoder_replacement.clear();
+                m_decoder.clear();
+            }
             m_decoder_is_draining_before_unavailable_data = false;
         }
 
