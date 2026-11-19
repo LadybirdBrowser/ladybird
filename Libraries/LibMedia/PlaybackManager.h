@@ -120,6 +120,8 @@ public:
     Function<void()> on_playback_state_settled_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void()> on_buffered_ranges_change;
+    // Called for each seek, before any state change the seek causes.
+    Function<void(SeekDecision)> on_seek_decided;
     Function<void(DecoderError&&)> on_error;
 
     struct AddedTracks {
@@ -257,6 +259,13 @@ private:
     template<typename T, typename... Args>
     void replace_state_handler(Args&&... args);
     inline void dispatch_state_change() const;
+
+    struct SeekTarget {
+        AK::Duration timestamp;
+        SeekMode mode;
+    };
+
+    Optional<SeekTarget> decide_seek_target(AK::Duration, SeekMode) const;
 
     OwnPtr<PlaybackStateHandler> m_handler;
 

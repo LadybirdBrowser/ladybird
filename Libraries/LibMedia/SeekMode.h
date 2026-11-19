@@ -14,8 +14,15 @@ namespace Media {
 
 enum class SeekMode : u8 {
     Accurate,
+    ApproximateForSpeed,
     FastBefore,
     FastAfter,
+};
+
+enum class SeekDecision : u8 {
+    Seek,
+    // Nothing is seekable, so the playback position stays where it is.
+    Skip,
 };
 
 constexpr StringView seek_mode_to_string(SeekMode seek_mode)
@@ -23,6 +30,8 @@ constexpr StringView seek_mode_to_string(SeekMode seek_mode)
     switch (seek_mode) {
     case SeekMode::Accurate:
         return "Accurate"sv;
+    case SeekMode::ApproximateForSpeed:
+        return "ApproximateForSpeed"sv;
     case SeekMode::FastBefore:
         return "FastBefore"sv;
     case SeekMode::FastAfter:

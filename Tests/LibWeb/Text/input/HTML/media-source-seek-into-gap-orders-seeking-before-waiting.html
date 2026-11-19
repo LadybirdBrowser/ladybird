@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // A seek queues its seeking event before it moves the playback position, and only the move can lower readyState,
+    // so a seek into unbuffered data while playing fires seeking before waiting.
+    asyncTest(done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9"');
+            const response = await fetch("../../../Assets/vp9-frame-rate-change.webm");
+            const data = new Uint8Array(await response.arrayBuffer());
+            await new Promise(resolve => {
+                sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                sourceBuffer.appendBuffer(data);
+            });
+
+            // Leave the end of the timeline seekable but unbuffered.
+            mediaSource.duration = 10;
+            await video.play();
+
+            for (const eventName of ["seeking", "waiting"])
+                video.addEventListener(eventName, () => println(`${eventName} event`), { once: true });
+            video.currentTime = 5;
+            await new Promise(resolve => video.addEventListener("waiting", resolve, { once: true }));
+            done();
+        });
+    });
+</script>

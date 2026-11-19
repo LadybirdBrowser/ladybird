@@ -318,6 +318,12 @@ void Client::playback_session_duration_changed(u64 session_id, AK::Duration dura
         playback_manager->duration_changed({}, duration);
 }
 
+void Client::playback_session_seek_decided(u64 session_id, u64 seek_request_id, Media::SeekDecision decision)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->seek_decided({}, seek_request_id, decision);
+}
+
 void Client::playback_session_state_changed(u64 session_id, u64 applied_seek_request_id, Media::PlaybackState state, bool is_playing, Media::AvailableData available_data, bool playback_state_is_settled, AK::Duration current_time)
 {
     if (state > Media::PlaybackState::Ended || available_data > Media::AvailableData::Future) {
