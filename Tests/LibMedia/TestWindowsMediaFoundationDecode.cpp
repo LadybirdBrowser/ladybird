@@ -118,6 +118,8 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
     if (!result.has_value())
         return;
     EXPECT_EQ(result->frame_count, 50u);
+    if (!result->first_frame)
+        return;
     expect_picture_has_detail(*result->first_frame);
 }
 
@@ -137,6 +139,8 @@ TEST_CASE(hevc_10bit)
     if (!result.has_value())
         return;
     EXPECT(result->frame_count > 0);
+    if (!result->first_frame)
+        return;
     expect_picture_has_detail(*result->first_frame);
 
     // Ten significant bits must land in the low end of each sample.
