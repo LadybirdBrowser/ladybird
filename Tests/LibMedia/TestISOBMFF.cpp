@@ -19,6 +19,8 @@
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
+#include "TestMediaCommon.h"
+
 namespace {
 
 struct BoxMarker {
@@ -1009,56 +1011,129 @@ TEST_CASE(aborted_sample_iteration_can_be_resumed)
 
 TEST_CASE(fragment_seeks_block_until_the_target_metadata_arrives_and_can_be_aborted)
 {
-    for (bool movie_has_samples : { false, true }) {
-        auto bytes = seek_test_file(true, {}, movie_has_samples);
-        auto reader = streamer_for(bytes);
-        MUST(reader.seek_to_position(14));
-        auto header = MUST(Media::ISOBMFF::Reader::read_box_header(reader));
-        auto available_end = header.end_position().value() + 16;
-        auto source = Media::IncrementallyPopulatedStream::create_empty();
-        // Leave a later box unavailable, so seeking must stop before reaching the end of the file.
-        source->set_expected_size(bytes.size() + 8);
-        source->add_chunk_at(0, bytes.bytes().trim(available_end));
-        auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(source));
-        auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
-        MUST(demuxer->create_context_for_track(track));
-        auto target = AK::Duration::from_milliseconds(movie_has_samples ? 8500 : 2500);
-        EXPECT_EQ(demuxer->select_fast_seek_target_for_track(track, target, Media::SeekMode::FastBefore), movie_has_samples ? AK::Duration::from_seconds(6) : target);
+    auto bytes = seek_test_file(true);
+    auto reader = streamer_for(bytes);
+    MUST(reader.seek_to_position(14));
+    auto header = MUST(Media::ISOBMFF::Reader::read_box_header(reader));
+    auto available_end = header.end_position().value() + 16;
+    auto source = Media::IncrementallyPopulatedStream::create_empty();
+    // Leave a later box unavailable, so seeking must stop before reaching the end of the file.
+    source->set_expected_size(bytes.size() + 8);
+    source->add_chunk_at(0, bytes.bytes().trim(available_end));
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(source));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    auto target = AK::Duration::from_milliseconds(8500);
+    EXPECT_EQ(demuxer->select_fast_seek_target_for_track(track, target, Media::SeekMode::FastBefore), AK::Duration::from_seconds(6));
 
-        IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> blocked { false };
-        IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> completed { false };
-        demuxer->set_read_blocked_change_handler_for_track(track, [&](Media::ReadBlocked state) {
-            blocked = state == Media::ReadBlocked::Yes;
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> blocked { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> completed { false };
+    demuxer->set_read_blocked_change_handler_for_track(track, [&](Media::ReadBlocked state) {
+        blocked = state == Media::ReadBlocked::Yes;
+    });
+    for (bool abort : { true, false }) {
+        completed = false;
+        demuxer->reset_blocking_reads_aborted_for_track(track);
+        auto thread = Threading::Thread::construct("TestSeek"sv, [&, demuxer, track, target, abort]() -> intptr_t {
+            auto result = demuxer->seek_to_most_recent_keyframe(track, target);
+            if (abort) {
+                EXPECT(result.is_error());
+                if (result.is_error())
+                    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Aborted);
+            } else {
+                EXPECT(!result.is_error());
+            }
+            completed = true;
+            return 0;
         });
-        for (bool abort : { true, false }) {
-            completed = false;
-            demuxer->reset_blocking_reads_aborted_for_track(track);
-            auto thread = Threading::Thread::construct("TestSeek"sv, [&, demuxer, track, target, abort]() -> intptr_t {
-                auto result = demuxer->seek_to_most_recent_keyframe(track, target);
-                if (abort) {
-                    EXPECT(result.is_error());
-                    if (result.is_error())
-                        EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Aborted);
-                } else {
-                    EXPECT(!result.is_error());
-                }
-                completed = true;
-                return 0;
-            });
-            thread->start();
-            auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
-            while (!blocked.load() && !completed.load() && MonotonicTime::now() < deadline) { }
-            EXPECT(blocked.load());
-            EXPECT(!completed.load());
-            if (abort)
-                demuxer->set_blocking_reads_aborted_for_track(track);
-            else
-                source->add_chunk_at(available_end, bytes.bytes().slice(available_end));
-            MUST(thread->join());
-        }
-        EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 6);
-        demuxer->set_read_blocked_change_handler_for_track(track, {});
+        thread->start();
+        auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+        while (!blocked.load() && !completed.load() && MonotonicTime::now() < deadline) { }
+        EXPECT(blocked.load());
+        EXPECT(!completed.load());
+        if (abort)
+            demuxer->set_blocking_reads_aborted_for_track(track);
+        else
+            source->add_chunk_at(available_end, bytes.bytes().slice(available_end));
+        MUST(thread->join());
     }
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 6);
+    demuxer->set_read_blocked_change_handler_for_track(track, {});
+}
+
+// Reports each read that waits for data, so that a test can supply the data only once something waits for it.
+class BlockedReadReportingStream final : public Media::MediaStream {
+public:
+    BlockedReadReportingStream(NonnullRefPtr<Media::IncrementallyPopulatedStream> stream, Function<void()> on_read_blocked)
+        : m_stream(move(stream))
+        , m_on_read_blocked(move(on_read_blocked))
+    {
+    }
+
+    virtual NonnullRefPtr<Media::MediaStreamCursor> create_cursor() override
+    {
+        auto cursor = m_stream->create_cursor();
+        cursor->set_blocked_change_handler([this](Media::ReadBlocked blocked) {
+            if (blocked == Media::ReadBlocked::Yes)
+                m_on_read_blocked();
+        });
+        return cursor;
+    }
+    virtual Availability availability() const override { return m_stream->availability(); }
+    virtual Optional<u64> expected_size() const override { return m_stream->expected_size(); }
+    virtual bool is_closed() const override { return m_stream->is_closed(); }
+
+private:
+    NonnullRefPtr<Media::IncrementallyPopulatedStream> m_stream;
+    Function<void()> m_on_read_blocked;
+};
+
+TEST_CASE(creating_a_demuxer_waits_for_the_first_fragment_of_a_movie_without_samples)
+{
+    // The first sample's presentation time is needed for the earliest possible position.
+    auto bytes = seek_test_file(true, 5, false);
+    auto reader = streamer_for(bytes);
+    MUST(reader.seek_to_position(14));
+    auto header = MUST(Media::ISOBMFF::Reader::read_box_header(reader));
+    auto available_end = header.end_position().value() + 16;
+    auto source = Media::IncrementallyPopulatedStream::create_empty();
+    source->add_chunk_at(0, bytes.bytes().trim(available_end));
+
+    auto& loop = never_destroyed_event_loop();
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto main_thread_event_loop = Core::EventLoop::current_weak();
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> read_blocked { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> created { false };
+    auto wake_main_thread = [&] {
+        if (auto event_loop = main_thread_event_loop->take())
+            event_loop->wake();
+    };
+    auto stream = adopt_ref(*new BlockedReadReportingStream(source, [&] {
+        read_blocked = true;
+        wake_main_thread();
+    }));
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA RefPtr<Media::Demuxer> demuxer;
+    auto thread = Threading::Thread::construct("TestCreate"sv, [&, stream]() -> intptr_t {
+        demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(stream));
+        created = true;
+        wake_main_thread();
+        return 0;
+    });
+    thread->start();
+
+    // Creation reads the fragment that holds the first sample, so it waits until that fragment arrives.
+    loop.spin_until([&] { return read_blocked.load() || created.load(); });
+    EXPECT(read_blocked.load());
+    EXPECT(!created.load());
+    source->add_chunk_at(available_end, bytes.bytes().slice(available_end));
+    source->close();
+    MUST(thread->join());
+
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    auto first_sample = MUST(demuxer->get_next_sample_for_track(track));
+    EXPECT(first_sample.presentation_timestamp() > AK::Duration::zero());
+    EXPECT_EQ(demuxer->earliest_possible_position(), first_sample.presentation_timestamp());
 }
 
 TEST_CASE(seeking_uses_the_first_sample_when_no_samples_are_marked_sync)

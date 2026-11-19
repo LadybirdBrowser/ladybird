@@ -239,6 +239,21 @@ TEST_CASE(removing_ends_of_complete_file_produces_middle_time_range)
         expect_removing_ends_of_complete_file_produces_middle_time_range(fixture);
 }
 
+// The media in these files starts 10 seconds into its timeline.
+static Array late_start_fixtures {
+    "buffered-ranges/late_start_fragmented.mp4"sv,
+    "buffered-ranges/late_start.webm"sv,
+};
+
+TEST_CASE(late_starting_files_report_their_earliest_possible_position)
+{
+    for (auto path : late_start_fixtures) {
+        dbgln("-- '{}' earliest possible position --", path);
+        auto demuxer = create_demuxer(create_complete_stream(read_fixture(path)));
+        EXPECT_EQ(demuxer->earliest_possible_position(), AK::Duration::from_seconds(10));
+    }
+}
+
 TEST_CASE(scan_state_change_handler_fires_when_available_data_changes)
 {
     auto& loop = never_destroyed_event_loop();

@@ -38,6 +38,7 @@ public:
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
     virtual DecoderErrorOr<AK::Duration> total_duration() override;
+    virtual AK::Duration earliest_possible_position() const override { return m_earliest_possible_position; }
 
     virtual DemuxerScanState const& scan_state() const LIFETIME_BOUND override;
     virtual void set_scan_state_change_handler(ScanStateChangeHandler) override;
@@ -74,6 +75,7 @@ private:
 
     NonnullRefPtr<MediaStream> m_stream;
     Reader m_reader;
+    AK::Duration m_earliest_possible_position;
     RefPtr<DemuxerScanThread<BufferedScanPayload>> m_buffered_scan_thread;
 
     mutable Mutex m_track_statuses_mutex;
