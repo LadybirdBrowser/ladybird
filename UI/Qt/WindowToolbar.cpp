@@ -233,9 +233,11 @@ private:
 };
 
 // The reload button becomes a stop button while the page loads. So that one click does not do what the user did not aim
-// at, a stop button under the pointer stays until the pointer leaves or a short delay passes, and a click on stop within
-// the double-click interval of a reload click is ignored, so a double-click does not stop the reload it started. The
-// reload action stays attached to the button while it shows stop, so its shortcuts still work during a load.
+// at, a stop button under the pointer stays until the pointer leaves or a short delay passes, and a click within the
+// double-click interval of a click on the other action is ignored, so a double-click does not stop the reload it
+// started or reload the page it stopped. The
+// reload action stays attached to the button while it shows stop, so its shortcuts still work during a load. Like the
+// back and forward buttons, it moves only when clicked: a load started or stopped otherwise changes its icon at once.
 class ReloadButton final : public ToolbarButton {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -243,22 +245,30 @@ public:
     explicit ReloadButton(QWidget* parent)
         : ToolbarButton(parent)
     {
-        m_icon_fade.setStartValue(0.0);
-        m_icon_fade.setEndValue(1.0);
-        QObject::connect(&m_icon_fade, &QVariantAnimation::valueChanged, this, [this] { update(); });
+        QObject::connect(&m_morph, &QVariantAnimation::valueChanged, this, [this](QVariant const& value) {
+            m_morph_progress = value.toReal();
+            update();
+        });
 
-        m_double_click_timer.setSingleShot(true);
-        m_double_click_timer.setInterval(QApplication::doubleClickInterval());
+        // NB: A coarse timer can fire early, and show the stop icon for a load that ends just inside the delay.
+        m_morph_delay_timer.setSingleShot(true);
+        m_morph_delay_timer.setTimerType(Qt::PreciseTimer);
+        m_morph_delay_timer.setInterval(MORPH_DELAY_MS);
+        QObject::connect(&m_morph_delay_timer, &QTimer::timeout, this, [this] {
+            show_stop_mode();
+            if (m_load_was_started_by_click)
+                morph_to(1);
+            else
+                show_morph_at(1);
+        });
+
+        m_last_click_timer.setSingleShot(true);
+        m_last_click_timer.setInterval(QApplication::doubleClickInterval());
 
         m_stop_to_reload_timer.setSingleShot(true);
         m_stop_to_reload_timer.setInterval(STOP_TO_RELOAD_DELAY_MS);
         QObject::connect(&m_stop_to_reload_timer, &QTimer::timeout, this, [this] {
             change_mode(m_intended_mode, ForceChange::Yes);
-        });
-
-        QObject::connect(this, &QToolButton::pressed, this, [this] {
-            if (m_visible_mode == Mode::Reload)
-                m_double_click_timer.start();
         });
 
         // NB: A stop click that arrives after the load ended has nothing to stop, so show the reload button right away.
@@ -283,7 +293,11 @@ public:
     // Another tab's state is shown as it stands, without the motion of a change.
     void show_loading_at_once(bool is_loading)
     {
-        m_icon_fade.stop();
+        m_morph_delay_timer.stop();
+        show_morph_at(is_loading ? 1 : 0);
+        m_last_click_timer.stop();
+        m_reload_click_is_pending = false;
+        m_stop_was_clicked = false;
         m_stop_to_reload_timer.stop();
         m_intended_mode = m_visible_mode = is_loading ? Mode::Stop : Mode::Reload;
         setDefaultAction(is_loading ? m_stop_action : m_reload_action);
@@ -306,9 +320,22 @@ protected:
     // any other click there does.
     virtual void nextCheckState() override
     {
-        if (m_visible_mode == Mode::Stop && m_double_click_timer.isActive())
+        // NB: Only a click that reaches an action counts, so a press released outside the button does not animate it.
+        //     During the morph delay the button is still the reload button, but it is about to be the stop button, so
+        //     the second click of a double-click on reload is ignored there too.
+        //     A click that opens a new tab acts on no load here, so it neither counts nor is ignored.
+        auto opens_in_new_tab = click_opens_in_new_tab();
+        auto clicked_mode = m_visible_mode == Mode::Stop || m_morph_delay_timer.isActive() ? Mode::Stop : Mode::Reload;
+        if (!opens_in_new_tab && m_last_click_timer.isActive() && clicked_mode != m_last_clicked_mode)
             return;
-        if (m_visible_mode == Mode::Reload && !click_opens_in_new_tab() && QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier)) {
+        if (m_visible_mode == Mode::Stop)
+            m_stop_was_clicked = true;
+        if (!opens_in_new_tab) {
+            m_last_clicked_mode = m_visible_mode;
+            m_last_click_timer.start();
+            m_reload_click_is_pending = m_visible_mode == Mode::Reload;
+        }
+        if (m_visible_mode == Mode::Reload && !opens_in_new_tab && QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier)) {
             m_reload_bypassing_cache_action->trigger();
             return;
         }
@@ -317,13 +344,8 @@ protected:
 
 private:
     static constexpr int STOP_TO_RELOAD_DELAY_MS = 1000;
-    static constexpr int ARROW_TURN_DURATION_MS = 340;
-    static constexpr int TURN_CROSS_FADE_DELAY_MS = 200;
-    static constexpr int TURN_CROSS_FADE_DURATION_MS = 140;
-    static constexpr int STOP_TURN_DELAY_MS = 180;
-    static constexpr int STOP_TURN_DURATION_MS = 200;
-    static constexpr int RELOAD_TO_STOP_DURATION_MS = STOP_TURN_DELAY_MS + STOP_TURN_DURATION_MS;
-    static constexpr int ICON_CROSS_FADE_DURATION_MS = 160;
+    static constexpr int MORPH_DURATION_MS = 400;
+    static constexpr int MORPH_DELAY_MS = 100;
 
     enum class Mode {
         Reload,
@@ -337,22 +359,40 @@ private:
 
     void change_mode(Mode mode, ForceChange force_change)
     {
+        // NB: A stop click belongs to the load it stopped, not to one that starts while the stop button is held.
+        if (mode == Mode::Stop && m_intended_mode == Mode::Reload)
+            m_stop_was_clicked = false;
         m_intended_mode = mode;
 
-        auto change_is_safe = mode == Mode::Stop || m_visible_mode != Mode::Stop;
+        // NB: The stop button is held under the pointer only once it shows stop; a morph toward it still turns back.
+        auto change_is_safe = mode == Mode::Stop || m_visible_mode != Mode::Stop || m_morph.state() == QAbstractAnimation::Running;
         if (force_change == ForceChange::Yes || !underMouse() || change_is_safe) {
             m_stop_to_reload_timer.stop();
-            if (m_visible_mode != mode && defaultAction() && !SystemAppearance::prefers_reduced_motion()) {
-                m_previous_icon = defaultAction()->icon();
-                // NB: The arrow turns into the stop icon only as the reload button is clicked. A load started otherwise
-                //     cross-fades it, as does the end of a load.
-                m_turns_icon = mode == Mode::Stop && m_double_click_timer.isActive();
-                m_icon_fade.stop();
-                m_icon_fade.setDuration(m_turns_icon ? RELOAD_TO_STOP_DURATION_MS : ICON_CROSS_FADE_DURATION_MS);
-                m_icon_fade.start();
+            // A load that ends within a moment never turns the button into the stop button: it stays the reload button,
+            // action and all, until the delay passes. One that starts while the arrow is still turning back turns it
+            // around at once. A morph under way turns back rather than jumping, whatever changed the load.
+            if (mode == Mode::Stop) {
+                if (m_visible_mode == Mode::Stop || m_morph_delay_timer.isActive())
+                    return;
+                // NB: A reload click animates the one load it started, not another that starts within the same interval.
+                m_load_was_started_by_click = m_reload_click_is_pending && m_last_click_timer.isActive();
+                m_reload_click_is_pending = false;
+                if (m_morph_progress > 0) {
+                    show_stop_mode();
+                    morph_to(1);
+                } else {
+                    m_morph_delay_timer.start();
+                }
+                return;
             }
-            m_visible_mode = mode;
-            setDefaultAction(mode == Mode::Stop ? m_stop_action : m_reload_action);
+            m_morph_delay_timer.stop();
+            if (m_stop_was_clicked || m_morph.state() == QAbstractAnimation::Running)
+                morph_to(0);
+            else
+                show_morph_at(0);
+            m_stop_was_clicked = false;
+            m_visible_mode = Mode::Reload;
+            setDefaultAction(m_reload_action);
             return;
         }
 
@@ -360,51 +400,74 @@ private:
             m_stop_to_reload_timer.start();
     }
 
-    // As a click on it starts a load, the reload arrow turns half a turn, and over its second half cross-fades into the
-    // stop icon, which turns into place. Otherwise, as when the load ends, the two icons only cross-fade.
+    void show_stop_mode()
+    {
+        m_stop_was_clicked = false;
+        m_visible_mode = Mode::Stop;
+        setDefaultAction(m_stop_action);
+    }
+
+    // The arrow morphs into the stop icon as a load starts, and back as it ends. A change partway through turns back
+    // from where the morph is, at the same pace.
+    void morph_to(qreal target)
+    {
+        if (SystemAppearance::prefers_reduced_motion() || !isVisible()) {
+            show_morph_at(target);
+            return;
+        }
+        auto duration = qRound(MORPH_DURATION_MS * abs(target - m_morph_progress));
+        if (duration <= 0) {
+            show_morph_at(target);
+            return;
+        }
+        m_morph.stop();
+        m_morph.setStartValue(m_morph_progress);
+        m_morph.setEndValue(target);
+        m_morph.setDuration(duration);
+        m_morph.start();
+    }
+
+    void show_morph_at(qreal progress)
+    {
+        m_morph.stop();
+        m_morph_progress = progress;
+        update();
+    }
+
     virtual void paintEvent(QPaintEvent* event) override
     {
-        if (m_icon_fade.state() != QAbstractAnimation::Running) {
+        auto shows_action_icon = m_morph.state() != QAbstractAnimation::Running
+            && m_morph_progress == (m_visible_mode == Mode::Stop ? 1 : 0);
+        if (shows_action_icon) {
             ToolbarButton::paintEvent(event);
             return;
         }
 
         QPainter painter(this);
-        painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
         ChromeStyle::paint_control_frame(painter, *this);
-        auto elapsed = m_icon_fade.currentValue().toReal() * m_icon_fade.duration();
-        auto part = [&](qreal delay, qreal duration) { return clamp((elapsed - delay) / duration, 0.0, 1.0); };
-        auto center = QRectF(icon_rect()).center();
-        auto paint_turned = [&](QIcon const& icon, qreal opacity, qreal degrees) {
-            painter.save();
-            painter.setOpacity(opacity);
-            painter.translate(center);
-            painter.rotate(degrees);
-            painter.translate(-center);
-            icon.paint(&painter, icon_rect(), Qt::AlignCenter, icon_mode());
-            painter.restore();
-        };
-        if (!m_turns_icon) {
-            auto fade = part(0, ICON_CROSS_FADE_DURATION_MS);
-            paint_turned(m_previous_icon, 1 - fade, 0);
-            paint_turned(icon(), fade, 0);
-            return;
-        }
-        static auto const easing = Motion::enter_easing();
-        auto fade = part(TURN_CROSS_FADE_DELAY_MS, TURN_CROSS_FADE_DURATION_MS);
-        paint_turned(m_previous_icon, 1 - fade, 180 * easing.valueForProgress(part(0, ARROW_TURN_DURATION_MS)));
-        paint_turned(icon(), fade, -90 * (1 - easing.valueForProgress(part(STOP_TURN_DELAY_MS, STOP_TURN_DURATION_MS))));
+        QIcon icon;
+        if (m_morph_progress <= 0)
+            icon = m_reload_action->icon();
+        else if (m_morph_progress >= 1)
+            icon = m_stop_action->icon();
+        else
+            icon = create_reload_to_stop_icon(Theme::chrome_palette(*this), ChromeStyle::window_activity(*this), m_morph_progress, iconSize().width());
+        icon.paint(&painter, icon_rect(), Qt::AlignCenter, icon_mode());
     }
 
     QAction* m_reload_action { nullptr };
     QAction* m_reload_bypassing_cache_action { nullptr };
     QAction* m_stop_action { nullptr };
-    QIcon m_previous_icon;
-    QVariantAnimation m_icon_fade;
-    bool m_turns_icon { false };
+    QVariantAnimation m_morph;
+    qreal m_morph_progress { 0 };
+    QTimer m_morph_delay_timer;
+    bool m_load_was_started_by_click { false };
+    bool m_stop_was_clicked { false };
     Mode m_visible_mode { Mode::Reload };
     Mode m_intended_mode { Mode::Reload };
-    QTimer m_double_click_timer;
+    QTimer m_last_click_timer;
+    Mode m_last_clicked_mode { Mode::Reload };
+    bool m_reload_click_is_pending { false };
     QTimer m_stop_to_reload_timer;
 };
 
@@ -1732,6 +1795,7 @@ void WindowToolbar::bind(Tab* tab)
     // A tab that hasn't loaded has no page yet, so it is shown once it has one.
     if (!tab || !tab->is_loaded()) {
         show_location_edit(nullptr);
+        m_reload_button->show_loading_at_once(false);
         if (tab)
             QObject::connect(tab, &Tab::loaded, this, [this, tab] { show_tab(*tab); }, Qt::SingleShotConnection);
         return;
