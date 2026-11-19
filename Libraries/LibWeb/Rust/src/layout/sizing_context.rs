@@ -2786,7 +2786,23 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             .intrinsic_inline_size_measurement_cache_put(node, key, value);
     }
 
-    fn transferred_intrinsic_inline_sizing_space(&self, sized: SizedBox<'_>) -> AvailableSpace {
+    fn transferred_intrinsic_inline_sizing_space(
+        &self,
+        sized: SizedBox<'_>,
+        constraints: ContainingBlockConstraints,
+    ) -> AvailableSpace {
+        // https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
+        // NB: A replaced box's intrinsic inline sizes come from its natural sizes and its block axis constraints, so its
+        //     own size, which a layout may already have given it, is no percentage basis for its width or height here.
+        //     Its containing block's is.
+        if self.facts(sized.node).is_replaced_box() {
+            return AvailableSpace {
+                inline_size: AvailableSize::MaxContent,
+                block_size: constraints
+                    .percentage_basis_block_size
+                    .map_or(AvailableSize::Indefinite, AvailableSize::definite),
+            };
+        }
         sized
             .metrics()
             .available_inner_space_or_constraints_from(AvailableSpace {
@@ -2812,15 +2828,18 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
         // When a box has a preferred aspect ratio, its automatic sizes are calculated the same as for a replaced element
         // with a natural aspect ratio and no natural size in that axis.
+        // NB: A replaced box's width that is an intrinsic size keyword or a calc-size() resolves through these very
+        //     intrinsic sizes, so they can't come from it.
         if !facts.has_preferred_aspect_ratio()
-            || (facts.is_replaced_box() && !style.width().is_auto())
             || style.height().is_auto()
             || style.height().is_intrinsic_sizing_constraint()
+            || (facts.is_replaced_box()
+                && (style.width().is_intrinsic_sizing_constraint() || style.width().calc_size().is_some()))
         {
             return false;
         }
-        let available_space = self.transferred_intrinsic_inline_sizing_space(sized);
-        // NB: A cyclic percentage width of a non-replaced box behaves as auto for its intrinsic sizes.
+        let available_space = self.transferred_intrinsic_inline_sizing_space(sized, constraints);
+        // NB: A cyclic percentage width behaves as auto for the box's intrinsic sizes, whether or not it's replaced.
         self.should_treat_inline_size_as_auto(sized, available_space)
             && !self.should_treat_block_size_as_auto(sized, available_space, constraints)
     }
@@ -2833,7 +2852,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if !self.intrinsic_inline_sizes_are_transferred(sized, constraints) {
             return None;
         }
-        let available_space = self.transferred_intrinsic_inline_sizing_space(sized);
+        let available_space = self.transferred_intrinsic_inline_sizing_space(sized, constraints);
         // https://drafts.csswg.org/css2/#inline-replaced-width
         // "(used height) * (intrinsic ratio)"
         let inline_size = self.compute_inline_size_for_replaced_element(sized, available_space, constraints);

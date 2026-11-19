@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .row { display: flex; width: 300px; margin-bottom: 4px; }
+    img { display: block; width: 100%; height: 50px; }
+</style>
+<!-- An image's max-content width is its height through its aspect ratio, whatever its own width. So a shrink-to-fit
+     container of an image whose width is a cyclic percentage is that wide, not as wide as the image's natural width. -->
+<div class="row"><div id="flex" style="display: flex"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='145'/%3E"></div></div>
+<div class="row"><div id="inline-flex" style="display: inline-flex"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='145'/%3E"></div></div>
+<div class="row"><div id="column-flex" style="display: flex; flex-direction: column"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='145'/%3E"></div></div>
+<div class="row"><div id="grid" style="display: grid"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='145'/%3E"></div></div>
+<div class="row"><div id="block" style="display: block"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='145'/%3E"></div></div>
+<div class="row"><div id="half-width" style="display: flex"><img style="width: 50%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='145'/%3E"></div></div>
+<div class="row"><div id="calc-width" style="display: flex"><img style="width: calc(100% - 10px)" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='145'/%3E"></div></div>
+<div class="row"><div id="aspect-ratio" style="display: flex"><img style="aspect-ratio: 1" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='145'/%3E"></div></div>
+<div class="row"><div id="border-box-padding" style="display: flex"><img style="padding: 5px; box-sizing: border-box" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='145'/%3E"></div></div>
+<div class="row" style="height: 200px"><div id="percentage-height" style="display: flex"><img style="width: auto; height: 50%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E"></div></div>
+<script>
+    function run(report) {
+        for (const element of document.querySelectorAll("[id]:not(#out)")) {
+            const rect = element.getBoundingClientRect();
+            report(`${element.id}: ${rect.width}x${rect.height}`);
+        }
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>
