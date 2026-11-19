@@ -184,16 +184,30 @@ ErrorOr<RequestServerClientConnection> RequestServerManager::connect_new_client(
     return Error::from_string_literal("RequestServer keeps handing out client IDs that are in use");
 }
 
+void RequestServerManager::retire_without_delay_once_disconnected(int client_id)
+{
+    for (auto& instance : m_instances) {
+        if (instance->site().has_value() && instance->has_client(client_id)) {
+            instance->m_client_ids_retiring_without_delay.set(client_id);
+            return;
+        }
+    }
+}
+
 void RequestServerManager::client_disconnected(RequestServerInstance& instance, int client_id)
 {
     Application::the().did_disconnect_request_server_client(client_id);
     instance.m_client_ids.remove(client_id);
+    auto retires_without_delay = instance.m_client_ids_retiring_without_delay.remove(client_id);
 
     if (!instance.site().has_value() || !instance.m_client_ids.is_empty())
         return;
 
+    // NB: This runs inside a message handler of the instance's control connection, which retiring the instance drops.
+    //     So even an instance that retires without delay is retired from the event loop.
+    auto idle_timeout = retires_without_delay ? AK::Duration::zero() : Application::request_server_options().idle_site_request_server_timeout;
     auto weak_instance = instance.make_weak_ptr();
-    instance.m_idle_timer = Core::Timer::create_single_shot(Application::request_server_options().idle_site_request_server_timeout, [weak_instance] {
+    instance.m_idle_timer = Core::Timer::create_single_shot(idle_timeout, [weak_instance] {
         auto instance = weak_instance.strong_ref();
         if (instance && instance->m_client_ids.is_empty())
             the().retire(*instance);
