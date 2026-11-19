@@ -859,6 +859,12 @@ Optional<TimeRanges::Range> PlaybackManager::seekable_time_ranges() const
     return seekable_time_range(buffered.time_ranges, m_timeline);
 }
 
+void PlaybackManager::set_live_seekable_range(Optional<TimeRanges::Range> range)
+{
+    m_timeline.live_seekable_range = range;
+    dispatch_buffered_ranges_change();
+}
+
 CombinedScanState PlaybackManager::scan_state_for_enabled_tracks(Demuxer const& demuxer) const
 {
     return demuxer.scan_state().combined_scan_state([&](u64 identifier) {
