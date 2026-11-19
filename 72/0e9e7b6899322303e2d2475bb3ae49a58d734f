@@ -1,0 +1,5 @@
+Under white-space: pre-line, Ladybird keeps every preserved line feed,
+whatever collapsible white space comes before or after it. Chrome
+157.0.8103.79, Firefox 151.0, and WebKit 26.5 agree on every case the
+test checks: “one  \ntwo”, “one \t\ntwo”, “one\n \ntwo”, “one\n   \n
+\ntwo”, and “one\r\n\r\ntwo” each break at every line feed.
