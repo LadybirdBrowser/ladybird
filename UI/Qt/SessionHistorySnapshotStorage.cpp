@@ -583,7 +583,8 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
                 initiator_origin_kind, initiator_origin_nonce, initiator_origin_scheme,
                 initiator_origin_host, initiator_origin_port, initiator_origin_domain,
                 referrer_kind, referrer_url, referrer_policy, resource_kind, resource_string,
-                about_base_url, navigable_target_name, ever_populated, reload_pending, user_agent_initiated)
+                about_base_url, navigable_target_name, ever_populated, reload_pending, user_agent_initiated,
+                held_local_file_content)
             VALUES (
                 :history_id, :entry_ordinal, :step, :url, :document_state_namespace_id, :document_state_local_id,
                 :classic_state, :navigation_state,
@@ -594,7 +595,8 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
                 :initiator_origin_kind, :initiator_origin_nonce, :initiator_origin_scheme,
                 :initiator_origin_host, :initiator_origin_port, :initiator_origin_domain,
                 :referrer_kind, :referrer_url, :referrer_policy, :resource_kind, :resource_string,
-                :about_base_url, :navigable_target_name, :ever_populated, :reload_pending, :user_agent_initiated);
+                :about_base_url, :navigable_target_name, :ever_populated, :reload_pending, :user_agent_initiated,
+                :held_local_file_content);
         )#"sv)),
         .insert_used_step = TRY(database.prepare_statement(
             "INSERT INTO SessionUsedSteps (tab_id, step_ordinal, step) VALUES (:tab_id, :step_ordinal, :step);"sv)),
@@ -646,7 +648,8 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
                 initiator_origin_kind, initiator_origin_nonce, initiator_origin_scheme,
                 initiator_origin_host, initiator_origin_port, initiator_origin_domain,
                 referrer_kind, referrer_url, referrer_policy, resource_kind, resource_string,
-                about_base_url, navigable_target_name, ever_populated, reload_pending, user_agent_initiated
+                about_base_url, navigable_target_name, ever_populated, reload_pending, user_agent_initiated,
+                held_local_file_content
             FROM SessionEntries
             INNER JOIN SessionHistories ON SessionEntries.history_id = SessionHistories.id
             WHERE SessionHistories.tab_id = :tab_id;
@@ -840,7 +843,7 @@ ErrorOr<void> validate_session_history_snapshot_storable(WebView::SessionHistory
     return WebView::validate_snapshot_is_restorable(snapshot.entries, snapshot.used_steps, snapshot.current_used_step_index);
 }
 
-static ErrorOr<void> store_history_entries(Database::Database& database, SessionHistorySnapshotStatements const& statements, i64 tab_id, i64 history_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries)
+static ErrorOr<void> store_history_entries(Database::Database& database, SessionHistorySnapshotStatements const& statements, i64 tab_id, i64 history_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, HashTable<Web::HTML::CrossProcessId> const& document_states_holding_local_file_content)
 {
     i64 entry_ordinal = 0;
     for (auto const& entry : entries) {
@@ -891,6 +894,7 @@ static ErrorOr<void> store_history_entries(Database::Database& database, Session
             TRY(bind("ever_populated"sv, document_state.ever_populated));
             TRY(bind("reload_pending"sv, document_state.reload_pending));
             TRY(bind("user_agent_initiated"sv, document_state.user_agent_initiated == Web::HTML::UserAgentInitiated::Yes));
+            TRY(bind("held_local_file_content"sv, document_states_holding_local_file_content.contains(document_state.id)));
             return {};
         }));
         ++entry_ordinal;
@@ -916,7 +920,7 @@ static ErrorOr<void> store_history_entries(Database::Database& database, Session
                 TRY(bind("child_history_id"sv, child_history_id));
                 return {};
             }));
-            TRY(store_history_entries(database, statements, tab_id, child_history_id, nested_history.entries));
+            TRY(store_history_entries(database, statements, tab_id, child_history_id, nested_history.entries, document_states_holding_local_file_content));
             ++nested_ordinal;
         }
         ++entry_ordinal;
@@ -943,7 +947,10 @@ ErrorOr<void> store_session_history_snapshot(Database::Database& database, Sessi
     auto root_history_id = TRY(insert_row_returning_id(database, statements.insert_history, [&](auto& bind) -> ErrorOr<void> {
         return bind("tab_id"sv, tab_id);
     }));
-    TRY(store_history_entries(database, statements, tab_id, root_history_id, snapshot.entries));
+    HashTable<Web::HTML::CrossProcessId> document_states_holding_local_file_content;
+    for (auto id : snapshot.document_states_holding_local_file_content)
+        document_states_holding_local_file_content.set(id);
+    TRY(store_history_entries(database, statements, tab_id, root_history_id, snapshot.entries, document_states_holding_local_file_content));
 
     return {};
 }
@@ -977,6 +984,7 @@ struct EntryRow {
     bool ever_populated { false };
     bool reload_pending { false };
     bool user_agent_initiated { false };
+    bool held_local_file_content { false };
 };
 
 struct PolicyContainerRow {
@@ -1332,6 +1340,8 @@ struct HistoryTreeLoadState {
     HashMap<i64, Vector<NestedHistoryLinkRow>> links_by_parent;
     HashMap<i64, HashMap<i64, Web::HTML::SerializedPolicyContainer>> containers_by_history;
     HashTable<i64> unvisited_histories;
+    Vector<Web::HTML::CrossProcessId> document_states_holding_local_file_content;
+    HashTable<Web::HTML::CrossProcessId> seen_document_states_holding_local_file_content;
 };
 
 }
@@ -1352,7 +1362,11 @@ static ErrorOr<Vector<Web::HTML::SessionHistoryEntryDescriptor>> load_history_en
     entries.ensure_capacity(entry_rows.size());
     for (auto& row : entry_rows) {
         auto container = containers.take(row.entry_ordinal);
+        auto held_local_file_content = row.held_local_file_content;
         entries.unchecked_append(TRY(build_entry(move(row), move(container))));
+        auto document_state_id = entries.last().document_state.id;
+        if (held_local_file_content && state.seen_document_states_holding_local_file_content.set(document_state_id) == HashSetResult::InsertedNewEntry)
+            state.document_states_holding_local_file_content.append(document_state_id);
     }
     if (!containers.is_empty())
         return Error::from_string_literal("Session history policy container references a missing entry");
@@ -1456,6 +1470,7 @@ ErrorOr<WebView::SessionHistorySnapshot> load_session_history_snapshot(Database:
             row.ever_populated = TRY(result_row.read_bool("ever_populated"sv));
             row.reload_pending = TRY(result_row.read_bool("reload_pending"sv));
             row.user_agent_initiated = TRY(result_row.read_bool("user_agent_initiated"sv));
+            row.held_local_file_content = TRY(result_row.read_bool("held_local_file_content"sv));
             return row;
         }));
 
@@ -1513,6 +1528,7 @@ ErrorOr<WebView::SessionHistorySnapshot> load_session_history_snapshot(Database:
             return Error::from_string_literal("Session history snapshot lacks a unique root history");
 
         snapshot.entries = TRY(load_history_entry_tree(state, *root_history_id, 0));
+        snapshot.document_states_holding_local_file_content = move(state.document_states_holding_local_file_content);
         if (!state.unvisited_histories.is_empty())
             return Error::from_string_literal("Session history has an unreachable nested history");
     }

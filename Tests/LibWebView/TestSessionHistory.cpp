@@ -1111,6 +1111,25 @@ TEST_CASE(restore_from_ui_snapshot_preserves_shared_document_state_identity)
     EXPECT_EQ(first_id, second_id);
 }
 
+// The browser reads the local file an entry names for a history step only when it populated local file content for the
+// entry's document state, so a restored document state keeps that under its new identity.
+TEST_CASE(restore_from_ui_snapshot_keeps_which_document_states_held_local_file_content)
+{
+    WebView::TraversableSessionHistory history { initial_history_entry() };
+
+    auto result = history.restore_from_ui_snapshot({
+                                                       entry(0, "file:///tmp/a.html"sv, 1, "main"sv),
+                                                       entry(1, "https://a.example/"sv, 2, "main"sv),
+                                                   },
+        { 0, 1 }, 1, allocate_test_ui_process_document_state_id, { test_document_state_id(1), test_document_state_id(7) });
+
+    EXPECT(!result.is_error());
+    auto const& file_document_state = *history.entry_at(0)->document_state;
+    EXPECT(file_document_state.held_local_file_content);
+    EXPECT(!history.entry_at(1)->document_state->held_local_file_content);
+    EXPECT(history.document_states_holding_local_file_content() == Vector<Web::HTML::CrossProcessId> { file_document_state.id });
+}
+
 TEST_CASE(restore_from_ui_snapshot_rejects_structurally_invalid_snapshots)
 {
     auto restore = [](Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index) {

@@ -981,7 +981,7 @@ void CanonicalTraversable::reconstruct_the_history_to_step(i32 step)
 
 ErrorOr<URL::URL> CanonicalTraversable::restore_session_history_from_ui_snapshot(SessionHistorySnapshot snapshot)
 {
-    TRY(m_session_history.restore_from_ui_snapshot(move(snapshot.entries), move(snapshot.used_steps), snapshot.current_used_step_index, [] { return Application::the().allocate_ui_process_cross_process_id(); }));
+    TRY(m_session_history.restore_from_ui_snapshot(move(snapshot.entries), move(snapshot.used_steps), snapshot.current_used_step_index, [] { return Application::the().allocate_ui_process_cross_process_id(); }, snapshot.document_states_holding_local_file_content));
     session_history_changed();
 
     return m_session_history.current_entry().url;

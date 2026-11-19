@@ -354,7 +354,7 @@ static void insert_minimal_entry(Database::Database& database, SessionHistorySna
         static_cast<i64>(0), absent_text, absent_text, absent_text, absent_port, absent_text,
         static_cast<i64>(0), absent_text, static_cast<i64>(0),
         static_cast<i64>(0), absent_text,
-        absent_text, String {}, ever_populated, false, false);
+        absent_text, String {}, ever_populated, false, false, false);
 }
 
 static i32 count_tab_rows(Database::Database& database, StringView table, i64 tab_id)
@@ -545,6 +545,35 @@ TEST_CASE(snapshot_round_trips_flat_entries)
     EXPECT_EQ(loaded.entries[1].document_state.initiator_origin->domain()->serialize(), "b.example"_string);
 }
 
+// The document states the browser populated local file content for survive a round trip, including in nested
+// histories, and a document state that several entries share is named once.
+TEST_CASE(snapshot_round_trip_preserves_document_states_holding_local_file_content)
+{
+    auto database = make_database();
+    auto statements = prepare_snapshot_tables(*database);
+
+    insert_tab_row(*database, 43);
+
+    auto parent = make_entry(0, "file:///tmp/parent.html"sv, 1, 0x11, 0x22, "keyA"sv, "idA"sv, {});
+    parent.document_state.nested_histories.append({
+        .id = Web::HTML::CrossProcessId { .namespace_id = 1, .local_id = 9 },
+        .entries = { make_entry(0, "file:///tmp/child.html"sv, 3, 0x33, 0x44, "keyC"sv, "idC"sv, {}) },
+    });
+
+    WebView::SessionHistorySnapshot snapshot;
+    snapshot.entries.append(move(parent));
+    snapshot.entries.append(make_entry(1, "https://a.example/"sv, 2, 0x55, 0x66, "keyB"sv, "idB"sv, {}));
+    snapshot.entries.append(make_entry(2, "file:///tmp/parent.html#again"sv, 1, 0x77, 0x88, "keyD"sv, "idD"sv, {}));
+    snapshot.used_steps = { 0, 1, 2 };
+    snapshot.current_used_step_index = 2;
+    snapshot.document_states_holding_local_file_content = { snapshot.entries[0].document_state.id, snapshot.entries[0].document_state.nested_histories[0].entries[0].document_state.id };
+
+    TRY_OR_FAIL(store_session_history_snapshot(*database, statements, 43, snapshot));
+
+    auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, statements, 43, 2));
+    EXPECT(loaded.document_states_holding_local_file_content == snapshot.document_states_holding_local_file_content);
+}
+
 // A database from before the user_agent_initiated column gains it with every entry saved there as No.
 TEST_CASE(snapshot_entries_saved_before_the_user_agent_initiated_column_load_as_no)
 {
@@ -565,6 +594,7 @@ TEST_CASE(snapshot_entries_saved_before_the_user_agent_initiated_column_load_as_
 
     // Take the database back to the baseline schema, keeping the entry's row.
     TRY_OR_FAIL(database->execute_raw(R"#(
+        ALTER TABLE SessionEntries DROP COLUMN held_local_file_content;
         DROP TABLE SessionUpgradeInsecureNavigations;
         ALTER TABLE SessionPolicyContainers DROP COLUMN insecure_requests_policy;
         ALTER TABLE Sessions DROP COLUMN maximized;
@@ -585,7 +615,7 @@ TEST_CASE(snapshot_entries_saved_before_the_user_agent_initiated_column_load_as_
     )#"sv));
 
     auto migrated_statements = prepare_snapshot_tables(*database);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 10u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 11u });
 
     auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, migrated_statements, 42, 0));
     EXPECT_EQ(loaded.entries.size(), 1uz);
@@ -614,6 +644,7 @@ TEST_CASE(snapshot_policy_containers_saved_before_the_insecure_requests_policy_l
 
     // Take the database back to the schema before the insecure requests policy, keeping the container's row.
     TRY_OR_FAIL(database->execute_raw(R"#(
+        ALTER TABLE SessionEntries DROP COLUMN held_local_file_content;
         DROP TABLE SessionUpgradeInsecureNavigations;
         ALTER TABLE SessionPolicyContainers DROP COLUMN insecure_requests_policy;
         ALTER TABLE SessionLifecycle DROP COLUMN restart;
@@ -621,7 +652,7 @@ TEST_CASE(snapshot_policy_containers_saved_before_the_insecure_requests_policy_l
     )#"sv));
 
     auto migrated_statements = prepare_snapshot_tables(*database);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 10u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 11u });
 
     auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, migrated_statements, 27, 0));
     auto const* container = loaded.entries[0].document_state.history_policy_container.get_pointer<Web::HTML::SerializedPolicyContainer>();
