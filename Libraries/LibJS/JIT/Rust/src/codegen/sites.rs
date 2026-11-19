@@ -188,7 +188,7 @@ impl SiteSource<'_> {
         let frame_state = graph.node(self.node).frame_state.expect("the node has a frame state");
         let frame = scratch.frame_record(graph, frame_state, artifact)?;
         let objects = graph.virtual_objects(frame_state);
-        if !artifact.frame_has_objects(frame) {
+        if !objects.is_empty() && !artifact.frame_has_objects(frame) {
             let objects = objects.iter().map(|object| {
                 let Op::VirtualObject { kind, allocation } = graph.node(*object).op else {
                     unreachable!("virtual objects are VirtualObject nodes");

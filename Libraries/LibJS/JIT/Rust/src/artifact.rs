@@ -12,11 +12,16 @@
 //! copy of it is the same tables, and the runtime reads them where they are, through the views of this module.
 //!
 //! A frame state of the graph becomes one frame record, however many sites have it and however many frame states
-//! have it as their parent. What two sites with the same frame state differ in is where the values are, so each site
-//! has a run of locations of its own: those of the values of its frames, innermost frame first and in slot order
-//! within a frame, then those of the properties of its objects.
+//! have it as their parent. What the frame states of one inlined call have in common is in a call record that they
+//! share, and a frame of the compiled function itself needs none. What two sites with the same frame state differ in
+//! is where the values are, so each site has a run of locations: those of the values of its frames, innermost frame
+//! first and in slot order within a frame, then those of the properties of its objects.
+//!
+//! Code has the same constants, the same lists of slots and the same locations of values over and over, so equal
+//! runs of words in those tables are stored one time (see `Shared`).
 
 use core::cell::Cell;
+use core::ffi::CStr;
 use core::ops::Range;
 
 use ak::Column;
@@ -39,13 +44,15 @@ enum Section {
     Sites,
     /// A record per frame state that a site has, directly or as the caller of another.
     Frames,
-    /// The slots of the values of each frame, a sorted run per frame.
+    /// The call records that frame records refer to.
+    Calls,
+    /// The slots of the values of the frames, a sorted run for each list of slots.
     Slots,
-    /// The slots each frame holds already (see `FrameView::in_frame()`), a sorted run per frame.
+    /// The slots frames hold already (see `FrameView::in_frame()`), a sorted run for each list of slots.
     InFrame,
     /// A record per object that the code never allocated, a run per frame that is the innermost one of a site.
     Objects,
-    /// Where the values are, a run per site.
+    /// Where the values are, a run for the sites that have their values in the same places.
     Locations,
     /// The 64-bit values that locations refer to, as two words each, low half first.
     Wide,
@@ -89,25 +96,38 @@ const SITE_KIND_LEAVE: u32 = 1;
 const SITE_KIND_PUBLISH: u32 = 2;
 const SITE_KIND_CALL: u32 = 3;
 
-const FRAME_WORDS: usize = 14;
-const FRAME_EXECUTABLE: usize = 0;
-const FRAME_PC: usize = 1;
+const FRAME_WORDS: usize = 7;
+const FRAME_PC: usize = 0;
 /// The destination of a frame that resumes after its instruction.
-const FRAME_RESUME_DESTINATION: usize = 2;
-const FRAME_PASSED_ARGUMENT_COUNT: usize = 3;
-const FRAME_LEGACY_ARGUMENTS_START: usize = 4;
-const FRAME_LEGACY_ARGUMENTS_END: usize = 5;
-/// The record of the frame of the caller, or `NONE` for the frame of the compiled function.
-const FRAME_PARENT: usize = 6;
-/// Whether the frame resumes after its instruction in the low bit, and how many callers the frame has in the rest.
-const FRAME_DEPTH: usize = 7;
-const FRAME_VALUE_COUNT: usize = 8;
-const FRAME_SLOTS: usize = 9;
-const FRAME_IN_FRAME: usize = 10;
-const FRAME_IN_FRAME_COUNT: usize = 11;
-/// The objects of the sites the frame is the innermost one of, or `NONE` while nothing asked for them.
-const FRAME_OBJECTS: usize = 12;
-const FRAME_OBJECT_COUNT: usize = 13;
+const FRAME_RESUME_DESTINATION: usize = 1;
+const FRAME_VALUE_COUNT: usize = 2;
+const FRAME_SLOTS: usize = 3;
+const FRAME_IN_FRAME: usize = 4;
+const FRAME_IN_FRAME_COUNT: usize = 5;
+/// Where the call record of the frame starts, or `NO_CALL`, above two bits.
+const FRAME_LINK: usize = 6;
+
+/// The bit of a link that says that the frame resumes after its instruction.
+const LINK_RESUMES_AFTER: u32 = 1 << 0;
+/// The bit of a link that says that the call record has the objects of the sites the frame is the innermost one of.
+const LINK_HAS_OBJECTS: u32 = 1 << 1;
+const LINK_CALL_SHIFT: u32 = 2;
+/// In place of where a call record starts: the frame is one of the compiled function with nothing more to say.
+const NO_CALL: u32 = u32::MAX >> LINK_CALL_SHIFT;
+
+const CALL_WORDS: usize = 6;
+const CALL_EXECUTABLE: usize = 0;
+/// The record of the frame of the caller, or `NONE` for a frame of the compiled function.
+const CALL_PARENT: usize = 1;
+/// How many callers the frame has.
+const CALL_DEPTH: usize = 2;
+const CALL_PASSED_ARGUMENT_COUNT: usize = 3;
+const CALL_LEGACY_ARGUMENTS_START: usize = 4;
+const CALL_LEGACY_ARGUMENTS_END: usize = 5;
+/// Only in a call record with objects: where they start, and how many there are.
+const CALL_OBJECTS: usize = 6;
+const CALL_OBJECT_COUNT: usize = 7;
+const CALL_WORDS_WITH_OBJECTS: usize = 8;
 
 const OBJECT_WORDS: usize = 6;
 const OBJECT_KIND: usize = 0;
@@ -236,11 +256,57 @@ pub struct Tail<'a> {
 pub struct ArtifactWriter {
     sites: Column<u32>,
     frames: Column<u32>,
-    slots: Column<u32>,
-    in_frame: Column<u32>,
+    calls: Shared<256>,
+    slots: Shared<1024>,
+    in_frame: Shared<256>,
     objects: Column<u32>,
-    locations: Column<u32>,
-    wide: Column<u32>,
+    locations: Shared<1024>,
+    wide: Shared<256>,
+}
+
+/// A table in which a run of words that is equal to one from before takes no room of its own.
+struct Shared<const INDEX_SIZE: usize> {
+    words: Column<u32>,
+    /// Where runs are: for the run added last with each hash, its start plus one, or zero for none. The index finds
+    /// nearly all of the repeats and never grows: a run that another one pushed out of its place is stored one more
+    /// time if it comes again.
+    index: [u32; INDEX_SIZE],
+}
+
+impl<const INDEX_SIZE: usize> Shared<INDEX_SIZE> {
+    fn new(limit: usize, name: &'static CStr) -> Self {
+        const { assert!(INDEX_SIZE.is_power_of_two() && INDEX_SIZE > 1) };
+        Self {
+            words: Column::new(limit, name),
+            index: [0; INDEX_SIZE],
+        }
+    }
+
+    fn clear(&mut self) {
+        self.words.clear();
+        self.index.fill(0);
+    }
+
+    /// Where the run that starts at `start` and ends where the words end now is from now on: at an equal run from
+    /// before if one is known, in place of which this run goes away.
+    fn share(&mut self, start: usize) -> u32 {
+        let run = &self.words[start..];
+        if run.is_empty() {
+            return count_of(start);
+        }
+        let hash = run.iter().fold(0u64, |hash, word| {
+            (hash.rotate_left(5) ^ u64::from(*word)).wrapping_mul(0x9E37_79B9_7F4A_7C15)
+        });
+        let place = (hash >> (u64::BITS - INDEX_SIZE.trailing_zeros())) as usize;
+        if let Some(known) = self.index[place].checked_sub(1)
+            && self.words[known as usize..start].starts_with(run)
+        {
+            self.words.truncate(start);
+            return known;
+        }
+        self.index[place] = count_of(start) + 1;
+        count_of(start)
+    }
 }
 
 /// The most words the tables of one compile can have (see `ArtifactWriter::finish()`).
@@ -261,16 +327,20 @@ impl ArtifactWriter {
     const MAX_OBJECTS: usize = 1 << 18;
     const MAX_LOCATIONS: usize = 1 << 24;
     const MAX_WIDE_VALUES: usize = 1 << 20;
+    const MAX_CALL_WORDS: usize = Self::MAX_FRAMES * CALL_WORDS_WITH_OBJECTS;
 
     pub fn new() -> Self {
+        // NB: So where a call record starts fits in a link.
+        const { assert!(ArtifactWriter::MAX_CALL_WORDS < NO_CALL as usize) };
         Self {
             sites: Column::new(Self::MAX_SITES * SITE_WORDS, c"JIT sites"),
             frames: Column::new(Self::MAX_FRAMES * FRAME_WORDS, c"JIT frames"),
-            slots: Column::new(Self::MAX_SLOTS, c"JIT frame slots"),
-            in_frame: Column::new(Self::MAX_SLOTS, c"JIT slots in frame"),
+            calls: Shared::new(Self::MAX_CALL_WORDS, c"JIT frame calls"),
+            slots: Shared::new(Self::MAX_SLOTS, c"JIT frame slots"),
+            in_frame: Shared::new(Self::MAX_SLOTS, c"JIT slots in frame"),
             objects: Column::new(Self::MAX_OBJECTS * OBJECT_WORDS, c"JIT objects"),
-            locations: Column::new(Self::MAX_LOCATIONS, c"JIT locations"),
-            wide: Column::new(Self::MAX_WIDE_VALUES * WIDE_WORDS, c"JIT wide values"),
+            locations: Shared::new(Self::MAX_LOCATIONS, c"JIT locations"),
+            wide: Shared::new(Self::MAX_WIDE_VALUES * WIDE_WORDS, c"JIT wide values"),
         }
     }
 
@@ -278,6 +348,7 @@ impl ArtifactWriter {
     pub fn clear(&mut self) {
         self.sites.clear();
         self.frames.clear();
+        self.calls.clear();
         self.slots.clear();
         self.in_frame.clear();
         self.objects.clear();
@@ -290,11 +361,12 @@ impl ArtifactWriter {
         self.clear();
         self.sites.trim(0);
         self.frames.trim(0);
-        self.slots.trim(0);
-        self.in_frame.trim(0);
+        self.calls.words.trim(0);
+        self.slots.words.trim(0);
+        self.in_frame.words.trim(0);
         self.objects.trim(0);
-        self.locations.trim(0);
-        self.wide.trim(0);
+        self.locations.words.trim(0);
+        self.wide.words.trim(0);
     }
 
     /// Adds a frame with values in `slots` and with `in_frame` (see `FrameView::in_frame()`), both in any order.
@@ -305,52 +377,76 @@ impl ArtifactWriter {
         slots: impl Iterator<Item = u32>,
         in_frame: &[u32],
     ) -> Result<u32, CompileFailure> {
-        let slots_start = self.slots.len();
+        let slots_start = self.slots.words.len();
         for slot in slots {
-            self.slots.try_push(slot)?;
+            self.slots.words.try_push(slot)?;
         }
-        self.slots[slots_start..].sort_unstable();
-        let in_frame_start = self.in_frame.len();
-        self.in_frame.try_extend_from_slice(in_frame)?;
-        self.in_frame[in_frame_start..].sort_unstable();
+        self.slots.words[slots_start..].sort_unstable();
+        let value_count = count_of(self.slots.words.len() - slots_start);
+        let in_frame_start = self.in_frame.words.len();
+        self.in_frame.words.try_extend_from_slice(in_frame)?;
+        self.in_frame.words[in_frame_start..].sort_unstable();
         let (resumes_after, resume_destination) = match frame.mode {
             ResumeMode::ResumeAt => (0, 0),
-            ResumeMode::ResumeAfter { dst } => (1, dst),
-        };
-        let depth = match frame.parent {
-            Some(parent) => (self.frames[parent as usize * FRAME_WORDS + FRAME_DEPTH] >> 1) + 1,
-            None => 0,
+            ResumeMode::ResumeAfter { dst } => (LINK_RESUMES_AFTER, dst),
         };
         // NB: No frame has that many arguments, so the word that stands for none is free.
-        if frame.passed_argument_count == Some(NONE) || depth > u32::MAX >> 1 {
+        if frame.passed_argument_count == Some(NONE) {
             return Err(CompileFailure::TooLarge);
         }
+        // NB: A reader gets an empty range of legacy arguments for a frame with no call record, which is all that an
+        //     empty range says, wherever it starts.
+        let is_plain = frame.executable == 0
+            && frame.parent.is_none()
+            && frame.passed_argument_count.is_none()
+            && frame.legacy_arguments.is_empty();
+        let call = if is_plain {
+            NO_CALL
+        } else {
+            let mut words = [0; CALL_WORDS];
+            words[CALL_EXECUTABLE] = frame.executable;
+            words[CALL_PARENT] = frame.parent.unwrap_or(NONE);
+            words[CALL_DEPTH] = match frame.parent {
+                Some(parent) => self.call_of(parent).map_or(0, |call| call[CALL_DEPTH]) + 1,
+                None => 0,
+            };
+            words[CALL_PASSED_ARGUMENT_COUNT] = frame.passed_argument_count.unwrap_or(NONE);
+            words[CALL_LEGACY_ARGUMENTS_START] = frame.legacy_arguments.start;
+            words[CALL_LEGACY_ARGUMENTS_END] = frame.legacy_arguments.end;
+            let start = self.calls.words.len();
+            self.calls.words.try_extend_from_slice(&words)?;
+            self.calls.share(start)
+        };
         let record = self.frames.len() / FRAME_WORDS;
         let mut words = [0; FRAME_WORDS];
-        words[FRAME_EXECUTABLE] = frame.executable;
         words[FRAME_PC] = frame.pc;
         words[FRAME_RESUME_DESTINATION] = resume_destination;
-        words[FRAME_PASSED_ARGUMENT_COUNT] = frame.passed_argument_count.unwrap_or(NONE);
-        words[FRAME_LEGACY_ARGUMENTS_START] = frame.legacy_arguments.start;
-        words[FRAME_LEGACY_ARGUMENTS_END] = frame.legacy_arguments.end;
-        words[FRAME_PARENT] = frame.parent.unwrap_or(NONE);
-        words[FRAME_DEPTH] = depth << 1 | resumes_after;
-        words[FRAME_VALUE_COUNT] = count_of(self.slots.len() - slots_start);
-        words[FRAME_SLOTS] = count_of(slots_start);
-        words[FRAME_IN_FRAME] = count_of(in_frame_start);
+        words[FRAME_VALUE_COUNT] = value_count;
+        words[FRAME_SLOTS] = self.slots.share(slots_start);
+        words[FRAME_IN_FRAME] = self.in_frame.share(in_frame_start);
         words[FRAME_IN_FRAME_COUNT] = count_of(in_frame.len());
-        words[FRAME_OBJECTS] = NONE;
+        words[FRAME_LINK] = call << LINK_CALL_SHIFT | resumes_after;
         self.frames.try_extend_from_slice(&words)?;
         Ok(count_of(record))
     }
 
-    /// Whether `frame` has the objects of the sites it is the innermost frame of (see `set_frame_objects()`).
-    pub fn frame_has_objects(&self, frame: u32) -> bool {
-        self.frames[frame as usize * FRAME_WORDS + FRAME_OBJECTS] != NONE
+    fn link_of(&self, frame: u32) -> u32 {
+        self.frames[frame as usize * FRAME_WORDS + FRAME_LINK]
     }
 
-    /// Gives `frame` the objects of the sites it is the innermost frame of, as the kind, the allocation and the
-    /// number of properties of each. The locations of their properties follow those of the frames' values in the run
+    /// The call record of `frame`, if it has one, without the objects.
+    fn call_of(&self, frame: u32) -> Option<&[u32]> {
+        let call = self.link_of(frame) >> LINK_CALL_SHIFT;
+        (call != NO_CALL).then(|| &self.calls.words[call as usize..][..CALL_WORDS])
+    }
+
+    /// Whether `frame` has the objects of the sites it is the innermost frame of (see `set_frame_objects()`).
+    pub fn frame_has_objects(&self, frame: u32) -> bool {
+        self.link_of(frame) & LINK_HAS_OBJECTS != 0
+    }
+
+    /// Gives `frame` the objects of the sites it is the innermost frame of, which is at least one, as the kind, the
+    /// allocation and the number of properties of each. The locations of their properties follow those of the frames' values in the run
     /// of each site, in the same order.
     pub fn set_frame_objects(
         &mut self,
@@ -360,9 +456,8 @@ impl ArtifactWriter {
         let mut properties = 0;
         let mut ancestor = frame;
         while ancestor != NONE {
-            let record = &self.frames[ancestor as usize * FRAME_WORDS..][..FRAME_WORDS];
-            properties += record[FRAME_VALUE_COUNT];
-            ancestor = record[FRAME_PARENT];
+            properties += self.frames[ancestor as usize * FRAME_WORDS + FRAME_VALUE_COUNT];
+            ancestor = self.call_of(ancestor).map_or(NONE, |call| call[CALL_PARENT]);
         }
         let start = self.objects.len() / OBJECT_WORDS;
         for (kind, allocation, property_count) in objects {
@@ -380,9 +475,22 @@ impl ArtifactWriter {
             properties = properties.checked_add(property_count).ok_or(CompileFailure::TooLarge)?;
         }
         let count = self.objects.len() / OBJECT_WORDS - start;
-        let record = &mut self.frames[frame as usize * FRAME_WORDS..][..FRAME_WORDS];
-        record[FRAME_OBJECTS] = count_of(start);
-        record[FRAME_OBJECT_COUNT] = count_of(count);
+
+        // NB: The frame gets a call record of its own, because other frames share the one it has.
+        let mut words = [0; CALL_WORDS_WITH_OBJECTS];
+        match self.call_of(frame) {
+            Some(call) => words[..CALL_WORDS].copy_from_slice(call),
+            None => {
+                words[CALL_PARENT] = NONE;
+                words[CALL_PASSED_ARGUMENT_COUNT] = NONE;
+            }
+        }
+        words[CALL_OBJECTS] = count_of(start);
+        words[CALL_OBJECT_COUNT] = count_of(count);
+        let call = count_of(self.calls.words.len());
+        self.calls.words.try_extend_from_slice(&words)?;
+        let link = &mut self.frames[frame as usize * FRAME_WORDS + FRAME_LINK];
+        *link = call << LINK_CALL_SHIFT | LINK_HAS_OBJECTS | (*link & LINK_RESUMES_AFTER);
         Ok(())
     }
 
@@ -399,11 +507,7 @@ impl ArtifactWriter {
                 (LOCATION_STACK, repr, shifted.cast_unsigned() >> LOCATION_PAYLOAD_SHIFT)
             }
             ValueLocation::Frame(slot) => (LOCATION_FRAME, Repr::Tagged, slot),
-            ValueLocation::Constant(bits) => {
-                let index = self.wide.len() / WIDE_WORDS;
-                self.wide.try_extend_from_slice(&halves(bits))?;
-                (LOCATION_CONSTANT, Repr::Tagged, count_of(index))
-            }
+            ValueLocation::Constant(bits) => (LOCATION_CONSTANT, Repr::Tagged, self.wide_value(bits)?),
             ValueLocation::ArgumentsObject { mapped } => (LOCATION_ARGUMENTS_OBJECT, Repr::Tagged, u32::from(mapped)),
             ValueLocation::VirtualObject(index) => (LOCATION_VIRTUAL_OBJECT, Repr::Tagged, index),
         };
@@ -413,14 +517,21 @@ impl ArtifactWriter {
         Ok(kind | (repr as u32) << LOCATION_REPR_SHIFT | payload << LOCATION_PAYLOAD_SHIFT)
     }
 
+    /// The index of `value` in the table of 64-bit values.
+    fn wide_value(&mut self, value: u64) -> Result<u32, CompileFailure> {
+        let start = self.wide.words.len();
+        self.wide.words.try_extend_from_slice(&halves(value))?;
+        Ok(self.wide.share(start) / count_of(WIDE_WORDS))
+    }
+
     /// How many locations there are: where the run of the next site starts.
     pub fn location_count(&self) -> u32 {
-        count_of(self.locations.len())
+        count_of(self.locations.words.len())
     }
 
     /// Adds the word of a location (see `location()`) to the run of the site that is added next.
     pub fn add_location(&mut self, word: u32) -> Result<(), CompileFailure> {
-        Ok(self.locations.try_push(word)?)
+        Ok(self.locations.words.try_push(word)?)
     }
 
     /// Adds a site with `frame` as its innermost frame, whose run of locations starts at `locations` and ends where
@@ -442,7 +553,7 @@ impl ArtifactWriter {
         let mut words = [0; SITE_WORDS];
         words[SITE_KIND] = kind;
         words[SITE_FRAME] = frame;
-        words[SITE_LOCATIONS] = locations;
+        words[SITE_LOCATIONS] = self.locations.share(locations as usize);
         words[SITE_INLINED_FRAME_BYTES] = inlined_frame_bytes;
         self.sites.try_extend_from_slice(&words)?;
         Ok(count_of(index))
@@ -454,6 +565,7 @@ impl ArtifactWriter {
         let Self {
             sites,
             frames,
+            calls,
             slots,
             in_frame,
             objects,
@@ -476,15 +588,17 @@ impl ArtifactWriter {
         end(Section::Sites, words);
         words.try_extend_from_slice(frames)?;
         end(Section::Frames, words);
-        words.try_extend_from_slice(slots)?;
+        words.try_extend_from_slice(&calls.words)?;
+        end(Section::Calls, words);
+        words.try_extend_from_slice(&slots.words)?;
         end(Section::Slots, words);
-        words.try_extend_from_slice(in_frame)?;
+        words.try_extend_from_slice(&in_frame.words)?;
         end(Section::InFrame, words);
         words.try_extend_from_slice(objects)?;
         end(Section::Objects, words);
-        words.try_extend_from_slice(locations)?;
+        words.try_extend_from_slice(&locations.words)?;
         end(Section::Locations, words);
-        words.try_extend_from_slice(wide)?;
+        words.try_extend_from_slice(&wide.words)?;
         end(Section::Wide, words);
 
         // NB: The entries are in pc order in both sections, so the pair of an entry is at the same index of each.
@@ -573,6 +687,18 @@ impl<'a, W: Word> Artifact<'a, W> {
 
     fn records(self, section: Section, words: usize) -> impl ExactSizeIterator<Item = &'a [W]> {
         self.section(section).chunks_exact(words)
+    }
+
+    /// The call record of the frame with `record`, if it has one.
+    fn call_of(self, record: &'a [W]) -> Option<&'a [W]> {
+        let link = record[FRAME_LINK].word();
+        let call = link >> LINK_CALL_SHIFT;
+        let words = if link & LINK_HAS_OBJECTS == 0 {
+            CALL_WORDS
+        } else {
+            CALL_WORDS_WITH_OBJECTS
+        };
+        (call != NO_CALL).then(|| &self.section(Section::Calls)[call as usize..][..words])
     }
 
     fn location(self, word: u32) -> ValueLocation {
@@ -776,7 +902,8 @@ impl<'a, W: Word> SiteView<'a, W> {
 
     /// How many frames are there: those of the inlined calls the site is in, and the compiled function's frame.
     pub fn frame_count(self) -> usize {
-        (self.innermost_frame()[FRAME_DEPTH].word() >> 1) as usize + 1
+        let call = self.artifact.call_of(self.innermost_frame());
+        call.map_or(0, |call| call[CALL_DEPTH].word()) as usize + 1
     }
 
     /// The frames there, innermost first.
@@ -793,19 +920,26 @@ impl<'a, W: Word> SiteView<'a, W> {
         self.frames().nth(index).expect("the site has the frame")
     }
 
+    /// The words of the call record of the innermost frame that say where the objects start and how many there are.
+    fn objects_of_innermost_frame(self) -> Option<&'a [W]> {
+        let record = self.innermost_frame();
+        let call = self.artifact.call_of(record)?;
+        (record[FRAME_LINK].word() & LINK_HAS_OBJECTS != 0).then(|| &call[CALL_OBJECTS..])
+    }
+
     pub fn object_count(self) -> u32 {
-        self.innermost_frame()[FRAME_OBJECT_COUNT].word()
+        self.objects_of_innermost_frame()
+            .map_or(0, |objects| objects[CALL_OBJECT_COUNT - CALL_OBJECTS].word())
     }
 
     /// The object at `index` among the objects the compiled code never allocated, which the frames' values refer to
     /// (as `ValueLocation::VirtualObject`).
     pub fn object(self, index: u32) -> ObjectView<'a, W> {
         assert!(index < self.object_count());
-        let record = self.artifact.record(
-            Section::Objects,
-            self.innermost_frame()[FRAME_OBJECTS].word() + index,
-            OBJECT_WORDS,
-        );
+        let objects = self.objects_of_innermost_frame().expect("the site has objects");
+        let record = self
+            .artifact
+            .record(Section::Objects, objects[0].word() + index, OBJECT_WORDS);
         let properties = &self.locations()[record[OBJECT_PROPERTIES].word() as usize..]
             [..record[OBJECT_PROPERTY_COUNT].word() as usize];
         ObjectView {
@@ -838,7 +972,10 @@ impl<'a, W: Word> Iterator for Frames<'a, W> {
         }
         let record = self.artifact.record(Section::Frames, self.next, FRAME_WORDS);
         let (locations, rest) = self.locations.split_at(record[FRAME_VALUE_COUNT].word() as usize);
-        self.next = record[FRAME_PARENT].word();
+        self.next = self
+            .artifact
+            .call_of(record)
+            .map_or(NONE, |call| call[CALL_PARENT].word());
         self.locations = rest;
         Some(FrameView {
             artifact: self.artifact,
@@ -867,7 +1004,11 @@ impl<W> Copy for FrameView<'_, W> {}
 impl<'a, W: Word> FrameView<'a, W> {
     /// Index into `Snapshot::executables`.
     pub fn executable(self) -> u32 {
-        self.record[FRAME_EXECUTABLE].word()
+        self.call().map_or(0, |call| call[CALL_EXECUTABLE].word())
+    }
+
+    fn call(self) -> Option<&'a [W]> {
+        self.artifact.call_of(self.record)
     }
 
     pub fn pc(self) -> u32 {
@@ -875,7 +1016,7 @@ impl<'a, W: Word> FrameView<'a, W> {
     }
 
     pub fn mode(self) -> ResumeMode {
-        if self.record[FRAME_DEPTH].word() & 1 == 0 {
+        if self.record[FRAME_LINK].word() & LINK_RESUMES_AFTER == 0 {
             ResumeMode::ResumeAt
         } else {
             ResumeMode::ResumeAfter {
@@ -886,14 +1027,16 @@ impl<'a, W: Word> FrameView<'a, W> {
 
     /// See `ir::FrameState::passed_argument_count`.
     pub fn passed_argument_count(self) -> Option<u32> {
-        Some(self.record[FRAME_PASSED_ARGUMENT_COUNT].word()).filter(|count| *count != NONE)
+        Some(self.call()?[CALL_PASSED_ARGUMENT_COUNT].word()).filter(|count| *count != NONE)
     }
 
     /// The argument slots that the legacy `arguments` of the frame's function shows (see
     /// `ir::FrameState::legacy_arguments`). Objects the code never allocated among them are only created when code
     /// reads them (see `ir::Op::AssumeLegacyArgumentsUnread`).
     pub fn legacy_arguments(self) -> Range<u32> {
-        self.record[FRAME_LEGACY_ARGUMENTS_START].word()..self.record[FRAME_LEGACY_ARGUMENTS_END].word()
+        self.call().map_or(0..0, |call| {
+            call[CALL_LEGACY_ARGUMENTS_START].word()..call[CALL_LEGACY_ARGUMENTS_END].word()
+        })
     }
 
     /// The slots of `values()`.
