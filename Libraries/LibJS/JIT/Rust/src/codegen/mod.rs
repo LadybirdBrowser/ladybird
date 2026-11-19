@@ -50,7 +50,7 @@ mod float64;
 mod named_storage;
 mod probes;
 mod property_iterator;
-mod sites;
+pub(crate) mod sites;
 mod slow_path;
 mod slow_path_calls;
 mod speculation;
@@ -65,6 +65,7 @@ pub use slow_path::slow_path_call;
 pub use slow_path::slow_path_symbol;
 
 use crate::CompileFailure;
+use crate::artifact::Artifact;
 use crate::asm::Address;
 use crate::asm::Architecture;
 use crate::asm::Condition;
@@ -90,7 +91,6 @@ use crate::code::CALLEE_SLOT;
 use crate::code::ExitKind;
 use crate::code::JitStatus;
 use crate::code::Repr;
-use crate::code::Site;
 use crate::code::SiteKind;
 use crate::code::ValueLocation;
 use crate::fast_hash::{HashMap, HashSet};
@@ -109,12 +109,13 @@ use crate::regalloc::Location;
 use crate::regalloc::Move;
 use crate::regalloc::RegisterMask;
 use crate::regalloc::RegisterSet;
+use crate::scratch::Scratch;
 use crate::snapshot::COMPRESSED_POINTER_SHIFT;
 use crate::snapshot::CellId;
 use crate::snapshot::ExecutableSnapshot;
 use crate::snapshot::RuntimeInfo;
 use crate::snapshot::StressOptions;
-pub(crate) use sites::site;
+use sites::SiteSource;
 
 /// Bit 32 of a slow path control word marks a continuation in the same frame.
 const CONTINUATION_BIT: u64 = 1 << 32;
@@ -207,7 +208,6 @@ pub struct GeneratedCode {
     /// Where the instructions end and the constants they load begin.
     pub data_offset: u32,
     pub entry_offset: u32,
-    pub sites: Vec<Site>,
     /// What the code from each offset on was generated for, in emission
     /// order. Only `dump-asm` reads it.
     pub annotations: Vec<(u32, CodeAnnotation)>,
@@ -233,8 +233,8 @@ pub enum CodeAnnotation {
     BlockEndMoves,
     /// Out-of-line code of a node, emitted after the blocks.
     Deferred(NodeId),
-    /// The code that takes the exit or leave site `index` (an index into
-    /// `sites`) of `node`.
+    /// The code that takes the exit or leave site `index` (see
+    /// `Artifact::site()`) of `node`.
     Exit {
         index: u32,
         node: NodeId,
@@ -415,8 +415,9 @@ struct LeaveStub {
 }
 
 /// Generates code for `graph` with `allocation`, whose registers came from
-/// `target_registers::<M>()`. With `verify` (and in debug builds), checks
-/// that every lowering matches its `lowering_info()`.
+/// `target_registers::<M>()`, and writes the sites of the code into the
+/// tables of `scratch`. With `verify` (and in debug builds), checks that
+/// every lowering matches its `lowering_info()`.
 pub fn generate<M: PortableMacroAssembler>(
     graph: &Graph,
     allocation: &Allocation,
@@ -424,6 +425,7 @@ pub fn generate<M: PortableMacroAssembler>(
     runtime: &RuntimeInfo,
     stress: StressOptions,
     verify: bool,
+    scratch: &mut Scratch,
 ) -> Result<GeneratedCode, CompileFailure> {
     let (_, pinned) = target_registers::<M>();
     let (gpr_dump_count, fpr_dump_count) = register_dump_counts::<M>();
@@ -498,11 +500,13 @@ pub fn generate<M: PortableMacroAssembler>(
         panic!("lowerings that do not match their declarations:\n{errors}");
     }
 
-    let sites = codegen
-        .sites
-        .iter()
-        .map(|(node, kind)| codegen.site_descriptor(*node, *kind))
-        .collect();
+    scratch.artifact.clear();
+    scratch.sites.begin(graph)?;
+    for (node, kind) in &codegen.sites {
+        codegen.with_site_source(*node, *kind, |site| {
+            site.write(&mut scratch.sites, &mut scratch.artifact)
+        })?;
+    }
     let annotations = std::mem::take(&mut codegen.annotations);
     let invalidation_patches = codegen
         .invalidation_points
@@ -526,25 +530,12 @@ pub fn generate<M: PortableMacroAssembler>(
         code,
         data_offset,
         entry_offset: 0,
-        sites,
         annotations,
         osr_entries,
         invalidation_patches,
         site_index_frame_offset,
         register_dump_frame_offset,
     })
-}
-
-/// Points `location`, a register among `saves` (registers with the frame
-/// pointer offsets of their words in the saves area), at its word there.
-fn relocate_saved_register(location: &mut ValueLocation, saves: &[(Gpr, i32)]) {
-    // NB: Float64 values are in floating point registers, which are not saved.
-    if let ValueLocation::Register(register, repr) = *location
-        && repr != crate::code::Repr::Float64
-        && let Some((_, offset)) = saves.iter().find(|(saved, _)| saved.0 == register)
-    {
-        *location = ValueLocation::Stack(*offset, repr);
-    }
 }
 
 /// The machine code as disassembly, under headers naming the block, IR node
@@ -556,6 +547,7 @@ pub fn dump_code(
     runtime: &RuntimeInfo,
     architecture: Architecture,
     generated: &GeneratedCode,
+    artifact: Artifact<'_>,
 ) -> String {
     use std::fmt::Write;
 
@@ -603,7 +595,7 @@ pub fn dump_code(
                 }
                 CodeAnnotation::Tail(name) => writeln!(out, "{name}:").unwrap(),
                 CodeAnnotation::Exit { index, node } => {
-                    let kind = match generated.sites[*index as usize].kind {
+                    let kind = match artifact.site(*index).kind() {
                         SiteKind::Exit(kind) => format!("{kind:?}"),
                         kind => format!("{kind:?}"),
                     };
@@ -617,7 +609,7 @@ pub fn dump_code(
         }
         out.push('\n');
     }
-    let count = |kind: fn(SiteKind) -> bool| generated.sites.iter().filter(|site| kind(site.kind)).count();
+    let count = |kind: fn(SiteKind) -> bool| artifact.sites().filter(|site| kind(site.kind())).count();
     writeln!(
         out,
         "{} instructions, {} bytes, {} exits, {} leaves, {} publish sites, {} call sites",
@@ -848,31 +840,29 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         registers
     }
 
-    /// The site of kind `kind` for the frame state of `node`, with where
-    /// the runtime finds each value once the code reached it.
-    fn site_descriptor(&self, node: NodeId, kind: SiteKind) -> Site {
-        let fp_offset = |slot: u32| self.frame_pointer_offset(slot);
-        let mut descriptor = site(self.graph, self.allocation, node, kind, &fp_offset);
+    /// Calls `with` with what the site of kind `kind` for the frame state of
+    /// `node` is written from: where the runtime finds each value once the
+    /// code reached the site.
+    fn with_site_source<T>(&self, node: NodeId, kind: SiteKind, with: impl FnOnce(&SiteSource<'_>) -> T) -> T {
         // NB: A slow path call keeps the registers it saved in the saves
         //     area while it runs, where its exits find them.
-        if let Op::CallSlowPath {
+        let saves = if let Op::CallSlowPath {
             saves_registers: true, ..
         } = self.graph.node(node).op
         {
             let saved = slow_path_calls::slow_path_saved_registers_of::<M>(self.allocation.node(node));
-            let saves = self.save_slot_offsets(&saved);
-            for frame in &mut descriptor.frames {
-                for (_, location) in &mut frame.values {
-                    relocate_saved_register(location, &saves);
-                }
-            }
-            for object in &mut descriptor.objects {
-                for location in &mut object.properties {
-                    relocate_saved_register(location, &saves);
-                }
-            }
-        }
-        descriptor
+            self.save_slot_offsets(&saved)
+        } else {
+            Vec::new()
+        };
+        with(&SiteSource {
+            graph: self.graph,
+            allocation: self.allocation,
+            node,
+            kind,
+            stack_slot_offset: &|slot| self.frame_pointer_offset(slot),
+            saves: &saves,
+        })
     }
 
     /// The offset of the local at `offset` from the frame pointer.
@@ -3277,8 +3267,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let Some((handler_pc, exception_dst, entry_pc, entry)) = self.catch_entry_of(leave_frame.node)? else {
             return Ok(());
         };
-        let descriptor = self.site_descriptor(leave_frame.node, SiteKind::Leave);
-        let values = &descriptor.frames.last().expect("a site has a frame state").values;
+        let values = self.with_site_source(leave_frame.node, SiteKind::Leave, |site| site.root_frame_values());
         let writable = |location: &ValueLocation| {
             !matches!(
                 location,
@@ -3333,7 +3322,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.bind(initialized);
         let value = M::RETURN_GPRS[0];
         let number = M::ARGUMENT_FPRS[0];
-        for (slot, location) in values {
+        for (slot, location) in &values {
             match *location {
                 ValueLocation::Constant(bits) => self.masm.move_imm64(value, bits),
                 ValueLocation::Register(register, Repr::Float64) => {

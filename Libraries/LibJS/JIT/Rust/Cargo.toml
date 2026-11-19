@@ -8,6 +8,9 @@ crate-type = ["rlib"]
 
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+[dependencies]
+ak = { path = "../../../../AK/Rust" }
+
 [build-dependencies]
 flapc = { path = "../../Flap" }
 
@@ -19,7 +22,6 @@ iced-x86 = { version = "1.22", default-features = false, features = ["decoder", 
 farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
 
 [dev-dependencies]
-ak = { path = "../../../../AK/Rust" }
 farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
 iced-x86 = { version = "1.22", default-features = false, features = ["decoder", "intel", "std"] }
 libc = "0.2"

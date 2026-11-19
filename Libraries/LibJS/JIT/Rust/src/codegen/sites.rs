@@ -4,16 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The sites of compiled code (see `code::Site`): where the translator finds
-//! the values of a node's frame state, from the register allocation.
+//! The sites of compiled code (see `artifact::SiteView`): where the translator finds the values of a node's frame
+//! state, from the register allocation.
 
-use crate::code::FrameState as CodeFrameState;
+use ak::Column;
+
+use crate::CompileFailure;
+use crate::artifact::ArtifactWriter;
+use crate::artifact::Frame;
+use crate::asm::Gpr;
 use crate::code::Repr;
-use crate::code::Site;
 use crate::code::SiteKind;
 use crate::code::ValueLocation;
-use crate::code::VirtualObjectDescriptor;
 use crate::code::VirtualObjectDescriptorKind;
+use crate::ir::FrameStateId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
@@ -22,28 +26,114 @@ use crate::regalloc::Allocation;
 use crate::regalloc::FPR_BASE;
 use crate::regalloc::Location;
 
-/// Builds the site of kind `kind` for the frame state of `node`, converting
-/// spill slots to frame offsets with `stack_slot_offset`.
-pub(crate) fn site(
-    graph: &Graph,
-    allocation: &Allocation,
-    node: NodeId,
+/// In place of the record of a frame state: it has none.
+const NO_RECORD: u32 = u32::MAX;
+
+/// What the sites of a compile are written with. Its memory serves the next compile.
+pub(crate) struct SiteScratch {
+    /// The record of each frame state of the graph in the tables of the code, by the index of the frame state.
+    frame_records: Column<u32>,
+    /// The frame states of a chain that have no record.
+    pending: Column<u32>,
+    /// The values of a frame at a site, as the slot in the high half and the word of the location in the low half.
+    values: Column<u64>,
+}
+
+impl SiteScratch {
+    // NB: A compile whose graph has more frame states, or a frame state with more values or callers, fails.
+    const MAX_FRAME_STATES: usize = 1 << 24;
+    const MAX_FRAME_VALUES: usize = 1 << 22;
+    const MAX_FRAME_DEPTH: usize = 1 << 16;
+
+    pub(crate) fn new() -> Self {
+        Self {
+            frame_records: Column::new(Self::MAX_FRAME_STATES, c"JIT frame state records"),
+            pending: Column::new(Self::MAX_FRAME_DEPTH, c"JIT frame state chain"),
+            values: Column::new(Self::MAX_FRAME_VALUES, c"JIT frame values"),
+        }
+    }
+
+    pub(crate) fn release_memory(&mut self) {
+        self.frame_records.clear();
+        self.frame_records.trim(0);
+        self.pending.clear();
+        self.pending.trim(0);
+        self.values.clear();
+        self.values.trim(0);
+    }
+
+    /// Starts the sites of the code of `graph`, in tables that hold nothing.
+    pub(crate) fn begin(&mut self, graph: &Graph) -> Result<(), CompileFailure> {
+        self.frame_records.clear();
+        Ok(self.frame_records.try_resize(graph.frame_states.len(), NO_RECORD)?)
+    }
+
+    /// The record of `frame_state`, which gets one with its callers if it has none.
+    fn frame_record(
+        &mut self,
+        graph: &Graph,
+        frame_state: FrameStateId,
+        artifact: &mut ArtifactWriter,
+    ) -> Result<u32, CompileFailure> {
+        self.pending.clear();
+        let mut parent = None;
+        let mut next = Some(frame_state);
+        while let Some(id) = next {
+            let record = self.frame_records[id.index()];
+            if record != NO_RECORD {
+                parent = Some(record);
+                break;
+            }
+            self.pending.try_push(id.0)?;
+            next = graph.frame_state(id).parent;
+        }
+        // NB: The record of a frame names that of its caller, so callers come first.
+        for index in (0..self.pending.len()).rev() {
+            let id = FrameStateId(self.pending[index]);
+            let state = graph.frame_state(id);
+            let frame = Frame {
+                executable: state.executable,
+                pc: state.pc,
+                mode: state.mode,
+                passed_argument_count: state.passed_argument_count,
+                legacy_arguments: state.legacy_arguments.clone(),
+                parent,
+            };
+            let record = artifact.add_frame(&frame, state.values.iter().map(|(slot, _)| *slot), &state.in_frame)?;
+            self.frame_records[id.index()] = record;
+            parent = Some(record);
+        }
+        Ok(parent.expect("a chain has a frame state"))
+    }
+}
+
+/// Where a site of kind `kind` finds the values of the frame state of `node`, one after the other in the order of
+/// `Graph::frame_state_values()`.
+struct Locations<'a> {
+    graph: &'a Graph,
+    allocation: &'a Allocation,
     kind: SiteKind,
-    stack_slot_offset: &dyn Fn(u32) -> i32,
-) -> Site {
-    let frame_state = graph.node(node).frame_state.expect("the node has a frame state");
-    let chain = graph.frame_state_chain(frame_state);
-    let objects = graph.virtual_objects(frame_state);
-    let mut exit_values = allocation.node(node).exit_values.iter();
-    let mut location_of = |value: NodeId| {
-        let (slot, location) = *exit_values.next().expect("every frame state value has a location");
-        if let Some(index) = objects.iter().position(|object| *object == value) {
+    /// See `Graph::virtual_objects()`.
+    objects: &'a [NodeId],
+    exit_values: core::slice::Iter<'a, (u32, Location)>,
+    /// Converts spill slots to frame offsets.
+    stack_slot_offset: &'a dyn Fn(u32) -> i32,
+    /// Registers that are in the saves area at the site, with the frame pointer offsets of their words there.
+    saves: &'a [(Gpr, i32)],
+}
+
+impl Locations<'_> {
+    /// The slot and the location of `value`, the next value.
+    fn next(&mut self, value: NodeId) -> (u32, ValueLocation) {
+        let (slot, location) = *self.exit_values.next().expect("every frame state value has a location");
+        if let Some(index) = self.objects.iter().position(|object| *object == value) {
             return (
                 slot,
                 ValueLocation::VirtualObject(u32::try_from(index).expect("objects fit in u32")),
             );
         }
-        let repr = graph
+        let repr = self
+            .graph
             .node(value)
             .repr
             .expect("frame state values have a representation");
@@ -51,83 +141,136 @@ pub(crate) fn site(
             // NB: Stack walks and the runtime read the values of inlined call
             //     sites from the JIT frame while the call runs, without the
             //     registers. Values live across calls have stack slots.
-            Location::Register(_) if kind == SiteKind::Call => match allocation.node(value).spill_slot {
-                Some(slot) => ValueLocation::Stack(stack_slot_offset(slot), repr),
+            Location::Register(_) if self.kind == SiteKind::Call => match self.allocation.node(value).spill_slot {
+                Some(slot) => ValueLocation::Stack((self.stack_slot_offset)(slot), repr),
                 None => ValueLocation::Frame(
-                    crate::regalloc::frame_home(graph, value).expect("values live across calls are spilled"),
+                    crate::regalloc::frame_home(self.graph, value).expect("values live across calls are spilled"),
                 ),
             },
             // NB: Exits read float64 values from the floating point registers.
             Location::Register(register) => ValueLocation::Register(register % FPR_BASE, repr),
-            Location::Stack(slot) => ValueLocation::Stack(stack_slot_offset(slot), repr),
+            Location::Stack(slot) => ValueLocation::Stack((self.stack_slot_offset)(slot), repr),
             Location::Frame(slot) => ValueLocation::Frame(slot),
             Location::Constant(bits) => match crate::ir::value::virtual_arguments_kind(bits) {
                 Some(mapped) if repr == Repr::Tagged => ValueLocation::ArgumentsObject { mapped },
                 _ => ValueLocation::Constant(crate::ir::value::boxed_constant(bits, repr)),
             },
         };
-        (slot, location)
-    };
-    let frames = chain
-        .into_iter()
-        .map(|frame_state| {
-            let frame_state = graph.frame_state(frame_state);
-            let mut values = frame_state
-                .values
-                .iter()
-                .map(|(_, value)| location_of(*value))
-                .collect::<Vec<_>>();
-            values.sort_unstable_by_key(|(slot, _)| *slot);
-            let mut in_frame = frame_state.in_frame.clone();
-            in_frame.sort_unstable();
-            CodeFrameState {
-                executable: frame_state.executable,
-                pc: frame_state.pc,
-                mode: frame_state.mode,
-                values: values.into_boxed_slice(),
-                in_frame: in_frame.into_boxed_slice(),
-                passed_argument_count: frame_state.passed_argument_count,
-                legacy_arguments: frame_state.legacy_arguments.clone(),
-            }
-        })
-        .collect();
-    // NB: The properties of the virtual objects follow the frames' values.
-    let objects = objects
-        .iter()
-        .map(|object| {
-            let Op::VirtualObject { kind, allocation } = graph.node(*object).op else {
-                unreachable!("virtual objects are VirtualObject nodes");
-            };
-            let kind = match kind {
-                VirtualObjectKind::Object { shape } => VirtualObjectDescriptorKind::Object { shape },
-                VirtualObjectKind::Closure { sample } => VirtualObjectDescriptorKind::Closure { sample },
-            };
-            let properties = graph
-                .node(*object)
-                .inputs
-                .iter()
-                .map(|property| location_of(*property).1)
-                .collect();
-            VirtualObjectDescriptor {
-                kind,
-                allocation: allocation.0,
-                properties,
-            }
-        })
-        .collect();
-    let inlined_frame_bytes = match graph.node(node).op {
-        Op::CallDirect {
-            inlined_frame_bytes, ..
+        // NB: Float64 values are in floating point registers, which are not saved.
+        if let ValueLocation::Register(register, repr) = location
+            && repr != Repr::Float64
+            && let Some((_, offset)) = self.saves.iter().find(|(saved, _)| saved.0 == register)
+        {
+            return (slot, ValueLocation::Stack(*offset, repr));
         }
-        | Op::CallNative {
-            inlined_frame_bytes, ..
-        } if kind == SiteKind::Call => inlined_frame_bytes,
-        _ => 0,
-    };
-    Site {
-        kind,
-        frames,
-        objects,
-        inlined_frame_bytes,
+        (slot, location)
+    }
+}
+
+/// What a site is written from.
+pub(crate) struct SiteSource<'a> {
+    pub graph: &'a Graph,
+    pub allocation: &'a Allocation,
+    /// The node whose frame state the site has.
+    pub node: NodeId,
+    pub kind: SiteKind,
+    /// Converts spill slots to frame offsets.
+    pub stack_slot_offset: &'a dyn Fn(u32) -> i32,
+    /// Registers that are in the saves area at the site and not where they were allocated, with the frame pointer
+    /// offsets of their words there.
+    pub saves: &'a [(Gpr, i32)],
+}
+
+impl SiteSource<'_> {
+    /// Adds the site to the tables of the code, as the next site.
+    pub(crate) fn write(&self, scratch: &mut SiteScratch, artifact: &mut ArtifactWriter) -> Result<(), CompileFailure> {
+        let graph = self.graph;
+        let frame_state = graph.node(self.node).frame_state.expect("the node has a frame state");
+        let frame = scratch.frame_record(graph, frame_state, artifact)?;
+        let objects = graph.virtual_objects(frame_state);
+        if !artifact.frame_has_objects(frame) {
+            let objects = objects.iter().map(|object| {
+                let Op::VirtualObject { kind, allocation } = graph.node(*object).op else {
+                    unreachable!("virtual objects are VirtualObject nodes");
+                };
+                let kind = match kind {
+                    VirtualObjectKind::Object { shape } => VirtualObjectDescriptorKind::Object { shape },
+                    VirtualObjectKind::Closure { sample } => VirtualObjectDescriptorKind::Closure { sample },
+                };
+                let property_count = u32::try_from(graph.node(*object).inputs.len()).expect("inputs fit in u32");
+                (kind, allocation.0, property_count)
+            });
+            artifact.set_frame_objects(frame, objects)?;
+        }
+        let mut locations = self.locations(&objects);
+        let start = artifact.location_count();
+        let mut next = Some(frame_state);
+        while let Some(id) = next {
+            let state = graph.frame_state(id);
+            scratch.values.clear();
+            for (_, value) in &state.values {
+                let (slot, location) = locations.next(*value);
+                let word = artifact.location(location)?;
+                scratch.values.try_push(u64::from(slot) << 32 | u64::from(word))?;
+            }
+            // NB: The locations of a frame are in the order of its slots, which are in the high halves.
+            scratch.values.sort_unstable();
+            for value in scratch.values.iter() {
+                artifact.add_location(*value as u32)?;
+            }
+            next = state.parent;
+        }
+        // NB: The properties of the virtual objects follow the frames' values.
+        for object in &objects {
+            for property in &graph.node(*object).inputs {
+                let (_, location) = locations.next(*property);
+                let word = artifact.location(location)?;
+                artifact.add_location(word)?;
+            }
+        }
+        let inlined_frame_bytes = match graph.node(self.node).op {
+            Op::CallDirect {
+                inlined_frame_bytes, ..
+            }
+            | Op::CallNative {
+                inlined_frame_bytes, ..
+            } if self.kind == SiteKind::Call => inlined_frame_bytes,
+            _ => 0,
+        };
+        artifact.add_site(self.kind, frame, start, inlined_frame_bytes)?;
+        Ok(())
+    }
+
+    /// The slots of the values of the compiled function's frame at the site and where the values are, in slot order.
+    pub(crate) fn root_frame_values(&self) -> Vec<(u32, ValueLocation)> {
+        let frame_state = self
+            .graph
+            .node(self.node)
+            .frame_state
+            .expect("the node has a frame state");
+        let objects = self.graph.virtual_objects(frame_state);
+        let mut locations = self.locations(&objects);
+        let mut values = Vec::new();
+        let mut next = Some(frame_state);
+        while let Some(id) = next {
+            let state = self.graph.frame_state(id);
+            values.clear();
+            values.extend(state.values.iter().map(|(_, value)| locations.next(*value)));
+            next = state.parent;
+        }
+        values.sort_unstable_by_key(|(slot, _)| *slot);
+        values
+    }
+
+    fn locations<'a>(&'a self, objects: &'a [NodeId]) -> Locations<'a> {
+        Locations {
+            graph: self.graph,
+            allocation: self.allocation,
+            kind: self.kind,
+            objects,
+            exit_values: self.allocation.node(self.node).exit_values.iter(),
+            stack_slot_offset: self.stack_slot_offset,
+            saves: self.saves,
+        }
     }
 }

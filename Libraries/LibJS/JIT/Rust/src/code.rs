@@ -7,6 +7,9 @@
 //! The output of a compile job: machine code and the metadata the runtime
 //! needs to install it and to exit from it into the interpreter.
 
+use crate::artifact::Artifact;
+use crate::artifact::Layout;
+use crate::artifact::SiteView;
 use crate::snapshot::CellId;
 
 /// Compiled machine code for one executable, not yet installed.
@@ -19,33 +22,6 @@ pub struct CompiledCode {
     pub data_offset: u32,
     /// Offset of the entry point within `code`.
     pub entry_offset: u32,
-    /// On-stack replacement entry points, as (pc, offset within `code`): a
-    /// frame running in the interpreter that is at the loop back edge `pc`
-    /// can continue there, with the same calling convention as the entry
-    /// point.
-    pub osr_entries: Vec<(u32, u32)>,
-    /// The loop back edges from where a frame running in the interpreter
-    /// reaches one of the `osr_entries` without leaving the loop it is in.
-    pub osr_loop_back_edges: Vec<u32>,
-    /// The loop back edges in the loops around those of the `osr_entries`,
-    /// from where a frame running in the interpreter may reach one of them
-    /// on a later iteration.
-    pub osr_outer_loop_back_edges: Vec<u32>,
-    /// See `ir::Graph::uncaught_handlers`.
-    pub uncaught_handlers: Vec<u32>,
-    /// The sites of the code, by index: exit and leave stubs pass the index of
-    /// theirs to the runtime, and calls in inlined callees name theirs.
-    pub sites: Vec<Site>,
-    /// Cells the code depends on (compares against or uses). The runtime keeps
-    /// them alive for as long as the code may run.
-    pub embedded_cells: Vec<CellId>,
-    /// What the code assumes keeps holding. The runtime installs the code
-    /// only if all of them still hold, and invalidates it when one stops
-    /// holding.
-    pub dependencies: Vec<Dependency>,
-    /// What invalidates the code: the bytes to write at each offset of it
-    /// (see `Op::AssumeValid`).
-    pub invalidation_patches: Vec<(u32, Vec<u8>)>,
     /// The offset from the frame pointer of the 32-bit word where the code
     /// keeps the index of a site the runtime reads the values of: that of
     /// an exit or leave, while a slow path in an inlined callee runs in
@@ -57,11 +33,26 @@ pub struct CompiledCode {
     /// `ValueLocation::Register`) that exits, leaves and publications fill,
     /// which holds the values of a publication while its slow path runs.
     pub register_dump_frame_offset: i32,
+    /// The tables of the code (see `artifact()`), which have `layout`.
+    pub words: Vec<u32>,
+    pub layout: Layout,
     /// The debug dumps `CompileOptions` asked for, as text to print.
     pub dump: Option<String>,
     /// With `CompileOptions::coverage`, what the code contains (see
     /// `coverage::coverage_keys()`).
     pub coverage: Vec<String>,
+}
+
+impl CompiledCode {
+    /// What the runtime reads to install the code, to enter it, and to translate its state into interpreter frames.
+    pub fn artifact(&self) -> Artifact<'_> {
+        Artifact::new(&self.words, &self.layout)
+    }
+
+    /// The sites of the code, by index, as values that own their parts.
+    pub fn sites(&self) -> Vec<Site> {
+        self.artifact().sites().map(Site::from_view).collect()
+    }
 }
 
 /// The status word of `JitResult { u64 value; u64 status; }`, returned by
@@ -149,6 +140,37 @@ pub enum ExitKind {
     LegacyArgumentsRead,
 }
 
+impl ExitKind {
+    /// Every kind, each at the index that is its discriminant.
+    pub const ALL: [Self; 17] = [
+        Self::NoFeedback,
+        Self::NotObject,
+        Self::BadShape,
+        Self::BadCallTarget,
+        Self::UnexpectedValue,
+        Self::SlowPath,
+        Self::ArgumentsIndex,
+        Self::NotInt32,
+        Self::Overflow,
+        Self::BadElements,
+        Self::OutOfBounds,
+        Self::BadType,
+        Self::Uninitialized,
+        Self::Hoisted,
+        Self::Invalidated,
+        Self::Interrupted,
+        Self::LegacyArgumentsRead,
+    ];
+}
+
+const _: () = {
+    let mut index = 0;
+    while index < ExitKind::ALL.len() {
+        assert!(ExitKind::ALL[index] as usize == index);
+        index += 1;
+    }
+};
+
 /// Something compiled code assumes keeps holding, without checking it where
 /// it relies on it. The runtime invalidates the code when it stops holding:
 /// every `Op::AssumeValid` of the code then exits, and the code is
@@ -194,6 +216,35 @@ pub struct Site {
     /// For a `SiteKind::Call`: the room for the frames of the inlined calls
     /// that the call leaves below its callee's frame (see `Op::CallDirect`).
     pub inlined_frame_bytes: u32,
+}
+
+impl Site {
+    fn from_view(site: SiteView<'_>) -> Self {
+        Self {
+            kind: site.kind(),
+            frames: site
+                .frames()
+                .map(|frame| FrameState {
+                    executable: frame.executable(),
+                    pc: frame.pc(),
+                    mode: frame.mode(),
+                    values: frame.values().collect(),
+                    in_frame: frame.in_frame().iter().collect(),
+                    passed_argument_count: frame.passed_argument_count(),
+                    legacy_arguments: frame.legacy_arguments(),
+                })
+                .collect(),
+            objects: site
+                .objects()
+                .map(|object| VirtualObjectDescriptor {
+                    kind: object.kind(),
+                    allocation: object.allocation(),
+                    properties: object.properties().collect(),
+                })
+                .collect(),
+            inlined_frame_bytes: site.inlined_frame_bytes(),
+        }
+    }
 }
 
 /// What a site of compiled code is. The runtime translates the state of
@@ -331,3 +382,16 @@ pub enum Repr {
     /// closure the code never allocated (see `VirtualObjectDescriptorKind`).
     Pointer,
 }
+
+impl Repr {
+    /// Every representation, each at the index that is its discriminant.
+    pub const ALL: [Self; 5] = [Self::Tagged, Self::Int32, Self::Float64, Self::Bool, Self::Pointer];
+}
+
+const _: () = {
+    let mut index = 0;
+    while index < Repr::ALL.len() {
+        assert!(Repr::ALL[index] as usize == index);
+        index += 1;
+    }
+};

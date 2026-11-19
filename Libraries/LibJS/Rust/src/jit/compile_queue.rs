@@ -7,6 +7,7 @@
 //! A VM's share of the compile threads of the process. Only snapshots go to them and only compile results come back: the
 //! compiler never sees the heap.
 
+use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, OnceLock};
@@ -15,6 +16,7 @@ use std::time::Duration;
 use libjs_jit::CompileFailure;
 use libjs_jit::code::{CompiledCode, Site};
 use libjs_jit::compile_pool::{CompilePool, CompilePoolClient};
+use libjs_jit::scratch::Scratch;
 use libjs_jit::snapshot::Snapshot;
 
 pub type CompileResult = Result<CompiledCode, CompileFailure>;
@@ -22,18 +24,26 @@ pub type CompileResult = Result<CompiledCode, CompileFailure>;
 /// How long a compile thread waits for another job before it gives the memory its jobs freed back to the system.
 const IDLE_MEMORY_RELEASE_DELAY: Duration = Duration::from_secs(1);
 
+thread_local! {
+    /// What this thread compiles with (see `compile()`).
+    static SCRATCH: RefCell<Scratch> = RefCell::new(Scratch::new());
+}
+
+/// Compiles `snapshot` on this thread, with the memory the thread compiles with.
+pub fn compile(snapshot: &Snapshot) -> CompileResult {
+    SCRATCH.with_borrow_mut(|scratch| libjs_jit::compile(snapshot, scratch))
+}
+
 /// The compile threads of the process. The first VM to compile decides how many there can be.
 fn compile_pool(thread_count: usize) -> &'static Arc<CompilePool> {
     static POOL: OnceLock<Arc<CompilePool>> = OnceLock::new();
     POOL.get_or_init(|| {
-        // NB: A compile can allocate a lot for a while, and the allocator keeps the memory a thread freed until the
-        //     thread allocates again, which an idle thread may never do.
-        CompilePool::new(
-            thread_count,
-            "LibJS JIT",
-            IDLE_MEMORY_RELEASE_DELAY,
-            ak::release_unused_allocator_memory,
-        )
+        CompilePool::new(thread_count, "LibJS JIT", IDLE_MEMORY_RELEASE_DELAY, || {
+            SCRATCH.with_borrow_mut(Scratch::release_memory);
+            // NB: A compile can allocate a lot for a while, and the allocator keeps the memory a thread freed until
+            //     the thread allocates again, which an idle thread may never do.
+            ak::release_unused_allocator_memory();
+        })
     })
 }
 
@@ -65,7 +75,7 @@ impl CompileQueue {
         self.client.submit(Box::new(move || {
             let compiled = {
                 let _scratch = ak::ScratchHeapScope::enter();
-                libjs_jit::compile(&snapshot)
+                compile(&snapshot)
             };
             // NB: Nearly all a compile allocates is gone when it ends. The code it leaves outlives it, and would keep
             //     the pages of its temporary data if it stayed there, so it moves out of the scratch heap here.

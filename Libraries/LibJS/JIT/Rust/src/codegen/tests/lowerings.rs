@@ -349,7 +349,7 @@ fn compile_program(program: &Program, prepare_snapshot: impl FnOnce(&mut Snapsho
     snapshot.runtime = marker_runtime();
     snapshot.executables[0].feedback.arith = vec![GENERAL_FEEDBACK];
     prepare_snapshot(&mut snapshot);
-    let compiled = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true)
+    let compiled = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
         .unwrap_or_else(|failure| panic!("compilation failed: {failure:?}"));
     (snapshot, compiled)
 }
@@ -2745,7 +2745,8 @@ fn modulo_of_random_int32_values() {
     let mut snapshot = crate::builder::tests::snapshot_for(&program, layout());
     snapshot.runtime = marker_runtime();
     snapshot.executables[0].feedback.arith = vec![INT32_RESULTS_FEEDBACK];
-    let compiled = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let compiled =
+        compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new()).unwrap();
     let mut random = crate::regalloc::tests::Random(0x1234_5678_9ABC_DEF1);
     for _ in 0..20000 {
         let pick = |random: &mut crate::regalloc::tests::Random| {
@@ -2984,11 +2985,15 @@ fn every_fast_path_compiles_for_both_architectures() {
     for opcode in [OpCode::InitializeVariableBinding, OpCode::SetLexicalBinding] {
         std::sync::Arc::make_mut(&mut snapshot.runtime.slow_paths)[opcode as usize] = marker_put as *const () as u64;
     }
-    let compiled = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let compiled =
+        compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
     let text = crate::asm::disassembler::aarch64(&compiled.code[..compiled.data_offset as usize]).join("\n");
     // NB: Float32Array stores convert to single precision.
     assert!(text.contains("fcvt s31, d"), "{text}");
-    let compiled = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let compiled =
+        compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
+            .unwrap();
     let text = crate::asm::disassembler::x86_64(&compiled.code[..compiled.data_offset as usize]).join("\n");
     assert!(text.contains("cvtsd2ss"), "{text}");
 }

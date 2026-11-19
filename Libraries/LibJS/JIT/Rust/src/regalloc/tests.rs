@@ -5,6 +5,8 @@
  */
 
 use super::*;
+use crate::artifact::Artifact;
+use crate::artifact::Tail;
 use crate::builder::tests::build;
 use crate::builder::tests::build_with_layout;
 use crate::bytecode::FrameLayout;
@@ -12,10 +14,9 @@ use crate::bytecode::Instruction;
 use crate::bytecode::Operand;
 use crate::bytecode::test_support::*;
 use crate::code::ExitKind;
-use crate::code::FrameState as CodeFrameState;
-use crate::code::Site;
 use crate::code::SiteKind;
 use crate::code::ValueLocation;
+use crate::codegen::sites::SiteSource;
 use crate::ir::value;
 
 #[track_caller]
@@ -685,37 +686,44 @@ fn exits_find_constants_registers_and_spilled_values() {
     let graph = build_with_layout(&program, test_layout(), &[2]);
     let allocation = allocate_and_verify(&graph);
     let exit = find_node(&graph, |node| matches!(node.op, Op::Exit { .. }));
-    let descriptor = crate::codegen::site(
-        &graph,
-        &allocation,
-        exit,
-        SiteKind::Exit(ExitKind::NoFeedback),
-        &|slot| -8 * (i32::try_from(slot).unwrap() + 1),
-    );
+    let mut scratch = crate::scratch::Scratch::new();
+    scratch.sites.begin(&graph).unwrap();
+    SiteSource {
+        graph: &graph,
+        allocation: &allocation,
+        node: exit,
+        kind: SiteKind::Exit(ExitKind::NoFeedback),
+        stack_slot_offset: &|slot| -8 * (i32::try_from(slot).unwrap() + 1),
+        saves: &[],
+    }
+    .write(&mut scratch.sites, &mut scratch.artifact)
+    .unwrap();
+    let layout = scratch.artifact.finish(&Tail::default()).unwrap();
+    let artifact = Artifact::new(scratch.artifact.words(), &layout);
     let argument = find_node(&graph, |node| node.op == Op::LoadSlot { slot: a(0).raw() });
     let Some(Location::Register(argument_register)) = allocation.node(argument).output else {
         panic!("the argument is in a register");
     };
+    assert_eq!(artifact.site_count(), 1);
+    let site = artifact.site(0);
+    assert_eq!(site.kind(), SiteKind::Exit(ExitKind::NoFeedback));
+    assert_eq!(site.frame_count(), 1);
+    assert_eq!(site.object_count(), 0);
+    assert_eq!(site.inlined_frame_bytes(), 0);
+    let frame = site.frame(0);
+    assert_eq!(frame.executable(), 0);
+    assert_eq!(frame.pc(), program.offsets[2]);
+    assert_eq!(frame.mode(), crate::code::ResumeMode::ResumeAt);
     assert_eq!(
-        descriptor,
-        Site {
-            kind: SiteKind::Exit(ExitKind::NoFeedback),
-            frames: Box::new([CodeFrameState {
-                executable: 0,
-                pc: program.offsets[2],
-                mode: crate::code::ResumeMode::ResumeAt,
-                values: Box::new([
-                    (r(5).raw(), ValueLocation::Constant(value::int32(10))),
-                    (r(6).raw(), ValueLocation::Register(argument_register, Repr::Tagged)),
-                ]),
-                in_frame: Box::new([]),
-                passed_argument_count: None,
-                legacy_arguments: 0..0,
-            }]),
-            objects: Box::new([]),
-            inlined_frame_bytes: 0,
-        }
+        frame.values().collect::<Vec<_>>(),
+        [
+            (r(5).raw(), ValueLocation::Constant(value::int32(10))),
+            (r(6).raw(), ValueLocation::Register(argument_register, Repr::Tagged)),
+        ]
     );
+    assert!(frame.in_frame().is_empty());
+    assert_eq!(frame.passed_argument_count(), None);
+    assert_eq!(frame.legacy_arguments(), 0..0);
 }
 
 #[test]

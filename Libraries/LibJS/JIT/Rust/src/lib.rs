@@ -11,6 +11,7 @@
 //! thread). It calls nothing in the runtime and has no access to the GC heap, so
 //! it can run on a worker thread.
 
+pub mod artifact;
 pub mod asm;
 pub mod bitset;
 pub mod builder;
@@ -25,6 +26,7 @@ pub mod ir;
 pub mod options;
 pub mod passes;
 pub mod regalloc;
+pub mod scratch;
 pub mod snapshot;
 pub mod sparse_bitset;
 
@@ -32,8 +34,11 @@ pub mod sparse_bitset;
 #[cfg(all(test, windows, not(target_arch = "x86_64")))]
 compile_error!("the tests of the JIT run on Windows on x86-64 only");
 
+use artifact::Artifact;
+use artifact::Tail;
 use bytecode::OpCode;
 use code::CompiledCode;
+use scratch::Scratch;
 use snapshot::Snapshot;
 
 /// Why a compile job did not produce code.
@@ -52,16 +57,28 @@ pub enum CompileFailure {
     MissingRuntimeHelper { opcode: Option<OpCode> },
     /// The assembler could not finish the code (a branch out of range).
     CodeGeneration,
+    /// The compile needs more of something than the compiler has room for.
+    TooLarge,
 }
 
-/// Compiles `snapshot.executables[0]` for the host architecture.
-pub fn compile(snapshot: &Snapshot) -> Result<CompiledCode, CompileFailure> {
-    compile_for::<asm::MacroAssembler>(snapshot, &|pc| {
-        snapshot
-            .executables
-            .first()
-            .is_none_or(|executable| builder::has_run(executable, pc))
-    })
+impl From<ak::ColumnFull> for CompileFailure {
+    fn from(_: ak::ColumnFull) -> Self {
+        Self::TooLarge
+    }
+}
+
+/// Compiles `snapshot.executables[0]` for the host architecture, with the memory of `scratch`.
+pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch) -> Result<CompiledCode, CompileFailure> {
+    compile_for::<asm::MacroAssembler>(
+        snapshot,
+        &|pc| {
+            snapshot
+                .executables
+                .first()
+                .is_none_or(|executable| builder::has_run(executable, pc))
+        },
+        scratch,
+    )
 }
 
 /// With `StressOptions::few_registers`, how many registers values get
@@ -73,6 +90,7 @@ const STRESS_EXTRA_REGISTERS: u32 = 2;
 pub fn compile_for<M: asm::PortableMacroAssembler>(
     snapshot: &Snapshot,
     has_run: &dyn Fn(u32) -> bool,
+    scratch: &mut Scratch,
 ) -> Result<CompiledCode, CompileFailure> {
     let mut graph = builder::build_graph_with_feedback(snapshot, has_run)?;
     let executable = &snapshot.executables[0];
@@ -99,14 +117,26 @@ pub fn compile_for<M: asm::PortableMacroAssembler>(
             regalloc::dump_allocation(&graph, &allocation)
         );
     }
-    let generated = codegen::generate::<M>(
+    let mut generated = codegen::generate::<M>(
         &graph,
         &allocation,
         &snapshot.executables,
         &snapshot.runtime,
         snapshot.options.stress,
         snapshot.options.verify_ir,
+        scratch,
     )?;
+    generated.osr_entries.sort_unstable();
+    let layout = scratch.artifact.finish(&Tail {
+        osr_entries: &generated.osr_entries,
+        osr_loop_back_edges: &graph.osr_loop_back_edges,
+        osr_outer_loop_back_edges: &graph.osr_outer_loop_back_edges,
+        uncaught_handlers: &graph.uncaught_handlers,
+        invalidation_patches: &generated.invalidation_patches,
+        embedded_cells: &graph.embedded_cells,
+        dependencies: &graph.dependencies,
+    })?;
+    let words = scratch.artifact.words();
 
     let mut dump = None;
     if snapshot.options.dump_ir || snapshot.options.dump_asm || pass_dumps.is_some() {
@@ -122,6 +152,7 @@ pub fn compile_for<M: asm::PortableMacroAssembler>(
                 &snapshot.runtime,
                 M::ARCHITECTURE,
                 &generated,
+                Artifact::new(words, &layout),
             ));
         }
         dump = Some(text);
@@ -130,21 +161,15 @@ pub fn compile_for<M: asm::PortableMacroAssembler>(
         data_offset: generated.data_offset,
         code: generated.code,
         entry_offset: generated.entry_offset,
-        osr_entries: generated.osr_entries,
-        sites: generated.sites,
+        site_index_frame_offset: generated.site_index_frame_offset,
+        register_dump_frame_offset: generated.register_dump_frame_offset,
+        words: words.to_vec(),
+        layout,
         coverage: if snapshot.options.coverage {
             coverage::coverage_keys(&graph)
         } else {
             Vec::new()
         },
-        osr_loop_back_edges: graph.osr_loop_back_edges,
-        osr_outer_loop_back_edges: graph.osr_outer_loop_back_edges,
-        uncaught_handlers: graph.uncaught_handlers,
-        embedded_cells: graph.embedded_cells,
-        dependencies: graph.dependencies,
-        invalidation_patches: generated.invalidation_patches,
-        site_index_frame_offset: generated.site_index_frame_offset,
-        register_dump_frame_offset: generated.register_dump_frame_offset,
         dump,
     })
 }
@@ -154,6 +179,7 @@ const _: () = {
     const fn assert_send<T: Send>() {}
     assert_send::<Snapshot>();
     assert_send::<CompiledCode>();
+    assert_send::<Scratch>();
 };
 
 #[cfg(test)]
@@ -163,7 +189,10 @@ mod tests {
     #[test]
     fn compile_jobs_can_move_between_threads() {
         let snapshot = Snapshot::default();
-        let result = std::thread::spawn(move || compile(&snapshot)).join().unwrap();
+        let mut scratch = Scratch::new();
+        let result = std::thread::spawn(move || compile(&snapshot, &mut scratch))
+            .join()
+            .unwrap();
         assert!(matches!(
             result.unwrap_err(),
             CompileFailure::InvalidBytecode { pc: 0, .. }
