@@ -203,6 +203,13 @@ fn a_class_flip_of_a_rule_that_loses_computes_nothing() {
     );
     add_class(&mut engine, nodes[1], "winner");
     start_live(&mut engine, nodes[0]);
+    // The host holds the styles the engine installed as it took the document. A flip that leaves the element's record
+    // as it was then installs nothing.
+    let mut installation = engine.take_installation();
+    installation.note_held_by_the_host(&mut engine.retained);
+    for record in installation.pinned_records {
+        engine.unpin_layout_style_record(record);
+    }
     let (root, element) = (nodes[0], nodes[1]);
     let mut round = || {
         add_class(&mut engine, element, "loser");
