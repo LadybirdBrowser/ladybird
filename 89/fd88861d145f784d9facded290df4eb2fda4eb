@@ -1,0 +1,8 @@
+Ladybird picks a tab’s font the way it picks a space’s. In Chrome
+157.0.8103.79, Firefox 151.0, and WebKit 26.5, a <pre> line holding
+a tab, in a font list whose first face has no U+0009 (Courier New
+under unicode-range: U+0020-007E) and whose next is Zapfino, is
+as tall as one without a tab: 18px in Chrome and WebKit, 19px in
+Firefox, where a line holding U+00A2, which only Zapfino has, is
+54px. WebKit’s FontCascade::treatAsSpace() lists the tab among the
+characters it treats as spaces.
