@@ -40,7 +40,7 @@ ErrorOr<IPC::TransportHandle> ImageDecoderManager::connect_new_client(u64 client
     });
     auto channel = TRY(IPC::TransportHandle::create_pair());
     if (!instance.has_value()) {
-        auto control_client = TRY(launch_image_decoder_process(client_child_id, site));
+        auto control_client = TRY(launch_image_decoder_process(client_child_id, session ? session->is_private() : IsPrivate::No, site));
         m_instances.append({ .control_client = move(control_client), .session = session, .site = move(site), .client_counts = {} });
         instance = m_instances.last();
     }

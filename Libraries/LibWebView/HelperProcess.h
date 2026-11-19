@@ -49,18 +49,18 @@ OwnPtr<typename RequestType::ResponseType> send_sync_to_helper(ClientType& clien
 
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(BrowsingSession&, Web::PageId initial_page_id, Web::HTML::CrossProcessId root_navigable_id);
 
-WEBVIEW_API ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process(u64 owner_child_id);
-WEBVIEW_API ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process(u64 owner_child_id);
-WEBVIEW_API ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process(u64 owner_child_id, Optional<Gfx::GpuDeviceIdentity> const&);
+WEBVIEW_API ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process(u64 owner_child_id, IsPrivate);
+WEBVIEW_API ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process(u64 owner_child_id, IsPrivate);
+WEBVIEW_API ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process(u64 owner_child_id, IsPrivate, Optional<Gfx::GpuDeviceIdentity> const&);
 WEBVIEW_API void shut_down_video_decoder_servers();
 // The features are the Compositor's own, in the text form of PlatformFeatures::ProcessFeatures.
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process(ByteString const& platform_features);
 // Serves the given site's partitions, or all partitions if site is empty.
-WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, HTTPDiskCacheMode);
+WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, IsPrivate, HTTPDiskCacheMode);
 WEBVIEW_API void apply_dns_settings(Requests::RequestControlClient&);
 
 // Launches an ImageDecoder, which is listed with the given site, or with the given process if it serves no site.
-WEBVIEW_API ErrorOr<NonnullRefPtr<ImageDecoderControlClient>> launch_image_decoder_process(u64 owner_child_id, Optional<Utf16String> const& site);
+WEBVIEW_API ErrorOr<NonnullRefPtr<ImageDecoderControlClient>> launch_image_decoder_process(u64 owner_child_id, IsPrivate, Optional<Utf16String> const& site);
 
 // Launches a WebRTCClient that serves the given renderer alone, which talks to it over the returned handle, and ends any
 // helper the renderer had before. The helper exits once that renderer's end of the transport is gone.
@@ -79,7 +79,7 @@ WEBVIEW_API ErrorOr<RequestServerClientConnection> connect_new_request_server_cl
 WEBVIEW_API u64 allocate_audio_tab_id();
 // Launches the AudioServer for a renderer if it has none, keeping its controller connection in the given slot. The
 // server is listed with the renderer's process, which the owner child ID names.
-WEBVIEW_API ErrorOr<void> ensure_audio_server_is_running(RefPtr<AudioServerControlClient>& controller, u64 owner_child_id);
+WEBVIEW_API ErrorOr<void> ensure_audio_server_is_running(RefPtr<AudioServerControlClient>& controller, u64 owner_child_id, IsPrivate);
 // Connects a new client to a running AudioServer as a member of the given tab's mix, or fails without launching
 // another, so that whoever launched the server can tell its replacement what it needs to know first.
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(AudioServerControlClient& controller, u64 audio_tab_id);
@@ -91,6 +91,6 @@ struct MediaServerClientConnection {
     IPC::TransportHandle handle;
     int client_id { -1 };
 };
-WEBVIEW_API ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, u64 owner_child_id, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server);
+WEBVIEW_API ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, u64 owner_child_id, IsPrivate, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server);
 
 }

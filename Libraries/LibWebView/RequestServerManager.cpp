@@ -129,9 +129,10 @@ ErrorOr<void> RequestServerManager::launch_process(RequestServerInstance& instan
 {
     // Private sessions keep nothing on disk. Every RequestServer of a session would open the same cache otherwise.
     // A site's responses only pass through the RequestServer with no site on their way to the site's own.
-    auto keeps_disk_cache = instance.session().is_private() == IsPrivate::No && (instance.site().has_value() || !uses_site_request_servers());
+    auto is_private = instance.session().is_private();
+    auto keeps_disk_cache = is_private == IsPrivate::No && (instance.site().has_value() || !uses_site_request_servers());
     auto disk_cache_mode = keeps_disk_cache ? Application::request_server_options().http_disk_cache_mode : HTTPDiskCacheMode::Disabled;
-    auto control_client = TRY(launch_request_server_process(instance.cache_path(), instance.site(), disk_cache_mode));
+    auto control_client = TRY(launch_request_server_process(instance.cache_path(), instance.site(), is_private, disk_cache_mode));
 
     auto weak_instance = instance.make_weak_ptr();
     control_client->on_client_disconnected = [weak_instance](int client_id) {
