@@ -459,6 +459,7 @@ private:
     void update_vulkan_window_geometry();
     void set_vulkan_window_container_visible(bool);
     void fall_back_to_bitmap_rendering();
+    void fall_back_from_vulkan_window();
     void vulkan_window_exposure_changed();
     QRect rect_covered_by_page_window() const;
     bool vulkan_window_update_would_only_resize() const;
