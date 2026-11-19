@@ -4,8 +4,9 @@
     // A reload that bypasses the cache fetches the document from the network without consulting the HTTP cache, and
     // stores what it gets, so a plain reload after it revalidates the stored document. While the document loads, its
     // subresources and its iframes are fetched the same way — a cross-site iframe that another process hosts, and that
-    // iframe's own subresources, included — unless a fetch asks for a cache mode of its own. Once the document has
-    // loaded, its fetches use the cache again.
+    // iframe's own subresources, included — unless a fetch asks for a cache mode of its own. So is a navigation that
+    // such an iframe starts itself while the document loads, which only the process hosting the iframe can see. Once the
+    // document has loaded, its fetches use the cache again.
     function pageScript(config) {
         const LABELS = ["initial load", "reload bypassing the cache", "reload", "reload bypassing the cache, with the document cached"];
         const STEP_KEY = `step-${config.id}`;
@@ -14,6 +15,12 @@
         const results = JSON.parse(sessionStorage.getItem(RESULTS_KEY) ?? "[]");
 
         const explicitFetch = fetch(config.explicitURL, { cache: "force-cache" });
+        const crossSiteNavigationLoaded = new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.data === "cross-site navigation loaded")
+                    resolve();
+            });
+        });
 
         async function describeRequest(label, url) {
             const response = await fetch(`/recorded-request-headers${new URL(url).pathname}`, { cache: "no-store" });
@@ -39,6 +46,8 @@
                 await describeRequest("iframe", config.frameURL);
                 await describeRequest("cross-site iframe", config.crossSiteFrameURL);
                 await describeRequest("script in the cross-site iframe", config.crossSiteScriptURL);
+                await crossSiteNavigationLoaded;
+                await describeRequest("navigation the cross-site iframe starts", config.crossSiteNavigationURL);
                 if (step === 1)
                     results.push(`${LABELS[step]}: cross-site iframe hosted in another process: ${internals.dumpSiteIsolationProcessTree().includes("remote")}`);
             }
@@ -82,6 +91,7 @@
             return crossSiteURL.href;
         }
         const crossSiteScriptURL = onCrossSiteHost(await createEcho("cross-site-script", "text/javascript"));
+        const crossSiteNavigationURL = onCrossSiteHost(await createEcho("cross-site-navigation", "text/html", `<script>top.postMessage("cross-site navigation loaded", "*");${endScript}`));
 
         const config = {
             id,
@@ -91,6 +101,8 @@
             lateURL: await createEcho("late", "text/plain"),
             crossSiteFrameURL: onCrossSiteHost(await createEcho("cross-site-frame", "text/html", `<script src="${crossSiteScriptURL}">${endScript}`)),
             crossSiteScriptURL,
+            crossSiteNavigatingFrameURL: onCrossSiteHost(await createEcho("cross-site-navigating-frame", "text/html", `<script>location.replace(${JSON.stringify(crossSiteNavigationURL)});${endScript}`)),
+            crossSiteNavigationURL,
         };
 
         const pageURL = await server.createEcho("GET", "/reload-bypassing-cache-page", {
@@ -102,9 +114,10 @@
             },
             body: `<!DOCTYPE html>
 <script src="${config.scriptURL}">${endScript}
+<script>(${pageScript})(${JSON.stringify(config)});${endScript}
 <iframe src="${config.frameURL}"></iframe>
 <iframe src="${config.crossSiteFrameURL}"></iframe>
-<script>(${pageScript})(${JSON.stringify(config)});${endScript}`,
+<iframe src="${config.crossSiteNavigatingFrameURL}"></iframe>`,
         });
         internals.loadURL(pageURL);
     });
