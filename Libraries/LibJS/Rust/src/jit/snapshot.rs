@@ -11,7 +11,9 @@ use core::num::NonZeroU64;
 use libjs_abi::Builtin;
 use std::collections::HashMap;
 
-use libjs_jit::bytecode::{EnvironmentCoordinate, ExceptionHandler, FrameLayout, Instruction, OpCode, decode_all};
+use libjs_jit::bytecode::{
+    EnvironmentCoordinate, ExceptionHandler, FrameLayout, Instruction, OpCode, decode_instruction,
+};
 use libjs_jit::code::ExitKind;
 use libjs_jit::snapshot::{
     AccessorFunctionSnapshot, CallFeedbackSnapshot, CellId, ClosureTemplateSnapshot, CompileOptions, ConstructTarget,
@@ -1498,11 +1500,20 @@ fn mutable_bindings(
 /// The loads and stores of bindings of environments in `executable`, or none if its code may change its lexical
 /// environment, so that they are not the environments of its closure.
 fn captured_binding_accesses(executable: &Executable) -> CapturedBindingAccesses {
-    let Ok(instructions) = decode_all(executable.bytecode()) else {
+    let bytecode = executable.bytecode();
+    let Ok(end) = u32::try_from(bytecode.len()) else {
         return CapturedBindingAccesses::default();
     };
-    let changes_environment = instructions.iter().any(|decoded| {
-        matches!(
+    let mut loads = Vec::new();
+    let mut stores = Vec::new();
+    let mut pc = 0;
+    // NB: This reads the instructions one at a time: a list of all of them would be a large block of the heap.
+    while pc < end {
+        let Ok(decoded) = decode_instruction(bytecode, pc) else {
+            return CapturedBindingAccesses::default();
+        };
+        pc = decoded.next_pc();
+        let changes_environment = matches!(
             decoded.instruction.opcode(),
             OpCode::SetLexicalEnvironment
                 | OpCode::CreateLexicalEnvironment
@@ -1512,14 +1523,10 @@ fn captured_binding_accesses(executable: &Executable) -> CapturedBindingAccesses
                 | OpCode::CallDirectEval
                 | OpCode::CallDirectEvalWithArgumentArray
                 | OpCode::Debugger
-        )
-    });
-    if changes_environment {
-        return CapturedBindingAccesses::default();
-    }
-    let mut loads = Vec::new();
-    let mut stores = Vec::new();
-    for decoded in instructions {
+        );
+        if changes_environment {
+            return CapturedBindingAccesses::default();
+        }
         match decoded.instruction {
             Instruction::GetBinding { cache: coordinate, .. }
             | Instruction::GetInitializedBinding { cache: coordinate, .. }
