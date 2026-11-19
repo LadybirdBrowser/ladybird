@@ -958,6 +958,10 @@ public:
     //         own use this cache mode too. Otherwise, this is "default".
     HTTP::CacheMode cache_mode_while_loading() const { return is_completely_loaded() ? HTTP::CacheMode::Default : m_navigation_cache_mode; }
 
+    // Reports the state of the containers of this document's child navigables to the UI process, which forwards it to
+    // the processes that host child navigables whose documents are in another process.
+    void report_container_state_of_child_navigables();
+
     GC::Ptr<Element> current_script() const { return m_current_script; }
     Variant<GC::Ref<HTML::HTMLScriptElement>, GC::Ref<SVG::SVGScriptElement>, Empty> current_script_for_bindings() const;
     void set_current_script(Badge<HTML::HTMLOrSVGScriptElement>, GC::Ptr<Element> script) { m_current_script = move(script); }
