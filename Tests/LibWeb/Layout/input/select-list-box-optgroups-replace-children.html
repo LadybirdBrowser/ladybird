@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<select size="4"></select>
+<script>
+    document.body.offsetWidth;
+    const select = document.querySelector("select");
+    const group = label => {
+        const optgroup = document.createElement("optgroup");
+        optgroup.label = label;
+        return optgroup;
+    };
+    select.replaceChildren(group("First"), group("Second"));
+</script>

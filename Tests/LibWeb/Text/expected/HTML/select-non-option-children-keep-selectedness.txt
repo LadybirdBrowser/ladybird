@@ -1,0 +1,22 @@
+Append text: -1
+Append comment: -1
+Change text: -1
+Remove comment: -1
+Remove text: -1
+Append fragment of text and comment: -1
+Append fragment with option: 0
+Append div: -1
+Remove div: -1
+Append empty optgroup: -1
+Remove empty optgroup: -1
+Append datalist with option: -1
+Remove datalist with option: -1
+Append hr with option: -1
+Remove hr with option: -1
+Append optgroup in optgroup with option: -1
+Remove optgroup in optgroup with option: -1
+Append optgroup with option: 0
+Remove optgroup with option: 0
+Append option: 0
+Append div with option: 0
+Remove div with option: 0
