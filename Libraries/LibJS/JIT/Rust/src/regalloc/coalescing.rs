@@ -16,14 +16,20 @@
 //! is defined. Values join a class of values sharing one slot only if they
 //! overlap with no value already in it.
 
+use ak::Column;
+use ak::ColumnFull;
+
 use super::liveness::ValueLiveness;
 use super::liveness::is_allocated_value;
 use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
+use crate::tables::Lists;
+use crate::tables::release;
+use crate::tables::reset;
 
 /// The most values one class holds, which keeps the pairwise checks cheap.
-const MAX_CLASS_SIZE: usize = 32;
+const MAX_CLASS_SIZE: u32 = 32;
 
 /// Where a value is defined: its block, and its position in linear order
 /// (`None` for phis, which are defined where their block starts).
@@ -33,12 +39,26 @@ struct Definition {
     position: Option<u32>,
 }
 
+/// The spill slot classes of the values of a graph, in tables that serve one compile after the other.
+pub(super) struct Coalescing {
+    /// The class of each value: values of one class share their spill slot.
+    /// Classes are named by one of their values.
+    pub classes: Column<u32>,
+    /// For each value, the next value of its class. The values of a class are a ring, so that two classes join with
+    /// no list to copy.
+    next: Column<u32>,
+    /// For each value that names a class, how many values the class has.
+    sizes: Column<u32>,
+    definitions: Column<Definition>,
+    /// For each value, the blocks where it dies and the positions there.
+    deaths: Lists<(usize, u32)>,
+}
+
 struct Interference<'a> {
     graph: &'a Graph,
     liveness: &'a ValueLiveness,
-    definitions: Vec<Definition>,
-    /// For each value, the blocks where it dies and the positions there.
-    deaths: Vec<Vec<(usize, u32)>>,
+    definitions: &'a [Definition],
+    deaths: &'a Lists<(usize, u32)>,
 }
 
 impl Interference<'_> {
@@ -72,7 +92,7 @@ impl Interference<'_> {
                 })
         };
         self.liveness.is_live_out(at_block, value)
-            || self.deaths[value.index()].iter().any(|(block, death)| {
+            || self.deaths.get(value.index()).iter().any(|(block, death)| {
                 *block == at.block && (*death > position || (*death == position && read_after_definition()))
             })
     }
@@ -82,76 +102,138 @@ impl Interference<'_> {
     }
 }
 
-/// The class of each value: values of one class share their spill slot.
-/// Classes are named by one of their values.
-pub(super) fn spill_slot_classes(graph: &Graph, liveness: &ValueLiveness) -> Vec<u32> {
-    let count = graph.nodes.len();
-    let mut classes = (0..count as u32).collect::<Vec<_>>();
-    let mut members = vec![Vec::new(); count];
-    let mut definitions = vec![
-        Definition {
-            block: 0,
-            position: None
-        };
-        count
-    ];
-    let mut deaths = vec![Vec::new(); count];
-    let mut has_phis = false;
-    for (index, block) in graph.blocks.iter().enumerate() {
-        has_phis |= !block.phis.is_empty();
-        for phi in &block.phis {
-            definitions[phi.index()] = Definition {
-                block: index,
+/// The values of the class of `value`, which starts with `value`.
+fn members(next: &[u32], value: u32) -> impl Iterator<Item = NodeId> + '_ {
+    let mut member = Some(value);
+    std::iter::from_fn(move || {
+        let current = member?;
+        let following = next[current as usize];
+        member = (following != value).then_some(following);
+        Some(NodeId(current))
+    })
+}
+
+impl Coalescing {
+    // NB: A compile whose graph has more nodes, or more deaths of values, fails.
+    const MAX_NODES: usize = 1 << 24;
+    const MAX_DEATHS: usize = 1 << 26;
+
+    pub fn new() -> Self {
+        fn by_node<T: Copy>() -> Column<T> {
+            Column::new(Coalescing::MAX_NODES, c"JIT spill slot classes")
+        }
+        Self {
+            classes: by_node(),
+            next: by_node(),
+            sizes: by_node(),
+            definitions: by_node(),
+            deaths: Lists::new(Self::MAX_NODES, Self::MAX_DEATHS, c"JIT spill slot classes"),
+        }
+    }
+
+    /// Drops the tables and gives their memory back to the system.
+    pub fn release_memory(&mut self) {
+        release(&mut self.classes);
+        release(&mut self.next);
+        release(&mut self.sizes);
+        release(&mut self.definitions);
+        self.deaths.release_memory();
+    }
+
+    /// Finds the class of each value of `graph`.
+    pub fn compute(&mut self, graph: &Graph, liveness: &ValueLiveness) -> Result<(), ColumnFull> {
+        let count = graph.nodes.len();
+        self.classes.clear();
+        for value in 0..count as u32 {
+            self.classes.try_push(value)?;
+        }
+        // NB: Without phis, each value is a class of its own.
+        if graph.blocks.iter().all(|block| block.phis.is_empty()) {
+            return Ok(());
+        }
+        reset(
+            &mut self.definitions,
+            count,
+            Definition {
+                block: 0,
                 position: None,
-            };
-        }
-        for node in block.body.iter().chain(&block.control) {
-            let position = liveness.positions[node.index()];
-            definitions[node.index()] = Definition {
-                block: index,
-                position: Some(position),
-            };
-            for value in liveness.dies_at(*node) {
-                deaths[value.index()].push((index, position));
+            },
+        )?;
+        self.deaths.begin_counts(count)?;
+        for (index, block) in graph.blocks.iter().enumerate() {
+            for phi in &block.phis {
+                self.definitions[phi.index()] = Definition {
+                    block: index,
+                    position: None,
+                };
+            }
+            for node in block.body.iter().chain(&block.control) {
+                self.definitions[node.index()] = Definition {
+                    block: index,
+                    position: Some(liveness.positions[node.index()]),
+                };
+                for value in liveness.dies_at(*node) {
+                    self.deaths.count(value.index());
+                }
             }
         }
-    }
-    if !has_phis {
-        return classes;
-    }
-    for (index, member) in members.iter_mut().enumerate() {
-        member.push(NodeId::from_index(index));
-    }
-    let interference = Interference {
-        graph,
-        liveness,
-        definitions,
-        deaths,
-    };
-    for block in &graph.blocks {
-        for phi in &block.phis {
-            for input in &graph.node(*phi).inputs {
-                // NB: Values with a frame slot as their home have no spill slot to share.
-                if input == phi || !is_allocated_value(graph, *input) || super::frame_home(graph, *input).is_some() {
-                    continue;
+        self.deaths.end_counts((0, 0))?;
+        for (index, block) in graph.blocks.iter().enumerate() {
+            for node in block.body.iter().chain(&block.control) {
+                let position = liveness.positions[node.index()];
+                for value in liveness.dies_at(*node) {
+                    self.deaths.fill(value.index(), (index, position));
                 }
-                let (a, b) = (classes[phi.index()] as usize, classes[input.index()] as usize);
-                if a == b || members[a].len() + members[b].len() > MAX_CLASS_SIZE {
-                    continue;
-                }
-                let overlapping = members[a]
-                    .iter()
-                    .any(|x| members[b].iter().any(|y| interference.overlap(*x, *y)));
-                if overlapping {
-                    continue;
-                }
-                let moved = std::mem::take(&mut members[b]);
-                for value in &moved {
-                    classes[value.index()] = a as u32;
-                }
-                members[a].extend(moved);
             }
         }
+        self.deaths.end_fill();
+        self.next.clear();
+        self.next.try_extend_from_slice(&self.classes)?;
+        reset(&mut self.sizes, count, 1)?;
+
+        let Self {
+            classes,
+            next,
+            sizes,
+            definitions,
+            deaths,
+        } = self;
+        let interference = Interference {
+            graph,
+            liveness,
+            definitions,
+            deaths,
+        };
+        for block in &graph.blocks {
+            for phi in &block.phis {
+                for input in &graph.node(*phi).inputs {
+                    // NB: Values with a frame slot as their home have no spill slot to share.
+                    if input == phi || !is_allocated_value(graph, *input) || super::frame_home(graph, *input).is_some()
+                    {
+                        continue;
+                    }
+                    let (a, b) = (classes[phi.index()], classes[input.index()]);
+                    if a == b || sizes[a as usize] + sizes[b as usize] > MAX_CLASS_SIZE {
+                        continue;
+                    }
+                    let overlapping = members(next, a).any(|x| members(next, b).any(|y| interference.overlap(x, y)));
+                    if overlapping {
+                        continue;
+                    }
+                    let mut member = b;
+                    loop {
+                        classes[member as usize] = a;
+                        member = next[member as usize];
+                        if member == b {
+                            break;
+                        }
+                    }
+                    // NB: This makes one ring of the two.
+                    next.swap(a as usize, b as usize);
+                    sizes[a as usize] += sizes[b as usize];
+                }
+            }
+        }
+        Ok(())
     }
-    classes
 }

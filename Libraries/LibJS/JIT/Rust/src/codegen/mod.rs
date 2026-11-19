@@ -675,7 +675,7 @@ fn landing_blocks(graph: &Graph, allocation: &Allocation) -> Vec<BlockId> {
         if index == 0
             || !block.phis.is_empty()
             || !block.body.is_empty()
-            || !allocation.block_end_moves[index].is_empty()
+            || !allocation.block_end_moves(BlockId::from_index(index)).is_empty()
         {
             return None;
         }
@@ -823,19 +823,20 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 registers.push(register_of(*register));
             }
         };
-        for node in &self.allocation.nodes {
+        for node in 0..self.allocation.node_count() {
+            let node = self.allocation.node(NodeId::from_index(node));
             node.inputs.iter().for_each(&mut add);
             node.output.iter().for_each(&mut add);
-            for m in &node.moves_before {
+            for m in node.moves_before {
                 add(&m.from);
                 add(&m.to);
             }
-            for temp in &node.temps {
+            for temp in node.temps {
                 add(&Location::Register(*temp));
             }
         }
-        for moves in &self.allocation.block_end_moves {
-            for m in moves {
+        for block in 0..self.graph.blocks.len() {
+            for m in self.allocation.block_end_moves(BlockId::from_index(block)) {
                 add(&m.from);
                 add(&m.to);
             }
@@ -1275,7 +1276,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             self.jump_to(success);
             return Ok(());
         }
-        let end_moves = &self.allocation.block_end_moves[block.index()];
+        let end_moves = self.allocation.block_end_moves(block);
         if !end_moves.is_empty() {
             self.annotate(CodeAnnotation::BlockEndMoves);
         }
@@ -1398,7 +1399,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     fn emit_node(&mut self, node_id: NodeId) -> Result<(), CompileFailure> {
         self.annotate(CodeAnnotation::Node(node_id));
         let allocation = self.allocation.node(node_id);
-        for m in &allocation.moves_before {
+        for m in allocation.moves_before {
             self.emit_move(m);
         }
         let node = self.graph.node(node_id);
@@ -2837,9 +2838,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     fn save_input_registers(&mut self, node: NodeId) -> Vec<Gpr> {
         let clobbered = slow_path_calls::slow_path_saved_registers::<M>();
         let mut saved = Vec::new();
-        for location in &self.allocation.node(node).inputs {
-            if let Location::Register(register) = location
-                && let Register::General(register) = register_of(*register)
+        for location in self.allocation.node(node).inputs {
+            if let Location::Register(register) = *location
+                && let Register::General(register) = register_of(register)
                 && clobbered.contains(register)
                 && !saved.contains(&register)
             {
