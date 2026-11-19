@@ -11,23 +11,42 @@
 //! thread). It calls nothing in the runtime and has no access to the GC heap, so
 //! it can run on a worker thread.
 
+// NB: The tests keep their own data in the heap.
+#![cfg_attr(test, allow(clippy::disallowed_types, clippy::disallowed_macros))]
+
+// NB: A module with `allow(clippy::disallowed_types)` still uses containers of the heap (see clippy.toml). It loses
+//     the `allow` when its data is in zones.
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod artifact;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod asm;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod bitset;
 pub mod builder;
 pub mod bytecode;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod code;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod codegen;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod compile_pool;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod coverage;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod fast_hash;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod inline_vec;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod ir;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod options;
 pub mod passes;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod regalloc;
 pub mod scratch;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod snapshot;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod sparse_bitset;
 pub mod tables;
 pub mod zone_map;
@@ -130,6 +149,8 @@ fn compile_into<M: asm::PortableMacroAssembler>(
 }
 
 /// The stages of `compile_into()`, which leave their data in `scratch`.
+// NB: The coverage keys of a compile are still a list in the heap.
+#[allow(clippy::disallowed_types)]
 fn run_stages<M: asm::PortableMacroAssembler>(
     snapshot: &Snapshot,
     has_run: &dyn Fn(u32) -> bool,
