@@ -11,6 +11,7 @@
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <LibHTTP/Cache/CacheKey.h>
+#include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Forward.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibURL/Forward.h>
@@ -39,6 +40,7 @@ LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, CacheDigest
 
 bool is_cacheable(StringView method, HeaderList const&);
 bool has_preconditions(HeaderList const& request_headers);
+bool request_permits_stale_responses(CacheMode, HeaderList const& request_headers);
 bool is_cacheable(u32 status_code, HeaderList const&);
 bool is_header_exempted_from_storage(StringView name);
 NonnullRefPtr<HeaderList> remove_connection_specific_fields(HeaderList const&);
