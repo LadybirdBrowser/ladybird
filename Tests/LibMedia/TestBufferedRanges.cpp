@@ -206,6 +206,13 @@ static Array fixtures {
         { 256 * KiB, AK::Duration::from_milliseconds(71'866) + AK::Duration::from_time_units(1024, 1, 44100), AK::Duration::from_milliseconds(74'884) },
         { 320 * KiB, AK::Duration::from_milliseconds(90'116) + AK::Duration::from_time_units(1024, 1, 44100), AK::Duration::from_milliseconds(94'853) },
     },
+    // Millisecond-rounded timestamps on reordered frames leave 1 ms holes between the samples' presentation
+    // intervals, so these ranges only stay whole if the samples' availability decides them.
+    Fixture {
+        "buffered-ranges/ms_rounded_b_frames.mp4"sv,
+        { 5236, 29040, 19008, 24000 },
+        { 6614, 54072, 18000, 24000 },
+    },
 };
 
 TEST_CASE(complete_files_are_fully_buffered)
