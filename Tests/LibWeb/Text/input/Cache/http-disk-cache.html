@@ -411,6 +411,26 @@
             expectCacheStatus(url, response, "written-to-cache");
         })();
 
+        // Stale responses with a must-revalidate directive are not reused for a request with a max-stale directive.
+        await (async () => {
+            url = await createRequest("/cache-test/request/max-stale-must-revalidate", {
+                headers: {
+                    "Cache-Control": "max-age=5, must-revalidate",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "max-stale=60",
+                    [TEST_CACHE_REQUEST_TIME_OFFSET]: "10",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+        })();
+
         // Requests with a valueluess max-stale directive are cached.
         await (async () => {
             url = await createRequest("/cache-test/request/max-stale-valueless", {
