@@ -464,3 +464,225 @@ TEST_CASE(transport_handle_with_a_dead_receive_right_is_a_decode_error)
         return attachments;
     }).is_error());
 }
+
+// The transport's own data message ids, for building messages no transport would send.
+static constexpr mach_msg_id_t IPC_DATA_MESSAGE_ID = 0x4950C001;
+static constexpr mach_msg_id_t IPC_INLINE_DATA_MESSAGE_ID = 0x4950C002;
+
+// A transport that this test also holds a send right to, so it can send it raw Mach messages.
+struct TransportWithRawSender {
+    NonnullOwnPtr<IPC::TransportMachPort> transport;
+    Core::MachPort send_right;
+    Core::MachPort transport_peer_receive_right;
+};
+
+static TransportWithRawSender make_transport_with_raw_sender()
+{
+    auto receive_right = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto send_right = MUST(receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
+    auto peer_receive_right = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto send_right_to_peer = MUST(peer_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
+    auto transport = make<IPC::TransportMachPort>(move(receive_right), move(send_right_to_peer));
+    return { move(transport), move(send_right), move(peer_receive_right) };
+}
+
+template<typename T>
+static void append_bytes_of(Vector<u8>& bytes, T const& value)
+{
+    bytes.append(reinterpret_cast<u8 const*>(&value), sizeof(T));
+}
+
+static void append_inline_payload(Vector<u8>& bytes, u32 claimed_size, ReadonlyBytes payload)
+{
+    append_bytes_of(bytes, claimed_size);
+    bytes.append(payload.data(), payload.size());
+}
+
+static mach_msg_port_descriptor_t port_descriptor(mach_port_t name)
+{
+    mach_msg_port_descriptor_t descriptor {};
+    descriptor.name = name;
+    descriptor.disposition = MACH_MSG_TYPE_COPY_SEND;
+    descriptor.type = MACH_MSG_PORT_DESCRIPTOR;
+    return descriptor;
+}
+
+static mach_msg_ool_descriptor_t out_of_line_descriptor(ReadonlyBytes payload)
+{
+    mach_msg_ool_descriptor_t descriptor {};
+    descriptor.address = const_cast<u8*>(payload.data());
+    descriptor.size = payload.size();
+    descriptor.copy = MACH_MSG_VIRTUAL_COPY;
+    descriptor.deallocate = false;
+    descriptor.type = MACH_MSG_OOL_DESCRIPTOR;
+    return descriptor;
+}
+
+static void send_raw_message(Core::MachPort const& destination, mach_msg_id_t id, bool is_complex, ReadonlyBytes contents)
+{
+    Vector<u8> message;
+    message.resize(sizeof(mach_msg_header_t));
+    message.append(contents.data(), contents.size());
+    while (message.size() % sizeof(natural_t) != 0)
+        message.append(0);
+
+    auto* header = reinterpret_cast<mach_msg_header_t*>(message.data());
+    header->msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0) | (is_complex ? MACH_MSGH_BITS_COMPLEX : 0);
+    header->msgh_size = message.size();
+    header->msgh_remote_port = destination.port();
+    header->msgh_local_port = MACH_PORT_NULL;
+    header->msgh_id = id;
+    auto result = mach_msg(header, MACH_SEND_MSG, message.size(), 0, MACH_PORT_NULL, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+    VERIFY(result == KERN_SUCCESS);
+}
+
+static void expect_disconnected_without_a_message(IPC::TransportMachPort& transport)
+{
+    size_t received = 0;
+    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
+    while (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No) {
+        transport.wait_until_readable();
+        should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](auto&&) { ++received; });
+    }
+    EXPECT_EQ(received, 0uz);
+    EXPECT(!transport.is_open());
+}
+
+TEST_CASE(raw_message_built_like_the_transport_builds_one_arrives)
+{
+    auto raw = make_transport_with_raw_sender();
+    Vector<u8> contents;
+    append_bytes_of(contents, mach_msg_body_t { 1 });
+    append_bytes_of(contents, port_descriptor(raw.send_right.port()));
+    append_inline_payload(contents, 1, Array<u8, 1> { 42 });
+    send_raw_message(raw.send_right, IPC_INLINE_DATA_MESSAGE_ID, true, contents);
+
+    size_t received = 0;
+    raw.transport->wait_until_readable();
+    auto should_shutdown = raw.transport->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        ++received;
+        EXPECT_EQ(message.bytes.bytes().size(), 1uz);
+        EXPECT_EQ(message.bytes.bytes()[0], 42u);
+        EXPECT_EQ(message.attachments.size(), 1uz);
+    });
+    EXPECT_EQ(received, 1uz);
+    EXPECT_EQ(should_shutdown, IPC::TransportMachPort::ShouldShutdown::No);
+}
+
+TEST_CASE(message_with_an_unknown_id_disconnects_the_peer)
+{
+    auto raw = make_transport_with_raw_sender();
+    Vector<u8> contents;
+    append_inline_payload(contents, 1, Array<u8, 1> { 42 });
+    send_raw_message(raw.send_right, 0x1234, false, contents);
+    expect_disconnected_without_a_message(*raw.transport);
+}
+
+TEST_CASE(inline_message_claiming_more_payload_than_it_has_disconnects_the_peer)
+{
+    auto raw = make_transport_with_raw_sender();
+    Vector<u8> contents;
+    append_inline_payload(contents, 1000, Array<u8, 4> { 1, 2, 3, 4 });
+    send_raw_message(raw.send_right, IPC_INLINE_DATA_MESSAGE_ID, false, contents);
+    expect_disconnected_without_a_message(*raw.transport);
+}
+
+TEST_CASE(inline_message_without_a_payload_header_disconnects_the_peer)
+{
+    auto raw = make_transport_with_raw_sender();
+    send_raw_message(raw.send_right, IPC_INLINE_DATA_MESSAGE_ID, false, {});
+    expect_disconnected_without_a_message(*raw.transport);
+}
+
+TEST_CASE(message_with_a_null_port_disconnects_the_peer)
+{
+    auto raw = make_transport_with_raw_sender();
+    Vector<u8> contents;
+    append_bytes_of(contents, mach_msg_body_t { 1 });
+    append_bytes_of(contents, port_descriptor(MACH_PORT_NULL));
+    append_inline_payload(contents, 1, Array<u8, 1> { 42 });
+    send_raw_message(raw.send_right, IPC_INLINE_DATA_MESSAGE_ID, true, contents);
+    expect_disconnected_without_a_message(*raw.transport);
+}
+
+TEST_CASE(inline_message_with_out_of_line_memory_disconnects_the_peer)
+{
+    auto raw = make_transport_with_raw_sender();
+    Array<u8, 4> memory { 1, 2, 3, 4 };
+    Vector<u8> contents;
+    append_bytes_of(contents, mach_msg_body_t { 1 });
+    append_bytes_of(contents, out_of_line_descriptor(memory));
+    append_inline_payload(contents, 1, Array<u8, 1> { 42 });
+    send_raw_message(raw.send_right, IPC_INLINE_DATA_MESSAGE_ID, true, contents);
+    expect_disconnected_without_a_message(*raw.transport);
+}
+
+TEST_CASE(out_of_line_message_without_descriptors_disconnects_the_peer)
+{
+    auto raw = make_transport_with_raw_sender();
+    Vector<u8> contents;
+    append_inline_payload(contents, 1, Array<u8, 1> { 42 });
+    send_raw_message(raw.send_right, IPC_DATA_MESSAGE_ID, false, contents);
+    expect_disconnected_without_a_message(*raw.transport);
+}
+
+TEST_CASE(out_of_line_message_without_its_payload_descriptor_disconnects_the_peer)
+{
+    auto raw = make_transport_with_raw_sender();
+    Vector<u8> contents;
+    append_bytes_of(contents, mach_msg_body_t { 1 });
+    append_bytes_of(contents, port_descriptor(raw.send_right.port()));
+    send_raw_message(raw.send_right, IPC_DATA_MESSAGE_ID, true, contents);
+    expect_disconnected_without_a_message(*raw.transport);
+}
+
+TEST_CASE(transport_handle_whose_receive_right_was_sent_dead_is_a_decode_error)
+{
+    auto raw = make_transport_with_raw_sender();
+    auto pair = MUST(IPC::TransportHandle::create_pair());
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder(buffer);
+    MUST(encoder.encode(pair.first));
+    auto handle_bytes = buffer.take_data();
+
+    auto receive_right_descriptor = port_descriptor(MACH_PORT_DEAD);
+    receive_right_descriptor.disposition = MACH_MSG_TYPE_MOVE_RECEIVE;
+    Vector<u8> contents;
+    append_bytes_of(contents, mach_msg_body_t { 2 });
+    append_bytes_of(contents, receive_right_descriptor);
+    append_bytes_of(contents, port_descriptor(raw.send_right.port()));
+    append_inline_payload(contents, handle_bytes.size(), handle_bytes.span());
+    send_raw_message(raw.send_right, IPC_INLINE_DATA_MESSAGE_ID, true, contents);
+
+    size_t received = 0;
+    raw.transport->wait_until_readable();
+    (void)raw.transport->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        ++received;
+        FixedMemoryStream stream { message.bytes.bytes() };
+        IPC::Decoder decoder { stream, message.attachments };
+        EXPECT(decoder.decode<IPC::TransportHandle>().is_error());
+    });
+    EXPECT_EQ(received, 1uz);
+}
+
+TEST_CASE(nothing_after_a_malformed_message_arrives)
+{
+    auto raw = make_transport_with_raw_sender();
+    for (u8 value : { 1, 2 }) {
+        Vector<u8> contents;
+        append_inline_payload(contents, 1, Array<u8, 1> { value });
+        send_raw_message(raw.send_right, IPC_INLINE_DATA_MESSAGE_ID, false, contents);
+        if (value == 1)
+            send_raw_message(raw.send_right, 0x1234, false, contents);
+    }
+
+    Vector<u8> received;
+    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
+    while (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No) {
+        raw.transport->wait_until_readable();
+        should_shutdown = raw.transport->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+            received.append(message.bytes.bytes()[0]);
+        });
+    }
+    EXPECT_EQ(received, (Vector<u8> { 1 }));
+}

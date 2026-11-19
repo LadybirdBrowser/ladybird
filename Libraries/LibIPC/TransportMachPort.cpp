@@ -74,6 +74,62 @@ static void set_mach_port_queue_limit(mach_port_t port)
         reinterpret_cast<mach_port_info_t>(&limits), MACH_PORT_LIMITS_INFO_COUNT);
 }
 
+static bool is_well_formed_port_descriptor(mach_msg_port_descriptor_t const& descriptor)
+{
+    if (descriptor.type != MACH_MSG_PORT_DESCRIPTOR || descriptor.name == MACH_PORT_NULL)
+        return false;
+    switch (descriptor.disposition) {
+    case MACH_MSG_TYPE_MOVE_SEND:
+    case MACH_MSG_TYPE_MOVE_RECEIVE:
+    case MACH_MSG_TYPE_MOVE_SEND_ONCE:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Checks the shape of a data message against what send_mach_message() builds: port descriptors, then for an
+// out-of-line message the descriptor of its payload, or for an inline one the payload itself. The message comes from
+// the peer, so anything else is a malformed message to reject, not an invariant of ours to assert.
+static bool is_well_formed_data_message(mach_msg_header_t const* header, bool is_out_of_line)
+{
+    auto const* message = reinterpret_cast<u8 const*>(header);
+    size_t const message_size = header->msgh_size;
+    size_t offset = sizeof(mach_msg_header_t);
+
+    size_t descriptor_count = 0;
+    if (header->msgh_bits & MACH_MSGH_BITS_COMPLEX) {
+        if (message_size < offset + sizeof(mach_msg_body_t))
+            return false;
+        descriptor_count = reinterpret_cast<mach_msg_body_t const*>(message + offset)->msgh_descriptor_count;
+        offset += sizeof(mach_msg_body_t);
+    }
+
+    if (is_out_of_line && descriptor_count == 0)
+        return false;
+    size_t const port_count = is_out_of_line ? descriptor_count - 1 : descriptor_count;
+    if (message_size < offset + (port_count * sizeof(mach_msg_port_descriptor_t)))
+        return false;
+    auto const* port_descriptors = reinterpret_cast<mach_msg_port_descriptor_t const*>(message + offset);
+    for (size_t i = 0; i < port_count; ++i) {
+        if (!is_well_formed_port_descriptor(port_descriptors[i]))
+            return false;
+    }
+    offset += port_count * sizeof(mach_msg_port_descriptor_t);
+
+    if (is_out_of_line) {
+        if (message_size < offset + sizeof(mach_msg_ool_descriptor_t))
+            return false;
+        return reinterpret_cast<mach_msg_ool_descriptor_t const*>(message + offset)->type == MACH_MSG_OOL_DESCRIPTOR;
+    }
+
+    if (message_size < offset + sizeof(InlinePayloadHeader))
+        return false;
+    InlinePayloadHeader payload_header;
+    __builtin_memcpy(&payload_header, message + offset, sizeof(payload_header));
+    return payload_header.payload_size <= message_size - offset - sizeof(InlinePayloadHeader);
+}
+
 static Attachment attachment_from_descriptor(mach_msg_port_descriptor_t const& descriptor)
 {
     VERIFY(descriptor.type == MACH_MSG_PORT_DESCRIPTOR);
@@ -410,10 +466,15 @@ intptr_t TransportMachPort::io_thread_loop()
             continue;
         case IPC_DATA_MESSAGE_ID:
         case IPC_INLINE_DATA_MESSAGE_ID:
-            process_received_message(buffer.data());
+            if (process_received_message(buffer.data()) == IterationDecision::Break)
+                m_io_thread_state = IOThreadState::Stopped;
             continue;
         default:
-            VERIFY_NOT_REACHED();
+            dbgln("TransportMachPort: Rejecting message with unknown id {:#x}", header->msgh_id);
+            mach_msg_destroy(header);
+            mark_peer_eof();
+            m_io_thread_state = IOThreadState::Stopped;
+            continue;
         }
     }
 
@@ -534,9 +595,16 @@ TransportMachPort::SendOutcome TransportMachPort::send_mach_message(PendingMessa
     return SendOutcome::Sent;
 }
 
-void TransportMachPort::process_received_message(u8* buffer)
+IterationDecision TransportMachPort::process_received_message(u8* buffer)
 {
     auto* header = reinterpret_cast<mach_msg_header_t*>(buffer);
+    if (!is_well_formed_data_message(header, header->msgh_id == IPC_DATA_MESSAGE_ID)) {
+        dbgln("TransportMachPort: Rejecting malformed message");
+        mach_msg_destroy(header);
+        mark_peer_eof();
+        return IterationDecision::Break;
+    }
+
     auto message = make<Message>();
 
     if (header->msgh_id == IPC_INLINE_DATA_MESSAGE_ID) {
@@ -595,11 +663,11 @@ void TransportMachPort::process_received_message(u8* buffer)
     if (message->attachments.size() > MAX_MESSAGE_FD_COUNT) {
         dbgln("TransportMachPort: Rejecting message with {} attachments exceeding limit {}", message->attachments.size(), MAX_MESSAGE_FD_COUNT);
         mark_peer_eof();
-        return;
+        return IterationDecision::Break;
     }
 
     if (message->bytes.is_empty() && message->attachments.is_empty())
-        return;
+        return IterationDecision::Continue;
 
     notify_incoming_message_observer(message->bytes.bytes());
 
@@ -614,6 +682,7 @@ void TransportMachPort::process_received_message(u8* buffer)
     m_incoming_cv.signal();
     if (should_write_notification)
         write_read_notification_byte();
+    return IterationDecision::Continue;
 }
 
 void TransportMachPort::set_incoming_message_observer(Function<void(ReadonlyBytes)> observer)
