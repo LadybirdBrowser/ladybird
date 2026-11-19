@@ -10,6 +10,7 @@ SPDX-License-Identifier: BSD-2-Clause
         <title>Welcome</title>
         <link rel="icon" type="image/png" href="resource://icons/48x48/app-browser.png" />
         <link rel="stylesheet" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" href="resource://ladybird/about-pages/webui.css" />
         <link rel="stylesheet" href="resource://ladybird/about-pages/welcome.css" />
         <script type="module" src="resource://ladybird/about-pages/welcome.js"></script>
     </head>
@@ -44,13 +45,11 @@ SPDX-License-Identifier: BSD-2-Clause
                         role="radiogroup"
                         aria-labelledby="search-engine-title"
                     ></div>
-                    <div id="search-suggestions" class="switch-card hidden">
-                        <div>
-                            <label for="search-suggestions-enabled">
-                                <span id="search-suggestions-title">Show search suggestions</span>
-                                <p id="search-suggestions-description" class="muted small description"></p>
-                            </label>
-                        </div>
+                    <div id="search-suggestions" class="switch-card control-row hidden">
+                        <label for="search-suggestions-enabled">
+                            <span id="search-suggestions-title">Show search suggestions</span>
+                            <p id="search-suggestions-description" class="muted small description"></p>
+                        </label>
                         <input
                             id="search-suggestions-enabled"
                             type="checkbox"
@@ -63,7 +62,7 @@ SPDX-License-Identifier: BSD-2-Clause
                 <section id="tab-layout-section" aria-labelledby="tab-layout-title">
                     <h2 id="tab-layout-title">Layout</h2>
                     <div class="tab-options" role="radiogroup" aria-labelledby="tab-layout-title">
-                        <label class="tab-option">
+                        <label class="tab-option choice-card">
                             <input type="radio" name="tab-layout" value="horizontal" checked />
                             <span class="tab-preview horizontal-preview" aria-hidden="true">
                                 <span class="preview-strip"><i class="active"></i><i></i><i></i></span>
@@ -71,7 +70,7 @@ SPDX-License-Identifier: BSD-2-Clause
                             </span>
                             <span class="tab-option-label">Tabs on top</span>
                         </label>
-                        <label class="tab-option">
+                        <label class="tab-option choice-card">
                             <input type="radio" name="tab-layout" value="vertical" />
                             <span class="tab-preview vertical-preview" aria-hidden="true">
                                 <span class="preview-sidebar"><i></i><i class="active"></i><i></i></span>
@@ -81,7 +80,7 @@ SPDX-License-Identifier: BSD-2-Clause
                             </span>
                             <span class="tab-option-label">Tabs on the side</span>
                         </label>
-                        <label class="tab-option">
+                        <label class="tab-option choice-card">
                             <input type="radio" name="tab-layout" value="sidebar" />
                             <span class="tab-preview vertical-preview" aria-hidden="true">
                                 <span class="preview-sidebar"><b></b><i></i><i class="active"></i><i></i></span>
@@ -127,15 +126,13 @@ SPDX-License-Identifier: BSD-2-Clause
                     </div>
                 </section>
                 <section class="switch-list">
-                    <div class="switch-row">
-                        <div>
-                            <label for="enable-content-blocking">
-                                <h2 id="ad-blocking-title">Block ads, trackers and more</h2>
-                                <p class="muted small description">
-                                    Pages load faster. If a site breaks, turn it off for that site from the address bar.
-                                </p>
-                            </label>
-                        </div>
+                    <div class="switch-row control-row">
+                        <label for="enable-content-blocking">
+                            <h2 id="ad-blocking-title">Block ads, trackers and more</h2>
+                            <p class="muted small description">
+                                Pages load faster. If a site breaks, turn it off for that site from the address bar.
+                            </p>
+                        </label>
                         <input
                             id="enable-content-blocking"
                             type="checkbox"
@@ -143,15 +140,11 @@ SPDX-License-Identifier: BSD-2-Clause
                             aria-labelledby="ad-blocking-title"
                         />
                     </div>
-                    <div class="switch-row">
-                        <div>
-                            <label for="enable-update-checks">
-                                <h2 id="update-checks-title">Check for updates</h2>
-                                <p class="muted small description">
-                                    Ladybird tells you when a newer version is available.
-                                </p>
-                            </label>
-                        </div>
+                    <div class="switch-row control-row">
+                        <label for="enable-update-checks">
+                            <h2 id="update-checks-title">Check for updates</h2>
+                            <p class="muted small description">Ladybird tells you when a newer version is available.</p>
+                        </label>
                         <input id="enable-update-checks" type="checkbox" switch aria-labelledby="update-checks-title" />
                     </div>
                 </section>

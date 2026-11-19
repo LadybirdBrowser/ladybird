@@ -71,6 +71,76 @@ header h1 {
     display: none;
 }
 
+/* Stretch the label across its row beneath the controls. Keep the hover fill clear of separators and leave it off
+   while a separate button in the row has its own hover fill. */
+.control-row {
+    position: relative;
+    isolation: isolate;
+}
+
+.control-row > label[for] {
+    cursor: pointer;
+}
+
+.control-row > label[for]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+}
+
+.control-row > :not(label) {
+    position: relative;
+    z-index: 1;
+}
+
+.control-row:has(:is(input, select, textarea, button):disabled:not(.row-action)) > label[for] {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.control-row:not(
+        :has(:is(input, select, textarea, button):disabled:not(.row-action), .row-action:hover)
+    ):hover::before {
+    content: "";
+    position: absolute;
+    inset: var(--row-fill-inset, 0);
+    z-index: -1;
+    border-radius: var(--row-fill-radius, 8px);
+    background-color: var(--control);
+    pointer-events: none;
+}
+
+.choice-card {
+    margin: 0;
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px var(--separator);
+}
+
+.choice-card > input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.choice-card:has(> input:enabled) {
+    cursor: pointer;
+}
+
+.choice-card:has(> input:enabled:not(:checked)):hover {
+    background-color: var(--control);
+}
+
+.choice-card:has(> input:checked) {
+    background-color: var(--choice-fill);
+    box-shadow: inset 0 0 0 1.5px var(--choice);
+}
+
+.choice-card:has(> input:focus-visible) {
+    box-shadow:
+        inset 0 0 0 1.5px var(--choice),
+        0 0 0 3px var(--focus-ring);
+}
+
 .search-container {
     background-color: var(--control);
 
