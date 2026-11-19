@@ -1270,6 +1270,15 @@ bool TabBar::event(QEvent* event)
     if (event->type() == QEvent::WindowActivate || event->type() == QEvent::WindowDeactivate)
         update();
 
+    // The preview stays above every other window, and no Leave arrives when another application takes the front, so
+    // it goes away with the window's activation.
+    if (event->type() == QEvent::WindowDeactivate)
+        hide_tab_preview();
+
+    // The pointer may still rest on the tab whose preview went away, so a preview of it is due again.
+    if (event->type() == QEvent::WindowActivate && m_hovered_tab_index >= 0 && rect().contains(mapFromGlobal(QCursor::pos())))
+        schedule_tab_preview(m_hovered_tab_index);
+
     // The ring stops turning while the tab bar is hidden, so it has to start again for tabs still loading when it is shown.
     if (event->type() == QEvent::Show)
         update_loading_ring_animation();
@@ -2767,7 +2776,8 @@ void TabBar::schedule_tab_preview(int index)
     if (!m_tab_preview_timer || !m_tab_preview_popup)
         return;
 
-    if (!m_tab_widget || index < 0 || index == currentIndex() || index >= count() || m_pressed_tab) {
+    // An inactive window shows no preview: it would float over the application in front.
+    if (!m_tab_widget || index < 0 || index == currentIndex() || index >= count() || m_pressed_tab || !isActiveWindow()) {
         hide_tab_preview();
         return;
     }
@@ -2787,7 +2797,7 @@ void TabBar::show_tab_preview()
         return;
 
     auto index = m_tab_preview_index;
-    if (index < 0 || index != m_hovered_tab_index || index == currentIndex() || index >= count()) {
+    if (index < 0 || index != m_hovered_tab_index || index == currentIndex() || index >= count() || !isActiveWindow()) {
         hide_tab_preview();
         return;
     }
@@ -2801,10 +2811,7 @@ void TabBar::show_tab_preview()
     // A tab that hasn't loaded has no page to show, so its preview is its title and URL.
     if (!tab->is_loaded()) {
         m_tab_preview_popup->set_preview(palette(), tab->title(), qstring_from_ak_string(tab->url().serialize()), {});
-        m_tab_preview_popup->move(tab_preview_position_for(index, m_tab_preview_popup->sizeHint()));
-        m_tab_preview_popup->show();
-        m_tab_preview_popup->raise();
-        m_tab_preview_pointer_timer->start();
+        show_tab_preview_popup(index);
         return;
     }
 
@@ -2824,9 +2831,18 @@ void TabBar::show_tab_preview()
         return;
 
     m_tab_preview_popup->set_preview(palette(), tab->title(), qstring_from_ak_string(tab->view().url().serialize()), *thumbnail);
+    show_tab_preview_popup(index);
+}
+
+void TabBar::show_tab_preview_popup(int index)
+{
+    auto was_visible = m_tab_preview_popup->isVisible();
     m_tab_preview_popup->move(tab_preview_position_for(index, m_tab_preview_popup->sizeHint()));
     m_tab_preview_popup->show();
-    m_tab_preview_popup->raise();
+    // Raising a window on macOS also brings the application to the front, so the preview is raised only as it opens, and
+    // never again as it follows the frames of the tab it shows.
+    if (!was_visible)
+        m_tab_preview_popup->raise();
     m_tab_preview_pointer_timer->start();
 }
 
