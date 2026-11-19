@@ -409,6 +409,12 @@ void ConnectionFromClient::set_duration(u64 session_id, AK::Duration duration)
         session->manager().set_duration(duration);
 }
 
+void ConnectionFromClient::set_live_seekable_range(u64 session_id, Optional<Media::TimeRanges::Range> range)
+{
+    if (auto* session = find_playback_session(session_id))
+        session->manager().set_live_seekable_range(range);
+}
+
 void ConnectionFromClient::set_audio_track_enabled(u64 session_id, u64 seek_request_id, Media::Track track, bool enabled, bool resume_ended_playback)
 {
     auto* session = find_playback_session(session_id);
