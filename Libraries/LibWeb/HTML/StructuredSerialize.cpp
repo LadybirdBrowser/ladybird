@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/QuotaExceededError.h>
 
 namespace Web::HTML {
 
@@ -109,6 +110,18 @@ WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage
     // 1. Return ? StructuredSerializeInternal(value, true).
     StorageSerializationRecord serialized;
     TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize_for_storage(JS::HostABI::vm_to_abi(vm), JS::HostABI::value_to_abi(value), &serialized)));
+    return serialized;
+}
+
+WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_session_history_state(JS::VM& vm, JS::Value value)
+{
+    // AD-HOC: The spec puts no limit on the state a session history entry holds. But a navigable's same-origin entries
+    //         go to its process in one message, states included, which must stay within what IPC can carry.
+    static constexpr size_t maximum_size = 16 * MiB;
+
+    auto serialized = TRY(structured_serialize_for_storage(vm, value));
+    if (serialized.data.size() > maximum_size)
+        return WebIDL::QuotaExceededError::create(Utf16String::formatted("Serialized state is {} bytes, more than the {} bytes a session history entry can hold", serialized.data.size(), maximum_size));
     return serialized;
 }
 
