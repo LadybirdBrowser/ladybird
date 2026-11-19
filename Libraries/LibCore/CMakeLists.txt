@@ -78,6 +78,15 @@ else()
     list(APPEND SOURCES FileWatcherUnimplemented.cpp)
 endif()
 
+# FIXME: Implement MemoryPressure for Windows and *BSD
+if (LINUX)
+    list(APPEND SOURCES Platform/MemoryPressureLinux.cpp)
+elseif (APPLE AND NOT IOS)
+    list(APPEND SOURCES Platform/MemoryPressureMacOS.cpp)
+else ()
+    list(APPEND SOURCES Platform/MemoryPressureUnimplemented.cpp)
+endif()
+
 # FIXME: Implement ProcessStatistics for Windows and *BSD
 if (LINUX)
     list(APPEND SOURCES Platform/ProcessStatisticsLinux.cpp)
