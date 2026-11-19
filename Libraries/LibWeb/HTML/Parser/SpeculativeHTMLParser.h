@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
 
+struct RustFfiPreloadScanner;
 struct RustFfiPreloadScannerEntry;
+struct RustFfiTokenizerHandle;
 
 namespace Web::HTML {
 
@@ -23,23 +24,27 @@ class SpeculativeHTMLParser final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(SpeculativeHTMLParser);
 
 public:
-    static GC::Ref<SpeculativeHTMLParser> create(GC::Ref<DOM::Document>, Utf16String pending_input, URL::URL base_url, ParserScriptingMode);
+    static GC::Ref<SpeculativeHTMLParser> create(GC::Ref<DOM::Document>, ParserScriptingMode);
 
-    virtual ~SpeculativeHTMLParser() override;
+    // Takes the input of the parser's tokenizer that this hasn't scanned yet. That's the input from where the last run
+    // stopped, if the parser hasn't got past there, or else the parser's unparsed input, which a new scan starts on
+    // with the given base URL.
+    void take_unscanned_input(RustFfiTokenizerHandle*, URL::URL const& base_url);
 
     void run();
     void stop();
 
 private:
-    SpeculativeHTMLParser(GC::Ref<DOM::Document>, Utf16String pending_input, URL::URL base_url, ParserScriptingMode);
+    SpeculativeHTMLParser(GC::Ref<DOM::Document>, ParserScriptingMode);
     virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void finalize() override;
 
     void process_preload_scanner_entry(RustFfiPreloadScannerEntry const&);
 
     GC::Ref<DOM::Document> m_document;
-    Utf16String m_input;
+    RustFfiPreloadScanner* m_scanner { nullptr };
     URL::URL m_base_url;
-    ParserScriptingMode m_scripting_mode {};
+    URL::URL m_document_base_url;
     bool m_stopped { false };
 };
 

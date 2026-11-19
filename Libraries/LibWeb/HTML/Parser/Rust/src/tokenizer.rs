@@ -233,6 +233,9 @@ pub struct HtmlTokenizer {
     stop_at_insertion_point: bool,
     cdata_allowed: bool,
     entity_matcher: NamedCharacterReferenceMatcher,
+    // Where the input that a speculative HTML parser's preload scanner has been given ends, while it's still a place
+    // the scanner can go on from.
+    speculative_scan_end: Option<usize>,
 }
 
 #[inline]
@@ -366,6 +369,7 @@ impl HtmlTokenizer {
             stop_at_insertion_point: false,
             cdata_allowed: false,
             entity_matcher: NamedCharacterReferenceMatcher::new(),
+            speculative_scan_end: None,
         }
     }
 
@@ -420,6 +424,7 @@ impl HtmlTokenizer {
             let ip = ip.min(self.input.len());
             self.input.splice(ip..ip, code_units.iter().copied());
             self.insertion_point = Some(ip + code_units.len());
+            self.forget_speculative_scan_end_before(ip);
             for old_insertion_point in &mut self.old_insertion_points {
                 if let Some(old_ip) = old_insertion_point
                     && ip <= *old_ip
@@ -435,6 +440,7 @@ impl HtmlTokenizer {
             let ip = ip.min(self.input.len());
             self.input.splice(ip..ip, bytes.iter().map(|byte| u16::from(*byte)));
             self.insertion_point = Some(ip + bytes.len());
+            self.forget_speculative_scan_end_before(ip);
             for old_insertion_point in &mut self.old_insertion_points {
                 if let Some(old_ip) = old_insertion_point
                     && ip <= *old_ip
@@ -447,6 +453,29 @@ impl HtmlTokenizer {
 
     pub fn unparsed_input(&self) -> String {
         String::from_utf16_lossy(&self.input[self.current_offset..])
+    }
+
+    /// The input a speculative HTML parser's preload scanner hasn't been given yet, and whether the scanner can go on
+    /// from where it stopped. It can't once this tokenizer has got past that point, or input was inserted before it;
+    /// the input then runs from the current position, and the scanner has to start over there.
+    pub fn input_for_speculative_scan(&mut self) -> (&[u16], bool) {
+        let (start, continues) = match self.speculative_scan_end {
+            Some(end) if end >= self.current_offset => (end, true),
+            _ => (self.current_offset, false),
+        };
+        self.speculative_scan_end = Some(self.input.len());
+        (&self.input[start..], continues)
+    }
+
+    /// Makes the next speculative scan start over at the current position.
+    pub fn forget_speculative_scan_end(&mut self) {
+        self.speculative_scan_end = None;
+    }
+
+    fn forget_speculative_scan_end_before(&mut self, offset: usize) {
+        if self.speculative_scan_end.is_some_and(|end| offset < end) {
+            self.speculative_scan_end = None;
+        }
     }
 
     fn can_discard_consumed_input(&self) -> bool {
@@ -470,6 +499,11 @@ impl HtmlTokenizer {
             return;
         }
 
+        // All of the input is consumed, so a preload scanner that has been given all of it can still go on from there.
+        self.speculative_scan_end = self
+            .speculative_scan_end
+            .filter(|end| *end == self.input.len())
+            .map(|_| 0);
         self.input = Vec::new();
         self.current_offset = 0;
         self.prev_offset = 0;
