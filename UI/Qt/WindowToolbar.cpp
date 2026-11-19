@@ -439,6 +439,7 @@ public:
 
         m_ring_fade.setDuration(RING_FADE_DURATION_MS);
         QObject::connect(&m_ring_fade, &QVariantAnimation::valueChanged, this, [this] { update(); });
+        QObject::connect(&m_ring_fade, &QVariantAnimation::finished, this, [this] { update_icon_size(); });
 
         m_progress_animation.setDuration(PROGRESS_GLIDE_DURATION_MS);
         QObject::connect(&m_progress_animation, &QVariantAnimation::valueChanged, this, [this](QVariant const& value) {
@@ -480,6 +481,7 @@ public:
             m_ring_animation.start();
         else if (!should_turn)
             m_ring_animation.stop();
+        update_icon_size();
         update();
     }
 
@@ -492,6 +494,15 @@ public:
     }
 
 private:
+    // The arrow shrinks while the ring is around it, so that it keeps clear of the ring.
+    void update_icon_size()
+    {
+        auto ring_is_shown = m_downloading || m_ring_fade.state() == QAbstractAnimation::Running;
+        auto size = ring_is_shown ? ICON_SIZE_WITHIN_RING : TOOLBAR_ICON_SIZE;
+        if (iconSize().width() != size)
+            setIconSize({ size, size });
+    }
+
     virtual void paintEvent(QPaintEvent* event) override
     {
         ToolbarButton::paintEvent(event);
@@ -524,6 +535,7 @@ private:
 
     static constexpr int RING_FADE_DURATION_MS = 200;
     static constexpr int PROGRESS_GLIDE_DURATION_MS = 300;
+    static constexpr int ICON_SIZE_WITHIN_RING = 14;
 
     bool m_downloading { false };
     Optional<double> m_progress;
