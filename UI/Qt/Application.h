@@ -87,6 +87,9 @@ public:
 #endif
 
     Optional<u16> devtools_port() const { return m_devtools_port; }
+    URL::URL new_bug_report_url() const;
+    bool shows_cpu_painting_bar() const { return !m_gpu_painting_enabled && !m_cpu_painting_bar_dismissed; }
+    void dismiss_cpu_painting_bar();
     bool has_translator() const;
     WebView::MicrophoneAuthorizer* microphone_authorizer() { return m_microphone_authorizer.ptr(); }
     WebView::DefaultBrowser* default_browser() { return m_default_browser.ptr(); }
@@ -316,6 +319,8 @@ private:
 
     void did_enable_devtools(u16 port);
     void did_disable_devtools();
+    void did_change_gpu_painting(bool enabled);
+    void update_cpu_painting_bars() const;
     void on_recently_closed_entries_changed() const;
     void did_clear_history_since(UnixDateTime);
     void create_session_store(ByteString const& data_directory, bool persists_sessions);
@@ -326,6 +331,8 @@ private:
 
     String m_command_line;
     Optional<u16> m_devtools_port;
+    bool m_gpu_painting_enabled { true };
+    bool m_cpu_painting_bar_dismissed { false };
 
 #ifdef LADYBIRD_HUB_IN_OWN_PROCESS
     ErrorOr<void> connect_to_hub(Main::Arguments const&);

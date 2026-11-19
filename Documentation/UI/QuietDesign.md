@@ -543,7 +543,7 @@ settings.
   1. Report a problem with this site (the site report flow, prefilled with the address):
      only on a website
   2. Report a bug: opens GitHub's new-issue page in a new tab, prefilled with version, OS
-     and build where possible
+     and build where possible, and with whether the sandbox or GPU painting is off
   3. Crash reports, "2 to review": only while reports are waiting; opens the review page.
      The same amber dot as on the button sits just before "2 to review", so the label
      stays aligned with the rows above it
@@ -612,6 +612,16 @@ sandbox is off. Websites are less isolated from your computer."
 - Bug reports and crash reports include "sandbox: off" in their prefilled details.
 - Nothing else changes: no badge on the Ladybird button, no tint, nothing in the address
   field (which describes the site, not the browser).
+
+### Painting on the CPU
+
+When GPU painting is off, whether because of `--force-cpu-painting`, because no GPU could be
+used or because painting on it failed, every window shows a notification bar, below the
+sandbox one when both show: "Pages are painted on the CPU, which can be slow."
+
+- A "Report a bug" text button, which opens a new bug report, and a close button.
+- Closing it in one window closes it in every window until the browser is started again.
+  Nothing remembers it, so a browser that keeps painting on the CPU keeps saying so.
 
 ### Ladybird menu
 

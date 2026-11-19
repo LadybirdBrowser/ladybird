@@ -3110,6 +3110,7 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     m_notification_bar_column_layout->setContentsMargins(0, 0, 0, 0);
     if (Application::browser_options().disable_sandbox == WebView::DisableSandbox::Yes)
         show_notification_bar(NotificationBarSlot::SandboxOff, "The sandbox is off. Websites are less isolated from your computer.");
+    update_cpu_painting_bar();
 
     m_ladybird_button = new LadybirdButton(is_private, this);
 
@@ -3527,6 +3528,27 @@ void TabWidget::hide_notification_bar(NotificationBarSlot slot)
     bar->hide();
     bar->deleteLater();
     bar = nullptr;
+}
+
+void TabWidget::update_cpu_painting_bar()
+{
+    if (!Application::the().shows_cpu_painting_bar()) {
+        hide_notification_bar(NotificationBarSlot::CpuPainting);
+        return;
+    }
+    if (m_notification_bars[to_underlying(NotificationBarSlot::CpuPainting)])
+        return;
+
+    Vector<NotificationBar::Button> buttons;
+    buttons.append({ "Report a bug", [this] {
+                        auto* browser_window = qobject_cast<BrowserWindow*>(window());
+                        if (!browser_window)
+                            return;
+                        browser_window->new_tab_from_url(Application::the().new_bug_report_url(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
+                    } });
+    show_notification_bar(NotificationBarSlot::CpuPainting, "Pages are painted on the CPU, which can be slow.", AK::move(buttons), [] {
+        Application::the().dismiss_cpu_painting_bar();
+    });
 }
 
 void TabWidget::set_window_controls_visible(bool visible)
