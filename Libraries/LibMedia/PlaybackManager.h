@@ -24,6 +24,7 @@
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaClock.h>
 #include <LibMedia/MediaTime.h>
+#include <LibMedia/MediaTimeline.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
@@ -60,10 +61,13 @@ public:
 
     using AudioTracks = Vector<Track, EXPECTED_AUDIO_TRACK_COUNT>;
 
+    // Shared with the proxies of a playback manager in another process, so that both report the same ranges.
+    static Optional<TimeRanges::Range> seekable_time_range(TimeRanges const& buffered, MediaTimeline const&);
+
     static NonnullOwnPtr<PlaybackManager> create(NonnullRefPtr<AudioOutputFactory>);
     ~PlaybackManager();
 
-    AK::Duration duration() const { return m_duration; }
+    AK::Duration duration() const { return m_timeline.duration; }
     void set_duration(AK::Duration);
     AK::Duration current_time() const;
 
@@ -98,6 +102,8 @@ public:
     PlaybackState state();
     AvailableData available_data();
     BufferedRanges buffered_time_ranges() const;
+    // This is never more than one range, and that range may start and end at the same time.
+    Optional<TimeRanges::Range> seekable_time_ranges() const;
     // Whether the playback state can only change through further input, such as more data or a seek.
     bool playback_state_is_settled() const { return m_playback_state_is_settled; }
     // Called after data is added, so that the playback state is known to be unsettled before the addition is reported
@@ -192,6 +198,7 @@ private:
     bool source_has_enabled_track(Demuxer const&) const;
     Optional<AK::Duration> verified_end_time_for_source(Demuxer const&) const;
     CombinedScanState scan_state_for_enabled_tracks(Demuxer const&) const;
+    Vector<CombinedScanState, 2> enabled_source_scan_states() const;
     void update_pipeline_state();
     void hand_out_latest_checkpoint();
     bool every_waiting_sink_has_reported_the_latest_checkpoint() const;
@@ -274,7 +281,7 @@ private:
     Optional<Track> m_preferred_video_track;
     Optional<Track> m_preferred_audio_track;
 
-    AK::Duration m_duration;
+    MediaTimeline m_timeline;
     bool m_duration_is_set_by_owner { false };
     Optional<AK::UnixDateTime> m_start_time_realtime;
 
