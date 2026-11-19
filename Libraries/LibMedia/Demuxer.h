@@ -52,6 +52,10 @@ public:
     virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) = 0;
 
     virtual AK::Duration select_fast_seek_target_for_track(Track const&, AK::Duration target, SeekMode) = 0;
+
+    // Moves to the keyframe prior to the target. If the track is already reading within the GOP for that keyframe, it
+    // will remain where it was unless the seek is forced. Thus, it may return with the track reading a frame past the
+    // target, so the caller should ensure that a backwards seek is forced.
     virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions = DemuxerSeekOptions::None) = 0;
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) = 0;

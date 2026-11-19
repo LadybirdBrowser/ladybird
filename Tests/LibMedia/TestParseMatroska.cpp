@@ -932,6 +932,14 @@ TEST_CASE(seeking)
         EXPECT_EQ(first_block.timestamp().value().to_milliseconds(), 0);
         EXPECT(first_block.only_keyframes());
 
+        auto second_block = MUST(iterator.next_block());
+        EXPECT(!second_block.only_keyframes());
+        EXPECT(second_block.timestamp().value() < AK::Duration::from_milliseconds(50));
+        auto seeked_within_first_keyframe = MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_milliseconds(50)));
+        auto block_after_seek_within_first_keyframe = MUST(seeked_within_first_keyframe.next_block());
+        EXPECT_EQ(block_after_seek_within_first_keyframe.timestamp().value().to_milliseconds(), 0);
+        EXPECT(block_after_seek_within_first_keyframe.only_keyframes());
+
         iterator = MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_milliseconds(150)));
         auto block_after_forward_seek = MUST(iterator.next_block());
         EXPECT_EQ(block_after_forward_seek.timestamp().value().to_milliseconds(), 100);
@@ -952,6 +960,23 @@ TEST_CASE(seeking)
         EXPECT_EQ(block_exact_100.timestamp().value().to_milliseconds(), 100);
         EXPECT(block_exact_100.only_keyframes());
     }
+}
+
+TEST_CASE(keeps_its_position_while_reading_the_targets_keyframe_without_cues)
+{
+    auto file = MUST(Core::File::open("./test-matroska-seeking-without-cues.mkv"sv, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).release_value();
+    MUST(demuxer->create_context_for_track(track));
+
+    MUST(demuxer->get_next_sample_for_track(track));
+    auto second_sample = MUST(demuxer->get_next_sample_for_track(track));
+    EXPECT(second_sample.presentation_timestamp() < AK::Duration::from_milliseconds(50));
+
+    EXPECT_EQ(MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::from_milliseconds(50), Media::DemuxerSeekOptions::None)), Media::DemuxerSeekResult::KeptCurrentPosition);
+    auto sample_after_seek = MUST(demuxer->get_next_sample_for_track(track));
+    EXPECT(sample_after_seek.presentation_timestamp() > second_sample.presentation_timestamp());
 }
 
 TEST_CASE(opus_frame_duration)

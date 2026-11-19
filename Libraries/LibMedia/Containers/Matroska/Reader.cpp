@@ -1379,12 +1379,12 @@ DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator,
     return {};
 }
 
-static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(SampleIterator& iterator, AK::Duration const& timestamp)
+static DecoderErrorOr<Optional<SampleIterator>> search_clusters_for_keyframe_before_timestamp(SampleIterator iterator, AK::Duration const& timestamp)
 {
 #if MATROSKA_DEBUG
     size_t inter_frames_count;
 #endif
-    SampleIterator last_keyframe = iterator;
+    Optional<SampleIterator> last_keyframe;
 
     while (true) {
         SampleIterator rewind_iterator = iterator;
@@ -1400,7 +1400,7 @@ static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(Sample
             break;
 
         if (block.only_keyframes()) {
-            last_keyframe = rewind_iterator;
+            last_keyframe = move(rewind_iterator);
 #if MATROSKA_DEBUG
             inter_frames_count = 0;
 #endif
@@ -1414,9 +1414,7 @@ static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(Sample
 #if MATROSKA_DEBUG
     dbgln("Seeked to a keyframe with {} inter frames to skip", inter_frames_count);
 #endif
-    iterator = move(last_keyframe);
-
-    return {};
+    return last_keyframe;
 }
 
 DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterator iterator, AK::Duration timestamp) const
@@ -1441,17 +1439,20 @@ DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterato
         VERIFY(iterator.last_timestamp().has_value());
     }
 
-    if (!iterator.last_timestamp().has_value() || timestamp < iterator.last_timestamp().value()) {
-        // If the timestamp is before the iterator's current position, then we need to start from the beginning of the Segment.
-        if (timestamp > AK::Duration::zero())
-            warnln("Seeking track {} to {}s required restarting the sample iterator from the start, streaming may be broken for this file.", timestamp, iterator.m_track_number);
-        iterator = TRY(create_sample_iterator(iterator.m_stream_cursor, iterator.m_track_number));
-        TRY(search_clusters_for_keyframe_before_timestamp(iterator, timestamp));
-        return iterator;
+    if (iterator.last_timestamp().has_value() && timestamp >= iterator.last_timestamp().value()) {
+        auto keyframe = TRY(search_clusters_for_keyframe_before_timestamp(iterator, timestamp));
+        if (keyframe.has_value())
+            return keyframe.release_value();
     }
 
-    TRY(search_clusters_for_keyframe_before_timestamp(iterator, timestamp));
-    return iterator;
+    // If the timestamp is before the iterator's current position, or no keyframe lies between that position and the
+    // timestamp, then the keyframe is behind us, so we need to start from the beginning of the Segment.
+    if (timestamp > AK::Duration::zero())
+        warnln("Seeking track {} to {}s required restarting the sample iterator from the start, streaming may be broken for this file.", timestamp, iterator.m_track_number);
+    iterator = TRY(create_sample_iterator(iterator.m_stream_cursor, iterator.m_track_number));
+    auto keyframe = TRY(search_clusters_for_keyframe_before_timestamp(iterator, timestamp));
+    // The first block is the random access point even if it isn't marked as a keyframe.
+    return keyframe.value_or(move(iterator));
 }
 
 Optional<Vector<TrackCuePoint> const&> Reader::cue_points_for_track(u64 track_number) const
