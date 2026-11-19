@@ -246,6 +246,8 @@ bool has_preconditions(HeaderList const& request_headers)
 // AD-HOC: The "force-cache" cache mode uses a stored response "not paying attention to staleness". But a request that
 //         carries a no-cache directive of its own asks for a response that the origin validated, so it does not get a
 //         stale one. This is checked when the cache is looked up, as only then does the request have its final headers.
+//         As RFC 7234 put it, "When the Cache-Control header field is also present and understood in a request, Pragma
+//         is ignored."
 bool request_permits_stale_responses(CacheMode cache_mode, HeaderList const& request_headers)
 {
     if (!cache_mode_permits_stale_responses(cache_mode))
@@ -626,6 +628,15 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& request_headers, Hea
     // FIXME: Handle the qualified form of the no-cache directive, which may allow us to re-use the response.
     if (response_cache_control.has_value() && contains_cache_control_directive(*response_cache_control, "no-cache"sv))
         return revalidation_status(CacheLifetimeStatus::MustRevalidate);
+
+    // AD-HOC: RFC 9111 deprecates Pragma, but clients still send it. Keep the rule of RFC 7234:
+    //         https://www.rfc-editor.org/rfc/rfc7234#section-5.4
+    //         "When the Cache-Control header field is not present in a request, caches MUST consider the no-cache
+    //         request pragma-directive as having the same effect as if "Cache-Control: no-cache" were present"
+    if (!request_cache_control.has_value()) {
+        if (auto request_pragma = request_headers.get("Pragma"sv); request_pragma.has_value() && contains_cache_control_directive(*request_pragma, "no-cache"sv))
+            return revalidation_status(CacheLifetimeStatus::MustRevalidate);
+    }
 
     if (request_cache_control.has_value()) {
         // https://httpwg.org/specs/rfc9111.html#cache-request-directive.no-cache
