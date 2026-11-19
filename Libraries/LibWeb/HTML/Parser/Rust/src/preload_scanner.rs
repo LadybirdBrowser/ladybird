@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::RustFfiTokenizerHandle;
 use crate::known_names::attribute_name;
 use crate::known_names::tag_name;
 use crate::token::Attribute;
@@ -72,94 +73,145 @@ pub struct RustFfiPreloadScannerEntry {
     pub media_len: usize,
 }
 
-/// Scan pending Latin-1 parser input for resources the speculative HTML parser can fetch.
-///
-/// # Safety
-/// `callback` must not retain pointers from the provided entry beyond the callback invocation.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_preload_scanner_scan_latin1(
-    input: ak::Span<'_, u8>,
+/// A preload scanner that keeps its place in the parser's input from one run to the next, so that a speculative HTML
+/// parser started while another script blocks the parser goes on from where the last one stopped, rather than scanning
+/// the same input again.
+pub struct RustFfiPreloadScanner {
+    tokenizer: HtmlTokenizer,
+    template_depth: u64,
+    foreign_depth: u64,
     scripting_enabled: bool,
-    ctx: *mut c_void,
-    callback: unsafe extern "C" fn(ctx: *mut c_void, entry: *const RustFfiPreloadScannerEntry) -> bool,
-) {
-    let code_units = input.as_slice().iter().map(|&byte| u16::from(byte)).collect();
-    scan_code_units(code_units, scripting_enabled, &mut |entry| unsafe {
-        callback(ctx, &raw const *entry)
-    });
 }
 
-/// Scan pending UTF-16 parser input for resources the speculative HTML parser can fetch.
+impl RustFfiPreloadScanner {
+    fn new(scripting_enabled: bool) -> Self {
+        let mut tokenizer = HtmlTokenizer::new(Vec::new());
+        // More input can arrive, so the scanner waits at the end of what it has for the rest of a token.
+        tokenizer.set_input_stream_closed(false);
+        RustFfiPreloadScanner {
+            tokenizer,
+            template_depth: 0,
+            foreign_depth: 0,
+            scripting_enabled,
+        }
+    }
+
+    fn reset(&mut self) {
+        *self = Self::new(self.scripting_enabled);
+    }
+
+    fn append_input(&mut self, code_units: &[u16]) {
+        self.tokenizer.append_input(code_units);
+    }
+
+    fn scan(&mut self, callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
+        while let Some(token) = self.tokenizer.next_token(false, false) {
+            let should_continue = match token.token_type {
+                TokenType::StartTag => {
+                    let should_continue =
+                        process_start_tag(&token, &mut self.template_depth, &mut self.foreign_depth, callback);
+
+                    // The tree builder switches the tokenizer out of the data state for these elements, so their
+                    // contents are text rather than markup. It never does so for foreign content.
+                    if self.foreign_depth == 0
+                        && let Some(state) = tokenizer_state_after_start_tag(token.tag_name(), self.scripting_enabled)
+                    {
+                        self.tokenizer.switch_to(state);
+                    }
+                    should_continue
+                }
+                TokenType::EndTag => {
+                    process_end_tag(&token, &mut self.template_depth, &mut self.foreign_depth);
+                    true
+                }
+                TokenType::EndOfFile => false,
+                _ => true,
+            };
+            if !should_continue {
+                break;
+            }
+        }
+
+        // Drop the input scanned so far, unless a token that isn't finished yet still needs it.
+        self.tokenizer.parser_did_run();
+    }
+}
+
+/// Create a preload scanner for a speculative HTML parser.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_html_preload_scanner_create(scripting_enabled: bool) -> *mut RustFfiPreloadScanner {
+    Box::into_raw(Box::new(RustFfiPreloadScanner::new(scripting_enabled)))
+}
+
+/// Destroy a preload scanner.
+///
+/// # Safety
+/// `scanner` must come from `rust_html_preload_scanner_create`, and must not be used afterwards.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_html_preload_scanner_destroy(scanner: *mut RustFfiPreloadScanner) {
+    if !scanner.is_null() {
+        // SAFETY: The caller passes a scanner from rust_html_preload_scanner_create.
+        drop(unsafe { Box::from_raw(scanner) });
+    }
+}
+
+/// Hand the scanner the input of the parser that it hasn't seen yet. Returns false if the scanner had to start over at
+/// the parser's current position, because the parser got past where it stopped, input was inserted before there, or
+/// the caller asked for it with `start_over`.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_html_preload_scanner_append_parser_input(
+    scanner: Option<&mut RustFfiPreloadScanner>,
+    tokenizer: Option<&mut RustFfiTokenizerHandle>,
+    start_over: bool,
+) -> bool {
+    let (Some(scanner), Some(tokenizer)) = (scanner, tokenizer) else {
+        return false;
+    };
+    if start_over {
+        tokenizer.tokenizer.forget_speculative_scan_end();
+    }
+    let (input, continues) = tokenizer.tokenizer.input_for_speculative_scan();
+    if !continues {
+        scanner.reset();
+    }
+    scanner.append_input(input);
+    continues
+}
+
+/// Scan the input the scanner has for resources the speculative HTML parser can fetch, stopping at the end of it or
+/// once `callback` returns false.
 ///
 /// # Safety
 /// `callback` must not retain pointers from the provided entry beyond the callback invocation.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_preload_scanner_scan_utf16(
-    input: ak::Span<'_, u16>,
-    scripting_enabled: bool,
+pub unsafe extern "C" fn rust_html_preload_scanner_scan(
+    scanner: Option<&mut RustFfiPreloadScanner>,
     ctx: *mut c_void,
     callback: unsafe extern "C" fn(ctx: *mut c_void, entry: *const RustFfiPreloadScannerEntry) -> bool,
 ) {
-    let input = input.as_slice();
-
-    scan_utf16(input, scripting_enabled, |entry| unsafe {
-        callback(ctx, &raw const *entry)
-    });
+    let Some(scanner) = scanner else {
+        return;
+    };
+    scanner.scan(&mut |entry| unsafe { callback(ctx, &raw const *entry) });
 }
 
 #[cfg(test)]
-pub(crate) fn scan(
-    input: &[u8],
-    scripting_enabled: bool,
-    mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool,
-) {
-    // SAFETY: The FFI entry point guarantees valid UTF-8.
-    let code_units = unsafe { std::str::from_utf8_unchecked(input) }.encode_utf16().collect();
-    scan_code_units(code_units, scripting_enabled, &mut callback);
+pub(crate) fn scan(input: &[u8], scripting_enabled: bool, callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
+    // SAFETY: The tests pass valid UTF-8.
+    let code_units: Vec<u16> = unsafe { std::str::from_utf8_unchecked(input) }.encode_utf16().collect();
+    scan_utf16(&code_units, scripting_enabled, callback);
 }
 
+#[cfg(test)]
 pub(crate) fn scan_utf16(
     input: &[u16],
     scripting_enabled: bool,
     mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool,
 ) {
-    scan_code_units(input.to_vec(), scripting_enabled, &mut callback);
-}
-
-fn scan_code_units(
-    code_units: Vec<u16>,
-    scripting_enabled: bool,
-    callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool,
-) {
-    let mut tokenizer = HtmlTokenizer::new(code_units);
-    let mut template_depth: u64 = 0;
-    let mut foreign_depth: u64 = 0;
-
-    while let Some(token) = tokenizer.next_token(false, false) {
-        let should_continue = match token.token_type {
-            TokenType::StartTag => {
-                let should_continue = process_start_tag(&token, &mut template_depth, &mut foreign_depth, callback);
-
-                // The tree builder switches the tokenizer out of the data state for these elements, so their
-                // contents are text rather than markup. It never does so for foreign content.
-                if foreign_depth == 0
-                    && let Some(state) = tokenizer_state_after_start_tag(token.tag_name(), scripting_enabled)
-                {
-                    tokenizer.switch_to(state);
-                }
-                should_continue
-            }
-            TokenType::EndTag => {
-                process_end_tag(&token, &mut template_depth, &mut foreign_depth);
-                true
-            }
-            TokenType::EndOfFile => false,
-            _ => true,
-        };
-        if !should_continue {
-            break;
-        }
-    }
+    let mut scanner = RustFfiPreloadScanner::new(scripting_enabled);
+    scanner.append_input(input);
+    scanner.tokenizer.set_input_stream_closed(true);
+    scanner.scan(&mut callback);
 }
 
 fn process_start_tag(
@@ -944,5 +996,82 @@ mod tests {
                 ),
             ]
         );
+    }
+
+    fn code_units(input: &str) -> Vec<u16> {
+        input.encode_utf16().collect()
+    }
+
+    fn scan_urls(scanner: &mut RustFfiPreloadScanner) -> Vec<String> {
+        let mut urls = Vec::new();
+        scanner.scan(&mut |entry| {
+            let url = unsafe { ak::slice_from_raw_parts(entry.url_ptr, entry.url_len) };
+            urls.push(std::str::from_utf8(url).unwrap().to_string());
+            true
+        });
+        urls
+    }
+
+    #[test]
+    fn goes_on_from_where_it_stopped() {
+        let mut scanner = RustFfiPreloadScanner::new(true);
+
+        // The input runs out inside a tag, and then inside the text of a script.
+        scanner.append_input(&code_units(r#"<img src="./a.png"><img sr"#));
+        assert_eq!(scan_urls(&mut scanner), vec!["./a.png"]);
+
+        scanner.append_input(&code_units(r#"c="./b.png"><script>var trap = '<img src="./tr"#));
+        assert_eq!(scan_urls(&mut scanner), vec!["./b.png"]);
+
+        scanner.append_input(&code_units(r#"ap.png">';</script><img src="./c.png">"#));
+        assert_eq!(scan_urls(&mut scanner), vec!["./c.png"]);
+    }
+
+    #[test]
+    fn hands_on_only_input_not_scanned_yet() {
+        let mut parser_tokenizer = HtmlTokenizer::new(code_units("<img src=a>"));
+        parser_tokenizer.set_input_stream_closed(false);
+
+        let (input, continues) = parser_tokenizer.input_for_speculative_scan();
+        assert_eq!(input, code_units("<img src=a>"));
+        assert!(!continues);
+
+        parser_tokenizer.append_input(&code_units("<img src=b>"));
+        let (input, continues) = parser_tokenizer.input_for_speculative_scan();
+        assert_eq!(input, code_units("<img src=b>"));
+        assert!(continues);
+
+        // Once the parser gets past the scanned input, the scan starts over where the parser is.
+        while parser_tokenizer.next_token(false, false).is_some() {}
+        parser_tokenizer.append_input(&code_units("<img src=c>"));
+        let (input, continues) = parser_tokenizer.input_for_speculative_scan();
+        assert_eq!(input, code_units("<img src=c>"));
+        assert!(continues);
+        parser_tokenizer.append_input(&code_units("<img src=d><img src=e>"));
+        while parser_tokenizer.next_token(false, false).is_some() {}
+        parser_tokenizer.parser_did_run();
+        parser_tokenizer.append_input(&code_units("<img src=f>"));
+        let (input, continues) = parser_tokenizer.input_for_speculative_scan();
+        assert_eq!(input, code_units("<img src=f>"));
+        assert!(!continues);
+    }
+
+    #[test]
+    fn starts_over_after_input_is_inserted_before_the_scanned_input() {
+        let mut parser_tokenizer = HtmlTokenizer::new(code_units("<script></script><img src=a>"));
+        parser_tokenizer.set_input_stream_closed(false);
+        parser_tokenizer.next_token(false, false);
+        parser_tokenizer.next_token(false, false);
+        parser_tokenizer.update_insertion_point();
+
+        let (input, _) = parser_tokenizer.input_for_speculative_scan();
+        assert_eq!(input, code_units("<img src=a>"));
+
+        // Input that document.write() inserts at the insertion point comes before the scanned input, so the scan has
+        // to take it in too.
+        parser_tokenizer.insert_input_at_insertion_point(&code_units("<img src=w>"));
+        let (input, continues) = parser_tokenizer.input_for_speculative_scan();
+        assert_eq!(input, code_units("<img src=w><img src=a>"));
+        assert!(!continues);
     }
 }

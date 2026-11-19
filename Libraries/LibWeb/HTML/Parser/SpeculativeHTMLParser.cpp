@@ -34,20 +34,23 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SpeculativeHTMLParser);
 
-GC::Ref<SpeculativeHTMLParser> SpeculativeHTMLParser::create(GC::Ref<DOM::Document> document, Utf16String pending_input, URL::URL base_url, ParserScriptingMode scripting_mode)
+GC::Ref<SpeculativeHTMLParser> SpeculativeHTMLParser::create(GC::Ref<DOM::Document> document, ParserScriptingMode scripting_mode)
 {
-    return document->relevant_settings_object().realm().create<SpeculativeHTMLParser>(document, move(pending_input), move(base_url), scripting_mode);
+    return document->relevant_settings_object().realm().create<SpeculativeHTMLParser>(document, scripting_mode);
 }
 
-SpeculativeHTMLParser::SpeculativeHTMLParser(GC::Ref<DOM::Document> document, Utf16String pending_input, URL::URL base_url, ParserScriptingMode scripting_mode)
+SpeculativeHTMLParser::SpeculativeHTMLParser(GC::Ref<DOM::Document> document, ParserScriptingMode scripting_mode)
     : m_document(document)
-    , m_input(move(pending_input))
-    , m_base_url(move(base_url))
-    , m_scripting_mode(scripting_mode)
+    , m_scanner(rust_html_preload_scanner_create(scripting_mode != ParserScriptingMode::Disabled))
 {
 }
 
-SpeculativeHTMLParser::~SpeculativeHTMLParser() = default;
+void SpeculativeHTMLParser::finalize()
+{
+    Base::finalize();
+    rust_html_preload_scanner_destroy(m_scanner);
+    m_scanner = nullptr;
+}
 
 void SpeculativeHTMLParser::visit_edges(JS::Cell::Visitor& visitor)
 {
@@ -61,6 +64,20 @@ void SpeculativeHTMLParser::stop()
     // 3. Throw away any pending content in speculativeParser's input stream, and discard any future content
     //    that would have been added to it.
     m_stopped = true;
+}
+
+void SpeculativeHTMLParser::take_unscanned_input(RustFfiTokenizerHandle* tokenizer, URL::URL const& base_url)
+{
+    m_stopped = false;
+
+    // NB: A scan resolves URLs against the document's base URL as it was when the scan started, so once that has
+    //     changed, the scan starts over.
+    auto start_over = base_url != m_document_base_url;
+    m_document_base_url = base_url;
+
+    // NB: A scan that starts over leaves behind any base element the last one found ahead of the parser.
+    if (!rust_html_preload_scanner_append_parser_input(m_scanner, tokenizer, start_over))
+        m_base_url = base_url;
 }
 
 void SpeculativeHTMLParser::run()
@@ -77,14 +94,7 @@ void SpeculativeHTMLParser::run()
         return !parser.m_stopped;
     };
 
-    auto scripting_enabled = m_scripting_mode != ParserScriptingMode::Disabled;
-    auto input = m_input.utf16_view();
-    if (input.has_latin1_storage()) {
-        rust_html_preload_scanner_scan_latin1(input.latin1_span(), scripting_enabled, this, scanner_callback);
-    } else {
-        auto code_units = input.utf16_span();
-        rust_html_preload_scanner_scan_utf16({ reinterpret_cast<u16 const*>(code_units.data()), code_units.size() }, scripting_enabled, this, scanner_callback);
-    }
+    rust_html_preload_scanner_scan(m_scanner, this, scanner_callback);
 }
 
 namespace {

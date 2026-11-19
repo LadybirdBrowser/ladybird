@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const run = crypto.randomUUID();
+        const firstGate = `${run}-first`;
+        const writtenGate = `${run}-written`;
+        const path = name => `/speculative-html-parser-write-${run}-${name}`;
+        const javascriptHeaders = { "Content-Type": "text/javascript" };
+        const imageHeaders = { "Content-Type": "image/png" };
+
+        const firstBlockerURL = await server.createEcho("GET", path("first-blocker.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: "",
+            wait_for_unblock: firstGate,
+        });
+        const writtenBlockerURL = await server.createEcho("GET", path("written-blocker.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: "",
+            wait_for_unblock: writtenGate,
+        });
+        const afterImageURL = await server.createEcho("GET", path("after.png"), { status: 200, headers: imageHeaders, body: "" });
+        const writtenImageURL = await server.createEcho("GET", path("written.png"), { status: 200, headers: imageHeaders, body: "" });
+
+        // While the parser waits for the first script, the speculative parser scans the rest of the page. The script
+        // after it then writes a parser-blocking script and an image ahead of the input scanned already, and the
+        // speculative parser started for the written script has to scan the written image too.
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageBody = `<!DOCTYPE html>
+            ${scriptStartTag} src="${firstBlockerURL}">${scriptEndTag}
+            ${scriptStartTag}>
+                document.write('${scriptStartTag} src="${writtenBlockerURL}"><\\/script><img src="${writtenImageURL}">');
+            ${scriptEndTag}
+            <img src="${afterImageURL}">`;
+        const pageURL = await server.createEcho("GET", path("page.html"), {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: pageBody,
+        });
+
+        const hasRecordedRequest = async url => {
+            try {
+                const response = await fetch(server.recordedRequestHeadersURL(url));
+                return response.ok;
+            } catch {
+                return false;
+            }
+        };
+
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => (frame.onload = resolve));
+        frame.src = pageURL;
+        document.body.appendChild(frame);
+
+        while (!(await hasRecordedRequest(afterImageURL))) {}
+        println("PASS: speculative parser fetched the image after the scripts while the first script was held");
+
+        await fetch(`${server.baseURL}/unblock/${firstGate}`);
+
+        // Only the speculative parser can request the written image while the written script is held.
+        while (!(await hasRecordedRequest(writtenImageURL))) {}
+        println("PASS: speculative parser fetched the written image while the written script was held");
+
+        await fetch(`${server.baseURL}/unblock/${writtenGate}`);
+        await frameLoaded;
+        done();
+    });
+</script>

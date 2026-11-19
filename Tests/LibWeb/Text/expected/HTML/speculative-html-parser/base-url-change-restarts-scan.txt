@@ -1,0 +1,2 @@
+PASS: speculative parser fetched the image against the first base URL while the first script was held
+PASS: speculative parser fetched the image against the new base URL while the second script was held

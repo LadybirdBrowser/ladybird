@@ -195,6 +195,10 @@ private:
 
     // https://html.spec.whatwg.org/multipage/parsing.html#active-speculative-html-parser
     GC::Ptr<SpeculativeHTMLParser> m_active_speculative_html_parser;
+
+    // The speculative HTML parser that the active one is whenever it's not null, so that it can go on from where it
+    // stopped while this parser hasn't got past there.
+    GC::Ptr<SpeculativeHTMLParser> m_speculative_html_parser;
 };
 
 class HTMLParserEndState final : public JS::Cell {

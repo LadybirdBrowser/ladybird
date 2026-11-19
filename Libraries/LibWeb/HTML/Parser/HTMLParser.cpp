@@ -274,6 +274,7 @@ void HTMLParser::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_context_element);
     visitor.visit(m_root_insertion_target);
     visitor.visit(m_active_speculative_html_parser);
+    visitor.visit(m_speculative_html_parser);
     visitor.visit(m_change_encoding_callback);
     visitor.visit(m_ready_for_more_input_callback);
     visitor.visit(m_parsing_complete_callback);
@@ -2719,11 +2720,19 @@ void HTMLParser::start_the_speculative_html_parser()
         stop_the_speculative_html_parser();
 
     // 3. Let speculativeParser be a new speculative HTML parser, with the same state as parser.
+    // OPTIMIZATION: The spec says user agents can restart speculative parsing more efficiently, as long as the end
+    //               result is equivalent. So, while this parser hasn't got past where the last speculative parser
+    //               stopped, the new one goes on from there rather than scanning the input up to there again. That
+    //               keeps a document with many parser-blocking scripts from being scanned once for each of them.
+    if (!m_speculative_html_parser)
+        m_speculative_html_parser = SpeculativeHTMLParser::create(*m_document, m_scripting_mode);
+    auto speculative_parser = m_speculative_html_parser;
+    speculative_parser->take_unscanned_input(m_tokenizer.ffi_handle({}), m_document->base_url());
+
     // 4. Let speculativeDoc be a new isomorphic representation of parser's Document, where all elements are instead
     //    speculative mock elements. Let speculativeParser parse into speculativeDoc.
     // NOTE: The Rust preload scanner emits speculative fetch candidates directly, so we do not materialize a
     // speculativeDoc tree or speculative mock elements.
-    auto speculative_parser = SpeculativeHTMLParser::create(*m_document, m_tokenizer.unparsed_input(), m_document->base_url(), m_scripting_mode);
 
     // 5. Set parser's active speculative HTML parser to speculativeParser.
     m_active_speculative_html_parser = speculative_parser;
