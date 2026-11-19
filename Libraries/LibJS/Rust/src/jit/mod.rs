@@ -12,6 +12,7 @@ pub mod allocation;
 pub mod calls;
 pub mod code;
 pub mod compile_queue;
+pub mod data_memory;
 pub mod dependencies;
 pub mod dispatch_tables;
 pub mod entry_exit;
@@ -45,6 +46,7 @@ use crate::layout::execution_context::ExecutionContext;
 use code::EntryTrampoline;
 use code::SnapshotExecutable;
 use compile_queue::{CompileQueue, CompileResult};
+use data_memory::DataAllocator;
 use executable_memory::{CodeAllocator, ExecutableMemory};
 use options::Options;
 
@@ -178,6 +180,8 @@ pub struct JitState {
     pub(crate) function_environment_free_lists: allocation::FunctionEnvironmentFreeLists,
     /// The memory the VM's JIT code lives in.
     code_allocator: Rc<RefCell<CodeAllocator>>,
+    /// The memory the tables of the VM's JIT code live in.
+    data_allocator: Rc<RefCell<DataAllocator>>,
     /// The compile threads, started by the first asynchronous compile job.
     compile_queue: OnceCell<CompileQueue>,
     /// The compile jobs that run on the compile threads, by id.
@@ -234,6 +238,7 @@ impl JitState {
             entry_table,
             function_environment_free_lists: allocation::FunctionEnvironmentFreeLists::default(),
             code_allocator: Rc::default(),
+            data_allocator: Rc::default(),
             compile_queue: OnceCell::new(),
             jobs: RefCell::default(),
             next_job_id: Cell::new(1),
@@ -378,6 +383,10 @@ impl JitState {
 
     pub(crate) fn code_allocator(&self) -> &Rc<RefCell<CodeAllocator>> {
         &self.code_allocator
+    }
+
+    pub(crate) fn data_allocator(&self) -> &Rc<RefCell<DataAllocator>> {
+        &self.data_allocator
     }
 
     pub(crate) fn compile_queue(&self) -> &CompileQueue {

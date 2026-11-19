@@ -17,6 +17,7 @@ use libjs_jit::code::ExitKind;
 pub use libjs_jit::code::INLINED_CALL_SITE_BIT;
 use libjs_runtime_macros::Trace;
 
+use super::data_memory::DataMemory;
 use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
 use super::executable_memory::ExecutableMemory;
 use crate::bytecode::executable::{Executable, PropertyLookupCache, PropertyLookupCacheTier};
@@ -138,8 +139,9 @@ pub enum InlinedFunction {
     Builtin(Gc<NativeJavaScriptBackedFunction>),
 }
 
-/// A word of the tables of installed code (see `libjs_jit::artifact`).
-pub type TableWord = u32;
+/// A word of the tables of installed code (see `libjs_jit::artifact`), which are in memory that the tables of other
+/// code share (see `DataMemory`).
+pub type TableWord = Cell<u32>;
 
 /// A site of installed code.
 pub type Site<'a> = SiteView<'a, TableWord>;
@@ -162,7 +164,7 @@ pub struct JitCode {
     memory: ExecutableMemory,
     entry: JitEntry,
     /// The tables of the code that the runtime reads once the code is installed, which have `layout`.
-    tables: Box<[TableWord]>,
+    tables: DataMemory,
     layout: Layout,
     /// The cells the code compares against or uses. The executable the code is attached to keeps them alive, so they
     /// keep their addresses for as long as the code may run.
@@ -205,7 +207,7 @@ impl JitCode {
     pub fn new(
         memory: ExecutableMemory,
         entry_offset: u32,
-        tables: Box<[TableWord]>,
+        tables: DataMemory,
         layout: Layout,
         embedded_cells: Vec<Gc<CellHeader>>,
         snapshot_executables: Vec<SnapshotExecutable>,
@@ -231,7 +233,7 @@ impl JitCode {
     }
 
     fn artifact(&self) -> Artifact<'_, TableWord> {
-        Artifact::new(&self.tables, &self.layout)
+        Artifact::new(self.tables.words(), &self.layout)
     }
 
     /// Gives the code where its frames keep the index of a site and the register dump the runtime reads.
