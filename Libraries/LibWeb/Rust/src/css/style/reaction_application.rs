@@ -122,6 +122,8 @@ unsafe extern "C" {
         swap_count: usize,
         effects: *const InstalledElementEffects,
         effect_count: usize,
+        cleared_descendants: *const u32,
+        cleared_descendant_count: usize,
         document_damage: u32,
     );
 }
@@ -181,6 +183,8 @@ impl Application<'_> {
                 installation.swaps.len(),
                 installation.effects.as_ptr(),
                 installation.effects.len(),
+                installation.cleared_descendants.as_ptr(),
+                installation.cleared_descendants.len(),
                 installation.document_damage,
             );
         }
