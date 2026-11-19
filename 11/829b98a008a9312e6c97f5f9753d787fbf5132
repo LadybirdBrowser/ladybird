@@ -1,0 +1,5 @@
+Under tab-size: 0, Ladybird gives each preserved tab no advance. In
+Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5, an X after “a” and
+two tabs sits right after the a, at one character’s advance. WebKit’s
+FontCascade::tabWidth() and Blink’s Font::TabWidth() return the letter
+spacing for a tab size of 0 rather than dividing by it.
