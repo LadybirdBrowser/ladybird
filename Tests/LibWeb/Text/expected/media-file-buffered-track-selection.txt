@@ -1,5 +1,5 @@
-Video limits start: true
-Audio-only starts earlier: true
+Starts at the earliest possible position: true
+Audio-only starts at the same position: true
 Reselecting video restores start: true
 Video-only retains start: true
 No active tracks: true

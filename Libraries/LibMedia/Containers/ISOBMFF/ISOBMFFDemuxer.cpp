@@ -108,6 +108,7 @@ void ISOBMFFDemuxer::start_scan()
                 decodable_run.clear();
             };
             bool last_sample_available = false;
+            bool sample_is_first_of_track = true;
             bool track_reached_end = availability.closing_bytes_are_available();
             if (!iterator.is_error()) {
                 for (;;) {
@@ -119,6 +120,7 @@ void ISOBMFFDemuxer::start_scan()
                     if (!next.value().has_value())
                         break;
                     auto const& sample = next.value().value();
+                    bool sample_is_first = exchange(sample_is_first_of_track, false);
                     auto end = sample.presentation_timestamp + sample.duration;
                     duration = max(duration, end);
                     state.duration = max(state.duration, end);
@@ -130,10 +132,13 @@ void ISOBMFFDemuxer::start_scan()
                         end_decodable_run();
                         continue;
                     }
-                    if (decodable_run.has_value())
+                    if (decodable_run.has_value()) {
                         decodable_run->end = max(decodable_run->end, end);
-                    else if (sample.is_sync_sample)
-                        decodable_run = TimeRanges::Range { max(sample.presentation_timestamp, AK::Duration::zero()), end };
+                    } else if (sample.is_sync_sample) {
+                        // Data from the start of the track is playable from the start of the timeline.
+                        auto start = sample_is_first ? AK::Duration::zero() : max(sample.presentation_timestamp, AK::Duration::zero());
+                        decodable_run = TimeRanges::Range { start, end };
+                    }
                 }
                 end_decodable_run();
             } else {
