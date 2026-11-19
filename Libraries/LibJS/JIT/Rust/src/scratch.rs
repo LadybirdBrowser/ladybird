@@ -8,6 +8,7 @@
 
 use crate::artifact::ArtifactWriter;
 use crate::codegen::sites::SiteScratch;
+use crate::passes::dominators::Dominators;
 use crate::regalloc::Regalloc;
 
 /// What a compile keeps its data in, apart from what the heap still holds of it. A thread that compiles has one, and
@@ -18,6 +19,9 @@ pub struct Scratch {
     pub(crate) artifact: ArtifactWriter,
     pub(crate) sites: SiteScratch,
     pub(crate) regalloc: Regalloc,
+    /// The dominators of the graph. The passes and the register allocator compute them when they need them, for the
+    /// graph as it is then.
+    pub(crate) dominators: Dominators,
 }
 
 impl Default for Scratch {
@@ -33,6 +37,7 @@ impl Scratch {
             artifact: ArtifactWriter::new(),
             sites: SiteScratch::new(),
             regalloc: Regalloc::new(),
+            dominators: Dominators::new(),
         }
     }
 
@@ -41,5 +46,6 @@ impl Scratch {
         self.artifact.release_memory();
         self.sites.release_memory();
         self.regalloc.release_memory();
+        self.dominators.release_memory();
     }
 }

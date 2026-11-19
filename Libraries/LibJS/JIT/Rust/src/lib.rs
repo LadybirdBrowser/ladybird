@@ -119,16 +119,22 @@ fn compile_into<M: asm::PortableMacroAssembler>(
             &mut graph,
             &executable.layout,
             snapshot.options.verify_ir,
-        ))
+            &mut scratch.dominators,
+        )?)
     } else {
-        passes::optimize(&mut graph, &executable.layout, snapshot.options.verify_ir);
+        passes::optimize(
+            &mut graph,
+            &executable.layout,
+            snapshot.options.verify_ir,
+            &mut scratch.dominators,
+        )?;
         None
     };
     let (mut registers, _) = codegen::target_registers::<M>();
     if snapshot.options.stress.few_registers {
         registers.allocatable_gprs = registers.few_registers(STRESS_EXTRA_REGISTERS);
     }
-    regalloc::allocate(&graph, &registers, &mut scratch.regalloc)?;
+    regalloc::allocate(&graph, &registers, &mut scratch.regalloc, &mut scratch.dominators)?;
     if snapshot.options.verify_ir
         && let Err(errors) = regalloc::verify(&graph, &registers, &scratch.regalloc.allocation)
     {

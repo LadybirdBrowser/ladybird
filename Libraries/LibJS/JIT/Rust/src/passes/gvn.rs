@@ -12,6 +12,8 @@
 //! Nodes that may exit qualify too: the dominating node made the same check
 //! on the same values, so this one cannot fail.
 
+use ak::ColumnFull;
+
 use super::dominators::Dominators;
 use super::edit;
 use super::edit::Replacements;
@@ -38,8 +40,8 @@ fn is_numbered(op: &Op) -> bool {
         && !op.is_control()
 }
 
-pub fn run(graph: &mut Graph) {
-    run_with_hash(graph, |node, replacements| {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
+    run_with_hash(graph, dominators, |node, replacements| {
         let mut hash = FastHasher::default();
         discriminant(&node.op).hash(&mut hash);
         node.inputs.len().hash(&mut hash);
@@ -47,10 +49,14 @@ pub fn run(graph: &mut Graph) {
             replacements.resolve(*input).hash(&mut hash);
         }
         hash.finish()
-    });
+    })
 }
 
-fn run_with_hash(graph: &mut Graph, hash: impl Fn(&Node, &Replacements) -> u64) {
+fn run_with_hash(
+    graph: &mut Graph,
+    dominators: &mut Dominators,
+    hash: impl Fn(&Node, &Replacements) -> u64,
+) -> Result<(), ColumnFull> {
     if graph
         .blocks
         .iter()
@@ -60,10 +66,9 @@ fn run_with_hash(graph: &mut Graph, hash: impl Fn(&Node, &Replacements) -> u64) 
         .count()
         < 2
     {
-        return;
+        return Ok(());
     }
-    let dominators = Dominators::compute(graph);
-    let children = dominators.children();
+    dominators.compute(graph)?;
     let mut replacements = Replacements::new(graph);
     let mut removed = BitSet::new(graph.nodes.len());
     // NB: Hash borrowed inputs instead of allocating keys. Candidates with
@@ -135,12 +140,13 @@ fn run_with_hash(graph: &mut Graph, hash: impl Fn(&Node, &Replacements) -> u64) 
             added.push((key, old));
         }
         steps.push(Step::Leave(checkpoint));
-        for child in children[block.index()].iter().rev() {
+        for child in dominators.children(block).iter().rev() {
             steps.push(Step::Enter(*child));
         }
     }
     replacements.apply(graph);
     edit::remove_nodes(graph, &removed);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -162,7 +168,7 @@ mod tests {
         let returned = graph.add_node(Node::new(Op::Return, vec![duplicate], None, 0));
         graph.blocks[0].body = vec![first, different_input, different_operation, duplicate];
         graph.blocks[0].control = Some(returned);
-        run_with_hash(&mut graph, |_, _| 0);
+        run_with_hash(&mut graph, &mut Dominators::new(), |_, _| 0).unwrap();
         assert_eq!(graph.blocks[0].body, [first, different_input, different_operation]);
         assert_eq!(graph.node(returned).inputs, [first]);
     }

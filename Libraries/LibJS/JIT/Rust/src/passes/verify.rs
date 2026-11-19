@@ -118,9 +118,14 @@ pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), St
 
 /// Returns a description of every violated invariant, or `Ok` if there is none.
 pub fn verify(graph: &Graph) -> Result<(), String> {
+    verify_with(graph, &mut Dominators::new())
+}
+
+/// `verify()`, with `dominators` as the tables to compute the dominators of the graph in.
+pub fn verify_with(graph: &Graph, dominators: &mut Dominators) -> Result<(), String> {
     let places = verify_blocks(graph)?;
     verify_edges(graph)?;
-    verify_nodes(graph, &places)?;
+    verify_nodes(graph, &places, dominators)?;
     verify_frame_states(graph)
 }
 
@@ -233,9 +238,12 @@ fn verify_edges(graph: &Graph) -> Result<(), String> {
 
 /// Checks that values are defined before their uses, and the rules of each
 /// kind of node.
-fn verify_nodes(graph: &Graph, places: &[Option<Place>]) -> Result<(), String> {
+fn verify_nodes(graph: &Graph, places: &[Option<Place>], dominators: &mut Dominators) -> Result<(), String> {
     let mut errors: Vec<String> = Vec::new();
-    let dominators = Dominators::compute(graph);
+    if dominators.compute(graph).is_err() {
+        return Err("the graph has more blocks than the tables of the dominators hold".to_string());
+    }
+    let dominators = &*dominators;
     let is_defined_before = |value: NodeId, block: BlockId, index: usize| -> bool {
         // NB: Virtual objects are in no block; their properties are listed
         //     with the frame state values that need them.

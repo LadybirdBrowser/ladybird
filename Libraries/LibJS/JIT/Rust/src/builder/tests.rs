@@ -7,6 +7,7 @@
 use super::*;
 use crate::bytecode::test_support::*;
 use crate::ir::dump;
+use crate::passes::dominators::Dominators;
 use crate::snapshot::ExecutableSnapshot;
 use crate::snapshot::List;
 
@@ -47,14 +48,20 @@ pub(crate) fn build_with_layout(program: &Program, layout: FrameLayout, never_ra
         .map(|index| program.offsets[*index])
         .collect::<Vec<_>>();
     let mut graph = build_graph_with_feedback(&snapshot, &|pc| !never_ran_pcs.contains(&pc)).unwrap();
-    crate::passes::optimize(&mut graph, &layout, true);
+    crate::passes::optimize(&mut graph, &layout, true, &mut Dominators::new()).unwrap();
     graph
 }
 
 /// Builds and optimizes the graph of `snapshot`, like compilation does.
 pub(crate) fn optimized_graph(snapshot: &Snapshot) -> Graph {
     let mut graph = build_graph(snapshot).unwrap();
-    crate::passes::optimize(&mut graph, &snapshot.executables[0].layout, true);
+    crate::passes::optimize(
+        &mut graph,
+        &snapshot.executables[0].layout,
+        true,
+        &mut Dominators::new(),
+    )
+    .unwrap();
     graph
 }
 

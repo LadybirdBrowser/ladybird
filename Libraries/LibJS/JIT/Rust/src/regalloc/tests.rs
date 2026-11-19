@@ -18,6 +18,7 @@ use crate::code::SiteKind;
 use crate::code::ValueLocation;
 use crate::codegen::sites::SiteSource;
 use crate::ir::value;
+use crate::passes::dominators::Dominators;
 
 /// The tables of a register allocation, which the tests read as the allocation.
 struct Allocated(Regalloc);
@@ -38,7 +39,7 @@ impl std::ops::DerefMut for Allocated {
 
 fn allocate_with(graph: &Graph, registers: &RegisterSet) -> Allocated {
     let mut regalloc = Regalloc::new();
-    allocate(graph, registers, &mut regalloc).unwrap();
+    allocate(graph, registers, &mut regalloc, &mut Dominators::new()).unwrap();
     Allocated(regalloc)
 }
 
@@ -412,10 +413,7 @@ fn loop_phis_share_spill_slots_with_their_inputs() {
     let (mut shared, mut filled) = (0, 0);
     for phi in &graph.blocks[header].phis {
         let input = graph.node(*phi).inputs[back_edge];
-        let (phi_slot, input_slot) = (
-            allocation.node(*phi).spill_slot,
-            allocation.node(input).spill_slot,
-        );
+        let (phi_slot, input_slot) = (allocation.node(*phi).spill_slot, allocation.node(input).spill_slot);
         if let (Some(phi_slot), Some(input_slot)) = (phi_slot, input_slot) {
             assert_eq!(phi_slot, input_slot, "{}", dump_allocation(&graph, &allocation));
             shared += 1;
@@ -1251,7 +1249,13 @@ fn float64_values_get_floating_point_registers() {
         ..Default::default()
     }]);
     let mut graph = crate::builder::build_graph_with_feedback(&snapshot, &|_| true).unwrap();
-    crate::passes::optimize(&mut graph, &snapshot.executables[0].layout, true);
+    crate::passes::optimize(
+        &mut graph,
+        &snapshot.executables[0].layout,
+        true,
+        &mut Dominators::new(),
+    )
+    .unwrap();
     let allocation = allocate_and_verify(&graph);
     let mut floats = 0;
     for (index, node) in graph.nodes.iter().enumerate() {
