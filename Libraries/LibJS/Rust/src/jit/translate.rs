@@ -7,7 +7,7 @@
 //! The translator from the state of compiled code at one of its sites to the interpreter's state.
 //!
 //! A site is a point of compiled code with a chain of frame states, innermost first (see
-//! `libjs_jit::code::Site`): an exit, a leave (a slow path that did not continue in compiled code), a slow path or
+//! `libjs_jit::artifact::SiteView`): an exit, a leave (a slow path that did not continue in compiled code), a slow path or
 //! call in an inlined callee that runs in the frames of the inlined calls it is in, or a call in an inlined callee that
 //! runs without them. The outermost frame state is the compiled function's own frame; the others are frames of inlined
 //! calls, which exist only as values of compiled code until the translator writes them.
@@ -24,14 +24,13 @@ use core::ptr::NonNull;
 use std::collections::HashMap;
 
 use libjs_abi::register;
-use libjs_jit::code::{
-    CALLEE_SLOT, FrameState, Repr, ResumeMode, Site, SiteKind, ValueLocation, VirtualObjectDescriptorKind,
-};
+use libjs_jit::code::{CALLEE_SLOT, Repr, ResumeMode, SiteKind, ValueLocation, VirtualObjectDescriptorKind};
 use libjs_runtime_macros::Trace;
 
 use super::allocation::clone_function;
 use super::code::{
-    CompileState, EXIT_COUNT_BEFORE_DISCARD, FRUITLESS_LOOP_CHECKS_AFTER_EXIT, InlinedFunction, JitCode,
+    CompileState, EXIT_COUNT_BEFORE_DISCARD, FRUITLESS_LOOP_CHECKS_AFTER_EXIT, FrameState, InlinedFunction, JitCode,
+    Site,
 };
 use super::{executable_of, frame_of, frames_above};
 use crate::bytecode::executable::Executable;
@@ -173,7 +172,7 @@ struct SiteValues<'a> {
     vm: &'a Vm,
     code: &'a JitCode,
     root: NonNull<ExecutionContext>,
-    site: &'a Site,
+    site: Site<'a>,
     dump: &'a RegisterDump,
     created: Deferred<'a, HashMap<u32, Gc<Object>>>,
     /// Whether the objects created are remembered for the frame, for a frame that continues in compiled code until it
@@ -189,7 +188,7 @@ impl<'a> SiteValues<'a> {
         vm: &'a Vm,
         code: &'a JitCode,
         root: NonNull<ExecutionContext>,
-        site: &'a Site,
+        site: Site<'a>,
         dump: &'a RegisterDump,
         defer_gc: &'a DeferGc<'_>,
     ) -> Self {
@@ -212,16 +211,16 @@ impl<'a> SiteValues<'a> {
         if let Some(object) = self.created.get(&index) {
             return Value::from_object(*object);
         }
-        let description = &self.site.objects[index as usize];
+        let description = self.site.object(index);
         // NB: An object created for the frame before is the one the frame has, with whatever happened to it since.
         if let Some(object) = self
             .code
-            .materialized_object(self.root.as_ptr(), description.allocation)
+            .materialized_object(self.root.as_ptr(), description.allocation())
         {
             self.created.insert(index, object);
             return Value::from_object(object);
         }
-        let shape = match description.kind {
+        let shape = match description.kind() {
             VirtualObjectDescriptorKind::Object { shape } => shape,
             VirtualObjectDescriptorKind::Closure { sample } => {
                 // SAFETY: The code embeds the sample, which keeps it alive.
@@ -229,14 +228,14 @@ impl<'a> SiteValues<'a> {
                 let closure = clone_function(
                     self.vm,
                     sample,
-                    read_cell_address(description.properties[0], self.dump),
-                    read_cell_address(description.properties[1], self.dump),
+                    read_cell_address(description.property(0).expect("a closure has environments"), self.dump),
+                    read_cell_address(description.property(1).expect("a closure has environments"), self.dump),
                 )
                 .upcast::<Object>();
                 self.created.insert(index, closure);
                 if self.remember {
                     self.code
-                        .remember_materialized_object(self.root.as_ptr(), description.allocation, closure);
+                        .remember_materialized_object(self.root.as_ptr(), description.allocation(), closure);
                 }
                 return Value::from_object(closure);
             }
@@ -248,12 +247,12 @@ impl<'a> SiteValues<'a> {
         self.created.insert(index, object);
         if self.remember {
             self.code
-                .remember_materialized_object(self.root.as_ptr(), description.allocation, object);
+                .remember_materialized_object(self.root.as_ptr(), description.allocation(), object);
         }
         let property_count = shape.property_count();
         for index in 0..property_count {
-            let value = match description.properties.get(index as usize) {
-                Some(location) => self.value(*location),
+            let value = match description.property(index as usize) {
+                Some(location) => self.value(location),
                 None => Value::UNDEFINED,
             };
             object.initialize_direct(index, value);
@@ -266,9 +265,11 @@ impl<'a> SiteValues<'a> {
     /// `arguments` of the frame's function shows, which code reading them creates (see `resolve_deferred_arguments()`),
     /// so that nothing creates it while nothing reads it. Compiled code leaves after the calls where they may be read
     /// (see `libjs_jit::ir::Op::AssumeLegacyArgumentsUnread`).
-    fn argument_value(&mut self, slot: u32, location: ValueLocation, frame_state: &FrameState) -> Value {
+    fn argument_value(&mut self, slot: u32, location: ValueLocation, frame_state: FrameState<'_>) -> Value {
         match (self.deferred_arguments, location) {
-            (Some(frame_pointer), ValueLocation::VirtualObject(_)) if frame_state.legacy_arguments.contains(&slot) => {
+            (Some(frame_pointer), ValueLocation::VirtualObject(_))
+                if frame_state.legacy_arguments().contains(&slot) =>
+            {
                 deferred_argument_marker(frame_pointer)
             }
             _ => self.value(location),
@@ -277,18 +278,14 @@ impl<'a> SiteValues<'a> {
 
     /// The function the frame of `frame_state`, a frame of an inlined call, runs: the closure that was called for
     /// frames of inlined closures, and otherwise the function the code was compiled for.
-    fn function(&mut self, code: &JitCode, frame_state: &FrameState) -> InlinedFunction {
-        let closure = frame_state
-            .values
-            .iter()
-            .find(|(slot, _)| *slot == CALLEE_SLOT)
-            .map(|(_, location)| self.value(*location));
+    fn function(&mut self, code: &JitCode, frame_state: FrameState<'_>) -> InlinedFunction {
+        let closure = frame_state.callee().map(|location| self.value(location));
         match closure {
             Some(closure) => InlinedFunction::Ecmascript(
                 as_ecmascript_function_object(closure.as_object()).expect("an inlined closure is a function"),
             ),
             None => code
-                .snapshot_executable(frame_state.executable)
+                .snapshot_executable(frame_state.executable())
                 .function
                 .expect("an inlined executable has a function"),
         }
@@ -318,13 +315,8 @@ fn arguments_base_of(executable: &Executable) -> u32 {
 }
 
 /// Where `frame_state`, of a frame of `executable`, has the argument `argument`, if it lists it.
-fn argument_location(frame_state: &FrameState, executable: &Executable, argument: u32) -> Option<ValueLocation> {
-    let slot = arguments_base_of(executable) + argument;
-    frame_state
-        .values
-        .iter()
-        .find(|(listed, _)| *listed == slot)
-        .map(|(_, location)| *location)
+fn argument_location(frame_state: FrameState<'_>, executable: &Executable, argument: u32) -> Option<ValueLocation> {
+    frame_state.value(arguments_base_of(executable) + argument)
 }
 
 /// Whether `code` is the code `compiled_executable` has installed. What discarded code learns counts for no later
@@ -386,14 +378,14 @@ fn call_instruction_shape(executable: &Executable, pc: u32) -> (u32, u32, CallKi
 /// The linkage of the frame of `executable` at the call of `frame_state`: its frame continues after the call (or
 /// CallConstruct, or the GetById of a getter or the PutById of a setter) instruction once the callee returns into its
 /// destination.
-fn call_linkage(executable: &Executable, frame_state: &FrameState) -> CallLinkage {
-    let ResumeMode::ResumeAfter { dst } = frame_state.mode else {
+fn call_linkage(executable: &Executable, frame_state: FrameState<'_>) -> CallLinkage {
+    let ResumeMode::ResumeAfter { dst } = frame_state.mode() else {
         unreachable!("frames at calls resume after them");
     };
-    let pc = frame_state.pc;
+    let pc = frame_state.pc();
     let (argument_count, length, kind) = call_instruction_shape(executable, pc);
     CallLinkage {
-        passed_argument_count: frame_state.passed_argument_count.unwrap_or(argument_count),
+        passed_argument_count: frame_state.passed_argument_count().unwrap_or(argument_count),
         return_pc: pc + length,
         dst,
         is_construct: kind != CallKind::Call,
@@ -539,13 +531,13 @@ enum Destination {
 fn write_frame_state(
     vm: &Vm,
     frame: &ExecutionContext,
-    frame_state: &FrameState,
+    frame_state: FrameState<'_>,
     values: &mut SiteValues<'_>,
     destination: Destination,
 ) {
     // NB: The frame holds the slots listed as in it, and the destination of the instruction it resumes after is never
     //     cleared.
-    let resume_destination = match frame_state.mode {
+    let resume_destination = match frame_state.mode() {
         ResumeMode::ResumeAfter { dst } => Some(dst),
         ResumeMode::ResumeAt => None,
     };
@@ -561,8 +553,8 @@ fn write_frame_state(
     // NB: Frame states list every live slot, so the others are dead. Clearing them keeps the interpreter from seeing
     //     values the compiled code no longer maintains, and drops references to them. Both lists are in slot order.
     let registers_and_locals_count = executable_of(frame).registers_and_locals_count();
-    let mut held = frame_state.in_frame.iter().copied().peekable();
-    let mut written = frame_state.values.iter().map(|(slot, _)| *slot).peekable();
+    let mut held = frame_state.in_frame().iter().peekable();
+    let mut written = frame_state.slots().iter().peekable();
     for index in register::RESERVED_REGISTER_COUNT..registers_and_locals_count {
         let is_held = sorted_slots_contain(&mut held, index);
         let is_written = sorted_slots_contain(&mut written, index);
@@ -575,22 +567,22 @@ fn write_frame_state(
     let mut arguments_object_slots = Vec::new();
     let arguments_base = arguments_base_of(&executable_of(frame));
     let mut has_deferred_arguments = false;
-    for (slot, location) in &frame_state.values {
+    for (slot, location) in frame_state.values() {
         // NB: The function object of a frame of an inlined closure is in no slot.
-        if *slot == CALLEE_SLOT || Some(*slot) == kept {
+        if slot == CALLEE_SLOT || Some(slot) == kept {
             continue;
         }
         if let ValueLocation::ArgumentsObject { mapped } = location {
-            arguments_object_slots.push((*slot, *mapped));
+            arguments_object_slots.push((slot, mapped));
             continue;
         }
-        let value = if *slot >= arguments_base {
-            values.argument_value(*slot, *location, frame_state)
+        let value = if slot >= arguments_base {
+            values.argument_value(slot, location, frame_state)
         } else {
-            values.value(*location)
+            values.value(location)
         };
         has_deferred_arguments |= deferred_argument_frame_pointer(value).is_some();
-        slots[*slot as usize].set(value);
+        slots[slot as usize].set(value);
     }
     // NB: A frame with markers among its arguments does not run in the interpreter before a leave writes it again, and
     //     nothing else reads its arguments object.
@@ -629,14 +621,14 @@ fn push_site_frames(
     innermost_destination: Destination,
 ) -> NonNull<ExecutionContext> {
     let site = values.site;
-    let frame_states = &site.frames;
-    assert!(!frame_states.is_empty());
+    let frame_count = site.frame_count();
     let mut frame = root;
     let mut linkage = None;
-    for (index, frame_state) in frame_states.iter().enumerate().rev() {
-        let is_root = index + 1 == frame_states.len();
+    for index in (0..frame_count).rev() {
+        let frame_state = site.frame(index);
+        let is_root = index + 1 == frame_count;
         if is_root {
-            assert_eq!(frame_state.executable, 0);
+            assert_eq!(frame_state.executable(), 0);
         } else {
             let function = values.function(code, frame_state);
             frame = push_frame(
@@ -655,7 +647,7 @@ fn push_site_frames(
                 Destination::WriteOldValue
             };
             write_frame_state(vm, frame_ref, frame_state, values, destination);
-            frame_ref.program_counter.set(frame_state.pc);
+            frame_ref.program_counter.set(frame_state.pc());
         }
         if !is_root {
             let this_value = frame_ref.register(register::THIS_VALUE).get();
@@ -675,7 +667,7 @@ fn push_site_frames(
 /// The interpreter then continues in the innermost frame.
 pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, index: u32, dump: &RegisterDump) {
     let site = code.site(index);
-    let SiteKind::Exit(kind) = site.kind else {
+    let SiteKind::Exit(kind) = site.kind() else {
         unreachable!("exits are sites of exits");
     };
     // NB: Exits the "stress-exits" option causes teach the executable nothing.
@@ -707,13 +699,13 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
         Destination::Keep,
     );
     code.forget_materialized_objects(root.as_ptr());
-    let frame_state = &site.frames[0];
+    let frame_state = site.frame(0);
     let frame_ref = frame_of(innermost);
     let executable = executable_of(frame_ref);
-    if let ResumeMode::ResumeAfter { .. } = frame_state.mode {
+    if let ResumeMode::ResumeAfter { .. } = frame_state.mode() {
         // NB: The call already stored its result in its destination slot.
         let bytecode = executable.bytecode();
-        let pc = frame_state.pc;
+        let pc = frame_state.pc();
         let length = instruction_length_from_bytes(bytecode[pc as usize], bytecode, pc as usize)
             .expect("the bytecode is valid") as u32;
         frame_ref.program_counter.set(pc + length);
@@ -726,7 +718,7 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
             eprintln!(
                 "JIT exit: {} pc {} {:?}{stress}, code {:p}/{}",
                 super::describe_executable(&executable),
-                frame_state.pc,
+                frame_state.pc(),
                 kind,
                 compiled_executable.as_ptr(),
                 compiled_executable.jit_discard_count()
@@ -735,7 +727,7 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
             eprintln!(
                 "JIT exit: {} pc {} {:?}{stress}, inlined into {}, code {:p}/{}",
                 super::describe_executable(&executable),
-                frame_state.pc,
+                frame_state.pc(),
                 kind,
                 super::describe_executable(&compiled_executable),
                 compiled_executable.as_ptr(),
@@ -761,26 +753,26 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
         frame = NonNull::new(frame_of(frame).caller_frame.get()).expect("materialized frames are linked to the root");
     }
     vm.jit.count_coverage(format_args!("exit.{kind:?}"));
-    if site.frames.len() > 1 {
+    if site.frame_count() > 1 {
         vm.jit.count_coverage("exit.from-inlined-code");
     }
     // NB: Exits in inlined builtins count for the code they were inlined into only.
     // NB: Invalidated code was discarded, and its recompile sees that what it depended on no longer holds. An interrupt
     //     speculated nothing, and nothing runs after it.
-    let snapshot_executable = code.snapshot_executable(frame_state.executable);
+    let snapshot_executable = code.snapshot_executable(frame_state.executable());
     let learned = if matches!(
         kind,
         libjs_jit::code::ExitKind::Invalidated | libjs_jit::code::ExitKind::Interrupted
     ) {
         false
     } else if matches!(snapshot_executable.function, Some(InlinedFunction::Builtin(_))) {
-        let index = compiled_executable.add_jit_builtin_exit_site((executable.as_ptr() as u64, frame_state.pc, kind));
+        let index = compiled_executable.add_jit_builtin_exit_site((executable.as_ptr() as u64, frame_state.pc(), kind));
         index >= code.snapshot_executable(0).known_builtin_exit_sites
     } else {
         // NB: Sites in inlined callees are their executables', but the compiled code learns from them too.
-        let new_site = executable.add_jit_exit_site((frame_state.pc, kind)) >= snapshot_executable.known_exit_sites;
+        let new_site = executable.add_jit_exit_site((frame_state.pc(), kind)) >= snapshot_executable.known_exit_sites;
         let learned_shapes = kind == libjs_jit::code::ExitKind::BadShape
-            && executable.note_jit_shape_exit(frame_state.pc, &snapshot_executable.property_cache_sizes);
+            && executable.note_jit_shape_exit(frame_state.pc(), &snapshot_executable.property_cache_sizes);
         new_site || learned_shapes
     };
     if learned && is_installed_code(vm, &compiled_executable, code) {
@@ -803,28 +795,28 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
 /// a handler of an inlined callee caught like an exit.
 pub(super) fn leave(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, index: u32, dump: &RegisterDump) {
     let site = code.site(index);
-    assert_eq!(site.kind, SiteKind::Leave);
+    assert_eq!(site.kind(), SiteKind::Leave);
     // NB: The pushed frames are right above the compiled function's, outermost first.
     let Some(frames) = frames_above(vm, root) else {
         code.forget_materialized_objects(root.as_ptr());
         return;
     };
-    let frame_states = &site.frames;
-    let pushed = frames.len().min(frame_states.len() - 1);
+    let frame_count = site.frame_count();
+    let pushed = frames.len().min(frame_count - 1);
 
     // NB: Nothing may collect the objects created here before the frames hold them.
     let defer_gc = DeferGc::new(vm);
     let mut values = SiteValues::new(vm, code, root, site, dump, &defer_gc);
-    let mut write = |frame: &ExecutionContext, frame_state: &FrameState| {
-        let expected = code.snapshot_executable(frame_state.executable).executable;
+    let mut write = |frame: &ExecutionContext, frame_state: FrameState<'_>| {
+        let expected = code.snapshot_executable(frame_state.executable()).executable;
         assert!(executable_of(frame) == expected);
         write_frame_state(vm, frame, frame_state, &mut values, Destination::WriteOldValue);
     };
-    write(frame_of(root), frame_states.last().expect("there is a frame state"));
+    write(frame_of(root), site.frame(frame_count - 1));
     for index in 0..pushed {
         // NB: The slow path ran in the innermost frame, whose outputs its frame state lists as in the frame.
         let frame = frames[frames.len() - 1 - index];
-        write(frame_of(frame), &frame_states[frame_states.len() - 2 - index]);
+        write(frame_of(frame), site.frame(frame_count - 2 - index));
     }
     code.forget_materialized_objects(root.as_ptr());
 
@@ -851,21 +843,22 @@ pub(super) fn leave(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, in
 /// runs in the innermost one, which is the running frame.
 pub(super) fn publish(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, index: u32, dump: &RegisterDump) {
     let site = code.site(index);
-    assert_eq!(site.kind, SiteKind::Publish);
+    assert_eq!(site.kind(), SiteKind::Publish);
     assert_eq!(vm.running_execution_context(), Some(root));
-    let frame_states = &site.frames;
-    assert!(frame_states.len() >= 2);
+    let frame_count = site.frame_count();
+    assert!(frame_count >= 2);
     // NB: Nothing may collect the objects created here before the frames hold them.
     let defer_gc = DeferGc::new(vm);
     let mut values = SiteValues::new(vm, code, root, site, dump, &defer_gc);
     // NB: The values of the site stay in the register dump of the JIT frame while the slow path runs.
     values.deferred_arguments = Some(dump.gprs[RegisterDump::FRAME_POINTER]);
     // NB: The compiled function's frame is at the call of the outermost inlined call, which stack walks show.
-    let root_frame_state = frame_states.last().expect("a frame state");
-    frame_of(root).program_counter.set(root_frame_state.pc);
+    let root_frame_state = site.frame(frame_count - 1);
+    frame_of(root).program_counter.set(root_frame_state.pc());
     let mut linkage = call_linkage(&executable_of(frame_of(root)), root_frame_state);
     let mut caller = root;
-    for (index, frame_state) in frame_states.iter().enumerate().rev().skip(1) {
+    for index in (0..frame_count - 1).rev() {
+        let frame_state = site.frame(index);
         let function = values.function(code, frame_state);
         let frame = push_frame(vm, frame_of(caller), function, linkage, FrameSlots::Uninitialized);
         caller = frame;
@@ -873,18 +866,18 @@ pub(super) fn publish(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, 
         let executable = executable_of(frame_ref);
         let arguments_base = arguments_base_of(&executable);
         let slots = frame_ref.slots();
-        for (slot, location) in &frame_state.values {
-            if *slot == register::THIS_VALUE {
-                let this_value = values.value(*location);
-                slots[*slot as usize].set(this_value);
+        for (slot, location) in frame_state.values() {
+            if slot == register::THIS_VALUE {
+                let this_value = values.value(location);
+                slots[slot as usize].set(this_value);
                 if this_value != Value::EMPTY {
                     frame_ref.this_value.set(this_value);
                 }
-            } else if *slot != CALLEE_SLOT && *slot >= arguments_base {
-                slots[*slot as usize].set(values.argument_value(*slot, *location, frame_state));
+            } else if slot != CALLEE_SLOT && slot >= arguments_base {
+                slots[slot as usize].set(values.argument_value(slot, location, frame_state));
             }
         }
-        frame_ref.program_counter.set(frame_state.pc);
+        frame_ref.program_counter.set(frame_state.pc());
         if index != 0 {
             linkage = call_linkage(&executable, frame_state);
         }
@@ -907,8 +900,8 @@ pub(super) fn materialize_call_site_frames(
     let compiled_executable = executable_of(frame_of(root));
     let code = compiled_executable.jit_code(vm).expect("the code is attached");
     let site = code.site(index);
-    assert_eq!(site.kind, SiteKind::Call);
-    assert!(site.frames.len() >= 2);
+    assert_eq!(site.kind(), SiteKind::Call);
+    assert!(site.frame_count() >= 2);
 
     let stack = vm.interpreter_stack();
     let running = vm.head.running_execution_context.get();
@@ -919,7 +912,7 @@ pub(super) fn materialize_call_site_frames(
             callee
                 .as_ptr()
                 .cast::<u8>()
-                .wrapping_sub(site.inlined_frame_bytes as usize),
+                .wrapping_sub(site.inlined_frame_bytes() as usize),
         );
     }
     vm.head.running_execution_context.set(root.as_ptr());
@@ -943,7 +936,7 @@ pub(super) fn materialize_call_site_frames(
 
     if let Some(callee) = callee {
         assert!(stack.top.get() <= callee.as_ptr().cast());
-        let linkage = call_linkage(&executable_of(frame_of(innermost)), &site.frames[0]);
+        let linkage = call_linkage(&executable_of(frame_of(innermost)), site.frame(0));
         let callee_ref = frame_of(callee);
         callee_ref.caller_frame.set(innermost.as_ptr());
         callee_ref.caller_return_pc.set(linkage.return_pc);
@@ -995,24 +988,21 @@ pub fn call_site_frames<'vm>(
         .jit_code(vm)
         .expect("a frame at a call site in an inlined callee runs its JIT code");
     let site = code.site(index);
-    assert_eq!(site.kind, SiteKind::Call);
+    assert_eq!(site.kind(), SiteKind::Call);
     let dump = RegisterDump::of_stack_slots(frame_pointer);
-    let (_, inlined) = site.frames.split_last().expect("a call site has frames");
-    let frames = MarkedVec::with_capacity(vm, inlined.len());
-    for (index, frame_state) in inlined.iter().enumerate() {
-        let snapshot_executable = code.snapshot_executable(frame_state.executable);
+    // NB: The last frame is the compiled function's.
+    let inlined_count = site.frame_count() - 1;
+    let frames = MarkedVec::with_capacity(vm, inlined_count);
+    for (index, frame_state) in site.frames().take(inlined_count).enumerate() {
+        let snapshot_executable = code.snapshot_executable(frame_state.executable());
         // NB: Frames of inlined closures run the closure that was called. Walks create no objects, and the closure
         //     never is one the code did not create.
-        let closure = frame_state
-            .values
-            .iter()
-            .find(|(slot, _)| *slot == CALLEE_SLOT)
-            .and_then(|(_, location)| match location {
-                ValueLocation::Stack(..) | ValueLocation::Constant(_) | ValueLocation::Frame(_) => {
-                    Some(read_location(*location, &dump, NonNull::from(frame)))
-                }
-                _ => None,
-            });
+        let closure = frame_state.callee().and_then(|location| match location {
+            ValueLocation::Stack(..) | ValueLocation::Constant(_) | ValueLocation::Frame(_) => {
+                Some(read_location(location, &dump, NonNull::from(frame)))
+            }
+            _ => None,
+        });
         let function = match closure {
             Some(closure) => as_ecmascript_function_object(closure.as_object())
                 .expect("an inlined closure is a function")
@@ -1028,7 +1018,7 @@ pub fn call_site_frames<'vm>(
         frames.push(CallSiteFrame {
             function,
             executable: snapshot_executable.executable,
-            program_counter: frame_state.pc,
+            program_counter: frame_state.pc(),
             frame_state: index,
         });
     }
@@ -1052,11 +1042,11 @@ pub fn call_site_frame_arguments<'d>(
         .jit_code(vm)
         .expect("a frame at a call site in an inlined callee runs its JIT code");
     let site = code.site(index);
-    let caller_frame_state = &site.frames[frame_state + 1];
-    let caller_executable = code.snapshot_executable(caller_frame_state.executable).executable;
+    let caller_frame_state = site.frame(frame_state + 1);
+    let caller_executable = code.snapshot_executable(caller_frame_state.executable()).executable;
     let passed_argument_count = call_linkage(&caller_executable, caller_frame_state).passed_argument_count;
-    let frame_state = &site.frames[frame_state];
-    let executable = code.snapshot_executable(frame_state.executable).executable;
+    let frame_state = site.frame(frame_state);
+    let executable = code.snapshot_executable(frame_state.executable()).executable;
     // NB: The caller keeps collections deferred while it holds the objects created here.
     let dump = RegisterDump::of_stack_slots(frame_pointer);
     let mut values = SiteValues::new(vm, code, NonNull::from(frame), site, &dump, defer_gc);
@@ -1116,9 +1106,9 @@ fn deferred_argument(vm: &Vm, frame: &ExecutionContext, argument: u32, frame_poi
         .jit_code(vm)
         .expect("a frame suspended in JIT code has it attached");
     let site = code.site(code.site_index_of_frame(frame_pointer));
-    let frame_state = &site.frames[site.frames.len() - 2 - depth];
+    let frame_state = site.frame(site.frame_count() - 2 - depth);
     let executable = executable_of(frame);
-    assert!(code.snapshot_executable(frame_state.executable).executable == executable);
+    assert!(code.snapshot_executable(frame_state.executable()).executable == executable);
     let location =
         argument_location(frame_state, &executable, argument).expect("the frame state lists arguments with markers");
     assert!(matches!(location, ValueLocation::VirtualObject(_)));
@@ -1126,7 +1116,7 @@ fn deferred_argument(vm: &Vm, frame: &ExecutionContext, argument: u32, frame_poi
     let defer_gc = DeferGc::new(vm);
     // NB: The values of a publication are in the JIT frame's register dump while its slow path runs; those of a call
     //     site, in stack slots.
-    let dump = match site.kind {
+    let dump = match site.kind() {
         SiteKind::Publish => RegisterDump::in_jit_frame(code, frame_pointer),
         _ => RegisterDump::of_stack_slots(frame_pointer),
     };
@@ -1142,10 +1132,10 @@ fn deferred_argument(vm: &Vm, frame: &ExecutionContext, argument: u32, frame_poi
 /// invalidated, so that the frame exits after the call (see `libjs_jit::ir::Op::AssumeLegacyArgumentsUnread`) with the
 /// objects created for it, and discarded. Its recompiles allocate the objects at that call (see
 /// `ExitKind::LegacyArgumentsRead`).
-fn note_legacy_arguments_read(vm: &Vm, root: &ExecutionContext, code: &JitCode, frame_state: &FrameState) {
-    let snapshot_executable = code.snapshot_executable(frame_state.executable);
+fn note_legacy_arguments_read(vm: &Vm, root: &ExecutionContext, code: &JitCode, frame_state: FrameState<'_>) {
+    let snapshot_executable = code.snapshot_executable(frame_state.executable());
     let executable = snapshot_executable.executable;
-    let site = (frame_state.pc, libjs_jit::code::ExitKind::LegacyArgumentsRead);
+    let site = (frame_state.pc(), libjs_jit::code::ExitKind::LegacyArgumentsRead);
     let learned = executable.add_jit_exit_site(site) >= snapshot_executable.known_exit_sites;
     let compiled_executable = executable_of(root);
     if learned && is_installed_code(vm, &compiled_executable, code) {
@@ -1156,7 +1146,7 @@ fn note_legacy_arguments_read(vm: &Vm, root: &ExecutionContext, code: &JitCode, 
             "JIT invalidate: {}, legacy arguments of {} read at pc {}",
             super::describe_executable(&compiled_executable),
             super::describe_executable(&executable),
-            frame_state.pc
+            frame_state.pc()
         );
     }
     code.invalidate();

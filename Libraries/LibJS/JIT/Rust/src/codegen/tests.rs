@@ -9,6 +9,7 @@
 //! offsets, and Rust functions standing in for the slow paths and helpers.
 
 use super::*;
+use crate::artifact::Layout;
 use crate::bytecode::FrameLayout;
 use crate::bytecode::Instruction;
 use crate::bytecode::NUM_OPCODES;
@@ -17,7 +18,6 @@ use crate::bytecode::Operand;
 use crate::bytecode::test_support::*;
 use crate::code::CompiledCode;
 use crate::code::ExitKind;
-use crate::code::Site;
 use crate::code::ValueLocation;
 use crate::compile_for;
 use crate::snapshot::FunctionFrameFields;
@@ -134,7 +134,9 @@ struct TestState {
     cells: Vec<u64>,
     /// Every frame of every exit taken.
     exit_frames: Vec<Vec<ExitFrame>>,
-    exits: Vec<Site>,
+    /// The tables of the code, which have `layout`.
+    tables: Vec<u32>,
+    layout: Layout,
     exits_taken: Vec<u32>,
     /// Make the slow path of the instruction at this pc return this control word.
     fail: Option<(u32, i64)>,
@@ -445,14 +447,17 @@ extern "C" fn to_boolean(value: u64) -> u64 {
 /// like the runtime does. Leaves neither count as exits nor move the pc.
 #[jit_abi]
 extern "C" fn jit_exit(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *const u64) {
-    if test_state(vm).borrow().exits[exit_index as usize].kind == SiteKind::Publish {
+    let kind = {
+        let state = test_state(vm).borrow();
+        Artifact::new(&state.tables, &state.layout).site(exit_index).kind()
+    };
+    if kind == SiteKind::Publish {
         publish_frames(vm, exit_index);
         return;
     }
     // NB: Unlike the runtime, the fake pushes no frames for slow paths of
     //     fast paths in inlined callees.
-    let is_leave = matches!(test_state(vm).borrow().exits[exit_index as usize].kind, SiteKind::Leave);
-    if is_leave {
+    if kind == SiteKind::Leave {
         write_frame_states(vm, frame, exit_index, dump, Leaving::Yes);
         return;
     }
@@ -464,23 +469,27 @@ extern "C" fn jit_exit(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *co
 /// calls of a publish site on the fake interpreter stack, linked to their
 /// callers, uninitialized, with their pc.
 fn publish_frames(vm: *mut u64, exit_index: u32) {
-    let (site, layouts, cells) = {
+    let (tables, tables_layout, layouts, cells) = {
         let state = test_state(vm).borrow();
         (
-            state.exits[exit_index as usize].clone(),
+            state.tables.clone(),
+            state.layout,
             state.layouts.clone(),
             state.cells.clone(),
         )
     };
-    for frame_state in site.frames.iter().rev().skip(1) {
-        let layout = layouts[frame_state.executable as usize];
+    let site = Artifact::new(&tables, &tables_layout).site(exit_index);
+    // NB: The last frame is the compiled function's.
+    for index in (0..site.frame_count() - 1).rev() {
+        let frame_state = site.frame(index);
+        let layout = layouts[frame_state.executable() as usize];
         // SAFETY: The fake VM and interpreter stack of the running test are alive.
         unsafe {
             let frame = *vm.add(3) as *mut u64;
             *frame.add(FRAME_CALLER_WORD) = *vm;
-            *frame.cast::<u32>() = frame_state.pc;
+            *frame.cast::<u32>() = frame_state.pc();
             *frame.add(3) &= !0xff;
-            *frame.add(FRAME_EXECUTABLE_WORD) = cells[frame_state.executable as usize];
+            *frame.add(FRAME_EXECUTABLE_WORD) = cells[frame_state.executable() as usize];
             *vm = frame as u64;
             *vm.add(3) =
                 frame.add(FRAME_HEADER_WORDS + (layout.arguments_base() + layout.number_of_arguments) as usize) as u64;
@@ -495,31 +504,31 @@ enum Leaving {
 }
 
 fn write_frame_states(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *const u64, leaving: Leaving) {
-    let descriptor = test_state(vm).borrow().exits[exit_index as usize].clone();
-    assert_eq!(descriptor.kind == SiteKind::Leave, leaving == Leaving::Yes);
+    let (tables, tables_layout) = {
+        let state = test_state(vm).borrow();
+        (state.tables.clone(), state.layout)
+    };
+    let site = Artifact::new(&tables, &tables_layout).site(exit_index);
+    assert_eq!(site.kind() == SiteKind::Leave, leaving == Leaving::Yes);
     let frame_pointer_index = <crate::asm::MacroAssembler as PortableMacroAssembler>::FRAME_POINTER.0 as usize;
     let gpr_dump_count = register_dump_counts::<crate::asm::MacroAssembler>().0 as usize;
     // SAFETY: The dump and the JIT frame it points into are alive during the call.
     let frames = unsafe {
         let frame_pointer = *dump.add(frame_pointer_index);
-        descriptor
-            .frames
-            .iter()
+        site.frames()
             .map(|frame_state| {
                 // NB: Like the runtime, create one arguments object per frame.
                 if frame_state
-                    .values
-                    .iter()
+                    .values()
                     .any(|(_, location)| matches!(location, ValueLocation::ArgumentsObject { .. }))
                 {
                     test_state(vm).borrow_mut().arguments_created += 1;
                 }
                 let values = frame_state
-                    .values
-                    .iter()
+                    .values()
                     .map(|(slot, location)| {
                         // NB: Like the runtime, box unboxed values.
-                        let value = match *location {
+                        let value = match location {
                             ValueLocation::Register(register, repr) => {
                                 // NB: Like the runtime, read float64 values from the FPRs, which the dump
                                 //     holds after the GPRs.
@@ -539,10 +548,10 @@ fn write_frame_states(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *con
                             ValueLocation::ArgumentsObject { mapped } => fake_arguments_object(mapped),
                             ValueLocation::VirtualObject(_) => unreachable!("tests make no virtual objects"),
                         };
-                        (*slot, value)
+                        (slot, value)
                     })
                     .collect::<Vec<_>>();
-                (frame_state.executable, frame_state.pc, frame_state.mode, values)
+                (frame_state.executable(), frame_state.pc(), frame_state.mode(), values)
             })
             .collect::<Vec<_>>()
     };
@@ -573,7 +582,7 @@ fn write_frame_states(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *con
         test_state(vm).borrow_mut().exit_frames.push(frames);
         return;
     }
-    if descriptor.frames.len() < 2 {
+    if site.frame_count() < 2 {
         return;
     }
     // NB: Like the runtime, write the frames compiled code pushed, which are
@@ -938,7 +947,8 @@ impl Machine {
                 .iter()
                 .map(|executable| executable.cell.0)
                 .collect();
-            state.exits = compiled.sites();
+            state.tables.clone_from(&compiled.words);
+            state.layout = compiled.layout;
             state.exits_taken.clear();
         }
         let code = crate::asm::executable_code::ExecutableCode::new(&compiled.code);
@@ -1621,11 +1631,10 @@ mod execution {
             ]
         });
         let (_, compiled) = compile_program(&program, test_layout(), &[5]);
-        assert!(compiled.sites().iter().any(|site| {
-            site.frames[0]
-                .values
-                .iter()
-                .any(|(slot, location)| *slot == l(0).raw() && *location == ValueLocation::Frame(a(0).raw()))
+        assert!(compiled.artifact().sites().any(|site| {
+            site.frame(0)
+                .values()
+                .any(|(slot, location)| slot == l(0).raw() && location == ValueLocation::Frame(a(0).raw()))
         }));
         let (result, machine) = run_with(&program, test_layout(), &[value::int32(5)], &[5], |_| {});
         assert_eq!(result.status, RESUME);
@@ -2389,7 +2398,7 @@ fn aarch64_code_disassembles() {
     assert!(text.contains("blr"), "{text}");
     assert!(text.contains("ret"), "{text}");
     // NB: The slow paths of JumpLessThan and NewArray leave through sites.
-    let kinds = compiled.sites().iter().map(|site| site.kind).collect::<Vec<_>>();
+    let kinds = compiled.artifact().sites().map(|site| site.kind()).collect::<Vec<_>>();
     assert_eq!(
         kinds,
         [SiteKind::Exit(ExitKind::NoFeedback), SiteKind::Leave, SiteKind::Leave]
@@ -2666,7 +2675,7 @@ mod property_access {
         let taken = machine.state.borrow().exits_taken.clone();
         taken
             .iter()
-            .map(|index| match compiled.sites()[*index as usize].kind {
+            .map(|index| match compiled.artifact().site(*index).kind() {
                 SiteKind::Exit(kind) => kind,
                 kind => panic!("{kind:?} is no exit"),
             })
@@ -3070,7 +3079,7 @@ fn aarch64_property_access_disassembles() {
     assert!(text.contains("ldrb"), "{text}");
     // Object check, shape switch and two loads; object, shape, chain and
     // holder load checks; object, shape and store checks.
-    assert_eq!(compiled.sites().len(), 11, "{text}");
+    assert_eq!(compiled.artifact().site_count(), 11, "{text}");
     let compiled =
         compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
             .unwrap();
@@ -3172,7 +3181,7 @@ mod inlining {
         // Compiled code published the callee's frame for its Exp, linked to
         // the caller like an interpreter inline call and uninitialized, and
         // popped it again.
-        assert!(!compiled.sites().iter().any(|site| site.kind == SiteKind::Publish));
+        assert!(!compiled.artifact().sites().any(|site| site.kind() == SiteKind::Publish));
         assert_eq!(machine.vm[0], machine.frame.as_ptr() as u64);
         assert_eq!(machine.vm[3], machine.interpreter_stack.as_ptr() as u64);
         let pushed = &machine.interpreter_stack;
@@ -3233,9 +3242,9 @@ mod inlining {
         assert!(machine.state.borrow().exits_taken.is_empty(), "leaves are no exits");
         assert!(
             compiled
+                .artifact()
                 .sites()
-                .iter()
-                .any(|site| site.kind == SiteKind::Leave && site.frames.len() > 1)
+                .any(|site| site.kind() == SiteKind::Leave && site.frame_count() > 1)
         );
         assert_eq!(slot(&machine, l(1)), value::int32(10));
         assert_eq!(machine.slot(r(6)), machine.slot(c(1)));
@@ -3271,7 +3280,7 @@ mod inlining {
         );
         assert_eq!(result, returned(value::int32(25)));
         assert_eq!(machine.vm[3], machine.interpreter_stack.as_ptr() as u64);
-        assert!(!compiled.sites().iter().any(|site| site.kind == SiteKind::Publish));
+        assert!(!compiled.artifact().sites().any(|site| site.kind() == SiteKind::Publish));
 
         // The slow path of an Add of undefined runs in the callee's frame,
         // which compiled code publishes, and continues after popping it: 10
@@ -3284,7 +3293,7 @@ mod inlining {
         assert_eq!(machine.vm[0], machine.frame.as_ptr() as u64);
         assert_eq!(machine.vm[3], machine.interpreter_stack.as_ptr() as u64);
         // NB: Compiled code publishes the frames, not the runtime.
-        assert!(!compiled.sites().iter().any(|site| site.kind == SiteKind::Publish));
+        assert!(!compiled.artifact().sites().any(|site| site.kind() == SiteKind::Publish));
 
         // A slow path that does not continue leaves the interpreter in the
         // callee's frame.
@@ -3314,7 +3323,7 @@ mod inlining {
         assert_eq!(result.status, RESUME);
         let state = machine.state.borrow();
         assert_eq!(
-            compiled.sites()[state.exits_taken[0] as usize].kind,
+            compiled.artifact().site(state.exits_taken[0]).kind(),
             SiteKind::Exit(ExitKind::BadCallTarget)
         );
         assert_eq!(state.exit_frames[0].len(), 1);
@@ -3465,7 +3474,7 @@ mod virtual_arguments {
             assert_eq!(result.status, RESUME);
             let state = machine.state.borrow();
             assert_eq!(
-                compiled.sites()[state.exits_taken[0] as usize].kind,
+                compiled.artifact().site(state.exits_taken[0]).kind(),
                 SiteKind::Exit(ExitKind::ArgumentsIndex)
             );
             let (_, _, _, values) = &state.exit_frames[0][0];

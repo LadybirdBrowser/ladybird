@@ -19,6 +19,8 @@
 use core::cell::RefCell;
 use std::rc::Rc;
 
+use libjs_jit::artifact::Patch;
+
 #[cfg(windows)]
 use ak::windows_code_memory;
 
@@ -484,19 +486,19 @@ impl ExecutableMemory {
         self.address
     }
 
-    /// Overwrites the code at each offset with the bytes that go there, which the code is not running at the time.
-    pub fn patch(&self, patches: &[(u32, Vec<u8>)]) {
+    /// Overwrites the code at the offset of each patch with its bytes, which the code is not running at the time.
+    pub fn patch(&self, patches: &[Patch]) {
         if patches.is_empty() {
             return;
         }
         let writes: Vec<CodeWrite<'_>> = patches
             .iter()
-            .map(|(offset, bytes)| {
-                assert!(*offset as usize + bytes.len() <= self.size);
+            .map(|patch| {
+                assert!(patch.offset as usize + patch.bytes().len() <= self.size);
                 CodeWrite {
                     // NB: The offset is within the memory, as asserted.
-                    destination: self.address.wrapping_add(*offset as usize),
-                    code: bytes,
+                    destination: self.address.wrapping_add(patch.offset as usize),
+                    code: patch.bytes(),
                 }
             })
             .collect();

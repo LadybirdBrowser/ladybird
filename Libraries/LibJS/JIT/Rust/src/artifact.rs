@@ -626,6 +626,15 @@ impl<'a, W: Word> Artifact<'a, W> {
         pcs.zip(self.section(Section::OsrOffsets).iter().map(W::word))
     }
 
+    /// The offset within the code of the on-stack replacement entry point at `pc`, if there is one.
+    pub fn osr_entry(self, pc: u32) -> Option<u32> {
+        let index = self
+            .section(Section::OsrPcs)
+            .binary_search_by(|word| word.word().cmp(&pc))
+            .ok()?;
+        Some(self.section(Section::OsrOffsets)[index].word())
+    }
+
     /// The loop back edges from where a frame running in the interpreter reaches one of the `osr_entries()` without
     /// leaving the loop it is in.
     pub fn osr_loop_back_edges(self) -> Run<'a, W> {

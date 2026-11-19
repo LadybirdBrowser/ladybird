@@ -369,21 +369,14 @@ fn install(
     let mut code = JitCode::new(
         memory,
         compiled.entry_offset,
-        &artifact.osr_entries().collect::<Vec<_>>(),
-        artifact.osr_loop_back_edges().iter().collect(),
-        compiled.sites(),
+        compiled.words[..compiled.layout.kept_len()].into(),
+        compiled.layout,
         embedded_cells,
         snapshot,
         defer_gc,
     );
-    let invalidation_patches = artifact
-        .invalidation_patches()
-        .map(|patch| (patch.offset, patch.bytes().to_vec()))
-        .collect();
-    code.set_invalidation(id, invalidation_patches);
+    code.set_id(id);
     code.set_frame_offsets(compiled.site_index_frame_offset, compiled.register_dump_frame_offset);
-    code.set_osr_outer_loop_back_edges(artifact.osr_outer_loop_back_edges().iter().collect());
-    code.set_uncaught_handlers(artifact.uncaught_handlers().iter().collect());
     let dependencies = artifact.dependencies().collect::<Vec<_>>();
     vm.jit.dependents.register(vm, executable, id, &dependencies);
     // NB: A callee's tier-up check may install the code while its caller still runs in the interpreter, possibly

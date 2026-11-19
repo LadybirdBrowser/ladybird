@@ -236,7 +236,7 @@ pub unsafe extern "C" fn libjs_jit_exit(
     // NB: The frame's executable keeps the code attached while JIT code runs the frame, also after it was discarded.
     let executable = executable_of(frame_of(root));
     let code = executable.jit_code(vm).expect("the code is attached");
-    match code.site(site).kind {
+    match code.site(site).kind() {
         SiteKind::Exit(_) => translate::exit(vm, root, code, site, dump),
         SiteKind::Leave => translate::leave(vm, root, code, site, dump),
         SiteKind::Publish => translate::publish(vm, root, code, site, dump),
@@ -297,8 +297,8 @@ pub unsafe extern "C" fn libjs_jit_finish_inlined_direct_call(
         .jit_code(vm_ref)
         .expect("the code is attached")
         .site(site)
-        .frames[0]
-        .pc;
+        .frame(0)
+        .pc();
     // SAFETY: The innermost frame of the inlined calls is the call's frame now.
     unsafe { super::calls::libjs_jit_finish_direct_call(vm, innermost.as_ptr(), pc, status) }
 }

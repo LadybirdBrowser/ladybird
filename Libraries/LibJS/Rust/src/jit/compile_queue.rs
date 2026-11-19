@@ -14,7 +14,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use libjs_jit::CompileFailure;
-use libjs_jit::code::{CompiledCode, Site};
+use libjs_jit::code::CompiledCode;
 use libjs_jit::compile_pool::{CompilePool, CompilePoolClient};
 use libjs_jit::scratch::Scratch;
 use libjs_jit::snapshot::Snapshot;
@@ -90,12 +90,6 @@ impl CompileQueue {
                 results_pending.store(true, Ordering::Release);
             }
         }));
-    }
-
-    /// Has a compile thread drop the sites of code that died. The compile threads allocated them, so they free them
-    /// faster than the thread that collects the code, and outside its collection. This outlives the VM.
-    pub fn drop_sites(&self, sites: Vec<Site>) {
-        self.client.pool().run_unowned(Box::new(move || drop(sites)));
     }
 
     /// The results of the jobs that finished since the last call, waiting for one to finish if none has. The queue must
