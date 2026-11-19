@@ -47,6 +47,7 @@ use crate::ir::Op;
 use crate::ir::TypeofKind;
 use crate::ir::value;
 use crate::snapshot::arith_feedback;
+use ak::ZoneVec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
@@ -235,7 +236,7 @@ impl Operation {
     }
 }
 
-impl GraphBuilder<'_, '_> {
+impl<'a> GraphBuilder<'a, '_> {
     /// The arithmetic feedback of the instruction being built.
     fn arith_feedback(&self, instruction: &Instruction) -> Option<u8> {
         let slot = instruction.feedback_slots().arith?;
@@ -283,7 +284,7 @@ impl GraphBuilder<'_, '_> {
                 };
                 let numbers = numbers && !op.is_bitwise();
                 let [result] = self.join_hot_paths_with(paths, |builder, outputs| {
-                    builder.slow_path_numbers(numbers, outputs, &[dst])
+                    builder.slow_path_numbers(numbers, outputs, &[dst]);
                 })[..] else {
                     unreachable!("binary operations have one value")
                 };
@@ -296,7 +297,7 @@ impl GraphBuilder<'_, '_> {
                 };
                 let numbers = numbers && matches!(op, UnaryOp::Plus | UnaryOp::Minus);
                 let [result] = self.join_hot_paths_with(paths, |builder, outputs| {
-                    builder.slow_path_numbers(numbers, outputs, &[dst])
+                    builder.slow_path_numbers(numbers, outputs, &[dst]);
                 })[..] else {
                     unreachable!("unary operations have one value")
                 };
@@ -307,11 +308,14 @@ impl GraphBuilder<'_, '_> {
                 let Some(paths) = self.build_update_paths(op, value, old_value.is_some(), feedback)? else {
                     return self.build_generic(instruction, info);
                 };
-                let destinations = old_value.into_iter().chain([src]).collect::<Vec<_>>();
+                let destinations = match old_value {
+                    Some(old_value) => &[old_value, src][..],
+                    None => &[src][..],
+                };
                 let values = self.join_hot_paths_with(paths, |builder, outputs| {
-                    builder.slow_path_numbers(numbers, outputs, &destinations)
+                    builder.slow_path_numbers(numbers, outputs, destinations);
                 });
-                match (values.as_slice(), old_value) {
+                match (values, old_value) {
                     ([new_value], None) => self.write(src, *new_value)?,
                     ([old, new_value], Some(dst)) => {
                         self.write(dst, *old)?;
@@ -340,7 +344,8 @@ impl GraphBuilder<'_, '_> {
                     Outcome::Value(_) => {
                         let [result] = self.join_hot_paths_with(paths, |builder, outputs| {
                             let truth = builder.constant(value::TRUE);
-                            vec![builder.emit(Op::TaggedEquals { equal: true }, &[outputs[0], truth], Some(Repr::Bool))]
+                            outputs[0] =
+                                builder.emit(Op::TaggedEquals { equal: true }, &[outputs[0], truth], Some(Repr::Bool));
                         })[..] else {
                             unreachable!("comparisons have one value")
                         };
@@ -349,13 +354,13 @@ impl GraphBuilder<'_, '_> {
                     Outcome::Jump(true_target, _) => {
                         let [result] = self.join_hot_paths_with(paths, |builder, outputs| {
                             let true_pc = builder.int32_constant(true_target.0.cast_signed());
-                            vec![builder.emit(
+                            outputs[0] = builder.emit(
                                 Op::Int32Compare {
                                     comparison: Comparison::StrictlyEquals,
                                 },
                                 &[outputs[0], true_pc],
                                 Some(Repr::Bool),
-                            )]
+                            );
                         })[..] else {
                             unreachable!("comparisons have one value")
                         };
@@ -372,27 +377,24 @@ impl GraphBuilder<'_, '_> {
     /// `destinations`, `outputs`, as the numbers its other paths make
     /// (boxed doubles) if `numbers`: the code exits after the instruction
     /// where they are no numbers (like bigints).
-    fn slow_path_numbers(&mut self, numbers: bool, outputs: Vec<NodeId>, destinations: &[Operand]) -> Vec<NodeId> {
+    fn slow_path_numbers(&mut self, numbers: bool, outputs: &mut ZoneVec<'a, NodeId>, destinations: &[Operand]) {
         if !numbers {
-            return outputs;
+            return;
         }
         // NB: The exit continues after the instruction, which wrote the
         //     outputs.
         let frame = self.frame.clone();
-        for (destination, output) in destinations.iter().zip(&outputs) {
+        for (destination, output) in destinations.iter().zip(outputs.iter()) {
             self.write(*destination, *output)
                 .expect("the instruction's destinations are in the frame");
         }
         let frame_state = self.resume_after_frame_state(Operand::INVALID);
         self.frame = frame;
-        outputs
-            .into_iter()
-            .map(|output| {
-                let number = self.emit(Op::CheckNumber, &[output], Some(Repr::Float64));
-                self.graph.nodes[number.index()].frame_state = Some(frame_state);
-                self.emit(Op::BoxFloat64, &[number], Some(Repr::Tagged))
-            })
-            .collect()
+        for output in outputs.iter_mut() {
+            let number = self.emit(Op::CheckNumber, &[*output], Some(Repr::Float64));
+            self.graph.nodes[number.index()].frame_state = Some(frame_state);
+            *output = self.emit(Op::BoxFloat64, &[number], Some(Repr::Tagged));
+        }
     }
 
     fn box_number_result(&mut self, value: NodeId) -> NodeId {
@@ -826,20 +828,20 @@ impl GraphBuilder<'_, '_> {
 
     /// `value` as a `Repr::Int32`, where it is an int32: a test sends other
     /// values on.
-    fn int32_on_path(&mut self, paths: &mut SlowPaths, value: NodeId) -> NodeId {
+    fn int32_on_path(&mut self, paths: &mut SlowPaths<'a>, value: NodeId) -> NodeId {
         if let Some(integer) = self.int32_value_of(value) {
             return integer;
         }
         if let Some(integer) = self.int32_constant_of(value) {
             return self.int32_constant(integer);
         }
-        let refined = self.branch_to_next_case(paths, BranchCondition::Int32Value, vec![value], true);
+        let refined = self.branch_to_next_case(paths, BranchCondition::Int32Value, &[value], true);
         self.emit(Op::UnboxInt32, &[refined], Some(Repr::Int32))
     }
 
     /// `value` as a `Repr::Float64`, where it is a number: tests send other
     /// values on.
-    fn float64_on_path(&mut self, paths: &mut SlowPaths, value: NodeId) -> NodeId {
+    fn float64_on_path(&mut self, paths: &mut SlowPaths<'a>, value: NodeId) -> NodeId {
         self.float64_of(value, |builder, condition, inputs| {
             builder.branch_to_next_case(paths, condition, inputs, true)
         })
@@ -850,7 +852,7 @@ impl GraphBuilder<'_, '_> {
     pub(super) fn float64_of(
         &mut self,
         value: NodeId,
-        otherwise: impl FnOnce(&mut Self, BranchCondition, Vec<NodeId>) -> NodeId,
+        otherwise: impl FnOnce(&mut Self, BranchCondition, &[NodeId]) -> NodeId,
     ) -> NodeId {
         if let Some(double) = self.float64_value_of(value) {
             return double;
@@ -878,7 +880,7 @@ impl GraphBuilder<'_, '_> {
     /// values on.
     fn int32_of_operand_on_path(
         &mut self,
-        paths: &mut SlowPaths,
+        paths: &mut SlowPaths<'a>,
         value: NodeId,
         doubles: bool,
         booleans: bool,
@@ -892,7 +894,7 @@ impl GraphBuilder<'_, '_> {
             BranchCondition::Int32Value
         };
         if !doubles {
-            let refined = self.branch_to_next_case(paths, integer, vec![value], true);
+            let refined = self.branch_to_next_case(paths, integer, &[value], true);
             return self.emit(Op::UnboxInt32, &[refined], Some(Repr::Int32));
         }
         self.on_integer_or_double(
@@ -910,7 +912,7 @@ impl GraphBuilder<'_, '_> {
     /// numbers and booleans: the slow path then only handles operands that
     /// never came, and running it would make the code after the operation
     /// forget what it knew (see `exit_instead_of_slow_path()`).
-    fn exit_for_rare_bitwise_operands(&mut self, paths: &mut SlowPaths, feedback: u8) {
+    fn exit_for_rare_bitwise_operands(&mut self, paths: &mut SlowPaths<'a>, feedback: u8) {
         if feedback & (arith_feedback::STRING | arith_feedback::BIG_INT | arith_feedback::OTHER) == 0 {
             self.exit_instead_of_slow_path(paths);
         }
@@ -956,7 +958,7 @@ impl GraphBuilder<'_, '_> {
         lhs: NodeId,
         rhs: NodeId,
         feedback: u8,
-    ) -> Result<Option<SlowPaths>, CompileFailure> {
+    ) -> Result<Option<SlowPaths<'a>>, CompileFailure> {
         let int32_results =
             self.may_speculate_int32_results(feedback) && op != BinaryOp::Div && self.may_be_int32(&[lhs, rhs]);
         if op.is_bitwise() {
@@ -988,7 +990,7 @@ impl GraphBuilder<'_, '_> {
                 let result = self.int32_binary(op, lhs, rhs);
                 self.tagged(result)
             };
-            self.end_hot_path(&mut paths, vec![result]);
+            self.end_hot_path(&mut paths, &[result]);
             return Ok(Some(paths));
         }
         if op == BinaryOp::Mod {
@@ -999,7 +1001,7 @@ impl GraphBuilder<'_, '_> {
             let (lhs, rhs) = (self.int32_on_path(&mut paths, lhs), self.int32_on_path(&mut paths, rhs));
             let result = self.int32_binary(op, lhs, rhs);
             let result = self.tagged(result);
-            self.end_hot_path(&mut paths, vec![result]);
+            self.end_hot_path(&mut paths, &[result]);
             return Ok(Some(paths));
         }
         let numbers = (feedback & (arith_feedback::DOUBLE | arith_feedback::INT32_OVERFLOW) != 0
@@ -1017,7 +1019,7 @@ impl GraphBuilder<'_, '_> {
             let (lhs, rhs) = (self.int32_on_path(&mut paths, lhs), self.int32_on_path(&mut paths, rhs));
             let result = self.int32_binary(op, lhs, rhs);
             let result = self.tagged(result);
-            self.end_hot_path(&mut paths, vec![result]);
+            self.end_hot_path(&mut paths, &[result]);
             started = true;
         }
         if numbers && (!started || self.start_next_case(&mut paths)) {
@@ -1027,7 +1029,7 @@ impl GraphBuilder<'_, '_> {
             );
             let result = self.emit(Op::Float64Binary { op }, &[lhs, rhs], Some(Repr::Float64));
             let result = self.emit(Op::BoxFloat64, &[result], Some(Repr::Tagged));
-            self.end_hot_path(&mut paths, vec![result]);
+            self.end_hot_path(&mut paths, &[result]);
             started = true;
         }
         if strings && (!started || self.start_next_case(&mut paths)) {
@@ -1039,13 +1041,13 @@ impl GraphBuilder<'_, '_> {
 
     /// The paths of an `Add` of strings: two strings, and if `integers`, a
     /// string and an integer whose string the VM has.
-    fn build_concatenation_paths(&mut self, paths: &mut SlowPaths, lhs: NodeId, rhs: NodeId, integers: bool) {
+    fn build_concatenation_paths(&mut self, paths: &mut SlowPaths<'a>, lhs: NodeId, rhs: NodeId, integers: bool) {
         let (lhs, rhs) = (self.tagged(lhs), self.tagged(rhs));
-        let string = self.branch_to_next_case(paths, BranchCondition::String, vec![lhs], true);
+        let string = self.branch_to_next_case(paths, BranchCondition::String, &[lhs], true);
         let other = self.string_on_path(paths, rhs, integers);
         self.finish_concatenation(paths, string, other);
         if integers && self.start_next_case(paths) {
-            let string = self.branch_to_next_case(paths, BranchCondition::String, vec![rhs], true);
+            let string = self.branch_to_next_case(paths, BranchCondition::String, &[rhs], true);
             let other = self.string_on_path(paths, lhs, true);
             self.finish_concatenation(paths, other, string);
         }
@@ -1066,7 +1068,7 @@ impl GraphBuilder<'_, '_> {
         let (lhs, rhs) = (self.read(dst)?, self.read(src)?);
         let mut paths = self.start_slow_paths(Some(Repr::Tagged))?;
         let (lhs, rhs) = (self.tagged(lhs), self.tagged(rhs));
-        let string = self.branch_to_next_case(&mut paths, BranchCondition::String, vec![lhs], true);
+        let string = self.branch_to_next_case(&mut paths, BranchCondition::String, &[lhs], true);
         let integers = self.runtime.layout.numeric_string_cache != 0;
         let other = self.string_on_path(&mut paths, rhs, integers);
         self.finish_concatenation(&mut paths, string, other);
@@ -1077,13 +1079,13 @@ impl GraphBuilder<'_, '_> {
 
     /// The string `value` is, or if `integers`, the string of the integer
     /// it is, where the VM has that: tests send other values on.
-    fn string_on_path(&mut self, paths: &mut SlowPaths, value: NodeId, integers: bool) -> NodeId {
+    fn string_on_path(&mut self, paths: &mut SlowPaths<'a>, value: NodeId, integers: bool) -> NodeId {
         if !integers {
-            return self.branch_to_next_case(paths, BranchCondition::String, vec![value], true);
+            return self.branch_to_next_case(paths, BranchCondition::String, &[value], true);
         }
-        let (string_block, other) = self.branch_both_ways(BranchCondition::String, vec![value]);
+        let (string_block, other) = self.branch_both_ways(BranchCondition::String, &[value]);
         self.block = string_block;
-        let string = self.refine(BranchCondition::String, true, vec![value]);
+        let string = self.refine(BranchCondition::String, true, &[value]);
         let string_end = self.block;
 
         self.block = other;
@@ -1092,26 +1094,26 @@ impl GraphBuilder<'_, '_> {
         let converted = self.test_not_empty(paths, converted);
         let converted_end = self.block;
 
-        self.join_blocks(vec![string_end, converted_end]);
+        self.join_blocks(&[string_end, converted_end]);
         self.add_phi(&[string, converted])
     }
 
     /// `value`, which is the empty value where only the slow path can make
     /// it: a test sends that on.
-    fn test_not_empty(&mut self, paths: &mut SlowPaths, value: NodeId) -> NodeId {
+    fn test_not_empty(&mut self, paths: &mut SlowPaths<'a>, value: NodeId) -> NodeId {
         let empty = self.constant(value::EMPTY);
         self.branch_to_next_case(
             paths,
             BranchCondition::TaggedEquals { equal: false },
-            vec![value, empty],
+            &[value, empty],
             true,
         )
     }
 
-    fn finish_concatenation(&mut self, paths: &mut SlowPaths, lhs: NodeId, rhs: NodeId) {
+    fn finish_concatenation(&mut self, paths: &mut SlowPaths<'a>, lhs: NodeId, rhs: NodeId) {
         let result = self.emit(Op::ConcatenateStrings { key: false }, &[lhs, rhs], Some(Repr::Tagged));
         let result = self.test_not_empty(paths, result);
-        self.end_hot_path(paths, vec![result]);
+        self.end_hot_path(paths, &[result]);
     }
 
     fn build_unary_paths(
@@ -1119,7 +1121,7 @@ impl GraphBuilder<'_, '_> {
         op: UnaryOp,
         value: NodeId,
         feedback: u8,
-    ) -> Result<Option<SlowPaths>, CompileFailure> {
+    ) -> Result<Option<SlowPaths<'a>>, CompileFailure> {
         let int32s = feedback & arith_feedback::SAW_INT32 != 0;
         let doubles = feedback & arith_feedback::DOUBLE != 0;
         // NB: ToInt32 of a boolean is 0 or 1 (see `build_binary_paths()`).
@@ -1136,7 +1138,7 @@ impl GraphBuilder<'_, '_> {
                 // NB: ToNumber of a number is the number itself.
                 if self.int32_value_of(value).is_some() || self.graph.node(value).repr == Some(Repr::Float64) {
                     let result = self.tagged(value);
-                    self.end_hot_path(&mut paths, vec![result]);
+                    self.end_hot_path(&mut paths, &[result]);
                     return Ok(Some(paths));
                 }
                 let mut started = false;
@@ -1145,8 +1147,8 @@ impl GraphBuilder<'_, '_> {
                     (doubles, BranchCondition::Double),
                 ] {
                     if seen && (!started || self.start_next_case(&mut paths)) {
-                        let number = self.branch_to_next_case(&mut paths, condition, vec![value], true);
-                        self.end_hot_path(&mut paths, vec![number]);
+                        let number = self.branch_to_next_case(&mut paths, condition, &[value], true);
+                        self.end_hot_path(&mut paths, &[number]);
                         started = true;
                     }
                 }
@@ -1159,7 +1161,7 @@ impl GraphBuilder<'_, '_> {
                     let minus_one = self.int32_constant(-1);
                     let result = self.int32_binary(BinaryOp::Mul, integer, minus_one);
                     let result = self.tagged(result);
-                    self.end_hot_path(&mut paths, vec![result]);
+                    self.end_hot_path(&mut paths, &[result]);
                 }
                 if doubles || !int32_results {
                     if int32_results && !self.start_next_case(&mut paths) {
@@ -1174,7 +1176,7 @@ impl GraphBuilder<'_, '_> {
                         Some(Repr::Float64),
                     );
                     let result = self.emit(Op::BoxFloat64, &[result], Some(Repr::Tagged));
-                    self.end_hot_path(&mut paths, vec![result]);
+                    self.end_hot_path(&mut paths, &[result]);
                 }
             }
             UnaryOp::BitwiseNot | UnaryOp::ToInt32 => {
@@ -1186,7 +1188,7 @@ impl GraphBuilder<'_, '_> {
                     integer
                 };
                 let result = self.tagged(result);
-                self.end_hot_path(&mut paths, vec![result]);
+                self.end_hot_path(&mut paths, &[result]);
             }
         }
         Ok(Some(paths))
@@ -1200,7 +1202,7 @@ impl GraphBuilder<'_, '_> {
         value: NodeId,
         postfix: bool,
         feedback: u8,
-    ) -> Result<Option<SlowPaths>, CompileFailure> {
+    ) -> Result<Option<SlowPaths<'a>>, CompileFailure> {
         let int32_results = self.may_speculate_int32_results(feedback);
         let numbers = feedback & (arith_feedback::DOUBLE | arith_feedback::INT32_OVERFLOW) != 0
             || (feedback & arith_feedback::INT32 != 0 && !int32_results);
@@ -1209,19 +1211,15 @@ impl GraphBuilder<'_, '_> {
         }
         // NB: ToNumeric of a number is the number itself.
         let old_value = self.tagged(value);
-        let values = |new_value| {
-            if postfix {
-                vec![old_value, new_value]
-            } else {
-                vec![new_value]
-            }
-        };
+        // NB: The values are the old value, if `postfix`, and the new value.
+        let first_value = usize::from(!postfix);
+        let values = |new_value| [old_value, new_value];
         let mut paths = self.start_slow_paths(Some(Repr::Tagged))?;
         if int32_results {
             let integer = self.int32_on_path(&mut paths, value);
             let result = self.int32_update(op, integer);
             let result = self.tagged(result);
-            self.end_hot_path(&mut paths, values(result));
+            self.end_hot_path(&mut paths, &values(result)[first_value..]);
         }
         if numbers && (!int32_results || self.start_next_case(&mut paths)) {
             let number = self.float64_on_path(&mut paths, value);
@@ -1232,7 +1230,7 @@ impl GraphBuilder<'_, '_> {
                 Some(Repr::Float64),
             );
             let result = self.emit(Op::BoxFloat64, &[result], Some(Repr::Tagged));
-            self.end_hot_path(&mut paths, values(result));
+            self.end_hot_path(&mut paths, &values(result)[first_value..]);
         }
         Ok(Some(paths))
     }
@@ -1245,7 +1243,7 @@ impl GraphBuilder<'_, '_> {
         rhs: NodeId,
         feedback: u8,
         slow_repr: Repr,
-    ) -> Result<Option<SlowPaths>, CompileFailure> {
+    ) -> Result<Option<SlowPaths<'a>>, CompileFailure> {
         let equality = comparison.equality();
         // NB: `x == null`: undefined, null and [[IsHTMLDDA]] objects are loosely
         //     equal to undefined and null, and nothing else is.
@@ -1270,12 +1268,12 @@ impl GraphBuilder<'_, '_> {
                 self.assume_no_htmldda_objects();
                 let other = self.tagged(other);
                 let mut paths = self.start_slow_paths(Some(slow_repr))?;
-                self.branch_to_next_case(&mut paths, BranchCondition::Nullish, vec![other], true);
+                self.branch_to_next_case(&mut paths, BranchCondition::Nullish, &[other], true);
                 let truth = self.typed_constant(u64::from(equal), Repr::Bool);
-                self.end_hot_path(&mut paths, vec![truth]);
+                self.end_hot_path(&mut paths, &[truth]);
                 self.start_next_case(&mut paths);
                 let truth = self.typed_constant(u64::from(!equal), Repr::Bool);
-                self.end_hot_path(&mut paths, vec![truth]);
+                self.end_hot_path(&mut paths, &[truth]);
                 return Ok(Some(paths));
             }
         }
@@ -1296,7 +1294,7 @@ impl GraphBuilder<'_, '_> {
         if int32s || strict_with_int32 {
             let (lhs, rhs) = (self.int32_on_path(&mut paths, lhs), self.int32_on_path(&mut paths, rhs));
             let result = self.emit(Op::Int32Compare { comparison }, &[lhs, rhs], Some(Repr::Bool));
-            self.end_hot_path(&mut paths, vec![result]);
+            self.end_hot_path(&mut paths, &[result]);
             started = true;
         }
         if (doubles || strict_with_int32) && (!started || self.start_next_case(&mut paths)) {
@@ -1305,7 +1303,7 @@ impl GraphBuilder<'_, '_> {
                 self.float64_on_path(&mut paths, rhs),
             );
             let result = self.emit(Op::Float64Compare { comparison }, &[lhs, rhs], Some(Repr::Bool));
-            self.end_hot_path(&mut paths, vec![result]);
+            self.end_hot_path(&mut paths, &[result]);
             started = true;
         }
         if let Some(equal) = equality
@@ -1313,17 +1311,17 @@ impl GraphBuilder<'_, '_> {
             && (!started || self.start_next_case(&mut paths))
         {
             let (lhs, rhs) = (self.tagged(lhs), self.tagged(rhs));
-            let lhs = self.branch_to_next_case(&mut paths, BranchCondition::String, vec![lhs], true);
-            let rhs = self.branch_to_next_case(&mut paths, BranchCondition::String, vec![rhs], true);
+            let lhs = self.branch_to_next_case(&mut paths, BranchCondition::String, &[lhs], true);
+            let rhs = self.branch_to_next_case(&mut paths, BranchCondition::String, &[rhs], true);
             let result = self.emit(Op::StringsEqual, &[lhs, rhs], Some(Repr::Tagged));
             let result = self.test_not_empty(&mut paths, result);
             let truth = self.constant(value::TRUE);
             let result = self.emit(Op::TaggedEquals { equal }, &[result, truth], Some(Repr::Bool));
-            self.end_hot_path(&mut paths, vec![result]);
+            self.end_hot_path(&mut paths, &[result]);
         }
         if strict_with_int32 && self.start_next_case(&mut paths) {
             let truth = self.typed_constant(u64::from(equality == Some(false)), Repr::Bool);
-            self.end_hot_path(&mut paths, vec![truth]);
+            self.end_hot_path(&mut paths, &[truth]);
         }
         Ok(Some(paths))
     }

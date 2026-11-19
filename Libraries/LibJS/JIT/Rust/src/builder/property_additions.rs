@@ -26,6 +26,7 @@ use crate::CompileFailure;
 use crate::bytecode::Operand;
 use crate::code::ExitKind;
 use crate::ir::Op;
+use ak::ZoneVec;
 
 impl GraphBuilder<'_, '_> {
     /// Builds `base.property = src` as `AddNamed` and `StoreNamed` nodes, if
@@ -85,8 +86,8 @@ impl GraphBuilder<'_, '_> {
         }
         let value = self.read(src)?;
 
-        let entries = self.entries_for_known_shape(object, &entries);
-        let shapes = entries.iter().map(|entry| entry.shape).collect::<Vec<_>>();
+        let entries = self.entries_for_known_shape(object, entries);
+        let shapes = ZoneVec::from_iter_in(entries.iter().map(|entry| entry.shape), self.work);
         self.dispatch_on_shapes(
             object,
             entries,

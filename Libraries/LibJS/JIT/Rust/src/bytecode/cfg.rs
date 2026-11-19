@@ -559,7 +559,7 @@ mod tests {
                 Instruction::Return { value: r(5) },
             ]
         });
-        let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
+        let instructions = crate::bytecode::decode_all(&program.bytes, crate::test_zone()).unwrap();
         let error = Cfg::new(&instructions, &[], &test_layout(), crate::test_zone()).unwrap_err();
         assert!(matches!(error, CfgError::InvalidJumpTarget { pc: 0, .. }));
     }

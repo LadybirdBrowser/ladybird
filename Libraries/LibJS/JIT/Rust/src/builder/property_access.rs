@@ -50,6 +50,7 @@ use crate::snapshot::CellId;
 use crate::snapshot::Intrinsic;
 use crate::snapshot::NativeCallTarget;
 use crate::snapshot::keyed_feedback_bits;
+use ak::ZoneVec;
 
 /// A check that a key is the one a keyed access speculates on: `key` must
 /// be `expected`, the encoded key cell `cell`.
@@ -61,9 +62,9 @@ pub(super) struct KeyCheck {
 }
 
 /// Cache entries of a keyed access for one key, and the check of the key.
-type KeyedEntries = (Vec<CacheEntry>, Option<KeyCheck>);
+type KeyedEntries<'a> = (&'a [CacheEntry], Option<KeyCheck>);
 
-impl<'z> GraphBuilder<'_, 'z> {
+impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// The speculation gate: whether the current instruction may speculate
     /// in a way that exits with `kind`. A speculation that already failed at
     /// the same place is never made again.
@@ -304,7 +305,7 @@ impl<'z> GraphBuilder<'_, 'z> {
         if !same_cached_getter || !gates.into_iter().all(|kind| self.may_speculate(kind)) {
             return Ok(false);
         }
-        let (object, getter) = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
+        let (object, getter) = self.check_accessor_call(base, entries, AccessorPart::Getter)?;
         debug_assert!(getter.is_none(), "all entries have the same checked getter");
         let value = self.load_named(object, offset);
         self.write(dst, value)?;
@@ -380,7 +381,7 @@ impl<'z> GraphBuilder<'_, 'z> {
         // NB: Exiting instead of running the slow path keeps loops bounded by the length free of code that may
         //     change what they read.
         self.exit_instead_of_slow_path(&mut slow_paths);
-        let (object, checked_getter) = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
+        let (object, checked_getter) = self.check_accessor_call(base, entries, AccessorPart::Getter)?;
         debug_assert!(checked_getter.is_none(), "all entries have the same checked getter");
         let typed_array = self.emit_checked(Op::CheckTypedArray, &[object], Some(Repr::Tagged));
         let address = self.cell_address(typed_array);
@@ -389,7 +390,7 @@ impl<'z> GraphBuilder<'_, 'z> {
         let length = self.branch_to_slow_path(
             &mut slow_paths,
             BranchCondition::Int32(Comparison::GreaterThan),
-            vec![length, zero],
+            &[length, zero],
             true,
         );
         let length = self.emit(Op::BoxInt32, &[length], Some(Repr::Tagged));
@@ -402,7 +403,7 @@ impl<'z> GraphBuilder<'_, 'z> {
     /// `part` of the same accessor property with functions of the same
     /// executable (see `try_inline_getter()`), with the index of that
     /// executable in the snapshot.
-    fn accessor_call_entries(&self, cache: u32, part: AccessorPart) -> Option<(Vec<CacheEntry>, u32)> {
+    fn accessor_call_entries(&self, cache: u32, part: AccessorPart) -> Option<(&'a [CacheEntry], u32)> {
         let entries = self.cache_entries(cache)?;
         let first = entries[0];
         let executable_of = |entry: &CacheEntry| {
@@ -425,7 +426,7 @@ impl<'z> GraphBuilder<'_, 'z> {
     /// `part` of the same accessor property (at one offset of the receiver,
     /// or of one prototype) with the same raw native function, with the
     /// target through which JIT code calls it (see `try_build_native_getter()`).
-    fn native_accessor_entries(&self, cache: u32, part: AccessorPart) -> Option<(Vec<CacheEntry>, NativeCallTarget)> {
+    fn native_accessor_entries(&self, cache: u32, part: AccessorPart) -> Option<(&'a [CacheEntry], NativeCallTarget)> {
         // NB: Calls in inlined callees need their inlined frames, which these calls do not build.
         if self.function.is_virtual() {
             return None;
@@ -464,7 +465,7 @@ impl<'z> GraphBuilder<'_, 'z> {
         &mut self,
         part: AccessorPart,
         target: NativeCallTarget,
-        inputs: Vec<NodeId>,
+        inputs: &[NodeId],
         dst: u32,
     ) -> NodeId {
         let argument_count = inputs.len() as u64 - 1;
@@ -477,7 +478,7 @@ impl<'z> GraphBuilder<'_, 'z> {
             part,
             target,
         };
-        let node = self.emit(op, &inputs, Some(Repr::Tagged));
+        let node = self.emit(op, inputs, Some(Repr::Tagged));
         let frame_state = self.resume_after_frame_state(dst);
         self.graph.nodes[node.index()].frame_state = Some(frame_state);
         node
@@ -497,9 +498,9 @@ impl<'z> GraphBuilder<'_, 'z> {
         let Some((entries, target)) = self.native_accessor_entries(cache, AccessorPart::Getter) else {
             return Ok(false);
         };
-        let (object, getter) = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
+        let (object, getter) = self.check_accessor_call(base, entries, AccessorPart::Getter)?;
         debug_assert!(getter.is_none(), "all entries have the same checked getter");
-        let value = self.emit_native_accessor_call(AccessorPart::Getter, target, vec![object], dst.raw());
+        let value = self.emit_native_accessor_call(AccessorPart::Getter, target, &[object], dst.raw());
         self.write(dst, value)?;
         Ok(true)
     }
@@ -517,9 +518,9 @@ impl<'z> GraphBuilder<'_, 'z> {
             return Ok(false);
         };
         let value = self.read(src)?;
-        let (object, setter) = self.check_accessor_call(base, &entries, AccessorPart::Setter)?;
+        let (object, setter) = self.check_accessor_call(base, entries, AccessorPart::Setter)?;
         debug_assert!(setter.is_none(), "all entries have the same checked setter");
-        self.emit_native_accessor_call(AccessorPart::Setter, target, vec![object, value], Operand::INVALID);
+        self.emit_native_accessor_call(AccessorPart::Setter, target, &[object, value], Operand::INVALID);
         Ok(true)
     }
 
@@ -546,14 +547,15 @@ impl<'z> GraphBuilder<'_, 'z> {
         let first = entries[0];
         let object = self.read(base)?;
         let object = self.check_object(object);
-        let shapes = entries.iter().map(|entry| self.shape_guard(entry)).collect::<Vec<_>>();
+        let work = self.work;
+        let shapes = ZoneVec::from_iter_in(entries.iter().map(|entry| self.shape_guard(entry)), work);
         let object = self.check_shapes(object, &shapes);
         let (Action::Get { holder, offset } | Action::Set { holder, offset }) = first.action else {
             unreachable!("accessor calls get or set");
         };
         let holder = match holder {
             Holder::Prototype { prototype, .. } => {
-                let mut checked_validities = Vec::new();
+                let mut checked_validities = ZoneVec::new_in(self.work);
                 for entry in entries {
                     let (Action::Get {
                         holder: Holder::Prototype { validity, valid, .. },
@@ -616,7 +618,7 @@ impl<'z> GraphBuilder<'_, 'z> {
         let Some((entries, index)) = self.accessor_call_entries(cache, AccessorPart::Getter) else {
             return Ok(None);
         };
-        let (_, getter) = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
+        let (_, getter) = self.check_accessor_call(base, entries, AccessorPart::Getter)?;
         self.try_inline_getter_call(index, getter, base, dst)
     }
 
@@ -636,7 +638,7 @@ impl<'z> GraphBuilder<'_, 'z> {
         let Some(dst) = self.dead_register(&[base, src]) else {
             return Ok(None);
         };
-        let (_, setter) = self.check_accessor_call(base, &entries, AccessorPart::Setter)?;
+        let (_, setter) = self.check_accessor_call(base, entries, AccessorPart::Setter)?;
         self.try_inline_setter_call(index, setter, base, src, dst)
     }
 
@@ -688,28 +690,34 @@ impl<'z> GraphBuilder<'_, 'z> {
     /// own if it is a constant, or those of the only key the cache saw, with
     /// the key check to make (see `check_key()`). Returns nothing for other
     /// keys.
-    fn keyed_cache_entries(&mut self, cache: u32, key: Operand) -> Result<Option<KeyedEntries>, CompileFailure> {
+    fn keyed_cache_entries(&mut self, cache: u32, key: Operand) -> Result<Option<KeyedEntries<'a>>, CompileFailure> {
         let Some(entries) = self.cache_entries(cache) else {
             return Ok(None);
         };
-        let Some(keys) = entries.iter().map(|entry| entry.key).collect::<Option<Vec<_>>>() else {
+        if entries.iter().any(|entry| entry.key.is_none()) {
             return Ok(None);
-        };
+        }
+        let key_of = |entry: &CacheEntry| entry.key.map(|(value, _)| value);
         let key = self.read(key)?;
         let key_value = match self.graph.constant_value(key) {
             Some(bits) => bits,
             None => {
-                let (first, _) = keys[0];
-                if !keys.iter().all(|(value, _)| *value == first) || !self.may_speculate(ExitKind::UnexpectedValue) {
+                let first = key_of(&entries[0]);
+                if !entries.iter().all(|entry| key_of(entry) == first) || !self.may_speculate(ExitKind::UnexpectedValue)
+                {
                     return Ok(None);
                 }
-                first
+                first.expect("every entry has a key")
             }
         };
-        let entries = entries
-            .into_iter()
-            .filter(|entry| entry.key.is_some_and(|(value, _)| value == key_value))
-            .collect::<Vec<_>>();
+        let entries = ZoneVec::from_iter_in(
+            entries
+                .iter()
+                .copied()
+                .filter(|entry| entry.key.is_some_and(|(value, _)| value == key_value)),
+            self.work,
+        )
+        .into_slice();
         let Some((_, cell)) = entries.first().and_then(|entry| entry.key) else {
             return Ok(None);
         };
@@ -742,7 +750,7 @@ impl<'z> GraphBuilder<'_, 'z> {
         &mut self,
         dst: Operand,
         base: Operand,
-        entries: Vec<CacheEntry>,
+        entries: &[CacheEntry],
         key_check: Option<KeyCheck>,
     ) -> Result<bool, CompileFailure> {
         // NB: Loads of properties that hold accessors exit, so these are left to the instruction's handling, which
@@ -758,7 +766,7 @@ impl<'z> GraphBuilder<'_, 'z> {
         let object = self.read(base)?;
         let object = self.check_object(object);
         let result = self
-            .translate_entries(object, &entries, |builder, entry, object| {
+            .translate_entries(object, entries, |builder, entry, object| {
                 Some(builder.load_entry(object, entry))
             })
             .expect("every case loads a value");
@@ -785,7 +793,7 @@ impl<'z> GraphBuilder<'_, 'z> {
         &mut self,
         base: Operand,
         src: Operand,
-        entries: Vec<CacheEntry>,
+        entries: &[CacheEntry],
         key_check: Option<KeyCheck>,
     ) -> Result<bool, CompileFailure> {
         let speculatable = entries
@@ -799,7 +807,7 @@ impl<'z> GraphBuilder<'_, 'z> {
         let object = self.read(base)?;
         let value = self.read(src)?;
         let object = self.check_object(object);
-        self.translate_entries(object, &entries, |builder, entry, object| {
+        self.translate_entries(object, entries, |builder, entry, object| {
             let Action::Set { offset, .. } = entry.action else {
                 unreachable!("only sets store");
             };

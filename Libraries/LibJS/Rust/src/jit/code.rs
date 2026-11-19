@@ -11,6 +11,7 @@ use core::ffi::c_void;
 use core::ops::ControlFlow;
 use std::collections::HashMap;
 
+use ak::Zone;
 use libjs_jit::artifact::{Artifact, FrameView, Layout, Patch, SiteView};
 use libjs_jit::bytecode::{EnvironmentCoordinate, decode_instruction};
 use libjs_jit::code::ExitKind;
@@ -130,6 +131,21 @@ pub fn speculated_cache_size(cache: &PropertyLookupCache) -> u8 {
         .count();
     u8::try_from(entries).expect("caches that are not megamorphic have few entries")
 }
+
+/// The property lookup cache that the instruction at `pc` of `bytecode` speculates on (see
+/// `Instruction::speculated_property_lookup_cache()`), if it has one.
+fn speculated_property_lookup_cache_index(bytecode: &[u8], pc: u32) -> Option<u32> {
+    // NB: A zone takes no memory before it gives some out, and it gives out memory only for the array of an
+    //     instruction, which no instruction that speculates on a property lookup cache has.
+    let zone = Zone::new(DECODED_ARRAY_LIMIT, c"LibJS decoded instruction");
+    decode_instruction(bytecode, pc, &zone)
+        .ok()?
+        .instruction
+        .speculated_property_lookup_cache()
+}
+
+/// The most memory the array of one decoded instruction takes.
+const DECODED_ARRAY_LIMIT: usize = 1 << 30;
 
 /// The function object of an inlined executable, which its materialized frames run.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Trace)]
@@ -593,8 +609,7 @@ impl Executable {
     /// The property lookup cache that the instruction at `pc` speculates on (see
     /// `Instruction::speculated_property_lookup_cache()`), if it has one.
     fn speculated_property_lookup_cache(&self, pc: u32) -> Option<&PropertyLookupCache> {
-        let decoded = decode_instruction(self.bytecode(), pc).ok()?;
-        let index = decoded.instruction.speculated_property_lookup_cache()?;
+        let index = speculated_property_lookup_cache_index(self.bytecode(), pc)?;
         self.property_lookup_caches().get(index as usize)
     }
 
@@ -602,9 +617,7 @@ impl Executable {
     /// `ExitKind::BadShape` at `pc`. Returns whether that code speculated on more shapes there than the code that
     /// exited there before, so that a recompile learns from the exit.
     pub fn note_jit_shape_exit(&self, pc: u32, cache_sizes: &[u8]) -> bool {
-        let Some(size) = decode_instruction(self.bytecode(), pc)
-            .ok()
-            .and_then(|decoded| decoded.instruction.speculated_property_lookup_cache())
+        let Some(size) = speculated_property_lookup_cache_index(self.bytecode(), pc)
             .and_then(|index| cache_sizes.get(index as usize).copied())
         else {
             return false;

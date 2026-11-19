@@ -350,7 +350,7 @@ impl<'a> GraphBuilder<'a, '_> {
         else {
             return Ok(None);
         };
-        let (forwarded, start) = match arguments.as_slice() {
+        let (forwarded, start) = match *arguments {
             [forwarded] => (*forwarded, None),
             [forwarded, start] => (*forwarded, Some(*start)),
             _ => return Ok(None),
@@ -399,7 +399,7 @@ impl<'a> GraphBuilder<'a, '_> {
         let Instruction::Call { callee, arguments, .. } = instruction else {
             return None;
         };
-        let [_, forwarded] = arguments.as_slice() else {
+        let [_, forwarded] = *arguments else {
             return None;
         };
         // NB: CallForwardingArguments reads the running frame, which is not an
@@ -440,7 +440,7 @@ impl<'a> GraphBuilder<'a, '_> {
             return Ok(None);
         };
         let call_pc = call.pc;
-        let call_instruction = call.instruction.clone();
+        let call_instruction = call.instruction;
         let block = self.function.cfg.block_for_pc(self.function.pc);
         let in_one_block = block.is_some()
             && block == self.function.cfg.block_for_pc(append.pc)

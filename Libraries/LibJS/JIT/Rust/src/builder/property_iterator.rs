@@ -43,25 +43,25 @@ impl GraphBuilder<'_, '_> {
         //     rare. Exiting there, until an exit was taken, makes the key the cache's key wherever the loop's body
         //     reads it, which keyed accesses of the key rely on to read the property at its known place.
         self.exit_instead_of_slow_path(&mut slow_paths);
-        let receiver = self.branch_to_slow_path(&mut slow_paths, BranchCondition::Object, vec![receiver], true);
+        let receiver = self.branch_to_slow_path(&mut slow_paths, BranchCondition::Object, &[receiver], true);
         self.branch_to_slow_path(
             &mut slow_paths,
             BranchCondition::PropertyIteratorCacheValid,
-            vec![receiver, keys],
+            &[receiver, keys],
             true,
         );
         let cursor_index = self.branch_to_slow_path(
             &mut slow_paths,
             BranchCondition::NonNegativeInt32,
-            vec![cursor_value],
+            &[cursor_value],
             true,
         );
         let index = self.emit(Op::UnboxInt32, &[cursor_index], Some(Repr::Int32));
         let count = self.emit(Op::LoadPropertyIteratorKeyCount, &[keys], Some(Repr::Int32));
-        let (more, finished) = self.branch_both_ways(BranchCondition::Int32(Comparison::LessThan), vec![index, count]);
+        let (more, finished) = self.branch_both_ways(BranchCondition::Int32(Comparison::LessThan), &[index, count]);
 
         self.block = more;
-        let index = self.refine(BranchCondition::Int32(Comparison::LessThan), true, vec![index, count]);
+        let index = self.refine(BranchCondition::Int32(Comparison::LessThan), true, &[index, count]);
         let key = self.emit(Op::LoadPropertyIteratorKey, &[keys, index], Some(Repr::Tagged));
         // NB: The index is below the count, so the next one is an int32 too.
         let one = self.int32_constant(1);
@@ -70,12 +70,12 @@ impl GraphBuilder<'_, '_> {
         let not_done = self.constant(value::FALSE);
 
         let done = self.constant(value::TRUE);
-        self.join_blocks(vec![more, finished]);
+        self.join_blocks(&[more, finished]);
         let value = self.add_phi(&[key, old_value]);
         let is_done = self.add_phi(&[not_done, done]);
         let new_cursor = self.add_phi(&[next, cursor_value]);
 
-        let outputs = self.join_paths(slow_paths, vec![value, is_done, new_cursor], |_, outputs| outputs);
+        let outputs = self.join_paths(slow_paths, &[value, is_done, new_cursor], |_, _| {});
         self.write(dst_value, outputs[0])?;
         self.write(dst_done, outputs[1])?;
         self.write(cursor, outputs[2])?;

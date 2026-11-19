@@ -43,11 +43,10 @@ impl GraphBuilder<'_, '_> {
     }
 
     /// The typed array element kinds keyed feedback `bits` saw.
-    pub(super) fn typed_array_elements_seen(&self, bits: u32) -> Vec<TypedArrayElement> {
-        TypedArrayElement::ALL
-            .into_iter()
-            .filter(|element| bits & (1 << (TYPED_ARRAY_SHIFT + u32::from(self.typed_array_kind_value(*element)))) != 0)
-            .collect()
+    pub(super) fn typed_array_elements_seen(&self, bits: u32) -> impl Iterator<Item = TypedArrayElement> + '_ {
+        TypedArrayElement::ALL.into_iter().filter(move |element| {
+            bits & (1 << (TYPED_ARRAY_SHIFT + u32::from(self.typed_array_kind_value(*element)))) != 0
+        })
     }
 
     /// The elements kind the keyed feedback of `instruction` saw, if it saw
@@ -57,12 +56,13 @@ impl GraphBuilder<'_, '_> {
         if bits & KEY_KINDS_MASK != INT32_INDEX || bits & (OTHER_ELEMENTS | OUT_OF_BOUNDS) != 0 {
             return None;
         }
-        let typed_arrays = self.typed_array_elements_seen(bits);
-        let kind = match (bits & (PACKED | HOLEY), typed_arrays.as_slice()) {
-            (PACKED, []) => ElementsKind::Packed,
+        let mut typed_arrays = self.typed_array_elements_seen(bits);
+        let (first_typed_array, more_typed_arrays) = (typed_arrays.next(), typed_arrays.next().is_some());
+        let kind = match (bits & (PACKED | HOLEY), first_typed_array, more_typed_arrays) {
+            (PACKED, None, _) => ElementsKind::Packed,
             // NB: Holey accesses take packed elements too.
-            (HOLEY | PACKED_AND_HOLEY, []) => ElementsKind::Holey,
-            (0, [element]) => ElementsKind::TypedArray(*element),
+            (HOLEY | PACKED_AND_HOLEY, None, _) => ElementsKind::Holey,
+            (0, Some(element), false) => ElementsKind::TypedArray(element),
             _ => return None,
         };
         let gates = [ExitKind::BadElements, ExitKind::OutOfBounds, ExitKind::NotInt32];

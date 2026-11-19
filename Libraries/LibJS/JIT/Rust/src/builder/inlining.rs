@@ -1057,7 +1057,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 }
             }
             Forwarding::Apply => {
-                let [this, forwarded_arguments] = arguments.as_slice() else {
+                let [this, forwarded_arguments] = *arguments else {
                     return Ok(None);
                 };
                 if self.constant_intrinsic(*callee) != Some(Intrinsic::FunctionPrototypeApply)
@@ -1147,7 +1147,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         };
         // NB: An inlined callee forwards what its call passed it.
         if self.constant_intrinsic(*callee) == Some(Intrinsic::FunctionPrototypeApply)
-            && let [this, forwarded_arguments] = arguments.as_slice()
+            && let [this, forwarded_arguments] = *arguments
             && self.holds_virtual_arguments(*forwarded_arguments)
             && let Some((arguments, count)) = self.inlined_call_arguments()
         {
@@ -1361,10 +1361,8 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 //     no branch.
                 (None, Some(callee_value)) if case + 1 < cases.len() => {
                     let expected = self.constant(*bits);
-                    let (if_true, if_false) = self.branch_both_ways(
-                        BranchCondition::TaggedEquals { equal: true },
-                        vec![callee_value, expected],
-                    );
+                    let (if_true, if_false) =
+                        self.branch_both_ways(BranchCondition::TaggedEquals { equal: true }, &[callee_value, expected]);
                     self.block = if_true;
                     next_case = Some(if_false);
                 }
@@ -1410,7 +1408,10 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         if results.is_empty() {
             return Ok(Some(Flow::Ended));
         }
-        self.join_blocks(results.iter().map(|(block, _, _)| *block).collect());
+        self.join_blocks(&ZoneVec::from_iter_in(
+            results.iter().map(|(block, _, _)| *block),
+            self.work,
+        ));
         if edges.is_some() {
             // NB: The callee's phi no longer reaches here.
             let mut functions = ZoneVec::with_capacity_in(results.len(), self.work);
@@ -1628,7 +1629,8 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         let Some(executable) = self.snapshot.executables.get(index as usize) else {
             return true;
         };
-        let Ok(decoded) = super::decoded_function(self.snapshot, executable, &self.decoded[index as usize]) else {
+        let Ok(decoded) = super::decoded_function(self.snapshot, executable, &self.decoded[index as usize], self.work)
+        else {
             return true;
         };
         let exit_sites = &self.snapshot[executable.exit_sites];
@@ -2151,8 +2153,12 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         if callee_executable.builtin {
             return true;
         }
-        let Ok(decoded) = super::decoded_function(self.snapshot, callee_executable, &self.decoded[index as usize])
-        else {
+        let Ok(decoded) = super::decoded_function(
+            self.snapshot,
+            callee_executable,
+            &self.decoded[index as usize],
+            self.work,
+        ) else {
             return false;
         };
         self.inlined_instructions + decoded.instructions.len()
@@ -2185,12 +2191,13 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         if !may_inline {
             return None;
         }
-        let decoded = super::decoded_function(snapshot, callee_executable, &self.decoded[index as usize]).ok()?;
+        let decoded =
+            super::decoded_function(snapshot, callee_executable, &self.decoded[index as usize], self.work).ok()?;
         let instruction_count = decoded.instructions.len();
         let limits = snapshot.options.inlining;
         // NB: Builtins are always inlined (see the snapshot's inlining rules).
         let within_budget = callee_executable.builtin
-            || crate::bytecode::inlining_size(&decoded.instructions) <= limits.always_inlined_instructions as usize
+            || crate::bytecode::inlining_size(decoded.instructions) <= limits.always_inlined_instructions as usize
             || (kind != InlinedCallKind::Call && instruction_count <= limits.max_construct_instructions as usize)
             || (instruction_count <= limits.max_instructions as usize
                 && self.inlined_instructions + instruction_count <= limits.budget_instructions as usize);

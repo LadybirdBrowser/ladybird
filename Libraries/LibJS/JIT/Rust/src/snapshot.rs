@@ -19,7 +19,7 @@
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut, Index, IndexMut};
 
-use ak::{Column, RowBlock};
+use ak::{Column, RowBlock, Zone};
 use std::sync::Arc;
 
 use crate::ir::Float64Function;
@@ -1785,6 +1785,10 @@ pub trait Row: Copy + Send + Sync + 'static {
 /// How many bytes of rows a list that is written row by row holds at most.
 const MAX_OPEN_LIST_BYTES: usize = 16 * 1024 * 1024;
 
+/// The most bytes that the scratch zone of a capture gives out. It is address space, which costs nothing before it
+/// is used.
+const MAX_CAPTURE_SCRATCH_BYTES: usize = 1 << 30;
+
 macro_rules! rows {
     ($($name:ident: $row:ty,)*) => {
         #[allow(non_camel_case_types)]
@@ -1805,6 +1809,9 @@ macro_rules! rows {
             $($name: Column<$row>,)*
             /// Whether a list of each type is being written.
             open: [bool; ROW_TYPE_COUNT],
+            /// Where a step of a capture keeps data that only it reads, like the array of the instruction that a
+            /// walk over bytecode is at. It holds nothing from one step to the next.
+            scratch: Zone,
         }
 
         impl OpenLists {
@@ -1812,6 +1819,7 @@ macro_rules! rows {
                 Self {
                     $($name: Column::new(MAX_OPEN_LIST_BYTES / size_of::<$row>(), c"JIT snapshot open lists"),)*
                     open: [false; ROW_TYPE_COUNT],
+                    scratch: Zone::new(MAX_CAPTURE_SCRATCH_BYTES, c"JIT snapshot scratch"),
                 }
             }
 
@@ -1819,6 +1827,7 @@ macro_rules! rows {
             fn reset(&mut self) {
                 $(self.$name.clear();)*
                 self.open = [false; ROW_TYPE_COUNT];
+                self.scratch.reset();
             }
         }
 
@@ -1984,6 +1993,12 @@ impl SnapshotWriter {
     /// The snapshot as it is now, and the memory for lists that are written row by row, for the next capture.
     pub fn finish(self) -> (Box<Snapshot>, OpenLists) {
         (self.snapshot, self.lists)
+    }
+
+    /// A zone for data that one step of the capture reads and then drops (see `Zone::scope()`). Its memory serves
+    /// capture after capture, like that of the lists that are written row by row.
+    pub fn scratch(&mut self) -> &mut Zone {
+        &mut self.lists.scratch
     }
 
     /// Starts a list, which gets the rows that `push()` adds until `end()`. Only one list of a type of row can be

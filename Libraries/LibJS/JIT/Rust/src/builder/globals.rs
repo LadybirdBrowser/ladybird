@@ -260,7 +260,7 @@ impl GraphBuilder<'_, '_> {
             &[value, realm, executable],
             Some(Repr::Bool),
         );
-        self.branch_to_slow_path(&mut slow_paths, BranchCondition::Bool, vec![stored], true);
+        self.branch_to_slow_path(&mut slow_paths, BranchCondition::Bool, &[stored], true);
         self.join_slow_paths(slow_paths, None);
         Ok(Flow::Continue)
     }

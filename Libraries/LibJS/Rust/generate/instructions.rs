@@ -18,6 +18,7 @@ use flapc::metadata::SpecializedParameterBinding;
 use flapc::metadata::compute_layouts;
 use flapc::metadata::field_type_info;
 use flapc::metadata::user_fields;
+use flapc::rust_bytecode::ArrayFields;
 use flapc::rust_bytecode::InstructionSet;
 use flapc::rust_bytecode::count_field_name;
 use flapc::rust_bytecode::generate_encode_method;
@@ -52,7 +53,7 @@ fn generate_rust_code(
 
     generate_opcode_enum(&mut w, ops)?;
     generate_num_opcodes_const(&mut w, ops)?;
-    generate_instruction_enum(&mut w, ops, "Debug, Clone")?;
+    generate_instruction_enum(&mut w, ops, "Debug, Clone", ArrayFields::Owned)?;
     generate_instruction_impl(&mut w, ops)?;
     generate_instruction_length_from_bytes(&mut w, ops, "super::operand::InstructionLengthError")?;
     generate_instruction_name_from_opcode(&mut w, ops)?;
@@ -602,6 +603,7 @@ fn generate_instruction_impl(
         ops,
         "encode_into_block",
         "crate::bytecode::codegen::emitter::BlockEncoder<'_>",
+        ArrayFields::Owned,
     )?;
     generate_visit_labels_method(&mut w, ops)?;
     writeln!(w, "    }}")?;

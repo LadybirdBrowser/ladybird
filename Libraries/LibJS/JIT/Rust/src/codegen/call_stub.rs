@@ -117,6 +117,7 @@ fn generate_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo, construct: bo
         graph: &graph,
         allocation: &allocation,
         snapshot: &snapshot,
+        work: &zone,
         runtime,
         stress: crate::snapshot::StressOptions::default(),
         pinned,

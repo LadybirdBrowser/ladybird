@@ -49,6 +49,7 @@ use crate::snapshot::keyed_feedback_bits::PACKED;
 use crate::snapshot::keyed_feedback_bits::STRING_KEY;
 use crate::snapshot::keyed_feedback_bits::SYMBOL_KEY;
 use crate::snapshot::keyed_feedback_bits::TYPED_ARRAY_SHIFT;
+use ak::ZoneVec;
 
 /// What a site is built for without keyed feedback: every key and every
 /// elements kind, like the interpreter handles them inline.
@@ -63,7 +64,7 @@ struct KeyPaths {
     named: Option<(BlockId, NodeId)>,
 }
 
-impl GraphBuilder<'_, '_> {
+impl<'a> GraphBuilder<'a, '_> {
     /// What the keyed feedback of `instruction` saw, or everything if it saw
     /// nothing.
     fn keyed_access_bits(&self, instruction: &Instruction) -> u32 {
@@ -74,19 +75,15 @@ impl GraphBuilder<'_, '_> {
     }
 
     /// The elements kinds keyed feedback `bits` saw for int32 keys.
-    fn elements_kinds_seen(&self, bits: u32) -> Vec<ElementsKind> {
-        let mut kinds = Vec::new();
+    fn elements_kinds_seen(&self, bits: u32) -> ZoneVec<'a, ElementsKind> {
+        let mut kinds = ZoneVec::new_in(self.work);
         if bits & INT32_INDEX != 0 && bits & PACKED != 0 {
             kinds.push(ElementsKind::Packed);
         }
         if bits & INT32_INDEX != 0 && bits & HOLEY != 0 {
             kinds.push(ElementsKind::Holey);
         }
-        kinds.extend(
-            self.typed_array_elements_seen(bits)
-                .into_iter()
-                .map(ElementsKind::TypedArray),
-        );
+        kinds.extend(self.typed_array_elements_seen(bits).map(ElementsKind::TypedArray));
         kinds
     }
 
@@ -95,7 +92,13 @@ impl GraphBuilder<'_, '_> {
     /// with the key, each in a block of its own if a key may be either. Keys
     /// of kinds the feedback never saw take a slow path. Returns `None`,
     /// having built nothing, if keys like `key` take no path.
-    fn split_key(&mut self, slow_paths: &mut SlowPaths, key: NodeId, indexed: bool, named: bool) -> Option<KeyPaths> {
+    fn split_key(
+        &mut self,
+        slow_paths: &mut SlowPaths<'a>,
+        key: NodeId,
+        indexed: bool,
+        named: bool,
+    ) -> Option<KeyPaths> {
         if !indexed && !named {
             return None;
         }
@@ -114,12 +117,12 @@ impl GraphBuilder<'_, '_> {
             return named.then_some(paths);
         }
         let integer = if !named {
-            self.branch_to_slow_path(slow_paths, BranchCondition::Int32Value, vec![key], true)
+            self.branch_to_slow_path(slow_paths, BranchCondition::Int32Value, &[key], true)
         } else if indexed {
-            let (integer, other) = self.branch_both_ways(BranchCondition::Int32Value, vec![key]);
+            let (integer, other) = self.branch_both_ways(BranchCondition::Int32Value, &[key]);
             paths.named = Some((other, key));
             self.block = integer;
-            self.refine(BranchCondition::Int32Value, true, vec![key])
+            self.refine(BranchCondition::Int32Value, true, &[key])
         } else {
             // NB: The cache lookup misses for int32 keys.
             paths.named = Some((self.block, key));
@@ -135,13 +138,13 @@ impl GraphBuilder<'_, '_> {
     /// bounds, taking a slow path where it is not.
     pub(super) fn element_index_in_bounds(
         &mut self,
-        slow_paths: &mut SlowPaths,
+        slow_paths: &mut SlowPaths<'a>,
         kind: ElementsKind,
         address: NodeId,
         index: NodeId,
     ) -> (NodeId, NodeId) {
         let (storage, bound) = self.element_storage_and_bound(kind, address);
-        let index = self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, vec![index, bound], true);
+        let index = self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, &[index, bound], true);
         (storage, index)
     }
 
@@ -152,17 +155,17 @@ impl GraphBuilder<'_, '_> {
     /// the elements where they have no room for it, and the access is done.
     pub(super) fn element_index_or_append(
         &mut self,
-        slow_paths: &mut SlowPaths,
+        slow_paths: &mut SlowPaths<'a>,
         object: NodeId,
         address: NodeId,
         index: NodeId,
         value: NodeId,
     ) -> NodeId {
         let length = self.emit(Op::LoadElementsLength, &[address], Some(Repr::Int32));
-        let (inside, outside) = self.branch_both_ways(BranchCondition::IndexInBounds, vec![index, length]);
+        let (inside, outside) = self.branch_both_ways(BranchCondition::IndexInBounds, &[index, length]);
         self.block = outside;
         let next = BranchCondition::Int32(Comparison::StrictlyEquals);
-        let next_index = self.branch_to_slow_path(slow_paths, next, vec![index, length], true);
+        let next_index = self.branch_to_slow_path(slow_paths, next, &[index, length], true);
         let array = self.emit_checked(Op::CheckAppendableArray, &[object], None);
         let array_address = self.cell_address(array);
         let capacity = self.emit(Op::LoadElementsCapacity, &[array_address], Some(Repr::Int32));
@@ -172,42 +175,37 @@ impl GraphBuilder<'_, '_> {
         //     which runs no code either, but at such lengths, whose keys are
         //     no indices, which the slow path stores.
         let room = BranchCondition::IndexInBounds;
-        let (hot, cold) = self.branch_with_cold_side(room, vec![next_index, capacity], true);
+        let (hot, cold) = self.branch_with_cold_side(room, &[next_index, capacity], true);
         self.block = cold;
         let zero = self.int32_constant(0);
         let nonnegative = BranchCondition::Int32(Comparison::GreaterThanEquals);
-        self.branch_to_slow_path(slow_paths, nonnegative, vec![next_index, zero], true);
+        self.branch_to_slow_path(slow_paths, nonnegative, &[next_index, zero], true);
         self.graph.blocks[self.block.index()].is_cold = true;
         self.emit(Op::CallArrayPush, &[array, value], Some(Repr::Tagged));
-        self.end_hot_path(slow_paths, Vec::new());
+        self.end_hot_path(slow_paths, &[]);
         self.block = hot;
-        let next_index = self.refine(room, true, vec![next_index, capacity]);
+        let next_index = self.refine(room, true, &[next_index, capacity]);
         self.emit(
             Op::AppendElement,
             &[array_address, next_index, value],
             Some(Repr::Int32),
         );
-        self.end_hot_path(slow_paths, Vec::new());
+        self.end_hot_path(slow_paths, &[]);
 
         self.block = inside;
-        let index = self.refine(BranchCondition::IndexInBounds, true, vec![index, length]);
+        let index = self.refine(BranchCondition::IndexInBounds, true, &[index, length]);
         let capacity = self.emit(Op::LoadElementsCapacity, &[address], Some(Repr::Int32));
-        self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, vec![index, capacity], true)
+        self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, &[index, capacity], true)
     }
 
     /// Ends the current block, where the object at `address` has no element
     /// at a non-negative index, as a path that read undefined, if its
     /// prototype chain has no indexed properties. Takes the slow path
     /// otherwise.
-    fn read_missing_element(&mut self, slow_paths: &mut SlowPaths, address: NodeId) {
-        self.branch_to_slow_path(
-            slow_paths,
-            BranchCondition::PlainArrayPrototypeChain,
-            vec![address],
-            true,
-        );
+    fn read_missing_element(&mut self, slow_paths: &mut SlowPaths<'a>, address: NodeId) {
+        self.branch_to_slow_path(slow_paths, BranchCondition::PlainArrayPrototypeChain, &[address], true);
         let undefined = self.constant(value::UNDEFINED);
-        self.end_hot_path(slow_paths, vec![undefined]);
+        self.end_hot_path(slow_paths, &[undefined]);
     }
 
     /// Builds `GetByValue` (`Handling::Expanded`) for the keys and elements
@@ -249,11 +247,7 @@ impl GraphBuilder<'_, '_> {
 
         if let Some((block, index)) = paths.indexed {
             self.block = block;
-            let conditions = kinds
-                .iter()
-                .copied()
-                .map(BranchCondition::ElementsKind)
-                .collect::<Vec<_>>();
+            let conditions = ZoneVec::from_iter_in(kinds.iter().copied().map(BranchCondition::ElementsKind), self.work);
             self.branch_on_cases(
                 &mut slow_paths,
                 object,
@@ -269,40 +263,36 @@ impl GraphBuilder<'_, '_> {
                         if kind == ElementsKind::Holey {
                             element = builder.branch_if_empty(slow_paths, element);
                         }
-                        builder.end_hot_path(slow_paths, vec![element]);
+                        builder.end_hot_path(slow_paths, &[element]);
                         return;
                     }
                     let (storage, bound) = builder.element_storage_and_bound(kind, address);
-                    let (inside, outside) =
-                        builder.branch_both_ways(BranchCondition::IndexInBounds, vec![index, bound]);
+                    let (inside, outside) = builder.branch_both_ways(BranchCondition::IndexInBounds, &[index, bound]);
                     builder.block = outside;
                     let zero = builder.int32_constant(0);
                     builder.branch_to_slow_path(
                         slow_paths,
                         BranchCondition::Int32(Comparison::GreaterThanEquals),
-                        vec![index, zero],
+                        &[index, zero],
                         true,
                     );
                     builder.read_missing_element(slow_paths, address);
                     builder.block = inside;
-                    let index = builder.refine(BranchCondition::IndexInBounds, true, vec![index, bound]);
+                    let index = builder.refine(BranchCondition::IndexInBounds, true, &[index, bound]);
                     let element = builder.load_element(kind, storage, index);
                     let element = builder.tagged(element);
                     if kind == ElementsKind::Holey {
                         let empty = builder.constant(value::EMPTY);
-                        let (hole, present) = builder
-                            .branch_both_ways(BranchCondition::TaggedEquals { equal: true }, vec![element, empty]);
+                        let (hole, present) =
+                            builder.branch_both_ways(BranchCondition::TaggedEquals { equal: true }, &[element, empty]);
                         builder.block = hole;
                         builder.read_missing_element(slow_paths, address);
                         builder.block = present;
-                        let element = builder.refine(
-                            BranchCondition::TaggedEquals { equal: true },
-                            false,
-                            vec![element, empty],
-                        );
-                        builder.end_hot_path(slow_paths, vec![element]);
+                        let element =
+                            builder.refine(BranchCondition::TaggedEquals { equal: true }, false, &[element, empty]);
+                        builder.end_hot_path(slow_paths, &[element]);
                     } else {
-                        builder.end_hot_path(slow_paths, vec![element]);
+                        builder.end_hot_path(slow_paths, &[element]);
                     }
                 },
             );
@@ -310,7 +300,7 @@ impl GraphBuilder<'_, '_> {
             if strings {
                 let code_unit = self.string_code_unit(&mut slow_paths, object, index);
                 let character = self.ascii_character_string(&mut slow_paths, code_unit);
-                self.end_hot_path(&mut slow_paths, vec![character]);
+                self.end_hot_path(&mut slow_paths, &[character]);
             }
         }
         if let Some((block, key)) = paths.named {
@@ -322,7 +312,7 @@ impl GraphBuilder<'_, '_> {
                 Some(Repr::Tagged),
             );
             let value = self.branch_if_empty(&mut slow_paths, value);
-            self.end_hot_path(&mut slow_paths, vec![value]);
+            self.end_hot_path(&mut slow_paths, &[value]);
         }
         let result = self.join_hot_paths(slow_paths);
         self.write(dst, result.expect("GetByValue has a value"))?;
@@ -358,7 +348,8 @@ impl GraphBuilder<'_, '_> {
         //     which go once their check of the array exits with `ExitKind::SlowPath`. Where that happened, appends
         //     take the slow path, which they would otherwise exit at too.
         let appends = self.may_speculate(ExitKind::SlowPath);
-        let out_of_bounds_typed_arrays = !self.typed_array_elements_seen(bits).is_empty() && bits & OUT_OF_BOUNDS != 0;
+        let out_of_bounds_typed_arrays =
+            self.typed_array_elements_seen(bits).next().is_some() && bits & OUT_OF_BOUNDS != 0;
         if appends
             && bits & KEY_KINDS_MASK == INT32_INDEX
             && bits & OTHER_ELEMENTS == 0
@@ -383,11 +374,7 @@ impl GraphBuilder<'_, '_> {
         }
         if let Some((block, index)) = paths.indexed {
             self.block = block;
-            let conditions = kinds
-                .iter()
-                .copied()
-                .map(BranchCondition::ElementsKind)
-                .collect::<Vec<_>>();
+            let conditions = ZoneVec::from_iter_in(kinds.iter().copied().map(BranchCondition::ElementsKind), self.work);
             self.branch_on_cases(
                 &mut slow_paths,
                 object,
@@ -408,7 +395,7 @@ impl GraphBuilder<'_, '_> {
                         builder.element_index_in_bounds(slow_paths, kind, address, index)
                     };
                     builder.store_element(kind, storage, index, stored);
-                    builder.end_hot_path(slow_paths, Vec::new());
+                    builder.end_hot_path(slow_paths, &[]);
                 },
             );
         }
@@ -420,8 +407,8 @@ impl GraphBuilder<'_, '_> {
                 &[object, key, value],
                 Some(Repr::Bool),
             );
-            self.branch_to_slow_path(&mut slow_paths, BranchCondition::Bool, vec![stored], true);
-            self.end_hot_path(&mut slow_paths, Vec::new());
+            self.branch_to_slow_path(&mut slow_paths, BranchCondition::Bool, &[stored], true);
+            self.end_hot_path(&mut slow_paths, &[]);
         }
         self.join_hot_paths(slow_paths);
         Ok(Flow::Continue)
@@ -433,33 +420,33 @@ impl GraphBuilder<'_, '_> {
     /// which runs no code where the object is an array with a plain prototype
     /// chain (see `BranchCondition::HoleFillableArray`); other holes take a
     /// slow path.
-    fn store_holey_element(&mut self, slow_paths: &mut SlowPaths, address: NodeId, index: NodeId, value: NodeId) {
+    fn store_holey_element(&mut self, slow_paths: &mut SlowPaths<'a>, address: NodeId, index: NodeId, value: NodeId) {
         let kind = ElementsKind::Holey;
         let in_bounds = BranchCondition::IndexInBounds;
         let length = self.emit(Op::LoadElementsLength, &[address], Some(Repr::Int32));
-        let index = self.branch_to_slow_path(slow_paths, in_bounds, vec![index, length], true);
+        let index = self.branch_to_slow_path(slow_paths, in_bounds, &[index, length], true);
         // NB: Elements made with a length, like `new Array(length)`, have no room yet, and grow as they get filled.
         let capacity = self.emit(Op::LoadElementsCapacity, &[address], Some(Repr::Int32));
-        let (room, no_room) = self.branch_with_cold_side(in_bounds, vec![index, capacity], true);
+        let (room, no_room) = self.branch_with_cold_side(in_bounds, &[index, capacity], true);
         self.block = no_room;
         // NB: Lengths above i32::MAX let negative int32 keys, which are no indices, pass as below the length.
         let zero = self.int32_constant(0);
         let nonnegative = BranchCondition::Int32(Comparison::GreaterThanEquals);
-        let element_index = self.branch_to_slow_path(slow_paths, nonnegative, vec![index, zero], true);
+        let element_index = self.branch_to_slow_path(slow_paths, nonnegative, &[index, zero], true);
         self.graph.blocks[self.block.index()].is_cold = true;
-        let array = self.branch_to_slow_path(slow_paths, BranchCondition::HoleFillableArray, vec![address], true);
+        let array = self.branch_to_slow_path(slow_paths, BranchCondition::HoleFillableArray, &[address], true);
         self.graph.blocks[self.block.index()].is_cold = true;
         self.emit(Op::CallStoreHoleyElement, &[array, element_index, value], None);
-        self.end_hot_path(slow_paths, Vec::new());
+        self.end_hot_path(slow_paths, &[]);
 
         self.block = room;
-        let index = self.refine(in_bounds, true, vec![index, capacity]);
+        let index = self.refine(in_bounds, true, &[index, capacity]);
         let old = self.emit(Op::LoadElementAt { kind }, &[address, index], Some(Repr::Tagged));
         let empty = self.constant(value::EMPTY);
-        let (hole, element) = self.branch_both_ways(BranchCondition::TaggedEquals { equal: true }, vec![old, empty]);
+        let (hole, element) = self.branch_both_ways(BranchCondition::TaggedEquals { equal: true }, &[old, empty]);
 
         self.block = hole;
-        let array = self.branch_to_slow_path(slow_paths, BranchCondition::HoleFillableArray, vec![address], true);
+        let array = self.branch_to_slow_path(slow_paths, BranchCondition::HoleFillableArray, &[address], true);
         // NB: A store to the last index may make the elements packed, which
         //     the runtime does. The index is below the length, so the length
         //     is not 0.
@@ -469,23 +456,23 @@ impl GraphBuilder<'_, '_> {
             &[length, one],
             Some(Repr::Int32),
         );
-        let (before_last, at_last) = self.branch_with_cold_side(in_bounds, vec![index, last], true);
+        let (before_last, at_last) = self.branch_with_cold_side(in_bounds, &[index, last], true);
         self.block = at_last;
         self.emit(Op::CallStoreHoleyElement, &[array, index, value], None);
-        self.end_hot_path(slow_paths, Vec::new());
+        self.end_hot_path(slow_paths, &[]);
         self.block = before_last;
-        let index_before_last = self.refine(in_bounds, true, vec![index, last]);
+        let index_before_last = self.refine(in_bounds, true, &[index, last]);
         self.store_element(kind, address, index_before_last, value);
-        self.end_hot_path(slow_paths, Vec::new());
+        self.end_hot_path(slow_paths, &[]);
 
         self.block = element;
         self.store_element(kind, address, index, value);
-        self.end_hot_path(slow_paths, Vec::new());
+        self.end_hot_path(slow_paths, &[]);
     }
 
     /// `value` as elements of `kind` store it, taking a slow path for
     /// values of typed arrays that are no numbers.
-    fn stored_element(&mut self, slow_paths: &mut SlowPaths, kind: ElementsKind, value: NodeId) -> NodeId {
+    fn stored_element(&mut self, slow_paths: &mut SlowPaths<'a>, kind: ElementsKind, value: NodeId) -> NodeId {
         let int32 = self.int32_value_of(value);
         match (kind.stored_repr(), int32) {
             (Repr::Int32, Some(int32)) => int32,
@@ -518,7 +505,7 @@ impl GraphBuilder<'_, '_> {
             dst,
             callee,
             this_value,
-            ref arguments,
+            arguments,
             ..
         } = *instruction
         else {
@@ -536,7 +523,7 @@ impl GraphBuilder<'_, '_> {
         let Some(feedback) = self.call_feedback(call_feedback) else {
             return Ok(None);
         };
-        let (object, key) = match (arguments.as_slice(), feedback.monomorphic_intrinsic()) {
+        let (object, key) = match (arguments, feedback.monomorphic_intrinsic()) {
             ([key], Some((target, Intrinsic::ObjectPrototypeHasOwnProperty))) => {
                 self.check_callee(callee, target)?;
                 (this_value, *key)

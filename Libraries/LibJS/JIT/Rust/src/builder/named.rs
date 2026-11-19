@@ -25,7 +25,7 @@ use crate::ir::Comparison;
 use crate::ir::NodeId;
 use crate::ir::Op;
 
-impl GraphBuilder<'_, '_> {
+impl<'a> GraphBuilder<'a, '_> {
     /// Builds `GetById` (`Handling::Expanded`): the property the cache has
     /// for the value (see `Op::ProbePropertyCache`).
     pub(super) fn build_get_by_id(&mut self, instruction: &Instruction) -> Result<Flow, CompileFailure> {
@@ -74,7 +74,7 @@ impl GraphBuilder<'_, '_> {
             &[object, value],
             Some(Repr::Bool),
         );
-        self.branch_to_slow_path(&mut slow_paths, BranchCondition::Bool, vec![stored], true);
+        self.branch_to_slow_path(&mut slow_paths, BranchCondition::Bool, &[stored], true);
         self.join_slow_paths(slow_paths, None);
         Ok(Flow::Continue)
     }
@@ -98,16 +98,16 @@ impl GraphBuilder<'_, '_> {
         //     set of the realm tells if array iterators have a return method.
         if let Some(return_watchpoint_set) = self.runtime.array_iterator_return_watchpoint_set {
             let (fast_array_mode, iterator_object) =
-                self.branch_both_ways(BranchCondition::NonNegativeInt32, vec![iterator]);
+                self.branch_both_ways(BranchCondition::NonNegativeInt32, &[iterator]);
             self.block = fast_array_mode;
             self.embed(return_watchpoint_set);
             self.assume(Dependency::WatchpointSetValid(return_watchpoint_set));
-            self.end_hot_path(&mut slow_paths, Vec::new());
+            self.end_hot_path(&mut slow_paths, &[]);
             self.block = iterator_object;
         }
 
         let return_method = self.probe_property_cache(&mut slow_paths, iterator, cache, u32::MAX);
-        self.branch_to_slow_path(&mut slow_paths, BranchCondition::Nullish, vec![return_method], true);
+        self.branch_to_slow_path(&mut slow_paths, BranchCondition::Nullish, &[return_method], true);
         self.join_slow_paths(slow_paths, None);
         Ok(Flow::Continue)
     }
@@ -118,7 +118,7 @@ impl GraphBuilder<'_, '_> {
     /// `Op::ProbePropertyCache`).
     fn probe_property_cache(
         &mut self,
-        slow_paths: &mut SlowPaths,
+        slow_paths: &mut SlowPaths<'a>,
         object: NodeId,
         cache: u32,
         property: u32,
@@ -165,14 +165,14 @@ impl GraphBuilder<'_, '_> {
             |builder, slow_paths, case, value| {
                 if case == 0 {
                     let address = builder.cell_address(value);
-                    let (magical, named) = builder.branch_both_ways(BranchCondition::MagicalLength, vec![address]);
+                    let (magical, named) = builder.branch_both_ways(BranchCondition::MagicalLength, &[address]);
                     builder.block = magical;
-                    let array = builder.refine(BranchCondition::MagicalLength, true, vec![address]);
+                    let array = builder.refine(BranchCondition::MagicalLength, true, &[address]);
                     let length = builder.emit(Op::LoadElementsLength, &[array], Some(Repr::Int32));
                     builder.end_with_length(slow_paths, length);
                     builder.block = named;
                     let length = builder.probe_property_cache(slow_paths, value, cache, u32::MAX);
-                    builder.end_hot_path(slow_paths, vec![length]);
+                    builder.end_hot_path(slow_paths, &[length]);
                 } else {
                     let address = builder.emit(Op::StringAddress, &[value], Some(Repr::Pointer));
                     let length = builder.emit(Op::StringLength, &[address], Some(Repr::Int32));
@@ -188,15 +188,15 @@ impl GraphBuilder<'_, '_> {
     /// Ends a path of `GetLength` with the `Repr::Int32` `length`, which
     /// takes a slow path where it is no int32, an unsigned length above
     /// `i32::MAX`.
-    fn end_with_length(&mut self, slow_paths: &mut SlowPaths, length: NodeId) {
+    fn end_with_length(&mut self, slow_paths: &mut SlowPaths<'a>, length: NodeId) {
         let zero = self.int32_constant(0);
         let length = self.branch_to_slow_path(
             slow_paths,
             BranchCondition::Int32(Comparison::GreaterThanEquals),
-            vec![length, zero],
+            &[length, zero],
             true,
         );
         let length = self.emit(Op::BoxInt32, &[length], Some(Repr::Tagged));
-        self.end_hot_path(slow_paths, vec![length]);
+        self.end_hot_path(slow_paths, &[length]);
     }
 }

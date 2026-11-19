@@ -144,7 +144,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
     // NB: Nothing of the compile before this one is in use (see `Scratch`).
     work.reset();
     let mut graph = {
-        let attempts = builder::Attempts::new(snapshot, has_run, work);
+        let mut attempts = builder::Attempts::new(snapshot, has_run, work);
         loop {
             // NB: This drops the graph of the compile before this one, and a graph that the builder gave up.
             zone.reset();
@@ -187,7 +187,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
             regalloc::dump_allocation(&graph, &tables.regalloc.allocation)
         );
     }
-    let mut generated = codegen::generate::<M>(&graph, snapshot, snapshot.options.verify_ir, tables)?;
+    let mut generated = codegen::generate::<M>(&graph, snapshot, snapshot.options.verify_ir, tables, work)?;
     generated.osr_entries.sort_unstable();
     let layout = tables.artifact.finish(
         &Tail {

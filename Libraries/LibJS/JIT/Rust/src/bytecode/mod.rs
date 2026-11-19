@@ -165,25 +165,25 @@ pub(crate) mod test_support {
     }
 
     impl Program {
-        pub fn instructions(&self) -> Vec<DecodedInstruction> {
-            decode_all(&self.bytes).unwrap()
+        pub fn instructions(&self) -> &'static [DecodedInstruction<'static>] {
+            decode_all(&self.bytes, crate::test_zone()).unwrap()
         }
 
         pub fn cfg(&self) -> Cfg<'static> {
-            Cfg::new(&self.instructions(), &self.handlers, &test_layout(), crate::test_zone()).unwrap()
+            Cfg::new(self.instructions(), &self.handlers, &test_layout(), crate::test_zone()).unwrap()
         }
     }
 
     /// Encodes the instructions returned by `build`, which receives a function
     /// that turns an instruction index into a label pointing at that instruction.
-    pub fn assemble(build: impl Fn(&dyn Fn(usize) -> Label) -> Vec<Instruction>) -> Program {
+    pub fn assemble(build: impl Fn(&dyn Fn(usize) -> Label) -> Vec<Instruction<'static>>) -> Program {
         assemble_with_handlers(build, &[])
     }
 
     /// Like `assemble()`, with exception handlers given as instruction indices
     /// `(start, end, handler)`, where `end` is exclusive.
     pub fn assemble_with_handlers(
-        build: impl Fn(&dyn Fn(usize) -> Label) -> Vec<Instruction>,
+        build: impl Fn(&dyn Fn(usize) -> Label) -> Vec<Instruction<'static>>,
         handlers: &[(usize, usize, usize)],
     ) -> Program {
         let mut offsets = Vec::new();

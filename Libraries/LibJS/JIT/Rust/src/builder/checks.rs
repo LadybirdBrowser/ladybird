@@ -29,8 +29,9 @@ use crate::ir::FrameStateId;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
+use ak::ZoneVec;
 
-impl GraphBuilder<'_, '_> {
+impl<'a> GraphBuilder<'a, '_> {
     /// Builds an instruction whose handling is `Handling::Expanded`.
     pub(super) fn build_expanded(
         &mut self,
@@ -63,11 +64,11 @@ impl GraphBuilder<'_, '_> {
             }
             Instruction::ThrowIfNotObject { src } => {
                 let value = self.read(src)?;
-                self.build_throwing_check(BranchCondition::Object, vec![value], false)
+                self.build_throwing_check(BranchCondition::Object, &[value], false)
             }
             Instruction::ThrowIfNullish { src } => {
                 let value = self.read(src)?;
-                self.build_throwing_check(BranchCondition::Nullish, vec![value], true)
+                self.build_throwing_check(BranchCondition::Nullish, &[value], true)
             }
             Instruction::ToObject { dst, value } => self.build_conversion(BranchCondition::Object, true, dst, value),
             Instruction::ToLength { dst, value } => {
@@ -146,14 +147,15 @@ impl GraphBuilder<'_, '_> {
     pub(super) fn build_throwing_check(
         &mut self,
         condition: BranchCondition,
-        inputs: Vec<NodeId>,
+        inputs: &[NodeId],
         throws_when: bool,
     ) -> Result<Flow, CompileFailure> {
         let frame_state = self.eager_frame_state();
         let slow_path_inputs = self.slow_path_inputs()?;
         let (next, cold) = self.branch_with_cold_side(condition, inputs, !throws_when);
         self.block = cold;
-        self.emit_call_slow_path(slow_path_inputs, frame_state, None);
+        self.emit_call_slow_path(&slow_path_inputs, frame_state, None);
+        self.release_node_list(slow_path_inputs);
         self.set_control(Op::Unreachable, &[]);
         self.block = next;
         Ok(Flow::Continue)
@@ -169,8 +171,8 @@ impl GraphBuilder<'_, '_> {
         }
         let empty = self.constant(value::EMPTY);
         let condition = BranchCondition::TaggedEquals { equal: true };
-        self.build_throwing_check(condition, vec![value, empty], true)?;
-        Ok(self.refine(condition, false, vec![value, empty]))
+        self.build_throwing_check(condition, &[value, empty], true)?;
+        Ok(self.refine(condition, false, &[value, empty]))
     }
 
     /// Writes `src` to `dst` where `condition` of it is `unchanged_when`, and
@@ -185,10 +187,11 @@ impl GraphBuilder<'_, '_> {
         let frame_state = self.eager_frame_state();
         let value = self.read(src)?;
         let slow_path_inputs = self.slow_path_inputs()?;
-        let (hot, cold) = self.branch_with_cold_side(condition, vec![value], unchanged_when);
+        let (hot, cold) = self.branch_with_cold_side(condition, &[value], unchanged_when);
         self.block = cold;
-        let converted = self.emit_call_slow_path(slow_path_inputs, frame_state, Some(Repr::Tagged));
-        self.join_blocks(vec![hot, cold]);
+        let converted = self.emit_call_slow_path(&slow_path_inputs, frame_state, Some(Repr::Tagged));
+        self.release_node_list(slow_path_inputs);
+        self.join_blocks(&[hot, cold]);
         let result = self.add_phi(&[value, converted]);
         self.write(dst, result)?;
         Ok(Flow::Continue)
@@ -220,13 +223,13 @@ impl GraphBuilder<'_, '_> {
         let empty = self.constant(value::EMPTY);
         let (hot, cold) = self.branch_with_cold_side(
             BranchCondition::TaggedEquals { equal: true },
-            vec![this_value, empty],
+            &[this_value, empty],
             false,
         );
         self.block = cold;
         // NB: The slow path's value is the this value it resolved.
-        let resolved = self.emit_call_slow_path(Vec::new(), frame_state, Some(Repr::Tagged));
-        self.join_blocks(vec![hot, cold]);
+        let resolved = self.emit_call_slow_path(&[], frame_state, Some(Repr::Tagged));
+        self.join_blocks(&[hot, cold]);
         let result = self.add_phi(&[this_value, resolved]);
         self.frame.slots[slot] = SlotState { node: result, in_sync };
         Ok(Flow::Continue)
@@ -249,9 +252,9 @@ impl GraphBuilder<'_, '_> {
     /// Ends `predecessors` with jumps to a new block, in which building
     /// continues. Phis of the new block take their inputs in the order of
     /// `predecessors`.
-    pub(super) fn join_blocks(&mut self, predecessors: Vec<BlockId>) -> BlockId {
-        let join = self.start_new_block(&predecessors);
-        for block in predecessors {
+    pub(super) fn join_blocks(&mut self, predecessors: &[BlockId]) -> BlockId {
+        let join = self.start_new_block(predecessors);
+        for &block in predecessors {
             self.block = block;
             self.set_control(Op::Jump { target: join }, &[]);
         }
@@ -264,16 +267,10 @@ impl GraphBuilder<'_, '_> {
     /// `bytecode::slow_path_layout()`), with the empty value for absent
     /// ones: the inputs of its `CallSlowPath` node. Read before the
     /// instruction branches, so that the values are in the abstract frame
-    /// on every path.
-    pub(super) fn slow_path_inputs(&mut self) -> Result<Vec<NodeId>, CompileFailure> {
-        self.slow_path_operands()?
-            .inputs
-            .into_iter()
-            .map(|operand| match operand {
-                Operand::INVALID => Ok(self.constant(value::EMPTY)),
-                raw => self.read(Operand::from_raw(raw)),
-            })
-            .collect()
+    /// on every path. The list is to give back with `release_node_list()`.
+    pub(super) fn slow_path_inputs(&mut self) -> Result<ZoneVec<'a, NodeId>, CompileFailure> {
+        let operands = self.slow_path_operands()?;
+        self.read_slow_path_inputs(operands)
     }
 
     fn opcode(&self) -> OpCode {
@@ -286,7 +283,7 @@ impl GraphBuilder<'_, '_> {
     /// instruction's eager frame state.
     pub(super) fn emit_call_slow_path(
         &mut self,
-        inputs: Vec<NodeId>,
+        inputs: &[NodeId],
         frame_state: FrameStateId,
         repr: Option<Repr>,
     ) -> NodeId {
@@ -297,7 +294,7 @@ impl GraphBuilder<'_, '_> {
                 pc: self.function.pc,
                 saves_registers: true,
             },
-            &inputs,
+            inputs,
             repr,
         );
         self.graph.nodes[node.index()].frame_state = Some(frame_state);
@@ -309,13 +306,14 @@ impl GraphBuilder<'_, '_> {
     /// `repr` if the instruction writes one: the frame state and the
     /// operands of the slow path are the instruction's, before any of it
     /// ran.
-    pub(super) fn start_slow_paths(&mut self, repr: Option<Repr>) -> Result<SlowPaths, CompileFailure> {
+    pub(super) fn start_slow_paths(&mut self, repr: Option<Repr>) -> Result<SlowPaths<'a>, CompileFailure> {
         let frame_state = self.eager_frame_state();
-        let inputs = self.slow_path_inputs()?;
+        let operands = self.slow_path_operands()?;
+        let inputs = self.read_slow_path_inputs(operands)?;
         // NB: The value of a conditional jump's slow path is the pc it
         //     jumps to.
         let output_count = if repr.is_some() {
-            self.slow_path_operands()?.outputs.len().max(1)
+            operands.output_count().max(1)
         } else {
             0
         };
@@ -324,9 +322,9 @@ impl GraphBuilder<'_, '_> {
             inputs,
             repr,
             output_count,
-            hot: Vec::new(),
-            cold: Vec::new(),
-            next_case: Vec::new(),
+            hot: ZoneVec::new_in(self.work),
+            cold: ZoneVec::new_in(self.work),
+            next_case: ZoneVec::new_in(self.work),
             exits: None,
         })
     }
@@ -336,14 +334,14 @@ impl GraphBuilder<'_, '_> {
     /// before. The code after the instruction then joins no path that ran
     /// other code, so it keeps what it knew before the instruction. For
     /// instructions whose slow path only handles rare cases.
-    pub(super) fn exit_instead_of_slow_path(&mut self, slow_paths: &mut SlowPaths) {
+    pub(super) fn exit_instead_of_slow_path(&mut self, slow_paths: &mut SlowPaths<'a>) {
         self.exit_with_instead_of_slow_path(slow_paths, ExitKind::SlowPath);
     }
 
     /// Like `exit_instead_of_slow_path()`, exiting with `kind`, for
     /// instructions whose other speculations exit with `ExitKind::SlowPath`
     /// and should not go once such an exit was taken.
-    pub(super) fn exit_with_instead_of_slow_path(&mut self, slow_paths: &mut SlowPaths, kind: ExitKind) {
+    pub(super) fn exit_with_instead_of_slow_path(&mut self, slow_paths: &mut SlowPaths<'a>, kind: ExitKind) {
         slow_paths.exits = self.may_speculate(kind).then_some(kind);
     }
 
@@ -354,12 +352,12 @@ impl GraphBuilder<'_, '_> {
     /// input in the new block, for the nodes that rely on the condition.
     pub(super) fn branch_to_slow_path(
         &mut self,
-        slow_paths: &mut SlowPaths,
+        slow_paths: &mut SlowPaths<'a>,
         condition: BranchCondition,
-        inputs: Vec<NodeId>,
+        inputs: &[NodeId],
         continue_when: bool,
     ) -> NodeId {
-        let (hot, cold) = self.branch_with_cold_side(condition, inputs.clone(), continue_when);
+        let (hot, cold) = self.branch_with_cold_side(condition, inputs, continue_when);
         slow_paths.cold.push(cold);
         self.block = hot;
         self.refine(condition, continue_when, inputs)
@@ -370,12 +368,12 @@ impl GraphBuilder<'_, '_> {
     /// `start_next_case()`) instead, or to the slow path if there is none.
     pub(super) fn branch_to_next_case(
         &mut self,
-        slow_paths: &mut SlowPaths,
+        slow_paths: &mut SlowPaths<'a>,
         condition: BranchCondition,
-        inputs: Vec<NodeId>,
+        inputs: &[NodeId],
         continue_when: bool,
     ) -> NodeId {
-        let (if_true, if_false) = self.branch_both_ways(condition, inputs.clone());
+        let (if_true, if_false) = self.branch_both_ways(condition, inputs);
         let (hot, edge) = if continue_when {
             (if_true, if_false)
         } else {
@@ -389,8 +387,8 @@ impl GraphBuilder<'_, '_> {
     /// Starts a block where the values that `branch_to_next_case()` sent on
     /// continue, in which building continues. Returns false, and starts
     /// nothing, if none did.
-    pub(super) fn start_next_case(&mut self, slow_paths: &mut SlowPaths) -> bool {
-        let edges = std::mem::take(&mut slow_paths.next_case);
+    pub(super) fn start_next_case(&mut self, slow_paths: &mut SlowPaths<'a>) -> bool {
+        let edges = slow_paths.next_case.take();
         match edges.as_slice() {
             [] => return false,
             // NB: A single edge is the case's block itself.
@@ -400,24 +398,24 @@ impl GraphBuilder<'_, '_> {
             }
             _ => {}
         }
-        self.join_blocks(edges);
+        self.join_blocks(&edges);
         true
     }
 
     /// The refinement of the first of `inputs`, at the head of the current
     /// block, which only the edge of a branch on `condition` of `inputs`
     /// where it is `holds` reaches (see `Op::Refine`).
-    pub(super) fn refine(&mut self, condition: BranchCondition, holds: bool, inputs: Vec<NodeId>) -> NodeId {
+    pub(super) fn refine(&mut self, condition: BranchCondition, holds: bool, inputs: &[NodeId]) -> NodeId {
         let repr = self.graph.node(inputs[0]).repr;
-        self.emit(Op::Refine { condition, holds }, &inputs, repr)
+        self.emit(Op::Refine { condition, holds }, inputs, repr)
     }
 
     /// Ends the current block as one of several paths that completed the
     /// instruction, with `values` like `join_paths()`
     /// takes them, to be joined with the others there. Building continues
     /// in another block.
-    pub(super) fn end_hot_path(&mut self, slow_paths: &mut SlowPaths, values: Vec<NodeId>) {
-        slow_paths.hot.push((self.block, values));
+    pub(super) fn end_hot_path(&mut self, slow_paths: &mut SlowPaths<'a>, values: &[NodeId]) {
+        slow_paths.hot.push((self.block, self.work.alloc_slice_copy(values)));
     }
 
     /// Ends the current block with a branch on `condition` of `inputs` to a
@@ -426,7 +424,7 @@ impl GraphBuilder<'_, '_> {
     pub(super) fn branch_with_cold_side(
         &mut self,
         condition: BranchCondition,
-        inputs: Vec<NodeId>,
+        inputs: &[NodeId],
         continue_when: bool,
     ) -> (BlockId, BlockId) {
         let source = self.block;
@@ -439,14 +437,14 @@ impl GraphBuilder<'_, '_> {
                 if_true,
                 if_false,
             },
-            &inputs,
+            inputs,
         );
         (hot, cold)
     }
 
     /// Ends the current block with a branch on `condition` of `inputs` to
     /// two new blocks, and returns them: where it holds, and where not.
-    pub(super) fn branch_both_ways(&mut self, condition: BranchCondition, inputs: Vec<NodeId>) -> (BlockId, BlockId) {
+    pub(super) fn branch_both_ways(&mut self, condition: BranchCondition, inputs: &[NodeId]) -> (BlockId, BlockId) {
         let source = self.block;
         let if_true = self.add_block_after(source);
         let if_false = self.add_block_after(source);
@@ -456,7 +454,7 @@ impl GraphBuilder<'_, '_> {
                 if_true,
                 if_false,
             },
-            &inputs,
+            inputs,
         );
         (if_true, if_false)
     }
@@ -468,21 +466,21 @@ impl GraphBuilder<'_, '_> {
     /// take a slow path otherwise.
     pub(super) fn branch_on_cases(
         &mut self,
-        slow_paths: &mut SlowPaths,
+        slow_paths: &mut SlowPaths<'a>,
         value: NodeId,
         conditions: &[BranchCondition],
         others: bool,
-        mut build: impl FnMut(&mut Self, &mut SlowPaths, usize, NodeId),
+        mut build: impl FnMut(&mut Self, &mut SlowPaths<'a>, usize, NodeId),
     ) {
         for (index, condition) in conditions.iter().enumerate() {
             if index + 1 == conditions.len() && !others {
-                let refined = self.branch_to_slow_path(slow_paths, *condition, vec![value], true);
+                let refined = self.branch_to_slow_path(slow_paths, *condition, &[value], true);
                 build(self, slow_paths, index, refined);
                 return;
             }
-            let (matched, other) = self.branch_both_ways(*condition, vec![value]);
+            let (matched, other) = self.branch_both_ways(*condition, &[value]);
             self.block = matched;
-            let refined = self.refine(*condition, true, vec![value]);
+            let refined = self.refine(*condition, true, &[value]);
             build(self, slow_paths, index, refined);
             self.block = other;
         }
@@ -494,42 +492,40 @@ impl GraphBuilder<'_, '_> {
         let empty = self.constant(value::EMPTY);
         let condition = BranchCondition::TaggedEquals { equal: true };
         let frame_state = self.eager_frame_state();
-        let (hot, cold) = self.branch_with_cold_side(condition, vec![value, empty], false);
+        let (hot, cold) = self.branch_with_cold_side(condition, &[value, empty], false);
         self.block = cold;
         let exit = self.set_control(Op::Exit { kind }, &[]);
         self.graph.nodes[exit.index()].frame_state = Some(frame_state);
         self.block = hot;
-        self.refine(condition, false, vec![value, empty])
+        self.refine(condition, false, &[value, empty])
     }
 
     /// `value`, refined to not be the empty value (a hole, or nothing found
     /// by a cache probe), taking a slow path where it is.
-    pub(super) fn branch_if_empty(&mut self, slow_paths: &mut SlowPaths, value: NodeId) -> NodeId {
+    pub(super) fn branch_if_empty(&mut self, slow_paths: &mut SlowPaths<'a>, value: NodeId) -> NodeId {
         let empty = self.constant(value::EMPTY);
         self.branch_to_slow_path(
             slow_paths,
             BranchCondition::TaggedEquals { equal: true },
-            vec![value, empty],
+            &[value, empty],
             false,
         )
     }
 
     /// Joins the paths that `end_hot_path()` ended with the slow paths, and
     /// returns the instruction's value, if it has one.
-    pub(super) fn join_hot_paths(&mut self, slow_paths: SlowPaths) -> Option<NodeId> {
-        self.join_hot_paths_with(slow_paths, |_, outputs| outputs)
-            .into_iter()
-            .next()
+    pub(super) fn join_hot_paths(&mut self, slow_paths: SlowPaths<'a>) -> Option<NodeId> {
+        self.join_hot_paths_with(slow_paths, |_, _| {}).first().copied()
     }
 
     /// Like `join_hot_paths()`, for instructions that write several
     /// operands, where `values` makes their values of the outputs of the
-    /// slow path, in the slow path's block.
+    /// slow path, in the slow path's block, in place of the outputs.
     pub(super) fn join_hot_paths_with(
         &mut self,
-        mut slow_paths: SlowPaths,
-        values: impl FnOnce(&mut Self, Vec<NodeId>) -> Vec<NodeId>,
-    ) -> Vec<NodeId> {
+        mut slow_paths: SlowPaths<'a>,
+        values: impl FnOnce(&mut Self, &mut ZoneVec<'a, NodeId>),
+    ) -> &'a [NodeId] {
         let (block, hot_values) = slow_paths.take_last_hot_path();
         self.block = block;
         self.join_paths(slow_paths, hot_values, values)
@@ -540,65 +536,66 @@ impl GraphBuilder<'_, '_> {
     /// continues. Returns the
     /// instruction's value there: the phi of `value`, its value in the
     /// current block, and the slow paths' values.
-    pub(super) fn join_slow_paths(&mut self, slow_paths: SlowPaths, value: Option<NodeId>) -> Option<NodeId> {
-        self.join_paths(slow_paths, value.into_iter().collect(), |_, outputs| outputs)
-            .into_iter()
-            .next()
+    pub(super) fn join_slow_paths(&mut self, slow_paths: SlowPaths<'a>, value: Option<NodeId>) -> Option<NodeId> {
+        self.join_paths(slow_paths, value.as_slice(), |_, _| {})
+            .first()
+            .copied()
     }
 
     /// Like `join_slow_paths()`, for an instruction that writes several
     /// operands: `values` are their values in the current block, in the
     /// order of the slow path's outputs, `slow_values` makes them of the
-    /// outputs of the slow path, in its block, and this returns their phis.
+    /// outputs of the slow path, in its block, in place of the outputs, and
+    /// this returns their phis.
     pub(super) fn join_paths(
         &mut self,
-        mut slow_paths: SlowPaths,
-        values: Vec<NodeId>,
-        slow_values: impl FnOnce(&mut Self, Vec<NodeId>) -> Vec<NodeId>,
-    ) -> Vec<NodeId> {
-        let mut predecessors = slow_paths.hot.iter().map(|(block, _)| *block).collect::<Vec<_>>();
+        mut slow_paths: SlowPaths<'a>,
+        values: &[NodeId],
+        slow_values: impl FnOnce(&mut Self, &mut ZoneVec<'a, NodeId>),
+    ) -> &'a [NodeId] {
+        let mut predecessors = ZoneVec::with_capacity_in(slow_paths.hot.len() + 2, self.work);
+        predecessors.extend(slow_paths.hot.iter().map(|(block, _)| *block));
         predecessors.push(self.block);
         // NB: Values that no case took take the slow path.
-        for edge in std::mem::take(&mut slow_paths.next_case) {
+        for edge in slow_paths.next_case.take() {
             self.graph.blocks[edge.index()].is_cold = true;
             slow_paths.cold.push(edge);
         }
-        let slow = self.build_slow_path(&slow_paths).map(|(_, outputs)| {
-            let values = slow_values(self, outputs);
-            (self.block, values)
+        let slow = self.build_slow_path(&slow_paths).map(|mut outputs| {
+            slow_values(self, &mut outputs);
+            (self.block, outputs)
         });
         predecessors.extend(slow.as_ref().map(|(block, _)| *block));
-        self.join_blocks(predecessors);
+        self.join_blocks(&predecessors);
         assert!(
             values.is_empty() || values.len() == slow_paths.output_count,
             "the slow path writes the same operands"
         );
-        values
-            .into_iter()
-            .enumerate()
-            .map(|(index, value)| {
-                let mut inputs = slow_paths
-                    .hot
-                    .iter()
-                    .map(|(_, values)| values[index])
-                    .collect::<Vec<_>>();
-                inputs.push(value);
-                inputs.extend(slow.as_ref().map(|(_, outputs)| outputs[index]));
-                if inputs.iter().all(|input| *input == inputs[0]) {
-                    return inputs[0];
-                }
-                let repr = self.graph.node(value).repr;
-                let phi = self.add_phi(&inputs);
-                self.graph.nodes[phi.index()].repr = repr;
-                phi
-            })
-            .collect()
+        let mut inputs = self.node_list();
+        let mut phis = ZoneVec::with_capacity_in(values.len(), self.work);
+        for (index, &value) in values.iter().enumerate() {
+            inputs.clear();
+            inputs.extend(slow_paths.hot.iter().map(|(_, values)| values[index]));
+            inputs.push(value);
+            inputs.extend(slow.as_ref().map(|(_, outputs)| outputs[index]));
+            if inputs.iter().all(|input| *input == inputs[0]) {
+                phis.push(inputs[0]);
+                continue;
+            }
+            let repr = self.graph.node(value).repr;
+            let phi = self.add_phi(&inputs);
+            self.graph.nodes[phi.index()].repr = repr;
+            phis.push(phi);
+        }
+        self.release_node_list(inputs);
+        self.release_node_list(slow_paths.inputs);
+        phis.into_slice()
     }
 
     /// The block running the slow path of `slow_paths`, which every cold
     /// edge they took jumps to, with the operands the slow path wrote, if
-    /// any edge was taken.
-    fn build_slow_path(&mut self, slow_paths: &SlowPaths) -> Option<(BlockId, Vec<NodeId>)> {
+    /// any edge was taken. The current block is that block.
+    fn build_slow_path(&mut self, slow_paths: &SlowPaths<'a>) -> Option<ZoneVec<'a, NodeId>> {
         if let Some(kind) = slow_paths.exits {
             for edge in &slow_paths.cold {
                 self.block = *edge;
@@ -611,49 +608,50 @@ impl GraphBuilder<'_, '_> {
             [] => return None,
             [edge] => *edge,
             edges => {
-                let slow = self.join_blocks(edges.to_vec());
+                let slow = self.join_blocks(edges);
                 self.graph.blocks[slow.index()].is_cold = true;
                 slow
             }
         };
         self.block = slow;
-        let call = self.emit_call_slow_path(slow_paths.inputs.clone(), slow_paths.frame_state, slow_paths.repr);
-        let mut outputs = vec![call];
+        let call = self.emit_call_slow_path(&slow_paths.inputs, slow_paths.frame_state, slow_paths.repr);
+        let mut outputs = ZoneVec::with_capacity_in(slow_paths.output_count.max(1), self.work);
+        outputs.push(call);
         for index in 1..slow_paths.output_count {
             let index = u8::try_from(index).expect("slow paths have few outputs");
             outputs.push(self.emit(Op::SlowPathOutput { index }, &[call], Some(Repr::Tagged)));
         }
-        Some((slow, outputs))
+        Some(outputs)
     }
 }
 
 /// The paths of an instruction built as IR so far: the cold edges to its
 /// slow path, the other paths that completed it, and what the slow path
 /// takes (see `GraphBuilder::start_slow_paths()`).
-pub(in crate::builder) struct SlowPaths {
+pub(in crate::builder) struct SlowPaths<'a> {
     frame_state: FrameStateId,
-    inputs: Vec<NodeId>,
+    inputs: ZoneVec<'a, NodeId>,
     repr: Option<Repr>,
     /// How many operands the slow path writes.
     output_count: usize,
     /// The other blocks that completed the instruction (see
     /// `GraphBuilder::end_hot_path()`), with their values.
-    hot: Vec<(BlockId, Vec<NodeId>)>,
+    hot: ZoneVec<'a, (BlockId, &'a [NodeId])>,
     /// The cold edges taken so far, which all jump to one block running the
     /// slow path (see `GraphBuilder::build_slow_path()`).
-    cold: Vec<BlockId>,
+    cold: ZoneVec<'a, BlockId>,
     /// The edges that `GraphBuilder::branch_to_next_case()` took since the
     /// last case started.
-    next_case: Vec<BlockId>,
+    next_case: ZoneVec<'a, BlockId>,
     /// The kind of exit the cold edges take instead, if they exit (see
     /// `GraphBuilder::exit_instead_of_slow_path()`).
     exits: Option<ExitKind>,
 }
 
-impl SlowPaths {
+impl<'a> SlowPaths<'a> {
     /// The last path that `GraphBuilder::end_hot_path()` ended, which no
     /// longer is one of them.
-    pub(in crate::builder) fn take_last_hot_path(&mut self) -> (BlockId, Vec<NodeId>) {
+    pub(in crate::builder) fn take_last_hot_path(&mut self) -> (BlockId, &'a [NodeId]) {
         self.hot.pop().expect("a path completed the instruction")
     }
 }
