@@ -1,5 +1,5 @@
 seekable ranges: 0
-after setting currentTime: seeking false
+after setting currentTime: seeking true
 after the seek is skipped: currentTime 0
 seekable ranges after appending media: 1
 seeking event, seeking true, currentTime 1

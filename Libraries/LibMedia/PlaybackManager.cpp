@@ -785,8 +785,65 @@ void PlaybackManager::pause()
     m_handler->pause();
 }
 
+Optional<PlaybackManager::SeekTarget> PlaybackManager::decide_seek_target(AK::Duration timestamp, SeekMode mode) const
+{
+    // https://html.spec.whatwg.org/multipage/media.html#dom-media-seek
+    // NB: The timestamp variable stands in for the new playback position.
+    //     These are the seek steps that run in parallel.
+
+    // 6. If the new playback position is later than the end of the media resource, then let it be the end of the media
+    //    resource instead.
+    timestamp = min(timestamp, duration());
+
+    // 7. If the new playback position is less than the earliest possible position, let it be that position instead.
+    timestamp = max(timestamp, earliest_possible_position());
+
+    // 8. If the (possibly now changed) new playback position is not in one of the ranges given in the seekable
+    //    attribute, then let it be the position in one of the ranges given in the seekable attribute that is the
+    //    nearest to the new playback position. If two positions both satisfy that constraint (i.e. the new playback
+    //    position is exactly in the middle between two ranges in the seekable attribute), then use the position that
+    //    is closest to the current playback position. If there are no ranges given in the seekable attribute, then set
+    //    the seeking IDL attribute to false and return.
+    auto seekable = seekable_time_ranges();
+    if (!seekable.has_value())
+        return OptionalNone();
+
+    // NB: We only have one range, so no tie-breaker is needed, and we can just clamp to it.
+    timestamp = max(timestamp, seekable.value().start);
+    timestamp = min(timestamp, seekable.value().end);
+
+    // 9. If the approximate-for-speed flag is set, adjust the new playback position to a value that will allow for
+    //    playback to resume promptly. If new playback position before this step is before current playback position,
+    //    then the adjusted new playback position must also be before the current playback position. Similarly, if the
+    //    new playback position before this step is after current playback position, then the adjusted new playback
+    //    position must also be after the current playback position.
+    if (mode == SeekMode::ApproximateForSpeed) {
+        auto current_playback_position = current_time();
+        if (timestamp < current_playback_position)
+            mode = Media::SeekMode::FastBefore;
+        else if (timestamp > current_playback_position)
+            mode = Media::SeekMode::FastAfter;
+        else
+            mode = Media::SeekMode::Accurate;
+    }
+
+    return SeekTarget { timestamp, mode };
+}
+
 void PlaybackManager::seek(AK::Duration timestamp, SeekMode mode)
 {
+    auto target = decide_seek_target(timestamp, mode);
+    if (!target.has_value()) {
+        dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): Seek was skipped", this);
+        if (on_seek_decided)
+            on_seek_decided(SeekDecision::Skip);
+        return;
+    }
+    if (on_seek_decided)
+        on_seek_decided(SeekDecision::Seek);
+    timestamp = target.value().timestamp;
+    mode = target.value().mode;
+
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): Seek to {} ({}) from {}", this, timestamp, mode, m_handler->state());
     m_handler->seek(timestamp, mode);
     m_is_in_error_state = false;

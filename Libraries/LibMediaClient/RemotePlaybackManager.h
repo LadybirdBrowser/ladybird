@@ -86,7 +86,7 @@ public:
     void seek(AK::Duration timestamp, Media::SeekMode);
 
     bool is_playing() const { return m_is_playing; }
-    Media::PlaybackState state() const { return m_state; }
+    Media::PlaybackState state() const;
     Media::AvailableData available_data() const { return m_available_data; }
     // Whether the playback state can only change through further input, such as more data or a seek.
     bool playback_state_is_settled() const;
@@ -104,6 +104,8 @@ public:
     Function<void()> on_playback_state_settled_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void()> on_buffered_ranges_change;
+    // Called for each seek, before any state change the seek causes.
+    Function<void(Media::SeekDecision)> on_seek_decided;
     // Called whenever an input of the seekable ranges changes: the duration, the buffered ranges, or the live seekable
     // range.
     Function<void()> on_seekable_ranges_change;
@@ -118,6 +120,7 @@ public:
     void media_source_added(Badge<Client>, Optional<u64> stream_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<AK::UnixDateTime> start_time_realtime, AK::Duration earliest_possible_position, Media::DemuxerScanState);
     void media_stream_source_failed(Badge<Client>, u64 stream_id, Media::DecoderError);
     void duration_changed(Badge<Client>, AK::Duration);
+    void seek_decided(Badge<Client>, u64 seek_request_id, Media::SeekDecision);
     void state_changed(Badge<Client>, u64 applied_seek_request_id, Media::PlaybackState, bool is_playing, Media::AvailableData, bool server_playback_state_is_settled, AK::Duration current_time);
     void media_stream_scan_state_changed(Badge<Client>, u64 stream_id, Media::DemuxerScanState);
     void error(Badge<Client>, Media::DecoderError);
@@ -181,6 +184,10 @@ private:
     // A seek reports its target as the current time until the server has chosen where it lands. State reported
     // before the server applied the latest seek request is stale, and is ignored.
     u64 m_latest_seek_request_id { 0 };
+    // Track changes also advance the seek request ID, so they don't supersede the decision for the latest seek.
+    u64 m_request_id_of_latest_seek { 0 };
+    // Set from a seek until the server reports its state after applying the seek, unless the seek is skipped.
+    bool m_seek_is_beginning { false };
     u64 m_latest_reported_seek_request_id { 0 };
     bool m_server_playback_state_is_settled { true };
     AK::Duration m_seek_timestamp;
