@@ -1045,7 +1045,7 @@ Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentCli
 
 Messages::WebContentClient::RequestMediaServerConnectionResponse WebContentClient::request_media_server_connection()
 {
-    auto connection = connect_new_media_server_client(m_media_server_client, child_id(), [weak_self = make_weak_ptr<WebContentClient>()]() -> ErrorOr<IPC::TransportHandle> {
+    auto connection = connect_new_media_server_client(m_media_server_client, child_id(), is_private(), [weak_self = make_weak_ptr<WebContentClient>()]() -> ErrorOr<IPC::TransportHandle> {
         auto self = weak_self.strong_ref();
         if (!self)
             return Error::from_string_literal("The WebContent process is gone");
@@ -1094,7 +1094,7 @@ ErrorOr<IPC::TransportHandle> WebContentClient::connect_audio_server_client()
 ErrorOr<void> WebContentClient::ensure_audio_server_controller()
 {
     auto* previous_controller = m_audio_server_client.ptr();
-    TRY(ensure_audio_server_is_running(m_audio_server_client, child_id()));
+    TRY(ensure_audio_server_is_running(m_audio_server_client, child_id(), is_private()));
     if (m_audio_server_client.ptr() == previous_controller)
         return {};
     // A server that isn't told everything gets no clients; the next attempt starts over with another.

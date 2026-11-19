@@ -83,6 +83,7 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
             .child_id = process.child_id(),
             .pid = statistics.pid,
             .type = process.type(),
+            .is_private = process.is_private(),
             .title = process.title(),
             .site_url = process.site_url(),
             .owner_child_id = process.owner_child_id(),

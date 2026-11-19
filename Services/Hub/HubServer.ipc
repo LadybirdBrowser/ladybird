@@ -94,6 +94,7 @@ struct WebView::ProcessSnapshot {
     u64 child_id;
     i32 pid;
     WebView::ProcessType type;
+    WebView::IsPrivate is_private;
     Optional<Utf16String> title;
     Optional<URL::URL> site_url;
     Optional<u64> owner_child_id;
