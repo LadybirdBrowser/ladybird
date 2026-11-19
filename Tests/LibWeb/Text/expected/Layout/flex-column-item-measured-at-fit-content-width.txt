@@ -1,0 +1,7 @@
+column: width 202
+column-half-height: width 202
+column-full-width: width 202
+row: width 202
+inline-block: width 202
+column-min-content: width 202
+auto-margins: width 200

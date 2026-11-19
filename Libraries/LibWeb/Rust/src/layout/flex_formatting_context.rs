@@ -1424,7 +1424,15 @@ impl<'pass> FlexFormattingContext<'pass> {
         let mut available = self.flex_item_details[index]
             .cells
             .available_inner_space_or_constraints_from(self.available_space_for_items.unwrap().space);
-        if available.inline_size == AvailableSize::Indefinite {
+        // https://drafts.csswg.org/css-flexbox-1/#algo-main-item
+        // If a cross size is needed to determine the main size (e.g. when the flex item's main size is in its block
+        // axis) and the flex item's cross size is auto and not definite, in this calculation use fit-content as the
+        // flex item's cross size.
+        // NB: Under a min-content or max-content constraint, that's the item's min-content or max-content inline size.
+        if matches!(
+            available.inline_size,
+            AvailableSize::Indefinite | AvailableSize::MinContent | AvailableSize::MaxContent
+        ) {
             available.inline_size = AvailableSize::definite(self.calculate_inline_size_for_intrinsic_block_size(index));
         }
         available.inline_size.to_px_or_zero()

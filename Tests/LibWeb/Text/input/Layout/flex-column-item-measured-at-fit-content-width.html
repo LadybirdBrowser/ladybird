@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .c { border: 1px solid; vertical-align: top; }
+    .ratio { aspect-ratio: 2; }
+    img { display: block; height: 100%; }
+</style>
+<!-- A column flex container sized under a min-content or max-content constraint measures the block size of an item
+     with an automatic width at the item's min-content or max-content width, so an item with aspect-ratio holding an
+     image with a percentage height gives the container the image's width. -->
+<div><div class="c" id="column" style="display: inline-flex; flex-direction: column"><div class="ratio"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'/%3E"></div></div></div>
+<div><div class="c" id="column-half-height" style="display: inline-flex; flex-direction: column"><div class="ratio"><img style="height: 50%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'/%3E"></div></div></div>
+<div><div class="c" id="column-full-width" style="display: inline-flex; flex-direction: column"><div class="ratio"><img style="width: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'/%3E"></div></div></div>
+<div><div class="c" id="row" style="display: inline-flex"><div class="ratio"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'/%3E"></div></div></div>
+<div><div class="c" id="inline-block" style="display: inline-block"><div class="ratio"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'/%3E"></div></div></div>
+<div style="width: 0"><div class="c" id="column-min-content" style="display: inline-flex; flex-direction: column"><div class="ratio"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'/%3E"></div></div></div>
+<div style="display: flex; flex-direction: column; width: 300px"><div id="auto-margins" style="margin: 0 auto"><div class="ratio"><img style="width: 100%" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'/%3E"></div></div></div>
+<script>
+    function run(report) {
+        for (const element of document.querySelectorAll("[id]:not(#out)")) {
+            const rect = element.getBoundingClientRect();
+            report(`${element.id}: width ${rect.width}`);
+        }
+    }
+</script>
+<script>
+    if (window.asyncTest)
+        asyncTest(done => addEventListener("load", () => { run(println); done(); }));
+    else
+        addEventListener("load", () => { run(line => console.log(line)); window.engineCompareDone = true; });
+</script>
