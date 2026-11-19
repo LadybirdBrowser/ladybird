@@ -16,6 +16,8 @@
 //! nothing on any path may store to it. Every load of such a slot loads that
 //! value, so the state names it by the slot rather than by a load.
 
+use ak::Zone;
+
 use super::Allocation;
 use super::Location;
 use super::Move;
@@ -49,17 +51,19 @@ struct Verifier<'a> {
     /// being computed.
     checking: bool,
     errors: Vec<String>,
+    work: &'a Zone,
 }
 
 /// Checks `allocation` against `graph`, returning a description of every
 /// problem found.
-pub fn verify(graph: &Graph, registers: &RegisterSet, allocation: &Allocation) -> Result<(), String> {
+pub fn verify(graph: &Graph, registers: &RegisterSet, allocation: &Allocation, work: &Zone) -> Result<(), String> {
     let mut verifier = Verifier {
         graph,
         registers,
         allocation,
         checking: false,
         errors: Vec::new(),
+        work,
     };
     let block_count = graph.blocks.len();
     let block_ids = (0..block_count).map(BlockId::from_index).collect::<Vec<_>>();
@@ -256,7 +260,7 @@ impl Verifier<'_> {
         let Some(frame_state) = self.graph.node(node).frame_state else {
             return;
         };
-        let expected_count = self.graph.frame_state_values(frame_state).count();
+        let expected_count = self.graph.frame_state_values(frame_state, self.work).count();
         let exit_values = self.allocation.node(node).exit_values;
         if expected_count != exit_values.len() {
             self.error(format!(
@@ -266,7 +270,9 @@ impl Verifier<'_> {
             ));
             return;
         }
-        for ((slot, value), (exit_slot, location)) in self.graph.frame_state_values(frame_state).zip(exit_values) {
+        for ((slot, value), (exit_slot, location)) in
+            self.graph.frame_state_values(frame_state, self.work).zip(exit_values)
+        {
             if slot != *exit_slot {
                 self.error(format!(
                     "{context}: exit value for slot {exit_slot}, frame state slot {slot}"

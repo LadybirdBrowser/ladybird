@@ -307,7 +307,8 @@ impl<'w> Cfg<'w> {
         mut back_edges: ZoneVec<'w, (BlockIndex, BlockIndex)>,
     ) {
         let zone = self.blocks.zone();
-        back_edges.sort_by_key(|(source, header)| (self.blocks[*header].rpo_number, *source));
+        // NB: Edges with the same key are the same edge, so the order of equal keys does not matter.
+        back_edges.sort_unstable_by_key(|(source, header)| (self.blocks[*header].rpo_number, *source));
         let mut loops: ZoneVec<'w, Loop<'w>> = ZoneVec::new_in(zone);
         for &(source, header) in &back_edges {
             if let Some(existing) = loops.last_mut().filter(|existing| existing.header == header) {

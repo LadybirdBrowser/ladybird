@@ -995,7 +995,7 @@ fn frame_writes_after_slow_paths_that_may_initialize_the_frame_check_first() {
     graph.blocks[0].body.assign(&[initialize, call, store]);
     graph.blocks[0].control = Some(ret);
 
-    super::frame_initialization::run(&mut graph, &layout);
+    super::frame_initialization::run(&mut graph, &layout, crate::test_zone());
     assert_eq!(graph.slow_paths_initializing_frame, vec![call]);
     let ops: Vec<&Op> = graph.blocks[0].body.iter().map(|node| &graph.node(*node).op).collect();
     assert!(matches!(

@@ -14,9 +14,10 @@
 
 use ak::ColumnFull;
 use ak::Zone;
+use ak::ZoneVec;
 
 use super::dominators::Dominators;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
 use crate::ir::FrameStateId;
@@ -25,14 +26,27 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 
 /// A block to split: its phis, the block that branches (itself, or the one
-/// it jumps to), the nodes before that branch (which each side gets a copy
-/// of), and for each side of the branch, the predecessor that takes it and
-/// its target.
+/// it jumps to), and for each side of the branch, the predecessor that takes
+/// it and its target. The nodes before that branch, which each side gets a
+/// copy of, are in `Lists::moved`.
 struct Split {
     block: BlockId,
     branch_block: BlockId,
-    moved: Vec<NodeId>,
     sides: [(BlockId, BlockId); 2],
+}
+
+/// The lists that the splits use, which each split clears.
+struct Lists<'w> {
+    zone: &'w Zone,
+    /// The nodes that each side gets a copy of.
+    moved: ZoneVec<'w, NodeId>,
+    /// The phis of the block, and the nodes in `moved`.
+    phis: ZoneBitSet<'w>,
+    frame_state_sides: ZoneVec<'w, (FrameStateId, usize)>,
+    block_phis: ZoneVec<'w, NodeId>,
+    predecessors: ZoneVec<'w, BlockId>,
+    renames: [ZoneVec<'w, (NodeId, NodeId)>; 2],
+    copies: ZoneVec<'w, NodeId>,
 }
 
 /// Whether a copy of `node` can run at the start of each side instead: an
@@ -60,7 +74,8 @@ fn side_of(dominators: &Dominators, split: &Split, block: BlockId) -> Option<usi
 }
 
 /// Whether `block` has the shape of `Split`, and its split if so.
-fn find_split(graph: &Graph, dominators: &Dominators, block: BlockId) -> Option<Split> {
+/// It puts the nodes that each side gets a copy of in `moved`.
+fn find_split(graph: &Graph, dominators: &Dominators, block: BlockId, moved: &mut ZoneVec<NodeId>) -> Option<Split> {
     let data = graph.block(block);
     if data.phis.is_empty() || data.is_loop_header || data.predecessors.len() != 2 || !dominators.is_reachable(block) {
         return None;
@@ -132,11 +147,10 @@ fn find_split(graph: &Graph, dominators: &Dominators, block: BlockId) -> Option<
             return None;
         }
     }
-    let moved: Vec<NodeId> = if branch_block == block {
-        data.body.to_vec()
-    } else {
-        data.body.iter().chain(&branch_data.body).copied().collect()
-    };
+    moved.assign(&data.body);
+    if branch_block != block {
+        moved.extend_from_slice(&branch_data.body);
+    }
     // NB: Refines must stay at the head of their block, so the copies of the moved nodes cannot go before one.
     let starts_with_refine = |target: BlockId| {
         graph
@@ -151,7 +165,6 @@ fn find_split(graph: &Graph, dominators: &Dominators, block: BlockId) -> Option<
     Some(Split {
         block,
         branch_block,
-        moved,
         sides: [(sides[0]?, targets[0]), (sides[1]?, targets[1])],
     })
 }
@@ -159,14 +172,16 @@ fn find_split(graph: &Graph, dominators: &Dominators, block: BlockId) -> Option<
 /// The side of each frame state that a node or block of one side uses and
 /// that holds one of the phis, or `None` if one of them cannot be renamed: a
 /// node or block of another place uses it, or the phi is in a frame of its
-/// chain other than its own, or in a virtual object.
+/// chain other than its own, or in a virtual object. The sides go in `sides`.
 fn frame_state_sides(
     graph: &Graph,
     dominators: &Dominators,
     split: &Split,
-    phis: &BitSet,
-) -> Option<Vec<(FrameStateId, usize)>> {
-    let mut sides: Vec<(FrameStateId, usize)> = Vec::new();
+    phis: &ZoneBitSet,
+    sides: &mut ZoneVec<(FrameStateId, usize)>,
+    work: &Zone,
+) -> Option<()> {
+    sides.clear();
     for (index, block) in graph.blocks.iter().enumerate() {
         let block_id = BlockId::from_index(index);
         if !dominators.is_reachable(block_id) || block_id == split.block || block_id == split.branch_block {
@@ -181,7 +196,7 @@ fn frame_state_sides(
         for frame_state in frame_states {
             let holds_phi = |id| {
                 graph
-                    .frame_state_values(id)
+                    .frame_state_values(id, work)
                     .any(|(_, value)| phis.contains(value.index()))
             };
             if !holds_phi(frame_state) {
@@ -199,7 +214,7 @@ fn frame_state_sides(
                     .iter()
                     .any(|(_, value)| phis.contains(value.index()))
             });
-            let all_count = graph.frame_state_values(frame_state).count();
+            let all_count = graph.frame_state_values(frame_state, work).count();
             let chain_count: usize = graph
                 .frame_state_chain(frame_state)
                 .map(|id| graph.frame_state(id).values.len())
@@ -207,7 +222,7 @@ fn frame_state_sides(
             // NB: Virtual objects add values past those of the chain's frames.
             let virtual_holds = all_count != chain_count
                 && graph
-                    .frame_state_values(frame_state)
+                    .frame_state_values(frame_state, work)
                     .skip(chain_count)
                     .any(|(_, value)| phis.contains(value.index()));
             if !own_holds || chain_holds || virtual_holds {
@@ -221,7 +236,7 @@ fn frame_state_sides(
             }
         }
     }
-    Some(sides)
+    Some(())
 }
 
 /// `value`, or what `renames` renames it to.
@@ -233,21 +248,33 @@ fn renamed(renames: &[(NodeId, NodeId)], value: NodeId) -> NodeId {
 }
 
 /// Splits one block, if any has the shape of `Split` and all uses of its
-/// phis are on one side of its branch. Returns whether it split one.
-fn split_one(graph: &mut Graph, dominators: &mut Dominators, step: &Zone) -> Result<bool, ColumnFull> {
+/// phis are on one side of its branch. Returns whether it split one. The
+/// data of the split that `lists` does not keep goes in `step`.
+fn split_one(
+    graph: &mut Graph,
+    dominators: &mut Dominators,
+    lists: &mut Lists,
+    step: &Zone,
+) -> Result<bool, ColumnFull> {
     dominators.compute(graph)?;
     let dominators = &*dominators;
+    // NB: Splits add nodes, so the set grows ahead of them.
+    if lists.phis.capacity() < graph.nodes.len() {
+        lists.phis = ZoneBitSet::new_in(graph.nodes.len().max(lists.phis.capacity() * 2), lists.zone);
+    }
     for index in 0..graph.blocks.len() {
-        let Some(split) = find_split(graph, dominators, BlockId::from_index(index)) else {
+        let Some(split) = find_split(graph, dominators, BlockId::from_index(index), &mut lists.moved) else {
             continue;
         };
-        let mut phis = BitSet::new(graph.nodes.len());
+        let phis = &mut lists.phis;
+        phis.clear();
         for phi in &graph.block(split.block).phis {
             phis.insert(phi.index());
         }
-        for node in &split.moved {
+        for node in &lists.moved {
             phis.insert(node.index());
         }
+        let phis = &lists.phis;
         // Every use of a phi must be on one side. A phi's input is used at the end of its predecessor.
         let mut uses_ok = true;
         'blocks: for (block_index, block) in graph.blocks.iter().enumerate() {
@@ -280,28 +307,35 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators, step: &Zone) -> Res
         if !uses_ok {
             continue;
         }
-        let Some(frame_state_sides) = frame_state_sides(graph, dominators, &split, &phis) else {
+        if frame_state_sides(graph, dominators, &split, phis, &mut lists.frame_state_sides, step).is_none() {
             continue;
-        };
+        }
 
-        let block_phis = graph.block(split.block).phis.to_vec();
-        let predecessors = graph.block(split.block).predecessors.to_vec();
-        let mut renames: [Vec<(NodeId, NodeId)>; 2] = std::array::from_fn(|side| {
+        let Lists {
+            moved: moved_nodes,
+            frame_state_sides,
+            block_phis,
+            predecessors,
+            renames,
+            copies,
+            ..
+        } = lists;
+        block_phis.assign(&graph.block(split.block).phis);
+        predecessors.assign(&graph.block(split.block).predecessors);
+        for (side, side_renames) in renames.iter_mut().enumerate() {
             let predecessor = split.sides[side].0;
             let index = predecessors
                 .iter()
                 .position(|block| *block == predecessor)
                 .expect("the side's predecessor enters the block");
-            block_phis
-                .iter()
-                .map(|phi| (*phi, graph.node(*phi).inputs[index]))
-                .collect()
-        });
+            side_renames.clear();
+            side_renames.extend(block_phis.iter().map(|phi| (*phi, graph.node(*phi).inputs[index])));
+        }
         // Each side starts with copies of the moved nodes, with its values.
         for (side, side_renames) in renames.iter_mut().enumerate() {
             let target = split.sides[side].1;
-            let mut copies = Vec::new();
-            for moved in &split.moved {
+            copies.clear();
+            for moved in moved_nodes.iter() {
                 let mut node = graph.node(*moved).clone();
                 for input in &mut node.inputs {
                     *input = renamed(side_renames, *input);
@@ -319,7 +353,7 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators, step: &Zone) -> Res
             }
             let body = &mut graph.blocks[target.index()].body;
             copies.extend_from_slice(body);
-            body.assign(&copies);
+            body.assign(copies);
         }
         let rename = |side: usize, value: NodeId| renamed(&renames[side], value);
 
@@ -347,7 +381,7 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators, step: &Zone) -> Res
                 }
             }
         }
-        for (frame_state, side) in frame_state_sides {
+        for (frame_state, side) in frame_state_sides.iter().copied() {
             for (_, value) in &mut graph.frame_states[frame_state.0 as usize].values {
                 *value = rename(side, *value);
             }
@@ -360,7 +394,7 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators, step: &Zone) -> Res
             graph.blocks[target.index()].predecessors.assign(&[predecessor]);
         }
         graph.blocks[split.block.index()].predecessors.clear();
-        for phi in block_phis {
+        for phi in block_phis.iter() {
             graph.nodes[phi.index()].inputs.clear();
         }
         super::edit::clean_up_control_flow(graph, step);
@@ -372,13 +406,23 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators, step: &Zone) -> Res
 pub fn run(
     graph: &mut Graph,
     dominators: &mut Dominators,
-    _work: &Zone,
+    work: &Zone,
     steps: &mut [Zone; 2],
 ) -> Result<(), ColumnFull> {
     let [step, _] = steps;
+    let mut lists = Lists {
+        zone: work,
+        moved: ZoneVec::new_in(work),
+        phis: ZoneBitSet::new_in(0, work),
+        frame_state_sides: ZoneVec::new_in(work),
+        block_phis: ZoneVec::new_in(work),
+        predecessors: ZoneVec::new_in(work),
+        renames: [ZoneVec::new_in(work), ZoneVec::new_in(work)],
+        copies: ZoneVec::new_in(work),
+    };
     for _ in 0..graph.blocks.len() {
         // NB: Each split cleans up the control flow, with data as large as the graph, which goes when the split ends.
-        if !step.scope(|step| split_one(graph, dominators, step))? {
+        if !step.scope(|step| split_one(graph, dominators, &mut lists, step))? {
             break;
         }
     }

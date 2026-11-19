@@ -127,38 +127,49 @@ impl Inputs {
 
     /// The representations of `count` inputs, if they are of this signature, or `None` if `count` is wrong. A
     /// `HelperCall` of an intrinsic without one, and `Unchecked`, accept anything.
-    pub fn reprs(self, count: usize) -> Result<Option<Vec<Repr>>, usize> {
-        match self {
-            Inputs::Exactly(reprs) if reprs.len() == count => Ok(Some(reprs.to_vec())),
-            Inputs::Exactly(reprs) => Err(reprs.len()),
-            Inputs::AtLeast(first, rest) if count >= first.len() => Ok(Some(
-                first
-                    .iter()
-                    .copied()
-                    .chain(std::iter::repeat_n(rest, count - first.len()))
-                    .collect(),
-            )),
-            Inputs::AtLeast(first, _) => Err(first.len()),
-            Inputs::WithOptional(first, _) if count == first.len() => Ok(Some(first.to_vec())),
-            Inputs::WithOptional(first, optional) if count == first.len() + optional.len() => {
-                Ok(Some(first.iter().chain(optional).copied().collect()))
+    pub fn reprs(self, count: usize) -> Result<Option<impl Iterator<Item = Repr>>, usize> {
+        let takes = match self {
+            Inputs::Exactly(reprs) if reprs.len() == count => true,
+            Inputs::Exactly(reprs) => return Err(reprs.len()),
+            Inputs::AtLeast(first, _) if count >= first.len() => true,
+            Inputs::AtLeast(first, _) => return Err(first.len()),
+            Inputs::WithOptional(first, optional) => {
+                if count != first.len() && count != first.len() + optional.len() {
+                    return Err(first.len());
+                }
+                true
             }
-            Inputs::WithOptional(first, _) => Err(first.len()),
             Inputs::HelperCall(intrinsic) => {
                 let Some(call) = intrinsic.helper_call() else {
                     return Ok(None);
                 };
-                let reprs = std::iter::once(call.receiver)
-                    .chain(call.arguments.iter().copied())
-                    .map(|operand| operand.repr())
-                    .collect::<Vec<_>>();
-                if reprs.len() == count {
-                    Ok(Some(reprs))
-                } else {
-                    Err(reprs.len())
+                if call.arguments.len() + 1 != count {
+                    return Err(call.arguments.len() + 1);
+                }
+                true
+            }
+            Inputs::Unchecked => false,
+        };
+        Ok(takes.then(|| (0..count).map(move |index| self.repr(index))))
+    }
+
+    /// The representation of input `index`, of a count of inputs that `reprs()` accepts.
+    fn repr(self, index: usize) -> Repr {
+        match self {
+            Inputs::Exactly(reprs) => reprs[index],
+            Inputs::AtLeast(first, rest) => first.get(index).copied().unwrap_or(rest),
+            Inputs::WithOptional(first, optional) => first
+                .get(index)
+                .copied()
+                .unwrap_or_else(|| optional[index - first.len()]),
+            Inputs::HelperCall(intrinsic) => {
+                let call = intrinsic.helper_call().expect("the intrinsic has a helper call");
+                match index {
+                    0 => call.receiver.repr(),
+                    _ => call.arguments[index - 1].repr(),
                 }
             }
-            Inputs::Unchecked => Ok(None),
+            Inputs::Unchecked => unreachable!("unchecked inputs have no representations"),
         }
     }
 }

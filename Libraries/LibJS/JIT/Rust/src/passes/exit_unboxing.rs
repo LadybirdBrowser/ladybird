@@ -13,7 +13,7 @@
 //! which dominates its boxing and thus the exit, and dead code elimination
 //! removes the boxing.
 
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::ir::Graph;
 use crate::ir::Op;
 use ak::Zone;
@@ -22,10 +22,10 @@ fn is_boxing(op: &Op) -> bool {
     matches!(op, Op::BoxInt32 | Op::BoxFloat64 | Op::BoxBool)
 }
 
-pub fn run(graph: &mut Graph, _work: &Zone) {
+pub fn run(graph: &mut Graph, work: &Zone) {
     // NB: Boxings that other nodes use stay in frame states, where they
     //     cost nothing more than the unboxed value would.
-    let mut used = BitSet::new(graph.nodes.len());
+    let mut used = ZoneBitSet::new_in(graph.nodes.len(), work);
     for block in &graph.blocks {
         for node in block.nodes() {
             for input in &graph.node(node).inputs {

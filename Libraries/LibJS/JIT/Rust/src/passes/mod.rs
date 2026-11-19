@@ -13,42 +13,26 @@
 //! tests check the graph's invariants (see `verify`) after building and after
 //! every pass.
 
-// NB: A pass with `allow(clippy::disallowed_types)` still uses containers of the heap (see clippy.toml in the
-//     directory of the crate). It loses the `allow` when its data is in zones.
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod bounds_check_elimination;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod branch_fusion;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod branch_splitting;
 mod check_elimination;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod dce;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod dominators;
 pub mod edit;
 mod enumerated_keys;
 mod escape_analysis;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod exit_unboxing;
 mod facts;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod frame_initialization;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod gvn;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod interrupt_check_elimination;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod key_strings;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod licm;
 mod loop_rotation;
 mod representation;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod simplify;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod truncation;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod verify;
 
 #[cfg(test)]
@@ -255,11 +239,11 @@ fn run_passes(
     //     a forward entry, which no entry reaches when every path out of the
     //     inner loop ends in an exit.
     work.scope(|work| edit::remove_unreachable_blocks(graph, work));
-    check(graph, layout, verify, dominators, "graph building");
+    check(graph, layout, verify, dominators, work, "graph building");
     observe(graph, "graph building");
     for pass in PASSES {
         pass.run.run(graph, dominators, work, steps)?;
-        check(graph, layout, verify, dominators, pass.name);
+        check(graph, layout, verify, dominators, work, pass.name);
         observe(graph, pass.name);
     }
     // NB: Nodes that took different refinements of one value compute the
@@ -268,31 +252,34 @@ fn run_passes(
     Run::WithDominators(gvn::run).run(graph, dominators, work, steps)?;
     // NB: Checks that merged took their frame states along, which may have been the last uses of what those refer to.
     Run::Plain(dce::run).run(graph, dominators, work, steps)?;
-    check(graph, layout, verify, dominators, "refinement removal");
+    check(graph, layout, verify, dominators, work, "refinement removal");
     observe(graph, "refinement removal");
-    frame_initialization::run(graph, layout);
-    check(graph, layout, verify, dominators, "frame initialization");
+    work.scope(|work| frame_initialization::run(graph, layout, work));
+    check(graph, layout, verify, dominators, work, "frame initialization");
     work.scope(|work| edit::remove_unused_frame_states(graph, work));
     // NB: Only the final block order puts the cold code last; passes see
     //     every block after its predecessors (except over back edges).
     //     On-stack replacement entries run once per entry, so they are cold
     //     code too, which keeps the blocks they lead to from starting with
     //     their register state.
-    let osr_entries = graph.osr_entries.to_vec();
-    for (_, block) in osr_entries {
+    for index in 0..graph.osr_entries.len() {
+        let (_, block) = graph.osr_entries[index];
         graph.blocks[block.index()].is_cold = true;
     }
     work.scope(|work| edit::move_cold_blocks_last(graph, work));
-    check(graph, layout, verify, dominators, "cold block layout");
+    check(graph, layout, verify, dominators, work, "cold block layout");
     observe(graph, "frame initialization");
     Ok(())
 }
 
-fn check(graph: &Graph, layout: &FrameLayout, verify: bool, dominators: &mut Dominators, after: &str) {
+fn check(graph: &Graph, layout: &FrameLayout, verify: bool, dominators: &mut Dominators, work: &mut Zone, after: &str) {
     if !verify {
         return;
     }
-    if let Err(errors) = verify::verify_with(graph, dominators).and(verify::verify_frame_writes(graph, layout)) {
+    let result = work.scope(|work| {
+        verify::verify_with(graph, dominators, work).and(verify::verify_frame_writes(graph, layout, work))
+    });
+    if let Err(errors) = result {
         panic!(
             "invalid graph after {after}:\n{errors}\n{}",
             crate::ir::dump(graph, layout)

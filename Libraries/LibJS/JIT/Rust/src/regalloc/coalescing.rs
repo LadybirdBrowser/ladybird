@@ -18,6 +18,7 @@
 
 use ak::Column;
 use ak::ColumnFull;
+use ak::Zone;
 
 use super::liveness::ValueLiveness;
 use super::liveness::is_allocated_value;
@@ -59,6 +60,7 @@ struct Interference<'a> {
     liveness: &'a ValueLiveness,
     definitions: &'a [Definition],
     deaths: &'a Lists<(usize, u32)>,
+    work: &'a Zone,
 }
 
 impl Interference<'_> {
@@ -87,7 +89,7 @@ impl Interference<'_> {
             node.op.properties().is_call
                 && node.frame_state.is_some_and(|frame_state| {
                     self.graph
-                        .frame_state_values(frame_state)
+                        .frame_state_values(frame_state, self.work)
                         .any(|(_, frame_value)| frame_value == value)
                 })
         };
@@ -141,7 +143,7 @@ impl Coalescing {
     }
 
     /// Finds the class of each value of `graph`.
-    pub fn compute(&mut self, graph: &Graph, liveness: &ValueLiveness) -> Result<(), ColumnFull> {
+    pub fn compute(&mut self, graph: &Graph, liveness: &ValueLiveness, work: &Zone) -> Result<(), ColumnFull> {
         let count = graph.nodes.len();
         self.classes.clear();
         for value in 0..count as u32 {
@@ -203,6 +205,7 @@ impl Coalescing {
             liveness,
             definitions,
             deaths,
+            work,
         };
         for block in &graph.blocks {
             for phi in &block.phis {

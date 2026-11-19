@@ -32,6 +32,15 @@ pub fn slot_name(layout: &FrameLayout, slot: u32) -> String {
     }
 }
 
+/// `text` with `item` after it, and a comma between the two if `text` is not empty.
+fn join(mut text: String, item: String) -> String {
+    if !text.is_empty() {
+        text.push_str(", ");
+    }
+    text.push_str(&item);
+    text
+}
+
 fn value_name(graph: &Graph, id: NodeId) -> String {
     match (graph.constant_value(id), graph.node(id).repr) {
         (Some(bits), Some(Repr::Int32)) => format!("#i32:{}", (bits as u32).cast_signed()),
@@ -62,8 +71,7 @@ fn shapes_text<'a>(shapes: impl Iterator<Item = &'a ShapeCheck>) -> String {
             Some(generation) => format!("{:#x}@{generation}", shape.shape.0),
             None => format!("{:#x}", shape.shape.0),
         })
-        .collect::<Vec<_>>()
-        .join(", ")
+        .fold(String::new(), join)
 }
 
 fn condition_text(condition: BranchCondition) -> String {
@@ -285,8 +293,8 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
                 .iter()
                 .zip(*targets)
                 .map(|(shape, block)| format!("{} -> {}", shapes_text(std::iter::once(shape)), block_name(*block)))
-                .collect::<Vec<_>>();
-            format!("{} [{}]", with_inputs("ShapeSwitch"), cases.join(", "))
+                .fold(String::new(), join);
+            format!("{} [{}]", with_inputs("ShapeSwitch"), cases)
         }
         Op::CallSlowPath {
             opcode, executable, pc, ..
@@ -429,8 +437,8 @@ pub fn node_text(graph: &Graph, layout: &FrameLayout, node_id: NodeId) -> String
             .inputs
             .iter()
             .map(|input| value_name(graph, *input))
-            .collect::<Vec<_>>();
-        format!("({})", inputs.join(", "))
+            .fold(String::new(), join);
+        format!("({inputs})")
     };
     out.push_str(&op_text(layout, &node.op, &inputs));
     if let Some(frame_state) = node.frame_state {
@@ -453,8 +461,8 @@ pub fn dump(graph: &Graph, layout: &FrameLayout) -> String {
                 .predecessors
                 .iter()
                 .map(|block| block_name(*block))
-                .collect::<Vec<_>>();
-            write!(out, " <- {}", predecessors.join(", ")).unwrap();
+                .fold(String::new(), join);
+            write!(out, " <- {predecessors}").unwrap();
         }
         if block.is_loop_header {
             out.push_str(" loop");
@@ -490,15 +498,15 @@ pub fn dump(graph: &Graph, layout: &FrameLayout) -> String {
             .values
             .iter()
             .map(|(slot, value)| format!("{}={}", slot_name(layout, *slot), value_name(graph, *value)))
-            .collect::<Vec<_>>();
-        write!(out, " {{{}}}", values.join(", ")).unwrap();
+            .fold(String::new(), join);
+        write!(out, " {{{values}}}").unwrap();
         if !frame_state.in_frame.is_empty() {
             let in_frame = frame_state
                 .in_frame
                 .iter()
                 .map(|slot| slot_name(layout, *slot))
-                .collect::<Vec<_>>();
-            write!(out, " frame [{}]", in_frame.join(", ")).unwrap();
+                .fold(String::new(), join);
+            write!(out, " frame [{in_frame}]").unwrap();
         }
         if let Some(parent) = frame_state.parent {
             write!(out, " in fs{}", parent.0).unwrap();

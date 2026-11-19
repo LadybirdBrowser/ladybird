@@ -1847,14 +1847,15 @@ impl<'z> Graph<'z> {
 
     /// Whether `node` never is the empty value. `arguments` are the slots
     /// of the compiled function's arguments, which always hold values.
-    pub fn is_known_non_empty(&self, node: NodeId, arguments: core::ops::Range<u32>) -> bool {
-        let mut pending = vec![node];
-        let mut seen = Vec::new();
-        while let Some(node) = pending.pop() {
+    pub fn is_known_non_empty(&self, node: NodeId, arguments: core::ops::Range<u32>, work: &Zone) -> bool {
+        // NB: Only phis lead to other nodes, so only they are kept in `seen`.
+        let mut pending = ZoneVec::new_in(work);
+        let mut seen = ZoneVec::new_in(work);
+        let mut next = Some(node);
+        while let Some(node) = next.take().or_else(|| pending.pop()) {
             if seen.contains(&node) {
                 continue;
             }
-            seen.push(node);
             let data = self.node(node);
             if data.repr.is_some_and(|repr| repr != Repr::Tagged) {
                 continue;
@@ -1862,7 +1863,10 @@ impl<'z> Graph<'z> {
             match &data.op {
                 Op::Constant(bits) if *bits != value::EMPTY => {}
                 Op::LoadSlot { slot } if arguments.contains(&crate::bytecode::Operand::from_raw(*slot).raw()) => {}
-                Op::Phi => pending.extend(data.inputs.iter().copied()),
+                Op::Phi => {
+                    seen.push(node);
+                    pending.extend(data.inputs.iter().copied());
+                }
                 op if op.info().never_empty => {}
                 _ => return false,
             }
@@ -1885,12 +1889,12 @@ impl<'z> Graph<'z> {
 
     /// The values `node` uses: its inputs, then the values of its frame
     /// state.
-    pub fn used_values(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn used_values<'a>(&'a self, node: NodeId, work: &'a Zone) -> impl Iterator<Item = NodeId> + 'a {
         let data = self.node(node);
         data.inputs.iter().copied().chain(
             data.frame_state
                 .into_iter()
-                .flat_map(|id| self.frame_state_values(id).map(|(_, value)| value)),
+                .flat_map(move |id| self.frame_state_values(id, work).map(|(_, value)| value)),
         )
     }
 
@@ -1932,9 +1936,15 @@ impl<'z> Graph<'z> {
     /// They are followed by the properties of the virtual objects among them
     /// (see `virtual_objects()`), in order, with the slot
     /// `VIRTUAL_OBJECT_PROPERTY`: exits need those values too.
-    pub fn frame_state_values(&self, id: FrameStateId) -> impl Iterator<Item = (u32, NodeId)> + '_ {
+    ///
+    /// The list of the virtual objects goes in `work`, if the chain has any.
+    pub fn frame_state_values<'a>(
+        &'a self,
+        id: FrameStateId,
+        work: &'a Zone,
+    ) -> impl Iterator<Item = (u32, NodeId)> + 'a {
         self.chain_values(id).chain(
-            std::iter::once_with(move || self.virtual_objects(id))
+            std::iter::once_with(move || self.virtual_objects(id, work))
                 .flatten()
                 .flat_map(|object| {
                     self.node(object)
@@ -1948,21 +1958,23 @@ impl<'z> Graph<'z> {
     /// The virtual objects the values of a frame state chain refer to,
     /// directly or through other virtual objects, each once, in the order
     /// they are first referred to.
-    pub fn virtual_objects(&self, id: FrameStateId) -> Vec<NodeId> {
+    pub fn virtual_objects<'w>(&self, id: FrameStateId, work: &'w Zone) -> ZoneVec<'w, NodeId> {
         let is_virtual_object = |value: NodeId| matches!(self.node(value).op, Op::VirtualObject { .. });
+        let mut objects = ZoneVec::new_in(work);
         // NB: Most frame states refer to no virtual object.
         if !self.chain_values(id).any(|(_, value)| is_virtual_object(value)) {
-            return Vec::new();
+            return objects;
         }
-        let mut objects = Vec::new();
-        let mut pending = self.chain_values(id).map(|(_, value)| value).collect::<Vec<_>>();
-        pending.reverse();
-        while let Some(value) = pending.pop() {
-            if !is_virtual_object(value) || objects.contains(&value) {
-                continue;
+        let mut pending = ZoneVec::new_in(work);
+        for (_, value) in self.chain_values(id) {
+            pending.push(value);
+            while let Some(value) = pending.pop() {
+                if !is_virtual_object(value) || objects.contains(&value) {
+                    continue;
+                }
+                objects.push(value);
+                pending.extend(self.node(value).inputs.iter().rev().copied());
             }
-            objects.push(value);
-            pending.extend(self.node(value).inputs.iter().rev().copied());
         }
         objects
     }
@@ -2027,11 +2039,11 @@ impl<'z> Graph<'z> {
 
     /// Reorders the blocks so that `order[i]` becomes block `i`. Blocks not
     /// in `order` are dropped; nothing may refer to them.
-    pub fn reorder_blocks(&mut self, order: &[BlockId]) {
+    pub fn reorder_blocks(&mut self, order: &[BlockId], work: &Zone) {
         if order.len() == self.blocks.len() && order.iter().enumerate().all(|(index, block)| block.index() == index) {
             return;
         }
-        let mut new_index = vec![None; self.blocks.len()];
+        let mut new_index = ZoneVec::from_elem_in(None, self.blocks.len(), work);
         for (index, block) in order.iter().enumerate() {
             assert!(new_index[block.index()].is_none(), "blocks appear once in the order");
             new_index[block.index()] = Some(BlockId::from_index(index));
@@ -2109,10 +2121,11 @@ impl<'z> Graph<'z> {
 
     /// Whether `id` always has the value of `value`, because it refines
     /// `value` or a phi whose inputs all have that value.
-    pub fn has_value_of(&self, id: NodeId, value: NodeId) -> bool {
-        let mut pending = vec![id];
-        let mut seen = Vec::new();
-        while let Some(mut node) = pending.pop() {
+    pub fn has_value_of(&self, id: NodeId, value: NodeId, work: &Zone) -> bool {
+        let mut pending = ZoneVec::new_in(work);
+        let mut seen = ZoneVec::new_in(work);
+        let mut next = Some(id);
+        while let Some(mut node) = next.take().or_else(|| pending.pop()) {
             while node != value
                 && let Some(index) = self.node(node).op.refined_input()
             {
@@ -2121,10 +2134,10 @@ impl<'z> Graph<'z> {
             if node == value || seen.contains(&node) {
                 continue;
             }
-            seen.push(node);
             if !matches!(self.node(node).op, Op::Phi) {
                 return false;
             }
+            seen.push(node);
             pending.extend(self.node(node).inputs.iter().copied());
         }
         true
@@ -2180,7 +2193,7 @@ mod tests {
             graph.osr_entries.push((10, BlockId(3)));
             let storage = graph.blocks.as_ptr();
             let order = order.map(BlockId);
-            graph.reorder_blocks(&order);
+            graph.reorder_blocks(&order, crate::test_zone());
             assert_eq!(graph.blocks.as_ptr(), storage);
             assert_eq!(graph.blocks.len(), 3);
             for (index, old) in order.iter().enumerate() {
@@ -2217,9 +2230,11 @@ mod tests {
         );
         let parent = state(&mut graph, vec![(0, value), (1, inner)], None);
         let current = state(&mut graph, vec![(0, outer), (1, inner)], Some(parent));
-        assert_eq!(graph.virtual_objects(current), [outer, inner]);
+        assert_eq!(graph.virtual_objects(current, crate::test_zone()), [outer, inner]);
         assert_eq!(
-            graph.frame_state_values(current).collect::<Vec<_>>(),
+            graph
+                .frame_state_values(current, crate::test_zone())
+                .collect::<Vec<_>>(),
             [
                 (0, outer),
                 (1, inner),
@@ -2231,12 +2246,12 @@ mod tests {
             ]
         );
         graph.nodes[inner.index()].inputs.push(outer);
-        assert_eq!(graph.virtual_objects(current), [outer, inner]);
+        assert_eq!(graph.virtual_objects(current, crate::test_zone()), [outer, inner]);
         assert_eq!(
-            graph.frame_state_values(current).last(),
+            graph.frame_state_values(current, crate::test_zone()).last(),
             Some((VIRTUAL_OBJECT_PROPERTY, outer))
         );
         let empty = state(&mut graph, vec![], None);
-        assert_eq!(graph.frame_state_values(empty).count(), 0);
+        assert_eq!(graph.frame_state_values(empty, crate::test_zone()).count(), 0);
     }
 }
