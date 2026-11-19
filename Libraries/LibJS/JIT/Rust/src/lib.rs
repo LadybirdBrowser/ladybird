@@ -30,6 +30,7 @@ pub mod scratch;
 pub mod snapshot;
 pub mod sparse_bitset;
 pub mod tables;
+pub mod zone_map;
 
 // NB: The tests get their memory on Windows from `ak::windows_code_memory`, which is for x86-64.
 #[cfg(all(test, windows, not(target_arch = "x86_64")))]
