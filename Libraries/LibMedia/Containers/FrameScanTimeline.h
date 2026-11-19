@@ -75,7 +75,7 @@ public:
 
     BufferedRangesScan buffered_time_ranges(NonnullRefPtr<MediaStreamCursor> const& cursor, Vector<MediaStream::ByteRange> const& byte_ranges, Optional<u64> file_size);
     AK::Duration duration();
-    DecoderErrorOr<SeekResult> seek_to_timestamp(NonnullRefPtr<MediaStreamCursor> const& scanning_cursor, NonnullRefPtr<MediaStreamCursor> const& seek_cursor, MediaStream&, AK::Duration timestamp);
+    DecoderErrorOr<SeekedPosition> seek_to_timestamp(NonnullRefPtr<MediaStreamCursor> const& scanning_cursor, NonnullRefPtr<MediaStreamCursor> const& seek_cursor, MediaStream&, AK::Duration timestamp);
 
 private:
     struct ScannedByteRange;

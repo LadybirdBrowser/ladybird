@@ -180,16 +180,12 @@ DecoderErrorOr<DemuxerSeekResult> MP3Demuxer::seek_to_most_recent_keyframe(Track
     VERIFY(track == m_track);
     auto& status = track_status();
 
-    auto seek_result = TRY(m_buffered_scan_thread->payload().timeline->seek_to_timestamp(m_seek_scanning_cursor, NonnullRefPtr { status.iterator.cursor() }, *m_stream, timestamp));
+    auto seeked = TRY(m_buffered_scan_thread->payload().timeline->seek_to_timestamp(m_seek_scanning_cursor, NonnullRefPtr { status.iterator.cursor() }, *m_stream, timestamp));
     if (has_flag(options, DemuxerSeekOptions::NeedCodecConfiguration))
         status.needs_codec_configuration = true;
 
-    auto const* seeked = seek_result.get_pointer<SeekedPosition>();
-    if (seeked == nullptr)
-        return DemuxerSeekResult::KeptCurrentPosition;
-
-    status.iterator = FrameIterator { NonnullRefPtr { status.iterator.cursor() }, static_cast<size_t>(seeked->byte_position), FrameIterator::Resynchronize::Yes };
-    status.next_timestamp = seeked->timestamp;
+    status.iterator = FrameIterator { NonnullRefPtr { status.iterator.cursor() }, static_cast<size_t>(seeked.byte_position), FrameIterator::Resynchronize::Yes };
+    status.next_timestamp = seeked.timestamp;
     return DemuxerSeekResult::MovedPosition;
 }
 
