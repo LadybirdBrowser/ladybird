@@ -11,6 +11,7 @@
 #include <LibCore/Resource.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
+#include <UI/Qt/Motion.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Theme.h>
 
@@ -421,14 +422,6 @@ static QPainterPath const& chrome_icon_painter_path(ChromeIcon icon)
     });
 }
 
-static QPixmap create_transparent_icon_pixmap(QSize logical_size, qreal device_pixel_ratio)
-{
-    QPixmap pixmap(physical_size_for_device_pixel_ratio(logical_size, device_pixel_ratio));
-    pixmap.setDevicePixelRatio(device_pixel_ratio);
-    pixmap.fill(Qt::transparent);
-    return pixmap;
-}
-
 static bool coordinates_match(qreal a, qreal b)
 {
     return abs(a - b) < 0.001;
@@ -606,22 +599,28 @@ static QTransform transform_for_diagonal_icon(QPainterPath const& path, qreal sc
     return transform;
 }
 
-// Puts the lines of an icon on the pixel grid of the size it is shown at, the way a font's hints do for its letters.
-static QPainterPath fit_icon_path_to_pixels(QPainterPath const& path, qreal scale, int stroke_width, int canvas_size)
+// Moves a part of an icon, or the whole of it, as fitting the icon to the pixels moves it.
+static QPainterPath fit_icon_part_to_pixels(QPainterPath const& icon_path, QPainterPath const& part, qreal scale, int stroke_width, int canvas_size)
 {
-    auto stems = find_icon_stems(path);
+    auto stems = find_icon_stems(icon_path);
     if (stems.is_diagonal)
-        return transform_for_diagonal_icon(path, scale, stroke_width, canvas_size).map(path);
+        return transform_for_diagonal_icon(icon_path, scale, stroke_width, canvas_size).map(part);
 
     auto vertical = fit_stems_to_pixels(stems.vertical, scale, stroke_width, canvas_size);
     auto horizontal = fit_stems_to_pixels(stems.horizontal, scale, stroke_width, canvas_size);
 
-    QPainterPath fitted = path;
+    QPainterPath fitted = part;
     for (int index = 0; index < fitted.elementCount(); ++index) {
         auto const& element = fitted.elementAt(index);
         fitted.setElementPositionAt(index, apply_fitted_positions(vertical, element.x * scale), apply_fitted_positions(horizontal, element.y * scale));
     }
     return fitted;
+}
+
+// Puts the lines of an icon on the pixel grid of the size it is shown at, the way a font's hints do for its letters.
+static QPainterPath fit_icon_path_to_pixels(QPainterPath const& path, qreal scale, int stroke_width, int canvas_size)
+{
+    return fit_icon_part_to_pixels(path, path, scale, stroke_width, canvas_size);
 }
 
 static qreal chrome_icon_stroke_width(int logical_size)
@@ -693,15 +692,23 @@ static QPainterPath icon_outline(QPainterPath const& path, int stroke_width)
 }
 
 // The icon is drawn from its vector at the size and device pixel ratio it is shown at, never scaled from a picture.
-static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QPainterPath const& path, QColor color, qreal device_pixel_ratio, int logical_size)
+// Draws an icon from the outline of its lines, which it is given in pixels of the screen for the scale of the icon,
+// the width of its lines and the size of its canvas. A margin around the canvas leaves room for lines that move past
+// its edges.
+template<typename OutlineFunction>
+static QPixmap create_chrome_icon_pixmap(QColor color, qreal device_pixel_ratio, int logical_size, OutlineFunction outline_for, int margin_in_pixels = 0)
 {
-    auto pixmap = create_transparent_icon_pixmap({ logical_size, logical_size }, device_pixel_ratio);
+    auto canvas_size = physical_size_for_device_pixel_ratio({ logical_size, logical_size }, device_pixel_ratio);
+    QPixmap pixmap(canvas_size + QSize(2 * margin_in_pixels, 2 * margin_in_pixels));
+    pixmap.setDevicePixelRatio(device_pixel_ratio);
+    pixmap.fill(Qt::transparent);
 
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     // NB: Everything below is measured in pixels of the screen.
     painter.scale(1 / device_pixel_ratio, 1 / device_pixel_ratio);
+    painter.translate(margin_in_pixels, margin_in_pixels);
 
     // An icon is drawn in one opaque color, then made as translucent as its color as a whole, so that where its lines
     // cross they don't add up to a brighter spot.
@@ -712,13 +719,10 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QPainterPath const& pa
     // that leaves room inside an icon of this size.
     auto stroke_width = max(1, static_cast<int>(floor((chrome_icon_stroke_width(logical_size) * device_pixel_ratio) + 0.25)));
     auto scale = logical_size * device_pixel_ratio / CHROME_ICON_CANVAS_SIZE;
-    auto fitted_path = fit_icon_path_to_pixels(path, scale, stroke_width, pixmap.width());
 
     // Fill the combined outline once so antialiased edges do not accumulate where lines meet.
-    auto outline = icon_outline(fitted_path, stroke_width);
+    QPainterPath outline = outline_for(scale, stroke_width, canvas_size.width());
     outline.setFillRule(Qt::WindingFill);
-    if (icon == ChromeIcon::StarFilled)
-        outline.addPath(fitted_path);
     painter.fillPath(outline.simplified(), opaque_color);
 
     if (color.alpha() != 255) {
@@ -730,8 +734,19 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QPainterPath const& pa
     return pixmap;
 }
 
+static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QPainterPath const& path, QColor color, qreal device_pixel_ratio, int logical_size)
+{
+    return create_chrome_icon_pixmap(color, device_pixel_ratio, logical_size, [&](qreal scale, int stroke_width, int canvas_size) {
+        auto fitted_path = fit_icon_path_to_pixels(path, scale, stroke_width, canvas_size);
+        auto outline = icon_outline(fitted_path, stroke_width);
+        if (icon == ChromeIcon::StarFilled)
+            outline.addPath(fitted_path);
+        return outline;
+    });
+}
+
 // Draws a chrome icon from its vector for each size and device pixel ratio it is asked for.
-class ChromeIconEngine final : public QIconEngine {
+class ChromeIconEngine : public QIconEngine {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
@@ -777,7 +792,7 @@ public:
             if (entry.side == side && entry.scale == scale && entry.mode == mode)
                 return entry.pixmap;
         }
-        auto pixmap = create_chrome_icon_pixmap(m_icon, m_path, color_for_mode(mode), scale, side);
+        auto pixmap = create_icon_pixmap(color_for_mode(mode), scale, side);
         m_pixmaps.append({ side, scale, mode, pixmap });
         return pixmap;
     }
@@ -790,6 +805,14 @@ public:
         auto position = rect.topLeft() + QPoint((rect.width() - side) / 2, (rect.height() - side) / 2);
         painter->drawPixmap(position, pixmap);
     }
+
+protected:
+    virtual QPixmap create_icon_pixmap(QColor color, qreal device_pixel_ratio, int logical_size) const
+    {
+        return create_chrome_icon_pixmap(m_icon, m_path, color, device_pixel_ratio, logical_size);
+    }
+
+    Colors const& colors() const { return m_colors; }
 
 private:
     QColor color_for_mode(QIcon::Mode mode) const
@@ -826,7 +849,7 @@ QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal device_pi
     return create_chrome_icon_pixmap(icon, chrome_icon_painter_path(icon), color, device_pixel_ratio, CHROME_ICON_CANVAS_SIZE);
 }
 
-static QIcon create_chrome_icon(ChromeIcon icon, QPainterPath const& path, QPalette const& palette, ChromeStyle::WindowActivity activity, int logical_size)
+static ChromeIconEngine::Colors chrome_icon_colors(ChromeIcon icon, QPalette const& palette, ChromeStyle::WindowActivity activity)
 {
     auto const& chrome = Theme::chrome(palette);
 
@@ -854,7 +877,12 @@ static QIcon create_chrome_icon(ChromeIcon icon, QPainterPath const& path, QPale
     if (activity == ChromeStyle::WindowActivity::Inactive)
         normal = chrome.muted;
 
-    return QIcon(new ChromeIconEngine(icon, path, { normal, chrome.icon, chrome.disabled, chrome.icon }, logical_size));
+    return { normal, chrome.icon, chrome.disabled, chrome.icon };
+}
+
+static QIcon create_chrome_icon(ChromeIcon icon, QPainterPath const& path, QPalette const& palette, ChromeStyle::WindowActivity activity, int logical_size)
+{
+    return QIcon(new ChromeIconEngine(icon, path, chrome_icon_colors(icon, palette, activity), logical_size));
 }
 
 QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette, ChromeStyle::WindowActivity activity, int logical_size)
@@ -887,6 +915,168 @@ QIcon create_site_settings_icon(QPalette const& palette, qreal knob_travel)
     add_line_with_knob(11.5, 4.5 + (KNOB_TRAVEL * knob_travel));
 
     return create_chrome_icon(ChromeIcon::SiteSettings, path, palette, ChromeStyle::WindowActivity::Active, CHROME_ICON_CANVAS_SIZE);
+}
+
+// What is left of a path of one line or curve after another once the given part of its length is cut from its start.
+static QPainterPath cut_from_start_of_path(QPainterPath const& path, qreal cut_part)
+{
+    auto cut_length = path.length() * cut_part;
+    QPainterPath result;
+    QPointF current = path.elementAt(0);
+    qreal length_so_far = 0;
+    for (int index = 1; index < path.elementCount(); ++index) {
+        auto const& element = path.elementAt(index);
+        QPainterPath segment;
+        segment.moveTo(current);
+        if (element.isCurveTo()) {
+            QPointF control1 = element;
+            QPointF control2 = path.elementAt(index + 1);
+            QPointF end = path.elementAt(index + 2);
+            segment.cubicTo(control1, control2, end);
+            auto segment_length = segment.length();
+            if (length_so_far + segment_length > cut_length) {
+                if (result.elementCount() == 0) {
+                    // NB: Split the curve where the cut falls, keeping its second part.
+                    auto t = segment.percentAtLength(cut_length - length_so_far);
+                    auto lerp = [](QPointF a, QPointF b, qreal t) { return a + ((b - a) * t); };
+                    auto p01 = lerp(current, control1, t);
+                    auto p12 = lerp(control1, control2, t);
+                    auto p23 = lerp(control2, end, t);
+                    auto p012 = lerp(p01, p12, t);
+                    auto p123 = lerp(p12, p23, t);
+                    result.moveTo(lerp(p012, p123, t));
+                    result.cubicTo(p123, p23, end);
+                } else {
+                    result.cubicTo(control1, control2, end);
+                }
+            }
+            length_so_far += segment_length;
+            current = end;
+            index += 2;
+            continue;
+        }
+        QPointF end = element;
+        segment.lineTo(end);
+        auto segment_length = segment.length();
+        if (length_so_far + segment_length > cut_length) {
+            if (result.elementCount() == 0)
+                result.moveTo(current + ((end - current) * ((cut_length - length_so_far) / segment_length)));
+            result.lineTo(end);
+        }
+        length_so_far += segment_length;
+        current = end;
+    }
+    return result;
+}
+
+// The reload arrow turns a quarter turn clockwise while its arc reels itself into the arrowhead, whose legs then pull
+// into their corner. The cross draws itself from there, one line after the other: the first from the bottom right,
+// where the arrowhead ended up, and the second from the top right.
+class ReloadToStopIconEngine final : public ChromeIconEngine {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    ReloadToStopIconEngine(Colors colors, int logical_size, qreal progress)
+        : ChromeIconEngine(ChromeIcon::Reload, {}, AK::move(colors), logical_size)
+        , m_logical_size(logical_size)
+        , m_progress(progress)
+    {
+        build_paths();
+    }
+
+    virtual QIconEngine* clone() const override { return new ReloadToStopIconEngine(colors(), m_logical_size, m_progress); }
+
+    // NB: The pixmap reaches past the icon by its margin on each side.
+    virtual void paint(QPainter* painter, QRect const& rect, QIcon::Mode mode, QIcon::State state) override
+    {
+        auto side = min(rect.width(), rect.height());
+        auto device_pixel_ratio = painter->device() ? painter->device()->devicePixelRatio() : 1;
+        auto pixmap = scaledPixmap(QSize(side, side), mode, state, device_pixel_ratio);
+        auto margin = margin_in_pixels(device_pixel_ratio) / device_pixel_ratio;
+        auto position = QPointF(rect.topLeft() + QPoint((rect.width() - side) / 2, (rect.height() - side) / 2)) - QPointF(margin, margin);
+        painter->drawPixmap(position, pixmap);
+    }
+
+private:
+    void build_paths()
+    {
+        static auto const arc = parse_svg_path("M13.41 9a5.5 5.5 0 0 1-5.41 4.5a5.5 5.5 0 1 1 3.89-9.39L13.5 5.5"sv);
+        static constexpr QPointF ARROWHEAD_CORNER { 13.5, 5.5 };
+        static constexpr QPointF ARROWHEAD_LEG_ENDS[] { { 13.5, 2 }, { 10, 5.5 } };
+        static auto const exit_easing = Motion::exit_easing();
+        static auto const enter_easing = Motion::enter_easing();
+
+        auto part = [&](qreal start, qreal end) { return clamp((m_progress - start) / (end - start), 0.0, 1.0); };
+        auto reeled_in = exit_easing.valueForProgress(part(0, 0.45));
+        auto legs_pulled_in = exit_easing.valueForProgress(part(0.325, 0.45));
+        auto first_line_drawn = enter_easing.valueForProgress(part(0.425, 0.8));
+        auto second_line_drawn = enter_easing.valueForProgress(part(0.55, 1));
+
+        QPainterPath arrow;
+        if (reeled_in < 1)
+            arrow = cut_from_start_of_path(arc, reeled_in);
+        if (legs_pulled_in < 1) {
+            for (auto leg_end : ARROWHEAD_LEG_ENDS) {
+                arrow.moveTo(ARROWHEAD_CORNER);
+                arrow.lineTo(ARROWHEAD_CORNER + ((leg_end - ARROWHEAD_CORNER) * (1 - legs_pulled_in)));
+            }
+        }
+        m_arrow = arrow;
+        m_arrow_turn_degrees = 90 * reeled_in;
+
+        // NB: A line drawn only a sliver of its length would show as a dot.
+        static constexpr qreal SHORTEST_DRAWN_PART = 0.02;
+        auto add_line = [&](QPointF from, QPointF to, qreal drawn) {
+            if (drawn <= SHORTEST_DRAWN_PART)
+                return;
+            m_cross.moveTo(from);
+            m_cross.lineTo(from + ((to - from) * drawn));
+        };
+        add_line({ 11.5, 11.5 }, { 3.5, 3.5 }, first_line_drawn);
+        add_line({ 11.5, 3.5 }, { 3.5, 11.5 }, second_line_drawn);
+    }
+
+    // The arrowhead swings past the corners of the icon as the arrow turns.
+    static int margin_in_pixels(qreal device_pixel_ratio)
+    {
+        static constexpr qreal MARGIN = 2;
+        return static_cast<int>(ceil(MARGIN * device_pixel_ratio));
+    }
+
+    // The arrow is fitted to the pixels as the reload icon is, and the cross as the stop icon is, so that the morph
+    // starts and ends just where the two icons take over. The arrow turns after it is fitted, so that its lines move
+    // smoothly rather than jump from one pixel to the next.
+    virtual QPixmap create_icon_pixmap(QColor color, qreal device_pixel_ratio, int logical_size) const override
+    {
+        static constexpr QPointF ARROW_TURN_CENTER { 8, 8 };
+        auto outline_for = [&](qreal scale, int stroke_width, int canvas_size) {
+            auto const& reload_path = chrome_icon_painter_path(ChromeIcon::Reload);
+            QPainterPath turn_center;
+            turn_center.moveTo(ARROW_TURN_CENTER);
+            auto fitted_turn_center = QPointF(fit_icon_part_to_pixels(reload_path, turn_center, scale, stroke_width, canvas_size).elementAt(0));
+            QTransform turn;
+            turn.translate(fitted_turn_center.x(), fitted_turn_center.y());
+            turn.rotate(m_arrow_turn_degrees);
+            turn.translate(-fitted_turn_center.x(), -fitted_turn_center.y());
+            auto outline = icon_outline(turn.map(fit_icon_part_to_pixels(reload_path, m_arrow, scale, stroke_width, canvas_size)), stroke_width);
+
+            auto const& stop_path = chrome_icon_painter_path(ChromeIcon::Stop);
+            outline.addPath(icon_outline(fit_icon_part_to_pixels(stop_path, m_cross, scale, stroke_width, canvas_size), stroke_width));
+            return outline;
+        };
+        return create_chrome_icon_pixmap(color, device_pixel_ratio, logical_size, outline_for, margin_in_pixels(device_pixel_ratio));
+    }
+
+    int m_logical_size { CHROME_ICON_CANVAS_SIZE };
+    qreal m_progress { 0 };
+    QPainterPath m_arrow;
+    qreal m_arrow_turn_degrees { 0 };
+    QPainterPath m_cross;
+};
+
+QIcon create_reload_to_stop_icon(QPalette const& palette, ChromeStyle::WindowActivity activity, qreal progress, int logical_size)
+{
+    return QIcon(new ReloadToStopIconEngine(chrome_icon_colors(ChromeIcon::Reload, palette, activity), logical_size, progress));
 }
 
 #if !defined(AK_OS_MACOS)
