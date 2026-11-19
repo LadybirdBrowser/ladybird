@@ -13,6 +13,7 @@ use libjs_jit::code::CompiledCode;
 
 use super::code::{CompileState, FRUITLESS_LOOP_CHECKS_AFTER_INSTALL, JitCode, SnapshotExecutable};
 use super::compile_queue::CompileResult;
+use super::data_memory::DataMemory;
 use super::executable_memory::ExecutableMemory;
 use super::snapshot::{CapturedSnapshot, capture_snapshot};
 use super::{CompileJob, JitState, executable_of};
@@ -369,7 +370,7 @@ fn install(
     let mut code = JitCode::new(
         memory,
         compiled.entry_offset,
-        compiled.words[..compiled.layout.kept_len()].into(),
+        DataMemory::allocate(vm.jit.data_allocator(), &compiled.words[..compiled.layout.kept_len()]),
         compiled.layout,
         embedded_cells,
         snapshot,
