@@ -50,10 +50,11 @@ Color button_text(PreferredColorScheme scheme)
     return Color(0, 0, 0);
 }
 
+// NB: The dark canvas is the page color of Ladybird's own pages, --page in ladybird.css.
 Color canvas(PreferredColorScheme scheme)
 {
     if (scheme == PreferredColorScheme::Dark) {
-        return Color(18, 18, 18);
+        return Color(28, 28, 30);
     }
     return Color(255, 255, 255);
 }
