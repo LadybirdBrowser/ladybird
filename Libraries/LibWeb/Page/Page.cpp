@@ -803,6 +803,25 @@ void Page::update_needs_beforeunload_check()
     client().page_did_change_needs_beforeunload_check(m_needs_beforeunload_check);
 }
 
+// Whether the user edited a document this page hosts, so that they would lose what they typed if the page went away.
+void Page::update_had_user_edits()
+{
+    auto had_user_edits = false;
+    for (auto const& navigable : hosted_navigables()) {
+        // NB: A document that is leaving its navigable, such as that of a removed iframe, is still its active document.
+        if (auto document = navigable->active_document(); document && document->navigable().ptr() == navigable.ptr() && document->had_user_edits()) {
+            had_user_edits = true;
+            break;
+        }
+    }
+
+    if (m_had_user_edits == had_user_edits)
+        return;
+
+    m_had_user_edits = had_user_edits;
+    client().page_did_change_had_user_edits(m_had_user_edits);
+}
+
 void Page::set_top_level_traversable(GC::Ref<HTML::Navigable> navigable)
 {
     VERIFY(!m_top_level_traversable); // Replacement is not allowed!
@@ -957,6 +976,7 @@ void Page::discard_provisional_navigable_of(HTML::RemoteNavigable& remote_naviga
     if (m_top_level_traversable.ptr() == navigable.ptr()) {
         m_top_level_traversable = remote_navigable;
         update_needs_beforeunload_check();
+        update_had_user_edits();
         retire_page_compositor_context(navigable->take_compositor_context());
     }
     navigable->set_has_been_destroyed();
@@ -992,6 +1012,7 @@ GC::Ref<HTML::LocalNavigable> Page::begin_hosting(HTML::CrossProcessId id, HTML:
         VERIFY(m_top_level_traversable.ptr() == navigable.ptr());
         m_top_level_traversable = stand_in;
         update_needs_beforeunload_check();
+        update_had_user_edits();
         return stand_in;
     }
     return HTML::LocalNavigable::create_stand_in({}, *navigable, current_history_entry);

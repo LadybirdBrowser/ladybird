@@ -8,6 +8,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/HTMLCollection.h>
@@ -28,8 +29,10 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -159,6 +162,10 @@ WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, 
     if (m_inside_clipboard_exec_command)
         return false;
 
+    // NB: An edit a script makes on its own is not one the user would lose. Whether it edits for the user is decided
+    //     here, as an input listener may consume the window's transient activation while the command runs.
+    TemporaryChange inside_script_edit_on_its_own { m_inside_script_edit_on_its_own, !script_edits_for_the_user() };
+
     // AD-HOC: The spec gets the Trusted Types compliant string for an insertHTML value in step 1 of the insertHTML
     //         command's action. Get it here instead, where only a script's value arrives: The action also inserts the
     //         HTML a user pastes, which isn't an injection sink. And so a script's string is rejected even when the
@@ -217,7 +224,32 @@ WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, 
         }
     }
 
-    return exec_command_internal(command, show_ui, value, DispatchInputEvent::Yes);
+    auto content_versions_before = EditingHostManager::content_versions(*this);
+    auto result = exec_command_internal(command, show_ui, value, DispatchInputEvent::Yes);
+    // NB: A page that edits for the user in an editing host, such as from a keydown or paste handler or a toolbar
+    //     button's click handler, makes the user's edit.
+    EditingHostManager::did_run_user_edit(*this, result, content_versions_before);
+    return result;
+}
+
+// NB: A page may edit for the user, such as with execCommand("insertText") from a keydown handler, or from the click
+//     handler of a toolbar button, which gives the window transient activation. That edit is the user's, unlike one a
+//     script makes on its own.
+bool Document::script_edits_for_the_user() const
+{
+    if (Web::EventHandler::is_handling_user_key_press_or_paste())
+        return true;
+    auto window = this->window();
+    return window && window->has_transient_activation();
+}
+
+void Document::did_make_user_edit()
+{
+    if (m_had_user_edits || m_inside_script_edit_on_its_own)
+        return;
+    m_had_user_edits = true;
+    if (auto navigable = this->navigable())
+        navigable->page().update_had_user_edits();
 }
 
 WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value, DispatchInputEvent dispatch_input_event, Optional<Utf16FlyString> const& user_input_type, GC::Ptr<StaticRange> deletion_range, GC::Ptr<DocumentFragment> pasted_fragment)

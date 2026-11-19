@@ -11023,10 +11023,17 @@ void Document::set_navigable(GC::Ptr<HTML::LocalNavigable> navigable)
     rendering_pending_document_changed(*this);
     rendering_pending_document_changed(*this);
 
-    if (previous_page)
+    // NB: A page without user edits keeps none as a document without any comes or goes.
+    if (previous_page) {
         previous_page->update_needs_beforeunload_check();
-    if (navigable && &navigable->page() != previous_page.ptr())
+        if (m_had_user_edits || previous_page->had_user_edits())
+            previous_page->update_had_user_edits();
+    }
+    if (navigable && &navigable->page() != previous_page.ptr()) {
         navigable->page().update_needs_beforeunload_check();
+        if (m_had_user_edits || navigable->page().had_user_edits())
+            navigable->page().update_had_user_edits();
+    }
 }
 
 void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)

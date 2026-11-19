@@ -640,6 +640,7 @@ public:
     void prepare_for_immediate_close();
     void close_tab_for_testing();
     bool needs_beforeunload_check() const;
+    bool had_user_edits() const;
 
     struct NavigationListener {
         Function<void(URL::URL const&)> on_load_start;

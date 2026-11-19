@@ -154,6 +154,7 @@ public:
     bool consume_transient_user_activation();
 
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
+    bool had_user_edits() const { return m_had_user_edits; }
     bool detached_close_pending() const { return m_detached_close_pending; }
     void set_detached_close_pending(bool pending) { m_detached_close_pending = pending; }
 
@@ -267,6 +268,7 @@ private:
     void did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls);
     Messages::WebContentClient::ConnectToStorageAreaResponse connect_to_storage_area(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id);
     virtual void did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
+    virtual void did_change_had_user_edits(bool had_user_edits) override;
     virtual void did_save_session_history_entry_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryPersistedState persisted_state) override;
     virtual void did_save_session_history_entry_states() override;
     virtual void did_consume_user_activation(Web::HTML::UserActivationConsumption consumption) override;
@@ -448,6 +450,7 @@ private:
     bool m_capturing_audio { false };
     Optional<PresentedBackingStores> m_presented_backing_stores;
     bool m_needs_beforeunload_check { true };
+    bool m_had_user_edits { false };
     bool m_detached_close_pending { false };
     Optional<String> m_history_recorded_url_for_current_load;
     HashTable<u64> m_renderer_owned_downloads;

@@ -280,6 +280,8 @@ public:
     Compositing::KeyboardScrollState take_keyboard_scroll_state_for_compositor(u64 visual_context_tree_structural_epoch);
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
     void update_needs_beforeunload_check();
+    bool had_user_edits() const { return m_had_user_edits; }
+    void update_had_user_edits();
 
     bool is_webdriver_active() const { return m_is_webdriver_active; }
     void set_is_webdriver_active(bool b) { m_is_webdriver_active = b; }
@@ -608,6 +610,7 @@ private:
     Vector<GC::Weak<DOM::EventTarget>> m_keyboard_scroll_event_path;
     GC::Weak<DOM::Node> m_keyboard_scroll_dom_target;
     bool m_needs_beforeunload_check { true };
+    bool m_had_user_edits { false };
 
     // https://w3c.github.io/webdriver/#dfn-webdriver-active-flag
     // The webdriver-active flag is set to true when the user agent is under remote control. It is initially false.
@@ -967,6 +970,7 @@ public:
     virtual void page_did_request_fully_exit_fullscreen() { }
     virtual void page_did_request_unload_check(HTML::CrossProcessId, GC::Ref<GC::Function<void(HTML::CheckIfUnloadingIsCanceledResult)>>) { VERIFY_NOT_REACHED(); }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
+    virtual void page_did_change_had_user_edits([[maybe_unused]] bool had_user_edits) { }
     virtual void page_did_consume_user_activation([[maybe_unused]] HTML::UserActivationConsumption consumption) { }
     virtual void page_did_notify_about_user_activation([[maybe_unused]] HTML::CrossProcessId document_id) { }
 

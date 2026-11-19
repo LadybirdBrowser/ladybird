@@ -11,6 +11,7 @@
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/Math.h>
+#include <AK/TemporaryChange.h>
 #include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootHashTable.h>
@@ -1940,8 +1941,16 @@ EventResult EventHandler::handle_text_editing_command(TextEditingCommand const& 
     return EventResult::Handled;
 }
 
+static bool s_is_handling_user_key_press_or_paste = false;
+
+bool EventHandler::is_handling_user_key_press_or_paste()
+{
+    return s_is_handling_user_key_press_or_paste;
+}
+
 EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action, ReadonlySpan<TextEditingCommand> editing_commands, bool native_editing_binding_resolved)
 {
+    TemporaryChange handling_user_key_press { s_is_handling_user_key_press_or_paste, true };
     if (!m_navigable->active_document())
         return EventResult::Dropped;
     if (!m_navigable->active_document()->is_fully_active())
@@ -2465,6 +2474,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
 EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
 {
+    TemporaryChange handling_user_key_press { s_is_handling_user_key_press_or_paste, true };
     // Keyup events as a result of auto-repeat are not fired.
     // See: https://w3c.github.io/uievents/#events-keyboard-event-order
     if (repeat)
@@ -2939,6 +2949,9 @@ EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore
     auto document = m_navigable->active_document();
     if (!document || !document->is_fully_active())
         return EventResult::Dropped;
+
+    // NB: Only the user pastes, with a key or the UI's Paste command, so an edit the page makes in response is theirs.
+    TemporaryChange handling_user_paste { s_is_handling_user_key_press_or_paste, true };
 
     data_store->set_mode(HTML::DragDataStore::Mode::ReadOnly);
     auto data_transfer = HTML::DataTransfer::create(data_store);
