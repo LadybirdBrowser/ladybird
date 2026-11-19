@@ -418,6 +418,9 @@ public:
     // Calls back once the features are decided from this launch's probe rather than from cached facts.
     void when_platform_features_are_current(Function<void()>);
     PlatformFeatures::ProcessFeatures platform_features_for(FeatureProcess) const;
+    // Whether GPU painting is in the features the Compositor was last launched with. Until the Compositor first launches,
+    // it counts as enabled.
+    bool compositor_gpu_painting_enabled() const { return m_compositor_gpu_painting_enabled; }
     // Every feature's decision and the facts they were made from, for people to read.
     JsonObject platform_features_report() const;
     // The same as header lines of a report that leaves the machine: the features of one process or of all of them, the
@@ -457,6 +460,7 @@ protected:
 
     virtual void on_devtools_enabled() const { }
     virtual void on_devtools_disabled() const { }
+    virtual void on_compositor_gpu_painting_changed() const { }
 
     Main::Arguments& arguments() { return m_arguments; }
 
@@ -671,6 +675,7 @@ private:
     // Set when the Browser ends a Compositor to relaunch it with other features, which does not count as a crash.
     bool m_compositor_relaunch_is_planned { false };
     ByteString m_compositor_launched_features;
+    bool m_compositor_gpu_painting_enabled { true };
 
     FeatureOverrides m_feature_overrides;
     HashMap<PlatformFeatures::Feature, String> m_feature_runtime_failures;

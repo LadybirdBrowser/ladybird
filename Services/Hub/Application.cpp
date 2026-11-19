@@ -398,6 +398,12 @@ void Application::on_devtools_disabled() const
         ui->async_app_did_disable_devtools();
 }
 
+void Application::on_compositor_gpu_painting_changed() const
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_app_gpu_painting_changed(compositor_gpu_painting_enabled());
+}
+
 void Application::create_platform_actions()
 {
     if (m_host)

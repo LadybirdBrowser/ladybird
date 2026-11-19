@@ -90,7 +90,13 @@ private:
     RefPtr<ReportSubmission> m_submission;
 };
 
-// A new issue on GitHub, with what we know of this build already filled in.
-WEBVIEW_API URL::URL new_bug_report_url(DisableSandbox);
+// What a new bug report says about how this browser runs, beyond the details of its build.
+struct BugReportDetails {
+    DisableSandbox disable_sandbox { DisableSandbox::No };
+    bool gpu_painting_enabled { true };
+};
+
+// A new issue on GitHub, with the given details and what we know of this build already filled in.
+WEBVIEW_API URL::URL new_bug_report_url(BugReportDetails const&);
 
 }
