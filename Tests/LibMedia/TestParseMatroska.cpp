@@ -1393,6 +1393,7 @@ enum class BlockAdditionsDefect : u8 {
     None,
     OversizedBlockAddID,
     OversizedBlockAdditional,
+    BlockAdditionalOverrunningItsParents,
 };
 
 static void append_block_group_with_hdr10_plus(ByteBuffer& data, i16 timestamp, BlockAdditionsDefect defect)
@@ -1401,6 +1402,15 @@ static void append_block_group_with_hdr10_plus(ByteBuffer& data, i16 timestamp, 
     // Track 1, the timestamp, no flags, and a temporal delimiter OBU as the frame.
     Array<u8, 6> block { 0x81, static_cast<u8>(timestamp >> 8), static_cast<u8>(timestamp & 0xff), 0x00, 0x12, 0x00 };
     append_ebml_binary(data, Media::Matroska::BLOCK_ID, block);
+    if (defect == BlockAdditionsDefect::BlockAdditionalOverrunningItsParents) {
+        // A two-byte BlockMore holding a BlockAdditional that claims the next 16 bytes.
+        append_ebml_id(data, Media::Matroska::BLOCK_ADDITIONS_ID);
+        append_ebml_size(data, 4);
+        for (u8 byte : { 0xa6, 0x82, 0xa5, 0x90 })
+            data.append(byte);
+        finish_ebml_master(data, block_group);
+        return;
+    }
     auto block_additions = begin_ebml_master(data, Media::Matroska::BLOCK_ADDITIONS_ID);
     auto block_more = begin_ebml_master(data, Media::Matroska::BLOCK_MORE_ID);
     if (defect == BlockAdditionsDefect::OversizedBlockAddID) {
@@ -1462,6 +1472,29 @@ TEST_CASE(block_additional_too_large_to_be_hdr10_plus_is_skipped)
     auto first_block = MUST(iterator.next_block());
     EXPECT(!first_block.maximum_scene_luminance().has_value());
     auto second_block = MUST(iterator.next_block());
+    EXPECT(second_block.maximum_scene_luminance().has_value());
+}
+
+TEST_CASE(block_additional_overrunning_its_parents_is_skipped_without_reading_into_the_next_block)
+{
+    auto data = make_matroska_with_av1_track(WithColorElement::No, [](ByteBuffer& data) {
+        append_block_group_with_hdr10_plus(data, 0, BlockAdditionsDefect::BlockAdditionalOverrunningItsParents);
+        append_block_group_with_hdr10_plus(data, 33, BlockAdditionsDefect::None);
+    });
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto iterator = MUST(reader.create_sample_iterator(stream->create_cursor(), 1));
+
+    auto first_block = MUST(iterator.next_block());
+    EXPECT_EQ(first_block.timestamp().value().to_milliseconds(), 0);
+    EXPECT(!first_block.maximum_scene_luminance().has_value());
+
+    auto second_block_or_error = iterator.next_block();
+    EXPECT(!second_block_or_error.is_error());
+    if (second_block_or_error.is_error())
+        return;
+    auto second_block = second_block_or_error.release_value();
+    EXPECT_EQ(second_block.timestamp().value().to_milliseconds(), 33);
     EXPECT(second_block.maximum_scene_luminance().has_value());
 }
 
