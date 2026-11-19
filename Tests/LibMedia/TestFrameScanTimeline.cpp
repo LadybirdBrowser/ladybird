@@ -155,10 +155,7 @@ struct Fixture {
 
     Media::SeekedPosition seek_to(AK::Duration timestamp)
     {
-        auto result = MUST(timeline.seek_to_timestamp(scan_cursor, seek_cursor, *stream, timestamp));
-        auto const* seeked = result.get_pointer<Media::SeekedPosition>();
-        VERIFY(seeked != nullptr);
-        return *seeked;
+        return MUST(timeline.seek_to_timestamp(scan_cursor, seek_cursor, *stream, timestamp));
     }
 
     size_t file_byte_size { FILE_BYTE_SIZE };
