@@ -59,6 +59,7 @@ pub use moves::resolve_parallel_moves;
 pub use verify::verify;
 
 use crate::CompileFailure;
+use crate::asm::Gpr;
 use crate::code::Repr;
 use crate::codegen::lowering_info::Clobbers;
 use crate::codegen::lowering_info::FixedRegister;
@@ -144,7 +145,7 @@ pub struct RegisterSet {
     pub caller_saved_gprs: RegisterMask,
     pub caller_saved_fprs: RegisterMask,
     /// Where calls take their arguments, in order.
-    pub argument_gprs: Vec<u8>,
+    pub argument_gprs: &'static [Gpr],
     /// Where calls return their (first) result.
     pub return_gpr: u8,
     /// Where shifts by a register amount take the amount, on targets that shift by one register only.
@@ -166,7 +167,7 @@ impl RegisterSet {
     /// The number of the calling convention's register `register`.
     pub fn fixed(&self, register: FixedRegister) -> u8 {
         match register {
-            FixedRegister::Argument(index) => self.argument_gprs[usize::from(index)],
+            FixedRegister::Argument(index) => self.argument_gprs[usize::from(index)].0,
             FixedRegister::Return => self.return_gpr,
             FixedRegister::ShiftAmount => self
                 .shift_amount_gpr
@@ -195,16 +196,19 @@ impl RegisterSet {
     /// shifts take their amount in, and `extra` more.
     pub fn few_registers(&self, extra: u32) -> RegisterMask {
         let mut mask = RegisterMask(0).with(self.return_gpr);
-        for register in self.argument_gprs.iter().chain(&self.shift_amount_gpr) {
-            mask = mask.with(*register);
+        for register in self.argument_gprs {
+            mask = mask.with(register.0);
         }
-        let mut mask = RegisterMask(mask.0 & self.allocatable_gprs.0);
+        if let Some(register) = self.shift_amount_gpr {
+            mask = mask.with(register);
+        }
+        let needed = RegisterMask(mask.0 & self.allocatable_gprs.0);
+        let mut mask = needed;
         for register in self
             .allocatable_gprs
             .iter()
-            .filter(|register| !mask.contains(*register))
+            .filter(|register| !needed.contains(*register))
             .take(extra as usize)
-            .collect::<Vec<_>>()
         {
             mask = mask.with(register);
         }
@@ -219,7 +223,7 @@ impl RegisterSet {
             allocatable_fprs: RegisterMask(0b1111_1111),
             caller_saved_gprs: RegisterMask(0b1111_1111),
             caller_saved_fprs: RegisterMask(0b1111_1111),
-            argument_gprs: vec![1, 2, 3],
+            argument_gprs: &[Gpr(1), Gpr(2), Gpr(3)],
             return_gpr: 0,
             shift_amount_gpr: None,
             scratch_gpr: 7,

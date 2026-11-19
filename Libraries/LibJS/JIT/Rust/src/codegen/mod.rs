@@ -160,7 +160,7 @@ pub fn target_registers<M: PortableMacroAssembler>() -> (RegisterSet, PinnedRegi
         allocatable_fprs: RegisterMask(allocatable_fprs),
         caller_saved_gprs: RegisterMask(u64::from(M::CALLER_SAVED_GPRS.0)),
         caller_saved_fprs: RegisterMask(u64::from(M::CALLER_SAVED_FPRS.0)),
-        argument_gprs: M::ARGUMENT_GPRS.iter().map(|register| register.0).collect(),
+        argument_gprs: M::ARGUMENT_GPRS,
         return_gpr: M::RETURN_GPRS[0].0,
         shift_amount_gpr: M::SHIFT_AMOUNT_GPR.map(|register| register.0),
         scratch_gpr: pinned.scratch.0,
