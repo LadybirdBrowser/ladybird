@@ -333,9 +333,11 @@ public:
 
     enum class NotificationBarSlot : u8 {
         SandboxOff,
+        CpuPainting,
     };
     void show_notification_bar(NotificationBarSlot, QString const& message, Vector<NotificationBar::Button> = {}, Function<void()> on_close = {});
     void hide_notification_bar(NotificationBarSlot);
+    void update_cpu_painting_bar();
 
     void set_new_tab_action(QAction* action);
     void set_window_controls_visible(bool);
@@ -465,7 +467,7 @@ private:
     BookmarksBarContainer* m_bookmarks_bar { nullptr };
     QWidget* m_notification_bar_column { nullptr };
     QBoxLayout* m_notification_bar_column_layout { nullptr };
-    Array<NotificationBar*, 1> m_notification_bars {};
+    Array<NotificationBar*, 2> m_notification_bars {};
     QWidget* m_page_column { nullptr };
     QWidget* m_toolbar_placeholder { nullptr };
     bool m_toolbar_follows_page_column { false };
