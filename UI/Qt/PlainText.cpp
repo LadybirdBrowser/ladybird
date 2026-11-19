@@ -13,12 +13,15 @@
 
 #include <QAbstractItemView>
 #include <QBasicTimer>
+#include <QCursor>
 #include <QEvent>
+#include <QGuiApplication>
 #include <QHelpEvent>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPixmap>
 #include <QPointer>
 #include <QScreen>
 #include <QStyle>
@@ -30,8 +33,8 @@
 #include <QWidget>
 #include <QtMath>
 
-// NB: These are only there for the platforms that link Qt::GuiPrivate.
-#if __has_include(<qpa/qplatformcursor.h>)
+// These are only there for the platforms that link Qt::GuiPrivate.
+#if !defined(Q_OS_LINUX) && __has_include(<qpa/qplatformcursor.h>)
 #    define LADYBIRD_QT_HAS_PLATFORM_CURSOR
 #    include <QtGui/private/qhighdpiscaling_p.h>
 #    include <qpa/qplatformcursor.h>
@@ -79,22 +82,39 @@ static QScreen* screen_at(QPoint global_position, QWidget const& widget)
     return exact ? exact : guess;
 }
 
-static QPoint cursor_offset(QScreen const& screen, int tooltip_height)
+static QSize cursor_size_for_tooltip([[maybe_unused]] QWidget const& widget, [[maybe_unused]] QScreen const& screen)
 {
-#if defined(LADYBIRD_QT_HAS_PLATFORM_CURSOR)
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
+    // X11 uses native pixels for both cursor pixmaps and XCURSOR_SIZE.
+    auto const is_x11 = QGuiApplication::platformName() == "xcb";
+    auto const* override_cursor = QGuiApplication::overrideCursor();
+    auto cursor = override_cursor ? *override_cursor : widget.cursor();
+    if (auto pixmap = cursor.pixmap(); !pixmap.isNull())
+        return pixmap.size() / (is_x11 ? screen.devicePixelRatio() : pixmap.devicePixelRatio());
+
+    if (auto size = qEnvironmentVariableIntValue("XCURSOR_SIZE"); size > 0)
+        return QSize { size, size } / (is_x11 ? screen.devicePixelRatio() : 1);
+#elif defined(LADYBIRD_QT_HAS_PLATFORM_CURSOR)
     if (auto const* platform_screen = screen.handle()) {
         auto const* cursor = platform_screen->cursor();
-        auto cursor_size = QHighDpi::fromNativePixels(cursor ? cursor->size() : QSize(16, 16), platform_screen);
-        // NB: A very large cursor would push the tooltip far away, so it moves to the side of it instead.
-        if (cursor_size.height() > 2 * tooltip_height)
-            return { cursor_size.width() / 2, 0 };
-        return { 2, cursor_size.height() };
+        return QHighDpi::fromNativePixels(cursor ? cursor->size() : QSize(16, 16), platform_screen);
     }
-#else
-    (void)screen;
-    (void)tooltip_height;
 #endif
-    return FALLBACK_CURSOR_OFFSET;
+
+    return {};
+}
+
+static QPoint cursor_offset(QWidget const& widget, QScreen const& screen, int tooltip_height)
+{
+    auto cursor_size = cursor_size_for_tooltip(widget, screen);
+    if (!cursor_size.isValid())
+        return FALLBACK_CURSOR_OFFSET;
+
+    // A very large cursor would push the tooltip far away, so it moves to the side of it instead.
+    if (cursor_size.height() > 2 * tooltip_height)
+        return { cursor_size.width() / 2, 0 };
+
+    return { 2, cursor_size.height() };
 }
 
 class PlainTextToolTipWindow final : public QWidget {
@@ -141,7 +161,7 @@ public:
 
         // NB: This window can already be on screen with other text, so it changes in one step, and repaints even if
         //     its size stays the same.
-        setGeometry({ position_for(global_position, size, *screen), size });
+        setGeometry({ position_for(global_position, size, widget, *screen), size });
         update();
     }
 
@@ -253,15 +273,15 @@ private:
         return m_text_size + QSize(2 * HORIZONTAL_TEXT_MARGIN, 2 * VERTICAL_TEXT_MARGIN);
     }
 
-    static QPoint position_for(QPoint global_position, QSize size, QScreen const& screen)
+    static QPoint position_for(QPoint global_position, QSize size, QWidget const& widget, QScreen const& screen)
     {
-        auto position = global_position + cursor_offset(screen, size.height());
+        auto position = global_position + cursor_offset(widget, screen, size.height());
 
         auto screen_rect = screen.geometry();
         if (position.x() + size.width() > screen_rect.x() + screen_rect.width())
             position.rx() -= 4 + size.width();
         if (position.y() + size.height() > screen_rect.y() + screen_rect.height())
-            position.ry() -= 24 + size.height();
+            position.setY(global_position.y() - size.height());
         position.setY(clamp(position.y(), screen_rect.y(), max(screen_rect.y(), screen_rect.y() + screen_rect.height() - size.height())));
         position.setX(clamp(position.x(), screen_rect.x(), max(screen_rect.x(), screen_rect.x() + screen_rect.width() - size.width())));
         return position;
