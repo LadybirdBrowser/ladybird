@@ -44,6 +44,7 @@
 //! the operation: an index is below the elements' count there.
 
 use ak::ColumnFull;
+use ak::Zone;
 
 use super::dominators::Dominators;
 use super::edit::Constants;
@@ -514,7 +515,7 @@ fn entering_counters(
     entering
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
     let mut phi_blocks = HashMap::default();
     let mut checks = Vec::new();
     let mut shifts = Vec::new();

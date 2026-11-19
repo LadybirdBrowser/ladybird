@@ -32,8 +32,9 @@ use crate::bitset::BitSet;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use ak::Zone;
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, _work: &Zone) {
     let mut pending = Vec::new();
     for block in &graph.blocks {
         for node in block.nodes() {

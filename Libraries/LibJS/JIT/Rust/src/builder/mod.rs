@@ -90,12 +90,14 @@ use crate::snapshot::Intrinsic;
 use crate::snapshot::RuntimeInfo;
 use crate::snapshot::Snapshot;
 use ak::Zone;
+use ak::ZoneVec;
 pub(crate) use slow_paths::is_ssa_slow_path_output;
 pub(crate) use slow_paths::js_call_operands;
 use std::cell::Cell;
 use std::cell::OnceCell;
 
-/// Builds the IR for `snapshot.executables[0]`.
+/// Builds the IR for `snapshot.executables[0]`, with the graph and the work data of the build both in `zone`.
+#[cfg(test)]
 pub fn build_graph<'z>(snapshot: &Snapshot, zone: &'z Zone) -> Result<Graph<'z>, CompileFailure> {
     build_graph_with_feedback(
         snapshot,
@@ -107,6 +109,21 @@ pub fn build_graph<'z>(snapshot: &Snapshot, zone: &'z Zone) -> Result<Graph<'z>,
         },
         zone,
     )
+}
+
+/// Like `build_graph()`, with the "did this instruction ever run" oracle given by the caller.
+#[cfg(test)]
+pub fn build_graph_with_feedback<'z>(
+    snapshot: &Snapshot,
+    has_run: &dyn Fn(u32) -> bool,
+    zone: &'z Zone,
+) -> Result<Graph<'z>, CompileFailure> {
+    let mut attempts = Attempts::new(snapshot, has_run, zone);
+    loop {
+        if let Some(graph) = attempts.build(zone)? {
+            return Ok(graph);
+        }
+    }
 }
 
 /// Whether the instruction at `pc` ever ran in the interpreter, as far as the
@@ -140,51 +157,99 @@ pub fn has_run(snapshot: &Snapshot, executable: &ExecutableSnapshot, pc: u32) ->
     recorded.iter().all(Option::is_none) || recorded.contains(&Some(true))
 }
 
-/// Like `build_graph()`, with the "did this instruction ever run" oracle
-/// given by the caller.
-pub fn build_graph_with_feedback<'z>(
-    snapshot: &Snapshot,
-    has_run: &dyn Fn(u32) -> bool,
-    zone: &'z Zone,
-) -> Result<Graph<'z>, CompileFailure> {
-    let decoded = (0..snapshot.executables.len())
-        .map(|_| OnceCell::new())
-        .collect::<Vec<_>>();
-    let virtualized_inlined_arguments = Cell::new(false);
-    let build = |virtualize_arguments, virtualize_inlined_arguments, build_osr_entries| {
-        GraphBuilder::new(
+/// The builds of the IR for `snapshot.executables[0]`: one, or more where a graph came out that cannot be used.
+///
+/// Where an inlined callee had a virtual arguments object, a graph that needs it, or a build that failed, is built
+/// again without those (see `arguments`), which then are not inlined. A graph that needs the arguments object of the
+/// compiled function itself is built again without its on-stack replacement entries, and then with a real arguments
+/// object.
+pub struct Attempts<'a> {
+    snapshot: &'a Snapshot,
+    /// Whether the instruction at a pc ever ran. The instructions that never ran become unconditional exits.
+    has_run: &'a dyn Fn(u32) -> bool,
+    /// Where the builds keep their own data. It holds the data of all the builds until its owner resets it.
+    work: &'a Zone,
+    decoded: Vec<OnceCell<Result<DecodedFunction, CompileFailure>>>,
+    virtualized_inlined_arguments: Cell<bool>,
+    next: Attempt,
+}
+
+/// What a build of `Attempts` does differently from the first one.
+#[derive(Clone, Copy)]
+enum Attempt {
+    First,
+    WithoutVirtualArgumentsOfInlinedCallees,
+    WithoutOsrEntries,
+    WithoutVirtualArguments,
+}
+
+impl<'a> Attempts<'a> {
+    pub fn new(snapshot: &'a Snapshot, has_run: &'a dyn Fn(u32) -> bool, work: &'a Zone) -> Self {
+        Self {
             snapshot,
             has_run,
-            &decoded,
-            ArgumentsVirtualization {
-                compiled_function: virtualize_arguments,
-                inlined_callees: virtualize_inlined_arguments,
-                inlined_callees_virtualized: &virtualized_inlined_arguments,
-            },
-            build_osr_entries,
-            zone,
-        )?
-        .build()
-    };
-    // NB: Where an inlined callee had a virtual arguments object, a graph
-    //     that needs it, or a build that failed, is built again without
-    //     those (see `arguments`), which then are not inlined.
-    let graph = match build(true, true, true) {
-        Ok(graph) if !arguments::uses_virtual_arguments(&graph) => return Ok(graph),
-        _ if virtualized_inlined_arguments.get() => build(true, false, true)?,
-        result => result?,
-    };
-    if !arguments::uses_virtual_arguments(&graph) {
-        return Ok(graph);
-    }
-    if !graph.osr_entries.is_empty() {
-        let graph = build(true, false, false)?;
-        if !arguments::uses_virtual_arguments(&graph) {
-            return Ok(graph);
+            work,
+            decoded: (0..snapshot.executables.len()).map(|_| OnceCell::new()).collect(),
+            virtualized_inlined_arguments: Cell::new(false),
+            next: Attempt::First,
         }
     }
-    // Something needs the arguments object itself.
-    build(false, false, true)
+
+    /// Builds a graph in `zone`. Returns `None` for a graph that cannot be used: the caller then drops what is in
+    /// `zone` and calls this again, which builds the graph in another way.
+    pub fn build<'z>(&mut self, zone: &'z Zone) -> Result<Option<Graph<'z>>, CompileFailure> {
+        let build = |virtualize_arguments, virtualize_inlined_arguments, build_osr_entries| {
+            GraphBuilder::new(
+                self.snapshot,
+                self.has_run,
+                &self.decoded,
+                ArgumentsVirtualization {
+                    compiled_function: virtualize_arguments,
+                    inlined_callees: virtualize_inlined_arguments,
+                    inlined_callees_virtualized: &self.virtualized_inlined_arguments,
+                },
+                build_osr_entries,
+                zone,
+                self.work,
+            )?
+            .build()
+        };
+        let graph = match self.next {
+            Attempt::First => match build(true, true, true) {
+                Ok(graph) if !arguments::uses_virtual_arguments(&graph) => return Ok(Some(graph)),
+                _ if self.virtualized_inlined_arguments.get() => {
+                    self.next = Attempt::WithoutVirtualArgumentsOfInlinedCallees;
+                    return Ok(None);
+                }
+                result => result?,
+            },
+            Attempt::WithoutVirtualArgumentsOfInlinedCallees => {
+                let graph = build(true, false, true)?;
+                if !arguments::uses_virtual_arguments(&graph) {
+                    return Ok(Some(graph));
+                }
+                graph
+            }
+            Attempt::WithoutOsrEntries => {
+                let graph = build(true, false, false)?;
+                if !arguments::uses_virtual_arguments(&graph) {
+                    return Ok(Some(graph));
+                }
+                // Something needs the arguments object itself.
+                self.next = Attempt::WithoutVirtualArguments;
+                return Ok(None);
+            }
+            Attempt::WithoutVirtualArguments => return build(false, false, true).map(Some),
+        };
+        // NB: The graph uses the virtual arguments object of the compiled function.
+        self.next = if graph.osr_entries.is_empty() {
+            // Something needs the arguments object itself.
+            Attempt::WithoutVirtualArguments
+        } else {
+            Attempt::WithoutOsrEntries
+        };
+        Ok(None)
+    }
 }
 
 /// Where the graph builder may build virtual arguments objects (see
@@ -538,8 +603,10 @@ struct GraphBuilder<'a, 'z> {
 
     decoded: &'a [OnceCell<Result<DecodedFunction, CompileFailure>>],
     graph: Graph<'z>,
+    /// Where the builder keeps its own data. Nothing of the graph is there.
+    work: &'a Zone,
     /// The blocks in linear order, as they are started.
-    order: Vec<BlockId>,
+    order: ZoneVec<'a, BlockId>,
     /// The constant node of each value and representation.
     constants: HashMap<(u64, Repr), NodeId>,
 
@@ -577,6 +644,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         virtualize_arguments: ArgumentsVirtualization<'a>,
         build_osr_entries: bool,
         zone: &'z Zone,
+        work: &'a Zone,
     ) -> Result<Self, CompileFailure> {
         let executable = snapshot.executables.first().ok_or(CompileFailure::InvalidBytecode {
             pc: 0,
@@ -606,7 +674,8 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 legacy_arguments,
                 ..Graph::new_in(zone)
             },
-            order: Vec::new(),
+            work,
+            order: ZoneVec::new_in(work),
             constants: HashMap::default(),
             block: BlockId(0),
             // NB: Replaced by the frame of the first block built.
@@ -2119,7 +2188,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
     /// on the control word of a conditional jump, and after instructions
     /// that never continue with the next one.
     fn end_generic_instruction(&mut self, instruction: &Instruction, node: NodeId) -> Result<Flow, CompileFailure> {
-        let mut targets = Vec::new();
+        let mut targets = ZoneVec::new_in(self.work);
         instruction.for_each_jump_target(|label| targets.push(label));
         let is_conditional_jump = !targets.is_empty();
         if is_conditional_jump {

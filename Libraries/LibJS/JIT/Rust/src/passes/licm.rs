@@ -26,6 +26,7 @@
 //! other checks moving.
 
 use ak::ColumnFull;
+use ak::Zone;
 
 use super::dominators::Dominators;
 use super::edit;
@@ -144,7 +145,7 @@ fn find_loops(graph: &Graph, dominators: &Dominators) -> Vec<Loop> {
     loops
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
     // NB: Loops have a back edge from a later block or the block itself.
     let has_loops = graph.blocks.iter().enumerate().any(|(index, block)| {
         block

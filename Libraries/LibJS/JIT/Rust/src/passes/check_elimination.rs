@@ -56,6 +56,7 @@ use crate::ir::Op;
 use crate::ir::ShapeCheck;
 use crate::ir::value;
 use crate::snapshot::CellId;
+use ak::Zone;
 
 /// What the analysis decided for the nodes of one visit of the graph.
 struct Decisions {
@@ -96,7 +97,7 @@ impl Decisions {
     }
 }
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, _work: &Zone) {
     let mut constants = Constants::new(graph);
     let block_count = graph.blocks.len();
     // The facts flowing along each edge, from the latest visit of its source.

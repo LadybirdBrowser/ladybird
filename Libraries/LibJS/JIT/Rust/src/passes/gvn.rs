@@ -13,6 +13,7 @@
 //! on the same values, so this one cannot fail.
 
 use ak::ColumnFull;
+use ak::Zone;
 
 use super::dominators::Dominators;
 use super::edit;
@@ -40,7 +41,7 @@ fn is_numbered(op: &Op) -> bool {
         && !op.is_control()
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
     run_with_hash(graph, dominators, |node, replacements| {
         let mut hash = FastHasher::default();
         discriminant(&node.op).hash(&mut hash);

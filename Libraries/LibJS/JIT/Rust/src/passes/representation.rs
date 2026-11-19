@@ -32,6 +32,7 @@ use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
+use ak::Zone;
 
 /// An unboxed representation phis can take.
 struct Unboxed {
@@ -85,7 +86,7 @@ const UNBOXED: [Unboxed; 3] = [
     },
 ];
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, _work: &Zone) {
     for unboxed in &UNBOXED {
         unbox_phis(graph, unboxed);
     }

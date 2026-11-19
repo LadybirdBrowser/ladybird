@@ -24,6 +24,7 @@ use crate::ir::Comparison;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use ak::Zone;
 
 /// The comparison of swapped operands that has the same result.
 fn mirrored(comparison: Comparison) -> Comparison {
@@ -175,7 +176,7 @@ fn add_predecessor(graph: &mut Graph, target: BlockId, predecessor: BlockId, lik
     }
 }
 
-pub fn run(graph: &mut Graph) {
+pub fn run(graph: &mut Graph, _work: &Zone) {
     // NB: Threading moves the uses of each phi's inputs to the branches.
     let uses = count_uses(graph);
     thread_boolean_phis(graph, &uses);

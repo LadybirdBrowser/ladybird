@@ -49,7 +49,14 @@ pub(crate) fn build_with_layout(program: &Program, layout: FrameLayout, never_ra
         .collect::<Vec<_>>();
     let mut graph =
         build_graph_with_feedback(&snapshot, &|pc| !never_ran_pcs.contains(&pc), crate::test_zone()).unwrap();
-    crate::passes::optimize(&mut graph, &layout, true, &mut Dominators::new()).unwrap();
+    crate::passes::optimize(
+        &mut graph,
+        &layout,
+        true,
+        &mut Dominators::new(),
+        &mut crate::test_work(),
+    )
+    .unwrap();
     graph
 }
 
@@ -61,6 +68,7 @@ pub(crate) fn optimized_graph(snapshot: &Snapshot) -> Graph<'static> {
         &snapshot.executables[0].layout,
         true,
         &mut Dominators::new(),
+        &mut crate::test_work(),
     )
     .unwrap();
     graph

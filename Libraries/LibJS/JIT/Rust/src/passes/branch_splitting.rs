@@ -13,6 +13,7 @@
 //! the key the cache holds, not a phi that also holds `undefined`.
 
 use ak::ColumnFull;
+use ak::Zone;
 
 use super::dominators::Dominators;
 use crate::bitset::BitSet;
@@ -369,7 +370,7 @@ fn split_one(graph: &mut Graph, dominators: &mut Dominators) -> Result<bool, Col
     Ok(false)
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
     for _ in 0..graph.blocks.len() {
         if !split_one(graph, dominators)? {
             break;
