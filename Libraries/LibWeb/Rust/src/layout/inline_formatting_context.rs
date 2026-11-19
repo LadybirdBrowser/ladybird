@@ -1887,6 +1887,7 @@ impl<'context> InlineFormattingContext<'context> {
         }
     }
 
+    #[inline]
     #[allow(clippy::too_many_arguments)]
     fn text_item_wrap_opportunity(
         &self,
@@ -2129,9 +2130,6 @@ impl<'context> InlineFormattingContext<'context> {
             );
         }
         let style = self.style(self.parent_node(item.node));
-        let text_content = self.pass.text_content(item.node);
-        let letter_spacing = style.letter_spacing().to_double() as f32;
-        let word_spacing = style.word_spacing().to_double() as f32;
         loop {
             // NB: Splitting one text item can create several lines. Observe the clamp point before creating more,
             //     preserving the first clamped line while laying out legacy scrollable overflow.
@@ -2167,6 +2165,9 @@ impl<'context> InlineFormattingContext<'context> {
                 line_builder.break_line(line_builder::ForcedBreak::No, None, None);
                 continue;
             }
+            let text_content = self.pass.text_content(item.node);
+            let letter_spacing = style.letter_spacing().to_double() as f32;
+            let word_spacing = style.word_spacing().to_double() as f32;
             let split_item = self.split_for_overflow_break_before_hyphen(
                 item,
                 prepared,
@@ -2798,6 +2799,7 @@ impl<'context> InlineFormattingContext<'context> {
                             can_break_after_previous_overflow_item,
                         );
                         let overflow_break_allowed = !is_whitespace && self.overflow_break_applies_to_style(style);
+                        let has_soft_wraps = item.has_soft_wraps(iterator.prepared_content());
                         match opportunity {
                             TextItemWrapOpportunity::BeforeWhitespaceSequence(sequence_inline_size) => {
                                 let broke_line = if iterator.next_non_whitespace_text_allows_overflow_break(self) {
@@ -2824,9 +2826,7 @@ impl<'context> InlineFormattingContext<'context> {
                                 let measure_rest_of_run = !is_whitespace
                                     && !run_fits_after_previous_whitespace
                                     && line_builder.can_break_before_next_item();
-                                let unbreakable_run_inline_size = if measure_rest_of_run
-                                    || item.has_soft_wraps(iterator.prepared_content())
-                                {
+                                let unbreakable_run_inline_size = if measure_rest_of_run || has_soft_wraps {
                                     let stop_at_overflow_breakable_text = opportunity
                                         == TextItemWrapOpportunity::AfterOverflowBreakableText
                                         || line_builder.current_line_is_empty();
@@ -2844,7 +2844,7 @@ impl<'context> InlineFormattingContext<'context> {
                             }
                             TextItemWrapOpportunity::None => {}
                         }
-                        if overflow_break_allowed || item.has_soft_wraps(iterator.prepared_content()) {
+                        if overflow_break_allowed || has_soft_wraps {
                             if self.break_overflowing_text_item(
                                 line_builder,
                                 iterator,
