@@ -291,6 +291,28 @@
             expectCacheStatus(url, response, "written-to-cache");
         }
 
+        // Requests with a no-cache pragma and no Cache-Control header do not receive stored responses without validation.
+        await (async () => {
+            url = await createRequest("/cache-test/request/pragma-no-cache", {
+                headers: {
+                    "Cache-Control": "max-age=999",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    Pragma: "no-cache",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "read-from-cache");
+        })();
+
         // Responses with only a max-age directive are cached.
         await (async () => {
             url = await createRequest("/cache-test/response/max-age", {
