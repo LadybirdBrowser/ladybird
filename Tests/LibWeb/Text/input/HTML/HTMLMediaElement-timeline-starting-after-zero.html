@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // These files' first frames are 10 seconds into their timelines. The timeline keeps their timestamps, and starts
+    // where their media does.
+    function describe(ranges) {
+        const described = [];
+        for (let i = 0; i < ranges.length; i++)
+            described.push(`[${ranges.start(i)}, ${ranges.end(i)}]`);
+        return described.join(", ");
+    }
+
+    async function test(source) {
+        const video = document.createElement("video");
+        video.src = source;
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+        println(`${source}`);
+        println(`  currentTime at metadata: ${video.currentTime}`);
+
+        // The fragmented file's duration is only known once its fragments are scanned, as are its buffered ranges.
+        if (video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA)
+            await new Promise(resolve => video.addEventListener("canplaythrough", resolve, { once: true }));
+        println(`  seekable: ${describe(video.seekable)}`);
+        println(`  buffered: ${describe(video.buffered)}`);
+
+        video.currentTime = 1;
+        await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+        println(`  currentTime after seeking to 1: ${video.currentTime}`);
+    }
+
+    asyncTest(async done => {
+        await test("../../../Assets/h264-starting-at-10s-fragmented.mp4");
+        await test("../../../Assets/vp9-starting-at-10s.webm");
+        done();
+    });
+</script>
