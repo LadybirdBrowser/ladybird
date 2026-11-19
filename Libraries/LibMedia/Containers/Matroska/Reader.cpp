@@ -470,6 +470,19 @@ static DecoderErrorOr<Optional<MasteringDisplayColorVolume>> parse_mastering_met
     return volume;
 }
 
+static DecoderErrorOr<Optional<u16>> read_light_level_or_skip_if_malformed(Streamer& streamer)
+{
+    auto value_position = streamer.position();
+    auto value_or_error = streamer.read_u64();
+    if (!value_or_error.is_error())
+        return AK::clamp_to<u16>(value_or_error.release_value());
+    if (value_or_error.error().category() != DecoderErrorCategory::Corrupted)
+        return value_or_error.release_error();
+    TRY(streamer.seek_to_position(value_position));
+    TRY(streamer.read_unknown_element());
+    return OptionalNone {};
+}
+
 static DecoderErrorOr<TrackEntry::ColorFormat> parse_video_color_information(Streamer& streamer)
 {
     TrackEntry::ColorFormat color_format {};
@@ -500,12 +513,16 @@ static DecoderErrorOr<TrackEntry::ColorFormat> parse_video_color_information(Str
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's BitsPerChannel attribute: {}", color_format.bits_per_channel);
             break;
         case MAX_CLL_ID:
-            content_light_level_information().maximum_content_light_level = AK::clamp_to<u16>(TRY(streamer.read_u64()));
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's MaxCLL attribute: {}", content_light_level_information().maximum_content_light_level);
+            if (auto level = TRY(read_light_level_or_skip_if_malformed(streamer)); level.has_value()) {
+                content_light_level_information().maximum_content_light_level = level.value();
+                dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's MaxCLL attribute: {}", level.value());
+            }
             break;
         case MAX_FALL_ID:
-            content_light_level_information().maximum_frame_average_light_level = AK::clamp_to<u16>(TRY(streamer.read_u64()));
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's MaxFALL attribute: {}", content_light_level_information().maximum_frame_average_light_level);
+            if (auto level = TRY(read_light_level_or_skip_if_malformed(streamer)); level.has_value()) {
+                content_light_level_information().maximum_frame_average_light_level = level.value();
+                dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's MaxFALL attribute: {}", level.value());
+            }
             break;
         case MASTERING_METADATA_ID:
             color_format.mastering_display_color_volume = TRY(parse_mastering_metadata(streamer));
