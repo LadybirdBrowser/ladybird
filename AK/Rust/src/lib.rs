@@ -11,6 +11,7 @@ mod generic_lexer;
 pub mod math;
 pub mod perf_map;
 mod region;
+mod row_block;
 mod scope_guard;
 mod slice;
 pub mod stack;
@@ -22,6 +23,7 @@ mod word_chunk;
 
 pub use column::{Column, ColumnFull};
 pub use generic_lexer::GenericLexer;
+pub use row_block::{RowBlock, RowBlockFull, RowList};
 pub use scope_guard::ScopeGuard;
 pub use slice::{Span, SpanMut, slice_from_raw_parts, slice_from_raw_parts_mut};
 pub use string_conversions::{UnsignedInteger, parse_ascii_digits};
