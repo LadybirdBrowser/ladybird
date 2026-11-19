@@ -142,7 +142,7 @@ AK::Duration FrameScanTimeline::duration()
     return m_duration;
 }
 
-DecoderErrorOr<SeekResult> FrameScanTimeline::seek_to_timestamp(NonnullRefPtr<MediaStreamCursor> const& scanning_cursor, NonnullRefPtr<MediaStreamCursor> const& seek_cursor, MediaStream& stream, AK::Duration timestamp)
+DecoderErrorOr<SeekedPosition> FrameScanTimeline::seek_to_timestamp(NonnullRefPtr<MediaStreamCursor> const& scanning_cursor, NonnullRefPtr<MediaStreamCursor> const& seek_cursor, MediaStream& stream, AK::Duration timestamp)
 {
     timestamp = max(timestamp, AK::Duration::zero());
 
