@@ -17,7 +17,6 @@ class AudioOutputFactory;
 class AudioPlaybackSink;
 class AudioProducer;
 class AudioSink;
-class ContainerNavigator;
 class DecodedAudioProducer;
 class DecodedVideoProducer;
 class Demuxer;
