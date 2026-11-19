@@ -1849,6 +1849,8 @@ QFrame#LadybirdPopoverSeparator {{
 QString zoom_popover_style_sheet(QPalette const&)
 {
     auto const& panel = Theme::panel();
+    auto button_background = over(panel.control, panel.surface);
+
     return qformatted(R"(
 QFrame#LadybirdZoomPopover {{
     color: {0};
@@ -1869,8 +1871,12 @@ QPushButton#LadybirdZoomButton {{
     border-radius: 7px;
 }}
 
-QPushButton#LadybirdZoomButton:pressed {{
+QPushButton#LadybirdZoomButton:hover {{
     background: {4};
+}}
+
+QPushButton#LadybirdZoomButton:pressed {{
+    background: {5};
 }}
 
 QPushButton#LadybirdPopoverLink {{
@@ -1888,7 +1894,8 @@ QPushButton#LadybirdPopoverLink:hover {{
 }}
 )",
         style_sheet_color(panel.text), style_sheet_color(panel.surface), style_sheet_color(over(panel.edge, panel.surface)),
-        style_sheet_color(panel.control), style_sheet_color(panel.pressed));
+        style_sheet_color(button_background), style_sheet_color(over(panel.pressed, panel.surface)),
+        style_sheet_color(over(panel.pressed, button_background)));
 }
 
 // Tooltips appear after half a second of hover. Once one has shown, the ones next to it appear at once for 1.5 s.
