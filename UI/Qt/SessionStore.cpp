@@ -28,6 +28,7 @@ static constexpr u32 SESSIONS_SCHEMA_LAUNCH_RESTORE_VERSION = 7u;
 static constexpr u32 SESSIONS_SCHEMA_WINDOW_GEOMETRY_VERSION = 8u;
 static constexpr u32 SESSIONS_SCHEMA_UPGRADE_INSECURE_REQUESTS_VERSION = 9u;
 static constexpr u32 SESSIONS_SCHEMA_RESTART_VERSION = 10u;
+static constexpr u32 SESSIONS_SCHEMA_LOCAL_FILE_CONTENT_VERSION = 11u;
 
 // After this many unclean exits in a row, launch restore stops, so a session that crashes the browser doesn't restore
 // into the same crash every time.
@@ -296,6 +297,12 @@ ErrorOr<Database::MigrationOutcome> SessionStore::PersistedStorage::migrate_sche
             .version = SESSIONS_SCHEMA_RESTART_VERSION,
             .sql = R"#(
                 ALTER TABLE SessionLifecycle ADD COLUMN restart INTEGER NOT NULL DEFAULT 0;
+            )#"sv,
+        },
+        {
+            .version = SESSIONS_SCHEMA_LOCAL_FILE_CONTENT_VERSION,
+            .sql = R"#(
+                ALTER TABLE SessionEntries ADD COLUMN held_local_file_content INTEGER NOT NULL DEFAULT 0;
             )#"sv,
         },
     });
@@ -1534,6 +1541,10 @@ static bool snapshots_match(Optional<WebView::SessionHistorySnapshot> const& a, 
     if (!a.has_value())
         return true;
     if (a->current_used_step_index != b->current_used_step_index || a->used_steps != b->used_steps)
+        return false;
+    auto const& a_held = a->document_states_holding_local_file_content;
+    auto const& b_held = b->document_states_holding_local_file_content;
+    if (a_held.size() != b_held.size() || !all_of(a_held, [&](auto id) { return b_held.contains_slow(id); }))
         return false;
     return session_history_entry_descriptors_match(a->entries, b->entries);
 }

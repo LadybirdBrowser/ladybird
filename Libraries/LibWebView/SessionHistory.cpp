@@ -249,7 +249,16 @@ static void assign_fresh_ids_to_restored_entries(Vector<Web::HTML::SessionHistor
     }
 }
 
-ErrorOr<void> TraversableSessionHistory::restore_from_ui_snapshot(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, Function<Web::HTML::CrossProcessId()> allocate_cross_process_id)
+static void for_each_document_state(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& entries, Function<void(CanonicalDocumentState&)> const& callback)
+{
+    for (auto const& entry : entries) {
+        callback(*entry->document_state);
+        for (auto const& nested_history : entry->document_state->nested_histories)
+            for_each_document_state(nested_history.entries, callback);
+    }
+}
+
+ErrorOr<void> TraversableSessionHistory::restore_from_ui_snapshot(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, Function<Web::HTML::CrossProcessId()> allocate_cross_process_id, Vector<Web::HTML::CrossProcessId> const& document_states_holding_local_file_content)
 {
     TRY(validate_snapshot_is_restorable(entries, used_steps, current_used_step_index));
 
@@ -257,6 +266,18 @@ ErrorOr<void> TraversableSessionHistory::restore_from_ui_snapshot(Vector<Web::HT
     assign_fresh_ids_to_restored_entries(entries, allocate_cross_process_id, assigned_ids);
     m_entries = TRY(entries_from_descriptors(entries));
     m_current_session_history_step = used_steps[current_used_step_index];
+
+    HashTable<Web::HTML::CrossProcessId> restored_ids_holding_local_file_content;
+    for (auto id : document_states_holding_local_file_content) {
+        if (auto restored_id = assigned_ids.get(id); restored_id.has_value())
+            restored_ids_holding_local_file_content.set(*restored_id);
+    }
+    if (!restored_ids_holding_local_file_content.is_empty()) {
+        for_each_document_state(m_entries, [&](CanonicalDocumentState& document_state) {
+            if (restored_ids_holding_local_file_content.contains(document_state.id))
+                document_state.held_local_file_content = true;
+        });
+    }
     return {};
 }
 
@@ -392,6 +413,17 @@ size_t TraversableSessionHistory::current_top_level_entry_index() const
 size_t TraversableSessionHistory::current_used_step_index() const
 {
     return used_steps().find_first_index(get_the_used_step(m_current_session_history_step).value()).value();
+}
+
+Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::document_states_holding_local_file_content() const
+{
+    Vector<Web::HTML::CrossProcessId> ids;
+    HashTable<Web::HTML::CrossProcessId> seen_ids;
+    for_each_document_state(m_entries, [&](CanonicalDocumentState& document_state) {
+        if (document_state.held_local_file_content && seen_ids.set(document_state.id) == HashSetResult::InsertedNewEntry)
+            ids.append(document_state.id);
+    });
+    return ids;
 }
 
 Vector<Web::HTML::SessionHistoryEntryDescriptor> TraversableSessionHistory::entries() const

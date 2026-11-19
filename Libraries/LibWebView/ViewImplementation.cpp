@@ -4242,6 +4242,7 @@ SessionHistorySnapshot ViewImplementation::session_history_snapshot() const
         .entries = session_history.entries(),
         .used_steps = session_history.used_steps(),
         .current_used_step_index = session_history.current_used_step_index(),
+        .document_states_holding_local_file_content = session_history.document_states_holding_local_file_content(),
     };
 }
 

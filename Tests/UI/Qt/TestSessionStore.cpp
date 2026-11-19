@@ -79,6 +79,7 @@ static SessionTabId open_tab(SessionStore& store, SessionWindowId window, String
 // Takes the schema back to SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION, so every migration after it runs again.
 static void rewind_sessions_schema_to_version_4(Database::Database& database)
 {
+    MUST(database.execute_raw("ALTER TABLE SessionEntries DROP COLUMN held_local_file_content;"sv));
     MUST(database.execute_raw("DROP TABLE SessionUpgradeInsecureNavigations;"sv));
     MUST(database.execute_raw("ALTER TABLE SessionPolicyContainers DROP COLUMN insecure_requests_policy;"sv));
     MUST(database.execute_raw("ALTER TABLE Sessions DROP COLUMN maximized;"sv));
@@ -110,7 +111,7 @@ TEST_CASE(fresh_database_migrates_to_the_latest_schema)
     for (auto table : { "Sessions"sv, "SessionTabs"sv, "SessionUsedSteps"sv, "SessionHistories"sv, "SessionNestedHistories"sv, "SessionEntries"sv, "SessionUpgradeInsecureNavigations"sv })
         EXPECT(TRY_OR_FAIL(database->table_exists(table)));
 
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 10u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 11u });
 }
 
 TEST_CASE(deleting_a_session_cascades_through_its_tabs)
@@ -157,7 +158,7 @@ TEST_CASE(version_4_database_migrates_to_the_latest_schema)
     rewind_sessions_schema_to_version_4(*database);
 
     EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 10u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 11u });
     EXPECT(TRY_OR_FAIL(database->table_exists("SessionUpgradeInsecureNavigations"sv)));
     EXPECT_EQ(select_i64(*database, "SELECT pinned FROM SessionTabs WHERE id = 2;"_string), 0);
     EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM Sessions WHERE id = 1 AND width IS NULL;"_string), 1);
@@ -222,6 +223,23 @@ TEST_CASE(a_changed_user_agent_initiated_flag_alone_flushes)
     store->update_tab_state({ .tab_id = tab, .history = snapshot, .url = parse_url("https://a.example/"sv) });
     store->flush_dirty_state();
     EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionEntries WHERE user_agent_initiated = 1;"_string), 1);
+}
+
+TEST_CASE(a_changed_set_of_document_states_holding_local_file_content_alone_replaces_a_pending_push)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+
+    auto tab = TRY_OR_FAIL(store->tab_opened({ .window_id = {}, .initial_url = parse_url("about:blank"sv), .insertion_index = {}, .is_active = SessionStore::IsActive::No }));
+
+    auto snapshot = make_snapshot({ "file:///tmp/a.html"sv });
+    store->update_tab_state({ .tab_id = tab, .history = snapshot, .url = parse_url("file:///tmp/a.html"sv) });
+
+    // The set is the only difference from the pending push, which it still replaces.
+    snapshot.document_states_holding_local_file_content.append(snapshot.entries[0].document_state.id);
+    store->update_tab_state({ .tab_id = tab, .history = snapshot, .url = parse_url("file:///tmp/a.html"sv) });
+    store->flush_dirty_state();
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionEntries WHERE held_local_file_content = 1;"_string), 1);
 }
 
 TEST_CASE(a_changed_insecure_requests_policy_alone_replaces_a_pending_push)

@@ -187,6 +187,7 @@ struct WebView::SessionHistorySnapshot {
     Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
     Vector<i32> used_steps;
     size_t current_used_step_index;
+    Vector<Web::HTML::CrossProcessId> document_states_holding_local_file_content;
 }
 
 // A language the tab's page can be translated into, perhaps after a download.
