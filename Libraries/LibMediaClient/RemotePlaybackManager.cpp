@@ -297,6 +297,8 @@ Optional<Media::TimeRanges::Range> RemotePlaybackManager::seekable_time_ranges()
 void RemotePlaybackManager::set_live_seekable_range(Optional<Media::TimeRanges::Range> range)
 {
     m_timeline.live_seekable_range = range;
+    if (can_send())
+        m_client->async_set_live_seekable_range(m_session_id, range);
     dispatch_seekable_ranges_change();
 }
 
