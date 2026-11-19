@@ -356,7 +356,7 @@ impl PlanTree {
         &mut self,
         fieldset: NodeSlotId,
         legend: NodeSlotId,
-        is_flex: bool,
+        content_display_inside: u8,
     ) -> NodeSlotId {
         let first_child = self.node(fieldset).first_child();
         let before = if legend.is_invalid() {
@@ -368,11 +368,7 @@ impl PlanTree {
             }
             self.node(legend).next_sibling()
         };
-        let wrapper = self.push_contents_wrapper(if is_flex {
-            crate::css::css_enums::display_inside::FLEX
-        } else {
-            crate::css::css_enums::display_inside::FLOW_ROOT
-        });
+        let wrapper = self.push_contents_wrapper(content_display_inside);
         self.attach(fieldset, wrapper, before);
         self.derive_subtree_on_commit(wrapper);
         self.move_children(fieldset, wrapper, legend);

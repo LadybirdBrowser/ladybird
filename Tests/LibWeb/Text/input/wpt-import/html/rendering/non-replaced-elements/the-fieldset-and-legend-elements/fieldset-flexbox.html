@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<title>fieldset and CSS Flexbox</title>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<style>
+#test, #ref, #test-inline, #ref-inline {
+  display: flex;
+  justify-content: space-around;
+  margin: 0;
+  padding: 0;
+  border: none
+}
+#test-inline, #ref-inline { display: inline-flex }
+legend {
+  float: left; /* Makes it not the "rendered legend" */
+  padding: 0;
+}
+</style>
+<fieldset id=test>
+ <legend>1</legend>
+ <div>2</div>
+ <div>3</div>
+ <div>4</div>
+ <div>5</div>
+ <div>6</div>
+ <div>7</div>
+ <div>8</div>
+ <div>9</div>
+</fieldset>
+<hr>
+<div id=ref>
+ <legend>1</legend>
+ <div>2</div>
+ <div>3</div>
+ <div>4</div>
+ <div>5</div>
+ <div>6</div>
+ <div>7</div>
+ <div>8</div>
+ <div>9</div>
+</div>
+<hr>
+<fieldset id=test-inline>
+ <legend>1</legend>
+ <div>2</div>
+ <div>3</div>
+ <div>4</div>
+ <div>5</div>
+ <div>6</div>
+ <div>7</div>
+ <div>8</div>
+ <div>9</div>
+</fieldset>
+<div id=ref-inline>
+ <div>1</div>
+ <div>2</div>
+ <div>3</div>
+ <div>4</div>
+ <div>5</div>
+ <div>6</div>
+ <div>7</div>
+ <div>8</div>
+ <div>9</div>
+</div>
+<script>
+  test(() => {
+    const testElm = document.getElementById('test');
+    const refElm = document.getElementById('ref');
+    assert_equals(getComputedStyle(testElm).height,
+                  getComputedStyle(refElm).height, 'height');
+    assert_equals(testElm.querySelector('legend').offsetTop,
+                  testElm.querySelector('div').offsetTop, 'offsetTop')
+  }, "Flex");
+
+  test(() => {
+    const testElm = document.getElementById('test-inline');
+    const refElm = document.getElementById('ref-inline');
+    assert_equals(getComputedStyle(testElm).height,
+                  getComputedStyle(refElm).height, 'height');
+    assert_equals(testElm.querySelector('legend').offsetTop,
+                  testElm.querySelector('div').offsetTop, 'offsetTop')
+
+  }, "Inline flex");
+
+test(() => {
+  const testElm = document.getElementById('test');
+  testElm.style.flexDirection = 'row';
+  const item0 = testElm.querySelectorAll('div')[0];
+  const item1 = testElm.querySelectorAll('div')[1];
+  assert_equals(item0.offsetTop, item1.offsetTop);
+
+  testElm.style.flexDirection = 'column';
+  assert_true(item0.offsetTop < item1.offsetTop);
+}, "Dynamic change of flex-direction");
+</script>

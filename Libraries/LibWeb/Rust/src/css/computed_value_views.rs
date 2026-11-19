@@ -969,7 +969,7 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    fn alignment(self) -> &'a AlignmentValues {
+    pub(crate) fn alignment(self) -> &'a AlignmentValues {
         self.native_group(group_index::ALIGNMENT)
     }
 

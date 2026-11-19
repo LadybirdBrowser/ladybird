@@ -68,6 +68,23 @@ impl DerivedStyleRecord {
     }
 }
 
+/// The inner display type of the anonymous fieldset content box of a fieldset whose display is `fieldset_display`.
+// https://html.spec.whatwg.org/multipage/rendering.html#anonymous-fieldset-content-box
+// If the computed value of 'display' on the fieldset element is 'grid' or 'inline-grid', then set the used value to
+// 'grid'. If the computed value of 'display' on the fieldset element is 'flex' or 'inline-flex', then set the used
+// value to 'flex'. Otherwise, set the used value to 'flow-root'.
+pub(crate) fn fieldset_content_display_inside(fieldset_display: FfiDisplay) -> u8 {
+    if fieldset_display.is_grid_lanes_inside() {
+        display_inside::GRID_LANES
+    } else if fieldset_display.is_grid_inside() {
+        display_inside::GRID
+    } else if fieldset_display.is_flex_inside() {
+        display_inside::FLEX
+    } else {
+        display_inside::FLOW_ROOT
+    }
+}
+
 trait LayoutStyleGroup: Clone + PartialEq {
     const INDEX: usize;
 }
@@ -558,13 +575,10 @@ impl LayoutStyle {
             }
             AnonymousStyleKind::FieldsetContentWrapper => {
                 let source = Self::from_record(engine, parent);
+                let content_display_inside = fieldset_content_display_inside(source.group::<BoxValues>().display);
                 style.set_display(FfiDisplay::outside_and_inside(
                     display_outside::BLOCK,
-                    if source.group::<BoxValues>().display.is_flex_inside() {
-                        display_inside::FLEX
-                    } else {
-                        display_inside::FLOW_ROOT
-                    },
+                    content_display_inside,
                     false,
                 ));
                 style.edit::<AlignmentValues>(|target| {
@@ -573,6 +587,19 @@ impl LayoutStyle {
                         target,
                     );
                 });
+                if source.group::<BoxValues>().display.is_grid_inside() {
+                    style.edit::<GridValues>(|target| {
+                        crate::css::computed_values::copy_fieldset_content_grid_template(
+                            source.group::<GridValues>(),
+                            target,
+                        );
+                    });
+                    style.edit::<BoxValues>(|target| {
+                        let source = source.group::<BoxValues>();
+                        target.grid_auto_flow_row = source.grid_auto_flow_row;
+                        target.grid_auto_flow_dense = source.grid_auto_flow_dense;
+                    });
+                }
                 style.set_overflow(overrides.overflow_x, overrides.overflow_y);
             }
             AnonymousStyleKind::InlineStyleWrapper | AnonymousStyleKind::WritingSuggestion => style.set_display(

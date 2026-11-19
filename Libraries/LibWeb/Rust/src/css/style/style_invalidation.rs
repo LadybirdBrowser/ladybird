@@ -1395,9 +1395,15 @@ pub(crate) fn element_record_damage_of_views(facts: ElementDamageFacts, record_m
         facts.verifies_reads,
     );
     let mut damage = StyleInvalidation::unpack(packed);
-    // Fieldsets with a rendered legend or flex contents transfer overflow to an anonymous
-    // content box during tree construction. Rebuild to refresh both boxes' overrides.
-    if overflow_changed && facts.is_field_set {
+    // Fieldsets with a rendered legend or flex or grid contents transfer overflow, and their flex or grid container
+    // properties, to an anonymous content box during tree construction. Rebuild to refresh both boxes' overrides.
+    let fieldset_content_box_properties_changed = facts.is_field_set
+        && (overflow_changed
+            || old_values.alignment() != new_values.alignment()
+            || old_values.grid_values() != new_values.grid_values()
+            || old_values.grid_auto_flow_row() != new_values.grid_auto_flow_row()
+            || old_values.grid_auto_flow_dense() != new_values.grid_auto_flow_dense());
+    if fieldset_content_box_properties_changed {
         damage.merge(StyleInvalidation::rebuild_layout_tree_from(REBUILD_ROOT_SELF));
     }
     // An SVG currentColor stroke stores its resolved color alongside the fact that it came from

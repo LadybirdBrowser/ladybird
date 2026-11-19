@@ -1477,10 +1477,10 @@ pub(crate) fn formatting_context_type_created_by_node_data(
         });
     }
     let display = style.map(|style| style.display());
-    // NB: A flex fieldset lays out its legend and anonymous content box in a block formatting context.
-    //     Flex layout applies only to the anonymous content box.
+    // NB: A flex or grid fieldset lays out its legend and anonymous content box in a block formatting context.
+    //     Flex or grid layout applies only to the anonymous content box.
     if data.kind.get() == crate::layout::node_data::NodeKind::FieldSetBox
-        && display.is_some_and(|display| display.is_flex_inside())
+        && display.is_some_and(|display| display.is_flex_inside() || display.is_grid_inside())
     {
         return Some(FormattingContextType::Block);
     }

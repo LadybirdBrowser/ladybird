@@ -7182,6 +7182,26 @@ mod tests {
     }
 }
 
+/// Copies the grid template, implicit track sizes, and fit tolerance, which the anonymous content box of a grid
+/// fieldset inherits from the fieldset. The fieldset's own placement in its parent's grid stays with the fieldset.
+// https://html.spec.whatwg.org/multipage/rendering.html#anonymous-fieldset-content-box
+pub(crate) fn copy_fieldset_content_grid_template(source: &GridValues, target: &mut GridValues) {
+    target.names = source.names.clone();
+    target.name_indices = source.name_indices.clone();
+    target.entries = source.entries.clone();
+    target.areas = source.areas.clone();
+    target.template_columns = source.template_columns;
+    target.template_rows = source.template_rows;
+    target.auto_columns = source.auto_columns;
+    target.auto_rows = source.auto_rows;
+    target.grid_template_columns_style_value = source.grid_template_columns_style_value.clone();
+    target.grid_template_rows_style_value = source.grid_template_rows_style_value.clone();
+    target.grid_auto_columns_style_value = source.grid_auto_columns_style_value.clone();
+    target.grid_auto_rows_style_value = source.grid_auto_rows_style_value.clone();
+    target.grid_template_areas_style_value = source.grid_template_areas_style_value.clone();
+    target.fit_tolerance_style_value = source.fit_tolerance_style_value.clone();
+}
+
 pub(crate) fn copy_fieldset_content_alignment(source: &AlignmentValues, target: &mut AlignmentValues) {
     target.flex_direction = source.flex_direction;
     target.flex_wrap = source.flex_wrap;

@@ -1343,6 +1343,11 @@ pub(crate) struct SubgridParent<'pass> {
 /// (the fc-run-cache probe): a declared subgrid axis counts regardless of the
 /// parent-grid placement check only a run in progress can make.
 pub(super) fn grid_template_declares_a_subgrid_axis(pass: &LayoutPass<'_>, box_: Node) -> bool {
+    // NB: A grid fieldset lays out its grid in its anonymous fieldset content box, which isn't an item of the
+    //     fieldset's parent grid, so neither box is a subgrid.
+    if NodeFacts::new(pass, box_).is_fieldset_box() {
+        return false;
+    }
     let grid_style = pass.style_view(box_).grid_values();
     grid_style.template_columns.is_subgrid || grid_style.template_rows.is_subgrid
 }
@@ -1645,11 +1650,14 @@ impl<'pass> GridFormattingContext<'pass> {
     /// Whether a grid container with a subgrid track list is a subgrid, rather than being forced to establish an
     /// independent formatting context, which makes its track list none.
     fn can_be_subgrid(&self, node: Node) -> bool {
-        !self
-            .run
-            .pass
-            .style_view(node)
-            .is_forced_to_establish_independent_formatting_context()
+        // NB: A grid fieldset lays out its grid in its anonymous fieldset content box, which isn't an item of the
+        //     fieldset's parent grid, so neither box is a subgrid.
+        !self.facts(node).is_fieldset_box()
+            && !self
+                .run
+                .pass
+                .style_view(node)
+                .is_forced_to_establish_independent_formatting_context()
     }
 
     fn container_is_subgridded(&self, axis: Axis) -> bool {

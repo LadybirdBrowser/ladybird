@@ -2816,14 +2816,16 @@ impl<'a> Planner<'a> {
         // the content (including the '::before' and '::after' pseudo-elements) of the fieldset element except for the
         // rendered legend, if there is one.
         let legend = self.tree.rendered_legend(node);
-        let is_flex = self
+        let content_display_inside = self
             .tree
             .style_of(node)
-            .is_some_and(|style| style.display().is_flex_inside());
-        if legend.is_invalid() && !is_flex {
+            .map_or(crate::css::css_enums::display_inside::FLOW_ROOT, |style| {
+                crate::css::style::layout_style::fieldset_content_display_inside(style.display())
+            });
+        if legend.is_invalid() && content_display_inside == crate::css::css_enums::display_inside::FLOW_ROOT {
             return;
         }
-        let wrapper = self.tree.wrap_fieldset_contents(node, legend, is_flex);
+        let wrapper = self.tree.wrap_fieldset_contents(node, legend, content_display_inside);
         self.commit_one_by_one(
             wrapper,
             OneByOneRowSource::ContentsWrapper {
