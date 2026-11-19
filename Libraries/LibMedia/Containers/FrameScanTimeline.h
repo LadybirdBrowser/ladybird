@@ -13,7 +13,6 @@
 #include <AK/Time.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibMedia/Containers/ContainerNavigator.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/MediaStream.h>
 #include <LibMedia/TimeRanges.h>
@@ -55,6 +54,11 @@ protected:
             return Optional<T> {};
         return result;
     }
+};
+
+struct SeekedPosition {
+    i64 byte_position;
+    AK::Duration timestamp;
 };
 
 enum class DurationSource : u8 {
