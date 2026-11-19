@@ -84,10 +84,10 @@ enum class RowKind {
 };
 
 // Process rows are identified by the process's child ID, which, unlike its PID, never comes to name another process.
-// Site rows are identified by their site.
+// Site rows are identified by their site and privacy.
 constexpr int ChildIDRole = Qt::UserRole + 1;
 constexpr int KindRole = Qt::UserRole + 2;
-constexpr int SiteRole = Qt::UserRole + 3;
+constexpr int SiteKeyRole = Qt::UserRole + 3;
 // What a site row says after the site's name, such as how many tabs show it.
 constexpr int NoteRole = Qt::UserRole + 4;
 
@@ -434,13 +434,13 @@ ProcessManagerWindow::ProcessManagerWindow(Source source)
     connect(m_search, &QLineEdit::textChanged, this, &ProcessManagerWindow::apply_filter);
     connect(m_processes, &QTreeWidget::itemExpanded, this, [this](QTreeWidgetItem* item) {
         if (row_kind(item) == RowKind::Site)
-            m_expanded_sites.set(ak_string_from_qstring(item->data(Name, SiteRole).toString()));
+            m_expanded_sites.set(ak_string_from_qstring(item->data(Name, SiteKeyRole).toString()));
     });
     connect(m_processes, &QTreeWidget::itemCollapsed, this, [this](QTreeWidgetItem* item) {
         if (row_kind(item) == RowKind::Process)
             item->setExpanded(true);
         if (row_kind(item) == RowKind::Site)
-            m_expanded_sites.remove(ak_string_from_qstring(item->data(Name, SiteRole).toString()));
+            m_expanded_sites.remove(ak_string_from_qstring(item->data(Name, SiteKeyRole).toString()));
     });
 
     m_footer = new QWidget(content);
@@ -668,6 +668,7 @@ void ProcessManagerWindow::refresh()
     };
 
     struct Site {
+        QString key;
         QString name;
         Vector<WebView::ProcessSnapshot const*> processes;
         size_t tab_count { 0 };
@@ -695,10 +696,13 @@ void ProcessManagerWindow::refresh()
             own_processes.append(&process);
             continue;
         }
-        auto site = sites.find_if([&](auto const& site) { return site.name == site_name; });
+        auto is_private = process.is_private == WebView::IsPrivate::Yes;
+        auto site_key = (is_private ? QStringLiteral("private:") : QStringLiteral("regular:")) + site_name;
+        auto site = sites.find_if([&](auto const& site) { return site.key == site_key; });
         if (site == sites.end()) {
             Site new_site;
-            new_site.name = site_name;
+            new_site.key = site_key;
+            new_site.name = is_private ? tr("%1 (Private)").arg(site_name) : site_name;
             sites.append(AK::move(new_site));
             site = sites.end() - 1;
         }
@@ -713,7 +717,7 @@ void ProcessManagerWindow::refresh()
 
     auto selected = m_processes->currentItem() && m_processes->currentItem()->isSelected() ? m_processes->currentItem() : nullptr;
     auto selected_child_id = selected && row_kind(selected) == RowKind::Process ? selected->data(PID, ChildIDRole) : QVariant {};
-    auto selected_site = selected && row_kind(selected) == RowKind::Site ? selected->data(Name, SiteRole) : QVariant {};
+    auto selected_site = selected && row_kind(selected) == RowKind::Site ? selected->data(Name, SiteKeyRole) : QVariant {};
     auto scroll_position = m_processes->verticalScrollBar()->value();
 
     QSignalBlocker selection_blocker(m_processes);
@@ -735,12 +739,16 @@ void ProcessManagerWindow::refresh()
             item.setTextAlignment(column, Qt::AlignRight | Qt::AlignVCenter);
     };
 
-    auto make_process_item = [&](WebView::ProcessSnapshot const& process, bool shows_title) {
+    auto make_process_item = [&](WebView::ProcessSnapshot const& process, bool is_ungrouped) {
         auto* item = new QTreeWidgetItem;
         item->setData(Name, KindRole, static_cast<int>(RowKind::Process));
         auto name = qstring_from_ak_string(WebView::process_name_from_type(process.type));
-        if (shows_title && process.title.has_value() && process.type != WebView::ProcessType::WebContent)
-            name += QStringLiteral(" — ") + qstring_from_utf16_string(*process.title);
+        if (is_ungrouped) {
+            if (process.title.has_value() && process.type != WebView::ProcessType::WebContent)
+                name += QStringLiteral(" — ") + qstring_from_utf16_string(*process.title);
+            if (process.is_private == WebView::IsPrivate::Yes)
+                name = tr("%1 (Private)").arg(name);
+        }
         item->setText(Name, name);
         item->setToolTip(Name, name);
         switch (process.type) {
@@ -855,7 +863,7 @@ void ProcessManagerWindow::refresh()
         for (auto& site : sites) {
             auto* item = new QTreeWidgetItem;
             item->setData(Name, KindRole, static_cast<int>(RowKind::Site));
-            item->setData(Name, SiteRole, site.name);
+            item->setData(Name, SiteKeyRole, site.key);
             item->setText(Name, site.name);
             item->setToolTip(Name, site.name);
             auto font = item->font(Name);
@@ -876,12 +884,12 @@ void ProcessManagerWindow::refresh()
             for (auto const* process : site.processes)
                 process_items.append(make_process_item(*process, false));
             add_items(item, process_items);
-            if (selected_site.isValid() && selected_site.toString() == site.name)
+            if (selected_site.isValid() && selected_site.toString() == site.key)
                 item_to_select = item;
         }
         add_items(nullptr, site_items);
         for (auto* item : site_items) {
-            item->setExpanded(m_expanded_sites.contains(ak_string_from_qstring(item->data(Name, SiteRole).toString())));
+            item->setExpanded(m_expanded_sites.contains(ak_string_from_qstring(item->data(Name, SiteKeyRole).toString())));
             for (int i = 0; i < item->childCount(); ++i)
                 item->child(i)->setExpanded(true);
         }

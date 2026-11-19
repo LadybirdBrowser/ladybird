@@ -106,6 +106,75 @@ TEST_CASE(search_keeps_matching_child_processes_visible)
     EXPECT(!frame->isHidden());
 }
 
+TEST_CASE(sites_group_processes_by_privacy)
+{
+    Core::EventLoop event_loop;
+    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_utf8(TEST_RESOURCE_ROOT ""sv))));
+    Ladybird::ProcessManagerWindow window({
+        .take_snapshots = []() -> Vector<WebView::ProcessSnapshot> {
+            using enum WebView::IsPrivate;
+            using enum WebView::ProcessType;
+            auto site = URL::Parser::basic_parse("https://example.com/"sv);
+            Vector<WebView::ProcessSnapshot> snapshots;
+            auto add_process = [&](WebView::ProcessType type, WebView::IsPrivate is_private, Optional<URL::URL> const& site_url, Optional<u64> owner = {}) {
+                WebView::ProcessSnapshot process;
+                process.child_id = snapshots.size() + 1;
+                process.type = type;
+                process.is_private = is_private;
+                process.site_url = site_url;
+                process.owner_child_id = owner;
+                process.memory_usage_bytes = process.child_id * 1024;
+                snapshots.append(move(process));
+            };
+            add_process(WebContent, No, site);
+            add_process(RequestServer, No, site);
+            add_process(WebContent, Yes, site);
+            add_process(RequestServer, Yes, site);
+            add_process(ImageDecoder, Yes, {}, 3);
+            add_process(RequestServer, Yes, {});
+            return snapshots;
+        },
+        .end_process = {},
+        .favicon_hash = {},
+        .favicon_png = {},
+    });
+    window.show();
+    auto* processes = window.findChild<QTreeWidget*>();
+    auto find_row = [&](QString const& name) {
+        auto rows = processes->findItems(name, Qt::MatchExactly);
+        VERIFY(rows.size() == 1);
+        return rows.first();
+    };
+    EXPECT_EQ(processes->topLevelItemCount(), 4);
+    auto* regular_site = find_row("example.com");
+    auto* private_site = find_row("example.com (Private)");
+    auto child_names = [](QTreeWidgetItem const& row) {
+        QStringList names;
+        for (int i = 0; i < row.childCount(); ++i)
+            names.append(row.child(i)->text(0));
+        return names;
+    };
+    EXPECT_EQ(child_names(*regular_site), (QStringList { "RequestServer", "WebContent" }));
+    EXPECT_EQ(child_names(*private_site), (QStringList { "ImageDecoder", "RequestServer", "WebContent" }));
+
+    private_site->setExpanded(true);
+    processes->setCurrentItem(private_site);
+    EXPECT(QMetaObject::invokeMethod(window.findChild<QTimer*>(), "timeout", Qt::DirectConnection));
+    regular_site = find_row("example.com");
+    private_site = find_row("example.com (Private)");
+    auto* ungrouped_request_server = find_row("RequestServer (Private)");
+    EXPECT_EQ(processes->currentItem(), private_site);
+    EXPECT(!regular_site->isExpanded());
+    EXPECT(private_site->isExpanded());
+
+    auto* search = window.findChild<QLineEdit*>();
+    search->setText("private");
+    EXPECT(regular_site->isHidden());
+    EXPECT(!private_site->isHidden());
+    EXPECT(!private_site->child(0)->isHidden());
+    EXPECT(!ungrouped_request_server->isHidden());
+}
+
 TEST_CASE(browser_is_not_terminable_and_can_be_copied)
 {
     Core::EventLoop event_loop;
