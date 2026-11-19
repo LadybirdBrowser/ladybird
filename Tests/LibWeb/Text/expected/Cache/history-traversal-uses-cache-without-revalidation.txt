@@ -1,0 +1,5 @@
+loaded document with subresource
+loaded other document
+loaded document with subresource
+Requests the server saw for the document: 1
+Requests the server saw for the subresource: 1
