@@ -1898,7 +1898,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
         //     and returns windowType. The renderer runs it too, for its page of the traversable.
         auto request_new_web_view = [&] {
             TokenizedFeature::Map empty_window_features;
-            auto hints = web_view_hints_from_tokenised_features(window_features.has_value() ? *window_features : empty_window_features, page());
+            auto hints = web_view_hints_from_tokenised_features(window_features.has_value() ? *window_features : empty_window_features);
             return page().client().page_did_request_new_web_view(activate_tab, hints, id(), Utf16String::from_utf16(name), no_opener, active_document()->base_url());
         };
 
