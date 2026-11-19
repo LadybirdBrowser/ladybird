@@ -172,6 +172,8 @@ pub(crate) struct TextChunkCacheKey {
 pub(crate) struct CachedTextChunks {
     key: TextChunkCacheKey,
     chunks: super::text_chunker::ChunkedText,
+    /// Spacing for which horizontal LTR preparation kept every original chunk separate.
+    pub(super) independent_chunks_for_spacing: std::sync::OnceLock<(u32, u32)>,
 }
 
 impl CachedTextChunks {
@@ -282,6 +284,7 @@ impl TextMemos {
         let entry = Arc::new(CachedTextChunks {
             key: key.clone(),
             chunks: compute(),
+            independent_chunks_for_spacing: Default::default(),
         });
         self.chunks.with_row_mut(index, |memo| {
             *memo = Some(ChunksOfText {

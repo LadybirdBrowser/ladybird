@@ -928,6 +928,7 @@ struct TextNodeContext<'pass> {
     text: &'pass [u16],
     next_chunk_index: usize,
     independent_chunks_until: usize,
+    can_memoize_independent_chunks: bool,
     style: StyleValues<'pass>,
     letter_spacing: f32,
     word_spacing: f32,
@@ -1319,14 +1320,26 @@ impl<'pass> InlineContentPreparer<'pass> {
             self.is_unidirectional_left_to_right,
         );
         let facts = self.facts(text_node);
+        let letter_spacing = style.letter_spacing().to_double() as f32;
+        let word_spacing = style.word_spacing().to_double() as f32;
+        let can_memoize_independent_chunks =
+            self.is_unidirectional_left_to_right && style.writing_mode() == writing_mode::HORIZONTAL_TB;
+        let independent_chunks_until = if can_memoize_independent_chunks
+            && chunks.independent_chunks_for_spacing.get() == Some(&(letter_spacing.to_bits(), word_spacing.to_bits()))
+        {
+            usize::MAX
+        } else {
+            0
+        };
         self.text_node_context = Some(TextNodeContext {
             chunks,
             text: &self.pass.text_content(text_node).text,
             next_chunk_index: 0,
-            independent_chunks_until: 0,
+            independent_chunks_until,
+            can_memoize_independent_chunks,
             style,
-            letter_spacing: style.letter_spacing().to_double() as f32,
-            word_spacing: style.word_spacing().to_double() as f32,
+            letter_spacing,
+            word_spacing,
             writing_mode: style.writing_mode(),
             text_orientation: style.text_orientation(),
             should_wrap_lines,
@@ -1435,6 +1448,12 @@ impl<'pass> InlineContentPreparer<'pass> {
                 .expect("layout read a font group that never received a frozen font list");
             (chunk, first_available_font)
         } else {
+            if text_context.can_memoize_independent_chunks {
+                let _ = chunks.independent_chunks_for_spacing.set((
+                    text_context.letter_spacing.to_bits(),
+                    text_context.word_spacing.to_bits(),
+                ));
+            }
             if !text_context.text.is_empty() {
                 let regional_indicators = text_chunker::trailing_regional_indicator_count(text_context.text);
                 // NB: Each regional indicator is a surrogate pair.
@@ -1580,6 +1599,12 @@ impl<'pass> InlineContentPreparer<'pass> {
             text_context.word_spacing,
             text_chunker::joining_context(full_text, shaped_range),
         );
+        // Remember the decision only if every combined run is restored to its original chunks. Text, font, and break-rule
+        // changes replace the chunk memo, while spacing is checked separately.
+        if text_context.next_chunk_index != next_chunk_index && (!has_soft_wraps || shape.requires_context_for_breaks())
+        {
+            text_context.can_memoize_independent_chunks = false;
+        }
         if has_soft_wraps && !shape.requires_context_for_breaks() {
             // Independent glyphs can keep their small, separately measured chunks. Remember the end of this run so
             // that preparing each following chunk doesn't shape the same suffix again.

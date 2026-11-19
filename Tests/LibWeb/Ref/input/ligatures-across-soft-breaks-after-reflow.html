@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/ligatures-across-soft-breaks-after-reflow-ref.html">
+<style>
+    @font-face {
+        font-family: "Programming";
+        src: url("../../Assets/FiraCode-Latin.woff2");
+    }
+    @font-face {
+        font-family: "Ligatures";
+        src: url("../../Assets/Lato-Bold.ttf");
+    }
+    p { font: 16px "Programming"; word-break: break-all; width: 600px; }
+    .no-context { font-feature-settings: "calt" 0; }
+    #spacing { font-family: "Ligatures"; }
+    .spaced { letter-spacing: 2px; }
+</style>
+<p id="features" class="no-context">LYoWAT - ff fi fl ffl -&gt; --&gt; ---&gt; &lt;- &lt;-&gt; &lt;=&gt; =&gt; ==&gt; &lt;==</p>
+<p id="text">abcdefghij abcdefghij abcdefghij</p>
+<p id="spacing" class="spaced">fi ffi fifi offi fiffi</p>
+<script>
+    document.fonts.ready.then(() => {
+        // Lay each paragraph out several times while its glyphs don't need context across its break opportunities,
+        // then change what decides that, and lay it out several times again.
+        const paragraphs = document.querySelectorAll("p");
+        function relayout() {
+            for (let i = 0; i < 4; i++) {
+                for (const p of paragraphs) {
+                    p.style.width = i % 2 ? "600px" : "601px";
+                }
+                document.body.offsetHeight;
+            }
+        }
+        relayout();
+        document.getElementById("features").classList.remove("no-context");
+        document.getElementById("text").firstChild.data = "LYoWAT - ff fi fl ffl -> --> ---> <- <-> <=> => ==> <==";
+        document.getElementById("spacing").classList.remove("spaced");
+        relayout();
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>
