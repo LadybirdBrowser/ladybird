@@ -765,6 +765,10 @@ pub struct Stream {
 }
 
 impl Stream {
+    pub(super) fn bytecode_capacity(&self) -> usize {
+        self.current.bytes.capacity() + self.head.bytes.capacity() + self.body_head.bytes.capacity()
+    }
+
     pub(super) fn clear(&mut self) {
         if !self.is_active {
             return;

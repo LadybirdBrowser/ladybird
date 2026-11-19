@@ -41,6 +41,8 @@ use super::names::NameTables;
 /// The most entries that a table keeps its memory for when the next compile takes over.
 pub(super) const MAXIMUM_SPARE_CAPACITY: usize = 1024;
 
+const MAXIMUM_SPARE_BYTECODE_SIZE: usize = 64 * 1024;
+
 /// Feedback slot indices are encoded as u16. Sites beyond the last index share
 /// it, which only merges their feedback.
 const MAX_FEEDBACK_SLOT_COUNT: u32 = u16::MAX as u32 + 1;
@@ -164,6 +166,10 @@ impl Drop for Generator<'_> {
     fn drop(&mut self) {
         // SAFETY: This is the last that anything sees of the context.
         let mut context = unsafe { ManuallyDrop::take(&mut self.context) };
+        // NB: Free an outsized context rather than keep its memory for good.
+        if context.stream.bytecode_capacity() > MAXIMUM_SPARE_BYTECODE_SIZE {
+            return;
+        }
         context.clear();
         SPARE_CONTEXT.set(Some(context));
     }
