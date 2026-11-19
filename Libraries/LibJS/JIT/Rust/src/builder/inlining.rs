@@ -139,7 +139,7 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool, derived_construct:
         //     interpreter runs the handler in the callee's materialized frame (see `translate::leave()` in the
         //     runtime). A handler that caught before would make the code leave again and again.
         if opcode == OpCode::Catch {
-            return !super::has_run(callee.executable, instruction.pc);
+            return !super::has_run(callee.snapshot, callee.executable, instruction.pc);
         }
         // NB: An inlined callee reads what its call passed for constant indices (see `try_build_argument()`).
         if opcode == OpCode::GetArgument {
@@ -200,9 +200,7 @@ fn returns_no_object(callee: &Function<'_>) -> bool {
             Instruction::Return { value } => {
                 value.raw() == THIS_VALUE_REGISTER
                     || match callee.layout.slot_kind(value) {
-                        SlotKind::Constant(index) => callee
-                            .executable
-                            .constants
+                        SlotKind::Constant(index) => callee.snapshot[callee.executable.constants]
                             .get(index as usize)
                             .is_some_and(|constant| value::tag(*constant) != value::OBJECT_TAG),
                         _ => false,
@@ -283,7 +281,9 @@ fn calls_super_once_before_returning(callee: &Function<'_>) -> bool {
         }
         // NB: What super() returned is `this`.
         let returns_undefined_or_this = |value: Operand| match callee.layout.slot_kind(value) {
-            SlotKind::Constant(index) => callee.executable.constants.get(index as usize) == Some(&value::UNDEFINED),
+            SlotKind::Constant(index) => {
+                callee.snapshot[callee.executable.constants].get(index as usize) == Some(&value::UNDEFINED)
+            }
             _ => follows_bind_this && Some(value) == super_call_result,
         };
         match instruction.instruction {
@@ -793,11 +793,12 @@ impl<'a> GraphBuilder<'a> {
             self.embed(target.function.global_this);
         }
         if let Some(index) = target.environment {
-            let Some(template) = self.function.executable.environment_templates.get(index as usize) else {
+            let snapshot = self.snapshot;
+            let Some(template) = snapshot[self.function.executable.environment_templates].get(index as usize) else {
                 return Ok(None);
             };
-            for cell in template.cells.clone() {
-                self.embed(cell);
+            for cell in &snapshot[template.cells] {
+                self.embed(*cell);
             }
         }
         if let Some(inlined_frame_bytes) = without_frames {
@@ -1062,11 +1063,7 @@ impl<'a> GraphBuilder<'a> {
                     return Ok(None);
                 };
                 let start = forwarded.bound_arguments_start as usize;
-                let Some(bound_arguments) = self
-                    .function
-                    .executable
-                    .feedback
-                    .bound_arguments
+                let Some(bound_arguments) = self.snapshot[self.function.executable.feedback.bound_arguments]
                     .get(start..start + forwarded.bound_argument_count as usize)
                 else {
                     return Ok(None);
@@ -1484,8 +1481,7 @@ impl<'a> GraphBuilder<'a> {
         else {
             return Ok(None);
         };
-        let Some(index) = self.snapshot.executables[executable as usize]
-            .closure_templates
+        let Some(index) = self.snapshot[self.snapshot.executables[executable as usize].closure_templates]
             .get(shared_function_data_index as usize)
             .and_then(Option::as_ref)
             .and_then(|template| template.inline_executable)
@@ -1596,16 +1592,15 @@ impl<'a> GraphBuilder<'a> {
         let Some(executable) = self.snapshot.executables.get(index as usize) else {
             return true;
         };
-        let Ok(decoded) = super::decoded_function(executable, &self.decoded[index as usize]) else {
+        let Ok(decoded) = super::decoded_function(self.snapshot, executable, &self.decoded[index as usize]) else {
             return true;
         };
+        let exit_sites = &self.snapshot[executable.exit_sites];
         decoded.instructions.iter().any(|instruction| {
             matches!(
                 instruction.instruction.opcode(),
                 OpCode::SuperCall | OpCode::SuperCallWithForwardedArguments
-            ) && executable
-                .exit_sites
-                .contains(&(instruction.pc, ExitKind::BadCallTarget))
+            ) && exit_sites.contains(&(instruction.pc, ExitKind::BadCallTarget))
         })
     }
 
@@ -1798,9 +1793,11 @@ impl<'a> GraphBuilder<'a> {
         {
             return Ok(false);
         }
-        let Some(fields) = self.function.executable.derived_instance_fields.clone() else {
+        let Some(fields) = self.function.executable.derived_instance_fields else {
             return Ok(false);
         };
+        let snapshot = self.snapshot;
+        let added_fields = &snapshot[fields.fields];
         let this_register = Operand::from_raw(THIS_VALUE_REGISTER);
         let this_value = self.read(this_register)?;
         if self.graph.constant_value(this_value) != Some(value::EMPTY) {
@@ -1816,9 +1813,14 @@ impl<'a> GraphBuilder<'a> {
         else {
             return Ok(false);
         };
-        let added_count = fields.fields.iter().map(|(offset, _, _)| offset + 1).max().unwrap_or(0);
+        let added_count = added_fields.iter().map(|(offset, _, _)| offset + 1).max().unwrap_or(0);
         let reserve = reserve.max(added_count);
-        if self.runtime.object_allocation.size_class_for(reserve).is_none() {
+        if self
+            .runtime
+            .object_allocation
+            .size_class_for(snapshot, reserve)
+            .is_none()
+        {
             return Ok(false);
         }
         self.graph.nodes[allocation.index()].op = Op::AllocateObject {
@@ -1845,7 +1847,7 @@ impl<'a> GraphBuilder<'a> {
         // NB: The fields have literal values, so this cannot throw, and since `this` has the shape the fields start
         //     from (checked above), which allows extensions and has none of their names, each field adds its property
         //     or sets the value of an earlier field of the same name.
-        for (offset, value, added) in fields.fields {
+        for (offset, value, added) in added_fields.iter().copied() {
             let value = self.constant(value);
             match added {
                 Some(shape) => {
@@ -2113,7 +2115,8 @@ impl<'a> GraphBuilder<'a> {
         if callee_executable.builtin {
             return true;
         }
-        let Ok(decoded) = super::decoded_function(callee_executable, &self.decoded[index as usize]) else {
+        let Ok(decoded) = super::decoded_function(self.snapshot, callee_executable, &self.decoded[index as usize])
+        else {
             return false;
         };
         self.inlined_instructions + decoded.instructions.len()
@@ -2146,7 +2149,7 @@ impl<'a> GraphBuilder<'a> {
         if !may_inline {
             return None;
         }
-        let decoded = super::decoded_function(callee_executable, &self.decoded[index as usize]).ok()?;
+        let decoded = super::decoded_function(snapshot, callee_executable, &self.decoded[index as usize]).ok()?;
         let instruction_count = decoded.instructions.len();
         let limits = snapshot.options.inlining;
         // NB: Builtins are always inlined (see the snapshot's inlining rules).
@@ -2181,7 +2184,7 @@ impl<'a> GraphBuilder<'a> {
             || (closure && callee_executable.is_non_strict_function())
             || (virtual_arguments && uses_passed_arguments)
             || forwards_arguments_to_super;
-        let callee_function = Function::new(index, callee_executable, decoded, has_legacy_arguments).ok()?;
+        let callee_function = Function::new(snapshot, index, decoded, has_legacy_arguments).ok()?;
         if !can_inline(&callee_function, virtual_arguments, derived_construct) {
             return None;
         }
@@ -2313,7 +2316,7 @@ impl<'a> GraphBuilder<'a> {
             Some(construct) if derived_construct.is_none() => self.construct_this(
                 new_target.unwrap_or(function.function),
                 construct,
-                callee_executable.literal_instance_fields.as_deref().unwrap_or_default(),
+                &self.snapshot[callee_executable.literal_instance_fields.unwrap_or_default()],
             ),
             _ => receiver,
         };

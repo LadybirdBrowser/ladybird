@@ -119,7 +119,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             && info.named_properties_offset.is_multiple_of(8)
             && info.shape_offset + 4 <= info.plain_inline_storage_offset
             && info.inline_capacity_offset < info.plain_inline_storage_offset;
-        let size_class = info.size_class_for(reserve).copied().filter(|_| fields_fit);
+        let size_class = info
+            .size_class_for(self.snapshot, reserve)
+            .copied()
+            .filter(|_| fields_fit);
         let Some(size_class) = size_class else {
             self.masm.jump(entry);
             self.masm.bind(resume);
@@ -127,7 +130,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         };
 
         let cell = self.output(node);
-        let info = self.runtime.object_allocation.clone();
+        let info = self.runtime.object_allocation;
         let at = |base: Gpr, offset: u32| Address::new(base, offset as i32);
 
         self.emit_check_heap_threshold(size_class.cell_size, cell, heap, entry);
@@ -136,8 +139,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
         // The template, with the shape, the inline capacity and every inline
         // value undefined. The pointer to the inline storage is stored last.
-        let mut image = info
-            .template
+        let mut image = self.snapshot[info.template]
             .iter()
             .flat_map(|word| word.to_le_bytes())
             .take(info.plain_inline_storage_offset as usize)
@@ -233,7 +235,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                     self.emit_unbox_cell(scratch, parent);
                     self.masm.move64(arguments[1], scratch);
                     self.masm.move64(arguments[0], self.pinned.vm);
-                    self.masm.move_imm64(arguments[2], self.executables[0].cell.0);
+                    self.masm.move_imm64(arguments[2], self.snapshot.executables[0].cell.0);
                     self.masm.move_imm32(arguments[3], shape_cache);
                     self.masm.move_imm32(arguments[4], capacity);
                     self.masm.call_absolute(self.runtime.create_lexical_environment);
@@ -427,16 +429,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         // Larger arrays are rare, and filling their storage takes longer
         // than the runtime call.
         const MAX_INLINE_ELEMENTS: u32 = 64;
-        let info = self.runtime.array_allocation.clone();
+        let info = self.runtime.array_allocation;
         let (entry, resume) = self.defer_allocation(node, AllocationCall::Array(count));
         // NB: The fallback to the runtime call takes no temps, but the lowering declares them for the fast path.
         let (storage, temp) = (self.temp(node, 0), self.temp(node, 1));
-        let storage_size_class = info
-            .storage_size_classes
+        let storage_size_class = self.snapshot[info.storage_size_classes]
             .iter()
             .find(|size_class| size_class.capacity >= count)
             .copied();
-        let objects = self.runtime.object_allocation.clone();
+        let objects = self.runtime.object_allocation;
         let layout = self.runtime.layout;
         let template_bytes = 8 * info.template.len() as u64;
         let array_fields = [
@@ -486,8 +487,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         );
 
         // The array, with its packed elements if it has any.
-        let mut image = info
-            .template
+        let mut image = self.snapshot[info.template]
             .iter()
             .flat_map(|word| word.to_le_bytes())
             .collect::<Vec<u8>>();
@@ -510,7 +510,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
         if let Some(size_class) = storage_size_class {
             let mut fields: Vec<ConstantField> = (0u32..)
-                .zip(&info.storage_template)
+                .zip(&self.snapshot[info.storage_template])
                 .map(|(index, word)| (8 * index, 8, *word))
                 .collect();
             for index in 0..size_class.capacity {
@@ -550,11 +550,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         shape_cache: u32,
         capacity: u32,
     ) -> Result<(), CompileFailure> {
-        let template = self.executables[0]
-            .lexical_environment_templates
+        let template = self.snapshot[self.snapshot.executables[0].lexical_environment_templates]
             .get(shape_cache as usize)
-            .and_then(Option::as_ref)
-            .cloned()
+            .copied()
+            .flatten()
             .ok_or(CompileFailure::CodeGeneration)?;
         let (entry, resume) = self.defer_allocation(node, AllocationCall::Environment(shape_cache, capacity));
         // NB: The fallback to the runtime call takes no temps, but the lowering declares them for the fast path.
@@ -579,7 +578,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_pop_free_list(template.allocator, environment, temp, entry);
         self.emit_count_allocation(template.cell_size, template.cell_size, temp, false);
 
-        let mut fields = template_fields(&template.words, &stored);
+        let mut fields = template_fields(&self.snapshot[template.words], &stored);
         self.emit_constant_fields(environment, temp, &mut fields)?;
         if template.inline_binding_values {
             self.masm
@@ -608,19 +607,21 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         shared_function_data_index: u32,
     ) -> Result<(), CompileFailure> {
         let info = self.runtime.function_allocation;
-        let closure = self
+        let closure_templates = self
+            .snapshot
             .executables
             .get(executable as usize)
             .ok_or(CompileFailure::CodeGeneration)?
-            .closure_templates
+            .closure_templates;
+        let closure = self.snapshot[closure_templates]
             .get(shared_function_data_index as usize)
-            .and_then(Option::as_ref)
-            .cloned()
+            .copied()
+            .flatten()
             .ok_or(CompileFailure::CodeGeneration)?;
         let (entry, resume) = self.defer_allocation(node, AllocationCall::Function(closure.sample));
         // NB: The fallback to the runtime call takes no temps, but the lowering declares them for the fast path.
         let (function, temp) = (self.temp(node, 0), self.temp(node, 1));
-        let objects = self.runtime.object_allocation.clone();
+        let objects = self.runtime.object_allocation;
         let offsets = self.runtime.offsets;
         let stored = [
             (objects.named_properties_offset, 8),
@@ -648,7 +649,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_pop_free_list(info.allocator, function, temp, entry);
         self.emit_count_allocation(info.cell_size, info.cell_size, temp, false);
 
-        let mut fields = template_fields(&closure.words, &stored);
+        let mut fields = template_fields(&self.snapshot[closure.words], &stored);
         self.emit_constant_fields(function, temp, &mut fields)?;
         self.masm
             .load_effective_address(temp, &at(function, objects.inline_storage_offset));

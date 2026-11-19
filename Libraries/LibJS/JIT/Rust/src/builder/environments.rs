@@ -174,10 +174,7 @@ impl GraphBuilder<'_> {
         } else {
             self.check_initialized(binding)?
         };
-        let binding = match self
-            .function
-            .executable
-            .captured_bindings
+        let binding = match self.snapshot[self.function.executable.captured_bindings]
             .iter()
             .find(|(captured, _)| *captured == coordinate)
             .map(|(_, value)| *value)
@@ -209,8 +206,8 @@ impl GraphBuilder<'_> {
         let mut slow_paths = self.start_slow_paths(None)?;
         // NB: Bindings of the closure's environments that every environment
         //     of their scope declares mutable need no check of that.
-        let declared_mutable =
-            field == FrameField::LexicalEnvironment && self.function.executable.mutable_bindings.contains(&coordinate);
+        let declared_mutable = field == FrameField::LexicalEnvironment
+            && self.snapshot[self.function.executable.mutable_bindings].contains(&coordinate);
         if !declared_mutable {
             self.branch_to_slow_path(
                 &mut slow_paths,
@@ -259,7 +256,10 @@ impl GraphBuilder<'_> {
         is_immutable: bool,
         is_strict: bool,
     ) -> Result<Option<Flow>, CompileFailure> {
-        let Some(name) = self.function.executable.identifiers.get(identifier as usize).copied() else {
+        let Some(name) = self.snapshot[self.function.executable.identifiers]
+            .get(identifier as usize)
+            .copied()
+        else {
             return Err(CompileFailure::InvalidBytecode {
                 pc: self.function.pc,
                 reason: "identifier out of range",

@@ -16,7 +16,8 @@ use core::ptr::NonNull;
 
 use libjs_jit::snapshot::{
     ArrayAllocationInfo, CellId, ClosureTemplateSnapshot, EnvironmentTemplateSnapshot, FunctionAllocationInfo,
-    LexicalEnvironmentTemplateSnapshot, ObjectAllocationInfo, ObjectSizeClass, RopeAllocationInfo, StorageSizeClass,
+    LexicalEnvironmentTemplateSnapshot, List, ObjectAllocationInfo, ObjectSizeClass, RopeAllocationInfo,
+    SnapshotWriter, StorageSizeClass,
 };
 use libjs_runtime_macros::{jit_abi, jit_function_address};
 
@@ -59,16 +60,27 @@ fn address(local_free_list: Option<NonNull<*mut core::ffi::c_void>>) -> u64 {
     local_free_list.map_or(0, |list| list.as_ptr() as u64)
 }
 
-/// The bytes of `cell` (of `size` bytes) as u64 words, with a clear mark: cells allocated while the incremental sweep
-/// is active start out marked, but cells from local free lists never need marking.
-fn cell_words<T>(cell: Gc<T>, size: usize) -> Vec<u64> {
-    let mut words = vec![0u64; size.div_ceil(8)];
-    // SAFETY: The cell is live and has `size` bytes, which the words have room for.
-    unsafe { core::ptr::copy_nonoverlapping(cell.as_ptr().cast::<u8>(), words.as_mut_ptr().cast::<u8>(), size) };
+/// Gives `word` the bytes of `cell` (of `size` bytes) as u64 words, first to last, with a clear mark: cells allocated
+/// while the incremental sweep is active start out marked, but cells from local free lists never need marking.
+fn for_each_cell_word<T>(cell: Gc<T>, size: usize, mut word: impl FnMut(u64)) {
     let mark = core::mem::offset_of!(CellHeader, mark);
-    // SAFETY: The mark is a byte within the words.
-    unsafe { words.as_mut_ptr().cast::<u8>().add(mark).write(0) };
-    words
+    for start in (0..size).step_by(8) {
+        let mut bytes = [0u8; 8];
+        let len = (size - start).min(8);
+        // SAFETY: The cell is live and has `size` bytes, of which these `len` are some, and `bytes` has room for 8.
+        unsafe { core::ptr::copy_nonoverlapping(cell.as_ptr().cast::<u8>().add(start), bytes.as_mut_ptr(), len) };
+        if let Some(byte) = mark.checked_sub(start).and_then(|index| bytes.get_mut(index)) {
+            *byte = 0;
+        }
+        word(u64::from_ne_bytes(bytes));
+    }
+}
+
+/// The words of `cell` (see `for_each_cell_word()`), as a list of `snapshot`.
+fn cell_words<T>(snapshot: &mut SnapshotWriter, cell: Gc<T>, size: usize) -> List<u64> {
+    let words = snapshot.begin();
+    for_each_cell_word(cell, size, |word| snapshot.push(word));
+    snapshot.end(words)
 }
 
 /// Clears the `size` bytes at `offset` of `words`, which may share their word with other fields.
@@ -89,7 +101,12 @@ pub struct AllocationInfos<'d> {
     pub cells: Deferred<'d, Vec<Gc<CellHeader>>>,
 }
 
-pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>) -> AllocationInfos<'d> {
+pub fn allocation_infos<'d>(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    defer_gc: &'d DeferGc<'_>,
+    snapshot: &mut SnapshotWriter,
+) -> AllocationInfos<'d> {
     let heap = vm.heap();
     let inline = heap.inline_allocation_info();
     let heap_address = heap.raw() as u64;
@@ -110,7 +127,7 @@ pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>
         local_cursor_offset: offset(inline.local_cursor_offset),
         local_end_offset: offset(inline.local_end_offset),
         local_cell_size_offset: offset(inline.local_cell_size_offset),
-        template: cell_words(object_template, size_of::<Object>()),
+        template: cell_words(snapshot, object_template, size_of::<Object>()),
         shape_offset: offset(core::mem::offset_of!(Object, shape)),
         named_properties_offset: offset(core::mem::offset_of!(Object, named_properties)),
         inline_storage_offset: offset(core::mem::offset_of!(Object, inline_named_storage)),
@@ -121,46 +138,51 @@ pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>
     };
     // NB: Free lists are only popped inline where the heap gives their addresses (not in AddressSanitizer builds).
     if heap.local_free_list_of(Object::CLASS).is_some() {
+        let size_classes = snapshot.begin();
         for (size_class, inline_capacity) in plain_object_size_classes(heap)
             .iter()
             .zip(&PLAIN_OBJECT_INLINE_CAPACITIES)
         {
-            object.size_classes.push(ObjectSizeClass {
+            snapshot.push(ObjectSizeClass {
                 allocator: address(size_class.local_free_list()),
                 cell_size: size_class.cell_size(),
                 inline_capacity: u32::from(*inline_capacity),
             });
         }
+        object.size_classes = snapshot.end(size_classes);
     }
 
     let array_template = Array::create(vm, realm, 0, None).must();
     let array_shape = array_template.shape();
-    let storage_size_classes = value_storage::size_classes(heap)
-        .iter()
-        .zip(SIZE_CLASS_CAPACITIES)
-        .map(|(size_class, capacity)| StorageSizeClass {
-            allocator: address(size_class.local_free_list()),
+    // NB: Storage is only allocated inline where the heap gives the addresses of all the free lists it comes from.
+    let storage_size_classes = snapshot.begin();
+    let mut has_all_free_lists = true;
+    for (size_class, capacity) in value_storage::size_classes(heap).iter().zip(SIZE_CLASS_CAPACITIES) {
+        let allocator = address(size_class.local_free_list());
+        has_all_free_lists &= allocator != 0;
+        snapshot.push(StorageSizeClass {
+            allocator,
             cell_size: size_class.cell_size(),
             capacity,
-        })
-        .collect::<Vec<_>>();
+        });
+    }
+    if !has_all_free_lists {
+        snapshot.drop_rows(&storage_size_classes);
+    }
+    let storage_size_classes = snapshot.end(storage_size_classes);
     let array = ArrayAllocationInfo {
         allocator: address(heap.local_free_list_of(Array::CLASS)),
         cell_size: size(size_of::<Array>()),
-        template: cell_words(array_template, size_of::<Array>()),
+        template: cell_words(snapshot, array_template, size_of::<Array>()),
         shape: CellId(array_shape.as_ptr() as u64),
-        storage_size_classes: if storage_size_classes.iter().all(|size_class| size_class.allocator != 0) {
-            storage_size_classes
-        } else {
-            Vec::new()
-        },
-        storage_template: value_storage::cell_header_template().to_vec(),
+        storage_size_classes,
+        storage_template: snapshot.add(&value_storage::cell_header_template()[..]),
         storage_values_offset: offset(VALUES_OFFSET),
         storage_capacity_offset: offset(value_storage::CAPACITY_OFFSET),
         slow_path: jit_function_address!(libjs_jit_allocate_array),
     };
 
-    let rope_template = rope_template(vm);
+    let rope_template = rope_template(vm, snapshot);
     let rope = RopeAllocationInfo {
         allocator: address(heap.local_free_list_of(RopeString::CLASS)),
         cell_size: size(size_of::<RopeString>()),
@@ -192,13 +214,16 @@ fn header_of<T: Extends<CellHeader>>(cell: Gc<T>) -> Gc<CellHeader> {
 }
 
 /// The bytes of a new rope string, with null halves.
-fn rope_template(vm: &Vm) -> Vec<u64> {
+fn rope_template(vm: &Vm, snapshot: &mut SnapshotWriter) -> List<u64> {
     let half = PrimitiveString::create_from_utf8(vm, "ropes are made of two halves");
     let rope = PrimitiveString::create_from_concatenation(vm, half, half).must();
     assert!(class_of(rope).is_subclass_of(RopeString::CLASS));
-    let mut words = cell_words(rope, size_of::<RopeString>());
-    clear_bytes(&mut words, ROPE_STRING_LHS_OFFSET, 4);
-    clear_bytes(&mut words, ROPE_STRING_RHS_OFFSET, 4);
+    let words = cell_words(snapshot, rope, size_of::<RopeString>());
+    // NB: A snapshot that had no room for the words does not have all of them (see `Snapshot::is_complete()`).
+    if snapshot.is_complete() {
+        clear_bytes(&mut snapshot[words], ROPE_STRING_LHS_OFFSET, 4);
+        clear_bytes(&mut snapshot[words], ROPE_STRING_RHS_OFFSET, 4);
+    }
     words
 }
 
@@ -333,7 +358,6 @@ pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionOb
     } else {
         size_of::<DeclarativeEnvironment>()
     };
-    let words = cell_words(environment, cell_bytes);
     let mut template = CallEnvironmentTemplate {
         header: CellHeader::for_class(CallEnvironmentTemplate::CLASS),
         size_class: size_class as u64,
@@ -347,7 +371,11 @@ pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionOb
         has_function_fields: u64::from(has_function_fields),
         words: [0; FUNCTION_ENVIRONMENT_WORDS],
     };
-    template.words[..words.len()].copy_from_slice(&words);
+    let mut word_count = 0;
+    for_each_cell_word(environment, cell_bytes, |word| {
+        template.words[word_count] = word;
+        word_count += 1;
+    });
     for (offset, size) in [
         (core::mem::offset_of!(DeclarativeEnvironment, binding_values), 8),
         (
@@ -374,6 +402,7 @@ pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionOb
 pub fn function_environment_template(
     vm: &Vm,
     function: Gc<EcmascriptFunctionObject>,
+    snapshot: &mut SnapshotWriter,
     mut cell: impl FnMut(Gc<CellHeader>) -> CellId,
 ) -> Option<EnvironmentTemplateSnapshot> {
     if !function.function_environment_needed() {
@@ -397,20 +426,24 @@ pub fn function_environment_template(
     if !sample.rare_data.is_null() || sample.binding_values_are_inline() != (binding_count != 0) {
         return None;
     }
-    let mut cells = Vec::new();
-    if let Some(shape) = sample.shape.get() {
-        cells.push(cell(header_of(shape)));
-    } else if binding_count != 0 {
+    let shape = sample.shape.get();
+    if shape.is_none() && binding_count != 0 {
         return None;
     }
-    if let Some(outer) = sample.outer.get() {
-        cells.push(cell(header_of(outer)));
+    let cells = snapshot.begin();
+    if let Some(shape) = shape {
+        snapshot.push(cell(header_of(shape)));
     }
-    cells.push(cell(header_of(function)));
+    if let Some(outer) = sample.outer.get() {
+        snapshot.push(cell(header_of(outer)));
+    }
+    snapshot.push(cell(header_of(function)));
+    let cells = snapshot.end(cells);
     Some(EnvironmentTemplateSnapshot {
         allocator: allocator.as_ptr() as u64,
         cell_size,
         words: cell_words(
+            snapshot,
             sample,
             if has_function_fields {
                 size_of::<FunctionEnvironment>()
@@ -433,11 +466,13 @@ pub fn lexical_environment_templates(
     vm: &Vm,
     executable: Gc<Executable>,
     realm: Gc<Realm>,
+    snapshot: &mut SnapshotWriter,
     mut cell: impl FnMut(Gc<CellHeader>) -> CellId,
-) -> Vec<Option<LexicalEnvironmentTemplateSnapshot>> {
+) -> List<Option<LexicalEnvironmentTemplateSnapshot>> {
     let heap = vm.heap();
-    (0..executable.environment_shape_cache_count())
-        .map(|index| {
+    let templates = snapshot.begin();
+    for index in 0..executable.environment_shape_cache_count() {
+        let template = (|| {
             let cache = executable.environment_shape_cache(index);
             let shape = cache.shape();
             let binding_count = shape.map_or(0, |shape| shape.size());
@@ -466,15 +501,17 @@ pub fn lexical_environment_templates(
             Some(LexicalEnvironmentTemplateSnapshot {
                 allocator: allocator.as_ptr() as u64,
                 cell_size,
-                words: cell_words(sample, size_of::<DeclarativeEnvironment>()),
+                words: cell_words(snapshot, sample, size_of::<DeclarativeEnvironment>()),
                 binding_count: u32::try_from(binding_count).ok()?,
                 inline_binding_values: binding_count != 0,
                 binding_values_offset: offset(core::mem::offset_of!(DeclarativeEnvironment, binding_values)),
                 outer_offset: offset(core::mem::offset_of!(Environment, outer)),
                 shape: shape.map(|shape| cell(header_of(shape))),
             })
-        })
-        .collect()
+        })();
+        snapshot.push(template);
+    }
+    snapshot.end(templates)
 }
 
 /// `Environment* libjs_jit_create_lexical_environment(VM*, Environment* parent, Executable*, u32 shape_cache, u32
@@ -500,7 +537,7 @@ pub extern "C" fn libjs_jit_create_lexical_environment(
 }
 
 /// The sample of each closure template with its words, by shared function data index.
-pub type ClosureTemplates = Vec<Option<(Gc<EcmascriptFunctionObject>, Vec<u64>)>>;
+pub type ClosureTemplates = Vec<Option<(Gc<EcmascriptFunctionObject>, List<u64>)>>;
 
 /// The closures JIT code of `executable`, whose frames run `function`, creates with each `NewFunction` (by shared
 /// function data index) by copying a sample (see `FunctionAllocationInfo`), or None for those it cannot.
@@ -509,12 +546,13 @@ pub fn closure_templates<'d>(
     executable: Gc<Executable>,
     function: Gc<EcmascriptFunctionObject>,
     defer_gc: &'d DeferGc<'_>,
+    snapshot: &mut SnapshotWriter,
 ) -> Deferred<'d, ClosureTemplates> {
     defer_gc.cover(
         (0..executable.shared_function_data_count())
             .map(|index| {
                 let shared_data = executable.shared_function_data(u32::try_from(index).ok()?);
-                closure_template(vm, function, shared_data)
+                closure_template(vm, function, shared_data, snapshot)
             })
             .collect(),
     )
@@ -524,7 +562,8 @@ fn closure_template(
     vm: &Vm,
     function: Gc<EcmascriptFunctionObject>,
     shared_data: Gc<SharedFunctionInstanceData>,
-) -> Option<(Gc<EcmascriptFunctionObject>, Vec<u64>)> {
+    snapshot: &mut SnapshotWriter,
+) -> Option<(Gc<EcmascriptFunctionObject>, List<u64>)> {
     // NB: Only the closures of plain functions are copies of each other apart from their environments.
     if shared_data.kind() != FunctionKind::Normal || shared_data.is_class_constructor() {
         return None;
@@ -546,7 +585,7 @@ fn closure_template(
     if !sample.can_be_copied() {
         return None;
     }
-    let words = cell_words(sample, size_of::<EcmascriptFunctionObject>());
+    let words = cell_words(snapshot, sample, size_of::<EcmascriptFunctionObject>());
     Some((sample, words))
 }
 
@@ -555,17 +594,17 @@ pub fn closure_template_snapshots(
     templates: ClosureTemplates,
     mut cell: impl FnMut(Gc<EcmascriptFunctionObject>) -> CellId,
     _defer_gc: &DeferGc<'_>,
-) -> Vec<Option<ClosureTemplateSnapshot>> {
-    templates
-        .into_iter()
-        .map(|template| {
-            template.map(|(sample, words)| ClosureTemplateSnapshot {
-                sample: cell(sample),
-                words,
-                inline_executable: None,
-            })
-        })
-        .collect()
+    snapshot: &mut SnapshotWriter,
+) -> List<Option<ClosureTemplateSnapshot>> {
+    let rows = snapshot.begin();
+    for template in templates {
+        snapshot.push(template.map(|(sample, words)| ClosureTemplateSnapshot {
+            sample: cell(sample),
+            words,
+            inline_executable: None,
+        }));
+    }
+    snapshot.end(rows)
 }
 
 /// `Object* libjs_jit_allocate_object(VM*, Shape*, u32 reserve)`: a plain object of the shape, every named property

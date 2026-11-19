@@ -239,7 +239,9 @@ impl GraphBuilder<'_> {
     /// The arithmetic feedback of the instruction being built.
     fn arith_feedback(&self, instruction: &Instruction) -> Option<u8> {
         let slot = instruction.feedback_slots().arith?;
-        self.function.executable.feedback.arith.get(usize::from(slot)).copied()
+        self.snapshot[self.function.executable.feedback.arith]
+            .get(usize::from(slot))
+            .copied()
     }
 
     /// Builds an arithmetic, comparison or update instruction.

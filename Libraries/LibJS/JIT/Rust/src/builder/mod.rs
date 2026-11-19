@@ -101,7 +101,7 @@ pub fn build_graph(snapshot: &Snapshot) -> Result<Graph, CompileFailure> {
         snapshot
             .executables
             .first()
-            .is_none_or(|executable| has_run(executable, pc))
+            .is_none_or(|executable| has_run(snapshot, executable, pc))
     })
 }
 
@@ -109,8 +109,8 @@ pub fn build_graph(snapshot: &Snapshot) -> Result<Graph, CompileFailure> {
 /// feedback it records tells: an instruction that records feedback ran if any
 /// of its slots recorded something. Instructions without feedback count as
 /// having run. Instructions that never ran are compiled as unconditional exits.
-pub fn has_run(executable: &ExecutableSnapshot, pc: u32) -> bool {
-    let Ok(instruction) = crate::bytecode::decode_instruction(&executable.bytecode, pc) else {
+pub fn has_run(snapshot: &Snapshot, executable: &ExecutableSnapshot, pc: u32) -> bool {
+    let Ok(instruction) = crate::bytecode::decode_instruction(&snapshot[executable.bytecode], pc) else {
         return true;
     };
     let slots = instruction.instruction.feedback_slots();
@@ -118,19 +118,19 @@ pub fn has_run(executable: &ExecutableSnapshot, pc: u32) -> bool {
     let slot = |slot: Option<u16>| slot.map(usize::from);
     let recorded = [
         slot(slots.arith)
-            .and_then(|slot| feedback.arith.get(slot))
+            .and_then(|slot| snapshot[feedback.arith].get(slot))
             .map(|bits| *bits != 0),
         slot(slots.value)
-            .and_then(|slot| feedback.value.get(slot))
+            .and_then(|slot| snapshot[feedback.value].get(slot))
             .map(|bits| *bits != 0),
         slot(slots.cache_value)
-            .and_then(|cache| feedback.cache_value.get(cache))
+            .and_then(|cache| snapshot[feedback.cache_value].get(cache))
             .map(|bits| *bits != 0),
         slot(slots.call)
-            .and_then(|slot| feedback.call.get(slot))
+            .and_then(|slot| snapshot[feedback.call].get(slot))
             .map(|call| call.target.is_some() || call.flags != 0 || call.value != 0),
         slot(slots.keyed)
-            .and_then(|slot| feedback.keyed.get(slot))
+            .and_then(|slot| snapshot[feedback.keyed].get(slot))
             .map(|keyed| keyed.bits != 0),
     ];
     recorded.iter().all(Option::is_none) || recorded.contains(&Some(true))
@@ -352,12 +352,14 @@ struct DecodedFunction {
 }
 
 fn decoded_function<'a>(
+    snapshot: &Snapshot,
     executable: &ExecutableSnapshot,
     cache: &'a OnceCell<Result<DecodedFunction, CompileFailure>>,
 ) -> Result<&'a DecodedFunction, CompileFailure> {
     cache
         .get_or_init(|| {
-            let instructions = decode_all(&executable.bytecode).map_err(|error| CompileFailure::InvalidBytecode {
+            let bytecode = &snapshot[executable.bytecode];
+            let instructions = decode_all(bytecode).map_err(|error| CompileFailure::InvalidBytecode {
                 pc: error.pc,
                 reason: "undecodable instruction",
             })?;
@@ -390,6 +392,7 @@ struct FunctionAnalysis {
 /// The state of the builder's walk over one executable: the compiled
 /// function or an inlined callee.
 struct Function<'a> {
+    snapshot: &'a Snapshot,
     /// Index into `Snapshot::executables`.
     index: u32,
     executable: &'a ExecutableSnapshot,
@@ -436,22 +439,23 @@ struct Function<'a> {
 }
 
 impl<'a> Function<'a> {
+    /// The state for a walk over executable `index` of `snapshot`, which `decoded` is the instructions of.
     fn new(
+        snapshot: &'a Snapshot,
         index: u32,
-        executable: &'a ExecutableSnapshot,
         decoded: &'a DecodedFunction,
         has_legacy_arguments: bool,
     ) -> Result<Self, CompileFailure> {
+        let executable = &snapshot.executables[index as usize];
         let layout = executable.layout;
         let instructions = decoded.instructions.as_slice();
         let analysis = decoded
             .analysis
             .get_or_init(|| {
-                let cfg = Cfg::new(instructions, &executable.exception_handlers, &layout).map_err(|_| {
-                    CompileFailure::InvalidBytecode {
-                        pc: 0,
-                        reason: "invalid control flow",
-                    }
+                let handlers = &snapshot[executable.exception_handlers];
+                let cfg = Cfg::new(instructions, handlers, &layout).map_err(|_| CompileFailure::InvalidBytecode {
+                    pc: 0,
+                    reason: "invalid control flow",
                 })?;
                 let loop_phi_slots = loop_phi_slots(&cfg);
                 let loops_replacing_environments = loops_replacing_environments(&cfg, instructions);
@@ -481,6 +485,7 @@ impl<'a> Function<'a> {
             .get_or_init(|| Liveness::compute(instructions, &analysis.cfg, &layout, has_legacy_arguments));
         let block_count = analysis.cfg.blocks.len();
         Ok(Self {
+            snapshot,
             index,
             executable,
             layout,
@@ -567,7 +572,7 @@ impl<'a> GraphBuilder<'a> {
             pc: 0,
             reason: "no executable",
         })?;
-        let decoded_root = decoded_function(executable, &decoded[0])?;
+        let decoded_root = decoded_function(snapshot, executable, &decoded[0])?;
         // NB: `GetArgument` reads the argument slots from frame memory, which only the slots it keeps live hold the
         //     current values of: a dead slot may be in sync with `undefined` instead (see `dead_frame()`). Inlined
         //     callees that read their passed arguments keep them live the same way (see `inlinable_callee()`).
@@ -575,7 +580,7 @@ impl<'a> GraphBuilder<'a> {
             .instructions
             .iter()
             .any(|instruction| instruction.instruction.opcode() == OpCode::GetArgument);
-        let function = Function::new(0, executable, decoded_root, reads_argument_slots)?;
+        let function = Function::new(snapshot, 0, decoded_root, reads_argument_slots)?;
         let arguments_base = function.layout.arguments_base();
         let legacy_arguments = if executable.supports_legacy_arguments {
             arguments_base..arguments_base + function.layout.number_of_arguments
@@ -637,20 +642,22 @@ impl<'a> GraphBuilder<'a> {
         let unwritten_slots = self.slots_kept_from_start();
 
         let mut graph = self.graph;
-        for (index, executable) in self.snapshot.executables.iter().enumerate() {
-            let sites = if executable.builtin {
-                self.snapshot.executables[0]
-                    .builtin_exit_sites
-                    .iter()
-                    .filter(|(cell, _, _)| *cell == executable.cell)
-                    .map(|(_, pc, kind)| (*pc, *kind))
-                    .collect::<Vec<_>>()
+        let snapshot = self.snapshot;
+        for (index, executable) in (0..).zip(snapshot.executables.iter()) {
+            if executable.builtin {
+                let sites = &snapshot[snapshot.executables[0].builtin_exit_sites];
+                graph.exit_sites.extend(
+                    sites
+                        .iter()
+                        .filter(|(cell, _, _)| *cell == executable.cell)
+                        .map(|(_, pc, kind)| (index, *pc, *kind)),
+                );
             } else {
-                executable.exit_sites.clone()
-            };
-            graph
-                .exit_sites
-                .extend(sites.into_iter().map(|(pc, kind)| (index as u32, pc, kind)));
+                let sites = &snapshot[executable.exit_sites];
+                graph
+                    .exit_sites
+                    .extend(sites.iter().map(|(pc, kind)| (index, *pc, *kind)));
+            }
         }
         assert_eq!(graph.blocks.len(), self.order.len(), "every created block was started");
         graph.reorder_blocks(&self.order);
@@ -1173,7 +1180,9 @@ impl<'a> GraphBuilder<'a> {
 
     /// The feedback a call instruction recorded in its feedback slot `slot`.
     fn call_feedback(&self, slot: u16) -> Option<CallFeedbackSnapshot> {
-        self.function.executable.feedback.call.get(usize::from(slot)).copied()
+        self.snapshot[self.function.executable.feedback.call]
+            .get(usize::from(slot))
+            .copied()
     }
 
     /// Whether the instruction at `pc` of the function being walked ever ran.
@@ -1181,7 +1190,7 @@ impl<'a> GraphBuilder<'a> {
         if self.function.index == 0 {
             (self.has_run)(pc)
         } else {
-            has_run(self.function.executable, pc)
+            has_run(self.snapshot, self.function.executable, pc)
         }
     }
 
@@ -1208,15 +1217,12 @@ impl<'a> GraphBuilder<'a> {
                 {
                     return Ok(self.emit(Op::LoadSlot { slot: operand.raw() }, Vec::new(), Some(Repr::Tagged)));
                 }
-                let bits = *self
-                    .function
-                    .executable
-                    .constants
-                    .get(index)
-                    .ok_or(CompileFailure::InvalidBytecode {
+                let bits = *self.snapshot[self.function.executable.constants].get(index).ok_or(
+                    CompileFailure::InvalidBytecode {
                         pc: self.function.pc,
                         reason: "read of a constant that does not exist",
-                    })?;
+                    },
+                )?;
                 Ok(self.constant(bits))
             }
         }

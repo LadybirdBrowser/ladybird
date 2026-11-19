@@ -164,7 +164,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         registers: &super::InputRegisters,
     ) -> Result<(), CompileFailure> {
         let invalid = |reason| CompileFailure::InvalidBytecode { pc, reason };
-        let snapshot = &self.executables[executable as usize];
+        let snapshot = &self.snapshot.executables[executable as usize];
         let decoded = self.decoded(executable, pc)?;
         let Instruction::Call { call_feedback, .. } = decoded.instruction else {
             return Err(invalid("direct call of a non-Call instruction"));
@@ -183,9 +183,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         };
         let target: DirectCallTarget = constant_target
             .or_else(|| {
-                snapshot
-                    .feedback
-                    .call
+                self.snapshot[snapshot.feedback.call]
                     .get(usize::from(call_feedback))
                     .and_then(|feedback| feedback.direct_call)
             })
@@ -247,12 +245,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// A generic `Call`: through the dynamic call path, calling the `this`
     /// value directly if the site's single callee is `Function.prototype.call`.
     pub(super) fn emit_generic_js_call(&mut self, executable: u32, pc: u32) -> Result<(), CompileFailure> {
-        let snapshot = &self.executables[executable as usize];
+        let snapshot = &self.snapshot.executables[executable as usize];
         let call_function = match self.decoded(executable, pc) {
             Ok(decoded) => match decoded.instruction {
-                Instruction::Call { call_feedback, .. } => snapshot
-                    .feedback
-                    .call
+                Instruction::Call { call_feedback, .. } => self.snapshot[snapshot.feedback.call]
                     .get(usize::from(call_feedback))
                     .and_then(|feedback| feedback.function_prototype_call_target()),
                 _ => None,
@@ -602,10 +598,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let (site, next_pc, dst, argument_count) = (&call.site, call.next_pc, call.dst, call.argument_count);
         let environment = match target.environment {
             Some(index) => Some(
-                self.executables[call.executable as usize]
-                    .environment_templates
+                self.snapshot[self.snapshot.executables[call.executable as usize].environment_templates]
                     .get(index as usize)
-                    .cloned()
+                    .copied()
                     .ok_or(invalid("direct call without its environment template"))?,
             ),
             None => None,
@@ -1009,7 +1004,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             overwritten.push(template.this_value_offset);
         }
         let mut fields: Vec<ConstantField> = (0u32..)
-            .zip(&template.words)
+            .zip(&self.snapshot[template.words])
             .map(|(index, word)| (8 * index, 8, *word))
             .filter(|(offset, _, _)| !overwritten.contains(offset))
             .collect();
@@ -1145,7 +1140,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         input_registers: &super::InputRegisters,
     ) -> Result<(), CompileFailure> {
         let invalid = |reason| CompileFailure::InvalidBytecode { pc, reason };
-        let snapshot = &self.executables[executable as usize];
+        let snapshot = &self.snapshot.executables[executable as usize];
         let decoded = self.decoded(executable, pc)?;
         let stored_operands = crate::builder::js_call_operands(&decoded.instruction).inputs;
         let next_pc = decoded.next_pc();
@@ -1160,9 +1155,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         else {
             return Err(invalid("native call of a non-Call instruction"));
         };
-        let target: NativeCallTarget = snapshot
-            .feedback
-            .call
+        let target: NativeCallTarget = self.snapshot[snapshot.feedback.call]
             .get(usize::from(call_feedback))
             .and_then(|feedback| feedback.native_call)
             .ok_or(invalid("native call without a target"))?;
@@ -1585,7 +1578,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         header: &FrameHeader,
     ) -> Vec<ConstantField> {
         let offsets = self.runtime.offsets;
-        let snapshot = &self.executables[executable as usize];
+        let snapshot = &self.snapshot.executables[executable as usize];
         let function_fields = snapshot.function_fields;
         let builtin = snapshot.builtin;
         let mut constants = Vec::new();
@@ -1768,7 +1761,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         closure: Option<Gpr>,
         temps: [Gpr; 3],
     ) -> Result<(), CompileFailure> {
-        let snapshot = &self.executables[executable as usize];
+        let snapshot = &self.snapshot.executables[executable as usize];
         let function = snapshot.function.ok_or(CompileFailure::InvalidBytecode {
             pc: call_pc,
             reason: "inlined executable without a function",

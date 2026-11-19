@@ -113,9 +113,7 @@ fn constant_index(function: &super::Function<'_>, instruction: &Instruction) -> 
     let SlotKind::Constant(constant) = function.layout.slot_kind(index) else {
         return None;
     };
-    function
-        .executable
-        .constants
+    function.snapshot[function.executable.constants]
         .get(constant as usize)
         .and_then(|bits| value::as_int32(*bits))
         .and_then(|index| u32::try_from(index).ok())

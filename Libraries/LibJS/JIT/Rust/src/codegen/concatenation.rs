@@ -149,7 +149,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     ) {
         let scratch = self.pinned.scratch;
         let output = self.output(node);
-        let rope = self.runtime.rope_allocation.clone();
+        let rope = self.runtime.rope_allocation;
         let string_length = |string: Gpr| Address::new(string, rope.length_offset as i32);
         let at = |base: Gpr, offset: u32| Address::new(base, offset as i32);
 
@@ -189,7 +189,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_pop_free_list(rope.allocator, cell, other, no_free_cell);
         self.emit_count_allocation(rope.cell_size, rope.cell_size, other, false);
 
-        let mut fields = template_fields(&rope.template, &rope_stored_fields(&rope));
+        let mut fields = template_fields(&self.snapshot[rope.template], &rope_stored_fields(&rope));
         self.emit_constant_fields(cell, other, &mut fields)
             .expect("rope string fields are near the cell");
         self.masm.store32(&string_length(cell), length);

@@ -47,6 +47,7 @@ use crate::ir::value;
 use crate::regalloc::Allocation;
 use crate::snapshot::COMPRESSED_POINTER_SHIFT;
 use crate::snapshot::RuntimeInfo;
+use crate::snapshot::Snapshot;
 
 /// Where the stub keeps its inputs and what must survive calls into the
 /// runtime and the callee, relative to the stack pointer.
@@ -102,6 +103,8 @@ pub fn generate_construct_stub<M: PortableMacroAssembler>(
 fn generate_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo, construct: bool) -> Result<Vec<u8>, CompileFailure> {
     let graph = Graph::default();
     let allocation = Allocation::default();
+    // NB: A stub is code for no executable. It reads no list of the runtime info.
+    let snapshot = Snapshot::new();
     let (_, pinned) = target_registers::<M>();
     let mut masm = M::new();
     let exit_stub = masm.new_label();
@@ -111,7 +114,7 @@ fn generate_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo, construct: bo
         masm,
         graph: &graph,
         allocation: &allocation,
-        executables: &[],
+        snapshot: &snapshot,
         runtime,
         stress: crate::snapshot::StressOptions::default(),
         pinned,
@@ -186,7 +189,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             cell,
         } = registers;
         let layout = self.runtime.dynamic_calls;
-        let heap_info = self.runtime.object_allocation.clone();
+        let heap_info = self.runtime.object_allocation;
         let scratch = self.pinned.scratch;
         let at = |base: Gpr, offset: u32| Address::new(base, offset as i32);
         let environment_local = self.stub_local(local::ENVIRONMENT);

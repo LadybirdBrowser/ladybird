@@ -288,8 +288,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let not_polymorphic = self.masm.new_label();
         self.property_cache_address(entry, executable, cache_index)?;
         self.masm.load64(entry, &Address::new(entry, 0));
-        let was_megamorphic = self.executables[executable as usize]
-            .property_caches
+        let was_megamorphic = self.snapshot[self.snapshot.executables[executable as usize].property_caches]
             .get(cache_index as usize)
             .is_some_and(|cache| cache.kind == PropertyCacheKind::Megamorphic);
         if was_megamorphic {

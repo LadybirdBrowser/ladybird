@@ -479,7 +479,7 @@ fn loops_leave_the_values_they_only_carry_through_in_their_stack_slots() {
         ]
     });
     let mut snapshot = crate::builder::tests::snapshot_for(&program, layout);
-    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::INT32; 16];
+    snapshot.executables[0].feedback.arith = snapshot.add(&[crate::snapshot::arith_feedback::INT32; 16]);
     let graph = crate::builder::tests::optimized_graph(&snapshot);
     let allocation = allocate_and_verify(&graph);
     let header = graph.blocks.iter().position(|block| block.is_loop_header).unwrap();
@@ -533,7 +533,7 @@ fn int32_operations_write_over_their_first_input_where_it_dies() {
         ]
     });
     let mut snapshot = crate::builder::tests::snapshot_for(&program, crate::bytecode::test_support::test_layout());
-    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::INT32; 2];
+    snapshot.executables[0].feedback.arith = snapshot.add(&[crate::snapshot::arith_feedback::INT32; 2]);
     let graph = crate::builder::tests::optimized_graph(&snapshot);
     let allocation = allocate_and_verify(&graph);
     let xors = graph
@@ -585,7 +585,7 @@ fn shift_amounts_are_in_the_targets_shift_register_or_immediates() {
         ]
     });
     let mut snapshot = crate::builder::tests::snapshot_for(&program, crate::bytecode::test_support::test_layout());
-    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::INT32; 3];
+    snapshot.executables[0].feedback.arith = snapshot.add(&[crate::snapshot::arith_feedback::INT32; 3]);
     let graph = crate::builder::tests::optimized_graph(&snapshot);
     let shift = |op| find_node(&graph, |node| node.op == Op::Int32Binary { op });
     let (variable, constant) = (
@@ -637,7 +637,7 @@ fn float64_operations_write_over_their_first_input_where_it_dies() {
         ]
     });
     let mut snapshot = crate::builder::tests::snapshot_for(&program, crate::bytecode::test_support::test_layout());
-    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::DOUBLE; 2];
+    snapshot.executables[0].feedback.arith = snapshot.add(&[crate::snapshot::arith_feedback::DOUBLE; 2]);
     let graph = crate::builder::tests::optimized_graph(&snapshot);
     let allocation = allocate_and_verify(&graph);
     let binaries = graph
@@ -1219,10 +1219,10 @@ fn float64_values_get_floating_point_registers() {
     });
     let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
     snapshot.runtime.layout.builtin_math_sqrt = 13;
-    snapshot.executables[0].feedback.call = vec![crate::snapshot::CallFeedbackSnapshot {
+    snapshot.executables[0].feedback.call = snapshot.add(&[crate::snapshot::CallFeedbackSnapshot {
         target_builtin: Some(13),
         ..Default::default()
-    }];
+    }]);
     let mut graph = crate::builder::build_graph_with_feedback(&snapshot, &|_| true).unwrap();
     crate::passes::optimize(&mut graph, &snapshot.executables[0].layout, true);
     let allocation = allocate_and_verify(&graph);

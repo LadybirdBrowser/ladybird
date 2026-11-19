@@ -236,7 +236,7 @@ impl GraphBuilder<'_> {
     /// action form, if the cache is monomorphic or polymorphic and compiled
     /// code can apply every entry.
     pub(super) fn cache_entries(&self, cache: u32) -> Option<Vec<CacheEntry>> {
-        let cache = self.function.executable.property_caches.get(cache as usize)?;
+        let cache = self.snapshot[self.function.executable.property_caches].get(cache as usize)?;
         if !matches!(
             cache.kind,
             PropertyCacheKind::Monomorphic | PropertyCacheKind::Polymorphic
@@ -244,20 +244,19 @@ impl GraphBuilder<'_> {
         {
             return None;
         }
-        cache.entries.iter().map(CacheEntry::of).collect()
+        self.snapshot[cache.entries].iter().map(CacheEntry::of).collect()
     }
 
     /// The entry of megamorphic property lookup cache `cache` for the shape
     /// the code knows the object in `object` has (see
     /// `AbstractFrame::fresh_shapes`), if the snapshot captured one.
     pub(super) fn megamorphic_entries_for_known_shape(&self, cache: u32, object: Operand) -> Option<Vec<CacheEntry>> {
-        let cache = self.function.executable.property_caches.get(cache as usize)?;
+        let cache = self.snapshot[self.function.executable.property_caches].get(cache as usize)?;
         if cache.kind != PropertyCacheKind::Megamorphic {
             return None;
         }
         let shape = self.fresh_shape(self.peek(object)?.node)?;
-        let entry = cache
-            .entries
+        let entry = self.snapshot[cache.entries]
             .iter()
             .filter_map(CacheEntry::of)
             .find(|entry| entry.shape.shape == shape)?;

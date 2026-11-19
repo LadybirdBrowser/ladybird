@@ -114,6 +114,7 @@ use crate::snapshot::COMPRESSED_POINTER_SHIFT;
 use crate::snapshot::CellId;
 use crate::snapshot::ExecutableSnapshot;
 use crate::snapshot::RuntimeInfo;
+use crate::snapshot::Snapshot;
 use crate::snapshot::StressOptions;
 use sites::SiteSource;
 
@@ -271,8 +272,9 @@ struct Codegen<'a, M: PortableMacroAssembler> {
     masm: M,
     graph: &'a Graph,
     allocation: &'a Allocation,
-    /// `Snapshot::executables`; index 0 is the compiled function.
-    executables: &'a [ExecutableSnapshot],
+    /// What the graph was built from. Executable 0 is the compiled function.
+    snapshot: &'a Snapshot,
+    /// The runtime info of the snapshot.
     runtime: &'a RuntimeInfo,
     stress: StressOptions,
     pinned: PinnedRegisters,
@@ -421,9 +423,7 @@ struct LeaveStub {
 pub fn generate<M: PortableMacroAssembler>(
     graph: &Graph,
     allocation: &Allocation,
-    executables: &[ExecutableSnapshot],
-    runtime: &RuntimeInfo,
-    stress: StressOptions,
+    snapshot: &Snapshot,
     verify: bool,
     scratch: &mut Scratch,
 ) -> Result<GeneratedCode, CompileFailure> {
@@ -443,9 +443,9 @@ pub fn generate<M: PortableMacroAssembler>(
         masm,
         graph,
         allocation,
-        executables,
-        runtime,
-        stress,
+        snapshot,
+        runtime: &snapshot.runtime,
+        stress: snapshot.options.stress,
         pinned,
         frame: M::frame(GprSet::EMPTY, FprSet::EMPTY, 0),
         locals: Locals::default(),
@@ -932,11 +932,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// The instruction at `pc` of executable `executable`.
     fn decoded(&self, executable: u32, pc: u32) -> Result<DecodedInstruction, CompileFailure> {
-        decode_instruction(&self.executables[executable as usize].bytecode, pc).map_err(|_| {
-            CompileFailure::InvalidBytecode {
-                pc,
-                reason: "undecodable instruction",
-            }
+        let bytecode = &self.snapshot[self.snapshot.executables[executable as usize].bytecode];
+        decode_instruction(bytecode, pc).map_err(|_| CompileFailure::InvalidBytecode {
+            pc,
+            reason: "undecodable instruction",
         })
     }
 
@@ -953,8 +952,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// The byte at `offset` in the instruction at `pc` of executable `executable`.
     fn read_u8(&self, executable: u32, pc: u32, offset: u32) -> Result<u8, CompileFailure> {
         let at = (pc + offset) as usize;
-        let byte = self.executables[executable as usize]
-            .bytecode
+        let byte = self.snapshot[self.snapshot.executables[executable as usize].bytecode]
             .get(at)
             .ok_or(CompileFailure::InvalidBytecode {
                 pc,
@@ -2367,7 +2365,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_publish_frame();
         // Up to this many registers and locals are emptied with one store per two slots, more in a loop.
         const UNROLLED_SLOTS: u32 = 64;
-        let layout = self.executables[0].layout;
+        let layout = self.snapshot.executables[0].layout;
         let slots = self.runtime.offsets.execution_context_slots;
         let first = crate::bytecode::RESERVED_REGISTER_COUNT;
         let mut fields: Vec<call::ConstantField> = Vec::new();
@@ -2388,7 +2386,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 fields.push((slots + 8 * index, 8, value::EMPTY));
             }
         }
-        for (index, constant) in (0..).zip(&self.executables[0].constants) {
+        for (index, constant) in (0..).zip(&self.snapshot[self.snapshot.executables[0].constants]) {
             fields.push((slots + 8 * (layout.constants_base() + index), 8, *constant));
         }
         fields.push((self.runtime.offsets.execution_context_frame_initialized, 1, 1));
@@ -2765,7 +2763,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 }
             }
         }
-        let frame_layout = self.executables[executable as usize].layout;
+        let frame_layout = self.snapshot.executables[executable as usize].layout;
         let ssa_outputs = outputs
             .into_iter()
             .filter(|operand| {
@@ -3099,7 +3097,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             let record = self.local_address(self.locals.record);
             self.masm.load_effective_address(arguments[3], &record);
         }
-        let instruction = self.executables[executable as usize]
+        let instruction = self.snapshot.executables[executable as usize]
             .bytecode_address
             .checked_add(u64::from(pc))
             .ok_or(CompileFailure::InvalidBytecode {
@@ -3384,8 +3382,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .expect("a frame state chain is not empty");
         let pc = self.graph.frame_state(root).pc;
         // NB: Handler ranges do not overlap.
-        let Some(handler) = self.executables[0]
-            .exception_handlers
+        let Some(handler) = self.snapshot[self.snapshot.executables[0].exception_handlers]
             .iter()
             .find(|handler| handler.start_offset <= pc && pc < handler.end_offset)
         else {

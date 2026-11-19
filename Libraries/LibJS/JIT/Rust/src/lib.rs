@@ -76,7 +76,7 @@ pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch, compiled: &mut Compil
             snapshot
                 .executables
                 .first()
-                .is_none_or(|executable| builder::has_run(executable, pc))
+                .is_none_or(|executable| builder::has_run(snapshot, executable, pc))
         },
         scratch,
         compiled,
@@ -108,6 +108,9 @@ fn compile_into<M: asm::PortableMacroAssembler>(
     compiled: &mut CompiledCode,
 ) -> Result<(), CompileFailure> {
     compiled.clear();
+    if !snapshot.is_complete() {
+        return Err(CompileFailure::TooLarge);
+    }
     let mut graph = builder::build_graph_with_feedback(snapshot, has_run)?;
     let executable = &snapshot.executables[0];
     let pass_dumps = if snapshot.options.dump_passes {
@@ -133,15 +136,7 @@ fn compile_into<M: asm::PortableMacroAssembler>(
             regalloc::dump_allocation(&graph, &allocation)
         );
     }
-    let mut generated = codegen::generate::<M>(
-        &graph,
-        &allocation,
-        &snapshot.executables,
-        &snapshot.runtime,
-        snapshot.options.stress,
-        snapshot.options.verify_ir,
-        scratch,
-    )?;
+    let mut generated = codegen::generate::<M>(&graph, &allocation, snapshot, snapshot.options.verify_ir, scratch)?;
     generated.osr_entries.sort_unstable();
     let layout = scratch.artifact.finish(
         &Tail {

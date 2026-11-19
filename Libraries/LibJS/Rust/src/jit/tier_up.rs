@@ -476,6 +476,7 @@ fn compile(
     if sync {
         // NB: Nothing collects garbage while compiling on this thread, so the snapshot's cells stay alive.
         let result = super::compile_queue::compile(&snapshot);
+        super::compile_queue::give_back_snapshot(snapshot);
         let memory = should_install(vm, &result).then(|| {
             let code = &result.as_ref().expect("the compile succeeded").code;
             let name = super::describe_executable(&executable);

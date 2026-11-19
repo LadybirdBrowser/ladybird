@@ -66,9 +66,7 @@ impl GraphBuilder<'_> {
         let layout = slow_path_layout(opcode);
         let bytes_at = |offset: u32, size: usize| -> Result<&[u8], CompileFailure> {
             let at = (self.function.pc + offset) as usize;
-            self.function
-                .executable
-                .bytecode
+            self.snapshot[self.function.executable.bytecode]
                 .get(at..at + size)
                 .ok_or(CompileFailure::InvalidBytecode {
                     pc: self.function.pc,
