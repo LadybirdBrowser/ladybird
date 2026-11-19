@@ -480,7 +480,14 @@ impl Item {
             .filter(move |offset| *offset > start && *offset < end)
     }
 
+    #[inline]
     pub(crate) fn has_soft_wraps(&self, prepared: &PreparedInlineContent) -> bool {
+        if prepared.soft_wraps.is_empty()
+            || self.type_ != ItemType::Text
+            || !self.prepared_item(prepared).has(PreparedItem::SOFT_WRAPS)
+        {
+            return false;
+        }
         self.soft_wrap_offsets(prepared).next().is_some()
     }
 
@@ -2728,6 +2735,26 @@ impl InlineLevelIterator {
         item: &Item,
         stop_at_overflow_breakable_text: bool,
     ) -> CssPixels {
+        // An item with no internal break or trailing whitespace is the whole run when the next item can break. Overflow
+        // breaking stays on the segment-measuring path. The extent includes every inline edge, and the hyphen that a
+        // soft hyphen at the item's end draws if the line breaks there.
+        if item.type_ == ItemType::Text
+            && !item.is_collapsible_whitespace
+            && item.trailing_whitespace.length_in_code_units == 0
+            && self.items().first().is_none_or(|next| next.can_break_before)
+            && !item.has_soft_wraps(&self.prepared)
+            && (!stop_at_overflow_breakable_text || !item.allows_overflow_break(context))
+        {
+            let hyphen = hyphen_ending_sequence(
+                context,
+                &self.prepared,
+                SequenceEnd::Other,
+                None,
+                Some(item),
+                starts_line_content(self.items().iter()),
+            );
+            return inline_extent([item]) + hyphen;
+        }
         let items = std::iter::once(item).chain(self.items());
         let (length, end) = sequence_length(
             context,
@@ -2969,7 +2996,7 @@ fn sequence_length<'item>(
                 return (length, SequenceEnd::OverflowBreakableText);
             }
         }
-        if item.has_soft_wraps(prepared) && !(length == 0 && include_first_whole_item) {
+        if !(length == 0 && include_first_whole_item) && item.has_soft_wraps(prepared) {
             return (length, SequenceEnd::SoftWrapInText);
         }
         length += 1;

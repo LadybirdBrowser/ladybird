@@ -697,9 +697,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             let fragment = line.fragments.last_mut().unwrap();
             let text = fragment.block_ellipsis_text.get_or_insert_default();
             text.runs.push((item.offset_in_node + item.length_in_node, text_type));
-            if item.has_soft_wraps(prepared) {
-                text.soft_wrap_offsets.extend(item.soft_wrap_offsets(prepared));
-            }
+            text.soft_wrap_offsets.extend(item.soft_wrap_offsets(prepared));
         }
     }
 
