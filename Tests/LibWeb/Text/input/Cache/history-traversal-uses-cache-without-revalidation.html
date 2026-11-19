@@ -1,22 +1,30 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
-<iframe id="testFrame"></iframe>
+<body>
 <script>
     const server = httpTestServer();
 
     // In test mode, the disk cache only stores responses to requests carrying this header.
     const TEST_CACHE_ENABLED_HEADER = "X-Ladybird-Enable-Disk-Cache";
 
-    // The echo path keys both the server-side request count and the disk cache entry. Give each run its own paths, so
-    // parallel runner clones of this test don't count each other's requests.
-    const id = uniqueID();
-
-    // Both the document and the resource it fetches while it loads must be revalidated before a cache may use them
-    // again. A history traversal back to the document must use the stored responses anyway.
-    const MUST_REVALIDATE_HEADERS = {
-        "Cache-Control": "no-cache",
-        "Last-Modified": "Mon, 01 Jan 2024 00:00:00 GMT",
-    };
+    // A history traversal back to a document must use the stored responses for the document and for the resource it
+    // fetches while it loads, whatever their freshness.
+    const CASES = [
+        // The responses must be revalidated before a cache may use them again.
+        {
+            name: "no-cache with a validator",
+            headers: { "Cache-Control": "no-cache", "Last-Modified": "Mon, 01 Jan 2024 00:00:00 GMT" },
+        },
+        // The responses are stale as soon as they arrive, and there is nothing to revalidate them with.
+        {
+            name: "no freshness information and no validator",
+            headers: {},
+        },
+        {
+            name: "max-age=0 without a validator",
+            headers: { "Cache-Control": "max-age=0" },
+        },
+    ];
 
     function nextMessage() {
         return new Promise(resolve => {
@@ -24,23 +32,50 @@
         });
     }
 
-    promiseTest(async () => {
+    async function runCase({ name, headers }) {
+        // The echo path keys both the server-side request count and the disk cache entry. Give each run its own paths,
+        // so parallel runner clones of this test don't count each other's requests.
+        const id = uniqueID();
+
         const requestCount = async url => (await fetch(server.recordedRequestCountURL(url))).json();
 
         const subresourceURL = await server.createEcho("GET", `/history-traversal-subresource-${id}`, {
             status: 200,
-            headers: { ...MUST_REVALIDATE_HEADERS, "Content-Type": "text/plain" },
+            headers: { ...headers, "Content-Type": "text/plain" },
             body: "subresource",
+        });
+
+        // A request that carries cache directives of its own keeps the freshness it asks for.
+        const revalidatedSubresourceURL = await server.createEcho("GET", `/history-traversal-revalidated-subresource-${id}`, {
+            status: 200,
+            headers: { ...headers, "Content-Type": "text/plain" },
+            body: "revalidated subresource",
+        });
+
+        // A srcdoc iframe document is not fetched, but loads like the document that contains it.
+        const srcdocSubresourceURL = await server.createEcho("GET", `/history-traversal-srcdoc-subresource-${id}`, {
+            status: 200,
+            headers: { ...headers, "Content-Type": "text/plain" },
+            body: "srcdoc subresource",
         });
 
         const documentURL = await server.createEcho("GET", `/history-traversal-document-${id}`, {
             status: 200,
-            headers: { ...MUST_REVALIDATE_HEADERS, "Content-Type": "text/html" },
+            headers: { ...headers, "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>
                 window.onmessage = event => { location.href = event.data; };
-                fetch(${JSON.stringify(subresourceURL)}, { headers: { ${JSON.stringify(TEST_CACHE_ENABLED_HEADER)}: "1" } })
-                    .then(response => response.text())
-                    .then(text => parent.postMessage("loaded document with " + text, "*"));
+                const cacheHeaders = { ${JSON.stringify(TEST_CACHE_ENABLED_HEADER)}: "1" };
+                const srcdocFetch = new Promise(resolve => { window.srcdocFetched = resolve; });
+                const srcdocFrame = document.createElement("iframe");
+                srcdocFrame.srcdoc = "<script>parent.srcdocFetched(fetch(" + JSON.stringify(${JSON.stringify(srcdocSubresourceURL)}) + ", { headers: " + JSON.stringify(cacheHeaders) + " }));<\\/script>";
+                document.documentElement.appendChild(srcdocFrame);
+                Promise.all([
+                    fetch(${JSON.stringify(subresourceURL)}, { headers: cacheHeaders }),
+                    fetch(${JSON.stringify(revalidatedSubresourceURL)}, { headers: { ...cacheHeaders, "Cache-Control": "no-cache" } }),
+                    srcdocFetch,
+                ])
+                    .then(responses => Promise.all(responses.map(response => response.text())))
+                    .then(texts => parent.postMessage("loaded document with " + texts.join(" and "), "*"));
             <\/script>`,
         });
 
@@ -58,25 +93,37 @@
         // this page can reach.
         const diskCacheWasEnabledForNavigations = internals.setDiskCacheEnabledForNavigations(true);
 
-        // Navigate the iframe to the document, which caches both the document and its subresource.
-        const frame = document.getElementById("testFrame");
-        let message = nextMessage();
-        frame.src = documentURL;
-        println(await message);
+        const frame = document.createElement("iframe");
+        try {
+            // Navigate the iframe to the document, which caches both the document and its subresource.
+            println(`Case: ${name}`);
+            document.body.appendChild(frame);
+            let message = nextMessage();
+            frame.src = documentURL;
+            println(await message);
 
-        // Navigate the iframe away, and then traverse back. The iframe does both itself, so that this works regardless
-        // of whether the test page and the echo server are same-origin.
-        message = nextMessage();
-        frame.contentWindow.postMessage(otherDocumentURL, "*");
-        println(await message);
+            // Navigate the iframe away, and then traverse back. The iframe does both itself, so that this works regardless
+            // of whether the test page and the echo server are same-origin.
+            message = nextMessage();
+            frame.contentWindow.postMessage(otherDocumentURL, "*");
+            println(await message);
 
-        message = nextMessage();
-        frame.contentWindow.postMessage("back", "*");
-        println(await message);
-
-        internals.setDiskCacheEnabledForNavigations(diskCacheWasEnabledForNavigations);
+            message = nextMessage();
+            frame.contentWindow.postMessage("back", "*");
+            println(await message);
+        } finally {
+            internals.setDiskCacheEnabledForNavigations(diskCacheWasEnabledForNavigations);
+        }
 
         println(`Requests the server saw for the document: ${await requestCount(documentURL)}`);
         println(`Requests the server saw for the subresource: ${await requestCount(subresourceURL)}`);
+        println(`Requests the server saw for the subresource fetched with Cache-Control: no-cache: ${await requestCount(revalidatedSubresourceURL)}`);
+        println(`Requests the server saw for the subresource of the srcdoc iframe: ${await requestCount(srcdocSubresourceURL)}`);
+        frame.remove();
+    }
+
+    promiseTest(async () => {
+        for (const testCase of CASES)
+            await runCase(testCase);
     });
 </script>

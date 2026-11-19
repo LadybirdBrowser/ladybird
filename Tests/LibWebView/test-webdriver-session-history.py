@@ -90,6 +90,13 @@ class TestPageServer(http.server.ThreadingHTTPServer):
 
 
 class TestPageHandler(http.server.BaseHTTPRequestHandler):
+    def end_headers(self):
+        # The tests count and block the requests that history traversals make, so each of them must reach this server.
+        # A history traversal loads a document with the "force-cache" cache mode, which uses any stored response.
+        if b"Cache-Control:" not in b"".join(getattr(self, "_headers_buffer", [])):
+            self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
     def do_GET(self):
         server = cast(TestPageServer, self.server)
         server_port = server.server_port
