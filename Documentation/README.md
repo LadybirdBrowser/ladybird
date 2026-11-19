@@ -4,6 +4,8 @@ Ladybird development moves quickly, so some of these might be out of date. Pleas
 If you have any questions that are not answered here or in the [FAQ](FAQ.md), you are welcome to ask on [Discord](../README.md#get-in-touch-and-participate).
 
 ## Building and Running
+* [Supported Platforms](SupportedPlatforms.md)
+* [Platform Compatibility](PlatformCompatibility.md)
 * [Build Instructions](BuildInstructionsLadybird.md)
 * [Advanced Build Instructions](AdvancedBuildInstructions.md)
 * [Troubleshooting](Troubleshooting.md)

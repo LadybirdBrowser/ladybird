@@ -34,14 +34,16 @@ Ladybird supports user-configured content blocker lists, and we already have ope
 
 ## Is there a release roadmap?
 
-- 2026: alpha release (daily driver for developers and early adopters) for Linux and macOS.
-- 2027: beta release; downloadable app for Linux and macOS.
+- 2026: alpha release (daily driver for developers and early adopters) for Linux and macOS, with downloads. See
+  [Supported platforms](SupportedPlatforms.md).
+- 2027: beta release for Linux and macOS.
 - 2028: stable release for general use
     ![image](https://github.com/user-attachments/assets/dec1ab54-5844-47dc-b365-03983bc00390)
 
 ## Well, how do I run this thing then?
 
-Simple, my friend! Just refer to the [build instructions](BuildInstructionsLadybird.md).
+Simple, my friend! Download Ladybird for your platform (see [Supported platforms](SupportedPlatforms.md)), or build it
+yourself with the [build instructions](BuildInstructionsLadybird.md).
 
 ## I did a `git pull` and now the build is broken! What do I do?
 

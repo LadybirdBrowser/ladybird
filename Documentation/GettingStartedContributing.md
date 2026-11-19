@@ -22,7 +22,7 @@ If you’ve never worked on browser-engine code before, and you’re not sure wh
 
 ## Building the code
 
-Ladybird must be built from source during this pre-alpha stage of development, and currently natively supports Linux and macOS; running it on Windows requires WSL.
+Ladybird supports Linux and macOS, and runs on Windows through WSL2. See [Supported platforms](SupportedPlatforms.md).
 
 Carefully follow the steps outlined in the [build instructions](BuildInstructionsLadybird.md). If you are facing issues, consult the [troubleshooting guide](Troubleshooting.md) and the #build-problems channel on Discord.
 
