@@ -27,7 +27,7 @@ enum class DiscardBlockers : u32 {
     UsingLocation = 1 << 9,
     OwnsAView = 1 << 10,
     DevToolsConnected = 1 << 11,
-    AsksBeforeUnloading = 1 << 12,
+    UserEdits = 1 << 12,
     // Only a tab hidden for long is kept for these, as they're work the tab does for the user in the background.
     ChangedTitleOrFaviconWhileHidden = 1 << 13,
     MayShowNotifications = 1 << 14,

@@ -328,7 +328,7 @@ static CanUnloadState can_unload_state(WebView::ProcessTabSnapshot const& tab)
         Description { DiscardBlockers::UsingLocation, QT_TRANSLATE_NOOP("QObject", "It's using your location") },
         Description { DiscardBlockers::OwnsAView, QT_TRANSLATE_NOOP("QObject", "It has a Picture-in-Picture window") },
         Description { DiscardBlockers::DevToolsConnected, QT_TRANSLATE_NOOP("QObject", "DevTools are open for it") },
-        Description { DiscardBlockers::AsksBeforeUnloading, QT_TRANSLATE_NOOP("QObject", "The page asks to be checked before it's unloaded") },
+        Description { DiscardBlockers::UserEdits, QT_TRANSLATE_NOOP("QObject", "You typed into the page") },
         Description { DiscardBlockers::ChangedTitleOrFaviconWhileHidden, QT_TRANSLATE_NOOP("QObject", "It changed its title or icon while hidden") },
         Description { DiscardBlockers::MayShowNotifications, QT_TRANSLATE_NOOP("QObject", "The site may show notifications") },
     };

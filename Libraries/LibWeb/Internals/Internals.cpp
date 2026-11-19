@@ -479,6 +479,11 @@ bool Internals::initial_paint_had_pending_fonts() const
     return window().associated_document().font_computer().initial_paint_had_pending_fonts();
 }
 
+bool Internals::had_user_edits() const
+{
+    return window().associated_document().had_user_edits();
+}
+
 bool Internals::has_pending_image_loads() const
 {
     // A shared resource request stays in its fetching state until its image has decoded.

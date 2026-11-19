@@ -25,6 +25,8 @@ interface Internals {
     readonly attribute boolean initialPaintHadPendingFonts;
     // Whether any image this document fetched is still loading or decoding.
     readonly attribute boolean hasPendingImageLoads;
+    // Whether the user edited a text control or an editing host in this document.
+    readonly attribute boolean hadUserEdits;
     // Freezes the font display clock at the given elapsed time, without starting a font load.
     undefined setFontDisplayTime(FontFace fontFace, unsigned long milliseconds);
     DOMString setTimeZone(DOMString timeZone);

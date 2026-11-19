@@ -1,0 +1,10 @@
+text-control:
+  Initially: false
+  After execCommand: false
+  After a script change: false
+  After typing: true
+editing-host:
+  Initially: false
+  After execCommand: false
+  After a script change: false
+  After typing: true

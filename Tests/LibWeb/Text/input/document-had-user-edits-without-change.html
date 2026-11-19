@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<iframe id="full-text-control" srcdoc="<input maxlength=3 value=abc>"></iframe>
+<iframe id="delete-in-empty-text-control" srcdoc="<input>"></iframe>
+<iframe id="delete-in-empty-editing-host" srcdoc="<div contenteditable></div>"></iframe>
+<iframe id="text-control-typing-through-script" srcdoc="<input>"></iframe>
+<iframe id="editing-host-typing-through-script" srcdoc="<div contenteditable></div>"></iframe>
+<iframe id="editing-host-typing-through-script-on-keyup" srcdoc="<div contenteditable></div>"></iframe>
+<iframe id="editing-host-toolbar-button" srcdoc="<button>Insert</button><div contenteditable></div>"></iframe>
+<iframe id="text-control-pasting-through-script" srcdoc="<input>"></iframe>
+<iframe id="editing-host-pasting-through-script" srcdoc="<div contenteditable></div>"></iframe>
+<iframe id="text-control-undone-by-input-listener" srcdoc="<input>"></iframe>
+<iframe id="textarea-undone-by-input-listener" srcdoc="<textarea></textarea>"></iframe>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+
+        const frameFor = id => document.getElementById(id).contentWindow;
+        const elementIn = frame => frame.document.querySelector("input, textarea, div");
+
+        let frame = frameFor("full-text-control");
+        let element = elementIn(frame);
+        element.focus();
+        element.setSelectionRange(3, 3);
+        frame.internals.sendText(element, "d");
+        println(`Typing into a full text control: ${frame.internals.hadUserEdits} (value ${element.value})`);
+
+        frame = frameFor("delete-in-empty-text-control");
+        element = elementIn(frame);
+        element.focus();
+        frame.internals.sendKey(element, "Backspace");
+        println(`Deleting in an empty text control: ${frame.internals.hadUserEdits}`);
+
+        frame = frameFor("delete-in-empty-editing-host");
+        element = elementIn(frame);
+        element.focus();
+        frame.internals.sendKey(element, "Backspace");
+        println(`Deleting in an empty editing host: ${frame.internals.hadUserEdits}`);
+
+        for (const id of ["text-control-typing-through-script", "editing-host-typing-through-script"]) {
+            frame = frameFor(id);
+            element = elementIn(frame);
+            element.addEventListener("keydown", event => {
+                event.preventDefault();
+                frame.document.execCommand("insertText", false, event.key);
+            });
+            element.focus();
+            frame.document.execCommand("insertText", false, "script");
+            println(`${id}, after execCommand: ${frame.internals.hadUserEdits}`);
+            frame.internals.sendText(element, "x");
+            println(`${id}, after typing: ${frame.internals.hadUserEdits}`);
+        }
+
+        frame = frameFor("editing-host-typing-through-script-on-keyup");
+        element = elementIn(frame);
+        element.addEventListener("keydown", event => event.preventDefault());
+        element.addEventListener("keyup", event => frame.document.execCommand("insertText", false, event.key));
+        element.focus();
+        frame.internals.sendText(element, "x");
+        println(`editing-host-typing-through-script-on-keyup, after typing: ${frame.internals.hadUserEdits} (${element.textContent})`);
+
+        frame = frameFor("editing-host-toolbar-button");
+        element = frame.document.querySelector("div");
+        const button = frame.document.querySelector("button");
+        button.addEventListener("mousedown", event => event.preventDefault());
+        button.addEventListener("click", () => frame.document.execCommand("insertText", false, "inserted"));
+        element.focus();
+        frame.document.execCommand("insertText", false, "script");
+        println(`editing-host-toolbar-button, after execCommand: ${frame.internals.hadUserEdits}`);
+        const frameRect = document.getElementById("editing-host-toolbar-button").getBoundingClientRect();
+        const buttonRect = button.getBoundingClientRect();
+        frame.internals.click(
+            frameRect.x + frame.frameElement.clientLeft + buttonRect.x + buttonRect.width / 2,
+            frameRect.y + frame.frameElement.clientTop + buttonRect.y + buttonRect.height / 2
+        );
+        println(`editing-host-toolbar-button, after clicking: ${frame.internals.hadUserEdits} (${element.textContent})`);
+
+        for (const id of ["text-control-pasting-through-script", "editing-host-pasting-through-script"]) {
+            frame = frameFor(id);
+            element = elementIn(frame);
+            element.addEventListener("paste", event => {
+                event.preventDefault();
+                frame.document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+            });
+            element.focus();
+            frame.document.execCommand("insertText", false, "script");
+            println(`${id}, after execCommand: ${frame.internals.hadUserEdits}`);
+            frame.internals.paste(element, "pasted");
+            println(`${id}, after pasting: ${frame.internals.hadUserEdits} (${element.value ?? element.textContent})`);
+        }
+
+        for (const id of ["text-control-undone-by-input-listener", "textarea-undone-by-input-listener"]) {
+            frame = frameFor(id);
+            element = elementIn(frame);
+            element.addEventListener("input", () => {
+                element.value = "";
+            });
+            element.focus();
+            frame.internals.sendText(element, "x");
+            println(`${id}, after typing: ${frame.internals.hadUserEdits} (value "${element.value}")`);
+        }
+        done();
+    });
+</script>

@@ -1,0 +1,16 @@
+Typing into a full text control: false (value abc)
+Deleting in an empty text control: false
+Deleting in an empty editing host: false
+text-control-typing-through-script, after execCommand: false
+text-control-typing-through-script, after typing: true
+editing-host-typing-through-script, after execCommand: false
+editing-host-typing-through-script, after typing: true
+editing-host-typing-through-script-on-keyup, after typing: true (x)
+editing-host-toolbar-button, after execCommand: false
+editing-host-toolbar-button, after clicking: true (scriptinserted)
+text-control-pasting-through-script, after execCommand: false
+text-control-pasting-through-script, after pasting: true (scriptpasted)
+editing-host-pasting-through-script, after execCommand: false
+editing-host-pasting-through-script, after pasting: true (scriptpasted)
+text-control-undone-by-input-listener, after typing: true (value "")
+textarea-undone-by-input-listener, after typing: true (value "")

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<iframe id="text-control" srcdoc="<input>"></iframe>
+<iframe id="editing-host" srcdoc="<div contenteditable></div>"></iframe>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+
+        for (const [id, selector] of [["text-control", "input"], ["editing-host", "div"]]) {
+            const frame = document.getElementById(id).contentWindow;
+            const element = frame.document.querySelector(selector);
+            println(`${id}:`);
+            println(`  Initially: ${frame.internals.hadUserEdits}`);
+
+            element.focus();
+            frame.document.execCommand("insertText", false, "script");
+            println(`  After execCommand: ${frame.internals.hadUserEdits}`);
+
+            if (selector === "input")
+                element.value = "value";
+            else
+                element.textContent = "content";
+            println(`  After a script change: ${frame.internals.hadUserEdits}`);
+
+            frame.internals.sendText(element, "typed");
+            println(`  After typing: ${frame.internals.hadUserEdits}`);
+        }
+        done();
+    });
+</script>

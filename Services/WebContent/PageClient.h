@@ -326,6 +326,7 @@ private:
     virtual NewWebViewResult page_did_request_new_web_view(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Web::HTML::CrossProcessId current_navigable_id, Utf16String const& name, Web::HTML::TokenizedFeature::NoOpener no_opener, Optional<URL::URL> current_document_base_url) override;
     virtual void page_did_close() override;
     virtual void page_did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
+    virtual void page_did_change_had_user_edits(bool had_user_edits) override;
     virtual void page_did_consume_user_activation(Web::HTML::UserActivationConsumption) override;
     virtual void page_did_notify_about_user_activation(Web::HTML::CrossProcessId document_id) override;
     virtual void page_did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Web::HTML::StorageSerializationRecord const& navigation_api_state) override;

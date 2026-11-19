@@ -687,10 +687,11 @@ DiscardBlockers ViewImplementation::discard_blockers(DiscardReason reason, Monot
     if (m_devtools_connected)
         blockers |= DiscardBlockers::DevToolsConnected;
 
-    // NB: A page asks to be checked before it's unloaded when it holds something the user would lose, such as what they
-    //     typed into a form.
-    if (needs_beforeunload_check())
-        blockers |= DiscardBlockers::AsksBeforeUnloading;
+    // The user would lose what they typed, as nothing brings it back when the tab is loaded again.
+    // NB: Many pages listen for beforeunload whether or not they hold anything the user would lose, so that says
+    //     little about whether the tab can be unloaded.
+    if (had_user_edits())
+        blockers |= DiscardBlockers::UserEdits;
 
     if (reason == DiscardReason::Inactivity) {
         // A tab that changes what it shows in the tab strip, such as the count of unread messages in its title, does
@@ -3307,6 +3308,17 @@ void ViewImplementation::did_change_screen_wake_lock_state(Badge<WebContentPage>
     m_screen_wake_lock_state = wake_lock_state;
     if (on_screen_wake_lock_state_changed)
         on_screen_wake_lock_state_changed(m_screen_wake_lock_state);
+}
+
+bool ViewImplementation::had_user_edits() const
+{
+    // Each page of the tab reports for the documents it hosts.
+    bool had_user_edits = false;
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        if (page.had_user_edits())
+            had_user_edits = true;
+    });
+    return had_user_edits;
 }
 
 bool ViewImplementation::needs_beforeunload_check() const

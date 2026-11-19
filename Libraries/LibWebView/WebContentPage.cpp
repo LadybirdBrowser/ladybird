@@ -681,6 +681,7 @@ void WebContentPage::close()
             view->did_lose_input_event_endpoint({}, *this);
     }
     m_needs_beforeunload_check = true;
+    m_had_user_edits = false;
     m_history_recorded_url_for_current_load.clear();
     if (m_client) {
         m_client->update_audio_capture_permission();
@@ -1436,6 +1437,11 @@ Messages::WebContentClient::ConnectToStorageAreaResponse WebContentPage::connect
 void WebContentPage::did_change_needs_beforeunload_check(bool needs_beforeunload_check)
 {
     m_needs_beforeunload_check = needs_beforeunload_check;
+}
+
+void WebContentPage::did_change_had_user_edits(bool had_user_edits)
+{
+    m_had_user_edits = had_user_edits;
 }
 
 void WebContentPage::did_save_session_history_entry_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryPersistedState persisted_state)

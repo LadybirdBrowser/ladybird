@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
@@ -53,6 +54,10 @@ public:
     {
         m_active_contenteditable_element = element;
     }
+
+    // What changes whenever the document's content does, which tells whether an edit changed anything.
+    static Array<u64, 2> content_versions(Document const&);
+    static void did_run_user_edit(Document&, WebIDL::ExceptionOr<bool>& editing_result, Array<u64, 2> content_versions_before);
 
 private:
     EditingHostManager(GC::Ref<Document>);

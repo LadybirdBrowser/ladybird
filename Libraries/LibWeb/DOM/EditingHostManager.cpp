@@ -40,6 +40,18 @@ void EditingHostManager::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_active_contenteditable_element);
 }
 
+Array<u64, 2> EditingHostManager::content_versions(Document const& document)
+{
+    return { document.dom_tree_version(), document.character_data_version() };
+}
+
+// NB: A command can succeed without changing anything, such as a deletion at the start of the editing host.
+void EditingHostManager::did_run_user_edit(Document& document, WebIDL::ExceptionOr<bool>& editing_result, Array<u64, 2> content_versions_before)
+{
+    if (!editing_result.is_exception() && editing_result.value() && content_versions(document) != content_versions_before)
+        document.did_make_user_edit();
+}
+
 void EditingHostManager::handle_insert(Utf16FlyString const& input_type, Utf16View value)
 {
     // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
@@ -51,9 +63,11 @@ void EditingHostManager::handle_insert(Utf16FlyString const& input_type, Utf16Vi
     //
     // NB: The user's input type is passed along so pastes fire an input event with inputType "insertFromPaste" and
     //     form their own undo unit, even though they run the insertText command.
+    auto content_versions_before = content_versions(*m_document);
     auto editing_result = m_document->exec_command_internal(Editing::CommandNames::insertText, false, value, Document::DispatchInputEvent::Yes, input_type);
     if (editing_result.is_exception())
         dbgln("handle_insert(): editing resulted in exception: {}", editing_result.exception());
+    did_run_user_edit(*m_document, editing_result, content_versions_before);
 }
 
 void EditingHostManager::handle_insert_from_clipboard(Utf16FlyString const& input_type, Utf16View plain_text, Optional<Utf16View> html)
@@ -78,9 +92,11 @@ void EditingHostManager::handle_insert_from_clipboard(Utf16FlyString const& inpu
     //          Run insertHTML as one user edit so its DOM mutations and final selection form one undo unit.
     // NB: insertHTML inserts the sanitized fragment itself. Serializing and reparsing it could produce a different
     //     tree from the one the sanitizer inspected.
+    auto content_versions_before = content_versions(*m_document);
     auto editing_result = m_document->exec_command_internal(Editing::CommandNames::insertHTML, false, {}, Document::DispatchInputEvent::Yes, input_type, nullptr, fragment.value());
     if (editing_result.is_exception())
         dbgln("handle_insert_from_clipboard(): editing resulted in exception: {}", editing_result.exception());
+    did_run_user_edit(*m_document, editing_result, content_versions_before);
 }
 
 void EditingHostManager::select_all()
@@ -298,9 +314,11 @@ void EditingHostManager::handle_delete(Utf16FlyString const& input_type, [[maybe
     }
     auto forward = first_is_one_of(input_type, UIEvents::InputTypes::deleteContentForward, UIEvents::InputTypes::deleteWordForward, UIEvents::InputTypes::deleteHardLineForward);
     auto command = forward ? Editing::CommandNames::forwardDelete : Editing::CommandNames::delete_;
+    auto content_versions_before = content_versions(*m_document);
     auto editing_result = m_document->exec_command_internal(command, false, {}, Document::DispatchInputEvent::Yes, input_type, range.ptr());
     if (editing_result.is_exception())
         dbgln("handle_delete(): editing resulted in exception: {}", editing_result.exception());
+    did_run_user_edit(*m_document, editing_result, content_versions_before);
 }
 
 EventResult EditingHostManager::handle_return_key(Utf16FlyString const& ui_input_type)
@@ -319,11 +337,13 @@ EventResult EditingHostManager::handle_return_key(Utf16FlyString const& ui_input
         : Editing::CommandNames::insertLineBreak;
     // NB: Use the internal entry point like the other user edits, so that a script that focuses a text control
     //     during the key press does not redirect this edit to that text control.
+    auto content_versions_before = content_versions(*m_document);
     auto editing_result = m_document->exec_command_internal(command, false, {}, Document::DispatchInputEvent::Yes);
     if (editing_result.is_exception()) {
         dbgln("handle_return_key(): editing resulted in exception: {}", editing_result.exception());
         return EventResult::Dropped;
     }
+    did_run_user_edit(*m_document, editing_result, content_versions_before);
     return editing_result.value() ? EventResult::Handled : EventResult::Dropped;
 }
 
