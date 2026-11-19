@@ -667,6 +667,8 @@ private:
 // come from a page.
 class PNGMimeConverter final : public QUtiMimeConverter {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual QString utiForMime(QString const& mime) const override
     {
         return mime == "image/png" ? QStringLiteral("public.png") : QString {};
