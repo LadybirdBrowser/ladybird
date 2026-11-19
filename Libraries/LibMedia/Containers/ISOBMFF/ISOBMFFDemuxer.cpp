@@ -81,7 +81,13 @@ void ISOBMFFDemuxer::start_scan()
             TimeRanges buffered;
             AK::Duration duration;
             auto iterator = SampleIterator::create(payload.cursor, payload.movie, id, payload.movie_end);
-            bool can_decode = false;
+            // Available samples from a sync sample onward in decode order are playable through their latest end.
+            Optional<TimeRanges::Range> decodable_run;
+            auto end_decodable_run = [&] {
+                if (decodable_run.has_value() && decodable_run->end > decodable_run->start)
+                    buffered.add_range(decodable_run->start, decodable_run->end);
+                decodable_run.clear();
+            };
             bool last_sample_available = false;
             bool track_reached_end = availability.closing_bytes_are_available();
             if (!iterator.is_error()) {
@@ -101,13 +107,16 @@ void ISOBMFFDemuxer::start_scan()
                         return sample.data_position >= range.start && sample.data_position <= range.end && sample.data_size <= range.end - sample.data_position;
                     });
                     last_sample_available = available;
-                    if (!available)
-                        can_decode = false;
+                    if (!available) {
+                        end_decodable_run();
+                        continue;
+                    }
+                    if (decodable_run.has_value())
+                        decodable_run->end = max(decodable_run->end, end);
                     else if (sample.is_sync_sample)
-                        can_decode = true;
-                    if (available && can_decode)
-                        buffered.add_range(max(sample.presentation_timestamp, AK::Duration::zero()), end);
+                        decodable_run = TimeRanges::Range { max(sample.presentation_timestamp, AK::Duration::zero()), end };
                 }
+                end_decodable_run();
             } else {
                 track_reached_end = false;
             }
