@@ -94,14 +94,23 @@ ErrorOr<void> encode(Encoder& encoder, TransportHandle const& handle)
 template<>
 ErrorOr<TransportHandle> decode(Decoder& decoder)
 {
+    // The attachments come from the peer, so a message that lacks them, or carries other rights in their place, is
+    // a malformed message to reject, not an invariant of ours to assert.
     auto& attachments = decoder.attachments();
-    VERIFY(attachments.size() >= 2);
-    auto recv_attachment = attachments.dequeue();
-    auto send_attachment = attachments.dequeue();
-    VERIFY(recv_attachment.message_right() == Core::MachPort::MessageRight::MoveReceive);
-    VERIFY(send_attachment.message_right() == Core::MachPort::MessageRight::MoveSend);
+    auto recv_attachment = TRY(attachments.try_dequeue());
+    auto send_attachment = TRY(attachments.try_dequeue());
+    if (recv_attachment.message_right() != Core::MachPort::MessageRight::MoveReceive)
+        return Error::from_string_literal("TransportHandle::decode: Expected a receive right");
+    if (send_attachment.message_right() != Core::MachPort::MessageRight::MoveSend)
+        return Error::from_string_literal("TransportHandle::decode: Expected a send right");
     auto receive_right = recv_attachment.release_mach_port();
     auto send_right = send_attachment.release_mach_port();
+    // The kernel passes a dead name along with whatever disposition the sender gave it, but a receive right can't have
+    // died in flight the way a send right can.
+    if (!MACH_PORT_VALID(receive_right.port()))
+        return Error::from_string_literal("TransportHandle::decode: Expected a live receive right");
+    if (send_right.port() == MACH_PORT_NULL)
+        return Error::from_string_literal("TransportHandle::decode: Expected a send right");
     TransportHandle handle { move(receive_right), move(send_right) };
     TRY(decode_unprocessed(decoder, handle.m_unprocessed_bytes, handle.m_unprocessed_attachments));
     return handle;

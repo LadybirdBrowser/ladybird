@@ -416,3 +416,51 @@ TEST_CASE(a_flood_of_out_of_line_messages_in_both_directions_does_not_deadlock)
     EXPECT_EQ(received_by_peer, message_count);
     EXPECT_EQ(received_by_local, message_count);
 }
+
+// Decodes a transport handle from the bytes an encoded one has, with the given attachments in place of its own.
+static ErrorOr<IPC::TransportHandle> decode_transport_handle_with(Vector<IPC::Attachment> (*make_attachments)(Vector<IPC::Attachment>))
+{
+    auto pair = MUST(IPC::TransportHandle::create_pair());
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder(buffer);
+    MUST(encoder.encode(pair.first));
+    auto bytes = buffer.take_data();
+
+    Queue<IPC::Attachment> attachments;
+    for (auto& attachment : make_attachments(buffer.take_attachments()))
+        attachments.enqueue(move(attachment));
+    FixedMemoryStream stream { bytes.span() };
+    IPC::Decoder decoder { stream, attachments };
+    return decoder.decode<IPC::TransportHandle>();
+}
+
+TEST_CASE(transport_handle_decodes_from_its_own_attachments)
+{
+    auto handle = decode_transport_handle_with([](Vector<IPC::Attachment> attachments) { return attachments; });
+    EXPECT(!handle.is_error());
+}
+
+TEST_CASE(transport_handle_with_missing_attachments_is_a_decode_error)
+{
+    EXPECT(decode_transport_handle_with([](Vector<IPC::Attachment>) { return Vector<IPC::Attachment> {}; }).is_error());
+    EXPECT(decode_transport_handle_with([](Vector<IPC::Attachment> attachments) {
+        attachments.take_last();
+        return attachments;
+    }).is_error());
+}
+
+TEST_CASE(transport_handle_with_the_wrong_rights_is_a_decode_error)
+{
+    EXPECT(decode_transport_handle_with([](Vector<IPC::Attachment> attachments) {
+        swap(attachments[0], attachments[1]);
+        return attachments;
+    }).is_error());
+}
+
+TEST_CASE(transport_handle_with_a_dead_receive_right_is_a_decode_error)
+{
+    EXPECT(decode_transport_handle_with([](Vector<IPC::Attachment> attachments) {
+        attachments[0] = IPC::Attachment::from_mach_port(Core::MachPort::adopt_right(MACH_PORT_DEAD, Core::MachPort::PortRight::Receive), Core::MachPort::MessageRight::MoveReceive);
+        return attachments;
+    }).is_error());
+}
