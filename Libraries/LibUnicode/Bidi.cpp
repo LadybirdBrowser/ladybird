@@ -18,6 +18,8 @@ bool may_require_bidi_processing(Utf16View const& text)
 
     for (auto code_point : text) {
         switch (bidirectional_class(code_point)) {
+        // NB: Arabic numbers go right to left among themselves, even in left-to-right text.
+        case BidiClass::ArabicNumber:
         case BidiClass::RightToLeft:
         case BidiClass::RightToLeftArabic:
         case BidiClass::RightToLeftEmbedding:

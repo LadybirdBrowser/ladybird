@@ -270,10 +270,37 @@ pub(crate) fn joining_context(text: &[u16], range: std::ops::Range<usize>) -> li
 
 // Classifies a code point for direction-run splitting: strong LTR/RTL, direction-neutral Common, or ContextDependent
 // (resolved from surrounding runs).
+// LibUnicode's BidiClass, in declaration order, for the classes the rules for numbers look at.
+mod bidi_class {
+    pub(super) const AN: u8 = 0;
+    pub(super) const CS: u8 = 3;
+    pub(super) const EN: u8 = 5;
+    pub(super) const ES: u8 = 6;
+    pub(super) const ET: u8 = 7;
+    pub(super) const L: u8 = 9;
+    pub(super) const ON: u8 = 13;
+    pub(super) const R: u8 = 16;
+    pub(super) const AL: u8 = 17;
+}
+
+/// The bidi class of a code point, as the rules for numbers and the search for strong text see it: Each ASCII
+/// character that isn't a letter or part of a number counts as ON.
+fn bidi_class_for_number_rules(code_point: u32) -> u8 {
+    use bidi_class::*;
+    match code_point {
+        0x30..=0x39 => EN,
+        0x2B | 0x2D => ES,
+        0x2C | 0x2E | 0x2F | 0x3A => CS,
+        0x23..=0x25 => ET,
+        0x41..=0x5A | 0x61..=0x7A => L,
+        0..=0x7F => ON,
+        _ => unicode_layout_bidirectional_class(code_point),
+    }
+}
+
 fn text_type_for_code_point(code_point: u32) -> u8 {
     use line_box_fragment::{
         GLYPH_TEXT_TYPE_COMMON as C, GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT as X, GLYPH_TEXT_TYPE_LTR as L,
-        GLYPH_TEXT_TYPE_RTL as R,
     };
 
     // Each ASCII character has a statically known bidi class.
@@ -299,8 +326,15 @@ fn text_type_for_code_point(code_point: u32) -> u8 {
     if let Some(&text_type) = ASCII_TEXT_TYPES.get(code_point as usize) {
         return text_type;
     }
+    text_type_for_bidi_class(unicode_layout_bidirectional_class(code_point))
+}
 
-    match unicode_layout_bidirectional_class(code_point) {
+fn text_type_for_bidi_class(class: u8) -> u8 {
+    use line_box_fragment::{
+        GLYPH_TEXT_TYPE_COMMON as C, GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT as X, GLYPH_TEXT_TYPE_LTR as L,
+        GLYPH_TEXT_TYPE_RTL as R,
+    };
+    match class {
         // LibUnicode's BidiClass, in declaration order: AN, B, CS, NSM, EN, ES, ET, S, WS.
         0 | 1 | 3..=7 | 21 | 22 => X,
         // BN, FSI, ON, PDF, PDI.
@@ -1140,6 +1174,10 @@ struct TextChunker<'text> {
     font_for_every_space: Option<&'text FontHandle>,
     /// Where the look-ahead from a run of white space to the text after it last started, and where it ended.
     space_look_ahead: std::cell::Cell<(usize, usize)>,
+    /// The class of the last strong code point (L, R, or AL) before an offset, and that offset, as last searched.
+    strong_class_before: std::cell::Cell<(usize, Option<u8>)>,
+    /// The start and end of the last run of European number terminators looked at, and the number type it took.
+    terminator_run: std::cell::Cell<Option<(usize, usize, Option<u8>)>>,
 }
 
 impl<'text> TextChunker<'text> {
@@ -1186,6 +1224,8 @@ impl<'text> TextChunker<'text> {
             first_font_and_ascii_code_points_it_resolves,
             font_for_every_space,
             space_look_ahead: std::cell::Cell::new((usize::MAX, usize::MAX)),
+            strong_class_before: std::cell::Cell::new((0, None)),
+            terminator_run: std::cell::Cell::new(None),
         }
     }
 
@@ -1197,7 +1237,104 @@ impl<'text> TextChunker<'text> {
         if self.unidirectional_ltr {
             return line_box_fragment::GLYPH_TEXT_TYPE_LTR;
         }
-        text_type_for_code_point(self.current_code_point())
+        let code_point = self.current_code_point();
+        let class = bidi_class_for_number_rules(code_point);
+        if let Some(number_type) = self.number_type_at(self.current_index, class) {
+            return number_type;
+        }
+        if code_point < 0x80 {
+            text_type_for_code_point(code_point)
+        } else {
+            text_type_for_bidi_class(class)
+        }
+    }
+
+    /// The class of the last strong code point before the offset, within the paragraph.
+    fn strong_class_before(&self, offset: usize) -> Option<u8> {
+        let (mut index, mut class) = self.strong_class_before.get();
+        if offset < index {
+            (index, class) = (0, None);
+        }
+        while index < offset {
+            let code_point = code_point_at(self.text, index);
+            match bidi_class_for_number_rules(code_point) {
+                strong @ (bidi_class::L | bidi_class::R | bidi_class::AL) => class = Some(strong),
+                _ if self.should_respect_linebreaks && code_point == '\n' as u32 => class = None,
+                _ => {}
+            }
+            index += if code_point > 0xFFFF { 2 } else { 1 };
+        }
+        self.strong_class_before.set((index, class));
+        class
+    }
+
+    /// The number type of the code point at the offset, which has the given bidi class, if it's part of a number.
+    fn number_type_at(&self, offset: usize, class: u8) -> Option<u8> {
+        use bidi_class::*;
+        use line_box_fragment::{GLYPH_TEXT_TYPE_ARABIC_NUMBER, GLYPH_TEXT_TYPE_EUROPEAN_NUMBER};
+        if !matches!(class, EN | AN | ES | CS | ET) {
+            return None;
+        }
+        let class_at = |index: usize| {
+            (index < self.text.len()).then(|| bidi_class_for_number_rules(code_point_at(self.text, index)))
+        };
+        let after = |index: usize| index + if code_point_at(self.text, index) > 0xFFFF { 2 } else { 1 };
+        let before = |index: usize| match index {
+            0 => None,
+            2.. if is_utf16_low_surrogate(self.text[index - 1]) && is_utf16_high_surrogate(self.text[index - 2]) => {
+                Some(index - 2)
+            }
+            _ => Some(index - 1),
+        };
+        // https://www.unicode.org/reports/tr9/#W2
+        // "Search backward from each instance of a European number until the first strong type (R, L, AL, or sos) is
+        // found. If an AL is found, change the type of the European number to Arabic number."
+        // NB: Numbers and the separators and terminators between them aren't strong, so every number this looks at
+        //     has the same strong text before it.
+        let in_arabic_text = std::cell::OnceCell::new();
+        let number_type_at = |index: usize| match class_at(index)? {
+            EN if *in_arabic_text.get_or_init(|| self.strong_class_before(offset) == Some(AL)) => {
+                Some(GLYPH_TEXT_TYPE_ARABIC_NUMBER)
+            }
+            EN => Some(GLYPH_TEXT_TYPE_EUROPEAN_NUMBER),
+            AN => Some(GLYPH_TEXT_TYPE_ARABIC_NUMBER),
+            _ => None,
+        };
+        match class {
+            EN | AN => number_type_at(offset),
+            // https://www.unicode.org/reports/tr9/#W4
+            // "A single European separator between two European numbers changes to a European number. A single common
+            // separator between two numbers of the same type changes to that type."
+            ES | CS => {
+                let number_before = number_type_at(before(offset)?)?;
+                let number_after = number_type_at(after(offset))?;
+                (number_before == number_after && (class == CS || number_before == GLYPH_TEXT_TYPE_EUROPEAN_NUMBER))
+                    .then_some(number_before)
+            }
+            // https://www.unicode.org/reports/tr9/#W5
+            // "A sequence of European terminators adjacent to European numbers changes to all European numbers."
+            _ => {
+                if let Some((start, end, number_type)) = self.terminator_run.get()
+                    && (start..end).contains(&offset)
+                {
+                    return number_type;
+                }
+                let mut start = offset;
+                while let Some(previous) = before(start).filter(|previous| class_at(*previous) == Some(ET)) {
+                    start = previous;
+                }
+                let mut end = after(offset);
+                while class_at(end) == Some(ET) {
+                    end = after(end);
+                }
+                let is_european_number =
+                    |index: Option<usize>| index.and_then(number_type_at) == Some(GLYPH_TEXT_TYPE_EUROPEAN_NUMBER);
+                let number_type = (is_european_number(before(start)) || is_european_number(Some(end)))
+                    .then_some(GLYPH_TEXT_TYPE_EUROPEAN_NUMBER);
+                self.terminator_run.set(Some((start, end, number_type)));
+                number_type
+            }
+        }
     }
 
     fn current_code_point_is_upright(&self) -> bool {

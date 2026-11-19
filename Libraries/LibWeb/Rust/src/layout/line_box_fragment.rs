@@ -11,6 +11,21 @@ pub(crate) const GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT: u8 = 1;
 pub(crate) const GLYPH_TEXT_TYPE_END_PADDING: u8 = 2;
 pub(crate) const GLYPH_TEXT_TYPE_LTR: u8 = 3;
 pub(crate) const GLYPH_TEXT_TYPE_RTL: u8 = 4;
+// A number goes into the line as part of the left-to-right or right-to-left text around it, but its own glyphs always
+// run left to right.
+pub(crate) const GLYPH_TEXT_TYPE_NUMBER_IN_LTR: u8 = 5;
+pub(crate) const GLYPH_TEXT_TYPE_NUMBER_IN_RTL: u8 = 6;
+// The types of a text chunk of digits until the text around it decides which way the number goes.
+pub(crate) const GLYPH_TEXT_TYPE_EUROPEAN_NUMBER: u8 = 7;
+pub(crate) const GLYPH_TEXT_TYPE_ARABIC_NUMBER: u8 = 8;
+
+/// The direction the shaper lays out the glyphs of a run of the given type in.
+pub(crate) fn shaping_text_type(text_type: u8) -> libgfx_rust::text_layout::TextType {
+    match text_type {
+        GLYPH_TEXT_TYPE_NUMBER_IN_LTR | GLYPH_TEXT_TYPE_NUMBER_IN_RTL => libgfx_rust::text_layout::TextType::Ltr,
+        _ => libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
+    }
+}
 
 pub(crate) fn is_ascii_space(code_unit: u16) -> bool {
     matches!(code_unit, 0x09..=0x0d | 0x20)
@@ -85,6 +100,9 @@ pub(crate) struct LineBoxFragmentData {
     pub(crate) glyphs: Option<GlyphData>,
     pub(crate) insert_position: f32,
     pub(crate) current_insert_direction: u8,
+    /// Where the number that the last glyph run added goes on, if that run was a number in right-to-left text: The
+    /// pieces of a number that a soft wrap opportunity splits stay in order, left to right.
+    pub(crate) end_of_number_in_rtl: Option<f32>,
     pub(crate) has_text_overflow_ellipsis: bool,
     pub(crate) has_soft_wrap_opportunity_after: bool,
     /// Shaping boundaries and internal soft wraps needed to shorten text for a standard block ellipsis.
@@ -177,6 +195,7 @@ impl LineBoxFragmentData {
             glyphs,
             insert_position: 0.0,
             current_insert_direction: direction::LTR,
+            end_of_number_in_rtl: None,
             has_text_overflow_ellipsis: false,
             has_soft_wrap_opportunity_after: false,
             block_ellipsis_text: None,
@@ -189,6 +208,9 @@ impl LineBoxFragmentData {
         };
         if let Some(glyphs) = &fragment.glyphs {
             fragment.current_insert_direction = fragment.resolve_glyph_run_direction(glyphs.text_type);
+            if glyphs.text_type == GLYPH_TEXT_TYPE_NUMBER_IN_RTL {
+                fragment.end_of_number_in_rtl = Some(fragment.inline_length.to_double() as f32);
+            }
             if fragment.direction == direction::RTL {
                 fragment.insert_position = fragment.inline_length.to_double() as f32;
             }
@@ -236,7 +258,7 @@ impl LineBoxFragmentData {
             let shape = libgfx_rust::text_layout::shape_text_shared(
                 &glyphs.font,
                 &full_text[start..run_end],
-                libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
+                shaping_text_type(text_type),
                 letter_spacing,
                 word_spacing,
                 text_chunker::joining_context(full_text, start..run_end),
@@ -285,8 +307,8 @@ impl LineBoxFragmentData {
     fn resolve_glyph_run_direction(&self, text_type: u8) -> u8 {
         match text_type {
             GLYPH_TEXT_TYPE_COMMON | GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT | GLYPH_TEXT_TYPE_END_PADDING => self.direction,
-            GLYPH_TEXT_TYPE_LTR => direction::LTR,
-            GLYPH_TEXT_TYPE_RTL => direction::RTL,
+            GLYPH_TEXT_TYPE_LTR | GLYPH_TEXT_TYPE_NUMBER_IN_LTR => direction::LTR,
+            GLYPH_TEXT_TYPE_RTL | GLYPH_TEXT_TYPE_NUMBER_IN_RTL => direction::RTL,
             _ => panic!("invalid glyph text type"),
         }
     }
@@ -303,6 +325,7 @@ impl LineBoxFragmentData {
     fn append_glyph_run_ltr(&mut self, run: &ItemGlyphRun<'_>, run_inline_size: CssPixels, text_offset: u32) {
         let run_direction = self.resolve_glyph_run_direction(run.text_type);
         let inline_offset = self.inline_length.to_double() as f32;
+        let end_of_number_in_rtl = self.end_of_number_in_rtl.take();
 
         if self.current_insert_direction != run_direction {
             if run_direction == direction::RTL {
@@ -338,6 +361,9 @@ impl LineBoxFragmentData {
             }
             direction::RTL => {
                 let run_offset = run_inline_size.to_double() as f32;
+                let insert_position = end_of_number_in_rtl
+                    .filter(|_| run.text_type == GLYPH_TEXT_TYPE_NUMBER_IN_RTL)
+                    .unwrap_or(insert_position);
                 existing.update_positions(|_, x, _| {
                     if *x >= insert_position {
                         *x += run_offset;
@@ -350,6 +376,9 @@ impl LineBoxFragmentData {
                         ..placed
                     });
                 }
+                if run.text_type == GLYPH_TEXT_TYPE_NUMBER_IN_RTL {
+                    self.end_of_number_in_rtl = Some(insert_position + run_offset);
+                }
             }
             _ => unreachable!(),
         }
@@ -359,6 +388,7 @@ impl LineBoxFragmentData {
     fn append_glyph_run_rtl(&mut self, run: &ItemGlyphRun<'_>, run_inline_size: CssPixels, text_offset: u32) {
         let run_direction = self.resolve_glyph_run_direction(run.text_type);
         let run_offset = run_inline_size.to_double() as f32;
+        let end_of_number_in_rtl = self.end_of_number_in_rtl.take();
 
         if self.current_insert_direction != run_direction {
             if run_direction == direction::LTR {
@@ -390,14 +420,26 @@ impl LineBoxFragmentData {
                 }
             }
             direction::RTL => {
+                // NB: Right-to-left text goes in at the start of the fragment, which is its left end, except for the
+                //     piece of a number that goes right after the number's piece before it.
+                let end_of_number = end_of_number_in_rtl.filter(|_| run.text_type == GLYPH_TEXT_TYPE_NUMBER_IN_RTL);
+                let number_start = end_of_number.unwrap_or(0.0);
                 if run.text_type != GLYPH_TEXT_TYPE_END_PADDING {
-                    existing.update_positions(|_, x, _| *x += run_offset);
+                    existing.update_positions(|_, x, _| {
+                        if end_of_number.is_none_or(|end| *x >= end) {
+                            *x += run_offset;
+                        }
+                    });
                 }
                 for placed in run.glyphs.placed() {
                     existing.push_placed(libgfx_rust::text_layout::PlacedGlyph {
+                        x: placed.x + number_start,
                         cluster_start: placed.cluster_start + text_offset,
                         ..placed
                     });
+                }
+                if run.text_type == GLYPH_TEXT_TYPE_NUMBER_IN_RTL {
+                    self.end_of_number_in_rtl = Some(number_start + run_offset);
                 }
             }
             _ => unreachable!(),

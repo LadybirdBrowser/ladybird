@@ -125,7 +125,7 @@ fn reshaped_glyph_run(
     let shape = libgfx_rust::text_layout::shape_text_shared(
         font,
         &text[range.clone()],
-        libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
+        line_box_fragment::shaping_text_type(text_type),
         letter_spacing,
         word_spacing,
         text_chunker::joining_context(text, range),
@@ -503,8 +503,7 @@ impl Item {
                 let mut width = libgfx_rust::text_layout::shaped_text_width(
                     prepared.font_of(item),
                     &text[start..end],
-                    libgfx_rust::text_layout::TextType::try_from(item.text_type())
-                        .expect("invalid Gfx::GlyphRun::TextType"),
+                    line_box_fragment::shaping_text_type(item.text_type()),
                     letter_spacing,
                     word_spacing,
                     text_chunker::joining_context(text, start..end),
@@ -809,7 +808,7 @@ impl Item {
             let width = libgfx_rust::text_layout::shaped_text_width(
                 font,
                 &text[start..boundary],
-                libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
+                line_box_fragment::shaping_text_type(text_type),
                 letter_spacing,
                 word_spacing,
                 text_chunker::joining_context(text, start..boundary),
@@ -864,7 +863,7 @@ impl Item {
         let width = libgfx_rust::text_layout::shaped_text_width(
             run.font,
             &text[start..boundary],
-            libgfx_rust::text_layout::TextType::try_from(run.text_type).expect("invalid Gfx::GlyphRun::TextType"),
+            line_box_fragment::shaping_text_type(run.text_type),
             letter_spacing,
             word_spacing,
             text_chunker::joining_context(text, start..boundary),
@@ -957,6 +956,18 @@ struct TextNodeContext<'pass> {
     produces_line_box_fragment_when_empty: bool,
     is_text_control_text: bool,
     last_known_direction: Option<u8>,
+    /// The direction of the last chunk of strong text, which numbers don't count as.
+    last_strong_direction: Option<u8>,
+    /// The direction the chunk before the next one went into the line in, if it took one.
+    last_chunk_direction: Option<u8>,
+    /// The direction of the text's embedding, as the glyph text type of text in that direction: That's the direction
+    /// of its nearest inline ancestor with a unicode-bidi other than normal, or else of its block container.
+    embedding_direction: u8,
+    /// The direction of the paragraph, or of the embedding the text is in, as the glyph text type of text in that
+    /// direction.
+    paragraph_direction: u8,
+    /// Whether the paragraph takes its direction from its first strong text, as with unicode-bidi: plaintext.
+    paragraph_direction_is_from_its_text: bool,
     /// The direction of the first chunk with a strong direction from the chunk at the first index on, which is the
     /// chunk at the second index.
     next_known_direction: std::cell::Cell<Option<(usize, usize, Option<u8>)>>,
@@ -965,6 +976,51 @@ struct TextNodeContext<'pass> {
 }
 
 impl TextNodeContext<'_> {
+    /// https://www.unicode.org/reports/tr9/#W7
+    /// "Search backward from each instance of a European number until the first strong type (R, L, or sos) is found.
+    /// If an L is found, then change the type of the European number to L."
+    /// NB: A number that stays a number gets a level above the text around it, so reordering the line reverses the
+    ///     number together with the right-to-left text around it, but not the number's own digits. So the number goes
+    ///     into the line as part of right-to-left text, while its glyphs still run left to right.
+    fn direction_of_number(&self, text_type: u8) -> u8 {
+        if text_type == line_box_fragment::GLYPH_TEXT_TYPE_EUROPEAN_NUMBER
+            && self.last_strong_direction.unwrap_or(self.paragraph_direction) == line_box_fragment::GLYPH_TEXT_TYPE_LTR
+        {
+            return line_box_fragment::GLYPH_TEXT_TYPE_LTR;
+        }
+        line_box_fragment::GLYPH_TEXT_TYPE_RTL
+    }
+
+    /// The direction of the first chunk of strong text among the chunks not yet taken, within the paragraph.
+    fn next_strong_direction(&self) -> Option<u8> {
+        self.chunks.iter().skip(self.next_chunk_index).find_map(|chunk| {
+            if self.should_respect_linebreaks && chunk.has_breaking_newline {
+                return Some(None);
+            }
+            matches!(
+                chunk.text_type,
+                line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_RTL
+            )
+            .then_some(Some(chunk.text_type))
+        })?
+    }
+
+    fn start_paragraph(&mut self) {
+        if !self.paragraph_direction_is_from_its_text {
+            self.paragraph_direction = self.embedding_direction;
+            return;
+        }
+        // https://www.unicode.org/reports/tr9/#P2
+        // "In each paragraph, find the first character of type L, AL, or R while skipping over any characters between
+        // an isolate initiator and its matching PDI or, if it has no matching PDI, the end of the paragraph."
+        // https://www.unicode.org/reports/tr9/#P3
+        // "If a character is found in P2 and it is of type AL or R, then set the paragraph embedding level to one;
+        // otherwise, set it to zero."
+        self.paragraph_direction = self
+            .next_strong_direction()
+            .unwrap_or(line_box_fragment::GLYPH_TEXT_TYPE_LTR);
+    }
+
     /// The direction of the first chunk with a strong direction among the chunks not yet taken.
     fn next_known_direction(&self) -> Option<u8> {
         // NB: The answer holds until the chunk that gave it is taken, so a run of neutral chunks looks ahead once.
@@ -982,6 +1038,16 @@ impl TextNodeContext<'_> {
                 // NB: A preserved newline ends the paragraph, and the text after it has no say in this one.
                 if self.should_respect_linebreaks && chunk.has_breaking_newline {
                     return Some((index, None));
+                }
+                // https://www.unicode.org/reports/tr9/#N1
+                // "European and Arabic numbers act as if they were R in terms of their influence on NIs."
+                // NB: That's unless rule W7 made a European number L.
+                if matches!(
+                    chunk.text_type,
+                    line_box_fragment::GLYPH_TEXT_TYPE_EUROPEAN_NUMBER
+                        | line_box_fragment::GLYPH_TEXT_TYPE_ARABIC_NUMBER
+                ) {
+                    return Some((index, Some(self.direction_of_number(chunk.text_type))));
                 }
                 matches!(
                     chunk.text_type,
@@ -1354,7 +1420,21 @@ impl<'pass> InlineContentPreparer<'pass> {
             self.is_unidirectional_left_to_right,
         );
         let facts = self.facts(text_node);
-        self.text_node_context = Some(TextNodeContext {
+        let mut embedding = self.pass.parent(text_node);
+        while embedding != self.block_container && self.style(embedding).unicode_bidi() == unicode_bidi::NORMAL {
+            embedding = self.pass.parent(embedding);
+            if embedding.is_invalid() {
+                embedding = self.block_container;
+            }
+        }
+        let embedding_style = self.style(embedding);
+        let embedding_direction = match embedding_style.direction() {
+            direction::LTR => line_box_fragment::GLYPH_TEXT_TYPE_LTR,
+            direction::RTL => line_box_fragment::GLYPH_TEXT_TYPE_RTL,
+            _ => unreachable!(),
+        };
+        let paragraph_direction_is_from_its_text = embedding_style.unicode_bidi() == unicode_bidi::PLAINTEXT;
+        let mut text_node_context = TextNodeContext {
             chunks,
             text: &self.pass.text_content(text_node).text,
             next_chunk_index: 0,
@@ -1371,9 +1451,16 @@ impl<'pass> InlineContentPreparer<'pass> {
             produces_line_box_fragment_when_empty: facts.produces_line_box_fragment_when_empty(),
             is_text_control_text: facts.is_text_control_text(),
             last_known_direction: None,
+            last_strong_direction: None,
+            last_chunk_direction: None,
+            embedding_direction,
+            paragraph_direction: embedding_direction,
+            paragraph_direction_is_from_its_text,
             next_known_direction: Default::default(),
             open_bracket_directions: Default::default(),
-        });
+        };
+        text_node_context.start_paragraph();
+        self.text_node_context = Some(text_node_context);
     }
 
     fn resolve_text_direction_from_context(&self, context: &TextNodeContext<'_>) -> u8 {
@@ -1381,11 +1468,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         if let (Some(last), Some(next)) = (context.last_known_direction, next_known_direction)
             && last != next
         {
-            return match self.style(self.block_container).direction() {
-                direction::LTR => line_box_fragment::GLYPH_TEXT_TYPE_LTR,
-                direction::RTL => line_box_fragment::GLYPH_TEXT_TYPE_RTL,
-                _ => unreachable!(),
-            };
+            return context.paragraph_direction;
         }
         context
             .last_known_direction
@@ -1542,6 +1625,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_RTL
         ) {
             text_context.last_known_direction = Some(text_type);
+            text_context.last_strong_direction = Some(text_type);
         }
         if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
             is_last_chunk = true;
@@ -1549,8 +1633,44 @@ impl<'pass> InlineContentPreparer<'pass> {
                 text_type = line_box_fragment::GLYPH_TEXT_TYPE_END_PADDING;
             }
         }
-        if text_type == line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT {
+        let is_only_tabs = chunk.has_breaking_tab
+            && text_context.text[chunk.start..chunk.start + chunk.length]
+                .iter()
+                .all(|code_unit| *code_unit == u16::from(b'\t'));
+        if is_only_tabs {
+            // https://www.unicode.org/reports/tr9/#L1
+            // "On each line, reset the embedding level of the following characters to the paragraph embedding level:
+            // 1. Segment separators, ..."
+            // NB: So tabs keep their unresolved type, which goes the direction of the line.
+        } else if text_type == line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT {
             text_type = self.resolve_text_direction_from_context(&text_context);
+        } else if matches!(
+            text_type,
+            line_box_fragment::GLYPH_TEXT_TYPE_EUROPEAN_NUMBER | line_box_fragment::GLYPH_TEXT_TYPE_ARABIC_NUMBER
+        ) {
+            let direction = text_context.direction_of_number(text_type);
+            text_context.last_known_direction = Some(direction);
+            // https://www.unicode.org/reports/tr9/#I2
+            // "For all characters with an odd (RTL) embedding level, those of type L, EN or AN go up one level."
+            // NB: So in right-to-left text, a number right next to left-to-right text is part of the same run.
+            let next_chunk = chunks.get(text_context.next_chunk_index);
+            let is_next_to_left_to_right_text = text_context.last_chunk_direction
+                == Some(line_box_fragment::GLYPH_TEXT_TYPE_LTR)
+                || next_chunk.is_some_and(|next| {
+                    next.start == chunk.start + chunk.length && next.text_type == line_box_fragment::GLYPH_TEXT_TYPE_LTR
+                });
+            let direction = if text_context.paragraph_direction == line_box_fragment::GLYPH_TEXT_TYPE_RTL
+                && is_next_to_left_to_right_text
+            {
+                line_box_fragment::GLYPH_TEXT_TYPE_LTR
+            } else {
+                direction
+            };
+            text_type = if direction == line_box_fragment::GLYPH_TEXT_TYPE_RTL {
+                line_box_fragment::GLYPH_TEXT_TYPE_NUMBER_IN_RTL
+            } else {
+                line_box_fragment::GLYPH_TEXT_TYPE_NUMBER_IN_LTR
+            };
         } else if text_type == line_box_fragment::GLYPH_TEXT_TYPE_COMMON
             && let Some(direction) = self.direction_of_strong_text_around(
                 &text_context,
@@ -1559,10 +1679,22 @@ impl<'pass> InlineContentPreparer<'pass> {
         {
             text_type = direction;
         }
+        text_context.last_chunk_direction = match text_type {
+            line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_NUMBER_IN_LTR => {
+                Some(line_box_fragment::GLYPH_TEXT_TYPE_LTR)
+            }
+            line_box_fragment::GLYPH_TEXT_TYPE_RTL | line_box_fragment::GLYPH_TEXT_TYPE_NUMBER_IN_RTL => {
+                Some(line_box_fragment::GLYPH_TEXT_TYPE_RTL)
+            }
+            _ => None,
+        };
         if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
             // NB: The strong text before a preserved newline has no say in the paragraph after it either.
             text_context.last_known_direction = None;
+            text_context.last_strong_direction = None;
+            text_context.last_chunk_direction = None;
             text_context.open_bracket_directions.borrow_mut().clear();
+            text_context.start_paragraph();
             self.text_node_context = Some(text_context);
             return Some(PreparedItem::newline(text_node, chunk.start));
         }
@@ -1610,7 +1742,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         let mut shape = libgfx_rust::text_layout::shape_text_shared(
             font,
             shaped_text,
-            libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
+            line_box_fragment::shaping_text_type(text_type),
             text_context.letter_spacing,
             text_context.word_spacing,
             text_chunker::joining_context(full_text, shaped_range),
@@ -1628,7 +1760,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             shape = libgfx_rust::text_layout::shape_text_shared(
                 font,
                 shaped_text,
-                libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
+                line_box_fragment::shaping_text_type(text_type),
                 text_context.letter_spacing,
                 text_context.word_spacing,
                 text_chunker::joining_context(full_text, chunk.start..chunk.start + chunk.length),
