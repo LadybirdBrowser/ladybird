@@ -12,6 +12,6 @@
 
 namespace Web::HTML {
 
-WebViewHints web_view_hints_from_tokenised_features(TokenizedFeature::Map const&, Page const&);
+WebViewHints web_view_hints_from_tokenised_features(TokenizedFeature::Map const&);
 
 }
