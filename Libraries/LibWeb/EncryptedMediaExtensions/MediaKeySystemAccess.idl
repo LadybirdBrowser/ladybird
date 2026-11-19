@@ -1,5 +1,5 @@
 // https://w3c.github.io/encrypted-media/#mediakeysystemaccess-interface
-[Exposed=Window, SecureContext]
+[Exposed=Window, SecureContext, ImplementedIn=Rust]
 interface MediaKeySystemAccess {
     readonly attribute DOMString keySystem;
     MediaKeySystemConfiguration getConfiguration();
@@ -39,7 +39,7 @@ enum MediaKeySessionType {
 // https://w3c.github.io/encrypted-media/#navigator-extension-requestmediakeysystemaccess
 [Exposed=Window]
 partial interface Navigator {
-    [CreatesPromise, SecureContext] Promise<MediaKeySystemAccess> requestMediaKeySystemAccess(
+    [CreatesPromise, SecureContext, ImplementedIn=Rust] Promise<MediaKeySystemAccess> requestMediaKeySystemAccess(
         DOMString keySystem,
         sequence<MediaKeySystemConfiguration> supportedConfigurations
     );

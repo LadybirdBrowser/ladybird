@@ -70,7 +70,6 @@ public:
     GC::Ref<WebIDL::Promise> get_battery();
     void start_get_battery_steps(GC::Ref<WebIDL::Promise>);
     [[nodiscard]] GC::Ref<PermissionsAPI::Permissions> permissions();
-    void request_media_key_system_access(Utf16String key_system, Vector<EncryptedMediaExtensions::MediaKeySystemConfiguration> supported_configurations, GC::Ref<WebIDL::Promise>);
 
     GC::Ref<ServiceWorker::ServiceWorkerContainer> service_worker();
 

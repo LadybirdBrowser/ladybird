@@ -268,8 +268,6 @@ set(SOURCES
     Editing/StyledMarkupSerializer.cpp
     Editing/VisiblePosition.cpp
     Editing/ReplaceSelection.cpp
-    EncryptedMediaExtensions/Algorithms.cpp
-    EncryptedMediaExtensions/MediaKeySystemAccess.cpp
     EntriesAPI/FileSystemEntry.cpp
     EventTiming/EventTiming.cpp
     Fetch/Body.cpp

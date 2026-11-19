@@ -8,31 +8,32 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/CredentialManagement/CredentialsContainer.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/EncryptedMediaExtensions/Algorithms.h>
-#include <LibWeb/EncryptedMediaExtensions/EncryptedMediaExtensions.h>
-#include <LibWeb/EncryptedMediaExtensions/MediaKeySystemAccess.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/MediaSession/MediaSession.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::HTML {
+
+extern "C" {
+
+// Called by Bindings/Rust/src/html/navigator.rs.
+Window* web_html_navigator_window(JSObject* navigator_wrapper);
+}
 
 GC_DEFINE_ALLOCATOR(Navigator);
 
@@ -232,69 +233,9 @@ GC::Ref<PermissionsAPI::Permissions> Navigator::permissions()
     return *m_permissions;
 }
 
-void Navigator::request_media_key_system_access(Utf16String key_system, Vector<EncryptedMediaExtensions::MediaKeySystemConfiguration> supported_configurations, GC::Ref<WebIDL::Promise> promise)
+Window* web_html_navigator_window(JSObject* navigator_wrapper)
 {
-    // 1. If this's relevant global object's associated Document is not allowed to use the encrypted-media feature, then throw a "SecurityError" DOMException and abort these steps.
-    auto& associated_document = window().associated_document();
-    if (!associated_document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::EncryptedMedia)) {
-        WebIDL::reject_promise(promise, WebIDL::SecurityError::create("This document is not allowed to use the encrypted-media feature"_utf16));
-        return;
-    }
-
-    // 2. If keySystem is the empty string, return a promise rejected with a newly created TypeError.
-    if (key_system.is_empty()) {
-        WebIDL::reject_promise_with_exception(promise, WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "keySystem must not be empty"_utf16 });
-        return;
-    }
-
-    // 3. If supportedConfigurations is empty, return a promise rejected with a newly created TypeError.
-    if (supported_configurations.is_empty()) {
-        WebIDL::reject_promise_with_exception(promise, WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "supportedConfigurations must not be empty"_utf16 });
-        return;
-    }
-
-    // 4. Let document be the calling context's Document.
-    // FIXME: Is this the same as the associated document?
-    auto& document = associated_document;
-
-    // 5. Let origin be the origin of document.
-    auto origin = document.origin();
-
-    // 7. Run the following steps in parallel:
-    auto& realm = WebIDL::promise_realm(promise);
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, key_system, move(supported_configurations), origin, promise), [](auto& realm, auto& key_system, auto& supported_configurations, auto& origin, auto& promise) {
-        TemporaryExecutionContext context(realm, TemporaryExecutionContext::CallbacksEnabled::Yes);
-
-        // 1. If keySystem is not one of the Key Systems supported by the user agent, reject promise with a NotSupportedError. String comparison is case-sensitive.
-        if (!EncryptedMediaExtensions::is_supported_key_system(key_system))
-            return WebIDL::reject_promise(promise, WebIDL::NotSupportedError::create("Unsupported key system"_utf16));
-
-        // 2. Let implementation be the implementation of keySystem.
-        auto implementation = EncryptedMediaExtensions::key_system_from_string(key_system);
-
-        // 3. For each value in supportedConfigurations:
-        for (auto const& candidate_configuration : supported_configurations) {
-            // 1. Let candidate configuration be the value.
-
-            // 2. Let supported configuration be the result of executing the Get Supported Configuration algorithm on implementation, candidate configuration, and origin.
-            auto supported_configuration = EncryptedMediaExtensions::get_supported_configuration(*implementation, candidate_configuration, origin);
-
-            // 3. If supported configuration is not NotSupported, run the following steps:
-            if (supported_configuration.has_value()) {
-                // 1. Let access be a new MediaKeySystemAccess object, and initialize it as follows:
-                // 1. Set the keySystem attribute to keySystem.
-                // 2. Let the configuration value be supported configuration.
-                // 3. Let the cdm implementation value be implementation.
-                auto access = EncryptedMediaExtensions::MediaKeySystemAccess::create(key_system, *supported_configuration->configuration, move(implementation));
-
-                // 2. Resolve promise with access and abort the parallel steps of this algorithm.
-                return WebIDL::resolve_promise(promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, access));
-            }
-        }
-
-        // 4. Reject promise with a NotSupportedError.
-        WebIDL::reject_promise(promise, WebIDL::NotSupportedError::create("No supported configurations found for the requested key system"_utf16));
-    }));
+    return &Bindings::impl_from<Navigator>(JS::HostABI::object_from_abi(navigator_wrapper))->window();
 }
 
 }
