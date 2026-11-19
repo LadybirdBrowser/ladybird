@@ -41,6 +41,7 @@
 #include <UI/Qt/SystemAppearance.h>
 #include <UI/Qt/Theme.h>
 
+#include <QAction>
 #include <QApplication>
 #include <QCalendarWidget>
 #include <QClipboard>
@@ -108,7 +109,7 @@ class ZoomPopover final : public Popover {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    explicit ZoomPopover(QWidget* parent)
+    ZoomPopover(QWidget* parent, QAction& zoom_level)
         : Popover(parent)
     {
         setAccessibleName("Page zoom");
@@ -131,15 +132,21 @@ public:
             button->setToolTip(name);
             QObject::connect(button, &QPushButton::clicked, this, [this, callback] {
                 callback(*this);
-                update_level();
             });
             return button;
         };
         controls->addWidget(make_button(ChromeIcon::ZoomOut, "Zoom out", [](ZoomPopover& popover) { if (popover.on_zoom_out) popover.on_zoom_out(); }));
-        m_level = new QLabel(&card());
-        m_level->setObjectName("LadybirdZoomLevel");
-        m_level->setAlignment(Qt::AlignCenter);
-        controls->addWidget(m_level, 1);
+
+        auto* level = new QLabel(&card());
+        level->setObjectName("LadybirdZoomLevel");
+        level->setAlignment(Qt::AlignCenter);
+        controls->addWidget(level, 1);
+        auto update_level = [&zoom_level, level]() {
+            level->setText(zoom_level.isVisible() && !zoom_level.text().isEmpty() ? zoom_level.text() : QStringLiteral("100%"));
+        };
+        QObject::connect(&zoom_level, &QAction::changed, level, update_level);
+        update_level();
+
         controls->addWidget(make_button(ChromeIcon::NewTab, "Zoom in", [](ZoomPopover& popover) { if (popover.on_zoom_in) popover.on_zoom_in(); }));
         layout->addLayout(controls);
 
@@ -151,26 +158,15 @@ public:
         QObject::connect(reset, &QPushButton::clicked, this, [this] {
             if (on_reset)
                 on_reset();
-            update_level();
         });
         footer->addWidget(reset);
         footer->addStretch(1);
         layout->addLayout(footer);
     }
 
-    void update_level()
-    {
-        if (current_level)
-            m_level->setText(qformatted("{}%", round_to<int>(current_level() * 100)));
-    }
-
     Function<void()> on_zoom_in;
     Function<void()> on_zoom_out;
     Function<void()> on_reset;
-    Function<double()> current_level;
-
-private:
-    QLabel* m_level { nullptr };
 };
 
 Tab::Tab(BrowserWindow* window, Optional<u64> hub_view_id)
@@ -261,7 +257,10 @@ void Tab::initialize(Optional<u64> hub_view_id)
     QObject::disconnect(bookmark_action, &QAction::triggered, nullptr, nullptr);
     QObject::connect(bookmark_action, &QAction::triggered, this, [this] { show_bookmark_popover(); });
     m_location_edit->set_trailing_action(bookmark_action);
-    m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
+
+    auto* zoom_level = create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No);
+    m_location_edit->set_zoom_action(zoom_level);
+
     // The translate button shows the page's translation menu, rather than translating the page at once.
     m_translate_action = create_application_action(*m_location_edit, view().translate_action());
     m_location_edit->set_translate_action(m_translate_action);
@@ -277,8 +276,8 @@ void Tab::initialize(Optional<u64> hub_view_id)
     m_location_edit->on_site_settings_requested = [this] {
         show_site_settings_popover();
     };
-    m_location_edit->on_zoom_requested = [this] {
-        show_zoom_popover();
+    m_location_edit->on_zoom_requested = [this, zoom_level] {
+        show_zoom_popover(*zoom_level);
     };
     m_location_edit->on_translate_requested = [this] {
         show_translation_menu();
@@ -1458,23 +1457,21 @@ void Tab::show_translation_menu()
     m_translation_menu->popup(button.mapToGlobal(QPoint { 0, button.height() }));
 }
 
-void Tab::show_zoom_popover()
+void Tab::show_zoom_popover(QAction& zoom_level)
 {
     if (!m_zoom_popover) {
-        auto* popover = new ZoomPopover(this);
+        auto* popover = new ZoomPopover(this, zoom_level);
         popover->on_zoom_in = [this] { view().zoom_in(); };
         popover->on_zoom_out = [this] { view().zoom_out(); };
         popover->on_reset = [this] {
             view().reset_zoom();
             m_zoom_popover->close();
         };
-        popover->current_level = [this] { return view().zoom_level(); };
         m_zoom_popover = popover;
     }
 
-    auto& popover = static_cast<ZoomPopover&>(*m_zoom_popover);
+    auto& popover = *m_zoom_popover;
     popover.setStyleSheet(ChromeStyle::zoom_popover_style_sheet(Theme::chrome_palette(*this)));
-    popover.update_level();
     popover.adjustSize();
     // The panel hangs from the address field, lined up with its right edge.
     move_popover_below(popover, *m_location_edit);
