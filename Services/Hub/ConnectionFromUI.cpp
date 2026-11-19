@@ -563,6 +563,7 @@ Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
     state.blocks_pop_ups = Application::the().blocks_pop_ups();
     state.devtools_enabled = Application::the().devtools_enabled();
     state.sandbox_is_disabled = options.disable_sandbox == WebView::DisableSandbox::Yes;
+    state.gpu_painting_enabled = Application::the().compositor_gpu_painting_enabled();
     state.downloads = downloads();
     state.urls = options.urls;
     state.raw_urls = options.raw_urls;

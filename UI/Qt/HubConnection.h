@@ -136,6 +136,7 @@ private:
     virtual void app_quit_for_signal() override;
     virtual void app_did_enable_devtools(u16 port) override;
     virtual void app_did_disable_devtools() override;
+    virtual void app_gpu_painting_changed(bool gpu_painting_enabled) override;
     virtual void app_open_urls_in_new_tabs(Vector<URL::URL> urls) override;
     virtual void app_activate_or_open_tab_with_url(URL::URL url) override;
     virtual void app_open_view_in_new_tab(u64 view_id, Optional<u64> source_view_id, WebView::IsPrivate is_private, Web::HTML::ActivateTab activate_tab) override;

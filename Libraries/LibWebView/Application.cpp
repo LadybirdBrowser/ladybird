@@ -2187,7 +2187,11 @@ PlatformFeatures::ProcessFeatures Application::platform_features_for(FeatureProc
 ErrorOr<void> Application::launch_compositor_process()
 {
     VERIFY(!m_compositor_client);
-    m_compositor_launched_features = m_platform_feature_decisions->features_for(FeatureProcess::Compositor).to_byte_string();
+    auto features = m_platform_feature_decisions->features_for(FeatureProcess::Compositor);
+    m_compositor_launched_features = features.to_byte_string();
+    auto gpu_painting_enabled = features.is_enabled(PlatformFeatures::Feature::GpuPainting);
+    if (exchange(m_compositor_gpu_painting_enabled, gpu_painting_enabled) != gpu_painting_enabled)
+        on_compositor_gpu_painting_changed();
     m_compositor_client = TRY(WebView::launch_compositor_process(m_compositor_launched_features));
     m_compositor_client->on_death = [this]() {
         handle_compositor_process_death();

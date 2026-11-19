@@ -227,3 +227,21 @@ TEST_CASE(web_compat_report)
 
     outln("PASS: Web compatibility reports reach the report server in the format it expects");
 }
+
+TEST_CASE(new_bug_report_url)
+{
+    auto plain_url = WebView::new_bug_report_url({}).serialize();
+    auto plain = plain_url.bytes_as_string_view();
+    EXPECT(plain.starts_with("https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml&"sv));
+    EXPECT(plain.contains("&build-flags=Ladybird%20"sv));
+    EXPECT(!plain.contains("sandbox"sv));
+    EXPECT(!plain.contains("painting"sv));
+
+    WebView::BugReportDetails details {
+        .disable_sandbox = WebView::DisableSandbox::Yes,
+        .gpu_painting_enabled = false,
+    };
+    auto detailed_url = WebView::new_bug_report_url(details).serialize();
+    auto detailed = detailed_url.bytes_as_string_view();
+    EXPECT(detailed.ends_with("%2C%20sandbox%3A%20off%2C%20GPU%20painting%3A%20off"sv));
+}

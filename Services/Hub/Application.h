@@ -104,6 +104,7 @@ private:
     virtual bool captures_browser_crashes() const override { return true; }
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;
+    virtual void on_compositor_gpu_painting_changed() const override;
     virtual void create_platform_actions() override;
     virtual Optional<String> ui_font_family() const override;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const override;
