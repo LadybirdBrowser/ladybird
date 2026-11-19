@@ -13,26 +13,48 @@
 //! tests check the graph's invariants (see `verify`) after building and after
 //! every pass.
 
+// NB: A pass with `allow(clippy::disallowed_types)` still uses containers of the heap (see clippy.toml in the
+//     directory of the crate). It loses the `allow` when its data is in zones.
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod bounds_check_elimination;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod branch_fusion;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod branch_splitting;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod check_elimination;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod dce;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod dominators;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod edit;
 mod enumerated_keys;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod escape_analysis;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod exit_unboxing;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod facts;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod frame_initialization;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod gvn;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod interrupt_check_elimination;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod key_strings;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod licm;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod loop_rotation;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod representation;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod simplify;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 mod truncation;
+#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod verify;
 
 #[cfg(test)]
