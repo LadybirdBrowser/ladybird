@@ -194,6 +194,24 @@ Optional<TimeRanges::Range> TimeRanges::range_at_or_after(AK::Duration point) co
 namespace IPC {
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Media::TimeRanges::Range const& range)
+{
+    TRY(encoder.encode(range.start));
+    TRY(encoder.encode(range.end));
+    return {};
+}
+
+template<>
+ErrorOr<Media::TimeRanges::Range> decode(Decoder& decoder)
+{
+    auto start = TRY(decoder.decode<AK::Duration>());
+    auto end = TRY(decoder.decode<AK::Duration>());
+    if (end < start)
+        return Error::from_string_literal("IPC: Invalid time range");
+    return Media::TimeRanges::Range { start, end };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Media::TrackBufferedRanges const& track)
 {
     TRY(encoder.encode(track.track_identifier));
@@ -215,10 +233,8 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Media::TimeRanges const& ranges)
 {
     TRY(encoder.encode(static_cast<u64>(ranges.size())));
-    for (auto const& range : ranges) {
-        TRY(encoder.encode(range.start));
-        TRY(encoder.encode(range.end));
-    }
+    for (auto const& range : ranges)
+        TRY(encoder.encode(range));
     return {};
 }
 
@@ -228,11 +244,8 @@ ErrorOr<Media::TimeRanges> decode(Decoder& decoder)
     auto range_count = TRY(decoder.decode<u64>());
     Media::TimeRanges ranges;
     for (u64 i = 0; i < range_count; i++) {
-        auto start = TRY(decoder.decode<AK::Duration>());
-        auto end = TRY(decoder.decode<AK::Duration>());
-        if (end < start)
-            return Error::from_string_literal("IPC: Invalid time range");
-        ranges.add_range(start, end);
+        auto range = TRY(decoder.decode<Media::TimeRanges::Range>());
+        ranges.add_range(range.start, range.end);
     }
     return ranges;
 }
