@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // An element assigned to a slot in a hidden subtree holds no style, and gets it back once it's assigned to a
+    // displayed slot, though the style it gets is the one it had before.
+    async function check(name, slotAssignment, assignToShownSlot) {
+        const host = document.createElement("x-host");
+        host.innerHTML = `<div slot="a"><div>x</div></div>`;
+        document.body.append(host);
+        const slotted = host.firstElementChild;
+        const inner = slotted.firstElementChild;
+        const root = host.attachShadow({ mode: "open", slotAssignment });
+        root.innerHTML = `<div><slot name="a"></slot></div><slot name="b"></slot>`;
+        const wrapper = root.firstElementChild;
+        const [hiddenSlot, shownSlot] = root.querySelectorAll("slot");
+        if (slotAssignment === "manual")
+            hiddenSlot.assign(slotted);
+        void inner.offsetTop;
+
+        wrapper.style.display = "none";
+        void host.offsetHeight;
+        assignToShownSlot(slotted, hiddenSlot, shownSlot);
+
+        println(`${name}: offsetParent: ${inner.offsetParent.localName}, display: ${getComputedStyle(slotted).display}`);
+        host.remove();
+    }
+
+    asyncTest(async done => {
+        await check("slot attribute", "named", slotted => {
+            slotted.slot = "b";
+        });
+        await check("slot name", "named", (slotted, hiddenSlot, shownSlot) => {
+            hiddenSlot.name = "c";
+            shownSlot.name = "a";
+        });
+        await check("manual assignment", "manual", (slotted, hiddenSlot, shownSlot) => {
+            shownSlot.assign(slotted);
+        });
+        done();
+    });
+</script>

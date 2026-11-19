@@ -2311,14 +2311,14 @@ impl Live {
             state.live_counters.is_tracing(),
         );
         // NB: A record holding what the one it replaces does gives way to it where that one is
-        //     installed, which it is not for an element that arrived in the place of another.
-        self.uninstalled.extend(
-            statistics
-                .styled
-                .iter()
-                .copied()
-                .filter(|&node| state.computed_group_sets.assigned_style_record(node).is_none()),
-        );
+        //     installed, which it is not for an element that arrived in the place of another. Nor
+        //     is it for one whose style the host cleared below an undisplayed element, and which a
+        //     move in the flat tree, such as to another slot, displays again with that record.
+        self.uninstalled
+            .extend(statistics.styled.iter().copied().filter(|&node| {
+                state.computed_group_sets.assigned_style_record(node).is_none()
+                    || !state.held_style_records.contains(node)
+            }));
         // NB: An element moved out from below an undisplayed one may hold what it held before it moved there.
         if !self.installed_as_undisplayed.is_empty() {
             for node in &statistics.styled {
