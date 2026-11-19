@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    @font-face {
+        font-family: "Programming";
+        src: url("../../Assets/FiraCode-Latin.woff2");
+    }
+    @font-face {
+        font-family: "Ligatures";
+        src: url("../../Assets/Lato-Bold.ttf");
+    }
+    p { font: 16px "Programming"; white-space: nowrap; }
+    #spacing { font-family: "Ligatures"; }
+</style>
+<p>LYoWAT - ff fi fl ffl -&gt; --&gt; ---&gt; &lt;- &lt;-&gt; &lt;=&gt; =&gt; ==&gt; &lt;==</p>
+<p>LYoWAT - ff fi fl ffl -&gt; --&gt; ---&gt; &lt;- &lt;-&gt; &lt;=&gt; =&gt; ==&gt; &lt;==</p>
+<p id="spacing">fi ffi fifi offi fiffi</p>
+<script>
+    document.fonts.ready.then(() => document.documentElement.classList.remove("reftest-wait"));
+</script>
