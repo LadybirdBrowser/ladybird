@@ -18,6 +18,8 @@
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/ProcessManager.h>
+#include <LibWebView/ProcessSnapshot.h>
+#include <LibWebView/RequestServerManager.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WorkerAgentManager.h>
@@ -59,6 +61,33 @@ int connect_request_server_client(WebView::BrowsingSession& session)
     return client_id;
 }
 
+}
+
+TEST_CASE(request_server_snapshots_report_session_privacy)
+{
+    Test::HeadlessTestEnvironment environment { "TestRequestServerSnapshots"sv };
+    auto app = TRY_OR_FAIL(environment.create_application<TestApplication>());
+
+    auto& manager = WebView::Application::request_server_manager();
+    auto& regular_session = WebView::Application::default_session();
+    auto private_session = WebView::Application::session_for_new_view(WebView::IsPrivate::Yes);
+    auto site = "https://example.com"_utf16;
+    (void)TRY_OR_FAIL(manager.instance_for_site(regular_session, site));
+    (void)TRY_OR_FAIL(manager.instance_for_site(*private_session, site));
+    (void)TRY_OR_FAIL(manager.browser_instance(*private_session));
+
+    auto snapshots = WebView::process_snapshots(WebView::Application::process_manager());
+    auto site_url = URL::Parser::basic_parse(site);
+    auto has_request_server = [&](Optional<URL::URL> const& url, WebView::IsPrivate is_private) {
+        auto match = snapshots.first_matching([&](auto const& snapshot) {
+            return snapshot.type == WebView::ProcessType::RequestServer && snapshot.site_url == url && snapshot.is_private == is_private;
+        });
+        return match.has_value();
+    };
+    for (auto is_private : { WebView::IsPrivate::No, WebView::IsPrivate::Yes }) {
+        EXPECT(has_request_server(site_url, is_private));
+        EXPECT(has_request_server({}, is_private));
+    }
 }
 
 // RequestServer asks the UI process for the cookies of a request by the ID of the client that made it. The UI process

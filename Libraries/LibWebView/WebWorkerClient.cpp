@@ -209,11 +209,11 @@ Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_kn
 
 Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient::request_media_server_connection()
 {
-    auto connection = connect_new_media_server_client(m_media_server_client, child_id(), [weak_self = make_weak_ptr<WebWorkerClient>()]() -> ErrorOr<IPC::TransportHandle> {
+    auto connection = connect_new_media_server_client(m_media_server_client, child_id(), is_private(), [weak_self = make_weak_ptr<WebWorkerClient>()]() -> ErrorOr<IPC::TransportHandle> {
         auto self = weak_self.strong_ref();
         if (!self)
             return Error::from_string_literal("The worker is gone");
-        TRY(ensure_audio_server_is_running(self->m_audio_server_client, self->child_id()));
+        TRY(ensure_audio_server_is_running(self->m_audio_server_client, self->child_id(), self->is_private()));
         return connect_new_audio_server_client(*self->m_audio_server_client, self->m_audio_tab_id);
     });
     if (connection.is_error()) {
