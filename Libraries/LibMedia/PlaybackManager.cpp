@@ -451,7 +451,7 @@ void PlaybackManager::update_duration_from_scan_states()
 
 void PlaybackManager::check_for_demuxed_duration_change(AK::Duration duration)
 {
-    if (m_duration_was_provided)
+    if (m_duration_is_set_by_owner)
         return;
     if (m_duration == duration)
         return;
@@ -462,7 +462,7 @@ void PlaybackManager::check_for_demuxed_duration_change(AK::Duration duration)
 
 void PlaybackManager::set_duration(AK::Duration duration)
 {
-    m_duration_was_provided = true;
+    m_duration_is_set_by_owner = true;
     if (m_duration == duration)
         return;
     m_duration = duration;
