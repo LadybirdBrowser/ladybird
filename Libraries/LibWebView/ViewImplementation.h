@@ -228,6 +228,24 @@ public:
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
     void set_system_visibility_state(Web::HTML::VisibilityState);
+
+    // A tab that the user doesn't see may be discarded: its pages close, so that the processes hosting them can let go
+    // of their memory, and the tab stays in the tab strip to restore its current session history entry once the user
+    // comes back to it.
+    enum class DiscardReason : u8 {
+        // The system is about to run out of memory.
+        MemoryPressure,
+        // The tab was hidden for long, without doing anything the user could notice.
+        Inactivity,
+    };
+    bool may_be_discarded(DiscardReason, AK::Duration minimum_time_hidden, MonotonicTime now) const;
+    void set_pinned(bool pinned);
+    void set_current_tab_of_window(bool current_tab_of_window) { m_current_tab_of_window = current_tab_of_window; }
+    // When the user last stopped seeing the view, if they don't see it now.
+    Optional<MonotonicTime> hidden_since() const { return m_hidden_since; }
+    void request_discard();
+    void did_save_session_history_entry_states(Badge<WebContentPage>, WebContentPage&);
+
     // Whether the view shows its frames from CPU memory for now, so that the Compositor shares them there rather than
     // in GPU memory that the view would have to read back for every frame.
     void set_presents_from_cpu_memory(bool);
@@ -287,6 +305,13 @@ public:
 
     [[nodiscard]] SessionHistorySnapshot session_history_snapshot() const;
     [[nodiscard]] ErrorOr<void> restore_session_history_from_snapshot(SessionHistorySnapshot);
+
+    // The UI keeps the session history of a discarded tab. The Hub keeps what else the tab should have once it is loaded
+    // again, until the UI restores or forgets it.
+    u64 keep_state_for_discarding();
+    void restore_state_of_discarded_tab(u64 discarded_tab_state_id);
+    static void forget_state_of_discarded_tab(u64 discarded_tab_state_id);
+    void update_state_of_discarded_tab();
 
     // A view whose windows and tabs the application keeps tells it of each change to its session history.
     void set_reports_session_history(bool);
@@ -530,6 +555,7 @@ public:
 
     Web::HTML::MuteState page_mute_state() const { return m_mute_state; }
     void toggle_page_mute_state();
+    void set_page_mute_state(Web::HTML::MuteState);
 
     // The tab plays audio while the AudioServer has recently heard any page of it.
     void update_audibility(Badge<WebContentPage>) { update_audibility(); }
@@ -739,6 +765,10 @@ public:
     // Something the UI shows about this view may have changed, like whether it can undo or show its source.
     virtual void did_change_state() { }
 
+    // Whether the UI can discard the view, and how it is asked to.
+    virtual bool supports_discarding() const { return false; }
+    virtual void did_request_discard() { }
+
     virtual void did_change_session_history(SessionHistorySnapshot const&, URL::URL const&) { }
 
     // The application keeps browsing history: this view visited a page, or learned the title of one it visited.
@@ -810,6 +840,8 @@ protected:
     void ignore_pending_permission_prompts();
     void set_title(Utf16String);
     void set_favicon(Optional<Gfx::Bitmap const&>);
+    void did_change_title_or_favicon();
+    void finish_discard_request();
     Optional<URL::URL const&> browser_ui_load_url() const;
     void update_displayed_url();
     void did_start_navigation();
@@ -1283,6 +1315,21 @@ protected:
     bool m_devtools_connected { false };
     bool m_devtools_takes_console_messages { false };
     bool m_devtools_takes_console_errors { false };
+
+    // NB: A view starts out hidden, until the UI shows it.
+    Optional<MonotonicTime> m_hidden_since { MonotonicTime::now() };
+    Optional<MonotonicTime> m_stopped_playing_audio_time;
+    bool m_changed_title_or_favicon_while_hidden { false };
+    bool m_pinned { false };
+    // NB: The current tab of a minimized window is hidden, but the user sees it again as soon as they bring the window
+    //     back.
+    bool m_current_tab_of_window { false };
+    // The UI was asked to discard the view, so it isn't asked again until the user has seen it.
+    bool m_discard_requested { false };
+    Optional<u64> m_discarded_tab_state_id;
+    // NB: These are kept alive, so that no other page can take the place of one that closes before it answers.
+    Vector<NonnullRefPtr<WebContentPage>> m_pages_saving_session_history_entry_states;
+    RefPtr<Core::Timer> m_save_session_history_entry_states_timer;
 };
 
 }

@@ -99,6 +99,7 @@ View::View(InitialState initial_state)
     , m_system_theme(move(initial_state.system_theme))
     , m_screen_rects(move(initial_state.screen_rects))
     , m_websites_prefer_dark(initial_state.websites_prefer_dark)
+    , m_is_tab(initial_state.is_tab)
 {
     m_device_pixel_ratio = initial_state.device_pixel_ratio;
     m_maximum_frames_per_second = initial_state.maximum_frames_per_second;
@@ -172,6 +173,13 @@ void View::did_get_permission_answer(u64 answer_id, Web::Permissions::PromptOutc
 {
     if (auto on_answer = m_pending_permission_answers.take(answer_id); on_answer.has_value())
         (*on_answer)(outcome);
+}
+
+// NB: The UI may keep the tab, such as when the user sees it after all. It then stays as it is.
+void View::did_request_discard()
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_discard(view_id());
 }
 
 void View::forward_callbacks_to_ui(bool is_tab)

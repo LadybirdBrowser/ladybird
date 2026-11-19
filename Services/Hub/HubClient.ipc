@@ -349,6 +349,7 @@ endpoint HubClient
     view_load_finish(u64 view_id, URL::URL url) =|
     view_activate_tab(u64 view_id) =|
     view_close(u64 view_id) =|
+    view_discard(u64 view_id) =|
     view_link_hover(u64 view_id, URL::URL url) =|
     view_link_unhover(u64 view_id) =|
     view_title_change(u64 view_id, Utf16String title) =|

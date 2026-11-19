@@ -187,6 +187,7 @@ private:
     virtual void view_load_finish(u64 view_id, URL::URL url) override;
     virtual void view_activate_tab(u64 view_id) override;
     virtual void view_close(u64 view_id) override;
+    virtual void view_discard(u64 view_id) override;
     virtual void view_link_hover(u64 view_id, URL::URL url) override;
     virtual void view_link_unhover(u64 view_id) override;
     virtual void view_title_change(u64 view_id, Utf16String title) override;

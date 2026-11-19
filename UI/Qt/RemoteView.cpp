@@ -376,6 +376,16 @@ ErrorOr<void> RemoteView::restore_session_history_from_snapshot(WebView::Session
         return Error::from_string_literal("Unable to restore the session history");
     return {};
 }
+
+Optional<u64> RemoteView::keep_state_for_discarding()
+{
+    return HubConnection::the().view_keep_state_for_discarding(view_id());
+}
+
+void RemoteView::restore_state_of_discarded_tab(u64 discarded_tab_state_id)
+{
+    HubConnection::the().async_view_restore_state_of_discarded_tab(view_id(), discarded_tab_state_id);
+}
 #else
 Optional<i32> RemoteView::history_step_at_delta(int delta) const
 {
@@ -415,6 +425,18 @@ WebView::SessionHistorySnapshot RemoteView::session_history_snapshot() const
 ErrorOr<void> RemoteView::restore_session_history_from_snapshot(WebView::SessionHistorySnapshot snapshot)
 {
     return m_view->restore_session_history_from_snapshot(move(snapshot));
+}
+
+Optional<u64> RemoteView::keep_state_for_discarding()
+{
+    return m_view->keep_state_for_discarding();
+}
+
+// NB: The tab's pages must find their sessionStorage as they load, so this can't wait for the Hub's turn.
+void RemoteView::restore_state_of_discarded_tab(u64 discarded_tab_state_id)
+{
+    m_view->restore_state_of_discarded_tab(discarded_tab_state_id);
+    m_view->push_state_to_ui();
 }
 #endif
 

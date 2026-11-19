@@ -287,12 +287,23 @@ void Tab::initialize(Optional<u64> hub_view_id)
         update_tab_icon();
     });
 
+    // NB: A tab that was discarded keeps its view until the event loop deletes it, and messages from the view that were
+    //     on their way still arrive, but the tab is no longer one of the window's tabs.
     view().on_activate_tab = [this] {
-        m_window->activate_tab(tab_index());
+        if (auto index = tab_index(); index >= 0)
+            m_window->activate_tab(index);
     };
+
+    view().on_discard = [this] {
+        m_window->discard_tab(*this);
+    };
+    view().set_pinned(m_is_pinned);
+    view().set_current_tab_of_window(m_window->current_tab() == this);
 
     view().on_close = [this] {
         auto index = tab_index();
+        if (index < 0)
+            return;
         if (m_tab_to_activate_on_close) {
             if (auto index_to_activate = m_window->tab_index(m_tab_to_activate_on_close); index_to_activate >= 0)
                 m_window->activate_tab(index_to_activate);
@@ -975,6 +986,8 @@ void Tab::create_tab_context_menu()
 // The window's toolbar can hold the address field while the tab goes away with the window.
 Tab::~Tab()
 {
+    if (m_deferred_tab.has_value() && m_deferred_tab->discarded_tab_state_id.has_value())
+        WebContentView::forget_state_of_discarded_tab(*m_deferred_tab->discarded_tab_state_id);
     delete m_location_edit;
 }
 
@@ -993,15 +1006,19 @@ void Tab::ensure_loaded()
 
     // Until initialize() has built the view, url() reads the deferred tab's URL, so the deferred tab stays until then.
     auto deferred_url = m_deferred_tab->url;
+    auto history = AK::move(m_deferred_tab->history);
+    auto discarded_tab_state_id = m_deferred_tab->discarded_tab_state_id;
     initialize({});
     m_deferred_tab.clear();
+
+    if (discarded_tab_state_id.has_value())
+        view().restore_state_of_discarded_tab(*discarded_tab_state_id);
 
     if (m_session_tab_id.has_value())
         view().set_session_tab_id(*m_session_tab_id);
     emit loaded();
 
-    Optional<WebView::SessionHistorySnapshot> history;
-    if (m_session_tab_id.has_value())
+    if (!history.has_value() && m_session_tab_id.has_value())
         history = m_window->session().load_tab_history(*m_session_tab_id);
     if (!history.has_value() || view().restore_session_history_from_snapshot(history.release_value()).is_error())
         navigate(deferred_url);
@@ -1073,6 +1090,8 @@ void Tab::set_pinned(bool pinned)
 {
     m_is_pinned = pinned;
     m_pin_tab_action->setText(pinned ? "Un&pin Tab" : "&Pin Tab");
+    if (is_loaded())
+        view().set_pinned(pinned);
 }
 
 void Tab::navigate(URL::URL const& url)
@@ -1146,6 +1165,12 @@ void Tab::enter_report_review(Tab* tab_to_activate_on_close, Optional<QString> t
     };
     listener.on_load_finish = [this](URL::URL const&) { m_has_loaded_report_review_page = true; };
     m_report_review_navigation_listener = view().add_navigation_listener(AK::move(listener));
+}
+
+void Tab::did_replace_tab(Tab const& old_tab, Tab& new_tab)
+{
+    if (m_tab_to_activate_on_close == &old_tab)
+        m_tab_to_activate_on_close = &new_tab;
 }
 
 // A report on its way keeps being sent, as it does when the tab closes.

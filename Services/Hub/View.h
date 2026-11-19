@@ -63,6 +63,8 @@ private:
     virtual Optional<ScreenRects> screen_rects() const override { return m_screen_rects; }
     virtual void update_zoom() override;
     virtual void did_change_state() override { push_state_to_ui(); }
+    virtual bool supports_discarding() const override { return m_is_tab; }
+    virtual void did_request_discard() override;
     virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override { return content_position; }
@@ -86,6 +88,7 @@ private:
     Optional<ScreenRects> m_screen_rects;
     Web::DevicePixelSize m_viewport_size;
     bool m_websites_prefer_dark { false };
+    bool m_is_tab { true };
     ByteBuffer m_last_state_pushed_to_ui;
     bool m_wants_frame_notifications { false };
     bool m_ui_hosts_remote_layer { false };
