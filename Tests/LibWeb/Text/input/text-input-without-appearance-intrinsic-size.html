@@ -1,0 +1,61 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    input {
+        font: 16px sans-serif;
+        margin: 0;
+        appearance: none;
+        border: 1px solid;
+        padding: 2px;
+    }
+    .container {
+        width: 230px;
+    }
+</style>
+<script>
+    test(() => {
+        const value = "averyveryverylongemailaddress.with.many.parts@example-company-domain.com";
+        const reference = document.createElement("input");
+        document.body.append(reference);
+        const defaultWidth = reference.getBoundingClientRect().width;
+        reference.remove();
+        // NB: The default width depends on the font, so each width is described against it and the container's width.
+        function describe(width, containerWidth) {
+            if (width === defaultWidth)
+                return "the default width";
+            if (width === containerWidth)
+                return "the container's width";
+            return width > defaultWidth ? "wider than the default width" : "narrower than the default width";
+        }
+        const cases = [
+            ["grid", "display: grid", ""],
+            ["grid, size=5", "display: grid", "", 5],
+            ["flex row", "display: flex", ""],
+            ["flex row, flex: 1", "display: flex", "flex: 1"],
+            ["width: min-content", "", "width: min-content"],
+            ["width: fit-content", "width: 50px", "width: fit-content"],
+            ["float", "width: 50px", "float: left"],
+            ["password in grid", "display: grid", "", 0, "password"],
+            ["search in grid", "display: grid", "", 0, "search"],
+            ["abspos between insets", "position: relative; height: 50px", "position: absolute; inset: 0"],
+            ["abspos with one inset", "position: relative; height: 50px", "position: absolute; left: 0"],
+            ["display: block", "", "display: block"],
+            ["field-sizing: content", "", "field-sizing: content"],
+        ];
+        println(`default width is narrower than the container: ${defaultWidth < 230}`);
+        for (const [name, containerStyle, inputStyle, size, type] of cases) {
+            const container = document.createElement("div");
+            container.className = "container";
+            container.style.cssText = containerStyle;
+            const input = document.createElement("input");
+            if (type) input.type = type;
+            if (size) input.size = size;
+            input.value = value;
+            input.style.cssText = inputStyle;
+            container.append(input);
+            document.body.append(container);
+            println(`${name}: ${describe(input.getBoundingClientRect().width, container.getBoundingClientRect().width)}`);
+            container.remove();
+        }
+    });
+</script>
