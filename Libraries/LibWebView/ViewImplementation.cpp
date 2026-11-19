@@ -38,6 +38,8 @@
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/PageTranslation.h>
 #include <LibWebView/PermissionManager.h>
+#include <LibWebView/RequestServerManager.h>
+#include <LibWebView/RequestServerSiteBindings.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/TabDiscarder.h>
 #include <LibWebView/TabPerformanceMonitor.h>
@@ -753,23 +755,33 @@ static constexpr auto time_to_save_session_history_entry_states = AK::Duration::
 
 // NB: A process may host pages of several tabs, such as tabs of one origin, or the cross-site frames of one site in
 //     several tabs. A page of another tab, even one only representing a frame, keeps the process alive.
-bool ViewImplementation::discarding_ends_a_process() const
+void ViewImplementation::for_each_process_that_discarding_ends(Function<void(WebContentClient&)> const& callback) const
 {
     if (!m_top_level_traversable)
-        return false;
+        return;
 
-    auto ends_a_process = false;
+    HashTable<WebContentClient*> clients;
     traversable().for_each_hosting_page([&](WebContentPage& page) {
-        if (ends_a_process)
-            return;
+        clients.set(&page.client());
+    });
+    for (auto* client : clients) {
         auto hosts_only_this_view = true;
-        page.client().for_each_page([&](WebContentPage& other_page) {
+        client->for_each_page([&](WebContentPage& other_page) {
             if (other_page.has_traversable() && &other_page.traversable() == &traversable())
                 return IterationDecision::Continue;
             hosts_only_this_view = false;
             return IterationDecision::Break;
         });
-        ends_a_process = hosts_only_this_view;
+        if (hosts_only_this_view)
+            callback(*client);
+    }
+}
+
+bool ViewImplementation::discarding_ends_a_process() const
+{
+    auto ends_a_process = false;
+    for_each_process_that_discarding_ends([&](WebContentClient&) {
+        ends_a_process = true;
     });
     return ends_a_process;
 }
@@ -4555,6 +4567,7 @@ static HashMap<u64, DiscardedTabState>& discarded_tab_states()
     return *states;
 }
 
+// NB: The UI asks for this once it discards the tab, right before it closes the view.
 Optional<u64> ViewImplementation::keep_state_for_discarding()
 {
     // NB: The tab may have started to do something the user would miss, such as playing audio, while its pages saved
@@ -4566,6 +4579,17 @@ Optional<u64> ViewImplementation::keep_state_for_discarding()
         TabDiscarder::did_hide_a_tab();
         return {};
     }
+
+    // A RequestServer that served only this tab keeps the connections and cache entries a page of the tab would use
+    // again soon. The tab doesn't load its pages again until the user comes back to it, so the server can go with the
+    // processes of the tab.
+    for_each_process_that_discarding_ends([](WebContentClient& client) {
+        auto const& bindings = client.request_server_site_bindings();
+        for (auto const& top_level_site : bindings.top_level_sites()) {
+            if (auto client_id = bindings.client_id_for(top_level_site); client_id.has_value())
+                RequestServerManager::the().retire_without_delay_once_disconnected(*client_id);
+        }
+    });
 
     static u64 s_next_discarded_tab_state_id = 1;
     auto discarded_tab_state_id = s_next_discarded_tab_state_id++;

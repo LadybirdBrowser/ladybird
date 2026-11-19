@@ -313,8 +313,8 @@ public:
     [[nodiscard]] SessionHistorySnapshot session_history_snapshot() const;
     [[nodiscard]] ErrorOr<void> restore_session_history_from_snapshot(SessionHistorySnapshot);
 
-    // The UI keeps the session history of a discarded tab. The Hub keeps what else the tab should have once it is loaded
-    // again, until the UI restores or forgets it.
+    // The UI keeps the session history of a discarded tab. The Hub keeps what else the tab should have once it is
+    // loaded again, until the UI restores or forgets it. The UI asks the Hub to keep it as it discards the tab.
     Optional<u64> keep_state_for_discarding();
     void restore_state_of_discarded_tab(u64 discarded_tab_state_id);
     static void forget_state_of_discarded_tab(u64 discarded_tab_state_id);
@@ -852,6 +852,7 @@ protected:
     void finish_discard_request();
     void stop_counting_as_owned_view();
     void start_being_hidden();
+    void for_each_process_that_discarding_ends(Function<void(WebContentClient&)> const&) const;
     Optional<URL::URL const&> browser_ui_load_url() const;
     void update_displayed_url();
     void did_start_navigation();

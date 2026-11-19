@@ -60,6 +60,7 @@ private:
     RefPtr<Requests::RequestControlClient> m_control_client;
     RefPtr<Requests::RequestClient> m_ui_client;
     HashTable<int> m_client_ids;
+    HashTable<int> m_client_ids_retiring_without_delay;
     RefPtr<Core::Timer> m_idle_timer;
     bool m_retired { false };
 
@@ -100,6 +101,10 @@ public:
     NonnullRefPtr<Core::Promise<Empty>> clear_cache(UnixDateTime since);
 
     bool uses_site_request_servers() const { return m_maximum_site_instances > 0; }
+
+    // The process of the client is about to exit for good, such as for a discarded tab. If no other client of its
+    // RequestServer is left then, nothing is likely to need that server soon, so it is retired right away.
+    void retire_without_delay_once_disconnected(int client_id);
 
 private:
     ErrorOr<NonnullRefPtr<RequestServerInstance>> launch(NonnullRefPtr<BrowsingSession>, Optional<Utf16String> site);
