@@ -1420,6 +1420,32 @@ impl Op {
         }
     }
 
+    /// Calls `visit` with each block a control node can continue at, in the order of `successors()`.
+    pub fn for_each_successor(&self, mut visit: impl FnMut(BlockId)) {
+        match self {
+            Op::Jump { target } => visit(*target),
+            Op::Branch { if_true, if_false, .. } | Op::BranchOnPc { if_true, if_false, .. } => {
+                visit(*if_true);
+                visit(*if_false);
+            }
+            Op::BranchTruthy {
+                if_true,
+                if_false,
+                fallback,
+            } => {
+                visit(*if_true);
+                visit(*if_false);
+                visit(*fallback);
+            }
+            Op::ShapeSwitch { cases } => {
+                for (_, block) in cases {
+                    visit(*block);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn successors_mut(&mut self) -> Vec<&mut BlockId> {
         match self {
             Op::Jump { target } => vec![target],

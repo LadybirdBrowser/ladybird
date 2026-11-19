@@ -91,10 +91,10 @@ impl Loops {
                 end,
                 carried_through: SparseBitSet::new(graph.nodes.len()),
             };
-            for value in liveness.live_in[index].iter() {
-                let uses = &liveness.use_positions[value];
+            for value in liveness.live_in.get(index) {
+                let uses = liveness.use_positions(*value);
                 if loop_.first_use_in(uses, &position_blocks, 0..uses.len()).is_none() {
-                    loop_.carried_through.insert(value);
+                    loop_.carried_through.insert(value.index());
                 }
             }
             loops.push(loop_);

@@ -8,6 +8,7 @@
 
 use crate::artifact::ArtifactWriter;
 use crate::codegen::sites::SiteScratch;
+use crate::regalloc::Regalloc;
 
 /// What a compile keeps its data in, apart from what the heap still holds of it. A thread that compiles has one, and
 /// every compile of the thread uses it: a compile leaves nothing in it that the next one reads, only the memory.
@@ -16,6 +17,7 @@ use crate::codegen::sites::SiteScratch;
 pub struct Scratch {
     pub(crate) artifact: ArtifactWriter,
     pub(crate) sites: SiteScratch,
+    pub(crate) regalloc: Regalloc,
 }
 
 impl Default for Scratch {
@@ -30,6 +32,7 @@ impl Scratch {
         Self {
             artifact: ArtifactWriter::new(),
             sites: SiteScratch::new(),
+            regalloc: Regalloc::new(),
         }
     }
 
@@ -37,5 +40,6 @@ impl Scratch {
     pub fn release_memory(&mut self) {
         self.artifact.release_memory();
         self.sites.release_memory();
+        self.regalloc.release_memory();
     }
 }
