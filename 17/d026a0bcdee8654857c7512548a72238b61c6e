@@ -1,0 +1,21 @@
+Ladybird gives a wbr element a box kind of its own, and lets a line
+break after it if the nearest common ancestor of the wbr and the
+text after it wraps. WebKit makes a RenderLineBreak for it, which
+lays out as an InlineItem of type WordBreakOpportunity. Blink makes
+a LayoutWordBreak, for which its inline items builder appends a break
+opportunity. And Gecko makes a WBRFrame, an empty leaf frame of its own.
+
+In Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5, “xx<wbr>yy”
+in a 3ch box takes two lines in normal text, in a span, after a
+span, beside spaces, under word-break: keep-all and white-space:
+pre-wrap, and with display: block. Under white-space: nowrap, in a
+<nobr>, and under white-space: pre, it takes one line in Firefox and
+WebKit, as in Ladybird; Chrome breaks there too. With display: none,
+it takes one line in all three. A div holding only a wbr is one line
+tall in Chrome and Firefox and has no height in WebKit, and Ladybird
+gives it no height either.
+
+A span with 6px of right padding around “xx<wbr>”, followed by “yy”
+in a right-aligned 3ch box, ends at the right edge of the box on
+the first line in all three engines, with its padding on that line;
+Ladybird places it the same way.
