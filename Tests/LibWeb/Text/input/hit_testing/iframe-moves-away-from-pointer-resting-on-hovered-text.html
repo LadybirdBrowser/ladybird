@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px monospace; }
+    #outer { width: 200px; height: 100px; }
+    iframe { position: absolute; left: 300px; top: 0; width: 100px; height: 100px; border: 0; }
+</style>
+<div id="outer">text text text</div>
+<iframe srcdoc="<style>body { margin: 0 } #inner { width: 100px; height: 100px }</style><div id=inner></div>"></iframe>
+<script>
+    // The hover follows a frame between two tasks. A frame under load may take a few rendering updates to land.
+    async function framesUntil(condition) {
+        for (let frame = 0; frame < 60 && !condition(); ++frame) {
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            internals.synchronizeCompositor();
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+
+    asyncTest(async done => {
+        const iframe = document.querySelector("iframe");
+        if (!iframe.contentDocument.getElementById("inner"))
+            await new Promise(resolve => (iframe.onload = resolve));
+        const inner = iframe.contentDocument.getElementById("inner");
+        let mouseLeaves = 0;
+        inner.addEventListener("mouseleave", () => ++mouseLeaves);
+
+        internals.mouseMove(50, 10);
+        await framesUntil(() => outer.matches(":hover"));
+        println(`the text's element is hovered: ${outer.matches(":hover")}`);
+
+        iframe.style.left = "0";
+        await framesUntil(() => inner.matches(":hover"));
+        println(`the iframe's element is hovered once the iframe is under the pointer: ${inner.matches(":hover")}`);
+
+        iframe.style.left = "300px";
+        await framesUntil(() => !inner.matches(":hover"));
+        println(`the iframe's element is hovered once the iframe moved away: ${inner.matches(":hover")}`);
+        println(`mouseleave events in the iframe: ${mouseLeaves}`);
+        done();
+    });
+</script>

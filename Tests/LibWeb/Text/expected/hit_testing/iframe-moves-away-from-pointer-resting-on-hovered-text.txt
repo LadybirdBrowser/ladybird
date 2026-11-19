@@ -1,0 +1,4 @@
+the text's element is hovered: true
+the iframe's element is hovered once the iframe is under the pointer: true
+the iframe's element is hovered once the iframe moved away: false
+mouseleave events in the iframe: 1
