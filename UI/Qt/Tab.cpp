@@ -114,11 +114,11 @@ public:
     {
         setAccessibleName("Page zoom");
         card().setObjectName("LadybirdZoomPopover");
-        card().setFixedWidth(232);
+        card().setFixedWidth(148);
 
         auto* layout = new QVBoxLayout(&card());
-        layout->setContentsMargins(14, 14, 14, 14);
-        layout->setSpacing(10);
+        layout->setContentsMargins(10, 10, 10, 8);
+        layout->setSpacing(4);
 
         auto* controls = new QHBoxLayout;
         controls->setSpacing(6);
@@ -127,7 +127,7 @@ public:
             button->setObjectName("LadybirdZoomButton");
             button->setIcon(create_chrome_icon(icon, Theme::panel().body));
             button->setIconSize({ 16, 16 });
-            button->setFixedSize(30, 28);
+            button->setFixedSize(26, 24);
             button->setAccessibleName(name);
             button->setToolTip(name);
             QObject::connect(button, &QPushButton::clicked, this, [this, callback] {
