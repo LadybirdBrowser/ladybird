@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        const videoCapabilities = [{ contentType: 'video/mp4; codecs="avc1.4d401e"' }];
+
+        try {
+            await navigator.requestMediaKeySystemAccess("org.w3.clearkey", [
+                { videoCapabilities, sessionTypes: ["persistent-licence"] },
+            ]);
+            println("FAIL: an unknown session type was supported");
+        } catch (error) {
+            println(`Unknown session type: ${error.name}`);
+        }
+
+        const access = await navigator.requestMediaKeySystemAccess("org.w3.clearkey", [
+            { label: "unknown", videoCapabilities, sessionTypes: ["persistent-licence"] },
+            { label: "temporary", videoCapabilities, sessionTypes: ["temporary"] },
+        ]);
+        println(`Configuration after an unknown session type: ${access.getConfiguration().label}`);
+    });
+</script>

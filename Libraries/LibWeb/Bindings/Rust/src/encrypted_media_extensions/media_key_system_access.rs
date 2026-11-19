@@ -56,6 +56,25 @@ pub(crate) struct MediaKeySystemMediaCapability {
     pub(crate) robustness: Utf16String,
 }
 
+// https://w3c.github.io/encrypted-media/#dom-mediakeysessiontype
+#[derive(Clone, Copy)]
+pub(crate) enum MediaKeySessionType {
+    Temporary,
+    PersistentLicense,
+}
+
+impl MediaKeySessionType {
+    pub(crate) fn from_string(session_type: &Utf16String) -> Option<Self> {
+        if *session_type == "temporary" {
+            return Some(Self::Temporary);
+        }
+        if *session_type == "persistent-license" {
+            return Some(Self::PersistentLicense);
+        }
+        None
+    }
+}
+
 // https://w3c.github.io/encrypted-media/#dom-mediakeysystemaccess
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]

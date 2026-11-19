@@ -1,0 +1,2 @@
+Unknown session type: NotSupportedError
+Configuration after an unknown session type: temporary
