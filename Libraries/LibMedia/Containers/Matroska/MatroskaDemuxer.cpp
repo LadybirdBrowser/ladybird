@@ -5,7 +5,6 @@
  */
 
 #include <AK/Assertions.h>
-#include <AK/Debug.h>
 #include <AK/Utf16String.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
 #include <LibMedia/MediaStream.h>
@@ -154,13 +153,10 @@ DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(
 
     auto seeked_iterator = TRY(m_reader.seek_to_random_access_point(track_status.iterator, timestamp));
 
-    auto last_sample = track_status.iterator.last_timestamp();
-    if (has_flag(options, DemuxerSeekOptions::Force))
-        last_sample = {};
-    if (last_sample.has_value() && seeked_iterator.last_timestamp().has_value()) {
-        bool skip_seek = seeked_iterator.last_timestamp().value() <= last_sample.value() && last_sample.value() <= timestamp;
-        dbgln_if(MATROSKA_DEBUG, "The last available sample at {}ms is {}closer to target timestamp {}ms than the keyframe at {}ms, {}", last_sample->to_milliseconds(), skip_seek ? ""sv : "not "sv, timestamp.to_milliseconds(), seeked_iterator.last_timestamp()->to_milliseconds(), skip_seek ? "skipping seek"sv : "seeking"sv);
-        if (skip_seek)
+    if (!has_flag(options, DemuxerSeekOptions::Force) && track_status.last_keyframe_timestamp.has_value()) {
+        auto keyframe_iterator = seeked_iterator;
+        auto keyframe = keyframe_iterator.next_block();
+        if (!keyframe.is_error() && keyframe.value().timestamp() == track_status.last_keyframe_timestamp)
             return DemuxerSeekResult::KeptCurrentPosition;
     }
 
@@ -168,6 +164,7 @@ DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(
     track_status.block = {};
     track_status.frames = {};
     track_status.frame_index = 0;
+    track_status.last_keyframe_timestamp.clear();
     return DemuxerSeekResult::MovedPosition;
 }
 
@@ -179,6 +176,9 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
         status.block = TRY(status.iterator.next_block());
         status.frames.clear();
         status.frame_index = 0;
+        // Treat the first frame as a random access point, since the file must begin with one to decode.
+        if (status.block->only_keyframes() || !status.last_keyframe_timestamp.has_value())
+            status.last_keyframe_timestamp = status.block->timestamp();
     }
     if (status.frames.is_empty()) {
         status.frames = TRY(status.iterator.get_frames(status.block.value()));
