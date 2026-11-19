@@ -1,0 +1,6 @@
+into the hidden slot, slot attribute: offsetParent: body, display: block
+into the hidden slot, slot name: offsetParent: body, display: block
+into the hidden slot, manual assignment: offsetParent: body, display: block
+out of the hidden slot, slot attribute: offsetParent: body, display: block
+out of the hidden slot, slot name: offsetParent: body, display: block
+out of the hidden slot, manual assignment: offsetParent: body, display: block
