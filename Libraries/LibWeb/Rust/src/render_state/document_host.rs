@@ -1334,9 +1334,15 @@ impl DocumentHost {
         Some(RowIdentities::of(rows))
     }
 
-    /// Like [`Self::fresh_rows`], with every row's scrollable overflow and ink overflow measured, as a hit test needs.
-    pub(crate) fn fresh_rows_measured_for_hit_testing(&self, wait: impl RenderWait) -> Rc<RowSnapshot> {
-        self.rows_as_of_writes(wait, MeasuredOverflow::ScrollableAndInk)
+    /// Answers `read` from the rows as of every write the host made, with every row's scrollable overflow and ink
+    /// overflow measured, as a hit test needs.
+    pub(crate) fn read_rows_measured_for_hit_testing<R>(
+        &self,
+        wait: impl RenderWait,
+        read: impl FnOnce(&RowSnapshot, &PaintSource<'_>) -> R,
+    ) -> R {
+        let rows = self.rows_as_of_writes(wait, MeasuredOverflow::ScrollableAndInk);
+        read(&rows, &PaintSource::over_rows(&rows.paintable, &self.absolute_rects))
     }
 
     /// Answers `read` from the rows as of every write the host made, through the paint side's reads, spending `wait`

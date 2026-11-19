@@ -1015,26 +1015,25 @@ fn with_point_query<R>(
     let scroll_state = host.scroll_state();
     let callbacks =
         crate::painting::host::FfiHitTestQueryCallbacks::for_host_query(query, scroll_state.device_offsets());
-    let rows = host.fresh_rows_measured_for_hit_testing(read);
-    let Some(tree) = rows.visual_context_tree.as_deref() else {
-        return default;
-    };
-    let mut sampled = None;
-    let tree = tree_as_the_query_reads_it(tree, &callbacks, &mut sampled);
-    let world = callbacks.build_world_transforms(tree);
-    let callbacks = &callbacks.with_world_transforms(&world);
-    let absolute_rects = std::cell::RefCell::default();
-    let source = crate::painting::paint_read::PaintSource::over_rows(&rows.paintable, &absolute_rects);
-    answer(
-        &source,
-        crate::painting::hit_test::walk::PointQuery {
-            tree,
-            callbacks,
-            viewport: rows.viewport,
-            paint_overlay: true,
-            point: point.into(),
-        },
-    )
+    host.read_rows_measured_for_hit_testing(read, |rows, source| {
+        let Some(tree) = rows.visual_context_tree.as_deref() else {
+            return default;
+        };
+        let mut sampled = None;
+        let tree = tree_as_the_query_reads_it(tree, &callbacks, &mut sampled);
+        let world = callbacks.build_world_transforms(tree);
+        let callbacks = &callbacks.with_world_transforms(&world);
+        answer(
+            source,
+            crate::painting::hit_test::walk::PointQuery {
+                tree,
+                callbacks,
+                viewport: rows.viewport,
+                paint_overlay: true,
+                point: point.into(),
+            },
+        )
+    })
 }
 
 fn ffi_point_hit(
