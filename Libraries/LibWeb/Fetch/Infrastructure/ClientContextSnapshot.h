@@ -9,6 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <LibHTTP/Cache/CacheMode.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
@@ -43,12 +44,6 @@ struct ClientContext {
         Yes,
     };
 
-    // Whether the global object is a Window whose associated Document is loading bypassing the HTTP cache.
-    enum class IsLoadingBypassingCache : u8 {
-        No,
-        Yes,
-    };
-
     URL::Origin origin;
     URL::Origin site_for_cookies;
     URL::URL creation_url;
@@ -60,7 +55,10 @@ struct ClientContext {
     HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability { HTML::CanUseCrossOriginIsolatedAPIs::No };
     IsSecureContext is_secure_context { IsSecureContext::No };
     MixedContent::ProhibitsMixedSecurityContexts prohibits_mixed_security_contexts { MixedContent::ProhibitsMixedSecurityContexts::DoesNotRestrictMixedSecurityContexts };
-    IsLoadingBypassingCache is_loading_bypassing_cache { IsLoadingBypassingCache::No };
+
+    // The cache mode while loading of the associated Document, if the global object is a Window.
+    HTTP::CacheMode cache_mode_while_loading { HTTP::CacheMode::Default };
+
     double time_origin { 0 };
 
     // The navigable of the Window that is the global object, if it has one and this process hosts the Window.

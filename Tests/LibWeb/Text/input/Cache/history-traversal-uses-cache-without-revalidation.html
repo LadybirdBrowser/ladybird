@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="testFrame"></iframe>
+<script>
+    const server = httpTestServer();
+
+    // In test mode, the disk cache only stores responses to requests carrying this header.
+    const TEST_CACHE_ENABLED_HEADER = "X-Ladybird-Enable-Disk-Cache";
+
+    // The echo path keys both the server-side request count and the disk cache entry. Give each run its own paths, so
+    // parallel runner clones of this test don't count each other's requests.
+    const id = uniqueID();
+
+    // Both the document and the resource it fetches while it loads must be revalidated before a cache may use them
+    // again. A history traversal back to the document must use the stored responses anyway.
+    const MUST_REVALIDATE_HEADERS = {
+        "Cache-Control": "no-cache",
+        "Last-Modified": "Mon, 01 Jan 2024 00:00:00 GMT",
+    };
+
+    function nextMessage() {
+        return new Promise(resolve => {
+            window.addEventListener("message", event => resolve(event.data), { once: true });
+        });
+    }
+
+    promiseTest(async () => {
+        const requestCount = async url => (await fetch(server.recordedRequestCountURL(url))).json();
+
+        const subresourceURL = await server.createEcho("GET", `/history-traversal-subresource-${id}`, {
+            status: 200,
+            headers: { ...MUST_REVALIDATE_HEADERS, "Content-Type": "text/plain" },
+            body: "subresource",
+        });
+
+        const documentURL = await server.createEcho("GET", `/history-traversal-document-${id}`, {
+            status: 200,
+            headers: { ...MUST_REVALIDATE_HEADERS, "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                window.onmessage = event => { location.href = event.data; };
+                fetch(${JSON.stringify(subresourceURL)}, { headers: { ${JSON.stringify(TEST_CACHE_ENABLED_HEADER)}: "1" } })
+                    .then(response => response.text())
+                    .then(text => parent.postMessage("loaded document with " + text, "*"));
+            <\/script>`,
+        });
+
+        const otherDocumentURL = await server.createEcho("GET", `/history-traversal-other-document-${id}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                window.onmessage = () => { history.back(); };
+                parent.postMessage("loaded other document", "*");
+            <\/script>`,
+        });
+
+        // A page cannot attach a header to a navigation request, so have every navigation request carry the one that
+        // enables the disk cache. The document of the iframe is cached in a partition of its own, which no fetch from
+        // this page can reach.
+        const diskCacheWasEnabledForNavigations = internals.setDiskCacheEnabledForNavigations(true);
+
+        // Navigate the iframe to the document, which caches both the document and its subresource.
+        const frame = document.getElementById("testFrame");
+        let message = nextMessage();
+        frame.src = documentURL;
+        println(await message);
+
+        // Navigate the iframe away, and then traverse back. The iframe does both itself, so that this works regardless
+        // of whether the test page and the echo server are same-origin.
+        message = nextMessage();
+        frame.contentWindow.postMessage(otherDocumentURL, "*");
+        println(await message);
+
+        message = nextMessage();
+        frame.contentWindow.postMessage("back", "*");
+        println(await message);
+
+        internals.setDiskCacheEnabledForNavigations(diskCacheWasEnabledForNavigations);
+
+        println(`Requests the server saw for the document: ${await requestCount(documentURL)}`);
+        println(`Requests the server saw for the subresource: ${await requestCount(subresourceURL)}`);
+    });
+</script>

@@ -30,6 +30,7 @@
 #include <LibGC/Weak.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibGfx/Point.h>
+#include <LibHTTP/Cache/CacheMode.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -950,10 +951,12 @@ public:
     bool browsing_context_group_has_multiple_contexts() const;
     bool browsing_context_group_has_remote_contexts() const { return m_browsing_context_group_has_remote_contexts; }
 
-    // AD-HOC: Whether this document is still loading after a navigation that bypassed the HTTP cache: a reload that
-    //         bypasses it, or a child navigable's navigation while its container document loaded that way. Until it
-    //         has completely loaded, the requests it makes without a cache mode of their own bypass the cache too.
-    bool is_loading_bypassing_cache() const { return m_navigation_bypassed_cache && !is_completely_loaded(); }
+    // AD-HOC: The cache mode of the navigation that created this document, if that was a navigation that bypassed the
+    //         HTTP cache ("reload") or one that used it without revalidation ("force-cache"): a reload that bypasses
+    //         the cache, a history traversal, or a child navigable's navigation while its container document loaded
+    //         that way. Until the document has completely loaded, the requests it makes without a cache mode of their
+    //         own use this cache mode too. Otherwise, this is "default".
+    HTTP::CacheMode cache_mode_while_loading() const { return is_completely_loaded() ? HTTP::CacheMode::Default : m_navigation_cache_mode; }
 
     GC::Ptr<Element> current_script() const { return m_current_script; }
     Variant<GC::Ref<HTML::HTMLScriptElement>, GC::Ref<SVG::SVGScriptElement>, Empty> current_script_for_bindings() const;
@@ -2136,7 +2139,7 @@ private:
     // Each Document has a text directive user activation, which is a boolean, initially false.
     bool m_text_directive_user_activation { false };
     bool m_browsing_context_group_has_remote_contexts { false };
-    bool m_navigation_bypassed_cache { false };
+    HTTP::CacheMode m_navigation_cache_mode { HTTP::CacheMode::Default };
     GC::Ptr<Element> m_current_script;
 
     u32 m_ignore_destructive_writes_counter { 0 };

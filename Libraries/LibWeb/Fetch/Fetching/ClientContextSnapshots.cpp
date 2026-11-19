@@ -140,7 +140,7 @@ NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_conte
         .cross_origin_isolated_capability = client.cross_origin_isolated_capability(),
         .is_secure_context = HTML::is_secure_context(client) ? Context::IsSecureContext::Yes : Context::IsSecureContext::No,
         .prohibits_mixed_security_contexts = MixedContent::does_settings_prohibit_mixed_security_contexts(client),
-        .is_loading_bypassing_cache = window && window->associated_document().is_loading_bypassing_cache() ? Context::IsLoadingBypassingCache::Yes : Context::IsLoadingBypassingCache::No,
+        .cache_mode_while_loading = window ? window->associated_document().cache_mode_while_loading() : HTTP::CacheMode::Default,
         .time_origin = client.time_origin(),
         .navigable_id = navigable ? navigable->id() : Optional<HTML::CrossProcessId> {},
         .referrer_source = referrer_source_of_client(client),
@@ -159,7 +159,7 @@ NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_conte
         ? window->associated_document.relevant_settings_object_is_secure_context
         : settings.global.get<HTML::SerializedWorkerGlobalScope>().relevant_settings_object_is_secure_context;
 
-    // NB: A client another process hosts is never treated as loading bypassing the HTTP cache.
+    // NB: A client another process hosts is never treated as loading with the cache mode of its navigation.
     return make_ref_counted<Infrastructure::ClientContextSnapshot>(Context {
         .origin = settings.origin,
         .site_for_cookies = window ? window->associated_document.site_for_cookies : settings.global.get<HTML::SerializedWorkerGlobalScope>().site_for_cookies,
