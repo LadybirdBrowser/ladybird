@@ -296,7 +296,7 @@ static constexpr auto COMPOSITOR_ICON_PATH = "M5.5 6.5h9v7h-9zM5.5 9.5h-4v-7h9v4
 static constexpr auto HUB_ICON_PATH = "M7.5 5.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4zM7.5 1.5a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM7.5 11.5a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM2.5 6.5a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM12.5 6.5a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM7.5 3.5v2M7.5 9.5v2M3.5 7.5h2M9.5 7.5h2"sv;
 static constexpr auto IMAGE_ICON_PATH = "M2.5 2.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM1.5 11.5l3.5-3.5 5.5 5.5M9.5 9.5l2-2 3 3M10.5 5.5v.01"sv;
 static constexpr auto FOLDER_ICON_PATH = "M2.5 2.5h3l2 2h6a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"sv;
-static constexpr auto FEEDBACK_ICON_PATH = "M3.5 1.5h8a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-4l-3 3v-3h-1a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2zM7.5 3.5v3M7.5 8.5v.01"sv;
+static constexpr auto FEEDBACK_ICON_PATH = "M4 1.5h7a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-2.5 2.5H7l-2.5 2.5v-2.5H4a2.5 2.5 0 0 1-2.5-2.5V4a2.5 2.5 0 0 1 2.5-2.5zM7.5 4.25v1.6M7.5 8.75v.01"sv;
 static constexpr auto EXTERNAL_LINK_ICON_PATH = "M6.5 2.5h-3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3M9.5 1.5h4v4M13.5 1.5l-6 6"sv;
 
 // The window controls of Windows and Linux are drawn on a 10 px box in the middle of the icon.
