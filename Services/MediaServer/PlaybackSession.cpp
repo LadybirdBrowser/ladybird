@@ -73,7 +73,7 @@ void PlaybackSession::add_media_stream_source(u64 stream_id, NonnullRefPtr<Media
         ->when_resolved([this, stream_id](Media::PlaybackManager::AddedTracks& added_tracks) {
             auto scan_state = added_tracks.demuxer->scan_state();
             m_media_stream_sources.set(stream_id, { added_tracks.demuxer, scan_state });
-            m_connection.async_playback_session_media_source_added(m_id, stream_id, move(added_tracks.audio_tracks), move(added_tracks.video_tracks), m_manager->preferred_audio_track(), m_manager->preferred_video_track(), m_manager->start_time_realtime(), move(scan_state));
+            m_connection.async_playback_session_media_source_added(m_id, stream_id, move(added_tracks.audio_tracks), move(added_tracks.video_tracks), m_manager->preferred_audio_track(), m_manager->preferred_video_track(), m_manager->start_time_realtime(), m_manager->earliest_possible_position(), move(scan_state));
         })
         .when_rejected([this, stream_id](Media::DecoderError& error) {
             m_connection.async_playback_session_media_stream_source_failed(m_id, stream_id, move(error));
@@ -126,7 +126,7 @@ void PlaybackSession::add_source_buffer_demuxer(u64 source_buffer_id, NonnullRef
     m_manager->add_media_source(demuxer)
         ->when_resolved([this, source_buffer_id](Media::PlaybackManager::AddedTracks& added_tracks) {
             // A source buffer's ranges reach the renderer with each append or removal that it completes.
-            m_connection.async_playback_session_media_source_added(m_id, {}, move(added_tracks.audio_tracks), move(added_tracks.video_tracks), m_manager->preferred_audio_track(), m_manager->preferred_video_track(), m_manager->start_time_realtime(), {});
+            m_connection.async_playback_session_media_source_added(m_id, {}, move(added_tracks.audio_tracks), move(added_tracks.video_tracks), m_manager->preferred_audio_track(), m_manager->preferred_video_track(), m_manager->start_time_realtime(), m_manager->earliest_possible_position(), {});
             finish_source_buffer_track_addition(source_buffer_id, TrackAdditionOutcome::Added);
         })
         .when_rejected([this, source_buffer_id](Media::DecoderError& error) {

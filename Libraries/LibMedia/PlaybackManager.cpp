@@ -86,8 +86,9 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
 
     auto duration = demuxer->total_duration().value_or(AK::Duration::zero());
     auto start_time_realtime = demuxer->start_time_realtime();
+    auto earliest_possible_position = demuxer->earliest_possible_position();
 
-    main_thread_event_loop.deferred_invoke([self, demuxer, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration, start_time_realtime, promise = move(promise)] mutable {
+    main_thread_event_loop.deferred_invoke([self, demuxer, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration, start_time_realtime, earliest_possible_position, promise = move(promise)] mutable {
         if (!self)
             return;
 
@@ -118,7 +119,16 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
             self->m_preferred_audio_track = preferred_audio_track;
 
         self->m_start_time_realtime = start_time_realtime;
+
+        if (self->m_demuxers.is_empty())
+            self->m_timeline.earliest_possible_position = earliest_possible_position;
+        else
+            self->m_timeline.earliest_possible_position = min(self->m_timeline.earliest_possible_position, earliest_possible_position);
         self->check_for_demuxed_duration_change(duration);
+
+        // A seek before playback starts has already chosen where playback begins.
+        if (!self->m_started && self->m_handler->state() == PlaybackState::Starting)
+            self->seek_clock_and_video_sinks(self->m_timeline.earliest_possible_position);
 
         self->m_demuxers.append(demuxer);
         demuxer->set_scan_state_change_handler([self, &demuxer = *demuxer](TimeRanges const& invalidated_ranges) {
@@ -453,6 +463,7 @@ void PlaybackManager::check_for_demuxed_duration_change(AK::Duration duration)
 {
     if (m_duration_is_set_by_owner)
         return;
+    duration = max(duration, m_timeline.earliest_possible_position);
     if (m_timeline.duration == duration)
         return;
     m_timeline.duration = duration;
@@ -806,6 +817,10 @@ AvailableData PlaybackManager::available_data()
 // NB: The spec defines these ranges for a media element with a MediaSource attached; they apply to every source alike.
 Optional<TimeRanges::Range> PlaybackManager::seekable_time_range(TimeRanges const& buffered, MediaTimeline const& timeline)
 {
+    // AD-HOC: The ranges start at the earliest possible position instead of 0. A MediaSource's is always 0, its
+    //         presentation start time.
+    auto start = timeline.earliest_possible_position;
+
     // -> If recent duration equals positive Infinity:
     if (timeline.duration == AK::Duration::max()) {
         // 1. If recent live seekable range is not empty:
@@ -830,12 +845,12 @@ Optional<TimeRanges::Range> PlaybackManager::seekable_time_range(TimeRanges cons
 
         // 3. Return a single range with a start time of 0 and an end time equal to the highest end time reported by the
         //    HTMLMediaElement's buffered attribute.
-        return TimeRanges::Range { AK::Duration::zero(), buffered.highest_end_time() };
+        return TimeRanges::Range { start, buffered.highest_end_time() };
     }
 
     // -> Otherwise:
     //    Return a single range with a start time of 0 and an end time equal to recent duration.
-    return TimeRanges::Range { AK::Duration::zero(), timeline.duration };
+    return TimeRanges::Range { start, timeline.duration };
 }
 
 Vector<CombinedScanState, 2> PlaybackManager::enabled_source_scan_states() const
