@@ -12,8 +12,10 @@
 
 use ak::Column;
 use ak::ColumnFull;
+use ak::Zone;
+use ak::ZoneVec;
 
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::tables::Lists;
@@ -205,23 +207,31 @@ impl Dominators {
 
     /// The predecessors of `header` that it dominates: the sources of the
     /// back edges of the loop it heads, if it heads one.
-    pub fn back_edge_sources(&self, graph: &Graph, header: BlockId) -> Vec<BlockId> {
-        graph
-            .block(header)
-            .predecessors
-            .iter()
-            .copied()
-            .filter(|predecessor| self.dominates(header, *predecessor))
-            .collect()
+    pub fn back_edge_sources<'w>(&self, graph: &Graph, header: BlockId, work: &'w Zone) -> ZoneVec<'w, BlockId> {
+        ZoneVec::from_iter_in(
+            graph
+                .block(header)
+                .predecessors
+                .iter()
+                .copied()
+                .filter(|predecessor| self.dominates(header, *predecessor)),
+            work,
+        )
     }
 
     /// The blocks of the loop that `header` heads, with back edges from
     /// `back_edge_sources`: the header and every reachable block that reaches
     /// one of them without going through it.
-    pub fn loop_blocks(&self, graph: &Graph, header: BlockId, back_edge_sources: &[BlockId]) -> BitSet {
-        let mut blocks = BitSet::new(graph.blocks.len());
+    pub fn loop_blocks<'w>(
+        &self,
+        graph: &Graph,
+        header: BlockId,
+        back_edge_sources: &[BlockId],
+        work: &'w Zone,
+    ) -> ZoneBitSet<'w> {
+        let mut blocks = ZoneBitSet::new_in(graph.blocks.len(), work);
         blocks.insert(header.index());
-        let mut pending = back_edge_sources.to_vec();
+        let mut pending = ZoneVec::from_slice_in(back_edge_sources, work);
         while let Some(block) = pending.pop() {
             if blocks.contains(block.index()) || !self.is_reachable(block) {
                 continue;

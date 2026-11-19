@@ -465,7 +465,7 @@ fn lay_out_in_reverse_post_order(graph: &mut Graph, work: &Zone) {
         }
     }
     post_order.reverse();
-    graph.reorder_blocks(&post_order);
+    graph.reorder_blocks(&post_order, work);
     for index in 0..graph.blocks.len() {
         let is_cold = graph.blocks[index].is_cold;
         let reached_from_later = graph.blocks[index]

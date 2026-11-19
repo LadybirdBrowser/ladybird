@@ -20,7 +20,6 @@
 pub mod artifact;
 #[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod asm;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod bitset;
 pub mod builder;
 pub mod bytecode;
@@ -36,7 +35,6 @@ pub mod coverage;
 pub mod fast_hash;
 #[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod inline_vec;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod ir;
 #[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod options;
@@ -46,8 +44,6 @@ pub mod regalloc;
 pub mod scratch;
 #[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod snapshot;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
-pub mod sparse_bitset;
 pub mod tables;
 pub mod zone_map;
 
@@ -212,9 +208,9 @@ fn run_stages<M: asm::PortableMacroAssembler>(
     if snapshot.options.stress.few_registers {
         registers.allocatable_gprs = registers.few_registers(STRESS_EXTRA_REGISTERS);
     }
-    regalloc::allocate(&graph, &registers, &mut tables.regalloc, &mut tables.dominators)?;
+    work.scope(|work| regalloc::allocate(&graph, &registers, &mut tables.regalloc, &mut tables.dominators, work))?;
     if snapshot.options.verify_ir
-        && let Err(errors) = regalloc::verify(&graph, &registers, &tables.regalloc.allocation)
+        && let Err(errors) = work.scope(|work| regalloc::verify(&graph, &registers, &tables.regalloc.allocation, work))
     {
         panic!(
             "invalid register allocation:\n{errors}\n{}",

@@ -12,6 +12,7 @@
 
 use ak::Column;
 use ak::ColumnFull;
+use ak::Zone;
 
 use crate::codegen::lowering_info::Clobbers as LoweringClobbers;
 use crate::codegen::lowering_info::lowering_info;
@@ -263,12 +264,12 @@ impl ValueLiveness {
     }
 
     /// Lists the allocated values of the frame state `frame`, if they are not listed yet.
-    fn list_frame_uses(&mut self, graph: &Graph, frame: FrameStateId) -> Result<(), ColumnFull> {
+    fn list_frame_uses(&mut self, graph: &Graph, frame: FrameStateId, work: &Zone) -> Result<(), ColumnFull> {
         if self.frame_runs[frame.index()] != NOT_LISTED {
             return Ok(());
         }
         let start = self.frame_uses.len();
-        for (_, value) in graph.frame_state_values(frame) {
+        for (_, value) in graph.frame_state_values(frame, work) {
             if is_allocated_value(graph, value) {
                 self.frame_uses.try_push(value)?;
             }
@@ -288,7 +289,7 @@ impl ValueLiveness {
             .try_push(pair(value.0, (block as u32) << 1 | u32::from(flows_out)))
     }
 
-    pub fn compute(&mut self, graph: &Graph) -> Result<(), ColumnFull> {
+    pub fn compute(&mut self, graph: &Graph, work: &Zone) -> Result<(), ColumnFull> {
         let value_count = graph.nodes.len();
         let block_count = graph.blocks.len();
 
@@ -331,7 +332,7 @@ impl ValueLiveness {
                     }
                 }
                 if let Some(frame) = node.frame_state {
-                    self.list_frame_uses(graph, frame)?;
+                    self.list_frame_uses(graph, frame, work)?;
                     for use_index in self.frame_runs[frame.index()].range() {
                         self.add_seed(self.frame_uses[use_index], index, false)?;
                     }
@@ -591,7 +592,7 @@ mod tests {
         let returned = graph.add(Op::Return, &[constant], None, 0);
         graph.blocks[0].control = Some(returned);
         let mut liveness = ValueLiveness::new();
-        liveness.compute(&graph).unwrap();
+        liveness.compute(&graph, crate::test_zone()).unwrap();
         assert!(liveness.dies_at(checks[0]).is_empty());
         assert_eq!(liveness.dies_at(checks[1]), [value]);
         assert!(!liveness.is_dead_output(value));
@@ -630,7 +631,7 @@ mod tests {
         let mut liveness = ValueLiveness::new();
         // NB: The second time, the tables hold what the first time left in them.
         for _ in 0..2 {
-            liveness.compute(&graph).unwrap();
+            liveness.compute(&graph, crate::test_zone()).unwrap();
             assert!(liveness.live_in.get(0).is_empty());
             assert!(liveness.live_out.get(block_count - 1).is_empty());
             for index in 1..block_count {

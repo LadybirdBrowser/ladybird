@@ -39,7 +39,14 @@ impl std::ops::DerefMut for Allocated {
 
 fn allocate_with(graph: &Graph, registers: &RegisterSet) -> Allocated {
     let mut regalloc = Regalloc::new();
-    allocate(graph, registers, &mut regalloc, &mut Dominators::new()).unwrap();
+    allocate(
+        graph,
+        registers,
+        &mut regalloc,
+        &mut Dominators::new(),
+        crate::test_zone(),
+    )
+    .unwrap();
     Allocated(regalloc)
 }
 
@@ -47,7 +54,7 @@ fn allocate_with(graph: &Graph, registers: &RegisterSet) -> Allocated {
 fn allocate_and_verify(graph: &Graph) -> Allocated {
     let registers = RegisterSet::test_configuration();
     let allocation = allocate_with(graph, &registers);
-    if let Err(errors) = verify(graph, &registers, &allocation) {
+    if let Err(errors) = verify(graph, &registers, &allocation, crate::test_zone()) {
         panic!("{errors}\n{}", dump_allocation(graph, &allocation));
     }
     allocation
@@ -619,7 +626,7 @@ fn shift_amounts_are_in_the_targets_shift_register_or_immediates() {
             ..RegisterSet::test_configuration()
         };
         let allocation = allocate_with(&graph, &registers);
-        if let Err(errors) = verify(&graph, &registers, &allocation) {
+        if let Err(errors) = verify(&graph, &registers, &allocation, crate::test_zone()) {
             panic!("{errors}\n{}", dump_allocation(&graph, &allocation));
         }
         let dump = dump_allocation(&graph, &allocation);
@@ -719,6 +726,7 @@ fn exits_find_constants_registers_and_spilled_values() {
         kind: SiteKind::Exit(ExitKind::NoFeedback),
         stack_slot_offset: &|slot| -8 * (i32::try_from(slot).unwrap() + 1),
         saves: &[],
+        work: crate::test_zone(),
     }
     .write(&mut scratch.tables.sites, &mut scratch.tables.artifact)
     .unwrap();
@@ -771,13 +779,13 @@ fn the_verifier_finds_values_in_the_wrong_place() {
     let graph = build(&program);
     let registers = RegisterSet::test_configuration();
     let allocation = allocate_with(&graph, &registers);
-    verify(&graph, &registers, &allocation).unwrap();
+    verify(&graph, &registers, &allocation, crate::test_zone()).unwrap();
 
     // Forgetting to spill a value that is live across a call loses it.
     let argument = find_node(&graph, |node| node.op == Op::LoadSlot { slot: a(0).raw() });
     let mut broken = allocate_with(&graph, &registers);
     broken.set_spill_slot(argument, None);
-    assert!(verify(&graph, &registers, &broken).is_err());
+    assert!(verify(&graph, &registers, &broken, crate::test_zone()).is_err());
 
     // Reading an input from a register that holds something else.
     let call = find_node(&graph, |node| matches!(node.op, Op::CallSlowPath { .. }));
@@ -786,7 +794,7 @@ fn the_verifier_finds_values_in_the_wrong_place() {
         panic!("the argument is in a register");
     };
     broken.set_input(call, 2, Location::Register((register + 1) % 6));
-    assert!(verify(&graph, &registers, &broken).is_err());
+    assert!(verify(&graph, &registers, &broken, crate::test_zone()).is_err());
 }
 
 #[test]
@@ -808,7 +816,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
     let graph = build(&program);
     let registers = RegisterSet::test_configuration();
     let allocation = allocate_with(&graph, &registers);
-    verify(&graph, &registers, &allocation).unwrap();
+    verify(&graph, &registers, &allocation, crate::test_zone()).unwrap();
     let returned = find_node(&graph, |node| matches!(node.op, Op::Return));
     assert_eq!(
         allocation.node(returned).moves_before,
@@ -821,7 +829,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
     // A frame slot that the code may write is no home.
     let mut written = graph.clone_in(crate::test_zone());
     written.unwritten_slots = crate::bitset::ZoneBitSet::new_in(0, written.zone);
-    assert!(verify(&written, &registers, &allocation).is_err());
+    assert!(verify(&written, &registers, &allocation, crate::test_zone()).is_err());
 
     // Another frame slot holds another value.
     let mut broken = allocate_with(&graph, &registers);
@@ -830,7 +838,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
         ..broken.node(returned).moves_before[0]
     };
     broken.set_move_before(returned, 0, wrong_move);
-    assert!(verify(&graph, &registers, &broken).is_err());
+    assert!(verify(&graph, &registers, &broken, crate::test_zone()).is_err());
 
     // A store to the slot, which nothing may do, makes it hold another value.
     let mut stored = graph.clone_in(crate::test_zone());
@@ -845,7 +853,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
     let mut allocation = allocation;
     allocation.push_node(&[], None);
     allocation.push_node(&[Location::Constant(value::UNDEFINED)], None);
-    let errors = verify(&stored, &registers, &allocation).unwrap_err();
+    let errors = verify(&stored, &registers, &allocation, crate::test_zone()).unwrap_err();
     assert!(errors.contains("nothing writes"), "{errors}");
 }
 
@@ -1179,7 +1187,7 @@ fn random_structured_programs_with_cold_blocks_allocate_correctly() {
         }
         let registers = RegisterSet::test_configuration();
         let allocation = allocate_with(&graph, &registers);
-        if let Err(errors) = verify(&graph, &registers, &allocation) {
+        if let Err(errors) = verify(&graph, &registers, &allocation, crate::test_zone()) {
             panic!(
                 "seed {seed}: {errors}\n{}\n{}",
                 crate::ir::dump(&graph, &layout),
@@ -1206,7 +1214,7 @@ fn random_structured_programs_allocate_correctly() {
         let graph = build_with_layout(&program, layout, &never_ran);
         let registers = RegisterSet::test_configuration();
         let allocation = allocate_with(&graph, &registers);
-        if let Err(errors) = verify(&graph, &registers, &allocation) {
+        if let Err(errors) = verify(&graph, &registers, &allocation, crate::test_zone()) {
             panic!(
                 "seed {seed}: {errors}\n{}\n{}",
                 crate::ir::dump(&graph, &layout),

@@ -11,10 +11,11 @@
 //! of whose edges lead to the same place, doing nothing, become jumps.
 
 use super::edit;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::ir::Graph;
 use crate::ir::Op;
 use ak::Zone;
+use ak::ZoneVec;
 
 /// Whether a node can be dropped when its value is unused.
 fn is_removable(op: &Op) -> bool {
@@ -31,19 +32,19 @@ fn is_removable(op: &Op) -> bool {
 }
 
 pub fn run(graph: &mut Graph, work: &Zone) {
-    remove_dead_nodes(graph);
+    remove_dead_nodes(graph, work);
     // NB: Branches whose edges did the same are left jumping where they go,
     //     which leaves what only they used dead.
     if edit::fold_branches_to_one_target(graph, work) {
-        remove_dead_nodes(graph);
+        remove_dead_nodes(graph, work);
     }
 }
 
-fn remove_dead_nodes(graph: &mut Graph) {
+fn remove_dead_nodes(graph: &mut Graph, work: &Zone) {
     let count = graph.nodes.len();
-    let mut live = BitSet::new(count);
-    let mut live_frames = BitSet::new(graph.frame_states.len());
-    let mut pending = Vec::new();
+    let mut live = ZoneBitSet::new_in(count, work);
+    let mut live_frames = ZoneBitSet::new_in(graph.frame_states.len(), work);
+    let mut pending = ZoneVec::new_in(work);
     for block in &graph.blocks {
         pending.extend(block.nodes().filter(|node| {
             let data = graph.node(*node);
@@ -68,7 +69,7 @@ fn remove_dead_nodes(graph: &mut Graph) {
             frame = state.parent;
         }
     }
-    let mut removed = BitSet::new(count);
+    let mut removed = ZoneBitSet::new_in(count, work);
     for block in &graph.blocks {
         for node in block.nodes() {
             if !live.contains(node.index()) {
@@ -105,7 +106,7 @@ mod tests {
         graph.blocks[0].body.push(add);
         let returned = graph.add(Op::Return, &[constant], None, 0);
         graph.blocks[0].control = Some(returned);
-        remove_dead_nodes(&mut graph);
+        remove_dead_nodes(&mut graph, crate::test_zone());
         assert!(graph.blocks[0].phis.is_empty());
         assert!(graph.blocks[0].body.is_empty());
         assert_eq!(graph.blocks[0].control, Some(returned));
@@ -144,7 +145,7 @@ mod tests {
         }
         let returned = graph.add(Op::Return, &[constant], None, 0);
         graph.blocks[0].control = Some(returned);
-        remove_dead_nodes(&mut graph);
+        remove_dead_nodes(&mut graph, crate::test_zone());
         assert!(graph.blocks[0].body.contains(&boxed));
         assert_eq!(graph.blocks[0].body.len(), 3);
     }

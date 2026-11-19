@@ -45,14 +45,14 @@
 
 use ak::ColumnFull;
 use ak::Zone;
+use ak::ZoneVec;
 
 use super::dominators::Dominators;
 use super::edit::Constants;
 use super::edit::Replacements;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::code::ExitKind;
 use crate::code::Repr;
-use crate::fast_hash::HashMap;
 use crate::ir::BinaryOp;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
@@ -61,6 +61,7 @@ use crate::ir::Graph;
 use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use crate::zone_map::ZoneMap;
 
 /// The inclusive range of an int32 value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -117,11 +118,11 @@ struct Ranges<'a> {
     graph: &'a Graph<'a>,
     dominators: &'a Dominators,
     /// The block of each phi.
-    phi_blocks: &'a HashMap<NodeId, BlockId>,
+    phi_blocks: &'a ZoneMap<'a, NodeId, BlockId>,
     /// The ranges of entering counters that checks added where they enter
     /// would give them.
-    assumed: &'a HashMap<NodeId, Range>,
-    known: HashMap<NodeId, Option<Range>>,
+    assumed: &'a ZoneMap<'a, NodeId, Range>,
+    known: ZoneMap<'a, NodeId, Option<Range>>,
 }
 
 impl Ranges<'_> {
@@ -163,9 +164,8 @@ impl Ranges<'_> {
         }
         match node.op {
             Op::Phi if self.is_merge(value) => {
-                let inputs = node.inputs.to_vec();
                 let mut range: Option<Range> = None;
-                for input in inputs {
+                for input in node.inputs.iter().copied() {
                     let input = self.of(input)?;
                     range = Some(match range {
                         None => input,
@@ -391,9 +391,16 @@ impl Ranges<'_> {
     }
 
     /// The entering counters of `assumed` that the range of `value` relies
-    /// on, added to `used`.
-    fn assumptions_of(&self, value: NodeId, used: &mut BitSet, visited: &mut BitSet) {
-        let mut pending = vec![value];
+    /// on, added to `used`. `pending` is for its own use.
+    fn assumptions_of(
+        &self,
+        value: NodeId,
+        used: &mut ZoneBitSet,
+        visited: &mut ZoneBitSet,
+        pending: &mut ZoneVec<NodeId>,
+    ) {
+        pending.clear();
+        pending.push(value);
         while let Some(value) = pending.pop() {
             if visited.contains(value.index()) {
                 continue;
@@ -422,10 +429,10 @@ fn bounds_index(op: &Op) -> bool {
 }
 
 /// The blocks that only on-stack replacement entries reach.
-fn osr_only_blocks(graph: &Graph) -> BitSet {
-    let reach = |starts: Vec<BlockId>| {
-        let mut reached = BitSet::new(graph.blocks.len());
-        let mut pending = starts;
+fn osr_only_blocks<'w>(graph: &Graph, work: &'w Zone) -> ZoneBitSet<'w> {
+    let reach = |starts: &mut dyn Iterator<Item = BlockId>| {
+        let mut reached = ZoneBitSet::new_in(graph.blocks.len(), work);
+        let mut pending = ZoneVec::from_iter_in(starts, work);
         while let Some(block) = pending.pop() {
             if reached.contains(block.index()) {
                 continue;
@@ -435,38 +442,41 @@ fn osr_only_blocks(graph: &Graph) -> BitSet {
         }
         reached
     };
-    let mut osr = reach(graph.osr_entries.iter().map(|(_, block)| *block).collect());
-    osr.subtract(&reach(vec![BlockId::from_index(0)]));
+    let mut osr = reach(&mut graph.osr_entries.iter().map(|(_, block)| *block));
+    osr.subtract(&reach(&mut core::iter::once(BlockId::from_index(0))));
     osr
 }
 
 /// The counters that on-stack replacement entries bring to induction
 /// variables and check to be int32 values, with the bound each could be
 /// checked against: the tightest of the loops it starts.
-fn entering_counters(
+fn entering_counters<'w>(
     graph: &Graph,
     dominators: &Dominators,
-    phi_blocks: &HashMap<NodeId, BlockId>,
-) -> HashMap<NodeId, Range> {
-    let mut entering = HashMap::default();
+    phi_blocks: &ZoneMap<NodeId, BlockId>,
+    work: &'w Zone,
+) -> ZoneMap<'w, NodeId, Range> {
+    let mut entering = ZoneMap::new_in(work);
     if graph.osr_entries.is_empty() {
         return entering;
     }
-    let osr_only = osr_only_blocks(graph);
-    let mut block_of = HashMap::default();
+    let osr_only = osr_only_blocks(graph, work);
+    let mut block_of = ZoneMap::new_in(work);
     for (index, block) in graph.blocks.iter().enumerate() {
         for node in &block.body {
             block_of.insert(*node, index);
         }
     }
-    let none = HashMap::default();
+    let none = ZoneMap::new_in(work);
     let ranges = Ranges {
         graph,
         dominators,
         phi_blocks,
         assumed: &none,
-        known: HashMap::default(),
+        known: ZoneMap::new_in(work),
     };
+    let mut pending = ZoneVec::new_in(work);
+    let mut seen = ZoneBitSet::new_in(graph.nodes.len(), work);
     for phi in phi_blocks.keys() {
         let Some((_, comparison, bound)) = ranges.induction_step(*phi) else {
             continue;
@@ -480,8 +490,9 @@ fn entering_counters(
             continue;
         }
         // NB: Look through merges of the values the entries bring.
-        let mut pending = vec![graph.node(*phi).inputs[0]];
-        let mut seen = BitSet::new(graph.nodes.len());
+        pending.clear();
+        pending.push(graph.node(*phi).inputs[0]);
+        seen.clear();
         while let Some(value) = pending.pop() {
             let value = graph.unrefined(value);
             if seen.contains(value.index()) {
@@ -505,10 +516,12 @@ fn entering_counters(
                 && block_of.get(&value).is_some_and(|block| osr_only.contains(*block))
             {
                 let range = Range::new(0, bound - 1).expect("the bound is a positive int32");
-                entering
-                    .entry(value)
-                    .and_modify(|assumed: &mut Range| assumed.max = assumed.max.min(range.max))
-                    .or_insert(range);
+                match entering.get_mut(&value) {
+                    Some(assumed) => assumed.max = assumed.max.min(range.max),
+                    None => {
+                        entering.insert(value, range);
+                    }
+                }
             }
         }
     }
@@ -516,13 +529,13 @@ fn entering_counters(
 }
 
 pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), ColumnFull> {
-    let mut phi_blocks = HashMap::default();
-    let mut checks = Vec::new();
-    let mut shifts = Vec::new();
-    let mut arithmetic = Vec::new();
+    let mut phi_blocks = ZoneMap::new_in(work);
+    let mut checks = ZoneVec::new_in(work);
+    let mut shifts = ZoneVec::new_in(work);
+    let mut arithmetic = ZoneVec::new_in(work);
     // NB: For every index that bounds checks and branches check, where
     //     those checks are and the counts.
-    let mut bounded: HashMap<NodeId, Vec<(BlockId, usize, NodeId)>> = HashMap::default();
+    let mut bounded: ZoneMap<NodeId, ZoneVec<(BlockId, usize, NodeId)>> = ZoneMap::new_in(work);
     for (index, block) in graph.blocks.iter().enumerate() {
         for phi in &block.phis {
             phi_blocks.insert(*phi, BlockId::from_index(index));
@@ -530,11 +543,10 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
         for (position, node) in block.body.iter().enumerate() {
             let check = graph.node(*node);
             if bounds_index(&check.op) {
-                bounded.entry(graph.unrefined(check.inputs[0])).or_default().push((
-                    BlockId::from_index(index),
-                    position,
-                    check.inputs[1],
-                ));
+                bounded
+                    .entry(graph.unrefined(check.inputs[0]))
+                    .or_insert_with(|| ZoneVec::new_in(work))
+                    .push((BlockId::from_index(index), position, check.inputs[1]));
             }
             match check.op {
                 Op::CheckBounds => checks.push(*node),
@@ -573,114 +585,119 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
     }
     dominators.compute(graph)?;
     let dominators = &*dominators;
-    let entering = entering_counters(graph, dominators, &phi_blocks);
+    let entering = entering_counters(graph, dominators, &phi_blocks, work);
     let mut ranges = Ranges {
         graph,
         dominators,
         phi_blocks: &phi_blocks,
         assumed: &entering,
-        known: HashMap::default(),
+        known: ZoneMap::new_in(work),
     };
-    let passing = checks
-        .into_iter()
-        .filter(|check| {
+    let passing = ZoneVec::from_iter_in(
+        checks.iter().copied().filter(|check| {
             let node = graph.node(*check);
             match (ranges.constant(node.inputs[1]), ranges.of(node.inputs[0])) {
                 (Some(count), Some(index)) => index.min >= 0 && index.max < count,
                 _ => false,
             }
-        })
-        .collect::<Vec<_>>();
-    let scaled = shifts
-        .into_iter()
-        .filter_map(|(shift, block)| {
+        }),
+        work,
+    );
+    let scaled = ZoneVec::from_iter_in(
+        shifts.iter().copied().filter_map(|(shift, block)| {
             ranges
                 .unscaled(shift)
                 .map(|(value, offset)| (shift, block, value, offset))
-        })
-        .collect::<Vec<_>>();
+        }),
+        work,
+    );
 
     // NB: With the counts of the bounds checks that their operands' ranges
-    //     rely on.
-    let exact = arithmetic
-        .into_iter()
-        .filter_map(|(node, block, position)| {
-            let node_data = graph.node(node);
-            let Op::Int32Binary { op } = node_data.op else {
-                unreachable!("only int32 arithmetic is collected");
-            };
-            let mut counts = Vec::new();
-            // NB: Every dominating bounds check narrows the range of an
-            //     operand further.
-            let mut operand = |input: NodeId| {
-                let mut range = ranges.of(input);
-                let dominating = bounded.get(&graph.unrefined(input)).into_iter().flatten().filter(
-                    |(check_block, check_position, _)| {
-                        if *check_block == block {
-                            *check_position < position
-                        } else {
-                            dominators.dominates(*check_block, block)
-                        }
-                    },
-                );
-                for (_, _, count) in dominating {
-                    let narrowed = ranges.below_count(range, *count);
-                    if narrowed.is_some() && narrowed != range {
-                        counts.push(*count);
-                        range = narrowed;
+    //     rely on: those of `exact[i]` are `exact_counts[exact[i].1..exact[i].2]`.
+    let mut exact = ZoneVec::new_in(work);
+    let mut exact_counts = ZoneVec::new_in(work);
+    for (node, block, position) in arithmetic.iter().copied() {
+        let node_data = graph.node(node);
+        let Op::Int32Binary { op } = node_data.op else {
+            unreachable!("only int32 arithmetic is collected");
+        };
+        let start = exact_counts.len();
+        // NB: Every dominating bounds check narrows the range of an
+        //     operand further.
+        let mut operand = |input: NodeId| {
+            let mut range = ranges.of(input);
+            let dominating = bounded.get(&graph.unrefined(input)).into_iter().flatten().filter(
+                |(check_block, check_position, _)| {
+                    if *check_block == block {
+                        *check_position < position
+                    } else {
+                        dominators.dominates(*check_block, block)
                     }
+                },
+            );
+            for (_, _, count) in dominating {
+                let narrowed = ranges.below_count(range, *count);
+                if narrowed.is_some() && narrowed != range {
+                    exact_counts.push(*count);
+                    range = narrowed;
                 }
-                range
-            };
-            let (lhs, rhs) = (operand(node_data.inputs[0])?, operand(node_data.inputs[1])?);
-            let exact = match op {
-                BinaryOp::Add => lhs.sum(rhs).is_some(),
-                BinaryOp::Sub => lhs.difference(rhs).is_some(),
-                // NB: A zero product is -0 where an operand is negative.
-                BinaryOp::Mul => {
-                    lhs.product(rhs).is_some()
-                        && ((lhs.min >= 0 && rhs.min >= 0) || (!lhs.contains(0) && !rhs.contains(0)))
-                }
-                _ => unreachable!("only additions, subtractions and multiplications are collected"),
-            };
-            exact.then_some((node, counts))
-        })
-        .collect::<Vec<_>>();
+            }
+            range
+        };
+        let operands = operand(node_data.inputs[0]).and_then(|lhs| Some((lhs, operand(node_data.inputs[1])?)));
+        let is_exact = operands.is_some_and(|(lhs, rhs)| match op {
+            BinaryOp::Add => lhs.sum(rhs).is_some(),
+            BinaryOp::Sub => lhs.difference(rhs).is_some(),
+            // NB: A zero product is -0 where an operand is negative.
+            BinaryOp::Mul => {
+                lhs.product(rhs).is_some() && ((lhs.min >= 0 && rhs.min >= 0) || (!lhs.contains(0) && !rhs.contains(0)))
+            }
+            _ => unreachable!("only additions, subtractions and multiplications are collected"),
+        });
+        if is_exact {
+            exact.push((node, start, exact_counts.len()));
+        } else {
+            exact_counts.truncate(start);
+        }
+    }
     if passing.is_empty() && scaled.is_empty() && exact.is_empty() {
         return Ok(());
     }
     // NB: Only the entering counters that the removed checks, the
     //     rewritten shifts and the operations that stop checking for overflow
     //     relied on get checked where they enter.
-    let mut used = BitSet::new(graph.nodes.len());
-    let mut visited = BitSet::new(graph.nodes.len());
+    let mut used = ZoneBitSet::new_in(graph.nodes.len(), work);
+    let mut visited = ZoneBitSet::new_in(graph.nodes.len(), work);
+    let mut pending = ZoneVec::new_in(work);
     for check in &passing {
-        ranges.assumptions_of(graph.node(*check).inputs[0], &mut used, &mut visited);
+        ranges.assumptions_of(graph.node(*check).inputs[0], &mut used, &mut visited, &mut pending);
     }
     for (shift, ..) in &scaled {
-        ranges.assumptions_of(*shift, &mut used, &mut visited);
+        ranges.assumptions_of(*shift, &mut used, &mut visited, &mut pending);
     }
-    for (node, counts) in &exact {
-        ranges.assumptions_of(*node, &mut used, &mut visited);
-        for count in counts {
-            ranges.assumptions_of(*count, &mut used, &mut visited);
+    for (node, start, end) in &exact {
+        ranges.assumptions_of(*node, &mut used, &mut visited, &mut pending);
+        for count in &exact_counts[*start..*end] {
+            ranges.assumptions_of(*count, &mut used, &mut visited, &mut pending);
         }
     }
-    let guards = entering
-        .iter()
-        .filter(|(value, _)| used.contains(value.index()))
-        .map(|(value, range)| (*value, range.max + 1))
-        .collect::<Vec<_>>();
+    let guards = ZoneVec::from_iter_in(
+        entering
+            .iter()
+            .filter(|(value, _)| used.contains(value.index()))
+            .map(|(value, range)| (*value, range.max + 1)),
+        work,
+    );
 
     let mut replacements = Replacements::new(graph, work);
-    let mut removed = BitSet::new(graph.nodes.len());
-    for check in passing {
+    let mut removed = ZoneBitSet::new_in(graph.nodes.len(), work);
+    for check in passing.iter().copied() {
         replacements.replace(check, graph.node(check).inputs[0]);
         removed.insert(check.index());
     }
     let mut constants = Constants::new(graph, work);
-    let mut guard_nodes = Vec::new();
-    for (value, bound) in guards {
+    let mut guard_nodes = ZoneVec::new_in(work);
+    for (value, bound) in guards.iter().copied() {
         let count = constants.get_typed(graph, u64::from((bound as i32).cast_unsigned()), Repr::Int32);
         let (frame_state, pc) = (graph.node(value).frame_state, graph.node(value).pc);
         let guard = graph.add_node(Node {
@@ -704,7 +721,7 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
         replacements.replace(value, guard);
         guard_nodes.push((guard, value));
     }
-    for (shift, block, value, offset) in scaled {
+    for (shift, block, value, offset) in scaled.iter().copied() {
         let replacement = if offset == 0 {
             value
         } else {
@@ -726,12 +743,12 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
         replacements.replace(shift, replacement);
         removed.insert(shift.index());
     }
-    for (node, _) in exact {
+    for (node, ..) in exact.iter().copied() {
         super::edit::make_wrapping(graph, node);
     }
     replacements.apply(graph);
     // NB: The guards check the values they replace.
-    for (guard, value) in guard_nodes {
+    for (guard, value) in guard_nodes.iter().copied() {
         graph.nodes[guard.index()].inputs[0] = value;
     }
     super::edit::remove_nodes(graph, &removed);

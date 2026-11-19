@@ -872,6 +872,7 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, M> {
             kind,
             stack_slot_offset: &|slot| self.frame_pointer_offset(slot),
             saves: &saves,
+            work: self.work,
         })
     }
 

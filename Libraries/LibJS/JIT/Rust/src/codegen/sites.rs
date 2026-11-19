@@ -8,6 +8,7 @@
 //! state, from the register allocation.
 
 use ak::Column;
+use ak::Zone;
 
 use crate::CompileFailure;
 use crate::artifact::ArtifactWriter;
@@ -179,6 +180,8 @@ pub(crate) struct SiteSource<'a> {
     /// Registers that are in the saves area at the site and not where they were allocated, with the frame pointer
     /// offsets of their words there.
     pub saves: &'a [(Gpr, i32)],
+    /// Where the site keeps the lists it makes while it is written.
+    pub work: &'a Zone,
 }
 
 impl SiteSource<'_> {
@@ -187,7 +190,7 @@ impl SiteSource<'_> {
         let graph = self.graph;
         let frame_state = graph.node(self.node).frame_state.expect("the node has a frame state");
         let frame = scratch.frame_record(graph, frame_state, artifact)?;
-        let objects = graph.virtual_objects(frame_state);
+        let objects = graph.virtual_objects(frame_state, self.work);
         if !objects.is_empty() && !artifact.frame_has_objects(frame) {
             let objects = objects.iter().map(|object| {
                 let Op::VirtualObject { kind, allocation } = graph.node(*object).op else {
@@ -248,7 +251,7 @@ impl SiteSource<'_> {
             .node(self.node)
             .frame_state
             .expect("the node has a frame state");
-        let objects = self.graph.virtual_objects(frame_state);
+        let objects = self.graph.virtual_objects(frame_state, self.work);
         let mut locations = self.locations(&objects);
         let mut values = Vec::new();
         let mut next = Some(frame_state);

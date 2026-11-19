@@ -27,9 +27,10 @@
 
 use ak::ColumnFull;
 use ak::Zone;
+use ak::ZoneVec;
 
 use super::dominators::Dominators;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::ir::BinaryOp;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
@@ -46,10 +47,10 @@ const MAX_LOOP_SIZE: usize = 64;
 /// it, the bound V8 uses for this.
 const MAX_ITERATIONS_WITHOUT_CHECK: i64 = 5000;
 
-struct Loop {
+struct Loop<'w> {
     header: BlockId,
-    blocks: BitSet,
-    back_edge_sources: Vec<BlockId>,
+    blocks: ZoneBitSet<'w>,
+    back_edge_sources: ZoneVec<'w, BlockId>,
 }
 
 /// By how much `next` changes the phi `phi`, if that is a constant, and
@@ -212,10 +213,11 @@ fn is_small_and_innermost(graph: &Graph, loop_: &Loop) -> bool {
 /// it has a back edge of a loop that keeps its check, since only innermost
 /// ones lose theirs. This looks at the edges and not at natural loops: an
 /// on-stack replacement entry into a loop keeps the loop around it from being
-/// a natural loop.
-fn has_loop_around(graph: &Graph, loop_: &Loop) -> bool {
-    let mut visited = BitSet::new(graph.blocks.len());
-    let mut worklist: Vec<BlockId> = loop_.blocks.iter().map(BlockId::from_index).collect();
+/// a natural loop. `visited` and `worklist` are for its own use.
+fn has_loop_around(graph: &Graph, loop_: &Loop, visited: &mut ZoneBitSet, worklist: &mut ZoneVec<BlockId>) -> bool {
+    visited.clear();
+    worklist.clear();
+    worklist.extend(loop_.blocks.iter().map(BlockId::from_index));
     while let Some(block) = worklist.pop() {
         for successor in graph.successors(block) {
             if successor == loop_.header && !loop_.blocks.contains(block.index()) {
@@ -230,26 +232,28 @@ fn has_loop_around(graph: &Graph, loop_: &Loop) -> bool {
     false
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), ColumnFull> {
     if !graph.nodes.iter().any(|node| matches!(node.op, Op::CheckInterrupt)) {
         return Ok(());
     }
     dominators.compute(graph)?;
     let dominators = &*dominators;
-    let mut loops = Vec::new();
+    let mut loops = ZoneVec::new_in(work);
     for index in 0..graph.blocks.len() {
         let header = BlockId::from_index(index);
-        let back_edge_sources = dominators.back_edge_sources(graph, header);
+        let back_edge_sources = dominators.back_edge_sources(graph, header, work);
         if back_edge_sources.is_empty() {
             continue;
         }
-        let blocks = dominators.loop_blocks(graph, header, &back_edge_sources);
+        let blocks = dominators.loop_blocks(graph, header, &back_edge_sources, work);
         loops.push(Loop {
             header,
             blocks,
             back_edge_sources,
         });
     }
+    let mut visited = ZoneBitSet::new_in(graph.blocks.len(), work);
+    let mut worklist = ZoneVec::new_in(work);
     for loop_ in &loops {
         if !is_small_and_innermost(graph, loop_) {
             continue;
@@ -262,7 +266,7 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, _work: &Zone) -> Resu
             .max();
         let may_lose_check = match best_trip {
             Some(Trip::Short) => true,
-            Some(Trip::Counted) => has_loop_around(graph, loop_),
+            Some(Trip::Counted) => has_loop_around(graph, loop_, &mut visited, &mut worklist),
             None => false,
         };
         if !may_lose_check {

@@ -7,7 +7,6 @@
 //! Graph edits shared by the passes: replacing values, removing nodes, and
 //! cleaning up the control flow graph after control nodes lost successors.
 
-use crate::bitset::IndexSet;
 use crate::bitset::ZoneBitSet;
 use crate::code::Repr;
 use crate::ir::BlockId;
@@ -111,7 +110,7 @@ pub fn remove_refinements(graph: &mut Graph, work: &Zone) {
 
 /// Removes the nodes in `removed` from the blocks they are in. Nodes added
 /// after `removed` was made are kept.
-pub fn remove_nodes(graph: &mut Graph, removed: &impl IndexSet) {
+pub fn remove_nodes(graph: &mut Graph, removed: &ZoneBitSet) {
     let is_removed = |node: &NodeId| node.index() < removed.capacity() && removed.contains(node.index());
     for block in &mut graph.blocks {
         block.body.retain(|node| !is_removed(node));
@@ -254,7 +253,7 @@ pub fn clean_up_control_flow(graph: &mut Graph, work: &Zone) {
         work,
     );
     if order.len() != block_count {
-        graph.reorder_blocks(&order);
+        graph.reorder_blocks(&order, work);
     }
     remove_trivial_phis(graph, work);
 }
@@ -402,7 +401,7 @@ pub fn move_cold_blocks_last(graph: &mut Graph, work: &Zone) {
     let hot = blocks().filter(|block| !graph.block(*block).is_cold);
     let cold = blocks().filter(|block| graph.block(*block).is_cold);
     let order = ZoneVec::from_iter_in(hot.chain(cold), work);
-    graph.reorder_blocks(&order);
+    graph.reorder_blocks(&order, work);
 }
 
 /// Replaces phis whose inputs are all one value (or the phi itself) by

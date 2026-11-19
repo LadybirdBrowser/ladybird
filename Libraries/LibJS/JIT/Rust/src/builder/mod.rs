@@ -789,7 +789,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             }
         }
         assert_eq!(graph.blocks.len(), self.order.len(), "every created block was started");
-        graph.reorder_blocks(&self.order);
+        graph.reorder_blocks(&self.order, self.work);
         for block in &graph.blocks {
             assert!(block.control.is_some(), "every block was finished");
             for phi in &block.phis {
@@ -1225,7 +1225,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             //     every iteration, also where on-stack replacement entries reach the header over back edges.
             let reloaded = self.graph.block(header).body.contains(&header_value.node)
                 && matches!(self.graph.node(header_value.node).op, Op::LoadSlot { .. });
-            if !reloaded && !self.graph.has_value_of(current.node, header_value.node) {
+            if !reloaded && !self.graph.has_value_of(current.node, header_value.node, self.work) {
                 return Err(CompileFailure::InvalidBytecode {
                     pc: self.function.pc,
                     reason: "loop back edge changes a value the loop does not assign",
@@ -1616,7 +1616,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 //     never empty needs no check for it.
                 let layout = self.function.layout;
                 let arguments = layout.arguments_base()..layout.arguments_base() + layout.number_of_arguments;
-                let value = if self.graph.is_known_non_empty(value, arguments) {
+                let value = if self.graph.is_known_non_empty(value, arguments, self.work) {
                     value
                 } else {
                     self.emit(Op::EmptyToUndefined, &[value], Some(Repr::Tagged))
@@ -1988,7 +1988,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         //     `undefined`.
         let layout = self.function.layout;
         let arguments = layout.arguments_base()..layout.arguments_base() + layout.number_of_arguments;
-        let value = if self.graph.is_known_non_empty(value, arguments) {
+        let value = if self.graph.is_known_non_empty(value, arguments, self.work) {
             value
         } else {
             self.emit(Op::EmptyToUndefined, &[value], Some(Repr::Tagged))

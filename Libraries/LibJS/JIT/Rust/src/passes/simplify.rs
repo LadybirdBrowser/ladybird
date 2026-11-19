@@ -18,9 +18,8 @@
 use super::edit;
 use super::edit::Constants;
 use super::edit::Replacements;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::code::Repr;
-use crate::inline_vec::InlineVec;
 use crate::ir::BinaryOp;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
@@ -30,6 +29,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
 use ak::Zone;
+use ak::ZoneVec;
 
 /// The truthiness of a constant, where it does not depend on the heap.
 fn constant_truthiness(bits: u64, repr: Repr) -> Option<bool> {
@@ -116,10 +116,10 @@ fn is_int32_identity(op: BinaryOp, rhs: i32, wrapping: bool) -> bool {
 
 /// Double arithmetic of int32 values, which ToInt32 of its result can do
 /// as wrapping int32 arithmetic instead.
-enum Int32Term {
+enum Int32Term<'w> {
     Value(NodeId),
     Constant(i32),
-    Binary(BinaryOp, Box<Int32Term>, Box<Int32Term>),
+    Binary(BinaryOp, &'w Int32Term<'w>, &'w Int32Term<'w>),
 }
 
 /// How many levels of additions and subtractions `int32_term()` looks
@@ -130,8 +130,8 @@ const MAX_INT32_TERM_DEPTH: u32 = 8;
 
 /// `value`, a `Repr::Float64`, as double arithmetic of int32 values, if it
 /// is that: conversions of int32 values, int32 constants, and additions and
-/// subtractions of such.
-fn int32_term(graph: &Graph, value: NodeId, depth: u32) -> Option<Int32Term> {
+/// subtractions of such. The terms it is made of are in `work`.
+fn int32_term<'w>(graph: &Graph, value: NodeId, depth: u32, work: &'w Zone) -> Option<Int32Term<'w>> {
     let node = graph.node(graph.unrefined(value));
     match node.op {
         Op::Int32ToFloat64 => Some(Int32Term::Value(node.inputs[0])),
@@ -145,8 +145,8 @@ fn int32_term(graph: &Graph, value: NodeId, depth: u32) -> Option<Int32Term> {
             op: op @ (BinaryOp::Add | BinaryOp::Sub),
         } if depth < MAX_INT32_TERM_DEPTH => Some(Int32Term::Binary(
             op,
-            Box::new(int32_term(graph, node.inputs[0], depth + 1)?),
-            Box::new(int32_term(graph, node.inputs[1], depth + 1)?),
+            work.alloc(int32_term(graph, node.inputs[0], depth + 1, work)?),
+            work.alloc(int32_term(graph, node.inputs[1], depth + 1, work)?),
         )),
         _ => None,
     }
@@ -210,9 +210,9 @@ fn may_stand_for_result(graph: &Graph, value: NodeId) -> bool {
 /// doubles, boxings and frame states. The values of doubles are numbers,
 /// so the checks guard no conversion with effects, and they go before check
 /// elimination could rely on what they established.
-fn dissolvable_checks(graph: &Graph) -> BitSet {
-    let mut checks = BitSet::new(graph.nodes.len());
-    let mut blocked = BitSet::new(graph.nodes.len());
+fn dissolvable_checks<'w>(graph: &Graph, work: &'w Zone) -> ZoneBitSet<'w> {
+    let mut checks = ZoneBitSet::new_in(graph.nodes.len(), work);
+    let mut blocked = ZoneBitSet::new_in(graph.nodes.len(), work);
     for block in &graph.blocks {
         for node in block.nodes() {
             let data = graph.node(node);
@@ -332,9 +332,9 @@ pub fn run_after_check_elimination(graph: &mut Graph, work: &Zone) {
 
 fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
     let dissolvable = if dissolve_checks {
-        dissolvable_checks(graph)
+        dissolvable_checks(graph, work)
     } else {
-        BitSet::new(0)
+        ZoneBitSet::new_in(0, work)
     };
     let dissolved_double = |graph: &Graph, value: NodeId| {
         // NB: Nodes the pass adds are no checks.
@@ -344,7 +344,9 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
     };
     let mut constants = Constants::new(graph, work);
     let mut replacements = Replacements::new(graph, work);
-    let mut removed = BitSet::new(graph.nodes.len());
+    let mut removed = ZoneBitSet::new_in(graph.nodes.len(), work);
+    let mut inputs = ZoneVec::new_in(work);
+    let mut control_inputs = ZoneVec::new_in(work);
     let mut changed_control_flow = false;
     for block in 0..graph.blocks.len() {
         let block = BlockId::from_index(block);
@@ -375,12 +377,8 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
             ) {
                 continue;
             }
-            let inputs = graph
-                .node(node)
-                .inputs
-                .iter()
-                .map(|input| replacements.resolve(*input))
-                .collect::<InlineVec<NodeId, 4>>();
+            inputs.clear();
+            inputs.extend(graph.node(node).inputs.iter().map(|input| replacements.resolve(*input)));
             // NB: A number check of a boxed int32 value converts the value.
             let converted = (graph.node(node).op == Op::CheckNumber)
                 .then(|| graph.node(graph.unrefined(inputs[0])))
@@ -389,7 +387,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
             // NB: ToInt32 of double arithmetic of int32 values is wrapping
             //     int32 arithmetic.
             let wrapping = (graph.node(node).op == Op::Float64ToInt32)
-                .then(|| int32_term(graph, inputs[0], 0))
+                .then(|| int32_term(graph, inputs[0], 0, work))
                 .flatten()
                 .filter(|term| matches!(term, Int32Term::Binary(..)));
             // NB: An int32 comparison of a double checked to be an int32
@@ -422,7 +420,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
                 Op::UnboxInt32 => boxed(Op::BoxInt32, inputs[0]),
                 // NB: Inlined callees return values that representation
                 //     selection may have found to be boxes, never empty.
-                Op::EmptyToUndefined => graph.is_known_non_empty(inputs[0], 0..0).then_some(inputs[0]),
+                Op::EmptyToUndefined => graph.is_known_non_empty(inputs[0], 0..0, work).then_some(inputs[0]),
                 Op::CheckNonNegativeInt32 => int32_of(graph, inputs[0])
                     .filter(|value| *value >= 0)
                     .map(|_| inputs[0]),
@@ -519,14 +517,15 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
             let folded = folded.or_else(|| {
                 let (comparison, doubles) = double_compare?;
                 let pc = graph.node(node).pc;
-                let mut operands = Vec::new();
-                for (input, double) in inputs.iter().zip(doubles) {
-                    operands.push(double.unwrap_or_else(|| {
-                        let conversion = graph.add(Op::Int32ToFloat64, &[*input], Some(Repr::Float64), pc);
+                let mut operands = [inputs[0], inputs[1]];
+                for (operand, double) in operands.iter_mut().zip(doubles) {
+                    let input = *operand;
+                    *operand = double.unwrap_or_else(|| {
+                        let conversion = graph.add(Op::Int32ToFloat64, &[input], Some(Repr::Float64), pc);
                         graph.blocks[block.index()].body.insert(index - 1, conversion);
                         index += 1;
                         conversion
-                    }));
+                    });
                 }
                 let compare = graph.add(Op::Float64Compare { comparison }, &operands, Some(Repr::Bool), pc);
                 graph.blocks[block.index()].body.insert(index - 1, compare);
@@ -588,6 +587,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
             .inputs
             .first()
             .map(|input| replacements.resolve(*input));
+        control_inputs.clear();
         let new_op = match (graph.node(control).op.clone(), input) {
             (
                 Op::BranchTruthy { if_true, if_false, .. }
@@ -599,13 +599,8 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
                 Some(input),
             ) if graph.constant_value(input).is_some() => {
                 let repr = graph.node(input).repr.unwrap_or(Repr::Tagged);
-                constant_truthiness(graph.constant_value(input).expect("a constant"), repr).map(|truthy| {
-                    (
-                        Op::Jump {
-                            target: if truthy { if_true } else { if_false },
-                        },
-                        Vec::new(),
-                    )
+                constant_truthiness(graph.constant_value(input).expect("a constant"), repr).map(|truthy| Op::Jump {
+                    target: if truthy { if_true } else { if_false },
                 })
             }
             (
@@ -625,38 +620,32 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
                     .get(1)
                     .map(|input| replacements.resolve(*input)),
             )
-            .map(|holds| {
-                (
-                    Op::Jump {
-                        target: if holds { if_true } else { if_false },
-                    },
-                    Vec::new(),
-                )
+            .map(|holds| Op::Jump {
+                target: if holds { if_true } else { if_false },
             }),
-            (Op::BranchTruthy { if_true, if_false, .. }, Some(input)) if graph.node(input).op == Op::BoxBool => Some((
-                Op::Branch {
+            (Op::BranchTruthy { if_true, if_false, .. }, Some(input)) if graph.node(input).op == Op::BoxBool => {
+                control_inputs.push(graph.node(input).inputs[0]);
+                Some(Op::Branch {
                     condition: BranchCondition::Bool,
                     if_true,
                     if_false,
-                },
-                vec![graph.node(input).inputs[0]],
-            )),
+                })
+            }
             (Op::BranchTruthy { if_true, if_false, .. }, Some(input)) if graph.node(input).op == Op::BoxInt32 => {
-                Some((
-                    Op::Branch {
-                        condition: BranchCondition::Int32(Comparison::StrictlyInequals),
-                        if_true,
-                        if_false,
-                    },
-                    vec![graph.node(input).inputs[0], constants.get_typed(graph, 0, Repr::Int32)],
-                ))
+                control_inputs.push(graph.node(input).inputs[0]);
+                control_inputs.push(constants.get_typed(graph, 0, Repr::Int32));
+                Some(Op::Branch {
+                    condition: BranchCondition::Int32(Comparison::StrictlyInequals),
+                    if_true,
+                    if_false,
+                })
             }
             _ => None,
         };
-        if let Some((op, inputs)) = new_op {
+        if let Some(op) = new_op {
             let data = &mut graph.nodes[control.index()];
             data.op = op;
-            data.inputs.assign(&inputs);
+            data.inputs.assign(&control_inputs);
             changed_control_flow = true;
         }
     }
@@ -684,7 +673,7 @@ fn simplify(graph: &mut Graph, dissolve_checks: bool, work: &Zone) {
         }
     }
     let mut replacements = Replacements::new(graph, work);
-    let mut removed = BitSet::new(graph.nodes.len());
+    let mut removed = ZoneBitSet::new_in(graph.nodes.len(), work);
     for check in dissolvable.iter() {
         let check = NodeId::from_index(check);
         let double = checked_double(graph, check).expect("dissolvable checks check doubles");

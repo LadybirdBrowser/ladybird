@@ -14,18 +14,19 @@
 
 use ak::ColumnFull;
 use ak::Zone;
+use ak::ZoneVec;
 
 use super::dominators::Dominators;
 use super::edit;
 use super::edit::Replacements;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::fast_hash::FastHasher;
-use crate::fast_hash::HashMap;
 use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use crate::zone_map::ZoneMap;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::mem::discriminant;
@@ -72,25 +73,28 @@ fn run_with_hash(
     }
     dominators.compute(graph)?;
     let mut replacements = Replacements::new(graph, work);
-    let mut removed = BitSet::new(graph.nodes.len());
+    let mut removed = ZoneBitSet::new_in(graph.nodes.len(), work);
     // NB: Hash borrowed inputs instead of allocating keys. Candidates with
     //     the same hash form a chain through `previous`; equality is checked
     //     before reusing one, including when hashes collide.
-    let mut available: HashMap<u64, NodeId> = HashMap::default();
-    let mut previous = vec![None; graph.nodes.len()];
-    let mut added = Vec::new();
+    let mut available: ZoneMap<u64, NodeId> = ZoneMap::new_in(work);
+    let mut previous = ZoneVec::from_elem_in(None, graph.nodes.len(), work);
+    let mut added = ZoneVec::new_in(work);
 
     // Iterative preorder walk of the dominator tree; leaving a block drops
     // what its nodes made available.
-    let roots = (0..graph.blocks.len())
-        .map(BlockId::from_index)
-        .filter(|block| dominators.is_reachable(*block) && dominators.idom(*block).is_none())
-        .collect::<Vec<_>>();
     enum Step {
         Enter(BlockId),
         Leave(usize),
     }
-    let mut steps = roots.into_iter().rev().map(Step::Enter).collect::<Vec<_>>();
+    let mut steps = ZoneVec::from_iter_in(
+        (0..graph.blocks.len())
+            .rev()
+            .map(BlockId::from_index)
+            .filter(|block| dominators.is_reachable(*block) && dominators.idom(*block).is_none())
+            .map(Step::Enter),
+        work,
+    );
     while let Some(step) = steps.pop() {
         let block = match step {
             Step::Enter(block) => block,

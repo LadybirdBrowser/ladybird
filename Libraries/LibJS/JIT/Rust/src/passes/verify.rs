@@ -34,6 +34,9 @@
 //!   from the frame) or `Suspend` reads (see `verify_frame_writes()`), and
 //!   never one of `Graph::unwritten_slots`.
 
+use ak::Zone;
+use ak::ZoneVec;
+
 use super::dominators::Dominators;
 use crate::bytecode::FrameLayout;
 use crate::bytecode::Operand;
@@ -46,6 +49,23 @@ use crate::ir::Locations;
 use crate::ir::NodeId;
 use crate::ir::Op;
 
+/// The descriptions of the violated invariants, one on each line.
+#[derive(Default)]
+struct Errors(String);
+
+impl Errors {
+    fn push(&mut self, message: String) {
+        if !self.0.is_empty() {
+            self.0.push('\n');
+        }
+        self.0.push_str(&message);
+    }
+
+    fn finish(self) -> Result<(), String> {
+        if self.0.is_empty() { Ok(()) } else { Err(self.0) }
+    }
+}
+
 /// Where a node is: its block and its position there (phis come first, then
 /// the body, then the control node).
 #[derive(Debug, Clone, Copy)]
@@ -57,15 +77,12 @@ struct Place {
 /// Checks that `StoreSlot` writes frame memory only where something reads it: written constants, which live there,
 /// the arguments the compiled function's legacy `arguments` shows, and the slots a node that reads the frame reads,
 /// right before it. Merges and back edges never write frame memory: slots that differ get phis.
-pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), String> {
-    let mut errors = Vec::new();
+pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout, work: &Zone) -> Result<(), String> {
+    let mut errors = Errors::default();
+    let mut nodes = ZoneVec::new_in(work);
     for (index, block) in graph.blocks.iter().enumerate() {
-        let nodes = block
-            .body
-            .iter()
-            .chain(block.control.iter())
-            .copied()
-            .collect::<Vec<_>>();
+        nodes.assign(&block.body);
+        nodes.extend(block.control);
         for (position, node) in nodes.iter().enumerate() {
             let Op::StoreSlot { slot } = graph.node(*node).op else {
                 continue;
@@ -109,30 +126,26 @@ pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), St
             }
         }
     }
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("\n"))
-    }
+    errors.finish()
 }
 
 /// Returns a description of every violated invariant, or `Ok` if there is none.
 pub fn verify(graph: &Graph) -> Result<(), String> {
-    verify_with(graph, &mut Dominators::new())
+    verify_with(graph, &mut Dominators::new(), &Zone::new(1 << 30, c"JIT verifier"))
 }
 
-/// `verify()`, with `dominators` as the tables to compute the dominators of the graph in.
-pub fn verify_with(graph: &Graph, dominators: &mut Dominators) -> Result<(), String> {
-    let places = verify_blocks(graph)?;
+/// `verify()`, with `dominators` as the tables to compute the dominators of the graph in, and `work` for its lists.
+pub fn verify_with(graph: &Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), String> {
+    let places = verify_blocks(graph, work)?;
     verify_edges(graph)?;
-    verify_nodes(graph, &places, dominators)?;
-    verify_frame_states(graph)
+    verify_nodes(graph, &places, dominators, work)?;
+    verify_frame_states(graph, work)
 }
 
 /// Checks what each block holds, and returns where each node is.
-fn verify_blocks(graph: &Graph) -> Result<Vec<Option<Place>>, String> {
-    let mut errors: Vec<String> = Vec::new();
-    let mut places: Vec<Option<Place>> = vec![None; graph.nodes.len()];
+fn verify_blocks<'w>(graph: &Graph, work: &'w Zone) -> Result<ZoneVec<'w, Option<Place>>, String> {
+    let mut errors = Errors::default();
+    let mut places: ZoneVec<Option<Place>> = ZoneVec::from_elem_in(None, graph.nodes.len(), work);
     for (index, block) in graph.blocks.iter().enumerate() {
         let block_id = BlockId::from_index(index);
         let Some(control) = block.control else {
@@ -173,16 +186,12 @@ fn verify_blocks(graph: &Graph) -> Result<Vec<Option<Place>>, String> {
             }
         }
     }
-    if errors.is_empty() {
-        Ok(places)
-    } else {
-        Err(errors.join("\n"))
-    }
+    errors.finish().map(|()| places)
 }
 
 /// Checks the edges between blocks and their order.
 fn verify_edges(graph: &Graph) -> Result<(), String> {
-    let mut errors: Vec<String> = Vec::new();
+    let mut errors = Errors::default();
     for (index, block) in graph.blocks.iter().enumerate() {
         let block_id = BlockId::from_index(index);
         for successor in graph.successors(block_id) {
@@ -229,17 +238,18 @@ fn verify_edges(graph: &Graph) -> Result<(), String> {
             }
         }
     }
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("\n"))
-    }
+    errors.finish()
 }
 
 /// Checks that values are defined before their uses, and the rules of each
 /// kind of node.
-fn verify_nodes(graph: &Graph, places: &[Option<Place>], dominators: &mut Dominators) -> Result<(), String> {
-    let mut errors: Vec<String> = Vec::new();
+fn verify_nodes(
+    graph: &Graph,
+    places: &[Option<Place>],
+    dominators: &mut Dominators,
+    work: &Zone,
+) -> Result<(), String> {
+    let mut errors = Errors::default();
     if dominators.compute(graph).is_err() {
         return Err("the graph has more blocks than the tables of the dominators hold".to_string());
     }
@@ -317,7 +327,7 @@ fn verify_nodes(graph: &Graph, places: &[Option<Place>], dominators: &mut Domina
             // NB: Lazy exits of calls find their values after the call, but
             //     those are defined before it all the same.
             if let Some(frame_state) = node.frame_state {
-                for (slot, value) in graph.frame_state_values(frame_state) {
+                for (slot, value) in graph.frame_state_values(frame_state, work) {
                     if graph.node(value).repr.is_none() && !matches!(graph.node(value).op, Op::VirtualObject { .. }) {
                         errors.push(format!(
                             "the frame state of v{} has v{} for slot {slot}, which has no value",
@@ -431,12 +441,12 @@ fn verify_nodes(graph: &Graph, places: &[Option<Place>], dominators: &mut Domina
             // until anything else runs.
             if let Op::SlowPathOutput { .. } = node.op {
                 let call = node.inputs[0];
-                let before = graph.block_nodes(block_id).take(position).collect::<Vec<_>>();
+                let before = || graph.block_nodes(block_id).take(position);
                 let follows_call = matches!(graph.node(call).op, Op::CallSlowPath { .. })
-                    && before.iter().position(|other| *other == call).is_some_and(|start| {
-                        before[start + 1..]
-                            .iter()
-                            .all(|other| matches!(graph.node(*other).op, Op::SlowPathOutput { .. }))
+                    && before().position(|other| other == call).is_some_and(|start| {
+                        before()
+                            .skip(start + 1)
+                            .all(|other| matches!(graph.node(other).op, Op::SlowPathOutput { .. }))
                     });
                 if !follows_call {
                     errors.push(format!(
@@ -447,33 +457,23 @@ fn verify_nodes(graph: &Graph, places: &[Option<Place>], dominators: &mut Domina
             }
         }
     }
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("\n"))
-    }
+    errors.finish()
 }
 
 /// Checks that frame states list each slot once.
-fn verify_frame_states(graph: &Graph) -> Result<(), String> {
-    let mut errors: Vec<String> = Vec::new();
+fn verify_frame_states(graph: &Graph, work: &Zone) -> Result<(), String> {
+    let mut errors = Errors::default();
+    let mut slots = ZoneVec::new_in(work);
     for (index, frame_state) in graph.frame_states.iter().enumerate() {
-        let mut slots: Vec<u32> = frame_state
-            .values
-            .iter()
-            .map(|(slot, _)| *slot)
-            .chain(frame_state.in_frame.iter().copied())
-            .collect();
+        slots.clear();
+        slots.extend(frame_state.values.iter().map(|(slot, _)| *slot));
+        slots.extend_from_slice(&frame_state.in_frame);
         slots.sort_unstable();
         if slots.windows(2).any(|pair| pair[0] == pair[1]) {
             errors.push(format!("fs{index} lists a slot more than once"));
         }
     }
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("\n"))
-    }
+    errors.finish()
 }
 
 fn check_input_reprs(graph: &Graph, node_id: NodeId) -> Option<String> {

@@ -34,6 +34,9 @@
 //! run, so after them it may be. Before nodes that only need the frame
 //! published, where it may not be, it puts a `PublishFrame`.
 
+use ak::Zone;
+use ak::ZoneVec;
+
 use crate::bytecode::FrameLayout;
 use crate::bytecode::RESERVED_REGISTER_COUNT;
 use crate::ir::BlockId;
@@ -147,7 +150,7 @@ fn need(node: &Node, layout: &FrameLayout) -> Need {
     }
 }
 
-pub fn run(graph: &mut Graph, layout: &FrameLayout) {
+pub fn run(graph: &mut Graph, layout: &FrameLayout, work: &Zone) {
     // Only functions entered through `Enter` initialize their frame.
     let Some((entry_block, entry_node)) = graph.blocks.iter().enumerate().find_map(|(index, block)| {
         block
@@ -162,14 +165,14 @@ pub fn run(graph: &mut Graph, layout: &FrameLayout) {
     let entry_pc = graph.node(entry_node).pc;
 
     let block_count = graph.blocks.len();
-    let osr_blocks = graph.osr_entries.iter().map(|(_, block)| *block).collect::<Vec<_>>();
-    let mut end_states: Vec<Option<State>> = vec![None; block_count];
+    let osr_blocks = ZoneVec::from_iter_in(graph.osr_entries.iter().map(|(_, block)| *block), work);
+    let mut end_states: ZoneVec<Option<State>> = ZoneVec::from_elem_in(None, block_count, work);
     // Where to put which initialization, as (block, index in its body).
-    let mut insertions: Vec<(usize, usize, Op)>;
-    let mut slow_paths: Vec<NodeId>;
+    let mut insertions: ZoneVec<(usize, usize, Op)> = ZoneVec::new_in(work);
+    let mut slow_paths: ZoneVec<NodeId> = ZoneVec::new_in(work);
     loop {
-        insertions = Vec::new();
-        slow_paths = Vec::new();
+        insertions.clear();
+        slow_paths.clear();
         let mut changed = false;
         for block in 0..block_count {
             let block_id = BlockId::from_index(block);
@@ -231,8 +234,9 @@ pub fn run(graph: &mut Graph, layout: &FrameLayout) {
         }
     }
 
-    // Insert from the back so earlier indices stay valid.
-    insertions.sort_by_key(|(block, index, _)| (*block, *index));
+    // Insert from the back so earlier indices stay valid. A place gets one
+    // initialization at most.
+    insertions.sort_unstable_by_key(|(block, index, _)| (*block, *index));
     for (block, index, op) in insertions.into_iter().rev() {
         let node = graph.add(op, &[], None, entry_pc);
         graph.blocks[block].body.insert(index, node);

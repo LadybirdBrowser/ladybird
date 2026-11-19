@@ -28,14 +28,15 @@
 //! concatenation with other uses than keys is marked all the same: its
 //! string has the same characters either way.
 
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use ak::Zone;
+use ak::ZoneVec;
 
-pub fn run(graph: &mut Graph, _work: &Zone) {
-    let mut pending = Vec::new();
+pub fn run(graph: &mut Graph, work: &Zone) {
+    let mut pending = ZoneVec::new_in(work);
     for block in &graph.blocks {
         for node in block.nodes() {
             let node = graph.node(node);
@@ -47,14 +48,14 @@ pub fn run(graph: &mut Graph, _work: &Zone) {
             }
         }
     }
-    let mut loop_phis = BitSet::new(graph.nodes.len());
+    let mut loop_phis = ZoneBitSet::new_in(graph.nodes.len(), work);
     for block in graph.blocks.iter().filter(|block| block.is_loop_header) {
         for phi in &block.phis {
             loop_phis.insert(phi.index());
         }
     }
-    let mut seen = BitSet::new(graph.nodes.len());
-    let mut concatenations: Vec<NodeId> = Vec::new();
+    let mut seen = ZoneBitSet::new_in(graph.nodes.len(), work);
+    let mut concatenations: ZoneVec<NodeId> = ZoneVec::new_in(work);
     while let Some(value) = pending.pop() {
         let value = graph.unrefined(value);
         if seen.contains(value.index()) {

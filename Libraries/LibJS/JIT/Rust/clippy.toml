@@ -52,6 +52,10 @@ disallowed-methods = [
     { path = "f64::asinh", reason = "the C library of each platform computes this differently: use ak::math::asinh" },
     { path = "f64::acosh", reason = "the C library of each platform computes this differently: use ak::math::acosh" },
     { path = "f64::atanh", reason = "the C library of each platform computes this differently: use ak::math::atanh" },
+    { path = "slice::sort", reason = "a stable sort makes a block in the heap: use sort_unstable, with a key that has no ties" },
+    { path = "slice::sort_by", reason = "a stable sort makes a block in the heap: use sort_unstable_by, with a key that has no ties" },
+    { path = "slice::sort_by_key", reason = "a stable sort makes a block in the heap: use sort_unstable_by_key, with a key that has no ties" },
+    { path = "slice::sort_by_cached_key", reason = "this sort makes a block in the heap: use sort_unstable_by_key, with a key that has no ties" },
 ]
 
 # The compiler keeps its data in zones (see ak::Zone), so that all the memory of a compile can go back to the system.
@@ -68,8 +72,6 @@ disallowed-types = [
     { path = "std::boxed::Box", reason = "the compiler makes no block in the heap: use Zone::alloc" },
     { path = "std::rc::Rc", reason = "the compiler makes no block in the heap: share a reference into a zone" },
     { path = "std::sync::Arc", reason = "the compiler makes no block in the heap: share a reference into a zone" },
-    { path = "libjs_jit::bitset::BitSet", reason = "the compiler makes no block in the heap: use crate::bitset::ZoneBitSet" },
-    { path = "libjs_jit::sparse_bitset::SparseBitSet", reason = "the compiler makes no block in the heap: use crate::bitset::ZoneBitSet" },
     { path = "libjs_jit::inline_vec::InlineVec", reason = "the compiler makes no block in the heap: use ak::ZoneVec" },
     { path = "libjs_jit::fast_hash::HashMap", reason = "the compiler makes no block in the heap: use crate::zone_map::ZoneMap" },
     { path = "libjs_jit::fast_hash::HashSet", reason = "the compiler makes no block in the heap: use crate::zone_map::ZoneSet" },

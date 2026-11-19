@@ -30,7 +30,7 @@
 //! shifts unused.
 
 use super::edit::Constants;
-use crate::bitset::BitSet;
+use crate::bitset::ZoneBitSet;
 use crate::code::Repr;
 use crate::ir::BinaryOp;
 use crate::ir::ElementsKind;
@@ -40,6 +40,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::TypedArrayElement;
 use ak::Zone;
+use ak::ZoneVec;
 
 /// The operations that wrap where their users only read the low 32 bits.
 fn can_wrap(op: &Op) -> bool {
@@ -53,7 +54,7 @@ fn can_wrap(op: &Op) -> bool {
 
 /// Whether input `index` of `user` only reads its low 32 bits, given the
 /// nodes that are to wrap.
-fn reads_low_bits(graph: &Graph, user: NodeId, index: usize, wrapping: &BitSet) -> bool {
+fn reads_low_bits(graph: &Graph, user: NodeId, index: usize, wrapping: &ZoneBitSet) -> bool {
     match graph.node(user).op {
         Op::Int32Binary { op } | Op::Int32WrappingBinary { op } if op.is_bitwise() => true,
         Op::Int32Binary {
@@ -171,11 +172,25 @@ fn compare_uint32_bits(graph: &mut Graph, work: &Zone) {
 pub fn run(graph: &mut Graph, work: &Zone) {
     compare_uint32_bits(graph, work);
     let count = graph.nodes.len();
-    let mut wrapping = BitSet::new(count);
-    let mut users: Vec<Vec<(NodeId, usize)>> = vec![Vec::new(); count];
+    let mut wrapping = ZoneBitSet::new_in(count, work);
+    // The users of each node, with the index of the input that it is: those of node `n` are
+    // `user_list[user_starts[n]..user_starts[n + 1]]`.
+    let mut user_starts = ZoneVec::from_elem_in(0, count + 1, work);
+    for block in &graph.blocks {
+        for node in block.nodes() {
+            for input in &graph.node(node).inputs {
+                user_starts[input.index() + 1] += 1;
+            }
+        }
+    }
+    for index in 1..user_starts.len() {
+        user_starts[index] += user_starts[index - 1];
+    }
+    let mut user_list = ZoneVec::from_elem_in((NodeId(0), 0), user_starts[count], work);
+    let mut user_ends = ZoneVec::from_slice_in(&user_starts[..count], work);
     // The node each frame state belongs to alone, if any: those of nodes
     // that wrap go away with their exits.
-    let mut owners = vec![Owner::None; graph.frame_states.len()];
+    let mut owners = ZoneVec::from_elem_in(Owner::None, graph.frame_states.len(), work);
     for block in &graph.blocks {
         if let Some(frame_state) = block.start_frame_state {
             share(&mut owners, frame_state, Owner::Shared);
@@ -189,13 +204,15 @@ pub fn run(graph: &mut Graph, work: &Zone) {
                 share(&mut owners, frame_state, Owner::Node(node));
             }
             for (index, input) in data.inputs.iter().enumerate() {
-                users[input.index()].push((node, index));
+                user_list[user_ends[input.index()]] = (node, index);
+                user_ends[input.index()] += 1;
             }
         }
     }
     if wrapping.is_empty() {
         return;
     }
+    let users = |node: usize| &user_list[user_starts[node]..user_starts[node + 1]];
     for frame_state in &graph.frame_states {
         if let Some(parent) = frame_state.parent {
             share(&mut owners, parent, Owner::Shared);
@@ -205,8 +222,10 @@ pub fn run(graph: &mut Graph, work: &Zone) {
     // Start from every candidate wrapping, and drop those with users that
     // need more than the low 32 bits until none is left. Values of frame
     // states that stay need all their bits too.
+    let mut in_frame_state = ZoneBitSet::new_in(count, work);
+    let mut candidates = ZoneVec::new_in(work);
     loop {
-        let mut in_frame_state = BitSet::new(count);
+        in_frame_state.clear();
         for (frame_state, owner) in graph.frame_states.iter().zip(&owners) {
             if matches!(owner, Owner::Node(node) if wrapping.contains(node.index())) {
                 continue;
@@ -219,13 +238,15 @@ pub fn run(graph: &mut Graph, work: &Zone) {
         //     builder boxes every result it writes to a slot.
         let is_unused_boxing = |node: NodeId| {
             graph.node(node).op == Op::BoxInt32
-                && users[node.index()].is_empty()
+                && users(node.index()).is_empty()
                 && !in_frame_state.contains(node.index())
         };
         let mut changed = false;
-        for node in wrapping.iter().collect::<Vec<_>>() {
+        candidates.clear();
+        candidates.extend(wrapping.iter());
+        for node in candidates.iter().copied() {
             let keeps_checking = in_frame_state.contains(node)
-                || users[node]
+                || users(node)
                     .iter()
                     .any(|(user, index)| !is_unused_boxing(*user) && !reads_low_bits(graph, *user, *index, &wrapping));
             if keeps_checking {

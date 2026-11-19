@@ -77,6 +77,7 @@ use crate::tables::release;
 use crate::tables::reset;
 use ak::Column;
 use ak::ColumnFull;
+use ak::Zone;
 use coalescing::Coalescing;
 use liveness::ValueLiveness;
 use liveness::is_allocated_value;
@@ -501,6 +502,7 @@ pub fn allocate(
     registers: &RegisterSet,
     regalloc: &mut Regalloc,
     dominators: &mut Dominators,
+    work: &Zone,
 ) -> Result<(), CompileFailure> {
     assert!(registers.allocatable_gprs.0 >> FPR_BASE == 0);
     assert!(!registers.allocatable_gprs.contains(registers.scratch_gpr));
@@ -515,8 +517,8 @@ pub fn allocate(
         class_slots,
         parallel_moves,
     } = regalloc;
-    liveness.compute(graph)?;
-    coalescing.compute(graph, liveness)?;
+    liveness.compute(graph, work)?;
+    coalescing.compute(graph, liveness, work)?;
     loops.compute(graph, liveness, dominators)?;
     allocation.begin(graph.nodes.len(), graph.blocks.len())?;
     reset(value_registers, graph.nodes.len(), None)?;
@@ -537,6 +539,7 @@ pub fn allocate(
         class_slots,
         parallel_moves,
         loops,
+        work,
     };
     allocator.run()?;
     // NB: The code generator reads which values are live into a block.
@@ -561,6 +564,7 @@ struct Allocator<'a> {
     class_slots: &'a mut Column<Option<u32>>,
     parallel_moves: &'a mut Column<Move>,
     loops: &'a Loops,
+    work: &'a Zone,
 }
 
 impl Allocator<'_> {
@@ -1012,7 +1016,7 @@ impl Allocator<'_> {
         // their values after the clobber.
         let exit_values_start = self.allocation.exit_values.len();
         if let Some(frame_state) = node.frame_state {
-            for (slot, value) in self.graph.frame_state_values(frame_state) {
+            for (slot, value) in self.graph.frame_state_values(frame_state, self.work) {
                 let location = self.current_location(value);
                 self.allocation.exit_values.try_push((slot, location))?;
             }
