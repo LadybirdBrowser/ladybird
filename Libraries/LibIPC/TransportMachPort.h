@@ -14,6 +14,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/ConditionVariable.h>
+#include <AK/IterationDecision.h>
 #include <AK/Mutex.h>
 #include <AK/Optional.h>
 #include <AK/Queue.h>
@@ -124,7 +125,8 @@ private:
         WouldBlock,
     };
     SendOutcome send_mach_message(PendingMessage&);
-    void process_received_message(u8* buffer);
+    // Breaks for a message the peer had no business sending, after which the transport takes nothing more from it.
+    IterationDecision process_received_message(u8* buffer);
 
     Core::MachPort m_receive_port;
     Core::MachPort m_send_port;
