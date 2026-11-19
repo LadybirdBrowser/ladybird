@@ -228,7 +228,10 @@ fn process_start_tag(
     }
 
     if *tag_name == tag_name!("svg") || *tag_name == tag_name!("math") {
-        *foreign_depth = foreign_depth.saturating_add(1);
+        // A self-closing svg or math element leaves no element open.
+        if !token.is_self_closing() {
+            *foreign_depth = foreign_depth.saturating_add(1);
+        }
         return true;
     }
 
@@ -882,6 +885,13 @@ mod tests {
         let urls = collect_urls(r#"<plaintext><img src="./trap.png">"#, true);
 
         assert_eq!(urls, Vec::<String>::new());
+    }
+
+    #[test]
+    fn self_closing_foreign_root_leaves_nothing_open() {
+        let urls = collect_urls(r#"<svg/><math/><img src="./after.png">"#, true);
+
+        assert_eq!(urls, vec!["./after.png".to_string()]);
     }
 
     #[test]
