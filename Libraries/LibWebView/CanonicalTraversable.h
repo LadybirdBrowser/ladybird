@@ -78,7 +78,7 @@ public:
     void run_history_operation_at_queue_position(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters, RefPtr<WebContentPage> requesting_page, u64 sequence_number, RefPtr<CanonicalSessionHistoryEntry> target_entry, NonnullRefPtr<Core::Promise<Empty>>);
     u64 next_sequence_number() { return m_next_sequence_number++; }
     void abandon_history_operations();
-    bool has_unactivated_traversal_load() const;
+    bool has_unactivated_load() const;
 
     RefPtr<WebContentPage> page_hosting(CanonicalNavigable const&) const;
 

@@ -170,7 +170,7 @@ WebIDL::ExceptionOr<void> Navigation::update_current_entry(NavigationUpdateCurre
         return WebIDL::InvalidStateError::create("Cannot update current NavigationHistoryEntry when there is no current entry"_utf16);
 
     // 3. Let serializedState be StructuredSerializeForStorage(options["state"]), rethrowing any exceptions.
-    auto serialized_state = TRY(structured_serialize_for_storage(window().principal_realm().vm(), options.state));
+    auto serialized_state = TRY(structured_serialize_session_history_state(window().principal_realm().vm(), options.state));
 
     // 4. Set current's session history entry's navigation API state to serializedState.
     current->session_history_entry().set_navigation_api_state(serialized_state);
@@ -272,7 +272,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(Utf16String url, Bind
     //    error result for that exception.
     // NOTE: It is important to perform this step early, since serialization can invoke web developer code, which in
     //       turn might change various things we check in later steps.
-    auto serialized_state_or_error = structured_serialize_for_storage(realm.vm(), state);
+    auto serialized_state_or_error = structured_serialize_session_history_state(realm.vm(), state);
     if (serialized_state_or_error.is_error()) {
         return early_error_result(serialized_state_or_error.release_error());
     }
@@ -334,7 +334,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::reload_internal(NavigationRelo
     // NOTE: It is important to perform this step early, since serialization can invoke web developer code, which in
     //       turn might change various things we check in later steps.
     if (options.state.has_value()) {
-        auto serialized_state_or_error = structured_serialize_for_storage(realm.vm(), *options.state);
+        auto serialized_state_or_error = structured_serialize_session_history_state(realm.vm(), *options.state);
         if (serialized_state_or_error.is_error())
             return early_error_result(serialized_state_or_error.release_error());
         serialized_state = serialized_state_or_error.release_value();

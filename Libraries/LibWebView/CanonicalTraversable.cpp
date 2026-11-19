@@ -1058,8 +1058,8 @@ struct HistoryOperation {
     Vector<NonnullRefPtr<WebContentPage>> completion_endpoints;
     u64 sequence_number;
     Optional<Web::HTML::CrossProcessId> beforeunload_check_id;
-    // The view is showing a load for the top-level document this traversal has yet to activate.
-    bool has_unactivated_traversal_load { false };
+    // The view is showing a load for the top-level document this operation has yet to activate.
+    bool has_unactivated_load { false };
 
     ChangingNavigable* pending_changing_job(Web::HTML::CrossProcessId navigable_id) const
     {
@@ -1266,7 +1266,7 @@ void CanonicalTraversable::recover_from_web_content_process_crash()
     // The step a traversal the crash interrupted was applying is applied again, otherwise the current step is.
     auto target_step = m_session_history.current_step();
     if (auto* traversal = ongoing_browser_history_traversal())
-        target_step = traversal->browser_traversal().target_step;
+        target_step = m_session_history.get_the_used_step(traversal->browser_traversal().target_step);
     abandon_history_operations();
 
     // The tab's document is reloaded, the crashed process having destroyed the one its entry holds. That reload never
@@ -1568,10 +1568,9 @@ bool CanonicalTraversable::run_changing_navigable_history_step_job(ApplyHistoryS
     auto is_traversal_load = !is_reload && populates_target_entry_document && !operation.parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
     if (auto view = this->view(); view.has_value() && navigable.is_top_level_traversable() && (is_reload || is_traversal_load)) {
         // NB: A traversal's load returns to a page already visited. A reload's visit transition is the reload's own.
-        if (is_traversal_load) {
+        if (is_traversal_load)
             view->set_next_history_visit_transition(HistoryVisitTransition::Restore);
-            operation.has_unactivated_traversal_load = true;
-        }
+        operation.has_unactivated_load = true;
 
         // NB: A load a history operation starts, rather than a navigation, is tracked as the active document's.
         clear_active_document_load();
@@ -1734,7 +1733,7 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
         reload->value.activated = true;
     }
     if (navigable.is_top_level_traversable())
-        operation.has_unactivated_traversal_load = false;
+        operation.has_unactivated_load = false;
     auto const* replaced_document = &navigable.active_document();
     // NB: The page that activated the document hosts it: the job's, which hosts the document the job populated, or else
     //     the navigable's.
@@ -2747,23 +2746,22 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
     }
 
     // The requesting page learns the result before the operation completes.
-    if (result.has_value()) {
-        if (operation->requesting_page)
-            operation->requesting_page->async_history_step_applied(operation_id, *result);
-        if (auto const* reload = operation->parameters.get_pointer<Web::ReloadHistoryOperationParameters>(); reload && result != Web::HTML::HistoryStepResult::Applied)
-            did_not_apply_reload(reload->navigable_id, reload_navigation_id(operation_id));
+    if (result.has_value() && operation->requesting_page)
+        operation->requesting_page->async_history_step_applied(operation_id, *result);
+
+    // A load the operation began ends with it if the document it was for was never activated.
+    auto const* reload = operation->parameters.get_pointer<Web::ReloadHistoryOperationParameters>();
+    if (reload && ((result.has_value() && *result != Web::HTML::HistoryStepResult::Applied) || operation->has_unactivated_load)) {
+        did_not_apply_reload(reload->navigable_id, reload_navigation_id(operation_id));
+    } else if (operation->has_unactivated_load) {
+        if (auto view = this->view(); view.has_value())
+            view->did_not_activate_history_traversal_load();
     }
 
     // NB: A skipped or stale reload job can finish with "applied" without activating a document.
-    if (auto reload = m_reload_navigation_ids.take(operation_id); reload.has_value() && !reload->activated) {
+    if (auto reload_navigation = m_reload_navigation_ids.take(operation_id); reload_navigation.has_value() && !reload_navigation->activated) {
         if (auto* bidi = WebDriverBiDi::the())
-            bidi->reload_did_not_apply(*this, reload->id);
-    }
-
-    // A load the traversal began ends with it if the document it was for was never activated.
-    if (operation->has_unactivated_traversal_load) {
-        if (auto view = this->view(); view.has_value())
-            view->did_not_activate_history_traversal_load();
+            bidi->reload_did_not_apply(*this, reload_navigation->id);
     }
 
     auto committed_step = operation->algorithm ? operation->algorithm->committed_step() : Optional<i32> {};
@@ -2809,7 +2807,7 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
 void CanonicalTraversable::abandon_browser_traversal_load()
 {
     auto* traversal = ongoing_browser_history_traversal();
-    if (!traversal || !traversal->has_unactivated_traversal_load)
+    if (!traversal || !traversal->has_unactivated_load)
         return;
 
     // NB: Once the job has stopped populating, the displayed document may already be unloading.
@@ -2822,9 +2820,9 @@ void CanonicalTraversable::abandon_browser_traversal_load()
     finish_history_operation(traversal->operation_id);
 }
 
-bool CanonicalTraversable::has_unactivated_traversal_load() const
+bool CanonicalTraversable::has_unactivated_load() const
 {
-    return any_of(m_history_operations, [](auto const& entry) { return entry.value->has_unactivated_traversal_load; });
+    return any_of(m_history_operations, [](auto const& entry) { return entry.value->has_unactivated_load; });
 }
 
 void CanonicalTraversable::abandon_history_operations()

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        function go(delta) {
+            const popstate = new Promise(resolve => addEventListener("popstate", resolve, { once: true }));
+            history.go(delta);
+            return popstate;
+        }
+
+        const startLength = history.length;
+        println(`entries before this document's: ${startLength - 1}`);
+        for (let i = 1; i <= 60; ++i)
+            history.pushState(i, "", `#${i}`);
+
+        // NB: Going back applies the history steps of every push before it.
+        await go(-1);
+        println(`history.length: ${history.length}`);
+        println(`history.state after going back: ${history.state}`);
+
+        await go(-(history.length - 2));
+        println(`oldest entry: ${location.hash}, history.state ${history.state}`);
+        done();
+    });
+</script>

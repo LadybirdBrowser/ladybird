@@ -72,7 +72,7 @@ public:
     [[nodiscard]] bool has_only_top_level_used_steps() const;
     [[nodiscard]] Optional<TraversalTarget> traversal_target_for_step(i32 step) const;
     [[nodiscard]] Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> get_session_history_entries(CanonicalNavigable const&) const;
-    [[nodiscard]] Optional<i32> get_the_used_step(i32 step) const;
+    [[nodiscard]] i32 get_the_used_step(i32 step) const;
     [[nodiscard]] CanonicalSessionHistoryEntry* get_the_target_history_entry(CanonicalNavigable const&, i32 step) const;
     [[nodiscard]] Web::HTML::HistoryObjectLengthAndIndex get_the_history_object_length_and_index(i32 step) const;
     [[nodiscard]] Optional<Vector<Web::HTML::SessionHistoryEntryDescriptor>> get_session_history_entries_for_the_navigation_api(CanonicalNavigable const&, i32 target_step) const;
