@@ -96,7 +96,7 @@ endif()
 
 if (LINUX AND NOT ANDROID)
     target_sources(ladybird_impl PRIVATE DefaultBrowserLinux.cpp ExternalURLActivationToken.cpp ExternalURLHandler.cpp X11Window.cpp X11Window.h)
-    target_link_libraries(ladybird_impl PRIVATE LibThreading PkgConfig::GIO PkgConfig::XCB_ICCCM Qt::GuiPrivate)
+    target_link_libraries(ladybird_impl PRIVATE LibThreading PkgConfig::GIO PkgConfig::XCB_ICCCM)
     if (WAYLAND_CLIENT_FOUND)
         target_sources(ladybird_impl PRIVATE WaylandWindow.cpp WaylandWindow.h)
         target_link_libraries(ladybird_impl PRIVATE PkgConfig::WAYLAND_CLIENT)
