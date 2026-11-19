@@ -134,6 +134,7 @@ struct Hub::UIInfo {
     bool scrolls_elastically;
     bool scrollbar_track_press_jumps;
     bool prefers_reduced_motion;
+    bool prefers_more_contrast;
     Vector<String> preferred_languages;
     Optional<Gfx::GpuDeviceIdentity> presentation_gpu_device;
     Vector<u64> presentation_drm_format_modifiers;

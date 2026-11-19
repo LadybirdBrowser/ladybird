@@ -46,6 +46,8 @@ signals:
     void changed();
     // The system started or stopped asking for less motion.
     void reduced_motion_changed();
+    // The system started or stopped asking for more contrast.
+    void contrast_changed();
     // Our windows switched between the light and dark appearance, whether the system or the interface theme switched
     // them.
     void interface_appearance_changed();

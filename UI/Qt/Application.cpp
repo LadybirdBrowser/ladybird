@@ -725,6 +725,9 @@ ErrorOr<NonnullOwnPtr<Application>> Application::create(Main::Arguments const& a
     QObject::connect(&SystemAppearance::the(), &SystemAppearance::reduced_motion_changed, [] {
         hub().platform_motion_preference_changed();
     });
+    QObject::connect(&SystemAppearance::the(), &SystemAppearance::contrast_changed, [] {
+        hub().platform_contrast_preference_changed();
+    });
 #endif
     return application;
 }
@@ -774,6 +777,7 @@ Hub::UIInfo Application::current_ui_info() const
     info.scrolls_elastically = platform_scrolls_elastically();
     info.scrollbar_track_press_jumps = platform_scrollbar_track_press_jumps();
     info.prefers_reduced_motion = platform_prefers_reduced_motion();
+    info.prefers_more_contrast = platform_prefers_more_contrast();
     info.preferred_languages = platform_preferred_languages();
     info.presentation_gpu_device = platform_presentation_gpu_device();
     info.presentation_drm_format_modifiers = platform_presentation_drm_format_modifiers();
@@ -1004,6 +1008,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     QObject::connect(&SystemAppearance::the(), &SystemAppearance::changed, send_ui_info);
     QObject::connect(&SystemAppearance::the(), &SystemAppearance::interface_appearance_changed, send_ui_info);
     QObject::connect(&SystemAppearance::the(), &SystemAppearance::reduced_motion_changed, send_ui_info);
+    QObject::connect(&SystemAppearance::the(), &SystemAppearance::contrast_changed, send_ui_info);
     // The Hub may have started with what we told it before a change that came in the meantime.
     send_ui_info();
     s_browser_has_started = true;
@@ -1324,6 +1329,11 @@ bool Application::platform_scrollbar_track_press_jumps() const
 bool Application::platform_prefers_reduced_motion() const
 {
     return SystemAppearance::prefers_reduced_motion();
+}
+
+bool Application::platform_prefers_more_contrast() const
+{
+    return Theme::has_increased_contrast();
 }
 
 Vector<String> Application::platform_preferred_languages() const
