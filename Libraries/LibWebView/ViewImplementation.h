@@ -247,7 +247,7 @@ public:
     void set_current_tab_of_window(bool current_tab_of_window);
     // When the user last stopped seeing the view, if they don't see it now.
     Optional<MonotonicTime> hidden_since() const { return m_hidden_since; }
-    void request_discard();
+    void request_discard(DiscardReason);
     void did_save_session_history_entry_states(Badge<WebContentPage>, WebContentPage&);
 
     // Whether the view shows its frames from CPU memory for now, so that the Compositor shares them there rather than
@@ -312,7 +312,7 @@ public:
 
     // The UI keeps the session history of a discarded tab. The Hub keeps what else the tab should have once it is loaded
     // again, until the UI restores or forgets it.
-    u64 keep_state_for_discarding();
+    Optional<u64> keep_state_for_discarding();
     void restore_state_of_discarded_tab(u64 discarded_tab_state_id);
     static void forget_state_of_discarded_tab(u64 discarded_tab_state_id);
     void update_state_of_discarded_tab();
@@ -1336,6 +1336,7 @@ protected:
     bool m_current_tab_of_window { false };
     // The UI was asked to discard the view, so it isn't asked again until the user has seen it.
     bool m_discard_requested { false };
+    DiscardReason m_discard_reason { DiscardReason::Inactivity };
     Optional<u64> m_discarded_tab_state_id;
     // NB: These are kept alive, so that no other page can take the place of one that closes before it answers.
     Vector<NonnullRefPtr<WebContentPage>> m_pages_saving_session_history_entry_states;
