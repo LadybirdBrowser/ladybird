@@ -30,6 +30,7 @@ public:
     virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration, DemuxerSeekOptions) override;
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
     virtual DecoderErrorOr<AK::Duration> total_duration() override;
+    virtual AK::Duration earliest_possible_position() const override { return m_earliest_possible_position; }
     virtual DemuxerScanState const& scan_state() const LIFETIME_BOUND override;
     virtual void set_scan_state_change_handler(ScanStateChangeHandler) override;
     virtual void set_blocking_reads_aborted_for_track(Track const&) override;
@@ -69,12 +70,14 @@ private:
         SampleIterator iterator;
         Sample sample;
     };
+    AK::Duration find_earliest_possible_position() const;
     DecoderErrorOr<Optional<SeekPoint>> find_seek_point(NonnullRefPtr<MediaStreamCursor>, Track const&, AK::Duration, SeekMode);
     TrackStatus& status_for_track(Track const&);
     void start_scan();
     NonnullRefPtr<MediaStream> m_stream;
     Movie m_movie;
     size_t m_movie_end;
+    AK::Duration m_earliest_possible_position;
     Mutex m_status_mutex;
     HashMap<Track, NonnullOwnPtr<TrackStatus>> m_statuses;
     NonnullRefPtr<Durations> m_durations { make_ref_counted<Durations>() };

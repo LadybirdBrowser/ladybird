@@ -62,6 +62,8 @@ public:
 
     static size_t find_cue_point_index_at_or_before(Vector<TrackCuePoint> const&, Optional<AK::Duration> total_duration, AK::Duration target);
 
+    AK::Duration earliest_possible_position(NonnullRefPtr<MediaStreamCursor> const&) const;
+
     Vector<BufferedRangesScan> buffered_time_ranges_by_track(NonnullRefPtr<MediaStreamCursor> const&, Vector<MediaStream::ByteRange> const& byte_ranges) const;
 
 private:

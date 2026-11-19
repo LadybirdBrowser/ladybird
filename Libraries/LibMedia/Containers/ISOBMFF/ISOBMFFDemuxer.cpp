@@ -30,6 +30,7 @@ DecoderErrorOr<NonnullRefPtr<Demuxer>> ISOBMFFDemuxer::from_stream(NonnullRefPtr
         if (header.type == MOVIE_BOX) {
             auto movie = TRY(Reader::parse_movie_box(stream, header));
             auto demuxer = make_ref_counted<ISOBMFFDemuxer>(source, move(movie), header.end_position().value_or(stream.position()));
+            demuxer->m_earliest_possible_position = demuxer->find_earliest_possible_position();
             demuxer->start_scan();
             return demuxer;
         }
@@ -51,6 +52,24 @@ ISOBMFFDemuxer::ISOBMFFDemuxer(NonnullRefPtr<MediaStream> stream, Movie movie, s
         m_durations->tracks.set(id, duration);
         m_durations->total = max(m_durations->total, duration);
     }
+}
+
+AK::Duration ISOBMFFDemuxer::find_earliest_possible_position() const
+{
+    auto cursor = m_stream->create_cursor();
+    Optional<AK::Duration> earliest;
+    for (auto const& [id, track] : m_movie.tracks) {
+        if (!first_is_one_of(track->handler_type, HandlerType::Audio, HandlerType::Video))
+            continue;
+        auto iterator = SampleIterator::create(cursor, m_movie, id, m_movie_end);
+        if (iterator.is_error())
+            continue;
+        auto first_sample = iterator.value().next();
+        if (first_sample.is_error() || !first_sample.value().has_value())
+            continue;
+        earliest = min(earliest.value_or(AK::Duration::max()), first_sample.value().value().presentation_timestamp);
+    }
+    return max(earliest.value_or(AK::Duration::zero()), AK::Duration::zero());
 }
 
 ISOBMFFDemuxer::~ISOBMFFDemuxer()

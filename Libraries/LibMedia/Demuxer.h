@@ -64,6 +64,9 @@ public:
     // Returns the timeline offset if the media resource provides one.
     virtual Optional<AK::UnixDateTime> start_time_realtime() const { return {}; }
 
+    // The earliest presentation time among the first samples of the audio and video tracks, never negative.
+    virtual AK::Duration earliest_possible_position() const { return AK::Duration::zero(); }
+
     virtual DemuxerScanState const& scan_state() const LIFETIME_BOUND = 0;
     // Also passes the time ranges of delivered data that has since been replaced or ended early, which the consumer
     // must read again.

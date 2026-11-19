@@ -34,6 +34,7 @@ DecoderErrorOr<NonnullRefPtr<Demuxer>> MatroskaDemuxer::from_stream(NonnullRefPt
         return DecoderError::with_description(DecoderErrorCategory::UnrecognizedFormat, "Stream is not Matroska or WebM"sv);
 
     auto demuxer = make_ref_counted<MatroskaDemuxer>(stream, TRY(Reader::from_stream(stream->create_cursor())));
+    demuxer->m_earliest_possible_position = demuxer->m_reader.earliest_possible_position(stream->create_cursor());
     demuxer->start_buffered_scan_thread(TRY(Reader::from_stream(stream->create_cursor())));
     return demuxer;
 }
