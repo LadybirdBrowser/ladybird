@@ -61,6 +61,11 @@ public:
 
     void output_debug_message(LogLevel log_level, StringView output) const;
     void output_debug_message(LogLevel log_level, Utf16View output) const;
+
+    // What a page logs also goes to the terminal Ladybird runs in, so control characters other than a newline or a
+    // tab are written as escapes (\x1b): Written as they are, they would take effect there, e.g. clearing the screen.
+    static ByteString escape_for_terminal(StringView);
+    static ByteString escape_for_terminal(Utf16View);
     void report_exception(Utf16View name, Utf16View message, JS::ErrorData const&, bool) const;
     void report_exception(Utf16View name, Utf16View message, Utf16View filename, u32 line, u32 column, bool in_promise) const;
 };
