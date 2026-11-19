@@ -666,6 +666,29 @@ bool ViewImplementation::may_be_discarded(DiscardReason reason, AK::Duration min
 // its documents to its session history. A process that doesn't answer in time leaves its documents as they were saved.
 static constexpr auto time_to_save_session_history_entry_states = AK::Duration::from_seconds(1);
 
+// NB: A process may host pages of several tabs, such as tabs of one origin, or the cross-site frames of one site in
+//     several tabs. A page of another tab, even one only representing a frame, keeps the process alive.
+bool ViewImplementation::discarding_ends_a_process() const
+{
+    if (!m_top_level_traversable)
+        return false;
+
+    auto ends_a_process = false;
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        if (ends_a_process)
+            return;
+        auto hosts_only_this_view = true;
+        page.client().for_each_page([&](WebContentPage& other_page) {
+            if (other_page.has_traversable() && &other_page.traversable() == &traversable())
+                return IterationDecision::Continue;
+            hosts_only_this_view = false;
+            return IterationDecision::Break;
+        });
+        ends_a_process = hosts_only_this_view;
+    });
+    return ends_a_process;
+}
+
 void ViewImplementation::request_discard()
 {
     m_discard_requested = true;

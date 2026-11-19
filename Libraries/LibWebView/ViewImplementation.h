@@ -239,6 +239,8 @@ public:
         Inactivity,
     };
     bool may_be_discarded(DiscardReason, AK::Duration minimum_time_hidden, MonotonicTime now) const;
+    // Whether discarding the view would let a process exit, which is how its memory comes back.
+    bool discarding_ends_a_process() const;
     void set_pinned(bool pinned);
     void set_current_tab_of_window(bool current_tab_of_window) { m_current_tab_of_window = current_tab_of_window; }
     // When the user last stopped seeing the view, if they don't see it now.
