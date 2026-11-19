@@ -28,12 +28,19 @@
             println(`buffered: ${rangesOf(video.buffered)}`);
             println(`seekable: ${rangesOf(video.seekable)}`);
 
-            // A seek past the end of every seekable range lands on the nearest point of one.
-            video.addEventListener("seeking", () => {
+            function checkEndingCondition() {
+                if (video.currentTime !== 42) {
+                    setTimeout(checkEndingCondition, 0);
+                    return;
+                }
                 println(`seeking to 50 lands at ${video.currentTime}`);
                 done();
-            }, { once: true });
+            }
+
             video.currentTime = 50;
+            video.addEventListener("seeking", () => {
+                checkEndingCondition();
+            }, { once: true });
         });
     });
 </script>
