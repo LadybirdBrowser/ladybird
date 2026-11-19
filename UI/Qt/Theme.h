@@ -93,6 +93,10 @@ bool is_dark(QPalette const&);
 bool is_dark(QWidget const&);
 PanelColors const& panel();
 
+// The palette for widgets that take the interface theme's appearance, such as the reviews of reports. Some platform
+// themes keep the system's palette whatever color scheme is asked for, and the panel colors then stand in for it.
+QPalette interface_palette(QPalette);
+
 // The accent color the desktop's settings portal reports, as Qt's palette does not follow it.
 void set_desktop_accent(Optional<QColor>);
 Optional<QColor> const& desktop_accent();

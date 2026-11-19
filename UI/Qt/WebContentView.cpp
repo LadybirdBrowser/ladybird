@@ -1401,6 +1401,7 @@ public:
         setWidgetResizable(true);
         setBackgroundRole(QPalette::Window);
         viewport()->setBackgroundRole(QPalette::Window);
+        apply_interface_palette();
 
         // Qt scrolls opaque content by moving the pixels it painted before, which leaves stale text behind the
         // translucent fields of a review inside this native view. Transparent content is repainted instead, on top of
@@ -1429,6 +1430,13 @@ public:
     QWidget& content() { return *m_content; }
     QWidget& column() { return *m_column; }
 
+    virtual bool event(QEvent* event) override
+    {
+        if (event->type() == QEvent::PaletteChange)
+            apply_interface_palette();
+        return QScrollArea::event(event);
+    }
+
     // The column reaches from the top of the tab to its bottom rather than being centered in it.
     void set_fills_height()
     {
@@ -1447,10 +1455,23 @@ public:
     }
 
 private:
+    // The overlay is in the interface theme's colors, like the review it holds, whichever appearance Qt's palette has.
+    void apply_interface_palette()
+    {
+        // Setting the palette changes it, which would bring us back here.
+        if (m_is_applying_interface_palette)
+            return;
+        m_is_applying_interface_palette = true;
+        setPalette(QPalette {});
+        setPalette(Theme::interface_palette(palette()));
+        m_is_applying_interface_palette = false;
+    }
+
     QWidget* m_content { nullptr };
     QWidget* m_column { nullptr };
     QVBoxLayout* m_layout { nullptr };
     bool m_fills_height { false };
+    bool m_is_applying_interface_palette { false };
 };
 
 class CrashOverlayUrlLabel final : public QLabel {

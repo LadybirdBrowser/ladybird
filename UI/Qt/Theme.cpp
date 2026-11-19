@@ -400,6 +400,26 @@ bool is_dark(QWidget const& widget)
     return is_dark(chrome_palette(widget));
 }
 
+QPalette interface_palette(QPalette palette)
+{
+    auto palette_is_dark = palette.color(QPalette::Window).lightness() < 128;
+    if (palette_is_dark == is_dark())
+        return palette;
+
+    auto const& colors = panel();
+    palette.setColor(QPalette::Window, colors.surface);
+    palette.setColor(QPalette::WindowText, colors.text);
+    palette.setColor(QPalette::Base, colors.page);
+    palette.setColor(QPalette::Text, colors.text);
+    palette.setColor(QPalette::Button, colors.surface);
+    palette.setColor(QPalette::ButtonText, colors.body);
+    palette.setColor(QPalette::PlaceholderText, colors.muted);
+    palette.setColor(QPalette::Link, colors.link);
+    for (auto role : { QPalette::WindowText, QPalette::Text, QPalette::ButtonText })
+        palette.setColor(QPalette::Disabled, role, colors.muted);
+    return palette;
+}
+
 PanelColors const& panel()
 {
     return is_dark() ? s_dark_panel : s_light_panel;

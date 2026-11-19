@@ -12,12 +12,15 @@
 #include <LibCore/StandardPaths.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
+#include <LibWebView/Settings.h>
 #include <UI/Qt/CrashReportReviewWidget.h>
 #include <UI/Qt/StringUtils.h>
+#include <UI/Qt/Theme.h>
 
 #include <QAbstractButton>
 #include <QApplication>
 #include <QCheckBox>
+#include <QCoreApplication>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -93,6 +96,57 @@ TEST_CASE(a_crash_screen_offers_the_website_without_including_it)
 
     child<QPushButton>(widget, "CrashReportDeclineButton").click();
     EXPECT_EQ(status_title(widget), "Report not sent");
+}
+
+// The offscreen platform keeps Qt's light palette whatever color scheme is asked for, as some platform themes do.
+TEST_CASE(the_details_of_a_report_take_the_dark_interface_theme_where_qt_keeps_a_light_palette)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+    Ladybird::Theme::set_interface_theme(WebView::ThemePreference::Dark);
+    ScopeGuard restore_theme = [] { Ladybird::Theme::set_interface_theme(WebView::ThemePreference::System); };
+
+    auto name = write_report("2026-10-01T12-00-00Z"sv);
+    WebView::CrashReportStore store { test_directory() };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
+    MUST(widget.open_report(name));
+    widget.show();
+
+    QLabel* process = nullptr;
+    for (auto* label : widget.findChildren<QLabel*>()) {
+        if (label->text() == QStringLiteral("WebContent"))
+            process = label;
+    }
+    VERIFY(process);
+    EXPECT(process->palette().color(process->foregroundRole()).lightness() > 128);
+}
+
+// A disclosure button has a style sheet of its own, which keeps Qt's cached palette for it through the review's restyle.
+TEST_CASE(the_disclosure_follows_a_switch_to_the_dark_interface_theme)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+    Ladybird::Theme::set_interface_theme(WebView::ThemePreference::Light);
+    ScopeGuard restore_theme = [] { Ladybird::Theme::set_interface_theme(WebView::ThemePreference::System); };
+
+    auto name = write_report("2026-10-01T12-00-00Z"sv);
+    WebView::CrashReportStore store { test_directory() };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
+    MUST(widget.open_report(name));
+    widget.show();
+
+    Ladybird::Theme::set_interface_theme(WebView::ThemePreference::Dark);
+    QEvent palette_change(QEvent::PaletteChange);
+    QCoreApplication::sendEvent(&widget, &palette_change);
+
+    size_t disclosures = 0;
+    for (auto* button : widget.findChildren<QPushButton*>()) {
+        if (button->styleSheet().isEmpty())
+            continue;
+        ++disclosures;
+        EXPECT(button->palette().color(QPalette::ButtonText).lightness() > 128);
+    }
+    EXPECT(disclosures > 0);
 }
 
 TEST_CASE(the_review_offers_to_exit_before_and_after_answering)
