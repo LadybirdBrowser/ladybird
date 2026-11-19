@@ -416,17 +416,22 @@ struct LeaveStub {
     leave_arguments: Vec<(u32, bool)>,
 }
 
-/// Generates code for `graph` with `allocation`, whose registers came from
+/// Generates code for `graph` with the register allocation in `scratch`, whose registers came from
 /// `target_registers::<M>()`, and writes the sites of the code into the
 /// tables of `scratch`. With `verify` (and in debug builds), checks that
 /// every lowering matches its `lowering_info()`.
 pub fn generate<M: PortableMacroAssembler>(
     graph: &Graph,
-    allocation: &Allocation,
     snapshot: &Snapshot,
     verify: bool,
     scratch: &mut Scratch,
 ) -> Result<GeneratedCode, CompileFailure> {
+    let Scratch {
+        artifact,
+        sites,
+        regalloc,
+    } = scratch;
+    let allocation = &regalloc.allocation;
     let (_, pinned) = target_registers::<M>();
     let (gpr_dump_count, fpr_dump_count) = register_dump_counts::<M>();
     let mut masm = M::new();
@@ -500,12 +505,10 @@ pub fn generate<M: PortableMacroAssembler>(
         panic!("lowerings that do not match their declarations:\n{errors}");
     }
 
-    scratch.artifact.clear();
-    scratch.sites.begin(graph)?;
+    artifact.clear();
+    sites.begin(graph)?;
     for (node, kind) in &codegen.sites {
-        codegen.with_site_source(*node, *kind, |site| {
-            site.write(&mut scratch.sites, &mut scratch.artifact)
-        })?;
+        codegen.with_site_source(*node, *kind, |site| site.write(sites, artifact))?;
     }
     let annotations = std::mem::take(&mut codegen.annotations);
     let invalidation_patches = codegen
@@ -659,7 +662,7 @@ fn fused_probe_branch(graph: &Graph, allocation: &Allocation, block: BlockId) ->
         ) => (*if_false, *if_true),
         _ => return None,
     };
-    (!allocation.live_in[failure.index()].contains(probe.index())).then_some((control, failure, success))
+    (!allocation.is_live_in(failure, probe)).then_some((control, failure, success))
 }
 
 /// Where control that goes to each block lands: blocks that only jump on, like the edges the builder splits off

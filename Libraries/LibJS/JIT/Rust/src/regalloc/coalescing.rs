@@ -18,6 +18,7 @@
 
 use super::liveness::ValueLiveness;
 use super::liveness::is_allocated_value;
+use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 
@@ -45,7 +46,8 @@ impl Interference<'_> {
     fn is_live_after_definition_of(&self, value: NodeId, defined: NodeId) -> bool {
         let at = self.definitions[defined.index()];
         let of_value = self.definitions[value.index()];
-        let available = self.liveness.live_in[at.block].contains(value.index())
+        let at_block = BlockId::from_index(at.block);
+        let available = self.liveness.is_live_in(at_block, value)
             || (of_value.block == at.block
                 && match (of_value.position, at.position) {
                     (None, _) => true,
@@ -69,7 +71,7 @@ impl Interference<'_> {
                         .any(|(_, frame_value)| frame_value == value)
                 })
         };
-        self.liveness.live_out[at.block].contains(value.index())
+        self.liveness.is_live_out(at_block, value)
             || self.deaths[value.index()].iter().any(|(block, death)| {
                 *block == at.block && (*death > position || (*death == position && read_after_definition()))
             })
@@ -109,7 +111,7 @@ pub(super) fn spill_slot_classes(graph: &Graph, liveness: &ValueLiveness) -> Vec
                 block: index,
                 position: Some(position),
             };
-            for value in &liveness.dies_at[node.index()] {
+            for value in liveness.dies_at(*node) {
                 deaths[value.index()].push((index, position));
             }
         }

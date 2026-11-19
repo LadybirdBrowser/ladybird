@@ -29,6 +29,7 @@ pub mod regalloc;
 pub mod scratch;
 pub mod snapshot;
 pub mod sparse_bitset;
+pub mod tables;
 
 // NB: The tests get their memory on Windows from `ak::windows_code_memory`, which is for x86-64.
 #[cfg(all(test, windows, not(target_arch = "x86_64")))]
@@ -127,16 +128,16 @@ fn compile_into<M: asm::PortableMacroAssembler>(
     if snapshot.options.stress.few_registers {
         registers.allocatable_gprs = registers.few_registers(STRESS_EXTRA_REGISTERS);
     }
-    let allocation = regalloc::allocate(&graph, &registers);
+    regalloc::allocate(&graph, &registers, &mut scratch.regalloc)?;
     if snapshot.options.verify_ir
-        && let Err(errors) = regalloc::verify(&graph, &registers, &allocation)
+        && let Err(errors) = regalloc::verify(&graph, &registers, &scratch.regalloc.allocation)
     {
         panic!(
             "invalid register allocation:\n{errors}\n{}",
-            regalloc::dump_allocation(&graph, &allocation)
+            regalloc::dump_allocation(&graph, &scratch.regalloc.allocation)
         );
     }
-    let mut generated = codegen::generate::<M>(&graph, &allocation, snapshot, snapshot.options.verify_ir, scratch)?;
+    let mut generated = codegen::generate::<M>(&graph, snapshot, snapshot.options.verify_ir, scratch)?;
     generated.osr_entries.sort_unstable();
     let layout = scratch.artifact.finish(
         &Tail {
@@ -157,7 +158,7 @@ fn compile_into<M: asm::PortableMacroAssembler>(
         let mut text = pass_dumps.unwrap_or_default();
         if snapshot.options.dump_ir {
             text.push_str(&ir::dump(&graph, &executable.layout));
-            text.push_str(&regalloc::dump_allocation(&graph, &allocation));
+            text.push_str(&regalloc::dump_allocation(&graph, &scratch.regalloc.allocation));
         }
         if snapshot.options.dump_asm {
             text.push_str(&codegen::dump_code(

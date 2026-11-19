@@ -19,10 +19,33 @@ use crate::code::ValueLocation;
 use crate::codegen::sites::SiteSource;
 use crate::ir::value;
 
+/// The tables of a register allocation, which the tests read as the allocation.
+struct Allocated(Regalloc);
+
+impl std::ops::Deref for Allocated {
+    type Target = Allocation;
+
+    fn deref(&self) -> &Allocation {
+        &self.0.allocation
+    }
+}
+
+impl std::ops::DerefMut for Allocated {
+    fn deref_mut(&mut self) -> &mut Allocation {
+        &mut self.0.allocation
+    }
+}
+
+fn allocate_with(graph: &Graph, registers: &RegisterSet) -> Allocated {
+    let mut regalloc = Regalloc::new();
+    allocate(graph, registers, &mut regalloc).unwrap();
+    Allocated(regalloc)
+}
+
 #[track_caller]
-fn allocate_and_verify(graph: &Graph) -> Allocation {
+fn allocate_and_verify(graph: &Graph) -> Allocated {
     let registers = RegisterSet::test_configuration();
-    let allocation = allocate(graph, &registers);
+    let allocation = allocate_with(graph, &registers);
     if let Err(errors) = verify(graph, &registers, &allocation) {
         panic!("{errors}\n{}", dump_allocation(graph, &allocation));
     }
@@ -597,7 +620,7 @@ fn shift_amounts_are_in_the_targets_shift_register_or_immediates() {
             shift_amount_gpr,
             ..RegisterSet::test_configuration()
         };
-        let allocation = allocate(&graph, &registers);
+        let allocation = allocate_with(&graph, &registers);
         if let Err(errors) = verify(&graph, &registers, &allocation) {
             panic!("{errors}\n{}", dump_allocation(&graph, &allocation));
         }
@@ -746,12 +769,12 @@ fn the_verifier_finds_values_in_the_wrong_place() {
     });
     let graph = build(&program);
     let registers = RegisterSet::test_configuration();
-    let allocation = allocate(&graph, &registers);
+    let allocation = allocate_with(&graph, &registers);
     verify(&graph, &registers, &allocation).unwrap();
 
     // Forgetting to spill a value that is live across a call loses it.
     let argument = find_node(&graph, |node| node.op == Op::LoadSlot { slot: a(0).raw() });
-    let mut broken = allocation.clone();
+    let mut broken = allocate_with(&graph, &registers);
     broken.nodes[argument.index()].spill_slot = None;
     assert!(verify(&graph, &registers, &broken).is_err());
 
@@ -783,7 +806,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
     });
     let graph = build(&program);
     let registers = RegisterSet::test_configuration();
-    let allocation = allocate(&graph, &registers);
+    let allocation = allocate_with(&graph, &registers);
     verify(&graph, &registers, &allocation).unwrap();
     let returned = find_node(&graph, |node| matches!(node.op, Op::Return));
     assert_eq!(
@@ -800,7 +823,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
     assert!(verify(&written, &registers, &allocation).is_err());
 
     // Another frame slot holds another value.
-    let mut broken = allocation.clone();
+    let mut broken = allocate_with(&graph, &registers);
     broken.nodes[returned.index()].moves_before[0].from = Location::Frame(r(5).raw());
     assert!(verify(&graph, &registers, &broken).is_err());
 
@@ -1163,7 +1186,7 @@ fn random_structured_programs_with_cold_blocks_allocate_correctly() {
             panic!("seed {seed}: {errors}\n{}", crate::ir::dump(&graph, &layout));
         }
         let registers = RegisterSet::test_configuration();
-        let allocation = allocate(&graph, &registers);
+        let allocation = allocate_with(&graph, &registers);
         if let Err(errors) = verify(&graph, &registers, &allocation) {
             panic!(
                 "seed {seed}: {errors}\n{}\n{}",
@@ -1190,7 +1213,7 @@ fn random_structured_programs_allocate_correctly() {
             .collect::<Vec<_>>();
         let graph = build_with_layout(&program, layout, &never_ran);
         let registers = RegisterSet::test_configuration();
-        let allocation = allocate(&graph, &registers);
+        let allocation = allocate_with(&graph, &registers);
         if let Err(errors) = verify(&graph, &registers, &allocation) {
             panic!(
                 "seed {seed}: {errors}\n{}\n{}",
