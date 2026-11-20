@@ -932,3 +932,38 @@ TEST_CASE(a_backlog_longer_than_one_turn_of_sending_arrives_whole)
     }
     EXPECT_EQ(received, message_count);
 }
+
+// The task holds one send-possible request per name, and transports that send to the same port share one. Both have to
+// get their backlogs through once the peer reads again, whichever of them holds the request.
+TEST_CASE(transports_that_send_to_the_same_port_both_get_their_backlogs_through)
+{
+    auto peer_receive_right = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto make_transport_sending_to_peer = [&] {
+        auto receive_right = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+        auto send_right_to_peer = MUST(peer_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
+        return make<IPC::TransportMachPort>(move(receive_right), move(send_right_to_peer));
+    };
+    auto first = make_transport_sending_to_peer();
+    auto second = make_transport_sending_to_peer();
+
+    // The peer's queue holds MACH_PORT_QLIMIT_DEFAULT (5) messages, so both transports end up with a backlog.
+    constexpr size_t message_count_per_transport = 64;
+    for (size_t i = 0; i < message_count_per_transport; ++i)
+        post_byte(*first, static_cast<u8>(i));
+    for (size_t i = 0; i < message_count_per_transport; ++i)
+        post_byte(*second, static_cast<u8>(128 + i));
+
+    size_t received_from_first = 0;
+    size_t received_from_second = 0;
+    while (received_from_first + received_from_second < 2 * message_count_per_transport) {
+        auto byte = receive_raw_byte(peer_receive_right, 5000);
+        if (!byte.has_value())
+            break;
+        if (*byte < 128)
+            EXPECT_EQ(*byte, static_cast<u8>(received_from_first++));
+        else
+            EXPECT_EQ(*byte, static_cast<u8>(128 + received_from_second++));
+    }
+    EXPECT_EQ(received_from_first, message_count_per_transport);
+    EXPECT_EQ(received_from_second, message_count_per_transport);
+}

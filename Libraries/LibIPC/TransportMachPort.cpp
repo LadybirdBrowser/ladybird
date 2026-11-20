@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
@@ -182,6 +183,23 @@ void TransportMachPort::raise_receive_queue_limit(Core::MachPort const& receive_
     set_mach_port_queue_limit(receive_right.port());
 }
 
+// Answers whether the notification used up the send-possible request, which it does once the peer's queue has room,
+// or as a dead-name notification once the peer's port has died.
+static bool consume_send_possible_notification(mach_msg_header_t* header)
+{
+    switch (header->msgh_id) {
+    case MACH_NOTIFY_SEND_POSSIBLE:
+        return true;
+    case MACH_NOTIFY_DEAD_NAME:
+        // NB: This task holds a reference to the dead name for the notification, which is to be released with it.
+        mach_port_deallocate(mach_task_self(), reinterpret_cast<mach_dead_name_notification_t const*>(header)->not_port);
+        return true;
+    default:
+        mach_msg_destroy(header);
+        return false;
+    }
+}
+
 static constexpr mach_msg_timeout_t IDLE_MEMORY_RELEASE_DELAY_IN_MILLISECONDS = 1000;
 static constexpr mach_msg_timeout_t RETRY_DELAY_IN_MILLISECONDS = 1;
 static constexpr size_t RECEIVE_BUFFER_SIZE = 65536;
@@ -224,17 +242,38 @@ public:
         thread->detach();
     }
 
-    // Messages for the transport may arrive from here on.
-    void add(TransportMachPort& transport)
+    // Messages that arrive on the port, one of the transport's own, are the transport's from here on.
+    [[nodiscard]] bool add(TransportMachPort& transport, mach_port_t port)
     {
-        auto const port = transport.m_receive_port.port();
-        auto ret = mach_port_set_context(mach_task_self(), port, reinterpret_cast<mach_port_context_t>(&transport));
-        VERIFY(ret == KERN_SUCCESS);
-        ret = mach_port_insert_member(mach_task_self(), port, m_port_set.port());
-        VERIFY(ret == KERN_SUCCESS);
+        if (mach_port_set_context(mach_task_self(), port, reinterpret_cast<mach_port_context_t>(&transport)) != KERN_SUCCESS)
+            return false;
+        return mach_port_insert_member(mach_task_self(), port, m_port_set.port()) == KERN_SUCCESS;
+    }
+
+    // The task holds one notification request per name, and transports that send to the same port share the name of
+    // their send right, so only one of them at a time may have a send-possible request on it. Nor may one take the
+    // place of a request that something else has made there. Answers whether the transport may make its request.
+    [[nodiscard]] bool claim_send_possible_request(TransportMachPort& transport, mach_port_t destination)
+    {
+        MutexLocker locker(m_send_possible_request_owners_mutex);
+        if (m_send_possible_request_owners.contains(destination))
+            return false;
+        mach_port_type_t type = 0;
+        if (mach_port_type(mach_task_self(), destination, &type) != KERN_SUCCESS || (type & (MACH_PORT_TYPE_DNREQUEST | MACH_PORT_TYPE_SPREQUEST)))
+            return false;
+        m_send_possible_request_owners.set(destination, &transport);
+        return true;
+    }
+
+    void release_send_possible_request(TransportMachPort& transport, mach_port_t destination)
+    {
+        MutexLocker locker(m_send_possible_request_owners_mutex);
+        if (m_send_possible_request_owners.get(destination) == &transport)
+            m_send_possible_request_owners.remove(destination);
     }
 
     // Has this thread send the transport's backlog, take note of a peer it found gone, and stop its IO if asked to.
+    // A backlog is otherwise sent when the kernel says the peer's queue has room.
     void request_attention(TransportMachPort& transport)
     {
         {
@@ -257,6 +296,16 @@ public:
             m_io_finished_cv.wait();
     }
 
+    // Takes over the notification port of a transport whose IO is over, while the kernel still owes it a notification
+    // for a request that it has used up. The port goes once that has arrived.
+    void keep_until_its_last_notification(Core::MachPort notification_port)
+    {
+        VERIFY(s_is_shared_io_thread);
+        auto const ret = mach_port_set_context(mach_task_self(), notification_port.port(), orphaned_notification_port_context());
+        VERIFY(ret == KERN_SUCCESS);
+        (void)notification_port.release();
+    }
+
 private:
     void wake()
     {
@@ -271,6 +320,8 @@ private:
         if (mach_msg(&header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, sizeof(header), 0, MACH_PORT_NULL, 0, MACH_PORT_NULL) == MACH_SEND_TIMED_OUT)
             mach_msg_destroy(&header);
     }
+
+    mach_port_context_t orphaned_notification_port_context() const { return reinterpret_cast<mach_port_context_t>(this); }
 
     intptr_t loop();
     bool has_transports_needing_attention();
@@ -291,10 +342,13 @@ private:
     ConditionVariable m_io_finished_cv { m_mutex };
     Vector<TransportMachPort*> m_transports_needing_attention;
 
+    Mutex m_send_possible_request_owners_mutex;
+    HashMap<mach_port_t, TransportMachPort*> m_send_possible_request_owners;
+
     // NB: Only this thread uses these.
     Vector<u8> m_receive_buffer;
     Vector<TransportMachPort*> m_transports_to_serve;
-    // Transports whose peer's queue is full.
+    // Transports whose peer's queue is full, which the kernel could not be asked to say when it has room.
     Vector<TransportMachPort*> m_transports_retrying_after_delay;
     MonotonicTime m_retry_deadline;
 };
@@ -321,7 +375,7 @@ intptr_t SharedMachIOThread::loop()
         }
 
         // Wait on the whole port set, for messages from every peer, wakeups, and kernel notifications like
-        // MACH_NOTIFY_NO_SENDERS. With a backlog, the wait is short, so the sends are retried as peers make room.
+        // MACH_NOTIFY_NO_SENDERS, or MACH_NOTIFY_SEND_POSSIBLE once a peer's full queue has room.
         bool const retries_after_delay = !m_transports_retrying_after_delay.is_empty();
         Optional<mach_msg_timeout_t> timeout;
         if (retries_after_delay)
@@ -384,9 +438,21 @@ bool SharedMachIOThread::receive_and_handle_message(Optional<mach_msg_timeout_t>
     }
 
     auto const& trailer = *reinterpret_cast<mach_msg_context_trailer_t const*>(m_receive_buffer.data() + round_mach_message_size(header->msgh_size));
+    if (trailer.msgh_context == orphaned_notification_port_context()) {
+        if (consume_send_possible_notification(header))
+            (void)mach_port_mod_refs(mach_task_self(), header->msgh_local_port, MACH_PORT_RIGHT_RECEIVE, -1);
+        return true;
+    }
+
     auto* transport = reinterpret_cast<TransportMachPort*>(trailer.msgh_context);
     VERIFY(transport);
-    VERIFY(header->msgh_local_port == transport->m_receive_port.port());
+    if (header->msgh_local_port != transport->m_receive_port.port()) {
+        // NB: The only other port with the transport as its context is the one it hears on that its peer's queue has
+        //     room, which only the kernel can send to.
+        transport->handle_send_possible_notification(m_receive_buffer.data());
+        serve(*transport);
+        return true;
+    }
     if (transport->handle_message_on_io_thread(m_receive_buffer.data()) == IterationDecision::Break)
         finish(*transport);
     return true;
@@ -464,7 +530,7 @@ TransportMachPort* SharedMachIOThread::transport_receiving_on(mach_port_t port)
     if (!MACH_PORT_VALID(port) || port == m_wakeup_receive_port.port())
         return nullptr;
     mach_port_context_t context = 0;
-    if (mach_port_get_context(mach_task_self(), port, &context) != KERN_SUCCESS)
+    if (mach_port_get_context(mach_task_self(), port, &context) != KERN_SUCCESS || context == orphaned_notification_port_context())
         return nullptr;
     return reinterpret_cast<TransportMachPort*>(context);
 }
@@ -514,7 +580,8 @@ TransportMachPort::TransportMachPort(Core::MachPort receive_right, Core::MachPor
         mach_port_deallocate(mach_task_self(), prev);
     }
 
-    SharedMachIOThread::the().add(*this);
+    auto const added = SharedMachIOThread::the().add(*this, m_receive_port.port());
+    VERIFY(added);
 }
 
 TransportMachPort::~TransportMachPort()
@@ -566,7 +633,79 @@ void TransportMachPort::stop_sending()
 {
     MutexLocker locker(m_send_mutex);
     m_sending_is_over = true;
+    // NB: A request that cancelling does not take back has been used up, and the kernel owes a notification for it,
+    //     which need not be queued yet. One about a dead port holds a reference to the dead name, to be released.
+    bool notification_is_owed = false;
+    if (m_send_possible_notification_is_requested) {
+        mach_port_t previous = MACH_PORT_NULL;
+        auto const ret = mach_port_request_notification(mach_task_self(), m_send_port.port(), MACH_NOTIFY_SEND_POSSIBLE,
+            0, MACH_PORT_NULL, MACH_MSG_TYPE_MAKE_SEND_ONCE, &previous);
+        if (ret == KERN_SUCCESS && MACH_PORT_VALID(previous))
+            mach_port_deallocate(mach_task_self(), previous);
+        else
+            notification_is_owed = true;
+        m_send_possible_notification_is_requested = false;
+        SharedMachIOThread::the().release_send_possible_request(*this, m_send_port.port());
+    }
+    if (MACH_PORT_VALID(m_send_possible_notification_port.port())) {
+        Array<u8, 256> buffer {};
+        auto* header = reinterpret_cast<mach_msg_header_t*>(buffer.data());
+        while (mach_msg(header, MACH_RCV_MSG | MACH_RCV_TIMEOUT, 0, buffer.size(), m_send_possible_notification_port.port(), 0, MACH_PORT_NULL) == KERN_SUCCESS) {
+            if (consume_send_possible_notification(header))
+                notification_is_owed = false;
+        }
+        if (notification_is_owed)
+            SharedMachIOThread::the().keep_until_its_last_notification(move(m_send_possible_notification_port));
+        else
+            m_send_possible_notification_port = {}; // NB: Destroying the receive right takes it out of the port set.
+    }
     m_sent_cv.broadcast();
+}
+
+// The request is armed as it is made, and answered right away if the peer's queue has room by then. Answers whether it
+// was made. A transport that can't make one retries after a delay instead.
+bool TransportMachPort::request_send_possible_notification()
+{
+    VERIFY(!m_send_possible_notification_is_requested);
+    auto& io_thread = SharedMachIOThread::the();
+    if (!MACH_PORT_VALID(m_send_possible_notification_port.port())) {
+        auto port = Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive);
+        if (port.is_error() || !io_thread.add(*this, port.value().port()))
+            return false;
+        m_send_possible_notification_port = port.release_value();
+    }
+    auto const destination = m_send_port.port();
+    if (!io_thread.claim_send_possible_request(*this, destination))
+        return false;
+    mach_port_t previous = MACH_PORT_NULL;
+    auto const ret = mach_port_request_notification(mach_task_self(), destination, MACH_NOTIFY_SEND_POSSIBLE, 1,
+        m_send_possible_notification_port.port(), MACH_MSG_TYPE_MAKE_SEND_ONCE, &previous);
+    if (ret != KERN_SUCCESS) {
+        io_thread.release_send_possible_request(*this, destination);
+        return false;
+    }
+    if (MACH_PORT_VALID(previous)) {
+        // NB: Something besides the transports made a request on the name after the claim checked it, and this one took
+        //     its place. It goes back, as the dead-name request that anything but a transport makes.
+        mach_port_t replaced = MACH_PORT_NULL;
+        if (mach_port_request_notification(mach_task_self(), destination, MACH_NOTIFY_DEAD_NAME, 1, previous, MACH_MSG_TYPE_MOVE_SEND_ONCE, &replaced) != KERN_SUCCESS)
+            mach_port_deallocate(mach_task_self(), previous);
+        if (MACH_PORT_VALID(replaced))
+            mach_port_deallocate(mach_task_self(), replaced);
+        io_thread.release_send_possible_request(*this, destination);
+        return false;
+    }
+    m_send_possible_notification_is_requested = true;
+    return true;
+}
+
+void TransportMachPort::handle_send_possible_notification(u8* buffer)
+{
+    if (!consume_send_possible_notification(reinterpret_cast<mach_msg_header_t*>(buffer)))
+        return;
+    MutexLocker locker(m_send_mutex);
+    m_send_possible_notification_is_requested = false;
+    SharedMachIOThread::the().release_send_possible_request(*this, m_send_port.port());
 }
 
 void TransportMachPort::flush()
@@ -666,7 +805,7 @@ TransportMachPort::PendingIO TransportMachPort::do_pending_io()
             }
         } else if (outcome != SendOutcome::WouldBlock) {
             pending_io = PendingIO::MoreToSendNextTurn;
-        } else {
+        } else if (!m_send_possible_notification_is_requested) {
             pending_io = PendingIO::RetryAfterDelay;
         }
     }
@@ -810,6 +949,8 @@ TransportMachPort::SendOutcome TransportMachPort::send_mach_message(PendingMessa
         if (ret == MACH_SEND_TIMED_OUT) {
             for (size_t i = 0; i < port_count; ++i)
                 attachments[i] = attachment_from_descriptor(port_descriptors[i]);
+            if (!m_send_possible_notification_is_requested)
+                (void)request_send_possible_notification();
             return SendOutcome::WouldBlock;
         }
         // NB: The kernel was short of something to hand all of the message back with, so it can't go out whole any more,

@@ -114,7 +114,7 @@ private:
     enum class PendingIO {
         None,
         MoreToSendNextTurn,
-        // The peer's queue is full.
+        // The peer's queue is full, and the kernel could not be asked to say when it has room.
         RetryAfterDelay,
         IOIsOver,
     };
@@ -132,6 +132,8 @@ private:
     void mark_peer_eof();
     void notify_incoming_message_observer(ReadonlyBytes);
     void stop_sending();
+    bool request_send_possible_notification();
+    void handle_send_possible_notification(u8* buffer);
     enum class SendOutcome {
         Sent,
         // The peer's queue is full. The message keeps its bytes and its rights, to be sent again.
@@ -166,6 +168,9 @@ private:
     Queue<PendingMessage, 64> m_send_backlog;
     bool m_sending_is_over { false };
     Vector<u8> m_send_buffer;
+    // Where the kernel says that the peer's full queue has room, from the first time it was full.
+    Core::MachPort m_send_possible_notification_port;
+    bool m_send_possible_notification_is_requested { false };
     // Set by a thread that found the peer gone as it posted, for the IO thread to tell the owner, as it does when it
     // finds that itself.
     Atomic<bool> m_posting_thread_found_peer_gone { false };
