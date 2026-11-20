@@ -65,8 +65,12 @@ impl GenericIndexedPropertyStorage {
         if index as usize >= self.array_size {
             self.array_size = index as usize + 1;
         }
-        self.sparse_elements
-            .insert(index, ValueAndAttributes::new(value, attributes));
+        if value.is_empty() {
+            self.sparse_elements.remove(&index);
+        } else {
+            self.sparse_elements
+                .insert(index, ValueAndAttributes::new(value, attributes));
+        }
     }
 
     pub fn remove(&mut self, index: u32) {
