@@ -1,0 +1,19 @@
+Ladybird now keeps the strut of a line box on the baseline in every
+horizontal line, and starts the next line where the line box ends.
+In Blink, InlineLayoutStateStack::OnBeginPlaceItems() starts the
+metrics of the line box from those of the strut, and the metrics
+of every box placed on the baseline are united with them. WebKit
+does the same with the root inline box, in LineBoxVerticalAligner::
+computeLineBoxLogicalHeight(), and Gecko does with the root span, in
+nsLineLayout::VerticalAlignFrames().
+
+A vertical line keeps the strut at its top, since its text isn’t yet
+laid out on the central baseline that the engines use there. So a span
+with a bigger font in a vertical line still comes out a few pixels apart
+from them, as it did before.
+
+Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5
+ran the cases of the test added here. They agree to within the
+half pixel that Firefox keeps as a fraction, and Ladybird gives
+what Chrome and WebKit give. Ladybird now passes the imported WPT test
+vertical-align-negative-leading-001 as well.
