@@ -93,10 +93,6 @@
         "apng"
       ]
     },
-    {
-      "name": "libproxy",
-      "platform": "!(android | bsd)"
-    },
     "libpsl",
     {
       "name": "libedit",
@@ -350,10 +346,6 @@
     {
       "name": "libpng",
       "version": "1.6.59#0"
-    },
-    {
-      "name": "libproxy",
-      "version": "0.4.18#3"
     },
     {
       "name": "libpsl",
