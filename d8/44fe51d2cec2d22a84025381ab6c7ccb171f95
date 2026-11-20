@@ -1,0 +1,14 @@
+Ladybird stretches a checkbox or radio button with an automatic
+size between definite opposing insets, when its self-alignment
+calls for stretching, as it does a text input, a textarea, or a
+range input. Blink does the same, since BaseCheckableInputType::
+CreateLayoutObject() builds the control as an ordinary block flow, which
+ComputeOofInlineDimensions() sizes as a non-replaced box. So does Gecko:
+nsCheckboxRadioFrame is a replaced frame without the ReplacedSizing
+flag, and nsIFrame::ComputeAbsolutePosAutoSize() stretches any frame
+for which HasReplacedSizing() is false. In WebKit, RenderTheme::
+adjustButtonOrCheckboxOrColorWellOrInnerSpinButtonOrRadioStyle()
+writes the control size into the width and height of the control’s
+style, so it doesn’t stretch. Run in Chrome 157.0.8103.79, Firefox
+151.0, and WebKit 26.5: Chrome and Firefox stretch every case in the
+test, and WebKit keeps 12x12.
