@@ -975,6 +975,69 @@ void ViewImplementation::load_html(StringView html)
         set_loading_state(true);
 }
 
+void ViewImplementation::did_request_certificate_warning(Badge<WebContentPage>, URL::URL const& url, Web::HTML::CrossProcessId document_state_id)
+{
+    if (!Application::settings().config_variable_as_bool(ConfigVariableID::OfferToTrustSelfSignedCertificates))
+        return;
+
+    // Only the error page the view still displays may ask, and not once another navigation has started.
+    if (traversable().has_uncommitted_navigation() || traversable().session_history().current_entry().document_state->id != document_state_id)
+        return;
+
+    // Snapshot the rejected certificate so trusting it cannot trust a later rejection for the same host.
+    auto certificate = RequestServerManager::the().rejected_self_signed_certificate(session(), url);
+    if (!certificate.has_value())
+        return;
+
+    // Declining reloads the error page; suppress its repeated warning request.
+    if (auto declined = exchange(m_declined_certificate, {}); declined == certificate)
+        return;
+
+    CertificateWarning warning { .url = url, .certificate = certificate.release_value(), .form_submission = {}, .form_initiator_origin = URL::Origin::create_opaque(), .form_is_not_resent = false };
+
+    // Preserve the form for resubmission before replacing the error page's history entry.
+    auto const& document_state = *traversable().session_history().current_entry().document_state;
+    if (auto const* form_submission = document_state.resource.get_pointer<Web::HTML::POSTResource>()) {
+        auto const& initiator_origin = document_state.initiator_origin;
+        if (initiator_origin.has_value() && !initiator_origin->is_opaque() && initiator_origin->is_same_site(url.origin())) {
+            warning.form_submission = *form_submission;
+            warning.form_initiator_origin = *initiator_origin;
+        } else {
+            warning.form_is_not_resent = true;
+        }
+    }
+
+    m_certificate_warning = move(warning);
+    load(traversable().prepare_navigation(URL::URL::about("certificate"sv), {}, Web::Bindings::NavigationHistoryBehavior::Replace));
+}
+
+void ViewImplementation::answer_certificate_warning(Badge<CertificateUI>, URL::URL const& url, StringView fingerprint, bool trust)
+{
+    // Apply the answer only to the warning the user reviewed.
+    if (!m_certificate_warning.has_value() || m_certificate_warning->url != url || m_certificate_warning->certificate.fingerprint != fingerprint)
+        return;
+    auto warning = exchange(m_certificate_warning, {});
+
+    if (!trust) {
+        // NB: Never send the form to a server whose certificate the user declined.
+        m_declined_certificate = warning->certificate;
+        load(traversable().prepare_navigation(warning->url, {}, Web::Bindings::NavigationHistoryBehavior::Replace));
+        return;
+    }
+
+    RequestServerManager::the().trust_certificate(session(), warning->certificate);
+
+    if (!warning->form_submission.has_value()) {
+        load(traversable().prepare_navigation(warning->url, {}, Web::Bindings::NavigationHistoryBehavior::Replace));
+        return;
+    }
+
+    auto navigation = traversable().prepare_navigation(warning->url, warning->form_submission.release_value(), Web::Bindings::NavigationHistoryBehavior::Replace);
+    navigation.csp_navigation_type = Web::ContentSecurityPolicy::Directives::NavigationType::FormSubmission;
+    navigation.initiator_origin_snapshot = move(warning->form_initiator_origin);
+    load(move(navigation));
+}
+
 void ViewImplementation::reload(BypassCache bypass_cache)
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Reload;
@@ -1112,6 +1175,10 @@ void ViewImplementation::did_not_apply_reload()
 
 void ViewImplementation::did_commit_history_step()
 {
+    // A pending certificate warning belongs to the about:certificate page that shows it.
+    if (m_certificate_warning.has_value() && !url().equals(URL::URL::about("certificate"sv), URL::ExcludeFragment::Yes))
+        m_certificate_warning.clear();
+
     did_update_url();
     update_navigation_action_state();
 }
@@ -1921,6 +1988,11 @@ static void send_global_privacy_control(WebContentPage const& page)
     page.async_set_enable_global_privacy_control(Application::settings().global_privacy_control() == GlobalPrivacyControl::Yes);
 }
 
+static void send_offer_to_trust_self_signed_certificates(WebContentPage const& page)
+{
+    page.async_set_offers_to_trust_self_signed_certificates(Application::settings().config_variable_as_bool(ConfigVariableID::OfferToTrustSelfSignedCertificates));
+}
+
 // Only a page hosting the tab's traversable takes this request: It applies to the page's local traversable, which a page
 // embedding an out-of-process iframe doesn't have.
 static void send_force_dark(WebContentPage const& page)
@@ -1940,6 +2012,7 @@ void ViewImplementation::send_preferences_to_page(WebContentPage& page)
     send_browsing_behavior(page);
     send_autoplay_settings(page);
     send_global_privacy_control(page);
+    send_offer_to_trust_self_signed_certificates(page);
     auto* spell_checker = Application::the().spell_checker();
     page.async_set_spell_checking_available(spell_checker != nullptr);
     page.async_set_writing_suggestions_available(spell_checker && spell_checker->can_suggest());
@@ -5178,6 +5251,12 @@ void ViewImplementation::permission_settings_changed(Web::Permissions::Permissio
 void ViewImplementation::global_privacy_control_changed()
 {
     traversable().for_each_hosting_page(send_global_privacy_control);
+}
+
+void ViewImplementation::config_variable_changed(ConfigVariableID id)
+{
+    if (id == ConfigVariableID::OfferToTrustSelfSignedCertificates)
+        traversable().for_each_hosting_page(send_offer_to_trust_self_signed_certificates);
 }
 
 Vector<SitePermissionRow> ViewImplementation::site_permission_rows() const

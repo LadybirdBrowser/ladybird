@@ -1,6 +1,7 @@
 set(SOURCES
     AIA.cpp
     AlternativeServices.cpp
+    CertificateExceptions.cpp
     ConnectionFromClient.cpp
     ControlConnectionFromClient.cpp
     CURL.cpp

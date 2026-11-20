@@ -2892,6 +2892,11 @@ static Engine::Event::NetworkActivity::RequestStarted network_request_started(Lo
     };
 }
 
+Utf16String network_request_failed_error_message(Optional<StringView> error_message)
+{
+    return Utf16String::formatted("Load failed: {}", error_message.value_or("Unknown error"sv));
+}
+
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 // Drop-in replacement for 'HTTP-network fetch', but obviously non-standard :^)
 // It also handles file:// URLs since those can also go through ResourceLoader.
@@ -3090,7 +3095,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
                 engine_record->event_sink().handle_event(Engine::Event::RequestTransmissionEnded { move(network_phases) });
             body_pump->handle_network_complete(Infrastructure::is_http_or_https_scheme(request->current_url().scheme()) ? Optional<i64>(timing_info.encoded_body_size) : Optional<i64> {});
         } else {
-            auto error = Utf16String::formatted("Load failed: {}", error_message.value_or("Unknown error"sv));
+            auto error = network_request_failed_error_message(error_message);
             body_pump->handle_network_error(error.to_utf8_but_should_be_ported_to_utf16());
 
             if (!pending_response->is_resolved())

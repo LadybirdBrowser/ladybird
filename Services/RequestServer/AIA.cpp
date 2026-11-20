@@ -6,6 +6,7 @@
 
 #include <LibCrypto/OpenSSL.h>
 #include <RequestServer/AIA.h>
+#include <RequestServer/CertificateExceptions.h>
 
 #include <AK/AnyOf.h>
 #include <AK/ByteString.h>
@@ -31,6 +32,14 @@ namespace RequestServer {
 
 // This max was chosen to align with the (telemetry-tuned) value Chromium uses.
 static constexpr size_t max_ca_issuers_urls_per_certificate = 5;
+
+// On macOS, curl leaves OpenSSL's trust store empty, so OpenSSL cannot identify missing issuers or untrusted roots.
+// SecTrust fetches missing intermediates and verifies after the handshake unless OpenSSL already verified.
+#ifdef AK_OS_MACOS
+static constexpr bool openssl_trust_store_is_authoritative = false;
+#else
+static constexpr bool openssl_trust_store_is_authoritative = true;
+#endif
 
 // Upper bound on the process-wide fetched-intermediate cache — so a long-lived process that visits many misconfigured
 // sites can't grow it without limit.
@@ -189,6 +198,85 @@ static void promote_fetched_intermediates(X509_STORE_CTX* context, AIACollector&
     }
 }
 
+static bool is_self_signed_certificate_error(int verify_error)
+{
+    if (verify_error == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)
+        return true;
+    // On macOS, OpenSSL's empty trust store rejects any chain containing its root, even if SecTrust trusts it.
+    return openssl_trust_store_is_authoritative && verify_error == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN;
+}
+
+static bool certificate_matches_host(X509* certificate, ByteString const& host)
+{
+    auto address = host.view();
+    if (address.starts_with('[') && address.ends_with(']'))
+        address = address.substring_view(1, address.length() - 2);
+
+    // Like curl, match an IP literal only against iPAddress names, and refuse partial wildcards such as w*.example.com.
+    // X509_check_ip_asc() returns -2 when the input is not an IP address.
+    auto address_string = ByteString { address };
+    if (auto result = X509_check_ip_asc(certificate, address_string.characters(), 0); result != -2)
+        return result == 1;
+
+    // Like curl, match a fully qualified name such as example.com. without its trailing dot.
+    auto name = host.view();
+    if (name.ends_with('.'))
+        name = name.substring_view(0, name.length() - 1);
+    return X509_check_host(certificate, name.characters_without_null_termination(), name.length(), X509_CHECK_FLAG_NEVER_CHECK_SUBJECT | X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS, nullptr) == 1;
+}
+
+// OpenSSL stops at a self-signed certificate before it checks validity periods, so check them here.
+static int validity_period_error(X509_STORE_CTX* context, X509* leaf)
+{
+    auto* chain = X509_STORE_CTX_get0_chain(context);
+    auto chain_length = chain ? sk_X509_num(chain) : 0;
+    for (int i = 0; i < max(chain_length, 1); ++i) {
+        auto* certificate = chain_length > 0 ? sk_X509_value(chain, i) : leaf;
+        auto not_before = X509_cmp_current_time(X509_get0_notBefore(certificate));
+        if (not_before == 0)
+            return X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD;
+        if (not_before > 0)
+            return X509_V_ERR_CERT_NOT_YET_VALID;
+        auto not_after = X509_cmp_current_time(X509_get0_notAfter(certificate));
+        if (not_after == 0)
+            return X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD;
+        if (not_after < 0)
+            return X509_V_ERR_CERT_HAS_EXPIRED;
+    }
+    return X509_V_OK;
+}
+
+static int apply_self_signed_certificate_exception(X509_STORE_CTX* context, AIACollector& collector)
+{
+    if (!is_self_signed_certificate_error(X509_STORE_CTX_get_error(context)))
+        return 0;
+
+    // NB: The certificate may be issued to another name. Devices on a local network often come with one for localhost,
+    //     and the exception is for this certificate on this host and port only.
+    auto* leaf = X509_STORE_CTX_get0_cert(context);
+    if (!leaf)
+        return 0;
+
+    // Neither trusted nor offered to the user: no exception could make an out-of-date certificate valid.
+    if (auto error = validity_period_error(context, leaf); error != X509_V_OK) {
+        X509_STORE_CTX_set_error(context, error);
+        return 0;
+    }
+
+    auto fingerprint = certificate_fingerprint(leaf);
+    if (fingerprint.is_empty())
+        return 0;
+
+    if (has_certificate_exception(collector.host, collector.port, fingerprint)) {
+        // curl checks SSL_get_verify_result() after the handshake, which reports the error left on the context.
+        X509_STORE_CTX_set_error(context, X509_V_OK);
+        return 1;
+    }
+
+    collector.rejected_self_signed_certificate_fingerprint = move(fingerprint);
+    return 0;
+}
+
 // Installed via SSL_CTX_set_cert_verify_callback. On failure, we record the failing cert's caIssuers URLs for the
 // request layer to fetch and retry.
 static int verify_callback(X509_STORE_CTX* context, void* collector_data)
@@ -216,6 +304,23 @@ static int verify_callback(X509_STORE_CTX* context, void* collector_data)
         sk_X509_free(untrusted);
     }
 
+    auto accepted_by_exception = false;
+    if (result <= 0 && collector) {
+        result = apply_self_signed_certificate_exception(context, *collector);
+        accepted_by_exception = result > 0;
+    }
+
+    // Only the certificate the user trusted may name another host. Fail the handshake for any other, as on macOS curl
+    // would otherwise go on to verify the chain with SecTrust, which then doesn't check the name either.
+    if (collector && collector->checks_host_name && !accepted_by_exception) {
+        auto* leaf = X509_STORE_CTX_get0_cert(context);
+        if (!leaf || !certificate_matches_host(leaf, collector->host)) {
+            if (result > 0)
+                X509_STORE_CTX_set_error(context, X509_V_ERR_HOSTNAME_MISMATCH);
+            return 0;
+        }
+    }
+
     if (result > 0 && collector && !collector->fetched_intermediates.is_empty())
         promote_fetched_intermediates(context, *collector);
 
@@ -224,7 +329,7 @@ static int verify_callback(X509_STORE_CTX* context, void* collector_data)
     auto const verify_error = X509_STORE_CTX_get_error(context);
     auto const issuer_is_missing = verify_error == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT || verify_error == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
 
-    if (result <= 0 && collector && issuer_is_missing) {
+    if (result <= 0 && collector && issuer_is_missing && openssl_trust_store_is_authoritative) {
         if (auto* current = X509_STORE_CTX_get_current_cert(context)) {
             for (auto& url : ca_issuers_urls(current)) {
                 if (collector->attempted_urls.contains(url))
@@ -242,6 +347,10 @@ static int verify_callback(X509_STORE_CTX* context, void* collector_data)
 
     // X509_verify_cert() returns -1 in exceptional cases, and a negative return from a cert_verify_callback tells
     // OpenSSL to suspend the handshake and retry it later. Collapse it to a plain pass/fail.
+    // NB: With SSL_VERIFY_PEER (see apply_aia_verification()), let the handshake continue for these failures;
+    //     curl reads the verification error from the context.
+    if (collector && collector->checks_host_name)
+        return 1;
     return result > 0 ? 1 : 0;
 }
 
@@ -269,6 +378,11 @@ void apply_aia_verification(SSL_CTX* ssl_context, AIACollector& collector)
         return;
     }
     SSL_CTX_set_cert_verify_callback(ssl_context, verify_callback, &collector);
+
+    // curl sets SSL_VERIFY_NONE and looks at the verification result once the handshake is done. Then a host name
+    // mismatch found during verification has to fail the handshake.
+    if (collector.checks_host_name)
+        SSL_CTX_set_verify(ssl_context, SSL_VERIFY_PEER, SSL_CTX_get_verify_callback(ssl_context));
 }
 
 }

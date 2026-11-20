@@ -974,6 +974,12 @@ void PageClient::page_did_set_text_fragment_indication_visibility(bool visible)
 {
     client().async_did_set_text_fragment_indication_visibility(m_id, visible);
 }
+
+void PageClient::page_did_request_certificate_warning(URL::URL const& url, Web::HTML::CrossProcessId document_state_id)
+{
+    client().async_did_request_certificate_warning(m_id, url, document_state_id);
+}
+
 void PageClient::page_did_request_resize_window(Gfx::IntSize size, u64 completion_id)
 {
     client().async_did_request_resize_window(m_id, size, completion_id);

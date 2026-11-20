@@ -53,6 +53,8 @@ private:
 
     virtual void set_proxy_configuration(HTTP::ProxyConfiguration) override;
 
+    virtual void trust_certificate(ByteString host, u16 port, ByteString fingerprint) override;
+
     virtual void set_performance_monitor_enabled(bool) override;
 
     virtual void estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) override;

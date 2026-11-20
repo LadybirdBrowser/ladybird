@@ -212,6 +212,14 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .default_value = false,
         .array_element_type = {},
     },
+    {
+        .id = ConfigVariableID::OfferToTrustSelfSignedCertificates,
+        .name = "security.certificates.offer_to_trust_self_signed"sv,
+        .title = "Offer to trust self-signed certificates"sv,
+        .description = "When a site presents a self-signed certificate, ask whether to trust it until Ladybird is closed, instead of refusing to connect. Meant for local and development servers: on a public site, a self-signed certificate may mean someone is intercepting the connection."sv,
+        .default_value = false,
+        .array_element_type = {},
+    },
 #if defined(LADYBIRD_HAS_UPDATE_CHECK)
     {
         .id = ConfigVariableID::UpdateCheckInterval,
