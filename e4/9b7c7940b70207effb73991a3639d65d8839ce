@@ -1,0 +1,11 @@
+Ladybird defers the parser’s fragment scroll until blocking stylesheets
+settle. Blink’s ElementFragmentAnchor::Invoke checks rendering readiness
+and can revisit the target until load completes. WebKit maintains the
+target in LocalFrameView::maintainScrollPositionAtAnchor and scrolls to
+it in LocalFrameView::scrollToAnchor. Gecko’s PresShell::ScrollToAnchor
+revisits the last anchor at its recorded scroll position.
+
+Chrome 158.0.8127.36, Firefox 151.0, and WebKit 26.5 brought FFmpeg’s
+named anchor and its adjacent line number into view. All three also
+aligned the target after a delayed stylesheet moved it, including when
+DOMContentLoaded had scrolled a nested box first.
