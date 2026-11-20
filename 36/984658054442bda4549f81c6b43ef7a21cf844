@@ -1,0 +1,25 @@
+Ladybird preserves the six specified spellings of writing-mode,
+and computes horizontal-tb or vertical-rl before resolving logical
+sides. Blink maps the identifiers in CssValueIDToPlatformEnum()
+for WritingMode. WebKit maps the legacy values declared in
+CSSProperties.json, and Gecko accepts aliases on WritingModeProperty.
+
+Chrome 157.0.8103.79 and WebKit 26.5 kept the legacy spelling in the
+declaration. Firefox 151.0 serialized its modern equivalent. All three
+computed the same writing modes, independently of direction.
+
+Ladybird resolves legacy writing modes before pairing a logical margin
+with its physical side during cascade rollback. Chrome 158.0.8127.36,
+Firefox 151.0 and WebKit 26.5 all restored the earlier layer’s 7px
+margin in both directions for all six aliases. Blink maps the keywords
+in CssValueIDToPlatformEnum() and rolls back in ResolveRevertLayer().
+Gecko declares the aliases on WritingModeProperty. WebKit accepts the
+legacy values in its writing-mode descriptor in CSSProperties.json.
+
+Ladybird resolves a legacy writing-mode keyword before choosing the
+viewport dimension for an inline- or block-axis length. Blink uses
+CSSLengthResolver::ViewportInlineSizePercent() and its block-axis
+counterpart. Gecko reads the element’s computed writing mode in
+viewport_percentage_to_computed_value(). WebKit selects the axis in
+resolveViewportUnit(). Chrome 158.0.8127.36, Firefox 151.0 and WebKit
+26.5 resolved 10vi to 60px for tb in an 800px by 600px viewport.
