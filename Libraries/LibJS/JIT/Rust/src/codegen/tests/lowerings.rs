@@ -218,8 +218,8 @@ fn set_marker_runtime(snapshot: &mut Snapshot) {
     use OpCode as O;
     let mut runtime = runtime();
     runtime.object_allocation.template = snapshot.add(&[PLAIN_OBJECT_CLASS]);
-    let mut set =
-        |opcode: OpCode, address: u64| std::sync::Arc::make_mut(&mut runtime.slow_paths)[opcode as usize] = address;
+    let mut slow_paths = runtime.slow_paths.to_vec();
+    let mut set = |opcode: OpCode, address: u64| slow_paths[opcode as usize] = address;
     for opcode in [
         O::Add,
         O::AddLhsInt32,
@@ -326,6 +326,7 @@ fn set_marker_runtime(snapshot: &mut Snapshot) {
     for opcode in [O::Increment, O::Decrement, O::PostfixIncrement, O::PostfixDecrement] {
         set(opcode, marker_record as *const () as u64);
     }
+    runtime.slow_paths = slow_paths.leak();
     snapshot.runtime = runtime;
 }
 
@@ -2994,9 +2995,11 @@ fn every_fast_path_compiles_for_both_architectures() {
     });
     let mut snapshot = crate::builder::tests::snapshot_for(&program, layout());
     set_marker_runtime(&mut snapshot);
+    let mut slow_paths = snapshot.runtime.slow_paths.to_vec();
     for opcode in [OpCode::InitializeVariableBinding, OpCode::SetLexicalBinding] {
-        std::sync::Arc::make_mut(&mut snapshot.runtime.slow_paths)[opcode as usize] = marker_put as *const () as u64;
+        slow_paths[opcode as usize] = marker_put as *const () as u64;
     }
+    snapshot.runtime.slow_paths = slow_paths.leak();
     let compiled =
         compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new())
             .unwrap();

@@ -353,7 +353,7 @@ impl Verifier<'_, '_> {
             state.load(exit);
             for (phi, input) in phi_inputs_from(self.graph, *predecessor, block) {
                 let output = self.allocation.node(phi).output.expect("phis have a location");
-                for location in std::iter::once(output).chain(self.filled_slot(phi)) {
+                for location in core::iter::once(output).chain(self.filled_slot(phi)) {
                     if self.read(&*state, location) == Some(self.content_of_value(input)) {
                         state.insert(location, Content::Value(phi));
                     } else {
@@ -379,7 +379,7 @@ impl Verifier<'_, '_> {
             };
             for (phi, input) in phi_inputs_from(self.graph, predecessor, block) {
                 let output = self.allocation.node(phi).output.expect("phis have a location");
-                for location in std::iter::once(output).chain(self.filled_slot(phi)) {
+                for location in core::iter::once(output).chain(self.filled_slot(phi)) {
                     let found = self.read(exit, location);
                     if found != Some(self.content_of_value(input)) {
                         self.error(format_args!(

@@ -66,7 +66,7 @@ impl Locations {
     }
 }
 
-impl std::ops::BitOr for Locations {
+impl core::ops::BitOr for Locations {
     type Output = Self;
 
     fn bitor(self, other: Self) -> Self {
@@ -74,7 +74,7 @@ impl std::ops::BitOr for Locations {
     }
 }
 
-impl std::ops::BitOrAssign for Locations {
+impl core::ops::BitOrAssign for Locations {
     fn bitor_assign(&mut self, other: Self) {
         *self = self.union(other);
     }

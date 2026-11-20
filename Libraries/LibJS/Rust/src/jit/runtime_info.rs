@@ -8,7 +8,7 @@
 //! and encodings of the fields it accesses, from the same layout types the interpreter is compiled against.
 
 use core::mem::offset_of;
-use std::sync::Arc;
+use std::sync::OnceLock;
 
 use libjs_abi::Builtin;
 use libjs_abi::value as nan_box;
@@ -82,7 +82,7 @@ const _: () =
 pub struct RuntimeFunctionAddresses {
     /// The address of the slow path JIT code calls for each generic opcode, indexed by opcode, or 0 for opcodes
     /// without one (the compiler refuses to compile those generically).
-    slow_paths: Arc<[u64]>,
+    slow_paths: &'static [u64],
     try_get_by_id_cache: u64,
     try_put_by_id_cache: u64,
     raw_native_exception: u64,
@@ -101,11 +101,15 @@ impl RuntimeFunctionAddresses {
                 .map(|(_, address)| *address as u64)
                 .unwrap_or_else(|| panic!("the runtime has no function {symbol}"))
         };
+        // NB: The table holds addresses of functions, which are the same for every VM of the process.
+        static SLOW_PATHS: OnceLock<Box<[u64]>> = OnceLock::new();
         Self {
-            slow_paths: (0..=u8::MAX)
-                .map_while(OpCode::from_u8)
-                .map(|opcode| slow_path_symbol(opcode).map_or(0, |symbol| address(&symbol.to_string())))
-                .collect(),
+            slow_paths: SLOW_PATHS.get_or_init(|| {
+                (0..=u8::MAX)
+                    .map_while(OpCode::from_u8)
+                    .map(|opcode| slow_path_symbol(opcode).map_or(0, |symbol| address(&symbol.to_string())))
+                    .collect()
+            }),
             try_get_by_id_cache: address("asm_try_get_by_id_cache"),
             try_put_by_id_cache: address("asm_try_put_by_id_cache"),
             raw_native_exception: if RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS {
@@ -521,7 +525,7 @@ pub fn runtime_info(
     };
     let mut info = RuntimeInfo {
         no_htmldda_objects: !vm.jit.htmldda_objects_exist(),
-        slow_paths: Arc::clone(&addresses.slow_paths),
+        slow_paths: addresses.slow_paths,
         jit_call: jit_function_address!(super::calls::libjs_jit_call),
         call_forwarding_arguments: jit_function_address!(super::calls::libjs_jit_call_forwarding_arguments),
         finish_direct_call: jit_function_address!(super::calls::libjs_jit_finish_direct_call),

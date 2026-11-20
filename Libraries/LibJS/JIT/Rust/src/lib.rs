@@ -11,14 +11,10 @@
 //! thread). It calls nothing in the runtime and has no access to the GC heap, so
 //! it can run on a worker thread.
 
-// NB: The tests keep their own data in the heap.
-#![cfg_attr(
-    test,
-    allow(clippy::disallowed_types, clippy::disallowed_macros, clippy::disallowed_methods)
-)]
+// NB: A compile makes no block in the heap: all its data is in zones (see `ak::Zone`). Without `std` (and without
+//     `alloc`), rustc rejects code of the compiler that would make one. The tests keep `std`.
+#![cfg_attr(not(test), no_std)]
 
-// NB: A module with `allow(clippy::disallowed_types)` still uses containers of the heap (see clippy.toml). It loses
-//     the `allow` when its data is in zones.
 pub mod artifact;
 pub mod asm;
 pub mod builder;
@@ -31,7 +27,6 @@ pub mod ir;
 pub mod passes;
 pub mod regalloc;
 pub mod scratch;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros, clippy::disallowed_methods)]
 pub mod snapshot;
 pub mod tables;
 
@@ -96,6 +91,67 @@ pub(crate) fn test_work() -> ak::Zone {
 pub(crate) fn test_steps() -> [ak::Zone; 2] {
     [test_work(), test_work()]
 }
+
+/// The allocator of the tests, which counts the blocks that `count_heap_blocks()` makes on its thread.
+#[cfg(test)]
+mod heap_counter {
+    use std::alloc::{GlobalAlloc, Layout, System};
+    use std::cell::Cell;
+
+    struct CountingAllocator;
+
+    std::thread_local! {
+        static COUNTING: Cell<bool> = const { Cell::new(false) };
+        static BLOCKS: Cell<usize> = const { Cell::new(0) };
+    }
+
+    fn count_block() {
+        if COUNTING.with(Cell::get) {
+            BLOCKS.with(|blocks| blocks.set(blocks.get() + 1));
+        }
+    }
+
+    // SAFETY: Each method passes its call on to `System` as it is.
+    unsafe impl GlobalAlloc for CountingAllocator {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            count_block();
+            // SAFETY: The caller keeps the contract of `GlobalAlloc::alloc`.
+            unsafe { System.alloc(layout) }
+        }
+
+        unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+            count_block();
+            // SAFETY: The caller keeps the contract of `GlobalAlloc::alloc_zeroed`.
+            unsafe { System.alloc_zeroed(layout) }
+        }
+
+        unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+            count_block();
+            // SAFETY: The caller keeps the contract of `GlobalAlloc::realloc`.
+            unsafe { System.realloc(ptr, layout, new_size) }
+        }
+
+        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+            // SAFETY: The caller keeps the contract of `GlobalAlloc::dealloc`.
+            unsafe { System.dealloc(ptr, layout) }
+        }
+    }
+
+    #[global_allocator]
+    static ALLOCATOR: CountingAllocator = CountingAllocator;
+
+    /// Runs `f`, and gives the number of blocks of the heap that it made or grew on this thread.
+    pub(crate) fn count_heap_blocks(f: impl FnOnce()) -> usize {
+        BLOCKS.with(|blocks| blocks.set(0));
+        COUNTING.with(|counting| counting.set(true));
+        f();
+        COUNTING.with(|counting| counting.set(false));
+        BLOCKS.with(Cell::get)
+    }
+}
+
+#[cfg(test)]
+pub(crate) use heap_counter::count_heap_blocks;
 
 /// Compiles `snapshot.executables[0]` for the host architecture with the memory of `scratch`, into `compiled` in
 /// place of what it holds. After a failure, `compiled` holds no complete code.

@@ -1485,7 +1485,7 @@ pub enum Successors<'z> {
     Cases(&'z [BlockId]),
 }
 
-impl std::ops::Deref for Successors<'_> {
+impl core::ops::Deref for Successors<'_> {
     type Target = [BlockId];
 
     fn deref(&self) -> &[BlockId] {
@@ -1884,7 +1884,7 @@ impl<'z> Graph<'z> {
 
     /// A frame state and its callers' frame states, innermost first.
     pub fn frame_state_chain(&self, id: FrameStateId) -> impl Iterator<Item = FrameStateId> + Clone + '_ {
-        std::iter::successors(Some(id), |id| self.frame_state(*id).parent)
+        core::iter::successors(Some(id), |id| self.frame_state(*id).parent)
     }
 
     /// The values `node` uses: its inputs, then the values of its frame
@@ -1944,7 +1944,7 @@ impl<'z> Graph<'z> {
         work: &'a Zone,
     ) -> impl Iterator<Item = (u32, NodeId)> + 'a {
         self.chain_values(id).chain(
-            std::iter::once_with(move || self.virtual_objects(id, work))
+            core::iter::once_with(move || self.virtual_objects(id, work))
                 .flatten()
                 .flat_map(|object| {
                     self.node(object)
@@ -1987,7 +1987,7 @@ impl<'z> Graph<'z> {
     /// The blocks code starts at: block 0, and the on-stack replacement
     /// entries.
     pub fn entries(&self) -> impl Iterator<Item = BlockId> + '_ {
-        std::iter::once(BlockId(0)).chain(self.osr_entries.iter().map(|(_, entry)| *entry))
+        core::iter::once(BlockId(0)).chain(self.osr_entries.iter().map(|(_, entry)| *entry))
     }
 
     /// The control node ending `block`, which every block has once built.

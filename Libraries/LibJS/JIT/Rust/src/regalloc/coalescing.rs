@@ -104,7 +104,7 @@ impl Interference<'_> {
 /// The values of the class of `value`, which starts with `value`.
 fn members(next: &[u32], value: u32) -> impl Iterator<Item = NodeId> + '_ {
     let mut member = Some(value);
-    std::iter::from_fn(move || {
+    core::iter::from_fn(move || {
         let current = member?;
         let following = next[current as usize];
         member = (following != value).then_some(following);

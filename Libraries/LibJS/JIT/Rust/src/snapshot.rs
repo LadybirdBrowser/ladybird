@@ -20,7 +20,6 @@ use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut, Index, IndexMut};
 
 use ak::{Column, RowBlock, Zone};
-use std::sync::Arc;
 
 use crate::ir::Float64Function;
 use crate::ir::Locations;
@@ -1077,7 +1076,7 @@ pub struct RuntimeInfo {
     /// The address of the slow path each generic opcode calls, indexed by
     /// opcode, or 0 if there is none. `codegen::slow_path_symbol()` names the
     /// function for each opcode and the calling convention it is called with.
-    pub slow_paths: Arc<[u64]>,
+    pub slow_paths: &'static [u64],
     /// `i64 libjs_jit_call(VM*, ExecutionContext*, u32 pc)`: runs the call
     /// instruction at `pc` to completion, writes its result into its
     /// destination slot, and returns a slow path control word.
@@ -1978,21 +1977,21 @@ impl<T: Row> IndexMut<List<T>> for Snapshot {
 
 /// A snapshot that is being captured, with what writes its lists row by row: `begin()`, `push()` and `end()`. A list
 /// that is ready is added in one go, with `Snapshot::add()`.
-pub struct SnapshotWriter {
-    snapshot: Box<Snapshot>,
+pub struct SnapshotWriter<'a> {
+    snapshot: &'a mut Snapshot,
     lists: OpenLists,
 }
 
-impl SnapshotWriter {
+impl<'a> SnapshotWriter<'a> {
     /// Writes into `snapshot`, with the memory of `lists` for the lists that are written row by row.
-    pub fn new(snapshot: Box<Snapshot>, mut lists: OpenLists) -> Self {
+    pub fn new(snapshot: &'a mut Snapshot, mut lists: OpenLists) -> Self {
         lists.reset();
         Self { snapshot, lists }
     }
 
-    /// The snapshot as it is now, and the memory for lists that are written row by row, for the next capture.
-    pub fn finish(self) -> (Box<Snapshot>, OpenLists) {
-        (self.snapshot, self.lists)
+    /// The memory for lists that are written row by row, for the next capture. The snapshot keeps what was written.
+    pub fn finish(self) -> OpenLists {
+        self.lists
     }
 
     /// A zone for data that one step of the capture reads and then drops (see `Zone::scope()`). Its memory serves
@@ -2039,17 +2038,17 @@ impl SnapshotWriter {
     }
 }
 
-impl Deref for SnapshotWriter {
+impl Deref for SnapshotWriter<'_> {
     type Target = Snapshot;
 
     fn deref(&self) -> &Snapshot {
-        &self.snapshot
+        self.snapshot
     }
 }
 
-impl DerefMut for SnapshotWriter {
+impl DerefMut for SnapshotWriter<'_> {
     fn deref_mut(&mut self) -> &mut Snapshot {
-        &mut self.snapshot
+        self.snapshot
     }
 }
 

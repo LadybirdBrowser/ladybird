@@ -204,7 +204,7 @@ impl<'w> Loops<'w> {
         }
         let loops = &self.loops;
         self.by_size
-            .sort_unstable_by_key(|index| (std::cmp::Reverse(loops[*index as usize].block_count), *index));
+            .sort_unstable_by_key(|index| (core::cmp::Reverse(loops[*index as usize].block_count), *index));
         for index in &self.by_size {
             let row = *index as usize * self.words_for_each_loop;
             let blocks = &self.blocks[row..row + self.words_for_each_loop];
@@ -243,7 +243,7 @@ impl<'w> Loops<'w> {
     }
 
     /// The first of the use positions `uses[range]` (in order) that is in `loop_`.
-    pub fn first_use_in(&self, loop_: &Loop, uses: &[u32], range: std::ops::Range<usize>) -> Option<u32> {
+    pub fn first_use_in(&self, loop_: &Loop, uses: &[u32], range: core::ops::Range<usize>) -> Option<u32> {
         loop_.first_use_in(self.blocks_of(loop_), uses, &self.position_blocks, range)
     }
 
@@ -264,7 +264,7 @@ impl Loop {
         blocks: &[u64],
         uses: &[u32],
         position_blocks: &[u32],
-        range: std::ops::Range<usize>,
+        range: core::ops::Range<usize>,
     ) -> Option<u32> {
         let uses = &uses[range];
         let from = uses.partition_point(|position| *position < self.start);

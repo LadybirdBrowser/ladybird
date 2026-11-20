@@ -177,7 +177,7 @@ fn generate_stub<M: PortableMacroAssembler>(
             verify: false,
             emitting: None,
             requested_temps: &[],
-            undeclared_saves_area_uses: std::cell::RefCell::new(ZoneVec::new_in(&zone)),
+            undeclared_saves_area_uses: core::cell::RefCell::new(ZoneVec::new_in(&zone)),
         };
         codegen.emit_call_stub(construct)?;
         codegen.masm.finish().map_err(super::assembly_failure)?;

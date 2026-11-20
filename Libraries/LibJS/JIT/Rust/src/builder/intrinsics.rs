@@ -129,7 +129,7 @@ impl<'a> GraphBuilder<'a, '_> {
         let Some(feedback) = self.call_feedback(call_feedback) else {
             return Ok(None);
         };
-        if std::iter::once(&this_value)
+        if core::iter::once(&this_value)
             .chain(arguments)
             .any(|operand| self.holds_virtual_arguments(*operand))
         {
@@ -1009,9 +1009,9 @@ impl<'a> GraphBuilder<'a, '_> {
         }
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
         let mut inputs = self.node_list();
-        let operands = std::iter::once(Some(*this_value))
+        let operands = core::iter::once(Some(*this_value))
             .chain((0..call.arguments.len()).map(|index| arguments.get(index).copied()));
-        for (operand, kind) in operands.zip(std::iter::once(call.receiver).chain(call.arguments.iter().copied())) {
+        for (operand, kind) in operands.zip(core::iter::once(call.receiver).chain(call.arguments.iter().copied())) {
             let input = match (operand, kind) {
                 (Some(operand), HelperOperand::Value) => self.read(operand)?,
                 (Some(operand), HelperOperand::String) => {

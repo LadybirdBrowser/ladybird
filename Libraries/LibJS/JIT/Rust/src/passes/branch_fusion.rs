@@ -151,7 +151,7 @@ fn thread_boolean_phis(graph: &mut Graph, uses: &[u32], work: &Zone) {
         (0..block_count)
             .filter(|block| !threaded.contains(*block))
             .flat_map(|block| {
-                std::iter::once(BlockId::from_index(block)).chain(new_blocks[block].into_iter().flatten())
+                core::iter::once(BlockId::from_index(block)).chain(new_blocks[block].into_iter().flatten())
             }),
         work,
     );
