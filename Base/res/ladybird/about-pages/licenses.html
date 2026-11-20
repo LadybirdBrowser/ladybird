@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="color-scheme" content="light dark" />
+        <title>Licenses</title>
+        <link rel="icon" type="image/png" href="resource://icons/48x48/app-browser.png" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <style>
+            body {
+                max-width: 920px;
+                margin: 0 auto;
+                padding: 30px 24px;
+            }
+
+            h1 {
+                margin-bottom: 18px;
+                font-size: 22px;
+                font-weight: 600;
+            }
+
+            pre {
+                font-family: ui-monospace, monospace;
+                font-size: 12px;
+                line-height: 1.45;
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Licenses</h1>
+        <pre id="licenses">Loading…</pre>
+        <script type="module">
+            const LICENSES_URL = "resource://ladybird/LICENSES.txt";
+
+            async function loadLicenses() {
+                try {
+                    const response = await fetch(`${LICENSES_URL}.br`);
+                    const decompressed = response.body.pipeThrough(new DecompressionStream("brotli"));
+                    return await new Response(decompressed).text();
+                } catch {
+                    // A build without a brotli tool installs the licenses uncompressed.
+                    const response = await fetch(LICENSES_URL);
+                    return await response.text();
+                }
+            }
+
+            const licenses = document.querySelector("#licenses");
+            try {
+                licenses.textContent = await loadLicenses();
+            } catch {
+                licenses.textContent = "The licenses could not be loaded.";
+            }
+        </script>
+    </body>
+</html>
