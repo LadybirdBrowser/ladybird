@@ -782,3 +782,153 @@ TEST_CASE(transport_whose_peer_queue_is_full_of_messages_with_rights_can_be_dest
     EXPECT_EQ(send_right_count(attached_port), received);
     release_send_rights(attached_port, received);
 }
+
+static void post_byte(IPC::TransportMachPort& transport, u8 value)
+{
+    IPC::MessageDataType payload;
+    payload.append(value);
+    Vector<IPC::Attachment> attachments;
+    MUST(transport.post_message(move(payload), attachments));
+}
+
+// Reads the first byte of every message until there are at least `count`, the peer is gone, or the deadline passes, so
+// that missing messages fail a test rather than hang it.
+static Vector<u8> read_bytes(IPC::TransportMachPort& transport, size_t count)
+{
+    Vector<u8> received;
+    auto const deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
+    while (received.size() < count && should_shutdown == IPC::TransportMachPort::ShouldShutdown::No && MonotonicTime::now() < deadline) {
+        transport.wait_until_readable(deadline);
+        should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+            received.append(message.bytes.bytes()[0]);
+        });
+    }
+    return received;
+}
+
+static Optional<u8> read_one_byte(IPC::TransportMachPort& transport)
+{
+    auto received = read_bytes(transport, 1);
+    EXPECT_EQ(received.size(), 1uz);
+    if (received.is_empty())
+        return {};
+    return received[0];
+}
+
+// Waits until the peer is gone, or the deadline passes, so that a missing EOF fails a test rather than hang it.
+static bool sees_peer_go_away(IPC::TransportMachPort& transport)
+{
+    auto const deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+    while (MonotonicTime::now() < deadline) {
+        transport.wait_until_readable(deadline);
+        if (transport.read_as_many_messages_as_possible_without_blocking([](auto&&) { }) == IPC::TransportMachPort::ShouldShutdown::Yes)
+            return true;
+    }
+    return false;
+}
+
+// All transports of a process do their IO on one thread, which has to keep each of them to itself.
+TEST_CASE(transports_that_share_the_io_thread_work_alone)
+{
+    Vector<NonnullOwnPtr<IPC::TransportMachPort>> local_ends;
+    Vector<NonnullOwnPtr<IPC::TransportMachPort>> remote_ends;
+    for (size_t i = 0; i < 8; ++i) {
+        auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+        local_ends.append(move(paired.local));
+        remote_ends.append(TRY_OR_FAIL(paired.remote_handle.create_transport()));
+    }
+    for (size_t i = 0; i < local_ends.size(); ++i)
+        post_byte(*local_ends[i], static_cast<u8>(i));
+    for (size_t i = 0; i < remote_ends.size(); ++i) {
+        EXPECT_EQ(read_one_byte(*remote_ends[i]), static_cast<u8>(i));
+        post_byte(*remote_ends[i], static_cast<u8>(i + 100));
+    }
+
+    // One that goes must not take the others with it, and its peer finds out.
+    local_ends.remove(3);
+    EXPECT(sees_peer_go_away(*remote_ends[3]));
+    remote_ends.remove(3);
+    for (size_t i = 0; i < local_ends.size(); ++i) {
+        auto expected = i < 3 ? i : i + 1;
+        EXPECT_EQ(read_one_byte(*local_ends[i]), static_cast<u8>(expected + 100));
+    }
+
+    // A transport can leave the shared thread for another owner. The old owner keeps what the thread did take in for
+    // it, and the new one gets the rest, so that each message arrives once and in order.
+    post_byte(*local_ends[0], 42);
+    auto handle = TRY_OR_FAIL(remote_ends[0]->release_for_transfer());
+    Vector<u8> received;
+    (void)remote_ends[0]->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        received.append(message.bytes.bytes()[0]);
+    });
+    remote_ends.remove(0);
+    auto new_owner = TRY_OR_FAIL(handle.create_transport());
+    post_byte(*local_ends[0], 43);
+    received.extend(read_bytes(*new_owner, received.size() < 2 ? 2 - received.size() : 0));
+    EXPECT_EQ(received, (Vector<u8> { 42, 43 }));
+}
+
+// A peer that stops reading leaves the messages it has no room for waiting with its transport. They must not hold up
+// the IO thread, which the other transports share.
+TEST_CASE(a_peer_that_stops_reading_does_not_hold_up_other_transports)
+{
+    auto stalled = make_transport_with_raw_sender();
+    auto attached_port = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    constexpr size_t stalled_message_count = 64;
+    for (size_t i = 0; i < stalled_message_count; ++i)
+        post_byte_moving_a_send_right_to(*stalled.transport, attached_port, static_cast<u8>(i));
+
+    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
+    for (u8 i = 0; i < 16; ++i) {
+        post_byte(*paired.local, i);
+        EXPECT_EQ(read_one_byte(*peer), i);
+        post_byte(*peer, i);
+        EXPECT_EQ(read_one_byte(*paired.local), i);
+    }
+
+    size_t received = 0;
+    while (received < stalled_message_count && receive_byte_and_send_right(stalled.transport_peer_receive_right, 5000).has_value())
+        ++received;
+    EXPECT_EQ(received, stalled_message_count);
+    release_send_rights(attached_port, received);
+}
+
+static Optional<u8> receive_raw_byte(Core::MachPort const& receive_right, mach_msg_timeout_t timeout_in_milliseconds)
+{
+    Array<u8, 1024> buffer {};
+    auto* header = reinterpret_cast<mach_msg_header_t*>(buffer.data());
+    if (mach_msg(header, MACH_RCV_MSG | MACH_RCV_TIMEOUT, 0, buffer.size(), receive_right.port(), timeout_in_milliseconds, MACH_PORT_NULL) != KERN_SUCCESS)
+        return {};
+    EXPECT_EQ(header->msgh_id, IPC_INLINE_DATA_MESSAGE_ID);
+    EXPECT(!(header->msgh_bits & MACH_MSGH_BITS_COMPLEX));
+    auto const* payload = reinterpret_cast<u8 const*>(header + 1);
+    u32 payload_size = 0;
+    __builtin_memcpy(&payload_size, payload, sizeof(payload_size));
+    EXPECT_EQ(payload_size, 1u);
+    return payload[sizeof(payload_size)];
+}
+
+// The IO thread sends a long backlog a part at a time. The rest has to follow even when the peer's queue never fills
+// up again, so that no word comes from the kernel that it has room.
+TEST_CASE(a_backlog_longer_than_one_turn_of_sending_arrives_whole)
+{
+    auto raw = make_transport_with_raw_sender();
+    IPC::TransportMachPort::raise_receive_queue_limit(raw.transport_peer_receive_right);
+
+    // MACH_PORT_QLIMIT_MAX (1024) messages fill the peer's queue, and the rest wait with the transport.
+    constexpr size_t message_count = 1024 + 300;
+    for (size_t i = 0; i < message_count; ++i)
+        post_byte(*raw.transport, static_cast<u8>(i));
+
+    size_t received = 0;
+    while (received < message_count) {
+        auto byte = receive_raw_byte(raw.transport_peer_receive_right, 5000);
+        if (!byte.has_value())
+            break;
+        EXPECT_EQ(*byte, static_cast<u8>(received));
+        ++received;
+    }
+    EXPECT_EQ(received, message_count);
+}
