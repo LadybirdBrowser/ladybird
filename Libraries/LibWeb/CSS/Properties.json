@@ -6122,6 +6122,14 @@
     "requires-computation": "never",
     "valid-types": [
       "writing-mode"
+    ],
+    "valid-identifiers": [
+      "lr",
+      "lr-tb",
+      "rl",
+      "rl-tb",
+      "tb",
+      "tb-rl"
     ]
   },
   "x": {

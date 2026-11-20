@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Writing Modes: getComputedStyle().writingMode</title>
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-3/#propdef-writing-mode">
+<meta name="assert" content="writing-mode computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("writing-mode", "horizontal-tb");
+test_computed_value("writing-mode", "vertical-rl");
+test_computed_value("writing-mode", "vertical-lr");
+</script>
+</body>
+</html>

@@ -3203,8 +3203,7 @@ pub(crate) unsafe fn drive_property_computation(
     let mut computed_math_depth: Option<i32> = None;
     // The background-image list length, for the coordinated background properties.
     let mut background_image_list_length: Option<usize> = None;
-    // The computed writing-mode and direction, tracked for logical alias pairing;
-    // both properties only take keywords, whose computed value is the specified one.
+    // Logical properties use the computed writing mode and direction to find their physical counterparts.
     let mut computed_writing_mode = writer.get(prop::WRITING_MODE).and_then(|value| match value.data() {
         StyleValueData::Keyword { keyword } => keyword_to_writing_mode(*keyword),
         _ => None,
@@ -3442,6 +3441,13 @@ pub(crate) unsafe fn drive_property_computation(
         // Whether the computed value depends on inherited information, so the specified
         // value must be kept for re-resolution when an ancestor changes.
         let value = value.expect("a longhand has a cascaded, inherited or initial value");
+        let value = if property_id == prop::WRITING_MODE
+            && let StyleValueData::Keyword { keyword } = value.data()
+        {
+            RetainedStyleValueData::shared_keyword(computed_writing_mode_keyword(*keyword))
+        } else {
+            value
+        };
         let value_data = value.data();
         let external_dependencies = external_dependencies.unwrap_or_else(|| external_value_dependencies(value_data));
 
@@ -6062,6 +6068,19 @@ fn keyword_from_style_value(value: &StyleValueData) -> u16 {
         unreachable!("keyword longhand must have a keyword value")
     };
     *keyword
+}
+
+// https://drafts.csswg.org/css-writing-modes-4/#svg-writing-mode-css
+fn computed_writing_mode_keyword(keyword: u16) -> u16 {
+    match keyword {
+        keyword::LR | keyword::LR_TB | keyword::RL | keyword::RL_TB => keyword::HORIZONTAL_TB,
+        keyword::TB | keyword::TB_RL => keyword::VERTICAL_RL,
+        _ => keyword,
+    }
+}
+
+pub(crate) fn writing_mode_from_specified_keyword(keyword: u16) -> Option<u8> {
+    keyword_to_writing_mode(computed_writing_mode_keyword(keyword))
 }
 
 /// The writing mode a computed `writing-mode` value holds.
