@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/Platform.h>
 #include <AK/StringView.h>
 #include <AK/Time.h>
@@ -17,11 +16,15 @@
 #endif
 
 #include <AK/Mutex.h>
-#include <AK/RefPtr.h>
 #include <LibCore/MachPort.h>
-#include <LibThreading/Forward.h>
 
 namespace IPC {
+
+namespace FFI {
+
+struct BootstrapServer;
+
+}
 
 struct TransportBootstrapMachPorts {
     Core::MachPort receive_right;
@@ -59,23 +62,8 @@ public:
     ErrorOr<BootstrapRequestResult> handle_bootstrap_request(pid_t, Core::MachPort reply_port);
 
 private:
-    static ErrorOr<void> send_transport_ports_to_child(Core::MachPort reply_port, TransportBootstrapMachPorts ports);
-    static ErrorOr<TransportBootstrapMachPorts> create_on_demand_local_transport(Core::MachPort reply_port);
-
-    struct ChildTransport {
-        TransportBootstrapMachPorts ports;
-        u64 serial { 0 };
-    };
-
-    void stop_watching_for_child_exit(pid_t);
-    void child_exit_watcher_loop();
-
     Mutex m_child_registration_mutex;
-    HashMap<pid_t, ChildTransport> m_child_transports;
-    u64 m_next_child_transport_serial { 1 };
-
-    int m_child_exit_queue { -1 };
-    RefPtr<Threading::Thread> m_child_exit_watcher;
+    FFI::BootstrapServer* m_server { nullptr };
 };
 
 }

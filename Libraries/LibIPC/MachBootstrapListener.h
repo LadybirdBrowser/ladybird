@@ -6,13 +6,11 @@
 
 #pragma once
 
-#include <AK/Atomic.h>
 #include <AK/Function.h>
 #include <AK/Platform.h>
 #include <AK/String.h>
 #include <AK/kmalloc.h>
 #include <LibCore/MachPort.h>
-#include <LibThreading/Forward.h>
 
 #if !defined(AK_OS_MACH)
 #    error "MachBootstrapListener is only available on Mach kernel-based OS's"
@@ -20,16 +18,22 @@
 
 namespace IPC {
 
+namespace FFI {
+
+struct BootstrapListener;
+
+}
+
 class MachBootstrapListener {
     AK_MAKE_NONCOPYABLE(MachBootstrapListener);
 
 public:
     AK_ALLOC_WITH_KMALLOC;
 
+    // Registers a port under the name with the bootstrap server, and takes requests there on a thread of its own.
     explicit MachBootstrapListener(ByteString server_port_name);
     ~MachBootstrapListener();
 
-    void start();
     void stop();
 
     bool is_initialized();
@@ -44,15 +48,8 @@ public:
     ByteString const& server_port_name() const { return m_server_port_name; }
 
 private:
-    void thread_loop();
-    ErrorOr<void> allocate_server_port();
-
-    NonnullRefPtr<Threading::Thread> m_thread;
     ByteString const m_server_port_name;
-    Core::MachPort m_server_port_recv_right;
-    Core::MachPort m_server_port_send_right;
-
-    Atomic<bool> m_should_stop { false };
+    FFI::BootstrapListener* m_listener { nullptr };
 };
 
 }
