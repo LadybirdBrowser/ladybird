@@ -1,0 +1,13 @@
+When an element’s slot assignment changes, Ladybird restyles it and
+its descendants, and installs their styles on the host wherever the
+host holds none, even where their records come out unchanged. So an
+element assigned out of a slot in an undisplayed subtree to a displayed
+slot is laid out, and answers its computed style. Chrome 157, Firefox
+151, and WebKit 26.5, run with engine-compare.mjs, do the same: Each
+gives offsetParent the body and display block, whether the slot
+attribute, a slot’s name, or assign() moves the element. In their
+sources, Blink’s Node::FlatTreeParentChanged() marks an element for a
+local style recalc once it’s slotted to a new slot, and WebKit’s
+SlotAssignment invalidates the style of the host’s whole subtree with
+invalidateStyleForSubtree(). Gecko drops the element’s style data in
+PresShell::SlotAssignmentWillChange(), so its style is computed anew.
