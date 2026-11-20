@@ -1,5 +1,5 @@
 // https://w3c.github.io/ServiceWorker/#serviceworker-interface
-[SecureContext, Exposed=(Window,Worker)]
+[SecureContext, Exposed=(Window,Worker), Experimental]
 interface ServiceWorker : EventTarget {
     readonly attribute USVString scriptURL;
     [ImplementedAs=service_worker_state] readonly attribute ServiceWorkerState state;
