@@ -1,0 +1,14 @@
+Ladybird now takes a replaced box’s min-content block size from its
+preferred aspect ratio, so an image with “aspect-ratio: 4 / 3” keeps
+the height its width gives as its automatic minimum. Run in Chrome
+157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5, all three
+engines keep it at 225px.
+
+Blink’s FlexLayoutAlgorithm::ConstructAndAppendFlexItems() measures the
+content size suggestion of a replaced item with ComputeReplacedSize(),
+and BlockNode::GetReplacedAspectRatio() prefers the CSS aspect ratio.
+WebKit’s FlexFormattingContext::computeContentBasedMinMainSize() takes
+it from the cross size through preferredAspectRatioForFlexItem(), which
+also prefers the CSS ratio. Gecko’s ResolveAutoFlexBasisAndMinSize()
+measures it with MeasureFlexItemContentBSize(), and nsIFrame::
+GetAspectRatio() prefers the CSS ratio.
