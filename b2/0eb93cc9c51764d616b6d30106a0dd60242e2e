@@ -1,0 +1,22 @@
+Ladybird’s UI process now opens a file a renderer asks for only once
+the path, with every symbolic link resolved, is outside /proc, /sys,
+and /dev, and only if the file it opens is a regular file or a
+directory on a file system other than procfs or sysfs.
+
+Chromium never hands a renderer a descriptor for a file: URL. Its
+FileURLLoader (content/browser/loader/file_url_loader_factory.cc) reads
+the file in the browser process and streams the bytes over a Mojo data
+pipe, and ChildProcessSecurityPolicyImpl limits file: requests to the
+processes it granted that scheme. And Chrome’s own IsAccessAllowed()
+(chrome/browser/net/chrome_network_delegate.cc) puts no limit on the
+path on desktop Linux, so it shows a /proc file the address bar names;
+Ladybird deliberately refuses those, since a navigation that a page
+starts goes through the same broker in Ladybird.
+
+Firefox’s Linux sandbox broker opens paths for a content process, but
+its SandboxBrokerClient::DoCall() rewrites /proc/self/ to the requesting
+process’s own pid before the request leaves it, so “self” always means
+the content process itself, never the parent.
+
+These comparisons come from reading the engines’ sources, not from
+running them: macOS has no /proc to compare against.
