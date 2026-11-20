@@ -32,6 +32,8 @@ SHIPPED_PORT_DIRECTORIES = {"bin", "Frameworks", "include", "lib"}
 
 LGPL_MARKER = "GNU LESSER GENERAL PUBLIC LICENSE"
 
+DYNAMIC_PORTS_PATH = pathlib.PurePosixPath("Meta/CMake/vcpkg/dynamic-ports.txt")
+
 CRATE_LICENSE_FILE_PATTERN = re.compile(r"^(licen[cs]e|copying|copyright|notice|unlicense|patents)", re.IGNORECASE)
 
 C_FAMILY_COMMENT_PATTERN = re.compile(r"/\*.*?\*/|(?:^[ \t]*//[^\n]*\n?)+", re.DOTALL | re.MULTILINE)
@@ -131,6 +133,11 @@ def port_is_shipped(name: str, installed_files: list[str], triplet: str) -> bool
         if len(parts) > 2 and parts[0] == triplet and parts[1] in SHIPPED_PORT_DIRECTORIES:
             return True
     return False
+
+
+def read_dynamic_ports(source_dir: pathlib.Path) -> set[str]:
+    lines = read_text(source_dir / DYNAMIC_PORTS_PATH).splitlines()
+    return {line.strip() for line in lines if line.strip() and not line.startswith("#")}
 
 
 def collect_vcpkg_ports(installed_dir: pathlib.Path, triplet: str) -> list[Port]:
@@ -264,6 +271,10 @@ def generate(args: argparse.Namespace) -> str:
     crate_licenses = collect_crate_licenses(crates)
 
     lgpl_ports = [port for port in ports if LGPL_MARKER in port.copyright]
+
+    dynamic_ports = read_dynamic_ports(args.source_dir)
+    if statically_linked_lgpl_ports := [port.name for port in lgpl_ports if port.name not in dynamic_ports]:
+        raise RuntimeError(f"LGPL ports missing from {DYNAMIC_PORTS_PATH}: {', '.join(statically_linked_lgpl_ports)}")
 
     introduction = [
         "Ladybird is distributed under the BSD 2-Clause License below. It includes the third-party software listed",
