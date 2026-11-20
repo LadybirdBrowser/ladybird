@@ -1,0 +1,18 @@
+<!doctype html>
+<title>Inside list marker and normal text render identically: lower-latin</title>
+<link rel=help href="https://drafts.csswg.org/css-lists-3/#content-property">
+<link rel=help href="https://bugs.chromium.org/p/chromium/issues/detail?id=787382">
+<link rel=match href="../../../../../expected/wpt-import/css/css-lists/content-property/marker-text-matches-lower-latin-ref.html">
+<style>
+* {
+    padding: 0;
+    margin: 0;
+}
+ol {
+    list-style: lower-latin inside;
+}
+</style>
+
+<ol>
+  <li>Filler Text</li>
+</ol>

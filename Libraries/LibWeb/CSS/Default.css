@@ -1913,10 +1913,18 @@ iframe:fullscreen {
   /* symbols: 'a' 'b' 'c' 'd' 'e' 'f' 'g' 'h' 'i' 'j' 'k' 'l' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'u' 'v' 'w' 'x' 'y' 'z'; */
 }
 
+@counter-style lower-latin {
+  system: extends lower-alpha;
+}
+
 @counter-style upper-alpha {
   system: alphabetic;
   symbols: '\41' '\42' '\43' '\44' '\45' '\46' '\47' '\48' '\49' '\4A' '\4B' '\4C' '\4D' '\4E' '\4F' '\50' '\51' '\52' '\53' '\54' '\55' '\56' '\57' '\58' '\59' '\5A';
   /* symbols: 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' 'I' 'J' 'K' 'L' 'M' 'N' 'O' 'P' 'Q' 'R' 'S' 'T' 'U' 'V' 'W' 'X' 'Y' 'Z'; */
+}
+
+@counter-style upper-latin {
+  system: extends upper-alpha;
 }
 
 @counter-style fullwidth-lower-alpha {
