@@ -10,8 +10,23 @@
 
 #![deny(unsafe_code)]
 
+#[cfg(feature = "allocator")]
+extern crate ladybird_allocator;
+
+#[cfg(feature = "cpp_transport")]
+#[allow(unsafe_code)]
+#[path = "../../../RustDemangle.rs"]
+mod rust_demangle;
+
+#[cfg(feature = "cpp_transport")]
+#[allow(unsafe_code)]
+#[path = "../../../RustPanic.rs"]
+mod rust_panic;
+
 pub mod attachment;
 pub mod cpp_connection;
+#[cfg(all(target_vendor = "apple", feature = "cpp_transport"))]
+pub mod cpp_mach_transport;
 mod receive_queue;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 mod shared_memory;

@@ -7,9 +7,23 @@ name = "libipc_rust"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["rlib", "staticlib"]
+
 [dependencies]
 ak = { path = "../../../AK/Rust" }
+ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libc = "0.2"
+rustc-demangle = { version = "0.1", optional = true }
+
+[features]
+default = []
+allocator = ["dep:ladybird_allocator"]
+# The extern "C" interface of the Mach transport, for LibIPC's copy of the crate alone.
+cpp_transport = ["dep:rustc-demangle"]
+
+[build-dependencies]
+cbindgen = "0.29"
 
 [lints]
 workspace = true
