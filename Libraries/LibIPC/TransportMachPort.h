@@ -29,7 +29,6 @@
 #include <LibIPC/Forward.h>
 #include <LibIPC/ReceivedMessageBytes.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibThreading/Thread.h>
 
 namespace IPC {
 
@@ -93,6 +92,8 @@ public:
     ErrorOr<TransportHandle> release_for_transfer();
 
 private:
+    friend class SharedMachIOThread;
+
     static constexpr unsigned int IPC_DATA_MESSAGE_ID = 0x4950C001;
     static constexpr unsigned int IPC_INLINE_DATA_MESSAGE_ID = 0x4950C002;
     static constexpr unsigned int IPC_WAKEUP_MESSAGE_ID = 0x4950C003;
@@ -109,7 +110,20 @@ private:
         Stopped,
     };
 
-    intptr_t io_thread_loop();
+    static constexpr size_t MAX_BACKLOG_MESSAGES_SENT_PER_TURN = 64;
+    enum class PendingIO {
+        None,
+        MoreToSendNextTurn,
+        // The peer's queue is full.
+        RetryAfterDelay,
+        IOIsOver,
+    };
+    // One turn of sending on the IO thread: some of the backlog, as far as the peer has room, and the stop asked for.
+    PendingIO do_pending_io();
+    // Breaks once IO is over for the transport.
+    IterationDecision handle_message_on_io_thread(u8* buffer);
+    // Runs on the IO thread as IO is over, after the receive right has left the IO thread's port set.
+    void finish_io();
     void release_send_right_to_peer();
     void stop_io_thread(IOThreadState desired_state);
     void wake_io_thread();
@@ -131,17 +145,16 @@ private:
 
     Core::MachPort m_receive_port;
     Core::MachPort m_send_port;
-    Core::MachPort m_port_set;
-    Core::MachPort m_wakeup_receive_port;
-    Core::MachPort m_wakeup_send_port;
 
     Atomic<bool> m_is_open { true };
     // True while release_for_transfer() is moving this transport's rights to a new owner. In that state,
     // shutdown from the old endpoint is part of the handoff and must not be reported as peer EOF.
     Atomic<bool> m_is_being_transferred { false };
 
-    RefPtr<Threading::Thread> m_io_thread;
     Atomic<IOThreadState> m_io_thread_state { IOThreadState::Running };
+    // NB: These two are guarded by the lock of the IO thread that all transports share.
+    bool m_needs_attention { false };
+    bool m_io_is_finished { false };
     Atomic<bool> m_peer_eof { false };
 
     // Held by whichever thread sends, which is the thread that posts a message unless the message has to wait. It
