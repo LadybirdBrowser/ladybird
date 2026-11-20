@@ -104,7 +104,7 @@ fn generate_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo, construct: bo
     // NB: A stub has no graph to build: the graph stays empty, so its zone gives out nothing and takes no memory.
     let zone = ak::Zone::new(0, c"JIT stub graph");
     let graph = Graph::new_in(&zone);
-    let allocation = Allocation::default();
+    let allocation = Allocation::new_in(&zone);
     // NB: A stub is code for no executable. It reads no list of the runtime info.
     let snapshot = Snapshot::new();
     let (_, pinned) = target_registers::<M>();

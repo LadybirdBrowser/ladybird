@@ -131,14 +131,14 @@ pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout, work: &Zone) -> 
 
 /// Returns a description of every violated invariant, or `Ok` if there is none.
 pub fn verify(graph: &Graph) -> Result<(), String> {
-    verify_with(graph, &mut Dominators::new(), &Zone::new(1 << 30, c"JIT verifier"))
+    verify_with(graph, &Zone::new(1 << 30, c"JIT verifier"))
 }
 
-/// `verify()`, with `dominators` as the tables to compute the dominators of the graph in, and `work` for its lists.
-pub fn verify_with(graph: &Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), String> {
+/// `verify()`, with `work` for its lists.
+pub fn verify_with(graph: &Graph, work: &Zone) -> Result<(), String> {
     let places = verify_blocks(graph, work)?;
     verify_edges(graph)?;
-    verify_nodes(graph, &places, dominators, work)?;
+    verify_nodes(graph, &places, work)?;
     verify_frame_states(graph, work)
 }
 
@@ -243,17 +243,12 @@ fn verify_edges(graph: &Graph) -> Result<(), String> {
 
 /// Checks that values are defined before their uses, and the rules of each
 /// kind of node.
-fn verify_nodes(
-    graph: &Graph,
-    places: &[Option<Place>],
-    dominators: &mut Dominators,
-    work: &Zone,
-) -> Result<(), String> {
+fn verify_nodes(graph: &Graph, places: &[Option<Place>], work: &Zone) -> Result<(), String> {
     let mut errors = Errors::default();
-    if dominators.compute(graph).is_err() {
+    if graph.blocks.len() > Dominators::MAX_BLOCKS {
         return Err("the graph has more blocks than the tables of the dominators hold".to_string());
     }
-    let dominators = &*dominators;
+    let dominators = &Dominators::of(graph, work);
     let is_defined_before = |value: NodeId, block: BlockId, index: usize| -> bool {
         // NB: Virtual objects are in no block; their properties are listed
         //     with the frame state values that need them.

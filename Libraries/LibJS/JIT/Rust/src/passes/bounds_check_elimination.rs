@@ -43,7 +43,6 @@
 //! accesses (and the branches on an index being in bounds) that dominate
 //! the operation: an index is below the elements' count there.
 
-use ak::ColumnFull;
 use ak::Zone;
 use ak::ZoneVec;
 
@@ -116,7 +115,7 @@ impl Range {
 
 struct Ranges<'a> {
     graph: &'a Graph<'a>,
-    dominators: &'a Dominators,
+    dominators: &'a Dominators<'a>,
     /// The block of each phi.
     phi_blocks: &'a ZoneMap<'a, NodeId, BlockId>,
     /// The ranges of entering counters that checks added where they enter
@@ -528,7 +527,7 @@ fn entering_counters<'w>(
     entering
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, work: &Zone) {
     let mut phi_blocks = ZoneMap::new_in(work);
     let mut checks = ZoneVec::new_in(work);
     let mut shifts = ZoneVec::new_in(work);
@@ -581,10 +580,9 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
     checks.retain(|check| graph.int32_constant(graph.node(*check).inputs[1]).is_some());
     arithmetic.retain(|(node, ..)| graph.node(*node).inputs.iter().all(|input| may_have_range(*input)));
     if checks.is_empty() && shifts.is_empty() && arithmetic.is_empty() {
-        return Ok(());
+        return;
     }
-    dominators.compute(graph)?;
-    let dominators = &*dominators;
+    let dominators = &Dominators::of(graph, work);
     let entering = entering_counters(graph, dominators, &phi_blocks, work);
     let mut ranges = Ranges {
         graph,
@@ -661,7 +659,7 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
         }
     }
     if passing.is_empty() && scaled.is_empty() && exact.is_empty() {
-        return Ok(());
+        return;
     }
     // NB: Only the entering counters that the removed checks, the
     //     rewritten shifts and the operations that stop checking for overflow
@@ -752,5 +750,4 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
         graph.nodes[guard.index()].inputs[0] = value;
     }
     super::edit::remove_nodes(graph, &removed);
-    Ok(())
 }

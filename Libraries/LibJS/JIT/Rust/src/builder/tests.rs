@@ -7,7 +7,6 @@
 use super::*;
 use crate::bytecode::test_support::*;
 use crate::ir::dump;
-use crate::passes::dominators::Dominators;
 use crate::snapshot::ExecutableSnapshot;
 use crate::snapshot::List;
 
@@ -53,7 +52,6 @@ pub(crate) fn build_with_layout(program: &Program, layout: FrameLayout, never_ra
         &mut graph,
         &layout,
         true,
-        &mut Dominators::new(),
         &mut crate::test_work(),
         &mut crate::test_steps(),
     )
@@ -68,7 +66,6 @@ pub(crate) fn optimized_graph(snapshot: &Snapshot) -> Graph<'static> {
         &mut graph,
         &snapshot.executables[0].layout,
         true,
-        &mut Dominators::new(),
         &mut crate::test_work(),
         &mut crate::test_steps(),
     )

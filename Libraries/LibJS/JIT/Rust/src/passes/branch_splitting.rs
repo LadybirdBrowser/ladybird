@@ -12,7 +12,6 @@
 //! its own path rather than phis of both. A for-in loop's body then reads
 //! the key the cache holds, not a phi that also holds `undefined`.
 
-use ak::ColumnFull;
 use ak::Zone;
 use ak::ZoneVec;
 
@@ -250,13 +249,8 @@ fn renamed(renames: &[(NodeId, NodeId)], value: NodeId) -> NodeId {
 /// Splits one block, if any has the shape of `Split` and all uses of its
 /// phis are on one side of its branch. Returns whether it split one. The
 /// data of the split that `lists` does not keep goes in `step`.
-fn split_one(
-    graph: &mut Graph,
-    dominators: &mut Dominators,
-    lists: &mut Lists,
-    step: &Zone,
-) -> Result<bool, ColumnFull> {
-    dominators.compute(graph)?;
+fn split_one(graph: &mut Graph, dominators: &mut Dominators, lists: &mut Lists, step: &Zone) -> bool {
+    dominators.compute(graph);
     let dominators = &*dominators;
     // NB: Splits add nodes, so the set grows ahead of them.
     if lists.phis.capacity() < graph.nodes.len() {
@@ -398,17 +392,12 @@ fn split_one(
             graph.nodes[phi.index()].inputs.clear();
         }
         super::edit::clean_up_control_flow(graph, step);
-        return Ok(true);
+        return true;
     }
-    Ok(false)
+    false
 }
 
-pub fn run(
-    graph: &mut Graph,
-    dominators: &mut Dominators,
-    work: &Zone,
-    steps: &mut [Zone; 2],
-) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, work: &Zone, steps: &mut [Zone; 2]) {
     let [step, _] = steps;
     let mut lists = Lists {
         zone: work,
@@ -420,11 +409,11 @@ pub fn run(
         renames: [ZoneVec::new_in(work), ZoneVec::new_in(work)],
         copies: ZoneVec::new_in(work),
     };
+    let mut dominators = Dominators::new_in(work);
     for _ in 0..graph.blocks.len() {
         // NB: Each split cleans up the control flow, with data as large as the graph, which goes when the split ends.
-        if !step.scope(|step| split_one(graph, dominators, &mut lists, step))? {
+        if !step.scope(|step| split_one(graph, &mut dominators, &mut lists, step)) {
             break;
         }
     }
-    Ok(())
 }

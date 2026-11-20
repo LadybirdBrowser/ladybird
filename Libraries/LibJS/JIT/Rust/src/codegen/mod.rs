@@ -272,7 +272,7 @@ struct Locals {
 struct Codegen<'a, M: PortableMacroAssembler> {
     masm: M,
     graph: &'a Graph<'a>,
-    allocation: &'a Allocation,
+    allocation: &'a Allocation<'a>,
     /// What the graph was built from. Executable 0 is the compiled function.
     snapshot: &'a Snapshot,
     /// Where the instructions that code generation decodes again keep their arrays.
@@ -419,7 +419,7 @@ struct LeaveStub {
     leave_arguments: Vec<(u32, bool)>,
 }
 
-/// Generates code for `graph` with the register allocation in `tables`, whose registers came from
+/// Generates code for `graph` with the register allocation `allocation`, whose registers came from
 /// `target_registers::<M>()`, and writes the sites of the code into
 /// `tables`. With `verify` (and in debug builds), checks that
 /// every lowering matches its `lowering_info()`.
@@ -428,15 +428,10 @@ pub fn generate<M: PortableMacroAssembler>(
     snapshot: &Snapshot,
     verify: bool,
     tables: &mut Tables,
+    allocation: &Allocation,
     work: &Zone,
 ) -> Result<GeneratedCode, CompileFailure> {
-    let Tables {
-        artifact,
-        sites,
-        regalloc,
-        ..
-    } = tables;
-    let allocation = &regalloc.allocation;
+    let Tables { artifact, sites } = tables;
     let (_, pinned) = target_registers::<M>();
     let (gpr_dump_count, fpr_dump_count) = register_dump_counts::<M>();
     let mut masm = M::new();
