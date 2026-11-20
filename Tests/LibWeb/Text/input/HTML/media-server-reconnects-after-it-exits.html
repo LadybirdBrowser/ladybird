@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Disconnecting makes this process's media server exit. Media used right afterwards must get a new media server,
+    // even if the browser has not yet noticed that the old one is gone.
+    asyncTest(async done => {
+        const type = 'video/webm; codecs="vp9"';
+        println(`supported before the media server exits: ${MediaSource.isTypeSupported(type)}`);
+
+        const video = document.createElement("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+        await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+
+        const error = new Promise(resolve => video.addEventListener("error", resolve, { once: true }));
+        internals.disconnectMediaServer();
+        await error;
+
+        println(`supported after the media server exits: ${MediaSource.isTypeSupported(type)}`);
+        done();
+    });
+</script>

@@ -729,11 +729,25 @@ static ErrorOr<IPC::TransportHandle> connect_new_video_decoder_server_client(Ref
     return response->take_handle().release_value();
 }
 
+namespace {
+
+struct AudioServerConnectorHolder : public RefCounted<AudioServerConnectorHolder> {
+    explicit AudioServerConnectorHolder(Function<ErrorOr<IPC::TransportHandle>()> connect)
+        : connect(move(connect))
+    {
+    }
+
+    Function<ErrorOr<IPC::TransportHandle>()> connect;
+};
+
+}
+
 ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, u64 owner_child_id, IsPrivate is_private, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server)
 {
-    if (!controller || !controller->is_open()) {
+    auto audio_server_connector = make_ref_counted<AudioServerConnectorHolder>(move(connect_audio_server));
+    auto launch = [&]() -> ErrorOr<void> {
         controller = TRY(launch_media_server_process(owner_child_id, is_private));
-        controller->on_request_audio_server_connection = move(connect_audio_server);
+        controller->on_request_audio_server_connection = [audio_server_connector] { return audio_server_connector->connect(); };
         // Each MediaServer has a VideoDecoderServer of its own, which lives as long as the controller holding it. The
         // server is launched once the Compositor has named the GPU that hardware decoders must output to, and once this
         // launch's probe has decided what the server may use there.
@@ -744,9 +758,19 @@ ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<Medi
                 });
             });
         };
-    }
+        return {};
+    };
+
+    if (!controller || !controller->is_open())
+        TRY(launch());
 
     auto response = send_sync_to_helper<Messages::MediaServer::ConnectNewClient>(*controller);
+    // A server exits once its last renderer has gone, which this process only notices later, so a server that is
+    // already exiting can get the request. One that does not answer is replaced by a new one, which is asked instead.
+    if (!response) {
+        TRY(launch());
+        response = send_sync_to_helper<Messages::MediaServer::ConnectNewClient>(*controller);
+    }
     if (!response || !response->handle().has_value())
         return Error::from_string_literal("Failed to connect to MediaServer");
     return MediaServerClientConnection { response->take_handle().release_value(), response->client_id() };
