@@ -1,0 +1,16 @@
+Ladybird resolves a container-relative unit against the nearest size
+container that has a box, and against the small viewport where none
+does. Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5 (Playwright’s
+build) give the same values in every case of the new test, scaled to
+their 1280px viewport. Blink’s FindSizeForContainerAxis() moves on to
+the next container out whenever ContainerQueryEvaluator::Width() or
+Height() has no value, and WebKit’s resolveContainerUnit() goes on
+calling ContainerQueryEvaluator::selectContainer() until it finds one
+with an eligible RenderBox. Gecko’s ContainerSizeQuery::lookup() merges
+in the next container out while query_container_size() leaves an axis
+of the one it found unknown.
+
+The engines differ on one query in the test, not a unit: For a container
+hidden between an outer container and the element, Firefox answers
+“@container (min-width: 300px)” from the outer container. Ladybird
+answers unknown for that query, as Chrome and WebKit do.
