@@ -781,9 +781,11 @@ void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> 
             // NB: The active document of a navigable another process hosts is there, and that process runs these steps
             //     for it. The container stands for it in the rest of these steps, as the focused area of its node
             //     document.
-            if (auto* local_navigable = as_if<LocalNavigable>(*content_navigable))
+            if (auto* local_navigable = as_if<LocalNavigable>(*content_navigable)) {
                 new_focus_target = local_navigable->active_document();
-            else
+                if (!new_focus_target)
+                    return;
+            } else
                 remote_content_navigable = as<RemoteNavigable>(*content_navigable);
         }
     }
