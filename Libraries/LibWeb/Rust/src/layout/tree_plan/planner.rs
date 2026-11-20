@@ -3312,7 +3312,7 @@ impl<'a> Planner<'a> {
             };
         }
 
-        let resolved = resolve_content(arena, tree_scope, view, None, None);
+        let resolved = resolve_content(arena, tree_scope, view, None, &[], None);
         if resolved.renders_list_item_counter_value {
             self.report_list_item_counter_rendering(element);
         }

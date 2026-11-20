@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<meta charset=utf-8>
+<title>CSS Generated Content test: quotes</title>
+<meta name="assert" content="In the case of an unknown region, the quotes displayed should be based on the fallback order.">
+<link rel="help" href="https://drafts.csswg.org/css-content-3/#quotes">
+<link rel=match href="../../../../expected/wpt-import/css/css-content/reference/quotes-034-ref.html">
+<style>
+body { font: 15px serif; }
+</style>
+<body>
+<p>Test passes if quote marks in each pair lines match:</p>
+
+<p lang="fr"><q>fr FALLBACK</q></p>
+<p lang="fr-FR"><q>fr FALLBACK</q></p>
+
+<p lang="en"><q>en FALLBACK</q></p>
+<p lang="en-EN"><q>en FALLBACK</q></p>
+
+<p lang="fi"><q>fi FALLBACK</q></p>
+<p lang="fi-FI"><q>fi FALLBACK</q></p>
+
+<p lang="de"><q>de FALLBACK</q></p>
+<p lang="de-DE"><q>de FALLBACK</q></p>
+
+<p lang="he"><q>he FALLBACK</q></p>
+<p lang="he-HE"><q>he FALLBACK</q></p>
+
+<p lang="ja"><q>ja FALLBACK</q></p>
+<p lang="ja-JA"><q>ja FALLBACK</q></p>
+
+<p lang="aa"><q>root FALLBACK</q></p>
+
+<p lang="zz"><q>root FALLBACK</q></p>
