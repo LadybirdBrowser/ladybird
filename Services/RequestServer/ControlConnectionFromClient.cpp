@@ -8,6 +8,7 @@
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/TransportHandle.h>
 #include <RequestServer/AlternativeServices.h>
+#include <RequestServer/CertificateExceptions.h>
 #include <RequestServer/ControlConnectionFromClient.h>
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
@@ -197,6 +198,11 @@ void ControlConnectionFromClient::set_use_system_dns()
 void ControlConnectionFromClient::set_proxy_configuration(HTTP::ProxyConfiguration proxy_configuration)
 {
     RequestServer::set_proxy_configuration(move(proxy_configuration));
+}
+
+void ControlConnectionFromClient::trust_certificate(ByteString host, u16 port, ByteString fingerprint)
+{
+    add_certificate_exception(host, port, move(fingerprint));
 }
 
 void ControlConnectionFromClient::set_performance_monitor_enabled(bool enabled)

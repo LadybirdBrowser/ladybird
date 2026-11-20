@@ -76,6 +76,8 @@ void set_sec_fetch_user_header(Infrastructure::Request&);
 void append_fetch_metadata_headers_for_request(Infrastructure::Request&);
 void append_user_agent_client_hints_for_request(Infrastructure::Request&);
 
+WEB_API Utf16String network_request_failed_error_message(Optional<StringView> error_message);
+
 WEB_API void set_http_memory_cache_enabled(bool enabled);
 WEB_API bool http_memory_cache_enabled();
 WEB_API void clear_http_memory_cache();

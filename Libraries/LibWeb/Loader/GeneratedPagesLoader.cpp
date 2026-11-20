@@ -16,7 +16,7 @@
 
 namespace Web {
 
-ErrorOr<String> load_error_page(URL::URL const& url, StringView error_message)
+ErrorOr<String> load_error_page(URL::URL const& url, StringView error_message, MentionCertificateSetting mention_certificate_setting)
 {
     // Generate HTML error page from error template file
     // FIXME: Use an actual templating engine (our own one when it's built, preferably with a way to check these usages at compile time)
@@ -32,6 +32,7 @@ ErrorOr<String> load_error_page(URL::URL const& url, StringView error_message)
         failed_host = ByteString::formatted("{}:{}", failed_host, *url.port());
     generator.set("failed_host", escape_html_entities(failed_host));
     generator.set("error_message", escape_html_entities(error_message));
+    generator.set("certificate_setting_hidden", mention_certificate_setting == MentionCertificateSetting::Yes ? ""sv : "hidden"sv);
     generator.append(template_file->data());
     return TRY(String::from_utf8(generator.as_string_view()));
 }

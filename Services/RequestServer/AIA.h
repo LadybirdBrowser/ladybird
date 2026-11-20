@@ -8,6 +8,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/HashTable.h>
+#include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
@@ -33,8 +34,19 @@ public:
 
     // Only intermediates used in verified chains enter the shared cache, preventing unrelated-chain poisoning.
     Vector<Crypto::OpenSSL_X509> fetched_intermediates;
+
+    // Certificate exceptions must match the request's host and port.
+    ByteString host;
+    u16 port { 0 };
+
+    // Verification checks the host name instead of curl when an exception may allow a certificate for another name.
+    bool checks_host_name { false };
+
+    Optional<ByteString> rejected_self_signed_certificate_fingerprint;
 };
 
+// Accept self-signed certificates with user exceptions; otherwise record the rejected fingerprint in the collector.
+//
 // During verification, any cert whose issuer we can't find locally or in the fetched-intermediate cache has its
 // caIssuers URLs appended to collector.pending_urls (skipping ones already attempted or recently known dead).
 void apply_aia_verification(SSL_CTX* ssl_context, AIACollector& collector);

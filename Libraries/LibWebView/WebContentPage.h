@@ -221,6 +221,7 @@ private:
     virtual void did_set_browser_zoom(double factor) override;
     virtual void did_set_device_pixel_ratio_for_testing(double device_pixel_ratio) override;
     virtual void did_find_in_page(size_t current_match_index, Optional<size_t> total_match_count) override;
+    virtual void did_request_certificate_warning(URL::URL url, Web::HTML::CrossProcessId document_state_id) override;
     virtual void did_request_cursor_change(Gfx::Cursor cursor) override;
     virtual void did_update_editing_history_state(bool can_undo, bool can_redo) override;
     virtual void did_set_text_fragment_indication_visibility(bool visible) override;

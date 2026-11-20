@@ -99,6 +99,7 @@ set(SOURCES
     WebUI.cpp
     WebUI/AboutUI.cpp
     WebUI/ApplicationWebUI.cpp
+    WebUI/CertificateUI.cpp
     WebUI/CrashReportsUI.cpp
     WebUI/SupportUI.cpp
     WebUI/SettingsUI.cpp

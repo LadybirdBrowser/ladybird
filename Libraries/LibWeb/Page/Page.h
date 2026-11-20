@@ -269,6 +269,10 @@ public:
     bool enable_primary_paste() const { return m_enable_primary_paste; }
     void set_enable_primary_paste(bool b) { m_enable_primary_paste = b; }
 
+    // Whether the UI process replaces self-signed certificate error pages with trust prompts.
+    bool offers_to_trust_self_signed_certificates() const { return m_offers_to_trust_self_signed_certificates; }
+    void set_offers_to_trust_self_signed_certificates(bool b) { m_offers_to_trust_self_signed_certificates = b; }
+
     u64 wheel_event_listener_state_generation() const { return m_wheel_event_listener_state_generation; }
     u64 keyboard_scroll_state_generation() const { return m_keyboard_scroll_state_generation; }
     void invalidate_compositor_wheel_event_listener_state(DOM::Document&);
@@ -602,6 +606,7 @@ private:
     bool m_should_block_pop_ups { true };
     bool m_enable_autoscroll { true };
     bool m_enable_primary_paste { true };
+    bool m_offers_to_trust_self_signed_certificates { false };
     u64 m_wheel_event_listener_state_generation { 0 };
     u64 m_keyboard_scroll_state_generation { 0 };
     bool m_keyboard_scroll_state_is_current { false };
@@ -836,6 +841,7 @@ public:
     virtual void page_did_change_title(Utf16String const&) { }
     virtual void page_did_update_editing_history_state(bool, bool) { }
     virtual void page_did_set_text_fragment_indication_visibility(bool) { }
+    virtual void page_did_request_certificate_warning(URL::URL const&, HTML::CrossProcessId) { }
     virtual void page_did_request_resize_window(Gfx::IntSize, u64) { }
     virtual void page_did_request_reposition_window(Gfx::IntPoint, u64) { }
     virtual void page_did_request_restore_window() { }

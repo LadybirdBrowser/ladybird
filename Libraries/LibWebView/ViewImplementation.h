@@ -285,6 +285,20 @@ public:
 
     // A URL the user chose in the browser's UI. Loading a file: URL this way grants a root for that file.
     void load_from_browser_ui(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
+
+    // Shown by about:certificate so only the user, never a web page, can answer it.
+    struct CertificateWarning {
+        URL::URL url;
+        BrowsingSession::CertificateException certificate;
+        // Resubmit after trust: the failed TLS handshake prevented the server from receiving this form.
+        Optional<Web::HTML::POSTResource> form_submission;
+        URL::Origin form_initiator_origin;
+        // A form another site submitted isn't sent again: the browser's UI would send it as the user's own.
+        bool form_is_not_resent { false };
+    };
+    void did_request_certificate_warning(Badge<WebContentPage>, URL::URL const&, Web::HTML::CrossProcessId document_state_id);
+    Optional<CertificateWarning> const& certificate_warning() const { return m_certificate_warning; }
+    void answer_certificate_warning(Badge<CertificateUI>, URL::URL const& url, StringView fingerprint, bool trust);
     void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab);
     void open_url_in_new_window(URL::URL const&, IsPrivate);
     void load(Web::HTML::PreparedNavigationDescriptor, LocalFileAccess = {});
@@ -960,6 +974,7 @@ protected:
     virtual void autoplay_settings_changed() override;
     virtual void permission_settings_changed(Web::Permissions::PermissionName name) override;
     virtual void global_privacy_control_changed() override;
+    virtual void config_variable_changed(ConfigVariableID) override;
 
     void send_context_menu_request(ContextMenuRequest, Gfx::IntPoint content_position);
     void handle_external_url(URL::URL, URL::Origin, bool has_transient_activation);
@@ -1148,6 +1163,9 @@ protected:
     };
     Optional<WebDriverNavigationObservation> m_webdriver_navigation_observation;
     Optional<NavigationToRetry> m_last_stopped_navigation;
+
+    Optional<CertificateWarning> m_certificate_warning;
+    Optional<BrowsingSession::CertificateException> m_declined_certificate;
 
     // A view that shows the source of a page offers no source of its own to view: Each view of the source of a source
     // page would wrap the one before in another layer of markup, without end. The source is the document of one
