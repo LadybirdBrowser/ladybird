@@ -4,8 +4,7 @@
             "https://cnn.com",
             "https://di.se",
             "https://dn.se",
-            "https://expressen.se",
-            "https://nytimes.com"
+            "https://expressen.se"
         ],
         "user_agent": [
             "hide_Ladybird"
