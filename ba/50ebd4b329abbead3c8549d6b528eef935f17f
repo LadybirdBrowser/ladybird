@@ -1,0 +1,12 @@
+Ladybird sizes an input with a table display the way it sizes the
+input with the display a replaced element uses for it, block or
+inline, and builds its box for that display. Blink’s LayoutTheme::
+AdjustStyle() computes “display: table” on such a control as block and
+every other table display as inline-block, and WebKit’s RenderTheme::
+adjustStyle() does the same. Gecko keeps the computed value, but
+nsCSSFrameConstructor:: FindElementTagData() picks the frame of an
+input in FindInputData() before FindDisplayData() reads its display,
+so no table display can make an input a table part. Run in Chrome
+157.0.8103.79, Firefox 151.0, and WebKit 26.5: Each submit, button,
+reset, file, and color input in the test has the same size under every
+table display as under “display: block”.
