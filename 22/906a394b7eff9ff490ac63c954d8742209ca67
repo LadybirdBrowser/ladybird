@@ -1,0 +1,16 @@
+Ladybird now takes the intrinsic widths of a replaced box from its
+definite height through its aspect ratio wherever the box’s width is
+a cyclic percentage. Run in Chrome 157.0.8103.79, Firefox 151.0, and
+Playwright’s WebKit 26.5, all three engines make a flex container of
+such an image 82.75px wide.
+
+In Blink, ComputeMinAndMaxContentContributionForReplaced()
+leaves unresolved a percentage width of an indefinite basis, so
+ComputeReplacedSizeInternal() takes the inline size from the height
+through InlineSizeFromAspectRatio(). In WebKit, RenderReplaced::
+computeIntrinsicLogicalWidthContributions() doesn’t resolve percentage
+widths, and computeAspectRatioAdjustedIntrinsicLogicalWidths()
+multiplies the height by the ratio instead. In Gecko, nsLayoutUtils::
+IntrinsicForAxis() replaces the contribution with the ratio-dependent
+size of the definite height. All three compress a percentage width only
+for the min-content contribution.
