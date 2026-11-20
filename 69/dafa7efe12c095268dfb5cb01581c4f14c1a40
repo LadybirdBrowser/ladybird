@@ -1,0 +1,5 @@
+Ladybird defines the two Latin counter styles as extensions of the
+alphabetic ones. Blink supplies both names in ua_counter_style_map.cc,
+WebKit defines them in counterStyles.css, and Gecko defines them in
+counterstyles.css. Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5
+retained the requested counter-style name in computed style.
