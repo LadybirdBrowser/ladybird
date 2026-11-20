@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The embed element update with new content when the src attribute is set</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-embed-element">
+<link rel="help" href="https://crbug.com/479233864">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+promise_test(async () => {
+  const embed = document.body.appendChild(document.createElement('embed'));
+
+  const boundsBefore = embed.getBoundingClientRect();
+  assert_equals(boundsBefore.width, 0, 'represents nothing');
+
+  const loadPromise = new Promise(resolve => embed.onload = resolve);
+  embed.src = 'data:image/svg+xml,<svg height="100" width="100" xmlns="http://www.w3.org/2000/svg"><rect height="100" width="100" fill="green"/></svg>';
+
+  await loadPromise;
+
+  const boundsAfter = embed.getBoundingClientRect();
+  assert_equals(boundsAfter.width, 100, 'represents its content navigable');
+});
+</script>

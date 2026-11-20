@@ -87,7 +87,7 @@ enum class RootNodeComposed {
     X(HTMLCanvasElementWidthOrHeightChange)           \
     X(HTMLImageElementReactToChangesInTheEnvironment) \
     X(HTMLImageElementUpdateTheImageData)             \
-    X(HTMLObjectElementContentDocumentResized)        \
+    X(EmbeddedDocumentResized)                        \
     X(HTMLVideoElementNaturalDimensionsChanged)       \
     X(HTMLVideoElementSetVideoTrack)                  \
     X(ImplicitAnchorChange)                           \
@@ -116,6 +116,7 @@ enum class SetNeedsLayoutReason {
     X(HTMLImageElementUpdateTheImageData)                 \
     X(HTMLInputElementSrcAttribute)                       \
     X(HTMLInputElementTypeAttribute)                      \
+    X(HTMLEmbedElementRepresentationChanged)              \
     X(HTMLObjectElementUpdateLayoutAndChildObjects)       \
     X(KeyframeEffect)                                     \
     X(LanguageChangeUnderCasingTextTransform)             \

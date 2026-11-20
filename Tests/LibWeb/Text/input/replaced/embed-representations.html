@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<embed id="picture" src="../wpt-import/images/blue.png">
+<embed id="invalid" type="image/png" src="data:text/html,not%20an%20image" onload="this.dataset.loaded = 1">
+<script>
+    promiseTest(async () => {
+        const picture = document.getElementById("picture");
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+
+        function report(label) {
+            println(`${label}: ${picture.offsetWidth}x${picture.offsetHeight}, ${frames.length} child windows`);
+        }
+
+        println(`invalid PNG fired load: ${document.getElementById("invalid").hasAttribute("data-loaded")}`);
+        report("PNG");
+        const svgLoaded = new Promise(resolve => picture.addEventListener("load", resolve, { once: true }));
+        picture.src = "../wpt-import/images/green.svg";
+        await svgLoaded;
+        report("SVG");
+        println(picture.getSVGDocument()?.documentElement.localName);
+
+        const imageLoaded = new Promise(resolve => picture.addEventListener("load", resolve, { once: true }));
+        picture.src = "../wpt-import/images/green-16x16.png";
+        await imageLoaded;
+        report("second PNG");
+    });
+</script>

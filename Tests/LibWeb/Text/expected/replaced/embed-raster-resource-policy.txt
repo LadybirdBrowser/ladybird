@@ -1,0 +1,2 @@
+same-origin: 100x50
+cross-origin: 100x50

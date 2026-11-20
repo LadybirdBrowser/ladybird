@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>The hidden global presentation attribute within the embed element</title>
+
+This embed should be visible (green box):
+<embed src='../../../../images/green-256x256.png' type='image/png'>
+
+These should not be visible (no red):
+
+<style>
+  embed {
+    display:block;
+  }
+</style>

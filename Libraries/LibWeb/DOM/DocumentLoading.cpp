@@ -460,7 +460,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     if (image_element) {
         // INTEROP: All major engines present the image from the response that was navigated to rather than fetching it
         //          again. A second fetch would be subject to the Content-Security-Policy of that same response.
-        image_element->set_resource_from_navigation_response(HTML::SharedResourceRequest::create_from_navigation_response_body(document, *navigation_params.response->body(), stop_parsing));
+        image_element->set_resource_from_navigation_response(HTML::SharedResourceRequest::create_from_image_response_body(document, document->url(), *navigation_params.response->body(), false, stop_parsing));
     } else {
         navigation_params.response->body()->fully_read(
             realm,

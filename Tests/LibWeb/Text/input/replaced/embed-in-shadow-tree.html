@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    promiseTest(async () => {
+        const root = host.attachShadow({ mode: "open" });
+        const embed = document.createElement("embed");
+        const loaded = new Promise(resolve => embed.addEventListener("load", resolve, { once: true }));
+        embed.src = "../wpt-import/images/green-16x16.png";
+        root.append(embed);
+        await loaded;
+        println(`image embed in a shadow tree: ${embed.offsetWidth}x${embed.offsetHeight}`);
+    });
+</script>

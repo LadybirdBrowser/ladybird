@@ -1,0 +1,5 @@
+invalid PNG fired load: false
+PNG: 133x106, 0 child windows
+SVG: 100x50, 1 child windows
+svg
+second PNG: 16x16, 0 child windows

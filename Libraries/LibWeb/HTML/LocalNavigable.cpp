@@ -2791,9 +2791,10 @@ static void create_navigation_params_by_fetching(
         //        The referenced issue suggests that it is a no-op to retrieve the browsing context scope origin.
 
         // 2. Set request's destination to navigable's container's local name.
-        // FIXME: Are there other container types? If so, we need a helper here
+        auto container_is_embed = *container_local_name == HTML::TagNames::embed;
         auto container_is_iframe = *container_local_name == HTML::TagNames::iframe;
         request->set_destination(container_is_iframe ? Web::Fetch::Infrastructure::Request::Destination::IFrame
+                : container_is_embed                 ? Web::Fetch::Infrastructure::Request::Destination::Embed
                                                      : Web::Fetch::Infrastructure::Request::Destination::Object);
 
         // 3. If sourceSnapshotParams's fetch client is navigable's container document's relevant settings object,
@@ -2803,8 +2804,8 @@ static void create_navigation_params_by_fetching(
         //        is that process's, so its resource timing is not told of the navigation.
         auto fetch_client = settings_object_of_fetch_client(source_snapshot_params->fetch_client);
         if (auto container_document = navigable->container_document(); container_document && fetch_client.ptr() == &container_document->relevant_settings_object()) {
-            // FIXME: Are there other container types? If so, we need a helper here
             request->set_initiator_type(container_is_iframe ? Web::Fetch::Infrastructure::Request::InitiatorType::IFrame
+                    : container_is_embed                    ? Web::Fetch::Infrastructure::Request::InitiatorType::Embed
                                                             : Web::Fetch::Infrastructure::Request::InitiatorType::Object);
         }
 

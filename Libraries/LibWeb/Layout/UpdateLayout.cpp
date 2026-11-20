@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -279,13 +280,17 @@ void Document::update_style_and_layout_once(Layout::BegunRead const& read, Updat
 
     // An <object> showing this document is sized from its <svg> document element, whose natural size only this
     // document's layout works out. Hand it over as it changes.
-    if (auto* object = as_if<HTML::HTMLObjectElement>(navigable->container().ptr())) {
+    auto container = navigable->container();
+    if (container && (is<HTML::HTMLObjectElement>(*container) || is<HTML::HTMLEmbedElement>(*container))) {
         Layout::RustFFI::FfiNaturalSize natural_size {};
         if (Layout::RustFFI::render_state_take_changed_document_svg_root_natural_size(arena.host(), &read, &natural_size)) {
             CSS::SizeWithAspectRatio size { natural_size.width, natural_size.height, {} };
             if (natural_size.has_aspect_ratio)
                 size.aspect_ratio = CSSPixelFraction(natural_size.aspect_ratio_numerator, natural_size.aspect_ratio_denominator);
-            object->set_natural_size_of_content_document(size);
+            if (auto* embed = as_if<HTML::HTMLEmbedElement>(*container))
+                embed->set_natural_size_of_content_document(size);
+            else
+                as<HTML::HTMLObjectElement>(*container).set_natural_size_of_content_document(size);
         }
     }
 }

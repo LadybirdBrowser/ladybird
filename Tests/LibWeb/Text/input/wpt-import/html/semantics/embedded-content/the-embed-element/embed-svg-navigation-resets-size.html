@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Intrinsic sizing of SVG embedded via &lt;embed&gt; should disappear on navigation</title>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<embed id="element" name="embed" src='data:image/svg+xml,
+  <svg xmlns="http://www.w3.org/2000/svg"
+       xmlns:xlink="http://www.w3.org/1999/xlink"
+       viewBox="0 0 1000 1000"
+       width="400"
+       height="400"
+       font-size="100">
+  </svg>'>
+<script>
+promise_test(async () => {
+  await new Promise(resolve => {
+    onload = resolve;
+  });
+
+  assert_equals(element.scrollWidth, 400, "The width should be determined by the embedded SVG");
+  assert_equals(element.scrollHeight, 400, "The height should be determined by the embedded SVG");
+
+  await new Promise(resolve => {
+    element.onload = resolve;
+    element.src = "about:blank";
+  });
+
+  assert_equals(element.scrollWidth, 300, "The width should be the default");
+  assert_equals(element.scrollHeight, 150, "The height should be the default");
+});
+</script>

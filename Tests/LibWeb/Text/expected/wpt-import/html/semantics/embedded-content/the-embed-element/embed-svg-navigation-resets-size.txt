@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Intrinsic sizing of SVG embedded via <embed> should disappear on navigation

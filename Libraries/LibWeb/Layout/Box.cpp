@@ -6,6 +6,7 @@
  */
 
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
@@ -30,6 +31,8 @@ static ImageProvider const* image_provider_for_element(DOM::Element const& eleme
         return image;
     if (auto const* input = as_if<HTML::HTMLInputElement>(element))
         return input;
+    if (auto const* embed = as_if<HTML::HTMLEmbedElement>(element))
+        return embed;
     if (auto const* object = as_if<HTML::HTMLObjectElement>(element))
         return object;
     return nullptr;

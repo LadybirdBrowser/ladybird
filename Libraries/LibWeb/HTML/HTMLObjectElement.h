@@ -36,6 +36,8 @@ public:
 
     Utf16String type() const { return get_attribute_value(HTML::AttributeNames::type); }
 
+    bool shows_fallback_content() const { return m_representation == Representation::Children; }
+
     bool represents_its_content_navigable() const { return m_representation == Representation::ContentNavigable; }
 
     // The natural size of the <svg> document element of the document the element shows as its content navigable's,

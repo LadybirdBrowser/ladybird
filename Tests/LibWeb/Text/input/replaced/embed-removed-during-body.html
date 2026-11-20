@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<embed id="embed" src="../wpt-import/images/green-256x256.png?pipe=trickle(100:d3)">
+<script>
+    asyncTest(done => {
+        // The embed's fetch starts in a queued task, and its body is held back for 3 seconds after the first 100 bytes.
+        setTimeout(() => {
+            // Removing the embed while its body is still arriving leaves nothing to delay the load event.
+            document.getElementById("embed").remove();
+            let frames = 0;
+            const check = () => {
+                if (document.readyState === "complete" || ++frames === 60) {
+                    println(`readyState: ${document.readyState}`);
+                    done();
+                    return;
+                }
+                requestAnimationFrame(check);
+            };
+            check();
+        }, 100);
+    });
+</script>

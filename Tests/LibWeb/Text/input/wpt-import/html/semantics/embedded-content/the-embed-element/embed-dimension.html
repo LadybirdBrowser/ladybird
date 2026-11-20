@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: dimension</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-embed-element">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<embed src="../../../../images/blue.png" height="100" width="100" id="test">
+<script>
+  test(function () {
+    var height = getComputedStyle(document.getElementById("test"))["height"];
+    assert_equals(height, "100px", "The height of the embed element should be 100px.");
+  }, "Check the actual length of the embed element's height");
+
+  test(function () {
+    var width = getComputedStyle(document.getElementById("test"))["width"];
+    assert_equals(width, "100px", "The width of the embed element should be 100px.");
+  }, "Check the actual length of the embed element's width");
+</script>
