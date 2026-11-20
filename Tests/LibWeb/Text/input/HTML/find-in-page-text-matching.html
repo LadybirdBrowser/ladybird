@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const output = document.getElementById("out");
+        output.style.display = "none";
+
+        const escapeInvisible = string =>
+            string.replace(/[\u00a0\u00ad\u0300-\u036f\u200b-\u200d\u3099\u309a\ud800-\udfff]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`);
+
+        function find(label, markup, query, caseSensitive = false) {
+            target.innerHTML = markup;
+            getSelection().removeAllRanges();
+            internals.findInPage("");
+            internals.findInPage(query, false, caseSensitive);
+            internals.findInPageEnd();
+            const selection = getSelection();
+            if (!selection.rangeCount) {
+                println(`${label}: not found`);
+                return;
+            }
+            const range = selection.getRangeAt(0);
+            println(`${label}: found "${escapeInvisible(range.toString())}" at ${range.startOffset}-${range.endOffset}`);
+        }
+
+        function findAll(label, markup, query) {
+            target.innerHTML = markup;
+            getSelection().removeAllRanges();
+            const matches = [];
+            while (matches.length < 10 && window.find(query)) {
+                const range = getSelection().getRangeAt(0);
+                const match = `${range.startOffset}-${range.endOffset}`;
+                if (matches.includes(match))
+                    break;
+                matches.push(match);
+            }
+            println(`${label}: ${matches.length ? matches.join(", ") : "not found"}`);
+        }
+
+        println("Case insensitive:");
+        find("A capital letter with an accent", "ÉCOLE", "école");
+        find("Greek capitals for a query with a final sigma", "ΣΊΣΥΦΟΣ", "σίσυφος");
+        find("Cyrillic capitals", "ПРИВЕТ", "привет");
+        find("A dotted capital I", "İstanbul", "istanbul");
+        find("A sharp s for two letters s", "straße", "strasse");
+        find("Two letters s for a sharp s", "strasse", "straße");
+        find("An accented letter for its base letter", "un café", "cafe");
+        find("A base letter for its accented letter", "un cafe", "café");
+        find("A letter with a combining accent for a precomposed letter", "un cafe\u0301 noir", "café");
+        find("A precomposed letter for a letter with a combining accent", "un café noir", "cafe\u0301");
+        find("Full-width letters", "ｎｅｅｄｌｅ", "needle");
+        find("A ligature", "ﬁnd", "find");
+        find("Katakana for hiragana", "カタカナ", "かたかな");
+        find("Half-width katakana for katakana", "ｶﾀｶﾅ", "カタカナ");
+        find("A voiced kana letter for an unvoiced one", "がき", "かき");
+        find("An unvoiced kana letter for a voiced one", "かき", "がき");
+        find("A kana letter with a combining voicing mark for a voiced one", "か\u3099き", "がき");
+        find("A small kana letter for a full-size one", "きって", "きつて");
+        find("A kana word that overlaps a word with other voicing", "まだただの学生です", "ただ");
+        find("Half-width voiced katakana for voiced katakana", "ｶﾞｲﾄﾞ", "ガイド");
+        find("Half-width voiced katakana for unvoiced katakana", "ｶﾞｲﾄﾞ", "カイト");
+        find("A voiced hiragana iteration mark for an unvoiced one", "すゞき", "すゝき");
+        find("An unvoiced hiragana iteration mark for a voiced one", "すゝき", "すゞき");
+        find("A voiced katakana iteration mark for an unvoiced one", "スヾキ", "スヽキ");
+        find("A voiced hiragana iteration mark for itself", "すゞき", "すゞき");
+        find("A voiced kana letter with another mark for an unvoiced one", "ガ\u0334", "カ");
+        find("A voiced kana letter with another mark for a voiced one", "ガ\u0334", "ガ");
+        find("A voiced kana letter with a supplementary mark for an unvoiced one", "ガ\u{1D167}", "カ");
+        find("A voiced kana letter with a supplementary mark for a voiced one", "ガ\u{1D167}", "ガ");
+        find("A voiced kana letter with a grapheme joiner for an unvoiced one", "カ\u034f\u3099", "カ");
+        find("A voiced kana letter with a grapheme joiner for a voiced one", "カ\u034f\u3099", "ガ");
+        find("A voiced kana letter with a variation selector for an unvoiced one", "カ\ufe00\u3099", "カ");
+        find("A voiced kana letter with an enclosing mark for an unvoiced one", "カ\u20dd\u3099", "カ");
+        find("A voiced kana letter with a zero-width joiner for an unvoiced one", "カ\u200d\u3099", "カ");
+        find("A supplementary small kana letter for a full-size one", "ゐ", "\u{1B150}");
+        find("A full-size kana letter for a supplementary small one", "\u{1B150}", "ゐ");
+        find("A supplementary small katakana letter for a hiragana one", "\u{1B164}", "\u{1B150}");
+        find("A circled katakana letter for a katakana letter", "㋐", "ア");
+        find("A kana digraph for its letters", "ゟ", "より");
+        find("Kana letters for a kana digraph", "より", "ゟ");
+        find("A squared katakana word for its letters", "㌀", "アパート");
+        find("A squared katakana word for letters with other voicing", "㌀", "アハート");
+        find("Katakana letters with other voicing for a squared katakana word", "アハート", "㌀");
+        find("A voiced vertical kana repeat mark for an unvoiced one", "〲", "〱");
+        find("An unvoiced vertical kana repeat mark for a voiced one", "〱", "〲");
+        find("A vertical kana repeat mark with a combining voicing mark for a voiced one", "〱\u3099", "〲");
+        find("The first emoji of a joined sequence selects the sequence", "a 👩\u200d💻 b", "👩");
+        find("An emoji on its own", "a 💻 b", "💻");
+        find("The second emoji of a joined sequence", "a 👩\u200d💻 b", "💻");
+        find("An emoji with a skin tone for the emoji alone", "👍🏽", "👍");
+        find("A flag for its first regional indicator", "🇩🇪", "🇩");
+        find("A decomposed Hangul syllable for its first jamo", "\u1100\u1161\u11a8", "\u1100");
+        find("A no-break space for a space", "foo&nbsp;bar", "foo bar");
+        find("A space for a no-break space", "foo bar", "foo\u00a0bar");
+        find("A soft hyphen inside a word", "a nee&shy;dle b", "needle");
+        find("A soft hyphen in the query", "a needle b", "nee\u00addle");
+        find("A zero-width space inside a word", "a nee&#x200b;dle b", "needle");
+        find("A zero-width joiner inside a word", "a nee&#x200d;dle b", "needle");
+        find("Letters on either side of a preserved line feed", "<pre>nee\ndle</pre>", "needle");
+        find("A preserved line feed for a space", "<pre>foo\nbar</pre>", "foo bar");
+        find("A curly apostrophe for a straight one", "don’t", "don't");
+        find("A straight apostrophe for a curly one", "don't", "don’t");
+        find("Curly double quotes for straight ones", "“quoted”", '"quoted"');
+
+        println("Case sensitive:");
+        find("A capital letter", "Needle", "needle", true);
+        find("The same letters after a capital letter", "Needle needle", "needle", true);
+        find("An accented letter for its base letter", "un café", "cafe", true);
+        find("Full-width letters", "ｎｅｅｄｌｅ", "needle", true);
+        find("A letter with a combining accent for a precomposed letter", "un cafe\u0301 noir", "café", true);
+        find("A no-break space for a space", "foo&nbsp;bar", "foo bar", true);
+        find("A soft hyphen inside a word", "a nee&shy;dle b", "needle", true);
+        find("A curly apostrophe for a straight one", "don’t", "don't", true);
+        find("Low double quotes for straight ones", "„Wort“", '"Wort"', true);
+        find("Low single quotes for straight ones", "‚Wort‘", "'Wort'", true);
+        find("Reversed quotes for straight ones", "‟Wort” ‛Wort’", `"Wort" 'Wort'`, true);
+
+        println("Every match, case insensitive:");
+        findAll("Adjacent matches", "foofoo", "foo");
+        findAll("Adjacent matches of accented letters", "ééé", "e");
+        findAll("Matches that differ in case and accent", "un café, un cafe, un CAFÉ", "cafe");
+        findAll("Kana words between words with other voicing", "だた ただ だた ただ", "ただ");
+        findAll("Matches on lines of preformatted text", "<pre>needle\nNeedle\tneedle</pre>", "needle");
+        findAll("Matches around no-break spaces in text without other accents", "foo&nbsp;bar, FOO bar, foo&nbsp;&nbsp;bar", "foo bar");
+        output.style.display = "block";
+    });
+</script>
