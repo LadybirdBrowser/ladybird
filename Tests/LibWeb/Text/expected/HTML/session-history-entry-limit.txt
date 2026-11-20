@@ -1,0 +1,4 @@
+entries before this document's: 1
+history.length: 50
+history.state after going back: 59
+oldest entry: #11, history.state 11
