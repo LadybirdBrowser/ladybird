@@ -164,6 +164,7 @@ pub enum FfiMediaFeatureValueKind {
     Length,
     Ratio,
     Resolution,
+    Number,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -793,6 +794,24 @@ where
     if !allow_min_max_prefix || name.len() <= 4 {
         return None;
     }
+    // https://compat.spec.whatwg.org/#css-media-queries-webkit-device-pixel-ratio
+    // The range prefix goes after "-webkit-" for this feature.
+    if kind == QueryKind::Media
+        && name.len() > 12
+        && equals_ascii_case_insensitive(&name[..8], b"-webkit-")
+        && equals_ascii_case_insensitive(&name[12..], b"device-pixel-ratio")
+    {
+        let name_type = if equals_ascii_case_insensitive(&name[8..12], b"min-") {
+            FeatureNameType::Min
+        } else if equals_ascii_case_insensitive(&name[8..12], b"max-") {
+            FeatureNameType::Max
+        } else {
+            return None;
+        };
+        let (id, allows_range) = resolve_feature(kind, &[&name[..8], &name[12..]].concat())?;
+        transaction.commit();
+        return Some((name_type, id, allows_range));
+    }
     let name_type = if equals_ascii_case_insensitive(&name[..4], b"min-") {
         FeatureNameType::Min
     } else if equals_ascii_case_insensitive(&name[..4], b"max-") {
@@ -800,6 +819,9 @@ where
     } else {
         return None;
     };
+    if kind == QueryKind::Media && equals_ascii_case_insensitive(&name[4..], b"-webkit-device-pixel-ratio") {
+        return None;
+    }
     let (id, allows_range) = resolve_feature(kind, &name[4..])?;
     if !allows_range {
         return None;
@@ -1700,6 +1722,12 @@ fn serialize_query_feature_value(sink: &mut TextSink, value: &QueryFeatureValue,
     } else {
         0
     };
+    if media_feature_value_types & MEDIA_FEATURE_VALUE_NUMBER != 0
+        && let Some(parsed) = value.parsed_as(FeatureValueParse::Number)
+    {
+        push_utf16(sink, &crate::css::serialize::serialize_style_value_to_utf16(parsed));
+        return;
+    }
     let is_ratio = media_feature_value_types & MEDIA_FEATURE_VALUE_RATIO != 0 || (kind == QueryKind::Size && id == 0);
     if is_ratio {
         let components = components
@@ -1789,6 +1817,12 @@ fn serialize_query_feature(sink: &mut TextSink, feature: &QueryFeature, kind: Qu
     match feature {
         QueryFeature::Boolean { .. } => sink.push_ascii(name),
         QueryFeature::Plain { name_type, value, .. } => {
+            let name = if name == "-webkit-device-pixel-ratio" {
+                sink.push_ascii("-webkit-");
+                "device-pixel-ratio"
+            } else {
+                name
+            };
             match name_type {
                 FeatureNameType::Normal => {}
                 FeatureNameType::Min => sink.push_ascii("min-"),
@@ -1993,6 +2027,7 @@ fn serialize_media_query(query: &MediaQuery) -> Vec<u16> {
 enum ResolvedFeatureValue {
     Ident(u16),
     Integer(i32),
+    Number(f64),
     Length(f64),
     Ratio { numerator: f64, denominator: f64 },
     Resolution(f64),
@@ -2211,6 +2246,12 @@ fn parse_media_feature_value(
         return resolve_parsed_media_feature_value(integer, length_context, None)
             .unwrap_or(ResolvedFeatureValue::Unknown);
     }
+    if types & MEDIA_FEATURE_VALUE_NUMBER != 0
+        && let Some(number) = value.parsed_as(FeatureValueParse::Number)
+        && let Some(resolved) = resolve_number(number, length_context, None)
+    {
+        return ResolvedFeatureValue::Number(resolved);
+    }
     if types & MEDIA_FEATURE_VALUE_INTEGER != 0
         && let Some(resolved) = resolve_feature_value_parsed_as(value, FeatureValueParse::Integer, length_context)
     {
@@ -2280,6 +2321,7 @@ fn resolved_environment_value(value: &FfiMediaFeatureValue) -> Option<ResolvedFe
         FfiMediaFeatureValueKind::Absent => None,
         FfiMediaFeatureValueKind::Ident => Some(ResolvedFeatureValue::Ident(value.keyword)),
         FfiMediaFeatureValueKind::Integer => Some(ResolvedFeatureValue::Integer(value.value as i32)),
+        FfiMediaFeatureValueKind::Number => Some(ResolvedFeatureValue::Number(value.value)),
         FfiMediaFeatureValueKind::Length => Some(ResolvedFeatureValue::Length(value.value)),
         FfiMediaFeatureValueKind::Ratio => Some(ResolvedFeatureValue::Ratio {
             numerator: value.value,
@@ -2315,7 +2357,8 @@ fn compare_feature_values(
         (ResolvedFeatureValue::Integer(left), ResolvedFeatureValue::Integer(right)) => {
             comparison_matches(Some(left.cmp(right)))
         }
-        (ResolvedFeatureValue::Length(left), ResolvedFeatureValue::Length(right))
+        (ResolvedFeatureValue::Number(left), ResolvedFeatureValue::Number(right))
+        | (ResolvedFeatureValue::Length(left), ResolvedFeatureValue::Length(right))
         | (ResolvedFeatureValue::Resolution(left), ResolvedFeatureValue::Resolution(right)) => {
             comparison_matches(left.partial_cmp(right))
         }
@@ -2373,7 +2416,9 @@ fn evaluate_query_feature(
                     MatchResult::False
                 }
             }
-            ResolvedFeatureValue::Length(value) | ResolvedFeatureValue::Resolution(value) => {
+            ResolvedFeatureValue::Number(value)
+            | ResolvedFeatureValue::Length(value)
+            | ResolvedFeatureValue::Resolution(value) => {
                 if *value != 0.0 {
                     MatchResult::True
                 } else {

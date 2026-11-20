@@ -1,0 +1,21 @@
+1 (-webkit-device-pixel-ratio) true
+1 (-webkit-min-device-pixel-ratio: 1.5) false
+1 (-webkit-device-pixel-ratio: 1.5) false
+1 (-webkit-max-device-pixel-ratio: 1.5) true
+1 (1 < -webkit-device-pixel-ratio <= 2) false
+1 (-webkit-device-pixel-ratio: 1dppx) false
+1 (min--webkit-device-pixel-ratio: 0) false
+1.5 (-webkit-device-pixel-ratio) true
+1.5 (-webkit-min-device-pixel-ratio: 1.5) true
+1.5 (-webkit-device-pixel-ratio: 1.5) true
+1.5 (-webkit-max-device-pixel-ratio: 1.5) true
+1.5 (1 < -webkit-device-pixel-ratio <= 2) true
+1.5 (-webkit-device-pixel-ratio: 1dppx) false
+1.5 (min--webkit-device-pixel-ratio: 0) false
+2 (-webkit-device-pixel-ratio) true
+2 (-webkit-min-device-pixel-ratio: 1.5) true
+2 (-webkit-device-pixel-ratio: 1.5) false
+2 (-webkit-max-device-pixel-ratio: 1.5) false
+2 (1 < -webkit-device-pixel-ratio <= 2) true
+2 (-webkit-device-pixel-ratio: 1dppx) false
+2 (min--webkit-device-pixel-ratio: 0) false
