@@ -5,7 +5,7 @@
  */
 
 use super::dominators::Dominators;
-use super::verify::verify;
+use super::verify::verify_with;
 use crate::code::Repr;
 use crate::ir::Block;
 use crate::ir::BlockId;
@@ -14,6 +14,11 @@ use crate::ir::Graph;
 use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
+
+/// The violated invariants of `graph`, one on each line (see `verify_with()`).
+fn verify(graph: &Graph) -> Result<(), String> {
+    verify_with(graph, &crate::test_work()).map_err(|errors| errors.to_string())
+}
 
 fn node<'z>(graph: &mut Graph<'z>, op: Op<'z>, inputs: Vec<NodeId>, repr: Option<Repr>) -> NodeId {
     graph.add_node(Node {

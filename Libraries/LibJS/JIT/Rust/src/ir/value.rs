@@ -108,17 +108,47 @@ pub fn number(number: f64) -> u64 {
 }
 
 /// A short human readable description of a NaN-boxed value, for IR dumps.
-pub fn describe(bits: u64) -> String {
-    match bits {
-        EMPTY => "empty".to_string(),
-        VIRTUAL_UNMAPPED_ARGUMENTS => "arguments".to_string(),
-        VIRTUAL_MAPPED_ARGUMENTS => "mapped arguments".to_string(),
-        UNDEFINED => "undefined".to_string(),
-        NULL => "null".to_string(),
-        FALSE => "false".to_string(),
-        TRUE => "true".to_string(),
-        _ if bits >> TAG_SHIFT == u64::from(INT32_TAG) => format!("{}", (bits as u32).cast_signed()),
-        _ => format!("{bits:#018x}"),
+pub fn describe(bits: u64) -> Description {
+    Description(bits)
+}
+
+/// The text of `describe()`.
+#[derive(Debug, Clone, Copy)]
+pub struct Description(u64);
+
+impl Description {
+    /// The name of the value, if it has one rather than its bits in hex.
+    fn name(self) -> Option<&'static str> {
+        match self.0 {
+            EMPTY => Some("empty"),
+            VIRTUAL_UNMAPPED_ARGUMENTS => Some("arguments"),
+            VIRTUAL_MAPPED_ARGUMENTS => Some("mapped arguments"),
+            UNDEFINED => Some("undefined"),
+            NULL => Some("null"),
+            FALSE => Some("false"),
+            TRUE => Some("true"),
+            _ => None,
+        }
+    }
+
+    fn is_int32(self) -> bool {
+        self.0 >> TAG_SHIFT == u64::from(INT32_TAG)
+    }
+
+    /// Whether the text tells what the value is, rather than only giving its bits in hex.
+    pub fn is_known_value(self) -> bool {
+        self.name().is_some() || self.is_int32()
+    }
+}
+
+impl core::fmt::Display for Description {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let bits = self.0;
+        match self.name() {
+            Some(name) => f.write_str(name),
+            None if self.is_int32() => write!(f, "{}", (bits as u32).cast_signed()),
+            None => write!(f, "{bits:#018x}"),
+        }
     }
 }
 
@@ -128,10 +158,12 @@ mod tests {
 
     #[test]
     fn describes_known_values() {
-        assert_eq!(describe(EMPTY), "empty");
-        assert_eq!(describe(TRUE), "true");
-        assert_eq!(describe(int32(-5)), "-5");
-        assert_eq!(describe(int32(7)), "7");
-        assert_eq!(describe(0x4000_0000_0000_0000), "0x4000000000000000");
+        assert_eq!(describe(EMPTY).to_string(), "empty");
+        assert_eq!(describe(TRUE).to_string(), "true");
+        assert_eq!(describe(int32(-5)).to_string(), "-5");
+        assert_eq!(describe(int32(7)).to_string(), "7");
+        assert_eq!(describe(0x4000_0000_0000_0000).to_string(), "0x4000000000000000");
+        assert!(describe(int32(-5)).is_known_value());
+        assert!(!describe(0x4000_0000_0000_0000).is_known_value());
     }
 }

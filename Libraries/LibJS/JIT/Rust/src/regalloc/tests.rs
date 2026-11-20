@@ -72,7 +72,7 @@ fn straight_line_code() {
     let graph = build(&program);
     let allocation = allocate_and_verify(&graph);
     assert_text(
-        &dump_allocation(&graph, &allocation),
+        &dump_allocation(&graph, &allocation).to_string(),
         "
         b0:
           v6 LoadSlot -> r0
@@ -112,7 +112,7 @@ fn values_live_across_calls_are_spilled_at_their_definition() {
     assert_eq!(frame_home(&graph, argument), None);
     assert!(allocation.node(argument).spill_slot.is_some());
     assert_text(
-        &dump_allocation(&graph, &allocation),
+        &dump_allocation(&graph, &allocation).to_string(),
         "
         b0:
           v6 LoadSlot -> r0
@@ -149,7 +149,7 @@ fn values_loaded_from_unwritten_slots_are_reloaded_from_the_frame() {
     assert_eq!(frame_home(&graph, argument), Some(a(0).raw()));
     assert_eq!(allocation.node(argument).spill_slot, None);
     assert_text(
-        &dump_allocation(&graph, &allocation),
+        &dump_allocation(&graph, &allocation).to_string(),
         "
         b0:
           v6 LoadSlot -> r0
@@ -293,7 +293,7 @@ fn swapping_loop_phis_go_through_a_temp_slot() {
     // The loop header starts with the registers of the block entering the
     // loop: the condition, a phi, stays in r0, with no reload in the loop.
     assert_text(
-        &dump_allocation(&graph, &allocation),
+        &dump_allocation(&graph, &allocation).to_string(),
         "
         b0:
           v6 Jump
@@ -1087,7 +1087,7 @@ fn make_cold(graph: &mut Graph, blocks: &[BlockId]) {
         graph.blocks[block.index()].is_cold = true;
     }
     crate::passes::edit::move_cold_blocks_last(graph, crate::test_zone());
-    if let Err(errors) = crate::passes::verify::verify(graph) {
+    if let Err(errors) = crate::passes::verify::verify_with(graph, &crate::test_work()) {
         panic!("{errors}\n{}", crate::ir::dump(graph, &test_layout()));
     }
 }
@@ -1159,7 +1159,7 @@ fn random_structured_programs_with_cold_blocks_allocate_correctly() {
             graph.blocks[block.index()].is_cold = true;
         }
         crate::passes::edit::move_cold_blocks_last(&mut graph, crate::test_zone());
-        if let Err(errors) = crate::passes::verify::verify(&graph) {
+        if let Err(errors) = crate::passes::verify::verify_with(&graph, &crate::test_work()) {
             panic!("seed {seed}: {errors}\n{}", crate::ir::dump(&graph, &layout));
         }
         let registers = RegisterSet::test_configuration();

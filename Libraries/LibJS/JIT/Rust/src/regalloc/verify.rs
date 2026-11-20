@@ -18,6 +18,7 @@
 
 use ak::Zone;
 use ak::ZoneVec;
+use core::fmt;
 
 use super::Allocation;
 use super::Location;
@@ -27,6 +28,7 @@ use super::liveness::phi_inputs_from;
 use crate::codegen::lowering_info::Clobbers;
 use crate::codegen::lowering_info::InputConstraint;
 use crate::codegen::lowering_info::lowering_info;
+use crate::debug_text::DebugText;
 use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
@@ -199,7 +201,29 @@ fn stack_slot_count(allocation: &Allocation) -> usize {
     count
 }
 
-struct Verifier<'a> {
+/// What an error is about.
+#[derive(Clone, Copy)]
+enum Context {
+    Node(NodeId),
+    Input(NodeId, usize),
+    /// The exit value of a node for a slot.
+    ExitValue(NodeId, u32),
+    /// The moves at the end of a block.
+    EndOfBlock(BlockId),
+}
+
+impl fmt::Display for Context {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::Node(node) => write!(f, "v{}", node.0),
+            Self::Input(node, index) => write!(f, "v{}, input {index}", node.0),
+            Self::ExitValue(node, slot) => write!(f, "v{}, exit value for slot {slot}", node.0),
+            Self::EndOfBlock(block) => write!(f, "end of b{}", block.0),
+        }
+    }
+}
+
+struct Verifier<'a, 'w> {
     graph: &'a Graph<'a>,
     registers: &'a RegisterSet,
     allocation: &'a Allocation<'a>,
@@ -207,19 +231,24 @@ struct Verifier<'a> {
     /// being computed.
     checking: bool,
     /// The errors, one on each line.
-    errors: String,
-    work: &'a Zone,
+    errors: DebugText<'w>,
+    work: &'w Zone,
 }
 
 /// Checks `allocation` against `graph`, returning a description of every
 /// problem found.
-pub fn verify(graph: &Graph, registers: &RegisterSet, allocation: &Allocation, work: &Zone) -> Result<(), String> {
+pub fn verify<'w>(
+    graph: &Graph,
+    registers: &RegisterSet,
+    allocation: &Allocation,
+    work: &'w Zone,
+) -> Result<(), DebugText<'w>> {
     let mut verifier = Verifier {
         graph,
         registers,
         allocation,
         checking: false,
-        errors: String::new(),
+        errors: DebugText::new_in(work),
         work,
     };
     let block_count = graph.blocks.len();
@@ -256,7 +285,7 @@ pub fn verify(graph: &Graph, registers: &RegisterSet, allocation: &Allocation, w
                 verifier.check_phi_inputs(block, &exit_states);
                 verifier.simulate_block(block, entry, &mut state, &mut exit);
             }
-            None => verifier.error(format!("b{} is unreachable", block.0)),
+            None => verifier.error(format_args!("b{} is unreachable", block.0)),
         }
     }
 
@@ -267,13 +296,13 @@ pub fn verify(graph: &Graph, registers: &RegisterSet, allocation: &Allocation, w
     }
 }
 
-impl Verifier<'_> {
-    fn error(&mut self, message: String) {
+impl Verifier<'_, '_> {
+    fn error(&mut self, message: fmt::Arguments<'_>) {
         if self.checking {
             if !self.errors.is_empty() {
                 self.errors.push('\n');
             }
-            self.errors.push_str(&message);
+            self.errors.write_fmt(message);
         }
     }
 
@@ -353,7 +382,7 @@ impl Verifier<'_> {
                 for location in std::iter::once(output).chain(self.filled_slot(phi)) {
                     let found = self.read(exit, location);
                     if found != Some(self.content_of_value(input)) {
-                        self.error(format!(
+                        self.error(format_args!(
                             "phi v{} in b{}: input from b{} should be {:?} in {location:?}, found {found:?}",
                             phi.0,
                             block.0,
@@ -380,10 +409,10 @@ impl Verifier<'_> {
         }
     }
 
-    fn apply_moves(&mut self, state: &mut State, moves: &[Move], context: &str) {
+    fn apply_moves(&mut self, state: &mut State, moves: &[Move], context: Context) {
         for m in moves {
             if matches!(m.to, Location::Constant(_) | Location::Frame(_)) {
-                self.error(format!("{context}: move into {:?}", m.to));
+                self.error(format_args!("{context}: move into {:?}", m.to));
                 continue;
             }
             self.check_location(m.to, context);
@@ -392,14 +421,14 @@ impl Verifier<'_> {
                     state.insert(m.to, content);
                 }
                 None => {
-                    self.error(format!("{context}: move reads {:?}, which holds nothing", m.from));
+                    self.error(format_args!("{context}: move reads {:?}, which holds nothing", m.from));
                     state.remove(m.to);
                 }
             }
         }
     }
 
-    fn check_location(&mut self, location: Location, context: &str) {
+    fn check_location(&mut self, location: Location, context: Context) {
         if let Location::Register(register) = location
             && !self
                 .registers
@@ -410,28 +439,28 @@ impl Verifier<'_> {
                 .allocatable(super::RegisterClass::Float)
                 .contains(register)
         {
-            self.error(format!("{context}: r{register} is not allocatable"));
+            self.error(format_args!("{context}: r{register} is not allocatable"));
         }
     }
 
-    fn expect(&mut self, state: &State, location: Location, value: NodeId, context: &str) {
+    fn expect(&mut self, state: &State, location: Location, value: NodeId, context: Context) {
         let expected = self.content_of_value(value);
         let found = self.read(state, location);
         if found != Some(expected) {
-            self.error(format!(
+            self.error(format_args!(
                 "{context}: expected {expected:?} in {location:?}, found {found:?}"
             ));
         }
     }
 
-    fn check_exit_values(&mut self, state: &State, node: NodeId, context: &str) {
+    fn check_exit_values(&mut self, state: &State, node: NodeId, context: Context) {
         let Some(frame_state) = self.graph.node(node).frame_state else {
             return;
         };
         let expected_count = self.graph.frame_state_values(frame_state, self.work).count();
         let exit_values = self.allocation.node(node).exit_values;
         if expected_count != exit_values.len() {
-            self.error(format!(
+            self.error(format_args!(
                 "{context}: exit has {} values, frame state {}",
                 exit_values.len(),
                 expected_count
@@ -442,16 +471,11 @@ impl Verifier<'_> {
             self.graph.frame_state_values(frame_state, self.work).zip(exit_values)
         {
             if slot != *exit_slot {
-                self.error(format!(
+                self.error(format_args!(
                     "{context}: exit value for slot {exit_slot}, frame state slot {slot}"
                 ));
             }
-            self.expect(
-                state,
-                *location,
-                value,
-                &format!("{context}, exit value for slot {slot}"),
-            );
+            self.expect(state, *location, value, Context::ExitValue(node, slot));
         }
     }
 
@@ -476,7 +500,7 @@ impl Verifier<'_> {
             self.simulate_node(state, *node);
         }
         let end_moves = self.allocation.block_end_moves(block);
-        self.apply_moves(state, end_moves, &format!("end of b{}", block.0));
+        self.apply_moves(state, end_moves, Context::EndOfBlock(block));
         self.simulate_node(state, self.graph.control_id(block));
         state.store(out);
     }
@@ -484,22 +508,22 @@ impl Verifier<'_> {
     fn simulate_node(&mut self, state: &mut State, node_id: NodeId) {
         let node = self.graph.node(node_id);
         let allocation = self.allocation.node(node_id);
-        let context = format!("v{}", node_id.0);
+        let context = Context::Node(node_id);
         debug_assert!(node.op != Op::Phi);
 
-        self.apply_moves(state, allocation.moves_before, &context);
+        self.apply_moves(state, allocation.moves_before, context);
         if let Op::StoreSlot { slot } = node.op
             && self.graph.is_unwritten_slot(slot)
         {
-            self.error(format!("{context}: stores to slot {slot}, which nothing writes"));
+            self.error(format_args!("{context}: stores to slot {slot}, which nothing writes"));
         }
         if allocation.inputs.len() != node.inputs.len() {
-            self.error(format!("{context}: wrong number of input locations"));
+            self.error(format_args!("{context}: wrong number of input locations"));
             return;
         }
         let lowering = lowering_info(node);
         if allocation.temps.len() != usize::from(lowering.temps) {
-            self.error(format!(
+            self.error(format_args!(
                 "{context}: {} temps, but its lowering takes {}",
                 allocation.temps.len(),
                 lowering.temps
@@ -508,7 +532,7 @@ impl Verifier<'_> {
         for (index, (input, location)) in node.inputs.iter().zip(allocation.inputs).enumerate() {
             if let Location::Constant(bits) = location {
                 if self.graph.constant_value(*input) != Some(*bits) {
-                    self.error(format!("{context}: input {index} is not the constant {bits:#x}"));
+                    self.error(format_args!("{context}: input {index} is not the constant {bits:#x}"));
                 }
                 continue;
             }
@@ -516,23 +540,23 @@ impl Verifier<'_> {
             //     them from where they are.
             let reads_input_anywhere = lowering.inputs.get(index) == InputConstraint::Anywhere;
             if !matches!(location, Location::Register(_)) && !reads_input_anywhere {
-                self.error(format!("{context}: input {index} is not in a register"));
+                self.error(format_args!("{context}: input {index} is not in a register"));
             }
             if let InputConstraint::Fixed(register) = self.registers.resolve(lowering.inputs.get(index), false)
                 && *location != Location::Register(self.registers.fixed(register))
             {
-                self.error(format!("{context}: input {index} is not in its fixed register"));
+                self.error(format_args!("{context}: input {index} is not in its fixed register"));
             }
-            self.check_location(*location, &context);
-            self.expect(state, *location, *input, &format!("{context}, input {index}"));
+            self.check_location(*location, context);
+            self.expect(state, *location, *input, Context::Input(node_id, index));
         }
 
         // A node may exit at any point after reading its inputs, including
         // after it wrote its temps and its output: exit values must survive both.
         for temp in allocation.temps {
-            self.check_location(Location::Register(*temp), &context);
+            self.check_location(Location::Register(*temp), context);
             if allocation.inputs.contains(&Location::Register(*temp)) {
-                self.error(format!("{context}: temp r{temp} is also an input"));
+                self.error(format_args!("{context}: temp r{temp} is also an input"));
             }
             state.remove(Location::Register(*temp));
         }
@@ -548,19 +572,21 @@ impl Verifier<'_> {
             // NB: Cloning the state instead would take time quadratic in the size of code that keeps many values in
             //     their stack slots past many nodes.
             let previous = state.remove(output);
-            self.check_exit_values(state, node_id, &context);
+            self.check_exit_values(state, node_id, context);
             if let Some(previous) = previous {
                 state.insert(output, previous);
             }
         } else {
-            self.check_exit_values(state, node_id, &context);
+            self.check_exit_values(state, node_id, context);
         }
 
         match (node.repr.is_some(), allocation.output) {
             (true, Some(Location::Register(register))) => {
-                self.check_location(Location::Register(register), &context);
+                self.check_location(Location::Register(register), context);
                 if super::RegisterClass::of_register(register) != super::RegisterClass::of(node.repr) {
-                    self.error(format!("{context}: the output is in a register of the other class"));
+                    self.error(format_args!(
+                        "{context}: the output is in a register of the other class"
+                    ));
                 }
                 state.insert(Location::Register(register), self.content_of_value(node_id));
                 if let Some(slot) = allocation.spill_slot {
@@ -568,7 +594,7 @@ impl Verifier<'_> {
                 }
             }
             (false, None) => {}
-            (_, output) => self.error(format!("{context}: unexpected output location {output:?}")),
+            (_, output) => self.error(format_args!("{context}: unexpected output location {output:?}")),
         }
     }
 }

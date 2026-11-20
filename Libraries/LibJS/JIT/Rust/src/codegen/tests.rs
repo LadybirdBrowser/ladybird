@@ -2461,7 +2461,7 @@ fn aarch64_code_disassembles() {
         &mut crate::scratch::Scratch::new(),
     )
     .unwrap();
-    for dump in [x86_64.dump.unwrap(), aarch64.dump.unwrap()] {
+    for dump in [x86_64.dump().unwrap(), aarch64.dump().unwrap()] {
         assert!(dump.contains("Exit NoFeedback [fs"), "{dump}");
         assert!(dump.contains("exit #0 (NoFeedback) of v"), "{dump}");
         assert!(dump.contains("exit stub (shared by all exits):\n"), "{dump}");
@@ -2524,7 +2524,7 @@ fn slow_paths_share_initialization_of_large_frames() {
         );
         assert_eq!(
             compiled
-                .dump
+                .dump()
                 .unwrap()
                 .matches("frame initialization (shared by slow paths):\n")
                 .count(),
@@ -2597,7 +2597,7 @@ fn dumps_ir_and_code_on_request() {
     snapshot.options.dump_asm = true;
     let compiled =
         compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true, &mut crate::scratch::Scratch::new()).unwrap();
-    let dump = compiled.dump.unwrap();
+    let dump = compiled.dump().unwrap();
     assert!(dump.contains("LoadSlot a0"), "{dump}");
     assert!(dump.contains("prologue:"), "{dump}");
     assert!(dump.contains("Return (v"), "{dump}");
