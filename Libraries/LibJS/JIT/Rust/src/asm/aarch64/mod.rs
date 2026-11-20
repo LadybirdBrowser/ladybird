@@ -21,6 +21,9 @@ use super::buffer::AsmError;
 use super::buffer::CodeBuffer;
 use super::buffer::FixupKind;
 use super::buffer::Label;
+use ak::Column;
+use ak::Zone;
+use ak::ZoneVec;
 
 pub const X0: Gpr = Gpr(0);
 pub const X1: Gpr = Gpr(1);
@@ -333,34 +336,29 @@ const VENEER_HORIZON: usize = 4096;
 /// redirected to veneers (a B to the label, in a pool jumped over by the
 /// fallthrough path) emitted between instructions.
 #[derive(Debug)]
-pub struct Assembler {
-    buffer: CodeBuffer,
+pub struct Assembler<'a> {
+    buffer: CodeBuffer<'a>,
     /// Pending short-range forward branches, by fixup id.
-    veneer_candidates: Vec<u32>,
+    veneer_candidates: ZoneVec<'a, u32>,
     /// The offset at which the veneer candidates must be looked at again.
     next_veneer_check: usize,
 }
 
-impl Default for Assembler {
-    fn default() -> Self {
+impl<'a> Assembler<'a> {
+    /// An assembler that writes its code into `code`, in place of what it holds, and keeps its labels in `work`.
+    pub fn new(code: &'a mut Column<u8>, work: &'a Zone) -> Self {
         Self {
-            buffer: CodeBuffer::new(),
-            veneer_candidates: Vec::new(),
+            buffer: CodeBuffer::new(code, work),
+            veneer_candidates: ZoneVec::new_in(work),
             next_veneer_check: usize::MAX,
         }
-    }
-}
-
-impl Assembler {
-    pub fn new() -> Self {
-        Self::default()
     }
 
     pub fn offset(&self) -> usize {
         self.buffer.offset()
     }
 
-    pub fn buffer(&self) -> &CodeBuffer {
+    pub fn buffer(&self) -> &CodeBuffer<'a> {
         &self.buffer
     }
 
@@ -376,16 +374,8 @@ impl Assembler {
         self.buffer.label_offset(label)
     }
 
-    pub fn finish(self) -> Result<Vec<u8>, AsmError> {
+    pub fn finish(self) -> Result<&'a [u8], AsmError> {
         self.buffer.finish()
-    }
-
-    /// `finish()`, with the end of the code as the data offset: the
-    /// assembler itself emits no constant pool.
-    pub fn finish_with_data_offset(self) -> Result<(Vec<u8>, usize), AsmError> {
-        let code = self.finish()?;
-        let length = code.len();
-        Ok((code, length))
     }
 
     /// Emits one instruction word.
@@ -486,21 +476,26 @@ impl Assembler {
 
     /// Emits veneers for every candidate whose deadline is before `horizon`.
     fn emit_veneer_pool(&mut self, horizon: usize) {
-        let (due, remaining): (Vec<u32>, Vec<u32>) = self
-            .veneer_candidates
-            .iter()
-            .copied()
-            .partition(|id| self.deadline(*id).is_some_and(|deadline| deadline <= horizon));
-        self.veneer_candidates = remaining;
+        let is_due = |assembler: &Self, id: u32| assembler.deadline(id).is_some_and(|deadline| deadline <= horizon);
+        let due = self.veneer_candidates.iter().filter(|id| is_due(self, **id)).count();
         // Skip over the pool on the fallthrough path.
-        self.buffer.emit_u32(0x1400_0000 | (due.len() as u32 + 1));
-        for id in due {
+        self.buffer.emit_u32(0x1400_0000 | (due as u32 + 1));
+        // NB: A veneer resolves the fixup of its own candidate only, so the others stay due or not.
+        let mut kept = 0;
+        for index in 0..self.veneer_candidates.len() {
+            let id = self.veneer_candidates[index];
+            if !is_due(self, id) {
+                self.veneer_candidates[kept] = id;
+                kept += 1;
+                continue;
+            }
             let fixup = self.buffer.pending_fixup(id).unwrap();
             let veneer = self.offset();
             self.buffer.emit_u32(0x1400_0000);
             self.buffer.add_fixup(fixup.label, veneer, FixupKind::A64Branch26);
             self.buffer.redirect_fixup(id, veneer);
         }
+        self.veneer_candidates.truncate(kept);
     }
 
     // Moves and immediates.

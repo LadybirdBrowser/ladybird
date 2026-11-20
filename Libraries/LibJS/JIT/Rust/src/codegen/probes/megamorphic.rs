@@ -28,7 +28,7 @@ pub(super) enum MegamorphicKey {
     Keyed { key: Gpr },
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// Branches to `found` if cache entry `candidate` applies to objects of
     /// the shape in `shape`.
     pub(super) fn branch_if_entry_shape(&mut self, candidate: Gpr, shape: Gpr, found: Label) {

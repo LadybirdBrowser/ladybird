@@ -6,6 +6,10 @@
 
 //! The code buffer shared by both assemblers: bytes, labels and fixups.
 
+use ak::Column;
+use ak::Zone;
+use ak::ZoneVec;
+
 /// Why assembling failed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AsmError {
@@ -13,6 +17,8 @@ pub enum AsmError {
     UnboundLabel,
     /// A branch or PC-relative reference does not reach its label.
     BranchOutOfRange,
+    /// The code does not fit in the memory it is written into.
+    TooLarge,
 }
 
 /// A position in the code, bound once and referenced any number of times
@@ -122,44 +128,60 @@ impl Checkpoint {
     }
 }
 
-/// A growable code buffer with labels.
-#[derive(Debug, Default)]
-pub struct CodeBuffer {
-    bytes: Vec<u8>,
-    labels: Vec<LabelState>,
-    fixups: Vec<Fixup>,
+/// A code buffer with labels. The code goes straight into the column it writes, and the labels and fixups are in a
+/// zone.
+#[derive(Debug)]
+pub struct CodeBuffer<'a> {
+    bytes: &'a mut Column<u8>,
+    /// How many bytes were emitted past the end of the column, once it is full. The offsets go on as if they were
+    /// there, but nothing is written or patched any more: `finish()` fails.
+    lost: usize,
+    labels: ZoneVec<'a, LabelState>,
+    fixups: ZoneVec<'a, Fixup>,
     /// The first error hit while emitting; reported by `finish()`.
     error: Option<AsmError>,
 }
 
-impl CodeBuffer {
-    pub fn new() -> Self {
-        Self::default()
+impl<'a> CodeBuffer<'a> {
+    /// A buffer that writes its code into `bytes`, in place of what it holds, and keeps its labels in `work`.
+    pub fn new(bytes: &'a mut Column<u8>, work: &'a Zone) -> Self {
+        bytes.clear();
+        Self {
+            bytes,
+            lost: 0,
+            labels: ZoneVec::new_in(work),
+            fixups: ZoneVec::new_in(work),
+            error: None,
+        }
     }
 
     /// The current emission offset.
     pub fn offset(&self) -> usize {
-        self.bytes.len()
+        self.bytes.len() + self.lost
     }
 
     pub fn emit_u8(&mut self, value: u8) {
-        self.bytes.push(value);
+        self.emit_bytes(&[value]);
     }
 
     pub fn emit_u16(&mut self, value: u16) {
-        self.bytes.extend_from_slice(&value.to_le_bytes());
+        self.emit_bytes(&value.to_le_bytes());
     }
 
     pub fn emit_u32(&mut self, value: u32) {
-        self.bytes.extend_from_slice(&value.to_le_bytes());
+        self.emit_bytes(&value.to_le_bytes());
     }
 
     pub fn emit_u64(&mut self, value: u64) {
-        self.bytes.extend_from_slice(&value.to_le_bytes());
+        self.emit_bytes(&value.to_le_bytes());
     }
 
     pub fn emit_bytes(&mut self, bytes: &[u8]) {
-        self.bytes.extend_from_slice(bytes);
+        if self.lost == 0 && self.bytes.try_extend_from_slice(bytes).is_ok() {
+            return;
+        }
+        self.set_error(AsmError::TooLarge);
+        self.lost += bytes.len();
     }
 
     pub fn read_u32(&self, at: usize) -> u32 {
@@ -272,7 +294,9 @@ impl CodeBuffer {
                 first_fixup: fixup.next,
             };
         }
-        self.bytes.truncate(checkpoint.offset);
+        let kept = checkpoint.offset.min(self.bytes.len());
+        self.bytes.truncate(kept);
+        self.lost = checkpoint.offset - kept;
     }
 
     /// Pads with `filler` until the offset is a multiple of `alignment`.
@@ -285,14 +309,15 @@ impl CodeBuffer {
 
     /// Returns the code, or the first error. Fails if a referenced label was
     /// never bound.
-    pub fn finish(self) -> Result<Vec<u8>, AsmError> {
+    pub fn finish(self) -> Result<&'a [u8], AsmError> {
         if let Some(error) = self.error {
             return Err(error);
         }
         if self.fixups.iter().any(|fixup| !fixup.resolved) {
             return Err(AsmError::UnboundLabel);
         }
-        Ok(self.bytes)
+        let bytes: &'a Column<u8> = self.bytes;
+        Ok(bytes)
     }
 
     fn offset_u32(offset: usize) -> u32 {
@@ -300,6 +325,10 @@ impl CodeBuffer {
     }
 
     fn patch(&mut self, at: usize, kind: FixupKind, target: usize) {
+        // NB: The code that the column had no room for is not there to patch, and the code is not finished.
+        if self.lost != 0 {
+            return;
+        }
         if !kind.reaches(at, target) {
             self.set_error(AsmError::BranchOutOfRange);
             return;
@@ -338,7 +367,8 @@ mod tests {
 
     #[test]
     fn forward_and_backward_references_are_patched() {
-        let mut buffer = CodeBuffer::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut buffer = CodeBuffer::new(&mut code, &work);
         let label = buffer.new_label();
         buffer.emit_u8(0xeb);
         buffer.emit_u8(0);
@@ -354,7 +384,8 @@ mod tests {
 
     #[test]
     fn rewinding_drops_code_and_its_references() {
-        let mut buffer = CodeBuffer::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut buffer = CodeBuffer::new(&mut code, &work);
         let label = buffer.new_label();
         buffer.emit_u8(0xeb);
         buffer.emit_u8(0);
@@ -376,7 +407,8 @@ mod tests {
 
     #[test]
     fn unbound_label_fails() {
-        let mut buffer = CodeBuffer::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut buffer = CodeBuffer::new(&mut code, &work);
         let label = buffer.new_label();
         buffer.emit_u32(0x1400_0000);
         buffer.add_fixup(label, 0, FixupKind::A64Branch26);
@@ -385,15 +417,17 @@ mod tests {
 
     #[test]
     fn unreferenced_unbound_label_is_fine() {
-        let mut buffer = CodeBuffer::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut buffer = CodeBuffer::new(&mut code, &work);
         let _ = buffer.new_label();
         buffer.emit_u8(0xc3);
-        assert_eq!(buffer.finish(), Ok(vec![0xc3]));
+        assert_eq!(buffer.finish(), Ok(&[0xc3][..]));
     }
 
     #[test]
     fn out_of_range_reference_fails() {
-        let mut buffer = CodeBuffer::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut buffer = CodeBuffer::new(&mut code, &work);
         let label = buffer.new_label();
         buffer.emit_bytes(&[0xeb, 0]);
         buffer.add_fixup(label, 1, FixupKind::X86Rel8);
@@ -416,7 +450,8 @@ mod tests {
 
     #[test]
     fn alignment_pads_with_filler() {
-        let mut buffer = CodeBuffer::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut buffer = CodeBuffer::new(&mut code, &work);
         buffer.emit_u8(0xc3);
         buffer.align_with(8, 0xcc);
         assert_eq!(

@@ -440,14 +440,10 @@ impl JitState {
                 let allocator = Rc::new(RefCell::new(CodeAllocator::default()));
                 #[cfg(not(windows))]
                 let allocator = Rc::clone(&self.code_allocator);
-                let memory = ExecutableMemory::allocate(
-                    &allocator,
-                    &[code.as_slice()],
-                    &["entry trampoline"],
-                    self.options.perf_map,
-                )
-                .pop()
-                .expect("one code was allocated");
+                let memory =
+                    ExecutableMemory::allocate(&allocator, &[&code[..]], &["entry trampoline"], self.options.perf_map)
+                        .pop()
+                        .expect("one code was allocated");
                 // SAFETY: The code is the entry trampoline, with its calling convention.
                 let trampoline = unsafe { core::mem::transmute::<*const u8, EntryTrampoline>(memory.address()) };
                 (memory, trampoline)
@@ -463,7 +459,7 @@ impl JitState {
                     .expect("the call stub compiles")?;
                 ExecutableMemory::allocate(
                     &self.code_allocator,
-                    &[code.as_slice()],
+                    &[&code[..]],
                     &["call stub"],
                     self.options.perf_map,
                 )
@@ -481,7 +477,7 @@ impl JitState {
                     .expect("the construct stub compiles")?;
                 ExecutableMemory::allocate(
                     &self.code_allocator,
-                    &[code.as_slice()],
+                    &[&code[..]],
                     &["construct stub"],
                     self.options.perf_map,
                 )

@@ -8,12 +8,9 @@
 
 use ak::Zone;
 
-use crate::artifact::ArtifactWriter;
-use crate::codegen::sites::SiteScratch;
-
 /// What a compile keeps its data in, apart from what the heap still holds of it. A thread that compiles has one, and
 /// every compile of the thread uses it: a compile leaves nothing in it that the next one reads, only the memory.
-/// The memory is in a few ranges of address space that are the scratch's own, so all of it can go back to the system
+/// The memory is in four ranges of address space that are the scratch's own, so all of it can go back to the system
 /// at any time between two compiles (see `release_memory()`), whatever else the process allocated since.
 pub struct Scratch {
     /// Where the graph of a compile is, with all the lists of its nodes, blocks and frame states. A compile starts
@@ -21,7 +18,8 @@ pub struct Scratch {
     pub(crate) zone: Zone,
     /// Where the stages of a compile keep the data that only they use. The driver drops the data of the builder,
     /// and of each pass, when it ends. The register allocator keeps the allocation here, with its own work data,
-    /// for the code generator, so those stay until the compile ends.
+    /// for the code generator, so those stay until the compile ends, with the data of the code generator and of the
+    /// tables of the code.
     pub(crate) work: Zone,
     /// Where a stage that repeats a step keeps the data of one step, which the step drops when it ends. A stage
     /// keeps what lasts from one step to the next in `work`. So a stage whose steps each make data as large as the
@@ -30,14 +28,6 @@ pub struct Scratch {
     /// stage moves the data in use to the other zone and resets the first (see `check_elimination`). The driver
     /// empties both after each stage.
     pub(crate) steps: [Zone; 2],
-    pub(crate) tables: Tables,
-}
-
-/// The tables of the code generator and of the artifact writer, which are not in the zones. Each is its own range of
-/// address space.
-pub struct Tables {
-    pub(crate) artifact: ArtifactWriter,
-    pub(crate) sites: SiteScratch,
 }
 
 impl Default for Scratch {
@@ -57,10 +47,6 @@ impl Scratch {
             zone: Zone::new(ZONE_LIMIT, c"JIT graph"),
             work: Zone::new(ZONE_LIMIT, c"JIT work"),
             steps: [Zone::new(ZONE_LIMIT, c"JIT step"), Zone::new(ZONE_LIMIT, c"JIT step 2")],
-            tables: Tables {
-                artifact: ArtifactWriter::new(),
-                sites: SiteScratch::new(),
-            },
         }
     }
 
@@ -81,7 +67,5 @@ impl Scratch {
             zone.reset();
             zone.trim(0);
         }
-        self.tables.artifact.release_memory();
-        self.tables.sites.release_memory();
     }
 }

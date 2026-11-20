@@ -38,7 +38,7 @@ pub(super) fn int32_condition(comparison: Comparison) -> Condition {
     }
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     pub(super) fn emit_check_int32(&mut self, node: NodeId) {
         let exit = self.exit_site(node);
         let (input, output, scratch) = (self.input(node, 0), self.output(node), self.pinned.scratch);

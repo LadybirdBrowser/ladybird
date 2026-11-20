@@ -7,8 +7,8 @@
 //! The sites of compiled code (see `artifact::SiteView`): where the translator finds the values of a node's frame
 //! state, from the register allocation.
 
-use ak::Column;
 use ak::Zone;
+use ak::ZoneVec;
 
 use crate::CompileFailure;
 use crate::artifact::ArtifactWriter;
@@ -30,43 +30,32 @@ use crate::regalloc::Location;
 /// In place of the record of a frame state: it has none.
 const NO_RECORD: u32 = u32::MAX;
 
-/// What the sites of a compile are written with. Its memory serves the next compile.
-pub(crate) struct SiteScratch {
+/// What the sites of a compile are written with, in the work zone.
+pub(crate) struct SiteScratch<'a> {
     /// The record of each frame state of the graph in the tables of the code, by the index of the frame state.
-    frame_records: Column<u32>,
+    frame_records: &'a mut [u32],
     /// The frame states of a chain that have no record.
-    pending: Column<u32>,
+    pending: ZoneVec<'a, u32>,
     /// The values of a frame at a site, as the slot in the high half and the word of the location in the low half.
-    values: Column<u64>,
+    values: ZoneVec<'a, u64>,
 }
 
-impl SiteScratch {
+impl<'a> SiteScratch<'a> {
     // NB: A compile whose graph has more frame states, or a frame state with more values or callers, fails.
     const MAX_FRAME_STATES: usize = 1 << 24;
     const MAX_FRAME_VALUES: usize = 1 << 22;
     const MAX_FRAME_DEPTH: usize = 1 << 16;
 
-    pub(crate) fn new() -> Self {
-        Self {
-            frame_records: Column::new(Self::MAX_FRAME_STATES, c"JIT frame state records"),
-            pending: Column::new(Self::MAX_FRAME_DEPTH, c"JIT frame state chain"),
-            values: Column::new(Self::MAX_FRAME_VALUES, c"JIT frame values"),
+    /// What the sites of the code of `graph` are written with, which knows no records yet.
+    pub(crate) fn new_in(graph: &Graph, work: &'a Zone) -> Result<Self, CompileFailure> {
+        if graph.frame_states.len() > Self::MAX_FRAME_STATES {
+            return Err(CompileFailure::TooLarge);
         }
-    }
-
-    pub(crate) fn release_memory(&mut self) {
-        self.frame_records.clear();
-        self.frame_records.trim(0);
-        self.pending.clear();
-        self.pending.trim(0);
-        self.values.clear();
-        self.values.trim(0);
-    }
-
-    /// Starts the sites of the code of `graph`, in tables that hold nothing.
-    pub(crate) fn begin(&mut self, graph: &Graph) -> Result<(), CompileFailure> {
-        self.frame_records.clear();
-        Ok(self.frame_records.try_resize(graph.frame_states.len(), NO_RECORD)?)
+        Ok(Self {
+            frame_records: work.alloc_slice_fill(graph.frame_states.len(), NO_RECORD),
+            pending: ZoneVec::new_in(work),
+            values: ZoneVec::new_in(work),
+        })
     }
 
     /// The record of `frame_state`, which gets one with its callers if it has none.
@@ -74,7 +63,7 @@ impl SiteScratch {
         &mut self,
         graph: &Graph,
         frame_state: FrameStateId,
-        artifact: &mut ArtifactWriter,
+        artifact: &mut ArtifactWriter<'_>,
     ) -> Result<u32, CompileFailure> {
         self.pending.clear();
         let mut parent = None;
@@ -85,7 +74,10 @@ impl SiteScratch {
                 parent = Some(record);
                 break;
             }
-            self.pending.try_push(id.0)?;
+            if self.pending.len() == Self::MAX_FRAME_DEPTH {
+                return Err(CompileFailure::TooLarge);
+            }
+            self.pending.push(id.0);
             next = graph.frame_state(id).parent;
         }
         // NB: The record of a frame names that of its caller, so callers come first.
@@ -186,7 +178,11 @@ pub(crate) struct SiteSource<'a> {
 
 impl SiteSource<'_> {
     /// Adds the site to the tables of the code, as the next site.
-    pub(crate) fn write(&self, scratch: &mut SiteScratch, artifact: &mut ArtifactWriter) -> Result<(), CompileFailure> {
+    pub(crate) fn write(
+        &self,
+        scratch: &mut SiteScratch<'_>,
+        artifact: &mut ArtifactWriter<'_>,
+    ) -> Result<(), CompileFailure> {
         let graph = self.graph;
         let frame_state = graph.node(self.node).frame_state.expect("the node has a frame state");
         let frame = scratch.frame_record(graph, frame_state, artifact)?;
@@ -214,11 +210,14 @@ impl SiteSource<'_> {
             for (_, value) in &state.values {
                 let (slot, location) = locations.next(*value);
                 let word = artifact.location(location)?;
-                scratch.values.try_push(u64::from(slot) << 32 | u64::from(word))?;
+                if scratch.values.len() == SiteScratch::MAX_FRAME_VALUES {
+                    return Err(CompileFailure::TooLarge);
+                }
+                scratch.values.push(u64::from(slot) << 32 | u64::from(word));
             }
             // NB: The locations of a frame are in the order of its slots, which are in the high halves.
             scratch.values.sort_unstable();
-            for value in scratch.values.iter() {
+            for value in &*scratch.values {
                 artifact.add_location(*value as u32)?;
             }
             next = state.parent;
@@ -244,8 +243,9 @@ impl SiteSource<'_> {
         Ok(())
     }
 
-    /// The slots of the values of the compiled function's frame at the site and where the values are, in slot order.
-    pub(crate) fn root_frame_values(&self) -> Vec<(u32, ValueLocation)> {
+    /// Makes `values` the slots of the values of the compiled function's frame at the site and where the values are,
+    /// in slot order.
+    pub(crate) fn root_frame_values(&self, values: &mut ZoneVec<'_, (u32, ValueLocation)>) {
         let frame_state = self
             .graph
             .node(self.node)
@@ -253,7 +253,7 @@ impl SiteSource<'_> {
             .expect("the node has a frame state");
         let objects = self.graph.virtual_objects(frame_state, self.work);
         let mut locations = self.locations(&objects);
-        let mut values = Vec::new();
+        values.clear();
         let mut next = Some(frame_state);
         while let Some(id) = next {
             let state = self.graph.frame_state(id);
@@ -262,7 +262,6 @@ impl SiteSource<'_> {
             next = state.parent;
         }
         values.sort_unstable_by_key(|(slot, _)| *slot);
-        values
     }
 
     fn locations<'a>(&'a self, objects: &'a [NodeId]) -> Locations<'a> {

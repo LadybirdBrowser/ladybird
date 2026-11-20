@@ -22,7 +22,7 @@ use crate::asm::Scale;
 use crate::ir::NodeId;
 use crate::ir::value;
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// Branches to `fail` unless binding `index` (a register) of the
     /// declarative environment `environment` is mutable, like the
     /// interpreter's `load_binding_flag`. Clobbers `temp` and the scratch

@@ -13,7 +13,6 @@ use super::Fpr;
 use super::FprSet;
 use super::Gpr;
 use super::GprSet;
-use super::MacroAssembler;
 use super::NegativeZero;
 use super::PortableMacroAssembler;
 use super::Scale;
@@ -22,9 +21,11 @@ use super::executable_code::ExecutableCode;
 use super::x86_64::*;
 
 fn assemble(emit: impl FnOnce(&mut MacroAssembler)) -> ExecutableCode {
-    let mut masm = MacroAssembler::new();
+    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+    let mut masm = MacroAssembler::new(&mut code, &work);
     emit(&mut masm);
-    ExecutableCode::new(&masm.finish().expect("assembling failed"))
+    masm.finish().expect("assembling failed");
+    ExecutableCode::new(&code[..])
 }
 
 /// The two-register return value of JIT entry points.

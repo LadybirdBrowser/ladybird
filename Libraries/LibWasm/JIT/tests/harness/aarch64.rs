@@ -36,13 +36,14 @@ fn operand(asm: &mut Assembler, base: Gpr, offset: i32, size_log2: u32) -> MemOp
 
 /// The trap exit, entered with the trap code in w0: returns 1 from the trampoline.
 pub(super) fn trap_exit_code(state: *mut SessionState) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut memory = libwasm_jit::CodeMemory::new();
+    let mut asm = Assembler::new(&mut memory.code, &memory.work);
     asm.mov_imm(Width::W64, X16, state as u64);
     asm.str(Width::W32, Gpr(0), MemOperand::Offset(X16, TRAP_OFFSET));
     asm.ldr(Width::W64, X17, MemOperand::Offset(X16, ENTRY_SP_OFFSET));
     asm.mov_sp(SP, X17);
     restore_and_return(&mut asm, 1);
-    asm.finish().unwrap()
+    asm.finish().unwrap().to_vec()
 }
 
 /// The code of functions the JIT did not compile.
@@ -52,11 +53,12 @@ pub(super) fn not_compiled_code(trap_exit: u64) -> Vec<u8> {
 
 /// Code that traps with `code`.
 pub(super) fn trap_stub(trap_exit: u64, code: u32) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut memory = libwasm_jit::CodeMemory::new();
+    let mut asm = Assembler::new(&mut memory.code, &memory.work);
     asm.mov_imm(Width::W32, Gpr(0), u64::from(code));
     asm.mov_imm(Width::W64, X16, trap_exit);
     asm.br(X16);
-    asm.finish().unwrap()
+    asm.finish().unwrap().to_vec()
 }
 
 /// Restores what the trampoline saved, from sp at its entry_sp, and returns `status`.
@@ -111,7 +113,8 @@ fn copy(asm: &mut Assembler, ty: Type, from: (Gpr, i32), to: (Gpr, i32)) {
 /// `extern "C" fn(entry, arguments, results, instance) -> u32`: calls `entry` with the arguments' slots under the
 /// compiled convention, stores the results' slots, and returns 0, or 1 if the code trapped.
 pub(super) fn trampoline_code(params: &[Type], results: &[Type], state: *mut SessionState) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut memory = libwasm_jit::CodeMemory::new();
+    let mut asm = Assembler::new(&mut memory.code, &memory.work);
     asm.stp(FP, LR, PairOperand::PreIndex(SP, -SAVE_AREA));
     asm.mov_sp(FP, SP);
     for (index, pair) in [(19, 20), (21, 22), (23, 24), (25, 26), (27, 28)].iter().enumerate() {
@@ -185,5 +188,5 @@ pub(super) fn trampoline_code(params: &[Type], results: &[Type], state: *mut Ses
     }
     asm.add_any(SP, SP, outgoing, X17);
     restore_and_return(&mut asm, 0);
-    asm.finish().unwrap()
+    asm.finish().unwrap().to_vec()
 }

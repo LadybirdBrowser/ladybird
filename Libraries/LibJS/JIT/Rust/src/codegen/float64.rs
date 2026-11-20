@@ -25,7 +25,7 @@ use crate::ir::value;
 
 const SIGN_BIT: u64 = 1 << 63;
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// `UnboxDouble`: the double of a tagged double, its bits.
     pub(in crate::codegen) fn emit_unbox_double(&mut self, node: NodeId) {
         let (input, output) = (self.input(node, 0), self.float_output(node));

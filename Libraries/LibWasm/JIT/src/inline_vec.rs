@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! A vector of copyable values that keeps up to `N` of them inline, for the
-//! small per-node lists the register allocator makes for most nodes (their
-//! input locations, temps and the like), so that those need no heap
+//! A vector of copyable values that keeps up to `N` of them inline, for small lists that mostly need no heap
 //! allocation.
 
 /// Up to `N` values inline; more spill to the heap.

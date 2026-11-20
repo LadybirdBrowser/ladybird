@@ -15,6 +15,7 @@ use super::super::Fpr;
 use super::super::FprSet;
 use super::super::Gpr;
 use super::super::GprSet;
+use super::super::JumpPatch;
 use super::super::Label;
 use super::super::MachineFrame;
 use super::super::NegativeZero;
@@ -23,7 +24,7 @@ use super::super::Width;
 use super::super::Width::W32;
 use super::super::Width::W64;
 use super::*;
-use std::collections::HashMap;
+use ak::ZoneMap;
 
 /// General scratch register: immediates, call targets, working values.
 const SCRATCH: Gpr = R11;
@@ -40,16 +41,14 @@ enum Extreme {
 
 /// The macro assembler for x86-64. Wraps an `Assembler`, which stays
 /// available for architecture specific code.
-#[derive(Debug, Default)]
-pub struct MacroAssembler {
-    pub assembler: Assembler,
+#[derive(Debug)]
+pub struct MacroAssembler<'a> {
+    pub assembler: Assembler<'a>,
     /// 64-bit constants that do not fit an immediate, loaded RIP-relative
-    /// from a pool after the code.
-    constants: Vec<(u64, Label)>,
-    constant_labels: HashMap<u64, Label>,
+    /// from a pool after the code, in the order of the pool.
+    constants: ZoneMap<'a, u64, Label>,
     /// 128-bit constants, in the same pool.
-    constants128: Vec<(u128, Label)>,
-    constant128_labels: HashMap<u128, Label>,
+    constants128: ZoneMap<'a, u128, Label>,
 }
 
 fn condition_code(condition: Condition) -> Cond {
@@ -137,13 +136,13 @@ fn double_flags(condition: DoubleCondition) -> DoubleFlags {
     }
 }
 
-impl BranchGroups for MacroAssembler {
-    fn branch_assembler(&mut self) -> &mut Assembler {
+impl<'a> BranchGroups<'a> for MacroAssembler<'a> {
+    fn branch_assembler(&mut self) -> &mut Assembler<'a> {
         &mut self.assembler
     }
 }
 
-impl MacroAssembler {
+impl<'a> MacroAssembler<'a> {
     /// The bytes the prologue of `frame` moves the stack pointer down by after saving the general purpose registers.
     fn reserved_frame_bytes(frame: &MachineFrame) -> u32 {
         frame.locals_size + 8 * frame.saved_fprs.len() as u32
@@ -236,20 +235,18 @@ impl MacroAssembler {
 
     /// The label of `value` in the constant pool.
     fn constant(&mut self, value: u64) -> Label {
-        *self.constant_labels.entry(value).or_insert_with(|| {
-            let label = self.assembler.new_label();
-            self.constants.push((value, label));
-            label
-        })
+        *self
+            .constants
+            .entry(value)
+            .or_insert_with(|| self.assembler.new_label())
     }
 
     /// The label of the 128-bit `value` in the constant pool.
     fn constant128(&mut self, value: u128) -> Label {
-        *self.constant128_labels.entry(value).or_insert_with(|| {
-            let label = self.assembler.new_label();
-            self.constants128.push((value, label));
-            label
-        })
+        *self
+            .constants128
+            .entry(value)
+            .or_insert_with(|| self.assembler.new_label())
     }
 
     fn compare_imm(&mut self, width: Width, lhs: Gpr, imm: i64) {
@@ -327,7 +324,7 @@ impl MacroAssembler {
     /// `dst = lhs op rhs` for an SSE operation where `dst` must be the left operand.
     fn double_operation(
         &mut self,
-        operation: fn(&mut Assembler, Fpr, Fpr),
+        operation: fn(&mut Assembler<'a>, Fpr, Fpr),
         commutative: bool,
         dst: Fpr,
         lhs: Fpr,
@@ -350,7 +347,9 @@ impl MacroAssembler {
     }
 }
 
-impl PortableMacroAssembler for MacroAssembler {
+impl PortableMacroAssembler for MacroAssembler<'_> {
+    type In<'a> = MacroAssembler<'a>;
+
     const ARCHITECTURE: Architecture = Architecture::X86_64;
     const ARGUMENT_GPRS: &'static [Gpr] = &[RDI, RSI, RDX, RCX, R8, R9];
     const ARGUMENT_FPRS: &'static [Fpr] = &[XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7];
@@ -367,8 +366,12 @@ impl PortableMacroAssembler for MacroAssembler {
     const STACK_POINTER: Gpr = RSP;
     const FRAME_POINTER: Gpr = RBP;
 
-    fn new() -> Self {
-        Self::default()
+    fn new<'a>(code: &'a mut Column<u8>, work: &'a Zone) -> MacroAssembler<'a> {
+        MacroAssembler {
+            assembler: Assembler::new(code, work),
+            constants: ZoneMap::new_in(work),
+            constants128: ZoneMap::new_in(work),
+        }
     }
 
     fn offset(&self) -> usize {
@@ -394,31 +397,31 @@ impl PortableMacroAssembler for MacroAssembler {
         offset
     }
 
-    fn jump_patch(from: usize, to: usize) -> Vec<u8> {
+    fn jump_patch(from: usize, to: usize) -> JumpPatch {
         let displacement = i32::try_from(to as i64 - (from as i64 + 5)).expect("code is smaller than 2 GiB");
-        let mut bytes = vec![0xe9];
-        bytes.extend_from_slice(&displacement.to_le_bytes());
-        bytes
+        let [b0, b1, b2, b3] = displacement.to_le_bytes();
+        JumpPatch::new(&[0xe9, b0, b1, b2, b3])
     }
 
-    fn finish_with_data_offset(mut self) -> Result<(Vec<u8>, usize), AsmError> {
+    fn finish(mut self) -> Result<usize, AsmError> {
         let data_offset = self.assembler.offset();
         if !self.constants128.is_empty() {
             self.assembler.align_data(16);
-            for (value, label) in std::mem::take(&mut self.constants128) {
-                self.assembler.bind(label);
-                self.assembler.data_u64(value as u64);
-                self.assembler.data_u64((value >> 64) as u64);
+            for (value, label) in self.constants128.iter() {
+                self.assembler.bind(*label);
+                self.assembler.data_u64(*value as u64);
+                self.assembler.data_u64((*value >> 64) as u64);
             }
         }
         if !self.constants.is_empty() {
             self.assembler.align_data(8);
-            for (value, label) in std::mem::take(&mut self.constants) {
-                self.assembler.bind(label);
-                self.assembler.data_u64(value);
+            for (value, label) in self.constants.iter() {
+                self.assembler.bind(*label);
+                self.assembler.data_u64(*value);
             }
         }
-        Ok((self.assembler.finish()?, data_offset))
+        self.assembler.finish()?;
+        Ok(data_offset)
     }
 
     fn unreachable(&mut self) {

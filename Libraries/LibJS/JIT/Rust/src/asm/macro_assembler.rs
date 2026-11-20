@@ -18,6 +18,8 @@ use super::Gpr;
 use super::GprSet;
 use super::Label;
 use super::NegativeZero;
+use ak::Column;
+use ak::Zone;
 
 /// The stack frame a JIT function sets up in its prologue.
 ///
@@ -46,7 +48,35 @@ impl MachineFrame {
     }
 }
 
+/// The bytes of a jump that replace the no-ops of `PortableMacroAssembler::patchable_nop()`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct JumpPatch {
+    bytes: [u8; JumpPatch::MAX_LENGTH],
+    length: u8,
+}
+
+impl JumpPatch {
+    /// The most bytes a jump patch has.
+    pub const MAX_LENGTH: usize = 8;
+
+    pub fn new(bytes: &[u8]) -> Self {
+        let mut patch = Self {
+            bytes: [0; Self::MAX_LENGTH],
+            length: bytes.len() as u8,
+        };
+        patch.bytes[..bytes.len()].copy_from_slice(bytes);
+        patch
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes[..usize::from(self.length)]
+    }
+}
+
 /// Operations codegen can use on every architecture.
+///
+/// A macro assembler type stands for its target at any lifetime: `In<'a>` is the one that writes code into memory
+/// that lives for `'a`, which `new()` makes.
 ///
 /// Conventions:
 /// - Three-operand forms: `dst` may alias any source.
@@ -80,7 +110,12 @@ pub trait PortableMacroAssembler: Sized {
     const STACK_POINTER: Gpr;
     const FRAME_POINTER: Gpr;
 
-    fn new() -> Self;
+    /// The macro assembler of the same target that writes into memory that lives for `'a`.
+    type In<'a>: PortableMacroAssembler;
+
+    /// A macro assembler that writes its code into `code`, in place of what it holds, and keeps its labels and
+    /// constants in `work`.
+    fn new<'a>(code: &'a mut Column<u8>, work: &'a Zone) -> Self::In<'a>;
     fn offset(&self) -> usize;
     fn new_label(&mut self) -> Label;
     fn bind(&mut self, label: Label);
@@ -90,18 +125,10 @@ pub trait PortableMacroAssembler: Sized {
     fn patchable_nop(&mut self) -> usize;
     /// The bytes of a jump from offset `from` to offset `to` of the same
     /// code, which replace the no-ops `patchable_nop()` emitted at `from`.
-    fn jump_patch(from: usize, to: usize) -> Vec<u8>;
-    /// Returns the code. Fails if a referenced label is unbound or a branch
-    /// does not reach.
-    fn finish(self) -> Result<Vec<u8>, AsmError>
-    where
-        Self: Sized,
-    {
-        Ok(self.finish_with_data_offset()?.0)
-    }
-    /// Like `finish()`, with the offset where the instructions end and the
-    /// data they load (a constant pool) begins.
-    fn finish_with_data_offset(self) -> Result<(Vec<u8>, usize), AsmError>;
+    fn jump_patch(from: usize, to: usize) -> JumpPatch;
+    /// Completes the code in the column of `new()`, and returns the offset where the instructions end and the data
+    /// they load (a constant pool) begins. Fails if a referenced label is unbound or a branch does not reach.
+    fn finish(self) -> Result<usize, AsmError>;
 
     /// A guaranteed trap for code that must never run.
     fn unreachable(&mut self);

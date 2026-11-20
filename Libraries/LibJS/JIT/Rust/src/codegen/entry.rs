@@ -14,6 +14,11 @@
 //! `JitResult trampoline(VM*, ExecutionContext* frame, entry)`, whose result
 //! is the entry's.
 
+use ak::Column;
+use ak::Zone;
+
+use super::STUB_CODE_LIMIT;
+use super::STUB_ZONE_LIMIT;
 use super::target_registers;
 use crate::CompileFailure;
 use crate::asm::FprSet;
@@ -21,18 +26,18 @@ use crate::asm::GprSet;
 use crate::asm::PortableMacroAssembler;
 
 /// Generates the entry trampoline.
-pub fn generate_entry_trampoline<M: PortableMacroAssembler>() -> Result<Vec<u8>, CompileFailure> {
+pub fn generate_entry_trampoline<M: PortableMacroAssembler>() -> Result<Column<u8>, CompileFailure> {
     let (_, pinned) = target_registers::<M>();
     let arguments = M::ARGUMENT_GPRS;
     let frame = M::frame(GprSet::EMPTY.with(pinned.vm).with(pinned.scratch), FprSet::EMPTY, 0);
-    let mut masm = M::new();
+    let work = Zone::new(STUB_ZONE_LIMIT, c"JIT entry trampoline");
+    let mut code = Column::new(STUB_CODE_LIMIT, c"JIT entry trampoline code");
+    let mut masm = M::new(&mut code, &work);
     masm.emit_prologue(&frame);
     masm.move64(pinned.vm, arguments[0]);
     masm.call_register(arguments[2]);
     masm.emit_epilogue(&frame);
     masm.ret();
-    let (code, _) = masm
-        .finish_with_data_offset()
-        .map_err(|_| CompileFailure::CodeGeneration)?;
+    masm.finish().map_err(super::assembly_failure)?;
     Ok(code)
 }

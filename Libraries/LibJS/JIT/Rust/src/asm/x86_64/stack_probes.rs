@@ -34,7 +34,7 @@ pub const fn needs_stack_probes(size: i32) -> bool {
     PROBES_STACK && size >= STACK_PROBE_THRESHOLD
 }
 
-impl Assembler {
+impl Assembler<'_> {
     /// Touches the stack from the address in `top`, which is at most a page below what was touched last, down to the
     /// address in `bottom`: every page in between, then `bottom` itself. `size` is `top - bottom` if it is known when
     /// the code is generated, which keeps small ranges from taking a loop. Clobbers `top` and the flags.

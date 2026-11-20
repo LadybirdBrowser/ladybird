@@ -30,7 +30,7 @@ pub(super) fn scale(element: TypedArrayElement) -> Scale {
     }
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// The `TypedArrayBase::Kind` value of `element`.
     pub(super) fn typed_array_kind_value(&self, element: TypedArrayElement) -> u8 {
         let layout = &self.runtime.layout;

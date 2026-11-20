@@ -10,12 +10,14 @@ fn check_constant_pools<M: PortableMacroAssembler>() {
     let constants: Vec<u64> = (0..1024).map(|index| 0x1234_5678_9abc_0000 | index).collect();
     let vector_constant = |bits: u64| u128::from(bits) | (u128::from(!bits) << 64);
     let assemble = || {
-        let mut masm = M::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut masm = M::new(&mut code, &work);
         for bits in constants.iter().chain(constants.iter().rev()) {
             masm.call_absolute(*bits);
             masm.load_imm128(M::ARGUMENT_FPRS[0], vector_constant(*bits));
         }
-        masm.finish_with_data_offset().unwrap()
+        let data_offset = masm.finish().unwrap();
+        (code[..].to_vec(), data_offset)
     };
     let (code, data_offset) = assemble();
     let mut expected = vec![0; data_offset.next_multiple_of(16) - data_offset];

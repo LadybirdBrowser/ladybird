@@ -11,9 +11,10 @@ use super::super::disassembler::assert_encodings;
 use super::*;
 
 fn bytes(emit: impl FnOnce(&mut Assembler)) -> Vec<u8> {
-    let mut assembler = Assembler::new();
+    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+    let mut assembler = Assembler::new(&mut code, &work);
     emit(&mut assembler);
-    assembler.finish().unwrap()
+    assembler.finish().unwrap().to_vec()
 }
 
 fn word_at(code: &[u8], offset: usize) -> u32 {
@@ -553,7 +554,8 @@ fn branch_target(code: &[u8], offset: usize) -> usize {
 
 #[test]
 fn forward_branches_get_veneers_before_going_out_of_range() {
-    let mut assembler = Assembler::new();
+    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+    let mut assembler = Assembler::new(&mut code, &work);
     let far = assembler.new_label();
     let near = assembler.new_label();
     assembler.tbz(X3, 3, far);
@@ -599,7 +601,8 @@ fn veneer_pools_do_not_split_a_label_reference_from_its_fixup() {
     let references: [fn(&mut Assembler, Label); 2] = [|a, label| a.b(label), |a, label| a.ldr_literal(X1, label)];
     for reference in references {
         for nop_count in 8100..8192 {
-            let mut assembler = Assembler::new();
+            let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+            let mut assembler = Assembler::new(&mut code, &work);
             let label = assembler.new_label();
             assembler.tbz(X3, 3, label);
             for _ in 0..nop_count {
@@ -616,7 +619,8 @@ fn veneer_pools_do_not_split_a_label_reference_from_its_fixup() {
 
 #[test]
 fn many_pending_branches_get_veneers() {
-    let mut assembler = Assembler::new();
+    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+    let mut assembler = Assembler::new(&mut code, &work);
     let labels: Vec<Label> = (0..300).map(|_| assembler.new_label()).collect();
     let mut branches = Vec::new();
     for (i, label) in labels.iter().enumerate() {
@@ -650,7 +654,8 @@ fn many_pending_branches_get_veneers() {
 
 #[test]
 fn forward_branch_beyond_branch_range_fails() {
-    let mut assembler = Assembler::new();
+    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+    let mut assembler = Assembler::new(&mut code, &work);
     let label = assembler.new_label();
     assembler.adr(X0, label);
     for _ in 0..(1 << 18) {
@@ -662,7 +667,8 @@ fn forward_branch_beyond_branch_range_fails() {
 
 #[test]
 fn unbound_label_fails() {
-    let mut assembler = Assembler::new();
+    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+    let mut assembler = Assembler::new(&mut code, &work);
     let label = assembler.new_label();
     assembler.cbz(W64, X0, label);
     assert_eq!(assembler.finish(), Err(AsmError::UnboundLabel));
@@ -804,7 +810,7 @@ mod macro_assembler {
 
     #[test]
     fn register_sets_are_consistent() {
-        type M = MacroAssembler;
+        type M = MacroAssembler<'static>;
         assert!(M::ALLOCATABLE_GPRS.intersection(M::SCRATCH_GPRS).is_empty());
         assert!(M::ALLOCATABLE_FPRS.intersection(M::SCRATCH_FPRS).is_empty());
         assert!(!M::ALLOCATABLE_GPRS.contains(M::STACK_POINTER));

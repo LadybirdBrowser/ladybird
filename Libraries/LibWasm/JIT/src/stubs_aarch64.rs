@@ -103,7 +103,8 @@ fn leave(asm: &mut Assembler) {
 
 /// The host stub for functions with these parameter and result types.
 pub fn host_stub(params: &[Type], results: &[Type], runtime: &RuntimeInfo) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut memory = crate::CodeMemory::new();
+    let mut asm = Assembler::new(&mut memory.code, &memory.work);
     let parameter_slots = convention::slots(params) as i32;
     let result_slots = convention::slots(results) as i32;
     let buffer_slots = parameter_slots.max(result_slots);
@@ -198,7 +199,7 @@ pub fn host_stub(params: &[Type], results: &[Type], runtime: &RuntimeInfo) -> Ve
         asm.bind(label);
         trap(&mut asm, code, runtime);
     }
-    asm.finish().expect("stubs have no unbound labels")
+    asm.finish().expect("stubs have no unbound labels").to_vec()
 }
 
 /// What the entry trampoline calls compiled code with, and what it returns.
@@ -238,7 +239,8 @@ pub const ADAPTER_SAVE_AREA: usize = 8 * 8 + 8 * 16;
 /// The trap exit: stores the code in w0 as the context's first argument, and the context in the frame that trapped
 /// (fp), and continues at the interpreter's TrapFromNative handler at `handler`.
 pub fn trap_exit(handler: u64) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut memory = crate::CodeMemory::new();
+    let mut asm = Assembler::new(&mut memory.code, &memory.work);
     let context = SCRATCH;
     asm.ldr(Width::W64, context, MemOperand::Offset(FP, convention::FRAME_INSTANCE));
     asm.ldr(
@@ -255,7 +257,7 @@ pub fn trap_exit(handler: u64) -> Vec<u8> {
     );
     asm.mov_imm(Width::W64, X17, handler);
     asm.br(X17);
-    asm.finish().expect("stubs have no unbound labels")
+    asm.finish().expect("stubs have no unbound labels").to_vec()
 }
 
 /// Continues where the `resume` of the context in `context` says, as the runtime set it after unwinding an
@@ -287,7 +289,8 @@ fn copy_words(asm: &mut Assembler, from: Gpr, to: Gpr, count: Gpr, temp: Gpr) {
 /// the record in x19, which compiled code never uses, and saves nothing else: compiled code uses only the registers
 /// the host ABI does not preserve (see `convention`).
 pub fn entry_trampoline() -> (Vec<u8>, usize) {
-    let mut asm = Assembler::new();
+    let mut memory = crate::CodeMemory::new();
+    let mut asm = Assembler::new(&mut memory.code, &memory.work);
     let record = Gpr(19);
     let call_field = |offset: usize| field(offset);
     asm.stp(FP, LR, PairOperand::PreIndex(SP, -32));
@@ -403,7 +406,10 @@ pub fn entry_trampoline() -> (Vec<u8>, usize) {
     asm.ldp(record, Gpr(20), PairOperand::Offset(SP, 16));
     asm.ldp(FP, LR, PairOperand::PostIndex(SP, 32));
     asm.ret();
-    (asm.finish().expect("stubs have no unbound labels"), return_offset)
+    (
+        asm.finish().expect("stubs have no unbound labels").to_vec(),
+        return_offset,
+    )
 }
 
 /// What the runtime function of the adapter returns when the call threw an exception, which the runtime unwound: the
@@ -414,7 +420,8 @@ pub const ADAPTER_RESUME: u64 = u64::MAX;
 /// with the callee's header, the save area and fp as the context's first three arguments. A nonzero result is a
 /// trap code, or `ADAPTER_RESUME`.
 pub fn runtime_adapter(function: u64, runtime: &RuntimeInfo) -> Vec<u8> {
-    let mut asm = Assembler::new();
+    let mut memory = crate::CodeMemory::new();
+    let mut asm = Assembler::new(&mut memory.code, &memory.work);
     let instance = x(convention::INSTANCE_REGISTER);
     // Below the frame header, the save area at sp.
     let frame_size = (convention::FRAME_HEADER_SIZE as usize + ADAPTER_SAVE_AREA).next_multiple_of(16) as i32;
@@ -483,5 +490,5 @@ pub fn runtime_adapter(function: u64, runtime: &RuntimeInfo) -> Vec<u8> {
         MemOperand::Offset(context, field(offset_of!(InstanceData, context))),
     );
     resume(&mut asm, context);
-    asm.finish().expect("stubs have no unbound labels")
+    asm.finish().expect("stubs have no unbound labels").to_vec()
 }

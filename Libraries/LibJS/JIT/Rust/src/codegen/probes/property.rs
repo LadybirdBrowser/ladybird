@@ -10,6 +10,7 @@
 //! entries out of line by the runtime's cache probe.
 
 use super::super::Codegen;
+use super::super::RegisterList;
 use super::super::checked_i32;
 use super::super::slow_path_calls::slow_path_saved_registers;
 use super::keyed::KeyName;
@@ -105,7 +106,7 @@ pub(super) struct AdditionEntryFields {
     pub property_offset: i32,
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     fn cache_registers(&self, node: NodeId) -> CacheRegisters {
         CacheRegisters {
             object: self.temp(node, 0),
@@ -372,24 +373,22 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             (value::INT32_TAG, snapshot.number_prototype),
             (value::BOOLEAN_TAG, snapshot.boolean_prototype),
         ]
-        .into_iter()
-        .filter_map(|(tag, prototype)| Some((tag, prototype?, self.masm.new_label())))
-        .collect::<Vec<_>>();
+        .map(|(tag, prototype)| Some((tag, prototype?, self.masm.new_label())));
         let (is_object, have_object) = (self.masm.new_label(), self.masm.new_label());
         self.masm
             .branch32_imm(Condition::Equal, scratch, i32::from(value::OBJECT_TAG), is_object);
-        for (tag, _, label) in &prototypes {
+        for (tag, _, label) in prototypes.iter().flatten() {
             self.masm
                 .branch32_imm(Condition::Equal, scratch, i32::from(*tag), *label);
         }
         // Doubles are numbers too.
-        if let Some((_, _, number)) = prototypes.iter().find(|(tag, ..)| *tag == value::INT32_TAG) {
+        if let Some((_, _, number)) = prototypes.iter().flatten().find(|(tag, ..)| *tag == value::INT32_TAG) {
             self.masm.and32_imm(scratch, scratch, u32::from(value::BASE_TAG));
             self.masm
                 .branch32_imm(Condition::NotEqual, scratch, i32::from(value::BASE_TAG), *number);
         }
         self.masm.jump(fail);
-        for (_, prototype, label) in prototypes {
+        for (_, prototype, label) in prototypes.into_iter().flatten() {
             self.masm.bind(label);
             self.masm.move_imm64(object, prototype.0);
             self.masm.jump(have_object);
@@ -804,7 +803,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// The probes of the VM's keyed caches of megamorphic named accesses, out
     /// of line.
     pub(in crate::codegen) fn emit_deferred_vm_cache_probes(&mut self) -> Result<(), CompileFailure> {
-        for deferred in std::mem::take(&mut self.deferred_vm_cache_probes) {
+        for deferred in self.deferred_vm_cache_probes.take() {
             self.emitting = Some(deferred.node);
             self.masm.bind(deferred.entry);
             let registers = self.cache_registers(deferred.node);
@@ -886,7 +885,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         );
 
         let arguments = M::ARGUMENT_GPRS;
-        let saved = slow_path_saved_registers::<M>().iter().collect::<Vec<_>>();
+        let saved = slow_path_saved_registers::<M>().iter().collect::<RegisterList<_>>();
         self.emit_save_registers(&saved);
         let base = self.input(node, 0);
         if base != arguments[1] {
@@ -903,7 +902,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// The runtime probes of the cache probe nodes, out of line.
     pub(in crate::codegen) fn emit_deferred_cache_probes(&mut self) -> Result<(), CompileFailure> {
-        for deferred in std::mem::take(&mut self.deferred_cache_probes) {
+        for deferred in self.deferred_cache_probes.take() {
             self.emitting = Some(deferred.node);
             self.masm.bind(deferred.entry);
             let pc = self.graph.node(deferred.node).pc;
@@ -941,7 +940,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         if let Some(output) = output {
             saved = saved.without(output);
         }
-        let saved = saved.iter().collect::<Vec<_>>();
+        let saved = saved.iter().collect::<RegisterList<_>>();
         self.emit_save_registers(&saved);
 
         let hit = self.masm.new_label();

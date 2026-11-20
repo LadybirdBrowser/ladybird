@@ -7,6 +7,7 @@
 //! Lowering of the array ops that `Array.prototype.push` of one value is
 //! built from, the way its own fast path for packed arrays appends.
 
+use super::RegisterList;
 use super::slow_path_calls::slow_path_saved_registers;
 use super::{Codegen, InputValue};
 use crate::asm::Address;
@@ -18,7 +19,7 @@ use crate::asm::Scale;
 use crate::ir::NodeId;
 use crate::snapshot::CellId;
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// Calls the splice helper with the inserted values on the native
     /// stack. The receiver, start and delete count are in argument registers;
     /// store the other inputs before setting up the remaining arguments.
@@ -264,7 +265,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let saved = slow_path_saved_registers::<M>()
             .without(output)
             .iter()
-            .collect::<Vec<_>>();
+            .collect::<RegisterList<_>>();
         self.emit_save_registers(&saved);
         // NB: Either may be in the other's argument register.
         let arguments: [Gpr; 2] = [M::ARGUMENT_GPRS[0], M::ARGUMENT_GPRS[1]];
@@ -279,7 +280,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// `CallStoreHoleyElement`: calls `RuntimeInfo::store_holey_element`,
     /// saving the registers the call clobbers.
     pub(in crate::codegen) fn emit_call_store_holey_element(&mut self, node: NodeId) {
-        let saved = slow_path_saved_registers::<M>().iter().collect::<Vec<_>>();
+        let saved = slow_path_saved_registers::<M>().iter().collect::<RegisterList<_>>();
         self.emit_save_registers(&saved);
         // NB: The inputs may be in each other's argument registers, which the saves area holds the values of.
         for (input, argument) in M::ARGUMENT_GPRS.iter().take(3).enumerate() {

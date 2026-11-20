@@ -74,7 +74,7 @@ impl VexOpcode {
     }
 }
 
-impl Assembler {
+impl Assembler<'_> {
     /// Emit the legacy encoding with the same opcode map, mandatory prefix and operands as a VEX instruction.
     fn legacy(&mut self, opcode: VexOpcode, reg: u8, rm: Rm, immediate_size: usize) {
         let prefix = match opcode.prefix {
@@ -402,7 +402,8 @@ mod tests {
             }),
         ];
         for (expected, emit) in cases {
-            let mut asm = Assembler::with_cpu_features(CpuFeatures::X86_64_V2);
+            let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+            let mut asm = Assembler::with_cpu_features(CpuFeatures::X86_64_V2, &mut code, &work);
             emit(&mut asm);
             assert_eq!(disassembler::x86_64(&asm.finish().unwrap()).join("; "), *expected);
         }
@@ -439,7 +440,8 @@ mod tests {
             (Map0F, P66, 0x56, "orpd"),
             (Map0F, P66, 0x57, "xorpd"),
         ] {
-            let mut asm = Assembler::with_cpu_features(CpuFeatures::X86_64_V2);
+            let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+            let mut asm = Assembler::with_cpu_features(CpuFeatures::X86_64_V2, &mut code, &work);
             asm.vex(VexOpcode::new(prefix, map, opcode), 9, 8, VexOperand::Register(9), None);
             assert_eq!(
                 disassembler::x86_64(&asm.finish().unwrap()),
@@ -473,7 +475,8 @@ mod tests {
         ] {
             for opcode in [0x58, 0x59] {
                 // ADDPS/PD and MULPS/PD
-                let mut asm = Assembler::with_cpu_features(CpuFeatures::X86_64_V2);
+                let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+                let mut asm = Assembler::with_cpu_features(CpuFeatures::X86_64_V2, &mut code, &work);
                 for (index, dst) in [1, 9].into_iter().enumerate() {
                     asm.vex(load, 8, 0, VexOperand::Memory(Address::new(RDI, 0)), None);
                     asm.vex(load, 9, 0, VexOperand::Memory(Address::new(RSI, 0)), None);
@@ -515,7 +518,8 @@ mod tests {
             for lhs in [1, 8, 9] {
                 for rhs in [1, 8, 9] {
                     for dst in [1, 8, 9] {
-                        let mut asm = Assembler::with_cpu_features(CpuFeatures::X86_64_V2);
+                        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+                        let mut asm = Assembler::with_cpu_features(CpuFeatures::X86_64_V2, &mut code, &work);
                         asm.vex(load, 0, 0, VexOperand::Memory(Address::new(RDI, 0)), None);
                         asm.vmovaps_rr(Fpr(lhs), XMM0);
                         if lhs != rhs {
@@ -557,7 +561,8 @@ mod tests {
         for width in [Width::W32, Width::W64] {
             for op in [BitCount::Lzcnt, BitCount::Tzcnt] {
                 for alias in [false, true] {
-                    let mut asm = Assembler::with_cpu_features(CpuFeatures::X86_64_V2);
+                    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+                    let mut asm = Assembler::with_cpu_features(CpuFeatures::X86_64_V2, &mut code, &work);
                     let dst = if alias { RDI } else { RAX };
                     asm.bit_count(op, width, dst, RDI);
                     asm.mov_rr(Width::W64, RAX, dst);

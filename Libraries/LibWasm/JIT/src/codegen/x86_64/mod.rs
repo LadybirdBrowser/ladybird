@@ -97,7 +97,7 @@ pub struct CodeGenerator<'a> {
     allocation: &'a Allocation,
     runtime: &'a RuntimeInfo,
     stack_limit: u64,
-    asm: Assembler,
+    asm: Assembler<'a>,
     block_labels: Vec<Label>,
     trap_labels: Vec<Option<Label>>,
     /// The trap with the code in eax, for the runtime's functions that return one.
@@ -113,21 +113,27 @@ pub struct CodeGenerator<'a> {
     exception_sites: Vec<u32>,
 }
 
-impl BranchGroups for CodeGenerator<'_> {
-    fn branch_assembler(&mut self) -> &mut Assembler {
+impl<'a> BranchGroups<'a> for CodeGenerator<'a> {
+    fn branch_assembler(&mut self) -> &mut Assembler<'a> {
         &mut self.asm
     }
 }
 
 impl<'a> CodeGenerator<'a> {
-    pub fn new(func: &'a Func, allocation: &'a Allocation, runtime: &'a RuntimeInfo, stack_limit: u64) -> Self {
+    pub fn new(
+        func: &'a Func,
+        allocation: &'a Allocation,
+        runtime: &'a RuntimeInfo,
+        stack_limit: u64,
+        memory: &'a mut crate::CodeMemory,
+    ) -> Self {
         let size = convention::FRAME_HEADER_SIZE as u32 + 8 * allocation.slot_count + allocation.outgoing_size;
         Self {
             func,
             allocation,
             runtime,
             stack_limit,
-            asm: Assembler::for_host(),
+            asm: Assembler::for_host(&mut memory.code, &memory.work),
             block_labels: Vec::new(),
             trap_labels: vec![None; 32],
             dynamic_trap: None,
@@ -181,7 +187,11 @@ impl<'a> CodeGenerator<'a> {
             }
         }
         self.out_of_line();
-        let code = self.asm.finish().map_err(|_| crate::CompileFailure::CodeGeneration)?;
+        let code = self
+            .asm
+            .finish()
+            .map_err(|_| crate::CompileFailure::CodeGeneration)?
+            .to_vec();
         Ok(Generated {
             code,
             frame_size: self.frame_size,
@@ -769,7 +779,8 @@ pub fn generate(
     allocation: &Allocation,
     runtime: &RuntimeInfo,
     stack_limit: u64,
+    memory: &mut crate::CodeMemory,
 ) -> Result<Generated, crate::CompileFailure> {
     let _ = NONE;
-    CodeGenerator::new(func, allocation, runtime, stack_limit).generate()
+    CodeGenerator::new(func, allocation, runtime, stack_limit, memory).generate()
 }

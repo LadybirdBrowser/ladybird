@@ -15,6 +15,7 @@ use super::super::Fpr;
 use super::super::FprSet;
 use super::super::Gpr;
 use super::super::GprSet;
+use super::super::JumpPatch;
 use super::super::Label;
 use super::super::MachineFrame;
 use super::super::NegativeZero;
@@ -23,7 +24,7 @@ use super::super::Width;
 use super::super::Width::W32;
 use super::super::Width::W64;
 use super::*;
-use std::collections::HashMap;
+use ak::ZoneMap;
 
 /// Scratch register for address legalization and call targets.
 const ADDRESS_SCRATCH: Gpr = X16;
@@ -35,16 +36,26 @@ const FP_SCRATCH: Fpr = D31;
 /// available for architecture specific code.
 ///
 /// In this layer, register 31 always means SP.
-#[derive(Debug, Default)]
-pub struct MacroAssembler {
-    pub assembler: Assembler,
+#[derive(Debug)]
+pub struct MacroAssembler<'a> {
+    pub assembler: Assembler<'a>,
     /// 64-bit constants that would take more than two instructions to
-    /// build, loaded PC-relative from a pool after the code.
-    constants: Vec<(u64, Label)>,
-    constant_labels: HashMap<u64, Label>,
+    /// build, loaded PC-relative from a pool after the code, in the order of
+    /// the pool.
+    constants: ZoneMap<'a, u64, Label>,
     /// 128-bit constants, in the same pool.
-    constants128: Vec<(u128, Label)>,
-    constant128_labels: HashMap<u128, Label>,
+    constants128: ZoneMap<'a, u128, Label>,
+}
+
+/// The encodings of the registers of a set (at most 32), in its order, as the first ones of an array and their count.
+fn encodings(registers: impl Iterator<Item = u8>) -> ([u8; 32], usize) {
+    let mut encodings = [0; 32];
+    let mut count = 0;
+    for register in registers {
+        encodings[count] = register;
+        count += 1;
+    }
+    (encodings, count)
 }
 
 fn condition_code(condition: Condition) -> Cond {
@@ -129,7 +140,7 @@ enum LogicalOp {
     Xor,
 }
 
-impl MacroAssembler {
+impl MacroAssembler<'_> {
     /// Turns a portable address into an encodable operand for an access of
     /// `1 << size_log2` bytes, using `ADDRESS_SCRATCH` when needed.
     fn legalize(&mut self, address: &Address, size_log2: u32) -> MemOperand {
@@ -234,20 +245,18 @@ impl MacroAssembler {
 
     /// The label of `value` in the constant pool.
     fn constant(&mut self, value: u64) -> Label {
-        *self.constant_labels.entry(value).or_insert_with(|| {
-            let label = self.assembler.new_label();
-            self.constants.push((value, label));
-            label
-        })
+        *self
+            .constants
+            .entry(value)
+            .or_insert_with(|| self.assembler.new_label())
     }
 
     /// The label of the 128-bit `value` in the constant pool.
     fn constant128(&mut self, value: u128) -> Label {
-        *self.constant128_labels.entry(value).or_insert_with(|| {
-            let label = self.assembler.new_label();
-            self.constants128.push((value, label));
-            label
-        })
+        *self
+            .constants128
+            .entry(value)
+            .or_insert_with(|| self.assembler.new_label())
     }
 
     /// `dst = imm`, from the constant pool if building it would take more
@@ -448,7 +457,9 @@ impl MacroAssembler {
     }
 }
 
-impl PortableMacroAssembler for MacroAssembler {
+impl PortableMacroAssembler for MacroAssembler<'_> {
+    type In<'a> = MacroAssembler<'a>;
+
     const ARCHITECTURE: Architecture = Architecture::AArch64;
     const ARGUMENT_GPRS: &'static [Gpr] = &[X0, X1, X2, X3, X4, X5, X6, X7];
     const ARGUMENT_FPRS: &'static [Fpr] = &[D0, D1, D2, D3, D4, D5, D6, D7];
@@ -467,8 +478,12 @@ impl PortableMacroAssembler for MacroAssembler {
     const STACK_POINTER: Gpr = SP;
     const FRAME_POINTER: Gpr = FP;
 
-    fn new() -> Self {
-        Self::default()
+    fn new<'a>(code: &'a mut Column<u8>, work: &'a Zone) -> MacroAssembler<'a> {
+        MacroAssembler {
+            assembler: Assembler::new(code, work),
+            constants: ZoneMap::new_in(work),
+            constants128: ZoneMap::new_in(work),
+        }
     }
 
     fn offset(&self) -> usize {
@@ -493,31 +508,32 @@ impl PortableMacroAssembler for MacroAssembler {
         offset
     }
 
-    fn jump_patch(from: usize, to: usize) -> Vec<u8> {
+    fn jump_patch(from: usize, to: usize) -> JumpPatch {
         // NB: `b` with a 26-bit word offset.
         let words = (to as i64 - from as i64) / 4;
         assert!((-(1 << 25)..(1 << 25)).contains(&words), "code is smaller than 128 MiB");
-        (0x1400_0000 | (words as u32 & 0x03ff_ffff)).to_le_bytes().to_vec()
+        JumpPatch::new(&(0x1400_0000 | (words as u32 & 0x03ff_ffff)).to_le_bytes())
     }
 
-    fn finish_with_data_offset(mut self) -> Result<(Vec<u8>, usize), AsmError> {
+    fn finish(mut self) -> Result<usize, AsmError> {
         let data_offset = self.assembler.offset();
         if !self.constants128.is_empty() {
             self.assembler.align_data(16);
-            for (value, label) in std::mem::take(&mut self.constants128) {
-                self.assembler.bind(label);
-                self.assembler.data_u64(value as u64);
-                self.assembler.data_u64((value >> 64) as u64);
+            for (value, label) in self.constants128.iter() {
+                self.assembler.bind(*label);
+                self.assembler.data_u64(*value as u64);
+                self.assembler.data_u64((*value >> 64) as u64);
             }
         }
         if !self.constants.is_empty() {
             self.assembler.align_data(8);
-            for (value, label) in std::mem::take(&mut self.constants) {
-                self.assembler.bind(label);
-                self.assembler.data_u64(value);
+            for (value, label) in self.constants.iter() {
+                self.assembler.bind(*label);
+                self.assembler.data_u64(*value);
             }
         }
-        Ok((self.assembler.finish()?, data_offset))
+        self.assembler.finish()?;
+        Ok(data_offset)
     }
 
     fn unreachable(&mut self) {
@@ -1112,10 +1128,10 @@ impl PortableMacroAssembler for MacroAssembler {
     fn emit_prologue(&mut self, frame: &MachineFrame) {
         self.assembler.stp(FP, LR, PairOperand::PreIndex(SP, -16));
         self.assembler.mov_sp(FP, SP);
-        let gprs: Vec<u8> = frame.saved_gprs.iter().map(|register| register.0).collect();
-        let fprs: Vec<u8> = frame.saved_fprs.iter().map(|register| register.0).collect();
-        self.push_registers(&gprs, false);
-        self.push_registers(&fprs, true);
+        let (gprs, gpr_count) = encodings(frame.saved_gprs.iter().map(|register| register.0));
+        let (fprs, fpr_count) = encodings(frame.saved_fprs.iter().map(|register| register.0));
+        self.push_registers(&gprs[..gpr_count], false);
+        self.push_registers(&fprs[..fpr_count], true);
         if frame.locals_size != 0 {
             self.arithmetic_imm(ArithmeticOp::Sub, W64, SP, SP, i64::from(frame.locals_size));
         }
@@ -1125,10 +1141,10 @@ impl PortableMacroAssembler for MacroAssembler {
         if frame.locals_size != 0 {
             self.arithmetic_imm(ArithmeticOp::Add, W64, SP, SP, i64::from(frame.locals_size));
         }
-        let gprs: Vec<u8> = frame.saved_gprs.iter().map(|register| register.0).collect();
-        let fprs: Vec<u8> = frame.saved_fprs.iter().map(|register| register.0).collect();
-        self.pop_registers(&fprs, true);
-        self.pop_registers(&gprs, false);
+        let (gprs, gpr_count) = encodings(frame.saved_gprs.iter().map(|register| register.0));
+        let (fprs, fpr_count) = encodings(frame.saved_fprs.iter().map(|register| register.0));
+        self.pop_registers(&fprs[..fpr_count], true);
+        self.pop_registers(&gprs[..gpr_count], false);
         self.assembler.ldp(FP, LR, PairOperand::PostIndex(SP, 16));
     }
 }

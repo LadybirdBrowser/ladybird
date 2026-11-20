@@ -10,18 +10,17 @@
 //! the runtime needs to install and run it. It touches no heap and no store, so it runs on any thread. See
 //! `ARCHITECTURE.md` for how it works.
 
-// NB: The assemblers and the small data structures are libjs_jit's, until both JITs share them from a crate of
-//     their own. The test helpers of the assemblers' own tests are for libjs_jit's tests.
+// NB: The assemblers are libjs_jit's, until both JITs share them from a crate of their own. The test helpers of the
+//     assemblers' own tests are for libjs_jit's tests.
 #[cfg_attr(test, allow(dead_code))]
 #[path = "../../../LibJS/JIT/Rust/src/asm/mod.rs"]
 pub mod asm;
-#[path = "../../../LibJS/JIT/Rust/src/inline_vec.rs"]
-pub mod inline_vec;
 
 pub mod builder;
 pub mod codegen;
 pub mod convention;
 pub mod decode;
+pub mod inline_vec;
 pub mod ir;
 pub mod passes;
 pub mod regalloc;
@@ -118,6 +117,42 @@ pub struct CompileContext {
     scheduler: passes::schedule::Scheduler,
     allocator: regalloc::Allocator,
     pub allocation: regalloc::Allocation,
+    code_memory: CodeMemory,
+}
+
+/// The memory that an assembler works in: the column that it writes the code to, and the zone of its labels and
+/// fixups.
+pub struct CodeMemory {
+    pub code: ak::Column<u8>,
+    pub work: ak::Zone,
+}
+
+impl CodeMemory {
+    /// The most code that one function or stub can have.
+    const MAX_CODE_BYTES: usize = 1 << 30;
+    /// The most bytes that the work data of the assembler can take. It is address space, which costs nothing before
+    /// it is used, and it is far above what the largest function body that the parser accepts (7,654,321 bytes) takes,
+    /// even one that is all `br_table` targets.
+    const MAX_WORK_BYTES: usize = 1 << 34;
+
+    pub fn new() -> Self {
+        Self {
+            code: ak::Column::new(Self::MAX_CODE_BYTES, c"Wasm JIT code"),
+            work: ak::Zone::new(Self::MAX_WORK_BYTES, c"Wasm JIT assembler"),
+        }
+    }
+
+    /// Drops the code and the data of the assembler that wrote it, and keeps the memory for the next code.
+    pub fn clear(&mut self) {
+        self.code.clear();
+        self.work.reset();
+    }
+}
+
+impl Default for CodeMemory {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// The phases of a compile, as `Stats::ticks` counts them.
@@ -250,11 +285,13 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
             regalloc::verify::dump(&context.func, &context.allocation)
         );
     }
+    context.code_memory.clear();
     let generated = codegen::target::generate(
         &context.func,
         &context.allocation,
         &request.runtime,
         request.stack_limit,
+        &mut context.code_memory,
     )?;
     lap(4, &mut stats);
     stats.nodes = context.func.nodes.len() as u32;
@@ -280,9 +317,9 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
             } else {
                 asm::Architecture::X86_64
             };
-            for line in asm::disassembler::listing(architecture, &compiled.code) {
+            asm::disassembler::for_each_instruction(architecture, &compiled.code, compiled.code.len(), |line| {
                 text.push_str(&format!("{:6x}  {}\n", line.offset, line.text));
-            }
+            });
         }
         compiled.dump = Some(text);
     }

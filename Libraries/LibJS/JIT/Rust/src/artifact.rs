@@ -21,12 +21,14 @@
 //! runs of words in those tables are stored one time (see `Shared`).
 
 use core::cell::Cell;
-use core::ffi::CStr;
 use core::ops::Range;
 
 use ak::Column;
+use ak::Zone;
+use ak::ZoneVec;
 
 use crate::CompileFailure;
+use crate::asm::JumpPatch;
 use crate::code::CALLEE_SLOT;
 use crate::code::Dependency;
 use crate::code::ExitKind;
@@ -247,44 +249,84 @@ pub struct Tail<'a> {
     pub osr_outer_loop_back_edges: &'a [u32],
     pub uncaught_handlers: &'a [u32],
     /// See `Artifact::invalidation_patches()`.
-    pub invalidation_patches: &'a [(u32, Vec<u8>)],
+    pub invalidation_patches: &'a [(u32, JumpPatch)],
     pub embedded_cells: &'a [CellId],
     pub dependencies: &'a [Dependency],
 }
 
-/// Writes the tables of compiled code. The memory it takes for one compile serves the next.
-pub struct ArtifactWriter {
-    sites: Column<u32>,
-    frames: Column<u32>,
-    calls: Shared<256>,
-    slots: Shared<1024>,
-    in_frame: Shared<256>,
-    objects: Column<u32>,
-    locations: Shared<1024>,
-    wide: Shared<256>,
+/// Writes the tables of compiled code, in the work zone of a compile.
+pub struct ArtifactWriter<'a> {
+    sites: Table<'a>,
+    frames: Table<'a>,
+    calls: Shared<'a, 256>,
+    slots: Shared<'a, 1024>,
+    in_frame: Shared<'a, 256>,
+    objects: Table<'a>,
+    locations: Shared<'a, 1024>,
+    wide: Shared<'a, 256>,
+}
+
+/// A table of the writer, which holds up to `limit` words. A compile that needs more fails.
+struct Table<'a> {
+    words: ZoneVec<'a, u32>,
+    limit: usize,
+}
+
+impl<'a> Table<'a> {
+    fn new_in(limit: usize, work: &'a Zone) -> Self {
+        Self {
+            words: ZoneVec::new_in(work),
+            limit,
+        }
+    }
+
+    fn try_push(&mut self, word: u32) -> Result<(), CompileFailure> {
+        self.try_extend_from_slice(&[word])
+    }
+
+    fn try_extend_from_slice(&mut self, words: &[u32]) -> Result<(), CompileFailure> {
+        if words.len() > self.limit - self.words.len() {
+            return Err(CompileFailure::TooLarge);
+        }
+        self.words.extend_from_slice(words);
+        Ok(())
+    }
+
+    fn truncate(&mut self, len: usize) {
+        self.words.truncate(len);
+    }
+}
+
+impl core::ops::Deref for Table<'_> {
+    type Target = [u32];
+
+    fn deref(&self) -> &[u32] {
+        &self.words
+    }
+}
+
+impl core::ops::DerefMut for Table<'_> {
+    fn deref_mut(&mut self) -> &mut [u32] {
+        &mut self.words
+    }
 }
 
 /// A table in which a run of words that is equal to one from before takes no room of its own.
-struct Shared<const INDEX_SIZE: usize> {
-    words: Column<u32>,
+struct Shared<'a, const INDEX_SIZE: usize> {
+    words: Table<'a>,
     /// Where runs are: for the run added last with each hash, its start plus one, or zero for none. The index finds
     /// nearly all of the repeats and never grows: a run that another one pushed out of its place is stored one more
     /// time if it comes again.
     index: [u32; INDEX_SIZE],
 }
 
-impl<const INDEX_SIZE: usize> Shared<INDEX_SIZE> {
-    fn new(limit: usize, name: &'static CStr) -> Self {
+impl<'a, const INDEX_SIZE: usize> Shared<'a, INDEX_SIZE> {
+    fn new_in(limit: usize, work: &'a Zone) -> Self {
         const { assert!(INDEX_SIZE.is_power_of_two() && INDEX_SIZE > 1) };
         Self {
-            words: Column::new(limit, name),
+            words: Table::new_in(limit, work),
             index: [0; INDEX_SIZE],
         }
-    }
-
-    fn clear(&mut self) {
-        self.words.clear();
-        self.index.fill(0);
     }
 
     /// Where the run that starts at `start` and ends where the words end now is from now on: at an equal run from
@@ -312,13 +354,7 @@ impl<const INDEX_SIZE: usize> Shared<INDEX_SIZE> {
 /// The most words the tables of one compile can have (see `ArtifactWriter::finish()`).
 pub const MAX_WORDS: usize = 1 << 25;
 
-impl Default for ArtifactWriter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ArtifactWriter {
+impl<'a> ArtifactWriter<'a> {
     // NB: These are how much of each the tables of one compile can have. They are far above what the code of real
     //     functions needs, and a compile that needs more fails.
     const MAX_SITES: usize = 1 << 20;
@@ -329,44 +365,20 @@ impl ArtifactWriter {
     const MAX_WIDE_VALUES: usize = 1 << 20;
     const MAX_CALL_WORDS: usize = Self::MAX_FRAMES * CALL_WORDS_WITH_OBJECTS;
 
-    pub fn new() -> Self {
+    /// A writer with no tables yet, which keeps them in `work`.
+    pub fn new_in(work: &'a Zone) -> Self {
         // NB: So where a call record starts fits in a link.
         const { assert!(ArtifactWriter::MAX_CALL_WORDS < NO_CALL as usize) };
         Self {
-            sites: Column::new(Self::MAX_SITES * SITE_WORDS, c"JIT sites"),
-            frames: Column::new(Self::MAX_FRAMES * FRAME_WORDS, c"JIT frames"),
-            calls: Shared::new(Self::MAX_CALL_WORDS, c"JIT frame calls"),
-            slots: Shared::new(Self::MAX_SLOTS, c"JIT frame slots"),
-            in_frame: Shared::new(Self::MAX_SLOTS, c"JIT slots in frame"),
-            objects: Column::new(Self::MAX_OBJECTS * OBJECT_WORDS, c"JIT objects"),
-            locations: Shared::new(Self::MAX_LOCATIONS, c"JIT locations"),
-            wide: Shared::new(Self::MAX_WIDE_VALUES * WIDE_WORDS, c"JIT wide values"),
+            sites: Table::new_in(Self::MAX_SITES * SITE_WORDS, work),
+            frames: Table::new_in(Self::MAX_FRAMES * FRAME_WORDS, work),
+            calls: Shared::new_in(Self::MAX_CALL_WORDS, work),
+            slots: Shared::new_in(Self::MAX_SLOTS, work),
+            in_frame: Shared::new_in(Self::MAX_SLOTS, work),
+            objects: Table::new_in(Self::MAX_OBJECTS * OBJECT_WORDS, work),
+            locations: Shared::new_in(Self::MAX_LOCATIONS, work),
+            wide: Shared::new_in(Self::MAX_WIDE_VALUES * WIDE_WORDS, work),
         }
-    }
-
-    /// Starts the tables of another compile.
-    pub fn clear(&mut self) {
-        self.sites.clear();
-        self.frames.clear();
-        self.calls.clear();
-        self.slots.clear();
-        self.in_frame.clear();
-        self.objects.clear();
-        self.locations.clear();
-        self.wide.clear();
-    }
-
-    /// Gives the memory of the writer back to the system. It takes memory again when it writes.
-    pub fn release_memory(&mut self) {
-        self.clear();
-        self.sites.trim(0);
-        self.frames.trim(0);
-        self.calls.words.trim(0);
-        self.slots.words.trim(0);
-        self.in_frame.words.trim(0);
-        self.objects.trim(0);
-        self.locations.words.trim(0);
-        self.wide.words.trim(0);
     }
 
     /// Adds a frame with values in `slots` and with `in_frame` (see `FrameView::in_frame()`), both in any order.
@@ -531,7 +543,7 @@ impl ArtifactWriter {
 
     /// Adds the word of a location (see `location()`) to the run of the site that is added next.
     pub fn add_location(&mut self, word: u32) -> Result<(), CompileFailure> {
-        Ok(self.locations.words.try_push(word)?)
+        self.locations.words.try_push(word)
     }
 
     /// Adds a site with `frame` as its innermost frame, whose run of locations starts at `locations` and ends where
@@ -623,7 +635,8 @@ impl ArtifactWriter {
             end(section, words);
         }
 
-        for (offset, bytes) in tail.invalidation_patches {
+        for (offset, patch) in tail.invalidation_patches {
+            let bytes = patch.bytes();
             let mut padded = [0; MAX_PATCH_LENGTH];
             padded[..bytes.len()].copy_from_slice(bytes);
             let mut record = [0; PATCH_WORDS];
