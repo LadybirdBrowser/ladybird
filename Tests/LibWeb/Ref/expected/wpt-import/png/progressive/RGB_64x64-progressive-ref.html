@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>PNG: progressive display of interlaced image RGB_64x64 (reference)</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+
+<style>
+  .pass { position: relative; display: inline-block; margin: 0 8px 8px 0; line-height: 0; }
+  .pass img { display: block; image-rendering: pixelated; }
+  .pass img.mask { position: absolute; left: 0; top: 0; }
+</style>
+<p>Test passes if the images below match the reference: the grey masks
+leave visible only the pixels received by the end of each pass, which
+must show their final values.</p>
+<div class="pass"><img src="support/RGB_64x64-pass7.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask1.png" width="64" height="64" alt=""></div>
+<div class="pass"><img src="support/RGB_64x64-pass7.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask2.png" width="64" height="64" alt=""></div>
+<div class="pass"><img src="support/RGB_64x64-pass7.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask3.png" width="64" height="64" alt=""></div>
+<div class="pass"><img src="support/RGB_64x64-pass7.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask4.png" width="64" height="64" alt=""></div>
+<div class="pass"><img src="support/RGB_64x64-pass7.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask5.png" width="64" height="64" alt=""></div>
+<div class="pass"><img src="support/RGB_64x64-pass7.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask6.png" width="64" height="64" alt=""></div>

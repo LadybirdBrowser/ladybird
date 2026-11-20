@@ -973,6 +973,17 @@ TEST_CASE(test_png)
     TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
 }
 
+TEST_CASE(test_png_truncated)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/1x65535.png"sv)));
+    auto bytes = file->bytes().slice(0, file->bytes().size() / 2);
+    auto decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(bytes));
+    auto frame = TRY_OR_FAIL(decoder->frame(0));
+    EXPECT_EQ(frame.image->size(), Gfx::IntSize(1, 65535));
+    EXPECT_EQ(frame.image->get_pixel(0, 16384), Gfx::Color::NamedColor::Red);
+    EXPECT_EQ(frame.image->get_pixel(0, 65534), Gfx::Color::NamedColor::Transparent);
+}
+
 TEST_CASE(test_apng)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/apng-1-frame.png"sv)));
