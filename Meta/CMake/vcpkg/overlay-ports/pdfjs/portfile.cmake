@@ -47,6 +47,5 @@ file(WRITE "${CURRENT_PACKAGES_DIR}/share/pdfjs/web/locale/locale.json"
 
 set(VCPKG_POLICY_EMPTY_PACKAGE enabled)
 
-file(WRITE "${CURRENT_PACKAGES_DIR}/share/pdfjs/copyright"
-    "pdf.js is licensed under the Apache 2.0 License.\n"
-    "See https://github.com/mozilla/pdf.js/blob/master/LICENSE\n")
+file(GLOB WASM_LICENSES "${SOURCE_PATH}/web/wasm/LICENSE_*")
+vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE" ${WASM_LICENSES})
