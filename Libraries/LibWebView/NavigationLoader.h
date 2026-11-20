@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
+#include <AK/Error.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
@@ -23,6 +25,7 @@
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/RequestServerManager.h>
+#include <time.h>
 
 namespace WebView {
 
@@ -34,9 +37,16 @@ class WEBVIEW_API NavigationLoader final
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static NonnullRefPtr<NavigationLoader> create(Web::HTML::NavigationPopulationRequest request)
+    // Whether the UI process may read the local file that the request's file: URL names, for the process creating the
+    // document: the UI process admitted a navigation to the URL, or its entry's document state held local file content.
+    enum class MayReadLocalFile : bool {
+        No,
+        Yes,
+    };
+
+    static NonnullRefPtr<NavigationLoader> create(Web::HTML::NavigationPopulationRequest request, MayReadLocalFile may_read_local_file = MayReadLocalFile::No)
     {
-        return adopt_ref(*new NavigationLoader(move(request)));
+        return adopt_ref(*new NavigationLoader(move(request), may_read_local_file));
     }
 
     ~NavigationLoader();
@@ -107,10 +117,19 @@ public:
     static void discard(WebContentClient const& population_worker, Web::HTML::NavigationPopulationResult&);
 
 private:
-    explicit NavigationLoader(Web::HTML::NavigationPopulationRequest request)
+    NavigationLoader(Web::HTML::NavigationPopulationRequest request, MayReadLocalFile may_read_local_file)
         : m_request(move(request))
+        , m_requested_url(m_request.history_entry.url)
+        , m_may_read_local_file(may_read_local_file)
     {
     }
+
+    struct LocalFile {
+        ByteBuffer contents;
+        time_t modified_time { 0 };
+    };
+    void read_local_file_for_response();
+    void did_read_local_file_for_response(ErrorOr<LocalFile>);
 
     void determine_the_origin_of_the_response();
     bool reported_urls_match_the_response_url(URL::URL const&) const;
@@ -121,6 +140,9 @@ private:
     void release_response_body();
 
     Web::HTML::NavigationPopulationRequest m_request;
+    // The URL the request was made for, before the process that fetched the response reported where it ended up.
+    URL::URL m_requested_url;
+    MayReadLocalFile m_may_read_local_file { MayReadLocalFile::No };
     Optional<Web::HTML::NavigationPopulationResult> m_result;
     RefPtr<Requests::Request> m_response_body_request;
     RefPtr<HTTP::HeaderList> m_response_header_list;

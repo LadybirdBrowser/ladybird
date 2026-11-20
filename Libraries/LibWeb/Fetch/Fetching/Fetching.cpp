@@ -1709,8 +1709,8 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
 
         auto origin_is_allowed = [&] {
             // Only a client that itself came from a file:// URL may reach the local file system. Traversing back to a
-            // file:// entry fetches it with the client of the document it replaces, though, which the UI process lets
-            // read the file of an entry that held local file content.
+            // file:// entry fetches it with the client of the document it replaces, though, and the UI process reads
+            // the file of an entry that held local file content.
             if (request->current_url().scheme() == "file"sv)
                 return origin->is_file_origin() || (request->mode() == Infrastructure::Request::Mode::Navigate && request->history_navigation());
 
@@ -1722,6 +1722,16 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         bool browser_initiated_navigation = !request->client_snapshot() && request->mode() == Infrastructure::Request::Mode::Navigate;
         if (!browser_initiated_navigation && !origin_is_allowed())
             return error;
+
+        // NB: A navigation's population steps run in the process with its source document, which can host web content.
+        //     That process does not read the file a navigation names: the UI process reads it, and hands it to the
+        //     process creating the document, with the response's headers. A navigation's request has the reserved
+        //     client its document is to have; an object element's own fetch, also in "navigate" mode, has none.
+        if (request->current_url().scheme() == "file"sv && request->mode() == Infrastructure::Request::Mode::Navigate && request->reserved_client_snapshot()) {
+            auto response = Infrastructure::Response::create();
+            response->set_status_message("OK"sv);
+            return PendingResponse::create(fetch_params, response);
+        }
 
         // Allow file:// pages to load subresources (scripts, styles, fonts, etc.) from other file:// URLs,
         // but block the fetch() API and other requests without a destination from reading arbitrary files.

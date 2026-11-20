@@ -1410,7 +1410,13 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_reached_po
         .user_involvement = operation->algorithm->user_involvement(),
         .navigation_id = finalized_navigation_id(*operation, navigable_id).value_or(Utf16String {}),
     };
-    auto loader = NavigationLoader::create(move(request));
+    // NB: The process running the job need not have hosted local file content. The UI process reads the local file of
+    //     an entry whose document state held local file content for the process creating the document, as it does that
+    //     of any entry for a process running the job that may read local files itself.
+    auto may_read_local_file = changing_navigable->target_entry->document_state->held_local_file_content || source_page.client().may_read_local_files()
+        ? NavigationLoader::MayReadLocalFile::Yes
+        : NavigationLoader::MayReadLocalFile::No;
+    auto loader = NavigationLoader::create(move(request), may_read_local_file);
     changing_navigable->population = ChangingNavigable::CreatingNavigationParams { loader };
     source_page.owe_reply({ OwedReply::Kind::ChangingJob, operation_id, navigable_id });
     source_page.async_create_history_navigation_params(operation_id, loader->request(), allow_POST);
@@ -1903,28 +1909,6 @@ bool CanonicalTraversable::client_populates_a_history_entry_for_site(WebContentC
             auto endpoint = changing_job_endpoint(*changing_navigable);
             if (&endpoint->client() == &client
                 && URL::Site::serialize_for_partitioning(changing_navigable->target_entry->url.origin()) == site)
-                return true;
-        }
-    }
-    return false;
-}
-
-// A history step's changing job populates its target entry's document in the process hosting the navigable, which need
-// not have hosted local file content. For an entry whose document state held local file content, that process reads the
-// file the entry's file: URL names.
-bool CanonicalTraversable::page_populates_a_history_entry_for_local_file(WebContentPage const& page, ByteString const& path) const
-{
-    for (auto const& [operation_id, operation] : m_history_operations) {
-        if (!operation->algorithm)
-            continue;
-        for (auto const& changing_navigable : operation->algorithm->changing_navigables()) {
-            if (!changing_navigable->has_pending_job())
-                continue;
-            auto const& target_entry = *changing_navigable->target_entry;
-            if (target_entry.document_state->held_local_file_content
-                && target_entry.url.scheme() == "file"sv
-                && target_entry.url.file_path() == path
-                && changing_job_endpoint(*changing_navigable) == &page)
                 return true;
         }
     }

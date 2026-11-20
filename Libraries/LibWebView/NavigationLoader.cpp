@@ -5,10 +5,14 @@
  */
 
 #include <AK/AnyOf.h>
+#include <LibCore/Directory.h>
+#include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibRequests/RequestControlClient.h>
+#include <LibThreading/ThreadPool.h>
 #include <LibURL/Parser.h>
 #include <LibURL/Site.h>
 #include <LibWebCommon/Fetch/Infrastructure/URL.h>
@@ -16,6 +20,7 @@
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcement.h>
 #include <LibWebCommon/HTML/EmbedderPolicy.h>
 #include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
+#include <LibWebCommon/Loader/FileResponseHeaders.h>
 #include <LibWebCommon/SecureContexts/AbstractOperations.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
@@ -28,6 +33,7 @@
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/RequestServerSiteBindings.h>
+#include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
 #include <LibWebView/WorkerAgentManager.h>
@@ -170,21 +176,23 @@ NavigationLoader::~NavigationLoader()
 }
 
 // NB: The process that fetched the response reports the URLs it reached. Fetching never redirects a request to a
-//     file: URL, so one among them on a navigation the UI process did not admit to a file: URL is made up: the
-//     document it would create could read local files. Such a navigation creates an error document instead.
+//     file: URL, so one among them other than the file: URL of a navigation the UI process admitted is made up: the
+//     document it would create could read local files, and the UI process would read the file it names. Such a
+//     navigation creates an error document instead.
 void NavigationLoader::refuse_made_up_local_file_urls(WebContentClient const& population_worker, Web::HTML::NavigationPopulationResult& result) const
 {
-    if (m_request.history_entry.url.scheme() == "file"sv)
-        return;
-
-    auto is_file_url = [](URL::URL const& url) { return url.scheme() == "file"sv; };
-    auto names_a_local_file = result.redirected_url.has_value() && is_file_url(*result.redirected_url);
+    auto is_made_up_file_url = [&](URL::URL const& url) {
+        if (url.scheme() != "file"sv)
+            return false;
+        return m_requested_url.scheme() != "file"sv || !url.equals(m_requested_url, URL::ExcludeFragment::Yes);
+    };
+    auto names_a_made_up_local_file = result.redirected_url.has_value() && is_made_up_file_url(*result.redirected_url);
     if (auto const* navigation_params = result.navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>()) {
-        names_a_local_file |= any_of(navigation_params->response.url_list, is_file_url);
+        names_a_made_up_local_file |= any_of(navigation_params->response.url_list, is_made_up_file_url);
         if (navigation_params->request.has_value())
-            names_a_local_file |= any_of(navigation_params->request->url_list, is_file_url);
+            names_a_made_up_local_file |= any_of(navigation_params->request->url_list, is_made_up_file_url);
     }
-    if (names_a_local_file) {
+    if (names_a_made_up_local_file) {
         discard(population_worker, result);
         result.navigation_params = Web::HTML::NavigationParamsNullOrError {};
         result.redirected_url.clear();
@@ -390,6 +398,18 @@ void NavigationLoader::acquire_response_body(WebContentClient const& population_
     m_completion_steps = move(completion_steps);
 
     auto const* body_handle = response_body_handle(*m_result);
+    if (auto const* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>()) {
+        auto const& response_url = navigation_params->response.url_list.is_empty() ? m_request.history_entry.url : navigation_params->response.url_list.last();
+        if (response_url.scheme() == "file"sv) {
+            // NB: Only the UI process reads the file, so a response for it that names a body is made up.
+            if (body_handle) {
+                did_acquire(false);
+                return;
+            }
+            read_local_file_for_response();
+            return;
+        }
+    }
     if (!body_handle) {
         did_acquire(!reports_an_http_response_of_its_own());
         return;
@@ -417,6 +437,55 @@ void NavigationLoader::acquire_response_body(WebContentClient const& population_
     request->set_body_delivery_paused(true);
     set_response_body_callbacks(*request);
     m_response_body_request = request;
+}
+
+// NB: The process that fetched a navigation's response to a file: URL ran the navigation's population steps for a
+//     source document that can be web content, so it did not read the file. The UI process reads the file the admitted
+//     URL names, off its main thread, and the process creating the document, which may read local files, takes it.
+void NavigationLoader::read_local_file_for_response()
+{
+    if (m_may_read_local_file == MayReadLocalFile::No || m_requested_url.scheme() != "file"sv) {
+        did_read_local_file_for_response(Error::from_errno(EACCES));
+        return;
+    }
+
+    Threading::ThreadPool::the().submit([weak_this = make_weak_ptr(), path = m_requested_url.file_path(), event_loop = Core::EventLoop::current_weak()] mutable {
+        auto read_local_file = [&] -> ErrorOr<LocalFile> {
+            auto file = TRY(Core::File::adopt_fd(TRY(open_local_file_for_renderer(path)).take_fd(), Core::File::OpenMode::Read));
+            if (TRY(Core::Directory::is_valid_directory(file->fd())))
+                return Error::from_errno(EISDIR);
+            auto stat = TRY(file->stat());
+            return LocalFile { TRY(file->read_until_eof()), stat.st_mtime };
+        };
+        auto local_file = read_local_file();
+
+        auto origin_event_loop = event_loop->take();
+        if (!origin_event_loop.is_alive())
+            return;
+        origin_event_loop->deferred_invoke([weak_this = move(weak_this), local_file = move(local_file)] mutable {
+            if (auto* loader = weak_this.ptr())
+                loader->did_read_local_file_for_response(move(local_file));
+        });
+    });
+}
+
+void NavigationLoader::did_read_local_file_for_response(ErrorOr<LocalFile> local_file)
+{
+    if (!m_completion_steps)
+        return;
+
+    // NB: A file the UI process cannot read creates an error document, as a network error does.
+    if (local_file.is_error()) {
+        m_result->navigation_params = Web::HTML::NavigationParamsNullOrError { Utf16String::formatted("{}", local_file.error()) };
+        did_acquire(true);
+        return;
+    }
+
+    auto& response = m_result->navigation_params.get<Web::HTML::NavigationParamsDescriptor>().response;
+    auto header_list = Web::response_headers_for_file(m_requested_url.file_path(), local_file.value().contents.size(), local_file.value().modified_time);
+    response.headers = header_list->headers();
+    response.body = move(local_file.value().contents);
+    did_acquire(true);
 }
 
 // NB: The process that fetched a navigation's response reports the URLs it reached: the history entry's URL, and the

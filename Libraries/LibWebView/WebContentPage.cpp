@@ -1661,37 +1661,17 @@ void WebContentPage::did_change_picture_in_picture_player_controls_visibility(bo
     view().did_change_picture_in_picture_player_controls_visibility({}, shown);
 }
 
-// A navigation's population steps run in the process with its source document, which need not have hosted local file
-// content. For a navigation to a file: URL the UI process admitted, that process reads the file the URL names, as it does
-// for a history step to an entry of one.
-bool WebContentPage::populates_a_navigation_to_local_file(ByteString const& path) const
-{
-    if (traversable().page_populates_a_history_entry_for_local_file(*this, path))
-        return true;
-
-    bool result = false;
-    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
-        auto navigation = navigable.uncommitted_navigation();
-        result = navigation
-            && navigation->worker() == this
-            && navigation->url.scheme() == "file"sv
-            && navigation->url.file_path() == path;
-        return result ? IterationDecision::Break : IterationDecision::Continue;
-    });
-    return result;
-}
-
 void WebContentPage::did_request_file(ByteString path, i32 request_id)
 {
     // NB: The renderer's sandbox keeps it out of the local file system, so this is the only way it can read a file.
-    //     Answer only a process that has hosted local file content, one reading the file a navigation it populates
-    //     names, or one selecting a file that WebDriver's Element Send Keys command it runs names: any other could
-    //     read every file the user can.
+    //     Answer only a process that has hosted local file content, or one selecting a file that WebDriver's Element
+    //     Send Keys command it runs names: any other could read every file the user can. The UI process reads the
+    //     file a navigation names itself, for the process creating the document.
     auto selects_file_for_webdriver = [&] {
         auto view = traversable().view();
         return view.has_value() && view->is_running_webdriver_command_to_select_file(*this, path);
     };
-    if (!client().may_read_local_files() && !populates_a_navigation_to_local_file(path) && !selects_file_for_webdriver()) {
+    if (!client().may_read_local_files() && !selects_file_for_webdriver()) {
         async_handle_file_return(EACCES, {}, request_id);
         return;
     }
@@ -2743,7 +2723,8 @@ void WebContentPage::did_complete_navigation_unload_check(Web::HTML::CrossProces
         Application::the().allocate_ui_process_cross_process_id());
     population_request.target_snapshot_params.sandboxing_flags |= navigable->snapshot_target_snapshot_params().sandboxing_flags;
     ongoing_navigation->history_entry = MUST(CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::create_session_history_entry_descriptor(population_request.history_entry, 0)));
-    ongoing_navigation->state = CanonicalNavigation::CreatingNavigationParams { NavigationLoader::create(move(population_request)) };
+    // NB: The UI process admitted the navigation, so it reads the local file a file: URL names.
+    ongoing_navigation->state = CanonicalNavigation::CreatingNavigationParams { NavigationLoader::create(move(population_request), NavigationLoader::MayReadLocalFile::Yes) };
     async_create_navigation_params(ongoing_navigation->loader()->request());
 
     // Requesting navigation params starts the fetch, so a view's top-level population begins its recorded
