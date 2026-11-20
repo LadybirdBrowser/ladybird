@@ -1,0 +1,21 @@
+When faces of one family tie on weight, width and slope, Ladybird finds
+a face without a cmap subtable of the Windows symbol encoding ahead of
+one with it. So for “font-family: Hoefler Text”, it finds Hoefler
+Text Regular, not Hoefler Text Ornaments. Run on macOS at weights 300,
+400 and 500, Chrome 158, Firefox 151 and WebKit 26.5 all render Hoefler
+Text Regular there as well.
+
+Blink’s BestStyleMatchForFamilyNS() takes the first best match in the
+order that NSFontManager’s “availableMembersOfFontFamily:” lists.
+WebKit’s FontDatabase lists a family’s faces in the order CoreText’s
+CTFontDescriptorCreateMatchingFontDescriptors() gives, and its
+findClosestFont() picks from those. Both orders put Regular first, and
+CoreText puts HoeflerText-Ornaments in its symbolic class. Gecko’s
+CoreTextFontList marks faces named Regular, Bold, Italic, Oblique, Bold
+Italic and Bold Oblique as standard faces, and prefers those on a tie.
+
+Ladybird doesn’t prefer by style name: For Avenir at weight 400 and
+italic, the standard name picks Avenir Oblique, which Firefox renders,
+while Chrome and WebKit render Avenir Book Oblique, as Ladybird does.
+Among the fonts installed on macOS, Hoefler Text is the only family
+whose ties the symbol encoding changes.
