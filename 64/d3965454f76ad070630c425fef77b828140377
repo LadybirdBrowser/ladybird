@@ -1,0 +1,8 @@
+In quirks and limited-quirks mode, Ladybird now counts a block
+ellipsis as neither text nor line height on its line, unless it
+displaced all of the line’s content. Blink lays out a line whose
+content the ellipsis displaced in its kLineClampDisplacedEllipsis mode,
+in LogicalLineBuilder::CreateLine(), which takes the strut of the line
+box in any mode. That’s from reading the source. Chrome 157.0.8103.79,
+Firefox 151.0, and Playwright’s WebKit 26.5 ran the cases of the test
+added here, and agree on all three; Ladybird gives what they give.
