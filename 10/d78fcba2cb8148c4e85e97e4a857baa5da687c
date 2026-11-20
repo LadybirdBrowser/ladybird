@@ -1,0 +1,10 @@
+When a page leaves full screen, Ladybird now asks for its window to be
+maximized again if it was before. On macOS, Chromium and Firefox come
+back zoomed as well, since neither asks for the normal state after
+the transition, and both guard their own zoom calls with isZoomed
+(Chromium’s NativeWidgetNSWindowBridge::SetZoomed(), Firefox’s
+TransitionType::Zoom in nsCocoaWindow::ProcessTransitions()). On
+Windows, both restore the maximized state explicitly: Chromium from
+FullscreenHandler’s saved_window_info_, and Firefox from FrameState’s
+mPreFullscreenSizeMode. Read from source (Chromium e6c8d7c15aeb2,
+Firefox 41db707342fe), not run.
