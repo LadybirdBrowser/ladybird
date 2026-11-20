@@ -765,6 +765,7 @@ void HTMLParserEndState::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document);
     visitor.visit(m_parser);
     visitor.visit(m_timeout);
+    visitor.visit(m_fragment_target_awaiting_style_sheets);
 }
 
 void HTMLParserEndState::cancel()
@@ -806,6 +807,16 @@ void HTMLParserEndState::check_progress()
     if (!m_document->is_fully_active()) {
         complete();
         return;
+    }
+
+    if (m_fragment_target_awaiting_style_sheets && !m_document->has_a_style_sheet_that_is_blocking_scripts()) {
+        auto target = exchange(m_fragment_target_awaiting_style_sheets, nullptr);
+        auto indicated_part = m_document->determine_the_indicated_part();
+        if (indicated_part.has<DOM::Element*>() && indicated_part.get<DOM::Element*>() == target.ptr()) {
+            m_document->scroll_to_the_fragment();
+            if (m_phase == Phase::Cancelled)
+                return;
+        }
     }
 
     switch (m_phase) {
@@ -897,8 +908,12 @@ void HTMLParserEndState::advance_to_dom_content_loaded_phase()
             m_document->scroll_to_the_fragment(m_document->pending_text_directive_scroll_allowed());
         } else {
             auto indicated_part = m_document->determine_the_indicated_part();
-            if (indicated_part.has<DOM::Element*>() && indicated_part.get<DOM::Element*>() != nullptr)
-                m_document->scroll_to_the_fragment();
+            if (indicated_part.has<DOM::Element*>() && indicated_part.get<DOM::Element*>()) {
+                if (m_document->has_a_style_sheet_that_is_blocking_scripts())
+                    m_fragment_target_awaiting_style_sheets = indicated_part.get<DOM::Element*>();
+                else
+                    m_document->scroll_to_the_fragment();
+            }
         }
     }
 

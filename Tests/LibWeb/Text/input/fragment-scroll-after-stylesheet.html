@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const sheet = await server.createEcho("GET", "/fragment-offset.css", {
+            status: 200,
+            headers: { "Content-Type": "text/css", "Cache-Control": "no-store" },
+            body: "#before { height: 900px }",
+            delay_ms: 400,
+        });
+        const url = await server.createEcho("GET", "/fragment-offset.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><style>body { margin: 0 } #before { height: 300px } #after { height: 1000px } .inner #box { height: 100px; overflow: auto }</style>
+                <script>if (location.search === "?inner-scroll") document.documentElement.className = "inner";
+                addEventListener("DOMContentLoaded", () => {
+                    if (location.search === "?scroll-away") scrollTo(0, 100);
+                    if (location.search === "?inner-scroll") document.querySelector("#box").scrollTop = 100;
+                    document.querySelector("button").focus({ preventScroll: true });
+                });<\/script>
+                <link rel="stylesheet" href="${sheet}">
+                <div id="box"><div id="before"></div><a name="line"></a>Line<div id="after"><button>Button</button></div></div>`,
+        });
+        for (const query of ["", "?scroll-away", "?inner-scroll"]) {
+            const frame = document.createElement("iframe");
+            const loaded = new Promise(resolve => frame.onload = resolve);
+            frame.src = url + query + "#line";
+            document.body.append(frame);
+            await loaded;
+            const doc = frame.contentDocument;
+            println(`${query || "initial"} target at viewport top: ${Math.abs(doc.querySelector("[name=line]").getBoundingClientRect().top) < 1}`);
+            println(`focus after navigation: ${doc.activeElement.tagName}`);
+            doc.querySelector("button").focus({ preventScroll: true });
+            frame.contentWindow.scrollTo(0, 50);
+            await animationFrame();
+            println(`button kept focus after load: ${doc.activeElement === doc.querySelector("button")}`);
+            frame.remove();
+        }
+    });
+</script>

@@ -231,6 +231,7 @@ private:
 
     Phase m_phase { Phase::WaitingForDeferredScripts };
     bool m_check_pending { false };
+    GC::Ptr<DOM::Element> m_fragment_target_awaiting_style_sheets;
 
     GC::Ref<DOM::Document> m_document;
     GC::Ptr<HTMLParser> m_parser;
