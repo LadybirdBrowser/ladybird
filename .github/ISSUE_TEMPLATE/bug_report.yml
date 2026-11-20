@@ -17,7 +17,6 @@ body:
         - Linux
         - macOS
         - Windows
-        - Android
     validations:
       required: true
   - type: input

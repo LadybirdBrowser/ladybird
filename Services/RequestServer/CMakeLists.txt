@@ -26,16 +26,7 @@ set(GENERATED_SOURCES
     RequestServerEndpoint.h
 )
 
-set(RS_LIB_TYPE STATIC)
-if (ANDROID)
-    list(APPEND SOURCES
-        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/RequestServerService.cpp
-        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
-    )
-    set(RS_LIB_TYPE SHARED)
-endif()
-
-add_library(requestserverservice ${RS_LIB_TYPE} ${SOURCES} ${GENERATED_SOURCES})
+add_library(requestserverservice STATIC ${SOURCES} ${GENERATED_SOURCES})
 ladybird_generated_sources(requestserverservice)
 
 add_executable(RequestServer main.cpp)
@@ -58,10 +49,6 @@ endif()
 if (HAIKU)
     # Haiku has networking related functions in the network library
     target_link_libraries(RequestServer PRIVATE network)
-endif()
-if (ANDROID)
-    # We need s_ladybird_resource_root from LibWebView
-    target_link_libraries(requestserverservice PUBLIC LibWebView)
 endif()
 
 ladybird_sign_helper_process(RequestServer)

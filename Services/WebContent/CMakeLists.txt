@@ -20,19 +20,8 @@ set(SOURCES
     Worker/WorkerThread.cpp
 )
 
-if (ANDROID)
-    add_library(webcontentservice SHARED
-        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/WebContentService.cpp
-        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/WebContentServiceJNI.cpp
-        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
-        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/JNIHelpers.cpp
-        ${SOURCES}
-    )
-    target_link_libraries(webcontentservice PRIVATE android LibWebView)
-else()
-    add_library(webcontentservice STATIC ${SOURCES})
-    set_target_properties(webcontentservice PROPERTIES AUTOMOC OFF AUTORCC OFF AUTOUIC OFF)
-endif()
+add_library(webcontentservice STATIC ${SOURCES})
+set_target_properties(webcontentservice PROPERTIES AUTOMOC OFF AUTORCC OFF AUTOUIC OFF)
 
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../..>)
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}>)
