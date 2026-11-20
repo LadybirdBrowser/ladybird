@@ -18,36 +18,12 @@ use crate::code::SiteKind;
 use crate::code::ValueLocation;
 use crate::codegen::sites::SiteSource;
 use crate::ir::value;
-use crate::passes::dominators::Dominators;
 
-/// The tables of a register allocation, which the tests read as the allocation.
-struct Allocated(Regalloc);
-
-impl std::ops::Deref for Allocated {
-    type Target = Allocation;
-
-    fn deref(&self) -> &Allocation {
-        &self.0.allocation
-    }
-}
-
-impl std::ops::DerefMut for Allocated {
-    fn deref_mut(&mut self) -> &mut Allocation {
-        &mut self.0.allocation
-    }
-}
+/// A register allocation, in the zone of the thread of the test.
+type Allocated = Allocation<'static>;
 
 fn allocate_with(graph: &Graph, registers: &RegisterSet) -> Allocated {
-    let mut regalloc = Regalloc::new();
-    allocate(
-        graph,
-        registers,
-        &mut regalloc,
-        &mut Dominators::new(),
-        crate::test_zone(),
-    )
-    .unwrap();
-    Allocated(regalloc)
+    allocate(graph, registers, crate::test_zone()).unwrap()
 }
 
 #[track_caller]
@@ -1186,8 +1162,9 @@ fn random_structured_programs_with_cold_blocks_allocate_correctly() {
             panic!("seed {seed}: {errors}\n{}", crate::ir::dump(&graph, &layout));
         }
         let registers = RegisterSet::test_configuration();
-        let allocation = allocate_with(&graph, &registers);
-        if let Err(errors) = verify(&graph, &registers, &allocation, crate::test_zone()) {
+        let work = crate::test_work();
+        let allocation = allocate(&graph, &registers, &work).unwrap();
+        if let Err(errors) = verify(&graph, &registers, &allocation, &work) {
             panic!(
                 "seed {seed}: {errors}\n{}\n{}",
                 crate::ir::dump(&graph, &layout),
@@ -1213,8 +1190,9 @@ fn random_structured_programs_allocate_correctly() {
             .collect::<Vec<_>>();
         let graph = build_with_layout(&program, layout, &never_ran);
         let registers = RegisterSet::test_configuration();
-        let allocation = allocate_with(&graph, &registers);
-        if let Err(errors) = verify(&graph, &registers, &allocation, crate::test_zone()) {
+        let work = crate::test_work();
+        let allocation = allocate(&graph, &registers, &work).unwrap();
+        if let Err(errors) = verify(&graph, &registers, &allocation, &work) {
             panic!(
                 "seed {seed}: {errors}\n{}\n{}",
                 crate::ir::dump(&graph, &layout),
@@ -1251,7 +1229,6 @@ fn float64_values_get_floating_point_registers() {
         &mut graph,
         &snapshot.executables[0].layout,
         true,
-        &mut Dominators::new(),
         &mut crate::test_work(),
         &mut crate::test_steps(),
     )

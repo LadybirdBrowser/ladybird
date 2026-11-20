@@ -10,8 +10,6 @@ use ak::Zone;
 
 use crate::artifact::ArtifactWriter;
 use crate::codegen::sites::SiteScratch;
-use crate::passes::dominators::Dominators;
-use crate::regalloc::Regalloc;
 
 /// What a compile keeps its data in, apart from what the heap still holds of it. A thread that compiles has one, and
 /// every compile of the thread uses it: a compile leaves nothing in it that the next one reads, only the memory.
@@ -21,8 +19,9 @@ pub struct Scratch {
     /// Where the graph of a compile is, with all the lists of its nodes, blocks and frame states. A compile starts
     /// with a zone that holds nothing.
     pub(crate) zone: Zone,
-    /// Where the stages of a compile keep the data that only they use. The stage that is done leaves nothing in it
-    /// for the next one: the driver drops the data of the builder, and of each pass, when it ends.
+    /// Where the stages of a compile keep the data that only they use. The driver drops the data of the builder,
+    /// and of each pass, when it ends. The register allocator keeps the allocation here, with its own work data,
+    /// for the code generator, so those stay until the compile ends.
     pub(crate) work: Zone,
     /// Where a stage that repeats a step keeps the data of one step, which the step drops when it ends. A stage
     /// keeps what lasts from one step to the next in `work`. So a stage whose steps each make data as large as the
@@ -34,14 +33,11 @@ pub struct Scratch {
     pub(crate) tables: Tables,
 }
 
-/// The tables of a compile that are not part of its graph.
+/// The tables of the code generator and of the artifact writer, which are not in the zones. Each is its own range of
+/// address space.
 pub struct Tables {
     pub(crate) artifact: ArtifactWriter,
     pub(crate) sites: SiteScratch,
-    pub(crate) regalloc: Regalloc,
-    /// The dominators of the graph. The passes and the register allocator compute them when they need them, for the
-    /// graph as it is then.
-    pub(crate) dominators: Dominators,
 }
 
 impl Default for Scratch {
@@ -64,8 +60,6 @@ impl Scratch {
             tables: Tables {
                 artifact: ArtifactWriter::new(),
                 sites: SiteScratch::new(),
-                regalloc: Regalloc::new(),
-                dominators: Dominators::new(),
             },
         }
     }
@@ -89,7 +83,5 @@ impl Scratch {
         }
         self.tables.artifact.release_memory();
         self.tables.sites.release_memory();
-        self.tables.regalloc.release_memory();
-        self.tables.dominators.release_memory();
     }
 }

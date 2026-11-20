@@ -112,7 +112,7 @@ impl SiteScratch {
 /// `Graph::frame_state_values()`.
 struct Locations<'a> {
     graph: &'a Graph<'a>,
-    allocation: &'a Allocation,
+    allocation: &'a Allocation<'a>,
     kind: SiteKind,
     /// See `Graph::virtual_objects()`.
     objects: &'a [NodeId],
@@ -171,7 +171,7 @@ impl Locations<'_> {
 /// What a site is written from.
 pub(crate) struct SiteSource<'a> {
     pub graph: &'a Graph<'a>,
-    pub allocation: &'a Allocation,
+    pub allocation: &'a Allocation<'a>,
     /// The node whose frame state the site has.
     pub node: NodeId,
     pub kind: SiteKind,

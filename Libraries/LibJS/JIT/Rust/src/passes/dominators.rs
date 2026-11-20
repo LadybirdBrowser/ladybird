@@ -10,8 +10,6 @@
 //! immediate dominator, and neither has a block reached from several
 //! entries.
 
-use ak::Column;
-use ak::ColumnFull;
 use ak::Zone;
 use ak::ZoneVec;
 
@@ -19,106 +17,100 @@ use crate::bitset::ZoneBitSet;
 use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::tables::Lists;
-use crate::tables::pop;
-use crate::tables::release;
-use crate::tables::reset;
 
-/// The dominator tree of a graph, in tables that serve one graph after the other: `compute()` makes no block of the
-/// heap.
-pub struct Dominators {
+/// The dominator tree of a graph, in lists of a work zone. `compute()` makes them anew for the graph as it is then,
+/// in the memory they have where it is enough.
+pub struct Dominators<'w> {
     /// The immediate dominator of each block, if it has one.
-    idom: Column<Option<BlockId>>,
+    idom: ZoneVec<'w, Option<BlockId>>,
     /// Whether each block is reachable from an entry.
-    reachable: Column<bool>,
+    reachable: ZoneVec<'w, bool>,
     /// When a depth first walk of the dominator tree enters and leaves each reachable block. A block dominates those
     /// it enters and leaves while it is entered.
-    tree_intervals: Column<(u32, u32)>,
+    tree_intervals: ZoneVec<'w, (u32, u32)>,
     /// The children of each block in the dominator tree, in linear order.
-    children: Lists<BlockId>,
+    children: Lists<'w, BlockId>,
     /// The reachable blocks in reverse postorder.
-    order: Column<BlockId>,
+    order: ZoneVec<'w, BlockId>,
     /// The place of each reachable block in `order`, plus one.
-    ranks: Column<u32>,
+    ranks: ZoneVec<'w, u32>,
     /// Whether each block has an immediate dominator or the virtual root above every entry as its dominator so far.
-    processed: Column<bool>,
+    processed: ZoneVec<'w, bool>,
     /// The blocks that a walk still has to enter or leave, and whether it is to leave them.
-    pending: Column<(BlockId, bool)>,
+    pending: ZoneVec<'w, (BlockId, bool)>,
 }
 
-impl Dominators {
-    // NB: The tables do not hold the dominators of a graph with more blocks.
-    const MAX_BLOCKS: usize = 1 << 24;
+impl<'w> Dominators<'w> {
+    /// The most blocks a graph has whose dominators a compile computes. A compile whose graph has more fails (see
+    /// `passes::optimize()`).
+    pub const MAX_BLOCKS: usize = 1 << 24;
 
-    /// Tables that take no memory before a graph uses them.
-    pub fn new() -> Self {
-        fn by_block<T: Copy>() -> Column<T> {
-            Column::new(Dominators::MAX_BLOCKS, c"JIT dominators")
-        }
+    /// Lists for the dominators of a graph, which take no memory before `compute()` uses them.
+    pub fn new_in(work: &'w Zone) -> Self {
         Self {
-            idom: by_block(),
-            reachable: by_block(),
-            tree_intervals: by_block(),
-            children: Lists::new(Self::MAX_BLOCKS, Self::MAX_BLOCKS, c"JIT dominators"),
-            order: by_block(),
-            ranks: by_block(),
-            processed: by_block(),
-            // NB: A block waits to be left one time, and to be entered one time for each edge into it.
-            pending: Column::new(Self::MAX_BLOCKS * 16, c"JIT dominators"),
+            idom: ZoneVec::new_in(work),
+            reachable: ZoneVec::new_in(work),
+            tree_intervals: ZoneVec::new_in(work),
+            children: Lists::new_in(work),
+            order: ZoneVec::new_in(work),
+            ranks: ZoneVec::new_in(work),
+            processed: ZoneVec::new_in(work),
+            pending: ZoneVec::new_in(work),
         }
     }
 
-    /// Drops the tables and gives their memory back to the system.
-    pub fn release_memory(&mut self) {
-        release(&mut self.idom);
-        release(&mut self.reachable);
-        release(&mut self.tree_intervals);
-        self.children.release_memory();
-        release(&mut self.order);
-        release(&mut self.ranks);
-        release(&mut self.processed);
-        release(&mut self.pending);
+    /// The dominators of `graph` as it is now, in `work`.
+    pub fn of(graph: &Graph, work: &'w Zone) -> Self {
+        let mut dominators = Self::new_in(work);
+        dominators.compute(graph);
+        dominators
     }
 
     /// Computes the dominators of `graph` with the iterative algorithm of Cooper,
-    /// Harvey and Kennedy, visiting blocks in reverse postorder. The tables then hold the dominators of `graph` as
+    /// Harvey and Kennedy, visiting blocks in reverse postorder. The lists then hold the dominators of `graph` as
     /// it is now, and nothing of an earlier graph.
-    pub fn compute(&mut self, graph: &Graph) -> Result<(), ColumnFull> {
+    pub fn compute(&mut self, graph: &Graph) {
         let count = graph.blocks.len();
-        reset(&mut self.reachable, count, false)?;
+        self.reachable.clear();
+        self.reachable.resize(count, false);
         self.order.clear();
+        self.order.reserve(count);
         self.pending.clear();
+        // NB: A block waits to be left one time, and to be entered one time for each edge into it and for each entry
+        //     it is.
+        let edges = graph.blocks.iter().map(|block| block.predecessors.len()).sum::<usize>();
+        self.pending.reserve(count + edges + graph.entries().count());
         for entry in graph.entries() {
-            self.pending.try_push((entry, false))?;
+            self.pending.push((entry, false));
         }
-        while let Some((block, leaving)) = pop(&mut self.pending) {
+        while let Some((block, leaving)) = self.pending.pop() {
             if leaving {
-                self.order.try_push(block)?;
+                self.order.push(block);
                 continue;
             }
             if self.reachable[block.index()] {
                 continue;
             }
             self.reachable[block.index()] = true;
-            self.pending.try_push((block, true))?;
-            let mut pushed = Ok(());
+            self.pending.push((block, true));
             graph.control(block).op.for_each_successor(|successor| {
-                if pushed.is_ok() {
-                    pushed = self.pending.try_push((successor, false));
-                }
+                self.pending.push((successor, false));
             });
-            pushed?;
         }
         self.order.reverse();
         // NB: Rank zero is the virtual root. Walking to an immediate
         //     dominator decreases the rank, avoiding ancestor-depth scans.
-        reset(&mut self.ranks, count, 0)?;
+        self.ranks.clear();
+        self.ranks.resize(count, 0);
         for (index, block) in self.order.iter().enumerate() {
             self.ranks[block.index()] = index as u32 + 1;
         }
 
         // NB: `None` with `processed` set means "dominated by the virtual root".
-        reset(&mut self.idom, count, None)?;
-        reset(&mut self.processed, count, false)?;
+        self.idom.clear();
+        self.idom.resize(count, None);
+        self.processed.clear();
+        self.processed.resize(count, false);
         let mut changed = true;
         while changed {
             changed = false;
@@ -146,13 +138,13 @@ impl Dominators {
                 }
             }
         }
-        self.compute_children()?;
-        self.compute_tree_intervals()
+        self.compute_children();
+        self.compute_tree_intervals();
     }
 
-    fn compute_children(&mut self) -> Result<(), ColumnFull> {
+    fn compute_children(&mut self) {
         let count = self.idom.len();
-        self.children.begin_counts(count)?;
+        self.children.begin_counts(count);
         for block in 0..count {
             if let Some(idom) = self.idom[block]
                 && self.reachable[block]
@@ -160,7 +152,7 @@ impl Dominators {
                 self.children.count(idom.index());
             }
         }
-        self.children.end_counts(BlockId(0))?;
+        self.children.end_counts(BlockId(0));
         for block in 0..count {
             if let Some(idom) = self.idom[block]
                 && self.reachable[block]
@@ -169,32 +161,31 @@ impl Dominators {
             }
         }
         self.children.end_fill();
-        Ok(())
     }
 
-    fn compute_tree_intervals(&mut self) -> Result<(), ColumnFull> {
+    fn compute_tree_intervals(&mut self) {
         let count = self.idom.len();
-        reset(&mut self.tree_intervals, count, (0, 0))?;
+        self.tree_intervals.clear();
+        self.tree_intervals.resize(count, (0, 0));
         let mut time = 0;
         self.pending.clear();
         for block in 0..count {
             if self.reachable[block] && self.idom[block].is_none() {
-                self.pending.try_push((BlockId::from_index(block), false))?;
+                self.pending.push((BlockId::from_index(block), false));
             }
         }
-        while let Some((block, leaving)) = pop(&mut self.pending) {
+        while let Some((block, leaving)) = self.pending.pop() {
             time += 1;
             if leaving {
                 self.tree_intervals[block.index()].1 = time;
                 continue;
             }
             self.tree_intervals[block.index()].0 = time;
-            self.pending.try_push((block, true))?;
+            self.pending.push((block, true));
             for child in self.children.get(block.index()) {
-                self.pending.try_push((*child, false))?;
+                self.pending.push((*child, false));
             }
         }
-        Ok(())
     }
 
     pub fn idom(&self, block: BlockId) -> Option<BlockId> {
@@ -207,7 +198,7 @@ impl Dominators {
 
     /// The predecessors of `header` that it dominates: the sources of the
     /// back edges of the loop it heads, if it heads one.
-    pub fn back_edge_sources<'w>(&self, graph: &Graph, header: BlockId, work: &'w Zone) -> ZoneVec<'w, BlockId> {
+    pub fn back_edge_sources<'v>(&self, graph: &Graph, header: BlockId, work: &'v Zone) -> ZoneVec<'v, BlockId> {
         ZoneVec::from_iter_in(
             graph
                 .block(header)
@@ -222,13 +213,13 @@ impl Dominators {
     /// The blocks of the loop that `header` heads, with back edges from
     /// `back_edge_sources`: the header and every reachable block that reaches
     /// one of them without going through it.
-    pub fn loop_blocks<'w>(
+    pub fn loop_blocks<'v>(
         &self,
         graph: &Graph,
         header: BlockId,
         back_edge_sources: &[BlockId],
-        work: &'w Zone,
-    ) -> ZoneBitSet<'w> {
+        work: &'v Zone,
+    ) -> ZoneBitSet<'v> {
         let mut blocks = ZoneBitSet::new_in(graph.blocks.len(), work);
         blocks.insert(header.index());
         let mut pending = ZoneVec::from_slice_in(back_edge_sources, work);
@@ -274,12 +265,6 @@ impl Dominators {
     }
 }
 
-impl Default for Dominators {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// The nearest common dominator of two blocks, `None` standing for the
 /// virtual root above every entry.
 fn intersect(
@@ -306,7 +291,8 @@ mod tests {
 
     #[test]
     fn cyclic_graphs_with_multiple_entries_match_dominator_sets() {
-        let mut dominators = Dominators::new();
+        let work = crate::test_work();
+        let mut dominators = Dominators::new_in(&work);
         for seed in 1..33u64 {
             let mut random = seed;
             let mut graph = Graph::default();
@@ -339,7 +325,7 @@ mod tests {
                 }
             }
             // NB: The tables of one graph serve the next one.
-            dominators.compute(&graph).unwrap();
+            dominators.compute(&graph);
             // NB: Independently solve the defining set equations: each
             //     block dominates itself and inherits the intersection of
             //     its predecessors' dominators.

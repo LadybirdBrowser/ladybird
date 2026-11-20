@@ -25,7 +25,6 @@
 //! exits on overflow: only the check's frame state keeps a counter alive that
 //! nothing else uses, without which the loop would not count anything.
 
-use ak::ColumnFull;
 use ak::Zone;
 use ak::ZoneVec;
 
@@ -232,12 +231,11 @@ fn has_loop_around(graph: &Graph, loop_: &Loop, visited: &mut ZoneBitSet, workli
     false
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, work: &Zone) {
     if !graph.nodes.iter().any(|node| matches!(node.op, Op::CheckInterrupt)) {
-        return Ok(());
+        return;
     }
-    dominators.compute(graph)?;
-    let dominators = &*dominators;
+    let dominators = &Dominators::of(graph, work);
     let mut loops = ZoneVec::new_in(work);
     for index in 0..graph.blocks.len() {
         let header = BlockId::from_index(index);
@@ -279,5 +277,4 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
                 .retain(|node| !matches!(nodes[node.index()].op, Op::CheckInterrupt));
         }
     }
-    Ok(())
 }

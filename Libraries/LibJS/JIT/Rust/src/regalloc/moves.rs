@@ -6,8 +6,7 @@
 
 //! Sequentializing parallel moves.
 
-use ak::Column;
-use ak::ColumnFull;
+use ak::ZoneVec;
 
 use super::Location;
 use super::Move;
@@ -16,11 +15,7 @@ use super::Move;
 /// before any destination is written), into a sequence with the same effect, which it adds to `result`.
 /// Destinations must be distinct and must not be constants. Cycles are broken
 /// through `temp`, which must not appear in the moves. No move is left in `pending`.
-pub fn resolve_parallel_moves(
-    pending: &mut Column<Move>,
-    temp: Location,
-    result: &mut Column<Move>,
-) -> Result<(), ColumnFull> {
+pub fn resolve_parallel_moves(pending: &mut ZoneVec<'_, Move>, temp: Location, result: &mut ZoneVec<'_, Move>) {
     let mut kept = 0;
     for index in 0..pending.len() {
         let pending_move = pending[index];
@@ -37,7 +32,7 @@ pub fn resolve_parallel_moves(
             .iter()
             .position(|candidate| pending.iter().all(|other| other.from != candidate.to));
         if let Some(index) = ready {
-            result.try_push(pending[index])?;
+            result.push(pending[index]);
             // NB: The moves that are left stay in their order.
             pending.copy_within(index + 1.., index);
             pending.truncate(pending.len() - 1);
@@ -46,14 +41,13 @@ pub fn resolve_parallel_moves(
         // Every destination is still needed as a source, so the moves form
         // cycles. Save one destination's value and read it from the temp.
         let saved = pending[0].to;
-        result.try_push(Move { from: saved, to: temp })?;
+        result.push(Move { from: saved, to: temp });
         for pending_move in pending.iter_mut() {
             if pending_move.from == saved {
                 pending_move.from = temp;
             }
         }
     }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -75,10 +69,9 @@ mod tests {
 
     /// The sequence that `moves`, which happen in parallel, are put in.
     fn resolve(moves: &[Move], temp: Location) -> Vec<Move> {
-        let mut pending = Column::new(64, c"test");
-        let mut result = Column::new(64, c"test");
-        pending.try_extend_from_slice(moves).unwrap();
-        resolve_parallel_moves(&mut pending, temp, &mut result).unwrap();
+        let mut pending = ZoneVec::from_slice_in(moves, crate::test_zone());
+        let mut result = ZoneVec::new_in(crate::test_zone());
+        resolve_parallel_moves(&mut pending, temp, &mut result);
         assert!(pending.is_empty());
         result.to_vec()
     }

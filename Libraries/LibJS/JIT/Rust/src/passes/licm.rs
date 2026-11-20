@@ -25,7 +25,6 @@
 //! exited there, so a speculation that fails costs one exit, and keeps the
 //! other checks moving.
 
-use ak::ColumnFull;
 use ak::Zone;
 use ak::ZoneVec;
 
@@ -159,7 +158,7 @@ fn find_loops<'w>(graph: &Graph, dominators: &Dominators, work: &'w Zone) -> Zon
     loops
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), ColumnFull> {
+pub fn run(graph: &mut Graph, work: &Zone) {
     // NB: Loops have a back edge from a later block or the block itself.
     let has_loops = graph.blocks.iter().enumerate().any(|(index, block)| {
         block
@@ -168,20 +167,20 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
             .any(|predecessor| predecessor.index() >= index)
     });
     if !has_loops {
-        return Ok(());
+        return;
     }
-    dominators.compute(graph)?;
-    if add_preheaders(graph, dominators, work) {
+    let mut dominators = Dominators::of(graph, work);
+    if add_preheaders(graph, &dominators, work) {
         // NB: The phis of headers that merged their entries in a preheader
         //     only take the value the preheader brings where the loop leaves
         //     it as it is, which is then invariant in the loop.
         edit::remove_trivial_phis(graph, work);
-        dominators.compute(graph)?;
+        dominators.compute(graph);
     }
-    let dominators = &*dominators;
+    let dominators = &dominators;
     let loops = find_loops(graph, dominators, work);
     if loops.is_empty() {
-        return Ok(());
+        return;
     }
     let mut block_of = ZoneVec::from_elem_in(None, graph.nodes.len(), work);
     let mut hoisted = ZoneVec::new_in(work);
@@ -273,5 +272,4 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
         }
         graph.blocks[loop_.preheader.index()].body.extend_from_slice(&hoisted);
     }
-    Ok(())
 }

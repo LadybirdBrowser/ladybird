@@ -39,7 +39,6 @@ pub mod ir;
 #[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod options;
 pub mod passes;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod regalloc;
 pub mod scratch;
 #[allow(clippy::disallowed_types, clippy::disallowed_macros)]
@@ -51,6 +50,7 @@ pub mod zone_map;
 #[cfg(all(test, windows, not(target_arch = "x86_64")))]
 compile_error!("the tests of the JIT run on Windows on x86-64 only");
 
+use ak::Zone;
 use artifact::Artifact;
 use artifact::Tail;
 use bytecode::OpCode;
@@ -189,35 +189,31 @@ fn run_stages<M: asm::PortableMacroAssembler>(
             &mut graph,
             &executable.layout,
             snapshot.options.verify_ir,
-            &mut tables.dominators,
             work,
             steps,
         )?)
     } else {
-        passes::optimize(
-            &mut graph,
-            &executable.layout,
-            snapshot.options.verify_ir,
-            &mut tables.dominators,
-            work,
-            steps,
-        )?;
+        passes::optimize(&mut graph, &executable.layout, snapshot.options.verify_ir, work, steps)?;
         None
     };
     let (mut registers, _) = codegen::target_registers::<M>();
     if snapshot.options.stress.few_registers {
         registers.allocatable_gprs = registers.few_registers(STRESS_EXTRA_REGISTERS);
     }
-    work.scope(|work| regalloc::allocate(&graph, &registers, &mut tables.regalloc, &mut tables.dominators, work))?;
+    // NB: The allocation is in the work zone, and the code generator reads it, so the work data of the register
+    //     allocator, and of the stages after it, stays until the compile ends.
+    let work: &Zone = work;
+    let allocation = regalloc::allocate(&graph, &registers, work)?;
     if snapshot.options.verify_ir
-        && let Err(errors) = work.scope(|work| regalloc::verify(&graph, &registers, &tables.regalloc.allocation, work))
+        && let Err(errors) = regalloc::verify(&graph, &registers, &allocation, work)
     {
         panic!(
             "invalid register allocation:\n{errors}\n{}",
-            regalloc::dump_allocation(&graph, &tables.regalloc.allocation)
+            regalloc::dump_allocation(&graph, &allocation)
         );
     }
-    let mut generated = codegen::generate::<M>(&graph, snapshot, snapshot.options.verify_ir, tables, work)?;
+    let mut generated =
+        codegen::generate::<M>(&graph, snapshot, snapshot.options.verify_ir, tables, &allocation, work)?;
     generated.osr_entries.sort_unstable();
     let layout = tables.artifact.finish(
         &Tail {
@@ -238,7 +234,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
         let mut text = pass_dumps.unwrap_or_default();
         if snapshot.options.dump_ir {
             text.push_str(&ir::dump(&graph, &executable.layout));
-            text.push_str(&regalloc::dump_allocation(&graph, &tables.regalloc.allocation));
+            text.push_str(&regalloc::dump_allocation(&graph, &allocation));
         }
         if snapshot.options.dump_asm {
             text.push_str(&codegen::dump_code(

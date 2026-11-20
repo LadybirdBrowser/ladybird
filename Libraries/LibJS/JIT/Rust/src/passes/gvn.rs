@@ -12,7 +12,6 @@
 //! Nodes that may exit qualify too: the dominating node made the same check
 //! on the same values, so this one cannot fail.
 
-use ak::ColumnFull;
 use ak::Zone;
 use ak::ZoneVec;
 
@@ -42,8 +41,8 @@ fn is_numbered(op: &Op) -> bool {
         && !op.is_control()
 }
 
-pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Result<(), ColumnFull> {
-    run_with_hash(graph, dominators, work, |node, replacements| {
+pub fn run(graph: &mut Graph, work: &Zone) {
+    run_with_hash(graph, work, |node, replacements| {
         let mut hash = FastHasher::default();
         discriminant(&node.op).hash(&mut hash);
         node.inputs.len().hash(&mut hash);
@@ -51,15 +50,10 @@ pub fn run(graph: &mut Graph, dominators: &mut Dominators, work: &Zone) -> Resul
             replacements.resolve(*input).hash(&mut hash);
         }
         hash.finish()
-    })
+    });
 }
 
-fn run_with_hash(
-    graph: &mut Graph,
-    dominators: &mut Dominators,
-    work: &Zone,
-    hash: impl Fn(&Node, &Replacements) -> u64,
-) -> Result<(), ColumnFull> {
+fn run_with_hash(graph: &mut Graph, work: &Zone, hash: impl Fn(&Node, &Replacements) -> u64) {
     if graph
         .blocks
         .iter()
@@ -69,9 +63,9 @@ fn run_with_hash(
         .count()
         < 2
     {
-        return Ok(());
+        return;
     }
-    dominators.compute(graph)?;
+    let dominators = Dominators::of(graph, work);
     let mut replacements = Replacements::new(graph, work);
     let mut removed = ZoneBitSet::new_in(graph.nodes.len(), work);
     // NB: Hash borrowed inputs instead of allocating keys. Candidates with
@@ -152,7 +146,6 @@ fn run_with_hash(
     }
     replacements.apply(graph);
     edit::remove_nodes(graph, &removed);
-    Ok(())
 }
 
 #[cfg(test)]
@@ -176,7 +169,7 @@ mod tests {
             .body
             .assign(&[first, different_input, different_operation, duplicate]);
         graph.blocks[0].control = Some(returned);
-        run_with_hash(&mut graph, &mut Dominators::new(), crate::test_zone(), |_, _| 0).unwrap();
+        run_with_hash(&mut graph, crate::test_zone(), |_, _| 0);
         assert_eq!(graph.blocks[0].body, [first, different_input, different_operation]);
         assert_eq!(graph.node(returned).inputs, [first]);
     }

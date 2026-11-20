@@ -11,18 +11,17 @@
 //! back edges), so loops are sets of blocks. Their cold blocks are left out:
 //! those take values from where they are, and cost the loop nothing.
 
-use ak::Column;
-use ak::ColumnFull;
+use ak::Zone;
+use ak::ZoneVec;
 
+use super::check_items;
 use super::liveness::ValueLiveness;
+use crate::CompileFailure;
 use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::passes::dominators::Dominators;
 use crate::tables::Lists;
-use crate::tables::pop;
-use crate::tables::release;
-use crate::tables::reset;
 
 #[derive(Clone, Copy)]
 pub(super) struct Loop {
@@ -39,78 +38,46 @@ pub(super) struct Loop {
 /// In place of the loop around a block that is in no loop.
 const NO_LOOP: u32 = u32::MAX;
 
-/// The loops of a graph, in tables that serve one compile after the other.
-pub(super) struct Loops {
-    loops: Column<Loop>,
+/// The loops of a graph, in tables in the work zone of a compile.
+pub(super) struct Loops<'w> {
+    loops: ZoneVec<'w, Loop>,
     /// The blocks of each loop but the cold ones: for each loop, `words_for_each_loop` words with one bit for each
     /// block of the graph.
-    blocks: Column<u64>,
+    blocks: ZoneVec<'w, u64>,
     words_for_each_loop: usize,
     /// The innermost loop around each block, as an index into `loops`, or `NO_LOOP`.
-    innermost: Column<u32>,
+    innermost: ZoneVec<'w, u32>,
     /// The block of each position.
-    position_blocks: Column<u32>,
+    position_blocks: ZoneVec<'w, u32>,
     /// For each loop, the values live into the header that no node of the loop uses, sorted.
-    carried_through: Lists<NodeId>,
+    carried_through: Lists<'w, NodeId>,
     /// The blocks that the back edges of a loop come from.
-    back_edge_sources: Column<BlockId>,
+    back_edge_sources: ZoneVec<'w, BlockId>,
     /// The blocks that the walk over a loop still has to visit.
-    pending: Column<BlockId>,
+    pending: ZoneVec<'w, BlockId>,
     /// The loops, from the one with the most blocks to the one with the fewest.
-    by_size: Column<u32>,
+    by_size: ZoneVec<'w, u32>,
 }
 
-impl Loops {
-    // NB: A compile whose graph needs more of these fails.
-    const MAX_BLOCKS: usize = 1 << 24;
-    const MAX_NODES: usize = 1 << 24;
-    const MAX_ITEMS: usize = 1 << 26;
-
-    /// Tables that take no memory before a compile uses them.
-    pub fn new() -> Self {
-        Self {
-            loops: Column::new(Self::MAX_BLOCKS, c"JIT loops"),
-            blocks: Column::new(Self::MAX_ITEMS, c"JIT loops"),
-            words_for_each_loop: 0,
-            innermost: Column::new(Self::MAX_BLOCKS, c"JIT loops"),
-            position_blocks: Column::new(Self::MAX_NODES, c"JIT loops"),
-            carried_through: Lists::new(Self::MAX_BLOCKS, Self::MAX_ITEMS, c"JIT loops"),
-            back_edge_sources: Column::new(Self::MAX_ITEMS, c"JIT loops"),
-            pending: Column::new(Self::MAX_ITEMS, c"JIT loops"),
-            by_size: Column::new(Self::MAX_BLOCKS, c"JIT loops"),
-        }
-    }
-
-    /// Drops the tables and gives their memory back to the system.
-    pub fn release_memory(&mut self) {
-        release(&mut self.loops);
-        release(&mut self.blocks);
-        release(&mut self.innermost);
-        release(&mut self.position_blocks);
-        self.carried_through.release_memory();
-        release(&mut self.back_edge_sources);
-        release(&mut self.pending);
-        release(&mut self.by_size);
-    }
-
-    /// Finds the loops of `graph`. `dominators` are tables to compute its dominators in.
-    pub fn compute(
-        &mut self,
-        graph: &Graph,
-        liveness: &ValueLiveness,
-        dominators: &mut Dominators,
-    ) -> Result<(), ColumnFull> {
+impl<'w> Loops<'w> {
+    /// Finds the loops of `graph`.
+    pub fn compute(graph: &Graph, liveness: &ValueLiveness, work: &'w Zone) -> Result<Self, CompileFailure> {
         let block_count = graph.blocks.len();
-        self.position_blocks.clear();
+        let mut loops = Self {
+            loops: ZoneVec::new_in(work),
+            blocks: ZoneVec::new_in(work),
+            words_for_each_loop: block_count.div_ceil(64),
+            innermost: ZoneVec::from_elem_in(NO_LOOP, block_count, work),
+            position_blocks: ZoneVec::with_capacity_in(graph.nodes.len(), work),
+            carried_through: Lists::new_in(work),
+            back_edge_sources: ZoneVec::new_in(work),
+            pending: ZoneVec::new_in(work),
+            by_size: ZoneVec::new_in(work),
+        };
         for (index, block) in graph.blocks.iter().enumerate() {
-            let end = self.position_blocks.len() + block.nodes().count();
-            self.position_blocks.try_resize(end, index as u32)?;
+            let end = loops.position_blocks.len() + block.nodes().count();
+            loops.position_blocks.resize(end, index as u32);
         }
-        self.loops.clear();
-        self.blocks.clear();
-        self.words_for_each_loop = block_count.div_ceil(64);
-        self.carried_through.begin()?;
-        reset(&mut self.innermost, block_count, NO_LOOP)?;
         // NB: Cold blocks are left out of loops, so only the edges from hot blocks make loops. Cold blocks come after
         //     the hot ones, so their edges back into hot code would otherwise look like loops wherever they rejoin it.
         let is_hot = |block: BlockId| !graph.blocks[block.index()].is_cold;
@@ -121,18 +88,55 @@ impl Loops {
                 .any(|predecessor| predecessor.index() >= index && is_hot(*predecessor))
         });
         if !has_back_edges {
-            return Ok(());
+            return Ok(loops);
         }
+        let dominators = Dominators::of(graph, work);
+        loops.find(graph, liveness, &dominators, work)?;
+        Ok(loops)
+    }
 
-        dominators.compute(graph)?;
+    /// Finds the loops of `graph`, which has back edges.
+    fn find(
+        &mut self,
+        graph: &Graph,
+        liveness: &ValueLiveness,
+        dominators: &Dominators,
+        work: &'w Zone,
+    ) -> Result<(), CompileFailure> {
+        let block_count = graph.blocks.len();
+        let is_hot = |block: BlockId| !graph.blocks[block.index()].is_cold;
+        // The sources of the back edges of the loop that a block heads, if it heads one: its predecessors that it
+        // dominates.
+        let is_back_edge =
+            |header: BlockId, predecessor: BlockId| dominators.dominates(header, predecessor) && is_hot(predecessor);
+        let mut loop_count = 0;
+        let mut header_live_values = 0;
+        let mut edges = 0;
+        for (index, block) in graph.blocks.iter().enumerate() {
+            let header = BlockId::from_index(index);
+            edges += block.predecessors.len();
+            if block
+                .predecessors
+                .iter()
+                .any(|predecessor| is_back_edge(header, *predecessor))
+            {
+                loop_count += 1;
+                header_live_values += liveness.live_in.get(index).len();
+            }
+        }
+        check_items(loop_count * self.words_for_each_loop)?;
+        self.loops = ZoneVec::with_capacity_in(loop_count, work);
+        self.blocks = ZoneVec::with_capacity_in(loop_count * self.words_for_each_loop, work);
+        self.carried_through = Lists::with_capacity_in(loop_count, header_live_values, work);
+        self.carried_through.begin();
+        self.pending = ZoneVec::with_capacity_in(edges, work);
+        self.by_size = ZoneVec::with_capacity_in(loop_count, work);
         for index in 0..block_count {
             let header = BlockId::from_index(index);
-            // The sources of the back edges of the loop that the block heads, if it heads one: its predecessors that
-            // it dominates.
             self.back_edge_sources.clear();
             for predecessor in &graph.block(header).predecessors {
-                if dominators.dominates(header, *predecessor) && is_hot(*predecessor) {
-                    self.back_edge_sources.try_push(*predecessor)?;
+                if is_back_edge(header, *predecessor) {
+                    self.back_edge_sources.push(*predecessor);
                 }
             }
             if self.back_edge_sources.is_empty() {
@@ -141,18 +145,18 @@ impl Loops {
             // The blocks of the loop: the header and every reachable block that reaches a source of a back edge
             // without going through the header.
             let row = self.blocks.len();
-            self.blocks.try_resize(row + self.words_for_each_loop, 0)?;
+            self.blocks.resize(row + self.words_for_each_loop, 0);
             let blocks = &mut self.blocks[row..];
             let contains = |blocks: &[u64], block: usize| blocks[block / 64] & (1 << (block % 64)) != 0;
             blocks[index / 64] |= 1 << (index % 64);
             self.pending.clear();
-            self.pending.try_extend_from_slice(&self.back_edge_sources)?;
-            while let Some(block) = pop(&mut self.pending) {
+            self.pending.extend_from_slice(&self.back_edge_sources);
+            while let Some(block) = self.pending.pop() {
                 if contains(blocks, block.index()) || !dominators.is_reachable(block) {
                     continue;
                 }
                 blocks[block.index() / 64] |= 1 << (block.index() % 64);
-                self.pending.try_extend_from_slice(&graph.block(block).predecessors)?;
+                self.pending.extend_from_slice(&graph.block(block).predecessors);
             }
             let position_of = |node: NodeId| liveness.positions[node.index()];
             let start = position_of(graph.block_nodes(header).next().expect("blocks have a control node"));
@@ -186,23 +190,22 @@ impl Loops {
                     .first_use_in(blocks, uses, &self.position_blocks, 0..uses.len())
                     .is_none()
                 {
-                    self.carried_through.try_push(*value)?;
+                    self.carried_through.push(*value);
                 }
             }
-            self.carried_through.end_list()?;
-            self.loops.try_push(loop_)?;
+            self.carried_through.end_list();
+            self.loops.push(loop_);
         }
 
         // NB: A loop inside another one has fewer blocks, so the smallest loop around a block is the innermost one.
         //     Of two loops with as many blocks, the later one is taken.
-        self.by_size.clear();
         for index in 0..self.loops.len() as u32 {
-            self.by_size.try_push(index)?;
+            self.by_size.push(index);
         }
         let loops = &self.loops;
         self.by_size
             .sort_unstable_by_key(|index| (std::cmp::Reverse(loops[*index as usize].block_count), *index));
-        for index in self.by_size.iter() {
+        for index in &self.by_size {
             let row = *index as usize * self.words_for_each_loop;
             let blocks = &self.blocks[row..row + self.words_for_each_loop];
             for (word_index, word) in blocks.iter().enumerate() {

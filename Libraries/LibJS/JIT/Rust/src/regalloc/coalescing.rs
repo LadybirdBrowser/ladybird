@@ -16,9 +16,8 @@
 //! is defined. Values join a class of values sharing one slot only if they
 //! overlap with no value already in it.
 
-use ak::Column;
-use ak::ColumnFull;
 use ak::Zone;
+use ak::ZoneVec;
 
 use super::liveness::ValueLiveness;
 use super::liveness::is_allocated_value;
@@ -26,8 +25,6 @@ use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::tables::Lists;
-use crate::tables::release;
-use crate::tables::reset;
 
 /// The most values one class holds, which keeps the pairwise checks cheap.
 const MAX_CLASS_SIZE: u32 = 32;
@@ -40,26 +37,26 @@ struct Definition {
     position: Option<u32>,
 }
 
-/// The spill slot classes of the values of a graph, in tables that serve one compile after the other.
-pub(super) struct Coalescing {
+/// The spill slot classes of the values of a graph, in tables in the work zone of a compile.
+pub(super) struct Coalescing<'w> {
     /// The class of each value: values of one class share their spill slot.
     /// Classes are named by one of their values.
-    pub classes: Column<u32>,
+    pub classes: ZoneVec<'w, u32>,
     /// For each value, the next value of its class. The values of a class are a ring, so that two classes join with
     /// no list to copy.
-    next: Column<u32>,
+    next: ZoneVec<'w, u32>,
     /// For each value that names a class, how many values the class has.
-    sizes: Column<u32>,
-    definitions: Column<Definition>,
+    sizes: ZoneVec<'w, u32>,
+    definitions: ZoneVec<'w, Definition>,
     /// For each value, the blocks where it dies and the positions there.
-    deaths: Lists<(usize, u32)>,
+    deaths: Lists<'w, (usize, u32)>,
 }
 
 struct Interference<'a> {
     graph: &'a Graph<'a>,
-    liveness: &'a ValueLiveness,
+    liveness: &'a ValueLiveness<'a>,
     definitions: &'a [Definition],
-    deaths: &'a Lists<(usize, u32)>,
+    deaths: &'a Lists<'a, (usize, u32)>,
     work: &'a Zone,
 }
 
@@ -115,53 +112,36 @@ fn members(next: &[u32], value: u32) -> impl Iterator<Item = NodeId> + '_ {
     })
 }
 
-impl Coalescing {
-    // NB: A compile whose graph has more nodes, or more deaths of values, fails.
-    const MAX_NODES: usize = 1 << 24;
-    const MAX_DEATHS: usize = 1 << 26;
-
-    pub fn new() -> Self {
-        fn by_node<T: Copy>() -> Column<T> {
-            Column::new(Coalescing::MAX_NODES, c"JIT spill slot classes")
-        }
-        Self {
-            classes: by_node(),
-            next: by_node(),
-            sizes: by_node(),
-            definitions: by_node(),
-            deaths: Lists::new(Self::MAX_NODES, Self::MAX_DEATHS, c"JIT spill slot classes"),
-        }
-    }
-
-    /// Drops the tables and gives their memory back to the system.
-    pub fn release_memory(&mut self) {
-        release(&mut self.classes);
-        release(&mut self.next);
-        release(&mut self.sizes);
-        release(&mut self.definitions);
-        self.deaths.release_memory();
-    }
-
+impl<'w> Coalescing<'w> {
     /// Finds the class of each value of `graph`.
-    pub fn compute(&mut self, graph: &Graph, liveness: &ValueLiveness, work: &Zone) -> Result<(), ColumnFull> {
+    pub fn compute(graph: &Graph, liveness: &ValueLiveness, work: &'w Zone) -> Self {
         let count = graph.nodes.len();
-        self.classes.clear();
-        for value in 0..count as u32 {
-            self.classes.try_push(value)?;
-        }
+        let mut coalescing = Self {
+            classes: ZoneVec::from_iter_in(0..count as u32, work),
+            next: ZoneVec::new_in(work),
+            sizes: ZoneVec::new_in(work),
+            definitions: ZoneVec::new_in(work),
+            deaths: Lists::new_in(work),
+        };
         // NB: Without phis, each value is a class of its own.
         if graph.blocks.iter().all(|block| block.phis.is_empty()) {
-            return Ok(());
+            return coalescing;
         }
-        reset(
-            &mut self.definitions,
+        coalescing.join_classes(graph, liveness, work);
+        coalescing
+    }
+
+    /// Puts phis and their inputs in one class where they do not overlap.
+    fn join_classes(&mut self, graph: &Graph, liveness: &ValueLiveness, work: &Zone) {
+        let count = graph.nodes.len();
+        self.definitions.resize(
             count,
             Definition {
                 block: 0,
                 position: None,
             },
-        )?;
-        self.deaths.begin_counts(count)?;
+        );
+        self.deaths.begin_counts(count);
         for (index, block) in graph.blocks.iter().enumerate() {
             for phi in &block.phis {
                 self.definitions[phi.index()] = Definition {
@@ -179,7 +159,7 @@ impl Coalescing {
                 }
             }
         }
-        self.deaths.end_counts((0, 0))?;
+        self.deaths.end_counts((0, 0));
         for (index, block) in graph.blocks.iter().enumerate() {
             for node in block.body.iter().chain(&block.control) {
                 let position = liveness.positions[node.index()];
@@ -189,9 +169,8 @@ impl Coalescing {
             }
         }
         self.deaths.end_fill();
-        self.next.clear();
-        self.next.try_extend_from_slice(&self.classes)?;
-        reset(&mut self.sizes, count, 1)?;
+        self.next.extend_from_slice(&self.classes);
+        self.sizes.resize(count, 1);
 
         let Self {
             classes,
@@ -237,6 +216,5 @@ impl Coalescing {
                 }
             }
         }
-        Ok(())
     }
 }
