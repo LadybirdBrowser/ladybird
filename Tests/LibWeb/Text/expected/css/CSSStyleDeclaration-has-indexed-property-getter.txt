@@ -2,6 +2,7 @@ All properties associated with getComputedStyle(document.body):
 [
     "-webkit-font-smoothing",
     "-webkit-text-fill-color",
+    "-webkit-text-security",
     "-webkit-text-stroke-color",
     "-webkit-text-stroke-width",
     "accent-color",

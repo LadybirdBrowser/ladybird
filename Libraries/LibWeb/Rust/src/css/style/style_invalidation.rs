@@ -543,7 +543,11 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
     }
     if matches!(
         property,
-        property_id::APPEARANCE | property_id::CONTENT | property_id::CONTENT_VISIBILITY | property_id::TEXT_TRANSFORM
+        property_id::APPEARANCE
+            | property_id::CONTENT
+            | property_id::CONTENT_VISIBILITY
+            | property_id::TEXT_TRANSFORM
+            | property_id::_WEBKIT_TEXT_SECURITY
     ) {
         return StyleInvalidation::rebuild_layout_tree_from(REBUILD_ROOT_SELF);
     }

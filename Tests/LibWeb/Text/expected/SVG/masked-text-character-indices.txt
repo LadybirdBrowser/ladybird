@@ -1,0 +1,26 @@
+text chars: 3
+cluster shares its cell: true
+last mark has its own cell: true
+last mark index: 2
+text chars: 3
+cluster shares its cell: true
+last mark has its own cell: true
+last mark index: 2
+tspan chars: 3
+cluster shares its cell: true
+last mark has its own cell: true
+last mark index: 2
+tspan chars: 3
+cluster shares its cell: true
+last mark has its own cell: true
+last mark index: 2
+textPath chars: 3
+cluster shares its cell: true
+last mark has its own cell: true
+last mark index: 2
+textPath chars: 3
+cluster shares its cell: true
+last mark has its own cell: true
+last mark index: 2
+expansion preserves DOM length: true
+first character spans two marks: true

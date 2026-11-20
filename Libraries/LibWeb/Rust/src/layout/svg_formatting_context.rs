@@ -44,6 +44,38 @@ pub struct FfiSvgTextCharacterCell {
     pub starts_typographic_character: bool,
 }
 
+fn svg_text_cell_for_source_span(
+    cells: &[FfiSvgTextCharacterCell],
+    start: usize,
+    end: usize,
+) -> FfiSvgTextCharacterCell {
+    if let Some((&first, others)) = cells[start..end].split_first() {
+        let mut bounds = FloatRect::new(first.x, first.y, first.width, first.height);
+        for other in others {
+            bounds = united_even_if_empty(
+                Some(bounds),
+                FloatRect::new(other.x, other.y, other.width, other.height),
+            );
+        }
+        return FfiSvgTextCharacterCell {
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            ..first
+        };
+    }
+    // A source character removed by casing has an empty cell at its position between the surrounding glyphs.
+    let mut cell = cells.get(start).copied().unwrap_or_else(|| {
+        let mut last = cells.last().copied().unwrap_or_default();
+        last.x += last.width;
+        last
+    });
+    cell.width = 0.0;
+    cell.starts_typographic_character = false;
+    cell
+}
+
 /// What shaping one SVG text run yields: its glyphs, its total advance, the union of its glyph
 /// cells, and the glyph cell of every one of its code units.
 struct ShapedSvgText {
@@ -1663,6 +1695,46 @@ impl<'pass> SvgFormattingContext<'pass> {
         Some(std::sync::Arc::from(run))
     }
 
+    // SVG DOM indices address UTF-16 code units before text transformation. Keep the painted glyphs and their
+    // spacing, and publish the cell occupied by each source code unit of the masked run.
+    // https://svgwg.org/svg2-draft/text.html#TermAddressableCharacter
+    fn append_svg_run_dom_cells(
+        &self,
+        mut node: Node,
+        cells: Vec<FfiSvgTextCharacterCell>,
+        out: &mut Vec<FfiSvgTextCharacterCell>,
+    ) {
+        if self.style(self.parent(node)).inherited_text().text_security == crate::css::css_enums::text_security::NONE {
+            out.extend(cells);
+            return;
+        }
+        let mut cells = cells.as_slice();
+        while !node.is_invalid() && node_facts::kind_is_text(self.node_kind(node)) {
+            let content = self.run.pass.text_content(node);
+            node = self.next_sibling(node);
+            let Some(masked_text) = &content.svg_source_text else {
+                continue;
+            };
+            let (node_cells, rest) = cells.split_at(masked_text.len());
+            let mut cursor = 0;
+            for edit in content.rendered_text_edits() {
+                let start = edit.rendered_start_offset;
+                let end = start + edit.rendered_length_in_code_units;
+                out.extend_from_slice(&node_cells[cursor..start]);
+                cursor = end;
+                if edit.dom_length_in_code_units == 0 {
+                    continue;
+                }
+                let mut cell = svg_text_cell_for_source_span(node_cells, start, end);
+                out.push(cell);
+                cell.starts_typographic_character = false;
+                out.extend(std::iter::repeat_n(cell, edit.dom_length_in_code_units - 1));
+            }
+            out.extend_from_slice(&node_cells[cursor..]);
+            cells = rest;
+        }
+    }
+
     fn append_svg_source_text(&self, text_node: Node, out: &mut Vec<u16>) {
         let content = self.run.pass.arena().text_content(text_node);
         debug_assert!(content.is_some(), "SVG text child was not synced before layout");
@@ -2287,7 +2359,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 paint_parts.add_decoration_lines(after_child, lines_over);
 
                 contents.glyph_cells.unite(shaped.glyph_cells);
-                contents.character_cells.extend(shaped.character_cells);
+                self.append_svg_run_dom_cells(child, shaped.character_cells, &mut contents.character_cells);
             } else if matches!(kind, NodeKind::SVGTextBox | NodeKind::SVGTextPathBox) {
                 // <text> and <tspan> elements can contain more text elements, whose glyph cells count toward this
                 // box too.
@@ -2491,7 +2563,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             );
             advance += shaped.advance;
             runs.extend(shaped.runs);
-            character_cells.extend(shaped.character_cells);
+            self.append_svg_run_dom_cells(node, shaped.character_cells, &mut character_cells);
         });
 
         // https://svgwg.org/svg2-draft/text.html#TextPathElementStartOffsetAttribute
