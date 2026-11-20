@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 3000px; }
+    #overlay { position: fixed; inset: 0; }
+    #clip { position: absolute; inset: 50px auto auto 50px; width: 200px; height: 100px; overflow: hidden; }
+    #visible, #hidden { position: absolute; inset: 0; overflow: auto; }
+    #hidden { height: 200px; visibility: hidden; }
+    #hidden > div { height: 400px; }
+</style>
+<div id="overlay">
+    <div id="clip">
+        <div id="visible"></div>
+        <div id="hidden"><div></div></div>
+    </div>
+</div>
+<script>
+    promiseTest(async () => {
+        await waitForCondition(() => internals.compositorScrollState().document === document);
+        await scrollSettled(document, () => internals.wheelThroughUIProcess(100, 100, 0, 100));
+        println(`page ${scrollY}, clip ${clip.scrollTop}`);
+    });
+</script>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 3000px; }
+    #dialog { position: fixed; top: 100px; left: 100px; width: 400px; }
+    #clip { height: 300px; overflow: hidden; }
+    #wide { width: 410px; height: 50px; }
+    iframe { width: 100px; height: 50px; }
+</style>
+<div id="dialog"><div id="clip"><div id="wide"></div></div></div>
+<iframe></iframe>
+<script>
+    promiseTest(async () => {
+        const frame = document.querySelector("iframe");
+        await waitForCondition(() => frame.contentWindow.internals.compositorScrollState().document === frame.contentDocument);
+        await scrollSettled(document, () => internals.wheelThroughUIProcess(200, 150, 0, 100));
+        println(`page ${scrollY}, clip ${clip.scrollTop}`);
+    });
+</script>
