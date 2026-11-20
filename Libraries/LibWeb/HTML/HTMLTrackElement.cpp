@@ -302,7 +302,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
             self.queue_an_element_task(Task::Source::Networking, GC::create_function(GC::Heap::the(), GC::captures(self, cues.release_value(), src_generation), [](auto& self, auto& cues, auto& src_generation) {
                 if (src_generation == self.m_src_generation) {
                     for (auto const& parsed_cue : cues) {
-                        auto cue = MUST(WebVTT::VTTCue::create(parsed_cue.start_time, parsed_cue.end_time, parsed_cue.text));
+                        auto cue = WebVTT::VTTCue::create(parsed_cue.start_time, parsed_cue.end_time, parsed_cue.text);
                         cue->set_id(parsed_cue.identifier);
                         self.m_track->add_cue(cue);
                     }

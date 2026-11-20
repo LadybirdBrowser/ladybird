@@ -7,110 +7,20 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/VTTCue.h>
 #include <LibWeb/HTML/TextTrackCue.h>
-#include <LibWeb/WebVTT/VTTRegion.h>
-#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::WebVTT {
 
-using AutoKeyword = Bindings::AutoKeyword;
-using DirectionSetting = Bindings::DirectionSetting;
-using LineAlignSetting = Bindings::LineAlignSetting;
-using PositionAlignSetting = Bindings::PositionAlignSetting;
-using AlignSetting = Bindings::AlignSetting;
-
 // https://w3c.github.io/webvtt/#vttcue
 class VTTCue final : public HTML::TextTrackCue {
-    WEB_WRAPPABLE(VTTCue, HTML::TextTrackCue);
-    GC_DECLARE_ALLOCATOR(VTTCue);
+    WEB_RUST_INTERFACE(VTTCue, vtt_cue)
 
 public:
-    static constexpr size_t region_offset() { return offsetof(VTTCue, m_region); }
-    enum class WritingDirection : u8 {
-        // https://w3c.github.io/webvtt/#webvtt-cue-horizontal-writing-direction
-        Horizontal,
-
-        // https://w3c.github.io/webvtt/#webvtt-cue-vertical-growing-left-writing-direction
-        VerticalGrowingLeft,
-
-        // https://w3c.github.io/webvtt/#webvtt-cue-vertical-growing-right-writing-direction
-        VerticalGrowingRight,
-    };
-
-    using LineAndPositionSetting = Variant<double, AutoKeyword>;
-
-    static WebIDL::ExceptionOr<GC::Ref<VTTCue>> create(double start_time, double end_time, Utf16String const& text);
-    virtual ~VTTCue() override = default;
-
-    GC::Ptr<VTTRegion> region() const { return m_region; }
-    void set_region(GC::Ptr<VTTRegion> region) { m_region = region; }
-
-    DirectionSetting vertical() const;
-    void set_vertical(DirectionSetting);
-
-    bool snap_to_lines() const { return m_snap_to_lines; }
-    void set_snap_to_lines(bool snap_to_lines) { m_snap_to_lines = snap_to_lines; }
-
-    LineAndPositionSetting line() const;
-    void set_line(LineAndPositionSetting);
-
-    LineAlignSetting line_align() const;
-    void set_line_align(LineAlignSetting);
-
-    LineAndPositionSetting position() const;
-    void set_position(LineAndPositionSetting);
-
-    PositionAlignSetting position_align() const;
-    void set_position_align(PositionAlignSetting);
-
-    double size() const { return m_size; }
-    void set_size(double size) { m_size = size; }
-
-    AlignSetting align() const;
-    void set_align(AlignSetting);
-
-    Utf16String const& text() const { return m_text; }
-    void set_text(Utf16String const& text) { m_text = text; }
-
-protected:
-    double computed_line();
-    double computed_position();
-
-private:
-    VTTCue(GC::Ptr<HTML::TextTrack>);
-
-    virtual void visit_edges(Visitor&) override;
-
-    // https://w3c.github.io/webvtt/#cue-text
-    Utf16String m_text;
-
-    // https://w3c.github.io/webvtt/#webvtt-cue-writing-direction
-    WritingDirection m_writing_direction { WritingDirection::Horizontal };
-
-    // https://w3c.github.io/webvtt/#webvtt-cue-snap-to-lines-flag
-    bool m_snap_to_lines { true };
-
-    // https://w3c.github.io/webvtt/#webvtt-cue-line
-    LineAndPositionSetting m_line { AutoKeyword::Auto };
-
-    // https://w3c.github.io/webvtt/#webvtt-cue-line-alignment
-    LineAlignSetting m_line_alignment { LineAlignSetting::Start };
-
-    // https://w3c.github.io/webvtt/#webvtt-cue-position
-    LineAndPositionSetting m_position { AutoKeyword::Auto };
-
-    // https://w3c.github.io/webvtt/#webvtt-cue-position-alignment
-    PositionAlignSetting m_position_alignment { PositionAlignSetting::Auto };
-
-    // https://w3c.github.io/webvtt/#webvtt-cue-size
-    double m_size { 100 };
-
-    // https://w3c.github.io/webvtt/#webvtt-cue-text-alignment
-    AlignSetting m_text_alignment { AlignSetting::Center };
-
-    // https://w3c.github.io/webvtt/#webvtt-cue-region
-    GC::Ptr<VTTRegion> m_region;
+    // https://w3c.github.io/webvtt/#dom-vttcue-vttcue
+    // NB: The end time must be neither negative infinity nor NaN.
+    static GC::Ref<VTTCue> create(double start_time, double end_time, Utf16String const& text);
 };
 
 }

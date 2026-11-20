@@ -9,6 +9,7 @@
 //! Libraries/LibWeb/HTML/MessagePort.cpp declare. A cell is the cell of an object of the interface that the name of
 //! the function says. Libraries/LibWeb/HTML/BroadcastChannel.cpp hands the BroadcastChannel objects the messages that
 //! other processes post, and Libraries/LibWeb/HTML/Window.cpp runs the window post message steps.
+//! Libraries/LibWeb/HTML/TextTrackCue.cpp reads and updates the TextTrackCue objects that its text tracks hold.
 
 use core::ffi::{c_int, c_void};
 use core::ptr::NonNull;
@@ -25,6 +26,7 @@ use super::image_data::ImageData;
 use super::message_port::MessagePort;
 use super::storage::{Storage, StorageType};
 use super::storage_event::{StorageEvent, StorageEventInit};
+use super::text_track_cue::AnyTextTrackCue;
 use super::window::{PostedMessage, queue_posted_message, window_post_message_steps};
 use super::window_or_worker_global_scope::structured_clone;
 use crate::bindings::CallContext;
@@ -735,4 +737,121 @@ pub unsafe extern "C" fn web_image_bitmap_rendering_context_origin_clean(context
 pub unsafe extern "C" fn web_image_bitmap_rendering_context_alpha(context: *mut c_void) -> bool {
     // SAFETY: The caller passes a live cell.
     unsafe { object_from_abi::<ImageBitmapRenderingContext>(context) }.alpha()
+}
+
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_event_target(cue: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes a live cell.
+    unsafe { AnyTextTrackCue::from_abi(cue) }.event_target().as_ptr()
+}
+
+/// The cell of the TextTrack whose list of cues the cue is in, or null.
+///
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_track(cue: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes a live cell.
+    let cue = unsafe { AnyTextTrackCue::from_abi(cue) };
+    cue.track_cell().map_or(core::ptr::null_mut(), |track| track.as_ptr())
+}
+
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue, and `track` a live TextTrack or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_set_track(cue: *mut c_void, track: *mut c_void) {
+    // SAFETY: The caller passes a live cell.
+    let cue = unsafe { AnyTextTrackCue::from_abi(cue) };
+    // SAFETY: The caller passes a live TextTrack, or null.
+    let track = (!track.is_null()).then(|| unsafe { CppCell::from_raw(track) });
+    cue.set_track_cell(track);
+}
+
+/// The identifier of the cue, whose reference the caller adopts.
+///
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_id(cue: *mut c_void) -> usize {
+    // SAFETY: The caller passes a live cell.
+    unsafe { AnyTextTrackCue::from_abi(cue) }.identifier().into_raw()
+}
+
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue, and `id` a string that the caller lends for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_set_id(cue: *mut c_void, id: usize) {
+    // SAFETY: The caller passes a live cell and lends the string.
+    let (cue, id) = unsafe { (AnyTextTrackCue::from_abi(cue), Utf16String::from_raw_borrowed(id)) };
+    cue.set_identifier(id);
+}
+
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_start_time(cue: *mut c_void) -> f64 {
+    // SAFETY: The caller passes a live cell.
+    unsafe { AnyTextTrackCue::from_abi(cue) }.start_time_value()
+}
+
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_end_time(cue: *mut c_void) -> f64 {
+    // SAFETY: The caller passes a live cell.
+    unsafe { AnyTextTrackCue::from_abi(cue) }.end_time_value()
+}
+
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_pause_on_exit(cue: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live cell.
+    unsafe { AnyTextTrackCue::from_abi(cue) }.pause_on_exit_flag()
+}
+
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_is_active(cue: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live cell.
+    unsafe { AnyTextTrackCue::from_abi(cue) }.is_active()
+}
+
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_set_active(cue: *mut c_void, active: bool) {
+    // SAFETY: The caller passes a live cell.
+    unsafe { AnyTextTrackCue::from_abi(cue) }.set_active(active);
+}
+
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_order_added(cue: *mut c_void) -> u64 {
+    // SAFETY: The caller passes a live cell.
+    unsafe { AnyTextTrackCue::from_abi(cue) }.order_added()
+}
+
+/// # Safety
+///
+/// `cue` must be the live cell of a TextTrackCue.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_track_cue_set_order_added(cue: *mut c_void, order_added: u64) {
+    // SAFETY: The caller passes a live cell.
+    unsafe { AnyTextTrackCue::from_abi(cue) }.set_order_added(order_added);
 }

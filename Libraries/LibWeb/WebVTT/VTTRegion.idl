@@ -2,7 +2,7 @@
 enum ScrollSetting { "", "up" };
 
 // https://w3c.github.io/webvtt/#vttregion
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface VTTRegion {
     constructor();
     attribute DOMString id;

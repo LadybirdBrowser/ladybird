@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/media.html#texttrackcue
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface TextTrackCue : EventTarget {
-    [DirectGetter] readonly attribute TextTrack? track;
+    readonly attribute TextTrack? track;
 
     attribute DOMString id;
     attribute double startTime;

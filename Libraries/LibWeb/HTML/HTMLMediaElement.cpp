@@ -4115,7 +4115,7 @@ void HTMLMediaElement::time_marches_on(TimeMarchesOnReason reason)
     // 14. Queue a media element task given the media element for each task in events, in list order.
     for (auto& event : events) {
         queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(move(event.name), event.target), [](auto& name, auto& target, HTMLMediaElement& self) {
-            target->dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), name));
+            target->event_target()->dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), name));
         }));
     }
 

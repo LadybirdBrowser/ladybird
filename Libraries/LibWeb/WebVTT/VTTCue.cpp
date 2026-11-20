@@ -4,221 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibWeb/HTML/Window.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/WebVTT/VTTCue.h>
 
 namespace Web::WebVTT {
 
-GC_DEFINE_ALLOCATOR(VTTCue);
+extern "C" {
 
-// https://w3c.github.io/webvtt/#dom-vttcue-vttcue
-WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::create(double start_time, double end_time, Utf16String const& text)
-{
-    // 1. Create a new WebVTT cue. Let cue be that WebVTT cue.
-    auto cue = GC::Heap::the().allocate<VTTCue>(nullptr);
-
-    // 2. Let cue’s text track cue start time be the value of the startTime argument.
-    cue->m_start_time = start_time;
-
-    // 3. If the value of the endTime argument is negative Infinity or a Not-a-Number (NaN) value, then throw a TypeError exception.
-    //    Otherwise, let cue’s text track cue end time be the value of the endTime argument.
-    if (end_time == -AK::Infinity<double> || isnan(end_time))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "End time is negative infinity or NaN"_utf16 };
-    cue->m_end_time = end_time;
-
-    // 4. Let cue’s cue text be the value of the text argument, and let the rules for extracting the chapter title be the WebVTT rules
-    //    for extracting the chapter title.
-    cue->m_text = text;
-    // FIXME: let the rules for extracting the chapter title be the WebVTT rules for extracting the chapter title.
-
-    // 5. Let cue’s text track cue identifier be the empty string.
-    cue->m_identifier = {};
-
-    // 6. Let cue’s text track cue pause-on-exit flag be false.
-    cue->m_pause_on_exit = false;
-
-    // 7. Let cue’s WebVTT cue region be null.
-    cue->m_region = nullptr;
-
-    // 8. Let cue’s WebVTT cue writing direction be horizontal.
-    cue->m_writing_direction = WritingDirection::Horizontal;
-
-    // 9. Let cue’s WebVTT cue snap-to-lines flag be true.
-    cue->m_snap_to_lines = true;
-
-    // 10. Let cue’s WebVTT cue line be auto.
-    cue->m_line = AutoKeyword::Auto;
-
-    // 11. Let cue’s WebVTT cue line alignment be start alignment.
-    cue->m_line_alignment = LineAlignSetting::Start;
-
-    // 12. Let cue’s WebVTT cue position be auto.
-    cue->m_position = AutoKeyword::Auto;
-
-    // 13. Let cue’s WebVTT cue position alignment be auto.
-    cue->m_position_alignment = PositionAlignSetting::Auto;
-
-    // 14. Let cue’s WebVTT cue size be 100.
-    cue->m_size = 100;
-
-    // 15. Let cue’s WebVTT cue text alignment be center alignment.
-    cue->m_text_alignment = AlignSetting::Center;
-
-    // 16. Return the VTTCue object representing cue.
-    return cue;
+// Defined in Bindings/Rust/src/web_vtt/exports.rs.
+void* web_vtt_cue_create(JSVM*, double start_time, double end_time, FlatPtr text);
 }
 
-VTTCue::VTTCue(GC::Ptr<HTML::TextTrack> track)
-    : HTML::TextTrackCue(track)
+GC::Ref<VTTCue> VTTCue::create(double start_time, double end_time, Utf16String const& text)
 {
-}
-
-void VTTCue::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_region);
-}
-
-// https://w3c.github.io/webvtt/#dom-vttcue-vertical
-DirectionSetting VTTCue::vertical() const
-{
-    switch (m_writing_direction) {
-    case WritingDirection::Horizontal:
-        return DirectionSetting::Empty;
-    case WritingDirection::VerticalGrowingLeft:
-        return DirectionSetting::Rl;
-    case WritingDirection::VerticalGrowingRight:
-        return DirectionSetting::Lr;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-// https://w3c.github.io/webvtt/#dom-vttcue-vertical
-void VTTCue::set_vertical(DirectionSetting vertical)
-{
-    switch (vertical) {
-    case DirectionSetting::Empty:
-        m_writing_direction = WritingDirection::Horizontal;
-        break;
-    case DirectionSetting::Rl:
-        m_writing_direction = WritingDirection::VerticalGrowingLeft;
-        break;
-    case DirectionSetting::Lr:
-        m_writing_direction = WritingDirection::VerticalGrowingRight;
-        break;
-    }
-}
-
-VTTCue::LineAndPositionSetting VTTCue::line() const
-{
-    return m_line;
-}
-
-void VTTCue::set_line(LineAndPositionSetting line)
-{
-    m_line = line;
-}
-
-LineAlignSetting VTTCue::line_align() const
-{
-    return m_line_alignment;
-}
-
-void VTTCue::set_line_align(LineAlignSetting line_align)
-{
-    m_line_alignment = line_align;
-}
-
-VTTCue::LineAndPositionSetting VTTCue::position() const
-{
-    return m_position;
-}
-
-void VTTCue::set_position(LineAndPositionSetting position)
-{
-    m_position = position;
-}
-
-PositionAlignSetting VTTCue::position_align() const
-{
-    return m_position_alignment;
-}
-
-void VTTCue::set_position_align(PositionAlignSetting position_align)
-{
-    m_position_alignment = position_align;
-}
-
-AlignSetting VTTCue::align() const
-{
-    return m_text_alignment;
-}
-
-void VTTCue::set_align(AlignSetting align)
-{
-    m_text_alignment = align;
-}
-
-// https://w3c.github.io/webvtt/#cue-computed-line
-double VTTCue::computed_line()
-{
-    // 1. If the line is numeric, the WebVTT cue snap-to-lines flag of the WebVTT cue is false, and the line is negative
-    //    or greater than 100, then return 100 and abort these steps.
-    if (m_line.has<double>() && !m_snap_to_lines && (m_line.get<double>() < 0 || m_line.get<double>() > 100))
-        return 100;
-
-    // 2. If the line is numeric, return the value of the WebVTT cue line and abort these steps. (Either the WebVTT cue
-    //    snap-to-lines flag is true, so any value, not just those in the range 0..100, is valid, or the value is in the
-    //    range 0..100 and is thus valid regardless of the value of that flag.)
-    if (m_line.has<double>())
-        return m_line.get<double>();
-
-    // 3. If the WebVTT cue snap-to-lines flag of the WebVTT cue is false, return the value 100 and abort these steps.
-    //    (The line is the special value auto.)
-    if (!m_snap_to_lines)
-        return 100;
-
-    // FIXME: 4. Let cue be the WebVTT cue.
-
-    // FIXME: 5. If cue is not in a list of cues of a text track, or if that text track is not in the list of text tracks of
-    //    a media element, return −1 and abort these steps.
-
-    // FIXME: 6. Let track be the text track whose list of cues the cue is in.
-
-    // FIXME: 7. Let n be the number of text tracks whose text track mode is showing and that are in the media element’s list
-    //    of text tracks before track.
-    auto n = 0;
-
-    // 8. Increment n by one.
-    n++;
-
-    // 9. Negate n.
-    n = -n;
-
-    // 10. Return n.
-    dbgln("FIXME: Stubbed VTTCue.computed_line()");
-    return n;
-}
-
-// https://w3c.github.io/webvtt/#cue-computed-position
-double VTTCue::computed_position()
-{
-    // 1. If the position is numeric between 0 and 100, then return the value of the position and abort these steps.
-    //    (Otherwise, the position is the special value auto.)
-    if (m_position.has<double>() && m_position.get<double>() >= 0 && m_position.get<double>() <= 100)
-        return m_position.get<double>();
-
-    // 2. If the cue text alignment is left, return 0 and abort these steps.
-    if (m_text_alignment == AlignSetting::Left)
-        return 0;
-
-    // 3. If the cue text alignment is right, return 100 and abort these steps.
-    if (m_text_alignment == AlignSetting::Right)
-        return 100;
-
-    // 4. Otherwise, return 50 and abort these steps.
-    return 50;
+    auto* cue = web_vtt_cue_create(JS::HostABI::vm_to_abi(JS::VM::the()), start_time, end_time, text.raw_identity());
+    return GC::Ref { *static_cast<VTTCue*>(cue) };
 }
 
 }
