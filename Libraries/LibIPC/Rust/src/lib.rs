@@ -25,6 +25,8 @@ mod rust_panic;
 
 pub mod attachment;
 pub mod cpp_connection;
+#[cfg(all(target_os = "macos", feature = "cpp_transport"))]
+pub mod cpp_mach_bootstrap;
 #[cfg(all(target_vendor = "apple", feature = "cpp_transport"))]
 pub mod cpp_mach_transport;
 mod receive_queue;
@@ -55,6 +57,8 @@ fn validate_message_size(payload_size: usize, attachment_count: usize) -> std::i
 
 #[cfg(target_vendor = "apple")]
 pub mod mach;
+#[cfg(target_os = "macos")]
+pub mod mach_bootstrap;
 
 pub use attachment::Attachment;
 pub use wire::{

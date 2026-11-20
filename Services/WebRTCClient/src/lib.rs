@@ -61,7 +61,8 @@ fn take_over_transport(server_name: &str) -> Result<Transport> {
     let server_port = mach::look_up_from_bootstrap_server(server_name)
         .with_context(|| format!("looking up Mach server '{server_name}'"))?;
     let (receive_right, send_right) =
-        mach::bootstrap_transport_from_server_port(&server_port).context("bootstrapping the transport")?;
+        mach::bootstrap_transport_from_server_port(&server_port, mach::DEFAULT_BOOTSTRAP_REPLY_TIMEOUT_IN_MILLISECONDS)
+            .context("bootstrapping the transport")?;
     Ok(Transport::new(receive_right, send_right)?)
 }
 

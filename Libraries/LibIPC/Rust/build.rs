@@ -34,12 +34,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
 
-    let source = "src/cpp_mach_transport.rs";
-    println!("cargo:rerun-if-changed={source}");
-    cbindgen::Builder::new()
-        .with_config(config)
-        .with_src(manifest_dir.join(source))
-        .generate()?
-        .write_to_file(out_dir.join("RustFFI.h"));
+    let mut sources = vec!["src/cpp_mach_transport.rs"];
+    // NB: The bootstrap of a helper's transport only exists on macOS.
+    if env::var("CARGO_CFG_TARGET_OS")? == "macos" {
+        sources.push("src/cpp_mach_bootstrap.rs");
+    }
+    let mut builder = cbindgen::Builder::new().with_config(config);
+    for source in sources {
+        println!("cargo:rerun-if-changed={source}");
+        builder = builder.with_src(manifest_dir.join(source));
+    }
+    builder.generate()?.write_to_file(out_dir.join("RustFFI.h"));
     Ok(())
 }
