@@ -1,0 +1,10 @@
+Ladybird resolves a Date’s local wall time in milliseconds and
+uses the offset before a transition for both gaps and
+overlaps. V8’s ICUTimezoneCache::GetOffsets(), JavaScriptCore’s
+DateCache::calculateLocalTimeOffset(), and SpiderMonkey’s
+TimeZone::GetUTCOffsetMs() use the former offset for both cases.
+
+Chrome 158.0.8127.36, Firefox 151.0, and WebKit 26.5 agreed on the
+skipped and repeated hours in Sydney and New York in 2024 and 2500. In
+Sydney the local times immediately before and after each transition also
+agreed. The crash report did not include its local time or zone.
