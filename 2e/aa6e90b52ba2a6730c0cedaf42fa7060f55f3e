@@ -1,0 +1,12 @@
+Ladybird looks up a named zone’s offset at the local millisecond and
+subtracts it from the unrounded epoch nanoseconds. SpiderMonkey’s
+GetNamedTimeZoneEpochNanoseconds() calls MakeDate() for that
+lookup and applies the result to GetUTCEpochNanoseconds(). V8’s
+Intl::GetTimeZonePossibleOffsetNanoseconds() obtains ICU
+offsets through ApproximateMillisecondEpoch(). JavaScriptCore’s
+TemporalZonedDateTime::getEpochNanosecondsFor() delegates the
+conversion to TemporalCore.
+
+Chrome 158.0.8127.36 and Firefox 151.0 retained all nine fractional
+digits in New York in 1600 and 2500 and in UTC just before 1970. The
+WebKit 26.5 browser used for comparison didn’t expose Temporal.
