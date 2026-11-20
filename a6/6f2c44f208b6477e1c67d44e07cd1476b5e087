@@ -1,0 +1,12 @@
+Ladybird sizes a text input with “appearance: none” by its default
+preferred size, both in block flow and for its min-content and
+max-content sizes. Blink answers TextFieldIntrinsicInlineSize() for a
+text field in LayoutBox::DefaultIntrinsicContentInlineSize() whenever
+its field-sizing is fixed, whatever its appearance. For both intrinsic
+sizes, Gecko’s nsTextControlFrame::IntrinsicISize() returns the fixed
+size that CalcFixedSize() gives, and WebKit’s RenderTextControl::
+computeIntrinsicLogicalWidths() takes the max-content width from
+preferredContentLogicalWidth(). Run in Chrome 157.0.8103.79, Firefox
+151.0, and WebKit 26.5: a long value never widens such an input in a
+grid, a row flex container, or a min-content or fit-content width, and a
+block-level one keeps its default width.
