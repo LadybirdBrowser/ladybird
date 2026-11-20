@@ -18,6 +18,7 @@ body:
         - macOS
         - Windows
         - Android
+        - Other
     validations:
       required: true
   - type: input
@@ -26,6 +27,12 @@ body:
       label: Distro/package (if Linux)
       description: Say which distro and version you’re on — and, unless you built Ladybird from source yourself, which package you installed it from.
       placeholder: Ubuntu 24.04, built from source
+  - type: input
+    id: desktop-graphics
+    attributes:
+      label: Desktop and graphics (if Linux)
+      description: Say which desktop you use, and whether the session is Wayland or X11. For rendering problems, add your GPU and driver version. In a virtual machine, add the virtualization software.
+      placeholder: KDE Plasma on Wayland, AMD GPU with Mesa
   - type: dropdown
     id: architecture
     attributes:

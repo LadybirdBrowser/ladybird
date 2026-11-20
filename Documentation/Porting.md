@@ -13,10 +13,13 @@ There are two types of ports that can be made to Ladybird:
 
 ### UI Ports
 
-There are currently two supported UI ports:
+There is currently one supported UI port:
+
+* [Qt](https://doc.qt.io/qt-6/) - The UI used on every platform except Android.
+
+There is currently one experimental UI port:
 
 * [Android UI](https://developer.android.com/develop/ui) - The native UI on Android.
-* [Qt](https://doc.qt.io/qt-6/) - The UI used on all other platforms.
 
 ### Platform Ports
 
@@ -30,9 +33,10 @@ Among others, these include Alpine Linux, FreeBSD, OpenBSD, and Haiku. Support f
 meaning there is no regular CI to ensure that each master branch commit maintains their functionality.
 Contributions to restore or improve compatibility are welcome!
 
-There is currently one in progress platform port:
+There are currently two experimental platform ports:
 
 - Android: The Android platform port, using the Android SDK/NDK directly.
+- Windows: The native Windows platform port.
 
 ## Porting Steps
 

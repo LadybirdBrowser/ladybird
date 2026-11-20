@@ -152,7 +152,7 @@ brew install llvm@22
 
 ### Windows:
 
-WSL2 is the supported way to build Ladybird on Windows. A native build is also possible, however it is still experimental,
+WSL2 is the recommended way to build Ladybird on Windows. A native build is also possible, however it is still experimental,
 and there are several issues.
 
 #### WSL2
