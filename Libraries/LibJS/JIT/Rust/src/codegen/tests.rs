@@ -645,7 +645,7 @@ fn runtime() -> RuntimeInfo {
     set(OpCode::ConcatString, concat_string as *const () as u64);
     set(OpCode::NewArray, new_array as *const () as u64);
     RuntimeInfo {
-        slow_paths: slow_paths.into(),
+        slow_paths: slow_paths.leak(),
         jit_call: jit_call as *const () as u64,
         jit_exit: jit_exit as *const () as u64,
         to_boolean: to_boolean as *const () as u64,
@@ -1006,6 +1006,50 @@ fn compile_program_with(
     )
     .unwrap_or_else(|failure| panic!("compilation failed: {failure:?}"));
     (snapshot, compiled)
+}
+
+#[test]
+fn a_compile_makes_no_block_in_the_heap() {
+    let program = assemble(|label| {
+        vec![
+            Instruction::Enter,
+            Instruction::Mov { dst: l(0), src: c(0) },
+            Instruction::Mov { dst: l(1), src: c(0) },
+            Instruction::JumpLessThan {
+                arith_feedback: 0,
+                lhs: l(0),
+                rhs: a(0),
+                true_target: label(4),
+                false_target: label(7),
+            },
+            Instruction::AddRhsInt32 {
+                arith_feedback: 1,
+                dst: l(0),
+                lhs: l(0),
+                rhs: 1,
+            },
+            Instruction::Add {
+                arith_feedback: 2,
+                dst: l(1),
+                lhs: l(1),
+                rhs: l(0),
+            },
+            Instruction::Jump { target: label(3) },
+            Instruction::Return { value: l(1) },
+        ]
+    });
+    let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
+    snapshot.runtime = runtime();
+    snapshot.executables[0].feedback.arith = snapshot.add(&[NUMBERS_AND_STRINGS_FEEDBACK; 3]);
+    snapshot.options = crate::snapshot::CompileOptions::default();
+    let mut scratch = crate::scratch::Scratch::new();
+    let mut compiled = CompiledCode::new();
+    crate::compile(&snapshot, &mut scratch, &mut compiled).unwrap();
+    let mut result = Ok(());
+    let blocks = crate::count_heap_blocks(|| result = crate::compile(&snapshot, &mut scratch, &mut compiled));
+    assert_eq!(result, Ok(()));
+    assert!(!compiled.code.is_empty());
+    assert_eq!(blocks, 0);
 }
 
 #[cfg(target_arch = "x86_64")]

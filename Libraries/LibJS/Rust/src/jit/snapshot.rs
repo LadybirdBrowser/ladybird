@@ -103,7 +103,7 @@ struct SnapshotBuilder<'vm> {
     vm: &'vm Vm,
     defer_gc: &'vm DeferGc<'vm>,
     /// The snapshot that is being captured.
-    snapshot: SnapshotWriter,
+    snapshot: SnapshotWriter<'vm>,
     cells: Vec<Gc<CellHeader>>,
     entries: Vec<Entry>,
     indices: HashMap<InlinedFunction, u32>,
@@ -1568,10 +1568,8 @@ pub fn capture_snapshot<'d>(
             ..FunctionFrameFields::default()
         },
     };
-    let mut snapshot = SnapshotWriter::new(
-        super::compile_queue::spare_snapshot(),
-        super::compile_queue::spare_open_lists(),
-    );
+    let mut spare_snapshot = super::compile_queue::spare_snapshot();
+    let mut snapshot = SnapshotWriter::new(&mut spare_snapshot, super::compile_queue::spare_open_lists());
     // NB: These allocate (and so may collect garbage), which they do before anything is captured.
     let allocation = allocation_infos(vm, realm, defer_gc, &mut snapshot);
     // NB: Closures that top-level code creates have its environments, which the code does not know.
@@ -1680,8 +1678,8 @@ pub fn capture_snapshot<'d>(
         entries,
         ..
     } = builder;
-    let (mut snapshot, open_lists) = snapshot.finish();
-    super::compile_queue::give_back_open_lists(open_lists);
+    super::compile_queue::give_back_open_lists(snapshot.finish());
+    let mut snapshot = spare_snapshot;
     snapshot.runtime = runtime;
     snapshot.options = {
         CompileOptions {

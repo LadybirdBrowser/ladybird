@@ -26,7 +26,7 @@ use super::THIS_VALUE_REGISTER;
 use ak::Zone;
 use ak::ZoneBitSet;
 use ak::ZoneVec;
-use std::ops::Range;
+use core::ops::Range;
 
 pub type BlockIndex = usize;
 

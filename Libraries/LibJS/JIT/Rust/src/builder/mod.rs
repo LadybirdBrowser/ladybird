@@ -91,10 +91,10 @@ use ak::Zone;
 use ak::ZoneBitSet;
 use ak::ZoneMap;
 use ak::ZoneVec;
+use core::cell::Cell;
+use core::cell::OnceCell;
 pub(crate) use slow_paths::is_ssa_slow_path_output;
 pub(crate) use slow_paths::js_call_operands;
-use std::cell::Cell;
-use std::cell::OnceCell;
 
 /// Builds the IR for `snapshot.executables[0]`, with the graph and the work data of the build both in `zone`.
 #[cfg(test)]

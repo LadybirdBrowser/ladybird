@@ -415,9 +415,9 @@ struct Codegen<'a, 'c, M: PortableMacroAssembler> {
     /// The node whose code (inline or out of line) is being emitted, if any.
     emitting: Option<NodeId>,
     /// How many temps each node's lowering took (see `temp()`).
-    requested_temps: &'a [std::cell::Cell<u8>],
+    requested_temps: &'a [core::cell::Cell<u8>],
     /// The nodes whose code used the saves area without declaring it.
-    undeclared_saves_area_uses: std::cell::RefCell<ZoneVec<'a, NodeId>>,
+    undeclared_saves_area_uses: core::cell::RefCell<ZoneVec<'a, NodeId>>,
 }
 
 /// The operands of the slow path of a `CallSlowPath` node that is a call,
@@ -546,8 +546,8 @@ pub fn generate<'a, M: PortableMacroAssembler>(
         fused_probe_failure: None,
         verify: verify || cfg!(debug_assertions),
         emitting: None,
-        requested_temps: work.alloc_slice_from_iter(graph.nodes.iter().map(|_| std::cell::Cell::new(0))),
-        undeclared_saves_area_uses: std::cell::RefCell::new(ZoneVec::new_in(work)),
+        requested_temps: work.alloc_slice_from_iter(graph.nodes.iter().map(|_| core::cell::Cell::new(0))),
+        undeclared_saves_area_uses: core::cell::RefCell::new(ZoneVec::new_in(work)),
     };
     codegen.lay_out_frame()?;
     codegen.emit_prologue();

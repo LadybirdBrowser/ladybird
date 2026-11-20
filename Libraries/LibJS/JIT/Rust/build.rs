@@ -11,9 +11,6 @@
 //! the `Instruction` enum and the field readers are shared with
 //! `Libraries/LibJS/Rust/build.rs` through `flapc::rust_bytecode`.
 
-// NB: The rule against containers of the heap (see clippy.toml) is for the compiler. This script runs at build time.
-#![allow(clippy::disallowed_types, clippy::disallowed_macros, clippy::disallowed_methods)]
-
 use flapc::metadata::Field;
 use flapc::metadata::InstructionDefinition;
 use flapc::metadata::ParameterMode;

@@ -176,7 +176,7 @@ fn reachable_blocks<'w>(graph: &Graph, work: &'w Zone) -> ZoneVec<'w, bool> {
     //     predecessors if none of them was built, but is no entry.
     let mut pending = ZoneVec::from_iter_in(graph.entries().map(BlockId::index), work);
     while let Some(block) = pending.pop() {
-        if std::mem::replace(&mut reachable[block], true) {
+        if core::mem::replace(&mut reachable[block], true) {
             continue;
         }
         pending.extend(
@@ -450,7 +450,7 @@ pub fn remove_unused_frame_states(graph: &mut Graph, work: &Zone) {
         for node in block.nodes() {
             let mut frame_state = graph.nodes[node.index()].frame_state;
             while let Some(id) = frame_state {
-                if std::mem::replace(&mut used[id.index()], true) {
+                if core::mem::replace(&mut used[id.index()], true) {
                     break;
                 }
                 frame_state = graph.frame_states[id.index()].parent;

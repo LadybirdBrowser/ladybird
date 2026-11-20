@@ -1314,8 +1314,8 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         let Some(dst_slot) = self.function.layout.tracked_index(*dst) else {
             return Ok(None);
         };
-        let mut operands = std::iter::once(*callee)
-            .chain(std::iter::once(*this_value))
+        let mut operands = core::iter::once(*callee)
+            .chain(core::iter::once(*this_value))
             .chain(arguments.iter().copied());
         if self.graph.legacy_arguments.contains(&dst.raw())
             || info.reads_whole_frame
@@ -2274,7 +2274,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         let derived_construct = construct.filter(|construct| construct.super_constructor.is_some());
         // NB: The callee's frame cannot hold the virtual arguments object:
         //     the callee's generic instructions could not read it.
-        if std::iter::once(&this)
+        if core::iter::once(&this)
             .chain(arguments.iter())
             .any(|value| matches!(value, InlineValue::Operand(operand) if self.holds_virtual_arguments(*operand)))
         {
@@ -2458,14 +2458,14 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
 
         // NB: Walk the callee's bytecode, then continue in the caller.
         callee_function.start_walk();
-        let caller = std::mem::replace(&mut self.function, callee_function);
+        let caller = core::mem::replace(&mut self.function, callee_function);
         self.callers.push(caller);
         self.frame = callee_frame;
         let call_block = self.block;
         self.enter_function(call_block);
         let result = self.build_function();
         let caller = self.callers.pop().expect("the caller was suspended");
-        let callee_function = std::mem::replace(&mut self.function, caller);
+        let callee_function = core::mem::replace(&mut self.function, caller);
         result?;
         self.inlined_instructions += instruction_count;
 

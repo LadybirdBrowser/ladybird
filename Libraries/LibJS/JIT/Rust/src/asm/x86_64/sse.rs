@@ -40,17 +40,52 @@ impl CpuFeatures {
     pub fn host() -> Self {
         #[cfg(target_arch = "x86_64")]
         {
-            static FEATURES: std::sync::OnceLock<CpuFeatures> = std::sync::OnceLock::new();
-            *FEATURES.get_or_init(|| Self {
-                avx: std::arch::is_x86_feature_detected!("avx"),
-                avx2: std::arch::is_x86_feature_detected!("avx2"),
-                bmi1: std::arch::is_x86_feature_detected!("bmi1"),
-                bmi2: std::arch::is_x86_feature_detected!("bmi2"),
-                lzcnt: std::arch::is_x86_feature_detected!("lzcnt"),
-            })
+            host::features()
         }
         #[cfg(not(target_arch = "x86_64"))]
         Self::X86_64_V2
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+mod host {
+    // NB: The JS JIT crate has no `std`, so that its code cannot use the heap. Only this module has it, for the
+    //     detection of the features of the CPU, which also asks the OS whether it saves the extended registers.
+    extern crate std;
+
+    use super::CpuFeatures;
+    use core::sync::atomic::{AtomicU8, Ordering};
+
+    const AVX: u8 = 1 << 0;
+    const AVX2: u8 = 1 << 1;
+    const BMI1: u8 = 1 << 2;
+    const BMI2: u8 = 1 << 3;
+    const LZCNT: u8 = 1 << 4;
+    const KNOWN: u8 = 1 << 7;
+
+    /// The features of the host, with `KNOWN` set once they are detected.
+    static FEATURES: AtomicU8 = AtomicU8::new(0);
+
+    pub(super) fn features() -> CpuFeatures {
+        let mut bits = FEATURES.load(Ordering::Relaxed);
+        if bits & KNOWN == 0 {
+            let bit = |detected: bool, bit: u8| if detected { bit } else { 0 };
+            bits = KNOWN
+                | bit(std::arch::is_x86_feature_detected!("avx"), AVX)
+                | bit(std::arch::is_x86_feature_detected!("avx2"), AVX2)
+                | bit(std::arch::is_x86_feature_detected!("bmi1"), BMI1)
+                | bit(std::arch::is_x86_feature_detected!("bmi2"), BMI2)
+                | bit(std::arch::is_x86_feature_detected!("lzcnt"), LZCNT);
+            // NB: Each thread that detects the features gets the same bits, so a race does no harm.
+            FEATURES.store(bits, Ordering::Relaxed);
+        }
+        CpuFeatures {
+            avx: bits & AVX != 0,
+            avx2: bits & AVX2 != 0,
+            bmi1: bits & BMI1 != 0,
+            bmi2: bits & BMI2 != 0,
+            lzcnt: bits & LZCNT != 0,
+        }
     }
 }
 
@@ -498,7 +533,7 @@ mod tests {
                 asm.ret();
                 let code = ExecutableCode::new(&asm.finish().unwrap());
                 let run: extern "sysv64" fn(*const u128, *const u128, *mut u128) =
-                    unsafe { std::mem::transmute(code.address()) };
+                    unsafe { core::mem::transmute(code.address()) };
                 let mut results = [0u128; 2];
                 run(&raw const a, &raw const b, results.as_mut_ptr());
                 assert_eq!(
@@ -531,7 +566,7 @@ mod tests {
                         asm.ret();
                         let code = ExecutableCode::new(&asm.finish().unwrap());
                         let run: extern "sysv64" fn(*const u128, *const u128, *mut u128) =
-                            unsafe { std::mem::transmute(code.address()) };
+                            unsafe { core::mem::transmute(code.address()) };
                         let a = (0x1234_5678_9abc_def0u128 << 64) | u128::from(7.5f64.to_bits());
                         let b = (0xfedc_ba98_7654_3210u128 << 64) | u128::from(2.0f64.to_bits());
                         let mut result = [0u128; 2];
@@ -568,7 +603,7 @@ mod tests {
                     asm.mov_rr(Width::W64, RAX, dst);
                     asm.ret();
                     let code = ExecutableCode::new(&asm.finish().unwrap());
-                    let run: extern "sysv64" fn(u64) -> u64 = unsafe { std::mem::transmute(code.address()) };
+                    let run: extern "sysv64" fn(u64) -> u64 = unsafe { core::mem::transmute(code.address()) };
                     for input in [0, 1, 2, 3, 1 << 31, 1 << 32, 1 << 63, u64::MAX] {
                         let expected = match (op, width) {
                             (BitCount::Lzcnt, Width::W32) => (input as u32).leading_zeros(),

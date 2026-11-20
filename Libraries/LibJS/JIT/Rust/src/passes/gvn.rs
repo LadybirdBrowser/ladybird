@@ -26,9 +26,9 @@ use crate::ir::Op;
 use ak::FastHasher;
 use ak::ZoneBitSet;
 use ak::ZoneMap;
-use std::hash::Hash;
-use std::hash::Hasher;
-use std::mem::discriminant;
+use core::hash::Hash;
+use core::hash::Hasher;
+use core::mem::discriminant;
 
 fn is_numbered(op: &Op) -> bool {
     let properties = op.properties();

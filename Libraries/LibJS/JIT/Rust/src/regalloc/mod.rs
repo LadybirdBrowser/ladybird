@@ -787,7 +787,7 @@ impl<'w> Allocator<'_, 'w> {
         let victim = candidates()
             .max_by_key(|register| {
                 let value = self.contents[*register as usize].expect("no free register");
-                (self.next_use(value), std::cmp::Reverse(*register))
+                (self.next_use(value), core::cmp::Reverse(*register))
             })
             .expect("a node needs more registers than the target has");
         self.evict(victim);
@@ -1033,7 +1033,7 @@ impl<'w> Allocator<'_, 'w> {
                     .iter()
                     .filter(|register| !taken.contains(*register));
                 let first = free.next()?;
-                std::iter::once(first)
+                core::iter::once(first)
                     .chain(free)
                     .find(|register| self.contents[*register as usize].is_none())
                     .or(Some(first))

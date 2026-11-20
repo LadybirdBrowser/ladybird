@@ -40,7 +40,7 @@ impl ExecutableCode {
             let address = ak::windows_code_memory::reserve(size);
             assert!(!address.is_null());
             assert!(ak::windows_code_memory::make_writable(address, size));
-            std::ptr::copy_nonoverlapping(code.as_ptr(), address, code.len());
+            core::ptr::copy_nonoverlapping(code.as_ptr(), address, code.len());
             assert!(ak::windows_code_memory::make_executable(address, size));
             Self {
                 address: address.cast(),
@@ -52,7 +52,7 @@ impl ExecutableCode {
         // while the thread's write protection of it is off.
         unsafe {
             let address = libc::mmap(
-                std::ptr::null_mut(),
+                core::ptr::null_mut(),
                 size,
                 libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
                 libc::MAP_PRIVATE | libc::MAP_ANON | libc::MAP_JIT,
@@ -61,7 +61,7 @@ impl ExecutableCode {
             );
             assert_ne!(address, libc::MAP_FAILED);
             pthread_jit_write_protect_np(0);
-            std::ptr::copy_nonoverlapping(code.as_ptr(), address.cast::<u8>(), code.len());
+            core::ptr::copy_nonoverlapping(code.as_ptr(), address.cast::<u8>(), code.len());
             pthread_jit_write_protect_np(1);
             sys_icache_invalidate(address, code.len());
             Self { address, size }
@@ -71,7 +71,7 @@ impl ExecutableCode {
         // made executable.
         unsafe {
             let address = libc::mmap(
-                std::ptr::null_mut(),
+                core::ptr::null_mut(),
                 size,
                 libc::PROT_READ | libc::PROT_WRITE,
                 libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
@@ -79,7 +79,7 @@ impl ExecutableCode {
                 0,
             );
             assert_ne!(address, libc::MAP_FAILED);
-            std::ptr::copy_nonoverlapping(code.as_ptr(), address.cast::<u8>(), code.len());
+            core::ptr::copy_nonoverlapping(code.as_ptr(), address.cast::<u8>(), code.len());
             assert_eq!(libc::mprotect(address, size, libc::PROT_READ | libc::PROT_EXEC), 0);
             __clear_cache(address.cast(), address.cast::<libc::c_char>().add(code.len()));
             Self { address, size }
@@ -93,7 +93,7 @@ impl ExecutableCode {
     pub(crate) unsafe fn function<F: Copy>(&self) -> F {
         assert_eq!(size_of::<F>(), size_of::<*mut core::ffi::c_void>());
         // SAFETY: The caller guarantees `F` is a matching function pointer type.
-        unsafe { std::mem::transmute_copy(&self.address) }
+        unsafe { core::mem::transmute_copy(&self.address) }
     }
 }
 
