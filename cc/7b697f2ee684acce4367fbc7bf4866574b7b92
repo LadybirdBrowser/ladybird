@@ -1,0 +1,10 @@
+Ladybird represents a hole in dictionary storage by an absent
+index. V8’s DictionaryElementsAccessor::GetEntryForIndexImpl()
+looks up the key in a NumberDictionary. JavaScriptCore’s
+JSObject::getOwnPropertySlotByIndex() checks indexed storage and its
+sparse map. SpiderMonkey’s NativeLookupOwnPropertyInline() checks dense
+elements and the shape’s property map.
+
+Chrome 158.0.8127.36, Firefox 151.0, and WebKit 26.5 reported the same
+own keys and lengths before and after concatenating sparse arrays of
+lengths 3, 64, and 256. An explicit undefined kept its own index.
