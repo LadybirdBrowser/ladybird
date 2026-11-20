@@ -161,6 +161,7 @@ if (NOT WIN32)
         TestPictureInPictureWindowControls.cpp
         TestPictureInPictureWindowLifetime.cpp
         TestRendererAttentionClaims.cpp
+        TestRendererClipboardFormats.cpp
         TestRendererCookieAccess.cpp
         TestRendererOriginClaims.cpp
         TestRendererResponseBodyClaims.cpp
