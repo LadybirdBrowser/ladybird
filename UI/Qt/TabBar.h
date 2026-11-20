@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Optional.h>
@@ -17,6 +18,7 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/BookmarksBar.h>
+#include <UI/Qt/NotificationBar.h>
 #include <UI/Qt/PlainText.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/WindowToolbar.h>
@@ -56,7 +58,6 @@ namespace Ladybird {
 class AllTabsPopover;
 class ChromeHeaderButton;
 class LadybirdButton;
-class SandboxOffBar;
 
 class TabMicrophoneIndicator;
 class TabWidget;
@@ -332,6 +333,13 @@ public:
     void set_tab_icon(int index, QIcon const& icon);
 
     void set_tab_bar_visible(bool visible);
+
+    enum class NotificationBarSlot : u8 {
+        SandboxOff,
+    };
+    void show_notification_bar(NotificationBarSlot, QString const& message, Vector<NotificationBar::Button> = {}, Function<void()> on_close = {});
+    void hide_notification_bar(NotificationBarSlot);
+
     void set_new_tab_action(QAction* action);
     void set_window_controls_visible(bool);
     void window_control_buttons_changed();
@@ -458,7 +466,9 @@ private:
     WindowControlsReveal* m_window_controls_reveal { nullptr };
     WindowToolbar* m_toolbar { nullptr };
     BookmarksBarContainer* m_bookmarks_bar { nullptr };
-    SandboxOffBar* m_sandbox_off_bar { nullptr };
+    QWidget* m_notification_bar_column { nullptr };
+    QBoxLayout* m_notification_bar_column_layout { nullptr };
+    Array<NotificationBar*, 1> m_notification_bars {};
     QWidget* m_page_column { nullptr };
     QWidget* m_toolbar_placeholder { nullptr };
     bool m_toolbar_follows_page_column { false };
