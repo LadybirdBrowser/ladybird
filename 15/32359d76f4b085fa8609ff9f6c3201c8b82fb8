@@ -1,0 +1,16 @@
+Ladybird now finds the baseline of a line box from wherever each
+box’s vertical-align puts it, under every keyword. And it counts
+the layout bounds of the inline boxes around a fragment where their
+own alignment shifts them. Blink does the same: InlineLayoutStateStack::
+ApplyBaselineShift() moves the metrics of each box by its baseline
+shift, and the line box takes the union of those metrics. In WebKit,
+LineBoxVerticalAligner::logicalTopOffsetFromParentBaseline() gives
+the top of each box relative to its parent’s baseline for every keyword,
+and computeLineBoxLogicalHeight() finds the line box from those.
+Gecko’s nsLineLayout::VerticalAlignFrames() places each frame by its
+vertical-align, and grows the span’s minBCoord and maxBCoord to hold it.
+
+Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5 ran
+the cases of the test added here, and agree on all 20 of them; Ladybird
+now gives what they give. All of that is from running them; the function
+names are from reading the sources.
