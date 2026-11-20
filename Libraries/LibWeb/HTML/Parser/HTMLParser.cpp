@@ -2701,19 +2701,19 @@ RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(Utf16View st
     // themselves, as if they had their 'text-align' property set to 'center' in a presentational hint, and to align
     // descendants to the center.
     if (string_view.equals_ignoring_ascii_case(u"center"sv) || string_view.equals_ignoring_ascii_case(u"middle"sv))
-        return CSS::KeywordStyleValue::create(CSS::Keyword::LibwebCenter);
+        return CSS::KeywordStyleValue::create(CSS::Keyword::WebkitCenter);
 
     // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
     // case-insensitive match for the string "left", are expected to left-align text within themselves, as if they had
     // their 'text-align' property set to 'left' in a presentational hint, and to align descendants to the left.
     if (string_view.equals_ignoring_ascii_case(u"left"sv))
-        return CSS::KeywordStyleValue::create(CSS::Keyword::LibwebLeft);
+        return CSS::KeywordStyleValue::create(CSS::Keyword::WebkitLeft);
 
     // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
     // case-insensitive match for the string "right", are expected to right-align text within themselves, as if they
     // had their 'text-align' property set to 'right' in a presentational hint, and to align descendants to the right.
     if (string_view.equals_ignoring_ascii_case(u"right"sv))
-        return CSS::KeywordStyleValue::create(CSS::Keyword::LibwebRight);
+        return CSS::KeywordStyleValue::create(CSS::Keyword::WebkitRight);
 
     // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
     // case-insensitive match for the string "justify", are expected to full-justify text within themselves, as if they

@@ -223,7 +223,7 @@ pub(super) fn adjust_element_style(
     let new_text_align = if input.is_table_element
         && matches!(
             text_align,
-            keyword::_LIBWEB_LEFT | keyword::_LIBWEB_CENTER | keyword::_LIBWEB_RIGHT
+            keyword::_WEBKIT_LEFT | keyword::_WEBKIT_CENTER | keyword::_WEBKIT_RIGHT
         ) {
         keyword::START
     } else {

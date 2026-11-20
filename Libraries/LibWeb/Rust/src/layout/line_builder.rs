@@ -1641,12 +1641,12 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             }
             start_inline_offset
                 + match text_align {
-                    text_align::CENTER | text_align::_LIBWEB_CENTER | text_align::_LIBWEB_INHERIT_OR_CENTER => {
+                    text_align::CENTER | text_align::_WEBKIT_CENTER | text_align::_LIBWEB_INHERIT_OR_CENTER => {
                         excess / 2
                     }
                     text_align::START if line_direction == direction::RTL => excess,
                     text_align::END if line_direction == direction::LTR => excess,
-                    text_align::RIGHT | text_align::_LIBWEB_RIGHT => excess,
+                    text_align::RIGHT | text_align::_WEBKIT_RIGHT => excess,
                     text_align::MATCH_PARENT => unreachable!("match-parent must be resolved"),
                     _ => CssPixels::default(),
                 }

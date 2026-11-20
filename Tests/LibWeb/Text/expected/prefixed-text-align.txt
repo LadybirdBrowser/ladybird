@@ -1,0 +1,47 @@
+ltr -webkit-left 0
+ltr -webkit-center 100
+ltr -webkit-right 200
+ltr center 0
+ltr -webkit-left 350px 0 0
+ltr -webkit-left 100px 0 auto 100
+ltr -webkit-left 100px 0 5px 0 15px 15
+ltr -webkit-center 350px 0 0
+ltr -webkit-center 100px 0 auto 100
+ltr -webkit-center 100px 0 5px 0 15px 105
+ltr -webkit-right 350px 0 0
+ltr -webkit-right 100px 0 auto 100
+ltr -webkit-right 100px 0 5px 0 15px 195
+rtl -webkit-left 0
+rtl -webkit-center 100
+rtl -webkit-right 200
+rtl center 200
+rtl -webkit-left 350px 0 -50
+rtl -webkit-left 100px 0 auto 100
+rtl -webkit-left 100px 0 5px 0 15px 15
+rtl -webkit-center 350px 0 -50
+rtl -webkit-center 100px 0 auto 100
+rtl -webkit-center 100px 0 5px 0 15px 105
+rtl -webkit-right 350px 0 -50
+rtl -webkit-right 100px 0 auto 100
+rtl -webkit-right 100px 0 5px 0 15px 195
+horizontal-tb rtl self-start: 200
+horizontal-tb rtl self-end: 0
+horizontal-tb rtl baseline: 0
+vertical-rl ltr self-start: 200
+vertical-rl ltr self-end: 0
+vertical-rl ltr baseline: 0
+vertical-lr rtl self-start: 0
+vertical-lr rtl self-end: 200
+vertical-lr rtl baseline: 0
+vertical-rl ltr -webkit-left 0
+vertical-rl ltr -webkit-center 100
+vertical-rl ltr -webkit-right 200
+vertical-rl rtl -webkit-left 0
+vertical-rl rtl -webkit-center 100
+vertical-rl rtl -webkit-right 200
+vertical-lr ltr -webkit-left 0
+vertical-lr ltr -webkit-center 100
+vertical-lr ltr -webkit-right 200
+vertical-lr rtl -webkit-left 0
+vertical-lr rtl -webkit-center 100
+vertical-lr rtl -webkit-right 200

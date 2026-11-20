@@ -1,0 +1,28 @@
+ltr left left 60 0
+ltr left center 100 0
+ltr left right 140 0
+ltr left self-start 60 0
+ltr left self-end 140 0
+ltr right left 0 0
+ltr right center 40 0
+ltr right right 80 0
+ltr right self-start 0 0
+ltr right self-end 80 0
+rtl left left 60 0
+rtl left center 100 0
+rtl left right 140 0
+rtl left self-start 140 0
+rtl left self-end 60 0
+rtl right left 0 0
+rtl right center 40 0
+rtl right right 80 0
+rtl right self-start 80 0
+rtl right self-end 0 0
+rtl left 80px: 60 0
+rtl left 90px: 25 30
+rtl left 150px: -10 30
+ltr right 80px: 80 0
+ltr right 90px: 115 30
+ltr right 150px: 150 30
+ltr left start margin: 80 0
+rtl right start margin: 60 0

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="parentBox" style="width: 300px"><div id="childBox" style="width: 100px"></div></div>
+<script>
+    test(() => {
+        for (const direction of ["ltr", "rtl"]) {
+            parentBox.dir = direction;
+            for (const align of ["-webkit-left", "-webkit-center", "-webkit-right", "center"]) {
+                parentBox.style.textAlign = align;
+                const offset = childBox.getBoundingClientRect().left - parentBox.getBoundingClientRect().left;
+                println(`${direction} ${getComputedStyle(parentBox).textAlign} ${offset}`);
+            }
+            for (const align of ["-webkit-left", "-webkit-center", "-webkit-right"]) {
+                parentBox.style.textAlign = align;
+                for (const [width, margin] of [["350px", "0"], ["100px", "0 auto"], ["100px", "0 5px 0 15px"]]) {
+                    childBox.style.width = width;
+                    childBox.style.margin = margin;
+                    println(`${direction} ${align} ${width} ${margin} ${childBox.offsetLeft - parentBox.offsetLeft}`);
+                }
+            }
+            childBox.style.cssText = "width: 100px";
+        }
+        parentBox.dir = "ltr";
+        parentBox.style.textAlign = "-webkit-right";
+        for (const [mode, direction] of [["horizontal-tb", "rtl"], ["vertical-rl", "ltr"], ["vertical-lr", "rtl"]]) {
+            childBox.dir = direction;
+            childBox.style.writingMode = mode;
+            for (const alignment of ["self-start", "self-end", "baseline"]) {
+                childBox.style.justifySelf = alignment;
+                println(`${mode} ${direction} ${alignment}: ${childBox.offsetLeft - parentBox.offsetLeft}`);
+            }
+        }
+        childBox.removeAttribute("dir");
+        childBox.style.cssText = "width: 100px";
+        parentBox.dir = "rtl";
+        parentBox.style.height = "300px";
+        childBox.style.height = "100px";
+        for (const mode of ["vertical-rl", "vertical-lr"]) {
+            parentBox.style.writingMode = mode;
+            for (const direction of ["ltr", "rtl"]) {
+                parentBox.dir = direction;
+                for (const align of ["-webkit-left", "-webkit-center", "-webkit-right"]) {
+                    parentBox.style.textAlign = align;
+                    println(`${mode} ${direction} ${align} ${childBox.offsetTop - parentBox.offsetTop}`);
+                }
+            }
+        }
+    });
+</script>

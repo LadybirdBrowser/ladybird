@@ -25,6 +25,8 @@ pub(super) struct InFlowBlockKey {
     pub(super) input: LayoutInput,
     pub(super) containing_block_inline_size: CssPixels,
     pub(super) containing_block_is_right_to_left: bool,
+    containing_text_align: u8,
+    containing_justify_items: (u8, u8),
     /// The block margins of the child that stretch-fit sizing subtracts, which it treats as zero on a side where the
     /// containing block has no border or padding.
     pub(super) stretch_fit_block_margins: (CssPixels, CssPixels),
@@ -41,14 +43,19 @@ impl InFlowBlockKey {
         run: &FormattingContextRun<'_>,
         input: LayoutInput,
         containing_block_inline_size: CssPixels,
-        containing_block_is_right_to_left: bool,
+        container_style: StyleValues<'_>,
         stretch_fit_block_margins: (CssPixels, CssPixels),
         incoming_outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     ) -> Self {
         Self {
             input,
             containing_block_inline_size,
-            containing_block_is_right_to_left,
+            containing_block_is_right_to_left: container_style.direction() == direction::RTL,
+            containing_text_align: container_style.text_align(),
+            containing_justify_items: (
+                container_style.justify_items(),
+                container_style.justify_items_overflow(),
+            ),
             stretch_fit_block_margins,
             incoming_outside_marker_line,
             run_root: run.box_,

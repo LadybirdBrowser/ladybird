@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align/#justify-self-property">
+<meta name="assert" content="text-align:-webkit-*, justify-items, justify-self work correctly in tandem when all are specified" />
+<style>
+
+.container {
+  width: 200px;
+  position: relative;
+  outline: solid;
+  justify-items: center;
+  text-align: -webkit-right;
+}
+
+.item {
+  background: lightblue;
+  width: 100px;
+  height: 100px;
+  outline: solid;
+}
+
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<div class="container">
+  <div class="item" style="justify-self: normal;" data-offset-x="100">
+    normal
+  </div>
+  <div class="item" style="justify-self: auto;" data-offset-x="50">
+    auto
+  </div>
+  <div class="item" style="justify-self: left;" data-offset-x="0">
+    left
+  </div>
+</div>
+
+<script>
+  checkLayout('.item');
+</script>

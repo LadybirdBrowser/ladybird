@@ -5399,6 +5399,11 @@
     "requires-computation": "never",
     "valid-types": [
       "text-align"
+    ],
+    "valid-identifiers": [
+      "-libweb-center>-webkit-center",
+      "-libweb-left>-webkit-left",
+      "-libweb-right>-webkit-right"
     ]
   },
   "text-align-last": {
