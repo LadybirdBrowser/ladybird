@@ -950,7 +950,6 @@ set(SOURCES
     WebSockets/WebSocket.cpp
     WebVTT/Parser.cpp
     WebVTT/VTTCue.cpp
-    WebVTT/VTTRegion.cpp
     XHR/FormData.cpp
     XHR/XMLHttpRequest.cpp
     XLink/AttributeNames.cpp

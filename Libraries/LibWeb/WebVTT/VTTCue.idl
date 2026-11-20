@@ -6,10 +6,10 @@ enum PositionAlignSetting { "line-left", "center", "line-right", "auto" };
 enum AlignSetting { "start", "center", "end", "left", "right" };
 
 // https://w3c.github.io/webvtt/#vttcue
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface VTTCue : TextTrackCue {
     constructor(double startTime, unrestricted double endTime, DOMString text);
-    [DirectGetter] attribute VTTRegion? region;
+    attribute VTTRegion? region;
     attribute DirectionSetting vertical;
     attribute boolean snapToLines;
     attribute LineAndPositionSetting line;
