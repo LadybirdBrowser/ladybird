@@ -10,6 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/PresentableSurface.h>
@@ -73,6 +74,8 @@ public:
     void discard_errors();
 
     WebGLVersion webgl_version() const { return m_webgl_version; }
+    bool supports_pixel_buffer_objects() const;
+    bool supports_pack_subimage_parameters() const;
     bool can_copy_images_into_textures();
     // The source size is the part of the image to copy, which can be smaller than the image.
     bool copy_image_into_bound_texture(SkImage const&, Gfx::IntSize source_size, Gfx::IntSize, GLenum target, GLint level, GLint xoffset, GLint yoffset, bool flip_y, bool premultiply_alpha);
@@ -96,6 +99,7 @@ private:
     void attach_color_buffer_to_default_framebuffer(ColorBuffer const&);
     u32 color_buffer_texture_target() const;
     bool supports_copy_texture();
+    bool is_webgl2_or_has_enabled_extension(StringView) const;
 #if defined(AK_OS_MACOS)
     void allocate_iosurface_color_buffer(ColorBuffer&, Gfx::IntSize, Gfx::PaintingSurface::Origin);
 #endif

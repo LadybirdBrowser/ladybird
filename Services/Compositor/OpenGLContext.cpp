@@ -672,14 +672,18 @@ void OpenGLContext::copy_default_framebuffer_to_cpu_painting_surface()
     glGetIntegerv(GL_PACK_ALIGNMENT, &original_pack_alignment);
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
 
+    auto has_pixel_buffer_objects = supports_pixel_buffer_objects();
     GLint original_pixel_pack_buffer = 0;
+    if (has_pixel_buffer_objects) {
+        glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &original_pixel_pack_buffer);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    }
+
+    auto has_pack_subimage_parameters = supports_pack_subimage_parameters();
     GLint original_pack_row_length = 0;
     GLint original_pack_skip_pixels = 0;
     GLint original_pack_skip_rows = 0;
-    if (m_webgl_version == WebGLVersion::WebGL2) {
-        glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &original_pixel_pack_buffer);
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-
+    if (has_pack_subimage_parameters) {
         glGetIntegerv(GL_PACK_ROW_LENGTH, &original_pack_row_length);
         glGetIntegerv(GL_PACK_SKIP_PIXELS, &original_pack_skip_pixels);
         glGetIntegerv(GL_PACK_SKIP_ROWS, &original_pack_skip_rows);
@@ -688,9 +692,11 @@ void OpenGLContext::copy_default_framebuffer_to_cpu_painting_surface()
         glPixelStorei(GL_PACK_SKIP_ROWS, 0);
     }
 
-    // ANGLE's Direct3D 11 backend waits for the GPU on every glReadPixels(), so the frame is read with one call.
+    // ANGLE's Direct3D 11 backend waits for the GPU on every glReadPixels(), so the frame is read with one call. The
+    // page's pack state decides where in the bitmap that call writes, so ANGLE is told the size of the bitmap and
+    // refuses to write past it.
     VERIFY(bitmap->pitch() == static_cast<size_t>(m_size.width()) * sizeof(Gfx::RawPixel));
-    glReadPixels(0, 0, m_size.width(), m_size.height(), GL_RGBA, GL_UNSIGNED_BYTE, bitmap->scanline_u8(0));
+    glReadPixelsRobustANGLE(0, 0, m_size.width(), m_size.height(), GL_RGBA, GL_UNSIGNED_BYTE, static_cast<GLsizei>(bitmap->size_in_bytes()), nullptr, nullptr, nullptr, bitmap->scanline_u8(0));
 
     // GL's rows go from the bottom of the image up, so flip them into the bitmap's top-down order.
     for (int top = 0, bottom = m_size.height() - 1; top < bottom; ++top, --bottom) {
@@ -700,12 +706,13 @@ void OpenGLContext::copy_default_framebuffer_to_cpu_painting_surface()
             swap(top_row[x], bottom_row[x]);
     }
 
-    if (m_webgl_version == WebGLVersion::WebGL2) {
+    if (has_pack_subimage_parameters) {
         glPixelStorei(GL_PACK_ROW_LENGTH, original_pack_row_length);
         glPixelStorei(GL_PACK_SKIP_PIXELS, original_pack_skip_pixels);
         glPixelStorei(GL_PACK_SKIP_ROWS, original_pack_skip_rows);
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, original_pixel_pack_buffer);
     }
+    if (has_pixel_buffer_objects)
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, original_pixel_pack_buffer);
     glPixelStorei(GL_PACK_ALIGNMENT, original_pack_alignment);
 
     glBindFramebuffer(framebuffer_target, original_framebuffer);
@@ -914,6 +921,27 @@ bool OpenGLContext::supports_copy_texture()
     return *m_impl->supports_copy_texture;
 }
 #endif
+
+// WebGL 2 runs on OpenGL ES 3, where this pixel store state is core. WebGL 1 runs on OpenGL ES 2, which only holds it
+// while ANGLE has the extension for it enabled.
+bool OpenGLContext::is_webgl2_or_has_enabled_extension([[maybe_unused]] StringView extension) const
+{
+#ifdef ENABLE_WEBGL
+    return m_webgl_version == WebGLVersion::WebGL2 || extension_list_contains(GL_EXTENSIONS, extension);
+#else
+    return false;
+#endif
+}
+
+bool OpenGLContext::supports_pixel_buffer_objects() const
+{
+    return is_webgl2_or_has_enabled_extension("GL_NV_pixel_buffer_object"sv);
+}
+
+bool OpenGLContext::supports_pack_subimage_parameters() const
+{
+    return is_webgl2_or_has_enabled_extension("GL_NV_pack_subimage"sv);
+}
 
 GLenum OpenGLContext::get_error()
 {
