@@ -1,0 +1,2 @@
+before replacing: rgb(255, 0, 0)
+after replacing: rgb(0, 0, 0)
