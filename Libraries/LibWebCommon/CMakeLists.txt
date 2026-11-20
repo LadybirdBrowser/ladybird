@@ -47,6 +47,7 @@ set(SOURCES
     Infra/Strings.cpp
     Loader/ContentBlocking.cpp
     Loader/DownloadFilename.cpp
+    Loader/FileResponseHeaders.cpp
     Loader/LoaderConfigSnapshot.cpp
     Loader/SiteCompatibility.cpp
     MediaSession/MediaSessionState.cpp

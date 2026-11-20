@@ -9,7 +9,6 @@
 #include <AK/Debug.h>
 #include <AK/NeverDestroyed.h>
 #include <LibCore/Directory.h>
-#include <LibCore/MimeData.h>
 #include <LibCore/Resource.h>
 #include <LibCore/System.h>
 #include <LibGC/Function.h>
@@ -29,6 +28,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
+#include <LibWebCommon/Loader/FileResponseHeaders.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 
 namespace Web {
@@ -217,26 +217,6 @@ bool ResourceLoader::is_known_hsts_host(Page& page, String const& host)
         return true;
 
     return page.client().page_did_is_known_hsts_host(host);
-}
-
-static NonnullRefPtr<HTTP::HeaderList> response_headers_for_file(StringView path, size_t content_length, Optional<time_t> const& modified_time)
-{
-    // For file:// and resource:// URLs, we have to guess the MIME type, since there's no HTTP header to tell us what
-    // it is. We insert a fake Content-Type header here, so that clients can use it to learn the MIME type.
-    auto mime_type = Core::guess_mime_type_based_on_filename(path);
-
-    auto response_headers = HTTP::HeaderList::create({
-        { "Access-Control-Allow-Origin"sv, "null"sv },
-        { "Content-Type"sv, mime_type },
-        { "Content-Length"sv, ByteString::number(content_length) },
-    });
-
-    if (modified_time.has_value()) {
-        auto const datetime = AK::UnixDateTime::from_seconds_since_epoch(modified_time.value());
-        response_headers->set({ "Last-Modified"sv, datetime.to_byte_string("%a, %d %b %Y %H:%M:%S GMT"sv, AK::UnixDateTime::LocalTime::No) });
-    }
-
-    return response_headers;
 }
 
 static void log_request_start(LoadRequest const& request)
