@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<object id="missing"><span>missing</span></object>
+<object id="empty" data=""><span>empty</span></object>
+<object id="removed" data="../wpt-import/images/blue.png"><span>removed</span></object>
+<script>
+    function showsFallback(id) {
+        return document.getElementById(id).querySelector("span").getClientRects().length > 0;
+    }
+
+    promiseTest(async () => {
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        for (const id of ["missing", "empty", "removed"])
+            println(`${id}: ${showsFallback(id) ? "fallback" : "no fallback"}`);
+
+        document.getElementById("removed").removeAttribute("data");
+        for (let frame = 0; frame < 60 && !showsFallback("removed"); ++frame)
+            await animationFrame();
+        println(`removed after removing data: ${showsFallback("removed") ? "fallback" : "no fallback"}`);
+    });
+</script>
