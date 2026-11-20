@@ -1,0 +1,12 @@
+Ladybird gives a range input a natural size of 129px by 16px in its
+writing mode, which zoom scales, and no UA width or height. The 129px
+is the track length Blink and WebKit use, so the default size matches
+theirs exactly: Blink’s LayoutBox::DefaultIntrinsicContentInlineSize()
+answers SliderIntrinsicInlineSize(), 129px times the zoom, for any
+range input, and WebKit’s RenderSlider::computeIntrinsicLogicalWidths()
+takes defaultTrackLength, also 129. Gecko’s nsRangeFrame sizes it at
+12em by 1.3em, and its IntrinsicISize() resolves a percentage inline
+size against zero for the min-content size, as Ladybird now does for
+a slider. Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5:
+Ladybird matches Chrome in every case in the test; Firefox stretches the
+same cases at its own size.
