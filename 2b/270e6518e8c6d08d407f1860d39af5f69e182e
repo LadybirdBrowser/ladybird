@@ -1,0 +1,11 @@
+Ladybird lays out the fragments of a right-to-left line in logical
+order, and now places an empty inline box between two of them where
+it is in that order. A box at either end of the line goes to that end
+in the line’s direction. In Chrome, Firefox, and WebKit, an empty inline
+box between two runs of left-to-right text sits between them, where
+the bidi algorithm puts it.
+
+Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5 ran
+the cases of the test added here, and agree on every one except an empty
+box at the end of the line, which Chrome and Firefox put at its left end
+and WebKit at its right end; Ladybird matches Chrome and Firefox.
