@@ -21,6 +21,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
+#include <RequestServer/CertificateExceptions.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/ControlConnectionFromClient.h>
 #include <RequestServer/Request.h>
@@ -580,6 +581,7 @@ NonnullOwnPtr<Request> Request::import(
     request->m_import = Import {};
     request->m_import->body_fd = exported.body.take_fd();
     request->m_import->status_fd = exported.status.take_fd();
+    request->m_import->may_rely_on_certificate_exception = exported.may_rely_on_certificate_exception;
     request->transition_to_state(State::ReadImported);
     return request;
 }
@@ -756,6 +758,9 @@ void Request::handle_fetch_complete(int result_code)
         m_alternative_services_disabled = true;
         m_alternative_service.clear();
         m_dns_result = nullptr;
+        // The origin may present another certificate than the alternative service did.
+        if (m_aia_collector)
+            m_aia_collector->rejected_self_signed_certificate_fingerprint.clear();
 
         MUST(free_curl_structs());
         reset_for_retry();
@@ -798,7 +803,8 @@ void Request::handle_fetch_complete(int result_code)
 
     if (is_revalidation_request()) {
         auto is_not_modified = result_code == CURLE_OK && acquire_status_code() == 304;
-        if (is_not_modified && HTTP::can_freshen_stored_response(m_cache_entry_reader->response_headers(), *m_response_headers)) {
+        // As with storing a response, a 304 that may rely on a certificate exception must not extend a stored one.
+        if (is_not_modified && !may_rely_on_certificate_exception() && HTTP::can_freshen_stored_response(m_cache_entry_reader->response_headers(), *m_response_headers)) {
             if (m_type == RequestType::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
                 m_response_headers->set({ HTTP::TEST_CACHE_REVALIDATION_STATUS_HEADER, "fresh"sv });
 
@@ -945,8 +951,10 @@ void Request::retry_after_aia(Badge<ConnectionFromClient>)
     MUST(free_curl_structs());
 
     m_curl_result_code = {};
-    if (m_aia_collector)
+    if (m_aia_collector) {
         m_aia_collector->pending_urls.clear();
+        m_aia_collector->rejected_self_signed_certificate_fingerprint.clear();
+    }
     transition_to_state(State::Fetch);
 }
 
@@ -1403,6 +1411,29 @@ void Request::handle_retrieve_cookie_state()
     }
 }
 
+// Imported responses rely on the exporter to report certificate exceptions this RequestServer cannot see.
+bool Request::may_rely_on_certificate_exception() const
+{
+    if (m_import.has_value())
+        return m_import->may_rely_on_certificate_exception;
+    return m_aia_collector && has_any_certificate_exception(m_aia_collector->host, m_aia_collector->port);
+}
+
+bool Request::configure_certificate_verification()
+{
+    if (!m_aia_collector) {
+        m_aia_collector = make_ref_counted<AIACollector>(m_client->is_private());
+        m_aia_collector->host = m_url.serialized_host().to_byte_string();
+        m_aia_collector->port = m_url.port_or_default();
+    }
+    if (auto result = RequestServer::configure_certificate_verification(m_curl_easy_handle, *m_aia_collector); result != CURLE_OK) {
+        m_curl_result_code = result;
+        transition_to_state(State::Error);
+        return false;
+    }
+    return true;
+}
+
 void Request::handle_connect_state()
 {
     m_curl_easy_handle = curl_easy_init();
@@ -1420,7 +1451,8 @@ void Request::handle_connect_state()
 
     set_option(CURLOPT_NOSIGNAL, 1L);
 
-    set_option(CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context);
+    if (!configure_certificate_verification())
+        return;
 
     set_option(CURLOPT_URL, url_without_credentials(m_url).characters());
     set_option(CURLOPT_DISALLOW_USERNAME_IN_URL, 1L);
@@ -1470,12 +1502,8 @@ void Request::handle_fetch_state()
     if (auto const& path = default_certificate_path(); !path.is_empty())
         set_option(CURLOPT_CAINFO, path.characters());
 
-    set_option(CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context);
-#ifndef AK_OS_MACOS
-    if (!m_aia_collector)
-        m_aia_collector = make_ref_counted<AIACollector>(m_client->is_private());
-    set_option(CURLOPT_SSL_CTX_DATA, m_aia_collector.ptr());
-#endif
+    if (!configure_certificate_verification())
+        return;
 
     if (m_content_decoding_disabled) {
         set_option(CURLOPT_ACCEPT_ENCODING, "identity");
@@ -1660,6 +1688,13 @@ void Request::handle_complete_state()
         if (m_curl_result_code != CURLE_OK) {
             m_network_error = curl_code_to_network_error(*m_curl_result_code);
 
+            if (m_network_error == Requests::NetworkError::SSLVerificationFailed && m_aia_collector && m_aia_collector->rejected_self_signed_certificate_fingerprint.has_value()) {
+                m_network_error = Requests::NetworkError::SSLSelfSignedCertificate;
+
+                if (auto control_connection = ControlConnectionFromClient::the(); control_connection.has_value())
+                    control_connection->async_rejected_self_signed_certificate(m_aia_collector->host, m_aia_collector->port, *m_aia_collector->rejected_self_signed_certificate_fingerprint);
+            }
+
             if (m_network_error == Requests::NetworkError::Unknown) {
                 char const* curl_error_message = curl_easy_strerror(static_cast<CURLcode>(*m_curl_result_code));
                 dbgln("Request::handle_complete_state: Unable to map error ({}): \"\033[31;1m{}\033[0m\"", *m_curl_result_code, curl_error_message);
@@ -1750,6 +1785,7 @@ Request::Import::Import(Import&& other)
     , body_notifier(move(other.body_notifier))
     , status_notifier(move(other.status_notifier))
     , body_ended(other.body_ended)
+    , may_rely_on_certificate_exception(other.may_rely_on_certificate_exception)
     , status_bytes(move(other.status_bytes))
     , timing_info(move(other.timing_info))
     , network_error(move(other.network_error))
@@ -1805,6 +1841,7 @@ ErrorOr<Requests::ExportedRequest> Request::export_response()
         .status_code = m_status_code,
         .reason_phrase = m_reason_phrase,
         .response_headers = m_response_headers->headers(),
+        .may_rely_on_certificate_exception = may_rely_on_certificate_exception(),
         .body = move(body),
         .status = move(status),
     };
@@ -2226,6 +2263,12 @@ void Request::transfer_headers_to_client_if_needed()
     // response to an unsafe request method (including methods whose safety is unknown).
     if (m_disk_cache.has_value() && m_disk_cache_partition.has_value() && !m_method.is_one_of("GET"sv, "HEAD"sv, "OPTIONS"sv, "TRACE"sv) && *m_status_code >= 200 && *m_status_code < 400)
         m_disk_cache->invalidate(*m_disk_cache_partition, m_url);
+
+    // Cached responses could outlive a certificate exception and be served without the server presenting a certificate.
+    if (m_cache_entry_writer.has_value() && may_rely_on_certificate_exception()) {
+        close_disk_cache_entry(DiskCacheEntryOutcome::Incomplete);
+        m_cache_status = CacheStatus::NotCached;
+    }
 
     if (m_cache_entry_writer.has_value()) {
         if (m_cache_entry_writer->write_status_and_reason(*m_status_code, m_reason_phrase, m_request_headers, m_response_headers).is_error()) {

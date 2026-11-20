@@ -87,6 +87,7 @@
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
@@ -3244,10 +3245,24 @@ GC::Ref<DocumentToCreate> DocumentToCreate::create(GC::Ref<NavigationParams> nav
     return GC::Heap::the().allocate<DocumentToCreate>(navigation_params, load_steps, move(origin));
 }
 
+static bool should_offer_to_trust_self_signed_certificate(LocalNavigable& navigable, Utf16String const& error_message)
+{
+    if (!navigable.is_top_level_traversable())
+        return false;
+    // NB: Only the error message survives across processes; no server-controlled message matches it exactly.
+    //     A false match only requests a UI warning for an unrecorded certificate.
+    auto description = network_error_description(Requests::NetworkError::SSLSelfSignedCertificate);
+    return error_message == Fetch::Fetching::network_request_failed_error_message(description.bytes_as_string_view());
+}
+
 static GC::Ref<DOM::Document> create_navigation_error_document(NavigationParams const& navigation_params, URL::URL const& url, Utf16String const& error_message)
 {
-    auto error_html = load_error_page(url, error_message.to_utf8()).release_value_but_fixme_should_propagate_errors();
-    auto document = create_document_for_inline_content(navigation_params, [&error_html](auto& document) {
+    auto is_self_signed_certificate_error = should_offer_to_trust_self_signed_certificate(*navigation_params.navigable, error_message);
+    // The UI process replaces this page with a warning only if certificate trust prompts are enabled.
+    auto offer_to_trust_certificate = is_self_signed_certificate_error && navigation_params.navigable->page().offers_to_trust_self_signed_certificates();
+    auto mention_certificate_setting = is_self_signed_certificate_error && !offer_to_trust_certificate ? MentionCertificateSetting::Yes : MentionCertificateSetting::No;
+    auto error_html = load_error_page(url, error_message.to_utf8(), mention_certificate_setting).release_value_but_fixme_should_propagate_errors();
+    auto document = create_document_for_inline_content(navigation_params, [&error_html, offer_to_trust_certificate, &url](auto& document) {
         auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
         auto parser = HTMLParser::create_from_byte_string(document, error_html, scripting_mode, "utf-8"sv);
         document.set_url(URL::about_error());
@@ -3257,8 +3272,19 @@ static GC::Ref<DOM::Document> create_navigation_error_document(NavigationParams 
         // FIXME: Directly calling parser->the_end results in a deadlock, because it waits for the warning image to load.
         //        However the response is never processed when parser->the_end is called.
         //        Queuing a global task is a workaround for now.
-        queue_a_task(Task::Source::Unspecified, HTML::main_thread_event_loop(), document, GC::create_function(document.heap(), GC::captures(document, parser), [](auto& document, auto& parser) {
+        queue_a_task(Task::Source::Unspecified, HTML::main_thread_event_loop(), document, GC::create_function(document.heap(), GC::captures(document, parser, offer_to_trust_certificate, url), [](auto& document, auto& parser, auto const& offer_to_trust_certificate, auto const& url) {
             HTMLParser::the_end(document, parser);
+
+            // The UI process owns certificate trust and only accepts requests from the displayed document.
+            if (!offer_to_trust_certificate)
+                return;
+            auto navigable = document.navigable();
+            if (!navigable || !navigable->active_document_is(document))
+                return;
+            auto entry = navigable->active_session_history_entry();
+            if (!entry || !entry->document_state())
+                return;
+            document.page().client().page_did_request_certificate_warning(url, entry->document_state()->cross_process_id());
         }));
     });
 

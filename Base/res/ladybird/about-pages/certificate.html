@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="color-scheme" content="light dark" />
+        <title>Untrusted Certificate</title>
+        <link rel="icon" type="image/png" href="resource://icons/48x48/app-browser.png" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
+        <style>
+            :root {
+                --danger-tint: rgba(179, 38, 30, 0.08);
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --danger-tint: rgba(255, 154, 143, 0.12);
+                }
+            }
+
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                max-width: none;
+                padding: 24px;
+                font-size: 15px;
+                text-align: center;
+            }
+
+            main {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+                max-width: 640px;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 32px;
+                margin-bottom: 8px;
+            }
+
+            svg {
+                height: 64px;
+                width: auto;
+                stroke: var(--error);
+                fill: var(--danger-tint);
+                stroke-width: 1.5;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+            }
+
+            header h1 {
+                font-size: 24px;
+                color: var(--error);
+                overflow-wrap: anywhere;
+            }
+
+            p {
+                line-height: 1.4;
+            }
+
+            .warning {
+                padding: 12px 16px;
+                border-left: 4px solid var(--error);
+                border-radius: 4px;
+                background-color: var(--danger-tint);
+                text-align: left;
+            }
+
+            .secondary {
+                color: var(--secondary-text-color);
+            }
+
+            #fingerprint {
+                display: block;
+                margin-top: 4px;
+                font-family: monospace;
+                font-size: 12px;
+                overflow-wrap: anywhere;
+            }
+
+            .buttons {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                margin-top: 16px;
+            }
+
+            #reject {
+                height: 36px;
+                padding: 0 32px;
+                font-size: 15px;
+            }
+
+            #trust {
+                font: inherit;
+                font-size: 13px;
+                padding: 2px 4px;
+                color: var(--secondary-text-color);
+                background: none;
+                border: none;
+                text-decoration: underline;
+                cursor: pointer;
+            }
+
+            #trust:hover {
+                color: var(--error);
+            }
+
+            [hidden] {
+                display: none !important;
+            }
+        </style>
+    </head>
+    <body>
+        <main id="status">
+            <p class="secondary">Loading the certificate warning. If nothing appears, go back or reload the page.</p>
+        </main>
+        <main id="warning" hidden>
+            <header>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M12 2.75 4.75 5.5v6c0 4.5 3.1 8.4 7.25 9.75 4.15-1.35 7.25-5.25 7.25-9.75v-6z" />
+                    <path d="M12 8.5v4M12 15.75v.5" />
+                </svg>
+                <h1>Your connection to <span class="host"></span> is not secure</h1>
+            </header>
+            <p class="warning">
+                The certificate of <strong class="host"></strong> isn't trusted by Ladybird: it's self-signed, or its
+                chain ends at a self-signed root Ladybird doesn't trust. Someone might be intercepting your connection
+                to access private information, like passwords, messages, or credit cards.
+            </p>
+            <p class="secondary">
+                Only continue if you know this is a local or development server you control. Trusting lets Ladybird
+                accept this certificate from <span id="origin"></span> until Ladybird is closed. Any other certificate
+                the site presents is still verified as usual.
+            </p>
+            <p class="secondary" id="resends-form" hidden>Trusting sends the form you submitted again.</p>
+            <p class="secondary" id="form-not-resent" hidden>
+                The form you submitted came from another site, so trusting won't submit it. Submit it again once the
+                page has loaded.
+            </p>
+            <p class="secondary">
+                Server certificate SHA-256 fingerprint:
+                <span id="fingerprint"></span>
+            </p>
+            <div class="buttons">
+                <button id="reject" class="primary-button">Don't trust</button>
+                <button id="trust">Trust anyway</button>
+            </div>
+        </main>
+        <main id="nothing" hidden>
+            <p class="secondary">There is no certificate to review.</p>
+        </main>
+        <script>
+            function formatFingerprint(fingerprint) {
+                return fingerprint
+                    .toUpperCase()
+                    .match(/.{1,2}/g)
+                    .join(":");
+            }
+
+            // Answers name the warning they were given, so they can't apply to one shown after it.
+            let reviewedWarning = null;
+
+            function answer(name) {
+                if (reviewedWarning)
+                    ladybird.sendMessage(name, { url: reviewedWarning.url, fingerprint: reviewedWarning.fingerprint });
+            }
+
+            document.getElementById("trust").addEventListener("click", () => answer("trustCertificate"));
+            document.getElementById("reject").addEventListener("click", () => answer("rejectCertificate"));
+
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name !== "loadCertificateWarning") return;
+
+                document.getElementById("status").hidden = true;
+
+                const warning = event.detail.data;
+                reviewedWarning = warning;
+                if (!warning) {
+                    document.getElementById("nothing").hidden = false;
+                    return;
+                }
+
+                for (const host of document.querySelectorAll(".host")) host.textContent = warning.host;
+                document.getElementById("origin").textContent = warning.origin;
+                document.getElementById("fingerprint").textContent = formatFingerprint(warning.fingerprint);
+                document.getElementById("resends-form").hidden = !warning.resendsForm;
+                document.getElementById("form-not-resent").hidden = !warning.formIsNotResent;
+                document.getElementById("warning").hidden = false;
+
+                // Autofocus skips the initially hidden button.
+                if (!document.activeElement || document.activeElement === document.body)
+                    document.getElementById("reject").focus();
+            });
+
+            document.addEventListener("WebUILoaded", () => ladybird.sendMessage("loadCertificateWarning"));
+        </script>
+    </body>
+</html>

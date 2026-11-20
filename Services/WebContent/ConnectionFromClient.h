@@ -378,6 +378,7 @@ private:
     virtual void exit_fullscreen(Web::PageId page_id) override;
 
     virtual void set_has_picture_in_picture_support(Web::PageId page_id, bool has_support) override;
+    virtual void set_offers_to_trust_self_signed_certificates(Web::PageId page_id, bool offers) override;
     virtual void did_open_picture_in_picture_window(Web::PageId page_id, Gfx::IntSize window_size) override;
     virtual void picture_in_picture_window_did_resize(Web::PageId page_id, Gfx::IntSize window_size) override;
     virtual void picture_in_picture_window_did_close(Web::PageId page_id, bool pause_video) override;

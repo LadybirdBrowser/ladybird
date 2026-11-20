@@ -116,6 +116,11 @@
                 color: var(--muted);
                 overflow-wrap: anywhere;
             }
+            .hint {
+                margin-top: 10px;
+                font-size: 12px;
+                color: var(--muted);
+            }
             :focus-visible {
                 outline: none;
                 box-shadow:
@@ -148,6 +153,9 @@
                     Try again
                 </button>
             </div>
+            <p class="hint" %certificate_setting_hidden%>
+                Advanced user? Turn on “Offer to trust self-signed certificates” in Settings, under Advanced.
+            </p>
         </main>
     </body>
 </html>

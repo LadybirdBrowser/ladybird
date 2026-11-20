@@ -203,6 +203,11 @@ void ResourceLoader::preconnect(GC::Ptr<DOM::Document> document, URL::URL const&
         request_client->ensure_connection(url, RequestServer::CacheLevel::CreateConnection);
 }
 
+String network_error_description(Requests::NetworkError network_error)
+{
+    return MUST(String::formatted("Request finished with error: {}", Requests::network_error_to_string(network_error)));
+}
+
 static ByteString sanitized_url_for_logging(URL::URL const& url)
 {
     if (url.scheme() == "data"sv)
@@ -563,9 +568,7 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
             log_success(request);
             on_complete->function()(true, timing_info, {}, network_request_end);
         } else {
-            auto error_description = MUST(String::formatted(
-                "Request finished with error: {}",
-                network_error_to_string(*network_error)));
+            auto error_description = network_error_description(*network_error);
             log_failure(request, error_description);
             on_complete->function()(false, timing_info, error_description, network_request_end);
         }

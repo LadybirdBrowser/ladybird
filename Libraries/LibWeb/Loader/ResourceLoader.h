@@ -29,6 +29,8 @@
 
 namespace Web {
 
+WEB_API String network_error_description(Requests::NetworkError);
+
 // Each agent has a loader of its own, which holds its connections to the RequestServer and its requests, and only its
 // thread can use it. The static settings are the process's.
 class WEB_API ResourceLoader : public Core::EventReceiver {

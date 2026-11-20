@@ -167,6 +167,7 @@ enum class ConfigVariableID : u8 {
     SplitDownloadsWithoutValidators,
     RestartStalledConnections,
     DisableHighDynamicRangeSurfaces,
+    OfferToTrustSelfSignedCertificates,
 #if defined(LADYBIRD_HAS_UPDATE_CHECK)
     UpdateCheckInterval,
 #endif

@@ -121,6 +121,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_receive_download_data(Web::PageId page_id, u64 download_id, ByteBuffer data) =|
     did_finish_download(Web::PageId page_id, u64 download_id) =|
     did_fail_download(Web::PageId page_id, u64 download_id, String error) =|
+    did_request_certificate_warning(Web::PageId page_id, URL::URL url, Web::HTML::CrossProcessId document_state_id) =|
     did_request_cursor_change(Web::PageId page_id, Gfx::Cursor cursor) =|
     did_change_title(Web::PageId page_id, Utf16String title) =|
     did_update_editing_history_state(Web::PageId page_id, bool can_undo, bool can_redo) =|
