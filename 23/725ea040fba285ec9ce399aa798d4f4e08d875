@@ -1,0 +1,18 @@
+Ladybird now resolves the Auto motion preference from the system. On
+macOS, it reads NSWorkspace’s accessibilityDisplayShouldReduceMotion,
+and follows it through the notification that Blink, Gecko and WebKit
+observe for the same setting (BrowserAccessibilityStateImplMac,
+MOZLookAndFeelDynamicChangeObserver, WKAccessibilitySettingsObserver):
+NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification. On Linux,
+it reads the settings portal’s reduced-motion, which KDE’s portal
+derives from the AnimationDurationFactor of kdeglobals, and on older
+portals, GNOME’s enable-animations or that factor itself.
+
+On Linux, Gecko and Blink read GTK’s gtk-enable-animations instead
+(nsLookAndFeel::InitializeGlobalSettings(), GtkUi::AnimationsEnabled()),
+and Blink’s Qt path reads the widget animation duration that Qt
+reports (QtShim::GetAnimationDurationMs()). Ladybird has no GTK, so it
+reads the desktop settings the portal reports. All three put an explicit
+choice in the browser first, as Ladybird’s Reduce and No Preference menu
+items do. Read from source, not run: Chromium e6c8d7c15aeb2, Firefox
+41db707342fe, WebKit c3a7f3c0cfe0.
