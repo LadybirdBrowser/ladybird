@@ -1071,8 +1071,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             && is_plain_auto(computed_block)
             && self.facts(node).has_preferred_aspect_ratio()
         {
-            let block =
-                self.tentative_block_size_for_replaced_element(sized, computed_block, available_space, constraints);
+            let block = if self.facts(node).is_replaced_box() && self.auto_content_size(node).height.is_none() {
+                self.content_block_size_from_aspect_ratio(sized, used)
+            } else {
+                self.tentative_block_size_for_replaced_element(sized, computed_block, available_space, constraints)
+            };
             used = self
                 .solve_replaced_size_constraint(sized, used, block, available_space, constraints)
                 .0;
