@@ -92,20 +92,6 @@ jobs:
             container: *ci_container
             packages: 'DEB'
 
-          - system: 'Ubuntu 26.10'
-            os_name: 'Linux'
-            arch: 'x86_64'
-            runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
-            container: '{"image":"docker.io/library/ubuntu:26.10","options":"--ulimit core=1"}'
-            packages: 'DEB'
-
-          - system: 'Ubuntu 26.10'
-            os_name: 'Linux'
-            arch: 'arm64'
-            runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
-            container: '{"image":"docker.io/library/ubuntu:26.10","options":"--ulimit core=1"}'
-            packages: 'DEB'
-
           - system: 'Fedora 44'
             os_name: 'Linux'
             arch: 'x86_64'
