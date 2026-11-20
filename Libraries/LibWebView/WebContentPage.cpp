@@ -2216,6 +2216,17 @@ void WebContentPage::did_insert_clipboard_item(Web::Clipboard::SystemClipboardIt
 {
     if (!has_transient_user_activation())
         return;
+
+    // A page writes only text, HTML and PNG data. Any other format can carry more, like a list of file URLs that the
+    // next paste opens for the page. The internals object stands in for other applications, so tests write any format.
+    if (!WebContentClient::renderers_may_synthesize_input_for_testing()) {
+        item.system_clipboard_representations.remove_all_matching([](Web::Clipboard::SystemClipboardRepresentation const& representation) {
+            return !representation.data.has<ByteString>() || !representation.name.is_one_of("text/plain"sv, "text/html"sv, "image/png"sv);
+        });
+        if (item.system_clipboard_representations.is_empty())
+            return;
+    }
+
     if (writing_document_id.has_value()) {
         if (auto document = hosted_document_with_id(*writing_document_id))
             view().did_insert_clipboard_item_written_by(document->origin(), item);
