@@ -1,0 +1,14 @@
+Ladybird now runs the HTML parser for a document whose body arrives
+after it’s activated with an empty JavaScript execution context stack,
+so the parser’s microtask checkpoint before each script it prepares,
+and the one in “clean up after running script”, both run. Blink
+checks for microtasks there whenever no script is executing, in
+HTMLParserScriptRunner::ProcessScriptElementInternal(); WebKit does in
+HTMLScriptRunner::runScript(). And Gecko holds an nsAutoMicroTask in
+ScriptLoader::ProcessRequest(), which runs them when it goes away.
+
+Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5, a reduction
+of Cookiebot’s blocking mode lets a mutation observer change the second
+of two parser-inserted scripts to text/plain before it runs. And in all
+three, a promise reaction queued by an XMLHttpRequest readystatechange
+listener runs before the request’s progress listener does.
