@@ -1654,13 +1654,13 @@ void Application::commit_synchronized_resize(u64 remote_layer_id, u64 token)
     m_compositor_client->async_commit_synchronized_resize(remote_layer_id, token);
 }
 
-void Application::take_frame_snapshot(Web::CompositorContextId context_id, Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)> callback)
+void Application::take_frame_snapshot(Web::CompositorContextId context_id, Function<void(Optional<Gfx::ShareableBitmap>)> callback)
 {
     if (!m_compositor_presentation_client) {
         callback({});
         return;
     }
-    m_compositor_presentation_client->take_frame_snapshot(context_id, maximum_size, move(callback));
+    m_compositor_presentation_client->take_frame_snapshot(context_id, move(callback));
 }
 
 void Application::update_compositor_context_presents_from_cpu_memory(Web::CompositorContextId context_id, bool presents_from_cpu_memory)

@@ -1281,7 +1281,7 @@ void WebContentView::take_visible_snapshot(Function<void(QImage)> on_snapshot)
         return;
     }
 
-    take_frame_snapshot({}, [self = QPointer { this }, on_snapshot = AK::move(on_snapshot)](Optional<Gfx::ShareableBitmap> snapshot) {
+    take_frame_snapshot([self = QPointer { this }, on_snapshot = AK::move(on_snapshot)](Optional<Gfx::ShareableBitmap> snapshot) {
         if (!self)
             return;
         auto const* bitmap = snapshot.has_value() && snapshot->is_valid() ? snapshot->bitmap() : nullptr;

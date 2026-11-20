@@ -95,7 +95,7 @@ public:
     void set_hosts_remote_layer(bool hosts_remote_layer) { HubConnection::the().async_view_set_hosts_remote_layer(view_id(), hosts_remote_layer); }
     void set_wants_frame_notifications(bool wants_frame_notifications) { HubConnection::the().async_view_set_wants_frame_notifications(view_id(), wants_frame_notifications); }
     // What the view shows, from the Compositor, scaled down to fit within the size given.
-    void take_frame_snapshot(Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)>);
+    void take_frame_snapshot(Function<void(Optional<Gfx::ShareableBitmap>)>);
     void begin_synchronized_resize(u64 token) { HubConnection::the().async_view_begin_synchronized_resize(view_id(), token); }
     void await_synchronized_resize_frame(u64 token, Gfx::IntSize size) { HubConnection::the().async_view_await_synchronized_resize_frame(view_id(), token, size); }
     void commit_synchronized_resize(u64 token) { HubConnection::the().async_view_commit_synchronized_resize(view_id(), token); }

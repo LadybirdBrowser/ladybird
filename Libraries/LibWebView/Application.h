@@ -299,7 +299,7 @@ public:
     void begin_synchronized_resize(u64 remote_layer_id, u64 token);
     void await_synchronized_resize_frame(u64 remote_layer_id, u64 token, Gfx::IntSize);
     void commit_synchronized_resize(u64 remote_layer_id, u64 token);
-    void take_frame_snapshot(Web::CompositorContextId, Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)>);
+    void take_frame_snapshot(Web::CompositorContextId, Function<void(Optional<Gfx::ShareableBitmap>)>);
     bool handle_and_dispatch_key_event_in_compositor(Web::CompositorContextId, Web::KeyEvent const&, bool allow_keyboard_scroll);
     bool handle_and_dispatch_pinch_event_in_compositor(Web::CompositorContextId, Web::PinchEvent const&);
     bool handle_and_dispatch_mouse_event_in_compositor(Web::CompositorContextId, Web::MouseEvent const&);
