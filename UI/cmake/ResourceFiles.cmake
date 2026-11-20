@@ -32,6 +32,7 @@ set(ABOUT_PAGES
     crashes.html
     downloads.html
     history.html
+    licenses.html
     newtab.html
     settings.html
     support.html
@@ -167,6 +168,12 @@ function(copy_resources_to_build base_directory bundle_target)
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
+    set_source_files_properties("${LADYBIRD_LICENSES_FILE}" PROPERTIES GENERATED TRUE)
+    copy_resource_set(ladybird RESOURCES "${LADYBIRD_LICENSES_FILE}"
+        DESTINATION ${base_directory} TARGET ${bundle_target}
+    )
+    add_dependencies(${bundle_target} generate_licenses)
+
     copy_resource_set(ladybird/about-pages RESOURCES ${ABOUT_PAGES}
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
@@ -212,7 +219,8 @@ function(install_ladybird_resources destination component)
     if (LADYBIRD_ICU_DATA_FILE)
         install(FILES ${LADYBIRD_ICU_DATA_FILE} DESTINATION "${destination}/icu" COMPONENT ${component})
     endif()
-    install(FILES ${INTERNAL_RESOURCES} DESTINATION "${destination}/ladybird" COMPONENT ${component})
+    install(FILES ${INTERNAL_RESOURCES} "${LADYBIRD_LICENSES_FILE}" DESTINATION "${destination}/ladybird"
+        COMPONENT ${component})
     install(FILES ${ABOUT_PAGES} DESTINATION "${destination}/ladybird/about-pages" COMPONENT ${component})
     install(FILES ${ABOUT_SETTINGS_RESOURCES} DESTINATION "${destination}/ladybird/about-pages/settings" COMPONENT ${component})
     install(FILES ${WEB_TEMPLATES} DESTINATION "${destination}/ladybird/templates" COMPONENT ${component})
