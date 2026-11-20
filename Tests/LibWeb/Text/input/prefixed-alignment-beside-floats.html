@@ -1,0 +1,40 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    #container { width: 200px; display: flow-root; text-align: -webkit-left; }
+    #obstacle { width: 60px; height: 30px; }
+    #child { width: 60px; height: 20px; display: flow-root; }
+</style>
+<div id="container"><div id="obstacle"></div><div id="child"></div></div>
+<script>
+    test(() => {
+        for (const direction of ["ltr", "rtl"]) {
+            container.dir = direction;
+            for (const side of ["left", "right"]) {
+                obstacle.style.float = side;
+                for (const alignment of ["left", "center", "right", "self-start", "self-end"]) {
+                    child.style.justifySelf = alignment;
+                    println([direction, side, alignment, child.offsetLeft - container.offsetLeft, child.offsetTop - container.offsetTop].join(" "));
+                }
+            }
+        }
+        container.style.textAlign = "-webkit-center";
+        child.style.justifySelf = "auto";
+        for (const [direction, side, margin] of [["rtl", "left", "marginRight"], ["ltr", "right", "marginLeft"]]) {
+            container.dir = direction;
+            obstacle.style.float = side;
+            child.style.margin = "0";
+            for (const size of [80, 90, 150]) {
+                child.style[margin] = size + "px";
+                println(`${direction} ${side} ${size}px: ${child.offsetLeft - container.offsetLeft} ${child.offsetTop - container.offsetTop}`);
+            }
+        }
+        for (const [direction, side, margin] of [["ltr", "left", "marginLeft"], ["rtl", "right", "marginRight"]]) {
+            container.dir = direction;
+            obstacle.style.float = side;
+            child.style.margin = "0";
+            child.style[margin] = "80px";
+            println(`${direction} ${side} start margin: ${child.offsetLeft - container.offsetLeft} ${child.offsetTop - container.offsetTop}`);
+        }
+    });
+</script>

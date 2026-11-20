@@ -1,2 +1,2 @@
-text-align: -libweb-right
+text-align: -webkit-right
 color: rgb(0, 128, 0)

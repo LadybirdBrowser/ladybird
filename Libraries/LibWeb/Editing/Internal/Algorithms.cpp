@@ -114,15 +114,15 @@ JustifyAlignment alignment_value_of_node(GC::Ptr<DOM::Node> node)
     //          Browsers give these the alignment value of the matching regular "text-align" value.
     switch (text_align_value.value()) {
     case CSS::Keyword::Center:
-    case CSS::Keyword::LibwebCenter:
+    case CSS::Keyword::WebkitCenter:
         return JustifyAlignment::Center;
     case CSS::Keyword::Justify:
         return JustifyAlignment::Justify;
     case CSS::Keyword::Left:
-    case CSS::Keyword::LibwebLeft:
+    case CSS::Keyword::WebkitLeft:
         return JustifyAlignment::Left;
     case CSS::Keyword::Right:
-    case CSS::Keyword::LibwebRight:
+    case CSS::Keyword::WebkitRight:
         return JustifyAlignment::Right;
     default:
         // 6. Return "left".

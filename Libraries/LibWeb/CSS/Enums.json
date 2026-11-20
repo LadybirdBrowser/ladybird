@@ -1150,10 +1150,10 @@
     "left",
     "right",
     "match-parent",
-    "-libweb-center",
+    "-webkit-center",
     "-libweb-inherit-or-center",
-    "-libweb-left",
-    "-libweb-right"
+    "-webkit-left",
+    "-webkit-right"
   ],
   "text-align-last": [
     "auto",

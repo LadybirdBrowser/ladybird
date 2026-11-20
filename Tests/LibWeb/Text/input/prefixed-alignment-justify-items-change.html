@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    #container { width: 200px; text-align: -webkit-left; }
+    #child { width: 100px; height: 10px; }
+</style>
+<div id="container"><div id="child"><div></div></div></div>
+<script>
+    test(() => {
+        for (const width of [100, 240]) {
+            child.style.width = width + "px";
+            for (const alignment of ["center", "right", "safe center", "unsafe center", "left", "center"]) {
+                container.style.justifyItems = alignment;
+                println([width, alignment, child.offsetLeft - container.offsetLeft].join(" "));
+            }
+        }
+        child.style.width = "100px";
+        child.style.textAlign = "left";
+        container.style.justifyItems = "normal";
+        for (const value of ["-webkit-left", "-webkit-center", "-webkit-right"]) {
+            container.style.textAlign = value;
+            println([value, child.offsetLeft - container.offsetLeft].join(" "));
+        }
+    });
+</script>

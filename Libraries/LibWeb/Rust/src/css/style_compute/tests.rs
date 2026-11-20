@@ -197,7 +197,7 @@ fn element_styles_adjust_from_marshaled_facts() {
 
     input = element_adjustment_input();
     input.is_table_element = true;
-    let adjustment = adjust_element_style(&input, FfiDisplay::block(), keyword::_LIBWEB_CENTER);
+    let adjustment = adjust_element_style(&input, FfiDisplay::block(), keyword::_WEBKIT_CENTER);
     assert!(adjustment.changed_text_align);
     assert_eq!(adjustment.text_align, keyword::START);
 

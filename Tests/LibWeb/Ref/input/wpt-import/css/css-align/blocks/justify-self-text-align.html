@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#justify-abspos">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-align/blocks/../../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="justify-self wins over text-align:-webkit-*" />
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+</p>
+
+<div id=reference-overlapped-red></div>
+
+<div style="width: 200px; text-align: -webkit-right;">
+  <div
+    style="width: 100px; height:100px; justify-self: left; background: green;">
+  </div>
+</div>

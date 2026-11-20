@@ -2769,16 +2769,43 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.rebuild_float_bands();
     }
 
-    /// The left edge of the border box of a box that avoids floats, in its containing block's content box.
-    fn border_box_left_of_box_avoiding_floats(
+    /// The left edge of the border box, relative to the containing block, for float avoidance and final placement.
+    fn normal_flow_border_box_left(
         &self,
         node: Node,
         metrics: &impl BoxMetricCells,
-        space_used_by_floats: inline_formatting_context::SpaceUsedByFloats,
+        alignment: Option<box_alignment::SelfAlignment>,
+        float_insets: Option<inline_formatting_context::SpaceUsedByFloats>,
         border_box_inline_size: CssPixels,
         available_inline_size: CssPixels,
     ) -> CssPixels {
+        use box_alignment::{OverflowSafety, SelfPosition};
+
         let style = self.style(node);
+        if let Some(alignment) = alignment {
+            let space = float_insets.unwrap_or_default();
+            let margin_left = style.margin_left().to_px(available_inline_size);
+            let margin_right = style.margin_right().to_px(available_inline_size);
+            // Align the margin box in the space between floats. The start margin can overlap a float on its side.
+            let free =
+                available_inline_size - space.left - space.right - border_box_inline_size - margin_left - margin_right;
+            // https://drafts.csswg.org/css-align-3/#baseline-values
+            // AD-HOC: CSS Align specifies safe self-start for first baseline, but prefixed text alignment uses
+            // the container's start edge for compatibility when a block requests baseline alignment.
+            let edge = match alignment.position_for(free, OverflowSafety::Unsafe) {
+                SelfPosition::Edge(edge) => edge,
+                _ => alignment.container_start,
+            };
+            if alignment.container_start == box_alignment::AxisEdge::End {
+                let right = Self::border_box_inset_beside_floats(false, margin_right, space.right, space.left);
+                return available_inline_size - right - border_box_inline_size - edge.reversed().offset(free);
+            }
+            let left = Self::border_box_inset_beside_floats(false, margin_left, space.left, space.right);
+            return left + edge.offset(free);
+        }
+        let Some(space_used_by_floats) = float_insets else {
+            return metrics.margin_left();
+        };
         // NB: A box placed from its right edge has its right margin and the floats on the right decide where it goes, as
         //     the left ones do for a box placed from its left edge.
         if self.box_avoiding_floats_is_placed_from_right(node) {
@@ -2805,10 +2832,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_block_style.direction() == direction::RTL
             && !matches!(
                 containing_block_style.text_align(),
-                text_align::_LIBWEB_CENTER
+                text_align::_WEBKIT_CENTER
                     | text_align::_LIBWEB_INHERIT_OR_CENTER
-                    | text_align::_LIBWEB_LEFT
-                    | text_align::_LIBWEB_RIGHT
+                    | text_align::_WEBKIT_LEFT
+                    | text_align::_WEBKIT_RIGHT
             )
     }
 
@@ -2948,6 +2975,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         {
             return content_block_offset;
         }
+        let alignment = self.prefixed_block_alignment(node);
         // https://drafts.csswg.org/css2/#floats
         // If necessary, implementations should clear the said element by placing it below any preceding floats, but may
         // place it adjacent to such floats if there is sufficient space.
@@ -2978,10 +3006,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
             let constrained = space.left > CssPixels::default() || space.right > CssPixels::default();
             let available_inline_size = available_space.inline_size.to_px_or_zero();
-            let border_box_left = self.border_box_left_of_box_avoiding_floats(
+            let border_box_left = self.normal_flow_border_box_left(
                 node,
                 &metrics,
-                space,
+                alignment,
+                Some(space),
                 candidate_border_box_inline_size,
                 available_inline_size,
             );
@@ -3571,6 +3600,38 @@ impl<'pass> BlockFormattingContext<'pass> {
         position_past_floats.filter(|_| introduces_clearance)
     }
 
+    fn prefixed_block_alignment(&self, node: Node) -> Option<box_alignment::SelfAlignment> {
+        use box_alignment::{AxisDirections, OverflowSafety, SelfKeyword};
+
+        let container = self.style(self.containing_block(node));
+        let style = self.style(node);
+        let legacy_keyword = match container.text_align() {
+            text_align::_WEBKIT_LEFT => Some(SelfKeyword::Left),
+            text_align::_WEBKIT_CENTER => Some(SelfKeyword::Center),
+            text_align::_WEBKIT_RIGHT => Some(SelfKeyword::Right),
+            _ => None,
+        };
+        legacy_keyword
+            .filter(|_| !style.margin_left().is_auto() && !style.margin_right().is_auto())
+            .map(|legacy| {
+                let directions = AxisDirections {
+                    self_start_is_low: geometry::start_is_low_side_in_frame(
+                        self.run.pass.frame,
+                        style.writing_mode(),
+                        style.direction(),
+                        true,
+                    ),
+                    ..AxisDirections::of(container.direction() != direction::RTL, Some(true))
+                };
+                let (keyword, safety) = SelfKeyword::justify_self_of(*style, Some(*container));
+                if keyword == SelfKeyword::Normal {
+                    legacy.resolve(OverflowSafety::Safe, directions)
+                } else {
+                    keyword.resolve(safety, directions)
+                }
+            })
+    }
+
     fn compute_normal_flow_inline_offset(
         &self,
         sized_child: ChildSizedHere<'_>,
@@ -3580,24 +3641,22 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) -> CssPixels {
         let node = sized_child.node;
         let metrics = self.metrics_of(sized_child);
-        let mut inline_offset = CssPixels::default();
-        let mut available_inline_size_within_containing_block = available_space.inline_size.to_px_or_zero();
-        if self.box_should_avoid_floats_because_it_establishes_fc(node) {
-            // NB: The floats the box avoids are the ones beside its border box, as the check that moves it below them
-            //     measures them. And a box placed from the right, or centered or right-aligned by a legacy alignment
-            //     value of its containing block, has the floats measured across the whole line, not just over its own
-            //     inline size from the left.
-            let legacy_alignment_uses_whole_line = matches!(
-                self.style(self.containing_block(node)).text_align(),
-                text_align::_LIBWEB_CENTER | text_align::_LIBWEB_RIGHT
-            );
+        let alignment = self.prefixed_block_alignment(node);
+        let available_inline_size = available_space.inline_size.to_px_or_zero();
+        let space = if self.box_should_avoid_floats_because_it_establishes_fc(node) {
+            let uses_whole_line = alignment.is_some()
+                || self.box_avoiding_floats_is_placed_from_right(node)
+                || matches!(
+                    self.style(self.containing_block(node)).text_align(),
+                    text_align::_WEBKIT_CENTER | text_align::_WEBKIT_RIGHT
+                );
             let (border_box_block_size, block_size_is_unresolved) =
                 self.block_extent_of_box_avoiding_floats(sized_child);
             let border_box_rect = CssPixelRect {
                 x: content_position_in_root.x,
                 y: content_position_in_root.y - metrics.border_box_top(false),
-                width: if self.box_avoiding_floats_is_placed_from_right(node) || legacy_alignment_uses_whole_line {
-                    available_inline_size_within_containing_block
+                width: if uses_whole_line {
+                    available_inline_size
                 } else {
                     content_inline_size
                 },
@@ -3612,34 +3671,20 @@ impl<'pass> BlockFormattingContext<'pass> {
                 ),
                 border_box_rect,
             );
-            let border_box_inline_size =
-                content_inline_size + metrics.border_box_left(false) + metrics.border_box_right(false);
-            let border_box_left = self.border_box_left_of_box_avoiding_floats(
-                node,
-                &metrics,
-                space,
-                border_box_inline_size,
-                available_inline_size_within_containing_block,
-            );
-            available_inline_size_within_containing_block -= space.left + space.right;
-            // Subtracting the left margin here because it is applied again when the margin box offset is added below.
-            inline_offset = border_box_left - metrics.margin_left();
-        }
-
-        let containing_block = self.containing_block(node);
-        let containing_text_align = self.style(containing_block).text_align();
-        if containing_text_align == text_align::_LIBWEB_CENTER {
-            inline_offset += available_inline_size_within_containing_block / 2 - content_inline_size / 2;
-        } else if containing_text_align == text_align::_LIBWEB_RIGHT {
-            // Subtracting the left margin here because left and right margins need to be swapped when aligning to the right
-            inline_offset += available_inline_size_within_containing_block
-                - content_inline_size
-                - metrics.margin_left()
-                - metrics.border_box_left(false);
+            Some(space)
         } else {
-            inline_offset += metrics.margin_left() + metrics.border_box_left(false);
-        }
-        inline_offset
+            None
+        };
+        let border_box_inline_size =
+            content_inline_size + metrics.border_box_left(false) + metrics.border_box_right(false);
+        self.normal_flow_border_box_left(
+            node,
+            &metrics,
+            alignment,
+            space,
+            border_box_inline_size,
+            available_inline_size,
+        ) + metrics.border_box_left(false)
     }
 
     fn marker_centered_block_offset(marker_line_height: CssPixels, marker_block_size: CssPixels) -> CssPixels {
@@ -5141,7 +5186,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             &self.run,
             input,
             block_container_inline_size,
-            self.style(block_container).direction() == direction::RTL,
+            self.style(block_container),
             stretch_fit_block_margins,
             self.outside_marker_line.get(),
         )

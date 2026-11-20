@@ -17,7 +17,7 @@ body {
 }
 
 center {
-    text-align: -libweb-center;
+    text-align: -webkit-center;
 }
 
 blink {

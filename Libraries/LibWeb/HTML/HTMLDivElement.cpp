@@ -34,11 +34,11 @@ void HTMLDivElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prop
     for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::align) {
             if (value.equals_ignoring_ascii_case(u"left"sv))
-                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::LibwebLeft) });
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::WebkitLeft) });
             else if (value.equals_ignoring_ascii_case(u"right"sv))
-                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::LibwebRight) });
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::WebkitRight) });
             else if (value.equals_ignoring_ascii_case(u"center"sv))
-                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::LibwebCenter) });
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::WebkitCenter) });
             else if (value.equals_ignoring_ascii_case(u"justify"sv))
                 properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Justify) });
         }
