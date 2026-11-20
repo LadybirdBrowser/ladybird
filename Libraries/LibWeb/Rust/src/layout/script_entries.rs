@@ -70,20 +70,33 @@ pub extern "C" fn layout_script_bounding_client_rect(
     });
 }
 
+/// # Safety
+///
+/// A supplied callback must be sound to call with `context`.
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_script_transform_subtree_is_clipped_outside(
+pub unsafe extern "C" fn layout_script_transform_subtree_is_clipped_outside(
     host: &DocumentHost,
     target: NodeSlotId,
+    intersection_root: NodeSlotId,
     root_bounds: FfiCssPixelRect,
     viewport_mapping: FfiViewportMapping<'_>,
+    context: *const c_void,
+    inflate_scroll_clip: Option<unsafe extern "C" fn(*const c_void, FfiCssPixelRect) -> FfiCssPixelRect>,
 ) -> bool {
     let viewport_mapping = viewport_mapping.resolve();
     read_rows(host, |arena| {
         crate::painting::intersection_observer::transform_subtree_is_clipped_outside(
             arena,
             target,
+            intersection_root,
             root_bounds.into(),
             &viewport_mapping.mapping(),
+            inflate_scroll_clip.map(|inflate| {
+                move |rect: CssPixelRect| {
+                    // SAFETY: The callback copies the plain-data rect synchronously.
+                    unsafe { inflate(context, rect.into()) }.into()
+                }
+            }),
         )
     })
 }
@@ -99,9 +112,9 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
     intersection_root: NodeSlotId,
     root_bounds: FfiCssPixelRect,
     viewport_mapping: FfiViewportMapping<'_>,
-    context: *mut c_void,
+    context: *const c_void,
     inflate_scroll_container_clip_rect_by_scroll_margin: unsafe extern "C" fn(
-        *mut c_void,
+        *const c_void,
         FfiCssPixelRect,
     ) -> FfiCssPixelRect,
     out: &mut FfiCssPixelRect,

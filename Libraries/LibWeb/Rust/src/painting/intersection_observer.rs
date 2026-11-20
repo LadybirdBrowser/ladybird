@@ -12,6 +12,21 @@ use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::style_queries;
 use crate::painting::viewport_mapping::{ViewportMapping, ViewportSpace};
 
+fn content_clip_rect(
+    arena: &impl PaintRead,
+    container: NodeSlotId,
+    viewport_mapping: &ViewportMapping<'_>,
+    inflate_scroll_clip: Option<&mut impl FnMut(CssPixelRect) -> CssPixelRect>,
+) -> Option<CssPixelRect> {
+    let clip = viewport_mapping.content_clip_rect(arena, container, ViewportSpace::LayoutViewport)?;
+    if let Some(inflate) = inflate_scroll_clip
+        && style_queries::is_scroll_container(arena, container)
+    {
+        return Some(inflate(clip));
+    }
+    Some(clip)
+}
+
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
 // Answers none where a clip or the root intersection rectangle leaves nothing of target, not even an edge, so that the
 // caller can tell a target clipped away from one whose intersection has zero area.
@@ -22,7 +37,7 @@ pub(crate) fn intersection_rect(
     intersection_root: NodeSlotId,
     root_bounds: CssPixelRect,
     viewport_mapping: &ViewportMapping<'_>,
-    mut inflate_scroll_container_clip_rect_by_scroll_margin: impl FnMut(CssPixelRect) -> CssPixelRect,
+    mut inflate_scroll_clip: impl FnMut(CssPixelRect) -> CssPixelRect,
 ) -> Option<CssPixelRect> {
     // 1. Let intersectionRect be the result of getting the bounding box for target.
     // 2. Let container be the containing block of target.
@@ -41,12 +56,9 @@ pub(crate) fn intersection_rect(
         while let Some(container_slot) =
             container.filter(|slot| *slot != intersection_root && arena.paintable_row_is_populated(*slot))
         {
-            if let Some(mut clip) =
-                viewport_mapping.content_clip_rect(arena, container_slot, ViewportSpace::LayoutViewport)
+            if let Some(clip) =
+                content_clip_rect(arena, container_slot, viewport_mapping, Some(&mut inflate_scroll_clip))
             {
-                if style_queries::is_scroll_container(arena, container_slot) {
-                    clip = inflate_scroll_container_clip_rect_by_scroll_margin(clip);
-                }
                 if !intersection_rect.edge_adjacent_intersects(clip) {
                     return None;
                 }
@@ -70,8 +82,10 @@ pub(crate) fn intersection_rect(
 pub(crate) fn transform_subtree_is_clipped_outside(
     arena: &impl PaintRead,
     target: NodeSlotId,
+    intersection_root: NodeSlotId,
     root_bounds: CssPixelRect,
     viewport_mapping: &ViewportMapping<'_>,
+    mut inflate_scroll_clip: Option<impl FnMut(CssPixelRect) -> CssPixelRect>,
 ) -> bool {
     if !arena.paintable_row_is_populated(target) || root_bounds.is_empty() {
         return false;
@@ -86,7 +100,9 @@ pub(crate) fn transform_subtree_is_clipped_outside(
 
     let mut has_disjoint_clip = false;
     let mut ancestor = arena.node_parent_if_live(target).unwrap_or(NodeSlotId::INVALID);
-    while let Some(ancestor_row) = arena.node(ancestor) {
+    while ancestor != intersection_root
+        && let Some(ancestor_row) = arena.node(ancestor)
+    {
         let parent = ancestor_row.parent();
         if node_facts::kind_is_box(ancestor_row.kind()) {
             if !arena.paintable_row_is_populated(ancestor) {
@@ -100,7 +116,7 @@ pub(crate) fn transform_subtree_is_clipped_outside(
                 return false;
             }
 
-            if let Some(clip_rect) = viewport_mapping.content_clip_rect(arena, ancestor, ViewportSpace::LayoutViewport)
+            if let Some(clip_rect) = content_clip_rect(arena, ancestor, viewport_mapping, inflate_scroll_clip.as_mut())
                 && !clip_rect.edge_adjacent_intersects(root_bounds)
             {
                 has_disjoint_clip = true;

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #scroller { position: absolute; left: calc(100vw + 120px); width: 100px; height: 100px; }
+    #target { width: 20px; height: 20px; }
+    #outer { position: absolute; top: 0; width: 220px; height: 100px; overflow: hidden; }
+    #inner { position: absolute; top: 90px; width: 100px; height: 10px; }
+    #moving { margin-left: 150px; width: 5px; height: 5px; }
+    @keyframes move { to { transform: translateX(-100px); } }
+</style>
+<div id="scroller"><div id="target"></div></div>
+<div id="outer"><div id="inner"><div id="moving"></div></div></div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+        const target = document.getElementById("target");
+        for (const [overflow, margin] of [
+            ["auto", "100px"],
+            ["auto", "5px"],
+            ["clip", "100px"],
+            ["hidden", "0px 100px 0px 20px"],
+            ["hidden", "0px 100px 0px 19px"],
+        ]) {
+            scroller.style.overflow = overflow;
+            target.style.animation = "move 100s linear";
+            const observer = new IntersectionObserver(() => {}, { scrollMargin: margin });
+            observer.observe(target);
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+            const sampling = internals.dumpCompositorAnimations().includes("observation timer armed");
+            println(`overflow ${overflow}, scroll margin ${margin}: sampling ${sampling}`);
+            observer.disconnect();
+            target.style.animation = "";
+        }
+
+        const moving = document.getElementById("moving");
+        for (const id of ["inner", "outer"]) {
+            const root = document.getElementById(id);
+            const observer = new IntersectionObserver(() => {}, { root, scrollMargin: "0px 0px -20px 0px" });
+            observer.observe(moving);
+            moving.style.animation = "move 100s linear";
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+            const sampling = internals.dumpCompositorAnimations().includes("observation timer armed");
+            println(`explicit root ${id}, negative bottom margin: sampling ${sampling}`);
+            observer.disconnect();
+            moving.style.animation = "";
+        }
+
+        const image = new Image(20, 20);
+        image.loading = "lazy";
+        const loaded = new Promise(resolve => image.onload = resolve);
+        scroller.style.cssText = "overflow: auto; left: calc(100vw + 650px)";
+        scroller.replaceChildren(image);
+        image.src = "../../../Assets/120.png";
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        println(`image starts unloaded: ${!image.complete}`);
+        image.animate([
+            { transform: "translateX(0)" },
+            { transform: "translateX(-100px)", offset: 0.01 },
+            { transform: "translateX(-100px)" },
+        ], 60000);
+        await loaded;
+        println("image loaded during the transform");
+    });
+</script>

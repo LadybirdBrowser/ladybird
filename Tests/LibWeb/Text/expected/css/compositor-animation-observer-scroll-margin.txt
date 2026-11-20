@@ -1,0 +1,9 @@
+overflow auto, scroll margin 100px: sampling true
+overflow auto, scroll margin 5px: sampling false
+overflow clip, scroll margin 100px: sampling false
+overflow hidden, scroll margin 0px 100px 0px 20px: sampling true
+overflow hidden, scroll margin 0px 100px 0px 19px: sampling false
+explicit root inner, negative bottom margin: sampling true
+explicit root outer, negative bottom margin: sampling false
+image starts unloaded: true
+image loaded during the transform
