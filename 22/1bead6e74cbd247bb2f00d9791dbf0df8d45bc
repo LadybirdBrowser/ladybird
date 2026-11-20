@@ -1,0 +1,9 @@
+Ladybird shifts the remaining own indices of a sparse backing store
+when an observable array removes its first slot. V8 uses HasProperty
+and DeleteProperty in GenericArrayShift(). SpiderMonkey checks for a
+hole with HasAndGetElement() in array_shift(). JavaScriptCore calls
+shift() from arrayProtoFuncShift() to move the remaining properties.
+
+Chrome 158.0.8127.36, Firefox 151.0, and WebKit 26.5 agreed on the
+returned values, lengths, and own indices for empty arrays, runs of
+holes, and present undefined elements before and after a hole.
