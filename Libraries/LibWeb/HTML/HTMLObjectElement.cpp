@@ -350,7 +350,10 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
             // NOTE: The request is always asynchronous, even if it is cached or succeeded/failed immediately. Allow the
             //       response callback to invoke the fallback steps. This prevents the fallback layout from flashing very
             //       briefly between here and the resource loading.
+            return;
         }
+
+        self.run_object_representation_fallback_steps();
     });
 
     auto discard_steps = GC::create_function(GC::Heap::the(), GC::captures(*this, release_load_event_delay, task_number), [](auto& self, auto& release_load_event_delay, auto task_number) {
