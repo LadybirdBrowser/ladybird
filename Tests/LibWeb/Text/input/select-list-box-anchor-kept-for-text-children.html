@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 16px SerenitySans;
+    }
+</style>
+<select id="select" multiple size="6"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option></select>
+<script>
+    function press(index, modifiers = 0) {
+        const rect = select.getBoundingClientRect();
+        const rowHeight = (rect.height - 4) / select.size;
+        const x = rect.left + 10;
+        const y = rect.top + 2 + rowHeight * (index + 0.5);
+        internals.mouseDown(x, y, 1, 0, modifiers);
+        internals.mouseUp(x, y, 0, modifiers);
+    }
+
+    function selectedLabels() {
+        return [...select.selectedOptions].map(option => option.label).join(",");
+    }
+
+    asyncTest(async done => {
+        press(1);
+        press(3, internals.MOD_SHIFT);
+        println(`After shift-clicking D: ${selectedLabels()}`);
+
+        // Text and comments between the options add no rows, so the range selection keeps its anchor at B.
+        select.append("\n", document.createComment("comment"));
+        select.firstChild.before("\n");
+        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        press(5, internals.MOD_SHIFT);
+        println(`After shift-clicking F: ${selectedLabels()}`);
+        done();
+    });
+</script>

@@ -1,0 +1,3 @@
+direct: matches :invalid in style: false, checkValidity(): true
+wrapped: matches :invalid in style: false, checkValidity(): true
+after: matches :invalid in style: true, checkValidity(): false

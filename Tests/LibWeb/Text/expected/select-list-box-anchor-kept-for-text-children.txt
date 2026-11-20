@@ -1,0 +1,2 @@
+After shift-clicking D: B,C,D
+After shift-clicking F: B,C,D,E,F

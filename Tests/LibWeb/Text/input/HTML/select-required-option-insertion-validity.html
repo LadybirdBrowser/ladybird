@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    select:invalid {
+        color: rgb(255, 0, 0);
+    }
+</style>
+<select id="direct" required><option value="" selected>A</option></select>
+<select id="wrapped" required><option value="" selected>A</option></select>
+<select id="after" required><option value="" selected>A</option></select>
+<script>
+    test(() => {
+        // A is selected and is the placeholder label option, so each select starts out suffering from being missing.
+        // An option inserted before A, but not one inserted after it, stops A from being the placeholder label option.
+        function report(select) {
+            const style = getComputedStyle(select).color === "rgb(255, 0, 0)" ? "invalid" : "valid";
+            println(`${select.id}: matches :invalid in style: ${style === "invalid"}, checkValidity(): ${select.checkValidity()}`);
+        }
+
+        direct.prepend(new Option("B", "b"));
+        const group = document.createElement("optgroup");
+        group.append(new Option("B", "b"));
+        wrapped.prepend(group);
+        after.append(new Option("B", "b"));
+
+        report(direct);
+        report(wrapped);
+        report(after);
+    });
+</script>
