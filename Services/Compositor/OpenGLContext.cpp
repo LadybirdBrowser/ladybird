@@ -631,13 +631,14 @@ void OpenGLContext::allocate_cpu_painting_surface(ColorBuffer& color_buffer)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
+        auto has_pixel_buffer_objects = supports_pixel_buffer_objects();
         GLint original_pixel_unpack_buffer = 0;
-        if (m_webgl_version == WebGLVersion::WebGL2) {
+        if (has_pixel_buffer_objects) {
             glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &original_pixel_unpack_buffer);
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
         }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_size.width(), m_size.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        if (m_webgl_version == WebGLVersion::WebGL2)
+        if (has_pixel_buffer_objects)
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, original_pixel_unpack_buffer);
     });
 }
@@ -941,6 +942,11 @@ bool OpenGLContext::supports_pixel_buffer_objects() const
 bool OpenGLContext::supports_pack_subimage_parameters() const
 {
     return is_webgl2_or_has_enabled_extension("GL_NV_pack_subimage"sv);
+}
+
+bool OpenGLContext::supports_unpack_subimage_parameters() const
+{
+    return is_webgl2_or_has_enabled_extension("GL_EXT_unpack_subimage"sv);
 }
 
 GLenum OpenGLContext::get_error()
