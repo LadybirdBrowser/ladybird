@@ -16,7 +16,6 @@
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/SecureContexts/AbstractOperations.h>
 #include <LibWebCommon/WebDriver/Error.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>

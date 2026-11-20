@@ -14,7 +14,6 @@
 #include <AK/Vector.h>
 #include <LibHTTP/Proxy.h>
 #include <LibURL/URL.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/ProcessType.h>
 
 namespace WebView {
@@ -193,7 +192,6 @@ struct WebContentOptions {
     Optional<StringView> user_agent_preset {};
     IsTestMode is_test_mode { IsTestMode::No };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
-    SiteIsolationMode site_isolation_mode { SiteIsolationMode::IFrame };
     EnableMemoryHTTPCache enable_http_memory_cache { EnableMemoryHTTPCache::No };
     ExposeExperimentalInterfaces expose_experimental_interfaces { ExposeExperimentalInterfaces::No };
     ExposeInternalsObject expose_internals_object { ExposeInternalsObject::No };

@@ -7,7 +7,6 @@
 #include <AK/ScopeGuard.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>

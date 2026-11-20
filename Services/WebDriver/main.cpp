@@ -18,7 +18,6 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibMain/Main.h>
 #include <LibWebCommon/WebDriver/Capabilities.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebCommon/WebView/Utilities.h>
 #include <WebDriver/Client.h>
 #include <WebDriver/Session.h>
@@ -39,7 +38,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, Optional<StringView> profile_name, Optional<StringView> profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path, StringView site_isolation_mode, Optional<ByteString> const& proxy_autoconfig_url)
+static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, Optional<StringView> profile_name, Optional<StringView> profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path, Optional<ByteString> const& proxy_autoconfig_url)
 {
     Vector<ByteString> arguments;
 #if defined(AK_OS_MACOS)
@@ -86,8 +85,6 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
     if (proxy_autoconfig_url.has_value())
         arguments.append(ByteString::formatted("--proxy-autoconfig-url={}", *proxy_autoconfig_url));
 
-    arguments.append(ByteString::formatted("--site-isolation={}", site_isolation_mode));
-
     if (auto* stats_log = Core::StatsLog::the())
         arguments.append(ByteString::formatted("--stats-log-dir={}", stats_log->directory()));
 
@@ -118,7 +115,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Optional<StringView> profile_path;
     Optional<StringView> profiles_directory;
     Optional<StringView> resource_substitution_map_path;
-    StringView site_isolation_mode = "iframe"sv;
 
     StringView stats_log_directory;
     Core::ArgsParser args_parser;
@@ -137,18 +133,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(profile_path, "Use a self-contained browser profile at an absolute path", "profile-path", 0, "path");
     args_parser.add_option(profiles_directory, "Directory in which to create the browser profile", "profiles-directory", 0, "path");
     args_parser.add_option(resource_substitution_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
-    args_parser.add_option(Core::ArgsParser::Option {
-        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
-        .help_string = "Launch browser with the given site isolation mode ('disable', 'top-level', or 'iframe')",
-        .long_name = "site-isolation",
-        .value_name = "mode",
-        .accept_value = [&](StringView value) {
-            if (!WebView::site_isolation_mode_from_string(value).has_value())
-                return false;
-            site_isolation_mode = value;
-            return true;
-        },
-    });
     args_parser.parse(arguments);
 
     auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "WebDriver"sv));
@@ -222,7 +206,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         auto launch_browser_callback = [&](ByteString const& webdriver_endpoint, bool headless, Optional<ByteString> const& proxy_autoconfig_url) {
-            auto arguments = create_arguments(webdriver_endpoint, profile_name, profile_path, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path, site_isolation_mode, proxy_autoconfig_url);
+            auto arguments = create_arguments(webdriver_endpoint, profile_name, profile_path, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path, proxy_autoconfig_url);
             return launch_process("Ladybird"sv, arguments.span());
         };
 

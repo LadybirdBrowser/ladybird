@@ -357,6 +357,8 @@ static constexpr StringView tab_processes_to_string(TabProcesses tab_processes)
         return "perOrigin"sv;
     case TabProcesses::PerSite:
         return "perSite"sv;
+    case TabProcesses::PerTabWithoutSiteIsolation:
+        break;
     }
     VERIFY_NOT_REACHED();
 }

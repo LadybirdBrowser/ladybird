@@ -15,7 +15,6 @@
 #include <LibWebCommon/HTML/SerializationRecords.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/SecureContexts/AbstractOperations.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
@@ -914,8 +913,7 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
         return process;
 
     // Documents that are not isolated go with the page holding the navigable.
-    auto mode = site_isolation_mode();
-    if (mode == SiteIsolationMode::Disabled || (mode == SiteIsolationMode::TopLevel && parent()))
+    if (Application::the().tab_processes() == TabProcesses::PerTabWithoutSiteIsolation)
         return process_holding_navigable;
 
     // A sandboxed document stays out of its initiator's process, and the sandboxed documents of an origin share one
@@ -980,7 +978,7 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument c
 
     // NB: Without site isolation, every document stays with the process holding its navigable, local file content and
     //     WebUI documents too, and that process may then read local files or speak for the WebUI for as long as it lives.
-    if (site_isolation_mode() == SiteIsolationMode::Disabled)
+    if (Application::the().tab_processes() == TabProcesses::PerTabWithoutSiteIsolation)
         return process;
     auto process_has_hosted_local_file_content = process && process->has_hosted_local_file_content();
     auto process_has_hosted_web_ui = process && process->hosted_web_ui().has_value();
@@ -1013,7 +1011,7 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument c
 ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin)
 {
     auto page = TRY(obtain_page_to_host_in(process_to_host(document, initiator_origin)));
-    if (site_isolation_mode() == SiteIsolationMode::IFrame) {
+    if (Application::the().tab_processes() != TabProcesses::PerTabWithoutSiteIsolation) {
         if (auto origin = origin_of_sandboxed_document(*this, document); origin.has_value()) {
             document.browsing_context().top_level_browsing_context().group()->set_process_hosting_sandboxed_documents_of_origin(*origin, page->client());
             // NB: A sandboxed srcdoc or data: URL iframe of local file content loads files as that content can.

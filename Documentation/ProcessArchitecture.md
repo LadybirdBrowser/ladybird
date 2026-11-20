@@ -92,11 +92,7 @@ This process runs the WebRTC connections of a **WebContent** process, outside of
 
 ## Site isolation
 
-A renderer may be taken over by a page it hosts, so documents of different sites are kept in different processes. The `--site-isolation` option selects how far this goes:
-
-- `iframe`, the default, isolates every document, including cross-site frames.
-- `top-level` isolates top-level documents, and frames stay in the process of their parent.
-- `disable` keeps every document in the process holding its navigable.
+A renderer may be taken over by a page it hosts, so documents of different sites, cross-site frames included, are kept in different processes. The Memory section of `about:settings` chooses whether tabs of one origin or one site share a process. `--debug-process WebContent` turns isolation off, so that every document of a tab stays in the process a debugger is attached to.
 
 Documents that can script each other synchronously belong to one agent, and an agent runs in one process. A document with an opaque origin goes with the document that created it. Local file content and WebUI documents are kept in processes of their own, because those processes hold privileges that a website must not get.
 

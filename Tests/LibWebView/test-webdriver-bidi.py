@@ -2917,7 +2917,6 @@ def run_test(
                 webdriver_binary,
                 "--headless",
                 "--expose-internals-object",
-                "--site-isolation=iframe",
                 f"--profile-path={profile}",
                 env={**os.environ, "XDG_DOWNLOAD_DIR": downloads},
             )
