@@ -1,0 +1,6 @@
+Ladybird now paints the background, borders, and outline of an inline
+box that holds nothing on its line, at its border box there, and hit
+tests that box. Chrome, Firefox, and WebKit all paint such a box: the
+test added here matches its reference, inline-blocks of the same size,
+exactly in Firefox 151.0 and Playwright’s WebKit 26.5, and to within 2
+antialiased pixels in Chrome 157.0.8103.79.
