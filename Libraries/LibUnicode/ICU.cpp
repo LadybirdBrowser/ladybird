@@ -87,6 +87,29 @@ LocaleData::LocaleData(icu::Locale locale)
 {
 }
 
+icu::UnicodeString const& LocaleData::quotation_mark(ULocaleDataDelimiterType mark)
+{
+    if (!m_quotation_marks.has_value()) {
+        m_quotation_marks.emplace();
+        UErrorCode status = U_ZERO_ERROR;
+        icu::LocalULocaleDataPointer data { ulocdata_open(m_locale.getName(), &status) };
+        if (icu_success(status) && status != U_USING_DEFAULT_WARNING) {
+            for (size_t i = 0; i < m_quotation_marks->size(); ++i) {
+                status = U_ZERO_ERROR;
+                auto delimiter = static_cast<ULocaleDataDelimiterType>(i);
+                auto length = ulocdata_getDelimiter(data.getAlias(), delimiter, nullptr, 0, &status);
+                if ((icu_failure(status) && status != U_BUFFER_OVERFLOW_ERROR) || length <= 0)
+                    continue;
+                auto& string = (*m_quotation_marks)[i];
+                status = U_ZERO_ERROR;
+                ulocdata_getDelimiter(data.getAlias(), delimiter, string.getBuffer(length), length, &status);
+                string.releaseBuffer(icu_success(status) ? length : 0);
+            }
+        }
+    }
+    return (*m_quotation_marks)[mark];
+}
+
 Optional<Utf16String> LocaleData::canonicalize(StringView locale)
 {
     auto locale_data = LocaleData::for_locale(locale);

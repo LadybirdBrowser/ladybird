@@ -249,6 +249,7 @@ pub(crate) fn fill_pending_content(
                 pending.tree_scope,
                 style,
                 Some(pending.quote_depth.unwrap_or(0)),
+                engine.element_language_tag(engine.inheritance_parent(owner.element).unwrap_or(owner.element)),
                 Some(values),
             );
             for item in resolved.items {

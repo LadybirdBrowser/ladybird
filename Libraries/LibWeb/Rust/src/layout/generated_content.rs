@@ -242,21 +242,48 @@ fn quotes_data(value: Option<&StyleValueData>) -> QuotesData<'_> {
     }
 }
 
-fn quote_string<'a>(quotes: &QuotesData<'a>, open: bool, depth: u32) -> &'a [u16] {
-    match quotes {
+unsafe extern "C" {
+    fn unicode_quotation_mark(
+        language: *const u16,
+        length: usize,
+        open: bool,
+        alternate: bool,
+        result: *mut *const u16,
+    ) -> usize;
+}
+
+#[cfg(test)]
+#[unsafe(export_name = "unicode_quotation_mark")]
+extern "C" fn quotation_mark_test_stub(_: *const u16, _: usize, _: bool, _: bool, _: *mut *const u16) -> usize {
+    0
+}
+
+fn append_quote(text: &mut Vec<u16>, quotes: &QuotesData<'_>, open: bool, depth: u32, language: &[u16]) {
+    let mark: &[u16] = match quotes {
         QuotesData::None => &[],
-        // FIXME: "A typographically appropriate used value for quotes is automatically chosen by the UA
-        //        based on the content language of the element and/or its parent."
-        QuotesData::Auto => match (open, depth) {
-            (true, 0) => &[0x201C],
-            (true, _) => &[0x2018],
-            (false, 0) => &[0x201D],
-            (false, _) => &[0x2019],
-        },
+        QuotesData::Auto => {
+            if !language.is_empty() {
+                let mut mark = std::ptr::null();
+                // SAFETY: The language is readable during the call. The thread's locale cache owns the returned mark.
+                let length = unsafe {
+                    unicode_quotation_mark(language.as_ptr(), language.len(), open, depth != 0, &raw mut mark)
+                };
+                if length != 0 {
+                    text.extend_from_slice(unsafe { ak::slice_from_raw_parts(mark, length) });
+                    return;
+                }
+            }
+            match (open, depth) {
+                (true, 0) => &[0x201C],
+                (true, _) => &[0x2018],
+                (false, 0) => &[0x201D],
+                (false, _) => &[0x2019],
+            }
+        }
         QuotesData::Specified(values) => {
             // If the depth is greater than the number of pairs, the last pair is repeated.
             let Some(last_pair) = (values.len() / 2).checked_sub(1) else {
-                return &[];
+                return;
             };
             let level = (depth as usize).min(last_pair);
             let quote = &values[level * 2 + usize::from(!open)];
@@ -265,7 +292,8 @@ fn quote_string<'a>(quotes: &QuotesData<'a>, open: bool, depth: u32) -> &'a [u16
                 _ => panic!("a quote is a string"),
             }
         }
-    }
+    };
+    text.extend_from_slice(mark);
 }
 
 // counter( <counter-name>, <counter-style>? )
@@ -420,6 +448,7 @@ pub(crate) fn resolve_content(
     tree_scope: u32,
     style: ComputedValuesView<'_>,
     quote_depth: Option<u32>,
+    quote_language: &[u16],
     mut values: Option<&mut dyn CounterValues>,
 ) -> ResolvedContent {
     let content = style.content_value();
@@ -481,7 +510,7 @@ pub(crate) fn resolve_content(
                     run.made = true;
                     run.shows_quote_depth = true;
                     if let Some(level) = &mut quote_nesting_level {
-                        run.text.extend_from_slice(quote_string(&quotes, true, *level));
+                        append_quote(&mut run.text, &quotes, true, *level, quote_language);
                         *level += 1;
                     }
                 }
@@ -498,7 +527,7 @@ pub(crate) fn resolve_content(
                             let run = pending_text.get_or_insert_with(new_run);
                             run.made = true;
                             run.shows_quote_depth = true;
-                            run.text.extend_from_slice(quote_string(&quotes, false, *level));
+                            append_quote(&mut run.text, &quotes, false, *level, quote_language);
                         }
                         // NB: A text of such close-quotes alone makes no item, but is one whatever the depth.
                         Some(_) | None => pending_text.get_or_insert_with(new_run).shows_quote_depth = true,

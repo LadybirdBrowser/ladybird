@@ -699,8 +699,16 @@ impl FfiBoxMarks {
                 arena.set_needs_layout_update(row, true);
             }
         }
-        if self.language_changed && super::rendered_text::enroll_text_after_language_change(arena, row) {
-            arena.set_needs_layout_update(row, true);
+        if self.language_changed {
+            if let MarkedBox::PseudoElement { generator, .. } = target
+                && arena.style_view(row).is_some_and(|style| style.content_opens_or_closes_quotes()
+                    && matches!(style.quotes_value(), Some(crate::css::style_value::StyleValueData::Keyword { keyword }) if *keyword == crate::css::css_enums::keyword::AUTO))
+            {
+                arena.mark_layout_tree_update(Some(generator), FfiLayoutTreeUpdateMark::style_change(layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE));
+            }
+            if super::rendered_text::enroll_text_after_language_change(arena, row) {
+                arena.set_needs_layout_update(row, true);
+            }
         }
         if self.has_editing_facts {
             let mut stamp = |flag: NodeFlag, value: bool| {
