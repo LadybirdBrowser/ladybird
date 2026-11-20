@@ -3071,12 +3071,12 @@ void EventHandler::handle_gamepad_disconnected(Gamepad::GamepadHandle handle)
         child_navigable->event_handler().handle_gamepad_disconnected(handle);
 }
 
-void EventHandler::process_auto_scroll()
+void EventHandler::process_auto_scroll(double frame_timestamp)
 {
     if (m_auto_scroll_handler)
         m_auto_scroll_handler->perform_tick();
     if (m_middle_button_scroll_handler)
-        m_middle_button_scroll_handler->perform_tick();
+        m_middle_button_scroll_handler->perform_tick(frame_timestamp);
 }
 
 static GC::Ptr<DOM::StaticRange> collapsed_delete_target_range_for_input_event(DOM::Document const& document, DOM::Range const& range, Utf16FlyString const& input_type)

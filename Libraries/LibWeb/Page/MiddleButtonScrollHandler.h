@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
@@ -26,7 +27,7 @@ public:
     static GC::Ptr<DOM::Element> find_scrollable_ancestor(DOM::Document&, Layout::Node&);
 
     void update_mouse_position(CSSPixelPoint position) { m_mouse_position = position; }
-    void perform_tick();
+    void perform_tick(double frame_timestamp);
     void request_indicator_repaint();
 
     CSSPixelPoint origin() const { return m_origin; }
@@ -36,6 +37,7 @@ private:
     GC::Ref<DOM::Element> m_container_element;
     CSSPixelPoint m_origin;
     CSSPixelPoint m_mouse_position;
+    Optional<double> m_last_frame_time;
     CSSPixelPoint m_fractional_delta;
     OwnPtr<HTML::UserScrollGestureHold> m_scroll_gesture_hold;
     bool m_mouse_has_moved_beyond_dead_zone { false };

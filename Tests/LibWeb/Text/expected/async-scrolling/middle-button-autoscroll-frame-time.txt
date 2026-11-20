@@ -1,0 +1,4 @@
+20ms at 500px per second: 10
+40ms at 500px per second: 20
+200ms at 500px per second: 50
+back at origin: 0

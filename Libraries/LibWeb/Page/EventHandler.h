@@ -142,7 +142,7 @@ public:
     void handle_gamepad_updated(Gamepad::GamepadState const&);
     void handle_gamepad_disconnected(Gamepad::GamepadHandle);
 
-    void process_auto_scroll();
+    void process_auto_scroll(double frame_timestamp);
 
     enum class SelectionMode : u8 {
         None,

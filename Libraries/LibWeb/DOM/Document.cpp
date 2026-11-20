@@ -5515,12 +5515,12 @@ void Document::release_video_frames_held_for_callbacks()
         video_element->release_presented_video_frame_held_for_callbacks();
 }
 
-void Document::run_the_scroll_steps()
+void Document::run_the_scroll_steps(double frame_timestamp)
 {
     // AD-HOC: Process auto-scroll ticks before dispatching scroll events. This is tied to the rendering update to
     //         ensure exactly one auto-scroll tick per frame.
     if (auto navigable = this->navigable())
-        navigable->event_handler().process_auto_scroll();
+        navigable->event_handler().process_auto_scroll(frame_timestamp);
 
     // FIXME: 1. For each scrolling box box that was scrolled:
     //        ...

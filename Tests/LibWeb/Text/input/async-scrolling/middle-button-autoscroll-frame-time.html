@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>body { margin: 0; height: 2000px; }</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        internals.setManualRenderingOpportunities(true);
+        try {
+            const start = performance.now();
+            async function frameAt(offset) {
+                await new Promise(resolve => setTimeout(resolve, Math.max(0, start + offset - performance.now()) + 1));
+                const painted = animationFrame();
+                internals.injectRenderingOpportunity(start + offset);
+                await painted;
+                return scrollY;
+            }
+            internals.mouseDown(50, 50, 1, internals.BUTTON_MIDDLE);
+            internals.mouseUp(50, 50, internals.BUTTON_MIDDLE);
+            internals.mouseMove(50, 150);
+            const before = await frameAt(0);
+            const first = await frameAt(20);
+            const second = await frameAt(60);
+            println(`20ms at 500px per second: ${first - before}`);
+            println(`40ms at 500px per second: ${second - first}`);
+            const afterPause = await frameAt(260);
+            println(`200ms at 500px per second: ${afterPause - second}`);
+            internals.mouseMove(50, 50);
+            println(`back at origin: ${await frameAt(280) - afterPause}`);
+        } finally {
+            internals.setManualRenderingOpportunities(false);
+        }
+    });
+</script>
