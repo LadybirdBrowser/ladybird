@@ -1,0 +1,12 @@
+Ladybird’s exception logger can read an accessor when JavaScript
+is running. For an embedder throw without a running context it
+consults the stored property. Other engines’ exception-reporting
+interfaces differ. V8’s MessageHandler::ReportMessage()
+uses NoSideEffectsToString() for internal errors.
+SpiderMonkey’s ErrorReportBuilder::init() has a side-effect-free
+reporting mode. WebKit’s retrieveErrorMessageWithoutName() reads
+DOMException’s native message directly.
+
+The diagnostic flag and its embedder entry point are specific to
+Ladybird. The native regression exercises logging both with a running
+context and after the embedder pops it.
