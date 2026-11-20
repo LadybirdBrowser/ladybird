@@ -1,0 +1,25 @@
+In Ladybird, the properties -webkit-box-align, -webkit-box-pack,
+-webkit-box-flex, and -webkit-box-ordinal-group are now properties
+of their own, which lay out only a -webkit-box, while align-items,
+justify-content, flex-grow, and order lay out only a flex container.
+Run in Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit
+26.5, all three engines do the same, and agree on the computed values
+(align-items stays normal when -webkit-box-align is set, e.g.).
+
+Blink keeps them as the BoxAlign, BoxPack, BoxFlex, and BoxOrdinalGroup
+style fields, and FlexLayoutAlgorithm reads them only for a -webkit-box
+(is_webkit_box_), in ResolvedJustifyContent() and the item alignment
+switch on BoxAlign(). Gecko keeps them in nsStyleXUL as mBoxAlign,
+mBoxPack, mBoxFlex, and mBoxOrdinalGroup, which nsFlexContainerFrame
+reads only when IsLegacyWebkitBox(): ConvertLegacyStyleToAlignItems()
+and ConvertLegacyStyleToJustifyContent() map them, mBoxFlex sets
+both flex grow and flex shrink, and OrderingPropertyForIter() orders
+the items by BoxOrdinalGroup. WebKit lays out a -webkit-box with
+RenderDeprecatedFlexibleBox, which reads its own -webkit-box properties.
+
+The grammar follows the two engines that agree: Chrome and WebKit
+accept any number for -webkit-box-flex, where Firefox rejects a negative
+one, and they reject an ordinal group of 0, which Firefox accepts.
+The keyword mappings for start and end follow Gecko’s flex-start and
+flex-end; Blink uses the flow-relative start and end, which differ only
+with “-webkit-box-direction: reverse”, which Ladybird doesn’t support.
