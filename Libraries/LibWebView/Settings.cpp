@@ -62,6 +62,7 @@ static constexpr auto VERTICAL_TABS_POSITION_KEY = "verticalTabsPosition"sv;
 static constexpr auto VERTICAL_TABS_EXPANDED_WIDTH_KEY = "verticalTabsExpandedWidth"sv;
 static constexpr auto EVERYTHING_IN_SIDEBAR_KEY = "everythingInSidebar"sv;
 static constexpr auto DISCARD_HIDDEN_TABS_AFTER_MINUTES_KEY = "discardHiddenTabsAfterMinutes"sv;
+static constexpr auto TAB_PROCESSES_KEY = "tabProcesses"sv;
 
 static constexpr auto BROWSING_BEHAVIOR_KEY = "browsingBehavior"sv;
 static constexpr auto ENABLE_AUTOSCROLL_KEY = "enableAutoscroll"sv;
@@ -344,6 +345,30 @@ static constexpr Optional<VerticalTabsPosition> vertical_tabs_position_from_stri
         return VerticalTabsPosition::Left;
     if (position == "right"sv)
         return VerticalTabsPosition::Right;
+    return {};
+}
+
+static constexpr StringView tab_processes_to_string(TabProcesses tab_processes)
+{
+    switch (tab_processes) {
+    case TabProcesses::PerTab:
+        return "perTab"sv;
+    case TabProcesses::PerOrigin:
+        return "perOrigin"sv;
+    case TabProcesses::PerSite:
+        return "perSite"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static constexpr Optional<TabProcesses> tab_processes_from_string(StringView tab_processes)
+{
+    if (tab_processes == "perTab"sv)
+        return TabProcesses::PerTab;
+    if (tab_processes == "perOrigin"sv)
+        return TabProcesses::PerOrigin;
+    if (tab_processes == "perSite"sv)
+        return TabProcesses::PerSite;
     return {};
 }
 
@@ -842,6 +867,7 @@ JsonValue Settings::serialize_json() const
         tab_settings.set(VERTICAL_TABS_EXPANDED_WIDTH_KEY, *m_tab_settings.vertical_tabs_expanded_width);
     tab_settings.set(EVERYTHING_IN_SIDEBAR_KEY, m_tab_settings.everything_in_sidebar);
     tab_settings.set(DISCARD_HIDDEN_TABS_AFTER_MINUTES_KEY, m_tab_settings.discard_hidden_tabs_after_minutes);
+    tab_settings.set(TAB_PROCESSES_KEY, tab_processes_to_string(m_tab_settings.tab_processes));
     settings.set(TAB_SETTINGS_KEY, move(tab_settings));
 
     JsonObject browsing_behavior;
@@ -1265,6 +1291,10 @@ TabSettings Settings::parse_tab_settings(JsonValue const& settings)
         tab_settings.everything_in_sidebar = *everything_in_sidebar;
     if (auto minutes = settings.as_object().get_integer<u32>(DISCARD_HIDDEN_TABS_AFTER_MINUTES_KEY); minutes.has_value())
         tab_settings.discard_hidden_tabs_after_minutes = *minutes;
+    if (auto tab_processes = settings.as_object().get_string(TAB_PROCESSES_KEY); tab_processes.has_value()) {
+        if (auto parsed_tab_processes = tab_processes_from_string(*tab_processes); parsed_tab_processes.has_value())
+            tab_settings.tab_processes = *parsed_tab_processes;
+    }
 
     return tab_settings;
 }

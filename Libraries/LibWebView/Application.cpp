@@ -1730,11 +1730,12 @@ void Application::crash_compositor_process()
     m_compositor_client->async_crash();
 }
 
-bool Application::same_origin_tabs_may_share_a_process() const
+bool Application::tabs_may_share_processes() const
 {
     // NB: Tests run side by side, and must not take each other's state with them.
     return m_web_content_options.share_process_between_same_origin_tabs == ShareProcessBetweenSameOriginTabs::Yes
-        && m_web_content_options.is_test_mode == IsTestMode::No;
+        && m_web_content_options.is_test_mode == IsTestMode::No
+        && m_settings->tab_settings().tab_processes != TabProcesses::PerTab;
 }
 
 ErrorOr<NonnullRefPtr<WebContentPage>> Application::open_page_for_new_tab(IsPrivate is_private)

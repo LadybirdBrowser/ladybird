@@ -1241,6 +1241,21 @@
                                 <option value="480">After 8 hours</option>
                             </select>
                         </div>
+                        <div class="card-group inline-container control-row">
+                            <label for="tab-processes">
+                                Let tabs share a process
+                                <p class="description">
+                                    Tabs that share a process use less memory, but if one of them crashes, the others
+                                    crash with it. Tabs of the same subdomain are on mail.example.com, and tabs of the
+                                    same site are anywhere on example.com.
+                                </p>
+                            </label>
+                            <select id="tab-processes">
+                                <option value="perTab">Never</option>
+                                <option value="perOrigin">Same subdomain</option>
+                                <option value="perSite">Same site</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
