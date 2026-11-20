@@ -1,0 +1,32 @@
+Ladybird masks transformed text by grapheme, retaining a mapping to the
+DOM source. Blink’s LayoutText::TransformAndSecureText() applies casing
+before SecureText(). WebKit selects its masking glyph in RenderText and
+applies it in secureText(). Gecko’s nsTextFrame obtains the glyph from
+TextSecurityMaskChar() for the text run.
+
+Chrome 157.0.8103.79 and WebKit 26.5 rendered two marks for an
+uppercased German sharp s. Firefox 151.0 rendered one. The three
+browsers used distinct disc, circle and square marks.
+
+Ladybird paints SVG mask glyphs and exposes their geometry at the
+original DOM code-unit indices. With a combining sequence or a
+supplementary character followed by x, Firefox 151.0 and WebKit 26.5
+exposed all three UTF-16 code units. Chrome 158.0.8127.36 exposed two,
+the number of rendered marks.
+
+Gecko counts addressable characters in SVGTextFrame::GetNumberOfChars().
+WebKit counts fragment lengths in
+SVGTextQuery::numberOfCharactersCallback(). Blink counts inline text in
+SvgTextQuery::NumberOfCharacters(). SVG 2 assigns DOM indices before
+text transformation.
+
+Ladybird paints one mask for each CRLF pair in text a script creates.
+A lone CR and a lone LF each get a mark. Chrome 158.0.8127.36 also
+paints one mark for CRLF in LayoutText::SecureText(). Firefox 151.0
+and WebKit 26.5 paint two. Gecko masks each character in
+nsCaseTransformTextRunFactory::TransformString(). WebKit masks the
+characters of the rendered string in RenderText::secureText().
+
+When pre-line preserves a line feed in unmasked text, Ladybird keeps
+the line break even when CR and LF form one grapheme. Two CRLF pairs
+produce three lines in all three engines, with ASCII or Latin text.
