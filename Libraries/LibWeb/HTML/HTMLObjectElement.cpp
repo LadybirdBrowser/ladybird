@@ -295,12 +295,17 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
             request->set_use_url_credentials(true);
 
             Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
-            fetch_algorithms_input.process_response = GC::create_function(GC::Heap::the(), GC::captures(self), [](auto& self, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
+            // NB: Each fetch releases its load event delay once, when its response is handled or when it's stopped,
+            //     whichever comes first. Anything that arrives for it after that is ignored.
+            auto fetch_id = ++self.m_last_resource_fetch_id;
+            self.m_pending_resource_fetches.set(fetch_id);
+
+            fetch_algorithms_input.process_response = GC::create_function(GC::Heap::the(), GC::captures(self, fetch_id), [](auto& self, auto fetch_id, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
                 auto& realm = HTML::relevant_realm(self);
                 auto& global = self.document().relevant_settings_object().realm().global_object();
 
                 if (response->is_network_error()) {
-                    self.resource_did_fail();
+                    self.resource_did_fail(fetch_id);
                     return;
                 }
 
@@ -313,34 +318,41 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
                         auto ignore_body_error = GC::create_function(GC::Heap::the(), [](JS::Value) { });
                         (void)body->incrementally_read(realm, ignore_chunk, ignore_end_of_body, ignore_body_error, GC::Ref { global });
                     }
-                    self.resource_did_fail();
+                    self.resource_did_fail(fetch_id);
                     return;
                 }
 
                 if (response->type() == Fetch::Infrastructure::Response::Type::Opaque || response->type() == Fetch::Infrastructure::Response::Type::OpaqueRedirect)
                     response = response->unsafe_response();
 
-                auto on_data_read = GC::create_function(GC::Heap::the(), GC::captures(self, response), [](auto& self, auto& response, ByteBuffer data) {
-                    self.resource_did_load(response, data);
+                auto on_data_read = GC::create_function(GC::Heap::the(), GC::captures(self, response, fetch_id), [](auto& self, auto& response, auto fetch_id, ByteBuffer data) {
+                    self.resource_did_load(fetch_id, response, data);
                 });
-                auto on_error = GC::create_function(GC::Heap::the(), GC::captures(self), [](auto& self, JS::Value) {
-                    self.resource_did_fail();
+                auto on_error = GC::create_function(GC::Heap::the(), GC::captures(self, fetch_id), [](auto& self, auto fetch_id, JS::Value) {
+                    self.resource_did_fail(fetch_id);
                 });
 
                 // NB: A response without a body, such as a 204, has nothing to read: Its data is empty.
                 if (!response->body()) {
-                    self.resource_did_load(response, {});
+                    self.resource_did_load(fetch_id, response, {});
                     return;
                 }
                 response->body()->fully_read(realm, on_data_read, on_error, GC::Ref { global });
             });
 
             // 5. Fetch request.
-            (void)Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
+            auto fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 
             //    Fetching the resource must delay the load event of the element's node document until the task that is
             //    queued by the networking task source once the resource has been fetched (defined next) has been run.
             self.m_document_load_event_delayer_for_resource_load.empend(self.document());
+
+            // AD-HOC: A stopped fetch, such as one of a document that was stopped, never processes its response. Stop
+            //         delaying the load event on it then, as if the user agent had given up on loading it.
+            fetch_controller->set_stop_steps(GC::create_function(GC::Heap::the(), GC::captures(GC::Weak { self }, fetch_id), [](auto& weak_self, auto fetch_id) {
+                if (auto object = weak_self.ptr(); object && object->m_pending_resource_fetches.remove(fetch_id))
+                    object->m_document_load_event_delayer_for_resource_load.take_last();
+            }));
 
             // 6. If the resource is not yet available (e.g. because the resource was not available in the cache, so that
             //    loading the resource required making a request over the network), then jump to the step below labeled
@@ -366,8 +378,10 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element:concept-event-fire-2
-void HTMLObjectElement::resource_did_fail()
+void HTMLObjectElement::resource_did_fail(u64 fetch_id)
 {
+    if (!m_pending_resource_fetches.remove(fetch_id))
+        return;
     ScopeGuard guard { [&]() { m_document_load_event_delayer_for_resource_load.take_last(); } };
 
     // 3.7. If the load failed (e.g. there was an HTTP 404 error, there was a DNS error), fire an event named error at
@@ -377,8 +391,10 @@ void HTMLObjectElement::resource_did_fail()
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#object-type-detection
-void HTMLObjectElement::resource_did_load(Fetch::Infrastructure::ResponseView const& response, ReadonlyBytes data)
+void HTMLObjectElement::resource_did_load(u64 fetch_id, Fetch::Infrastructure::ResponseView const& response, ReadonlyBytes data)
 {
+    if (!m_pending_resource_fetches.remove(fetch_id))
+        return;
     ScopeGuard guard { [&]() { m_document_load_event_delayer_for_resource_load.take_last(); } };
 
     // 3.8. Determine the resource type, as follows:
