@@ -19,16 +19,6 @@ HTMLOptGroupElement::HTMLOptGroupElement(DOM::Document& document, DOM::Qualified
 
 HTMLOptGroupElement::~HTMLOptGroupElement() = default;
 
-void HTMLOptGroupElement::inserted()
-{
-    Base::inserted();
-
-    // AD-HOC: We update the selectedness of our <select> parent here,
-    //         to ensure that the correct <option> is selected after an <optgroup> is dynamically inserted.
-    if (is<HTMLSelectElement>(*parent()) && first_child_of_type<HTMLOptionElement>())
-        static_cast<HTMLSelectElement&>(*parent()).update_selectedness();
-}
-
 void HTMLOptGroupElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
