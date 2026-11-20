@@ -1,0 +1,13 @@
+Ladybird now aligns a box under middle, sub, or super against the
+metrics of its parent box: the parent’s x-height for middle, and its
+font size for sub and super. Blink takes them from the parent box too,
+in InlineLayoutStateStack::ApplyBaselineShift(), and so does WebKit,
+in LineBoxVerticalAligner::logicalTopOffsetFromParentBaseline(). Gecko’s
+nsLineLayout::VerticalAlignFrames() takes the font metrics of the
+parent span. Blink and WebKit add 1px to the sub and super shifts, which
+Ladybird and Gecko don’t, so those two cases come out 1px apart.
+
+Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5 ran
+the six cases of the test added here. They agree on the middle cases,
+which Ladybird now matches. For sub and super, Ladybird matches Firefox
+exactly, and Chrome and WebKit to within the 1px above.
