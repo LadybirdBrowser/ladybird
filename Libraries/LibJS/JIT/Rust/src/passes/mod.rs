@@ -39,6 +39,7 @@ pub mod verify;
 mod tests;
 
 use ak::Zone;
+use core::fmt;
 
 use crate::CompileFailure;
 use crate::bytecode::FrameLayout;
@@ -197,21 +198,21 @@ pub fn optimize(
     run_passes(graph, layout, verify, work, steps, &mut |_, _| {})
 }
 
-/// `optimize()`, returning the graph as text after building it and after
-/// every pass, each headed by "=== after <pass>" (for tests of passes).
+/// `optimize()`, writing the graph as text to `dumps` after building it and
+/// after every pass, each headed by "=== after <pass>" (for tests of passes).
+/// Text that `dumps` has no room for is left out.
 pub fn optimize_with_dumps(
     graph: &mut Graph,
     layout: &FrameLayout,
     verify: bool,
     work: &mut Zone,
     steps: &mut [Zone; 2],
-) -> Result<String, CompileFailure> {
-    let mut text = String::new();
+    dumps: &mut dyn fmt::Write,
+) -> Result<(), CompileFailure> {
     run_passes(graph, layout, verify, work, steps, &mut |graph, after| {
-        text.push_str(&format!("=== after {after}\n"));
-        text.push_str(&crate::ir::dump(graph, layout));
-    })?;
-    Ok(text)
+        // NB: A write fails only when `dumps` has no room for more text.
+        let _ = write!(dumps, "=== after {after}\n{}", crate::ir::dump(graph, layout));
+    })
 }
 
 fn run_passes(
@@ -264,12 +265,13 @@ fn check(graph: &Graph, layout: &FrameLayout, verify: bool, work: &mut Zone, aft
     if !verify {
         return;
     }
-    let result =
-        work.scope(|work| verify::verify_with(graph, work).and(verify::verify_frame_writes(graph, layout, work)));
-    if let Err(errors) = result {
-        panic!(
-            "invalid graph after {after}:\n{errors}\n{}",
-            crate::ir::dump(graph, layout)
-        );
-    }
+    // NB: The errors are in the work zone, so the panic happens while it holds them.
+    work.scope(|work| {
+        if let Err(errors) = verify::verify_with(graph, work).and(verify::verify_frame_writes(graph, layout, work)) {
+            panic!(
+                "invalid graph after {after}:\n{errors}\n{}",
+                crate::ir::dump(graph, layout)
+            );
+        }
+    });
 }

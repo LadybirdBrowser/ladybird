@@ -56,6 +56,9 @@ disallowed-methods = [
     { path = "slice::sort_by", reason = "a stable sort makes a block in the heap: use sort_unstable_by, with a key that has no ties" },
     { path = "slice::sort_by_key", reason = "a stable sort makes a block in the heap: use sort_unstable_by_key, with a key that has no ties" },
     { path = "slice::sort_by_cached_key", reason = "this sort makes a block in the heap: use sort_unstable_by_key, with a key that has no ties" },
+    { path = "slice::to_vec", reason = "the compiler makes no block in the heap: use Zone::alloc_slice_copy, or ak::ZoneVec::from_slice_in" },
+    { path = "std::string::ToString::to_string", reason = "the compiler makes no block in the heap: show the value with Display, or write it into a crate::debug_text::DebugText" },
+    { path = "std::borrow::ToOwned::to_owned", reason = "the compiler makes no block in the heap: keep the reference, or copy into a zone" },
 ]
 
 # The compiler keeps its data in zones (see ak::Zone), so that all the memory of a compile can go back to the system.
@@ -72,7 +75,9 @@ disallowed-types = [
     { path = "std::boxed::Box", reason = "the compiler makes no block in the heap: use Zone::alloc" },
     { path = "std::rc::Rc", reason = "the compiler makes no block in the heap: share a reference into a zone" },
     { path = "std::sync::Arc", reason = "the compiler makes no block in the heap: share a reference into a zone" },
+    { path = "std::string::String", reason = "the compiler makes no block in the heap: text is a Display value, or a crate::debug_text::DebugText in a zone" },
 ]
 disallowed-macros = [
     { path = "std::vec", reason = "the compiler makes no block in the heap: use a slice, or ak::ZoneVec" },
+    { path = "std::format", reason = "the compiler makes no block in the heap: write! into a Formatter or into a crate::debug_text::DebugText" },
 ]

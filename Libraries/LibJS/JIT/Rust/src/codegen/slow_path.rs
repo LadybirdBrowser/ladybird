@@ -11,6 +11,9 @@
 //! holds their addresses, indexed by opcode; `slow_path_symbol()` names the
 //! function the runtime must put there for each opcode.
 
+use core::fmt;
+use core::fmt::Write;
+
 use crate::builder::handling;
 use crate::bytecode::Instruction;
 use crate::bytecode::OpCode;
@@ -104,20 +107,9 @@ fn is_binary_values_opcode(opcode: OpCode) -> bool {
     )
 }
 
-fn snake_case(name: &str) -> String {
-    let mut result = String::new();
-    for (index, character) in name.chars().enumerate() {
-        if character.is_ascii_uppercase() && index != 0 {
-            result.push('_');
-        }
-        result.push(character.to_ascii_lowercase());
-    }
-    result
-}
-
 /// The C function the runtime must store in `RuntimeInfo::slow_paths` for
 /// `opcode`, or `None` if JIT code never calls one for it.
-pub fn slow_path_symbol(opcode: OpCode) -> Option<String> {
+pub fn slow_path_symbol(opcode: OpCode) -> Option<SlowPathSymbol> {
     let name = opcode.name();
     let base = name
         .strip_suffix("RhsInt32")
@@ -127,19 +119,69 @@ pub fn slow_path_symbol(opcode: OpCode) -> Option<String> {
     let base = base.strip_suffix("Loop").unwrap_or(base);
     Some(match slow_path_call(opcode)? {
         SlowPathCall::JitCall => return None,
-        SlowPathCall::JumpValues => format!("asm_slow_path_{}_values", snake_case(base)),
-        SlowPathCall::BinaryValues => format!("asm_slow_path_{}_values", snake_case(base)),
+        SlowPathCall::JumpValues | SlowPathCall::BinaryValues => SlowPathSymbol::Values(base),
         SlowPathCall::Record => match opcode {
-            OpCode::ThrowIfTDZ => "asm_slow_path_throw_if_tdz".to_string(),
-            OpCode::GetCalleeAndThisFromEnvironment => "asm_slow_path_get_callee_and_this".to_string(),
-            OpCode::DynamicGetCalleeAndThisFromEnvironment => "asm_slow_path_dynamic_get_callee_and_this".to_string(),
-            OpCode::NewRegExp => "asm_slow_path_new_regexp".to_string(),
-            OpCode::GetById => "asm_slow_path_get_by_id_from_jit".to_string(),
-            OpCode::GetByValue => "asm_slow_path_get_by_value_from_jit".to_string(),
-            OpCode::PutByValue => "asm_slow_path_put_by_value_from_jit".to_string(),
-            _ => format!("asm_slow_path_{}", snake_case(name)).replace("_reg_exp_", "_regexp_"),
+            OpCode::ThrowIfTDZ => SlowPathSymbol::Named("asm_slow_path_throw_if_tdz"),
+            OpCode::GetCalleeAndThisFromEnvironment => SlowPathSymbol::Named("asm_slow_path_get_callee_and_this"),
+            OpCode::DynamicGetCalleeAndThisFromEnvironment => {
+                SlowPathSymbol::Named("asm_slow_path_dynamic_get_callee_and_this")
+            }
+            OpCode::NewRegExp => SlowPathSymbol::Named("asm_slow_path_new_regexp"),
+            OpCode::GetById => SlowPathSymbol::Named("asm_slow_path_get_by_id_from_jit"),
+            OpCode::GetByValue => SlowPathSymbol::Named("asm_slow_path_get_by_value_from_jit"),
+            OpCode::PutByValue => SlowPathSymbol::Named("asm_slow_path_put_by_value_from_jit"),
+            _ => SlowPathSymbol::Record(name),
         },
     })
+}
+
+/// The name of the C function of a slow path (see `slow_path_symbol()`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlowPathSymbol {
+    /// The slow path that takes the values of the instructions named `base` in its operands.
+    Values(&'static str),
+    /// The slow path that takes the record of the instruction named so.
+    Record(&'static str),
+    Named(&'static str),
+}
+
+impl fmt::Display for SlowPathSymbol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::Values(base) => {
+                f.write_str("asm_slow_path_")?;
+                write_snake_case(f, base, false)?;
+                f.write_str("_values")
+            }
+            Self::Record(name) => {
+                f.write_str("asm_slow_path_")?;
+                write_snake_case(f, name, true)
+            }
+            Self::Named(symbol) => f.write_str(symbol),
+        }
+    }
+}
+
+/// Writes `name`, which is in CamelCase, in snake_case. With `regexp_as_one_word`, "RegExp" followed by another word
+/// is one word: "regexp".
+fn write_snake_case(f: &mut fmt::Formatter<'_>, name: &str, regexp_as_one_word: bool) -> fmt::Result {
+    let mut rest = name;
+    while let Some(character) = rest.chars().next() {
+        if character.is_ascii_uppercase() && rest.len() != name.len() {
+            f.write_char('_')?;
+        }
+        if let Some(after) = rest.strip_prefix("RegExp")
+            && regexp_as_one_word
+            && after.starts_with(|next: char| next.is_ascii_uppercase())
+        {
+            f.write_str("regexp")?;
+            rest = after;
+            continue;
+        }
+        f.write_char(character.to_ascii_lowercase())?;
+        rest = &rest[character.len_utf8()..];
+    }
+    Ok(())
 }
 
 /// The destination and operands of a binary slow path call.
@@ -432,6 +474,31 @@ mod tests {
     use super::*;
     use crate::bytecode::NUM_OPCODES;
 
+    /// The symbol of the slow path of `opcode`, made from its name with string operations.
+    fn symbol_by_strings(opcode: OpCode) -> String {
+        let snake_case = |name: &str| {
+            let mut result = String::new();
+            for (index, character) in name.chars().enumerate() {
+                if character.is_ascii_uppercase() && index != 0 {
+                    result.push('_');
+                }
+                result.push(character.to_ascii_lowercase());
+            }
+            result
+        };
+        let name = opcode.name();
+        let base = name
+            .strip_suffix("RhsInt32")
+            .or_else(|| name.strip_suffix("LhsInt32"))
+            .unwrap_or(name);
+        let base = base.strip_suffix("Loop").unwrap_or(base);
+        match slow_path_symbol(opcode).unwrap() {
+            SlowPathSymbol::Values(_) => format!("asm_slow_path_{}_values", snake_case(base)),
+            SlowPathSymbol::Record(_) => format!("asm_slow_path_{}", snake_case(name)).replace("_reg_exp_", "_regexp_"),
+            SlowPathSymbol::Named(symbol) => symbol.to_string(),
+        }
+    }
+
     #[test]
     fn every_generic_opcode_has_a_slow_path() {
         for value in 0..NUM_OPCODES {
@@ -441,25 +508,32 @@ mod tests {
             };
             let symbol = slow_path_symbol(opcode);
             assert_eq!(symbol.is_none(), call == SlowPathCall::JitCall, "{}", opcode.name());
+            if let Some(symbol) = symbol {
+                assert_eq!(symbol.to_string(), symbol_by_strings(opcode), "{}", opcode.name());
+            }
         }
         assert_eq!(
-            slow_path_symbol(OpCode::JumpLessThanEqualsRhsInt32).unwrap(),
+            slow_path_symbol(OpCode::JumpLessThanEqualsRhsInt32)
+                .unwrap()
+                .to_string(),
             "asm_slow_path_jump_less_than_equals_values"
         );
         assert_eq!(
-            slow_path_symbol(OpCode::JumpLessThanEqualsLoopRhsInt32).unwrap(),
+            slow_path_symbol(OpCode::JumpLessThanEqualsLoopRhsInt32)
+                .unwrap()
+                .to_string(),
             "asm_slow_path_jump_less_than_equals_values"
         );
         assert_eq!(
-            slow_path_symbol(OpCode::AddLhsInt32).unwrap(),
+            slow_path_symbol(OpCode::AddLhsInt32).unwrap().to_string(),
             "asm_slow_path_add_values"
         );
         assert_eq!(
-            slow_path_symbol(OpCode::GetById).unwrap(),
+            slow_path_symbol(OpCode::GetById).unwrap().to_string(),
             "asm_slow_path_get_by_id_from_jit"
         );
         assert_eq!(
-            slow_path_symbol(OpCode::ThrowIfTDZ).unwrap(),
+            slow_path_symbol(OpCode::ThrowIfTDZ).unwrap().to_string(),
             "asm_slow_path_throw_if_tdz"
         );
     }

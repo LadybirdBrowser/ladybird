@@ -58,6 +58,7 @@ mod strings;
 mod values;
 
 pub use slow_path::SlowPathCall;
+pub use slow_path::SlowPathSymbol;
 pub use slow_path::ValueSource;
 pub use slow_path::binary_operands;
 pub use slow_path::jump_operands;
@@ -606,101 +607,154 @@ fn assembly_failure(error: crate::asm::AsmError) -> CompileFailure {
 /// The machine code `code` as disassembly, under headers naming the block, IR node
 /// or tail each run of instructions was generated for. Calls of runtime
 /// helpers and well-known values are named.
-pub fn dump_code(
-    graph: &Graph,
-    executable: &ExecutableSnapshot,
-    runtime: &RuntimeInfo,
+pub fn dump_code<'a>(
+    graph: &'a Graph<'a>,
+    executable: &'a ExecutableSnapshot,
+    runtime: &'a RuntimeInfo,
     architecture: Architecture,
-    code: &[u8],
-    generated: &GeneratedCode,
-    artifact: Artifact<'_>,
-) -> String {
-    use std::fmt::Write;
+    code: &'a [u8],
+    generated: &'a GeneratedCode<'a>,
+    artifact: Artifact<'a>,
+) -> CodeDump<'a> {
+    CodeDump {
+        graph,
+        executable,
+        runtime,
+        architecture,
+        code,
+        generated,
+        artifact,
+    }
+}
 
-    let helpers = [
-        (runtime.jit_call, "libjs_jit_call"),
-        (runtime.jit_exit, "libjs_jit_exit"),
-        (runtime.finish_direct_call, "libjs_jit_finish_direct_call"),
-        (runtime.to_boolean, "asm_helper_to_boolean"),
-        (runtime.heap_region_base, "js_heap_region_base"),
-    ];
-    let symbol = |bits: u64| {
-        if bits == 0 {
-            return None;
+/// The text of `dump_code()`.
+pub struct CodeDump<'a> {
+    graph: &'a Graph<'a>,
+    executable: &'a ExecutableSnapshot,
+    runtime: &'a RuntimeInfo,
+    architecture: Architecture,
+    code: &'a [u8],
+    generated: &'a GeneratedCode<'a>,
+    artifact: Artifact<'a>,
+}
+
+/// What a constant in code is, if the dump of the code names it.
+enum ConstantName {
+    Helper(&'static str),
+    SlowPath(SlowPathSymbol),
+    /// An address in the bytecode of the executable, at this offset.
+    Bytecode(u64),
+    Value(value::Description),
+}
+
+impl core::fmt::Display for ConstantName {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Helper(symbol) => f.write_str(symbol),
+            Self::SlowPath(symbol) => write!(f, "{symbol}"),
+            Self::Bytecode(offset) => write!(f, "bytecode @{offset}"),
+            Self::Value(description) => write!(f, "{description}"),
         }
-        if let Some((_, symbol)) = helpers.iter().find(|(address, _)| *address == bits) {
-            return Some(symbol.to_string());
-        }
-        runtime
-            .slow_paths
-            .iter()
-            .enumerate()
-            .filter(|(_, address)| **address == bits)
-            .find_map(|(index, _)| {
-                u8::try_from(index)
-                    .ok()
-                    .and_then(OpCode::from_u8)
-                    .and_then(slow_path_symbol)
-            })
-    };
-    let describe_constant = |bits: u64| {
-        if let Some(symbol) = symbol(bits) {
-            return Some(symbol);
+    }
+}
+
+impl CodeDump<'_> {
+    fn name_constant(&self, bits: u64) -> Option<ConstantName> {
+        let (runtime, executable) = (self.runtime, self.executable);
+        if bits != 0 {
+            let helpers = [
+                (runtime.jit_call, "libjs_jit_call"),
+                (runtime.jit_exit, "libjs_jit_exit"),
+                (runtime.finish_direct_call, "libjs_jit_finish_direct_call"),
+                (runtime.to_boolean, "asm_helper_to_boolean"),
+                (runtime.heap_region_base, "js_heap_region_base"),
+            ];
+            if let Some((_, symbol)) = helpers.iter().find(|(address, _)| *address == bits) {
+                return Some(ConstantName::Helper(symbol));
+            }
+            let slow_path = runtime
+                .slow_paths
+                .iter()
+                .enumerate()
+                .filter(|(_, address)| **address == bits)
+                .find_map(|(index, _)| {
+                    u8::try_from(index)
+                        .ok()
+                        .and_then(OpCode::from_u8)
+                        .and_then(slow_path_symbol)
+                });
+            if let Some(symbol) = slow_path {
+                return Some(ConstantName::SlowPath(symbol));
+            }
         }
         let bytecode_end = executable.bytecode_address + executable.bytecode.len() as u64;
         if (executable.bytecode_address..bytecode_end).contains(&bits) {
-            return Some(format!("bytecode @{}", bits - executable.bytecode_address));
+            return Some(ConstantName::Bytecode(bits - executable.bytecode_address));
         }
         let description = value::describe(bits);
-        (!description.starts_with("0x")).then_some(description)
-    };
+        description.is_known_value().then_some(ConstantName::Value(description))
+    }
 
-    let mut annotations = generated.annotations.iter().peekable();
-    let layout = &executable.layout;
-    let mut out = String::new();
-    let mut instruction_count = 0;
-    disassembler::for_each_instruction(architecture, code, generated.data_offset as usize, |instruction| {
-        instruction_count += 1;
-        while let Some((_, annotation)) = annotations.next_if(|(offset, _)| *offset as usize <= instruction.offset) {
-            match annotation {
-                CodeAnnotation::Prologue => out.push_str("prologue:\n"),
-                CodeAnnotation::Block(block) => writeln!(out, "b{}:", block.0).unwrap(),
-                CodeAnnotation::Node(node) => {
-                    writeln!(out, "  {}", ir::node_text(graph, layout, *node)).unwrap();
-                }
-                CodeAnnotation::BlockEndMoves => out.push_str("  block end moves\n"),
-                CodeAnnotation::Deferred(node) => {
-                    writeln!(out, "deferred code of {}", ir::node_text(graph, layout, *node)).unwrap();
-                }
-                CodeAnnotation::Tail(name) => writeln!(out, "{name}:").unwrap(),
-                CodeAnnotation::Exit { index, node } => {
-                    let kind = match artifact.site(*index).kind() {
-                        SiteKind::Exit(kind) => format!("{kind:?}"),
-                        kind => format!("{kind:?}"),
-                    };
-                    writeln!(out, "  exit #{index} ({kind}) of v{}:", node.0).unwrap();
-                }
-            }
+    fn write_annotation(&self, f: &mut core::fmt::Formatter<'_>, annotation: &CodeAnnotation) -> core::fmt::Result {
+        let (graph, layout) = (self.graph, &self.executable.layout);
+        match annotation {
+            CodeAnnotation::Prologue => f.write_str("prologue:\n"),
+            CodeAnnotation::Block(block) => writeln!(f, "b{}:", block.0),
+            CodeAnnotation::Node(node) => writeln!(f, "  {}", ir::node_text(graph, layout, *node)),
+            CodeAnnotation::BlockEndMoves => f.write_str("  block end moves\n"),
+            CodeAnnotation::Deferred(node) => writeln!(f, "deferred code of {}", ir::node_text(graph, layout, *node)),
+            CodeAnnotation::Tail(name) => writeln!(f, "{name}:"),
+            CodeAnnotation::Exit { index, node } => match self.artifact.site(*index).kind() {
+                SiteKind::Exit(kind) => writeln!(f, "  exit #{index} ({kind:?}) of v{}:", node.0),
+                kind => writeln!(f, "  exit #{index} ({kind:?}) of v{}:", node.0),
+            },
         }
-        write!(out, "    {:06x}  {}", instruction.offset, instruction.text).unwrap();
-        if let Some(description) = instruction.constant.and_then(describe_constant) {
-            write!(out, "  ; {description}").unwrap();
-        }
-        out.push('\n');
-    });
-    let count = |kind: fn(SiteKind) -> bool| artifact.sites().filter(|site| kind(site.kind())).count();
-    writeln!(
-        out,
-        "{} instructions, {} bytes, {} exits, {} leaves, {} publish sites, {} call sites",
-        instruction_count,
-        code.len(),
-        count(|kind| matches!(kind, SiteKind::Exit(_))),
-        count(|kind| kind == SiteKind::Leave),
-        count(|kind| kind == SiteKind::Publish),
-        count(|kind| kind == SiteKind::Call),
-    )
-    .unwrap();
-    out
+    }
+}
+
+impl core::fmt::Display for CodeDump<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let generated = self.generated;
+        let mut annotations = generated.annotations.iter().peekable();
+        let mut instruction_count = 0;
+        let mut result = Ok(());
+        disassembler::for_each_instruction(
+            self.architecture,
+            self.code,
+            generated.data_offset as usize,
+            |instruction| {
+                instruction_count += 1;
+                if result.is_err() {
+                    return;
+                }
+                result = (|| {
+                    while let Some((_, annotation)) =
+                        annotations.next_if(|(offset, _)| *offset as usize <= instruction.offset)
+                    {
+                        self.write_annotation(f, annotation)?;
+                    }
+                    write!(f, "    {:06x}  {}", instruction.offset, instruction.text)?;
+                    if let Some(name) = instruction.constant.and_then(|bits| self.name_constant(bits)) {
+                        write!(f, "  ; {name}")?;
+                    }
+                    f.write_str("\n")
+                })();
+            },
+        );
+        result?;
+        let artifact = self.artifact;
+        let count = |kind: fn(SiteKind) -> bool| artifact.sites().filter(|site| kind(site.kind())).count();
+        writeln!(
+            f,
+            "{} instructions, {} bytes, {} exits, {} leaves, {} publish sites, {} call sites",
+            instruction_count,
+            self.code.len(),
+            count(|kind| matches!(kind, SiteKind::Exit(_))),
+            count(|kind| kind == SiteKind::Leave),
+            count(|kind| kind == SiteKind::Publish),
+            count(|kind| kind == SiteKind::Call),
+        )
+    }
 }
 
 /// For a block that ends in a cache probe and a branch on its result, where

@@ -7,6 +7,8 @@
 //! The output of a compile job: machine code and the metadata the runtime
 //! needs to install it and to exit from it into the interpreter.
 
+use core::fmt;
+
 use ak::Column;
 
 use crate::artifact::Artifact;
@@ -39,11 +41,10 @@ pub struct CompiledCode {
     /// The tables of the code (see `artifact()`), which have `layout`.
     pub words: Column<u32>,
     pub layout: Layout,
-    /// The debug dumps `CompileOptions` asked for, as text to print.
-    pub dump: Option<String>,
-    /// With `CompileOptions::coverage`, what the code contains (see
-    /// `coverage::coverage_keys()`).
-    pub coverage: Vec<String>,
+    /// The debug dumps `CompileOptions` asked for, as UTF-8 text to print (see `dump()`).
+    pub(crate) dump: Option<Column<u8>>,
+    /// With `CompileOptions::coverage`, what the code contains, one key on each line (see `coverage()`).
+    pub(crate) coverage: Option<Column<u8>>,
 }
 
 impl Default for CompiledCode {
@@ -67,29 +68,136 @@ impl CompiledCode {
             words: Column::new(MAX_WORDS, c"JIT compiled tables"),
             layout: Layout::default(),
             dump: None,
-            coverage: Vec::new(),
+            coverage: None,
         }
     }
+
+    /// The most bytes of text the debug dumps of one compile, or its coverage keys, can have. A dump that does not
+    /// fit is cut.
+    const MAX_TEXT_BYTES: usize = 1 << 30;
 
     /// Drops the code. This keeps its memory for the next compile.
     pub fn clear(&mut self) {
         self.code.clear();
         self.words.clear();
         self.layout = Layout::default();
-        self.dump = None;
-        self.coverage = Vec::new();
+        for text in [&mut self.dump, &mut self.coverage].into_iter().flatten() {
+            text.clear();
+        }
+    }
+
+    /// Makes room for the texts that a compile with these options writes, and drops the others. A column for text
+    /// takes no memory before it gets text (see `Column`).
+    pub(crate) fn keep_texts(&mut self, dump: bool, coverage: bool) {
+        for (text, wanted, name) in [
+            (&mut self.dump, dump, c"JIT dump"),
+            (&mut self.coverage, coverage, c"JIT coverage keys"),
+        ] {
+            if !wanted {
+                *text = None;
+            } else if text.is_none() {
+                *text = Some(Column::new(Self::MAX_TEXT_BYTES, name));
+            }
+        }
+    }
+
+    /// The debug dumps `CompileOptions` asked for, as text to print, or `None` if it asked for none.
+    pub fn dump(&self) -> Option<&str> {
+        self.dump.as_deref().map(text_of)
+    }
+
+    /// With `CompileOptions::coverage`, what the code contains (see `coverage::write_coverage_keys()`).
+    pub fn coverage(&self) -> impl Iterator<Item = &str> {
+        self.coverage.as_deref().map_or("", text_of).lines()
     }
 
     /// Gives memory back to the system: all that is past the code and its tables, and past the room for
-    /// `code_bytes` bytes of code and for `words` words of tables.
+    /// `code_bytes` bytes of code and for `words` words of tables, and all that is past the texts.
     pub fn trim(&mut self, code_bytes: usize, words: usize) {
         self.code.trim(code_bytes);
         self.words.trim(words);
+        for text in [&mut self.dump, &mut self.coverage].into_iter().flatten() {
+            text.trim(0);
+        }
     }
 
     /// What the runtime reads to install the code, to enter it, and to translate its state into interpreter frames.
     pub fn artifact(&self) -> Artifact<'_> {
         Artifact::new(&self.words, &self.layout)
+    }
+}
+
+/// The text in the bytes of a column of `CompiledCode`, which a `TextWriter` wrote.
+fn text_of(bytes: &[u8]) -> &str {
+    core::str::from_utf8(bytes).expect("a text writer writes UTF-8 and cuts it at the boundaries of characters")
+}
+
+/// Writes text into a column of `CompiledCode`: a debug dump, or coverage keys. When the column has no room for more,
+/// a dump keeps what fits and ends with a line that says so, and a list of keys keeps the keys that fit. Writes fail
+/// from then on.
+pub(crate) struct TextWriter<'a> {
+    column: &'a mut Column<u8>,
+    /// Whether the text is a list of lines, of which only whole ones are kept.
+    whole_lines: bool,
+    full: bool,
+}
+
+impl<'a> TextWriter<'a> {
+    /// The line that ends a dump that did not fit.
+    const CUT: &'static str = "[the dump goes on, but there is no room for more of it]\n";
+
+    /// A writer of a debug dump.
+    pub(crate) fn dump(column: &'a mut Column<u8>) -> Self {
+        Self {
+            column,
+            whole_lines: false,
+            full: false,
+        }
+    }
+
+    /// A writer of coverage keys, one on each line.
+    pub(crate) fn lines(column: &'a mut Column<u8>) -> Self {
+        Self {
+            column,
+            whole_lines: true,
+            full: false,
+        }
+    }
+}
+
+impl fmt::Write for TextWriter<'_> {
+    fn write_str(&mut self, text: &str) -> fmt::Result {
+        if self.full {
+            return Err(fmt::Error);
+        }
+        // NB: The room for the last line of a dump that does not fit stays free.
+        let room = (self.column.limit() - self.column.len()).saturating_sub(Self::CUT.len() + 1);
+        if text.len() <= room {
+            return self
+                .column
+                .try_extend_from_slice(text.as_bytes())
+                .map_err(|_| fmt::Error);
+        }
+        self.full = true;
+        if self.whole_lines {
+            let end = self
+                .column
+                .iter()
+                .rposition(|byte| *byte == b'\n')
+                .map_or(0, |index| index + 1);
+            self.column.truncate(end);
+            return Err(fmt::Error);
+        }
+        let mut end = room;
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        let _ = self.column.try_extend_from_slice(&text.as_bytes()[..end]);
+        if self.column.last().is_some_and(|byte| *byte != b'\n') {
+            let _ = self.column.try_push(b'\n');
+        }
+        let _ = self.column.try_extend_from_slice(Self::CUT.as_bytes());
+        Err(fmt::Error)
     }
 }
 
@@ -350,3 +458,52 @@ const _: () = {
         index += 1;
     }
 };
+
+#[cfg(test)]
+mod tests {
+    use core::fmt::Write;
+
+    use super::*;
+
+    #[test]
+    fn a_dump_that_does_not_fit_is_cut_with_a_last_line_that_says_so() {
+        let mut column = Column::new(100, c"test");
+        let mut writer = TextWriter::dump(&mut column);
+        assert!(write!(writer, "b0:\n").is_ok());
+        assert!(write!(writer, "{}", "ä".repeat(100)).is_err());
+        assert!(write!(writer, "more").is_err());
+        let text = text_of(&column);
+        assert!(text.len() <= 100);
+        assert!(text.starts_with("b0:\nää"), "{text}");
+        assert!(text.ends_with(&format!("ä\n{}", TextWriter::CUT)), "{text}");
+    }
+
+    #[test]
+    fn coverage_keys_that_do_not_fit_are_left_out() {
+        let mut column = Column::new(100, c"test");
+        let mut writer = TextWriter::lines(&mut column);
+        assert!(writeln!(writer, "Phi").is_ok());
+        assert!(writeln!(writer, "Return").is_ok());
+        assert!(write!(writer, "Exit.").is_ok());
+        assert!(writeln!(writer, "{}", "x".repeat(100)).is_err());
+        assert!(writeln!(writer, "Jump").is_err());
+        assert_eq!(text_of(&column), "Phi\nReturn\n");
+    }
+
+    #[test]
+    fn texts_are_kept_only_for_the_options_that_ask_for_them() {
+        let mut compiled = CompiledCode::new();
+        assert_eq!(compiled.dump(), None);
+        compiled.keep_texts(true, true);
+        let _ = write!(TextWriter::dump(compiled.dump.as_mut().unwrap()), "dump");
+        let _ = write!(TextWriter::lines(compiled.coverage.as_mut().unwrap()), "Phi\nJump\n");
+        assert_eq!(compiled.dump(), Some("dump"));
+        assert_eq!(compiled.coverage().collect::<Vec<_>>(), ["Phi", "Jump"]);
+        compiled.clear();
+        assert_eq!(compiled.dump(), Some(""));
+        assert_eq!(compiled.coverage().count(), 0);
+        compiled.keep_texts(false, false);
+        assert_eq!(compiled.dump(), None);
+        assert!(compiled.coverage.is_none());
+    }
+}

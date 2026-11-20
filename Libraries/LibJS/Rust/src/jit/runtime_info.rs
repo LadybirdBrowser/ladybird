@@ -104,7 +104,7 @@ impl RuntimeFunctionAddresses {
         Self {
             slow_paths: (0..=u8::MAX)
                 .map_while(OpCode::from_u8)
-                .map(|opcode| slow_path_symbol(opcode).map_or(0, |symbol| address(&symbol)))
+                .map(|opcode| slow_path_symbol(opcode).map_or(0, |symbol| address(&symbol.to_string())))
                 .collect(),
             try_get_by_id_cache: address("asm_try_get_by_id_cache"),
             try_put_by_id_cache: address("asm_try_put_by_id_cache"),

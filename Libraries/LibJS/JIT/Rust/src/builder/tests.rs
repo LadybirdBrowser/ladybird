@@ -6,9 +6,13 @@
 
 use super::*;
 use crate::bytecode::test_support::*;
-use crate::ir::dump;
 use crate::snapshot::ExecutableSnapshot;
 use crate::snapshot::List;
+
+/// `graph` as text (see `crate::ir::dump()`).
+fn dump(graph: &Graph, layout: &crate::bytecode::FrameLayout) -> String {
+    crate::ir::dump(graph, layout).to_string()
+}
 
 /// The constants of `test_layout()`: c0 is 0 and c1 is 10.
 pub(crate) fn test_constants() -> Vec<u64> {

@@ -425,10 +425,10 @@ fn finish_compile(
         }
     };
     vm.jit.count_coverage("compile");
-    for key in &compiled.coverage {
+    for key in compiled.coverage() {
         vm.jit.count_coverage(key);
     }
-    if let Some(dump) = &compiled.dump {
+    if let Some(dump) = compiled.dump() {
         eprintln!("JIT code for {}:\n{dump}", super::describe_executable(&executable));
     }
     if let Some(memory) = memory {

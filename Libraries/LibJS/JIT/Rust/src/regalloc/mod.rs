@@ -75,6 +75,7 @@ use crate::tables::Run;
 use ak::Zone;
 use ak::ZoneVec;
 use coalescing::Coalescing;
+use core::fmt;
 use liveness::ValueLiveness;
 use liveness::is_allocated_value;
 use liveness::state_predecessor;
@@ -1134,71 +1135,95 @@ pub fn phi_spill_store(graph: &Graph, allocation: &Allocation, phi: NodeId) -> O
 
 /// Prints the allocation of `graph` as text: every node with the moves
 /// before it, the locations of its inputs and output, and its spill slot.
-pub fn dump_allocation(graph: &Graph, allocation: &Allocation) -> String {
-    use std::fmt::Write;
-    let location_name = |location: &Location| match location {
-        Location::Register(register) if *register >= FPR_BASE => format!("f{}", register - FPR_BASE),
-        Location::Register(register) => format!("r{register}"),
-        Location::Stack(slot) => format!("s{slot}"),
-        Location::Constant(bits) => format!("#{}", crate::ir::value::describe(*bits)),
-        Location::Frame(slot) => format!("frame{slot}"),
-    };
-    /// Writes the text of each item to `out`, with ", " between them.
-    fn write_list<T>(out: &mut String, items: &[T], text: impl Fn(&T) -> String) {
-        for (index, item) in items.iter().enumerate() {
-            if index != 0 {
-                out.push_str(", ");
-            }
-            out.push_str(&text(item));
+pub fn dump_allocation<'a, 'z, 'w>(graph: &'a Graph<'z>, allocation: &'a Allocation<'w>) -> AllocationDump<'a, 'z, 'w> {
+    AllocationDump { graph, allocation }
+}
+
+/// The text of `dump_allocation()`.
+pub struct AllocationDump<'a, 'z, 'w> {
+    graph: &'a Graph<'z>,
+    allocation: &'a Allocation<'w>,
+}
+
+struct LocationName(Location);
+
+impl fmt::Display for LocationName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0 {
+            Location::Register(register) if register >= FPR_BASE => write!(f, "f{}", register - FPR_BASE),
+            Location::Register(register) => write!(f, "r{register}"),
+            Location::Stack(slot) => write!(f, "s{slot}"),
+            Location::Constant(bits) => write!(f, "#{}", crate::ir::value::describe(bits)),
+            Location::Frame(slot) => write!(f, "frame{slot}"),
         }
     }
-    let move_name = |m: &Move| format!("{} -> {}", location_name(&m.from), location_name(&m.to));
-    let mut out = String::new();
-    for index in 0..graph.blocks.len() {
-        let block = BlockId::from_index(index);
-        writeln!(out, "b{index}:").unwrap();
-        for node_id in graph.block_nodes(block) {
-            let node = allocation.node(node_id);
-            if Some(node_id) == graph.block(block).control && !allocation.block_end_moves(block).is_empty() {
-                out.push_str("  moves ");
-                write_list(&mut out, allocation.block_end_moves(block), move_name);
-                out.push('\n');
+}
+
+impl fmt::Display for AllocationDump<'_, '_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        /// Writes the text of each item, with ", " between them.
+        fn write_list<T>(
+            f: &mut fmt::Formatter<'_>,
+            items: &[T],
+            write_item: impl Fn(&mut fmt::Formatter<'_>, &T) -> fmt::Result,
+        ) -> fmt::Result {
+            for (index, item) in items.iter().enumerate() {
+                if index != 0 {
+                    f.write_str(", ")?;
+                }
+                write_item(f, item)?;
             }
-            if !node.moves_before.is_empty() {
-                out.push_str("  moves ");
-                write_list(&mut out, node.moves_before, move_name);
-                out.push('\n');
-            }
-            write!(out, "  v{} {}", node_id.0, graph.node(node_id).op.name()).unwrap();
-            if !node.inputs.is_empty() {
-                out.push_str(" (");
-                write_list(&mut out, node.inputs, location_name);
-                out.push(')');
-            }
-            if let Some(output) = &node.output {
-                write!(out, " -> {}", location_name(output)).unwrap();
-            }
-            if !node.temps.is_empty() {
-                out.push_str(" temps ");
-                write_list(&mut out, node.temps, |register| format!("r{register}"));
-            }
-            if let Some(slot) = node.spill_slot
-                && graph.node(node_id).op != Op::Phi
-            {
-                write!(out, " spill s{slot}").unwrap();
-            }
-            if !node.exit_values.is_empty() {
-                out.push_str(" exit {");
-                write_list(&mut out, node.exit_values, |(slot, location)| {
-                    format!("{slot}={}", location_name(location))
-                });
-                out.push('}');
-            }
-            out.push('\n');
+            Ok(())
         }
+        let write_move =
+            |f: &mut fmt::Formatter<'_>, m: &Move| write!(f, "{} -> {}", LocationName(m.from), LocationName(m.to));
+        let write_location = |f: &mut fmt::Formatter<'_>, location: &Location| write!(f, "{}", LocationName(*location));
+        let (graph, allocation) = (self.graph, self.allocation);
+        for index in 0..graph.blocks.len() {
+            let block = BlockId::from_index(index);
+            writeln!(f, "b{index}:")?;
+            for node_id in graph.block_nodes(block) {
+                let node = allocation.node(node_id);
+                if Some(node_id) == graph.block(block).control && !allocation.block_end_moves(block).is_empty() {
+                    f.write_str("  moves ")?;
+                    write_list(f, allocation.block_end_moves(block), write_move)?;
+                    f.write_str("\n")?;
+                }
+                if !node.moves_before.is_empty() {
+                    f.write_str("  moves ")?;
+                    write_list(f, node.moves_before, write_move)?;
+                    f.write_str("\n")?;
+                }
+                write!(f, "  v{} {}", node_id.0, graph.node(node_id).op.name())?;
+                if !node.inputs.is_empty() {
+                    f.write_str(" (")?;
+                    write_list(f, node.inputs, write_location)?;
+                    f.write_str(")")?;
+                }
+                if let Some(output) = &node.output {
+                    write!(f, " -> {}", LocationName(*output))?;
+                }
+                if !node.temps.is_empty() {
+                    f.write_str(" temps ")?;
+                    write_list(f, node.temps, |f, register| write!(f, "r{register}"))?;
+                }
+                if let Some(slot) = node.spill_slot
+                    && graph.node(node_id).op != Op::Phi
+                {
+                    write!(f, " spill s{slot}")?;
+                }
+                if !node.exit_values.is_empty() {
+                    f.write_str(" exit {")?;
+                    write_list(f, node.exit_values, |f, (slot, location)| {
+                        write!(f, "{slot}={}", LocationName(*location))
+                    })?;
+                    f.write_str("}")?;
+                }
+                f.write_str("\n")?;
+            }
+        }
+        writeln!(f, "spill slots: {}", allocation.spill_slot_count)
     }
-    writeln!(out, "spill slots: {}", allocation.spill_slot_count).unwrap();
-    out
 }
 
 #[cfg(test)]

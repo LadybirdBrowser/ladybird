@@ -18,6 +18,7 @@ use super::slow_path_call;
 use crate::asm::Gpr;
 use crate::asm::PortableMacroAssembler;
 use crate::code::Repr;
+use crate::debug_text::DebugText;
 use crate::ir::BinaryOp;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
@@ -589,7 +590,7 @@ fn slow_path_record(opcode: crate::bytecode::OpCode, on_values: bool) -> Record 
     }
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
+impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
     /// Temp `index` of `node`, which its lowering declares (see `LoweringInfo::temps`). Lowerings take every temp
     /// they declare through this, even on paths that do not use it, so that the declarations can be checked.
     pub(super) fn temp(&self, node: NodeId, index: usize) -> Gpr {
@@ -610,20 +611,20 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
 
     /// Checks that the lowering of every node took exactly the temps it declares, and that only nodes that declare
     /// it used the saves area, whose size depends on that.
-    pub(super) fn verify_lowerings(&self) -> Result<(), String> {
-        let mut errors = String::new();
-        let mut report = |error: String| {
+    pub(super) fn verify_lowerings(&self) -> Result<(), DebugText<'a>> {
+        let mut errors = DebugText::new_in(self.work);
+        let mut report = |error: core::fmt::Arguments<'_>| {
             if !errors.is_empty() {
                 errors.push('\n');
             }
-            errors.push_str(&error);
+            errors.write_fmt(error);
         };
         for block in 0..self.graph.blocks.len() {
             for node in self.graph.block_nodes(BlockId::from_index(block)) {
                 let declared = lowering_info(self.graph.node(node)).temps;
                 let requested = self.requested_temps[node.index()].get();
                 if requested != declared {
-                    report(format!(
+                    report(format_args!(
                         "v{} ({}) takes {requested} temps, but declares {declared}",
                         node.0,
                         self.graph.node(node).op.name()
@@ -637,7 +638,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 continue;
             }
             previous = Some(node);
-            report(format!(
+            report(format_args!(
                 "v{} ({}) uses the saves area, but does not declare it",
                 node.0,
                 self.graph.node(node).op.name()

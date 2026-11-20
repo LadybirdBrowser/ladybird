@@ -12,7 +12,10 @@
 //! it can run on a worker thread.
 
 // NB: The tests keep their own data in the heap.
-#![cfg_attr(test, allow(clippy::disallowed_types, clippy::disallowed_macros))]
+#![cfg_attr(
+    test,
+    allow(clippy::disallowed_types, clippy::disallowed_macros, clippy::disallowed_methods)
+)]
 
 // NB: A module with `allow(clippy::disallowed_types)` still uses containers of the heap (see clippy.toml). It loses
 //     the `allow` when its data is in zones.
@@ -20,20 +23,19 @@ pub mod artifact;
 pub mod asm;
 pub mod builder;
 pub mod bytecode;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod code;
 pub mod codegen;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
+#[allow(clippy::disallowed_types, clippy::disallowed_macros, clippy::disallowed_methods)]
 pub mod compile_pool;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod coverage;
+pub mod debug_text;
 pub mod ir;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
+#[allow(clippy::disallowed_types, clippy::disallowed_macros, clippy::disallowed_methods)]
 pub mod options;
 pub mod passes;
 pub mod regalloc;
 pub mod scratch;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
+#[allow(clippy::disallowed_types, clippy::disallowed_macros, clippy::disallowed_methods)]
 pub mod snapshot;
 pub mod tables;
 
@@ -47,6 +49,8 @@ use artifact::ArtifactWriter;
 use artifact::Tail;
 use bytecode::OpCode;
 use code::CompiledCode;
+use code::TextWriter;
+use core::fmt::Write;
 use scratch::Scratch;
 use snapshot::Snapshot;
 
@@ -143,8 +147,6 @@ fn compile_into<M: asm::PortableMacroAssembler>(
 }
 
 /// The stages of `compile_into()`, which leave their data in `scratch`.
-// NB: The coverage keys of a compile are still a list in the heap.
-#[allow(clippy::disallowed_types)]
 fn run_stages<M: asm::PortableMacroAssembler>(
     snapshot: &Snapshot,
     has_run: &dyn Fn(u32) -> bool,
@@ -152,6 +154,11 @@ fn run_stages<M: asm::PortableMacroAssembler>(
     compiled: &mut CompiledCode,
 ) -> Result<(), CompileFailure> {
     compiled.clear();
+    let options = &snapshot.options;
+    compiled.keep_texts(
+        options.dump_ir || options.dump_asm || options.dump_passes,
+        options.coverage,
+    );
     if !snapshot.is_complete() {
         return Err(CompileFailure::TooLarge);
     }
@@ -171,18 +178,14 @@ fn run_stages<M: asm::PortableMacroAssembler>(
     // NB: The builder is done, and nothing of the graph is in its work data.
     work.reset();
     let executable = &snapshot.executables[0];
-    let pass_dumps = if snapshot.options.dump_passes {
-        Some(passes::optimize_with_dumps(
-            &mut graph,
-            &executable.layout,
-            snapshot.options.verify_ir,
-            work,
-            steps,
-        )?)
-    } else {
-        passes::optimize(&mut graph, &executable.layout, snapshot.options.verify_ir, work, steps)?;
-        None
-    };
+    // NB: The text of a dump that does not fit is cut (see `TextWriter`), so a failed write needs nothing more.
+    let mut dump = compiled.dump.as_mut().map(TextWriter::dump);
+    match &mut dump {
+        Some(dump) if options.dump_passes => {
+            passes::optimize_with_dumps(&mut graph, &executable.layout, options.verify_ir, work, steps, dump)?;
+        }
+        _ => passes::optimize(&mut graph, &executable.layout, options.verify_ir, work, steps)?,
+    }
     let (mut registers, _) = codegen::target_registers::<M>();
     if snapshot.options.stress.few_registers {
         registers.allocatable_gprs = registers.few_registers(STRESS_EXTRA_REGISTERS);
@@ -223,37 +226,40 @@ fn run_stages<M: asm::PortableMacroAssembler>(
         &mut compiled.words,
     )?;
 
-    let mut dump = None;
-    if snapshot.options.dump_ir || snapshot.options.dump_asm || pass_dumps.is_some() {
-        let mut text = pass_dumps.unwrap_or_default();
-        if snapshot.options.dump_ir {
-            text.push_str(&ir::dump(&graph, &executable.layout));
-            text.push_str(&regalloc::dump_allocation(&graph, &allocation));
+    if let Some(dump) = &mut dump {
+        if options.dump_ir {
+            let _ = write!(
+                dump,
+                "{}{}",
+                ir::dump(&graph, &executable.layout),
+                regalloc::dump_allocation(&graph, &allocation)
+            );
         }
-        if snapshot.options.dump_asm {
-            text.push_str(&codegen::dump_code(
-                &graph,
-                executable,
-                &snapshot.runtime,
-                M::ARCHITECTURE,
-                &compiled.code,
-                &generated,
-                Artifact::new(&compiled.words, &layout),
-            ));
+        if options.dump_asm {
+            let _ = write!(
+                dump,
+                "{}",
+                codegen::dump_code(
+                    &graph,
+                    executable,
+                    &snapshot.runtime,
+                    M::ARCHITECTURE,
+                    &compiled.code,
+                    &generated,
+                    Artifact::new(&compiled.words, &layout),
+                )
+            );
         }
-        dump = Some(text);
+    }
+    if let Some(coverage) = &mut compiled.coverage {
+        // NB: The keys that do not fit are left out (see `TextWriter`).
+        let _ = coverage::write_coverage_keys(&graph, &mut TextWriter::lines(coverage));
     }
     compiled.data_offset = generated.data_offset;
     compiled.entry_offset = generated.entry_offset;
     compiled.site_index_frame_offset = generated.site_index_frame_offset;
     compiled.register_dump_frame_offset = generated.register_dump_frame_offset;
     compiled.layout = layout;
-    compiled.dump = dump;
-    compiled.coverage = if snapshot.options.coverage {
-        coverage::coverage_keys(&graph)
-    } else {
-        Vec::new()
-    };
     Ok(())
 }
 
