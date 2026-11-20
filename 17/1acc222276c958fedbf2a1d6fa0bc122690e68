@@ -1,0 +1,8 @@
+Ladybird resolves the percentage margins of an absolutely positioned
+box against the inline size of its containing block, in both axes,
+whether or not the box is sized as a replaced element. Both Blink’s
+ComputeMarginsFor() and Gecko’s SizeComputationInput::ComputeMargin()
+resolve all four margins against a single basis, the inline size of the
+containing block. Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit
+26.5: All three put an image, a canvas, a checkbox, and a text input
+with a 10% margin in a 300x50 containing block at 30,30.
