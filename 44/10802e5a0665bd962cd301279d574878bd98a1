@@ -1,0 +1,11 @@
+Ladybird’s UI process now writes to the system clipboard, for a
+renderer, only text/plain, text/html, and image/png data, which are
+the only formats a page’s own clipboard writes produce.
+
+In Chromium, the renderer writes to the clipboard only through the
+typed methods of ClipboardHostImpl, in content/browser/renderer_host/
+clipboard_host_impl.cc (WriteText(), WriteHtml(), WriteImage(), and
+so on), so it never names a native clipboard format. And the one that
+takes a URL, WriteBookmark(), drops a file: URL outright.
+
+This comparison comes from reading Chromium’s source.
