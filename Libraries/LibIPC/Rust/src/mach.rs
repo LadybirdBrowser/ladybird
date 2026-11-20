@@ -38,11 +38,14 @@ pub const MACH_MSG_VIRTUAL_COPY: u8 = 1;
 pub const MACH_SEND_MSG: i32 = 0x1;
 pub const MACH_RCV_MSG: i32 = 0x2;
 pub const MACH_RCV_LARGE: i32 = 0x4;
+// NB: With MACH_RCV_LARGE, a message too large for the buffer names the port it waits on, which a receive on a port set
+//     needs to take that message rather than another port's.
+const MACH_RCV_LARGE_IDENTITY: i32 = 0x8;
 pub const MACH_SEND_TIMEOUT: i32 = 0x10;
 pub const MACH_RCV_TIMEOUT: i32 = 0x100;
 
 pub const MACH_MSG_SUCCESS: KernReturn = 0;
-const MACH_MSG_MASK: KernReturn = 0x0000_3e00;
+pub(crate) const MACH_MSG_MASK: KernReturn = 0x0000_3e00;
 const MACH_SEND_INVALID_DATA: KernReturn = 0x1000_0002;
 pub const MACH_SEND_INVALID_DEST: KernReturn = 0x1000_0003;
 pub const MACH_SEND_TIMED_OUT: KernReturn = 0x1000_0004;
@@ -63,14 +66,21 @@ const MACH_SEND_NO_GRANT_DEST: KernReturn = 0x1000_0016;
 const MACH_SEND_MSG_FILTERED: KernReturn = 0x1000_0017;
 const MACH_RCV_TIMED_OUT: KernReturn = 0x1000_4003;
 pub const MACH_RCV_TOO_LARGE: KernReturn = 0x1000_4004;
+pub const MACH_RCV_HEADER_ERROR: KernReturn = 0x1000_400b;
+pub const MACH_RCV_BODY_ERROR: KernReturn = 0x1000_400c;
 
 pub const MACH_MSG_TIMEOUT_NONE: u32 = 0;
 
+pub const MACH_NOTIFY_SEND_POSSIBLE: i32 = 0o102;
 pub const MACH_NOTIFY_NO_SENDERS: i32 = 0o106;
 pub const MACH_NOTIFY_SEND_ONCE: i32 = 0o107;
+pub const MACH_NOTIFY_DEAD_NAME: i32 = 0o110;
 
 const MACH_PORT_RIGHT_RECEIVE: u32 = 1;
 const MACH_PORT_RIGHT_PORT_SET: u32 = 3;
+
+pub const MACH_PORT_TYPE_DNREQUEST: u32 = 0x8000_0000;
+pub const MACH_PORT_TYPE_SPREQUEST: u32 = 0x4000_0000;
 
 const MACH_PORT_LIMITS_INFO: i32 = 1;
 const MACH_PORT_LIMITS_INFO_COUNT: u32 = 1;
@@ -87,7 +97,6 @@ pub fn is_valid(name: PortName) -> bool {
 /// `mach_msg_trailer_t`, which the kernel appends to every received message.
 pub const TRAILER_SIZE: usize = 8;
 pub const DEFAULT_RECEIVE_BUFFER_SIZE: usize = 65536;
-const MAX_RETAINED_RECEIVE_BUFFER_SIZE: usize = 1024 * 1024;
 
 unsafe extern "C" {
     static mach_task_self_: PortName;
@@ -119,6 +128,14 @@ unsafe extern "C" {
         previous: *mut PortName,
     ) -> KernReturn;
     fn mach_port_set_attributes(task: PortName, name: PortName, flavor: i32, info: *mut i32, count: u32) -> KernReturn;
+    fn mach_port_extract_right(
+        task: PortName,
+        name: PortName,
+        right_type: u32,
+        right: *mut PortName,
+        acquired_type: *mut u32,
+    ) -> KernReturn;
+    fn mach_port_type(task: PortName, name: PortName, port_type: *mut u32) -> KernReturn;
     fn vm_deallocate(task: PortName, address: usize, size: usize) -> KernReturn;
     fn mach_error_string(error: KernReturn) -> *const c_char;
     fn fileport_makeport(fd: c_int, port: *mut PortName) -> c_int;
@@ -155,6 +172,14 @@ impl From<KernelError> for std::io::Error {
     fn from(error: KernelError) -> Self {
         Self::other(error)
     }
+}
+
+/// The time on `CLOCK_MONOTONIC`, which AK's `MonotonicTime` reads, and which keeps counting while the system sleeps.
+pub fn clock_monotonic_nanoseconds() -> i64 {
+    let mut now = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    // NB: now points to a local that the call writes to, and the clock always exists.
+    unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &raw mut now) };
+    now.tv_sec * 1_000_000_000 + now.tv_nsec
 }
 
 /// Runs the calling thread at the user-interactive quality of service, as `Threading::Thread::set_qos()` does.
@@ -247,6 +272,17 @@ impl MachPort {
         Ok(())
     }
 
+    /// Takes a member out of this port set by its name, for an owner that no longer holds the member's right here.
+    pub fn extract_member_named(&self, member: PortName) -> Result<(), KernReturn> {
+        assert_eq!(self.right, PortRight::PortSet);
+        // NB: Both are names in this task; a name that is not a member fails without effect.
+        let result = unsafe { mach_port_extract_member(task_self(), member, self.name) };
+        if result != KERN_SUCCESS {
+            return Err(result);
+        }
+        Ok(())
+    }
+
     /// Raises the number of messages the port queues, so that a peer can send a burst before this side reads it.
     pub fn raise_queue_limit(&self) {
         assert_eq!(self.right, PortRight::Receive);
@@ -287,6 +323,125 @@ impl MachPort {
             drop(Self::adopt(previous, PortRight::SendOnce));
         }
         Ok(())
+    }
+
+    /// Takes back the request for `MACH_NOTIFY_NO_SENDERS`, before the receive right goes to another owner.
+    pub fn cancel_no_senders_notification(&self) -> Result<(), KernReturn> {
+        assert_eq!(self.right, PortRight::Receive);
+        let previous =
+            self.request_notification(MACH_NOTIFY_NO_SENDERS, 0, MACH_PORT_NULL, MACH_MSG_TYPE_MAKE_SEND_ONCE)?;
+        drop(previous);
+        Ok(())
+    }
+
+    /// Makes a send-once right to the port this receive right is for. A message sent through it bypasses the queue
+    /// limit, and doesn't count as a sender for `MACH_NOTIFY_NO_SENDERS`.
+    pub fn make_send_once_right(&self) -> Result<Self, KernReturn> {
+        assert_eq!(self.right, PortRight::Receive);
+        make_send_once_right_from_receive_right_named(self.name)
+    }
+}
+
+/// As `MachPort::make_send_once_right()`, for a receive right that something else owns, and keeps while this runs.
+pub fn make_send_once_right_from_receive_right_named(receive_right: PortName) -> Result<MachPort, KernReturn> {
+    let mut name = MACH_PORT_NULL;
+    let mut acquired_type = 0;
+    // NB: name and acquired_type point to locals that the call writes to.
+    let result = unsafe {
+        mach_port_extract_right(
+            task_self(),
+            receive_right,
+            MACH_MSG_TYPE_MAKE_SEND_ONCE,
+            &raw mut name,
+            &raw mut acquired_type,
+        )
+    };
+    if result != KERN_SUCCESS {
+        return Err(result);
+    }
+    Ok(MachPort::adopt(name, PortRight::SendOnce))
+}
+
+impl MachPort {
+    /// The `MACH_PORT_TYPE_*` bits of this name in this task, which include the notification requests made on it.
+    pub fn port_type(&self) -> Result<u32, KernReturn> {
+        let mut port_type = 0;
+        // NB: port_type points to a local that the call writes to.
+        let result = unsafe { mach_port_type(task_self(), self.name, &raw mut port_type) };
+        if result != KERN_SUCCESS {
+            return Err(result);
+        }
+        Ok(port_type)
+    }
+
+    /// Asks for `MACH_NOTIFY_SEND_POSSIBLE` on `notify_port` once the queue of the port this send right is for has
+    /// room, or at once if it has room already. A port that dies answers with `MACH_NOTIFY_DEAD_NAME` instead.
+    ///
+    /// Gives back the send-once right of a request on this name that this one replaced.
+    pub fn request_send_possible_notification(&self, notify_port: &MachPort) -> Result<Option<Self>, KernReturn> {
+        assert_eq!(notify_port.right, PortRight::Receive);
+        self.request_notification(
+            MACH_NOTIFY_SEND_POSSIBLE,
+            1,
+            notify_port.name,
+            MACH_MSG_TYPE_MAKE_SEND_ONCE,
+        )
+    }
+
+    /// Takes back a request for `MACH_NOTIFY_SEND_POSSIBLE`, and answers whether it was still armed. One that was not
+    /// has fired or is firing, so its notification is on its way.
+    pub fn cancel_send_possible_notification(&self) -> bool {
+        matches!(
+            self.request_notification(
+                MACH_NOTIFY_SEND_POSSIBLE,
+                0,
+                MACH_PORT_NULL,
+                MACH_MSG_TYPE_MAKE_SEND_ONCE
+            ),
+            Ok(Some(_))
+        )
+    }
+
+    /// Puts back a dead-name request that a send-possible request replaced, with the send-once right it gave back.
+    pub fn restore_dead_name_notification(&self, notify_right: Self) {
+        assert_eq!(notify_right.right, PortRight::SendOnce);
+        let notify_right = std::mem::ManuallyDrop::new(notify_right);
+        match self.request_notification(
+            MACH_NOTIFY_DEAD_NAME,
+            1,
+            notify_right.name,
+            MACH_MSG_TYPE_MOVE_SEND_ONCE,
+        ) {
+            // NB: The kernel took the send-once right, and gave back the one this request replaced, if any.
+            Ok(replaced) => drop(replaced),
+            Err(_) => drop(std::mem::ManuallyDrop::into_inner(notify_right)),
+        }
+    }
+
+    fn request_notification(
+        &self,
+        message_id: i32,
+        sync: u32,
+        notify: PortName,
+        notify_type: u32,
+    ) -> Result<Option<Self>, KernReturn> {
+        let mut previous = MACH_PORT_NULL;
+        // NB: previous points to a local that the call writes to.
+        let result = unsafe {
+            mach_port_request_notification(
+                task_self(),
+                self.name,
+                message_id,
+                sync,
+                notify,
+                notify_type,
+                &raw mut previous,
+            )
+        };
+        if result != KERN_SUCCESS {
+            return Err(result);
+        }
+        Ok(is_valid(previous).then(|| Self::adopt(previous, PortRight::SendOnce)))
     }
 }
 
@@ -339,10 +494,25 @@ pub fn fd_from_file_port(port: MachPort) -> Result<OwnedFd, std::io::Error> {
     Ok(descriptor)
 }
 
+/// Has writes to a pipe or socket whose reader is gone fail with `EPIPE` instead of raising `SIGPIPE`, which the
+/// process does not ignore.
+pub fn disable_sigpipe_on_writes(fd: &OwnedFd) -> Result<(), std::io::Error> {
+    // NB: As <sys/fcntl.h> numbers it.
+    const F_SETNOSIGPIPE: c_int = 73;
+    // NB: fd is open, and the call only sets a flag on it.
+    if unsafe { libc::fcntl(fd.as_raw_fd(), F_SETNOSIGPIPE, 1) } < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(())
+}
+
 pub const IPC_DATA_MESSAGE_ID: i32 = 0x4950_C001;
 pub const IPC_INLINE_DATA_MESSAGE_ID: i32 = 0x4950_C002;
 pub const IPC_WAKEUP_MESSAGE_ID: i32 = 0x4950_C003;
 pub const IPC_RECEIVE_BARRIER_MESSAGE_ID: i32 = 0x4950_C004;
+/// What a transport sends to its own receive right once it finds the peer unreachable, so that the peer's departure
+/// shows after every message that the peer sent before.
+pub const IPC_PEER_UNREACHABLE_MESSAGE_ID: i32 = 0x4950_C005;
 
 // NB: The largest message that carries its payload inline; a larger payload goes out of line.
 const INLINE_MESSAGE_MAX_SIZE: usize = 4096;
@@ -375,9 +545,15 @@ impl MessageBuffer {
         }
     }
 
-    fn release_excess_capacity(&mut self) {
-        if self.words.capacity() * 8 > MAX_RETAINED_RECEIVE_BUFFER_SIZE {
-            *self = Self::new(MAX_RETAINED_RECEIVE_BUFFER_SIZE);
+    fn size(&self) -> usize {
+        self.words.len() * 8
+    }
+
+    // NB: A receive buffer lives as long as its thread, so it does not keep the size of the largest message a peer
+    //     sent.
+    fn shrink_after_large_message(&mut self) {
+        if self.size() > DEFAULT_RECEIVE_BUFFER_SIZE {
+            *self = Self::new(DEFAULT_RECEIVE_BUFFER_SIZE);
         }
     }
 
@@ -449,30 +625,172 @@ pub fn send_header_only_message(destination: &MachPort, id: i32, timeout: Option
     result
 }
 
-/// Sends LibIPC's data message through a send right this task keeps, moving the rights of the attachments with it.
+/// Sends a header-only message through a send-once right, which the message uses up. It waits for nothing, as a
+/// send-once right bypasses the queue limit.
+pub fn send_header_only_message_through_send_once_right(destination: MachPort, id: i32) -> KernReturn {
+    assert_eq!(destination.right(), PortRight::SendOnce);
+    let mut buffer = [0u32; HEADER_SIZE / size_of::<u32>()];
+    // NB: All words are initialized and u8 alignment covers the entire slice.
+    let bytes = unsafe { buffer.align_to_mut::<u8>().1 };
+    write_header(
+        bytes,
+        msgh_bits(MACH_MSG_TYPE_MOVE_SEND_ONCE, 0),
+        HEADER_SIZE,
+        destination.name(),
+        id,
+    );
+    // NB: The buffer holds a header-only message that moves the send-once right, and outlives the call.
+    let result = unsafe {
+        mach_msg(
+            buffer.as_mut_ptr().cast(),
+            MACH_SEND_MSG,
+            HEADER_SIZE as u32,
+            0,
+            MACH_PORT_NULL,
+            MACH_MSG_TIMEOUT_NONE,
+            MACH_PORT_NULL,
+        )
+    };
+    if result == MACH_MSG_SUCCESS {
+        // NB: The message took the right.
+        std::mem::forget(destination);
+    }
+    result
+}
+
+/// What became of a data message that was given to the kernel without waiting for room in its destination's queue.
+pub enum SendOutcome {
+    Sent,
+    /// The destination's queue is full. The message keeps what it carries, to be sent again.
+    WouldBlock(PendingMessage),
+    /// The message is gone with what it carried, for the reason the kernel gave.
+    Failed(KernReturn),
+}
+
+/// The bytes of a message that waits to be sent, which it owns, wherever they are.
+pub type OwnedPayload = Box<dyn AsRef<[u8]> + Send>;
+
+/// A data message that waits for room in its destination's queue, to be sent in its turn.
+pub struct PendingMessage(PendingMessageContents);
+
+enum PendingMessageContents {
+    /// Posted behind other messages that wait, and not given to the kernel yet.
+    Unsent {
+        payload: OwnedPayload,
+        ports: Vec<(MachPort, u32)>,
+    },
+    /// Given to the kernel once already, and handed back.
+    Returned(ReturnedMessage),
+}
+
+impl PendingMessage {
+    pub fn unsent(payload: OwnedPayload, ports: Vec<(MachPort, u32)>) -> Self {
+        Self(PendingMessageContents::Unsent { payload, ports })
+    }
+
+    /// Tries to send the message without waiting for room, with the buffer as scratch space as `send_data_message()`
+    /// takes it.
+    pub fn try_send(self, buffer: &mut MessageBuffer, destination: &MachPort) -> SendOutcome {
+        match self.0 {
+            PendingMessageContents::Unsent { payload, ports } => {
+                send_data_message(buffer, destination, (*payload).as_ref(), ports)
+            }
+            PendingMessageContents::Returned(message) => message.try_send_with(send_without_waiting),
+        }
+    }
+}
+
+/// A data message whose destination's queue was full, as the kernel handed it back: pseudo-received, with the rights
+/// it carries under the names they have now, a send right of its own on the destination, and a mapping of its own of
+/// an out-of-line payload. It is sent again as it is, and dropping it gives all of that back.
+struct ReturnedMessage {
+    buffer: MessageBuffer,
+    // NB: Zero once the kernel has taken the message, or taken it apart.
+    size: usize,
+}
+
+impl ReturnedMessage {
+    fn try_send_with(mut self, send: impl FnOnce(&mut MessageBuffer, usize) -> KernReturn) -> SendOutcome {
+        let result = send(&mut self.buffer, self.size);
+        match classify_send_attempt(result) {
+            SendAttempt::Sent => {
+                self.size = 0;
+                SendOutcome::Sent
+            }
+            SendAttempt::QueueFull => SendOutcome::WouldBlock(PendingMessage(PendingMessageContents::Returned(self))),
+            SendAttempt::FailedWithMessageBack => SendOutcome::Failed(result),
+            SendAttempt::FailedWithMessageConsumed => {
+                self.size = 0;
+                SendOutcome::Failed(result)
+            }
+        }
+    }
+}
+
+impl Drop for ReturnedMessage {
+    fn drop(&mut self) {
+        if self.size == 0 {
+            return;
+        }
+        // NB: This message owns everything it carries, including the mapping of an out-of-line payload.
+        unsafe { mach_msg_destroy(self.buffer.header_pointer()) };
+    }
+}
+
+enum SendAttempt {
+    Sent,
+    QueueFull,
+    /// The kernel handed the message back, maybe only in part, and whatever came back is ours to release.
+    FailedWithMessageBack,
+    /// The kernel took the message apart, and nothing in it is ours any more.
+    FailedWithMessageConsumed,
+}
+
+fn classify_send_attempt(result: KernReturn) -> SendAttempt {
+    if result == MACH_MSG_SUCCESS {
+        return SendAttempt::Sent;
+    }
+    // NB: A send that times out comes back pseudo-received. When the kernel can't hand all of it back, that shows as
+    //     extra bits on the timeout, or as a body error, and the message can't go out whole any more.
+    if result == MACH_SEND_TIMED_OUT {
+        return SendAttempt::QueueFull;
+    }
+    let error = result & !MACH_MSG_MASK;
+    if error == MACH_SEND_TIMED_OUT || error == MACH_RCV_BODY_ERROR || send_error_leaves_descriptors_untouched(result) {
+        return SendAttempt::FailedWithMessageBack;
+    }
+    // NB: Body copyin errors can destroy a prefix of the descriptors without saying how long, so none of the names
+    //     in the message may be released here.
+    SendAttempt::FailedWithMessageConsumed
+}
+
+fn send_without_waiting(buffer: &mut MessageBuffer, size: usize) -> KernReturn {
+    // NB: The buffer holds a message of size bytes that owns what it moves, and outlives the call.
+    unsafe {
+        mach_msg(
+            buffer.header_pointer(),
+            MACH_SEND_MSG | MACH_SEND_TIMEOUT,
+            size as u32,
+            0,
+            MACH_PORT_NULL,
+            0,
+            MACH_PORT_NULL,
+        )
+    }
+}
+
+/// Gives LibIPC's data message to the kernel through a send right this task keeps, moving the rights of the
+/// attachments with it, without waiting for room in the destination's queue.
 ///
-/// A payload that fits goes inline after a 32-bit size; a larger one goes out of line, as `TransportMachPort` sends it.
+/// A payload that fits goes inline after a 32-bit size; a larger one goes out of line, borrowed for the call, as
+/// `TransportMachPort` sends it. The buffer is scratch space that a message which has to wait is copied out of.
 pub fn send_data_message(
     buffer: &mut MessageBuffer,
     destination: &MachPort,
     payload: &[u8],
     ports: Vec<(MachPort, u32)>,
-    should_retry: impl FnMut() -> bool,
-) -> KernReturn {
-    send_data_message_with(buffer, destination, payload, ports, should_retry, |buffer, size| {
-        // NB: The buffer owns its moved rights and borrows the original payload until a timeout returns a mapping.
-        unsafe {
-            mach_msg(
-                buffer.header_pointer(),
-                MACH_SEND_MSG | MACH_SEND_TIMEOUT,
-                size as u32,
-                0,
-                MACH_PORT_NULL,
-                100,
-                MACH_PORT_NULL,
-            )
-        }
-    })
+) -> SendOutcome {
+    send_data_message_with(buffer, destination, payload, ports, send_without_waiting)
 }
 
 fn send_data_message_with(
@@ -480,11 +798,10 @@ fn send_data_message_with(
     destination: &MachPort,
     payload: &[u8],
     mut ports: Vec<(MachPort, u32)>,
-    mut should_retry: impl FnMut() -> bool,
-    mut send: impl FnMut(&mut MessageBuffer, usize) -> KernReturn,
-) -> KernReturn {
-    if payload.len() > crate::MAX_MESSAGE_PAYLOAD_SIZE || ports.len() > crate::MAX_MESSAGE_ATTACHMENT_COUNT {
-        return MACH_SEND_TOO_LARGE;
+    send: impl FnOnce(&mut MessageBuffer, usize) -> KernReturn,
+) -> SendOutcome {
+    if payload.len() > crate::MAX_MESSAGE_PAYLOAD_SIZE {
+        return SendOutcome::Failed(MACH_SEND_TOO_LARGE);
     }
     if ports.iter().any(|(port, disposition)| {
         !matches!(
@@ -497,7 +814,7 @@ fn send_data_message_with(
                 | (PortRight::SendOnce, MACH_MSG_TYPE_MOVE_SEND_ONCE)
         )
     }) {
-        return MACH_SEND_INVALID_RIGHT;
+        return SendOutcome::Failed(MACH_SEND_INVALID_RIGHT);
     }
     let port_count = ports.len();
     let mut inline_size = HEADER_SIZE + INLINE_PAYLOAD_HEADER_SIZE + payload.len();
@@ -511,6 +828,7 @@ fn send_data_message_with(
     } else {
         round_message_size(HEADER_SIZE + BODY_SIZE + port_count * PORT_DESCRIPTOR_SIZE + OUT_OF_LINE_DESCRIPTOR_SIZE)
     };
+    let out_of_line_descriptor_offset = HEADER_SIZE + BODY_SIZE + port_count * PORT_DESCRIPTOR_SIZE;
 
     buffer.ensure_size(message_size);
     {
@@ -559,8 +877,7 @@ fn send_data_message_with(
         }
     }
 
-    // NB: The message now owns moved rights. Header errors leave them untouched; body-copyin errors can destroy
-    //     a prefix without reporting its length, so those original names must never be deallocated here.
+    // NB: The message now owns the rights it moves, so their owners here must not give them back.
     for (port, disposition) in &mut ports {
         if matches!(
             *disposition,
@@ -569,21 +886,48 @@ fn send_data_message_with(
             port.name = MACH_PORT_NULL;
         }
     }
-    let resources = MessageResources(buffer);
-    loop {
-        let result = send(resources.0, message_size);
-        if result & !MACH_MSG_MASK == MACH_SEND_TIMED_OUT {
-            // NB: A timeout pseudo-receives the message, possibly with new names and mappings. Retry or destroy
-            //     that returned message, rather than the original port owners or payload address.
-            if result == MACH_SEND_TIMED_OUT && should_retry() {
-                continue;
+
+    // NB: Until the kernel maps a copy of its own, the message's out-of-line descriptor points at the borrowed payload,
+    //     which destroying the message must not deallocate.
+    let forget_borrowed_payload = |buffer: &mut MessageBuffer| {
+        if send_payload_inline {
+            return false;
+        }
+        let bytes = buffer.bytes_mut();
+        let descriptor =
+            &mut bytes[out_of_line_descriptor_offset..out_of_line_descriptor_offset + OUT_OF_LINE_DESCRIPTOR_SIZE];
+        if u64::from_ne_bytes(descriptor[..8].try_into().unwrap_or_default()) != payload.as_ptr() as u64 {
+            return false;
+        }
+        descriptor[..8].fill(0);
+        descriptor[12..16].fill(0);
+        true
+    };
+
+    let result = send(buffer, message_size);
+    match classify_send_attempt(result) {
+        SendAttempt::Sent => SendOutcome::Sent,
+        SendAttempt::QueueFull => {
+            let mut returned = ReturnedMessage {
+                buffer: MessageBuffer::new(message_size + TRAILER_SIZE),
+                size: message_size,
+            };
+            returned.buffer.bytes_mut()[..message_size].copy_from_slice(&buffer.bytes()[..message_size]);
+            // NB: The kernel hands back a mapping of its own of an out-of-line payload. One that still points at the
+            //     borrowed payload would outlive it, so the message can't wait.
+            if forget_borrowed_payload(&mut returned.buffer) {
+                drop(returned);
+                return SendOutcome::Failed(result);
             }
-            return result;
+            SendOutcome::WouldBlock(PendingMessage(PendingMessageContents::Returned(returned)))
         }
-        if !send_error_leaves_descriptors_untouched(result) {
-            std::mem::forget(resources);
+        SendAttempt::FailedWithMessageBack => {
+            forget_borrowed_payload(buffer);
+            // NB: What came back of the message is ours, and the payload no longer in it.
+            unsafe { mach_msg_destroy(buffer.header_pointer()) };
+            SendOutcome::Failed(result)
         }
-        return result;
+        SendAttempt::FailedWithMessageConsumed => SendOutcome::Failed(result),
     }
 }
 
@@ -642,49 +986,87 @@ pub struct ReceivedMessage {
     pub local_port: PortName,
     /// For a LibIPC data message, its bytes and the rights it moved, with their dispositions.
     pub data: Option<(PayloadBytes, Vec<(MachPort, u32)>)>,
+    /// For a message with the id of `MACH_NOTIFY_DEAD_NAME`, the name it says has died. Only the kernel's own
+    /// notification holds a reference to that name, which its receiver releases; on a port that a peer can send to, the
+    /// name is whatever the peer wrote, and refers to nothing of this task's.
+    pub dead_name: Option<PortName>,
 }
 
 #[derive(Debug)]
 pub enum ReceiveError {
-    Kernel(KernReturn),
-    Malformed(&'static str),
+    /// A message that could not be received whole is gone. The kernel names the port it came in on, if it got that far.
+    Kernel { code: KernReturn, local_port: PortName },
+    /// A message that isn't shaped as LibIPC sends one, on the port it came in on.
+    Malformed { what: &'static str, local_port: PortName },
 }
 
 /// Receives the next message from a port or port set, growing the buffer for a large one.
 pub fn receive_message(buffer: &mut MessageBuffer, from: &MachPort) -> Result<ReceivedMessage, ReceiveError> {
-    receive(buffer, from, 0)
+    receive(buffer, from, None).map(|message| message.expect("a receive without a timeout returns a message"))
 }
 
-/// Receives the next message if one is already queued, without waiting for one.
-pub fn try_receive_message(
+/// Receives the next message from a port or port set if one comes within the timeout.
+pub fn receive_message_within(
     buffer: &mut MessageBuffer,
     from: &MachPort,
+    timeout_in_milliseconds: u32,
 ) -> Result<Option<ReceivedMessage>, ReceiveError> {
-    match receive(buffer, from, MACH_RCV_TIMEOUT) {
-        Err(ReceiveError::Kernel(MACH_RCV_TIMED_OUT)) => Ok(None),
-        result => result.map(Some),
-    }
+    receive(buffer, from, Some(timeout_in_milliseconds))
 }
 
-fn receive(buffer: &mut MessageBuffer, from: &MachPort, options: i32) -> Result<ReceivedMessage, ReceiveError> {
-    let mut result = receive_into(buffer, from, MACH_RCV_LARGE | options);
-    if result == MACH_RCV_TOO_LARGE {
-        // NB: The message stays queued; its header says how large a buffer it needs.
-        let needed = read_u32(buffer.bytes(), 4).unwrap_or(0) as usize + TRAILER_SIZE;
+fn receive(
+    buffer: &mut MessageBuffer,
+    from: &MachPort,
+    timeout_in_milliseconds: Option<u32>,
+) -> Result<Option<ReceivedMessage>, ReceiveError> {
+    // NB: A failed receive names the port of its message here, if the kernel gets that far, so nothing is left over
+    //     from the last message.
+    write_u32(buffer.bytes_mut(), 12, MACH_PORT_NULL);
+    let mut options = MACH_RCV_LARGE | MACH_RCV_LARGE_IDENTITY;
+    if timeout_in_milliseconds.is_some() {
+        options |= MACH_RCV_TIMEOUT;
+    }
+    // NB: A retry for a large message keeps to the caller's timeout: something else may take that message meanwhile.
+    let deadline = timeout_in_milliseconds
+        .map(|timeout| clock_monotonic_nanoseconds().saturating_add(i64::from(timeout) * 1_000_000));
+    let remaining_timeout = || match deadline {
+        Some(deadline) => {
+            let remaining = deadline.saturating_sub(clock_monotonic_nanoseconds()).max(0) as u64;
+            u32::try_from(remaining.div_ceil(1_000_000)).unwrap_or(u32::MAX)
+        }
+        None => MACH_MSG_TIMEOUT_NONE,
+    };
+    let mut result = receive_into(buffer, from.name(), options, remaining_timeout());
+    // NB: The message stays queued, and its header says how large a buffer it needs and which port it waits on. The
+    //     retry receives from that port alone, as on a port set it could take another port's message, which need not
+    //     fit either.
+    while result == MACH_RCV_TOO_LARGE {
+        let port = read_u32(buffer.bytes(), 12).unwrap_or(MACH_PORT_NULL);
+        let mut needed = read_u32(buffer.bytes(), 4).unwrap_or(0) as usize + TRAILER_SIZE;
+        if needed <= buffer.size() {
+            needed = buffer.size() * 2;
+        }
         buffer.ensure_size(needed);
-        result = receive_into(buffer, from, options);
+        result = receive_into(buffer, port, options, remaining_timeout());
+    }
+    if result == MACH_RCV_TIMED_OUT {
+        buffer.shrink_after_large_message();
+        return Ok(None);
     }
     let message = if result != MACH_MSG_SUCCESS {
-        Err(ReceiveError::Kernel(result))
+        Err(ReceiveError::Kernel {
+            code: result,
+            local_port: read_u32(buffer.bytes(), 12).unwrap_or(MACH_PORT_NULL),
+        })
     } else {
-        parse_received_message(buffer)
+        parse_received_message(buffer).map(Some)
     };
-    buffer.release_excess_capacity();
+    buffer.shrink_after_large_message();
     message
 }
 
-fn receive_into(buffer: &mut MessageBuffer, from: &MachPort, options: i32) -> KernReturn {
-    let size = u32::try_from(buffer.words.len() * 8).unwrap_or(u32::MAX);
+fn receive_into(buffer: &mut MessageBuffer, from: PortName, options: i32, timeout: u32) -> KernReturn {
+    let size = u32::try_from(buffer.size()).unwrap_or(u32::MAX);
     // NB: The buffer is aligned for a header, and the call writes at most size bytes into it.
     unsafe {
         mach_msg(
@@ -692,8 +1074,8 @@ fn receive_into(buffer: &mut MessageBuffer, from: &MachPort, options: i32) -> Ke
             MACH_RCV_MSG | options,
             0,
             size,
-            from.name(),
-            MACH_MSG_TIMEOUT_NONE,
+            from,
+            timeout,
             MACH_PORT_NULL,
         )
     }
@@ -714,20 +1096,31 @@ fn parse_received_message(buffer: &mut MessageBuffer) -> Result<ReceivedMessage,
     //     resources, including header rights, until individual descriptors transfer into Rust owners.
     let resources = MessageResources(buffer);
     let bytes = resources.0.bytes_mut();
-    let malformed = ReceiveError::Malformed;
+    let local_port = read_u32(bytes, 12).unwrap_or(MACH_PORT_NULL);
+    let malformed = |what| ReceiveError::Malformed { what, local_port };
     let bits = read_u32(bytes, 0).ok_or(malformed("header"))?;
     let size = read_u32(bytes, 4).ok_or(malformed("header"))? as usize;
-    let local_port = read_u32(bytes, 12).ok_or(malformed("header"))?;
     let id = read_u32(bytes, 20).ok_or(malformed("header"))? as i32;
     if size > bytes.len() || size < HEADER_SIZE {
         return Err(malformed("size"));
     }
     let bytes = &mut bytes[..size];
+    if id == MACH_NOTIFY_DEAD_NAME {
+        // NB: After the header comes an NDR record, then the name.
+        let name = read_u32(bytes, HEADER_SIZE + 8).ok_or(malformed("dead-name notification"))?;
+        return Ok(ReceivedMessage {
+            id,
+            local_port,
+            data: None,
+            dead_name: is_valid(name).then_some(name),
+        });
+    }
     if id != IPC_DATA_MESSAGE_ID && id != IPC_INLINE_DATA_MESSAGE_ID {
         return Ok(ReceivedMessage {
             id,
             local_port,
             data: None,
+            dead_name: None,
         });
     }
 
@@ -801,6 +1194,7 @@ fn parse_received_message(buffer: &mut MessageBuffer) -> Result<ReceivedMessage,
         id,
         local_port,
         data: Some((payload, ports)),
+        dead_name: None,
     })
 }
 
@@ -992,38 +1386,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn large_receives_reuse_the_grown_buffer() {
+    fn a_buffer_grown_for_a_large_message_shrinks_back() {
         let receive = MachPort::allocate_receive_right().unwrap();
         let destination = receive.make_send_right().unwrap();
         let attachment = MachPort::allocate_receive_right().unwrap();
         let ports = (0..6000)
             .map(|_| (attachment.make_send_right().unwrap(), MACH_MSG_TYPE_MOVE_SEND))
             .collect();
-        assert_eq!(
-            send_data_message(&mut MessageBuffer::new(4096), &destination, &[7], ports, || true),
-            MACH_MSG_SUCCESS
-        );
+        assert!(matches!(
+            send_data_message(&mut MessageBuffer::new(4096), &destination, &[7], ports),
+            SendOutcome::Sent
+        ));
         let mut buffer = MessageBuffer::new(DEFAULT_RECEIVE_BUFFER_SIZE);
         let (payload, ports) = receive_message(&mut buffer, &receive).unwrap().data.unwrap();
         assert_eq!(payload.bytes(), [7]);
         assert_eq!(ports.len(), 6000);
-        let buffer_address = buffer.words.as_ptr();
-        let buffer_size = buffer.words.len() * 8;
-        assert!(buffer_size > DEFAULT_RECEIVE_BUFFER_SIZE);
-        assert!(buffer.words.capacity() * 8 <= MAX_RETAINED_RECEIVE_BUFFER_SIZE);
-        drop(ports);
-        let ports = (0..6000)
-            .map(|_| (attachment.make_send_right().unwrap(), MACH_MSG_TYPE_MOVE_SEND))
-            .collect();
-        assert_eq!(
-            send_data_message(&mut MessageBuffer::new(4096), &destination, &[8], ports, || true),
-            MACH_MSG_SUCCESS
-        );
-        let (payload, ports) = receive_message(&mut buffer, &receive).unwrap().data.unwrap();
-        assert_eq!(payload.bytes(), [8]);
-        assert_eq!(ports.len(), 6000);
-        assert_eq!(buffer.words.len() * 8, buffer_size);
-        assert_eq!(buffer.words.as_ptr(), buffer_address);
+        assert_eq!(buffer.size(), DEFAULT_RECEIVE_BUFFER_SIZE);
     }
 
     #[test]
@@ -1059,74 +1437,48 @@ mod tests {
     }
 
     #[test]
-    fn receive_buffer_retention_is_capped() {
-        let mut buffer = MessageBuffer::new(DEFAULT_RECEIVE_BUFFER_SIZE);
-        buffer.ensure_size(2 * DEFAULT_RECEIVE_BUFFER_SIZE);
-        let address = buffer.words.as_ptr();
-        buffer.release_excess_capacity();
-        assert_eq!(buffer.words.as_ptr(), address);
-        buffer.ensure_size(MAX_RETAINED_RECEIVE_BUFFER_SIZE + 8);
-        buffer.release_excess_capacity();
-        assert_eq!(buffer.words.len() * 8, MAX_RETAINED_RECEIVE_BUFFER_SIZE);
-        assert_eq!(buffer.words.capacity() * 8, MAX_RETAINED_RECEIVE_BUFFER_SIZE);
-    }
-
-    #[test]
-    fn timed_out_sends_preserve_returned_memory_ownership() {
+    fn timed_out_sends_keep_the_mapping_the_kernel_returned() {
         let mut buffer = MessageBuffer::new(4096);
         let destination = MachPort::adopt(MACH_PORT_NULL, PortRight::Send);
         let payload = vec![7; 8192];
         let descriptor = HEADER_SIZE + BODY_SIZE;
-        let mut attempt = 0;
-        assert_eq!(
-            send_data_message_with(
-                &mut buffer,
-                &destination,
-                &payload,
-                vec![],
-                || true,
-                |buffer, _| {
-                    let bytes = buffer.bytes_mut();
-                    let address = u64::from_ne_bytes(bytes[descriptor..descriptor + 8].try_into().unwrap());
-                    if attempt == 0 {
-                        assert_eq!(address, payload.as_ptr() as u64);
-                        assert_eq!(bytes[descriptor + 8], 0);
-                    } else {
-                        assert_eq!(address, attempt);
-                        assert_eq!(bytes[descriptor + 8], 1);
-                    }
-                    assert_eq!(bytes[descriptor + 9], MACH_MSG_VIRTUAL_COPY);
-                    attempt += 1;
-                    if attempt == 3 {
-                        return MACH_MSG_SUCCESS;
-                    }
-                    // NB: XNU returns a new mapping with deallocate set for a virtual-copy descriptor.
-                    bytes[descriptor..descriptor + 8].copy_from_slice(&attempt.to_ne_bytes());
-                    bytes[descriptor + 8] = 1;
-                    MACH_SEND_TIMED_OUT
-                }
-            ),
+        let outcome = send_data_message_with(&mut buffer, &destination, &payload, vec![], |buffer, _| {
+            let bytes = buffer.bytes_mut();
+            let address = u64::from_ne_bytes(bytes[descriptor..descriptor + 8].try_into().unwrap());
+            assert_eq!(address, payload.as_ptr() as u64);
+            assert_eq!(bytes[descriptor + 8], 0);
+            assert_eq!(bytes[descriptor + 9], MACH_MSG_VIRTUAL_COPY);
+            // NB: XNU returns a new mapping with deallocate set for a virtual-copy descriptor.
+            bytes[descriptor..descriptor + 8].copy_from_slice(&1u64.to_ne_bytes());
+            bytes[descriptor + 8] = 1;
+            MACH_SEND_TIMED_OUT
+        });
+        let SendOutcome::WouldBlock(pending) = outcome else {
+            panic!("a full queue keeps the message");
+        };
+        let PendingMessage(PendingMessageContents::Returned(returned)) = pending else {
+            panic!("the kernel handed the message back");
+        };
+        let outcome = returned.try_send_with(|buffer, _| {
+            let bytes = buffer.bytes_mut();
+            assert_eq!(
+                u64::from_ne_bytes(bytes[descriptor..descriptor + 8].try_into().unwrap()),
+                1
+            );
+            assert_eq!(bytes[descriptor + 8], 1);
             MACH_MSG_SUCCESS
-        );
-        assert_eq!(attempt, 3);
+        });
+        assert!(matches!(outcome, SendOutcome::Sent));
     }
 
     #[test]
-    fn too_many_attachments_are_refused_before_sending() {
+    fn a_returned_message_that_still_borrows_the_payload_does_not_wait() {
         let mut buffer = MessageBuffer::new(4096);
-        let destination = MachPort::allocate_receive_right().unwrap();
-        let ports = (0..crate::MAX_MESSAGE_ATTACHMENT_COUNT + 1)
-            .map(|_| {
-                (
-                    MachPort::adopt(MACH_PORT_NULL, PortRight::Send),
-                    MACH_MSG_TYPE_COPY_SEND,
-                )
-            })
-            .collect();
-        assert_eq!(
-            send_data_message(&mut buffer, &destination, &[1], ports, || false),
-            MACH_SEND_TOO_LARGE
-        );
+        let destination = MachPort::adopt(MACH_PORT_NULL, PortRight::Send);
+        let payload = vec![7; 8192];
+        let outcome = send_data_message_with(&mut buffer, &destination, &payload, vec![], |_, _| MACH_SEND_TIMED_OUT);
+        assert!(matches!(outcome, SendOutcome::Failed(MACH_SEND_TIMED_OUT)));
+        assert_eq!(payload, vec![7; 8192]);
     }
 
     #[test]
@@ -1136,17 +1488,14 @@ mod tests {
         let port = file_port_from_fd(OwnedFd::from(writer)).unwrap();
         let destination = MachPort::adopt(MACH_PORT_NULL, PortRight::Send);
         let mut buffer = MessageBuffer::new(4096);
-        assert_eq!(
-            send_data_message_with(
-                &mut buffer,
-                &destination,
-                &[1],
-                vec![(port, MACH_MSG_TYPE_MOVE_RECEIVE)],
-                || false,
-                |_, _| panic!("invalid dispositions must not be sent")
-            ),
-            MACH_SEND_INVALID_RIGHT
+        let outcome = send_data_message_with(
+            &mut buffer,
+            &destination,
+            &[1],
+            vec![(port, MACH_MSG_TYPE_MOVE_RECEIVE)],
+            |_, _| panic!("invalid dispositions must not be sent"),
         );
+        assert!(matches!(outcome, SendOutcome::Failed(MACH_SEND_INVALID_RIGHT)));
         assert_eq!(reader.read(&mut [0]).unwrap(), 0);
     }
 
@@ -1167,22 +1516,23 @@ mod tests {
             MACH_SEND_NO_GRANT_DEST,
             MACH_SEND_MSG_FILTERED,
         ] {
-            let (mut reader, writer) = std::io::pipe().unwrap();
-            let port = file_port_from_fd(OwnedFd::from(writer)).unwrap();
-            let destination = MachPort::adopt(MACH_PORT_NULL, PortRight::Send);
-            let mut buffer = MessageBuffer::new(4096);
-            assert_eq!(
-                send_data_message_with(
+            for payload in [vec![1], vec![1; 8192]] {
+                let (mut reader, writer) = std::io::pipe().unwrap();
+                let port = file_port_from_fd(OwnedFd::from(writer)).unwrap();
+                let destination = MachPort::adopt(MACH_PORT_NULL, PortRight::Send);
+                let mut buffer = MessageBuffer::new(4096);
+                let outcome = send_data_message_with(
                     &mut buffer,
                     &destination,
-                    &[1],
+                    &payload,
                     vec![(port, MACH_MSG_TYPE_MOVE_SEND)],
-                    || false,
-                    |_, _| error
-                ),
-                error
-            );
-            assert_eq!(reader.read(&mut [0]).unwrap(), 0);
+                    |_, _| error,
+                );
+                assert!(matches!(outcome, SendOutcome::Failed(failure) if failure == error));
+                assert_eq!(reader.read(&mut [0]).unwrap(), 0);
+                // NB: Destroying the message must leave the borrowed payload alone.
+                assert!(payload.iter().all(|&byte| byte == 1));
+            }
         }
     }
 
@@ -1202,21 +1552,18 @@ mod tests {
             );
             let retained = MachPort::adopt(port.name(), PortRight::Send);
             let destination = MachPort::adopt(MACH_PORT_NULL, PortRight::Send);
-            assert_eq!(
-                send_data_message_with(
-                    &mut MessageBuffer::new(4096),
-                    &destination,
-                    &[1],
-                    vec![(port, MACH_MSG_TYPE_MOVE_SEND)],
-                    || false,
-                    |buffer, _| {
-                        // NB: Simulate the kernel consuming the preceding descriptor before a body-copyin error.
-                        unsafe { mach_msg_destroy(buffer.header_pointer()) };
-                        error
-                    }
-                ),
-                error
+            let outcome = send_data_message_with(
+                &mut MessageBuffer::new(4096),
+                &destination,
+                &[1],
+                vec![(port, MACH_MSG_TYPE_MOVE_SEND)],
+                |buffer, _| {
+                    // NB: Simulate the kernel consuming the preceding descriptor before a body-copyin error.
+                    unsafe { mach_msg_destroy(buffer.header_pointer()) };
+                    error
+                },
             );
+            assert!(matches!(outcome, SendOutcome::Failed(failure) if failure == error));
             drop(fd_from_file_port(retained).unwrap());
             drop(reader);
         }
@@ -1234,7 +1581,7 @@ mod tests {
     }
 
     #[test]
-    fn timed_out_sends_destroy_the_returned_message() {
+    fn a_message_left_waiting_gives_back_what_it_carries() {
         use std::io::Read;
         for payload in [vec![1], vec![1; 8192]] {
             let receive = MachPort::allocate_receive_right().unwrap();
@@ -1244,19 +1591,19 @@ mod tests {
             let port = file_port_from_fd(OwnedFd::from(writer)).unwrap();
             let attachment_receive = MachPort::allocate_receive_right().unwrap();
             let attachment_send = attachment_receive.make_send_right().unwrap();
-            assert_eq!(
-                send_data_message(
-                    &mut MessageBuffer::new(4096),
-                    &destination,
-                    &payload,
-                    vec![
-                        (port, MACH_MSG_TYPE_MOVE_SEND),
-                        (attachment_receive, MACH_MSG_TYPE_MOVE_RECEIVE)
-                    ],
-                    || false
-                ),
-                MACH_SEND_TIMED_OUT
+            let outcome = send_data_message(
+                &mut MessageBuffer::new(4096),
+                &destination,
+                &payload,
+                vec![
+                    (port, MACH_MSG_TYPE_MOVE_SEND),
+                    (attachment_receive, MACH_MSG_TYPE_MOVE_RECEIVE),
+                ],
             );
+            let SendOutcome::WouldBlock(pending) = outcome else {
+                panic!("a full queue keeps the message");
+            };
+            drop(pending);
             assert_eq!(reader.read(&mut [0]).unwrap(), 0);
             assert_eq!(
                 send_header_only_message(&attachment_send, IPC_WAKEUP_MESSAGE_ID, Some(0)),
@@ -1266,30 +1613,31 @@ mod tests {
     }
 
     #[test]
-    fn timed_out_sends_retry_the_returned_rights_and_memory() {
+    fn a_message_left_waiting_goes_out_whole_once_there_is_room() {
         let receive = MachPort::allocate_receive_right().unwrap();
         let destination = receive.make_send_right().unwrap();
         fill_queue(&receive, &destination);
         let attachment = MachPort::allocate_receive_right().unwrap();
         let payload = vec![7; 8192];
-        let mut retries = 0;
-        assert_eq!(
-            send_data_message(
-                &mut MessageBuffer::new(4096),
-                &destination,
-                &payload,
-                vec![(attachment, MACH_MSG_TYPE_MOVE_RECEIVE)],
-                || {
-                    retries += 1;
-                    assert_eq!(retries, 1);
-                    let message = receive_message(&mut MessageBuffer::new(4096), &receive).unwrap();
-                    assert_eq!(message.id, IPC_WAKEUP_MESSAGE_ID);
-                    true
-                }
-            ),
-            MACH_MSG_SUCCESS
+        let outcome = send_data_message(
+            &mut MessageBuffer::new(4096),
+            &destination,
+            &payload,
+            vec![(attachment, MACH_MSG_TYPE_MOVE_RECEIVE)],
         );
-        assert_eq!(retries, 1);
+        let SendOutcome::WouldBlock(pending) = outcome else {
+            panic!("a full queue keeps the message");
+        };
+        let mut scratch = MessageBuffer::new(4096);
+        let SendOutcome::WouldBlock(pending) = pending.try_send(&mut scratch, &destination) else {
+            panic!("the queue is still full");
+        };
+        let message = receive_message(&mut MessageBuffer::new(4096), &receive).unwrap();
+        assert_eq!(message.id, IPC_WAKEUP_MESSAGE_ID);
+        assert!(matches!(
+            pending.try_send(&mut scratch, &destination),
+            SendOutcome::Sent
+        ));
         loop {
             let message = receive_message(&mut MessageBuffer::new(4096), &receive).unwrap();
             if let Some((bytes, ports)) = message.data {
