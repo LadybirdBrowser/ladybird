@@ -89,15 +89,6 @@ void ak_kmalloc_collect()
 {
 }
 
-void* ak_enter_scratch_heap()
-{
-    return nullptr;
-}
-
-void ak_leave_scratch_heap(void*)
-{
-}
-
 extern "C" void ladybird_did_start_short_lived_thread()
 {
 }
@@ -137,7 +128,6 @@ void* ak_kmalloc(size_t size)
 // its memory. When the thread exits, mimalloc deletes its heaps, and what is still allocated stays valid until freed.
 static constexpr size_t PARTITION_COUNT = to_underlying(HeapPartition::String) + 1;
 AK_TLS_INITIAL_EXEC static thread_local constinit mi_heap_t* s_partition_heaps[PARTITION_COUNT] {};
-static thread_local mi_heap_t* s_scratch_heap = nullptr;
 
 static mi_heap_t* heap_for_partition(HeapPartition partition)
 {
@@ -186,33 +176,13 @@ void ak_kfree(void* ptr)
 
 void ak_kmalloc_collect()
 {
-    // NB: In a scratch heap, mi_collect() would collect that heap again instead of the thread's own.
-    VERIFY(!s_scratch_heap || mi_heap_get_default() != s_scratch_heap);
-
     // mi_collect() only visits the calling thread's default heap, so its partitions have to be collected separately.
     for (auto* heap : s_partition_heaps) {
         if (heap)
             mi_heap_collect(heap, true);
     }
-    if (s_scratch_heap)
-        mi_heap_collect(s_scratch_heap, true);
 
     mi_collect(true);
-}
-
-void* ak_enter_scratch_heap()
-{
-    if (!s_scratch_heap)
-        s_scratch_heap = mi_heap_new();
-    // NB: Without a heap of its own, the work allocates from the thread's heap as usual.
-    if (!s_scratch_heap)
-        return mi_heap_get_default();
-    return mi_heap_set_default(s_scratch_heap);
-}
-
-void ak_leave_scratch_heap(void* previous_heap)
-{
-    mi_heap_set_default(static_cast<mi_heap_t*>(previous_heap));
 }
 
 // MADV_FREE leaves the pages in this process until the system runs short of memory. That pays off when they get reused
