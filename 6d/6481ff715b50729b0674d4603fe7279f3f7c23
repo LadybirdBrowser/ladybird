@@ -1,0 +1,22 @@
+Ladybird now lays out a grid fieldset’s anonymous fieldset content
+box as the grid container, with the fieldset’s grid template, implicit
+tracks, and auto-placement. Run in Chrome 157.0.8103.79, Firefox
+151.0, and Playwright’s WebKit 26.5, all three engines lay out a grid
+fieldset’s legend above its grid.
+
+Blink creates the content box with “display: grid” for a grid
+fieldset in LayoutFieldset::InsertedIntoTree(), and LayoutFieldset::
+UpdateAnonymousChildStyle() then copies the grid properties to that
+box. Gecko’s nsCSSFrameConstructor::ConstructFieldSetFrame() creates a
+grid container frame for the -moz-fieldset-content pseudo-element, whose
+display style_adjuster.rs maps to grid in adjust_for_fieldset_content(),
+and forms.css makes it inherit the grid properties. WebKit has no
+content box: The fieldset’s RenderGrid lays out the legend separately,
+in RenderBlock::layoutExcludedChildren().
+
+With “grid-template-rows: subgrid” on a fieldset, Ladybird’s content
+box doesn’t join its parent’s grid, as in Blink, where GridItemData sets
+up subgridded tracks only for a grid node, and a fieldset isn’t one.
+Gecko’s nsGridContainerFrame::ComputeSelfSubgridMasonryBits() skips the
+fieldset’s frame to find the parent grid, and WebKit’s RenderGrid is the
+fieldset itself, so in both, the content does join it.
