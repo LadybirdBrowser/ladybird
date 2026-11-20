@@ -7663,28 +7663,29 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
     queue_intersection_observer_task();
 }
 
+static CSSPixelRect apply_observer_scroll_margin(void const* context, CSSPixelRect clip_rect)
+{
+    auto const& scroll_margin = static_cast<IntersectionObserver::IntersectionObserver const*>(context)->scroll_margin_values();
+    if (scroll_margin.is_empty())
+        return clip_rect;
+    clip_rect.inflate(
+        scroll_margin[0].to_px(clip_rect.height()),
+        scroll_margin[1].to_px(clip_rect.width()),
+        scroll_margin[2].to_px(clip_rect.height()),
+        scroll_margin[3].to_px(clip_rect.width()));
+    return clip_rect;
+}
+
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
 static Optional<CSSPixelRect> compute_intersection(Layout::BegunRead const& read, GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds, MonotonicTime visual_animation_sample_time)
 {
     auto& document = target->document();
-    auto const& scroll_margin = observer.scroll_margin_values();
-    auto inflate_scroll_container_clip_rect_by_scroll_margin = [](void* context, CSSPixelRect clip_rect) -> CSSPixelRect {
-        auto const& scroll_margin = *static_cast<Vector<CSS::LengthPercentage> const*>(context);
-        if (scroll_margin.is_empty())
-            return clip_rect;
-        clip_rect.inflate(
-            scroll_margin[0].to_px(clip_rect.height()),
-            scroll_margin[1].to_px(clip_rect.width()),
-            scroll_margin[2].to_px(clip_rect.height()),
-            scroll_margin[3].to_px(clip_rect.width()));
-        return clip_rect;
-    };
     CSSPixelRect rect;
     auto intersects = Layout::RustFFI::layout_script_intersection_observer_intersection_rect(
         document.layout_node_arena().host(), Layout::Node::slot_id(target->layout_node(read)), target_rect,
         Layout::Node::slot_id(root_layout_box), root_bounds,
         Painting::viewport_mapping_with_visual_animations_sampled_at(document, visual_animation_sample_time),
-        const_cast<Vector<CSS::LengthPercentage>*>(&scroll_margin), inflate_scroll_container_clip_rect_by_scroll_margin, &rect);
+        &observer, apply_observer_scroll_margin, &rect);
     if (!intersects)
         return {};
     return rect;
@@ -7880,10 +7881,7 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
     // 2. If doc's lazy load intersection observer is null, set it to a new IntersectionObserver instance, initialized as follows:
     if (!m_lazy_load_intersection_observer) {
         auto options = IntersectionObserver::IntersectionObserverOptions {};
-        // The HTML lazy-loading algorithm uses a generous implicit root margin so that resources are fetched
-        // before they enter the viewport.  In particular, this also handles elements whose box is initially empty
-        // while their intrinsic dimensions are waiting on the fetch itself.
-        options.root_margin = "1250px"_utf16;
+        options.scroll_margin = "1250px 625px"_utf16;
 
         // The callback is these steps, with arguments entries and observer:
         auto wrapped_callback = IntersectionObserver::create_lazy_load_intersection_observer_callback(*this);
@@ -8706,14 +8704,14 @@ struct CompositorAnimationUpdatePass {
         return kind == Animations::RustFFI::FfiCompositorFrameKind::EffectsLayer ? layout_nodes_with_stale_forced_effects_layer : layout_nodes_with_stale_forced_background_color_frame;
     }
 
-    bool transform_subtree_is_clipped_outside(Element const& animated_target, CSSPixelRect const& root_bounds) const
+    bool transform_subtree_is_clipped_outside(Element const& animated_target, CSSPixelRect const& root_bounds, IntersectionObserver::IntersectionObserver const* observer = nullptr, Layout::Node const* intersection_root = nullptr) const
     {
         auto const* layout_node = animated_target.unsafe_layout_node(read);
         if (!layout_node)
             return false;
         return Layout::RustFFI::layout_script_transform_subtree_is_clipped_outside(
-            layout_node->document_host(), Layout::Node::slot_id(layout_node), root_bounds,
-            viewport_mapping);
+            layout_node->document_host(), Layout::Node::slot_id(layout_node), Layout::Node::slot_id(intersection_root), root_bounds,
+            viewport_mapping, observer, observer ? apply_observer_scroll_margin : nullptr);
     }
 
     static Compositing::RustFFI::NodeSlotId layout_node(void* context, Animations::RustFFI::FfiCompositorTarget target)
@@ -9080,7 +9078,10 @@ bool CompositorAnimationUpdatePass::transform_affects_intersection_observation(v
         auto root = observer.intersection_root_node();
         if (root->is_element() && animated_target.is_shadow_including_inclusive_ancestor_of(*root))
             return true;
-        bool subtree_is_clipped_outside_root = pass.transform_subtree_is_clipped_outside(animated_target, observer.root_intersection_rectangle(pass.read));
+        auto const* root_layout_node = !observer.is_implicit_root() && &root->document() == &animated_target.document()
+            ? root->unsafe_layout_node(pass.read)
+            : nullptr;
+        bool subtree_is_clipped_outside_root = pass.transform_subtree_is_clipped_outside(animated_target, observer.root_intersection_rectangle(pass.read), &observer, root_layout_node);
         for (auto const& observation : observer.observation_targets()) {
             auto target = observation.target.ptr();
             if (!target)

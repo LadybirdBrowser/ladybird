@@ -24,7 +24,7 @@
         for (let i = 0; i < 10; i++)
             spans.append(document.createElement("span"));
         const images = document.getElementById("images");
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 40; i++) {
             const image = document.createElement("img");
             image.loading = "lazy";
             image.src = `../../../Assets/120.png?${i}`;
@@ -41,11 +41,12 @@
         });
         println(`spans reported as intersecting: ${intersecting.join(", ")}`);
 
-        const visibleImages = [...images.children].slice(0, 4);
-        await Promise.all(visibleImages.map(image => image.complete ? null : new Promise(resolve => image.addEventListener("load", resolve))));
+        const nearbyImage = images.children[9];
+        if (!nearbyImage.complete)
+            await new Promise(resolve => nearbyImage.addEventListener("load", resolve, { once: true }));
         await animationFrame();
         await animationFrame();
-        const loaded = [...images.children].flatMap((image, index) => image.naturalWidth ? [index] : []);
-        println(`lazy images loaded: ${loaded.join(", ")}`);
+        println(`tenth image loaded: ${nearbyImage.naturalWidth > 0}`);
+        println(`eleventh image loaded: ${images.children[10].naturalWidth > 0}`);
     });
 </script>

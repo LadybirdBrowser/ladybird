@@ -1,2 +1,3 @@
 spans reported as intersecting: 0, 1, 2, 3
-lazy images loaded: 0, 1, 2, 3
+tenth image loaded: true
+eleventh image loaded: false

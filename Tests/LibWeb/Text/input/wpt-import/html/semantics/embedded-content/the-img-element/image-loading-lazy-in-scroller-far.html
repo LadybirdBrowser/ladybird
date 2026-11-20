@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/#lazy-load-root-margin">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<style>
+  #scroller {
+    width: 100px;
+    height: 100px;
+    overflow: scroll;
+    background-color: gray;
+  }
+
+  #spacer {
+    width: 130px;
+    height: 10000vh;
+  }
+
+  #target {
+    width: 100px;
+    height: 100px;
+  }
+</style>
+
+<div id="scroller">
+  <div id="spacer"></div>
+  <img
+    id="target"
+    src="resources/green.png"
+    loading="lazy"
+    onload="img_onload();"
+  >
+</div>
+
+<script>
+  const t = async_test(
+    "Test that lazy-loaded images do not load when far from viewport."
+  );
+
+  function img_onload() {
+    t.unreached_func(
+      "Lazy-loading image far from viewport should not load."
+    )();
+  }
+
+  t.step_timeout(() => {
+    t.done();
+  }, 2000);
+</script>
