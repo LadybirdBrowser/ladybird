@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Checked.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
@@ -41,12 +42,21 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     s_connections->set(client_id(), *this);
 }
 
-ConnectionFromClient::~ConnectionFromClient() = default;
+ConnectionFromClient::~ConnectionFromClient()
+{
+    for (auto& [stream_id, stream] : m_media_streams) {
+        stream->set_data_request_callback(nullptr);
+        stream->make_missing_data_permanently_unavailable();
+    }
+}
 
 void ConnectionFromClient::die()
 {
-    s_connections->remove(client_id());
-    Core::Process::terminate_immediately(0);
+    auto connection = s_connections->take(client_id());
+    // A renderer can be connected while the previous one is going away, and the server must stay up for it.
+    auto a_renderer_remains = any_of(*s_connections, [](auto const& entry) { return entry.value->m_role == Role::Renderer; });
+    if (m_role == Role::Controller || !a_renderer_remains)
+        Core::Process::terminate_immediately(0);
 }
 
 ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_audio_server_transport()
