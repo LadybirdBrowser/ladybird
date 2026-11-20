@@ -113,6 +113,7 @@ include_directories(${CMAKE_BINARY_DIR}/Services)
 include(lagom_install)
 
 include(rust_crate)
+include(licenses)
 include(targets)
 
 # Plugins need to be installed in order to be used by non-lagom builds
