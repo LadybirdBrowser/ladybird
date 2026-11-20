@@ -1,0 +1,9 @@
+Ladybird writes what pages log to stderr, with the control characters
+in it written as escapes. The other engines write the console of a
+page to stderr as it is, but only when asked to: Firefox writes it
+with fputs() when the devtools.console.stdout.content pref is on,
+which it isn’t by default, and Chrome hands it to its logging in
+LogConsoleMessage(), which reaches stderr when logging is enabled,
+e.g. with --enable-logging=stderr. And WebKit’s ConsoleClient::
+printConsoleMessage() writes it unescaped as well. All of this comes
+from reading their sources, not from running them.
