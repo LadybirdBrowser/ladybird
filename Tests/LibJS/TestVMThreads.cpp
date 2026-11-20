@@ -673,3 +673,19 @@ TEST_CASE(an_interrupt_ends_a_wait_as_terminated_and_leaves_other_waiters_alone)
     EXPECT_EQ(scripts.notify(100), 1);
     EXPECT_EQ(scripts.wait_for_result(3), RESULT_OK * 256 + 2);
 }
+
+TEST_CASE(dictionary_elements_distinguish_holes_from_undefined)
+{
+    run_on_vm_threads(1, [] {
+        auto vm = JS::VM::create();
+        auto context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+        auto object = JS::Object::create(*context->realm, nullptr);
+        object->define_direct_property(0u, JS::js_undefined(), 0);
+        object->indexed_append(JS::js_special_empty_value());
+        object->indexed_append(JS::js_undefined());
+        EXPECT_EQ(object->indexed_array_like_size(), 3u);
+        EXPECT(object->has_own_property(0u).release_value());
+        EXPECT(!object->has_own_property(1u).release_value());
+        EXPECT(object->has_own_property(2u).release_value());
+    });
+}
