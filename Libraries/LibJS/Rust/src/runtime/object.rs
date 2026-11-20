@@ -4198,7 +4198,7 @@ impl Object {
                 && dictionary
                     .sparse_elements()
                     .values()
-                    .all(|element| element.attributes == DEFAULT_ATTRIBUTES && !element.value.is_empty())
+                    .all(|element| element.attributes == DEFAULT_ATTRIBUTES)
             {
                 Some(if dictionary.size() == length {
                     IndexedStorageKind::Packed
