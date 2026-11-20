@@ -1,0 +1,13 @@
+Ladybird now gives an item of a horizontal -webkit-box whose flex basis
+and width are auto a flex base size of its fit-content width. Run in
+Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5, all
+three engines do the same.
+
+Blink resolves such an item’s auto flex basis as fit-content in
+FlexLayoutAlgorithm::ConstructAndAppendFlexItems(), for a horizontal
+box, or a vertical one whose -webkit-box-align isn’t stretch. Gecko
+doesn’t apply the flex basis to an item of a legacy box at all: In
+nsFlexContainerFrame::GenerateFlexItemForChild(), IsLegacyWebkitBox()
+skips the flex basis override, so the item is measured with its own
+shrink-wrapped width. WebKit sizes the items of a -webkit-box in
+RenderDeprecatedFlexibleBox.
