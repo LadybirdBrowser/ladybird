@@ -199,7 +199,7 @@ static UDate to_icu_time(UnixDateTime time)
     return clamp(static_cast<UDate>(time.milliseconds_since_epoch()), min_time, max_time);
 }
 
-Optional<TimeZoneOffset> time_zone_offset(Utf16View time_zone, UnixDateTime time)
+Optional<TimeZoneOffset> time_zone_offset(Utf16View time_zone, UnixDateTime time, TimeZoneTime time_type)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -212,7 +212,10 @@ Optional<TimeZoneOffset> time_zone_offset(Utf16View time_zone, UnixDateTime time
 
     auto icu_time = to_icu_time(time);
 
-    time_zone_data->time_zone().getOffset(icu_time, 0, raw_offset, dst_offset, status);
+    if (time_type == TimeZoneTime::Local)
+        as<icu::BasicTimeZone>(time_zone_data->time_zone()).getOffsetFromLocal(icu_time, UCAL_TZ_LOCAL_FORMER, UCAL_TZ_LOCAL_FORMER, raw_offset, dst_offset, status);
+    else
+        time_zone_data->time_zone().getOffset(icu_time, false, raw_offset, dst_offset, status);
     if (icu_failure(status))
         return {};
 
@@ -363,9 +366,9 @@ extern "C" bool unicode_resolve_primary_time_zone(u16 const* time_zone, size_t l
     return true;
 }
 
-extern "C" bool unicode_time_zone_offset(u16 const* time_zone, size_t length, i64 seconds, u32 nanoseconds, i64* offset_nanoseconds, bool* in_dst)
+extern "C" bool unicode_time_zone_offset(u16 const* time_zone, size_t length, i64 seconds, u32 nanoseconds, bool is_local, i64* offset_nanoseconds, bool* in_dst)
 {
-    auto offset = Unicode::time_zone_offset(Utf16View { reinterpret_cast<char16_t const*>(time_zone), length }, unix_date_time_from_parts(seconds, nanoseconds));
+    auto offset = Unicode::time_zone_offset(Utf16View { reinterpret_cast<char16_t const*>(time_zone), length }, unix_date_time_from_parts(seconds, nanoseconds), is_local ? Unicode::TimeZoneTime::Local : Unicode::TimeZoneTime::UTC);
     if (!offset.has_value())
         return false;
     *offset_nanoseconds = offset->offset.to_nanoseconds();
