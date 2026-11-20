@@ -82,14 +82,13 @@ impl GenericIndexedPropertyStorage {
         assert!(self.array_size > 0);
         self.array_size -= 1;
 
-        let first_index = *self
+        let first = self.sparse_elements.remove(&0).unwrap_or_default();
+        self.sparse_elements = self
             .sparse_elements
-            .keys()
-            .min()
-            .expect("an array with a size has an element");
-        self.sparse_elements
-            .remove(&first_index)
-            .expect("the first index is in the map")
+            .drain()
+            .map(|(index, element)| (index - 1, element))
+            .collect();
+        first
     }
 
     pub fn take_last(&mut self) -> ValueAndAttributes {
