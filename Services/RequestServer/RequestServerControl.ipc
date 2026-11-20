@@ -28,6 +28,9 @@ endpoint RequestServerControl
 
     set_proxy_configuration(HTTP::ProxyConfiguration proxy_configuration) =|
 
+    // Synchronous so the exception applies before the UI process reloads.
+    trust_certificate(ByteString host, u16 port, ByteString fingerprint) => ()
+
     set_performance_monitor_enabled(bool enabled) =|
 
     estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) =|

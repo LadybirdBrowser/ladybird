@@ -9,6 +9,7 @@
 #include <AK/Format.h>
 #include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
+#include <RequestServer/CertificateExceptions.h>
 #include <RequestServer/Resolver.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -85,6 +86,17 @@ static int verify_server_certificate_has_subject_alt_name(int preverify_ok, X509
     return 0;
 }
 
+CURLcode configure_certificate_verification(CURL* handle, AIACollector& collector)
+{
+    // An exception may allow another host name, so our verifier must check names instead of curl.
+    collector.checks_host_name = has_any_certificate_exception(collector.host, collector.port);
+    if (auto result = curl_easy_setopt(handle, CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context); result != CURLE_OK)
+        return result;
+    if (auto result = curl_easy_setopt(handle, CURLOPT_SSL_CTX_DATA, &collector); result != CURLE_OK)
+        return result;
+    return curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, collector.checks_host_name ? 0L : 2L);
+}
+
 CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[maybe_unused]] void* aia_collector)
 {
     // Everything below casts ssl_context to an SSL_CTX, which only holds when curl is built against OpenSSL.
@@ -120,12 +132,12 @@ CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[mayb
 #ifdef AK_OS_MACOS
     if (curl_uses_openssl)
         share_certificate_store(static_cast<SSL_CTX*>(ssl_context));
-#else
+#endif
     // curl keeps one SSL context callback per handle, and AIA has to run against the same SSL_CTX configured above. So
     // both are applied here. The collector arrives as CURLOPT_SSL_CTX_DATA and is null on handles lacking AIA state.
+    // NB: On macOS, curl uses SecTrust only if OpenSSL has not already verified the certificate.
     if (curl_uses_openssl && aia_collector)
         apply_aia_verification(static_cast<SSL_CTX*>(ssl_context), *static_cast<AIACollector*>(aia_collector));
-#endif
 
     return CURLE_OK;
 }

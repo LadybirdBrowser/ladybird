@@ -276,6 +276,15 @@ public:
     void set_has_system_focus(bool);
 
     void load(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
+
+    // Shown by about:certificate so only the user, never a web page, can answer it.
+    struct CertificateWarning {
+        URL::URL url;
+        BrowsingSession::CertificateException certificate;
+    };
+    void did_request_certificate_warning(Badge<WebContentPage>, URL::URL const&);
+    Optional<CertificateWarning> const& certificate_warning() const { return m_certificate_warning; }
+    void answer_certificate_warning(Badge<CertificateUI>, bool trust);
     void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab);
     void open_url_in_new_window(URL::URL const&, IsPrivate);
     void load(Web::HTML::PreparedNavigationDescriptor);
@@ -1122,6 +1131,9 @@ protected:
     };
     Optional<WebDriverNavigationObservation> m_webdriver_navigation_observation;
     Optional<NavigationToRetry> m_last_stopped_navigation;
+
+    Optional<CertificateWarning> m_certificate_warning;
+    Optional<BrowsingSession::CertificateException> m_declined_certificate;
 
     // A view that shows the source of a page offers no source of its own to view: Each view of the source of a source
     // page would wrap the one before in another layer of markup, without end. The source is the document of one

@@ -1030,6 +1030,12 @@ void WebContentPage::did_find_in_page(size_t current_match_index, Optional<size_
     }
 }
 
+void WebContentPage::did_request_certificate_warning(URL::URL url)
+{
+    if (displays_tab())
+        view().did_request_certificate_warning({}, url);
+}
+
 void WebContentPage::did_request_cursor_change(Gfx::Cursor cursor)
 {
     view().did_request_cursor_change({}, move(cursor));

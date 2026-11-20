@@ -94,6 +94,12 @@ public:
 
     ErrorOr<RequestServerClientConnection> connect_new_client(RequestServerInstance&, BrowsingSession&, RequestServer::SiteBinding);
 
+    // The self-signed certificate a RequestServer of the session last rejected for the URL's host and port, if any.
+    Optional<BrowsingSession::CertificateException> rejected_self_signed_certificate(BrowsingSession&, URL::URL const&) const;
+
+    // Makes every RequestServer of the session accept the certificate, including those launched later.
+    void trust_certificate(BrowsingSession&, BrowsingSession::CertificateException const&);
+
     void disk_cache_settings_changed();
     void dns_settings_changed();
 
