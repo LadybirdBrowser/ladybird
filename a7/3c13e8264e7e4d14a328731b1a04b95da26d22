@@ -1,0 +1,11 @@
+Ladybird gives ::file-selector-button the system font at the size
+of the input’s font, and resets the letter-spacing, word-spacing,
+text-transform, text-indent, text-shadow, white-space, and text-align
+it would inherit. In Blink and WebKit, the button is an input element in
+the file input’s shadow tree, which the UA rule for form controls gives
+their control font, and their UA rules for the button set “font-size:
+inherit”. Gecko’s forms.css gives ::file-selector-button “font:
+-moz-button”. Run in Chrome 157.0.8103.79, Firefox 151.0, and WebKit
+26.5: all three give the button a system font at the input’s size, with
+normal weight, style, and line height, and none of the input’s text
+styling, except that Firefox keeps the input’s letter-spacing.
