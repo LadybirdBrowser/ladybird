@@ -1,0 +1,30 @@
+adopted red: rgb(255, 0, 0)
+grow length: false
+fractional length: RangeError
+set past the end: false
+length: 1
+overwrote red with green: rgb(0, 128, 0)
+delete first: false
+delete length: false
+delete last: true
+length: 1, color: rgb(0, 128, 0)
+shrank length to 0: rgb(0, 0, 0)
+removed one of two reds: rgb(255, 0, 0)
+removed the last of two reds: rgb(0, 128, 0)
+removed the last red after a duplicated sheet: rgb(0, 128, 0)
+set null over red: TypeError
+after a failed set: rgb(255, 0, 0), length: 1
+set a non-constructed sheet over red: NotAllowedError
+after a rejected set: rgb(255, 0, 0), length: 1
+replaced after defining a non-sheet: rgb(0, 0, 0), length: 0
+removed a style element's sheet: rgb(0, 0, 255)
+set with a setter on the prototype: rgb(255, 0, 0), own element: true, setter calls: 0
+cleared after that: rgb(0, 0, 0)
+shrink past a non-configurable sheet: false
+delete a non-configurable sheet: false
+after failed removals: rgb(255, 0, 0), length: 1
+shrink a non-writable length: false
+delete with a non-writable length: false
+after failed removals: rgb(255, 0, 0), length: 1
+append with a non-writable length: false
+after a failed append: rgb(255, 0, 0), length: 1

@@ -19,8 +19,8 @@
 namespace Web::WebIDL {
 
 // https://webidl.spec.whatwg.org/#idl-observable-array
-// Script sees an observable array as an Array exotic object of its own host class, whose [[Set]] and [[Delete]] run
-// the callbacks kept in this companion cell before doing what an Array does.
+// Script sees an observable array as an Array exotic object of its own host class, whose [[Set]] and [[Delete]] follow
+// the set and deleteProperty traps of observable arrays, running the callbacks kept in this companion cell.
 class WEB_API ObservableArray final : public JS::Cell {
     GC_CELL(ObservableArray, JS::Cell);
     GC_DECLARE_ALLOCATOR(ObservableArray);
@@ -30,8 +30,12 @@ public:
 
     static GC::Ref<ObservableArray> create(JS::Realm&);
 
+    // Throws if the value does not convert to the type of the elements.
+    using ConvertToIDLValueCallbackFunction = Function<ExceptionOr<void>(JS::Value)>;
     using SetAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(u32 index, JS::Value&)>;
-    using DeleteAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(JS::Value)>;
+    using DeleteAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(JS::Value, u32 index)>;
+
+    void set_convert_to_idl_value_callback(GC::Ref<GC::Function<ConvertToIDLValueCallbackFunction::FunctionType>> callback);
 
     void set_on_set_an_indexed_value_callback(GC::Ref<GC::Function<SetAnIndexedValueCallbackFunction::FunctionType>> callback);
     void set_on_delete_an_indexed_value_callback(GC::Ref<GC::Function<DeleteAnIndexedValueCallbackFunction::FunctionType>> callback);
@@ -63,14 +67,17 @@ private:
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
+    JS::ThrowCompletionOr<void> run_convert_to_idl_value_callback(JS::Value);
     JS::ThrowCompletionOr<void> run_set_an_indexed_value_callback(u32 index, JS::Value& value);
     JS::ThrowCompletionOr<void> run_delete_an_indexed_value_callback(u32 index);
 
+    using ConvertToIDLValueCallbackHeapFunction = GC::Function<ConvertToIDLValueCallbackFunction::FunctionType>;
     using SetAnIndexedValueCallbackHeapFunction = GC::Function<SetAnIndexedValueCallbackFunction::FunctionType>;
     using DeleteAnIndexedValueCallbackHeapFunction = GC::Function<DeleteAnIndexedValueCallbackFunction::FunctionType>;
 
     GC::Ref<JS::Realm> m_realm;
     GC::Ref<JS::Object> m_array_object;
+    GC::Ptr<ConvertToIDLValueCallbackHeapFunction> m_convert_to_idl_value;
     GC::Ptr<SetAnIndexedValueCallbackHeapFunction> m_on_set_an_indexed_value;
     GC::Ptr<DeleteAnIndexedValueCallbackHeapFunction> m_on_delete_an_indexed_value;
 };
