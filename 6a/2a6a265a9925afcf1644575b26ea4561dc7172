@@ -1,0 +1,12 @@
+Ladybird ends an iframe focus request when its local navigable has
+no active document. Blink’s HTMLFrameElementBase::SetFocused checks
+ContentFrame() before passing it to FocusController::SetFocusedFrame.
+WebKit checks contentFrame() in HTMLFrameElementBase::setFocus. Gecko
+resolves the subdocument and its window in nsFocusManager::SetFocusInner
+before descending into the child.
+
+Chrome 158.0.8127.36, Firefox 151.0, and WebKit 26.5 all focused a
+connected blank iframe and preserved focus on the prior button for
+a detached iframe. Chrome and WebKit also preserved it for an inert
+iframe. Firefox moved focus in that control. The missing-document case
+is the archived Ladybird crash.
