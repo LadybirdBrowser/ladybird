@@ -19,7 +19,7 @@ namespace Web {
 static constexpr double DEAD_ZONE_RADIUS { 15 };
 static constexpr double SPEED_FACTOR = 5.0;
 static constexpr double MAX_SPEED_PER_SECOND = 5000.0;
-static constexpr double SCROLL_INTERVAL_MS = 16.0;
+static constexpr double MAX_FRAME_INTERVAL_MS = 100.0;
 
 MiddleButtonScrollHandler::MiddleButtonScrollHandler(DOM::Element& container, CSSPixelPoint origin)
     : m_container_element(container)
@@ -63,8 +63,11 @@ GC::Ptr<DOM::Element> MiddleButtonScrollHandler::find_scrollable_ancestor(DOM::D
     return {};
 }
 
-void MiddleButtonScrollHandler::perform_tick()
+void MiddleButtonScrollHandler::perform_tick(double frame_timestamp)
 {
+    auto elapsed_ms = clamp(frame_timestamp - m_last_frame_time.value_or(frame_timestamp), 0.0, MAX_FRAME_INTERVAL_MS);
+    m_last_frame_time = frame_timestamp;
+
     auto distance_x = (m_mouse_position.x() - m_origin.x()).to_double();
     auto distance_y = (m_mouse_position.y() - m_origin.y()).to_double();
 
@@ -81,7 +84,7 @@ void MiddleButtonScrollHandler::perform_tick()
 
     auto speed_x = clamp(distance_x * SPEED_FACTOR, -MAX_SPEED_PER_SECOND, MAX_SPEED_PER_SECOND);
     auto speed_y = clamp(distance_y * SPEED_FACTOR, -MAX_SPEED_PER_SECOND, MAX_SPEED_PER_SECOND);
-    auto elapsed_seconds = SCROLL_INTERVAL_MS / 1000.0;
+    auto elapsed_seconds = elapsed_ms / 1000.0;
 
     m_fractional_delta += CSSPixelPoint {
         CSSPixels(speed_x * elapsed_seconds),

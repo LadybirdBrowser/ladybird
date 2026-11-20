@@ -1069,7 +1069,7 @@ void EventLoop::update_the_rendering()
         //         at FormAssociatedTextControlElement::CursorRevealAfterEdit.
         if (auto* text_control = as_if<FormAssociatedTextControlElement>(document->focused_area().ptr()))
             text_control->reveal_cursor_if_pending();
-        document->run_the_scroll_steps();
+        document->run_the_scroll_steps(frame_timestamp);
     }
 
     // 10. For each doc of docs, evaluate media queries and report changes for doc. [CSSOMVIEW]

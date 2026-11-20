@@ -1031,7 +1031,7 @@ public:
     void update_the_visibility_state(HTML::VisibilityState);
 
     void run_the_resize_steps();
-    void run_the_scroll_steps();
+    void run_the_scroll_steps(double frame_timestamp);
 
     u32 increment_video_frame_request_callback_identifier() { return ++m_video_frame_request_callback_identifier; }
     void run_the_video_frame_request_callbacks(double now);
