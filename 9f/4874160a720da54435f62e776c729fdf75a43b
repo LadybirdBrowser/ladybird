@@ -1,0 +1,11 @@
+Ladybird uses the surrounding language for automatic quotes and
+uses the alternate pair for nested quotations. Blink reads ICU
+delimiters in LayoutLocale::GetQuotesData(), as requested by
+LayoutQuote::GetQuotesData(). Gecko selects them in GetQuoteForFrame().
+WebKit passes the computed style’s locale from quoteMark() to
+quotesForLanguage() to select a pair.
+
+Chrome 157.0.8103.79 and Firefox 151.0 followed the surrounding
+language for mixed-language quotes. WebKit 26.5 used the quote element’s
+own language. Ladybird follows the CSS Working Group resolution on
+mixed-language quotations.
