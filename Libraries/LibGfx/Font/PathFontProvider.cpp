@@ -47,6 +47,15 @@ void PathFontProvider::load_all_fonts_from_uri(StringView uri)
         auto& family = m_typeface_by_family.ensure(font->family(), [] {
             return Vector<NonnullRefPtr<Typeface>> {};
         });
+        // A face of text goes ahead of the faces of symbol fonts in its family, so that it's the one found for its
+        // weight, width and slope.
+        if (!font->description().is_symbol_font()) {
+            auto index = family.find_first_index_if([](auto const& typeface) { return typeface->description().is_symbol_font(); });
+            if (index.has_value()) {
+                family.insert(*index, move(font));
+                return;
+            }
+        }
         family.append(move(font));
     });
 }
