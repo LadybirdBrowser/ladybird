@@ -1,0 +1,11 @@
+Ladybird’s HTML parser now keeps its speculative parser from one
+blocking script to the next, and its preload scanner goes on from the
+end of the input it has already scanned. When document.write() inserts
+input ahead of that point, or the parser gets past it, the next scan
+starts over at the parser’s position. Blink’s HTMLDocumentParser
+also keeps one preload_scanner_ fed through AppendToEnd(), and WebKit’s
+HTMLDocumentParser::append() feeds its m_preloadScanner the same way,
+dropping it once the parser has caught up with the input. Both scan
+document.write() input with a separate insertion preload scanner
+instead (insertion_preload_scanner_, m_insertionPreloadScanner), rather
+than starting over as Ladybird does. That’s from reading their source.
