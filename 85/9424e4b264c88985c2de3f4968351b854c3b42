@@ -1,0 +1,9 @@
+Ladybird compares the numeric device pixel ratio to the window’s
+ratio of device pixels to CSS pixels. Blink evaluates it in
+DevicePixelRatioMediaFeatureEval(), WebKit exposes it through
+devicePixelRatioFeatureSchema(), and Gecko reads it from
+eval_device_pixel_ratio().
+
+Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5 recognized the
+plain, min and max forms with fractional numbers, and rejected a
+resolution unit in place of the number.
