@@ -1,0 +1,12 @@
+A match after the caret that overlaps a match before it: found "ee" at 1-3
+A match after the caret that overlaps a match with another case before it: found "ee" at 1-3
+A match after the caret that overlaps a match with an accent before it: found "ee" at 1-3
+The first of two overlapping matches from the start: found "ee" at 0-2
+A match in slotted text that overlaps a match across the shadow boundary: found "ee" at 0-2
+A match in slotted text after an accented letter in the shadow tree: found "ee" at 0-2
+A match at the caret after an open popover that has matches: paragraph
+A space next to a line break is found only where the text has one: "b c" 1-2
+A no-break space next to a line break is found only where the text has a space: "b c" 1-2
+A space where the text has only a line break: not found
+A match that starts with the line break at the caret: "a x" 3 to "x b" 2
+Successive matches of a repeated letter do not overlap: 0-2, 2-4

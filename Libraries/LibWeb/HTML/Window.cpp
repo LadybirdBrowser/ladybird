@@ -2517,19 +2517,15 @@ bool Window::find(Utf16View string)
     if (!selection)
         return false;
 
-    auto current_range = selection->range();
-    auto matches = document.find_matching_text(string, CaseSensitivity::CaseInsensitive);
-    auto match = matches.first_matching([&](auto const& match) {
-        if (!current_range)
-            return true;
-        auto position = DOM::position_of_boundary_point_relative_to_other_boundary_point_in_flat_tree(match->start(), current_range->end());
-        return !position.has_value() || *position != DOM::RelativeBoundaryPointPosition::Before;
-    });
-    if (!match.has_value())
+    Optional<DOM::BoundaryPoint> search_start;
+    if (auto current_range = selection->range())
+        search_start = current_range->end();
+    auto match = document.find_first_matching_text(string, CaseSensitivity::CaseInsensitive, search_start);
+    if (!match)
         return false;
 
-    auto start = (*match)->start();
-    auto end = (*match)->end();
+    auto start = match->start();
+    auto end = match->end();
     MUST(selection->set_base_and_extent(start.node, start.offset, end.node, end.offset));
     selection->scroll_focus_into_view();
     return true;
