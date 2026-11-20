@@ -1,0 +1,12 @@
+Ladybird integrates the pointer-derived scroll speed over each frame
+interval, capped at 100ms. Gecko’s AutoScrollChild.autoscrollLoop
+uses the animation frame timestamp and caps the interval at 100ms.
+Blink’s AutoscrollController::HandleMouseMoveForMiddleClickAutoscroll
+sends the velocity through ChromeClient::AutoscrollFling. WebKit’s
+AutoscrollController::autoscrollTimerFired calls panScroll on the
+renderer from a timer.
+
+Chrome 158.0.8127.36, Firefox 151.0, and WebKit 26.5 did not start
+middle-button autoscroll in the headless macOS probes. The timing
+comparisons for those engines come from their source. Ladybird’s two
+frame intervals were measured with its rendering-opportunity test hook.
