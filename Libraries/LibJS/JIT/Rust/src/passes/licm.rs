@@ -30,7 +30,6 @@ use ak::ZoneVec;
 
 use super::dominators::Dominators;
 use super::edit;
-use crate::bitset::ZoneBitSet;
 use crate::code::ExitKind;
 use crate::ir::Block;
 use crate::ir::BlockId;
@@ -38,6 +37,7 @@ use crate::ir::FrameStateId;
 use crate::ir::Graph;
 use crate::ir::Locations;
 use crate::ir::Op;
+use ak::ZoneBitSet;
 
 struct Loop<'w> {
     header: BlockId,

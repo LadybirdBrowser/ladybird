@@ -804,7 +804,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
 
     // A frame slot that the code may write is no home.
     let mut written = graph.clone_in(crate::test_zone());
-    written.unwritten_slots = crate::bitset::ZoneBitSet::new_in(0, written.zone);
+    written.unwritten_slots = ak::ZoneBitSet::new_in(0, written.zone);
     assert!(verify(&written, &registers, &allocation, crate::test_zone()).is_err());
 
     // Another frame slot holds another value.

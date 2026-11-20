@@ -7,7 +7,6 @@
 //! Graph edits shared by the passes: replacing values, removing nodes, and
 //! cleaning up the control flow graph after control nodes lost successors.
 
-use crate::bitset::ZoneBitSet;
 use crate::code::Repr;
 use crate::ir::BlockId;
 use crate::ir::FrameState;
@@ -15,8 +14,9 @@ use crate::ir::FrameStateId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
-use crate::zone_map::ZoneMap;
 use ak::Zone;
+use ak::ZoneBitSet;
+use ak::ZoneMap;
 use ak::ZoneVec;
 
 /// Values to replace by other values, as a pass decides them.

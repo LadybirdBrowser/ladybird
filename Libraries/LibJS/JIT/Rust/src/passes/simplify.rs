@@ -18,7 +18,6 @@
 use super::edit;
 use super::edit::Constants;
 use super::edit::Replacements;
-use crate::bitset::ZoneBitSet;
 use crate::code::Repr;
 use crate::ir::BinaryOp;
 use crate::ir::BlockId;
@@ -29,6 +28,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
 use ak::Zone;
+use ak::ZoneBitSet;
 use ak::ZoneVec;
 
 /// The truthiness of a constant, where it does not depend on the heap.

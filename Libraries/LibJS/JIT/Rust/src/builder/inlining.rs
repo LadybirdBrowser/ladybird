@@ -35,7 +35,6 @@ use super::GraphBuilder;
 use super::SlotState;
 use super::arguments;
 use crate::CompileFailure;
-use crate::bitset::ZoneBitSet;
 use crate::builder::Handling;
 use crate::builder::handling;
 use crate::bytecode::Instruction;
@@ -64,6 +63,7 @@ use crate::snapshot::Intrinsic;
 use crate::snapshot::SuperConstructTarget;
 use crate::snapshot::call_feedback_flags;
 use ak::Zone;
+use ak::ZoneBitSet;
 use ak::ZoneVec;
 
 /// How an inlined callee was called.

@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Fixed-size sets of small integers.
+//! A fixed-size set of small integers that keeps its words in a zone (see `Zone`).
 
-use ak::Zone;
-use ak::ZoneVec;
+use crate::Zone;
+use crate::ZoneVec;
 
-/// A fixed-size set of small integers, whose words are in a zone (see `ak::Zone`).
+/// A fixed-size set of small integers, whose words are in a zone (see `Zone`).
 #[derive(PartialEq, Eq)]
 pub struct ZoneBitSet<'z> {
-    // NB: Most bytecode liveness sets fit in one word and take no memory of the zone.
+    // NB: A set of up to 64 integers fits in one word and takes no memory of the zone.
     first_word: u64,
     extra_words: ZoneVec<'z, u64>,
     len: usize,

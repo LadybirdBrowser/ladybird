@@ -49,7 +49,6 @@ use ak::ZoneVec;
 use super::dominators::Dominators;
 use super::edit::Constants;
 use super::edit::Replacements;
-use crate::bitset::ZoneBitSet;
 use crate::code::ExitKind;
 use crate::code::Repr;
 use crate::ir::BinaryOp;
@@ -60,7 +59,8 @@ use crate::ir::Graph;
 use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
-use crate::zone_map::ZoneMap;
+use ak::ZoneBitSet;
+use ak::ZoneMap;
 
 /// The inclusive range of an int32 value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

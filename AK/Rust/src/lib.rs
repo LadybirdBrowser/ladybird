@@ -7,6 +7,7 @@
 //! Rust views of shared AK data structures.
 
 mod column;
+mod fast_hash;
 mod generic_lexer;
 pub mod math;
 pub mod perf_map;
@@ -21,8 +22,11 @@ pub mod waiter_list;
 pub mod windows_code_memory;
 mod word_chunk;
 mod zone;
+mod zone_bit_set;
+mod zone_map;
 
 pub use column::{Column, ColumnFull};
+pub use fast_hash::FastHasher;
 pub use generic_lexer::GenericLexer;
 pub use row_block::{RowBlock, RowBlockFull, RowList};
 pub use scope_guard::ScopeGuard;
@@ -30,6 +34,8 @@ pub use slice::{Span, SpanMut, slice_from_raw_parts, slice_from_raw_parts_mut};
 pub use string_conversions::{UnsignedInteger, parse_ascii_digits};
 pub use word_chunk::WordChunk;
 pub use zone::{Zone, ZoneVec, ZoneVecIntoIter};
+pub use zone_bit_set::ZoneBitSet;
+pub use zone_map::{ZoneMap, ZoneSet};
 
 use core::mem::MaybeUninit;
 use std::num::NonZeroUsize;

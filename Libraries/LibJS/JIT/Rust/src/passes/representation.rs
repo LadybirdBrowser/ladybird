@@ -22,7 +22,6 @@
 use super::edit;
 use super::edit::Constants;
 use super::edit::Replacements;
-use crate::bitset::ZoneBitSet;
 use crate::code::Repr;
 use crate::ir::BlockId;
 use crate::ir::FrameStateId;
@@ -31,8 +30,9 @@ use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
-use crate::zone_map::ZoneMap;
 use ak::Zone;
+use ak::ZoneBitSet;
+use ak::ZoneMap;
 use ak::ZoneVec;
 
 /// An unboxed representation phis can take.

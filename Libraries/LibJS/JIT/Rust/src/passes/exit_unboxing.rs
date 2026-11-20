@@ -13,10 +13,10 @@
 //! which dominates its boxing and thus the exit, and dead code elimination
 //! removes the boxing.
 
-use crate::bitset::ZoneBitSet;
 use crate::ir::Graph;
 use crate::ir::Op;
 use ak::Zone;
+use ak::ZoneBitSet;
 
 fn is_boxing(op: &Op) -> bool {
     matches!(op, Op::BoxInt32 | Op::BoxFloat64 | Op::BoxBool)

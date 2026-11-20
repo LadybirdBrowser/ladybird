@@ -54,7 +54,6 @@ pub use speculation::OperationInput;
 pub(crate) use osr::is_loop_back_edge;
 
 use crate::CompileFailure;
-use crate::bitset::ZoneBitSet;
 use crate::bytecode::DecodedInstruction;
 use crate::bytecode::FrameLayout;
 use crate::bytecode::Instruction;
@@ -88,8 +87,9 @@ use crate::snapshot::ExecutableSnapshot;
 use crate::snapshot::Intrinsic;
 use crate::snapshot::RuntimeInfo;
 use crate::snapshot::Snapshot;
-use crate::zone_map::ZoneMap;
 use ak::Zone;
+use ak::ZoneBitSet;
+use ak::ZoneMap;
 use ak::ZoneVec;
 pub(crate) use slow_paths::is_ssa_slow_path_output;
 pub(crate) use slow_paths::js_call_operands;

@@ -23,13 +23,13 @@ use ak::ZoneVec;
 
 use super::dominators::Dominators;
 use super::edit;
-use crate::bitset::ZoneBitSet;
 use crate::ir::Block;
 use crate::ir::BlockId;
 use crate::ir::FrameStateId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use ak::ZoneBitSet;
 
 /// How many nodes the blocks of a test that gets copied may have at most.
 const MAX_COPIED_NODES: usize = 64;

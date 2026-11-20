@@ -112,7 +112,7 @@ fn cached_liveness_keeps_legacy_arguments_only_for_inlined_walks() {
         let first = Function::new(&snapshot, 0, decoded, first_mode, crate::test_zone()).unwrap();
         let second = Function::new(&snapshot, 0, decoded, !first_mode, crate::test_zone()).unwrap();
         let live_in = |function: &Function<'_>, slot| {
-            let mut live = crate::bitset::ZoneBitSet::new_in(0, crate::test_zone());
+            let mut live = ak::ZoneBitSet::new_in(0, crate::test_zone());
             function.liveness.live_in(0, &mut live);
             live.contains(slot)
         };
@@ -350,9 +350,9 @@ fn writes_to_constant_operands_go_to_the_frame() {
 
 #[test]
 fn loop_headers_inside_a_loop_body_add_their_phis_to_it() {
-    use crate::bitset::ZoneBitSet;
     use crate::bytecode::cfg::Cfg;
     use crate::bytecode::cfg::Loop;
+    use ak::ZoneBitSet;
 
     let zone = crate::test_zone();
     // Loop 1's header lies in loop 0's body, but loop 1 extends outside it,

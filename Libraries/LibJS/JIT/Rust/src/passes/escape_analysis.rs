@@ -47,7 +47,6 @@
 use super::edit;
 use super::edit::Constants;
 use super::edit::Replacements;
-use crate::bitset::ZoneBitSet;
 use crate::code::ExitKind;
 use crate::code::Repr;
 use crate::codegen::lowering_info::lowering_info;
@@ -61,9 +60,10 @@ use crate::ir::Op;
 use crate::ir::VirtualObjectKind;
 use crate::ir::value;
 use crate::snapshot::CellId;
-use crate::zone_map::ZoneMap;
-use crate::zone_map::ZoneSet;
 use ak::Zone;
+use ak::ZoneBitSet;
+use ak::ZoneMap;
+use ak::ZoneSet;
 use ak::ZoneVec;
 
 /// The shape and property count each object has at some point, which

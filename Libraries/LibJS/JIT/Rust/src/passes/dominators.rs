@@ -13,10 +13,10 @@
 use ak::Zone;
 use ak::ZoneVec;
 
-use crate::bitset::ZoneBitSet;
 use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::tables::Lists;
+use ak::ZoneBitSet;
 
 /// The dominator tree of a graph, in lists of a work zone. `compute()` makes them anew for the graph as it is then,
 /// in the memory they have where it is enough.

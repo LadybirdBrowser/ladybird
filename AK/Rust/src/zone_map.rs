@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Maps and sets in the zones of a compile.
+//! Maps and sets that keep their entries in a zone (see `Zone`).
 //!
 //! A `ZoneMap` keeps its entries next to each other in a list of its zone, in the order in which they were added,
 //! and finds them through a table of indices into that list. So a compile makes no block of the heap for a map, and
@@ -16,8 +16,8 @@ use core::hash::BuildHasher;
 use core::hash::BuildHasherDefault;
 use core::hash::Hash;
 
-use ak::Zone;
-use ak::ZoneVec;
+use crate::Zone;
+use crate::ZoneVec;
 
 use crate::fast_hash::FastHasher;
 
