@@ -1,0 +1,14 @@
+Ladybird now takes the min-content and max-content widths of a replaced
+box with a definite height from that height through its aspect ratio,
+whatever the box’s own width. Run in Chrome 157.0.8103.79, Firefox
+151.0, and Playwright’s WebKit 26.5, all three engines keep an image
+with width and height of 60px, whose natural size is 1x1, at 60x60 in a
+flex container that has to shrink it.
+
+Blink’s ComputeReplacedSizeInternal() derives the replaced inline
+size from the definite height through InlineSizeFromAspectRatio()
+for the content size suggestion. WebKit’s RenderReplaced::
+computeAspectRatioAdjustedIntrinsicLogicalWidths() multiplies the
+height by the ratio whenever hasReplacedLogicalHeight() holds. Gecko’s
+nsLayoutUtils::IntrinsicForAxis() replaces the intrinsic size with the
+ratio-dependent size of the definite height.
