@@ -23,9 +23,8 @@ public:
     ReceivedMessageBytes& operator=(ReceivedMessageBytes&&);
 
     static ReceivedMessageBytes from_vector(Vector<u8>);
-#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
-    static ReceivedMessageBytes adopt_vm_region(void*, size_t);
-#endif
+    // Takes over storage that something outside AK owns, such as the Rust transport, which release() gives back.
+    static ReceivedMessageBytes adopt_foreign_storage(ReadonlyBytes, void* owner, void (*release)(void* owner));
 
     ReadonlyBytes bytes() const;
     bool is_empty() const { return bytes().is_empty(); }
