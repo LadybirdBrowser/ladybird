@@ -32,6 +32,7 @@ unsafe extern "C" {
         length: usize,
         seconds: i64,
         nanoseconds: u32,
+        is_local: bool,
         offset_nanoseconds: *mut i64,
         in_dst: *mut bool,
     ) -> bool;
@@ -189,8 +190,17 @@ pub fn resolve_primary_time_zone(time_zone: Utf16View<'_>) -> Option<Utf16String
     resolved.then(|| Utf16String::from_utf16(&primary))
 }
 
+pub enum TimeZoneTime {
+    Utc,
+    Local,
+}
+
 /// Unicode::time_zone_offset: the offset from UTC of `time_zone` at `time`.
-pub fn time_zone_offset(time_zone: Utf16View<'_>, time: UnixDateTime) -> Option<TimeZoneOffset> {
+pub fn time_zone_offset(
+    time_zone: Utf16View<'_>,
+    time: UnixDateTime,
+    time_type: TimeZoneTime,
+) -> Option<TimeZoneOffset> {
     let time_zone = code_units_of(time_zone);
     let mut offset_nanoseconds = 0;
     let mut in_dst = false;
@@ -201,6 +211,7 @@ pub fn time_zone_offset(time_zone: Utf16View<'_>, time: UnixDateTime) -> Option<
             time_zone.len(),
             time.seconds,
             time.nanoseconds,
+            matches!(time_type, TimeZoneTime::Local),
             &raw mut offset_nanoseconds,
             &raw mut in_dst,
         )
