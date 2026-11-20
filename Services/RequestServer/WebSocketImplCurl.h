@@ -11,6 +11,7 @@
 #include <LibHTTP/Proxy.h>
 #include <LibRequests/NetworkUsage.h>
 #include <LibWebSocket/Impl/WebSocketImpl.h>
+#include <RequestServer/IsPrivate.h>
 
 typedef void CURL;
 typedef void CURLM;
@@ -18,11 +19,13 @@ struct curl_slist;
 
 namespace RequestServer {
 
+class AIACollector;
+
 class WebSocketImplCurl final : public WebSocket::WebSocketImpl {
 public:
     virtual ~WebSocketImplCurl() override;
 
-    static NonnullRefPtr<WebSocketImplCurl> create(CURLM*);
+    static NonnullRefPtr<WebSocketImplCurl> create(CURLM*, IsPrivate);
 
     void set_proxy(Optional<HTTP::Proxy> proxy) { m_proxy = move(proxy); }
     void set_performance_origin(int client_id, u64 page_id) { m_performance_origin = { client_id, page_id, 0, 0 }; }
@@ -36,7 +39,7 @@ public:
     bool did_connect();
 
 private:
-    explicit WebSocketImplCurl(CURLM*);
+    WebSocketImplCurl(CURLM*, IsPrivate);
 
     void read_from_socket();
     bool flush_pending_write_buffer();
@@ -46,6 +49,7 @@ private:
     Optional<HTTP::Proxy> m_proxy;
     Requests::NetworkUsage m_performance_origin;
     CURL* m_easy_handle { nullptr };
+    NonnullRefPtr<AIACollector> m_aia_collector;
     RefPtr<Core::Notifier> m_read_notifier;
     RefPtr<Core::Notifier> m_write_notifier;
     RefPtr<Core::Notifier> m_error_notifier;

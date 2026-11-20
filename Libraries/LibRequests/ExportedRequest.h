@@ -32,6 +32,9 @@ struct ExportedRequest {
     Optional<String> reason_phrase;
     Vector<HTTP::Header> response_headers;
 
+    // The exporter could only reach the server through a certificate exception, so the response must not be cached.
+    bool may_rely_on_certificate_exception { false };
+
     IPC::File body;
     IPC::File status;
 };

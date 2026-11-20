@@ -23,6 +23,8 @@
 
 namespace RequestServer {
 
+class AIACollector;
+
 // CURLOPT_RESOLVE entries look like "[+]HOST:PORT:ADDRESS[,ADDRESS]", and "-HOST:PORT" removes an entry, so a host
 // beginning with either sign cannot be pinned. Callers must not resolve such hosts through the resolve list at all.
 bool can_pin_host_in_curl_resolve_list(StringView host);
@@ -36,7 +38,10 @@ Optional<ByteString> build_curl_connect_to_entry(DNS::LookupResult const& dns_re
 Requests::NetworkError curl_code_to_network_error(int code);
 ErrorOr<void> initialize_libcurl();
 
-// A CURLOPT_SSL_CTX_FUNCTION. Its CURLOPT_SSL_CTX_DATA is the handle's AIACollector, or null to skip AIA.
+// The caller keeps the collector alive until the handle is cleaned up, including if the TLS handshake fails.
+CURLcode configure_certificate_verification(CURL*, AIACollector&);
+
+// A CURLOPT_SSL_CTX_FUNCTION. Its CURLOPT_SSL_CTX_DATA is the handle's AIACollector.
 CURLcode configure_ssl_context(CURL*, void* ssl_context, void* aia_collector);
 
 }

@@ -1070,7 +1070,7 @@ void ConnectionFromClient::open_websocket(u64 websocket_id, u64 originating_page
     if (auto const& path = default_certificate_path(); !path.is_empty())
         connection_info.set_root_certificates_path(path);
 
-    auto impl = WebSocketImplCurl::create(m_websocket_curl.handle);
+    auto impl = WebSocketImplCurl::create(m_websocket_curl.handle, m_is_private);
     impl->set_proxy(move(proxy));
     impl->set_performance_origin(client_id(), originating_page_id);
     auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));

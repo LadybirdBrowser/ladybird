@@ -6,6 +6,7 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibCore/Notifier.h>
+#include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Request.h>
@@ -16,13 +17,14 @@ namespace RequestServer {
 
 static constexpr long s_connect_timeout_seconds = 90L;
 
-NonnullRefPtr<WebSocketImplCurl> WebSocketImplCurl::create(CURLM* multi_handle)
+NonnullRefPtr<WebSocketImplCurl> WebSocketImplCurl::create(CURLM* multi_handle, IsPrivate is_private)
 {
-    return adopt_ref(*new WebSocketImplCurl(multi_handle));
+    return adopt_ref(*new WebSocketImplCurl(multi_handle, is_private));
 }
 
-WebSocketImplCurl::WebSocketImplCurl(CURLM* multi_handle)
+WebSocketImplCurl::WebSocketImplCurl(CURLM* multi_handle, IsPrivate is_private)
     : m_multi_handle(multi_handle)
+    , m_aia_collector(make_ref_counted<AIACollector>(is_private))
 {
 }
 
@@ -84,7 +86,12 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
 
     if (auto root_certs = info.root_certificates_path(); root_certs.has_value())
         set_option(CURLOPT_CAINFO, root_certs->characters());
-    set_option(CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context);
+    m_aia_collector->host = url.serialized_host().to_byte_string();
+    m_aia_collector->port = url.port_or_default();
+    if (configure_certificate_verification(m_easy_handle, *m_aia_collector) != CURLE_OK) {
+        on_connection_error();
+        return;
+    }
 
     auto const origin_header = ByteString::formatted("Origin: {}", info.origin());
     curl_slist* curl_headers = curl_slist_append(nullptr, origin_header.characters());
