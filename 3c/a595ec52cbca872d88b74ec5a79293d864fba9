@@ -1,0 +1,25 @@
+In quirks and limited-quirks mode, a line box in Ladybird now takes the
+strut of its block container only when the block container holds text
+on the line directly, when a forced break directly in it is alone on
+the line, or when it’s a list item. An inline box brings its line height
+to a line only when it holds text there directly, or has borders or
+padding at its start or end.
+
+Blink does the same. In quirks mode, its InlineLayoutStateStack::
+OnBeginPlaceItems() gives the line box no strut, and LogicalLineBuilder
+calls EnsureTextMetrics() for the box around each piece of text
+and each forced break it places. A list item keeps its strut on
+every line, by a rule in LogicalLineBuilder::CreateLine(). Gecko’s
+nsLineLayout::VerticalAlignFrames() sets zeroEffectiveSpanBox for
+the root span, and for any span without borders, padding, or margins,
+unless it holds non-collapsed text directly. It also counts a box
+with a margin alone, and it gives a list item no strut, so it differs
+from Ladybird there. WebKit decides the same things in InlineQuirks::
+inlineBoxAffectsLineBox(), but it keeps the strut on a line that ends in
+a forced break after other content.
+
+Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5
+ran the 25 cases of the two tests added here. Ladybird gives what Chrome
+gives in every case. Firefox differs on the list item and on the empty
+span with a margin, and WebKit on the two lines that end in a forced
+break after other content.
