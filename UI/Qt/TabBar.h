@@ -59,7 +59,6 @@ class LadybirdButton;
 class SandboxOffBar;
 
 class TabMicrophoneIndicator;
-class TabPreviewPopup;
 class TabWidget;
 class WindowControlsReveal;
 
@@ -176,7 +175,6 @@ private:
     bool start_window_move();
     void start_tab_drag(int index);
     QPoint tab_drag_hot_spot() const;
-    void pointer_left();
     void start_strip_drag(int index);
     void update_strip_drag(QPoint position);
     void end_strip_drag();
@@ -186,12 +184,6 @@ private:
     void update_layout_animation();
     QRect animated_tab_rect(int index, QRect const& target) const;
     HorizontalTabEndRoom horizontal_tab_end_room(int index) const;
-    void schedule_tab_preview(int index);
-    void show_tab_preview();
-    void show_tab_preview_popup(int index);
-    void hide_tab_preview();
-    void stop_following_previewed_tab_frames();
-    QPoint tab_preview_position_for(int index, QSize const& popup_size) const;
 
     // Where the pinned tabs sit in vertical tabs: a grid of tiles when expanded, one icon column when collapsed, and a
     // separator below. Its height is 0 when there's no pinned tab.
@@ -296,13 +288,6 @@ private:
     // Where the card a dragged tab is drawn as sits in the tab.
     QPoint m_tab_drag_card_offset;
     QObject* m_strip_drag_cancellation_filter { nullptr };
-    QTimer* m_tab_preview_timer { nullptr };
-    QTimer* m_tab_preview_pointer_timer { nullptr };
-    TabPreviewPopup* m_tab_preview_popup { nullptr };
-    int m_tab_preview_index { -1 };
-    QPointer<Tab> m_previewed_tab;
-    QMetaObject::Connection m_tab_preview_paint_connection;
-    QMetaObject::Connection m_tab_preview_change_connection;
 };
 
 class TabWidget final : public QWidget {

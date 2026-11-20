@@ -308,7 +308,6 @@ WebContentView::WebContentView(QWidget* window, Optional<u64> hub_view_id, WebCo
 #endif
 
     on_ready_to_paint = [this]() {
-        m_tab_preview_is_stale = true;
         if (m_screenshot_selection_overlay)
             m_screenshot_selection_overlay->page_did_paint();
 
@@ -320,7 +319,6 @@ WebContentView::WebContentView(QWidget* window, Optional<u64> hub_view_id, WebCo
             schedule_repaint();
 #endif
         }
-        emit ready_to_paint();
     };
 
     on_cursor_change = [this](auto cursor) {
@@ -1276,20 +1274,14 @@ bool WebContentView::holds_displayed_frame() const
     return paintable.has_value() && paintable->shared_image_buffer;
 }
 
-void WebContentView::take_visible_snapshot(Optional<QSize> maximum_size, Function<void(QImage)> on_snapshot)
+void WebContentView::take_visible_snapshot(Function<void(QImage)> on_snapshot)
 {
     if (holds_displayed_frame() || !current_paintable().has_value()) {
-        auto snapshot = visible_snapshot();
-        if (maximum_size.has_value() && !snapshot.isNull() && (snapshot.width() > maximum_size->width() || snapshot.height() > maximum_size->height()))
-            snapshot = snapshot.scaled(*maximum_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        on_snapshot(AK::move(snapshot));
+        on_snapshot(visible_snapshot());
         return;
     }
 
-    Optional<Gfx::IntSize> maximum_bitmap_size;
-    if (maximum_size.has_value())
-        maximum_bitmap_size = Gfx::IntSize { maximum_size->width(), maximum_size->height() };
-    take_frame_snapshot(maximum_bitmap_size, [self = QPointer { this }, on_snapshot = AK::move(on_snapshot)](Optional<Gfx::ShareableBitmap> snapshot) {
+    take_frame_snapshot({}, [self = QPointer { this }, on_snapshot = AK::move(on_snapshot)](Optional<Gfx::ShareableBitmap> snapshot) {
         if (!self)
             return;
         auto const* bitmap = snapshot.has_value() && snapshot->is_valid() ? snapshot->bitmap() : nullptr;
@@ -1313,49 +1305,6 @@ void WebContentView::remove_frame_notification_interest()
     VERIFY(m_frame_notification_interest > 0);
     if (--m_frame_notification_interest == 0)
         set_wants_frame_notifications(false);
-}
-
-// One request at a time, and only once a frame was presented since the last, as a page that animates presents a frame
-// each refresh.
-void WebContentView::refresh_tab_preview(QSize const& maximum_size)
-{
-    if (m_tab_preview_request_in_flight || (!m_tab_preview_is_stale && m_tab_preview_maximum_size == maximum_size))
-        return;
-    m_tab_preview_request_in_flight = true;
-    m_tab_preview_is_stale = false;
-    take_visible_snapshot(maximum_size, [this, maximum_size](QImage snapshot) {
-        m_tab_preview_request_in_flight = false;
-        m_tab_preview_maximum_size = maximum_size;
-        m_tab_preview = snapshot.isNull() ? QPixmap {} : QPixmap::fromImage(snapshot);
-        emit tab_preview_changed();
-    });
-}
-
-Optional<QPixmap> WebContentView::tab_preview_pixmap(QSize const& maximum_size)
-{
-    if (maximum_size.isEmpty())
-        return {};
-
-    if (!holds_displayed_frame() && current_paintable().has_value()) {
-        refresh_tab_preview(maximum_size);
-        if (m_tab_preview.isNull())
-            return {};
-        return m_tab_preview;
-    }
-
-    auto snapshot = visible_snapshot();
-    if (snapshot.isNull())
-        return {};
-
-    auto preview_size = snapshot.size().scaled(maximum_size, Qt::KeepAspectRatio);
-    if (preview_size.isEmpty())
-        return {};
-
-    auto preview = QPixmap::fromImage(snapshot).scaled(preview_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    if (preview.isNull())
-        return {};
-
-    return preview;
 }
 
 namespace {
@@ -1659,7 +1608,7 @@ void WebContentView::select_web_compat_report_screenshot(Function<void(QImage)> 
     if (m_screenshot_selection_overlay)
         return;
 
-    take_visible_snapshot({}, [this, on_selected = AK::move(on_selected), on_close = AK::move(on_close)](QImage frame) mutable {
+    take_visible_snapshot([this, on_selected = AK::move(on_selected), on_close = AK::move(on_close)](QImage frame) mutable {
         if (frame.isNull() || m_screenshot_selection_overlay) {
             if (on_close)
                 on_close();
@@ -1755,7 +1704,7 @@ ScreenshotSelectionOverlay& WebContentView::select_screenshot(QImage const& fram
         if (on_close)
             on_close();
     };
-    overlay->on_request_page_frame = [this](Function<void(QImage)> on_frame) { take_visible_snapshot({}, AK::move(on_frame)); };
+    overlay->on_request_page_frame = [this](Function<void(QImage)> on_frame) { take_visible_snapshot(AK::move(on_frame)); };
     overlay->on_page_visibility_change = [this] { schedule_repaint(); };
     return *overlay;
 }
@@ -1767,7 +1716,7 @@ void WebContentView::start_screenshot()
     if (m_screenshot_selection_overlay)
         return;
 
-    take_visible_snapshot({}, [this](QImage frame) {
+    take_visible_snapshot([this](QImage frame) {
         if (m_screenshot_selection_overlay)
             return;
         if (frame.isNull()) {

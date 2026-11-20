@@ -199,9 +199,6 @@ public:
         Dark,
     };
     void update_palette(PaletteMode = PaletteMode::Default);
-    // A preview of a page that the Compositor shows itself comes from it, so it can lag a frame behind the page.
-    Optional<QPixmap> tab_preview_pixmap(QSize const& maximum_size);
-
     // Frames that the Compositor shows itself are only announced while something here wants to hear of them.
     void add_frame_notification_interest();
     void remove_frame_notification_interest();
@@ -217,8 +214,6 @@ public:
     void set_follows_mouse_while_inactive(bool follows) { m_follows_mouse_while_inactive = follows; }
 
 signals:
-    void ready_to_paint();
-    void tab_preview_changed();
     void crash_overlay_changed();
     void image_overlay_unavailable();
     void urls_dropped(QList<QUrl> const&);
@@ -255,9 +250,8 @@ private:
     RefPtr<Gfx::Bitmap const> cpu_bitmap_to_paint(Paintable const&) const;
     QImage visible_snapshot() const;
     // What the view shows, which the Compositor takes where the view does not hold the frame itself.
-    void take_visible_snapshot(Optional<QSize> maximum_size, Function<void(QImage)>);
+    void take_visible_snapshot(Function<void(QImage)>);
     bool holds_displayed_frame() const;
-    void refresh_tab_preview(QSize const& maximum_size);
 
     void update_viewport_size();
     void update_cursor(Gfx::Cursor cursor);
@@ -351,10 +345,6 @@ private:
 
     QPointer<ScreenshotSelectionOverlay> m_screenshot_selection_overlay;
     size_t m_frame_notification_interest { 0 };
-    QPixmap m_tab_preview;
-    QSize m_tab_preview_maximum_size;
-    bool m_tab_preview_is_stale { true };
-    bool m_tab_preview_request_in_flight { false };
     QPointer<ScreenshotViewer> m_screenshot_viewer;
     struct FloatingSurface {
         QPointer<QWidget> surface;
