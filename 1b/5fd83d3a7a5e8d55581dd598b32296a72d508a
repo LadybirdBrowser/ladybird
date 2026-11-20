@@ -1,0 +1,15 @@
+When the window that shows a tab preview is deactivated, Ladybird now
+hides the preview, and an inactive window opens none. Chromium hides
+its hover card the same way: TabStrip::OnWidgetActivationChanged() calls
+UpdateHoverCard(nullptr, ...), which ends in TabHoverCardController::
+HideHoverCard(). Firefox rolls its preview panel up as soon as the
+window resigns key (nsCocoaWindow’s “windowDidResignKey:” calls
+RollUpPopups()), and its TabHoverPanelSet::shouldActivate() opens no
+preview unless the window is the active one. Chromium, unlike Firefox,
+does open a hover card in an inactive window.
+
+Neither raises the preview’s window again as its image updates:
+Chromium’s TabHoverCardController::OnPreviewImageAvailable() only
+sets the thumbnail, and Firefox takes a single snapshot when the
+preview opens. Both were read from source (Chromium e6c8d7c15aeb2,
+Firefox 41db707342fe), not run.
