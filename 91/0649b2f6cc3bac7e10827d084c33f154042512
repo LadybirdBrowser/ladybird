@@ -1,0 +1,12 @@
+Ladybird now resolves the Auto contrast preference from the preference
+Qt reports, which on macOS is NSWorkspace’s Increase Contrast setting,
+accessibilityDisplayShouldIncreaseContrast, and on Linux the settings
+portal’s org.freedesktop.appearance contrast. On macOS, Blink, Gecko and
+WebKit report more for the same setting (OsSettingsProviderMac::
+PreferredContrast(), nsLookAndFeel::NativeGetInt() for the accessibility
+theme, ThemeMac::userPreferredContrast()), and follow it through
+NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification. On Linux,
+Gecko also reports more for a portal contrast of 1 (nsLookAndFeel::
+RecomputeDBusAppearanceSetting()), while Blink looks only at the names
+of GTK themes. Read from source, not run: Chromium e6c8d7c15aeb2,
+Firefox 41db707342fe, WebKit c3a7f3c0cfe0.
