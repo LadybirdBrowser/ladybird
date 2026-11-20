@@ -72,7 +72,6 @@ JavaScriptDialog::JavaScriptDialog(QWidget* parent)
     setMouseTracking(true);
     setGeometry(parent->rect());
     parent->installEventFilter(this);
-    QApplication::instance()->installEventFilter(this);
 
     auto* overlay_layout = new QVBoxLayout(this);
     overlay_layout->setContentsMargins(DIALOG_MARGIN, 0, DIALOG_MARGIN, DIALOG_MARGIN);
@@ -198,6 +197,7 @@ void JavaScriptDialog::open(Type type, QString const& title, QString const& mess
     m_parent_focus_policy = parentWidget()->focusPolicy();
     parentWidget()->setFocusPolicy(Qt::NoFocus);
     m_type = type;
+    QApplication::instance()->installEventFilter(this);
     m_title_label->setText(title);
     m_message_label->setText(message);
     m_prompt_text->setVisible(type == Type::Prompt);
@@ -271,12 +271,14 @@ void JavaScriptDialog::reset()
         return;
 
     m_type.clear();
+    QApplication::instance()->removeEventFilter(this);
     restore_focus_after_close();
 }
 
 void JavaScriptDialog::complete(bool accepted)
 {
     auto type = m_type.release_value();
+    QApplication::instance()->removeEventFilter(this);
     auto prompt_text = m_prompt_text->text();
     restore_focus_after_close();
 
@@ -505,7 +507,9 @@ void JavaScriptDialog::update_chrome_style()
         return;
 
     m_is_updating_chrome_style = true;
-    setStyleSheet(ChromeStyle::javascript_dialog_style_sheet(palette()));
+    auto style_sheet = ChromeStyle::javascript_dialog_style_sheet(palette());
+    if (styleSheet() != style_sheet)
+        setStyleSheet(style_sheet);
 #if !defined(AK_OS_MACOS)
     if (m_panel_shadow)
         m_panel_shadow->setColor(QColor(0, 0, 0, Theme::is_dark() ? 140 : 56));
