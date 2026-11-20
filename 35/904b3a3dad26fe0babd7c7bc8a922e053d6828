@@ -1,0 +1,14 @@
+Ladybird now transfers the used main size of a replaced flex item with
+only a natural aspect ratio through that ratio to its cross size. Run
+in Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5,
+Chrome and Firefox agree; WebKit makes an image like this without
+max-width 150px in a 100px container.
+
+Blink’s ComputeReplacedSizeInternal() derives the block size from
+the flexed inline size; its stretch fallback for a box without a
+natural size applies only while both sizes are unresolved. WebKit’s
+RenderReplaced::computeReplacedLogicalHeight() derives the height
+of a box without a natural size from its used width. And Gecko’s
+nsContainerFrame::ComputeSizeWithIntrinsicDimensions() uses the
+ratio-dependent size of the definite inline size, with no exception for
+a box without a natural size.
