@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
 #include <AK/Utf16View.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Forward.h>
@@ -83,8 +84,8 @@ private:
     void load_image();
     void update_layout_and_child_objects(Representation);
 
-    void resource_did_load(Fetch::Infrastructure::ResponseView const&, ReadonlyBytes);
-    void resource_did_fail();
+    void resource_did_load(u64 fetch_id, Fetch::Infrastructure::ResponseView const&, ReadonlyBytes);
+    void resource_did_fail(u64 fetch_id);
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;
@@ -107,6 +108,10 @@ private:
 
     Vector<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer_for_object_representation_task;
     Vector<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer_for_resource_load;
+
+    // The resource fetches that still delay the load event, until their response is handled or they're stopped.
+    HashTable<u64> m_pending_resource_fetches;
+    u64 m_last_resource_fetch_id { 0 };
 };
 
 }

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<object id="object" data="../wpt-import/xhr/resources/delay.py?ms=3000"></object>
+<script>
+    asyncTest(done => {
+        // The object's fetch starts in a queued task, and the server holds back its response headers for 3 seconds.
+        setTimeout(() => {
+            // Stopping the document stops the object's fetch before it has a response.
+            window.stop();
+            let frames = 0;
+            const check = () => {
+                if (document.readyState === "complete" || ++frames === 60) {
+                    println(`readyState: ${document.readyState}`);
+                    done();
+                    return;
+                }
+                requestAnimationFrame(check);
+            };
+            check();
+        }, 100);
+    });
+</script>

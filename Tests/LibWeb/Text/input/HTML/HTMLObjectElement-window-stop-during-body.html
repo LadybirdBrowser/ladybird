@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<object id="object" data="../wpt-import/images/green-256x256.png?pipe=trickle(100:d3)"></object>
+<script>
+    asyncTest(done => {
+        // The object's fetch starts in a queued task, and its body is held back for 3 seconds after the first 100 bytes.
+        setTimeout(() => {
+            // Stopping the document stops the object's fetch while its body is still arriving.
+            window.stop();
+            let frames = 0;
+            const check = () => {
+                if (document.readyState === "complete" || ++frames === 60) {
+                    println(`readyState: ${document.readyState}`);
+                    done();
+                    return;
+                }
+                requestAnimationFrame(check);
+            };
+            check();
+        }, 100);
+    });
+</script>
