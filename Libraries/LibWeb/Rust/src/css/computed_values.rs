@@ -251,6 +251,7 @@ impl_computed_payload_clone_and_eq!(InheritedTextValues {
     webkit_text_stroke_width => paint_only,
     text_shadow,
     text_transform,
+    text_security,
     text_wrap_style,
     text_decoration_skip_ink,
     text_underline_position,
@@ -2713,6 +2714,7 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             _WEBKIT_TEXT_STROKE_WIDTH @ webkit_text_stroke_width => PixelLengthF64,
             TEXT_SHADOW => RequireKeyword(k::NONE),
             TEXT_JUSTIFY @ text_justify => EnumKeyword(enums::keyword_to_text_justify),
+            _WEBKIT_TEXT_SECURITY @ text_security => EnumKeyword(enums::keyword_to_text_security),
             TEXT_TRANSFORM @ text_transform => EnumKeyword(enums::keyword_to_text_transform),
             TEXT_WRAP_STYLE @ text_wrap_style => EnumKeyword(enums::keyword_to_text_wrap_style),
             TEXT_DECORATION_SKIP_INK @ text_decoration_skip_ink => EnumKeyword(enums::keyword_to_text_decoration_skip_ink),
@@ -3644,7 +3646,7 @@ const PAYLOAD_TYPED_LONGHANDS: [(u16, usize, usize, u8); 18] = {
 
 /// The longhands whose computed value a handle of their group's payload holds as it is, by the
 /// handle's offset: the group's values keep no second copy of them.
-const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 53] = {
+const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 54] = {
     use crate::css::computed_value_types::{BackgroundValues, EffectsValues, FontValues, MaskValues, SVGResetValues};
     use crate::css::property_metadata::property_id as p;
     use std::mem::offset_of;
@@ -3654,6 +3656,11 @@ const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 53] = {
     let effects = group_index::EFFECTS;
     let svg_reset = group_index::SVG_RESET;
     [
+        (
+            p::BLOCK_ELLIPSIS,
+            group_index::INHERITED_TEXT,
+            offset_of!(InheritedTextValues, block_ellipsis),
+        ),
         (
             p::BACKGROUND_IMAGE,
             background,
@@ -6250,6 +6257,7 @@ impl InheritedTextValues {
             webkit_text_stroke_color: crate::css::computed_value_types::StyleColor::CURRENT_COLOR,
             webkit_text_stroke_width: 0.0,
             text_shadow: RetainedComputedShadowList::from_vec(Vec::new()),
+            text_security: css_enums::text_security::NONE,
             text_transform: enum_value(css_enums::keyword_to_text_transform(css_enums::keyword::NONE)),
             text_wrap_style: enum_value(css_enums::keyword_to_text_wrap_style(css_enums::keyword::AUTO)),
             text_decoration_skip_ink: enum_value(css_enums::keyword_to_text_decoration_skip_ink(

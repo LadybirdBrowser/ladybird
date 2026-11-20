@@ -1,0 +1,21 @@
+disc inherited: disc
+disc glyphs match: true
+disc one mark: true
+disc one mark: true
+disc one mark: true
+circle inherited: circle
+circle glyphs match: true
+circle one mark: true
+circle one mark: true
+circle one mark: true
+square inherited: square
+square glyphs match: true
+square one mark: true
+square one mark: true
+square one mark: true
+CRLF matches 3 marks: true
+LFCR matches 4 marks: true
+two CRLFs matches 4 marks: true
+expanded text has two marks: true
+DOM text preserved: true
+none restores text: true

@@ -210,6 +210,10 @@ impl TextContent {
         &self.rendered
     }
 
+    pub(super) fn rendered_text_edits(&self) -> &[RenderedTextEdit] {
+        &self.edits
+    }
+
     pub(super) fn is_password_input(&self) -> bool {
         self.rendering_key
             .as_ref()
@@ -525,6 +529,7 @@ fn sync_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId) {
     let source_range = arena.text_source_range(id, source_length);
     let options = TextRenderingOptions {
         text_transform: inherited.text_transform,
+        text_security: inherited.text_security,
         white_space_collapse: parent_style.white_space_collapse(),
         is_password_input: input.is_password_input,
         dom_start_offset: source_range.start,
@@ -540,10 +545,14 @@ fn sync_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId) {
         .is_some_and(|content| content.rendering_key.as_ref() == Some(&key))
     {
         let source = input.data.to_utf16().into_owned();
-        let untransformed_text_is_ascii_whitespace = source.iter().all(|unit| matches!(unit, 0x09..=0x0d | 0x20));
-        let svg_source_text =
-            super::node_facts::kind_is_svg_box(arena.data(parent).kind.get()).then(|| Box::from(&source[..]));
+        let masks_text =
+            options.text_security != crate::css::css_enums::text_security::NONE || options.is_password_input;
+        let untransformed_text_is_ascii_whitespace =
+            !masks_text && source.iter().all(|unit| matches!(unit, 0x09..=0x0d | 0x20));
+        let is_svg = super::node_facts::kind_is_svg_box(arena.data(parent).kind.get());
+        let svg_source_text = (is_svg && !masks_text).then(|| Box::from(&source[..]));
         let rendered = render_text(source, key.locale.as_deref(), key.options);
+        let svg_source_text = svg_source_text.or_else(|| is_svg.then(|| Box::from(&rendered.text[..])));
         let content = TextContent {
             rendered: Arc::new(RenderedText {
                 svg_source_text,
@@ -870,6 +879,7 @@ mod tests {
             options: TextRenderingOptions {
                 text_transform: text_transform::UPPERCASE,
                 white_space_collapse: crate::css::css_enums::white_space_collapse::PRESERVE,
+                text_security: crate::css::css_enums::text_security::NONE,
                 is_password_input: false,
                 dom_start_offset: 0,
                 dom_length_in_code_units: 3,
@@ -930,6 +940,7 @@ mod tests {
             options: TextRenderingOptions {
                 text_transform: text_transform::NONE,
                 white_space_collapse: crate::css::css_enums::white_space_collapse::COLLAPSE,
+                text_security: crate::css::css_enums::text_security::NONE,
                 is_password_input: false,
                 dom_start_offset: 0,
                 dom_length_in_code_units: 5,

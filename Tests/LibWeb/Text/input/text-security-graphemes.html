@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="include.js"></script>
+<style>
+    #target, #reference { font: 24px serif; white-space: pre; display: inline-block; }
+</style>
+<div id="container"><span id="target"></span><span id="reference" style="-webkit-text-security: none"></span></div>
+<script>
+    test(() => {
+        for (const [mode, mark] of [["disc", "•"], ["circle", "◦"], ["square", "■"]]) {
+            container.style.webkitTextSecurity = mode;
+            target.textContent = "Wi";
+            reference.textContent = mark.repeat(2);
+            println(`${mode} inherited: ${getComputedStyle(target).webkitTextSecurity}`);
+            println(`${mode} glyphs match: ${target.offsetWidth === reference.offsetWidth}`);
+            reference.textContent = mark;
+            for (const cluster of ["e\u0301", "😀", "👩‍💻"]) {
+                target.textContent = cluster;
+                println(`${mode} one mark: ${target.offsetWidth === reference.offsetWidth}`);
+            }
+        }
+        container.style.webkitTextSecurity = "disc";
+        for (const [name, text, count] of [
+            ["CRLF", "A\r\nB", 3], ["LFCR", "A\n\rB", 4], ["two CRLFs", "A\r\n\r\nB", 4],
+        ]) {
+            target.textContent = text;
+            reference.textContent = String.fromCodePoint(0x2022).repeat(count);
+            println(`${name} matches ${count} marks: ${target.offsetWidth === reference.offsetWidth}`);
+        }
+        container.style.webkitTextSecurity = "square";
+        target.style.textTransform = "uppercase";
+        target.textContent = String.fromCodePoint(0xdf);
+        reference.textContent = String.fromCodePoint(0x25a0).repeat(2);
+        println(`expanded text has two marks: ${target.offsetWidth === reference.offsetWidth}`);
+        println(`DOM text preserved: ${target.textContent.codePointAt(0) === 0xdf}`);
+        target.style.textTransform = "none";
+        target.style.webkitTextSecurity = "none";
+        target.textContent = reference.textContent = "Wide text";
+        println(`none restores text: ${target.offsetWidth === reference.offsetWidth}`);
+    });
+</script>

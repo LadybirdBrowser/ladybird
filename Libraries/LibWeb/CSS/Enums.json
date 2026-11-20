@@ -1211,6 +1211,12 @@
     "optimizelegibility",
     "geometricprecision"
   ],
+  "text-security": [
+    "none",
+    "disc",
+    "circle",
+    "square"
+  ],
   "text-transform": [
     "capitalize",
     "full-size-kana",

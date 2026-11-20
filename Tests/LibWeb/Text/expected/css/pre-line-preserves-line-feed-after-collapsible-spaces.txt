@@ -7,4 +7,5 @@ spaces-between-line-feeds: height 80, "two" at line 4, x 0
 tab-between-line-feeds: height 60, "two" at line 3, x 0
 spaces-after-line-feed: height 40, "two" at line 2, x 0
 spaces-around-line-feed: height 40, "two" at line 2, x 0
+latin-crlf-pairs: height 60, "two" at line 3, x 0
 crlf-pairs: height 60, "two" at line 3, x 0

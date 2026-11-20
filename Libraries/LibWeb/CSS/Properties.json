@@ -302,6 +302,19 @@
       "color"
     ]
   },
+  "-webkit-text-security": {
+    "style-group": "InheritedTextValues",
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "none",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "none",
+      "disc",
+      "circle",
+      "square"
+    ]
+  },
   "-webkit-text-stroke": {
     "affects-layout": false,
     "initial": "0 currentColor",

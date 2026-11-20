@@ -498,7 +498,7 @@ impl Drop for IcuSegmenterHandle {
 }
 
 pub(crate) enum GraphemeSegmenter {
-    Ascii {
+    SingleCodeUnits {
         length_in_code_units: usize,
     },
     /// Text of code points below U+0300 only, where every code unit is a grapheme cluster except for CR LF.
@@ -522,12 +522,13 @@ fn is_latin_code_unit_outside_clusters(code_unit: u16) -> bool {
 
 impl GraphemeSegmenter {
     pub(crate) fn new(text: &[u16]) -> Self {
-        let Some(first_non_ascii) = text.iter().position(|unit| *unit > 0x7f) else {
-            return Self::Ascii {
+        let Some(first_cluster_candidate) = text.iter().position(|&unit| !is_latin_code_unit_outside_clusters(unit))
+        else {
+            return Self::SingleCodeUnits {
                 length_in_code_units: text.len(),
             };
         };
-        if text[first_non_ascii..].iter().all(|unit| *unit < 0x300) {
+        if text[first_cluster_candidate..].iter().all(|unit| *unit < 0x300) {
             let line_feeds_after_carriage_returns = text
                 .windows(2)
                 .enumerate()
@@ -556,11 +557,9 @@ impl GraphemeSegmenter {
         }
     }
 
-    /// Mirrors Unicode::AsciiGraphemeSegmenter for the ASCII case: every code
-    /// unit index is a boundary.
     pub(crate) fn next_boundary(&self, index: usize, inclusive: bool) -> Option<usize> {
         match self {
-            Self::Ascii { length_in_code_units } => {
+            Self::SingleCodeUnits { length_in_code_units } => {
                 if inclusive && index <= *length_in_code_units {
                     return Some(index);
                 }
@@ -1204,7 +1203,11 @@ impl<'text> TextChunker<'text> {
         self.splits_at_orientation_changes && code_point_is_upright_in_mixed_orientation(self.current_code_point())
     }
 
-    fn next_grapheme_boundary(&self) -> usize {
+    fn next_chunk_boundary(&self) -> usize {
+        // CRLF is one grapheme, but the line feed must start its own chunk when CSS preserves line breaks.
+        if self.should_respect_linebreaks && self.text.get(self.current_index) == Some(&u16::from(b'\r')) {
+            return self.current_index + 1;
+        }
         self.grapheme_segmenter
             .next_boundary(self.current_index, false)
             .unwrap_or(self.text.len())
@@ -1447,7 +1450,7 @@ impl<'text> TextChunker<'text> {
                     }
 
                     // Otherwise, commit the newline!
-                    self.current_index = self.next_grapheme_boundary();
+                    self.current_index = self.next_chunk_boundary();
                     let chunk = self.try_commit_chunk(
                         pending.start,
                         self.current_index,
@@ -1471,7 +1474,7 @@ impl<'text> TextChunker<'text> {
                     let chunk = self.try_commit_chunk_at_cursor(&pending, false);
 
                     while self.current_index < self.text.len() && self.is_collapsible(self.current_code_point()) {
-                        self.current_index = self.next_grapheme_boundary();
+                        self.current_index = self.next_chunk_boundary();
                     }
 
                     if let Some(chunk) = chunk {
@@ -1509,7 +1512,7 @@ impl<'text> TextChunker<'text> {
                         }
 
                         // Otherwise, commit the whitespace!
-                        self.current_index = self.next_grapheme_boundary();
+                        self.current_index = self.next_chunk_boundary();
                         can_break_at_current_position = self.is_at_line_break_opportunity();
                         let space_font = self.font_for_space(self.current_index, code_point);
                         let space_font_index = self.index_of_font(space_font);
@@ -1536,7 +1539,7 @@ impl<'text> TextChunker<'text> {
                     }
                 }
 
-                self.current_index = self.next_grapheme_boundary();
+                self.current_index = self.next_chunk_boundary();
                 can_break_at_current_position = self.is_at_line_break_opportunity();
             }
 

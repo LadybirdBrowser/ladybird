@@ -1,0 +1,32 @@
+<!doctype html>
+<script src="../include.js"></script>
+<svg width="300" height="100">
+    <path id="line" d="M 0 50 H 290"></path>
+    <text id="label" y="30" style="font: 24px monospace; -webkit-text-security: disc"></text>
+</svg>
+<script>
+    test(() => {
+        const ns = "http://www.w3.org/2000/svg";
+        for (const kind of ["text", "tspan", "textPath"]) {
+            label.replaceChildren();
+            const run = kind === "text" ? label : label.appendChild(document.createElementNS(ns, kind));
+            if (kind === "textPath") run.setAttribute("href", "#line");
+            for (const group of ["e\u0301", String.fromCodePoint(0x1f600)]) {
+                run.replaceChildren(document.createTextNode(group), document.createTextNode("x"));
+                println(kind + " chars: " + run.getNumberOfChars());
+                const first = run.getExtentOfChar(0);
+                const second = run.getExtentOfChar(1);
+                println("cluster shares its cell: " + (first.x === second.x && first.width === second.width));
+                const last = run.getExtentOfChar(2);
+                println("last mark has its own cell: " + (last.x >= first.x + first.width - 0.01 && last.width > 0));
+                println("last mark index: " + run.getCharNumAtPosition(new DOMPoint(last.x + last.width / 2, last.y + last.height / 2)));
+            }
+        }
+        label.style.textTransform = "uppercase";
+        label.textContent = String.fromCodePoint(0xdf) + "x";
+        const expanded = label.getExtentOfChar(0);
+        const last = label.getExtentOfChar(1);
+        println("expansion preserves DOM length: " + (label.getNumberOfChars() === 2));
+        println("first character spans two marks: " + (Math.abs(expanded.width - 2 * last.width) < 0.1));
+    });
+</script>

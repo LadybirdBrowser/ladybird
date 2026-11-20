@@ -573,6 +573,7 @@ pub struct InheritedTextValues {
     pub text_justify: u8,
     pub line_break: u8,
     pub tab_size_is_number: bool,
+    pub text_security: u8,
     pub letter_spacing: crate::css::css_pixels::CssPixels,
     pub word_spacing: crate::css::css_pixels::CssPixels,
     pub tab_size_length: crate::css::css_pixels::CssPixels,
