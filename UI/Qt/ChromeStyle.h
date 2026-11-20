@@ -104,6 +104,7 @@ QString bookmark_dialog_style_sheet(QPalette const&);
 QString report_review_style_sheet(QPalette const&);
 QColor report_review_placeholder_text(QPalette const&);
 QString devtools_banner_style_sheet(QPalette const&);
+QString notification_bar_style_sheet(QPalette const&);
 QString tab_widget_style_sheet(QPalette const&);
 QString autocomplete_popup_style_sheet(QPalette const&);
 QString downloads_popover_style_sheet(QPalette const&);

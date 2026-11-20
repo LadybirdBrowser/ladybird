@@ -31,7 +31,6 @@
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Motion.h>
 #include <UI/Qt/Popover.h>
-#include <UI/Qt/SandboxOffBar.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/SystemAppearance.h>
 #include <UI/Qt/TabBar.h>
@@ -3104,8 +3103,13 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     m_page_column_layout->setContentsMargins(0, 0, 0, 0);
     m_bookmarks_bar = new BookmarksBarContainer(*m_toolbar, *m_stacked_widget, m_page_column);
     m_bookmarks_bar->bar().installEventFilter(this);
+    m_notification_bar_column = new QWidget(m_page_column);
+    m_notification_bar_column->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    m_notification_bar_column_layout = new QVBoxLayout(m_notification_bar_column);
+    m_notification_bar_column_layout->setSpacing(0);
+    m_notification_bar_column_layout->setContentsMargins(0, 0, 0, 0);
     if (Application::browser_options().disable_sandbox == WebView::DisableSandbox::Yes)
-        m_sandbox_off_bar = new SandboxOffBar(m_page_column);
+        show_notification_bar(NotificationBarSlot::SandboxOff, "The sandbox is off. Websites are less isolated from your computer.");
 
     m_ladybird_button = new LadybirdButton(is_private, this);
 
@@ -3488,14 +3492,41 @@ void TabWidget::set_tab_bar_visible(bool visible)
 
     if (!m_tab_bar_visible)
         set_vertical_tabs_hover_expanded(false);
-    if (m_sandbox_off_bar)
-        m_sandbox_off_bar->setVisible(m_tab_bar_visible);
+    m_notification_bar_column->setVisible(m_tab_bar_visible);
 
     update_tab_chrome_visibility();
     update_tab_layout();
     // NB: The collapsed sidebar's buttons sit in the toolbar, which a layout built while the tab bar was hidden left
     //     without them.
     place_toolbar_sidebar_buttons();
+}
+
+// The notification bars stack in the order of their slots.
+void TabWidget::show_notification_bar(NotificationBarSlot slot, QString const& message, Vector<NotificationBar::Button> buttons, Function<void()> on_close)
+{
+    hide_notification_bar(slot);
+
+    int index = 0;
+    for (size_t i = 0; i < to_underlying(slot); ++i) {
+        if (m_notification_bars[i])
+            ++index;
+    }
+
+    auto* bar = new NotificationBar(*m_notification_bar_column, message, AK::move(buttons), AK::move(on_close));
+    m_notification_bar_column_layout->insertWidget(index, bar);
+    m_notification_bars[to_underlying(slot)] = bar;
+}
+
+void TabWidget::hide_notification_bar(NotificationBarSlot slot)
+{
+    auto*& bar = m_notification_bars[to_underlying(slot)];
+    if (!bar)
+        return;
+
+    m_notification_bar_column_layout->removeWidget(bar);
+    bar->hide();
+    bar->deleteLater();
+    bar = nullptr;
 }
 
 void TabWidget::set_window_controls_visible(bool visible)
@@ -4965,12 +4996,11 @@ void TabWidget::rebuild_page_column()
     add_page_to_page_column();
 }
 
-// The bar that says the sandbox is off, if it is, and then the bookmarks bar head the page, unless the bookmarks bar
-// only shows over the page while the pointer is near the toolbar. The tab performance monitor's row ends the column.
+// The notification bars and then the bookmarks bar head the page, unless the bookmarks bar only shows over the page
+// while the pointer is near the toolbar. The tab performance monitor's row ends the column.
 void TabWidget::add_page_to_page_column()
 {
-    if (m_sandbox_off_bar)
-        m_page_column_layout->addWidget(m_sandbox_off_bar);
+    m_page_column_layout->addWidget(m_notification_bar_column);
     if (!m_bookmarks_bar->shows_over_page())
         m_page_column_layout->addWidget(m_bookmarks_bar);
     m_page_column_layout->addWidget(m_stacked_widget, 1);

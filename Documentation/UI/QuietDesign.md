@@ -590,18 +590,25 @@ settings.
   - Sent or deleted rows disappear. An empty list says "No crash reports waiting".
   - A "Crash report settings" link at the bottom goes to Settings → Feedback.
 
-### Sandbox off
+### Notification bars
 
-When Ladybird runs with `--disable-sandbox`, every window shows a bar directly below the
-toolbar (or at the top of the page area in the sidebar layouts):
+Every window shows its notification bars directly below the toolbar (or at the top of the
+page area in the sidebar layouts), one below the other in a fixed order:
 
 - 32 px plus a `divider` line below, in the `toolbar` color, so it reads as part of the
   chrome, not as a page banner. The page starts below it.
-- The `warning` icon (16 px) and one sentence in `text`: "The sandbox is off. Websites are
-  less isolated from your computer."
-- No close button, no action button, no amber fill. It can't be dismissed, because the state
-  can't be changed from inside the browser, and it should be in every screenshot that ends
-  up in a bug report.
+- The `warning` icon (16 px) and one sentence in `text`, cut short with an ellipsis when the
+  window is too narrow for it. Then any text buttons, and a close button if the bar can be
+  closed. No amber fill.
+
+### Sandbox off
+
+When Ladybird runs with `--disable-sandbox`, every window shows a notification bar: "The
+sandbox is off. Websites are less isolated from your computer."
+
+- No close button and no action button. It can't be dismissed, because the state can't be
+  changed from inside the browser, and it should be in every screenshot that ends up in a
+  bug report.
 - Bug reports and crash reports include "sandbox: off" in their prefilled details.
 - Nothing else changes: no badge on the Ladybird button, no tint, nothing in the address
   field (which describes the site, not the browser).
