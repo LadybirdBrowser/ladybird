@@ -50,6 +50,7 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
                 .should_collect_devtools_layout_data = document.page().client().has_active_devtools_client(),
                 .document_in_quirks_mode = document.in_quirks_mode(),
                 .document_in_limited_quirks_mode = document.in_limited_quirks_mode(),
+                .suppresses_viewport_scrolling = document_is_active && navigable->container_suppresses_viewport_scrolling(),
                 .viewport_inline_size_raw = viewport_rect.width().raw_value(),
                 .viewport_block_size_raw = viewport_rect.height().raw_value(),
                 .document_style_node = document.style_node_id().value(),

@@ -31,6 +31,7 @@ struct ReplicatedContainerState {
     // Whether the container is in its node document's tree rather than a shadow tree, which makes the navigable a
     // document-tree child navigable of that document.
     bool is_in_document_tree { false };
+    bool suppresses_viewport_scrolling { false };
 
     // https://html.spec.whatwg.org/multipage/browsers.html#iframe-sandboxing-flag-set
     SandboxingFlagSet iframe_sandboxing_flag_set {};

@@ -327,6 +327,11 @@ pub(crate) fn propagate_root_styles_to_viewport(
 ) {
     assert!(!viewport.is_invalid());
     let apply_overflow = |arena: &mut LayoutNodeArena, node: NodeSlotId, (x, y): (u8, u8)| {
+        let (x, y) = if node == viewport && arena.suppresses_viewport_scrolling {
+            (overflow::HIDDEN, overflow::HIDDEN)
+        } else {
+            (x, y)
+        };
         arena.update_layout_style(host_calls, node, |style, _| style.set_overflow(x, y));
     };
     let apply_writing_mode_and_direction =

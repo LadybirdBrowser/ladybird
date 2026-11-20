@@ -620,9 +620,28 @@ void NavigableContainer::report_used_color_scheme(CSS::PreferredColorScheme colo
     document().page().client().page_did_change_navigable_container_state(m_content_navigable->id(), replicated_container_state());
 }
 
+void NavigableContainer::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+    if (namespace_.has_value() || name != AttributeNames::scrolling || !first_is_one_of(local_name(), TagNames::iframe, TagNames::frame))
+        return;
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-page
+    bool suppresses_scrolling = value.has_value() && value->is_one_of_ignoring_ascii_case(u"no"sv, u"off"sv, u"noscroll"sv);
+    if (m_suppresses_viewport_scrolling == suppresses_scrolling)
+        return;
+    m_suppresses_viewport_scrolling = suppresses_scrolling;
+    if (!m_content_navigable)
+        return;
+    if (auto* child = as_if<LocalNavigable>(*m_content_navigable); child && child->active_document())
+        child->active_document()->set_needs_layout_update(DOM::SetNeedsLayoutReason::FrameScrollingAttributeChange);
+    document().page().client().page_did_change_navigable_container_state(m_content_navigable->id(), replicated_container_state());
+}
+
 ReplicatedContainerState NavigableContainer::replicated_container_state()
 {
     ReplicatedContainerState state;
+    state.suppresses_viewport_scrolling = m_suppresses_viewport_scrolling;
     state.is_in_document_tree = document().is_ancestor_of(*this);
     if (auto const* iframe = as_if<HTMLIFrameElement>(*this))
         state.iframe_sandboxing_flag_set = iframe->iframe_sandboxing_flag_set();

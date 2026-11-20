@@ -50,6 +50,7 @@ public:
     bool content_navigable_has_session_history_entry_and_ready_for_navigation() const;
 
     ReplicatedContainerState replicated_container_state();
+    bool suppresses_viewport_scrolling() const { return m_suppresses_viewport_scrolling; }
 
     // https://w3c.github.io/webappsec-permissions-policy/#algo-process-policy-attributes
     PermissionsPolicy::PolicyDirective process_permissions_policy_attributes() const;
@@ -67,6 +68,7 @@ protected:
     NavigableContainer(DOM::Document&, DOM::QualifiedName);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&) override;
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#shared-attribute-processing-steps-for-iframe-and-frame-elements
     Optional<URL::URL> shared_attribute_processing_steps_for_iframe_and_frame(InitialInsertion initial_insertion);
@@ -91,6 +93,7 @@ private:
     void report_stats_displayed(bool);
     Optional<bool> m_reported_stats_displayed;
 
+    bool m_suppresses_viewport_scrolling { false };
     bool m_potentially_delays_the_load_event { true };
 
     struct ReportedContentNavigableViewport {

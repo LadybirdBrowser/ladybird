@@ -1,0 +1,4 @@
+NoScRoLl: page 100, frame 0
+script scroll: 80
+attribute removed: page 100, frame 180
+off: page 200, frame 180
