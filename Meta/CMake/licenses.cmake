@@ -36,6 +36,7 @@ add_custom_command(
     VERBATIM
 )
 
+# about:licenses decompresses the file itself, and falls back to the uncompressed one.
 set(brotli_hints "")
 if (NOT "${VCPKG_INSTALLED_DIR}" STREQUAL "" AND NOT "${VCPKG_TARGET_TRIPLET}" STREQUAL "")
     list(APPEND brotli_hints "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/brotli")

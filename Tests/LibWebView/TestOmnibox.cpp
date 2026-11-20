@@ -350,6 +350,7 @@ TEST_CASE(all_web_ui_pages_are_suggested)
     static constexpr Array expected_urls {
         "about:about"sv,
         "about:crashes"sv,
+        "about:licenses"sv,
         "about:newtab"sv,
         "about:settings"sv,
         "about:support"sv,
