@@ -117,3 +117,13 @@ test("toString shows the UTC offset of the time value, not of the local time", (
 
     setTimeZone(originalTimeZone);
 });
+
+test("local time in a gap or overlap in 2500", () => {
+    const originalTimeZone = setTimeZone("Australia/Sydney");
+    try {
+        expect(new Date(2500, 3, 4, 2, 30).toISOString()).toBe("2500-04-03T15:30:00.000Z");
+        expect(new Date(2500, 9, 3, 2, 30).toISOString()).toBe("2500-10-02T16:30:00.000Z");
+    } finally {
+        setTimeZone(originalTimeZone);
+    }
+});
