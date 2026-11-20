@@ -405,6 +405,20 @@ TEST_CASE(font_collection_preserves_each_face_style)
     EXPECT(Gfx::Typeface::try_load_from_temporary_memory(file->bytes(), 3).is_error());
 }
 
+TEST_CASE(face_with_a_symbol_cmap_subtable_is_a_symbol_font)
+{
+    auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/symbol-face.ttc"sv)));
+    auto symbol_face = MUST(Gfx::Typeface::try_load_from_temporary_memory(file->bytes(), 0));
+    auto text_face = MUST(Gfx::Typeface::try_load_from_temporary_memory(file->bytes(), 1));
+    EXPECT_EQ(symbol_face->family(), "Symbol Face Test"sv);
+    EXPECT_EQ(text_face->family(), "Symbol Face Test"sv);
+    EXPECT(symbol_face->description().is_symbol_font());
+    EXPECT(!text_face->description().is_symbol_font());
+
+    // The symbol face still maps a letter through its Unicode subtable.
+    EXPECT_NE(symbol_face->font(12)->glyph_id_for_code_point('a'), 0u);
+}
+
 // The answer depends on the installed font set alone, so every thread must reach the same one and
 // the memo must match a code point once however many threads ask at the same moment.
 TEST_CASE(system_fallback_fonts_can_be_matched_on_several_threads)

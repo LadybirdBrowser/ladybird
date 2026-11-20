@@ -340,3 +340,22 @@ TEST_CASE(file_collection_faces_share_the_same_mapping)
         faces.append(move(typeface)); });
     EXPECT_EQ(faces.size(), 3u);
 }
+
+TEST_CASE(path_provider_finds_a_symbol_face_last)
+{
+    // The first face of the collection has a symbol cmap subtable, and the second doesn't. Both are of one family, at
+    // the same weight, width and slope.
+    Gfx::PathFontProvider provider;
+    provider.load_all_fonts_from_uri(MUST(String::formatted("file://{}/Tests/LibGfx/test-inputs/fonts", LADYBIRD_SOURCE_DIR)));
+
+    auto font = provider.get_font("Symbol Face Test"_fly_string, 12, 400, 5, 0);
+    EXPECT(font);
+    if (font)
+        EXPECT_EQ(font->typeface().collection_index(), 1u);
+
+    Vector<u32> indices;
+    provider.for_each_typeface_with_family_name("Symbol Face Test"_fly_string, [&](Gfx::Typeface const& typeface) {
+        indices.append(typeface.collection_index());
+    });
+    EXPECT_EQ(indices, (Vector<u32> { 1, 0 }));
+}
