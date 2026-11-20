@@ -33,7 +33,7 @@ public:
     using FrameSnapshotCallback = Function<void(Optional<Gfx::ShareableBitmap>)>;
     // The frame the context shows, scaled down to fit within the size given. None if it has no frame, or if the
     // Compositor goes away first.
-    void take_frame_snapshot(Web::CompositorContextId, Optional<Gfx::IntSize> maximum_size, FrameSnapshotCallback);
+    void take_frame_snapshot(Web::CompositorContextId, FrameSnapshotCallback);
     void fail_pending_frame_snapshots();
 
 private:

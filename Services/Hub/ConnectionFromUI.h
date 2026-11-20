@@ -164,7 +164,7 @@ private:
     virtual void view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory) override;
     virtual void view_set_hosts_remote_layer(u64 view_id, bool hosts_remote_layer) override;
     virtual void view_set_wants_frame_notifications(u64 view_id, bool wants_frame_notifications) override;
-    virtual void view_take_frame_snapshot(u64 view_id, u64 request_id, Optional<Gfx::IntSize> maximum_size) override;
+    virtual void view_take_frame_snapshot(u64 view_id, u64 request_id) override;
     virtual void view_begin_synchronized_resize(u64 view_id, u64 token) override;
     virtual void view_await_synchronized_resize_frame(u64 view_id, u64 token, Gfx::IntSize size) override;
     virtual void view_commit_synchronized_resize(u64 view_id, u64 token) override;
