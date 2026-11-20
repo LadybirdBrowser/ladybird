@@ -4,6 +4,7 @@ const verticalTabsExpandOnHover = document.querySelector("#vertical-tabs-expand-
 const verticalTabsPosition = document.querySelector("#vertical-tabs-position");
 const showBookmarksBar = document.querySelector("#show-bookmarks-bar");
 const discardHiddenTabsAfter = document.querySelector("#discard-hidden-tabs-after");
+const tabProcesses = document.querySelector("#tab-processes");
 
 let TAB_SETTINGS = {};
 
@@ -52,6 +53,7 @@ const loadSettings = settings => {
         discardHiddenTabsAfter.add(new Option(`After ${discardMinutes} minutes`, discardMinutes));
     }
     discardHiddenTabsAfter.value = discardMinutes;
+    tabProcesses.value = TAB_SETTINGS.tabProcesses || "perOrigin";
     updateVerticalTabsDependentSettings();
 };
 
@@ -81,6 +83,11 @@ verticalTabsPosition.addEventListener("change", () => {
 
 discardHiddenTabsAfter.addEventListener("change", () => {
     TAB_SETTINGS.discardHiddenTabsAfterMinutes = Number(discardHiddenTabsAfter.value);
+    saveTabSettings();
+});
+
+tabProcesses.addEventListener("change", () => {
+    TAB_SETTINGS.tabProcesses = tabProcesses.value;
     saveTabSettings();
 });
 

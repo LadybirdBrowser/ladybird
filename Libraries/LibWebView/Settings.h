@@ -85,6 +85,13 @@ struct ContentSettings {
     HashMap<String, bool> force_dark_per_host;
 };
 
+// Which tabs may share a WebContent process. Sharing one uses less memory, but a crash then takes all its tabs down.
+enum class TabProcesses : u8 {
+    PerTab,
+    PerOrigin,
+    PerSite,
+};
+
 enum class VerticalTabsPosition : u8 {
     Left,
     Right,
@@ -102,6 +109,7 @@ struct TabSettings {
     // A tab that was hidden for this many minutes is discarded, unless it does something the user would notice. Zero
     // means that tabs are kept however long they are hidden.
     u32 discard_hidden_tabs_after_minutes { 120 };
+    TabProcesses tab_processes { TabProcesses::PerOrigin };
 };
 
 struct SearchEngineSettings {

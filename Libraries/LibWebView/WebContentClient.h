@@ -152,7 +152,7 @@ public:
     // A process can take in a tab of an origin only if all it has ever hosted, and so may still hold, is tabs of that
     // origin with their same-site and data: URL iframes. An origin-keyed tab keeps apart from the other origins of
     // its site, so it only joins origin-keyed tabs of its origin, in a process that has not hosted iframes of those
-    // other origins.
+    // other origins. The user may let the tabs of all origins of a site share processes, which then go by site.
     void note_hosted_document(CanonicalDocument const&);
     bool has_hosted_only_tabs_like(CanonicalDocument const&) const;
     bool has_hosted_only_tabs_unlike(CanonicalDocument const&) const;
@@ -286,8 +286,11 @@ private:
     Optional<URL::Origin> m_origin_of_hosted_tabs;
     bool m_hosted_tabs_are_origin_keyed { false };
     bool m_has_hosted_more_than_tabs_of_one_origin { false };
+    // NB: Such a process takes in more tabs only while the tabs of a site share processes.
+    bool m_has_hosted_tabs_of_more_than_one_origin_of_a_site { false };
     Vector<u64> m_crashed_view_ids;
 
+    bool has_hosted_only_tabs_of_the_site_of(CanonicalDocument const&) const;
     WebContentPage& open_page(Web::PageId, CanonicalTraversable&);
     WebContentPage* find_page(Web::PageId) const;
 

@@ -92,8 +92,11 @@ void WebContentClient::note_hosted_document(CanonicalDocument const& document)
             m_origin_of_hosted_tabs = origin;
             m_hosted_tabs_are_origin_keyed = document.relevant_global_object().agent().agent_cluster_is_origin_keyed();
         }
-        if (has_hosted_only_tabs_like(document))
+        if (has_hosted_only_tabs_of_the_site_of(document)) {
+            if (origin != *m_origin_of_hosted_tabs)
+                m_has_hosted_tabs_of_more_than_one_origin_of_a_site = true;
             return;
+        }
     } else if (!document.is_top_level() && m_origin_of_hosted_tabs.has_value()) {
         // NB: A data: URL iframe is hosted in the process of the document that made it, and holds only what that
         //     document already had.
@@ -109,15 +112,37 @@ void WebContentClient::note_hosted_document(CanonicalDocument const& document)
     m_origin_of_hosted_tabs.clear();
 }
 
+static bool tabs_of_a_site_share_processes()
+{
+    return Application::settings().tab_settings().tab_processes == TabProcesses::PerSite;
+}
+
 bool WebContentClient::has_hosted_only_tabs_like(CanonicalDocument const& document) const
 {
-    return m_origin_of_hosted_tabs == document.origin()
+    if (tabs_of_a_site_share_processes())
+        return has_hosted_only_tabs_of_the_site_of(document);
+    return !m_has_hosted_tabs_of_more_than_one_origin_of_a_site && m_origin_of_hosted_tabs == document.origin()
         && m_hosted_tabs_are_origin_keyed == document.relevant_global_object().agent().agent_cluster_is_origin_keyed();
 }
 
 bool WebContentClient::has_hosted_only_tabs_unlike(CanonicalDocument const& document) const
 {
+    // NB: The user may want no tabs to share a process, which makes every other tab unlike the tabs of a process.
+    if (Application::settings().tab_settings().tab_processes == TabProcesses::PerTab)
+        return m_origin_of_hosted_tabs.has_value();
+    if (tabs_of_a_site_share_processes())
+        return m_origin_of_hosted_tabs.has_value() && !has_hosted_only_tabs_of_the_site_of(document);
     return m_origin_of_hosted_tabs.has_value() && !has_hosted_only_tabs_like(document);
+}
+
+// NB: An origin-keyed tab keeps apart from the other origins of its site, so its site is just its origin.
+bool WebContentClient::has_hosted_only_tabs_of_the_site_of(CanonicalDocument const& document) const
+{
+    if (!m_origin_of_hosted_tabs.has_value() || m_hosted_tabs_are_origin_keyed != document.relevant_global_object().agent().agent_cluster_is_origin_keyed())
+        return false;
+    if (m_hosted_tabs_are_origin_keyed)
+        return *m_origin_of_hosted_tabs == document.origin();
+    return m_origin_of_hosted_tabs->is_same_site(document.origin());
 }
 
 bool WebContentClient::hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const& storage_key)

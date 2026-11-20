@@ -929,14 +929,14 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
             return nullptr;
     }
 
-    // A tab goes to a process that has hosted only tabs of its origin that are origin-keyed just as it is, to share
-    // what the process holds. Nothing else can reach a browsing context group of one, whereas an opener could make a
-    // process it can connect to host the tab. A tab recovering from a crash gets a process of its own, so that it can't
-    // take the tabs it joins down with it again.
+    // A tab goes to a process that has hosted only tabs of its origin that are origin-keyed just as it is, or of its
+    // site if the user chose so, to share what the process holds. Nothing else can reach a browsing context group of
+    // one, whereas an opener could make a process it can connect to host the tab. A tab recovering from a crash gets a
+    // process of its own, so that it can't take the tabs it joins down with it again.
     if (!parent() && process_holding_navigable && document.may_share_a_process_with_tabs_of_its_origin()
         && document.browsing_context().top_level_browsing_context().group()->browsing_context_set().size() == 1
         && !top_level_traversable().has_page_standing_in_for_lost_document()
-        && Application::the().same_origin_tabs_may_share_a_process()) {
+        && Application::the().tabs_may_share_processes()) {
         if (auto process = lowest_process_hosting_only_tabs_like(document, process_holding_navigable->session()))
             return process;
     }
