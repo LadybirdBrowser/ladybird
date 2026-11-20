@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>PNG: progressive display of interlaced image RGB_64x64</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://w3c.github.io/png/#13Progressive-display">
+<link rel="match" href="../../../../expected/wpt-import/png/progressive/RGB_64x64-progressive-ref.html">
+<meta name="assert" content="When an Adam7-interlaced PNG has been received up to the end of pass N, for N from 1 to 6, the pixels received so far are displayed with their final values. Positions not yet received, which a viewer may fill in any way, are hidden by a mask.">
+<style>
+  .pass { position: relative; display: inline-block; margin: 0 8px 8px 0; line-height: 0; }
+  .pass img { display: block; image-rendering: pixelated; }
+  .pass img.mask { position: absolute; left: 0; top: 0; }
+</style>
+<p>Test passes if the images below match the reference: the grey masks
+leave visible only the pixels received by the end of each pass, which
+must show their final values.</p>
+<div class="pass"><img src="support/RGB_64x64-trunc1.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask1.png" width="64" height="64" alt=""></div>
+<div class="pass"><img src="support/RGB_64x64-trunc2.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask2.png" width="64" height="64" alt=""></div>
+<div class="pass"><img src="support/RGB_64x64-trunc3.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask3.png" width="64" height="64" alt=""></div>
+<div class="pass"><img src="support/RGB_64x64-trunc4.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask4.png" width="64" height="64" alt=""></div>
+<div class="pass"><img src="support/RGB_64x64-trunc5.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask5.png" width="64" height="64" alt=""></div>
+<div class="pass"><img src="support/RGB_64x64-trunc6.png" width="64" height="64" alt=""><img class="mask" src="support/RGB_64x64-mask6.png" width="64" height="64" alt=""></div>
