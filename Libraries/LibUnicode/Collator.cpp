@@ -617,7 +617,9 @@ Optional<u64> search_key_for_code_point(u32 code_point, Sensitivity sensitivity)
 
 extern "C" {
 void* unicode_layout_text_searcher_create(u16 const*, size_t, bool);
-void unicode_layout_text_searcher_set_text(void*, u16 const*, size_t);
+bool unicode_layout_text_searcher_has_search_keys(void*);
+bool unicode_layout_text_is_searchable_without_collator(u16 const*, size_t);
+void unicode_layout_text_searcher_set_text(void*, u16 const*, size_t, size_t, bool);
 bool unicode_layout_text_searcher_next_match(void*, size_t*, size_t*);
 void unicode_layout_text_searcher_destroy(void*);
 }
@@ -833,14 +835,25 @@ extern "C" void* unicode_layout_text_searcher_create(u16 const* needle, size_t l
     };
 }
 
-extern "C" void unicode_layout_text_searcher_set_text(void* handle, u16 const* text, size_t length)
+extern "C" bool unicode_layout_text_searcher_has_search_keys(void* handle)
+{
+    VERIFY(handle);
+    return !static_cast<UnicodeLayoutTextSearcher*>(handle)->needle_keys.is_empty();
+}
+
+extern "C" bool unicode_layout_text_is_searchable_without_collator(u16 const* text, size_t length)
+{
+    return can_search_without_collator({ reinterpret_cast<char16_t const*>(text), length });
+}
+
+extern "C" void unicode_layout_text_searcher_set_text(void* handle, u16 const* text, size_t length, size_t offset, bool searchable_without_collator)
 {
     VERIFY(handle);
     auto& searcher = *static_cast<UnicodeLayoutTextSearcher*>(handle);
     searcher.text = { reinterpret_cast<char16_t const*>(text), length };
-    searcher.compares_search_keys = !searcher.needle_keys.is_empty() && can_search_without_collator(searcher.text);
+    searcher.compares_search_keys = !searcher.needle_keys.is_empty() && searchable_without_collator;
     searcher.grapheme_segmenter_has_text = false;
-    searcher.search_offset = 0;
+    searcher.search_offset = min(offset, length);
     if (!searcher.compares_search_keys)
         searcher.searcher->set_haystack(searcher.text);
 }
