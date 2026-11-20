@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .grid { display: grid; grid-template-columns: min-content; width: 500px; }
+    canvas { height: 60px; min-height: 100px; max-height: 50px; }
+</style>
+<div class="grid"><canvas width="100" height="100" style="width: min-content"></canvas></div>
+<div class="grid"><canvas width="100" height="100" style="width: max-content"></canvas></div>
+<div class="grid"><canvas width="100" height="100"></canvas></div>
+<script>
+    test(() => {
+        for (const canvas of document.querySelectorAll("canvas")) {
+            const column = getComputedStyle(canvas.parentElement).gridTemplateColumns;
+            println(`width: ${canvas.style.width || "auto"}: ${canvas.offsetWidth}x${canvas.offsetHeight}, column ${column}`);
+        }
+    });
+</script>

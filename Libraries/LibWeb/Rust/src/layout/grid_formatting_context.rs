@@ -4708,6 +4708,18 @@ impl<'pass> GridFormattingContext<'pass> {
             return;
         }
 
+        // NB: The rows aren't sized yet when the column pass resolves the width of a replaced item, so a percentage
+        //     height resolves against the block size the column pass assumes for the item's rows, as its column
+        //     contributions did, rather than against rows that are still empty. That goes for its minimum and maximum
+        //     widths, too.
+        let replaced_column_available = AvailableSpace {
+            block_size: constraints
+                .percentage_basis_block_size
+                .map_or(AvailableSize::Indefinite, |basis| {
+                    AvailableSize::definite(clamp_to_max_dimension_value(basis))
+                }),
+            ..available
+        };
         let mut transferred_block_size = None;
         let size = if self.replaced_item_is_explicitly_stretched(item, axis) {
             containing - self.item_margin_box_start(item, axis) - self.item_margin_box_end(item, axis)
@@ -4730,20 +4742,9 @@ impl<'pass> GridFormattingContext<'pass> {
             }
         } else if use_replaced {
             if axis.is_column() {
-                // NB: The rows aren't sized yet when the column pass resolves the item's width, so a percentage height
-                //     resolves against the block size the column pass assumes for the item's rows, as its column
-                //     contributions did, rather than against rows that are still empty.
-                let available = AvailableSpace {
-                    block_size: constraints
-                        .percentage_basis_block_size
-                        .map_or(AvailableSize::Indefinite, |basis| {
-                            AvailableSize::definite(clamp_to_max_dimension_value(basis))
-                        }),
-                    ..available
-                };
                 self.sizing().compute_inline_size_for_replaced_element(
                     sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
-                    available,
+                    replaced_column_available,
                     constraints,
                 )
             } else {
@@ -4892,6 +4893,19 @@ impl<'pass> GridFormattingContext<'pass> {
         // https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment
         // The subgrid is always stretched in its subgridded dimension(s): the align-self/justify-self properties on it
         // are ignored, as are any specified width/height constraints.
+        let used_limit = |property, limit: &ComputedSize| {
+            let cells = self.cells_of(item);
+            let sized = sizing_context::SizedBox::new(item.box_, &cells);
+            let sizing = self.sizing();
+            if axis.is_column()
+                && facts.is_replaced_box()
+                && let Some(size) =
+                    sizing.intrinsic_inline_limit_for_replaced_box(sized, limit, replaced_column_available, constraints)
+            {
+                return size;
+            }
+            sizing.calculate_inner_size_for_property(sized, axis.sizing_axis(), property, available, constraints)
+        };
         let is_subgridded = self.grid_item_is_subgridded(item, axis);
         let maximum_is_none = if is_subgridded {
             true
@@ -4903,12 +4917,9 @@ impl<'pass> GridFormattingContext<'pass> {
                 .should_treat_max_block_size_as_none(item.box_, available.block_size, constraints)
         };
         if !maximum_is_none {
-            let maximum = self.sizing().calculate_inner_size_for_property(
-                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
-                axis.sizing_axis(),
+            let maximum = used_limit(
                 axis.select(SizingProperty::MaxWidth, SizingProperty::MaxHeight),
-                available,
-                constraints,
+                axis.select(style.max_width(), style.max_height()),
             );
             if resolved.size > maximum {
                 resolved = resolve_alignment(maximum, false);
@@ -4931,12 +4942,9 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         let minimum = axis.select(style.min_width(), style.min_height());
         if !minimum.is_auto() && !is_subgridded {
-            let minimum = self.sizing().calculate_inner_size_for_property(
-                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
-                axis.sizing_axis(),
+            let minimum = used_limit(
                 axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
-                available,
-                constraints,
+                minimum,
             );
             if resolved.size < minimum {
                 resolved = resolve_alignment(minimum, false);

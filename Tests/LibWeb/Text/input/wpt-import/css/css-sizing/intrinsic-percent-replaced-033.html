@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Intrinsic keyword width on a replaced element transfers a resolvable percentage height through the aspect ratio</title>
+<link rel="author" title="Ahmad Saleem">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<meta name="assert" content="When a replaced element with an intrinsic aspect ratio has an intrinsic-keyword width (max-content/min-content/fit-content) and a percentage height that resolves against a definite containing block, its inline size is the resolved block size transferred through the aspect ratio, not its natural width.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+.cb {
+  /* Definite height, so the canvas's height:100% is resolvable while its
+     intrinsic-keyword width is being computed. */
+  height: 100px;
+}
+.cb > canvas {
+  display: block;
+  height: 100%;
+  background: green;
+}
+</style>
+
+<div id="log"></div>
+
+<!-- 1:1 intrinsic ratio (canvas 10x10). height:100% -> 100px, so the
+     ratio-derived inline size is 100px, distinct from the 10px natural width. -->
+<div class="cb">
+  <canvas width="10" height="10" style="width: max-content" data-expected-width="100"></canvas>
+</div>
+<div class="cb">
+  <canvas width="10" height="10" style="width: min-content" data-expected-width="100"></canvas>
+</div>
+<div class="cb">
+  <canvas width="10" height="10" style="width: fit-content" data-expected-width="100"></canvas>
+</div>
+
+<!-- 2:1 intrinsic ratio (canvas 20x10). height:100% -> 100px, so the
+     ratio-derived inline size is 200px, distinct from the 20px natural width. -->
+<div class="cb">
+  <canvas width="20" height="10" style="width: max-content" data-expected-width="200"></canvas>
+</div>
+<div class="cb">
+  <canvas width="20" height="10" style="width: min-content" data-expected-width="200"></canvas>
+</div>
+<div class="cb">
+  <canvas width="20" height="10" style="width: fit-content" data-expected-width="200"></canvas>
+</div>
+
+<!-- 1:2 intrinsic ratio (canvas 10x20). height:100% -> 100px, so the
+     ratio-derived inline size is 50px, distinct from the 10px natural width. -->
+<div class="cb">
+  <canvas width="10" height="20" style="width: max-content" data-expected-width="50"></canvas>
+</div>
+<div class="cb">
+  <canvas width="10" height="20" style="width: min-content" data-expected-width="50"></canvas>
+</div>
+<div class="cb">
+  <canvas width="10" height="20" style="width: fit-content" data-expected-width="50"></canvas>
+</div>
+
+<script>
+checkLayout(".cb > canvas");
+</script>

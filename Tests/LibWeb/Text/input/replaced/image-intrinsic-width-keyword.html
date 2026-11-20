@@ -1,0 +1,59 @@
+<!doctype html>
+<body>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const container = document.createElement("div");
+        container.style.width = "400px";
+        document.body.append(container);
+        for (const [label, width, height, maxWidth, parentWidth] of [
+            ["natural min-content", "min-content", "auto", "100%", 400],
+            ["clamped min-content", "min-content", "auto", "50%", 400],
+            ["fixed limit", "min-content", "auto", "200px", 400],
+            ["transferred min-content", "min-content", "60px", "none", 400],
+            ["transferred max-content", "max-content", "60px", "none", 400],
+            ["transferred fit-content", "fit-content", "60px", "none", 400],
+            ["transferred with limit", "min-content", "60px", "20%", 400],
+            ["transferred in narrow parent", "fit-content", "60px", "none", 50],
+            ["contribution", "auto", "auto", "100%", "min-content"],
+            ["zero limit", "min-content", "auto", "0%", 400],
+        ]) {
+            container.style.width = typeof parentWidth === "number" ? parentWidth + "px" : parentWidth;
+            const img = new Image();
+            img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='150'/%3E";
+            await img.decode();
+            img.style.cssText = `display: block; width: ${width}; height: ${height}; max-width: ${maxWidth}`;
+            container.replaceChildren(img);
+            println(`${label}: ${container.offsetWidth} / ${img.offsetWidth}x${img.offsetHeight}`);
+        }
+
+        container.style.width = "400px";
+        const ratioOnly = new Image();
+        ratioOnly.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'/%3E";
+        await ratioOnly.decode();
+        container.replaceChildren(ratioOnly);
+        for (const style of [
+            "width:50px;min-width:min-content",
+            "width:50%;min-width:max-content",
+            "width:500px;max-width:min-content",
+            "width:50px;min-width:min-content;min-height:100px",
+            "width:50px;min-width:min-content;height:60px",
+        ]) {
+            ratioOnly.style.cssText = "display:block;" + style;
+            println(`ratio-only ${style}: ${ratioOnly.offsetWidth}x${ratioOnly.offsetHeight}`);
+        }
+
+        container.style.cssText = "display:grid;width:200px";
+        ratioOnly.style.cssText = "width:32px;min-width:min-content;height:fit-content";
+        println(`grid intrinsic minimum: ${ratioOnly.offsetWidth}x${ratioOnly.offsetHeight}`);
+
+        ratioOnly.style.cssText = "width:50px;height:60px;min-width:calc-size(min-content, size + 10px)";
+        println(`grid calculated minimum: ${ratioOnly.offsetWidth}x${ratioOnly.offsetHeight}`);
+        ratioOnly.style.cssText = "width:160px;height:60px;max-width:calc-size(max-content, size - 10px)";
+        println(`grid calculated maximum: ${ratioOnly.offsetWidth}x${ratioOnly.offsetHeight}`);
+
+        container.style.cssText = "display:flex;writing-mode:vertical-rl;width:200px;height:150px";
+        ratioOnly.style.cssText = "width:25%;height:fit-content";
+        println(`vertical flex percentage: ${ratioOnly.offsetWidth}x${ratioOnly.offsetHeight}`);
+    });
+</script>

@@ -1,0 +1,5 @@
+width: 200px; max-width: max-content: 100x50
+width: 200px; max-width: min-content; min-width: 0: 100x50
+max-width: max-content; min-width: 0: 100x50
+width: 20px; min-width: min-content: 100x50
+width: 200px: 200x50
