@@ -1,0 +1,47 @@
+Ladybird accepts the three prefixed text-align values, and uses physical
+left and right for their block alignment in either text direction. Blink
+resolves the keyword in BlockLayoutAlgorithm, WebKit resolves inline
+margins in RenderBox::computeInlineDirectionMargins(), and Gecko accepts
+prefixed aliases for TextAlignKeyword.
+
+Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5 agreed on
+auto margins, asymmetric fixed margins, and safe overflow in both
+directions. They also mapped left and right to the top and bottom
+edges in both vertical writing modes. Firefox serializes the values
+with its own prefix. Ladybird serializes them with the WebKit prefix,
+as Chrome and WebKit do.
+
+Ladybird measures float exclusions at the edge where a block aligns. It
+also repositions an unchanged child when the container changes its
+alignment or overflow safety. Chrome 158.0.8127.36 aligned the block
+within the float-free space and honored all three overflow settings, in
+BlockLayoutAlgorithm and WebkitTextAlignAndJustifySelfOffset().
+
+Firefox 151.0 and WebKit 26.5 kept the block at its legacy alignment in
+these probes. Gecko measures float exclusions in
+BlockReflowState::GetFloatAvailableSpaceWithState(). WebKit passes the
+space between floats to RenderBox::computeInlineDirectionMargins().
+
+Ladybird positions a self-aligned block using the edge its writing
+mode and direction place on the containing block’s inline axis. Chrome
+158.0.8127.36 matched both offsets in 200 combinations of writing
+modes, directions, and widths. Blink maps the child’s edges in
+WebkitTextAlignAndJustifySelfOffset(). Firefox 151.0 and WebKit 26.5
+used the prefixed parent alignment throughout these cases, in Gecko’s
+ReflowInput::CalculateBlockSideMargins() and WebKit’s
+RenderBox::computeInlineDirectionMargins().
+
+For baseline, Ladybird and Chrome use the container’s start edge even
+when the child has the opposite direction. CSS Align specifies safe
+self-start. With a 100px RTL child in a 200px LTR block, changing the
+parent alignment from left to center to right gave offsets of 0, 50,
+and 100px in Firefox and WebKit, and 0px throughout in Chrome.
+
+Ladybird checks the aligned border box against each float before it
+accepts the block position. A 60px child with a 150px right margin in
+a 200px RTL block cleared a 30px left float in Chrome 158.0.8127.36,
+Firefox 151.0 and WebKit 26.5. An 80px margin fit beside the float.
+
+Blink checks the final offset in LayoutNewFormattingContext(). Gecko
+checks the space in FloatAvoidingBlockFitsInAvailSpace(), and WebKit
+chooses the block position in RenderBlockFlow::clearFloatsIfNeeded().
