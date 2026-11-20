@@ -562,25 +562,35 @@ TransportMachPort::SendOutcome TransportMachPort::send_mach_message(PendingMessa
 
     // Send one Mach message so attachment right transfer stays atomic with the serialized IPC payload.
     // Small payloads are copied inline to avoid allocating a VM region for the out-of-line descriptor path.
-    // A message that carries nothing but bytes can wait its turn in user space when the peer's queue is full: it is
-    // rebuilt from msg.bytes on every try. A timed-out send comes back pseudo-received, holding what the kernel took
-    // in for it: a send right of its own on the destination, and for an out-of-line payload a copy the kernel made.
-    // Both are released here, or every timeout would leave a right behind and the peer would never hear that its
-    // last sender was gone. One with port rights can't be retried as is — the rights come back changed under it —
-    // so those still wait in the kernel.
-    bool const may_wait_in_user_space = port_count == 0;
-    auto const send_options = MACH_SEND_MSG | (may_wait_in_user_space ? MACH_SEND_TIMEOUT : 0);
-    auto const send_timeout = may_wait_in_user_space ? 0 : MACH_MSG_TIMEOUT_NONE;
-    auto const ret = mach_msg(header, send_options, msg_size, 0, MACH_PORT_NULL, send_timeout, MACH_PORT_NULL);
-    if (ret == MACH_SEND_TIMED_OUT) {
-        if (MACH_MSGH_BITS_REMOTE(header->msgh_bits) == MACH_MSG_TYPE_MOVE_SEND && header->msgh_remote_port != MACH_PORT_NULL)
+    // The send never waits for room in the peer's queue. A timed-out send comes back pseudo-received, as if this task
+    // had received it: with a send right of its own on the destination, a copy the kernel made of an out-of-line
+    // payload, and the attachments' rights under the names and dispositions they have now. The first two are released
+    // here, or every timeout would leave a right behind and the peer would never hear that its last sender was gone.
+    // The rights go back into the message, which the next try builds anew from them and from msg.bytes.
+    auto const ret = mach_msg(header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, msg_size, 0, MACH_PORT_NULL, 0, MACH_PORT_NULL);
+    // NB: A send that times out comes back pseudo-received even when the kernel can't hand all of it back, which then
+    //     shows as a body error.
+    if (auto const error = ret & ~MACH_MSG_MASK; error == MACH_SEND_TIMED_OUT || error == MACH_RCV_BODY_ERROR) {
+        if (MACH_MSGH_BITS_REMOTE(header->msgh_bits) == MACH_MSG_TYPE_MOVE_SEND && MACH_PORT_VALID(header->msgh_remote_port))
             mach_port_deallocate(mach_task_self(), header->msgh_remote_port);
         if (!send_payload_inline) {
             auto* ool_desc = reinterpret_cast<mach_msg_ool_descriptor_t*>(&port_descriptors[port_count]);
             if (ool_desc->address && ool_desc->address != bytes.data())
                 vm_deallocate(mach_task_self(), reinterpret_cast<vm_address_t>(ool_desc->address), ool_desc->size);
         }
-        return SendOutcome::WouldBlock;
+        if (ret == MACH_SEND_TIMED_OUT) {
+            for (size_t i = 0; i < port_count; ++i)
+                attachments[i] = attachment_from_descriptor(port_descriptors[i]);
+            return SendOutcome::WouldBlock;
+        }
+        // NB: The kernel was short of something to hand all of the message back with, so it can't go out whole any more,
+        //     and fails below. What did come back is released.
+        for (size_t i = 0; i < port_count; ++i) {
+            if (port_descriptors[i].name != MACH_PORT_NULL) {
+                auto dropped_attachment = attachment_from_descriptor(port_descriptors[i]);
+                (void)dropped_attachment;
+            }
+        }
     }
     if (ret != KERN_SUCCESS) {
         if (ret == MACH_SEND_INVALID_DEST) {

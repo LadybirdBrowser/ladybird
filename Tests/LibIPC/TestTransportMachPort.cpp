@@ -686,3 +686,99 @@ TEST_CASE(nothing_after_a_malformed_message_arrives)
     }
     EXPECT_EQ(received, (Vector<u8> { 1 }));
 }
+
+static void post_byte_moving_a_send_right_to(IPC::TransportMachPort& transport, Core::MachPort& port, u8 value)
+{
+    IPC::MessageDataType payload;
+    payload.append(value);
+    Vector<IPC::Attachment> attachments;
+    attachments.append(IPC::Attachment::from_mach_port(MUST(port.insert_right(Core::MachPort::MessageRight::MakeSend)), Core::MachPort::MessageRight::MoveSend));
+    MUST(transport.post_message(move(payload), attachments));
+}
+
+struct ByteAndSendRight {
+    u8 byte { 0 };
+    mach_port_t send_right { MACH_PORT_NULL };
+};
+
+// Takes a message that the transport sent to a peer which is only a raw receive right, of the shape that
+// post_byte_moving_a_send_right_to() posts.
+static Optional<ByteAndSendRight> receive_byte_and_send_right(Core::MachPort const& receive_right, mach_msg_timeout_t timeout_in_milliseconds)
+{
+    Array<u8, 1024> buffer {};
+    auto* header = reinterpret_cast<mach_msg_header_t*>(buffer.data());
+    if (mach_msg(header, MACH_RCV_MSG | MACH_RCV_TIMEOUT, 0, buffer.size(), receive_right.port(), timeout_in_milliseconds, MACH_PORT_NULL) != KERN_SUCCESS)
+        return {};
+    EXPECT_EQ(header->msgh_id, IPC_INLINE_DATA_MESSAGE_ID);
+    EXPECT(header->msgh_bits & MACH_MSGH_BITS_COMPLEX);
+    auto const* body = reinterpret_cast<mach_msg_body_t const*>(header + 1);
+    EXPECT_EQ(body->msgh_descriptor_count, 1u);
+    auto const* descriptor = reinterpret_cast<mach_msg_port_descriptor_t const*>(body + 1);
+    EXPECT_EQ(descriptor->disposition, static_cast<mach_msg_type_name_t>(MACH_MSG_TYPE_PORT_SEND));
+    auto const* payload = reinterpret_cast<u8 const*>(descriptor + 1);
+    u32 payload_size = 0;
+    __builtin_memcpy(&payload_size, payload, sizeof(payload_size));
+    EXPECT_EQ(payload_size, 1u);
+    return ByteAndSendRight { payload[sizeof(payload_size)], descriptor->name };
+}
+
+static mach_port_urefs_t send_right_count(Core::MachPort const& port)
+{
+    mach_port_urefs_t count = 0;
+    VERIFY(mach_port_get_refs(mach_task_self(), port.port(), MACH_PORT_RIGHT_SEND, &count) == KERN_SUCCESS);
+    return count;
+}
+
+static void release_send_rights(Core::MachPort const& port, mach_port_urefs_t count)
+{
+    VERIFY(mach_port_mod_refs(mach_task_self(), port.port(), MACH_PORT_RIGHT_SEND, -static_cast<mach_port_delta_t>(count)) == KERN_SUCCESS);
+}
+
+// Messages that carry rights do not wait in the kernel for room in a full peer queue. They wait their turn with the
+// transport, and go out whole and in order once the peer makes room.
+TEST_CASE(messages_with_rights_wait_their_turn_for_a_full_peer_queue)
+{
+    auto raw = make_transport_with_raw_sender();
+    auto attached_port = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+
+    // The raw peer's queue holds MACH_PORT_QLIMIT_DEFAULT (5) messages, and nothing reads it until all are posted.
+    constexpr size_t message_count = 64;
+    for (size_t i = 0; i < message_count; ++i)
+        post_byte_moving_a_send_right_to(*raw.transport, attached_port, static_cast<u8>(i));
+
+    size_t received = 0;
+    while (received < message_count) {
+        auto message = receive_byte_and_send_right(raw.transport_peer_receive_right, 5000);
+        if (!message.has_value())
+            break;
+        EXPECT_EQ(message->byte, static_cast<u8>(received));
+        // NB: A send right arrives under the name of the receive right that this task holds for the same port.
+        EXPECT_EQ(message->send_right, attached_port.port());
+        ++received;
+    }
+    EXPECT_EQ(received, message_count);
+
+    // The sends that timed out on the full queue neither lost nor duplicated a right.
+    EXPECT_EQ(send_right_count(attached_port), received);
+    release_send_rights(attached_port, received);
+}
+
+TEST_CASE(transport_whose_peer_queue_is_full_of_messages_with_rights_can_be_destroyed)
+{
+    auto raw = make_transport_with_raw_sender();
+    auto attached_port = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+
+    constexpr size_t message_count = 64;
+    for (size_t i = 0; i < message_count; ++i)
+        post_byte_moving_a_send_right_to(*raw.transport, attached_port, static_cast<u8>(i));
+    OwnPtr<IPC::TransportMachPort> transport = move(raw.transport);
+    transport.clear();
+
+    // The messages that reached the peer carry their rights, and the rights of the rest went with the transport.
+    size_t received = 0;
+    while (receive_byte_and_send_right(raw.transport_peer_receive_right, 0).has_value())
+        ++received;
+    EXPECT(received < message_count);
+    EXPECT_EQ(send_right_count(attached_port), received);
+    release_send_rights(attached_port, received);
+}

@@ -120,8 +120,7 @@ private:
     void release_send_waiters();
     enum class SendOutcome {
         Sent,
-        // The peer's queue is full. Only a message with no port rights is ever left unsent, because a send the
-        // kernel has already copied in comes back pseudo-received, with its rights changed under it.
+        // The peer's queue is full. The message keeps its bytes and its rights, to be sent again.
         WouldBlock,
     };
     SendOutcome send_mach_message(PendingMessage&);
