@@ -718,3 +718,24 @@ TEST_CASE(dictionary_elements_distinguish_holes_from_undefined)
         EXPECT(object->has_own_property(2u).release_value());
     });
 }
+
+TEST_CASE(taking_the_first_dictionary_element_shifts_the_remaining_indices)
+{
+    run_on_vm_threads(1, [] {
+        auto vm = JS::VM::create();
+        auto context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+        auto object = JS::Object::create(*context->realm, nullptr);
+        object->define_direct_property(0u, JS::js_undefined(), 0);
+        object->define_direct_property(2u, JS::js_undefined(), 0);
+
+        object->indexed_take_first();
+        EXPECT_EQ(object->indexed_array_like_size(), 2u);
+        EXPECT(!object->has_own_property(0u).release_value());
+        EXPECT(object->has_own_property(1u).release_value());
+        EXPECT(!object->has_own_property(2u).release_value());
+
+        object->indexed_take_first();
+        EXPECT_EQ(object->indexed_array_like_size(), 1u);
+        EXPECT(object->has_own_property(0u).release_value());
+    });
+}
