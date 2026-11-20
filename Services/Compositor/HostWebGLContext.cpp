@@ -35,14 +35,16 @@ class PackedBitmapUnpackState {
     AK_MAKE_NONMOVABLE(PackedBitmapUnpackState);
 
 public:
-    explicit PackedBitmapUnpackState(WebGLVersion version)
+    explicit PackedBitmapUnpackState(OpenGLContext const& gl_context)
     {
         reset(GL_UNPACK_ALIGNMENT, 1);
-        if (version == WebGLVersion::WebGL2) {
+        if (gl_context.supports_unpack_subimage_parameters()) {
             reset(GL_UNPACK_ROW_LENGTH, 0);
-            reset(GL_UNPACK_IMAGE_HEIGHT, 0);
             reset(GL_UNPACK_SKIP_PIXELS, 0);
             reset(GL_UNPACK_SKIP_ROWS, 0);
+        }
+        if (gl_context.webgl_version() == WebGLVersion::WebGL2) {
+            reset(GL_UNPACK_IMAGE_HEIGHT, 0);
             reset(GL_UNPACK_SKIP_IMAGES, 0);
         }
     }
@@ -231,8 +233,9 @@ class PixelUnpackBufferUnbinder {
 public:
     explicit PixelUnpackBufferUnbinder(OpenGLContext& gl_context)
         : m_gl_context(gl_context)
+        , m_has_pixel_buffer_objects(gl_context.supports_pixel_buffer_objects())
     {
-        if (m_gl_context.webgl_version() != WebGLVersion::WebGL2)
+        if (!m_has_pixel_buffer_objects)
             return;
         m_gl_context.get_integerv_robust_angle(GL_PIXEL_UNPACK_BUFFER_BINDING, 1, nullptr, &m_bound_buffer);
         m_gl_context.bind_buffer(GL_PIXEL_UNPACK_BUFFER, 0);
@@ -240,12 +243,13 @@ public:
 
     ~PixelUnpackBufferUnbinder()
     {
-        if (m_gl_context.webgl_version() == WebGLVersion::WebGL2)
+        if (m_has_pixel_buffer_objects)
             m_gl_context.bind_buffer(GL_PIXEL_UNPACK_BUFFER, m_bound_buffer);
     }
 
 private:
     OpenGLContext& m_gl_context;
+    bool m_has_pixel_buffer_objects { false };
     GLint m_bound_buffer { 0 };
 };
 
@@ -304,7 +308,7 @@ ErrorOr<void> HostWebGLContext::tex_image2d_from_bitmap(Commands::TexImage2DFrom
     if (auto const* video_frame = TRY(upload_source_at(sources, command.bitmap_index))->get_pointer<NonnullRefPtr<Media::VideoFrame>>(); video_frame && define_texture_image_from_video_frame(command, **video_frame))
         return {};
     auto converted = TRY(convert_bitmap_for_upload(sources, m_skia_backend_context, command.bitmap_index, command.format, command.type, command.has_explicit_destination_size, command.destination_width, command.destination_height, command.flip_y, command.premultiply_alpha));
-    PackedBitmapUnpackState packed_bitmap_unpack_state { m_gl_context->webgl_version() };
+    PackedBitmapUnpackState packed_bitmap_unpack_state { *m_gl_context };
     m_gl_context->tex_image2d_robust_angle(command.target, command.level, command.internalformat, converted.width, converted.height, 0, command.format, command.type, converted.buffer.size(), converted.buffer.data());
     return {};
 }
@@ -314,7 +318,7 @@ ErrorOr<void> HostWebGLContext::tex_sub_image2d_from_bitmap(Commands::TexSubImag
     if (auto const* video_frame = TRY(upload_source_at(sources, command.bitmap_index))->get_pointer<NonnullRefPtr<Media::VideoFrame>>(); video_frame && update_texture_image_from_video_frame(command, **video_frame))
         return {};
     auto converted = TRY(convert_bitmap_for_upload(sources, m_skia_backend_context, command.bitmap_index, command.format, command.type, command.has_explicit_destination_size, command.destination_width, command.destination_height, command.flip_y, command.premultiply_alpha));
-    PackedBitmapUnpackState packed_bitmap_unpack_state { m_gl_context->webgl_version() };
+    PackedBitmapUnpackState packed_bitmap_unpack_state { *m_gl_context };
     m_gl_context->tex_sub_image2d_robust_angle(command.target, command.level, command.xoffset, command.yoffset, converted.width, converted.height, command.format, command.type, converted.buffer.size(), converted.buffer.data());
     return {};
 }
@@ -322,7 +326,7 @@ ErrorOr<void> HostWebGLContext::tex_sub_image2d_from_bitmap(Commands::TexSubImag
 ErrorOr<void> HostWebGLContext::tex_image3d_from_bitmap(Commands::TexImage3DFromBitmap const& command, Vector<UploadSource> const& sources)
 {
     auto converted = TRY(convert_bitmap_for_upload(sources, m_skia_backend_context, command.bitmap_index, command.format, command.type, command.has_explicit_destination_size, command.destination_width, command.destination_height, command.flip_y, command.premultiply_alpha));
-    PackedBitmapUnpackState packed_bitmap_unpack_state { m_gl_context->webgl_version() };
+    PackedBitmapUnpackState packed_bitmap_unpack_state { *m_gl_context };
     m_gl_context->tex_image3d_robust_angle(command.target, command.level, command.internalformat, converted.width, converted.height, command.depth, 0, command.format, command.type, converted.buffer.size(), converted.buffer.data());
     return {};
 }
@@ -330,7 +334,7 @@ ErrorOr<void> HostWebGLContext::tex_image3d_from_bitmap(Commands::TexImage3DFrom
 ErrorOr<void> HostWebGLContext::tex_sub_image3d_from_bitmap(Commands::TexSubImage3DFromBitmap const& command, Vector<UploadSource> const& sources)
 {
     auto converted = TRY(convert_bitmap_for_upload(sources, m_skia_backend_context, command.bitmap_index, command.format, command.type, command.has_explicit_destination_size, command.destination_width, command.destination_height, command.flip_y, command.premultiply_alpha));
-    PackedBitmapUnpackState packed_bitmap_unpack_state { m_gl_context->webgl_version() };
+    PackedBitmapUnpackState packed_bitmap_unpack_state { *m_gl_context };
     m_gl_context->tex_sub_image3d_robust_angle(command.target, command.level, command.xoffset, command.yoffset, command.zoffset, converted.width, converted.height, command.depth, command.format, command.type, converted.buffer.size(), converted.buffer.data());
     return {};
 }
