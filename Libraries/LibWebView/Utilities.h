@@ -22,7 +22,9 @@ namespace WebView {
 WEBVIEW_API ErrorOr<Web::HTML::SelectedFile> create_selected_file(ByteString const&);
 
 // Opens a local file a renderer asked for, read-only. Only regular files and directories are opened, and the open
-// never blocks, so a path naming a FIFO or a device cannot stall the UI process.
+// never blocks, so a path naming a FIFO or a device can't stall the UI process. The path counts once its symbolic links
+// are resolved, and nothing under /proc, /sys, or /dev is opened, since what a file there reads depends on the process
+// that opens it.
 WEBVIEW_API ErrorOr<IPC::File> open_local_file_for_renderer(ByteString const& path);
 
 WEBVIEW_API ErrorOr<JsonObject> read_json_file(ByteString const& path);
