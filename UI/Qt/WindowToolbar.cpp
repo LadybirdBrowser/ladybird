@@ -18,6 +18,7 @@
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/DownloadPresentation.h>
+#include <UI/Qt/ElidedLabel.h>
 #include <UI/Qt/FeedbackPopover.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/LadybirdButton.h>
@@ -841,42 +842,6 @@ static constexpr int toolbar_right_margin(bool has_custom_window_controls)
 }
 static constexpr int DOWNLOADS_POPOVER_WIDTH = 380;
 static constexpr int DOWNLOADS_POPOVER_MAX_HEIGHT = 360;
-class ElidedLabel final : public QLabel {
-public:
-    AK_ALLOC_WITH_KMALLOC;
-
-    explicit ElidedLabel(QString text, Qt::TextElideMode elide_mode, QWidget* parent = nullptr)
-        : QLabel(text, parent)
-        , m_elide_mode(elide_mode)
-    {
-        setMinimumWidth(0);
-        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    }
-
-    virtual QSize sizeHint() const override
-    {
-        auto size = QLabel::sizeHint();
-        size.setWidth(0);
-        return size;
-    }
-
-    virtual QSize minimumSizeHint() const override
-    {
-        return { 0, QLabel::minimumSizeHint().height() };
-    }
-
-protected:
-    virtual void paintEvent(QPaintEvent*) override
-    {
-        QPainter painter(this);
-        painter.setFont(font());
-        painter.setPen(palette().color(foregroundRole()));
-        painter.drawText(rect(), alignment() | Qt::TextSingleLine, fontMetrics().elidedText(text(), m_elide_mode, width()));
-    }
-
-private:
-    Qt::TextElideMode m_elide_mode { Qt::ElideRight };
-};
 
 // A small page with the file's extension on it.
 class DownloadFileIcon final : public QWidget {
