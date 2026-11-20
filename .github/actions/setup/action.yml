@@ -74,13 +74,13 @@ runs:
         echo "pythonLocation=$(dirname "${python_bin}")" >> "$GITHUB_ENV"
 
     - name: 'Select latest Xcode'
-      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
+      if: ${{ inputs.os == 'macOS' }}
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: '27'
 
     - name: 'Install Dependencies'
-      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
+      if: ${{ inputs.os == 'macOS' }}
       shell: bash
       run: |
         brew update
@@ -119,11 +119,11 @@ runs:
         clang-cl --version
 
     - name: 'Install Rust toolchain'
-      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
+      if: ${{ inputs.os == 'macOS' }}
       uses: dtolnay/rust-toolchain@stable
 
     - name: 'Warm up the Rust toolchain'
-      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' || inputs.os == 'Windows' }}
+      if: ${{ inputs.os == 'macOS' || inputs.os == 'Windows' }}
       shell: bash
       run: |
         if rustup toolchain install && cargo --version && rustc --version ; then

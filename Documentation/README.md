@@ -11,7 +11,6 @@ If you have any questions that are not answered here or in the [FAQ](FAQ.md), yo
 * [Profiling the Build](BuildProfilingInstructions.md)
 
 ## Configuring Editors
-* [Android Studio](EditorConfiguration/AndroidStudioConfiguration.md)
 * [CLion](EditorConfiguration/CLionConfiguration.md)
 * [Emacs](EditorConfiguration/EmacsConfiguration.md)
 * [Helix](EditorConfiguration/HelixConfiguration.md)

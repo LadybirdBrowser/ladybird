@@ -37,13 +37,6 @@ output/
 .venv*/
 venv*/
 
-# Gradle/AndroidStudio
-.gradle/
-.cxx/
-local.properties
-# We can't build from cmd.exe anyway
-gradlew.bat
-
 Libraries/LibWasm/Tests/Fixtures/SpecTests
 Libraries/LibWasm/Tests/Spec
 

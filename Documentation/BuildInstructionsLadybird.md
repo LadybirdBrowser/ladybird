@@ -181,11 +181,6 @@ In a VS command prompt build using ladybird.py:
 py Meta\ladybird.py build
 ```
 
-### Android:
-
-On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](EditorConfiguration/AndroidStudioConfiguration.md).
-Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``UI/Android``
-
 ### FreeBSD
 
 ```
@@ -242,9 +237,7 @@ including sanitizer options. It does not update the binary or change its build c
 
 ### The User Interfaces
 
-Ladybird will be built with one of the following browser frontends, depending on the platform:
-* [Android UI](https://developer.android.com/develop/ui) - The native UI on Android.
-* [Qt](https://doc.qt.io/qt-6/) - The UI used on all other platforms.
+Ladybird is built with a [Qt](https://doc.qt.io/qt-6/) browser frontend on all platforms.
 
 ### Build error messages you may encounter
 

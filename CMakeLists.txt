@@ -2,13 +2,6 @@ cmake_minimum_required(VERSION 3.25)
 
 include("Meta/CMake/environment.cmake")
 
-if (VCPKG_TARGET_ANDROID)
-    # If we are building for Android, we must load vcpkg_android.cmake before the project() declaration.
-    # This ensures that the CMAKE_TOOLCHAIN_FILE is set correctly.
-    # (we cannot set CMAKE_TOOLCHAIN_FILE from Gradle, unfortunately, so this is the only place we can do it.)
-    include("UI/Android/vcpkg_android.cmake")
-endif()
-
 # vcpkg flags depend on what linker we are using
 include("Meta/CMake/use_linker.cmake")
 
@@ -141,13 +134,10 @@ if (ENABLE_GUI_TARGETS)
     add_subdirectory(Services)
     add_subdirectory(UI)
 
-    # Android has no Compositor process yet, so it keeps Skia elsewhere.
-    if (NOT ANDROID AND NOT VCPKG_TARGET_ANDROID)
-        include(check_skia_confinement)
-        set(processes_without_skia ${ladybird_helper_processes} ladybird WebDriver)
-        list(REMOVE_ITEM processes_without_skia Compositor)
-        ladybird_check_skia_confinement(${processes_without_skia})
-    endif()
+    include(check_skia_confinement)
+    set(processes_without_skia ${ladybird_helper_processes} ladybird WebDriver)
+    list(REMOVE_ITEM processes_without_skia Compositor)
+    ladybird_check_skia_confinement(${processes_without_skia})
 endif()
 
 include(packaging)
