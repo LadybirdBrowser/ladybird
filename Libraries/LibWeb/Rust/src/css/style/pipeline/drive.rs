@@ -369,7 +369,7 @@ impl RetainedState {
             FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiInputLineHeightMetrics, FfiLengthResolutionContext,
             FfiStyleComputationEnvironment, LONGHAND_DRIVE_PHASE_COLOR_SCHEME, LONGHAND_DRIVE_PHASE_FONT,
             LONGHAND_DRIVE_PHASE_LINE_HEIGHT, LONGHAND_DRIVE_PHASE_REMAINING, drive_property_computation,
-            empty_longhand_driver_results, font_family_is_monospace,
+            empty_longhand_driver_results, font_family_is_monospace, writing_mode_from_specified_keyword,
         };
         use crate::css::table_group_builder::group_index;
         use bridge::element_adjustment_fact as fact;
@@ -462,9 +462,6 @@ impl RetainedState {
                 snapshot,
             }
         });
-        // The subject axis is the element's own writing mode: the keyword its winner declares,
-        // which is its computed value, else the one it held, else its parent's; the initial
-        // writing mode is horizontal.
         let declared_writing_mode =
             store
                 .winning_declaration(prop::WRITING_MODE)
@@ -472,7 +469,7 @@ impl RetainedState {
                     StyleValueData::Keyword {
                         keyword: crate::css::style_compute::keyword::INITIAL,
                     } => Some(crate::css::css_enums::writing_mode::HORIZONTAL_TB),
-                    StyleValueData::Keyword { keyword } => crate::css::style_compute::keyword_to_writing_mode(*keyword),
+                    StyleValueData::Keyword { keyword } => writing_mode_from_specified_keyword(*keyword),
                     _ => None,
                 });
         let subject_inline_axis_is_horizontal = match declared_writing_mode {

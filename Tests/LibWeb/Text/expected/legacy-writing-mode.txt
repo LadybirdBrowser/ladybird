@@ -1,0 +1,30 @@
+ltr lr horizontal-tb 7px
+ltr lr-tb horizontal-tb 7px
+ltr rl horizontal-tb 7px
+ltr rl-tb horizontal-tb 7px
+ltr tb vertical-rl 7px
+ltr tb-rl vertical-rl 7px
+rtl lr horizontal-tb 7px
+rtl lr-tb horizontal-tb 7px
+rtl rl horizontal-tb 7px
+rtl rl-tb horizontal-tb 7px
+rtl tb vertical-rl 7px
+rtl tb-rl vertical-rl 7px
+lr viewport units: 80px by 60px
+lr-tb viewport units: 80px by 60px
+rl viewport units: 80px by 60px
+rl-tb viewport units: 80px by 60px
+tb viewport units: 60px by 80px
+tb-rl viewport units: 60px by 80px
+ltr lr revert-layer: 7px
+ltr lr-tb revert-layer: 7px
+ltr rl revert-layer: 7px
+ltr rl-tb revert-layer: 7px
+ltr tb revert-layer: 7px
+ltr tb-rl revert-layer: 7px
+rtl lr revert-layer: 7px
+rtl lr-tb revert-layer: 7px
+rtl rl revert-layer: 7px
+rtl rl-tb revert-layer: 7px
+rtl tb revert-layer: 7px
+rtl tb-rl revert-layer: 7px

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>CSS Writing Modes: parsing SVG 1.1 writing-mode values</title>
+<link rel="author" title="Koji Ishii" href="mailto:kojiishi@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-3/#svg-writing-mode">
+<meta name="assert" content="This test asserts the parser and getComputedStyle works correctly for the SVG 1.1 writing-mode values.">
+<meta name="flags" content="dom svg may">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div style="writing-mode: lr"
+  data-expected="horizontal-tb"></div>
+<div style="writing-mode: lr-tb"
+  data-expected="horizontal-tb"></div>
+<div style="writing-mode: rl"
+  data-expected="horizontal-tb"></div>
+<div style="writing-mode: rl-tb"
+  data-expected="horizontal-tb"></div>
+
+<div style="writing-mode: tb"
+  data-expected="vertical-rl"></div>
+<div style="writing-mode: tb-rl"
+  data-expected="vertical-rl"></div>
+
+<script>
+Array.prototype.forEach.call(document.querySelectorAll("[data-expected]"), function (element) {
+  test(function () {
+    var actual = getComputedStyle(element).writingMode;
+    assert_equals(actual, element.dataset.expected);
+  }, element.title || element.getAttribute("style"));
+});
+</script>

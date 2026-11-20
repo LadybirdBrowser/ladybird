@@ -1342,7 +1342,9 @@ impl RetainedState {
         quirks_color: Option<&RetainedStyleValueData>,
     ) {
         use crate::css::property_metadata::property_id as prop;
-        use crate::css::style_compute::{initial_value_handle, keyword, writing_mode_and_direction_of};
+        use crate::css::style_compute::{
+            initial_value_handle, keyword, writing_mode_and_direction_of, writing_mode_from_specified_keyword,
+        };
 
         decided.easy.clear();
         decided.hard.clear();
@@ -1487,9 +1489,7 @@ impl RetainedState {
                 prop::WRITING_MODE => {
                     flow.0 = match flow_keyword {
                         Some(keyword::INITIAL) => initial_flow.0,
-                        Some(keyword) => {
-                            crate::css::style_compute::keyword_to_writing_mode(keyword).unwrap_or(inherited_flow.0)
-                        }
+                        Some(keyword) => writing_mode_from_specified_keyword(keyword).unwrap_or(inherited_flow.0),
                         None => inherited_flow.0,
                     };
                 }

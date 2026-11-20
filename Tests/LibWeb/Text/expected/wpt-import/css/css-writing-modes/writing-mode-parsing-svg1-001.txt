@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	writing-mode: lr
+Pass	writing-mode: lr-tb
+Pass	writing-mode: rl
+Pass	writing-mode: rl-tb
+Pass	writing-mode: tb
+Pass	writing-mode: tb-rl

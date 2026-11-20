@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="parentBox"><div id="childBox"></div></div>
+<script>
+    test(() => {
+        for (const direction of ["ltr", "rtl"]) {
+            parentBox.dir = direction;
+            for (const value of ["lr", "lr-tb", "rl", "rl-tb", "tb", "tb-rl"]) {
+                parentBox.style.writingMode = value.startsWith("t") ? "horizontal-tb" : "vertical-rl";
+                childBox.style.writingMode = value;
+                childBox.style.marginInlineStart = "7px";
+                const style = getComputedStyle(childBox);
+                const edge = value.startsWith("t") ? (direction === "ltr" ? "Top" : "Bottom") : (direction === "ltr" ? "Left" : "Right");
+                println(`${direction} ${childBox.style.writingMode} ${style.writingMode} ${style["margin" + edge]}`);
+            }
+        }
+        childBox.style.width = "10vi";
+        childBox.style.height = "10vb";
+        for (const mode of ["lr", "lr-tb", "rl", "rl-tb", "tb", "tb-rl"]) {
+            parentBox.style.writingMode = mode.startsWith("t") ? "horizontal-tb" : "vertical-rl";
+            childBox.style.writingMode = mode;
+            const style = getComputedStyle(childBox);
+            println(mode + " viewport units: " + style.width + " by " + style.height);
+        }
+        childBox.style.removeProperty("margin-inline-start");
+        const sheet = document.head.appendChild(document.createElement("style"));
+        for (const direction of ["ltr", "rtl"]) {
+            parentBox.dir = direction;
+            for (const mode of ["lr", "lr-tb", "rl", "rl-tb", "tb", "tb-rl"]) {
+                const vertical = mode.startsWith("t");
+                parentBox.style.writingMode = vertical ? "horizontal-tb" : "vertical-rl";
+                childBox.style.writingMode = mode;
+                const edge = vertical ? (direction === "ltr" ? "top" : "bottom") : (direction === "ltr" ? "left" : "right");
+                sheet.textContent = `@layer base { #childBox { margin-inline-start: 7px; } }
+                    @layer override { #childBox { margin-inline-start: 11px; margin-${edge}: revert-layer; } }`;
+                println(`${direction} ${mode} revert-layer: ${getComputedStyle(childBox).marginInlineStart}`);
+            }
+        }
+    });
+</script>

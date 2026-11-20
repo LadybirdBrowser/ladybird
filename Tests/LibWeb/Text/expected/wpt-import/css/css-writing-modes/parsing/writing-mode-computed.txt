@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property writing-mode value 'horizontal-tb'
+Pass	Property writing-mode value 'vertical-rl'
+Pass	Property writing-mode value 'vertical-lr'
