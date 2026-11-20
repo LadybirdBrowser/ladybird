@@ -14,6 +14,13 @@ endif()
 
 set(ladybird_applications ladybird WebDriver ${ladybird_helper_processes})
 
+# Builds with vcpkg ship the shared libraries it built, which are found by what the installed binaries link.
+include(install_vcpkg_libraries)
+set(vcpkg_runtime_dependencies "")
+if (LADYBIRD_INSTALLS_VCPKG_LIBRARIES)
+    set(vcpkg_runtime_dependencies RUNTIME_DEPENDENCY_SET ladybird_vcpkg_libraries)
+endif()
+
 # CMake installs the binaries unstripped when it has no strip tool, or ignores the failure to run it, for instance when
 # packaging in a different environment than the build. Refuse to install anything in that case. MSVC-style toolchains
 # have no strip tool to begin with.
@@ -28,6 +35,7 @@ endif()
 
 install(TARGETS ladybird WebDriver
   EXPORT ladybirdTargets
+  ${vcpkg_runtime_dependencies}
   RUNTIME
     COMPONENT ladybird_Runtime
     DESTINATION ${ladybird_executable_install_dir}
@@ -46,6 +54,7 @@ install(TARGETS ladybird WebDriver
 
 install(TARGETS ${ladybird_helper_processes}
   EXPORT ladybirdTargets
+  ${vcpkg_runtime_dependencies}
   RUNTIME
     COMPONENT ladybird_Runtime
     DESTINATION ${ladybird_helper_install_dir}
@@ -93,6 +102,7 @@ endif()
 
 install(TARGETS ${all_required_lagom_libraries}
   EXPORT ladybirdTargets
+  ${vcpkg_runtime_dependencies}
   COMPONENT ladybird_Runtime
   LIBRARY
     COMPONENT ladybird_Runtime
@@ -103,6 +113,38 @@ install(TARGETS ${all_required_lagom_libraries}
   FILE_SET ladybird
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+
+if (vcpkg_runtime_dependencies)
+    set(vcpkg_library_install_dir ${CMAKE_INSTALL_LIBDIR})
+    if (APPLE)
+        set(vcpkg_library_install_dir bundle/Ladybird.app/Contents/lib)
+
+        # Qt loads these at runtime, so nothing links them. Static builds of Qt link them into the executable instead.
+        get_target_property(qt_core_type Qt6::Core TYPE)
+        if (qt_core_type STREQUAL "SHARED_LIBRARY")
+            set(bundle_plugins_dir bundle/Ladybird.app/Contents/PlugIns)
+            foreach (plugin IN ITEMS platforms/QCocoaIntegrationPlugin styles/QMacStylePlugin imageformats/QGifPlugin
+                    imageformats/QICOPlugin imageformats/QJpegPlugin)
+                cmake_path(GET plugin PARENT_PATH plugin_type)
+                cmake_path(GET plugin FILENAME plugin_target)
+                if (NOT TARGET Qt6::${plugin_target})
+                    message(FATAL_ERROR "Ladybird.app needs the Qt plugin ${plugin_target}, which Qt was built without")
+                endif()
+                install(IMPORTED_RUNTIME_ARTIFACTS Qt6::${plugin_target}
+                    RUNTIME_DEPENDENCY_SET ladybird_vcpkg_libraries
+                    LIBRARY DESTINATION ${bundle_plugins_dir}/${plugin_type} COMPONENT ladybird_Runtime
+                )
+            endforeach()
+
+            file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/qt.conf" "[Paths]\nPlugins = PlugIns\n")
+            install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qt.conf" DESTINATION bundle/Ladybird.app/Contents/Resources
+                COMPONENT ladybird_Runtime)
+        endif()
+    endif()
+
+    ladybird_install_vcpkg_libraries(ladybird_vcpkg_libraries
+        DESTINATION ${vcpkg_library_install_dir} COMPONENT ladybird_Runtime)
+endif()
 
 if (LADYBIRD_GENERATE_SYMBOL_FILES)
     set(symbol_files_dir "${CMAKE_BINARY_DIR}/symbols")

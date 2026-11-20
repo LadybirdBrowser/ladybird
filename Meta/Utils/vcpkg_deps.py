@@ -263,6 +263,7 @@ def generate_build_files(
         overlay_triplets_dir(preset).parent / "base-triplets",
     ):
         triplet_inputs.extend(sorted(str(f) for f in triplet_dir.glob("*.cmake")))
+    triplet_inputs.append(str(overlay_triplets_dir(preset).parent / "dynamic-ports.txt"))
 
     lines = [
         "ninja_required_version = 1.5",
