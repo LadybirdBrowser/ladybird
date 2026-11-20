@@ -6057,6 +6057,9 @@ fn parse_css_value_after_substitution_scan(
     } else {
         values
     };
+    if values.iter().all(ComponentValue::is_whitespace) {
+        return ParseOutcome::Invalid;
+    }
     if property_is_shorthand(property_id) {
         let outcome = parse_grid_property(context, property_id, values);
         if !matches!(outcome, ParseOutcome::NotHandled) {

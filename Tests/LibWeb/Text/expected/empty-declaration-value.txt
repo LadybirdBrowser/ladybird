@@ -1,0 +1,22 @@
+display: -> false
+display:  -> false
+display:/**/ -> false
+display: !important -> false
+quotes: -> false
+quotes:  -> false
+quotes:/**/ -> false
+quotes: !important -> false
+list-style: -> false
+list-style:  -> false
+list-style:/**/ -> false
+list-style: !important -> false
+text-underline-position: -> false
+text-underline-position:  -> false
+text-underline-position:/**/ -> false
+text-underline-position: !important -> false
+--empty: -> true
+--empty:  -> true
+--empty:/**/ -> true
+--empty: !important -> true
+flex
+inline
