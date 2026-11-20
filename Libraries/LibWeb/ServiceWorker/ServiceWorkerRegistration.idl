@@ -1,5 +1,5 @@
 // https://w3c.github.io/ServiceWorker/#serviceworkerregistration-interface
-[SecureContext, Exposed=(Window,Worker)]
+[SecureContext, Exposed=(Window,Worker), Experimental]
 interface ServiceWorkerRegistration : EventTarget {
     [DirectGetter] readonly attribute ServiceWorker? installing;
     [DirectGetter] readonly attribute ServiceWorker? waiting;

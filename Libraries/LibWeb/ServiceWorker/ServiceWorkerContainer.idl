@@ -1,5 +1,5 @@
 // https://w3c.github.io/ServiceWorker/#serviceworkercontainer-interface
-[SecureContext, Exposed=(Window,Worker)]
+[SecureContext, Exposed=(Window,Worker), Experimental]
 interface ServiceWorkerContainer : EventTarget {
     readonly attribute ServiceWorker? controller;
     readonly attribute Promise<ServiceWorkerRegistration> ready;
