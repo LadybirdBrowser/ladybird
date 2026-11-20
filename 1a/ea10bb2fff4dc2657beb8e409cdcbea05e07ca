@@ -1,0 +1,16 @@
+When a text node, a comment, or an element that holds no option of the
+list of options is inserted into or removed from a select, Ladybird no
+longer runs the selectedness setting algorithm. Neither does Gecko,
+whose HTMLSelectElement runs it from ContentAppendedOrInserted() and
+ContentWillBeRemoved() only when CollectOptions() finds an option in
+what changed. But WebKit’s HTMLSelectElement::childrenChanged() returns
+early only when no element changed, so WebKit runs it whenever an
+element is inserted or removed.
+
+Run in Chrome 157.0.8103.79, a select with no selected option keeps
+selectedIndex -1 in every case the new test checks: text, a comment, a
+div, an empty optgroup, and an option inside a datalist, an hr, or an
+optgroup nested in another, each inserted and then removed. Firefox
+151.0 does the same, except that it doesn’t count an option nested in a
+div as one of the select’s options. WebKit 26.5 selects the first option
+again whenever an element of any kind is inserted or removed.
