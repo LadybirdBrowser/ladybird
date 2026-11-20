@@ -110,7 +110,8 @@ fn log_exception(vm: &Vm, value: Value) {
 // so that a getter that throws its own object cannot recurse.
 fn message_of_thrown_object(vm: &Vm, object: Gc<Object>) -> Value {
     let stored_message = || object.get_without_side_effects(vm, &vm.names.message);
-    if IS_READING_MESSAGE_OF_THROWN_OBJECT.get() {
+    // The embedder can throw before entering JavaScript. A getter needs a running execution context.
+    if vm.running_execution_context().is_none() || IS_READING_MESSAGE_OF_THROWN_OBJECT.get() {
         return stored_message();
     }
     IS_READING_MESSAGE_OF_THROWN_OBJECT.set(true);

@@ -674,6 +674,35 @@ TEST_CASE(an_interrupt_ends_a_wait_as_terminated_and_leaves_other_waiters_alone)
     EXPECT_EQ(scripts.wait_for_result(3), RESULT_OK * 256 + 2);
 }
 
+TEST_CASE(logging_an_exception_only_reads_its_message_with_a_running_context)
+{
+    static size_t message_reads;
+    struct Traits {
+        static JS::ThrowCompletionOr<JS::Value> get(JS::HostObject const&, JS::PropertyKey const&, JS::Value, JS::CacheableGetPropertyMetadata*, JS::Object::PropertyLookupPhase)
+        {
+            ++message_reads;
+            return JS::js_undefined();
+        }
+    };
+    static constexpr auto hooks = JS::make_host_object_hooks<Traits>();
+    static constexpr auto host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "TestException"sv, nullptr, &hooks, nullptr, 0);
+
+    run_on_vm_threads(1, [] {
+        auto vm = JS::VM::create();
+        auto context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+        auto exception = JS::HostObject::create(*context->realm, host_class, nullptr);
+        message_reads = 0;
+        JS::set_log_all_js_exceptions(true);
+        (void)JS::throw_completion(exception);
+        EXPECT_EQ(message_reads, 1u);
+        vm->pop_execution_context();
+        (void)JS::throw_completion(exception);
+        JS::set_log_all_js_exceptions(false);
+        EXPECT_EQ(message_reads, 1u);
+        vm->push_execution_context(*context);
+    });
+}
+
 TEST_CASE(dictionary_elements_distinguish_holes_from_undefined)
 {
     run_on_vm_threads(1, [] {
