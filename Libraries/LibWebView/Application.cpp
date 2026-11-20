@@ -353,7 +353,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool validate_dnssec_locally = false;
     bool log_all_js_exceptions = false;
     auto site_isolation_mode = default_site_isolation_mode();
-    bool disable_same_origin_tab_sharing = false;
     Optional<size_t> maximum_site_request_servers;
     Optional<u64> web_content_memory_limit_in_mebibytes;
     bool disable_http_memory_cache = false;
@@ -485,7 +484,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
             return true;
         },
     });
-    args_parser.add_option(disable_same_origin_tab_sharing, "Disable hosting tabs of the same origin in one WebContent process", "disable-same-origin-tab-sharing");
     args_parser.add_option(disable_http_memory_cache, "Disable HTTP memory cache", "disable-http-memory-cache");
     args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
     args_parser.add_option(maximum_site_request_servers, "How many RequestServers a session may have for the sites it visits, 0 to share one", "max-site-request-servers", 0, "count");
@@ -665,7 +663,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .is_test_mode = enable_test_mode ? IsTestMode::Yes : IsTestMode::No,
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
         .site_isolation_mode = site_isolation_mode,
-        .share_process_between_same_origin_tabs = disable_same_origin_tab_sharing ? ShareProcessBetweenSameOriginTabs::No : ShareProcessBetweenSameOriginTabs::Yes,
         .enable_http_memory_cache = disable_http_memory_cache ? EnableMemoryHTTPCache::No : EnableMemoryHTTPCache::Yes,
         .expose_experimental_interfaces = expose_experimental_interfaces ? ExposeExperimentalInterfaces::Yes : ExposeExperimentalInterfaces::No,
         .expose_internals_object = expose_internals_object ? ExposeInternalsObject::Yes : ExposeInternalsObject::No,
@@ -1735,8 +1732,7 @@ void Application::crash_compositor_process()
 bool Application::tabs_may_share_processes() const
 {
     // NB: Tests run side by side, and must not take each other's state with them.
-    return m_web_content_options.share_process_between_same_origin_tabs == ShareProcessBetweenSameOriginTabs::Yes
-        && m_web_content_options.is_test_mode == IsTestMode::No
+    return m_web_content_options.is_test_mode == IsTestMode::No
         && m_settings->tab_settings().tab_processes != TabProcesses::PerTab;
 }
 
