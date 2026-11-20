@@ -1,0 +1,2 @@
+supported before the media server exits: true
+supported after the media server exits: true
