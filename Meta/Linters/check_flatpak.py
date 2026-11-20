@@ -47,7 +47,6 @@ flatpak_runtime_libs = [
     "freetype",
     "harfbuzz",
     "libjpeg-turbo",
-    "libproxy",
     "nghttp2",
     "qtbase",
     "qtpositioning",
