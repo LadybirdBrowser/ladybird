@@ -1,0 +1,13 @@
+Ladybird’s render side computes a style update beside the event loop,
+and the host takes it in later, so two sides each held a walk of the
+subtree a hidden element’s styles are cleared from. The host now
+clears just the elements the render side’s walk found, so one tree
+decides what’s cleared, as it does in the other engines, which compute
+style on the main thread from the tree as it is. Blink’s Element::
+DetachLayoutTree() clears each element’s style as it detaches the
+hidden subtree’s layout tree, and Servo’s clear_descendant_data(),
+in Gecko, walks the hidden element’s traversal children and clears
+their style data. Chrome 157, Firefox 151, and WebKit 26.5, run with
+engine-compare.mjs, all give offsetParent the body and display block
+for an element assigned into or out of a slot below an element hidden
+a frame before, by the slot attribute, a slot’s name, or assign().
