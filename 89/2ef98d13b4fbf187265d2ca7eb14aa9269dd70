@@ -1,0 +1,5 @@
+Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5
+ran the cases of the test added here, and agree to within the fractions
+Firefox keeps: two lines with a 14.5px line height are 29px tall, three
+are 43.5px, and two with a 13.3px line height are 26.59375px. Ladybird
+gives what Chrome and WebKit give.
