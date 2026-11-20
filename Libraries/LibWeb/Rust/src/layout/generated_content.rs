@@ -255,7 +255,10 @@ fn quote_string<'a>(quotes: &QuotesData<'a>, open: bool, depth: u32) -> &'a [u16
         },
         QuotesData::Specified(values) => {
             // If the depth is greater than the number of pairs, the last pair is repeated.
-            let level = (depth as usize).min(values.len() / 2 - 1);
+            let Some(last_pair) = (values.len() / 2).checked_sub(1) else {
+                return &[];
+            };
+            let level = (depth as usize).min(last_pair);
             let quote = &values[level * 2 + usize::from(!open)];
             match quote.optional_data() {
                 Some(StyleValueData::String { string, .. }) => string.units(),

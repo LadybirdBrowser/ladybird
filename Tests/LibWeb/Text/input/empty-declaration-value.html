@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<span id="target"></span>
+<script>
+    test(() => {
+        for (const property of ["display", "quotes", "list-style", "text-underline-position", "--empty"]) {
+            for (const value of ["", " ", "/**/", " !important"])
+                println(`${property}:${value} -> ${CSS.supports(property + ":" + value)}`);
+        }
+        target.style.cssText = "display: flex; display: !important";
+        println(getComputedStyle(target).display);
+        target.style.cssText = "--empty: ; display: flex; display: var(--empty)";
+        println(getComputedStyle(target).display);
+    });
+</script>
