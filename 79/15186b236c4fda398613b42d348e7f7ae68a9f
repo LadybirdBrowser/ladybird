@@ -1,0 +1,15 @@
+Ladybird now treats a replaced grid item’s automatic height as
+auto for its minimum contribution, even when that height comes from
+its width through its aspect ratio. Run in Chrome 157.0.8103.79,
+Firefox 151.0, and Playwright’s WebKit 26.5, all three engines make
+the row in the test 207px.
+
+Blink’s CalculateIntrinsicMinimumContribution() decides from the
+computed height, so “height: auto” takes the minimum from min-height.
+WebKit’s GridTrackSizingAlgorithmStrategy::minContributionForGridItem()
+and Gecko’s CachedIntrinsicSizes::EnsureContributions() decide
+from the computed preferred size the same way. WebKit’s RenderBox::
+computeMinMaxLogicalHeightFromAspectRatio() and Gecko’s nsLayoutUtils::
+IntrinsicForAxis() resolve percentage opposite-axis limits against
+the grid area before transferring them through the ratio, which the
+transferred size suggestion now does too.
