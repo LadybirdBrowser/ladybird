@@ -25,13 +25,9 @@ pub mod builder;
 pub mod bytecode;
 pub mod code;
 pub mod codegen;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros, clippy::disallowed_methods)]
-pub mod compile_pool;
 pub mod coverage;
 pub mod debug_text;
 pub mod ir;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros, clippy::disallowed_methods)]
-pub mod options;
 pub mod passes;
 pub mod regalloc;
 pub mod scratch;

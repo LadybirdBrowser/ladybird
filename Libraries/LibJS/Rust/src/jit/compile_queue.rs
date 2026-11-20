@@ -15,9 +15,9 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
 use std::time::Duration;
 
+use crate::jit_compile_pool::{CompilePool, CompilePoolClient};
 use libjs_jit::CompileFailure;
 use libjs_jit::code::CompiledCode;
-use libjs_jit::compile_pool::{CompilePool, CompilePoolClient};
 use libjs_jit::scratch::Scratch;
 use libjs_jit::snapshot::{OpenLists, Snapshot};
 

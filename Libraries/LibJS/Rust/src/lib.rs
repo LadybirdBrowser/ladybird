@@ -120,6 +120,12 @@ compile_error!("the JIT supports Windows on x86-64 only: build without the jit f
 #[cfg(all(not(test), not(feature = "jit")))]
 #[path = "jit/disabled.rs"]
 pub mod jit;
+// NB: The thread pool of the compiles and the options of the JIT use nothing of the runtime, so they are part of a
+//     test build, which `jit` is not.
+#[cfg(feature = "jit")]
+pub mod jit_compile_pool;
+#[cfg(feature = "jit")]
+pub mod jit_options;
 #[cfg(not(test))]
 pub mod layout;
 #[cfg(not(test))]

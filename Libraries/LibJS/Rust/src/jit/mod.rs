@@ -27,7 +27,7 @@ pub mod testing;
 pub mod tier_up;
 pub mod translate;
 
-pub use libjs_jit::options;
+pub use crate::jit_options as options;
 
 use core::cell::{Cell, OnceCell, RefCell};
 use core::ptr::NonNull;
