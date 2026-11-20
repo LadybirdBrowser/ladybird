@@ -28,7 +28,7 @@ promiseTest(async () => {
     // Reading activeMediaSessionState recomputes the state, so check the published state before polling it.
     for (let turn = 0; turn < 20 && publishedState() !== null; ++turn) {
         await nextTurn();
-        internals.gc();
+        await internals.gcAsync();
         await nextTurn();
     }
     println(`audio collected: ${weakAudio.deref() === undefined}`);
