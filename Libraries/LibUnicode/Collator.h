@@ -52,6 +52,15 @@ public:
         virtual Optional<Match> find_from(size_t start_offset) = 0;
     };
 
+    class NeedleSearcher {
+    public:
+        virtual ~NeedleSearcher() = default;
+        // The haystack must outlive the search.
+        virtual void set_haystack(Utf16View const&) = 0;
+        virtual Optional<Match> next_match() = 0;
+        virtual Optional<Match> find_from(size_t start_offset) = 0;
+    };
+
     static NonnullOwnPtr<Collator> create(
         Utf16View locale,
         Usage,
@@ -74,6 +83,8 @@ public:
     // The string search must be performed using a base character comparison, or the primary
     // level, as defined in UTS10.
     virtual NonnullOwnPtr<SubstringSearcher> create_substring_searcher(Utf16View const& haystack, Utf16View const& needle) const = 0;
+
+    virtual NonnullOwnPtr<NeedleSearcher> create_needle_searcher(Utf16View const& needle) const = 0;
 
     virtual Sensitivity sensitivity() const = 0;
     virtual bool ignore_punctuation() const = 0;
