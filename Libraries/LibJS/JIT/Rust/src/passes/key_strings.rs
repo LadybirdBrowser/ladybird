@@ -28,11 +28,11 @@
 //! concatenation with other uses than keys is marked all the same: its
 //! string has the same characters either way.
 
-use crate::bitset::ZoneBitSet;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use ak::Zone;
+use ak::ZoneBitSet;
 use ak::ZoneVec;
 
 pub fn run(graph: &mut Graph, work: &Zone) {

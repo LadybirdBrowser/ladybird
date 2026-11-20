@@ -11,10 +11,10 @@
 //! of whose edges lead to the same place, doing nothing, become jumps.
 
 use super::edit;
-use crate::bitset::ZoneBitSet;
 use crate::ir::Graph;
 use crate::ir::Op;
 use ak::Zone;
+use ak::ZoneBitSet;
 use ak::ZoneVec;
 
 /// Whether a node can be dropped when its value is unused.

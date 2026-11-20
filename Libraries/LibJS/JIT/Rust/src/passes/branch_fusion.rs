@@ -15,7 +15,6 @@
 //! is a constant, so that its comparison fuses with the branch there.
 
 use super::edit;
-use crate::bitset::ZoneBitSet;
 use crate::code::Repr;
 use crate::ir::Block;
 use crate::ir::BlockId;
@@ -25,6 +24,7 @@ use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use ak::Zone;
+use ak::ZoneBitSet;
 use ak::ZoneVec;
 
 /// The comparison of swapped operands that has the same result.

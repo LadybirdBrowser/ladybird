@@ -23,8 +23,8 @@ use super::FrameLayout;
 use super::OpCode;
 use super::Operand;
 use super::THIS_VALUE_REGISTER;
-use crate::bitset::ZoneBitSet;
 use ak::Zone;
+use ak::ZoneBitSet;
 use ak::ZoneVec;
 use std::ops::Range;
 

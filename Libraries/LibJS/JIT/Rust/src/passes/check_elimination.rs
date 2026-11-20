@@ -44,7 +44,6 @@ use super::facts::Location;
 use super::facts::Moved;
 use super::facts::ValueKind;
 use super::facts::elements_kind_implies;
-use crate::bitset::ZoneBitSet;
 use crate::bytecode::OpCode;
 use crate::code::Dependency;
 use crate::ir::BlockId;
@@ -57,6 +56,7 @@ use crate::ir::ShapeCheck;
 use crate::ir::value;
 use crate::snapshot::CellId;
 use ak::Zone;
+use ak::ZoneBitSet;
 use ak::ZoneVec;
 
 /// What the analysis decided for the nodes of one visit of the graph.

@@ -30,7 +30,6 @@
 //! shifts unused.
 
 use super::edit::Constants;
-use crate::bitset::ZoneBitSet;
 use crate::code::Repr;
 use crate::ir::BinaryOp;
 use crate::ir::ElementsKind;
@@ -40,6 +39,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::TypedArrayElement;
 use ak::Zone;
+use ak::ZoneBitSet;
 use ak::ZoneVec;
 
 /// The operations that wrap where their users only read the low 32 bits.

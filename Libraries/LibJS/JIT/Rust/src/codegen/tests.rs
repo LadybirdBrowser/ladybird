@@ -2021,7 +2021,7 @@ mod execution {
                         .iter()
                         .position(|instruction| instruction.pc == pc)
                         .unwrap();
-                    let mut live = crate::bitset::ZoneBitSet::new_in(0, &work);
+                    let mut live = ak::ZoneBitSet::new_in(0, &work);
                     liveness.live_in(index, &mut live);
                     for slot in live.iter() {
                         let operand = layout.operand_for_tracked_index(slot);
@@ -2194,7 +2194,7 @@ mod execution {
                             .iter()
                             .position(|instruction| instruction.pc == *pc)
                             .unwrap();
-                        let mut live = crate::bitset::ZoneBitSet::new_in(0, &work);
+                        let mut live = ak::ZoneBitSet::new_in(0, &work);
                         liveness.live_in(index, &mut live);
                         for slot in live.iter() {
                             let slot = layout.operand_for_tracked_index(slot).raw() as usize;
@@ -2226,7 +2226,7 @@ mod execution {
                         .iter()
                         .position(|instruction| instruction.pc == pc)
                         .unwrap();
-                    let mut live = crate::bitset::ZoneBitSet::new_in(0, &work);
+                    let mut live = ak::ZoneBitSet::new_in(0, &work);
                     liveness.live_in(index, &mut live);
                     for slot in live.iter() {
                         let operand = layout.operand_for_tracked_index(slot);

@@ -29,7 +29,6 @@ use ak::Zone;
 use ak::ZoneVec;
 
 use super::dominators::Dominators;
-use crate::bitset::ZoneBitSet;
 use crate::ir::BinaryOp;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
@@ -37,6 +36,7 @@ use crate::ir::Comparison;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use ak::ZoneBitSet;
 
 /// How many nodes a loop may have to lose its check. In larger ones the check
 /// costs next to nothing, and they take longer to count to their end.

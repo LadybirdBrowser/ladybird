@@ -33,8 +33,8 @@ use crate::ir::NodeProperties;
 use crate::ir::Op;
 use crate::ir::ShapeCheck;
 use crate::snapshot::CellId;
-use crate::zone_map::ZoneMap;
 use ak::Zone;
+use ak::ZoneMap;
 use ak::ZoneVec;
 
 /// A list of facts in a zone, which facts at several points may share: FROZEN, a list that nothing changes anymore,

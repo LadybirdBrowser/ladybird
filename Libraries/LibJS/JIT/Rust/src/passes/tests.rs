@@ -361,7 +361,7 @@ fn loads_of_slots_that_nothing_writes_move_out_of_loops_that_call() {
             ..Block::default()
         });
     }
-    graph.unwritten_slots = crate::bitset::ZoneBitSet::new_in(8, graph.zone);
+    graph.unwritten_slots = ak::ZoneBitSet::new_in(8, graph.zone);
     graph.unwritten_slots.insert(7);
     let enter = node(&mut graph, Op::Jump { target: BlockId(1) }, vec![], None);
     graph.blocks[0].control = Some(enter);
