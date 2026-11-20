@@ -192,7 +192,6 @@ private:
     bool holds_container_of(CanonicalNavigable const& child_frame, StringView message_name);
     bool continue_navigation_population_in_selected_process(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
     void for_each_hosted_document(Function<IterationDecision(CanonicalDocument&)> const&) const;
-    bool populates_a_navigation_to_local_file(ByteString const& path) const;
     Optional<CanonicalDocument&> document_with_hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
     StorageJar* storage_jar(Web::StorageAPI::StorageEndpointType) const;
     Optional<String> canonical_storage_key(Web::HTML::EnvironmentId const&) const;

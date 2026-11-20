@@ -13,6 +13,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/TCPServer.h>
 #include <LibGfx/SystemTheme.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibTest/TestCase.h>
@@ -609,6 +610,57 @@ TEST_CASE(made_up_file_url_does_not_reach_a_navigation)
     auto navigation = view->traversable().navigation_with_id(navigation_id);
     VERIFY(navigation);
     EXPECT_NE(navigation->url.scheme(), "file"sv);
+}
+
+// The process running a navigation's population steps can host web content, so it does not read the local file that a
+// file: URL names. The UI process reads the file of a navigation it admitted, or of an entry whose document state held
+// local file content, for the process creating the document. It reads no other file, and ignores any body the process
+// reports.
+TEST_CASE(ui_process_reads_the_local_file_of_a_navigation)
+{
+    TestFixture fixture;
+    auto view = fixture.create_view();
+
+    auto write_file = [&](StringView name, StringView contents) {
+        auto path = LexicalPath::join(fixture.directory(), name).string();
+        auto file = MUST(Core::File::open(path, Core::File::OpenMode::Write));
+        MUST(file->write_until_depleted(contents.bytes()));
+        return URL::create_with_file_scheme(path).release_value();
+    };
+    auto local_file_url = write_file("local.html"sv, "<p>The local file.</p>"sv);
+    auto other_local_file_url = write_file("other.html"sv, "<p>Another local file.</p>"sv);
+
+    auto acquire = [&](WebView::NavigationLoader::MayReadLocalFile may_read_local_file, Function<void(Web::HTML::NavigationParamsDescriptor&)> report) {
+        auto loader = WebView::NavigationLoader::create(population_request_for(*view, local_file_url, Utf16String::from_utf8(generate_random_uuid())), may_read_local_file);
+        auto result = result_with_response_body_of(0, 0);
+        auto& navigation_params = result.navigation_params.get<Web::HTML::NavigationParamsDescriptor>();
+        navigation_params.response.url_list = { local_file_url };
+        navigation_params.response.body = MUST(ByteBuffer::copy("Made up by the process."sv.bytes()));
+        report(navigation_params);
+        loader->refuse_made_up_local_file_urls(view->page().client(), result);
+        loader->did_finish_navigation_params_creation(move(result));
+
+        Optional<bool> acquired;
+        loader->acquire_response_body(view->page().client(), [&](bool succeeded) { acquired = succeeded; });
+        Core::EventLoop::current().spin_until([&] { return acquired.has_value(); });
+        EXPECT(*acquired);
+        return loader->take_result().navigation_params;
+    };
+
+    auto navigation_params = acquire(WebView::NavigationLoader::MayReadLocalFile::Yes, [](auto&) { });
+    VERIFY(navigation_params.has<Web::HTML::NavigationParamsDescriptor>());
+    auto const& response = navigation_params.get<Web::HTML::NavigationParamsDescriptor>().response;
+    EXPECT_EQ(StringView { response.body.get<ByteBuffer>() }, "<p>The local file.</p>"sv);
+    EXPECT_EQ(HTTP::HeaderList::create(response.headers)->get("Content-Type"sv).value_or({}), "text/html"sv);
+
+    // An entry whose document state held no local file content gets an error document.
+    EXPECT(acquire(WebView::NavigationLoader::MayReadLocalFile::No, [](auto&) { }).has<Web::HTML::NavigationParamsNullOrError>());
+
+    // So does a navigation whose response the process reports for another local file.
+    EXPECT(acquire(WebView::NavigationLoader::MayReadLocalFile::Yes, [&](auto& navigation_params) {
+        navigation_params.response.url_list = { other_local_file_url };
+    }).has<Web::HTML::NavigationParamsNullOrError>());
+    EXPECT(view->page().client().is_open());
 }
 
 // The URLs a process reports for a navigation's response name its document and the process that hosts it. The UI
