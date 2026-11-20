@@ -106,6 +106,7 @@ if (APPLE OR LINUX)
         TestCrashReportReview.cpp
         TestCrashReportStore.cpp
         TestFontService.cpp
+        TestOpenLocalFileForRenderer.cpp
         TestRendererFontService.cpp
     )
 endif()
