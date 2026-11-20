@@ -441,7 +441,8 @@ void NavigationLoader::acquire_response_body(WebContentClient const& population_
 
 // NB: The process that fetched a navigation's response to a file: URL ran the navigation's population steps for a
 //     source document that can be web content, so it did not read the file. The UI process reads the file the admitted
-//     URL names, off its main thread, and the process creating the document, which may read local files, takes it.
+//     URL names, if it's under the local file roots, off its main thread, and the process creating the document, which
+//     may read local files, takes it. Whoever started the navigation, a file elsewhere gets an error document.
 void NavigationLoader::read_local_file_for_response()
 {
     if (m_may_read_local_file == MayReadLocalFile::No || m_requested_url.scheme() != "file"sv) {
@@ -451,7 +452,7 @@ void NavigationLoader::read_local_file_for_response()
 
     Threading::ThreadPool::the().submit([weak_this = make_weak_ptr(), path = m_requested_url.file_path(), event_loop = Core::EventLoop::current_weak()] mutable {
         auto read_local_file = [&] -> ErrorOr<LocalFile> {
-            auto file = TRY(Core::File::adopt_fd(TRY(open_local_file_for_renderer(path)).take_fd(), Core::File::OpenMode::Read));
+            auto file = TRY(Core::File::adopt_fd(TRY(open_local_file_for_renderer(path, LocalFileRootsOnly::Yes)).take_fd(), Core::File::OpenMode::Read));
             if (TRY(Core::Directory::is_valid_directory(file->fd())))
                 return Error::from_errno(EISDIR);
             auto stat = TRY(file->stat());

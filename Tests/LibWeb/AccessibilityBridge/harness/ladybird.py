@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import pathlib
@@ -22,6 +23,22 @@ from gi.repository import Atspi  # noqa: E402
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 DEFAULT_BINARY = REPO_ROOT / "Build" / "release" / "bin" / "Ladybird"
 FIXTURE_DIR = pathlib.Path(__file__).resolve().parents[1] / "input"
+
+_fixture_copy: Optional[pathlib.Path] = None
+
+
+def fixture_url(fixture_name: str) -> str:
+    """Returns a file: URL for input/<fixture_name>, from a copy of input/ in the temporary directory.
+
+    Ladybird opens local files for a page only under the user's own directories (home, the temporary directories, and
+    mounted volumes), and a checkout needn't be under any of them — CI's isn't. So, load the fixtures from a copy."""
+    global _fixture_copy
+    if _fixture_copy is None:
+        copy = pathlib.Path(tempfile.mkdtemp(prefix="ladybird-a11y-fixtures-"))
+        atexit.register(shutil.rmtree, copy, True)
+        shutil.copytree(FIXTURE_DIR, copy / "input")
+        _fixture_copy = (copy / "input").resolve()
+    return (_fixture_copy / fixture_name).as_uri()
 
 
 def wait_for(
@@ -336,8 +353,7 @@ def ladybird_for_fixture(fixture_name: str, binary: Optional[pathlib.Path] = Non
     fixture_path = (FIXTURE_DIR / fixture_name).resolve()
     if not fixture_path.exists():
         raise FileNotFoundError(f"fixture HTML not found: {fixture_path}")
-    url = fixture_path.as_uri()
-    ctx = LadybirdContext(url, binary=binary)
+    ctx = LadybirdContext(fixture_url(fixture_name), binary=binary)
     try:
         ctx.start()
         yield ctx

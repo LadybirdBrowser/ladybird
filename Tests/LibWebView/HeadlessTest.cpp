@@ -14,6 +14,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibGamepad/SDLGamepadSource.h>
 #include <LibWebView/GamepadManager.h>
+#include <LibWebView/LocalFileRoots.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -23,6 +24,10 @@ HeadlessApplication::HeadlessApplication(Optional<ByteString> ladybird_binary_pa
     : WebView::Application(move(ladybird_binary_path))
 {
     WebView::GamepadManager::the().set_source(make<Gamepad::SDLGamepadSource>(Gamepad::IgnoreSystemGamepads::Yes));
+
+    // NB: Tests load local files from the source tree, which needn't be under any of the usual roots.
+    if (auto source_directory = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv); source_directory.has_value())
+        WebView::LocalFileRoots::add(*source_directory);
 }
 
 void HeadlessApplication::create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options)

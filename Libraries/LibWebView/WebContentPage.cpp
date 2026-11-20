@@ -1688,19 +1688,20 @@ void WebContentPage::did_change_picture_in_picture_player_controls_visibility(bo
 void WebContentPage::did_request_file(ByteString path, i32 request_id)
 {
     // NB: The renderer's sandbox keeps it out of the local file system, so this is the only way it can read a file.
-    //     Answer only a process that has hosted local file content, or one selecting a file that WebDriver's Element
-    //     Send Keys command it runs names: any other could read every file the user can. The UI process reads the
-    //     file a navigation names itself, for the process creating the document.
+    //     Answer only a process that has hosted local file content, for a file under the local file roots, or one
+    //     selecting a file that WebDriver's Element Send Keys command it runs names: any other could read every file
+    //     the user can. The UI process reads the file a navigation names itself, for the process creating the document.
     auto selects_file_for_webdriver = [&] {
         auto view = traversable().view();
         return view.has_value() && view->is_running_webdriver_command_to_select_file(*this, path);
     };
-    if (!client().may_read_local_files() && !selects_file_for_webdriver()) {
+    auto is_for_webdriver = selects_file_for_webdriver();
+    if (!client().may_read_local_files() && !is_for_webdriver) {
         async_handle_file_return(EACCES, {}, request_id);
         return;
     }
 
-    auto file = open_local_file_for_renderer(path);
+    auto file = open_local_file_for_renderer(path, is_for_webdriver ? LocalFileRootsOnly::No : LocalFileRootsOnly::Yes);
     if (file.is_error())
         async_handle_file_return(file.error().code(), {}, request_id);
     else

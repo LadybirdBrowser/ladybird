@@ -188,13 +188,14 @@ void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
     if (!m_inside_settings)
         return;
 
-    // NB: As a page, a worker reads a local file only through this broker, and only local file content may.
+    // NB: As a page, a worker reads a local file only through this broker, and only local file content may, under the
+    //     local file roots.
     if (!m_may_read_local_files) {
         async_handle_file_return(EACCES, {}, request_id);
         return;
     }
 
-    auto file = open_local_file_for_renderer(path);
+    auto file = open_local_file_for_renderer(path, LocalFileRootsOnly::Yes);
     if (file.is_error())
         async_handle_file_return(file.error().code(), {}, request_id);
     else

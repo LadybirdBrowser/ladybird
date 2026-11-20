@@ -16,6 +16,7 @@
 #include <LibGamepad/SDLGamepadSource.h>
 #include <LibWebCommon/Loader/DownloadFilename.h>
 #include <LibWebView/GamepadManager.h>
+#include <LibWebView/LocalFileRoots.h>
 #include <LibWebView/NotificationManager.h>
 #include <LibWebView/RecordingNotificationBackend.h>
 #include <LibWebView/TestSpellChecker.h>
@@ -85,6 +86,11 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
 
 void Application::create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions& request_server_options, WebView::WebContentOptions& web_content_options)
 {
+    // NB: Tests load local files from all over the source tree, such as fonts from Base/res and media from Tests/LibMedia,
+    //     and the tree needn't be under any of the usual roots.
+    WebView::LocalFileRoots::add(test_root_path);
+    WebView::LocalFileRoots::add(LexicalPath::join(test_root_path, "../.."sv).string());
+
     if (verify_style) {
         // NB: The style engine checks what it installed against a cold computation of the document.
         MUST(Core::Environment::set("LIBWEB_STYLE_SELFCHECK"sv, "1"sv, Core::Environment::Overwrite::Yes));

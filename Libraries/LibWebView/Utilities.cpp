@@ -14,10 +14,16 @@
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
+#include <LibWebView/LocalFileRoots.h>
 #include <LibWebView/Utilities.h>
 
 #if defined(AK_OS_WINDOWS)
 #    include <AK/Windows.h>
+#endif
+
+#if defined(AK_OS_LINUX)
+#    include <linux/magic.h>
+#    include <sys/vfs.h>
 #endif
 
 namespace WebView {
@@ -38,9 +44,53 @@ ErrorOr<Web::HTML::SelectedFile> create_selected_file(ByteString const& file_pat
     return Web::HTML::SelectedFile { move(name), IPC::File::adopt_file(move(file)) };
 }
 
-ErrorOr<IPC::File> open_local_file_for_renderer(ByteString const& path)
+#if !defined(AK_OS_WINDOWS)
+#    if defined(AK_OS_LINUX)
+// A process information or sysfs file system can be mounted anywhere, so the trees' paths alone don't rule them out.
+static ErrorOr<bool> is_on_kernel_interface_file_system(int fd)
+{
+    struct statfs file_system;
+    if (fstatfs(fd, &file_system) < 0)
+        return Error::from_syscall("fstatfs"sv, errno);
+    return file_system.f_type == PROC_SUPER_MAGIC || file_system.f_type == SYSFS_MAGIC;
+}
+#    endif
+
+// Opens a canonical path one component at a time, refusing a symbolic link at any of them: The path had none when it
+// was resolved, so one there now was put in place since, and could lead anywhere.
+static ErrorOr<int> open_without_following_links(StringView canonical_path, int options)
+{
+    // Each directory on the way only needs to be searched, as path resolution would.
+#    if defined(O_PATH)
+    static constexpr int directory_options = O_PATH | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC;
+#    elif defined(O_SEARCH)
+    static constexpr int directory_options = O_SEARCH | O_NOFOLLOW | O_CLOEXEC;
+#    else
+    static constexpr int directory_options = O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC;
+#    endif
+
+    LexicalPath lexical_path { canonical_path };
+    auto const& components = lexical_path.parts_view();
+    auto fd = TRY(Core::System::open("/"sv, components.is_empty() ? options : directory_options));
+
+    for (size_t i = 0; i < components.size(); ++i) {
+        ByteString name = components[i];
+        auto next_fd = ::openat(fd, name.characters(), i + 1 == components.size() ? options | O_NOFOLLOW : directory_options);
+        auto error = errno;
+        ::close(fd);
+        if (next_fd < 0)
+            return Error::from_syscall("openat"sv, error);
+        fd = next_fd;
+    }
+    return fd;
+}
+#endif
+
+ErrorOr<IPC::File> open_local_file_for_renderer(ByteString const& path, LocalFileRootsOnly local_file_roots_only)
 {
 #if defined(AK_OS_WINDOWS)
+    // FIXME: Check the local file roots here too, once FileSystem::real_path() resolves links and drive-letter paths.
+    (void)local_file_roots_only;
     auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
 
     // Files and directories are disk handles, while devices and pipes are not.
@@ -48,12 +98,24 @@ ErrorOr<IPC::File> open_local_file_for_renderer(ByteString const& path)
         return Error::from_errno(EACCES);
     return IPC::File::adopt_file(move(file));
 #else
-    auto fd = TRY(Core::System::open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC));
+    // Decide on the file the path names once every symbolic link in it is resolved, so that no link leads elsewhere.
+    auto canonical_path = TRY(FileSystem::real_path(path));
+    if (LocalFileRoots::is_in_kernel_interface_tree(canonical_path))
+        return Error::from_errno(EACCES);
+    if (local_file_roots_only == LocalFileRootsOnly::Yes && !LocalFileRoots::contains(canonical_path))
+        return Error::from_errno(EACCES);
+
+    auto fd = TRY(open_without_following_links(canonical_path, O_RDONLY | O_NONBLOCK | O_CLOEXEC));
     auto file = IPC::File::adopt_fd(fd);
 
     auto stat = TRY(Core::System::fstat(fd));
     if (!S_ISREG(stat.st_mode) && !S_ISDIR(stat.st_mode))
         return Error::from_errno(EACCES);
+
+#    if defined(AK_OS_LINUX)
+    if (TRY(is_on_kernel_interface_file_system(fd)))
+        return Error::from_errno(EACCES);
+#    endif
 
     // The renderer reads the file as it would any other, so it gets a blocking descriptor.
     auto flags = TRY(Core::System::fcntl(fd, F_GETFL));

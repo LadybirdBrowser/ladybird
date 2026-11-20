@@ -6,6 +6,7 @@ import unittest
 
 from .ladybird import FIXTURE_DIR
 from .ladybird import LadybirdContext
+from .ladybird import fixture_url
 
 
 class AccessibilityBridgeTestCase(unittest.TestCase):
@@ -25,7 +26,7 @@ class AccessibilityBridgeTestCase(unittest.TestCase):
         fixture_path = (FIXTURE_DIR / cls.FIXTURE).resolve()
         if not fixture_path.exists():
             raise unittest.SkipTest(f"fixture not found: {fixture_path}")
-        cls._ctx = LadybirdContext(fixture_path.as_uri())
+        cls._ctx = LadybirdContext(fixture_url(cls.FIXTURE))
         cls._ctx.start()
 
     @classmethod
