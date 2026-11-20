@@ -1,0 +1,17 @@
+Ladybird now measures a column flex item’s block size at its min-content
+or max-content width when the container is sized under that constraint.
+Run in Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit
+26.5, Chrome and Firefox make the container in the test 202px wide;
+WebKit makes it 2px, as it does an inline-block holding the same item.
+
+For a single-line column container, three functions take the largest
+of the items’ own inline contributions, without measuring their
+block sizes: Blink’s FlexLayoutAlgorithm::ComputeMinMaxSizes(),
+WebKit’s FlexFormattingContext::minimumMaximumContentSize(),
+and Gecko’s nsFlexContainerFrame::ComputeIntrinsicISize(). But
+for a multi-line one, Blink’s BuildSpaceForLayout() and WebKit’s
+FlexItemsAtMaxContentWidthScope measure each item at its max-content
+width, which this matches.
+
+The engines differ on the item’s height, which Chrome makes 200px and
+Firefox 100px, so the test reports only widths.
