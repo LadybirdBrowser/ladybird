@@ -1,0 +1,12 @@
+Ladybird applies the frame’s no, noscroll, or off attribute value to
+the child viewport. WebKit’s HTMLFrameElementBase::scrollingMode and
+LocalFrame::updateScrollingMode carry that choice to its view. Blink
+parses the owner’s attribute in HTMLFrameElementBase::ParseAttribute
+and uses the mode in LayoutView::CalculateScrollbarModes. Gecko maps
+the attribute in nsGenericHTMLFrameElement and applies the scrollbar
+preference in ScrollContainerFrame::GetScrollStyles.
+
+Chrome 158.0.8127.36, Firefox 151.0, and WebKit 26.5 scrolled the
+page for all three spellings, including mixed case. The child took the
+wheel for yes, an unknown value, and an omitted attribute. Changing the
+attribute changed which viewport took the next gesture.
