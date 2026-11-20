@@ -1,0 +1,11 @@
+Ladybird drops empty ordinary declarations, and retains
+empty custom properties. Blink routes ordinary declarations
+through CSSPropertyParser::ParseValueStart(), WebKit uses
+CSSPropertyParser::parseValue() with consumers such as consumeQuotes(),
+and Gecko dispatches from PropertyDeclaration::parse_into()
+to the property grammar.
+
+Chrome 157.0.8103.79, Firefox 151.0, and WebKit 26.5 rejected empty
+display and quotes values even with whitespace, comments or !important.
+WebKit accepted an empty list-style shorthand. Ladybird follows Chrome
+and Firefox for that case.
