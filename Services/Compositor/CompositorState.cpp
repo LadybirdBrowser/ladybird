@@ -1011,62 +1011,19 @@ void CompositorState::finish_screenshot_preparation(u64 preparation_id)
         requester->tell_remote_descendants_prepared_for_screenshot(finished->request_id);
 }
 
-static Gfx::IntSize size_fitting_within(Gfx::IntSize size, Gfx::IntSize maximum_size)
-{
-    if (size.width() <= maximum_size.width() && size.height() <= maximum_size.height())
-        return size;
-    auto scale = min(static_cast<double>(maximum_size.width()) / size.width(), static_cast<double>(maximum_size.height()) / size.height());
-    return { max(1, static_cast<int>(round(size.width() * scale))), max(1, static_cast<int>(round(size.height() * scale))) };
-}
-
-Optional<Gfx::ShareableBitmap> CompositorState::take_frame_snapshot(Web::CompositorContextId context_id, Optional<Gfx::IntSize> maximum_size)
+Optional<Gfx::ShareableBitmap> CompositorState::take_frame_snapshot(Web::CompositorContextId context_id)
 {
     if (!presented_context_if_present(context_id))
         return {};
     auto presented_frame = m_core.presented_frame_for_snapshot(context_id);
     if (!presented_frame.has_value())
         return {};
-    auto const& source = *presented_frame->surface;
-    auto frame_size = presented_frame->frame_size;
-    auto snapshot_size = frame_size;
-    if (maximum_size.has_value() && !maximum_size->is_empty())
-        snapshot_size = size_fitting_within(frame_size, *maximum_size);
 
-    auto bitmap_or_error = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, snapshot_size);
+    auto bitmap_or_error = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, presented_frame->frame_size);
     if (bitmap_or_error.is_error())
         return {};
     auto bitmap = bitmap_or_error.release_value();
-
-    if (snapshot_size == frame_size) {
-        source.read_into_bitmap(*bitmap);
-        return Gfx::ShareableBitmap { move(bitmap), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
-    }
-
-    // A linear filter reads only the pixels around each one it writes, so a frame scaled down to a fraction of its size
-    // in one step would skip most of them. Halving it first lets every pixel count.
-    auto image = source.sk_image_snapshot<sk_sp<SkImage>>();
-    auto image_size = frame_size;
-    SkSamplingOptions const sampling { SkFilterMode::kLinear };
-    auto draw_scaled = [&](Gfx::IntSize size) -> RefPtr<Gfx::PaintingSurface> {
-        auto surface_or_error = Gfx::PaintingSurface::try_create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, source.skia_backend_context());
-        if (surface_or_error.is_error())
-            return nullptr;
-        auto surface = surface_or_error.release_value();
-        surface->canvas().drawImageRect(image.get(), SkRect::MakeIWH(image_size.width(), image_size.height()), SkRect::MakeIWH(size.width(), size.height()), sampling, nullptr, SkCanvas::kStrict_SrcRectConstraint);
-        return surface;
-    };
-    while (image_size.width() / 2 >= snapshot_size.width() && image_size.height() / 2 >= snapshot_size.height()) {
-        Gfx::IntSize half_size { image_size.width() / 2, image_size.height() / 2 };
-        auto half = draw_scaled(half_size);
-        if (!half)
-            return {};
-        image = half->sk_image_snapshot<sk_sp<SkImage>>();
-        image_size = half_size;
-    }
-    auto snapshot_surface = draw_scaled(snapshot_size);
-    if (!snapshot_surface)
-        return {};
-    snapshot_surface->read_into_bitmap(*bitmap);
+    presented_frame->surface->read_into_bitmap(*bitmap);
     return Gfx::ShareableBitmap { move(bitmap), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
 }
 

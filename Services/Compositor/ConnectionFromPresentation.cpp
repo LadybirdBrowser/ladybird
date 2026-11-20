@@ -69,11 +69,11 @@ void ConnectionFromPresentation::presented_bitmap_ready_to_paint(Web::Compositor
     m_compositor_state->presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
-void ConnectionFromPresentation::take_frame_snapshot(Web::CompositorContextId context_id, u64 request_id, Optional<Gfx::IntSize> maximum_size)
+void ConnectionFromPresentation::take_frame_snapshot(Web::CompositorContextId context_id, u64 request_id)
 {
     Optional<Gfx::ShareableBitmap> snapshot;
     if (is_bound_to(context_id))
-        snapshot = m_compositor_state->take_frame_snapshot(context_id, maximum_size);
+        snapshot = m_compositor_state->take_frame_snapshot(context_id);
     async_did_take_frame_snapshot(request_id, move(snapshot));
 }
 

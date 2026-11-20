@@ -236,7 +236,7 @@ public:
     // than in backing stores the view receives.
     void set_hosts_remote_layer(bool);
     // What the view shows, from the Compositor, scaled down to fit within the size given.
-    void take_frame_snapshot(Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)>);
+    void take_frame_snapshot(Function<void(Optional<Gfx::ShareableBitmap>)>);
     // The Compositor's remote layers went with its process, so the view asks the new one for another.
     void recreate_remote_layer_after_compositor_reconnect(Badge<WebContentClient>);
     static ViewImplementation* find_view_showing_remote_layer(u64 remote_layer_id);
