@@ -1,4 +1,10 @@
 {
+  "-webkit-device-pixel-ratio": {
+    "type": "range",
+    "values": [
+      "<number>"
+    ]
+  },
   "-webkit-transform-3d": {
     "type": "discrete",
     "values": [

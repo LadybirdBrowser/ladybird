@@ -728,6 +728,8 @@ CSS::Parser::ValueParserFFI::FfiMediaFeatureValue Window::query_media_feature(CS
         return ident_media_feature_value(CSS::Keyword::Srgb);
     case CSS::MediaFeatureID::VideoDynamicRange:
         return ident_media_feature_value(page().client().screen_shows_high_dynamic_range() ? CSS::Keyword::High : CSS::Keyword::Standard);
+    case CSS::MediaFeatureID::WebkitDevicePixelRatio:
+        return { .kind = CSS::Parser::ValueParserFFI::FfiMediaFeatureValueKind::Number, .keyword = 0, .value = device_pixel_ratio(), .second_value = 0 };
     case CSS::MediaFeatureID::WebkitTransform3d:
         // https://compat.spec.whatwg.org/#css-media-queries-webkit-transform-3d
         // If the user agent supports 3D transforms, the value will be 1. Otherwise the value is 0.

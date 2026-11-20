@@ -71,7 +71,8 @@ fn generate_media_features(manifest_dir: &Path, out_dir: &Path) -> Result<(), Bo
          pub(crate) const MEDIA_FEATURE_VALUE_INTEGER: u8 = 1 << 1;\n\
          pub(crate) const MEDIA_FEATURE_VALUE_LENGTH: u8 = 1 << 2;\n\
          pub(crate) const MEDIA_FEATURE_VALUE_RATIO: u8 = 1 << 3;\n\
-         pub(crate) const MEDIA_FEATURE_VALUE_RESOLUTION: u8 = 1 << 4;\n\n\
+         pub(crate) const MEDIA_FEATURE_VALUE_RESOLUTION: u8 = 1 << 4;\n\
+         pub(crate) const MEDIA_FEATURE_VALUE_NUMBER: u8 = 1 << 5;\n\n\
          pub(crate) struct MediaFeatureMetadata {\n\
              pub name: &'static str,\n\
              pub allows_range: bool,\n\
@@ -98,6 +99,7 @@ fn generate_media_features(manifest_dir: &Path, out_dir: &Path) -> Result<(), Bo
             match value {
                 "<mq-boolean>" => value_types.push("MEDIA_FEATURE_VALUE_BOOLEAN"),
                 "<integer>" => value_types.push("MEDIA_FEATURE_VALUE_INTEGER"),
+                "<number>" => value_types.push("MEDIA_FEATURE_VALUE_NUMBER"),
                 "<length>" => value_types.push("MEDIA_FEATURE_VALUE_LENGTH"),
                 "<ratio>" => value_types.push("MEDIA_FEATURE_VALUE_RATIO"),
                 "<resolution>" => value_types.push("MEDIA_FEATURE_VALUE_RESOLUTION"),

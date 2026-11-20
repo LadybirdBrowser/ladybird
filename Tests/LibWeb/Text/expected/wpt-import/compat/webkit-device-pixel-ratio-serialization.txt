@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	matchMedia("(-webkit-device-pixel-ratio: 1)").media
+Pass	matchMedia("(-webkit-min-device-pixel-ratio: 1)").media
+Pass	matchMedia("(-webkit-max-device-pixel-ratio: 2)").media
+Pass	matchMedia("screen and (-webkit-min-device-pixel-ratio: 1.5)").media
+Pass	CSSMediaRule serialization of (-webkit-min-device-pixel-ratio: 1)

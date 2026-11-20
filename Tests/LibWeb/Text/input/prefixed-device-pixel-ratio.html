@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        for (const dpi of [1, 1.5, 2]) {
+            internals.setDevicePixelRatio(dpi);
+            for (const query of ["(-webkit-device-pixel-ratio)", "(-webkit-min-device-pixel-ratio: 1.5)",
+                "(-webkit-device-pixel-ratio: 1.5)", "(-webkit-max-device-pixel-ratio: 1.5)",
+                "(1 < -webkit-device-pixel-ratio <= 2)", "(-webkit-device-pixel-ratio: 1dppx)",
+                "(min--webkit-device-pixel-ratio: 0)"])
+                println(`${dpi} ${query} ${matchMedia(query).matches}`);
+        }
+    });
+</script>

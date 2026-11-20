@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Compat: -webkit-device-pixel-ratio media feature serialization</title>
+<link rel="help" href="https://compat.spec.whatwg.org/#css-media-queries-webkit-device-pixel-ratio">
+<link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-media-query">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<style id="style">
+@media (-webkit-min-device-pixel-ratio: 1) {}
+</style>
+<script>
+const queries = [
+  "(-webkit-device-pixel-ratio: 1)",
+  "(-webkit-min-device-pixel-ratio: 1)",
+  "(-webkit-max-device-pixel-ratio: 2)",
+  "screen and (-webkit-min-device-pixel-ratio: 1.5)",
+];
+
+for (const query of queries) {
+  test(() => {
+    assert_equals(matchMedia(query).media, query);
+  }, `matchMedia("${query}").media`);
+}
+
+test(() => {
+  const rule = document.getElementById("style").sheet.cssRules[0];
+  assert_equals(rule.media.mediaText, "(-webkit-min-device-pixel-ratio: 1)");
+  assert_equals(rule.conditionText, "(-webkit-min-device-pixel-ratio: 1)");
+}, "CSSMediaRule serialization of (-webkit-min-device-pixel-ratio: 1)");
+</script>
