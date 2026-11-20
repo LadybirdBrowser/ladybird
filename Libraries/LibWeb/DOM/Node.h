@@ -450,8 +450,6 @@ public:
         AffectsElements affects_elements { AffectsElements::No };
         // For a removal, the sibling that was before the removed node, if any.
         GC::Ptr<Node> old_previous_sibling {};
-        // For an insertion of several nodes, such as a document fragment's children, the nodes inserted.
-        ReadonlySpan<GC::Ref<Node>> inserted_nodes {};
     };
     // FIXME: It would be good if we could always provide this metadata for use in optimizations.
     virtual void children_changed(ChildrenChangedMetadata const&) { }

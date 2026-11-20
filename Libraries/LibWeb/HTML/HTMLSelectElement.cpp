@@ -7,7 +7,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/AnyOf.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -374,84 +373,15 @@ bool HTMLSelectElement::can_skip_selectedness_update_for_inserted_option(HTMLOpt
     return true;
 }
 
-// Whether node, a child of a select or one just removed from it, holds an option of the select's list of options.
-static bool holds_listed_option(DOM::Node const& node)
-{
-    if (!is<DOM::Element>(node))
-        return false;
-
-    // An optgroup with an ancestor optgroup in between itself and the select.
-    auto is_nested_optgroup = [&node](DOM::Node const& descendant) {
-        if (!is<HTMLOptGroupElement>(descendant) || &descendant == &node)
-            return false;
-        for (auto const* ancestor = descendant.parent(); ancestor; ancestor = ancestor->parent()) {
-            if (is<HTMLOptGroupElement>(*ancestor))
-                return true;
-            if (ancestor == &node)
-                break;
-        }
-        return false;
-    };
-
-    bool found_option = false;
-    node.for_each_in_inclusive_subtree([&](DOM::Node const& descendant) {
-        if (is<HTMLOptionElement>(descendant)) {
-            found_option = true;
-            return TraversalDecision::Break;
-        }
-        // NB: The list of options leaves out the options in these, as the steps that build it skip their descendants.
-        if (is<HTMLSelectElement>(descendant) || is<HTMLHRElement>(descendant) || is<HTMLDataListElement>(descendant) || is_nested_optgroup(descendant))
-            return TraversalDecision::SkipChildrenAndContinue;
-        return TraversalDecision::Continue;
-    });
-    return found_option;
-}
-
-bool HTMLSelectElement::can_skip_children_changed_selectedness_update(ChildrenChangedMetadata const& metadata) const
-{
-    // If the following criteria are met, there is no need to re-run the selectedness algorithm.
-    // NB: The selectedness setting algorithm runs when the list of options gains or loses an option element, so a
-    //     child that can't change the list, such as the text and comments between the options, leaves it alone.
-    switch (metadata.type) {
-    case ChildrenChangedMetadata::Type::Mutation:
-        // The data of a text or comment child changed.
-        return true;
-    case ChildrenChangedMetadata::Type::Inserted:
-        if (auto* option = as_if<HTMLOptionElement>(*metadata.node))
-            return can_skip_selectedness_update_for_inserted_option(*option);
-        // NB: An insertion of several nodes, such as a document fragment's children, names the nodes it inserted.
-        if (!metadata.inserted_nodes.is_empty())
-            return !any_of(metadata.inserted_nodes, [](auto const& node) { return holds_listed_option(*node); });
-        return !holds_listed_option(*metadata.node);
-    case ChildrenChangedMetadata::Type::Removal:
-        return !holds_listed_option(*metadata.node);
-    case ChildrenChangedMetadata::Type::AllChildrenRemoved:
-        return false;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 void HTMLSelectElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 
-    if (can_skip_children_changed_selectedness_update(metadata)) {
-        // A list box still shows a row for the label of each optgroup child, even one with no options.
-        auto changes_optgroup_children = [&] {
-            if (metadata.type != ChildrenChangedMetadata::Type::Inserted && metadata.type != ChildrenChangedMetadata::Type::Removal)
-                return false;
-            if (!metadata.inserted_nodes.is_empty())
-                return any_of(metadata.inserted_nodes, [](auto const& node) { return is<HTMLOptGroupElement>(*node); });
-            return is<HTMLOptGroupElement>(*metadata.node);
-        };
-        if (changes_optgroup_children())
-            list_box_options_did_change();
-        return;
-    }
-
-    update_cached_list_of_options();
-    update_selectedness();
-    list_box_options_did_change();
+    // NB: The insertion, removing and moving steps of each option run the selectedness setting algorithm when the list
+    //     of options gains or loses it, so the select only builds its list box rows again. Those show the label of
+    //     each optgroup child too, even one with no options.
+    if (metadata.type != ChildrenChangedMetadata::Type::Mutation)
+        list_box_options_did_change();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-type
@@ -1256,6 +1186,16 @@ void HTMLSelectElement::update_list_box()
     auto rows = max(display_size(), 1u);
     m_list_box_element->set_attribute_value(HTML::AttributeNames::style, Utf16String::formatted("block-size: {}em; overflow-x: hidden; overflow-y: auto;", rows * list_box_row_height_in_em));
 
+    // NB: The rows are built again whenever the options change, so the anchor and focus of a range selection are kept
+    //     on the options they were on, as long as those still have a row.
+    auto option_at = [&](Optional<size_t> index) -> GC::Ptr<HTMLOptionElement> {
+        if (!index.has_value() || *index >= m_list_box_rows.size())
+            return nullptr;
+        return m_list_box_rows[*index].option;
+    };
+    auto anchor_option = option_at(m_list_box_anchor_index);
+    auto focus_option = option_at(m_list_box_focus_index);
+
     m_list_box_rows.clear();
     m_list_box_anchor_index = {};
     m_list_box_focus_index = {};
@@ -1287,6 +1227,14 @@ void HTMLSelectElement::update_list_box()
             }
         }
     }
+
+    auto index_of = [&](GC::Ptr<HTMLOptionElement> option) -> Optional<size_t> {
+        if (!option)
+            return {};
+        return m_list_box_rows.find_first_index_if([&](auto const& row) { return row.option == option; });
+    };
+    m_list_box_anchor_index = index_of(anchor_option);
+    m_list_box_focus_index = index_of(focus_option);
 }
 
 void HTMLSelectElement::handle_list_box_mousedown(UIEvents::MouseEvent& event)
