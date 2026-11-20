@@ -1,0 +1,12 @@
+auto: 600x300
+height limit: 60x30
+block: 60x30
+width limit: 120x60
+both limits: 40x20
+fixed width: 200x30
+fixed height: 60x30
+width minimum: 120x30
+zero maximum: 0x0
+natural size: 60x30
+border box: 50x30
+vertical writing mode: 60x30

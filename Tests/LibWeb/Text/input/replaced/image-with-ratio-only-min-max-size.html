@@ -1,0 +1,31 @@
+<!doctype html>
+<body>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const outer = document.createElement("div");
+        outer.style.width = "600px";
+        document.body.append(outer);
+        for (const [label, css, dimensions = ""] of [
+            ["auto", ""],
+            ["height limit", "max-height: 30px"],
+            ["block", "display: block; max-height: 30px"],
+            ["width limit", "max-width: 120px"],
+            ["both limits", "max-width: 40px; max-height: 30px"],
+            ["fixed width", "width: 200px; max-height: 30px"],
+            ["fixed height", "height: 100px; max-height: 30px"],
+            ["width minimum", "min-width: 120px; max-height: 30px"],
+            ["zero maximum", "max-height: 0"],
+            ["natural size", "max-height: 30px", "width='200' height='100'"],
+            ["border box", "max-height: 30px; padding: 5px; box-sizing: border-box"],
+            ["vertical writing mode", "max-height: 30px; writing-mode: vertical-rl"],
+        ]) {
+            const img = new Image();
+            img.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1' ${dimensions}/%3E`;
+            await img.decode();
+            img.style.cssText = css;
+            outer.replaceChildren(img);
+            println(`${label}: ${img.offsetWidth}x${img.offsetHeight}`);
+        }
+    });
+</script>
