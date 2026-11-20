@@ -1,0 +1,9 @@
+initial target at viewport top: true
+focus after navigation: BODY
+button kept focus after load: true
+?scroll-away target at viewport top: true
+focus after navigation: BODY
+button kept focus after load: true
+?inner-scroll target at viewport top: true
+focus after navigation: BODY
+button kept focus after load: true
