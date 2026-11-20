@@ -11,6 +11,7 @@ use super::rendered_text::{FfiTextSourceRange, RenderedTextBoundary, ensure_text
 use crate::css::css_enums::{visibility, white_space_collapse};
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::paint_read::PaintRead;
+use std::ffi::c_void;
 use std::ops::Range;
 
 use RenderedTextBoundary::{End, Start};
@@ -403,7 +404,7 @@ impl SearchTextBuilder {
             {
                 self.current.append(&[0x20], start, end);
             }
-            self.current.append(&[unit], start, end);
+            self.current.append(&[fold_quotation_mark(unit)], start, end);
         }
     }
 }
@@ -509,32 +510,81 @@ pub struct FfiDomTextRange {
     pub end_offset: usize,
 }
 
-fn find_text(text: &[u16], query: &[u16], offset: usize, case_sensitive: bool) -> Option<usize> {
-    if case_sensitive {
-        return text
-            .get(offset..)?
-            .windows(query.len())
-            .position(|window| window == query)
-            .map(|index| offset + index);
+fn fold_quotation_mark(unit: u16) -> u16 {
+    match unit {
+        0x05f4 | 0x201c..=0x201f => 0x22,
+        0x05f3 | 0x2018..=0x201b => 0x27,
+        _ => unit,
     }
-    // Match AK::Utf16View's ASCII-only folding and code-point stepping.
-    let end = text.len().checked_sub(query.len())?;
-    let mut index = offset;
-    while index <= end {
-        let candidate = &text[index..index + query.len()];
-        let lowercase = |unit: u16| {
-            if (0x41..=0x5a).contains(&unit) {
-                unit + 0x20
-            } else {
-                unit
+}
+
+unsafe extern "C" {
+    fn unicode_layout_text_searcher_create(needle: *const u16, length: usize, case_sensitive: bool) -> *mut c_void;
+    fn unicode_layout_text_searcher_set_text(searcher: *mut c_void, text: *const u16, length: usize);
+    fn unicode_layout_text_searcher_next_match(searcher: *mut c_void, start: *mut usize, length: *mut usize) -> bool;
+    fn unicode_layout_text_searcher_destroy(searcher: *mut c_void);
+}
+
+#[cfg(test)]
+mod unicode_test_stubs {
+    use std::ffi::c_void;
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_text_searcher_create(
+        _needle: *const u16,
+        _length: usize,
+        _case_sensitive: bool,
+    ) -> *mut c_void {
+        unreachable!("no unit test searches text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_text_searcher_set_text(_searcher: *mut c_void, _text: *const u16, _length: usize) {
+        unreachable!("no unit test searches text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_text_searcher_next_match(
+        _searcher: *mut c_void,
+        _start: *mut usize,
+        _length: *mut usize,
+    ) -> bool {
+        unreachable!("no unit test searches text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_text_searcher_destroy(_searcher: *mut c_void) {
+        unreachable!("no unit test searches text");
+    }
+}
+
+struct TextSearcher(*mut c_void);
+
+impl TextSearcher {
+    fn new(query: &[u16], case_sensitive: bool) -> Self {
+        // SAFETY: The library copies the query during the call.
+        Self(unsafe { unicode_layout_text_searcher_create(query.as_ptr(), query.len(), case_sensitive) })
+    }
+
+    fn matches(&mut self, text: &[u16]) -> Vec<Range<usize>> {
+        let mut matches = Vec::new();
+        let (mut start, mut length) = (0, 0);
+        // SAFETY: The searcher is live and reads the text only during these calls.
+        unsafe {
+            unicode_layout_text_searcher_set_text(self.0, text.as_ptr(), text.len());
+            while unicode_layout_text_searcher_next_match(self.0, &raw mut start, &raw mut length) {
+                matches.push(start..start + length);
             }
-        };
-        if candidate.iter().zip(query).all(|(&a, &b)| lowercase(a) == lowercase(b)) {
-            return Some(index);
         }
-        index += super::text_chunker::code_unit_length_for_code_point(super::text_chunker::code_point_at(candidate, 0));
+        matches
     }
-    None
+}
+
+impl Drop for TextSearcher {
+    fn drop(&mut self) {
+        // SAFETY: The searcher was created by the library and is destroyed once.
+        unsafe { unicode_layout_text_searcher_destroy(self.0) };
+    }
 }
 
 /// Where `query` occurs in the searchable text below `viewport`, which, where it is built for the
@@ -550,18 +600,15 @@ pub(crate) fn find_matching_text(
         return Vec::new();
     }
     ensure_searchable_text(arena, viewport, |text| excluded.binary_search(&text).is_err());
+    let query: Vec<u16> = query.iter().map(|&unit| fold_quotation_mark(unit)).collect();
+    let mut searcher = TextSearcher::new(&query, case_sensitive);
     let mut matches = Vec::new();
     for block in arena.searchable_text.as_ref().expect("search cache was prepared") {
-        let mut offset = 0;
-        while let Some(index) = find_text(&block.text, query, offset, case_sensitive) {
-            if let Some(range) = block.dom_range(arena, index..index + query.len())
+        for found in searcher.matches(&block.text) {
+            if let Some(range) = block.dom_range(arena, found)
                 && matches.last() != Some(&range)
             {
                 matches.push(range);
-            }
-            offset = index + query.len();
-            if offset >= block.text.len() {
-                break;
             }
         }
     }
@@ -720,27 +767,14 @@ mod tests {
     }
 
     #[test]
-    fn search_finds_a_match_that_starts_where_the_previous_match_ends() {
+    fn searchable_text_folds_quotation_marks_without_moving_offsets() {
         let mut arena = LayoutNodeArena::new();
-        let text = node(&mut arena, "foofoo", 0, 6, Vec::new());
+        let source = "\u{201c}don\u{2019}t\u{201d}";
+        let text = node(&mut arena, source, 0, 7, Vec::new());
         let mut builder = SearchTextBuilder::default();
         builder.append(text, &arena.text_content(text).unwrap().text, false);
-        builder.flush();
-        *arena.searchable_text = Some(builder.blocks);
-        let query: Vec<u16> = "foo".encode_utf16().collect();
-        let offsets: Vec<_> = find_matching_text(&mut arena, text, &query, true, &[])
-            .iter()
-            .map(|range| (range.start_offset, range.end_offset))
-            .collect();
-        assert_eq!(offsets, [(0, 3), (3, 6)]);
-    }
-
-    #[test]
-    fn search_retains_case_sensitivity_and_utf16_offsets() {
-        let text: Vec<u16> = "a😀Bc".encode_utf16().collect();
-        let query: Vec<u16> = "😀b".encode_utf16().collect();
-        assert_eq!(find_text(&text, &query, 0, false), Some(1));
-        assert_eq!(find_text(&text, &query, 0, true), None);
-        assert_eq!(find_text(&text, &query, 2, false), None);
+        assert_eq!(String::from_utf16_lossy(&builder.current.text), "\"don't\"");
+        let range = builder.current.dom_range(&arena, 0..7).unwrap();
+        assert_eq!((range.start_offset, range.end_offset), (0, 7));
     }
 }

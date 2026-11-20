@@ -148,7 +148,7 @@ public:
     void set_long_stack_traces_enabled(bool);
     Optional<Vector<String>> complete_console_input(Utf16String const& input);
 
-    void find_in_page(Utf16String const& query, bool highlight_all);
+    void find_in_page(Utf16String const& query, bool highlight_all, bool case_sensitive);
     void find_in_page_next_match();
     void find_in_page_end();
 
