@@ -261,13 +261,7 @@ impl CompileQueue {
         let results_pending = Arc::clone(&self.results_pending);
         self.client.submit(Box::new(move || {
             note_thread_is_active();
-            // NB: Nearly all a compile allocates is gone when it ends, so that goes into the scratch heap. The code it
-            //     leaves outlives it, and is no block of a heap. Only the texts of the debug options are, which are
-            //     gone as soon as the code is installed.
-            let result = {
-                let _scratch = ak::ScratchHeapScope::enter();
-                compile(&snapshot)
-            };
+            let result = compile(&snapshot);
             give_back_snapshot(snapshot);
             // NB: A VM that went away has no use for the result, and the thread goes on with other VMs' jobs.
             if result_sender.send((id, result)).is_ok() {

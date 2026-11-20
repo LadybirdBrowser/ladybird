@@ -30,10 +30,6 @@ void ladybird_dealloc(void*, size_t alignment);
 // Gives the memory the calling thread freed back to the system (see ak_kmalloc_collect()).
 void ladybird_release_unused_allocator_memory();
 
-// See ak_enter_scratch_heap().
-void* ladybird_enter_scratch_heap();
-void ladybird_leave_scratch_heap(void* previous_heap);
-
 // For a thread that frees all of its memory when it ends: while one runs, what the allocator purges goes back to the
 // system right away.
 void ladybird_did_start_short_lived_thread();

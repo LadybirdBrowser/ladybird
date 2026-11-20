@@ -118,8 +118,6 @@ unsafe extern "C" {
     ) -> u8;
     fn ladybird_encode_base64_to_utf16(data: *const u8, length: usize, url: bool, omit_padding: bool) -> usize;
     fn ladybird_release_unused_allocator_memory();
-    fn ladybird_enter_scratch_heap() -> *mut core::ffi::c_void;
-    fn ladybird_leave_scratch_heap(previous_heap: *mut core::ffi::c_void);
     fn ladybird_convert_to_decimal_exponential_form(
         value: f64,
         sign: *mut bool,
@@ -562,30 +560,6 @@ pub fn populate_room_for_write<T>(vector: &mut Vec<T>, additional: usize) {
     }
     #[cfg(not(target_os = "linux"))]
     let _ = (vector, additional);
-}
-
-/// While this lives, what the calling thread allocates goes to a heap of its own. Work that frees
-/// nearly everything it allocates uses it to keep its temporary data out of the pages of what
-/// outlives it. Blocks stay valid after it ends. Scopes end in the reverse order they were entered in.
-/// It holds a pointer so that it stays on its thread.
-pub struct ScratchHeapScope {
-    previous_heap: *mut core::ffi::c_void,
-}
-
-impl ScratchHeapScope {
-    #[must_use = "the scratch heap is only in use while the scope lives"]
-    pub fn enter() -> Self {
-        // SAFETY: Takes no arguments, and any thread may call it.
-        let previous_heap = unsafe { ladybird_enter_scratch_heap() };
-        Self { previous_heap }
-    }
-}
-
-impl Drop for ScratchHeapScope {
-    fn drop(&mut self) {
-        // SAFETY: The heap is the one this thread entered the scratch heap from.
-        unsafe { ladybird_leave_scratch_heap(self.previous_heap) }
-    }
 }
 
 pub fn validate_utf16(string: &[u16]) -> bool {
