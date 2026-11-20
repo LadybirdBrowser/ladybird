@@ -38,6 +38,13 @@ use std::rc::Rc;
 
 const BACKING_STORE_SHRINK_DELAY: Duration = Duration::from_milliseconds(3000);
 const SURPLUS_STORE_RETIREMENT_DELAY: Duration = Duration::from_milliseconds(3000);
+// A tab the user left is likely to stay in the background for long, so once it was hidden for this long, its context
+// keeps only the store that holds its latest frame. The wait keeps a user who switches back and forth between tabs from
+// paying for new stores each time.
+const TIME_HIDDEN_BEFORE_RETIRING_STORES: Duration = Duration::from_milliseconds(10_000);
+// A store that is still rendered into, shown or read when the hidden context retires its stores is retired this much
+// later.
+const HIDDEN_STORE_RETIREMENT_RETRY_DELAY: Duration = Duration::from_milliseconds(3000);
 
 pub trait NestedContexts: CompositedContexts {
     fn frame_generation_of(&self, child_context_id: CompositorContextId) -> Option<u64>;
@@ -142,6 +149,9 @@ pub struct ContextPresenting {
     store_damage: StoreDamage,
     damage_surface: Option<SurfaceHandle>,
     surplus_store_retirement_is_scheduled: bool,
+    // The context was hidden long enough to keep only the store that holds its latest frame, and gets no new stores
+    // until it is shown again.
+    stores_are_retired_while_hidden: bool,
 
     surface_drawn_by_parent: Option<SurfaceHandle>,
     unbounded_raster_scale_of_embedding: FloatSize,
@@ -178,6 +188,7 @@ impl ContextPresenting {
             store_damage: StoreDamage::default(),
             damage_surface: None,
             surplus_store_retirement_is_scheduled: false,
+            stores_are_retired_while_hidden: false,
             surface_drawn_by_parent: None,
             unbounded_raster_scale_of_embedding: FloatSize {
                 width: 1.0,
@@ -326,6 +337,37 @@ impl ContextPresenting {
 
     pub fn surplus_store_retirement_fired(&mut self) {
         self.surplus_store_retirement_is_scheduled = false;
+    }
+
+    pub fn schedule_hidden_store_retirement(&self, context_id: CompositorContextId, host: &Host) {
+        host.set_timer(
+            context_id,
+            ContextTimer::HiddenStoreRetirement,
+            TIME_HIDDEN_BEFORE_RETIRING_STORES,
+        );
+    }
+
+    pub fn retry_hidden_store_retirement(&self, context_id: CompositorContextId, host: &Host) {
+        host.set_timer(
+            context_id,
+            ContextTimer::HiddenStoreRetirement,
+            HIDDEN_STORE_RETIREMENT_RETRY_DELAY,
+        );
+    }
+
+    pub fn stores_are_retired_while_hidden(&self) -> bool {
+        self.stores_are_retired_while_hidden
+    }
+
+    pub fn start_retiring_stores_while_hidden(&mut self) {
+        self.stores_are_retired_while_hidden = true;
+        // The scratch surface of partial repaints is made again for the next one.
+        self.damage_surface = None;
+    }
+
+    /// Answers whether the stores were retired while the context was hidden.
+    pub fn stop_retiring_stores_as_shown(&mut self) -> bool {
+        std::mem::take(&mut self.stores_are_retired_while_hidden)
     }
 
     pub fn did_finish_gpu_present(&mut self, env: &PresentingEnvironment<'_>, bitmap_id: i32, frame_size: IntSize) {

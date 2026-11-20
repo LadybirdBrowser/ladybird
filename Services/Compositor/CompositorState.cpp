@@ -1200,6 +1200,30 @@ bool CompositorState::retire_idle_surplus_stores(Web::CompositorContextId contex
     return backing_stores.has_surplus_backing_stores();
 }
 
+bool CompositorState::retire_stores_of_hidden_context(Web::CompositorContextId context_id, Optional<PresentationId> publishing_presentation)
+{
+    auto& backing_stores = presented_context(context_id).raster_targets.backing_stores();
+    auto retired_bitmap_ids = backing_stores.retire_backing_stores_except_the_latest_rendered();
+    if (auto* presentation = publishing_presentation.has_value() ? presentation_if_present(*publishing_presentation) : nullptr; presentation && !retired_bitmap_ids.is_empty()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} retired backing stores {} while hidden", context_id, retired_bitmap_ids);
+        presentation->did_retire_backing_stores(context_id, move(retired_bitmap_ids));
+    }
+    return backing_stores.has_backing_stores_left_to_retire_while_hidden();
+}
+
+bool CompositorState::restore_stores_retired_while_hidden(Web::CompositorContextId context_id, Optional<PresentationId> publishing_presentation)
+{
+    auto& backing_stores = presented_context(context_id).raster_targets.backing_stores();
+    auto publication = backing_stores.add_backing_stores_up_to_initial_count(m_skia_backend_context);
+    if (!publication.has_value())
+        return false;
+    if (auto* presentation = publishing_presentation.has_value() ? presentation_if_present(*publishing_presentation) : nullptr; presentation && !publication->bitmap_ids.is_empty()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} regained backing stores {} as it was shown", context_id, publication->bitmap_ids);
+        presentation->did_add_backing_stores(context_id, move(publication->bitmap_ids), move(publication->shared_images));
+    }
+    return true;
+}
+
 bool CompositorState::take_registered_image_frames(Web::CompositorContextId context_id, ReadonlySpan<u64> image_frame_ids)
 {
     auto& context = presented_context(context_id);
@@ -1731,6 +1755,8 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .latest_rendered_store_surface = [](void* host, u64 context_id) -> void* { return state_of(host).presented_context(Context { context_id }).raster_targets.backing_stores().latest_rendered_surface().ptr(); },
         .add_store_if_window_server_reads_every_released_store = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).add_store_if_window_server_reads_every_released_store(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
         .retire_idle_surplus_stores = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).retire_idle_surplus_stores(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
+        .retire_stores_of_hidden_context = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).retire_stores_of_hidden_context(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
+        .restore_stores_retired_while_hidden = [](void* host, u64 context_id, bool has_presentation, u64 presentation_id) { return state_of(host).restore_stores_retired_while_hidden(Context { context_id }, presentation_of(has_presentation, presentation_id)); },
         .next_presentable_surface = [](void* host, u64 context_id, u32 pool, Gfx::IntSize size, void* like) -> void* {
             auto& state = state_of(host);
             auto skia_backend_context = like ? painting_surface_of(like).skia_backend_context() : state.m_skia_backend_context;

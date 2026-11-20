@@ -247,6 +247,12 @@ pub struct FfiRasterHost {
         unsafe extern "C" fn(*mut c_void, u64, bool, u64) -> bool,
     /// The same arguments. Answers whether surplus stores are left.
     pub retire_idle_surplus_stores: unsafe extern "C" fn(*mut c_void, u64, bool, u64) -> bool,
+    /// The same arguments. Retires every store but the one that holds the latest frame, and answers whether a store
+    /// is left that can be retired once nothing renders into, shows or reads it.
+    pub retire_stores_of_hidden_context: unsafe extern "C" fn(*mut c_void, u64, bool, u64) -> bool,
+    /// The same arguments. Answers false where the stores could not be added back to the one kept, so that the context
+    /// needs a whole new allocation.
+    pub restore_stores_retired_while_hidden: unsafe extern "C" fn(*mut c_void, u64, bool, u64) -> bool,
 
     /// Arguments: the context, the pool, the size, and a surface the new one is made like. Null where none could be had.
     pub next_presentable_surface: unsafe extern "C" fn(*mut c_void, u64, u32, IntSize, *mut c_void) -> *mut c_void,
@@ -616,6 +622,38 @@ impl RasterHost {
         // SAFETY: The host outlives this.
         unsafe {
             (self.0.retire_idle_surplus_stores)(
+                self.host(),
+                context_id.0,
+                presentation_id.is_some(),
+                presentation_id.unwrap_or_default(),
+            )
+        }
+    }
+
+    pub fn retire_stores_of_hidden_context(
+        &self,
+        context_id: CompositorContextId,
+        presentation_id: Option<u64>,
+    ) -> bool {
+        // SAFETY: The host outlives this.
+        unsafe {
+            (self.0.retire_stores_of_hidden_context)(
+                self.host(),
+                context_id.0,
+                presentation_id.is_some(),
+                presentation_id.unwrap_or_default(),
+            )
+        }
+    }
+
+    pub fn restore_stores_retired_while_hidden(
+        &self,
+        context_id: CompositorContextId,
+        presentation_id: Option<u64>,
+    ) -> bool {
+        // SAFETY: The host outlives this.
+        unsafe {
+            (self.0.restore_stores_retired_while_hidden)(
                 self.host(),
                 context_id.0,
                 presentation_id.is_some(),

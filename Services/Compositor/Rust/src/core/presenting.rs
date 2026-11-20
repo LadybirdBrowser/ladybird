@@ -676,11 +676,19 @@ impl CompositorCore {
         !capabilities.is_some_and(|capabilities| capabilities.cannot_present_gpu_images)
     }
 
-    pub(super) fn resize_backing_stores_if_needed(&self, context_id: CompositorContextId, now: MonotonicTime) {
+    pub(super) fn resize_backing_stores_if_needed(
+        &self,
+        context_id: CompositorContextId,
+        now: MonotonicTime,
+    ) -> StoreResizeOutcome {
         let (Some(context), Some(presenting)) = (self.context_if_present(context_id), self.presenting_of(context_id))
         else {
-            return;
+            return StoreResizeOutcome::Unchanged;
         };
+        // A hidden context renders nothing into its stores, so they are fitted to it once it is shown again.
+        if presenting.borrow().stores_are_retired_while_hidden() {
+            return StoreResizeOutcome::Unchanged;
+        }
         let bound_presentation = context.borrow().bound_presentation();
         let publication = if presenting.borrow().shown_in_remote_layer {
             StorePublication::ShownInRemoteLayer
@@ -705,6 +713,7 @@ impl CompositorCore {
                 self.stop_showing_context_in_remote_layer(context_id, now);
             }
         }
+        outcome
     }
 
     pub(super) fn add_backing_store_for_pending_frame_if_needed(&self, context_id: CompositorContextId) {
@@ -751,6 +760,64 @@ impl CompositorCore {
         {
             presenting.schedule_surplus_store_retirement(context_id, &self.host);
         }
+    }
+
+    pub(super) fn retire_backing_stores_of_hidden_context(&self, context_id: CompositorContextId) {
+        let (Some(context), Some(presenting)) = (self.context_if_present(context_id), self.presenting_of(context_id))
+        else {
+            return;
+        };
+        if context.borrow().visibility() == ContextVisibility::Visible {
+            return;
+        }
+        let bound_presentation = context.borrow().bound_presentation();
+        let mut presenting = presenting.borrow_mut();
+        if !presenting.presents_to_client {
+            return;
+        }
+        presenting.start_retiring_stores_while_hidden();
+        let publishing_presentation = bound_presentation
+            .filter(|_| presenting.store_publication() == StorePublication::Published)
+            .map(|presentation| presentation.0);
+        if self
+            .raster
+            .retire_stores_of_hidden_context(context_id, publishing_presentation)
+        {
+            presenting.retry_hidden_store_retirement(context_id, &self.host);
+        }
+    }
+
+    /// Gives a context that is shown again the stores it retired while it was hidden, before it presents.
+    pub(super) fn restore_backing_stores_retired_while_hidden(
+        &self,
+        context_id: CompositorContextId,
+        now: MonotonicTime,
+    ) {
+        let (Some(context), Some(presenting)) = (self.context_if_present(context_id), self.presenting_of(context_id))
+        else {
+            return;
+        };
+        if !presenting.borrow_mut().stop_retiring_stores_as_shown() {
+            return;
+        }
+        // Stores that no longer fit the context, as its viewport or how it is shown changed while it was hidden, are
+        // allocated anew.
+        if self.resize_backing_stores_if_needed(context_id, now) != StoreResizeOutcome::Unchanged {
+            return;
+        }
+        let bound_presentation = context.borrow().bound_presentation();
+        let publishing_presentation = bound_presentation
+            .filter(|_| presenting.borrow().store_publication() == StorePublication::Published)
+            .map(|presentation| presentation.0);
+        if self
+            .raster
+            .restore_stores_retired_while_hidden(context_id, publishing_presentation)
+        {
+            return;
+        }
+        let environment = self.environment(context_id, now, &NoCompositedContexts);
+        presenting.borrow_mut().invalidate_backing_stores(&environment);
+        self.resize_backing_stores_if_needed(context_id, now);
     }
 
     // A context scrolls elastically, takes presses on scrollbar tracks, and ends touchpad gestures as the presentation of
