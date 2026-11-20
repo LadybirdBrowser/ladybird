@@ -391,6 +391,13 @@ fn matches_ascii_case_insensitive_u16_at<I: Input>(input: I, pos: usize, needle:
 
 #[inline(always)]
 fn fails_required_literal_hint<I: Input>(input: I, start: usize, hints: &PatternHints) -> bool {
+    if hints.starts_with_anchor && !hints.anchor_multiline {
+        return false;
+    }
+    missing_required_literal(input, start, hints)
+}
+
+fn missing_required_literal<I: Input>(input: I, start: usize, hints: &PatternHints) -> bool {
     let Some(literal) = hints.required_literal.as_ref() else {
         return false;
     };
@@ -533,12 +540,8 @@ pub fn execute_anchored_into_with_scratch<I: Input>(
     if fails_trailing_literal_hint(input, hints) {
         return VmResult::NoMatch;
     }
-    if fails_required_literal_hint(input, start_pos, hints) {
-        return VmResult::NoMatch;
-    }
-
     let mut vm = Vm::new(program, input, start_pos, scratch);
-    let result = vm.run();
+    let result = vm.run_at_single_position(hints);
     if result == VmResult::Match {
         copy_captures_to_out(vm.registers, program.capture_count, out);
     }
@@ -573,6 +576,22 @@ pub fn find_all_with_scratch<I: Input>(
     let mut count = 0i32;
     let mut pos = start_pos;
 
+    // Anchored non-multiline: only try the requested start position.
+    if hints.starts_with_anchor && !hints.anchor_multiline {
+        match vm.run_at_single_position(hints) {
+            VmResult::Match => {
+                if capacity >= 2 {
+                    result_buf[0] = vm.registers[0];
+                    result_buf[1] = vm.registers[1];
+                    return 1;
+                }
+                return -1;
+            }
+            VmResult::LimitExceeded | VmResult::Interrupted => return -2,
+            VmResult::NoMatch => return 0,
+        }
+    }
+
     if let Some(ref start_hint) = hints.start_position_hint
         && !program.unicode
     {
@@ -598,23 +617,6 @@ pub fn find_all_with_scratch<I: Input>(
             }
         }
         return count;
-    }
-
-    // Anchored non-multiline: only try the requested start position.
-    if hints.starts_with_anchor && !hints.anchor_multiline {
-        vm.reset(start_pos);
-        match vm.run() {
-            VmResult::Match => {
-                if capacity >= 2 {
-                    result_buf[0] = vm.registers[0];
-                    result_buf[1] = vm.registers[1];
-                    return 1;
-                }
-                return -1;
-            }
-            VmResult::LimitExceeded | VmResult::Interrupted => return -2,
-            VmResult::NoMatch => return 0,
-        }
     }
 
     // Fast path: non-unicode pattern starting with a literal character.
@@ -740,8 +742,7 @@ fn execute_into_impl<I: Input>(
 
     // Anchored non-multiline: only try the requested start position.
     if hints.starts_with_anchor && !hints.anchor_multiline {
-        vm.reset(start_pos);
-        let result = vm.run();
+        let result = vm.run_at_single_position(hints);
         if result == VmResult::Match {
             copy_captures_to_out(vm.registers, program.capture_count, out);
         }
@@ -1529,6 +1530,27 @@ impl<'a, I: Input> Vm<'a, I> {
         self.next_interrupt_poll = self.steps + INTERRUPT_POLL_INTERVAL;
         self.next_checkpoint = self.next_interrupt_poll.min(self.step_limit);
         None
+    }
+
+    fn run_at_single_position(&mut self, hints: &PatternHints) -> VmResult {
+        if hints.required_literal.is_none() {
+            return self.run();
+        }
+
+        // A single pass through the instructions can settle a prefix mismatch without searching the rest of the input.
+        // Keep the literal check for patterns that would otherwise spend their match budget backtracking.
+        let start = self.pos;
+        self.step_limit = self.step_limit.min(self.program.instructions.len() as u64 + 1);
+        self.next_checkpoint = self.next_interrupt_poll.min(self.step_limit);
+        let result = self.run();
+        if result != VmResult::LimitExceeded {
+            return result;
+        }
+        if missing_required_literal(self.input, start, hints) {
+            return VmResult::NoMatch;
+        }
+        self.reset(start);
+        self.run()
     }
 
     fn run(&mut self) -> VmResult {
@@ -3799,4 +3821,38 @@ pub(crate) fn match_unicode_property_resolved(
         return libunicode_rust::character_types::resolved_property_matches(cp, *r);
     }
     match_unicode_property(cp, name, value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Clone, Copy)]
+    struct TemplateText;
+
+    impl Input for TemplateText {
+        fn len(self) -> usize {
+            128
+        }
+
+        fn code_unit(self, pos: usize) -> u16 {
+            assert_eq!(pos, 0, "a mismatch at the start rules out the match");
+            u16::from(b'<')
+        }
+    }
+
+    #[test]
+    fn anchored_mismatch_does_not_search_the_remaining_text() {
+        let mut program = Program::new();
+        program.instructions = vec![
+            Instruction::Save(0),
+            Instruction::AssertStart { multiline: false },
+            Instruction::Char(u32::from(b'M')),
+            Instruction::Char(u32::from(b'!')),
+            Instruction::Save(1),
+            Instruction::Match,
+        ];
+        let hints = analyze_pattern(&program, None);
+        assert!(!fails_required_literal_hint(TemplateText, 0, &hints));
+    }
 }

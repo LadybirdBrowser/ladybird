@@ -449,3 +449,18 @@ test("lookarounds restore state without outer alternatives", () => {
     expect(/^(?=(?i:a))a$/.exec("a")[0]).toBe("a");
     expect(/^(?!(?=(?i:a))b)a$/.exec("a")[0]).toBe("a");
 });
+
+test("captures after repeated groups at a single start position", () => {
+    const text = "ab".repeat(20) + "cdEND";
+    for (const flags of ["", "u", "y"]) {
+        const regexp = new RegExp("^((ab)|(cd))+END", flags);
+        const match = regexp.exec(text);
+        expect(match[0]).toBe(text);
+        expect(match[1]).toBe("cd");
+        expect(match[2]).toBeUndefined();
+        expect(match[3]).toBe("cd");
+        regexp.lastIndex = 0;
+        expect(regexp.exec(text.slice(0, -3))).toBeNull();
+    }
+    expect(text.match(/^((ab)|(cd))+END/g)).toEqual([text]);
+});
