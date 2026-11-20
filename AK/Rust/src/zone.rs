@@ -119,6 +119,7 @@ impl Zone {
     }
 
     /// Gives out `size` bytes at a multiple of `align`, which is a power of two and at most 4096.
+    #[inline]
     fn take(&self, size: usize, align: usize) -> NonNull<u8> {
         // NB: The region starts at a multiple of 4096, so an offset that is aligned is an address that is aligned.
         let start = self.used.get().next_multiple_of(align);
@@ -173,6 +174,7 @@ impl Zone {
     }
 
     /// Room for `len` values of type `T`, with nothing written yet.
+    #[inline]
     pub fn alloc_uninit_slice<T>(&self, len: usize) -> &mut [MaybeUninit<T>] {
         let () = Plain::<T>::CHECK;
         // NB: An empty slice takes no room, so it does not move or align where the next data goes, which could go
@@ -248,6 +250,7 @@ pub struct ZoneVec<'zone, T: 'zone> {
 
 impl<'zone, T> ZoneVec<'zone, T> {
     /// A list with no elements, which takes no memory before it has one.
+    #[inline]
     pub fn new_in(zone: &'zone Zone) -> Self {
         let () = Plain::<T>::CHECK;
         Self {
@@ -260,6 +263,7 @@ impl<'zone, T> ZoneVec<'zone, T> {
     }
 
     /// A list with no elements and room for `capacity` of them.
+    #[inline]
     pub fn with_capacity_in(capacity: usize, zone: &'zone Zone) -> Self {
         let mut list = Self::new_in(zone);
         if capacity != 0 {
@@ -349,6 +353,7 @@ impl<'zone, T> ZoneVec<'zone, T> {
     }
 
     /// Makes room for `additional` more elements.
+    #[inline]
     pub fn reserve(&mut self, additional: usize) {
         if additional > self.capacity() - self.len() {
             self.grow(additional);
@@ -356,6 +361,7 @@ impl<'zone, T> ZoneVec<'zone, T> {
     }
 
     #[cold]
+    #[inline(never)]
     fn grow(&mut self, additional: usize) {
         let needed = self
             .len()
@@ -378,6 +384,7 @@ impl<'zone, T> ZoneVec<'zone, T> {
         self.set_buffer(buffer);
     }
 
+    #[inline]
     pub fn push(&mut self, value: T) {
         if self.len == self.capacity {
             self.grow(1);
@@ -491,23 +498,32 @@ impl<'zone, T> ZoneVec<'zone, T> {
             return;
         }
         self.reserve(len - self.len());
-        while self.len() < len {
+        for index in self.len()..len {
             // SAFETY: reserve() made room for `len` elements, and the place is below that.
-            unsafe { self.first.add(self.len()).write(value.clone()) };
-            self.len += 1;
+            unsafe { self.first.add(index).write(value.clone()) };
         }
+        // NB: A clone that panics leaves the list as it was: the values written so far are plain, so nothing has to
+        //     drop them.
+        self.len = len as u32;
     }
 
+    #[inline]
     pub fn extend_from_slice(&mut self, values: &[T])
     where
         T: Clone,
     {
         self.reserve(values.len());
-        for value in values {
-            // SAFETY: reserve() made room for all of `values`, and the place is in that room.
-            unsafe { self.first.add(self.len()).write(value.clone()) };
-            self.len += 1;
-        }
+        // SAFETY: reserve() made room for all of `values` after the elements of the list. That room is memory that
+        //         the zone gave to this list, which nothing else refers to, and a `MaybeUninit` may hold any bytes.
+        let places = unsafe {
+            crate::slice_from_raw_parts_mut(
+                self.first.add(self.len()).cast::<MaybeUninit<T>>().as_ptr(),
+                values.len(),
+            )
+        };
+        // NB: The length changes one time, after the copy, so that the copy of plain values is one block copy.
+        places.write_clone_of_slice(values);
+        self.len += values.len() as u32;
     }
 
     /// Moves all the elements of `other` to the end of the list.

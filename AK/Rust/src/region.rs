@@ -266,6 +266,9 @@ impl Region {
 
     /// Gives the memory past the first `size` bytes back to the system.
     pub(crate) fn decommit_past(&mut self, size: usize) {
+        if size >= self.committed {
+            return;
+        }
         let kept = size.next_multiple_of(system::page_size());
         if kept >= self.committed {
             return;
