@@ -1,0 +1,13 @@
+Ladybird now counts the layout bounds of the inline boxes around
+the root of a top- or bottom-aligned subtree in the line box, as
+it does those of any other inline box. Blink places each inline
+box in InlineLayoutStateStack, and unites its metrics with the
+line box’s whatever its children are aligned to; only the boxes aligned
+to the line box wait for its final size, as PendingPositions. WebKit
+computes the line box from every inline box in LineBoxVerticalAligner::
+computeLineBoxLogicalHeight(), with the top- and bottom-aligned
+ones handled apart, and Gecko from every span in nsLineLayout::
+VerticalAlignFrames(). Chrome 157.0.8103.79, Firefox 151.0, and
+Playwright’s WebKit 26.5 ran the cases of the test added here, and agree
+on all but one, where Chrome alone places a shifted box differently;
+Ladybird gives what Firefox and WebKit give.
