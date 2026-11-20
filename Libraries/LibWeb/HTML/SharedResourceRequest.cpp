@@ -59,26 +59,28 @@ GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(DOM::Documen
     return get_or_create(document, { request.url(), request.mode(), request.credentials_mode(), request.integrity_metadata(), request.referrer_policy() });
 }
 
-GC::Ref<SharedResourceRequest> SharedResourceRequest::create_from_navigation_response_body(DOM::Document& document, Fetch::Infrastructure::Body const& body, GC::Ref<GC::Function<void()>> on_body_read)
+GC::Ref<SharedResourceRequest> SharedResourceRequest::create_from_image_response_body(DOM::Document& document, URL::URL const& url, Fetch::Infrastructure::Body const& body, bool is_cors_cross_origin, GC::Ptr<GC::Function<void()>> on_body_read)
 {
     using Request = Fetch::Infrastructure::Request;
-    auto request = GC::Heap::the().allocate<SharedResourceRequest>(document.page(), Key { document.url(), Request::Mode::NoCORS, Request::CredentialsMode::Include, {}, ReferrerPolicy::ReferrerPolicy::EmptyString }, document);
+    auto request = GC::Heap::the().allocate<SharedResourceRequest>(document.page(), Key { url, Request::Mode::NoCORS, Request::CredentialsMode::Include, {}, ReferrerPolicy::ReferrerPolicy::EmptyString }, document);
     request->m_can_be_shared = false;
     request->m_state = State::Fetching;
     // NB: The element that presents the image may start to wait for it only after the body has been read.
     request->m_load_event_delayer.emplace(document);
 
     GC::Weak weak_request { *request };
-    auto process_body = GC::create_function(GC::Heap::the(), GC::captures(weak_request, on_body_read), [](auto& weak_request, auto& on_body_read, ByteBuffer data) {
+    auto process_body = GC::create_function(GC::Heap::the(), GC::captures(weak_request, on_body_read, is_cors_cross_origin), [](auto& weak_request, auto& on_body_read, auto is_cors_cross_origin, ByteBuffer data) {
         // NB: A document for an SVG image is an XML document, so this is never an SVG image.
         if (auto request = weak_request.ptr())
-            request->handle_successful_fetch(request->url(), IsSVGImage::No, move(data), false);
-        on_body_read->function()();
+            request->handle_successful_fetch(request->url(), IsSVGImage::No, move(data), is_cors_cross_origin);
+        if (on_body_read)
+            on_body_read->function()();
     });
     auto process_body_error = GC::create_function(GC::Heap::the(), GC::captures(weak_request, on_body_read), [](auto& weak_request, auto& on_body_read, JS::Value) {
         if (auto request = weak_request.ptr())
             request->handle_failed_fetch();
-        on_body_read->function()();
+        if (on_body_read)
+            on_body_read->function()();
     });
 
     auto& realm = HTML::relevant_realm(document);
@@ -400,6 +402,11 @@ void SharedResourceRequest::handle_failed_fetch()
 
 // NB: A stopped fetch never responds, so nothing waits on it anymore, and a later request for the URL
 //     fetches it again.
+void SharedResourceRequest::response_body_fetch_was_stopped()
+{
+    handle_stopped_fetch();
+}
+
 void SharedResourceRequest::handle_stopped_fetch()
 {
     if (m_state != State::Fetching)

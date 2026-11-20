@@ -38,11 +38,15 @@ public:
     [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(DOM::Document&, URL::URL const&, CORSSettingAttribute);
     [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(DOM::Document&, Fetch::Infrastructure::Request const&);
 
-    // Creates a request that loads the resource from the body of the response that the document was navigated to,
+    // Creates a private request that decodes a raster image from the body of a response,
     // instead of fetching it. No fetch checks this resource against the policies of the document, so it is only for
     // the element that presents it, and get_or_create() never returns it.
     // Calls on_body_read once reading the body has ended, whether or not that succeeded.
-    [[nodiscard]] static GC::Ref<SharedResourceRequest> create_from_navigation_response_body(DOM::Document&, Fetch::Infrastructure::Body const&, GC::Ref<GC::Function<void()>> on_body_read);
+    [[nodiscard]] static GC::Ref<SharedResourceRequest> create_from_image_response_body(DOM::Document&, URL::URL const&, Fetch::Infrastructure::Body const&, bool is_cors_cross_origin, GC::Ptr<GC::Function<void()>> on_body_read);
+
+    // Ends a request created from a response body whose fetch was stopped or is no longer wanted, as that body will
+    // never be read to its end. Does nothing once the request has finished.
+    void response_body_fetch_was_stopped();
 
     virtual ~SharedResourceRequest() override;
 

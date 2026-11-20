@@ -26,6 +26,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/DecodedImageData.h>
+#include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/ImageRequest.h>
@@ -608,6 +609,12 @@ void HTMLObjectElement::update_layout_and_child_objects(Representation represent
             object.queue_element_task_to_run_object_representation_steps();
             return IterationDecision::Continue;
         });
+        if (m_representation != Representation::Children) {
+            for_each_in_subtree_of_type<HTMLEmbedElement>([](auto& embed) {
+                embed.ancestor_object_started_showing_fallback_content();
+                return TraversalDecision::Continue;
+            });
+        }
     }
 
     m_representation = representation;
@@ -630,7 +637,7 @@ void HTMLObjectElement::set_natural_size_of_content_document(CSS::SizeWithAspect
 {
     m_natural_size_of_content_document = natural_size;
     CSS::record_element_replaced_content_input(*this);
-    set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLObjectElementContentDocumentResized);
+    set_needs_layout_update(DOM::SetNeedsLayoutReason::EmbeddedDocumentResized);
 }
 
 GC::Ptr<DecodedImageData> HTMLObjectElement::image_data() const

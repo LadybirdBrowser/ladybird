@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLFrameSetElement.h>
 #include <LibWeb/HTML/HTMLHeadingElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -1612,7 +1613,7 @@ static ElementOpenFacts element_open_facts(DOM::Element const& element)
     set(is<SVG::SVGElement>(element), ElementOpenFacts::SvgElement);
     set(is_body || is<HTML::HTMLFrameSetElement>(element), ElementOpenFacts::Body);
     set(is<HTML::HTMLHeadingElement>(element), ElementOpenFacts::Heading);
-    set(is_input || is<HTML::HTMLTextAreaElement>(element) || is<HTML::HTMLImageElement>(element) || is<HTML::HTMLObjectElement>(element) || is<HTML::HTMLVideoElement>(element)
+    set(is_input || is<HTML::HTMLTextAreaElement>(element) || is<HTML::HTMLImageElement>(element) || is<HTML::HTMLObjectElement>(element) || is<HTML::HTMLEmbedElement>(element) || is<HTML::HTMLVideoElement>(element)
             || is<SVG::SVGImageElement>(element) || is<HTML::HTMLCanvasElement>(element),
         ElementOpenFacts::ReplacedContent);
     set(is_input || local_name == HTML::TagNames::bdi, ElementOpenFacts::OwnDirectionality);
@@ -1900,6 +1901,13 @@ static void publish_element_replaced_content_input(DOM::Element& element, StyleE
     }
     if (auto const* image = as_if<HTML::HTMLImageElement>(element)) {
         set_image_natural_size_input(style_engine, node, *image);
+        return;
+    }
+    if (auto const* embed = as_if<HTML::HTMLEmbedElement>(element)) {
+        if (embed->content_navigable())
+            set_natural_size_input(style_engine, node, embed->natural_size_of_content_document());
+        else
+            set_image_natural_size_input(style_engine, node, *embed);
         return;
     }
     if (auto const* object = as_if<HTML::HTMLObjectElement>(element)) {

@@ -209,6 +209,7 @@ enum class InvalidateLayoutTreeReason {
     X(EventHandlerShowContextMenu, false)           \
     X(EventHandlerTargetNodeAtPosition, false)      \
     X(FontFaceSetReady, false)                      \
+    X(HTMLEmbedElement, false)                      \
     X(HTMLElementGetTheTextSteps, false)            \
     X(HTMLElementOffsetHeight, true)                \
     X(HTMLElementOffsetLeft, true)                  \

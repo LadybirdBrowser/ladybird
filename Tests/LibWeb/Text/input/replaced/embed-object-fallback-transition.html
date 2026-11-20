@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<object id="object" data="data:application/x-unsupported,initial">
+    <div><embed id="image" src="../wpt-import/images/green-16x16.png"></div>
+</object>
+<script>
+    promiseTest(async () => {
+        const object = document.getElementById("object");
+        const image = document.getElementById("image");
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        println(`initial fallback: ${image.offsetWidth}x${image.offsetHeight}`);
+
+        for (const source of ["data:application/x-unsupported,fallback", ""]) {
+            const objectLoaded = new Promise(resolve => object.addEventListener("load", resolve, { once: true }));
+            object.data = "../wpt-import/images/blue.png";
+            await objectLoaded;
+            await animationFrame();
+            println(`parent shows image: ${image.getClientRects().length === 0}`);
+            await animationFrame();
+
+            const embedLoaded = new Promise(resolve => image.addEventListener("load", resolve, { once: true }));
+            object.data = source;
+            await embedLoaded;
+            println(`restored fallback: ${image.offsetWidth}x${image.offsetHeight}`);
+        }
+    });
+</script>

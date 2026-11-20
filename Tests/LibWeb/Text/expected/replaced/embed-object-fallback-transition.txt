@@ -1,0 +1,5 @@
+initial fallback: 16x16
+parent shows image: true
+restored fallback: 16x16
+parent shows image: true
+restored fallback: 16x16

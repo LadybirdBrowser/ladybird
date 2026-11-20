@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const url = new URL("../wpt-import/fetch/cross-origin-resource-policy/resources/image.py", location.href);
+        url.searchParams.set("type", "image/png");
+        const embed = document.createElement("embed");
+        document.body.append(embed);
+        for (const policy of ["same-origin", "cross-origin"]) {
+            if (policy === "cross-origin")
+                url.hostname = location.hostname === "localhost" ? "127.0.0.1" : "localhost";
+            url.searchParams.set("corp", policy);
+            const loaded = new Promise(resolve => embed.addEventListener("load", resolve, { once: true }));
+            embed.src = url.href;
+            await loaded;
+            println(`${policy}: ${embed.offsetWidth}x${embed.offsetHeight}`);
+        }
+    });
+</script>

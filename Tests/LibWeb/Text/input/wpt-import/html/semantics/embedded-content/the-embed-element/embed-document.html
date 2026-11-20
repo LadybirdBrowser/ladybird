@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>HTML Test: The embed element represents a document</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<meta name="assert" content="Check if the embed element represents a document when a text/html resource source is used">
+<body>
+  <script type="application/javascript">
+    window.childLoaded = false;
+    async_test(function() {
+      addEventListener("load", this.step_func_done(function() {
+        assert_true(window.childLoaded);
+      }));
+    }, "Test document type embedding");
+  </script>
+  <embed src="embed-iframe.html">
+</body>
