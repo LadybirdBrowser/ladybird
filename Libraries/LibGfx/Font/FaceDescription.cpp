@@ -64,6 +64,24 @@ static Optional<String> read_family(hb_face_t* face)
     return {};
 }
 
+// https://learn.microsoft.com/en-us/typography/opentype/spec/cmap#windows-platform-platform-id--3
+static bool has_windows_symbol_encoding(hb_face_t* face)
+{
+    static constexpr u16 windows_platform_id = 3;
+    static constexpr u16 symbol_encoding_id = 0;
+
+    FontTable cmap { face, FourCC { "cmap" } };
+    if (!cmap.contains(0, 4))
+        return false;
+    size_t record_count = cmap.u16_at(2);
+    for (size_t index = 0; index < record_count && cmap.contains(4 + 8 * index, 4); ++index) {
+        auto record = 4 + 8 * index;
+        if (cmap.u16_at(record) == windows_platform_id && cmap.u16_at(record + 2) == symbol_encoding_id)
+            return true;
+    }
+    return false;
+}
+
 // https://learn.microsoft.com/en-us/typography/opentype/spec/os2#fsselection
 static constexpr u16 italic_selection_bit = 1 << 0;
 static constexpr u16 oblique_selection_bit = 1 << 9;
@@ -142,6 +160,7 @@ FaceDescription FaceDescription::read(hb_face_t* face)
     FaceDescription description;
     if (auto family = read_family(face); family.has_value())
         description.m_family = FlyString { family.release_value() };
+    description.m_is_symbol_font = has_windows_symbol_encoding(face);
     description.m_declared_style = read_declared_style(face);
     description.m_vertical_metrics = read_vertical_metrics(face);
 
