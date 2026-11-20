@@ -16,24 +16,17 @@
 
 // NB: A module with `allow(clippy::disallowed_types)` still uses containers of the heap (see clippy.toml). It loses
 //     the `allow` when its data is in zones.
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod artifact;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod asm;
 pub mod builder;
 pub mod bytecode;
 #[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod code;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod codegen;
 #[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod compile_pool;
 #[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod coverage;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
-pub mod fast_hash;
-#[allow(clippy::disallowed_types, clippy::disallowed_macros)]
-pub mod inline_vec;
 pub mod ir;
 #[allow(clippy::disallowed_types, clippy::disallowed_macros)]
 pub mod options;
@@ -50,6 +43,7 @@ compile_error!("the tests of the JIT run on Windows on x86-64 only");
 
 use ak::Zone;
 use artifact::Artifact;
+use artifact::ArtifactWriter;
 use artifact::Tail;
 use bytecode::OpCode;
 use code::CompiledCode;
@@ -161,12 +155,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
     if !snapshot.is_complete() {
         return Err(CompileFailure::TooLarge);
     }
-    let Scratch {
-        zone,
-        work,
-        steps,
-        tables,
-    } = scratch;
+    let Scratch { zone, work, steps } = scratch;
     // NB: Nothing of the compile before this one is in use (see `Scratch`).
     work.reset();
     let mut graph = {
@@ -210,10 +199,18 @@ fn run_stages<M: asm::PortableMacroAssembler>(
             regalloc::dump_allocation(&graph, &allocation)
         );
     }
-    let mut generated =
-        codegen::generate::<M>(&graph, snapshot, snapshot.options.verify_ir, tables, &allocation, work)?;
+    let mut artifact = ArtifactWriter::new_in(work);
+    let mut generated = codegen::generate::<M>(
+        &graph,
+        snapshot,
+        snapshot.options.verify_ir,
+        &mut artifact,
+        &allocation,
+        &mut compiled.code,
+        work,
+    )?;
     generated.osr_entries.sort_unstable();
-    let layout = tables.artifact.finish(
+    let layout = artifact.finish(
         &Tail {
             osr_entries: &generated.osr_entries,
             osr_loop_back_edges: &graph.osr_loop_back_edges,
@@ -225,7 +222,6 @@ fn run_stages<M: asm::PortableMacroAssembler>(
         },
         &mut compiled.words,
     )?;
-    compiled.code.try_extend_from_slice(&generated.code)?;
 
     let mut dump = None;
     if snapshot.options.dump_ir || snapshot.options.dump_asm || pass_dumps.is_some() {
@@ -240,6 +236,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
                 executable,
                 &snapshot.runtime,
                 M::ARCHITECTURE,
+                &compiled.code,
                 &generated,
                 Artifact::new(&compiled.words, &layout),
             ));

@@ -30,7 +30,7 @@ use crate::ir::NodeId;
 use crate::ir::value;
 use crate::snapshot::RopeAllocationInfo;
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// `ConcatenateStrings`: the concatenation of two strings, or the empty
     /// value, as the key of a property access if `key`. Needs three temps.
     pub(in crate::codegen) fn emit_concatenate_strings(&mut self, node: NodeId, key: bool) {
@@ -189,9 +189,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_pop_free_list(rope.allocator, cell, other, no_free_cell);
         self.emit_count_allocation(rope.cell_size, rope.cell_size, other, false);
 
-        let mut fields = template_fields(&self.snapshot[rope.template], &rope_stored_fields(&rope));
+        let mut fields = self.spare_fields.take();
+        template_fields(&self.snapshot[rope.template], &rope_stored_fields(&rope), &mut fields);
         self.emit_constant_fields(cell, other, &mut fields)
             .expect("rope string fields are near the cell");
+        self.spare_fields = fields;
         self.masm.store32(&string_length(cell), length);
         // NB: The halves are compressed from their string values, whose tag
         //     the 32-bit stores drop.

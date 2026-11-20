@@ -2059,6 +2059,7 @@ dependencies = [
 name = "libwasm_jit"
 version = "0.1.0"
 dependencies = [
+ "ak",
  "fARM64",
  "iced-x86",
  "libc",

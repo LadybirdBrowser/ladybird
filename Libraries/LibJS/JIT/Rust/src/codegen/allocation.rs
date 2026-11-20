@@ -10,7 +10,10 @@
 //! of line when there is no local free cell or the heap wants to collect
 //! garbage.
 
+use ak::ZoneVec;
+
 use super::Codegen;
+use super::RegisterList;
 use super::call::ConstantField;
 use super::slow_path_calls::slow_path_saved_registers;
 use crate::CompileFailure;
@@ -19,6 +22,8 @@ use crate::asm::Condition;
 use crate::asm::Gpr;
 use crate::asm::Label;
 use crate::asm::PortableMacroAssembler;
+use crate::ir::BlockId;
+use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
@@ -44,7 +49,7 @@ pub(super) enum AllocationCall {
 }
 
 /// The out of line part of an allocation: the runtime call.
-pub(super) struct DeferredAllocation {
+pub(super) struct DeferredAllocation<'a> {
     node: NodeId,
     call: AllocationCall,
     entry: Label,
@@ -52,10 +57,10 @@ pub(super) struct DeferredAllocation {
     /// Constants the fast path stores into the new object's inline named
     /// properties for `InitializeNamed` nodes, which emit nothing then, as
     /// (byte offset in the cell, value).
-    constant_fields: Vec<(u32, u64)>,
+    constant_fields: &'a [(u32, u64)],
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// `dst` = the value with tag `tag` of the cell pointer `src`, which is
     /// `src` with what the two differ in flipped: cells are in the heap
     /// region, which is aligned to its size, so a cell pointer is the
@@ -96,7 +101,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             call,
             entry,
             resume,
-            constant_fields: Vec::new(),
+            constant_fields: &[],
         });
         (entry, resume)
     }
@@ -139,52 +144,58 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
         // The template, with the shape, the inline capacity and every inline
         // value undefined. The pointer to the inline storage is stored last.
-        let mut image = self.snapshot[info.template]
-            .iter()
-            .flat_map(|word| word.to_le_bytes())
-            .take(info.plain_inline_storage_offset as usize)
-            .collect::<Vec<u8>>();
-        let shape_offset = info.shape_offset as usize;
-        image[shape_offset..shape_offset + 4].copy_from_slice(&shape.compressed().to_le_bytes());
-        image[info.inline_capacity_offset as usize] =
-            u8::try_from(size_class.inline_capacity).map_err(|_| CompileFailure::CodeGeneration)?;
-        let mut fields: Vec<ConstantField> = (0u32..)
-            .zip(image.as_chunks::<8>().0)
-            .map(|(index, word)| (8 * index, 8, u64::from_le_bytes(*word)))
-            .filter(|(offset, _, _)| *offset != info.named_properties_offset)
-            .collect();
+        let inline_capacity = u8::try_from(size_class.inline_capacity).map_err(|_| CompileFailure::CodeGeneration)?;
+        let mut fields = self.spare_fields.take();
+        fields.clear();
+        let words = info.plain_inline_storage_offset as usize / 8;
+        fields.extend(
+            (0u32..)
+                .zip(&self.snapshot[info.template][..words])
+                .map(|(index, word)| (8 * index, 8, *word)),
+        );
+        set_field_bytes(
+            &mut fields,
+            info.shape_offset as usize,
+            &shape.compressed().to_le_bytes(),
+        );
+        set_field_bytes(&mut fields, info.inline_capacity_offset as usize, &[inline_capacity]);
+        fields.retain(|(offset, _, _)| *offset != info.named_properties_offset);
         // NB: Of several initializations of a property, the last one wins.
         //     If it is a constant, the allocation stores it, and none of
         //     them runs; otherwise they all run.
-        let initialized = self.initializations_without_gc(node);
+        let initialized = initializations_without_gc(self.graph, self.block, node);
         self.inline_initializations
-            .extend(initialized.iter().map(|(_, initialization, _)| *initialization));
-        let last_initialization = |index: u32| initialized.iter().rev().find(|(offset, _, _)| *offset == index);
+            .extend(initialized.clone().map(|(_, initialization, _)| initialization));
+        let last_initialization = |index: u32| initialized.clone().rev().find(|(offset, _, _)| *offset == index);
         for index in 0..size_class.inline_capacity {
             let value = match last_initialization(index) {
                 // NB: Stored right after allocating, before anything could
                 //     look at the object.
                 Some((_, _, None)) => continue,
-                Some((_, _, Some(bits))) => *bits,
+                Some((_, _, Some(bits))) => bits,
                 None => value::UNDEFINED,
             };
             fields.push((info.plain_inline_storage_offset + 8 * index, 8, value));
         }
-        let mut constant_fields = Vec::new();
-        for (offset, initialization, _) in &initialized {
-            let Some((_, last, Some(bits))) = last_initialization(*offset) else {
-                continue;
-            };
-            self.absorbed_initializations.push(*initialization);
-            if last == initialization {
-                constant_fields.push((info.plain_inline_storage_offset + 8 * offset, *bits));
-            }
-        }
+        let is_absorbed = |offset: u32| matches!(last_initialization(offset), Some((_, _, Some(_))));
+        self.absorbed_initializations.extend(
+            initialized
+                .clone()
+                .filter(|(offset, _, _)| is_absorbed(*offset))
+                .map(|(_, initialization, _)| initialization),
+        );
+        let constant_fields =
+            self.work
+                .alloc_slice_from_iter(initialized.clone().filter_map(|(offset, initialization, _)| {
+                    let (_, last, bits) = last_initialization(offset)?;
+                    (last == initialization).then_some((info.plain_inline_storage_offset + 8 * offset, bits?))
+                }));
         self.deferred_allocations
             .last_mut()
             .expect("the allocation's slow path was deferred")
             .constant_fields = constant_fields;
         self.emit_constant_fields(cell, next, &mut fields)?;
+        self.spare_fields = fields;
         self.masm
             .load_effective_address(next, &at(cell, info.plain_inline_storage_offset));
         self.masm.store64(&at(cell, info.named_properties_offset), next);
@@ -196,14 +207,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// Calls the runtime for every allocation node that did not allocate
     /// inline, saving the registers the call clobbers.
     pub(super) fn emit_deferred_allocations(&mut self) {
-        for allocation in std::mem::take(&mut self.deferred_allocations) {
+        for allocation in self.deferred_allocations.take() {
             self.annotate(super::CodeAnnotation::Deferred(allocation.node));
             let output = self.output(allocation.node);
             self.masm.bind(allocation.entry);
             let saved = slow_path_saved_registers::<M>()
                 .without(output)
                 .iter()
-                .collect::<Vec<_>>();
+                .collect::<RegisterList<_>>();
             self.emit_save_registers(&saved);
             let arguments = M::ARGUMENT_GPRS;
             match allocation.call {
@@ -251,7 +262,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                     self.masm.call_absolute(self.runtime.rope_allocation.slow_path);
                 }
             }
-            for (offset, bits) in &allocation.constant_fields {
+            for (offset, bits) in allocation.constant_fields {
                 self.masm.move_imm64(self.pinned.scratch, *bits);
                 self.masm
                     .store64(&Address::new(M::RETURN_GPRS[0], *offset as i32), self.pinned.scratch);
@@ -265,38 +276,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             self.emit_restore_registers(&saved, None);
             self.masm.jump(allocation.resume);
         }
-    }
-
-    /// The `InitializeNamed` nodes right after the `AllocateObject` `node`
-    /// in its block, before anything that could collect garbage or look at
-    /// the object (a call, an allocation or an exit): their offsets, and
-    /// their values if they are constants.
-    fn initializations_without_gc(&self, node: NodeId) -> Vec<(u32, NodeId, Option<u64>)> {
-        let body = &self.graph.block(self.block).body;
-        let position = body
-            .iter()
-            .position(|id| *id == node)
-            .expect("the node is in the block");
-        let mut initialized = Vec::new();
-        for id in &body[position + 1..] {
-            let next = self.graph.node(*id);
-            match next.op {
-                Op::InitializeNamed { offset } if next.inputs[0] == node => {
-                    initialized.push((offset, *id, self.graph.constant_value(next.inputs[1])));
-                }
-                _ => {
-                    let properties = next.op.properties();
-                    if properties.is_call
-                        || properties.allocates
-                        || next.op.can_eager_exit()
-                        || properties.can_lazy_exit
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-        initialized
     }
 
     /// Stores into a named property of an object being initialized, which
@@ -487,32 +466,40 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         );
 
         // The array, with its packed elements if it has any.
-        let mut image = self.snapshot[info.template]
-            .iter()
-            .flat_map(|word| word.to_le_bytes())
-            .collect::<Vec<u8>>();
+        let mut fields = self.spare_fields.take();
+        fields.clear();
+        fields.extend(
+            (0u32..)
+                .zip(&self.snapshot[info.template])
+                .map(|(index, word)| (8 * index, 8, *word)),
+        );
         if count != 0 {
-            image[layout.object_indexed_storage_kind as usize] = layout.indexed_storage_kind_packed;
-            let size = layout.object_indexed_array_like_size as usize;
-            image[size..size + 4].copy_from_slice(&count.to_le_bytes());
+            set_field_bytes(
+                &mut fields,
+                layout.object_indexed_storage_kind as usize,
+                &[layout.indexed_storage_kind_packed],
+            );
+            set_field_bytes(
+                &mut fields,
+                layout.object_indexed_array_like_size as usize,
+                &count.to_le_bytes(),
+            );
         }
-        let mut fields: Vec<ConstantField> = (0u32..)
-            .zip(image.as_chunks::<8>().0)
-            .map(|(index, word)| (8 * index, 8, u64::from_le_bytes(*word)))
-            .filter(|(offset, _, _)| {
-                *offset != objects.named_properties_offset && (count == 0 || *offset != layout.object_indexed_elements)
-            })
-            .collect();
+        fields.retain(|(offset, _, _)| {
+            *offset != objects.named_properties_offset && (count == 0 || *offset != layout.object_indexed_elements)
+        });
         self.emit_constant_fields(array, temp, &mut fields)?;
         self.masm
             .load_effective_address(temp, &at(array, objects.inline_storage_offset));
         self.masm.store64(&at(array, objects.named_properties_offset), temp);
 
         if let Some(size_class) = storage_size_class {
-            let mut fields: Vec<ConstantField> = (0u32..)
-                .zip(&self.snapshot[info.storage_template])
-                .map(|(index, word)| (8 * index, 8, *word))
-                .collect();
+            fields.clear();
+            fields.extend(
+                (0u32..)
+                    .zip(&self.snapshot[info.storage_template])
+                    .map(|(index, word)| (8 * index, 8, *word)),
+            );
             for index in 0..size_class.capacity {
                 let element = if index < count { value::UNDEFINED } else { value::EMPTY };
                 fields.push((info.storage_values_offset + 8 * index, 8, element));
@@ -524,6 +511,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 .load_effective_address(temp, &at(storage, info.storage_values_offset));
             self.masm.store64(&at(array, layout.object_indexed_elements), temp);
         }
+        self.spare_fields = fields;
         self.box_object(array);
         self.masm.bind(resume);
         Ok(())
@@ -578,8 +566,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_pop_free_list(template.allocator, environment, temp, entry);
         self.emit_count_allocation(template.cell_size, template.cell_size, temp, false);
 
-        let mut fields = template_fields(&self.snapshot[template.words], &stored);
+        let mut fields = self.spare_fields.take();
+        template_fields(&self.snapshot[template.words], &stored, &mut fields);
         self.emit_constant_fields(environment, temp, &mut fields)?;
+        self.spare_fields = fields;
         if template.inline_binding_values {
             self.masm
                 .load_effective_address(temp, &Address::new(environment, super::checked_i32(template_bytes)?));
@@ -649,8 +639,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_pop_free_list(info.allocator, function, temp, entry);
         self.emit_count_allocation(info.cell_size, info.cell_size, temp, false);
 
-        let mut fields = template_fields(&self.snapshot[closure.words], &stored);
+        let mut fields = self.spare_fields.take();
+        template_fields(&self.snapshot[closure.words], &stored, &mut fields);
         self.emit_constant_fields(function, temp, &mut fields)?;
+        self.spare_fields = fields;
         self.masm
             .load_effective_address(temp, &at(function, objects.inline_storage_offset));
         self.masm.store64(&at(function, objects.named_properties_offset), temp);
@@ -665,6 +657,55 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     }
 }
 
+/// The `InitializeNamed` nodes right after the `AllocateObject` `node` in
+/// `block`, before anything that could collect garbage or look at the object
+/// (a call, an allocation or an exit): their offsets, and their values if
+/// they are constants.
+fn initializations_without_gc<'g>(
+    graph: &'g Graph<'g>,
+    block: BlockId,
+    node: NodeId,
+) -> impl DoubleEndedIterator<Item = (u32, NodeId, Option<u64>)> + Clone + 'g {
+    let body = &graph.block(block).body;
+    let position = body
+        .iter()
+        .position(|id| *id == node)
+        .expect("the node is in the block");
+    let initialization = move |id: NodeId| {
+        let next = graph.node(id);
+        match next.op {
+            Op::InitializeNamed { offset } if next.inputs[0] == node => {
+                Some((offset, id, graph.constant_value(next.inputs[1])))
+            }
+            _ => None,
+        }
+    };
+    let rest = &body[position + 1..];
+    let end = rest
+        .iter()
+        .position(|id| {
+            let properties = graph.node(*id).op.properties();
+            initialization(*id).is_none()
+                && (properties.is_call
+                    || properties.allocates
+                    || graph.node(*id).op.can_eager_exit()
+                    || properties.can_lazy_exit)
+        })
+        .unwrap_or(rest.len());
+    rest[..end].iter().filter_map(move |id| initialization(*id))
+}
+
+/// Writes `bytes` at byte `offset` of the cell whose words `fields` hold, one
+/// field of 8 bytes for each word from the first on.
+fn set_field_bytes(fields: &mut [ConstantField], offset: usize, bytes: &[u8]) {
+    for (index, byte) in bytes.iter().enumerate() {
+        let at = offset + index;
+        let shift = 8 * (at % 8);
+        let word = &mut fields[at / 8].2;
+        *word = (*word & !(0xff << shift)) | (u64::from(*byte) << shift);
+    }
+}
+
 /// Whether the fields at `stored` (offsets and sizes of 4 or 8 bytes), which
 /// allocation stores itself, are aligned to their sizes and within the first
 /// `template_bytes` bytes of a cell.
@@ -674,16 +715,16 @@ pub(super) fn stored_fields_fit(stored: &[(u32, u32)], template_bytes: u64) -> b
     })
 }
 
-/// The constant fields of a cell image `words` without the fields at
-/// `stored` (see `stored_fields_fit()`): whole words, and the halves of the
-/// words that share theirs with a 4-byte stored field.
-pub(super) fn template_fields(words: &[u64], stored: &[(u32, u32)]) -> Vec<ConstantField> {
+/// Makes `fields` the constant fields of a cell image `words` without the
+/// fields at `stored` (see `stored_fields_fit()`): whole words, and the
+/// halves of the words that share theirs with a 4-byte stored field.
+pub(super) fn template_fields(words: &[u64], stored: &[(u32, u32)], fields: &mut ZoneVec<'_, ConstantField>) {
     let is_stored = |offset: u32, size: u32| {
         stored
             .iter()
             .any(|&(start, length)| start < offset + size && offset < start + length)
     };
-    let mut fields = Vec::with_capacity(words.len());
+    fields.clear();
     for (offset, word) in (0u32..).step_by(8).zip(words) {
         if !is_stored(offset, 8) {
             fields.push((offset, 8, *word));
@@ -695,5 +736,4 @@ pub(super) fn template_fields(words: &[u64], stored: &[(u32, u32)]) -> Vec<Const
             }
         }
     }
-    fields
 }

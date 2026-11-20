@@ -589,7 +589,7 @@ fn slow_path_record(opcode: crate::bytecode::OpCode, on_values: bool) -> Record 
     }
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// Temp `index` of `node`, which its lowering declares (see `LoweringInfo::temps`). Lowerings take every temp
     /// they declare through this, even on paths that do not use it, so that the declarations can be checked.
     pub(super) fn temp(&self, node: NodeId, index: usize) -> Gpr {
@@ -611,13 +611,19 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// Checks that the lowering of every node took exactly the temps it declares, and that only nodes that declare
     /// it used the saves area, whose size depends on that.
     pub(super) fn verify_lowerings(&self) -> Result<(), String> {
-        let mut errors = Vec::new();
+        let mut errors = String::new();
+        let mut report = |error: String| {
+            if !errors.is_empty() {
+                errors.push('\n');
+            }
+            errors.push_str(&error);
+        };
         for block in 0..self.graph.blocks.len() {
             for node in self.graph.block_nodes(BlockId::from_index(block)) {
                 let declared = lowering_info(self.graph.node(node)).temps;
                 let requested = self.requested_temps[node.index()].get();
                 if requested != declared {
-                    errors.push(format!(
+                    report(format!(
                         "v{} ({}) takes {requested} temps, but declares {declared}",
                         node.0,
                         self.graph.node(node).op.name()
@@ -625,19 +631,18 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 }
             }
         }
-        let mut undeclared = self.undeclared_saves_area_uses.borrow().clone();
-        undeclared.dedup();
-        for node in undeclared {
-            errors.push(format!(
+        let mut previous = None;
+        for node in self.undeclared_saves_area_uses.borrow().iter().copied() {
+            if previous == Some(node) {
+                continue;
+            }
+            previous = Some(node);
+            report(format!(
                 "v{} ({}) uses the saves area, but does not declare it",
                 node.0,
                 self.graph.node(node).op.name()
             ));
         }
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(errors.join("\n"))
-        }
+        if errors.is_empty() { Ok(()) } else { Err(errors) }
     }
 }

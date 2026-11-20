@@ -148,7 +148,7 @@ pub struct CodeGenerator<'a> {
     func: &'a Func,
     allocation: &'a Allocation,
     runtime: &'a RuntimeInfo,
-    asm: Assembler,
+    asm: Assembler<'a>,
     block_labels: Vec<Label>,
     trap_labels: Vec<Option<Label>>,
     /// The trap with the code in x0, for the runtime's functions that return one.
@@ -162,13 +162,18 @@ pub struct CodeGenerator<'a> {
 }
 
 impl<'a> CodeGenerator<'a> {
-    pub fn new(func: &'a Func, allocation: &'a Allocation, runtime: &'a RuntimeInfo) -> Self {
+    pub fn new(
+        func: &'a Func,
+        allocation: &'a Allocation,
+        runtime: &'a RuntimeInfo,
+        memory: &'a mut crate::CodeMemory,
+    ) -> Self {
         let size = convention::FRAME_HEADER_SIZE as u32 + 8 * allocation.slot_count + allocation.outgoing_size;
         Self {
             func,
             allocation,
             runtime,
-            asm: Assembler::new(),
+            asm: Assembler::new(&mut memory.code, &memory.work),
             block_labels: Vec::new(),
             trap_labels: vec![None; 32],
             dynamic_trap: None,
@@ -217,7 +222,11 @@ impl<'a> CodeGenerator<'a> {
             }
         }
         self.out_of_line();
-        let code = self.asm.finish().map_err(|_| crate::CompileFailure::CodeGeneration)?;
+        let code = self
+            .asm
+            .finish()
+            .map_err(|_| crate::CompileFailure::CodeGeneration)?
+            .to_vec();
         Ok(Generated {
             code,
             frame_size: self.frame_size,
@@ -782,7 +791,8 @@ pub fn generate(
     allocation: &Allocation,
     runtime: &RuntimeInfo,
     _stack_limit: u64,
+    memory: &mut crate::CodeMemory,
 ) -> Result<Generated, crate::CompileFailure> {
     let _ = (NONE, Shift::Lsl);
-    CodeGenerator::new(func, allocation, runtime).generate()
+    CodeGenerator::new(func, allocation, runtime, memory).generate()
 }

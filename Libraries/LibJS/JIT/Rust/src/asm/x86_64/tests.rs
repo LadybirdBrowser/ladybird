@@ -21,9 +21,10 @@ fn indexed(register: Gpr, index: Gpr, scale: Scale, displacement: i32) -> Addres
 }
 
 fn bytes(emit: impl FnOnce(&mut Assembler)) -> Vec<u8> {
-    let mut assembler = Assembler::new();
+    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+    let mut assembler = Assembler::new(&mut code, &work);
     emit(&mut assembler);
-    assembler.finish().unwrap()
+    assembler.finish().unwrap().to_vec()
 }
 
 #[test]
@@ -346,14 +347,17 @@ fn branches_stay_within_32_byte_windows() {
 
 #[test]
 fn short_forward_branch_out_of_range_fails() {
-    let mut assembler = Assembler::new();
+    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+    let mut assembler = Assembler::new(&mut code, &work);
     let label = assembler.new_label();
     assembler.jmp_short(label);
     assembler.nops(127);
     assembler.bind(label);
     assert!(assembler.finish().is_ok());
 
-    let mut assembler = Assembler::new();
+    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+
+    let mut assembler = Assembler::new(&mut code, &work);
     let label = assembler.new_label();
     assembler.jcc_short(Cond::Equal, label);
     assembler.nops(128);
@@ -363,7 +367,8 @@ fn short_forward_branch_out_of_range_fails() {
 
 #[test]
 fn unbound_label_fails() {
-    let mut assembler = Assembler::new();
+    let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+    let mut assembler = Assembler::new(&mut code, &work);
     let label = assembler.new_label();
     assembler.jmp(label);
     assert_eq!(assembler.finish(), Err(AsmError::UnboundLabel));
@@ -455,7 +460,8 @@ mod macro_assembler {
 
     #[test]
     fn compares_move_with_the_branches_they_fuse_with() {
-        let mut masm = MacroAssembler::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut masm = MacroAssembler::new(&mut code, &work);
         let label = masm.new_label();
         masm.assembler.nops(26);
         masm.branch32_imm(Condition::Equal, RAX, 1000, label);
@@ -543,7 +549,7 @@ mod macro_assembler {
 
     #[test]
     fn register_sets_are_consistent() {
-        type M = MacroAssembler;
+        type M = MacroAssembler<'static>;
         assert!(M::ALLOCATABLE_GPRS.intersection(M::SCRATCH_GPRS).is_empty());
         assert!(M::ALLOCATABLE_FPRS.intersection(M::SCRATCH_FPRS).is_empty());
         assert!(!M::ALLOCATABLE_GPRS.contains(M::STACK_POINTER));

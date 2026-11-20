@@ -25,7 +25,10 @@
 //! interpreter's `Call` fast path builds for raw native functions, and lets
 //! the runtime unwind the frame if the function throws.
 
+use ak::ZoneVec;
+
 use super::Codegen;
+use super::RegisterList;
 use crate::CompileFailure;
 use crate::asm::Address;
 use crate::asm::Condition;
@@ -40,7 +43,6 @@ use crate::bytecode::THIS_VALUE_REGISTER;
 use crate::code::INLINED_CALL_SITE_BIT;
 use crate::code::JitStatus;
 use crate::code::SiteKind;
-use crate::inline_vec::InlineVec;
 use crate::ir::AccessorPart;
 use crate::ir::NodeId;
 use crate::ir::Op;
@@ -67,7 +69,7 @@ pub const DIRECT_CALL_TEMPS: u8 = 3;
 
 /// Where a call finds one of its operands.
 #[derive(Debug, Clone, Copy)]
-enum CallOperand {
+pub(super) enum CallOperand {
     /// The frame slot of a bytecode operand.
     Slot(crate::bytecode::Operand),
     /// A register: an input of the call's node, or a value loaded already.
@@ -88,11 +90,11 @@ struct JsCall<'a> {
     arguments: &'a [Operand],
     /// The registers of the operands, for a `CallDirect` node that has them
     /// as inputs.
-    input_registers: Option<Vec<Gpr>>,
+    input_registers: Option<RegisterList<Gpr>>,
     site: Option<InlinedCallSite>,
     callee_operand: CallOperand,
     this_operand: CallOperand,
-    argument_operands: Vec<CallOperand>,
+    argument_operands: ZoneVec<'a, CallOperand>,
     /// The registers a direct call builds the callee's frame with.
     callee_frame: Gpr,
     temp: Gpr,
@@ -150,7 +152,7 @@ struct FrameHeaderConstants {
     returns_to_native_caller: bool,
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     fn boxed_object(&self, cell: CellId) -> u64 {
         (u64::from(value::OBJECT_TAG) << 48) | (cell.0 & self.runtime.heap_region_offset_mask)
     }
@@ -189,9 +191,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             })
             .ok_or(invalid("direct call without a target"))?;
         if self.stores_operands(node) {
-            let mut operands = Vec::new();
+            let mut operands = self.spare_operands.take();
+            operands.clear();
             crate::builder::js_call_operands(decoded.instruction).for_each_input(|operand| operands.push(operand));
             self.emit_store_operand_inputs(node, &operands, registers)?;
+            self.spare_operands = operands;
         }
         self.emit_js_call(executable, pc, Some((target, node)), None)
     }
@@ -287,16 +291,19 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 });
             }
         };
-        let arguments = arguments.iter().copied().map(CallOperand::Slot).collect::<Vec<_>>();
+        let mut operands = self.spare_call_operands.take();
+        operands.clear();
+        operands.extend(arguments.iter().copied().map(CallOperand::Slot));
         self.emit_call_stub_call(
             callee,
             new_target,
-            &arguments,
+            &operands,
             pc,
             next_pc,
             dst.raw(),
             self.runtime.construct_stub,
         )?;
+        self.spare_call_operands = operands;
         self.emit_continuation_check(next_pc, &[]);
         Ok(())
     }
@@ -357,58 +364,51 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .map(|(_, node)| {
                 (0..self.graph.node(node).inputs.len())
                     .map(|index| self.input(node, index))
-                    .collect::<Vec<_>>()
+                    .collect::<RegisterList<_>>()
             })
             .filter(|inputs| !inputs.is_empty());
         let site = match target {
             Some((_, node)) => self.inlined_call_site(node),
             None => None,
         };
-        let (callee_operand, this_operand, argument_operands, [callee_frame, temp, aux]) =
-            match (&input_registers, target) {
-                (Some(inputs), Some((_, node))) => {
-                    // NB: Calls take `this` even where their target does not
-                    //     read it, for their slow paths.
-                    let this_operand = CallOperand::Register(inputs[1]);
-                    let argument_operands = inputs[2..]
-                        .iter()
-                        .map(|register| CallOperand::Register(*register))
-                        .collect::<Vec<_>>();
-                    if argument_operands.len() != arguments.len() {
-                        return Err(invalid("direct call with the wrong number of inputs"));
+        let mut argument_operands = self.spare_call_operands.take();
+        argument_operands.clear();
+        let (callee_operand, this_operand, [callee_frame, temp, aux]) = match (&input_registers, target) {
+            (Some(inputs), Some((_, node))) => {
+                // NB: Calls take `this` even where their target does not
+                //     read it, for their slow paths.
+                let this_operand = CallOperand::Register(inputs[1]);
+                argument_operands.extend(inputs[2..].iter().map(|register| CallOperand::Register(*register)));
+                if argument_operands.len() != arguments.len() {
+                    return Err(invalid("direct call with the wrong number of inputs"));
+                }
+                let temps = [self.temp(node, 0), self.temp(node, 1), self.temp(node, 2)];
+                (CallOperand::Register(inputs[0]), this_operand, temps)
+            }
+            _ => {
+                // What the called function gets: the `this` value and the
+                // arguments, which `Function.prototype.call` takes from its
+                // own arguments.
+                let this_operand = match call_function {
+                    Some(_) => {
+                        argument_operands.extend(arguments.iter().skip(1).map(|operand| CallOperand::Slot(*operand)));
+                        arguments
+                            .first()
+                            .map_or(CallOperand::Undefined, |operand| CallOperand::Slot(*operand))
                     }
-                    let temps = [self.temp(node, 0), self.temp(node, 1), self.temp(node, 2)];
-                    (CallOperand::Register(inputs[0]), this_operand, argument_operands, temps)
-                }
-                _ => {
-                    // What the called function gets: the `this` value and the
-                    // arguments, which `Function.prototype.call` takes from its
-                    // own arguments.
-                    let (this_operand, argument_operands) = match call_function {
-                        Some(_) => (
-                            arguments
-                                .first()
-                                .map_or(CallOperand::Undefined, |operand| CallOperand::Slot(*operand)),
-                            arguments
-                                .iter()
-                                .skip(1)
-                                .map(|operand| CallOperand::Slot(*operand))
-                                .collect(),
-                        ),
-                        None => (
-                            CallOperand::Slot(this_value),
-                            arguments.iter().map(|operand| CallOperand::Slot(*operand)).collect(),
-                        ),
-                    };
-                    // NB: The callee is loaded into the second register.
-                    (
-                        CallOperand::Register(registers[2]),
-                        this_operand,
-                        argument_operands,
-                        [registers[1], registers[2], registers[4]],
-                    )
-                }
-            };
+                    None => {
+                        argument_operands.extend(arguments.iter().map(|operand| CallOperand::Slot(*operand)));
+                        CallOperand::Slot(this_value)
+                    }
+                };
+                // NB: The callee is loaded into the second register.
+                (
+                    CallOperand::Register(registers[2]),
+                    this_operand,
+                    [registers[1], registers[2], registers[4]],
+                )
+            }
+        };
         let argument_count = u32::try_from(argument_operands.len()).map_err(|_| invalid("too many arguments"))?;
         let slow = self.masm.new_label();
         let dynamic_call = if runtime.dynamic_calls.call_stub != 0 {
@@ -457,12 +457,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
 
         let Some((target, target_node)) = target else {
-            return self.emit_js_call_fallbacks(&call, None);
+            let result = self.emit_js_call_fallbacks(&call, None);
+            self.spare_call_operands = call.argument_operands;
+            return result;
         };
         self.emit_direct_call_frame(&call, target, target_node)?;
         let returned = self.emit_direct_call_entry(&call, target, target_node)?;
         self.emit_js_call_fallbacks(&call, Some(target_node))?;
         self.masm.bind(returned);
+        self.spare_call_operands = call.argument_operands;
         Ok(())
     }
 
@@ -632,12 +635,17 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             dst: dst.raw(),
             returns_to_native_caller: true,
         };
-        let mut constants = self.frame_header_constants(&FrameHeaderConstants {
-            passed_argument_count: header.passed_argument_count,
-            return_pc: header.return_pc,
-            dst: header.dst,
-            returns_to_native_caller: header.returns_to_native_caller,
-        });
+        let mut constants = self.spare_fields.take();
+        constants.clear();
+        self.frame_header_constants(
+            &FrameHeaderConstants {
+                passed_argument_count: header.passed_argument_count,
+                return_pc: header.return_pc,
+                dst: header.dst,
+                returns_to_native_caller: header.returns_to_native_caller,
+            },
+            &mut constants,
+        );
         let fields = target.function_fields;
         constants.extend([
             (offsets.execution_context_function, 8, function.function.0),
@@ -670,22 +678,19 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         for index in argument_count..formal_count {
             constants.push((slot(arguments_base + index), 8, value::UNDEFINED));
         }
-        let mut overwritten = vec![offsets.execution_context_caller_frame];
-        if function.uses_this {
-            overwritten.extend([offsets.execution_context_this_value, slot(THIS_VALUE_REGISTER)]);
-        }
-        if environment.is_some() || target.closures {
-            overwritten.extend([
-                offsets.execution_context_lexical_environment,
-                offsets.execution_context_variable_environment,
-            ]);
-        }
-        if target.closures {
-            overwritten.extend([
-                offsets.execution_context_function,
-                offsets.execution_context_private_environment,
-            ]);
-        }
+        let environments = environment.is_some() || target.closures;
+        let overwritten = [
+            Some(offsets.execution_context_caller_frame),
+            function.uses_this.then_some(offsets.execution_context_this_value),
+            function.uses_this.then_some(slot(THIS_VALUE_REGISTER)),
+            environments.then_some(offsets.execution_context_lexical_environment),
+            environments.then_some(offsets.execution_context_variable_environment),
+            target.closures.then_some(offsets.execution_context_function),
+            target.closures.then_some(offsets.execution_context_private_environment),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<RegisterList<u32>>();
         self.emit_constant_fields_with_vector(
             callee_frame,
             temp,
@@ -693,6 +698,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Some(M::ARGUMENT_FPRS[0]),
             &overwritten,
         )?;
+        self.spare_fields = constants;
         self.masm.store64(&field(offsets.execution_context_caller_frame), frame);
         if site.is_some() {
             self.emit_store_inlined_call_frame_pointer(&field(offsets.execution_context_caller_dst_raw));
@@ -831,22 +837,23 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let (slow, check, done, dynamic_call) = (call.slow, call.check, call.done, call.dynamic_call);
         // The generic call, which the call stub also falls back to, reads
         // its operands from the frame.
-        let operand_slots = [(callee, callee_operand), (this_value, this_operand)]
-            .into_iter()
-            .chain(arguments.iter().copied().zip(argument_operands.iter().copied()))
-            .filter_map(|(operand, source)| match source {
-                CallOperand::Register(register) if input_registers.is_some() => Some((operand, register)),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+        let operand_slots = || {
+            [(callee, callee_operand), (this_value, this_operand)]
+                .into_iter()
+                .chain(arguments.iter().copied().zip(argument_operands.iter().copied()))
+                .filter_map(|(operand, source)| match source {
+                    CallOperand::Register(register) if input_registers.is_some() => Some((operand, register)),
+                    _ => None,
+                })
+        };
         let store_operands = |codegen: &mut Self| -> Result<(), CompileFailure> {
-            for (operand, register) in &operand_slots {
+            for (operand, register) in operand_slots() {
                 let address = codegen.slot_address(operand.raw())?;
-                codegen.masm.store64(&address, *register);
+                codegen.masm.store64(&address, register);
             }
             Ok(())
         };
-        let inputs = input_registers.clone().unwrap_or_default();
+        let inputs = input_registers.unwrap_or_default();
         if call_stub != 0 {
             // The call stub makes every other call.
             self.masm.bind(dynamic_call);
@@ -898,15 +905,19 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             _ => return None,
         };
         let frame_state = self.graph.node(node).frame_state.expect("calls have a frame state");
-        let chain = self.graph.frame_state_chain(frame_state).collect::<Vec<_>>();
-        let outer = *chain.last().expect("a frame state chain has a frame state");
+        let depth = self.graph.frame_state_chain(frame_state).count() - 1;
+        let outer = self
+            .graph
+            .frame_state_chain(frame_state)
+            .last()
+            .expect("a frame state chain has a frame state");
         let index = u32::try_from(self.sites.len()).expect("site count fits in u32");
         self.sites.push((node, SiteKind::Call));
         Some(InlinedCallSite {
             index,
             outer_pc: self.graph.frame_state(outer).pc,
             frame_bytes,
-            depth: chain.len() - 1,
+            depth,
         })
     }
 
@@ -987,16 +998,20 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_pop_free_list(template.allocator, cell, temp, no_room);
         self.emit_count_allocation(template.cell_size, template.cell_size, temp, false);
 
-        let mut overwritten = vec![template.binding_values_offset];
-        if template.binds_this {
-            overwritten.push(template.this_value_offset);
-        }
-        let mut fields: Vec<ConstantField> = (0u32..)
-            .zip(&self.snapshot[template.words])
-            .map(|(index, word)| (8 * index, 8, *word))
-            .filter(|(offset, _, _)| !overwritten.contains(offset))
-            .collect();
+        let overwritten = [
+            Some(template.binding_values_offset),
+            template.binds_this.then_some(template.this_value_offset),
+        ];
+        let mut fields = self.spare_fields.take();
+        fields.clear();
+        fields.extend(
+            (0u32..)
+                .zip(&self.snapshot[template.words])
+                .map(|(index, word)| (8 * index, 8, *word))
+                .filter(|(offset, _, _)| !overwritten.contains(&Some(*offset))),
+        );
         self.emit_constant_fields_with_vector(cell, temp, &mut fields, Some(M::ARGUMENT_FPRS[0]), &[])?;
+        self.spare_fields = fields;
         if template.inline_binding_values {
             self.masm
                 .load_effective_address(temp, &Address::new(cell, super::checked_i32(template_bytes)?));
@@ -1130,8 +1145,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let invalid = |reason| CompileFailure::InvalidBytecode { pc, reason };
         let snapshot = &self.snapshot.executables[executable as usize];
         let decoded = self.decoded(executable, pc)?;
-        let mut stored_operands = Vec::new();
-        crate::builder::js_call_operands(decoded.instruction).for_each_input(|operand| stored_operands.push(operand));
         let next_pc = decoded.next_pc();
         let Instruction::Call {
             call_feedback,
@@ -1153,36 +1166,37 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let registers = M::ARGUMENT_GPRS;
 
         if self.stores_operands(node) {
+            let mut stored_operands = self.spare_operands.take();
+            stored_operands.clear();
+            crate::builder::js_call_operands(decoded.instruction)
+                .for_each_input(|operand| stored_operands.push(operand));
             self.emit_store_operand_inputs(node, &stored_operands, input_registers)?;
+            self.spare_operands = stored_operands;
         }
         let inputs = if self.stores_operands(node) {
-            Vec::new()
+            RegisterList::new()
         } else {
             (0..self.graph.node(node).inputs.len())
                 .map(|index| self.input(node, index))
-                .collect::<Vec<_>>()
+                .collect::<RegisterList<_>>()
         };
-        let (callee_operand, this_operand, argument_operands, temps) = if inputs.is_empty() {
+        let mut argument_operands = self.spare_call_operands.take();
+        argument_operands.clear();
+        let (callee_operand, this_operand, temps) = if inputs.is_empty() {
+            argument_operands.extend(arguments.iter().map(|operand| CallOperand::Slot(*operand)));
             (
                 CallOperand::Slot(callee),
                 CallOperand::Slot(this_value),
-                arguments
-                    .iter()
-                    .map(|operand| CallOperand::Slot(*operand))
-                    .collect::<Vec<_>>(),
                 [registers[1], registers[2], registers[3]],
             )
         } else {
             if inputs.len() != 2 + arguments.len() {
                 return Err(invalid("native call with the wrong number of inputs"));
             }
+            argument_operands.extend(inputs[2..].iter().map(|register| CallOperand::Register(*register)));
             (
                 CallOperand::Register(inputs[0]),
                 CallOperand::Register(inputs[1]),
-                inputs[2..]
-                    .iter()
-                    .map(|register| CallOperand::Register(*register))
-                    .collect(),
                 [self.temp(node, 0), self.temp(node, 1), self.temp(node, 2)],
             )
         };
@@ -1226,6 +1240,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Some(slow),
             [check, done],
         )?;
+        self.spare_call_operands = argument_operands;
 
         // The generic call reads its operands from the frame.
         self.masm.bind(slow);
@@ -1262,12 +1277,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let invalid = |reason| CompileFailure::InvalidBytecode { pc, reason };
         let decoded = self.decoded(0, pc)?;
         let next_pc = decoded.next_pc();
-        let (dst, arguments) = match (part, decoded.instruction) {
+        let (dst, argument) = match (part, decoded.instruction) {
             (AccessorPart::Getter, Instruction::GetById { dst, .. } | Instruction::GetLength { dst, .. }) => {
-                (Some(dst), Vec::new())
+                (Some(dst), None)
             }
             (AccessorPart::Setter, Instruction::PutById { .. }) => {
-                (None, vec![CallOperand::Register(self.input(node, 1))])
+                (None, Some(CallOperand::Register(self.input(node, 1))))
             }
             _ => return Err(invalid("native accessor call of another instruction")),
         };
@@ -1290,7 +1305,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_native_frame_call(
             target,
             this_operand,
-            &arguments,
+            argument.as_slice(),
             next_pc,
             None,
             None,
@@ -1464,7 +1479,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         // NB: Frames get their id when the debugger first needs it.
         self.masm.store_imm64(&field(offsets.execution_context_frame_id), 0);
         self.masm.store64(&field(offsets.execution_context_caller_frame), frame);
-        let mut constants = self.new_frame_constants(false);
+        let mut constants = self.spare_fields.take();
+        constants.clear();
+        constants.extend(self.new_frame_constants(false));
         constants.extend([
             (offsets.execution_context_script_or_module, 8, 0),
             (offsets.execution_context_executable, 8, 0),
@@ -1489,6 +1506,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         constants.push((offsets.execution_context_function, 8, target.function.0));
         constants.push((offsets.execution_context_realm, 8, target.realm.0));
         self.emit_constant_fields(native_frame, temp, &mut constants)?;
+        self.spare_fields = constants;
         if site.is_some() {
             self.emit_store_inlined_call_frame_pointer(&field(offsets.execution_context_caller_dst_raw));
         }
@@ -1553,7 +1571,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// Stores the header fields of a new frame at `new_frame` (allocated on
     /// the interpreter stack) that come from the function object and the VM,
     /// linked to the running frame like the interpreter's inline calls do,
-    /// and returns the constant ones for `emit_constant_fields()`. Its `this`
+    /// and adds the constant ones to `constants`, for `emit_constant_fields()`. Its `this`
     /// value and slots are left to the caller. Clobbers `function_register`
     /// and `temp`. The fields come from snapshot executable `executable`,
     /// the entry of the frame's own function: closures that share one
@@ -1565,12 +1583,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         function_register: Gpr,
         temp: Gpr,
         header: &FrameHeader,
-    ) -> Vec<ConstantField> {
+        constants: &mut ZoneVec<'_, ConstantField>,
+    ) {
         let offsets = self.runtime.offsets;
         let snapshot = &self.snapshot.executables[executable as usize];
         let function_fields = snapshot.function_fields;
         let builtin = snapshot.builtin;
-        let mut constants = Vec::new();
         if builtin {
             // NB: Frames of builtins written in JavaScript have the
             //     environments of their caller, the running frame, and no
@@ -1616,20 +1634,22 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             self.masm.move_imm64(function_register, header.function.function.0);
             self.emit_function_fields(new_frame, function_register, temp);
         }
-        constants.extend(self.frame_header_field_constants(header));
-        constants
+        self.frame_header_field_constants(header, constants);
     }
 
-    /// The constant fields of a new frame that do not depend on its
-    /// function object, apart from its realm.
-    fn frame_header_field_constants(&self, header: &FrameHeader) -> Vec<ConstantField> {
+    /// Adds to `constants` the constant fields of a new frame that do not
+    /// depend on its function object, apart from its realm.
+    fn frame_header_field_constants(&self, header: &FrameHeader, constants: &mut ZoneVec<'_, ConstantField>) {
         let offsets = self.runtime.offsets;
-        let mut constants = self.frame_header_constants(&FrameHeaderConstants {
-            passed_argument_count: header.passed_argument_count,
-            return_pc: header.return_pc,
-            dst: header.dst,
-            returns_to_native_caller: header.returns_to_native_caller,
-        });
+        self.frame_header_constants(
+            &FrameHeaderConstants {
+                passed_argument_count: header.passed_argument_count,
+                return_pc: header.return_pc,
+                dst: header.dst,
+                returns_to_native_caller: header.returns_to_native_caller,
+            },
+            constants,
+        );
         constants.extend([
             (offsets.execution_context_realm, 8, header.function.realm.0),
             (offsets.execution_context_executable, 8, header.executable.0),
@@ -1640,7 +1660,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 u64::from(header.argument_count),
             ),
         ]);
-        constants
     }
 
     /// Stores the fields of a new frame that come from its function (whose
@@ -1679,9 +1698,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// not initialized, and whether its caller waits for it in native code
     /// (and so runs it in JIT code until the runtime finishes it, see
     /// `finish_direct_call`).
-    pub(super) fn new_frame_constants(&self, returns_to_native_caller: bool) -> Vec<ConstantField> {
+    pub(super) fn new_frame_constants(&self, returns_to_native_caller: bool) -> [ConstantField; 11] {
         let offsets = self.runtime.offsets;
-        vec![
+        [
             (offsets.execution_context_program_counter, 4, 0),
             (offsets.execution_context_skip_when_determining_incumbent_counter, 4, 0),
             (
@@ -1708,10 +1727,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         ]
     }
 
-    /// The constant fields of a new frame that do not depend on its function.
-    fn frame_header_constants(&self, header: &FrameHeaderConstants) -> Vec<ConstantField> {
+    /// Adds to `constants` the constant fields of a new frame that do not depend on its function.
+    fn frame_header_constants(&self, header: &FrameHeaderConstants, constants: &mut ZoneVec<'_, ConstantField>) {
         let offsets = self.runtime.offsets;
-        let mut constants = self.new_frame_constants(header.returns_to_native_caller);
+        constants.extend(self.new_frame_constants(header.returns_to_native_caller));
         constants.extend([
             (
                 offsets.execution_context_passed_argument_count,
@@ -1725,7 +1744,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             ),
             (offsets.execution_context_caller_dst_raw, 4, u64::from(header.dst)),
         ]);
-        constants
     }
 
     /// Materializes the frame of an inlined call of the
@@ -1782,16 +1800,18 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             dst,
             returns_to_native_caller: false,
         };
-        let mut constants = match closure {
+        let mut constants = self.spare_fields.take();
+        constants.clear();
+        match closure {
             Some(closure) => {
                 self.emit_function_fields(new_frame, closure, temp);
-                self.frame_header_field_constants(&header)
+                self.frame_header_field_constants(&header, &mut constants);
             }
-            None => self.emit_frame_header(executable, new_frame, function_register, temp, &header),
-        };
+            None => self.emit_frame_header(executable, new_frame, function_register, temp, &header, &mut constants),
+        }
         if let Some(new_target) = construct_new_target {
             let new_target = self.boxed_object(new_target);
-            for field in &mut constants {
+            for field in &mut *constants {
                 if field.0 == offsets.execution_context_caller_is_construct {
                     field.2 = 1;
                 } else if field.0 == offsets.execution_context_new_target {
@@ -1818,6 +1838,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             constants.push((slot(arguments_base + index), 8, value::UNDEFINED));
         }
         self.emit_constant_fields(new_frame, temp, &mut constants)?;
+        self.spare_fields = constants;
         self.masm
             .store64(&vm_field(offsets.vm_running_execution_context), new_frame);
         // Frame slots now address the new frame.
@@ -1872,9 +1893,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let mut held = None;
         let mut held_vector = None;
         let mut next_field = 0;
+        let mut bytes = self.spare_bytes.take();
         while next_field < fields.len() {
             let start = fields[next_field].0;
-            let mut bytes = InlineVec::<u8, 128>::new();
+            bytes.clear();
             while let Some(&(offset, size, bits)) = fields.get(next_field) {
                 if start + bytes.len() as u32 != offset {
                     break;
@@ -1955,6 +1977,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 index += size;
             }
         }
+        self.spare_bytes = bytes;
         Ok(())
     }
 }

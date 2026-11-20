@@ -18,7 +18,7 @@ use crate::asm::PortableMacroAssembler;
 use crate::asm::Scale;
 use crate::ir::NodeId;
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// Jumps to `yes` if the property iterator cache `keys` still holds the
     /// keys of the object `receiver`: the cache has a fast path, the
     /// receiver has the shape (and for dictionaries, its generation) the

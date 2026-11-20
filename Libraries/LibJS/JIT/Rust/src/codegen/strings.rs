@@ -19,7 +19,7 @@ use crate::ir::NodeId;
 use crate::ir::TypeofKind;
 use crate::ir::value;
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// `StringsEqual`: strings with the same bits are equal. Others are not
     /// if both are interned (two interned strings are equal only if they are
     /// the same string, like the interpreter's `string_compare`) or if their

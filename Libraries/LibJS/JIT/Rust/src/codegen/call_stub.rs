@@ -26,8 +26,13 @@
 //! returns a slow path control word: a continuation at the next pc once the
 //! result is in the destination slot, or what the runtime returned.
 
+use ak::Column;
+use ak::ZoneVec;
+
 use super::Codegen;
 use super::Locals;
+use super::STUB_CODE_LIMIT;
+use super::STUB_ZONE_LIMIT;
 use super::target_registers;
 use crate::CompileFailure;
 use crate::asm::Address;
@@ -48,6 +53,8 @@ use crate::regalloc::Allocation;
 use crate::snapshot::COMPRESSED_POINTER_SHIFT;
 use crate::snapshot::RuntimeInfo;
 use crate::snapshot::Snapshot;
+use ak::ZoneMap;
+use ak::ZoneSet;
 
 /// Where the stub keeps its inputs and what must survive calls into the
 /// runtime and the callee, relative to the stack pointer.
@@ -70,7 +77,9 @@ mod local {
 
 /// Generates the call stub, or nothing if the runtime lacks a helper it
 /// needs (then JIT code makes those calls through `RuntimeInfo::jit_call`).
-pub fn generate_call_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo) -> Result<Option<Vec<u8>>, CompileFailure> {
+pub fn generate_call_stub<M: PortableMacroAssembler>(
+    runtime: &RuntimeInfo,
+) -> Result<Option<Column<u8>>, CompileFailure> {
     let layout = runtime.dynamic_calls;
     if layout.object_flag_is_ecmascript_function == 0 || runtime.jit_call == 0 || runtime.finish_direct_call == 0 {
         return Ok(None);
@@ -83,7 +92,7 @@ pub fn generate_call_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo) -> R
 /// constructs through `RuntimeInfo::jit_call`).
 pub fn generate_construct_stub<M: PortableMacroAssembler>(
     runtime: &RuntimeInfo,
-) -> Result<Option<Vec<u8>>, CompileFailure> {
+) -> Result<Option<Column<u8>>, CompileFailure> {
     let layout = runtime.dynamic_calls;
     if layout.object_flag_is_ecmascript_function == 0
         || layout.jit_entry_table == 0
@@ -100,67 +109,79 @@ pub fn generate_construct_stub<M: PortableMacroAssembler>(
 
 /// Generates the code of the call stub, or with `construct` of the construct
 /// stub (see `Codegen::emit_call_stub()`).
-fn generate_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo, construct: bool) -> Result<Vec<u8>, CompileFailure> {
-    // NB: A stub has no graph to build: the graph stays empty, so its zone gives out nothing and takes no memory.
-    let zone = ak::Zone::new(0, c"JIT stub graph");
+fn generate_stub<M: PortableMacroAssembler>(
+    runtime: &RuntimeInfo,
+    construct: bool,
+) -> Result<Column<u8>, CompileFailure> {
+    // NB: A stub has no graph to build: the graph stays empty. The zone holds the lists of the code generator.
+    let zone = ak::Zone::new(STUB_ZONE_LIMIT, c"JIT stub");
     let graph = Graph::new_in(&zone);
     let allocation = Allocation::new_in(&zone);
     // NB: A stub is code for no executable. It reads no list of the runtime info.
     let snapshot = Snapshot::new();
     let (_, pinned) = target_registers::<M>();
-    let mut masm = M::new();
+    let mut code = Column::new(STUB_CODE_LIMIT, c"JIT stub code");
+    let mut masm = M::new(&mut code, &zone);
     let exit_stub = masm.new_label();
     let resume = masm.new_label();
     let exit_interpreter = masm.new_label();
-    let mut codegen = Codegen {
-        masm,
-        graph: &graph,
-        allocation: &allocation,
-        snapshot: &snapshot,
-        work: &zone,
-        runtime,
-        stress: crate::snapshot::StressOptions::default(),
-        pinned,
-        frame: M::frame(GprSet::EMPTY, FprSet::EMPTY, local::SIZE),
-        locals: Locals::default(),
-        gpr_dump_count: 0,
-        fpr_dump_count: 0,
-        block_labels: Vec::new(),
-        landing_blocks: Vec::new(),
-        exit_stub,
-        resume,
-        entry_resume: resume,
-        entry_overflow: resume,
-        exit_interpreter,
-        sites: Vec::new(),
-        exit_site_stubs: Vec::new(),
-        annotations: Vec::new(),
-        block: BlockId(0),
-        deferred_cache_probes: Vec::new(),
-        deferred_vm_cache_probes: Vec::new(),
-        leave_arguments: Vec::new(),
-        leave_stubs: Vec::new(),
-        leave_frame: None,
-        leave_tail: exit_stub,
-        frame_initialization_stub: None,
-        slow_path_values: None,
-        invalidation_points: Vec::new(),
-        fused_probe_failure: None,
-        deferred_allocations: Vec::new(),
-        deferred_storage_growths: Vec::new(),
-        absorbed_initializations: Vec::new(),
-        inline_initializations: Default::default(),
-        // NB: The stub lowers no nodes.
-        verify: false,
-        emitting: None,
-        requested_temps: Vec::new(),
-        undeclared_saves_area_uses: Default::default(),
-    };
-    codegen.emit_call_stub(construct)?;
-    let (code, _) = codegen
-        .masm
-        .finish_with_data_offset()
-        .map_err(|_| CompileFailure::CodeGeneration)?;
+    {
+        let mut codegen = Codegen::<M> {
+            masm,
+            graph: &graph,
+            allocation: &allocation,
+            snapshot: &snapshot,
+            work: &zone,
+            decoded_instructions: ZoneMap::new_in(&zone),
+            runtime,
+            stress: crate::snapshot::StressOptions::default(),
+            pinned,
+            frame: M::frame(GprSet::EMPTY, FprSet::EMPTY, local::SIZE),
+            locals: Locals::default(),
+            gpr_dump_count: 0,
+            fpr_dump_count: 0,
+            block_labels: &[],
+            landing_blocks: &[],
+            exit_stub,
+            resume,
+            entry_resume: resume,
+            entry_overflow: resume,
+            exit_interpreter,
+            sites: ZoneVec::new_in(&zone),
+            exit_site_stubs: ZoneVec::new_in(&zone),
+            annotations: ZoneVec::new_in(&zone),
+            block: BlockId(0),
+            deferred_cache_probes: ZoneVec::new_in(&zone),
+            deferred_vm_cache_probes: ZoneVec::new_in(&zone),
+            leave_arguments: ZoneVec::new_in(&zone),
+            leave_stubs: ZoneVec::new_in(&zone),
+            leave_frame: None,
+            leave_tail: exit_stub,
+            frame_initialization_stub: None,
+            slow_path_values: None,
+            input_of_operand: ZoneMap::new_in(&zone),
+            slow_path_ssa_outputs: ZoneVec::new_in(&zone),
+            spare_operands: ZoneVec::new_in(&zone),
+            spare_outputs: ZoneVec::new_in(&zone),
+            spare_call_operands: ZoneVec::new_in(&zone),
+            spare_fields: ZoneVec::new_in(&zone),
+            spare_frame_values: ZoneVec::new_in(&zone),
+            spare_bytes: ZoneVec::new_in(&zone),
+            invalidation_points: ZoneVec::new_in(&zone),
+            fused_probe_failure: None,
+            deferred_allocations: ZoneVec::new_in(&zone),
+            deferred_storage_growths: ZoneVec::new_in(&zone),
+            absorbed_initializations: ZoneVec::new_in(&zone),
+            inline_initializations: ZoneSet::new_in(&zone),
+            // NB: The stub lowers no nodes.
+            verify: false,
+            emitting: None,
+            requested_temps: &[],
+            undeclared_saves_area_uses: std::cell::RefCell::new(ZoneVec::new_in(&zone)),
+        };
+        codegen.emit_call_stub(construct)?;
+        codegen.masm.finish().map_err(super::assembly_failure)?;
+    }
     Ok(code)
 }
 
@@ -175,7 +196,7 @@ struct StubCallEnvironmentRegisters {
     cell: Gpr,
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// Allocates the function environment of a call of the callee inline from
     /// its shared data's call environment template (see
     /// `DynamicCallLayout::shared_data_call_environment_template`), and keeps
@@ -634,11 +655,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .store64(&field(offsets.execution_context_this_value), receiver);
         self.masm.store64(&field(slot(THIS_VALUE_REGISTER)), receiver);
-        let mut constants = self.emit_stub_call_site_fields(callee_frame, scratch, true);
+        let mut constants = self.spare_fields.take();
+        constants.clear();
+        constants.extend(self.emit_stub_call_site_fields(callee_frame, scratch, true));
         for register in (0..RESERVED_REGISTER_COUNT).filter(|register| *register != THIS_VALUE_REGISTER) {
             constants.push((slot(register), 8, value::EMPTY));
         }
         self.emit_constant_fields_with_vector(callee_frame, scratch, &mut constants, Some(M::ARGUMENT_FPRS[0]), &[])?;
+        self.spare_fields = constants;
         if construct {
             // The frame of a constructor has its new target, and that of a
             // derived constructor its this value, empty until super() binds
@@ -913,7 +937,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         new_frame: crate::asm::Gpr,
         temp: crate::asm::Gpr,
         ecmascript: bool,
-    ) -> Vec<super::call::ConstantField> {
+    ) -> [super::call::ConstantField; 11] {
         let offsets = self.runtime.offsets;
         let field = |offset: u32| Address::new(new_frame, offset as i32);
         let argument_count_local = self.stub_local(local::ARGUMENT_COUNT);
@@ -1060,12 +1084,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.store32(&field(offsets.execution_context_slot_count), count);
         self.masm
             .store32(&field(offsets.execution_context_argument_count), count);
-        let mut constants = self.emit_stub_call_site_fields(native_frame, temp, false);
+        let mut constants = self.spare_fields.take();
+        constants.clear();
+        constants.extend(self.emit_stub_call_site_fields(native_frame, temp, false));
         constants.extend([
             (offsets.execution_context_script_or_module, 8, 0),
             (offsets.execution_context_executable, 8, 0),
         ]);
         self.emit_constant_fields_with_vector(native_frame, temp, &mut constants, Some(M::ARGUMENT_FPRS[0]), &[])?;
+        self.spare_fields = constants;
         self.masm.load_effective_address(
             other,
             &Address::new(native_frame, offsets.execution_context_slots as i32),

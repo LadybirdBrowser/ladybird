@@ -17,13 +17,15 @@ pub mod x86_64;
 
 pub use buffer::AsmError;
 pub use buffer::Label;
+pub use macro_assembler::JumpPatch;
 pub use macro_assembler::MachineFrame;
 pub use macro_assembler::PortableMacroAssembler;
 
+// NB: The macro assembler of a target, at any lifetime, stands for the target (see `PortableMacroAssembler::In`).
 #[cfg(target_arch = "aarch64")]
-pub type MacroAssembler = aarch64::MacroAssembler;
+pub type MacroAssembler = aarch64::MacroAssembler<'static>;
 #[cfg(target_arch = "x86_64")]
-pub type MacroAssembler = x86_64::MacroAssembler;
+pub type MacroAssembler = x86_64::MacroAssembler<'static>;
 
 pub mod disassembler;
 #[cfg(all(test, target_arch = "x86_64"))]
@@ -32,6 +34,18 @@ pub(crate) mod executable_code;
 mod execution_tests;
 #[cfg(test)]
 mod tests;
+
+/// A column for the code that a test assembles.
+#[cfg(test)]
+pub(crate) fn test_code() -> ak::Column<u8> {
+    ak::Column::new(1 << 24, c"test code")
+}
+
+/// A zone for the labels and the fixups of an assembler in a test.
+#[cfg(test)]
+pub(crate) fn test_work() -> ak::Zone {
+    ak::Zone::new(1 << 30, c"test")
+}
 
 /// The instruction set an assembler emits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,7 +59,7 @@ pub enum Architecture {
 /// On AArch64, encoding 31 means either the stack pointer or the zero register
 /// depending on the instruction; the encoders document which. In the
 /// `MacroAssembler` layer it always means the stack pointer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct Gpr(pub u8);
 
 /// A floating point / vector register, by its hardware encoding.

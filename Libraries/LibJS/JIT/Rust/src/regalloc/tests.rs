@@ -693,8 +693,9 @@ fn exits_find_constants_registers_and_spilled_values() {
     let graph = build_with_layout(&program, test_layout(), &[2]);
     let allocation = allocate_and_verify(&graph);
     let exit = find_node(&graph, |node| matches!(node.op, Op::Exit { .. }));
-    let mut scratch = crate::scratch::Scratch::new();
-    scratch.tables.sites.begin(&graph).unwrap();
+    let work = crate::test_work();
+    let mut sites = crate::codegen::sites::SiteScratch::new_in(&graph, &work).unwrap();
+    let mut artifact = crate::artifact::ArtifactWriter::new_in(&work);
     SiteSource {
         graph: &graph,
         allocation: &allocation,
@@ -704,10 +705,10 @@ fn exits_find_constants_registers_and_spilled_values() {
         saves: &[],
         work: crate::test_zone(),
     }
-    .write(&mut scratch.tables.sites, &mut scratch.tables.artifact)
+    .write(&mut sites, &mut artifact)
     .unwrap();
     let mut words = ak::Column::new(crate::artifact::MAX_WORDS, c"test");
-    let layout = scratch.tables.artifact.finish(&Tail::default(), &mut words).unwrap();
+    let layout = artifact.finish(&Tail::default(), &mut words).unwrap();
     let artifact = Artifact::new(&words, &layout);
     let argument = find_node(&graph, |node| node.op == Op::LoadSlot { slot: a(0).raw() });
     let Some(Location::Register(argument_register)) = allocation.node(argument).output else {

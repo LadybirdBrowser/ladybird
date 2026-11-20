@@ -22,7 +22,7 @@ use crate::ir::value;
 /// `Codegen::lowering_fpr()`).
 pub const LOWERING_FPRS: usize = 3;
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// Floating point register `index` (below `LOWERING_FPRS`), which
     /// lowerings may clobber: the register allocator puts no values there.
     pub(super) fn lowering_fpr(index: usize) -> Fpr {

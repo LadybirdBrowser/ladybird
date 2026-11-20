@@ -118,7 +118,7 @@ impl VectorArrangement {
     }
 }
 
-impl Assembler {
+impl Assembler<'_> {
     /// Makes sure that the next `size` bytes of code go in one piece, without a veneer pool between them.
     pub fn reserve_room(&mut self, size: usize) {
         self.reserve(size);
@@ -485,7 +485,8 @@ mod tests {
     /// SP moves in one instruction even where the immediate takes two.
     #[test]
     fn moves_sp_in_one_instruction() {
-        let mut asm = Assembler::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut asm = Assembler::new(&mut code, &work);
         asm.add_any(SP, Gpr(29), -0x12345, X17); // sub x17, x29, #0x12, lsl #12; sub x17, x17, #0x345; mov sp, x17
         asm.add_any(X1, X2, 0x12345, X17); // add x1, x2, #0x12, lsl #12; add x1, x1, #0x345
         let code = asm.finish().unwrap();
@@ -499,7 +500,8 @@ mod tests {
     /// The encodings llvm-mc gives these instructions (`llvm-mc -triple=aarch64 -mattr=+lse,+neon,+rdm`).
     #[test]
     fn encodes_like_llvm_mc() {
-        let mut asm = Assembler::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut asm = Assembler::new(&mut code, &work);
         asm.clz(Width::W32, X1, X2); // clz w1, w2
         asm.rbit(Width::W64, X3, X4); // rbit x3, x4
         asm.ror_imm(Width::W64, X5, X6, 13); // ror x5, x6, #13

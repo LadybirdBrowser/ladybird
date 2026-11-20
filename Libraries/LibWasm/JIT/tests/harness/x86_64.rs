@@ -19,14 +19,15 @@ const VMOVUPS_STORE: VexOpcode = VexOpcode::new(VexPrefix::None, VexMap::Map0F, 
 
 /// The trap exit, entered with the trap code in edi: returns 1 from the trampoline.
 pub(super) fn trap_exit_code(state: *mut SessionState) -> Vec<u8> {
-    let mut asm = Assembler::for_host();
+    let mut memory = libwasm_jit::CodeMemory::new();
+    let mut asm = Assembler::for_host(&mut memory.code, &memory.work);
     let rax = Gpr(convention::RAX);
     let sp = Gpr(convention::RSP);
     asm.mov_ri(rax, state as u64);
     asm.mov_mr(Width::W32, &Address::new(rax, TRAP_OFFSET), Gpr(convention::RDI));
     asm.mov_rm(Width::W64, sp, &Address::new(rax, ENTRY_SP_OFFSET));
     restore_and_return(&mut asm, 1);
-    asm.finish().unwrap()
+    asm.finish().unwrap().to_vec()
 }
 
 /// The code of functions the JIT did not compile.
@@ -36,11 +37,12 @@ pub(super) fn not_compiled_code(trap_exit: u64) -> Vec<u8> {
 
 /// Code that traps with `code`.
 pub(super) fn trap_stub(trap_exit: u64, code: u32) -> Vec<u8> {
-    let mut asm = Assembler::for_host();
+    let mut memory = libwasm_jit::CodeMemory::new();
+    let mut asm = Assembler::for_host(&mut memory.code, &memory.work);
     asm.mov_ri32(Gpr(convention::RDI), code);
     asm.mov_ri(Gpr(convention::R11), trap_exit);
     asm.jmp_r(Gpr(convention::R11));
-    asm.finish().unwrap()
+    asm.finish().unwrap().to_vec()
 }
 
 fn restore_and_return(asm: &mut Assembler, status: u32) {
@@ -62,7 +64,8 @@ fn restore_and_return(asm: &mut Assembler, status: u32) {
 /// `extern "C" fn(entry, arguments, results, instance) -> u32`: calls `entry` with the arguments' slots under the
 /// compiled convention, stores the results' slots, and returns 0, or 1 if the code trapped.
 pub(super) fn trampoline_code(params: &[Type], results: &[Type], state: *mut SessionState) -> Vec<u8> {
-    let mut asm = Assembler::for_host();
+    let mut memory = libwasm_jit::CodeMemory::new();
+    let mut asm = Assembler::for_host(&mut memory.code, &memory.work);
     let g = Gpr;
     let (rdi, rsi, rdx, rcx) = (
         g(convention::RDI),
@@ -186,5 +189,5 @@ pub(super) fn trampoline_code(params: &[Type], results: &[Type], state: *mut Ses
         asm.add_ri(Width::W64, sp, outgoing);
     }
     restore_and_return(&mut asm, 0);
-    asm.finish().unwrap()
+    asm.finish().unwrap().to_vec()
 }

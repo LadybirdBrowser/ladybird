@@ -138,7 +138,7 @@ pub enum ShiftX {
     Shr,
 }
 
-impl Assembler {
+impl Assembler<'_> {
     /// Emits a VEX prefix and opcode with ModRM for `reg`, the extra source `vvvv` and `rm`, using the two-byte form
     /// where it can.
     #[allow(clippy::too_many_arguments)]
@@ -635,7 +635,8 @@ mod tests {
 
     #[test]
     fn rip_relative_operands() {
-        let mut assembler = Assembler::new();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut assembler = Assembler::new(&mut code, &work);
         let label = assembler.new_label();
         assembler.vbitwise_r_label(BitwiseOp::And, XMM1, XMM2, label);
         assembler.vmovs_r_label(Precision::Double, XMM3, label);

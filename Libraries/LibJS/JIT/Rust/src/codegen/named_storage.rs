@@ -20,6 +20,7 @@
 //! cell, and on empty free lists.
 
 use super::Codegen;
+use super::RegisterList;
 use super::probes::CacheRegisters;
 use super::slow_path_calls::slow_path_saved_registers;
 use crate::asm::Address;
@@ -53,9 +54,9 @@ pub(super) struct DeferredStorageGrowth {
     shape: Gpr,
 }
 
-impl<M: PortableMacroAssembler> Codegen<'_, M> {
-    fn growth_registers() -> Option<Vec<Gpr>> {
-        let registers = slow_path_saved_registers::<M>().iter().collect::<Vec<_>>();
+impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
+    fn growth_registers() -> Option<RegisterList<Gpr>> {
+        let registers = slow_path_saved_registers::<M>().iter().collect::<RegisterList<_>>();
         (registers.len() >= WORK_REGISTER_COUNT + 2).then_some(registers)
     }
 
@@ -106,7 +107,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     }
 
     pub(super) fn emit_deferred_storage_growths(&mut self) {
-        let growths = std::mem::take(&mut self.deferred_storage_growths);
+        let growths = self.deferred_storage_growths.take();
         if growths.is_empty() {
             return;
         }
