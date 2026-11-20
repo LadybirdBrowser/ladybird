@@ -117,11 +117,13 @@ private:
     void write_read_notification_byte();
     void mark_peer_eof();
     void notify_incoming_message_observer(ReadonlyBytes);
-    void release_send_waiters();
+    void stop_sending();
     enum class SendOutcome {
         Sent,
         // The peer's queue is full. The message keeps its bytes and its rights, to be sent again.
         WouldBlock,
+        // The message is dropped, and the peer is to be treated as gone.
+        PeerGone,
     };
     SendOutcome send_mach_message(PendingMessage&);
     // Breaks for a message the peer had no business sending, after which the transport takes nothing more from it.
@@ -142,13 +144,18 @@ private:
     Atomic<IOThreadState> m_io_thread_state { IOThreadState::Running };
     Atomic<bool> m_peer_eof { false };
 
-    Vector<PendingMessage> m_pending_send_messages;
+    // Held by whichever thread sends, which is the thread that posts a message unless the message has to wait. It
+    // guards the send right and the send buffer as well.
     Mutex m_send_mutex;
     ConditionVariable m_sent_cv { m_send_mutex };
-    // True while the IO thread is sending a batch it has already taken off m_pending_send_messages.
-    bool m_send_in_progress { false };
-    bool m_send_waiters_released { false };
+    // Messages the peer's queue had no room for, in order. While there are any, a newly posted message waits behind
+    // them, and the IO thread sends them as the peer makes room.
+    Queue<PendingMessage, 64> m_send_backlog;
+    bool m_sending_is_over { false };
     Vector<u8> m_send_buffer;
+    // Set by a thread that found the peer gone as it posted, for the IO thread to tell the owner, as it does when it
+    // finds that itself.
+    Atomic<bool> m_posting_thread_found_peer_gone { false };
 
     Mutex m_incoming_mutex;
     ConditionVariable m_incoming_cv { m_incoming_mutex };

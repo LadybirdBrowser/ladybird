@@ -277,10 +277,11 @@ void TransportMachPort::write_read_notification_byte()
     (void)Core::System::write(m_notify_hook_write_fd->value(), bytes);
 }
 
-void TransportMachPort::release_send_waiters()
+void TransportMachPort::stop_sending()
 {
     MutexLocker locker(m_send_mutex);
-    m_send_waiters_released = true;
+    m_sending_is_over = true;
+    m_send_backlog.clear();
     m_sent_cv.broadcast();
 }
 
@@ -289,10 +290,8 @@ void TransportMachPort::flush()
     if (!m_is_open.load(AK::MemoryOrder::memory_order_relaxed))
         return;
 
-    wake_io_thread();
-
     MutexLocker locker(m_send_mutex);
-    while (!m_send_waiters_released && (!m_pending_send_messages.is_empty() || m_send_in_progress)) {
+    while (!m_sending_is_over && !m_send_backlog.is_empty()) {
         // The wakeup is best-effort, so re-arm it rather than wait forever if one is ever dropped.
         if (!m_sent_cv.wait_for(AK::Duration::from_milliseconds(50)))
             wake_io_thread();
@@ -355,53 +354,44 @@ intptr_t TransportMachPort::io_thread_loop()
     auto buffer = Vector<u8>();
     buffer.resize(RECV_BUFFER_SIZE);
 
-    // Messages the peer's queue had no room for. They stay here, in order, ahead of anything posted since, and the
-    // loop keeps receiving while it retries them: a thread that blocked in a send would stop draining its own queue,
-    // and two such threads facing each other would wait on each other for good. The ones already sent stay in place
-    // behind a cursor until the whole backlog has gone, so a retry costs nothing per message still waiting.
-    Vector<PendingMessage> backlog;
-    size_t backlog_sent = 0;
     bool released_memory_since_last_message = true;
 
     for (;;) {
         if (m_io_thread_state.load() == IOThreadState::Stopped)
             break;
 
+        // The backlog is retried here while the loop keeps receiving: a thread that blocked in a send would stop
+        // draining its own queue, and two such threads facing each other would wait on each other for good.
+        bool peer_is_gone = m_posting_thread_found_peer_gone.exchange(false);
+        bool backlog_is_empty = false;
+        bool io_is_over = false;
         {
             MutexLocker locker(m_send_mutex);
-            backlog.extend(move(m_pending_send_messages));
-            m_pending_send_messages.clear();
-            if (backlog_sent < backlog.size())
-                m_send_in_progress = true;
-        }
-        bool const had_messages_to_send = backlog_sent < backlog.size();
-        while (backlog_sent < backlog.size()) {
-            if (send_mach_message(backlog[backlog_sent]) == SendOutcome::WouldBlock)
-                break;
-            ++backlog_sent;
-        }
-        bool const backlog_is_empty = backlog_sent == backlog.size();
-        if (backlog_is_empty) {
-            backlog.clear();
-            backlog_sent = 0;
-        }
-        if (had_messages_to_send && backlog_is_empty) {
-            MutexLocker locker(m_send_mutex);
-            m_send_in_progress = false;
-            m_sent_cv.broadcast();
-        }
-
-        if (m_io_thread_state.load() == IOThreadState::SendPendingMessagesAndStop) {
-            MutexLocker locker(m_send_mutex);
-            if (m_pending_send_messages.is_empty() && backlog_is_empty) {
-                m_io_thread_state = IOThreadState::Stopped;
-                break;
+            bool const had_backlog = !m_send_backlog.is_empty();
+            while (!m_send_backlog.is_empty()) {
+                auto const outcome = send_mach_message(m_send_backlog.head());
+                if (outcome == SendOutcome::WouldBlock)
+                    break;
+                (void)m_send_backlog.dequeue();
+                if (outcome == SendOutcome::PeerGone)
+                    peer_is_gone = true;
             }
-            // Newly posted messages go out at the top of the loop. A backlog waits for the peer, so the timed receive
-            // below is where this thread waits for it, rather than spinning on the send.
-            if (backlog_is_empty)
-                continue;
+            backlog_is_empty = m_send_backlog.is_empty();
+            if (had_backlog && backlog_is_empty) {
+                // NB: A queue that has drained keeps its last segment, which clearing it lets go of.
+                m_send_backlog.clear();
+                m_sent_cv.broadcast();
+            }
+            // NB: Posting threads check the state under this lock, so nothing is left behind in the backlog.
+            if (backlog_is_empty && m_io_thread_state.load() == IOThreadState::SendPendingMessagesAndStop) {
+                m_io_thread_state = IOThreadState::Stopped;
+                io_is_over = true;
+            }
         }
+        if (peer_is_gone)
+            mark_peer_eof();
+        if (io_is_over)
+            break;
 
         auto* header = reinterpret_cast<mach_msg_header_t*>(buffer.data());
         // Wait on the whole port set so one loop can handle peer messages, internal wakeups, and kernel
@@ -479,7 +469,7 @@ intptr_t TransportMachPort::io_thread_loop()
     }
 
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
-    release_send_waiters();
+    stop_sending();
     {
         MutexLocker locker(m_incoming_mutex);
         m_incoming_cv.broadcast();
@@ -600,7 +590,7 @@ TransportMachPort::SendOutcome TransportMachPort::send_mach_message(PendingMessa
             }
         }
         dbgln("TransportMachPort: send failed: {} (send_port={:x})", mach_error_string(ret), m_send_port.port());
-        mark_peer_eof();
+        return SendOutcome::PeerGone;
     }
     return SendOutcome::Sent;
 }
@@ -753,9 +743,10 @@ void TransportMachPort::close_after_sending_all_pending_messages()
 }
 
 // As closing a socket does, closing the transport tells the peer: its receive port gets MACH_NOTIFY_NO_SENDERS once
-// this send right is gone. The IO thread, the only one that sends through it, has stopped.
+// this send right is gone. Sending is over by now, as IO has stopped.
 void TransportMachPort::release_send_right_to_peer()
 {
+    MutexLocker locker(m_send_mutex);
     m_send_port = {};
 }
 
@@ -784,11 +775,30 @@ void TransportMachPort::interrupt_wait_until_readable()
 
 ErrorOr<void> TransportMachPort::post_message(MessageDataType bytes, Vector<Attachment>& attachments)
 {
+    PendingMessage message { move(bytes), move(attachments) };
+    bool should_wake_io_thread = false;
     {
         MutexLocker locker(m_send_mutex);
-        m_pending_send_messages.append(PendingMessage { move(bytes), move(attachments) });
+        if (m_sending_is_over || m_io_thread_state.load() == IOThreadState::Stopped)
+            return {};
+        auto outcome = SendOutcome::WouldBlock;
+        if (m_send_backlog.is_empty())
+            outcome = send_mach_message(message);
+        switch (outcome) {
+        case SendOutcome::Sent:
+            break;
+        case SendOutcome::WouldBlock:
+            should_wake_io_thread = m_send_backlog.is_empty();
+            m_send_backlog.enqueue(move(message));
+            break;
+        case SendOutcome::PeerGone:
+            m_posting_thread_found_peer_gone = true;
+            should_wake_io_thread = true;
+            break;
+        }
     }
-    wake_io_thread();
+    if (should_wake_io_thread)
+        wake_io_thread();
     return {};
 }
 
@@ -836,6 +846,7 @@ ErrorOr<TransportHandle> TransportMachPort::release_for_transfer()
     ret = mach_port_extract_member(mach_task_self(), m_receive_port.port(), m_port_set.port());
     VERIFY(ret == KERN_SUCCESS);
 
+    MutexLocker locker(m_send_mutex);
     return TransportHandle { move(m_receive_port), move(m_send_port) };
 }
 
