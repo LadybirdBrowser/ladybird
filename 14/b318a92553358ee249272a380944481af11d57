@@ -1,0 +1,10 @@
+Ladybird now applies the line-height calculation quirk in limited-quirks
+mode too, as the quirks spec says. Blink does, through Document::
+InLineHeightQuirksMode(), which is true in both modes. So does Gecko:
+nsLineLayout::VerticalAlignFrames() zeroes a span’s line height in any
+mode other than eCompatibility_FullStandards. WebKit decides the quirk
+in InlineQuirks, which applies in both modes too.
+
+Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5 give
+the same heights in quirks mode and in limited-quirks mode for every
+case of the line-height-quirk tests added in this series.
