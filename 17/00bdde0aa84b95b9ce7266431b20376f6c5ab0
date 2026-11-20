@@ -1,0 +1,14 @@
+Ladybird now places an empty inline box on its line in quirks and
+limited-quirks mode too, and takes only its line height away under
+the line-height quirk. Blink does the same: LogicalLineBuilder::
+HandleOpenTag() still places the box of an item that IsEmptyItem(),
+and only skips its text metrics. WebKit places the box and decides
+in InlineQuirks::inlineBoxAffectsLineBox() if it affects the line
+box. Gecko places the span, and zeroes its line height through
+zeroEffectiveSpanBox in nsLineLayout::VerticalAlignFrames(), which also
+counts a margin, where Ladybird, Blink, and WebKit don’t.
+
+Chrome 157.0.8103.79, Firefox 151.0, and Playwright’s WebKit 26.5 ran
+the cases of the two tests added here. Ladybird gives what Chrome and
+WebKit give in every case. Firefox puts an empty box’s zero-height rect
+at the baseline, and counts a box with a margin.
