@@ -1,0 +1,12 @@
+block, min-content: 40x60
+block, max-content: 40x60
+block, fit-content: 40x60
+block, calc-size(min-content, size + 5px): 45x60
+flex, min-content: 40x60
+flex, max-content: 40x60
+flex, fit-content: 40x60
+flex, calc-size(min-content, size + 5px): 45x60
+grid, min-content: 40x60
+grid, max-content: 40x60
+grid, fit-content: 40x60
+grid, calc-size(min-content, size + 5px): 45x60

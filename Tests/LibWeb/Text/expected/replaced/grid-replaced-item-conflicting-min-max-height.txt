@@ -1,0 +1,3 @@
+width: min-content: 100x100, column 100px
+width: max-content: 100x100, column 100px
+width: auto: 100x100, column 100px

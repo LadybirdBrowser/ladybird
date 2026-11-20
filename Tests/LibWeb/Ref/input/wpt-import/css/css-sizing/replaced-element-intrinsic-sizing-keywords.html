@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<link rel="match" href="../../../../expected/wpt-import/css/css-sizing/replaced-element-intrinsic-sizing-keywords-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes">
+<style>
+div {
+    margin: 10px 0;
+    font: 20px/1 Ahem;
+}
+img {
+    height: 100px;
+}
+</style>
+<p>All images should be 150px wide (100px height with 3:2 aspect ratio).</p>
+
+<!-- 3:2 SVG with no intrinsic width/height, only viewBox -->
+<!-- width: fit-content -->
+<div><img style="width: fit-content" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'><rect fill='green' width='3' height='2'/></svg>"></div>
+
+<!-- width: min-content -->
+<div><img style="width: min-content" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'><rect fill='green' width='3' height='2'/></svg>"></div>
+
+<!-- width: max-content -->
+<div><img style="width: max-content" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'><rect fill='green' width='3' height='2'/></svg>"></div>
+
+<!-- min-width: fit-content (width is auto, so natural width applies, then min-width clamps up) -->
+<div><img style="min-width: fit-content" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'><rect fill='green' width='3' height='2'/></svg>"></div>

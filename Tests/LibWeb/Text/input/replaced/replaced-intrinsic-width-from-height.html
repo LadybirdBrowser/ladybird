@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #container { width: 300px; height: 100px; }
+    canvas { height: 60px; }
+</style>
+<div id="container"><canvas width="20" height="30"></canvas></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const canvas = container.firstElementChild;
+        for (const display of ["block", "flex", "grid"]) {
+            container.style.display = display;
+            for (const width of ["min-content", "max-content", "fit-content", "calc-size(min-content, size + 5px)"]) {
+                canvas.style.width = width;
+                println(`${display}, ${width}: ${canvas.offsetWidth}x${canvas.offsetHeight}`);
+            }
+        }
+    });
+</script>

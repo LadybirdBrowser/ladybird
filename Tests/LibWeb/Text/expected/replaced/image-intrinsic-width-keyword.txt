@@ -1,0 +1,19 @@
+natural min-content: 400 / 300x150
+clamped min-content: 400 / 200x100
+fixed limit: 400 / 200x100
+transferred min-content: 400 / 120x60
+transferred max-content: 400 / 120x60
+transferred fit-content: 400 / 120x60
+transferred with limit: 400 / 80x60
+transferred in narrow parent: 50 / 120x60
+contribution: 0 / 0x0
+zero limit: 400 / 0x0
+ratio-only width:50px;min-width:min-content: 50x25
+ratio-only width:50%;min-width:max-content: 200x100
+ratio-only width:500px;max-width:min-content: 500x250
+ratio-only width:50px;min-width:min-content;min-height:100px: 200x100
+ratio-only width:50px;min-width:min-content;height:60px: 120x60
+grid intrinsic minimum: 32x16
+grid calculated minimum: 130x60
+grid calculated maximum: 110x60
+vertical flex percentage: 50x25

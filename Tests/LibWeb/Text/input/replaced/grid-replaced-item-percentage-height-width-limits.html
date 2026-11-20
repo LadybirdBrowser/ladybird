@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .grid { display: grid; grid-template-rows: 100px; justify-content: start; }
+    canvas { height: 50%; }
+</style>
+<div class="grid"><canvas width="200" height="100" style="width: 200px; max-width: max-content"></canvas></div>
+<div class="grid"><canvas width="200" height="100" style="width: 200px; max-width: min-content; min-width: 0"></canvas></div>
+<div class="grid"><canvas width="200" height="100" style="max-width: max-content; min-width: 0"></canvas></div>
+<div class="grid"><canvas width="200" height="100" style="width: 20px; min-width: min-content"></canvas></div>
+<div class="grid"><canvas width="200" height="100" style="width: 200px"></canvas></div>
+<script>
+    test(() => {
+        for (const canvas of document.querySelectorAll("canvas"))
+            println(`${canvas.getAttribute("style")}: ${canvas.offsetWidth}x${canvas.offsetHeight}`);
+    });
+</script>

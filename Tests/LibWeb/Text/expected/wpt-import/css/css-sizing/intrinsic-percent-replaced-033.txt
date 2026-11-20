@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	.cb > canvas 1
+Pass	.cb > canvas 2
+Pass	.cb > canvas 3
+Pass	.cb > canvas 4
+Pass	.cb > canvas 5
+Pass	.cb > canvas 6
+Pass	.cb > canvas 7
+Pass	.cb > canvas 8
+Pass	.cb > canvas 9

@@ -1085,24 +1085,15 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 && size.is_intrinsic_sizing_constraint()
                 && self.intrinsic_inline_sizes_are_transferred(sized, constraints)
         };
-        // NB: The min-content and max-content inline sizes of a replaced element follow a non-automatic block size
-        //     through the aspect ratio.
-        let transferred_intrinsic_limit = |size: &ComputedSize| {
-            (size.is_intrinsic_sizing_constraint()
-                && self.facts(node).has_preferred_aspect_ratio()
-                && !self.preferred_block_size(node, constraints).is_auto()
-                && !self.should_treat_block_size_as_auto(sized, available_space, constraints))
-            .then(|| {
-                let block_size = self.compute_block_size_for_replaced_element(sized, available_space, constraints);
-                self.content_inline_size_from_aspect_ratio(sized, block_size)
-            })
+        let intrinsic_limit = |size: &ComputedSize| {
+            self.intrinsic_inline_limit_for_replaced_box(sized, size, available_space, constraints)
         };
         // 2. If the tentative used width is greater than 'max-width', the rules above are applied again,
         //    but this time using the computed value of 'max-width' as the computed value for 'width'.
         if !self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints)
             && !is_transferred_intrinsic_limit(style.max_width())
         {
-            if let Some(max) = transferred_intrinsic_limit(style.max_width()) {
+            if let Some(max) = intrinsic_limit(style.max_width()) {
                 used = used.min(max);
             } else {
                 let max = self.calculate_inner_inline_size(
@@ -1124,7 +1115,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // 3. If the resulting width is smaller than 'min-width', the rules above are applied again,
         //    but this time using the value of 'min-width' as the computed value for 'width'.
         if !is_plain_auto(style.min_width()) && !is_transferred_intrinsic_limit(style.min_width()) {
-            if let Some(min) = transferred_intrinsic_limit(style.min_width()) {
+            if let Some(min) = intrinsic_limit(style.min_width()) {
                 used = used.max(min);
             } else {
                 let min = self.calculate_inner_inline_size(
@@ -1144,6 +1135,48 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             }
         }
         used
+    }
+
+    pub(crate) fn intrinsic_inline_limit_for_replaced_box(
+        &self,
+        sized: SizedBox<'_>,
+        limit: &ComputedSize,
+        available: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<CssPixels> {
+        let node = sized.node;
+        if !limit.is_intrinsic_sizing_constraint() || !self.facts(node).has_preferred_aspect_ratio() {
+            return None;
+        }
+        let basis = if !self.preferred_block_size(node, constraints).is_auto()
+            && !self.should_treat_block_size_as_auto(sized, available, constraints)
+        {
+            let block_size = self.compute_block_size_for_replaced_element(sized, available, constraints);
+            self.content_inline_size_from_aspect_ratio(sized, block_size)
+        } else {
+            // A ratio-only image uses its definite preferred width when applying its own intrinsic limits. Its
+            // contribution to a parent sizing its children still uses the space that parent makes available.
+            let width = self.style(node).width();
+            if !width.is_length_percentage()
+                || width.calc_size().is_some()
+                || (width.contains_percentage() && constraints.percentage_basis_inline_size.is_none())
+            {
+                return None;
+            }
+            let natural = self.auto_content_size(node);
+            if natural.width.is_some() || natural.height.is_some() {
+                return None;
+            }
+            let preferred = self.calculate_inner_inline_size(sized, available.inline_size, width, constraints);
+            self.replaced_max_content_inline_size_with_basis(sized, constraints, preferred)?
+        };
+        Some(self.resolve_calc_size(
+            sized,
+            SizingAxis::Inline,
+            limit,
+            basis,
+            constraints.percentage_basis_inline_size,
+        ))
     }
 
     pub(crate) fn compute_block_size_for_replaced_element(
@@ -2883,6 +2916,25 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         sized: SizedBox<'_>,
         constraints: ContainingBlockConstraints,
     ) -> Option<CssPixels> {
+        let node = sized.node;
+        let style = self.style(node);
+        if self.facts(node).is_replaced_box()
+            && self.facts(node).has_preferred_aspect_ratio()
+            && style.width().is_intrinsic_sizing_constraint()
+            && self.preferred_block_size(node, constraints).is_length_percentage()
+        {
+            let available = self.transferred_intrinsic_inline_sizing_space(sized, constraints);
+            if !self.should_treat_block_size_as_auto(sized, available, constraints) {
+                // A definite block size in the item's metrics has already resolved its percentage against the container.
+                // NB: But it had its minimum applied before its maximum, so clamp it again, with the minimum taking
+                //     precedence over a smaller maximum.
+                let block_size = match self.definite_block_size_of_replaced_box_in_held_metrics(sized) {
+                    Some(held) => self.clamp_block_size_to_min_max(sized, held, available, constraints),
+                    None => self.compute_block_size_for_replaced_element(sized, available, constraints),
+                };
+                return Some(self.content_inline_size_from_aspect_ratio(sized, block_size));
+            }
+        }
         if !self.intrinsic_inline_sizes_are_transferred(sized, constraints) {
             return None;
         }
@@ -3007,19 +3059,32 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     ) -> CssPixels {
         if self.facts(sized.node).is_replaced_box()
             && let AvailableSize::Definite(basis) = available
-            && let Some(answer) = self.max_content_inline_size_answered_without_measuring_content(
+            && let Some(size) = self.replaced_max_content_inline_size_with_basis(
                 sized,
                 constraints,
-                self.definite_block_size_of_replaced_box_in_held_metrics(sized),
-                Some(self.stretch_fit_inner_size(sized, SizingAxis::Inline, basis, constraints)),
+                self.stretch_fit_inner_size(sized, SizingAxis::Inline, basis, constraints),
             )
         {
-            let answer =
-                self.with_transferred_limits(sized, answer, IntrinsicSizeCacheKind::MaxContentInline, constraints);
-            self.charge_content_sizing_scope_with(sized.node, answer.dependencies);
-            return answer.size;
+            return size;
         }
         self.calculate_max_content_inline_size(sized, constraints)
+    }
+
+    fn replaced_max_content_inline_size_with_basis(
+        &self,
+        sized: SizedBox<'_>,
+        constraints: ContainingBlockConstraints,
+        basis: CssPixels,
+    ) -> Option<CssPixels> {
+        let answer = self.max_content_inline_size_answered_without_measuring_content(
+            sized,
+            constraints,
+            self.definite_block_size_of_replaced_box_in_held_metrics(sized),
+            Some(basis),
+        )?;
+        let answer = self.with_transferred_limits(sized, answer, IntrinsicSizeCacheKind::MaxContentInline, constraints);
+        self.charge_content_sizing_scope_with(sized.node, answer.dependencies);
+        Some(answer.size)
     }
 
     fn definite_block_size_of_replaced_box_in_held_metrics(&self, sized: SizedBox<'_>) -> Option<CssPixels> {
@@ -4524,7 +4589,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         } else if preferred_size.is_max_content() {
             Some(self.calculate_max_content_inline_size_with_available_space(sized, available, constraints))
         } else if preferred_size.is_min_content() {
-            Some(self.calculate_min_content_inline_size(sized, constraints))
+            // A replaced box has the same intrinsic minimum and maximum width. Its min-content contribution can
+            // resolve a cyclic percentage against zero when sizing its parent.
+            if self.facts(node).is_replaced_box() {
+                Some(self.calculate_max_content_inline_size_with_available_space(sized, available, constraints))
+            } else {
+                Some(self.calculate_min_content_inline_size(sized, constraints))
+            }
         } else {
             None
         };
