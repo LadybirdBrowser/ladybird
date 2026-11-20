@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const parameters = [
+            "PACK_ALIGNMENT",
+            "UNPACK_ALIGNMENT",
+            "PACK_ROW_LENGTH",
+            "PACK_SKIP_PIXELS",
+            "PACK_SKIP_ROWS",
+            "UNPACK_ROW_LENGTH",
+            "UNPACK_IMAGE_HEIGHT",
+            "UNPACK_SKIP_PIXELS",
+            "UNPACK_SKIP_ROWS",
+            "UNPACK_SKIP_IMAGES",
+        ];
+
+        for (const contextType of ["webgl", "webgl2"]) {
+            const canvas = document.createElement("canvas");
+            canvas.width = 4;
+            canvas.height = 4;
+            const gl = canvas.getContext(contextType);
+            if (!gl) {
+                println(`${contextType} unavailable`);
+                continue;
+            }
+
+            for (const parameter of parameters) {
+                gl.pixelStorei(WebGL2RenderingContext[parameter], 1);
+                println(`${contextType} pixelStorei(${parameter}) error: ${gl.getError()}`);
+            }
+
+            gl.pixelStorei(gl.TEXTURE_2D, 1);
+            println(`${contextType} pixelStorei(TEXTURE_2D) error: ${gl.getError()}`);
+
+            gl.clearColor(1, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            const context2d = document.createElement("canvas").getContext("2d");
+            context2d.drawImage(canvas, 0, 0);
+            println(`${contextType} canvas pixel: ${context2d.getImageData(3, 3, 1, 1).data}`);
+        }
+    });
+</script>

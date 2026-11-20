@@ -16,12 +16,13 @@ use super::constants::{
     GL_ARRAY_BUFFER, GL_COLOR_ATTACHMENT0, GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, GL_DEPTH_ATTACHMENT,
     GL_DEPTH_STENCIL, GL_DEPTH_STENCIL_ATTACHMENT, GL_DEPTH24_STENCIL8, GL_DRAW_FRAMEBUFFER, GL_ELEMENT_ARRAY_BUFFER,
     GL_FRAGMENT_SHADER, GL_FRAMEBUFFER, GL_INFO_LOG_LENGTH, GL_INVALID_ENUM, GL_INVALID_OPERATION, GL_INVALID_VALUE,
-    GL_PIXEL_PACK_BUFFER, GL_PIXEL_UNPACK_BUFFER, GL_READ_FRAMEBUFFER, GL_RENDERBUFFER, GL_SHADER_SOURCE_LENGTH,
-    GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_3D, GL_TEXTURE_CUBE_MAP,
-    GL_TEXTURE_CUBE_MAP_NEGATIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
-    GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
-    GL_TRANSFORM_FEEDBACK_BUFFER, GL_UNIFORM_BUFFER, GL_UNPACK_ALIGNMENT, GL_UNPACK_COLORSPACE_CONVERSION_WEBGL,
-    GL_UNPACK_FLIP_Y_WEBGL, GL_UNPACK_PREMULTIPLY_ALPHA_WEBGL, GL_UNPACK_ROW_LENGTH, GL_UNPACK_SKIP_PIXELS,
+    GL_PACK_ALIGNMENT, GL_PACK_ROW_LENGTH, GL_PACK_SKIP_PIXELS, GL_PACK_SKIP_ROWS, GL_PIXEL_PACK_BUFFER,
+    GL_PIXEL_UNPACK_BUFFER, GL_READ_FRAMEBUFFER, GL_RENDERBUFFER, GL_SHADER_SOURCE_LENGTH, GL_STENCIL_ATTACHMENT,
+    GL_TEXTURE_2D, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_3D, GL_TEXTURE_CUBE_MAP, GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+    GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+    GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TRANSFORM_FEEDBACK_BUFFER, GL_UNIFORM_BUFFER,
+    GL_UNPACK_ALIGNMENT, GL_UNPACK_COLORSPACE_CONVERSION_WEBGL, GL_UNPACK_FLIP_Y_WEBGL, GL_UNPACK_IMAGE_HEIGHT,
+    GL_UNPACK_PREMULTIPLY_ALPHA_WEBGL, GL_UNPACK_ROW_LENGTH, GL_UNPACK_SKIP_IMAGES, GL_UNPACK_SKIP_PIXELS,
     GL_UNPACK_SKIP_ROWS, GL_VERTEX_ATTRIB_ARRAY_POINTER, GL_VERTEX_SHADER,
 };
 use super::gl_string::{utf8_bytes, utf16_string_from_gl_string};
@@ -1069,6 +1070,27 @@ impl<V: Version> RenderingContext<V> {
     }
 
     pub(crate) fn pixel_storei(&self, _: &mut CallContext, pname: u32, param: i32) -> WebIdlResult<()> {
+        let is_defined = match pname {
+            GL_PACK_ALIGNMENT
+            | GL_UNPACK_ALIGNMENT
+            | GL_UNPACK_FLIP_Y_WEBGL
+            | GL_UNPACK_PREMULTIPLY_ALPHA_WEBGL
+            | GL_UNPACK_COLORSPACE_CONVERSION_WEBGL => true,
+            GL_PACK_ROW_LENGTH
+            | GL_PACK_SKIP_PIXELS
+            | GL_PACK_SKIP_ROWS
+            | GL_UNPACK_ROW_LENGTH
+            | GL_UNPACK_IMAGE_HEIGHT
+            | GL_UNPACK_SKIP_PIXELS
+            | GL_UNPACK_SKIP_ROWS
+            | GL_UNPACK_SKIP_IMAGES => self.is_webgl2(),
+            _ => false,
+        };
+        if !is_defined {
+            self.set_error(GL_INVALID_ENUM);
+            return Ok(());
+        }
+
         let mut unpack_state = self.unpack_state.get();
         match pname {
             GL_UNPACK_ALIGNMENT => {
@@ -1079,23 +1101,17 @@ impl<V: Version> RenderingContext<V> {
                 unpack_state.alignment = alignment;
             }
             GL_UNPACK_ROW_LENGTH => {
-                if self.is_webgl2()
-                    && let Ok(row_length) = usize::try_from(param)
-                {
+                if let Ok(row_length) = usize::try_from(param) {
                     unpack_state.row_length = row_length;
                 }
             }
             GL_UNPACK_SKIP_PIXELS => {
-                if self.is_webgl2()
-                    && let Ok(skip_pixels) = usize::try_from(param)
-                {
+                if let Ok(skip_pixels) = usize::try_from(param) {
                     unpack_state.skip_pixels = skip_pixels;
                 }
             }
             GL_UNPACK_SKIP_ROWS => {
-                if self.is_webgl2()
-                    && let Ok(skip_rows) = usize::try_from(param)
-                {
+                if let Ok(skip_rows) = usize::try_from(param) {
                     unpack_state.skip_rows = skip_rows;
                 }
             }
