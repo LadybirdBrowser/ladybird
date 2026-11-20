@@ -28,7 +28,6 @@
 #include <LibWebCommon/Loader/ContentBlocking.h>
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebCommon/WebDriver/Input.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebCommon/WebView/Utilities.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalSessionHistoryEntry.h>

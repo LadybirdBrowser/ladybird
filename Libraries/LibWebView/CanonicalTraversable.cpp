@@ -10,7 +10,6 @@
 #include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
 #include <LibURL/Site.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>

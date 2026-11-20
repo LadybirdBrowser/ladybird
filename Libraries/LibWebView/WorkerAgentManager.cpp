@@ -9,7 +9,6 @@
 #include <LibCore/Timer.h>
 #include <LibIPC/File.h>
 #include <LibURL/Parser.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalNavigable.h>
@@ -332,15 +331,7 @@ bool WorkerAgentManager::owner_process_may_host_shared_worker(Owner const& owner
 
     // NB: Nothing in a cross-origin isolated process may have been loaded without the consent of its origin. A shared
     //     worker is in an agent cluster of its own, and needs no such consent unless its response says so.
-    if (page->hosted_environment_is_cross_origin_isolated(outside_settings.id()).value_or(true))
-        return false;
-
-    // NB: Isolating only top-level documents leaves a cross-site frame with the process of its parent's site.
-    if (site_isolation_mode() == SiteIsolationMode::TopLevel) {
-        auto top_level_origin = outside_settings.top_level_origin();
-        return top_level_origin.has_value() && top_level_origin->is_same_site(outside_settings.origin());
-    }
-    return true;
+    return !page->hosted_environment_is_cross_origin_isolated(outside_settings.id()).value_or(true);
 }
 
 bool WorkerAgentManager::hosts_shared_worker(WebContentClient const& process) const

@@ -24,7 +24,6 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Platform/RemoteImageCodecPlugin.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Utilities.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -60,11 +59,6 @@ ErrorOr<int> service_main(int ipc_socket)
 
     Web::HTML::Window::set_internals_object_exposed(is_test_mode);
     Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(is_test_mode));
-
-    // Currently site isolation doesn't work on Android since everything is running
-    // in the same process. It would require an entire redesign of this port
-    // in order to make it work. For now, it's better to just disable it.
-    WebView::set_site_isolation_mode(WebView::SiteIsolationMode::Disabled);
 
     auto webcontent_socket = TRY(Core::LocalSocket::adopt_fd(ipc_socket));
     auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(make<IPC::Transport>(move(webcontent_socket))));

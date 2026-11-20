@@ -243,6 +243,7 @@ public:
     ErrorOr<Core::GeolocationProvider::WatchId, Core::GeolocationError> start_watching_geolocation_position(Core::GeolocationProvider::SuccessCallback on_success, Core::GeolocationProvider::ErrorCallback on_error);
     void stop_watching_geolocation_position(Core::GeolocationProvider::WatchId);
 
+    TabProcesses tab_processes() const;
     bool tabs_may_share_processes() const;
     ErrorOr<NonnullRefPtr<WebContentPage>> open_page_for_new_tab(IsPrivate);
     struct ChildFrameWebContentProcess {
@@ -446,7 +447,6 @@ protected:
     virtual Optional<pid_t> ui_process_id() const { return {}; }
     virtual bool captures_browser_crashes() const { return false; }
     virtual bool should_use_os_geolocation() const { return true; }
-    virtual SiteIsolationMode default_site_isolation_mode() const { return SiteIsolationMode::IFrame; }
 
     virtual NonnullRefPtr<Core::Promise<ByteString>> ask_user_for_download_path(ByteString const& file) const;
 

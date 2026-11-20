@@ -45,7 +45,6 @@
 #include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/WebDriver/TimeoutsConfiguration.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CompositorClient.h>
@@ -352,7 +351,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool enable_test_mode = false;
     bool validate_dnssec_locally = false;
     bool log_all_js_exceptions = false;
-    auto site_isolation_mode = default_site_isolation_mode();
     Optional<size_t> maximum_site_request_servers;
     Optional<u64> web_content_memory_limit_in_mebibytes;
     bool disable_http_memory_cache = false;
@@ -470,20 +468,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 #endif
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
-    args_parser.add_option(Core::ArgsParser::Option {
-        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
-        .help_string = "Set site isolation mode. Mode may be 'disable', 'top-level', or 'iframe'.",
-        .long_name = "site-isolation",
-        .value_name = "mode",
-        .accept_value = [&](StringView value) {
-            auto parsed_mode = site_isolation_mode_from_string(value);
-            if (!parsed_mode.has_value())
-                return false;
-
-            site_isolation_mode = *parsed_mode;
-            return true;
-        },
-    });
     args_parser.add_option(disable_http_memory_cache, "Disable HTTP memory cache", "disable-http-memory-cache");
     args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
     args_parser.add_option(maximum_site_request_servers, "How many RequestServers a session may have for the sites it visits, 0 to share one", "max-site-request-servers", 0, "count");
@@ -594,10 +578,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     m_explicit_content_blocker_list_paths = move(content_blocker_list_paths);
 
-    // Disable site isolation when debugging WebContent. Otherwise, the process swap may interfere with the gdb session.
-    if (debug_process_types.contains_slow(ProcessType::WebContent))
-        site_isolation_mode = SiteIsolationMode::Disabled;
-
     m_browser_options = {
         .urls = {},
         .raw_urls = move(raw_urls),
@@ -662,7 +642,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .user_agent_preset = move(user_agent_preset),
         .is_test_mode = enable_test_mode ? IsTestMode::Yes : IsTestMode::No,
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
-        .site_isolation_mode = site_isolation_mode,
         .enable_http_memory_cache = disable_http_memory_cache ? EnableMemoryHTTPCache::No : EnableMemoryHTTPCache::Yes,
         .expose_experimental_interfaces = expose_experimental_interfaces ? ExposeExperimentalInterfaces::Yes : ExposeExperimentalInterfaces::No,
         .expose_internals_object = expose_internals_object ? ExposeInternalsObject::Yes : ExposeInternalsObject::No,
@@ -758,8 +737,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     if (m_web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
         URL::set_file_scheme_urls_have_tuple_origins();
-
-    set_site_isolation_mode(m_web_content_options.site_isolation_mode);
 
     if (auto result = load_content_blocker_lists(); result.is_error()) {
         warnln("\033[31;1mUnable to load all content blocker lists:\033[0m {}", result.error());
@@ -1729,11 +1706,19 @@ void Application::crash_compositor_process()
     m_compositor_client->async_crash();
 }
 
+TabProcesses Application::tab_processes() const
+{
+    // Disable site isolation when debugging WebContent. Otherwise, the process swap may interfere with the gdb session.
+    if (browser_options().debug_helper_processes.contains_slow(ProcessType::WebContent))
+        return TabProcesses::PerTabWithoutSiteIsolation;
+    return m_settings->tab_settings().tab_processes;
+}
+
 bool Application::tabs_may_share_processes() const
 {
     // NB: Tests run side by side, and must not take each other's state with them.
     return m_web_content_options.is_test_mode == IsTestMode::No
-        && m_settings->tab_settings().tab_processes != TabProcesses::PerTab;
+        && tab_processes() != TabProcesses::PerTab;
 }
 
 ErrorOr<NonnullRefPtr<WebContentPage>> Application::open_page_for_new_tab(IsPrivate is_private)

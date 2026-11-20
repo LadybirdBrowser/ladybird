@@ -22,7 +22,6 @@
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/WebDriver/Error.h>
-#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AudioServerControlClient.h>
 #include <LibWebView/BlobURLStore.h>
@@ -114,7 +113,7 @@ void WebContentClient::note_hosted_document(CanonicalDocument const& document)
 
 static bool tabs_of_a_site_share_processes()
 {
-    return Application::settings().tab_settings().tab_processes == TabProcesses::PerSite;
+    return Application::the().tab_processes() == TabProcesses::PerSite;
 }
 
 bool WebContentClient::has_hosted_only_tabs_like(CanonicalDocument const& document) const
@@ -128,7 +127,7 @@ bool WebContentClient::has_hosted_only_tabs_like(CanonicalDocument const& docume
 bool WebContentClient::has_hosted_only_tabs_unlike(CanonicalDocument const& document) const
 {
     // NB: The user may want no tabs to share a process, which makes every other tab unlike the tabs of a process.
-    if (Application::settings().tab_settings().tab_processes == TabProcesses::PerTab)
+    if (Application::the().tab_processes() == TabProcesses::PerTab)
         return m_origin_of_hosted_tabs.has_value();
     if (tabs_of_a_site_share_processes())
         return m_origin_of_hosted_tabs.has_value() && !has_hosted_only_tabs_of_the_site_of(document);

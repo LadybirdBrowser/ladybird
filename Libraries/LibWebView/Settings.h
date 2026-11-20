@@ -90,6 +90,7 @@ enum class TabProcesses : u8 {
     PerTab,
     PerOrigin,
     PerSite,
+    PerTabWithoutSiteIsolation,
 };
 
 enum class VerticalTabsPosition : u8 {
