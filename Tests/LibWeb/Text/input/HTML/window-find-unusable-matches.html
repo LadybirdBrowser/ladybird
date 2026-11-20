@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const output = document.getElementById("out");
+        output.style.display = "none";
+
+        function report(label, found) {
+            if (!found) {
+                println(`${label}: not found`);
+                return;
+            }
+            const range = getSelection().getRangeAt(0);
+            println(`${label}: found "${range}" at ${range.startOffset}-${range.endOffset}`);
+        }
+
+        function findFromCaret(label, text, caret, query) {
+            target.textContent = text;
+            getSelection().collapse(target.firstChild, caret);
+            report(label, window.find(query));
+        }
+
+        function findInSlottedText(label, shadowText, slottedText, query) {
+            target.innerHTML = `<span id="host">${slottedText}</span>`;
+            document.getElementById("host").attachShadow({ mode: "open" }).innerHTML = `${shadowText}<slot></slot>`;
+            getSelection().removeAllRanges();
+            report(label, window.find(query));
+        }
+
+        findFromCaret("A match after the caret that overlaps a match before it", "eee", 1, "ee");
+        findFromCaret("A match after the caret that overlaps a match with another case before it", "Eee", 1, "ee");
+        findFromCaret("A match after the caret that overlaps a match with an accent before it", "éee", 1, "ee");
+        findFromCaret("The first of two overlapping matches from the start", "eee", 0, "ee");
+        findInSlottedText("A match in slotted text that overlaps a match across the shadow boundary", "e", "ee", "ee");
+        findInSlottedText("A match in slotted text after an accented letter in the shadow tree", "é", "ee", "ee");
+
+        target.innerHTML = '<div popover id="popover">x x</div><p id="paragraph">x</p>';
+        document.getElementById("popover").showPopover();
+        getSelection().collapse(document.getElementById("paragraph").firstChild, 0);
+        const foundAfterPopover = window.find("x");
+        println(`A match at the caret after an open popover that has matches: ${foundAfterPopover && getSelection().anchorNode.parentElement.id}`);
+
+        function findRepeatedly(label, markup, query) {
+            target.innerHTML = markup;
+            getSelection().removeAllRanges();
+            const matches = [];
+            while (matches.length < 4 && window.find(query)) {
+                const range = getSelection().getRangeAt(0);
+                matches.push(`"${range.startContainer.data}" ${range.startOffset}-${range.endOffset}`);
+            }
+            println(`${label}: ${matches.join(", ") || "not found"}`);
+        }
+
+        findRepeatedly("A space next to a line break is found only where the text has one", "a<br>b c", " ");
+        findRepeatedly("A no-break space next to a line break is found only where the text has a space", "a<br>b c", "\u00a0");
+        findRepeatedly("A space where the text has only a line break", "a<br>b", " ");
+
+        target.innerHTML = "a x<br>x b";
+        getSelection().collapse(target.firstChild, 3);
+        const foundAtLineBreak = window.find(" x ");
+        const rangeAtLineBreak = foundAtLineBreak && getSelection().getRangeAt(0);
+        println(`A match that starts with the line break at the caret: ${rangeAtLineBreak && `"${rangeAtLineBreak.startContainer.data}" ${rangeAtLineBreak.startOffset} to "${rangeAtLineBreak.endContainer.data}" ${rangeAtLineBreak.endOffset}`}`);
+
+        target.textContent = "aaaaa";
+        getSelection().removeAllRanges();
+        const matches = [];
+        while (matches.length < 10 && window.find("aa")) {
+            const range = getSelection().getRangeAt(0);
+            matches.push(`${range.startOffset}-${range.endOffset}`);
+        }
+        println(`Successive matches of a repeated letter do not overlap: ${matches.join(", ")}`);
+        output.style.display = "block";
+    });
+</script>

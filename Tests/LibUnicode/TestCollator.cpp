@@ -216,7 +216,8 @@ TEST_CASE(search_keys_split_text_into_code_points_one_way)
 
 extern "C" {
 void* unicode_layout_text_searcher_create(u16 const*, size_t, bool);
-void unicode_layout_text_searcher_set_text(void*, u16 const*, size_t);
+bool unicode_layout_text_is_searchable_without_collator(u16 const*, size_t);
+void unicode_layout_text_searcher_set_text(void*, u16 const*, size_t, size_t, bool);
 bool unicode_layout_text_searcher_next_match(void*, size_t*, size_t*);
 void unicode_layout_text_searcher_destroy(void*);
 }
@@ -240,7 +241,8 @@ static void expect_layout_search_finds_what_the_collator_finds(Unicode::Sensitiv
             expected.append(*match);
 
         Vector<Unicode::Collator::Match> found;
-        unicode_layout_text_searcher_set_text(searcher, reinterpret_cast<u16 const*>(haystack.data()), haystack.size());
+        auto const* code_units = reinterpret_cast<u16 const*>(haystack.data());
+        unicode_layout_text_searcher_set_text(searcher, code_units, haystack.size(), 0, unicode_layout_text_is_searchable_without_collator(code_units, haystack.size()));
         for (size_t start = 0, length = 0; unicode_layout_text_searcher_next_match(searcher, &start, &length);)
             found.append({ start, start + length });
 
@@ -354,8 +356,11 @@ TEST_CASE(search_keys_compare_text_as_the_collator_does)
 
             auto needle = random_text(1 + random(4));
             Vector<Vector<char16_t>> haystacks;
-            for (size_t haystack_index = 0; haystack_index < 10; ++haystack_index)
-                haystacks.append(random_text(1 + random(24)));
+            for (size_t haystack_index = 0; haystack_index < 10; ++haystack_index) {
+                auto haystack = random_text(1 + random(24));
+                EXPECT(unicode_layout_text_is_searchable_without_collator(reinterpret_cast<u16 const*>(haystack.data()), haystack.size()));
+                haystacks.append(move(haystack));
+            }
             expect_layout_search_finds_what_the_collator_finds(sensitivity, *collator, needle, haystacks);
         }
     }
