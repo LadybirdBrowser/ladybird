@@ -1,0 +1,11 @@
+When the layout of a Mach message isn’t one a transport builds, Ladybird
+drops it and disconnects the peer. So does Blink: Its ChannelMac::
+OnMachMessageReceived() reports kReceivedMalformedData to OnError() for
+an unknown message ID, a descriptor of the wrong type, or a disposition
+it doesn’t expect, and that closes the channel. Gecko’s ChannelMach::
+ProcessIncomingMessage() returns false in the same cases, and the
+channel then closes with OnChannelError(). And WebKit’s MachMessage
+receive path returns ReceiveResult::InvalidMessage for them. Blink and
+WebKit accept a null send right as an attachment, but Ladybird rejects
+one, as its Rust transport already does, since Ladybird never sends one.
+All of this comes from reading their sources, not from running them.
