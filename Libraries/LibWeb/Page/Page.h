@@ -836,6 +836,7 @@ public:
     virtual void page_did_change_title(Utf16String const&) { }
     virtual void page_did_update_editing_history_state(bool, bool) { }
     virtual void page_did_set_text_fragment_indication_visibility(bool) { }
+    virtual void page_did_request_certificate_warning(URL::URL const&) { }
     virtual void page_did_request_resize_window(Gfx::IntSize, u64) { }
     virtual void page_did_request_reposition_window(Gfx::IntPoint, u64) { }
     virtual void page_did_request_restore_window() { }

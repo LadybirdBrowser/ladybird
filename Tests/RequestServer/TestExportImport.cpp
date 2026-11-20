@@ -18,6 +18,7 @@
 #include <LibURL/Parser.h>
 #include <LibURL/Site.h>
 #include <RequestServer/CURL.h>
+#include <RequestServer/CertificateExceptions.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
@@ -415,6 +416,68 @@ TEST_CASE(imported_response_whose_transfer_failed_is_not_cached)
 
     auto finished = target.wait_for<Messages::RequestClient::RequestFinished>(event_loop, 30);
     EXPECT(finished->network_error().has_value());
+
+    target.start_request(31, url, key, false);
+    auto headers = target.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 31);
+    auto cache_status = headers->response_headers().first_matching([](auto const& header) { return header.name == HTTP::TEST_CACHE_STATUS_HEADER; });
+    EXPECT(cache_status.has_value());
+    EXPECT_NE(cache_status->value, "read-from-cache"sv);
+    (void)target.wait_for<Messages::RequestClient::RequestFinished>(event_loop, 31);
+    EXPECT_EQ(http_server.request_count(), 2u);
+}
+
+TEST_CASE(exporter_reports_a_response_from_a_server_with_a_certificate_exception)
+{
+    Core::EventLoop event_loop;
+    TestServer server { "certificate-exception-export"sv };
+    DrippingServer http_server { patterned_body(16 * KiB), 16 * KiB, AK::Duration::from_milliseconds(2) };
+    auto url = http_server.url();
+    auto key = navigation_key_for(url);
+
+    RequestServer::add_certificate_exception(url.serialized_host().to_byte_string(), url.port_or_default(), "00"sv);
+
+    TestConnection navigator { server, ReadsBodies::No };
+    TestConnection ui { server, ReadsBodies::No };
+    navigator.start_request(1, url, key, true);
+    (void)navigator.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 1);
+    ui.adopt_request(navigator.client_id(), 1, 10, true, navigator.client_id());
+    (void)ui.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 10);
+
+    auto exported = ui.export_request(10);
+    EXPECT(exported.has_value());
+    EXPECT(exported->may_rely_on_certificate_exception);
+}
+
+TEST_CASE(imported_response_that_may_rely_on_a_certificate_exception_is_not_cached)
+{
+    Core::EventLoop event_loop;
+    TestServer source_server { "certificate-exception-source"sv };
+    TestServer target_server { "certificate-exception-target"sv };
+    DrippingServer http_server { patterned_body(64 * KiB), 16 * KiB, AK::Duration::from_milliseconds(2) };
+    auto url = http_server.url();
+    auto key = navigation_key_for(url);
+
+    TestConnection navigator { source_server, ReadsBodies::No };
+    TestConnection source_ui { source_server, ReadsBodies::No };
+    navigator.start_request(1, url, key, true);
+    (void)navigator.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 1);
+    source_ui.adopt_request(navigator.client_id(), 1, 10, true, navigator.client_id());
+    (void)source_ui.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 10);
+
+    auto exported = source_ui.export_request(10);
+    EXPECT(exported.has_value());
+
+    // NB: The target RequestServer has no exception for the server, so only the exporter's word keeps this uncached.
+    exported->may_rely_on_certificate_exception = true;
+
+    TestConnection target_ui { target_server, ReadsBodies::No };
+    TestConnection target { target_server };
+    target_ui.import_request(20, exported.release_value(), true);
+    (void)target_ui.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 20);
+    target.adopt_request(target_ui.client_id(), 20, 30, false, target_ui.client_id());
+    auto finished = target.wait_for<Messages::RequestClient::RequestFinished>(event_loop, 30);
+    EXPECT(!finished->network_error().has_value());
+    (void)target.read_whole_body(event_loop, 30);
 
     target.start_request(31, url, key, false);
     auto headers = target.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, 31);

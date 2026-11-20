@@ -24,6 +24,11 @@
 
 namespace WebView {
 
+static ByteString certificate_exception_key(ByteString const& host, u16 port)
+{
+    return ByteString::formatted("{}:{}", host, port);
+}
+
 // Entries last accessed in the same time bucket are evicted together.
 static constexpr auto cache_access_granularity = AK::Duration::from_seconds(1);
 
@@ -147,7 +152,16 @@ ErrorOr<void> RequestServerManager::launch_process(RequestServerInstance& instan
         if (auto instance = weak_instance.strong_ref())
             the().disk_cache_size_changed(*instance, size);
     };
+    control_client->on_rejected_self_signed_certificate = [weak_instance](ByteString const& host, u16 port, ByteString const& fingerprint) {
+        if (auto instance = weak_instance.strong_ref()) {
+            instance->session().rejected_self_signed_certificates.set(certificate_exception_key(host, port),
+                BrowsingSession::CertificateException { .host = host, .port = port, .fingerprint = fingerprint });
+        }
+    };
     Application::the().configure_request_server_control_client(*control_client);
+
+    for (auto const& exception : instance.session().trusted_certificates)
+        control_client->async_trust_certificate(exception.host, exception.port, exception.fingerprint);
 
     instance.m_control_client = move(control_client);
     instance.m_ui_client = nullptr;
@@ -264,6 +278,25 @@ void RequestServerManager::retire_idle_instances()
         if (instance->site().has_value() && instance->m_client_ids.is_empty())
             retire(*instance);
     }
+}
+
+Optional<BrowsingSession::CertificateException> RequestServerManager::rejected_self_signed_certificate(BrowsingSession& session, URL::URL const& url) const
+{
+    auto host = url.serialized_host().to_byte_string();
+    return session.rejected_self_signed_certificates.get(certificate_exception_key(host, url.port_or_default())).copy();
+}
+
+void RequestServerManager::trust_certificate(BrowsingSession& session, BrowsingSession::CertificateException const& certificate)
+{
+    if (session.trusted_certificates.contains_slow(certificate))
+        return;
+
+    for (auto& instance : m_instances) {
+        if (&instance->session() == &session)
+            (void)instance->control_client().send_sync_but_allow_failure<Messages::RequestServerControl::TrustCertificate>(certificate.host, certificate.port, certificate.fingerprint);
+    }
+
+    session.trusted_certificates.append(certificate);
 }
 
 void RequestServerManager::disk_cache_settings_changed()

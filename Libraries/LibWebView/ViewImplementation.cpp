@@ -973,6 +973,35 @@ void ViewImplementation::load_html(StringView html)
         set_loading_state(true);
 }
 
+void ViewImplementation::did_request_certificate_warning(Badge<WebContentPage>, URL::URL const& url)
+{
+    // Snapshot the rejected certificate so trusting it cannot trust a later rejection for the same host.
+    auto certificate = RequestServerManager::the().rejected_self_signed_certificate(session(), url);
+    if (!certificate.has_value())
+        return;
+
+    // Declining reloads the error page; suppress its repeated warning request.
+    if (auto declined = exchange(m_declined_certificate, {}); declined == certificate)
+        return;
+
+    m_certificate_warning = CertificateWarning { .url = url, .certificate = certificate.release_value() };
+    load(URL::URL::about("certificate"sv), Web::Bindings::NavigationHistoryBehavior::Replace);
+}
+
+void ViewImplementation::answer_certificate_warning(Badge<CertificateUI>, bool trust)
+{
+    auto warning = exchange(m_certificate_warning, {});
+    if (!warning.has_value())
+        return;
+
+    if (trust)
+        RequestServerManager::the().trust_certificate(session(), warning->certificate);
+    else
+        m_declined_certificate = warning->certificate;
+
+    load(warning->url, Web::Bindings::NavigationHistoryBehavior::Replace);
+}
+
 void ViewImplementation::reload(BypassCache bypass_cache)
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Reload;

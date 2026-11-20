@@ -97,6 +97,7 @@ set(SOURCES
     WebDriverBrowserConnection.cpp
     WebUI.cpp
     WebUI/ApplicationWebUI.cpp
+    WebUI/CertificateUI.cpp
     WebUI/CrashReportsUI.cpp
     WebUI/SupportUI.cpp
     WebUI/SettingsUI.cpp

@@ -60,6 +60,7 @@ class RequestServerManager;
 class RequestServerSiteBindings;
 class PermissionManager;
 class Settings;
+class CertificateUI;
 class SettingsUI;
 class SpellChecker;
 class Translator;
