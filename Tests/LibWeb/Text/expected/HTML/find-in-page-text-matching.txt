@@ -1,0 +1,83 @@
+Case insensitive:
+A capital letter with an accent: found "ÉCOLE" at 0-5
+Greek capitals for a query with a final sigma: found "ΣΊΣΥΦΟΣ" at 0-7
+Cyrillic capitals: found "ПРИВЕТ" at 0-6
+A dotted capital I: found "İstanbul" at 0-8
+A sharp s for two letters s: found "straße" at 0-6
+Two letters s for a sharp s: found "strasse" at 0-7
+An accented letter for its base letter: found "café" at 3-7
+A base letter for its accented letter: found "cafe" at 3-7
+A letter with a combining accent for a precomposed letter: found "cafe\u0301" at 3-8
+A precomposed letter for a letter with a combining accent: found "café" at 3-7
+Full-width letters: found "ｎｅｅｄｌｅ" at 0-6
+A ligature: found "ﬁnd" at 0-3
+Katakana for hiragana: found "カタカナ" at 0-4
+Half-width katakana for katakana: found "ｶﾀｶﾅ" at 0-4
+A voiced kana letter for an unvoiced one: not found
+An unvoiced kana letter for a voiced one: not found
+A kana letter with a combining voicing mark for a voiced one: found "か\u3099き" at 0-3
+A small kana letter for a full-size one: not found
+A kana word that overlaps a word with other voicing: found "ただ" at 2-4
+Half-width voiced katakana for voiced katakana: found "ｶﾞｲﾄﾞ" at 0-5
+Half-width voiced katakana for unvoiced katakana: not found
+A voiced hiragana iteration mark for an unvoiced one: not found
+An unvoiced hiragana iteration mark for a voiced one: not found
+A voiced katakana iteration mark for an unvoiced one: not found
+A voiced hiragana iteration mark for itself: found "すゞき" at 0-3
+A voiced kana letter with another mark for an unvoiced one: not found
+A voiced kana letter with another mark for a voiced one: found "ガ\u0334" at 0-2
+A voiced kana letter with a supplementary mark for an unvoiced one: not found
+A voiced kana letter with a supplementary mark for a voiced one: found "ガ\ud834\udd67" at 0-3
+A voiced kana letter with a grapheme joiner for an unvoiced one: not found
+A voiced kana letter with a grapheme joiner for a voiced one: found "カ\u034f\u3099" at 0-3
+A voiced kana letter with a variation selector for an unvoiced one: not found
+A voiced kana letter with an enclosing mark for an unvoiced one: not found
+A voiced kana letter with a zero-width joiner for an unvoiced one: not found
+A supplementary small kana letter for a full-size one: not found
+A full-size kana letter for a supplementary small one: not found
+A supplementary small katakana letter for a hiragana one: found "\ud82c\udd64" at 0-2
+A circled katakana letter for a katakana letter: found "㋐" at 0-1
+A kana digraph for its letters: found "ゟ" at 0-1
+Kana letters for a kana digraph: found "より" at 0-2
+A squared katakana word for its letters: found "㌀" at 0-1
+A squared katakana word for letters with other voicing: not found
+Katakana letters with other voicing for a squared katakana word: not found
+A voiced vertical kana repeat mark for an unvoiced one: not found
+An unvoiced vertical kana repeat mark for a voiced one: not found
+A vertical kana repeat mark with a combining voicing mark for a voiced one: found "〱\u3099" at 0-2
+The first emoji of a joined sequence selects the sequence: found "\ud83d\udc69\u200d\ud83d\udcbb" at 2-7
+An emoji on its own: found "\ud83d\udcbb" at 2-4
+The second emoji of a joined sequence: not found
+An emoji with a skin tone for the emoji alone: found "\ud83d\udc4d\ud83c\udffd" at 0-4
+A flag for its first regional indicator: found "\ud83c\udde9\ud83c\uddea" at 0-4
+A decomposed Hangul syllable for its first jamo: found "각" at 0-3
+A no-break space for a space: found "foo\u00a0bar" at 0-7
+A space for a no-break space: found "foo bar" at 0-7
+A soft hyphen inside a word: found "nee\u00addle" at 2-9
+A soft hyphen in the query: found "needle" at 2-8
+A zero-width space inside a word: found "nee\u200bdle" at 2-9
+A zero-width joiner inside a word: found "nee\u200ddle" at 2-9
+Letters on either side of a preserved line feed: not found
+A preserved line feed for a space: not found
+A curly apostrophe for a straight one: found "don’t" at 0-5
+A straight apostrophe for a curly one: found "don't" at 0-5
+Curly double quotes for straight ones: found "“quoted”" at 0-8
+Case sensitive:
+A capital letter: not found
+The same letters after a capital letter: found "needle" at 7-13
+An accented letter for its base letter: not found
+Full-width letters: not found
+A letter with a combining accent for a precomposed letter: found "cafe\u0301" at 3-8
+A no-break space for a space: not found
+A soft hyphen inside a word: found "nee\u00addle" at 2-9
+A curly apostrophe for a straight one: found "don’t" at 0-5
+Low double quotes for straight ones: found "„Wort“" at 0-6
+Low single quotes for straight ones: found "‚Wort‘" at 0-6
+Reversed quotes for straight ones: found "‟Wort” ‛Wort’" at 0-13
+Every match, case insensitive:
+Adjacent matches: 0-3, 3-6
+Adjacent matches of accented letters: 0-1, 1-2, 2-3
+Matches that differ in case and accent: 3-7, 12-16, 21-25
+Kana words between words with other voicing: 3-5, 9-11
+Matches on lines of preformatted text: 0-6, 7-13, 14-20
+Matches around no-break spaces in text without other accents: 0-7, 9-16
