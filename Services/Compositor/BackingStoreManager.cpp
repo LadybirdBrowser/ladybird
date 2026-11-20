@@ -176,15 +176,8 @@ ErrorOr<Optional<BackingStoreManager::Publication>> BackingStoreManager::allocat
     m_backing_stores.ensure_capacity(buffer_count);
 
     if (publication_mode == PublicationMode::Unpublished) {
-        for (size_t i = 0; i < buffer_count; ++i) {
-            m_backing_stores.append({
-                .surface = Gfx::PaintingSurface::create_with_size(allocation.size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context),
-                .shared_image_buffer = nullptr,
-                .window_server_surface = nullptr,
-                .bitmap_id = allocation.bitmap_ids[i],
-                .state = BufferState::Available,
-            });
-        }
+        for (size_t i = 0; i < buffer_count; ++i)
+            m_backing_stores.append(create_offscreen_backing_store(allocation.size, allocation.bitmap_ids[i], skia_backend_context));
         return Optional<Publication> {};
     }
 
@@ -259,6 +252,17 @@ ErrorOr<Optional<BackingStoreManager::Publication>> BackingStoreManager::allocat
     } };
 }
 
+BackingStoreManager::BackingStore BackingStoreManager::create_offscreen_backing_store(Gfx::IntSize size, i32 bitmap_id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    return {
+        .surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context),
+        .shared_image_buffer = nullptr,
+        .window_server_surface = nullptr,
+        .bitmap_id = bitmap_id,
+        .state = BufferState::Available,
+    };
+}
+
 BackingStoreManager::BackingStore BackingStoreManager::create_shareable_backing_store(Gfx::IntSize size, i32 bitmap_id, BufferState state, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     auto shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(size));
@@ -285,6 +289,29 @@ ErrorOr<BackingStoreManager::BackingStore> BackingStoreManager::create_backing_s
     };
 }
 
+// GPU stores shared with the presentation are only ever allocated together, as the presentation installs them.
+bool BackingStoreManager::backing_stores_can_be_added_one_at_a_time() const
+{
+    if (m_backing_stores.is_empty())
+        return false;
+    if (m_publication_mode != PublicationMode::Published)
+        return true;
+    return m_backing_stores.first().shared_image_buffer.ptr() != nullptr;
+}
+
+ErrorOr<BackingStoreManager::BackingStore> BackingStoreManager::create_backing_store_like_the_allocated_ones(i32 bitmap_id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    switch (m_publication_mode) {
+    case PublicationMode::Unpublished:
+        return create_offscreen_backing_store(m_backing_store_size, bitmap_id, skia_backend_context);
+    case PublicationMode::Published:
+        return create_shareable_backing_store(m_backing_store_size, bitmap_id, BufferState::Available, skia_backend_context);
+    case PublicationMode::ShownInRemoteLayer:
+        return create_backing_store_shown_by_window_server(m_backing_store_size, bitmap_id, skia_backend_context);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 // The window server lets go of a store some time after the client replaced it on screen, which at high refresh rates
 // can be later than the next frame is due. Rather than hold that frame back, give it a store of its own. While the
 // client has yet to take a frame, or to release a store, there is no telling what the window server holds, and the
@@ -308,14 +335,10 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::add_backing_stor
     }
 
     auto bitmap_id = m_next_bitmap_id++;
-    if (m_publication_mode == PublicationMode::ShownInRemoteLayer) {
-        auto store = create_backing_store_shown_by_window_server(m_backing_store_size, bitmap_id, skia_backend_context);
-        if (store.is_error())
-            return {};
-        m_backing_stores.append(store.release_value());
-    } else {
-        m_backing_stores.append(create_shareable_backing_store(m_backing_store_size, bitmap_id, BufferState::Available, skia_backend_context));
-    }
+    auto store = create_backing_store_like_the_allocated_ones(bitmap_id, skia_backend_context);
+    if (store.is_error())
+        return {};
+    m_backing_stores.append(store.release_value());
 
     Vector<Gfx::SharedImage> shared_images;
     if (m_publication_mode == PublicationMode::Published)
@@ -350,6 +373,81 @@ Vector<i32> BackingStoreManager::retire_idle_surplus_backing_stores()
     for (auto& store : m_backing_stores)
         store.was_rendered_into_since_last_retirement_check = false;
     return retired_bitmap_ids;
+}
+
+// A hidden context keeps only the store that holds its latest frame, which is what shows it until it is shown again,
+// and what a snapshot of it is taken from. Before any frame, the store reserved as the presentation's first front
+// store stays too.
+Vector<i32> BackingStoreManager::retire_backing_stores_except_the_latest_rendered()
+{
+    Vector<i32> retired_bitmap_ids;
+    if (is_rendering())
+        return retired_bitmap_ids;
+
+    for (size_t i = m_backing_stores.size(); i-- > 0;) {
+        auto const& store = m_backing_stores[i];
+        if (m_latest_rendered_store_index == i)
+            continue;
+        if (store.state != BufferState::Available || shared_surface_is_in_use(store))
+            continue;
+
+        retired_bitmap_ids.append(store.bitmap_id);
+        m_backing_stores.remove(i);
+        if (m_latest_rendered_store_index.has_value() && *m_latest_rendered_store_index > i)
+            m_latest_rendered_store_index = *m_latest_rendered_store_index - 1;
+    }
+
+    // Stores that never held a frame are allocated anew when the context is shown.
+    if (m_backing_stores.is_empty())
+        invalidate();
+    return retired_bitmap_ids;
+}
+
+// Whether a store that the hidden context does not keep is still rendered into, shown, or read by the window server,
+// and can be retired once it no longer is.
+bool BackingStoreManager::has_backing_stores_left_to_retire_while_hidden() const
+{
+    for (size_t i = 0; i < m_backing_stores.size(); ++i) {
+        if (m_latest_rendered_store_index == i)
+            continue;
+        auto const& store = m_backing_stores[i];
+        switch (store.state) {
+        case BufferState::Rendering:
+            return true;
+        case BufferState::Presented:
+            // Before any frame, a presented store is the one reserved as the presentation's first front store, which
+            // the presentation holds until it is shown a frame.
+            if (m_latest_rendered_store_index.has_value())
+                return true;
+            break;
+        case BufferState::Available:
+            if (shared_surface_is_in_use(store))
+                return true;
+            break;
+        }
+    }
+    return false;
+}
+
+// Gives a context that was shown again the stores it had before it was hidden. Answers nothing where they can't be
+// added to the ones it kept, or one could not be made, as the context then needs a whole new allocation.
+Optional<BackingStoreManager::Publication> BackingStoreManager::add_backing_stores_up_to_initial_count(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    if (!backing_stores_can_be_added_one_at_a_time())
+        return {};
+
+    Publication publication;
+    while (m_backing_stores.size() < m_initial_backing_store_count) {
+        auto bitmap_id = m_next_bitmap_id++;
+        auto store = create_backing_store_like_the_allocated_ones(bitmap_id, skia_backend_context);
+        if (store.is_error())
+            return {};
+        m_backing_stores.append(store.release_value());
+        publication.bitmap_ids.append(bitmap_id);
+        if (m_publication_mode == PublicationMode::Published)
+            publication.shared_images.append(m_backing_stores.last().shared_image_buffer->export_shared_image());
+    }
+    return publication;
 }
 
 bool BackingStoreManager::is_valid() const

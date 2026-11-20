@@ -231,6 +231,8 @@ private:
     RustFFI::StoreResizeOutcome resize_stores(Web::CompositorContextId, RustFFI::FfiStoreResize const&);
     bool add_store_if_window_server_reads_every_released_store(Web::CompositorContextId, Optional<PresentationId>);
     bool retire_idle_surplus_stores(Web::CompositorContextId, Optional<PresentationId>);
+    bool retire_stores_of_hidden_context(Web::CompositorContextId, Optional<PresentationId>);
+    bool restore_stores_retired_while_hidden(Web::CompositorContextId, Optional<PresentationId>);
     bool take_registered_image_frames(Web::CompositorContextId, ReadonlySpan<u64> image_frame_ids);
     void set_drawn_image_frames(Web::CompositorContextId, ReadonlySpan<u64> image_frame_ids);
     void set_drawn_video_sinks(Web::CompositorContextId, ReadonlySpan<u64> handles);

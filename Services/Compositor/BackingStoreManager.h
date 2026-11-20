@@ -82,6 +82,10 @@ public:
     bool has_surplus_backing_stores() const { return m_backing_stores.size() > m_initial_backing_store_count; }
     Vector<i32> retire_idle_surplus_backing_stores();
 
+    Vector<i32> retire_backing_stores_except_the_latest_rendered();
+    bool has_backing_stores_left_to_retire_while_hidden() const;
+    Optional<Publication> add_backing_stores_up_to_initial_count(RefPtr<Gfx::SkiaBackendContext> const&);
+
 private:
     enum class BufferState : u8 {
         Available,
@@ -101,8 +105,11 @@ private:
 
     static constexpr size_t maximum_backing_store_count = 8;
 
+    static BackingStore create_offscreen_backing_store(Gfx::IntSize, i32 bitmap_id, RefPtr<Gfx::SkiaBackendContext> const&);
     static BackingStore create_shareable_backing_store(Gfx::IntSize, i32 bitmap_id, BufferState, RefPtr<Gfx::SkiaBackendContext> const&);
     ErrorOr<BackingStore> create_backing_store_shown_by_window_server(Gfx::IntSize, i32 bitmap_id, RefPtr<Gfx::SkiaBackendContext> const&);
+    bool backing_stores_can_be_added_one_at_a_time() const;
+    ErrorOr<BackingStore> create_backing_store_like_the_allocated_ones(i32 bitmap_id, RefPtr<Gfx::SkiaBackendContext> const&);
     static bool shared_surface_is_in_use(BackingStore const&);
     static bool store_can_be_rendered_into(BackingStore const&);
 

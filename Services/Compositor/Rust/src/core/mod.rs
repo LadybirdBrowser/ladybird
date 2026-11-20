@@ -783,9 +783,20 @@ impl CompositorCore {
             let event = context.borrow_mut().end_scroll_fling();
             self.dispatch_scroll_fling_step(context_id, context, event, now);
         }
-        let became_visible = context.borrow().visibility() != visibility && visibility == ContextVisibility::Visible;
+        let visibility_changes = context.borrow().visibility() != visibility;
+        let became_visible = visibility_changes && visibility == ContextVisibility::Visible;
         context.borrow_mut().set_visibility(visibility);
+        if visibility_changes
+            && visibility == ContextVisibility::Hidden
+            && let Some(presenting) = self.presenting_of(context_id)
+        {
+            presenting
+                .borrow()
+                .schedule_hidden_store_retirement(context_id, &self.host);
+        }
         if became_visible {
+            self.host.cancel_timer(context_id, ContextTimer::HiddenStoreRetirement);
+            self.restore_backing_stores_retired_while_hidden(context_id, now);
             self.resume_presentation_after_becoming_visible(context_id, now);
         }
         self.finish_entry(now);
@@ -806,6 +817,7 @@ impl CompositorCore {
                 self.resize_backing_stores_if_needed(context_id, now);
             }
             ContextTimer::SurplusStoreRetirement => self.retire_idle_surplus_backing_stores(context_id),
+            ContextTimer::HiddenStoreRetirement => self.retire_backing_stores_of_hidden_context(context_id),
             _ => {
                 let caret_damage_rect = context.borrow_mut().timer_fired(timer, now);
                 if let Some(caret_damage_rect) = caret_damage_rect {

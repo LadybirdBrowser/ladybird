@@ -31,6 +31,7 @@ pub enum ContextTimer {
     CaretBlink,
     BackingStoreShrink,
     SurplusStoreRetirement,
+    HiddenStoreRetirement,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
