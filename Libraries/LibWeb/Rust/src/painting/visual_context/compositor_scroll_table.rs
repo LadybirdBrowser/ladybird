@@ -11,7 +11,7 @@ use crate::painting::display_list::commands::UniqueNodeId;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::paint_passes::CompositorScrollRefreshOutcome;
 use crate::painting::paint_read::PaintRead;
-use crate::painting::{paintable_geometry, scroll_snap, style_queries};
+use crate::painting::{paintable_geometry, scroll_snap};
 use libcompositing_rust::visual_context::{
     CompositorScrollNodeKind, CompositorScrollNodeRecord, CompositorSnapAreaRecord, CompositorSnapContainerRecord,
     SpatialData, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
@@ -65,9 +65,6 @@ pub(crate) fn nearest_ancestor_with_compositor_scroll_node(
     while !candidate.is_invalid() && source.paintable_row_is_populated(candidate) {
         if compositor_scroll_node_kind(source, candidate, &mut wheel_scrollable_axes).is_some() {
             return Some(candidate);
-        }
-        if style_queries::is_fixed_position(source, candidate) {
-            return None;
         }
         candidate = source.paintable_data(candidate).containing_block;
     }
