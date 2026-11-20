@@ -6,6 +6,7 @@
 
 #include <LibCore/MappedFile.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibGfx/Font/FontCatalog.h>
 #include <LibTest/TestCase.h>
 #include <LibWebView/FontService.h>
 #include <sys/mman.h>
@@ -96,4 +97,24 @@ TEST_CASE(dynamic_matches_of_a_catalog_face_use_its_catalog_id)
 
     auto match = WebView::FontServiceTestAccess::materialize(*service, test_font_file("text.ttf"sv), "catalog-face"_string);
     EXPECT_EQ(match.face_id, *catalog_face_id);
+}
+
+TEST_CASE(catalog_matches_a_symbol_face_last)
+{
+    // The first face of the collection has a symbol cmap subtable, and the second doesn't. Both are of one family, at
+    // the same weight, width and slope.
+    auto font_directory = MUST(FileSystem::real_path("../LibGfx/test-inputs/fonts"sv));
+    auto service = WebView::FontService::create({ MUST(String::from_byte_string(font_directory)) });
+    auto catalog = MUST(service->clone_catalog());
+    auto mapping = MUST(Core::MappedFile::map_from_fd_range_and_close(catalog.file.take_fd(), "font catalog"sv, 0, catalog.size));
+    auto parsed_catalog = MUST(Gfx::FontCatalog::parse(mapping->bytes(), catalog.generation));
+
+    auto match = parsed_catalog->match_style("Symbol Face Test"sv, 400, 5, 0);
+    EXPECT(match.has_value());
+    EXPECT_EQ(match->ttc_index, 1u);
+
+    EXPECT_EQ(parsed_catalog->family_face_count("Symbol Face Test"sv), 2u);
+    auto first_face = parsed_catalog->family_face_at("Symbol Face Test"sv, 0);
+    EXPECT(first_face.has_value());
+    EXPECT_EQ(first_face->ttc_index, 1u);
 }

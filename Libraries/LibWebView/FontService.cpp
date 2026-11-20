@@ -84,6 +84,18 @@ ErrorOr<void> FontService::build_catalog()
     Optional<Error> callback_error;
     u64 next_face_id = 1;
 
+    struct CollectedFace {
+        FlyString family;
+        u64 face_id { 0 };
+        u32 ttc_index { 0 };
+        u16 weight { 0 };
+        u16 width { 0 };
+        u8 slope { 0 };
+        Gfx::FontFileFormat format { Gfx::FontFileFormat::OpenType };
+        bool is_symbol_font { false };
+    };
+    Vector<CollectedFace> collected_faces;
+
     auto directories = TRY(Gfx::FontDatabase::font_directories());
     directories.extend(m_additional_font_directories);
     for (auto const& directory : directories) {
@@ -114,19 +126,16 @@ ErrorOr<void> FontService::build_catalog()
                 }
                 m_local_font_names.set(folded_name.release_value(), face_id, AK::HashSetExistingEntryBehavior::Keep);
             }
-            auto result = builder->add_face({
-                .family = typeface->family().bytes_as_string_view(),
+            collected_faces.append({
+                .family = typeface->family(),
                 .face_id = face_id,
                 .ttc_index = ttc_index,
                 .weight = typeface->weight(),
                 .width = typeface->width(),
                 .slope = typeface->slope(),
                 .format = format,
+                .is_symbol_font = typeface->description().is_symbol_font(),
             });
-            if (result.is_error()) {
-                callback_error = result.release_error();
-                return;
-            }
             FontSource source { .path = path, .ttc_index = ttc_index, .format = format };
             m_face_id_by_source.set(source, face_id);
             m_font_sources.set(face_id, move(source));
@@ -134,6 +143,24 @@ ErrorOr<void> FontService::build_catalog()
         Gfx::PathFontProvider::for_each_typeface_in_uri(uri, loaded_paths, move(collect_typeface));
         if (callback_error.has_value())
             return callback_error.release_value();
+    }
+
+    // The catalog matches the faces of a family in the order they're added. So, the faces of symbol fonts go last, and a
+    // face of ornaments in a family of text is never matched in place of the text face of the same style.
+    for (auto symbol_fonts : { false, true }) {
+        for (auto const& face : collected_faces) {
+            if (face.is_symbol_font != symbol_fonts)
+                continue;
+            TRY(builder->add_face({
+                .family = face.family.bytes_as_string_view(),
+                .face_id = face.face_id,
+                .ttc_index = face.ttc_index,
+                .weight = face.weight,
+                .width = face.width,
+                .slope = face.slope,
+                .format = face.format,
+            }));
+        }
     }
 
     auto serialized = TRY(builder->serialize());
