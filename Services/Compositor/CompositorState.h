@@ -156,7 +156,7 @@ public:
     // it, and tells the requester once every one of them has handed over its frames, or gone away.
     void prepare_remote_descendants_for_screenshot(CompositorStateWebContentClient& requester, Web::CompositorContextId, u64 request_id);
     void did_paint_contexts_for_screenshot(CompositorStateWebContentClient& painter, u64 preparation_id);
-    Optional<Gfx::ShareableBitmap> take_frame_snapshot(Web::CompositorContextId, Optional<Gfx::IntSize> maximum_size);
+    Optional<Gfx::ShareableBitmap> take_frame_snapshot(Web::CompositorContextId);
     void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id);
     void set_client_gpu_presentation_capability(CompositorStateClient&, bool supported, u64 adapter_luid);
     void set_scrollbar_track_press_jumps(CompositorStateClient&, bool jumps);

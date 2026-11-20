@@ -194,11 +194,11 @@ void RemoteView::did_present_frame_in_remote_layer(Gfx::IntSize size, double dev
         on_ready_to_paint();
 }
 
-void RemoteView::take_frame_snapshot(Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)> callback)
+void RemoteView::take_frame_snapshot(Function<void(Optional<Gfx::ShareableBitmap>)> callback)
 {
     auto request_id = m_next_request_id++;
     m_pending_frame_snapshots.set(request_id, move(callback));
-    HubConnection::the().async_view_take_frame_snapshot(view_id(), request_id, maximum_size);
+    HubConnection::the().async_view_take_frame_snapshot(view_id(), request_id);
 }
 
 void RemoteView::did_take_frame_snapshot(u64 request_id, Optional<Gfx::ShareableBitmap> snapshot)

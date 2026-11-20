@@ -482,9 +482,9 @@ void ViewImplementation::set_hosts_remote_layer(bool hosts_remote_layer)
     did_create_remote_layer(remote_layer->host_handle);
 }
 
-void ViewImplementation::take_frame_snapshot(Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)> callback)
+void ViewImplementation::take_frame_snapshot(Function<void(Optional<Gfx::ShareableBitmap>)> callback)
 {
-    Application::the().take_frame_snapshot(page().compositor_context_id(), maximum_size, move(callback));
+    Application::the().take_frame_snapshot(page().compositor_context_id(), move(callback));
 }
 
 ViewImplementation* ViewImplementation::find_view_showing_remote_layer(u64 remote_layer_id)
