@@ -246,7 +246,11 @@ public:
         if (auto result = m_backing_stores.add(move(bitmap_ids), move(backing_stores)); result.is_error())
             warnln("Could not add backing stores: {}", result.error());
     }
-    void did_retire_backing_stores(ReadonlySpan<i32> bitmap_ids) { m_backing_stores.retire(bitmap_ids); }
+    void did_retire_backing_stores(ReadonlySpan<i32> bitmap_ids)
+    {
+        m_backing_stores.retire(bitmap_ids);
+        backing_stores_were_retired();
+    }
     void did_present_backing_store(u64 page_id, i32 bitmap_id, Gfx::IntSize, double device_pixel_ratio);
     void did_accept_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect);
     void did_keep_front_backing_store_as_backup() { m_backing_stores.keep_front_as_backup(); }
@@ -267,6 +271,7 @@ protected:
     // The handle's kind is None when the view has no remote layer, and goes on showing backing stores.
     virtual void remote_layer_changed(Compositing::RemoteLayerHostHandle) { }
     virtual void release_backing_store(u64 page_id, i32 bitmap_id) { release_backing_store_to_page(page_id, bitmap_id); }
+    virtual void backing_stores_were_retired() { }
 
     void set_page_background_color_to_system_canvas(bool dark) { HubConnection::the().async_view_set_page_background_color_to_system_canvas(view_id(), dark); }
     void set_device_pixel_ratio_and_viewport(double device_pixel_ratio, Web::DevicePixelSize);

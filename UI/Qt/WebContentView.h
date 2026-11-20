@@ -477,6 +477,8 @@ private:
     virtual void release_backing_store(u64 page_id, i32 bitmap_id) override;
 
 #    ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
+    virtual void backing_stores_were_retired() override;
+
     bool create_page_surface();
     enum class PageSurfaceContent {
         Unchanged,

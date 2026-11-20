@@ -1305,6 +1305,14 @@ bool WebContentView::page_surface_can_show_frames() const
     return !scales_frames_to_fit() || !has_hover_expanded_chrome;
 }
 
+void WebContentView::backing_stores_were_retired()
+{
+    // NB: A hidden view presents nothing, which is when the page surface would let go of the buffers of retired backing
+    //     stores, so their dma-bufs would stay with the compositor of the desktop until the view is shown again.
+    if (m_page_surface)
+        m_page_surface->forget_buffers_except(backing_stores().shared_image_buffers());
+}
+
 void WebContentView::hide_page_surface()
 {
     // NB: Qt paints the page from here on, and shows it once the browser window commits. The page surface stays on
