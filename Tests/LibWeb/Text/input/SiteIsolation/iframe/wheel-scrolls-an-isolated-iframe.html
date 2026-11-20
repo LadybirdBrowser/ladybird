@@ -13,9 +13,15 @@
             await httpTestServer().createEcho("GET", "/oop-iframe-wheel", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
+                // The frame is ready once its own Compositor would scroll it for a wheel under the pointer. A wheel sent
+                // before then, while nothing of the frame has been rendered yet, scrolls nothing.
                 body: `<!DOCTYPE html><style>body { margin: 0; height: 3000px; }</style><script>
                     addEventListener("scroll", () => parent.postMessage({ scrolled: scrollY > 0 }, "*"));
-                    parent.postMessage("ready", "*");
+                    (async () => {
+                        while (internals.compositorWheelTargetAt(100, 75, 0, 5).document !== document)
+                            await new Promise(resolve => requestAnimationFrame(resolve));
+                        parent.postMessage("ready", "*");
+                    })();
                 <\/script>`,
             })
         );
