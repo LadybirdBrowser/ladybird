@@ -11,8 +11,10 @@
 
     function printRenderingSchedule(title, trace) {
         println(title);
+        // A request made while rendering comes from the rendering work itself, never from the test, and the work an
+        // opportunity starts can make one before the trace is taken.
         for (const line of trace.split("\n")) {
-            if (/^(request|opportunity|update$)/.test(line))
+            if (/^(request(?! while rendering)|opportunity|update$)/.test(line))
                 println(`  ${line}`);
         }
     }
