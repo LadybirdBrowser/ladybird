@@ -1,0 +1,17 @@
+Ladybird now resolves a replaced grid item’s percentage height against
+its grid area while the columns are sized, and doesn’t compress the
+item’s automatic minimum height to zero. Run in Chrome 157.0.8103.79,
+Firefox 151.0, and Playwright’s WebKit 26.5, all three engines
+grow the auto row to 450px.
+
+In Blink, GridLayoutAlgorithm::CreateConstraintSpaceForMeasure()
+resolves percentages against the tracks
+that the item spans, and CalculateIntrinsicMinimumContribution()
+measures the block contribution uncompressed: The compression in
+ComputeMinAndMaxContentContributionForReplaced() tests only the width.
+WebKit’s GridTrackSizingAlgorithm treats the grid area as indefinite in
+the first column pass, in shouldTreatGridAreaBlockSizeAsIndefinite(),
+and its minContributionForGridItem() measures the item’s block
+size uncompressed. Gecko’s GridReflowInput::PercentageBasisFor()
+uses the item’s tracks, and nsLayoutUtils::AddIntrinsicSizeOffset()
+compresses only in the inline axis.
