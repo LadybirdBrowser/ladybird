@@ -29,14 +29,15 @@ use crate::runtime::intl::abstract_operations::get_available_named_time_zone_ide
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::realm::Realm;
 use crate::runtime::temporal::instant::{
-    NANOSECONDS_PER_DAY, NANOSECONDS_PER_MICROSECOND, NANOSECONDS_PER_MILLISECOND, NANOSECONDS_PER_SECOND,
+    NANOSECONDS_PER_MICROSECOND, NANOSECONDS_PER_MILLISECOND, NANOSECONDS_PER_SECOND,
 };
 use crate::runtime::temporal::iso_records::ISODateTime;
 use crate::runtime::temporal::iso8601::{SubMinutePrecision, TimeZoneOffset, parse_utc_offset};
-use crate::runtime::temporal::plain_date_time::time_value_to_iso_date_time_record;
-use crate::runtime::temporal::time_zone::{get_named_time_zone_next_transition, parse_time_zone_identifier};
+use crate::runtime::temporal::time_zone::parse_time_zone_identifier;
 use crate::runtime::value_conversions::to_integer_or_infinity;
-use crate::unicode::time_zone::{self as unicode_time_zone, TimeZoneOffset as UnicodeTimeZoneOffset, UnixDateTime};
+use crate::unicode::time_zone::{
+    self as unicode_time_zone, TimeZoneOffset as UnicodeTimeZoneOffset, TimeZoneTime, UnixDateTime,
+};
 use crate::utf16::Utf16View;
 
 /// A Date object, whose [[DateValue]] is `date_value`.
@@ -517,7 +518,7 @@ pub fn get_named_time_zone_offset_nanoseconds(
     let seconds = epoch_nanoseconds.div_floor(&NANOSECONDS_PER_SECOND.clone());
     let time = UnixDateTime::from_seconds_since_epoch(clip_bigint_to_sane_time(&seconds));
 
-    unicode_time_zone::time_zone_offset(time_zone_identifier, time).expect("offset.has_value()")
+    unicode_time_zone::time_zone_offset(time_zone_identifier, time, TimeZoneTime::Utc).expect("offset.has_value()")
 }
 
 // 21.4.1.21 GetNamedTimeZoneOffsetNanoseconds ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/ecma262/#sec-getnamedtimezoneoffsetnanoseconds
@@ -529,7 +530,7 @@ pub fn get_named_time_zone_offset_milliseconds(
     let seconds = epoch_milliseconds / 1000.0;
     let time = UnixDateTime::from_seconds_since_epoch(clip_double_to_sane_time(seconds));
 
-    unicode_time_zone::time_zone_offset(time_zone_identifier, time).expect("offset.has_value()")
+    unicode_time_zone::time_zone_offset(time_zone_identifier, time, TimeZoneTime::Utc).expect("offset.has_value()")
 }
 
 /// The cached SystemTimeZoneIdentifier(), as code units, so that it can be shared by the threads of the agents.
@@ -677,44 +678,13 @@ pub fn utc_time(time: f64) -> f64 {
     }
     // 5. Else,
     else {
-        // a. Let isoDateTime be TimeValueToISODateTimeRecord(t).
-        let iso_date_time = time_value_to_iso_date_time_record(time);
-
-        // b. Let possibleInstants be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, isoDateTime).
-        let possible_instants = get_named_time_zone_epoch_nanoseconds(system_time_zone_identifier, &iso_date_time);
-
-        // c. NOTE: The following steps ensure that when t represents local time repeating multiple times at a negative
-        //    time zone transition (e.g. when the daylight saving time ends or the time zone offset is decreased due to
-        //    a time zone rule change) or skipped local time at a positive time zone transition (e.g. when the daylight
-        //    saving time starts or the time zone offset is increased due to a time zone rule change), t is interpreted
-        //    using the time zone offset before the transition.
-        let disambiguated_instant = if let Some(first) = possible_instants.into_iter().next() {
-            // d. If possibleInstants is not empty, then
-            //     i. Let disambiguatedInstant be possibleInstants[0].
-            first
-        }
-        // e. Else,
+        // Steps 5.a-f use the offset before the transition for both skipped and repeated local times.
+        let local_time = UnixDateTime::from_milliseconds_since_epoch(time as i64);
+        let Some(offset) =
+            unicode_time_zone::time_zone_offset(system_time_zone_identifier, local_time, TimeZoneTime::Local)
         else {
-            // i. NOTE: t represents a local time skipped at a positive time zone transition (e.g. due to daylight
-            //    saving time starting or a time zone rule change increasing the UTC offset).
-
-            // ii. Let possibleInstantsBefore be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, TimeValueToISODateTimeRecord(tBefore)),
-            //     where tBefore is the largest integral Number < t for which possibleInstantsBefore is not empty (i.e.,
-            //     tBefore represents the last local time before the transition).
-            // NB: We implement this by finding the next UTC offset transition after one day before the skipped time,
-            //     which is guaranteed to be before the gap. The last valid instant before the transition is one
-            //     nanosecond before the transition instant.
-            let epoch_nanoseconds = get_utc_epoch_nanoseconds(&iso_date_time);
-            let day_before = epoch_nanoseconds - NANOSECONDS_PER_DAY.clone();
-            let transition = get_named_time_zone_next_transition(system_time_zone_identifier, &day_before)
-                .expect("transition.has_value()");
-
-            // iii. Let disambiguatedInstant be the last element of possibleInstantsBefore.
-            transition - 1
+            return f64::NAN;
         };
-
-        // f. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, disambiguatedInstant).
-        let offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, &disambiguated_instant);
         offset.offset_nanoseconds as f64
     };
 

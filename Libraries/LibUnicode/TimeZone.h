@@ -57,7 +57,9 @@ void clear_system_time_zone_cache();
 Vector<Utf16String> const& available_time_zones();
 Vector<Utf16String> available_time_zones_in_region(Utf16View region);
 Optional<Utf16String> resolve_primary_time_zone(Utf16View time_zone);
-Optional<TimeZoneOffset> time_zone_offset(Utf16View time_zone, UnixDateTime time);
+enum class TimeZoneTime { UTC,
+    Local };
+Optional<TimeZoneOffset> time_zone_offset(Utf16View time_zone, UnixDateTime time, TimeZoneTime = TimeZoneTime::UTC);
 Vector<TimeZoneOffset> disambiguated_time_zone_offsets(Utf16View time_zone, UnixDateTime time);
 Optional<TimeZoneTransition> get_time_zone_transition(Utf16View time_zone, UnixDateTime time, TimeZoneTransition::Options options);
 
