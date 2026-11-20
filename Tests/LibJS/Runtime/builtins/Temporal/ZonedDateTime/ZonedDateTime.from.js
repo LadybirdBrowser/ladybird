@@ -223,3 +223,11 @@ describe("errors", () => {
         }).toThrowWithMessage(RangeError, "Invalid calendar identifier 'invalid'");
     });
 });
+
+test("local time beyond the signed 64-bit nanosecond range", () => {
+    const dateTime = Temporal.ZonedDateTime.from("2500-01-01T12:00:00.000000001[America/New_York]");
+    expect(dateTime.toInstant().toString()).toBe("2500-01-01T17:00:00.000000001Z");
+
+    const historical = Temporal.ZonedDateTime.from("1600-01-01T12:00:00.999999999[America/New_York]");
+    expect(historical.toInstant().toString()).toBe("1600-01-01T16:56:02.999999999Z");
+});

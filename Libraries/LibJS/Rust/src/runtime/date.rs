@@ -497,7 +497,8 @@ pub fn get_named_time_zone_epoch_nanoseconds(
     iso_date_time: &ISODateTime,
 ) -> Vec<SignedBigInteger> {
     let local_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
-    let local_time = UnixDateTime::from_nanoseconds_since_epoch(clip_bigint_to_sane_time(&local_nanoseconds));
+    let milliseconds = local_nanoseconds.div_floor(&NANOSECONDS_PER_MILLISECOND);
+    let local_time = UnixDateTime::from_milliseconds_since_epoch(clip_bigint_to_sane_time(&milliseconds));
 
     let offsets = unicode_time_zone::disambiguated_time_zone_offsets(time_zone_identifier, local_time);
 
@@ -512,8 +513,7 @@ pub fn get_named_time_zone_offset_nanoseconds(
     time_zone_identifier: Utf16View<'_>,
     epoch_nanoseconds: &SignedBigInteger,
 ) -> UnicodeTimeZoneOffset {
-    // Since UnixDateTime::from_seconds_since_epoch() and UnixDateTime::from_nanoseconds_since_epoch() both take an i64, converting to
-    // seconds first gives us a greater range. The TZDB doesn't have sub-second offsets.
+    // TZDB offsets have second precision. Convert before narrowing to keep the full Temporal range.
     let seconds = epoch_nanoseconds.div_floor(&NANOSECONDS_PER_SECOND.clone());
     let time = UnixDateTime::from_seconds_since_epoch(clip_bigint_to_sane_time(&seconds));
 
