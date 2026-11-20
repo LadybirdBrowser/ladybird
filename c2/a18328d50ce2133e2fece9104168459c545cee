@@ -1,0 +1,12 @@
+Ladybird walks the containing blocks of a wheel target until it finds
+an ancestor with a compositor scroll node. Blink walks containing
+boxes in ScrollManager::RecomputeScrollChain and scroll nodes in
+cc::InputHandler::FindNodeToLatch. Gecko builds a chain to the
+scrollable ancestor in APZCTreeManager::BuildOverscrollHandoffChain.
+WebKit checks the enclosing scrollable areas through EventHandler and
+ScrollLatchingController::shouldLatchToScrollableArea.
+
+Chrome 158.0.8127.36, Firefox 151.0, and WebKit 26.5 all scrolled the
+page under the fixed clipping box. A visible scrollable panel took
+the wheel itself. A transformed outer scroller took the step when it
+established the fixed overlay’s containing block.
