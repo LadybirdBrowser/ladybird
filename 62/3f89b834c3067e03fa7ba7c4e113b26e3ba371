@@ -1,0 +1,12 @@
+Ladybird computes the elements that read a size container’s size again
+only once a layout gives the container a box. Blink resumes the style
+recalc for the descendants of a size container in its StyleEngine’s
+UpdateStyleAndLayoutTreeForSizeContainer(), which only the container’s
+own BlockNode::Layout() calls — so a container that isn’t laid out never
+asks again. WebKit’s TreeResolver::updateStateForQueryContainer() defers
+a size container’s descendants, and TreeResolver::resolve() resumes them
+once per resolution, after the interleaved layout of the container’s
+renderer. And for a container whose frame’s size changed, Gecko’s
+nsPresContext::UpdateContainerQueryStylesAndAnchorPosLayout() restyles
+its subtree at most once per flush; a container without a frame has
+none, so it never restyles one.
