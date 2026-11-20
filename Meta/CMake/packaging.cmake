@@ -1,3 +1,5 @@
+# Pass the values below to CPack as they are, rather than unescaping them once more.
+set(CPACK_VERBATIM_VARIABLES ON)
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_STRIP_FILES TRUE)
 set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
@@ -63,6 +65,21 @@ set(CPACK_RPM_DEBUGSYMBOLS_PACKAGE_DESCRIPTION "Debug symbols for Ladybird, whic
 # rpmbuild compresses on a single thread by default, which takes many minutes for packages of our size.
 set(CPACK_RPM_SPEC_INSTALL_POST "/bin/true")
 set(CPACK_RPM_SPEC_MORE_DEFINE "%define _build_id_links none\n%define _binary_payload w9T0.xzdio")
+
+# The package carries the shared libraries from vcpkg for itself alone, so it must not offer them to the system, nor
+# ask the system for them.
+include(install_vcpkg_libraries)
+if (LINUX AND LADYBIRD_INSTALLS_VCPKG_LIBRARIES)
+    ladybird_vcpkg_library_directory(vcpkg_library_dir)
+    file(GLOB vcpkg_shared_library_links RELATIVE "${vcpkg_library_dir}" "${vcpkg_library_dir}/*.so")
+    list(TRANSFORM vcpkg_shared_library_links REPLACE "\\.so$" "")
+    list(TRANSFORM vcpkg_shared_library_links REPLACE "([][+.*()^$?|\\\\])" "\\\\\\\\\\1")
+    list(JOIN vcpkg_shared_library_links "|" vcpkg_shared_library_names)
+    if (vcpkg_shared_library_names)
+        string(APPEND CPACK_RPM_SPEC_MORE_DEFINE "\n%global __provides_exclude ^(${vcpkg_shared_library_names})\\\\.so")
+        string(APPEND CPACK_RPM_SPEC_MORE_DEFINE "\n%global __requires_exclude ^(${vcpkg_shared_library_names})\\\\.so")
+    endif()
+endif()
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION /opt /usr/lib/debug /usr/lib/debug/.build-id /usr/share/applications
     /usr/share/dbus-1 /usr/share/dbus-1/services /usr/share/icons /usr/share/icons/hicolor
     /usr/share/icons/hicolor/scalable /usr/share/icons/hicolor/scalable/apps /usr/share/metainfo)
