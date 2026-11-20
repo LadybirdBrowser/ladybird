@@ -104,6 +104,7 @@ public:
     GC::Ptr<RemoteNavigable> provisional_for() const { return m_provisional_for; }
     void clear_provisional_for() { m_provisional_for = nullptr; }
     static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const& current_history_entry);
+    bool container_suppresses_viewport_scrolling() const;
     void set_root_container_state(ReplicatedContainerState);
     void set_parent_compositor_context(Optional<Web::CompositorContextId>);
 

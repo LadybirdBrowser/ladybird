@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 3000px; }
+    iframe { position: fixed; top: 0; left: 0; width: 300px; height: 200px; border: 0; }
+</style>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        frame.scrolling = "NoScRoLl";
+        frame.srcdoc = "<!doctype html><style>html { overflow: scroll } body { margin: 0; height: 1600px }</style>";
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        document.body.append(frame);
+        await loaded;
+        const child = frame.contentWindow;
+        async function wheel(description, scrollTarget) {
+            await animationFrame();
+            await animationFrame();
+            await scrollSettled(scrollTarget, async () => {
+                await internals.wheelThroughUIProcess(100, 100, 0, 100, true, "ongoing");
+                await internals.wheelThroughUIProcess(100, 100, 0, 0, true, "ended");
+            });
+            println(`${description}: page ${scrollY}, frame ${child.scrollY}`);
+        }
+        await wheel("NoScRoLl", document);
+        await scrollSettled(child.document, () => child.scrollTo(0, 80));
+        println(`script scroll: ${child.scrollY}`);
+        frame.removeAttribute("scrolling");
+        await wheel("attribute removed", child.document);
+        frame.scrolling = "off";
+        await wheel("off", document);
+    });
+</script>

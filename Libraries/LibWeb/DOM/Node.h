@@ -94,6 +94,7 @@ enum class RootNodeComposed {
     X(KeyframeEffect)                                 \
     X(LayoutTreeUpdate)                               \
     X(MathMLAttributeChange)                          \
+    X(FrameScrollingAttributeChange)                  \
     X(NavigableSetViewportSize)                       \
     X(SVGImageElementFetchTheDocument)                \
     X(SVGResourceElementAttributeChange)              \

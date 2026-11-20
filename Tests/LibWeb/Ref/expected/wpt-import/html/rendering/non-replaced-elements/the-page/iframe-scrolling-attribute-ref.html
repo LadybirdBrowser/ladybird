@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>iframe: changing the scrolling attribute</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+
+
+
+<style>
+    iframe {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+
+<p>These two iframes should *both* render with scrollbars:</p>
+<iframe src="support/big-page.html" scrolling="unknown"></iframe>
+<iframe src="support/big-page.html" scrolling="unknown"></iframe>

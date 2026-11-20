@@ -1608,11 +1608,21 @@ ReplicatedContainerState LocalNavigable::container_state() const
     return container->replicated_container_state();
 }
 
+bool LocalNavigable::container_suppresses_viewport_scrolling() const
+{
+    if (auto container = this->container())
+        return container->suppresses_viewport_scrolling();
+    return m_root_container_state.suppresses_viewport_scrolling;
+}
+
 void LocalNavigable::set_root_container_state(ReplicatedContainerState state)
 {
     VERIFY(is_local_root() && parent());
     auto used_color_scheme_changed = m_root_container_state.used_color_scheme != state.used_color_scheme;
+    bool scroll_mode_changed = m_root_container_state.suppresses_viewport_scrolling != state.suppresses_viewport_scrolling;
     m_root_container_state = move(state);
+    if (scroll_mode_changed && m_active_document)
+        m_active_document->set_needs_layout_update(DOM::SetNeedsLayoutReason::FrameScrollingAttributeChange);
 
     // The container's used color scheme decides whether the canvas is opaque.
     if (used_color_scheme_changed && m_active_document) {

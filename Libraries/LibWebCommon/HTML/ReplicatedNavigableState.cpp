@@ -15,6 +15,7 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedContainerState const& state)
 {
     TRY(encoder.encode(state.is_in_document_tree));
+    TRY(encoder.encode(state.suppresses_viewport_scrolling));
     TRY(encoder.encode(state.iframe_sandboxing_flag_set));
     TRY(encoder.encode(state.document_active_sandboxing_flag_set));
     TRY(encoder.encode(state.document_embedder_policy));
@@ -55,6 +56,7 @@ ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder& decoder)
 {
     return Web::HTML::ReplicatedContainerState {
         .is_in_document_tree = TRY(decoder.decode<bool>()),
+        .suppresses_viewport_scrolling = TRY(decoder.decode<bool>()),
         .iframe_sandboxing_flag_set = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
         .document_active_sandboxing_flag_set = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
         .document_embedder_policy = TRY(decoder.decode<Web::HTML::EmbedderPolicy>()),

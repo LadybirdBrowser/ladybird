@@ -1215,6 +1215,7 @@ pub(crate) struct LayoutNodeArena {
     /// The nodes whose boxes a running tree build or layout write changed, which the host hears of
     /// once it is over, or `None` while none runs.
     queued_box_presence: Option<Vec<BoundNode>>,
+    pub(crate) suppresses_viewport_scrolling: bool,
     /// Whether the document is an SVG file decoded as an image, which is fixed for its lifetime.
     document_is_decoded_svg: bool,
     /// Depth of synchronous layout passes, including their commits, on the stack.
@@ -1379,6 +1380,7 @@ impl LayoutNodeArena {
             style_engine: ArenaStyleEngine(crate::css::style::StyleEngineHandle::null()),
             box_presence_host: None,
             queued_box_presence: None,
+            suppresses_viewport_scrolling: false,
             document_is_decoded_svg: (false),
             active_layout_pass_depth: 0,
             layout_root: (NodeSlotId::INVALID),

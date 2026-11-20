@@ -128,6 +128,7 @@ pub struct FfiLayoutUpdateDocumentFacts {
     pub should_collect_devtools_layout_data: bool,
     pub document_in_quirks_mode: bool,
     pub document_in_limited_quirks_mode: bool,
+    pub suppresses_viewport_scrolling: bool,
     pub viewport_inline_size_raw: i32,
     pub viewport_block_size_raw: i32,
     /// The document's style node, which a layout tree build walks from.
@@ -748,6 +749,7 @@ impl LayoutRoundJob {
 
     fn run_with(mut self, state: &mut ArenaHandle, work: &OwedHostWork) -> LayoutRoundAnswer {
         let facts = self.facts;
+        state.arena_mut().suppresses_viewport_scrolling = facts.suppresses_viewport_scrolling;
         if self.build.is_none()
             && state.arena().layout_tree_update_marks_need_build()
             && let Some(document) = state.arena().document_style_node()
@@ -1285,6 +1287,7 @@ mod tests {
             should_collect_devtools_layout_data: false,
             document_in_quirks_mode: false,
             document_in_limited_quirks_mode: false,
+            suppresses_viewport_scrolling: false,
             viewport_inline_size_raw: 0,
             viewport_block_size_raw: 0,
             document_style_node: 0,

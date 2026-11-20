@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>The scrolling attribute</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#the-page">
+<link rel="match" href="../../../../../../expected/wpt-import/html/rendering/non-replaced-elements/the-page/iframe-scrolling-attribute-values-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-4">
+
+<style>
+    iframe {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+
+<p>This page tests the behavior of the <tt>scrolling</tt> attribute on
+<tt>&lt;iframe&gt;</tt> elements which contain a page large enough to need to
+be scrolled.</p>
+
+<iframe src="support/big-page.html"></iframe>
+<iframe src="support/big-page.html" scrolling></iframe>
+<iframe src="support/big-page.html" scrolling=""></iframe>
+<iframe src="support/big-page.html" scrolling="auto"></iframe>
+<iframe src="support/big-page.html" scrolling="yes"></iframe>
+<iframe src="support/big-page.html" scrolling="no"></iframe>
+<iframe src="support/big-page.html" scrolling="noscroll"></iframe>
+<iframe src="support/big-page.html" scrolling="off"></iframe>
+<iframe src="support/big-page.html" scrolling="NoScRoLl"></iframe>
+<iframe src="support/big-page.html" scrolling="bogus"></iframe>
+<iframe src="support/big-page.html" scrolling="1234"></iframe>
+

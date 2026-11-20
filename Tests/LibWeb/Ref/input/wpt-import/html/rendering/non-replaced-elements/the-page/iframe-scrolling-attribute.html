@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>iframe: changing the scrolling attribute</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#the-page">
+<link rel="match" href="../../../../../../expected/wpt-import/html/rendering/non-replaced-elements/the-page/iframe-scrolling-attribute-ref.html">
+
+<style>
+    iframe {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+
+<p>These two iframes should *both* render with scrollbars:</p>
+<iframe src="support/big-page.html" scrolling="unknown"></iframe>
+<iframe src="support/big-page.html" scrolling="unknown"></iframe>
+
+<script>
+  var iframe = document.getElementsByTagName("iframe")[1];
+  // Setting scrolling=no and then back to scrolling=unknown
+  // should result in a final value of auto.
+  iframe.setAttribute("scrolling", "no");
+  iframe.setAttribute("scrolling", "unknown");
+</script>

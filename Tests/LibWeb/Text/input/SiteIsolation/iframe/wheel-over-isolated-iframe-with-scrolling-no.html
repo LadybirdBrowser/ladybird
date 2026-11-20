@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    body { margin: 0; height: 2000px; }
+    iframe { position: fixed; inset: 0; width: 200px; height: 150px; border: 0; }
+</style>
+<script>
+    promiseTest(async () => {
+        const child = new URL(await httpTestServer().createEcho("GET", "/isolated-frame-scroll-mode", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><style>body { margin: 0; height: 2000px }</style><script>
+                onmessage = () => parent.postMessage(scrollY, "*");
+                onload = () => parent.postMessage("ready", "*");
+            <\/script>`,
+        }));
+        child.hostname = uniqueLocalhostHostname("isolated-frame-scroll-mode");
+        const frame = document.createElement("iframe");
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const ready = nextMessage();
+        frame.scrolling = "no";
+        frame.src = child;
+        document.body.append(frame);
+        await ready;
+        await animationFrame();
+        await animationFrame();
+        await internals.wheelThroughUIProcess(100, 75, 0, 100, true);
+        const offset = nextMessage();
+        frame.contentWindow.postMessage("offset", "*");
+        println(`page: ${scrollY}, frame: ${await offset}`);
+    });
+</script>
