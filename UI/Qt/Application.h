@@ -101,7 +101,7 @@ public:
     ErrorOr<int> execute();
 
     Function<void(Vector<URL::URL> const&)> on_new_tab;
-    Function<void(Vector<URL::URL> const&)> on_new_window;
+    Function<void(Vector<URL::URL> const&, WebView::IsPrivate)> on_new_window;
     static WebView::Settings& settings() { return *s_the->m_settings; }
     static Bookmarks& bookmarks() { return *s_the->m_bookmarks; }
     static BookmarkStore& bookmark_store() { return *s_the->m_bookmark_store; }

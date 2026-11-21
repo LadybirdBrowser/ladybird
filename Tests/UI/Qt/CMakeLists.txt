@@ -86,6 +86,13 @@ if (TARGET Qt6::QOffscreenIntegrationPlugin)
             VERBATIM
         )
     endif()
+
+    # FIXME: On Windows, UBSan stops browser startup when Qt stores a captureless action callback.
+    if (APPLE OR LINUX)
+        target_sources(TestUIQt PRIVATE TestNewPrivateWindow.cpp)
+        set_property(SOURCE TestNewPrivateWindow.cpp APPEND PROPERTY COMPILE_DEFINITIONS LADYBIRD_EXECUTABLE="$<TARGET_FILE:ladybird>")
+        add_dependencies(TestUIQt ladybird)
+    endif()
 endif()
 
 if (APPLE)

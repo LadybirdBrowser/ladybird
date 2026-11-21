@@ -330,6 +330,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<u32> screenshot_delay;
     Optional<StringView> screenshot_path;
     bool new_window = false;
+    bool private_window = false;
     Optional<i64> replace_browser_from_before;
     StringView stats_log_directory;
     Optional<StringView> profile_name;
@@ -434,6 +435,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .hide_mode = Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown,
     });
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
+    args_parser.add_option(private_window, "Make the window opened by --new-window private", "private");
 #if !defined(AK_OS_WINDOWS)
     // FIXME: Offer this on Windows as well, once an unresponsive browser can be ended there.
     args_parser.add_option(replace_browser_from_before, "End a browser that is running for the profile if it is unresponsive and started before this time, and start in its place", "replace-unresponsive-browser-from-before", 0, "unix-time-in-milliseconds");
@@ -549,6 +551,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     create_platform_arguments(args_parser);
     args_parser.parse(m_arguments);
+    if (private_window && !new_window)
+        return Error::from_string_literal("--private requires --new-window");
 
     m_stats_log = TRY(Core::StatsLog::create(stats_log_directory, "ladybird"sv));
 
@@ -593,7 +597,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .urls = {},
         .raw_urls = move(raw_urls),
         .headless_mode = headless_mode,
-        .new_window = new_window ? NewWindow::Yes : NewWindow::No,
+        .new_window = private_window ? NewWindow::Private : (new_window ? NewWindow::Yes : NewWindow::No),
         .allow_popups = allow_popups ? AllowPopups::Yes : AllowPopups::No,
         .disable_scripting = disable_scripting ? DisableScripting::Yes : DisableScripting::No,
         .disable_sql_database = disable_sql_database ? DisableSQLDatabase::Yes : DisableSQLDatabase::No,
@@ -722,7 +726,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     rebuild_content_blocker_list_paths();
 
     if (!m_settings->first_run_complete() && !m_browser_options.headless_mode.has_value()
-        && !m_browser_options.webdriver_browser_endpoint.has_value()) {
+        && !m_browser_options.webdriver_browser_endpoint.has_value() && m_browser_options.new_window != NewWindow::Private) {
         if (m_browser_options.raw_urls.is_empty())
             m_browser_options.urls = { URL::about_welcome() };
         else if (!m_browser_options.urls.contains_slow(URL::about_welcome()))

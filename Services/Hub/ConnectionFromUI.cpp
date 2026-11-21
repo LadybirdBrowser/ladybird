@@ -51,7 +51,7 @@ ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
 
     auto& browser_process = Application::the().browser_process();
     browser_process.on_new_tab = [this](auto const& urls) { async_app_open_new_tab(urls); };
-    browser_process.on_new_window = [this](auto const& urls) { async_app_open_new_window(urls); };
+    browser_process.on_new_window = [this](auto const& urls, WebView::IsPrivate is_private) { async_app_open_new_window(urls, is_private); };
 }
 
 ConnectionFromUI::~ConnectionFromUI()
@@ -611,6 +611,7 @@ Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
     state.downloads = downloads();
     state.urls = options.urls;
     state.raw_urls = options.raw_urls;
+    state.new_window = options.new_window;
     state.crash_report_directory = WebView::CrashReportStore::the().directory();
     state.devtools_port = options.devtools_port;
     auto const& profile = Application::profile();

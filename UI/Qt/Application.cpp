@@ -724,6 +724,7 @@ ErrorOr<NonnullOwnPtr<Application>> Application::create(Main::Arguments const& a
     application->m_command_line = MUST(String::join(' ', arguments.strings));
     if (auto executable = Core::System::current_executable_path(); !executable.is_error()) {
         application->m_restart_command.executable = executable.release_value();
+        // FIXME: Should we omit --new-window --private and its URLs so restarting doesn't reopen private windows?
         for (auto argument : arguments.strings.slice(1))
             application->m_restart_command.arguments.append(argument);
     }
@@ -867,6 +868,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     //     hands it to the browser already running for the profile, if there is one.
     hub_arguments.extend(take_urls_from_launch_apple_events());
 #    endif
+    // FIXME: Pass the Hub's options before any "--" in the browser arguments so the Hub doesn't treat them as URLs.
     hub_arguments.append(ByteString::formatted("--ui-info={}", encode_hex(ui_info_buffer.data().span())));
     hub_arguments.append(ByteString::formatted("--ui-pid={}", Core::System::getpid()));
 
@@ -979,6 +981,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
 
     m_browser_options.urls = move(state.urls);
     m_browser_options.raw_urls = move(state.raw_urls);
+    m_browser_options.new_window = state.new_window;
     m_browser_options.devtools_port = state.devtools_port;
     if (state.devtools_enabled)
         m_devtools_port = state.devtools_port;
@@ -1781,7 +1784,14 @@ void Application::offer_to_restore_unexpectedly_closed_tabs()
     if (unit_ids.is_empty())
         return;
 
-    auto& window = active_window();
+    // NB: The recovery card belongs to the regular session, if we only have a private window create a regular window
+    //     to show it in.
+    auto* regular_window = non_private_window_if_any();
+
+    auto& window = regular_window
+        ? *regular_window
+        : new_window({ settings().new_tab_page_url() }, configuration_for_new_window());
+
     if (!window.current_tab())
         return;
 

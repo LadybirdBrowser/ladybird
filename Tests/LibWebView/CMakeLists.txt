@@ -1,3 +1,5 @@
+ladybird_python_test(test-private-window-options.py ARGS $<TARGET_FILE:ladybird>)
+
 if (BUILD_TESTING AND NOT WIN32)
     if (APPLE OR LINUX)
         ladybird_python_test(test-devtools-catch-up-layout.py ARGS $<TARGET_FILE:ladybird>)
