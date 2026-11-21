@@ -1058,6 +1058,11 @@ impl<U: Unit> Parser<'_, U> {
             }
         }
         self.expect(T::RBracket);
+        if subtree != NONE {
+            // NB: The mark of an array is not that of a subtree that a sweep goes by. It tells the sweep how many
+            //     elements come.
+            self.ast.b[subtree as usize] = (self.scratch.len() - mark) as u32;
+        }
         let list = self.finish_list(mark);
         let array_tag = if self.marks && has_spread {
             tag::ARRAY_SPREAD
